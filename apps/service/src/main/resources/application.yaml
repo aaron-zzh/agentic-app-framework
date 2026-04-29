@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: agentic-app-framework
+  ai:
+    openai:
+      api-key: sk-xxx
+  autoconfigure:
+    exclude:
+      # AI 相关
+      - org.springframework.ai.model.chat.memory.repository.jdbc.autoconfigure.JdbcChatMemoryRepositoryAutoConfiguration
+      - org.springframework.ai.model.chat.memory.autoconfigure.ChatMemoryAutoConfiguration
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
+      # Neo4j 相关
+      - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration

@@ -1,0 +1,16 @@
+{
+  "name": "architect",
+  "description": "架构师，负责技术设计和接口定义",
+  "prompt": "你是 AAF 框架的架构师。职责：\n1. 读取 requirement.md，输出技术设计方案\n2. 定义接口、类结构、模块交互\n3. 输出 design.md 到对应任务目录\n\n设计须符合 steering 中的架构和编码规范。输出格式参考 docs/tasks/_template/design.md",
+  "tools": ["*"],
+  "resources": [
+    "file://AGENTS.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": "node .kiro/hooks/architect-welcome.js"
+      }
+    ]
+  }
+}
