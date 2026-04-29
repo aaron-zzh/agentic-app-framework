@@ -1,0 +1,30 @@
+{
+  "name": "service",
+  "projectType": "application",
+  "sourceRoot": "apps/service/src",
+  "targets": {
+    "build": {
+      "command": "mvnw.cmd package -DskipTests",
+      "options": { "cwd": "apps/service" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pom.xml"],
+      "outputs": ["{projectRoot}/target"]
+    },
+    "serve": {
+      "command": "mvnw.cmd spring-boot:run",
+      "options": { "cwd": "apps/service" },
+      "continuous": true
+    },
+    "test": {
+      "command": "mvnw.cmd test",
+      "options": { "cwd": "apps/service" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pom.xml"],
+      "outputs": ["{projectRoot}/target/surefire-reports"]
+    },
+    "clean": {
+      "command": "mvnw.cmd clean",
+      "options": { "cwd": "apps/service" }
+    }
+  }
+}

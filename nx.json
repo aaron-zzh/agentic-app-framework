@@ -19,8 +19,7 @@
           "watchDepsName": "watch-deps"
         }
       }
-    },
-    "@nx/maven"
+    }
   ],
   "nxCloudId": "69f1d976dc0b8bf222e3acee",
   "analytics": false
