@@ -17,7 +17,7 @@
 
 | 岗位 | 岗位职责 | AI 智能体 | AI 协作模式 | 详细说明 |
 |------|---------|-----------|------------|---------|
-| **协调者** | 任务拆分与派发、进度跟踪、集成验证、过程改进 | kiro_default | AI 执行拆分/派发/集成验证/提交；人类把控方向和决策 | — |
+| **协调者** | 任务拆分与派发、进度跟踪、集成验证、过程改进 | kiro_default | AI 执行拆分/派发/集成验证/提交；人类把控方向和决策 | [roles/coordinator.md](roles/coordinator.md) |
 | **产品经理** | 需求分析、用户故事、验收标准、版本规划 | product | AI 结构化需求；人类提供业务判断和优先级 | [roles/product.md](roles/product.md) |
 | **架构师** | 技术设计、接口定义、架构决策、规范制定、代码审查 | architect | AI 输出设计方案并执行代码审查；人类审核高风险设计 | [roles/architect.md](roles/architect.md) |
 | **开发工程师** | 编码实现、验证（单元测试/自测）、代码重构 | developer-* (3个) | AI 按端并行编码；人类处理复杂逻辑和跨端协调 | [roles/developer.md](roles/developer.md) |
