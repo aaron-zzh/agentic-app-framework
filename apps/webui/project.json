@@ -1,0 +1,49 @@
+{
+  "name": "webui",
+  "projectType": "application",
+  "sourceRoot": "apps/webui/src",
+  "targets": {
+    "build": {
+      "command": "next build",
+      "options": { "cwd": "apps/webui" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/next.config.js", "{projectRoot}/tsconfig.json"],
+      "outputs": ["{projectRoot}/.next"]
+    },
+    "dev": {
+      "command": "next dev",
+      "options": { "cwd": "apps/webui" },
+      "continuous": true
+    },
+    "start": {
+      "command": "next start",
+      "options": { "cwd": "apps/webui" },
+      "continuous": true
+    },
+    "typecheck": {
+      "command": "tsc --noEmit -p tsconfig.json",
+      "options": { "cwd": "apps/webui" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/next-env.d.ts"],
+      "description": "TypeScript 类型检查"
+    },
+    "test": {
+      "command": "vitest run --passWithNoTests",
+      "options": { "cwd": "apps/webui" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/vitest.config.ts"],
+      "description": "developer 单测（Vitest：*.test.ts(x) / *.spec.ts(x)）"
+    },
+    "acceptance": {
+      "command": "vitest run --config vitest.acceptance.config.ts --passWithNoTests",
+      "options": { "cwd": "apps/webui" },
+      "cache": true,
+      "description": "tester 验收 / E2E（*.accept.test.ts(x) 或 Playwright，视未来引入的工具）"
+    },
+    "check": {
+      "dependsOn": ["typecheck", "test", "build"],
+      "executor": "nx:noop",
+      "description": "developer 完工自验证：typecheck + 单测 + build（eslint 待引入后加入）"
+    }
+  }
+}

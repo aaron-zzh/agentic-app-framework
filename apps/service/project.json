@@ -15,12 +15,36 @@
       "options": { "cwd": "apps/service" },
       "continuous": true
     },
+    "lint": {
+      "command": "mvnw.cmd spotless:check",
+      "options": { "cwd": "apps/service" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*.java", "{projectRoot}/pom.xml"]
+    },
+    "format": {
+      "command": "mvnw.cmd spotless:apply",
+      "options": { "cwd": "apps/service" }
+    },
     "test": {
       "command": "mvnw.cmd test",
       "options": { "cwd": "apps/service" },
       "cache": true,
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pom.xml"],
-      "outputs": ["{projectRoot}/target/surefire-reports"]
+      "outputs": ["{projectRoot}/target/surefire-reports"],
+      "description": "developer 单测（Surefire：*Test.java，含 ArchUnit）"
+    },
+    "acceptance": {
+      "command": "mvnw.cmd verify -DskipITs=false",
+      "options": { "cwd": "apps/service" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pom.xml"],
+      "outputs": ["{projectRoot}/target/failsafe-reports"],
+      "description": "tester 验收 / 集成测试（Failsafe：*IT.java / *AcceptanceTest.java）"
+    },
+    "check": {
+      "dependsOn": ["lint", "test", "build"],
+      "executor": "nx:noop",
+      "description": "developer 完工自验证：lint + 单测 + 编译"
     },
     "clean": {
       "command": "mvnw.cmd clean",
