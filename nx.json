@@ -20,6 +20,7 @@
     },
     {
       "plugin": "@nx/next/plugin",
+      "include": ["apps/*"],
       "options": {
         "startTargetName": "start",
         "buildTargetName": "build",

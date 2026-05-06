@@ -2,7 +2,15 @@
   "name": "@org/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "check": "nx run-many -t check",
+    "check:affected": "nx affected -t check",
+    "check:specs": "node scripts/check-spec-consistency.mjs",
+    "acceptance": "nx run-many -t acceptance",
+    "acceptance:affected": "nx affected -t acceptance",
+    "format": "nx format:write",
+    "format:check": "nx format:check"
+  },
   "private": true,
   "devDependencies": {
     "@nx/js": "22.7.0",

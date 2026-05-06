@@ -19,22 +19,37 @@ jobs:
           filter: tree:0
           fetch-depth: 0
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
+      # 启用 Nx Cloud 分布式任务
+      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="acceptance"
 
-      # Cache node_modules
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - run: npm ci
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
-      # Prepend any command with "nx record --" to record its logs to Nx Cloud
-      - run: npx nx record -- npx nx format:check  --base="remotes/origin/main"
-      - run: npx nx run-many -t lint test build typecheck e2e-ci
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - run: pnpm install --frozen-lockfile
+
+      # 阶段 1：格式检查（快速失败）
+      - name: Format check
+        run: npx nx record -- pnpm format:check
+
+      # 阶段 2：developer 自验证（lint + typecheck + 单测 + build）
+      - name: Developer check (lint / typecheck / unit test / build)
+        run: npx nx affected -t check --base=origin/main
+
+      # 阶段 3：tester 验收（集成测试、验收测试）
+      - name: Tester acceptance
+        run: npx nx affected -t acceptance --base=origin/main
+
+      # Nx Cloud self-healing
       - run: npx nx fix-ci
         if: always()

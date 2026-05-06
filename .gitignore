@@ -2,8 +2,15 @@
 
 # compiled output
 dist
-tmp
 out-tsc
+
+# Temp
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~
 
 # dependencies
 node_modules
@@ -47,7 +54,14 @@ Thumbs.db
 .claude/settings.local.json
 .nx/polygraph
 .nx/self-healing
+.playwright-mcp/
 
 # Next.js
 .next
 out
+
+# Logs
+logs/
+*.log
+log/
+

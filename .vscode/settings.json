@@ -1,0 +1,11 @@
+{
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "package.json": "pnpm-lock.yaml, pnpm-workspace.yaml, .prettierrc, .prettierignore, .gitignore, .gitattributes, tsconfig.json, tsconfig.base.json, nx.json, pom.xml, mvnw, mvnw.cmd"
+  },
+  "files.exclude": {
+    ".nx": true,
+    ".mvn": true,
+  }
+}
