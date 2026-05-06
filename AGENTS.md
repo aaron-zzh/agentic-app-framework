@@ -1,3 +1,178 @@
+# AGENTS.md — AAF 指针文档
+
+> **本文件是 AI 智能体的入口索引，不是权威规范文档。**
+> 所有详细规范、设计、流程的**唯一真理来源**都在 `docs/` 下。本文件仅提供一眼看清项目的快速参考，不再内联重复内容。
+> 发现本文件与 docs/ 冲突时，以 docs/ 为准并在 [改进意见](docs/prd/improvements.md) 中记录。
+
+## 项目一句话
+
+AAF（Agentic App Framework）是生产级 AI 原生多智能体应用开发框架。AI 是架构的一等公民，不是附加物。核心能力：多智能体协作 · 工作流引擎 · 知识库管理 · 规范驱动开发 · AI 自动开发 · 无代码开发 · 外部生态整合。
+
+## 技术栈（速览）
+
+- **后端**：Java 25, Spring Boot 4, Spring AI, WebFlux, GraphQL, MCP
+- **数据**：PostgreSQL/PgVector, Neo4j, Redis, Flyway
+- **工作流**：Flowable
+- **前端**：Next.js 16, React 19, TypeScript
+- **跨端**：UniApp
+- **工程化**：Nx monorepo, pnpm, Maven
+
+## 目录结构
+
+```text
+apps/service/  → Spring Boot 后端（Maven 多模块）
+apps/webui/    → Next.js 前端（App Router）
+apps/uniapp/   → UniApp 小程序/APP（待开发）
+packages/      → 共享库（待建设）
+docs/          → 项目文档（Diátaxis 四象限 + Team/Dev 规范）
+.kiro/         → 智能体配置（steering / agents / prompts / hooks / skills）
+```
+
+- 后端根包：`com.xuejiai.aaf`，业务模块 `com.xuejiai.aaf.module.{模块名}`
+- 后端 Maven 命令通过 `project.json` 桥接为 Nx target，统一 `pnpm nx <target> service`
+
+## 一键命令
+
+| 命令 | 负责人 | 作用 |
+|------|--------|------|
+| `pnpm check` | developer | 全部项目自验证（lint + 单测 + typecheck + build） |
+| `pnpm check:affected` | developer | 只验证 affected 项目（完工汇报前必跑） |
+| `pnpm acceptance` | tester | 全部项目验收/集成测试 |
+| `pnpm acceptance:affected` | tester | 只跑 affected 项目的验收测试 |
+| `pnpm format` / `pnpm format:check` | — | Nx 格式化 / 格式检查 |
+
+developer 完工前必跑 `pnpm check:affected`，失败循环修复到全绿。
+
+## AI 行为硬规则（编码时遵守）
+
+以下规则参考 multica CLAUDE.md 高密度风格，部分条目已登记 [改进意见 A-F](docs/prd/improvements.md) 待评估采纳，当前 agent 应主动遵循（作为软约束，未来转硬约束）：
+
+- **禁兼容层**：AAF 未 v1.0 发布，不允许加 fallback / dual-write / legacy adapter / temporary shim。替换旧 API 直接替换，不保留双路径
+- **不做 broad refactors**：只改任务要求的代码范围。借机重构相邻模块即 blocker（与"≥5 文件需协调者评估"配套）
+- **优先已有模式**：同一问题已有实现 → 复用或改造；禁止并行抽象（两套做同一件事）
+- **代码注释语言**：Java / TS 代码内注释保持一致（建议中文，与 `docs/` 真理源一致），禁中英混用
+- **TypeScript 严格模式**：类型必须显式，禁 `any` / 禁 `@ts-ignore`（特殊情况加注释解释）
+- **前端服务端状态边界**：TanStack Query 管服务端缓存；Zustand 仅管客户端 UI；禁止把服务端数据复制到 Zustand
+- **测试放置**：共享逻辑 → `packages/*.test.ts`；平台接线 → `apps/*.test.tsx`；测试需 mock `next/*` 来测共享组件即 blocker（位置错误）
+- **完工前必跑 `pnpm check:affected`**：失败即未完工，不得提交或汇报
+- **上下文使用率 ≤ 50%**：超过必须分析原因 + 记录 + 优化（详见 [上下文管理规范](docs/reference/team/context-management-standard.md)）
+
+## AI 验证循环（写代码时的内循环）
+
+参考 multica "AI Agent Verification Loop"——按场景分层决定验证力度：
+
+| 场景 | 验证要求 | 说明 |
+|------|----------|------|
+| 🟢 对话中小改动（探索/试错/文档） | 可跳过 | 自行判断，不阻塞对话节奏 |
+| 🟡 单文件/单模块改动 | 跑对应项目 test | `pnpm nx test service` 或 `pnpm nx test webui` |
+| 🔴 任务完工汇报前 / PR 前 | `pnpm check:affected` 全绿 | 失败即未完工，不得汇报 |
+| 🔴 迭代交付前 | `pnpm check` + `pnpm acceptance` 全绿 | 见交付清单 |
+
+```
+写代码（满足需求）
+    ↓
+pnpm check:affected
+    ↓
+全绿？
+  └─ 是 → 任务完成（可汇报）
+  └─ 否 → 读错误输出 → 修代码 → 重跑
+```
+
+**快速迭代**：只改 Java 时先 `pnpm nx test service`，只改 TS 时先 `pnpm nx test webui`，完工前再跑全量 `check:affected` 作为门禁。
+
+## 测试放置与命名规则
+
+| 层 | developer 单测 | tester 验收/集成 |
+|----|---------------|------------------|
+| Java | `XxxTest.java` → Surefire | `XxxIT.java` / `XxxAcceptanceTest.java` → Failsafe |
+| TS | `xxx.test.ts(x)` / `xxx.spec.ts(x)` → Vitest | `xxx.accept.test.ts(x)` → Vitest（独立 config） |
+
+**Tests follow the code, not the app**（借鉴 multica 硬规则，已登记 [改进意见 E](docs/prd/improvements.md)）：
+
+- 共享业务逻辑（pure logic，无 DOM）→ `packages/*/src/**/*.test.ts`
+- 共享 UI 组件（jsdom，不 mock 框架）→ `packages/views/**/*.test.tsx`（v0.2 `packages/` 落地后）
+- 平台接线（需 mock `next/*` / `react-router`）→ `apps/webui/**/*.test.tsx`
+- E2E 用户流程 → `e2e/**/*.spec.ts`（AAF-023 #6 Playwright 引入后）
+- Java 单元 → Surefire；Java 集成/验收 → Failsafe
+
+如测试需 mock `next/navigation` 来测共享组件，**测试放错位置**——移到 `packages/` 并 mock `@aaf/core`。
+
+## 包边界硬规则（速览）
+
+AAF 后端 Maven 模块依赖方向（详见 [architecture-constraints.md](docs/reference/dev/architecture-constraints.md)）：
+
+- `aaf-dependencies` ← 无依赖（纯 BOM，禁止任何 Java 代码）
+- `aaf-common` ← 仅第三方工具库，零业务依赖，禁止 Spring Bean / 数据库访问
+- `aaf-framework` ← 依赖 common，禁止依赖业务模块 / aaf-api / aaf-auto-dev
+- `aaf-auto-dev` ← 依赖 framework + common，禁止依赖 aaf-api
+- `aaf-api` ← 依赖所有上面，是启动入口；跨业务包禁止直接访问 entity/repository
+
+违反方向即 ArchUnit blocker（待 AAF-023 Maven 拆分完成 + P2.3 激活 `LayeringTest.java` 的 5 条真实规则）。前端 `packages/` 边界规则在 v0.2 + P2.3 首个共享包落地时同步定义。
+
+## 文档导航（唯一真理源）
+
+> 详细规范在 `docs/` 下，本文件与 `.kiro/steering/collaboration.md` 是**摘要 + 入口**，不是权威源。
+> 冲突时以 `docs/reference/team/Readme.md` 为准。
+
+### 团队与流程（从这里开始）
+
+| 场景 | 文档 |
+|------|------|
+| 团队架构与角色总览 | [docs/reference/team/Readme.md](docs/reference/team/Readme.md) |
+| 协作硬约束红线 | [.kiro/steering/collaboration.md](.kiro/steering/collaboration.md) |
+| 协作详细规范（人 / AI / 系统三方） | [docs/reference/team/collaboration-standard.md](docs/reference/team/collaboration-standard.md) |
+| 迭代过程详细规范 | [docs/reference/team/process-standard.md](docs/reference/team/process-standard.md) |
+| 过程审计 | [docs/reference/team/process-audit-standard.md](docs/reference/team/process-audit-standard.md) |
+
+### 编码与测试
+
+| 类别 | 文档 |
+|------|------|
+| 编码行为硬约束 1-9 | [.kiro/skills/coding-standards/SKILL.md](.kiro/skills/coding-standards/SKILL.md) |
+| 编码风格（Java） | [docs/reference/dev/apps/service/coding-style-standard.md](docs/reference/dev/apps/service/coding-style-standard.md) |
+| 架构约束 | [docs/reference/dev/architecture-constraints.md](docs/reference/dev/architecture-constraints.md) |
+| 代码审查（含对称性检查 12 项） | [docs/reference/dev/code-review-standard.md](docs/reference/dev/code-review-standard.md) |
+| 提交规范 | [docs/reference/dev/git/commit-standard.md](docs/reference/dev/git/commit-standard.md) |
+| 单元测试 | [docs/reference/dev/test/unit-test-standard.md](docs/reference/dev/test/unit-test-standard.md) |
+| 验收测试 | [docs/reference/dev/test/acceptance-test-standard.md](docs/reference/dev/test/acceptance-test-standard.md) |
+| 集成测试 | [docs/reference/dev/test/integration-test-standard.md](docs/reference/dev/test/integration-test-standard.md) |
+
+### 需求管理
+
+| 类别 | 文档 |
+|------|------|
+| 需求管理规范 | [docs/reference/dev/requirement-standard.md](docs/reference/dev/requirement-standard.md) |
+| 路线图 | [docs/prd/roadmap.md](docs/prd/roadmap.md) |
+
+### 设计与思想
+
+| 文档 | 内容 |
+|------|------|
+| [docs/design/architecture.md](docs/design/architecture.md) | 整体架构（五层 + 五层智能） |
+| [docs/design/framework/meta-engine.md](docs/design/framework/meta-engine.md) | 元引擎核心设计 |
+| [docs/explanation/architecture-thought.md](docs/explanation/architecture-thought.md) | 架构决策背后的 Why |
+| [docs/explanation/design-principles.md](docs/explanation/design-principles.md) | 化繁为简、DRY、AI 友好等 |
+
+### 任务与需求
+
+| 文档 | 内容 |
+|------|------|
+| [docs/task/backlog.md](docs/task/backlog.md) | 所有用户故事的唯一来源 |
+| [docs/task/aaf-v0.1.0.md](docs/task/aaf-v0.1.0.md) | 当前迭代任务计划 |
+| [docs/prd/roadmap.md](docs/prd/roadmap.md) | 版本里程碑路线图 |
+| [docs/prd/improvements.md](docs/prd/improvements.md) | 改进意见池 |
+
+## 硬约束（摘要，详见 steering 与编码规范）
+
+- 任务编号：用户故事 `AAF-{三位}`、技术任务 `#N`；提交脚注 `Task: #N`
+- 完工前必跑 `pnpm check:affected`，失败汇报视为未完工
+- 批量修改文件（≥5 个）或改接口签名 → 协调者评估
+- 🔴 高风险设计必须人类审核后再开发
+- 上下文使用率不得超过 50%
+- 规范文档（`docs/reference/`）只能由协调者修改
+- 一个知识点一份文档；发现重复记录到 [改进意见](docs/prd/improvements.md)
+- 开发记录：第一次迭代（v0.1.0）前期暂不记录开发记录，从下次迭代开始记录
+
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
 
