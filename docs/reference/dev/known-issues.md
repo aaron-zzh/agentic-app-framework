@@ -1,4 +1,18 @@
+---
+level: Practice
+layer: Product
+purpose: 记录外部依赖的已知问题和技术限制
+status: published
+version: 1.0.0
+date: 2026-05-06
+author: AaronZZH
+---
+
 # 已知问题
+
+记录外部依赖的已知问题、技术限制和临时解决方案。
+
+> **注意**：项目内部 Bug 在 [backlog.md](../../task/backlog.md) 中标记 `[Bug]` 管理；改进意见在 [improvements.md](../../prd/improvements.md) 中记录。
 
 ## @nx/maven 插件 createDependencies 报错（#34254）
 

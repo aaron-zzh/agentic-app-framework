@@ -1,171 +1,213 @@
-# 上下文管理
+---
+level: 2
+version: 0.1.0
+date: 2026-05-06
+purpose: 规定 AAF 项目中各类内容在 Kiro 上下文系统中的归属位置，避免 agent 资源臃肿、漏载或错载
+changelog:
+  - 2026-05-06 | 重构为"决策手册"风格：新增内容类型映射、决策树、agent 配置清单（参考 multica CLAUDE.md 的高密度规则文档风格）
+  - 2026-05-04 | 初版
+---
 
-本文档说明 Kiro 的上下文管理机制，以及本项目如何利用这些机制为智能体提供精准上下文。
+# 上下文管理规范
 
-官方文档：[Context Management](https://kiro.dev/docs/cli/chat/context/)
+本项目基于 [Kiro Context Management](https://kiro.dev/docs/cli/chat/context/) 的四层机制，规定**哪些内容放什么位置**，让每个 agent 只看该看的。
 
-## 四层上下文策略
+## 1. 总原则（硬约束）
 
-Kiro 提供四种上下文方式，按加载时机和持久性分层：
+- **能 Steering 绝不 Session**：全局不变的规则放 Steering，临时文件才放 Session
+- **能 Skill 绝不 Resources**：偶尔才用的放 Skill（按需加载），每次都用的才放 Resources（始终加载）
+- **大文档绝不硬塞上下文**：> 10MB 或文件数多 → Knowledge Base 走搜索
+- **外部参考资料不进全局**：`docs/design/auto-dev/multica/`、`docs/design/auto-dev/gstack/` 等外部项目代码，只有在具体任务需要时才 `/context add`
+- **上下文使用率 ≤ 50%**：steering 硬约束（见 `.kiro/steering/collaboration.md`），违反视为配置错误
 
-| 层级 | 配置方式 | 加载时机 | 持久性 | 适用场景 |
+## 2. 四层策略速览
+
+| 层级 | 配置方式 | 加载时机 | 持久性 | 典型大小 |
 |------|---------|---------|--------|---------|
-| Steering | `.kiro/steering/*.md` | 所有智能体自动加载 | 跨会话持久 | 全局规范：协作流程、提交规范、通用约定 |
-| Agent Resources | agent `resources` + `file://` | 指定智能体启动时全量加载 | 跨会话持久 | 角色必备：核心源码、编码标准、项目配置 |
-| Skills | agent `resources` + `skill://` | 启动时加载元数据，内容按需加载 | 跨会话持久 | 按需参考：最佳实践、排查指南、可复用工作流 |
-| Knowledge Base | `knowledgeBase` 配置或 `/knowledge add` | 搜索时才加载 | 跨会话持久 | 大数据集：大型代码库、海量文档 |
+| **Steering** | `.kiro/steering/*.md` | 所有 agent 自动加载 | 跨会话 | 单文件 < 5KB，总量 < 20KB |
+| **Agent Resources** | agent `resources: file://...` | 指定 agent 启动时全量加载 | 跨会话 | 单 agent 总量 < 100KB |
+| **Skills** | agent `resources: skill://...` | 启动加载元数据，触发时加载正文 | 跨会话 | 正文 < 500 行/SKILL.md |
+| **Knowledge Base** | `knowledgeBase` / `/knowledge add` | 搜索时才加载 | 跨会话 | 不限 |
 
-此外还有 **Session Context**（`/context add`），始终加载但仅当前会话有效，适合临时文件和快速实验。
+外加 **Session Context**（`/context add`）：始终加载但仅当前会话有效，适合临时文件。
 
-### 决策原则
+**上下文窗口限制**：上限为模型窗口的 75%，超出自动丢弃最旧文件，触发 compaction 摘要。默认 agent（kiro_default）自动加载所有 skill，自定义 agent 必须显式 `skill://`。
 
-1. 内容超过 10MB 或包含大量文件 → **Knowledge Base**
-2. 所有智能体都要看 → **Steering**（不用每个智能体单独配）
-3. 某个角色每次都需要 → **Agent Resources**（`file://`，始终在上下文中）
-4. 偶尔才用的参考 → **Skills**（`skill://`，省上下文空间）
-5. 临时用一下 → **Session Context**（`/context add`）
+## 3. 哪些内容放什么位置（决策手册）
 
-### 重要限制
+### 3.1 内容类型 → 位置映射表
 
-- 上下文文件上限为模型上下文窗口的 **75%**，超出时自动丢弃最旧的文件
-- 默认 agent（kiro_default）自动加载 `.kiro/skills/` 下的所有 skill
-- 自定义 agent（如 developer-xxx、tester）**不会**自动加载 skill，需要在 `resources` 中显式添加 `skill://` URI
-- 上下文溢出时会触发 **Compaction**（自动摘要旧消息），可通过 `/compact` 手动触发
+| 内容类型 | 具体举例 | 推荐位置 | 理由 |
+|---------|---------|---------|------|
+| **协作红线** | "完工前必跑 `check:affected`"、"上下文 ≤ 50%"、"≥5 文件需评估" | `.kiro/steering/collaboration.md` | 所有 agent 必须随时知道 |
+| **全局 AI 行为硬规则** | "禁兼容层"、"不做 broad refactors"、"代码注释语言统一"、"Prefer existing patterns" | `.kiro/steering/` 新建单独文件 或 并入 collaboration.md | 所有 agent 写代码都适用 |
+| **提交规范要点** | Conventional Commits 格式 + `Task: #N` 脚注 | steering（红线摘要）+ `docs/reference/dev/git/commit-standard.md`（详细）引用 | 每次提交都要遵守 |
+| **可复用工作流** | "如何创建 Maven 模块"、"如何写 ADR"、"如何审查代码" | `.kiro/skills/{slug}/SKILL.md` | 偶尔才需要，按需激活省上下文 |
+| **Skill 详细参考** | Java 编码规范细则、验收测试模板代码 | `.kiro/skills/{slug}/references/*.md` | 渐进披露，SKILL.md 引用时才加载 |
+| **角色必看源码/规范** | developer-api 的 Controller 基类、coding-style-standard.md、roles/developer.md | agent `resources: file://` | 该 agent 每次都要 |
+| **规范总览入口** | `docs/reference/team/Readme.md`、`docs/reference/dev/architecture-constraints.md` | 相关 agent `resources: file://` | 规范导航表 |
+| **任务模板** | `docs/task/_template/requirement.md` / `design.md` / `dev-log.md` / `review.md` / `audit.md` | 对应产出 agent `resources: file://` | product 用 requirement 模板，architect 用 design 模板 |
+| **本次任务上下文** | 本次 `AAF-025` 的需求/设计/验收标准 | subagent `prompt_template` 内嵌 或 精确到单文件的 `resources` | 每任务不同，不走全局 |
+| **历史任务产出物** | `docs/task/v0.1.0/AAF-023/dev-log.md` | Knowledge Base `docs/task/` | 不污染 resources，靠搜索 |
+| **整模块设计文档** | `docs/design/framework/meta-engine.md`（50KB+） | Knowledge Base `docs/design/framework` | 整体大，按搜索命中片段 |
+| **外部参考项目代码** | `docs/design/auto-dev/multica/`、`gstack/` | **不进任何层级**，按需 `/context add` | 大且与本项目直接代码无关 |
+| **整个代码库** | `apps/service/`、`apps/webui/` 源码 | Knowledge Base（必要时）或 `code` 工具按需读 | 不应全量载入 |
 
-## Skill 详解
+### 3.2 决策树（N 步判断）
 
-Skill 是遵循开放 [Agent Skills](https://agentskills.io) 标准的可移植指令包，可跨工具和团队共享。完整规范见 [Agent Skills Specification](https://agentskills.io/specification)。
+```text
+Q1: 这个内容是否所有 agent 都要看？
+  是 → Steering（.kiro/steering/）
+  否 → Q2
 
-### 渐进式披露（Progressive Disclosure）
+Q2: 这个内容是否 > 10MB 或文件很多（> 20 个）？
+  是 → Knowledge Base（knowledgeBase 字段）
+  否 → Q3
 
-1. **元数据**（~100 tokens）— 启动时只加载 name 和 description
-2. **指令**（建议 < 5000 tokens）— 用户请求匹配时加载完整 SKILL.md
-3. **资源**（按需）— `scripts/`、`references/`、`assets/` 中的文件仅在需要时加载
+Q3: 对这个 agent 来说是"每次都要看"还是"偶尔才需要"？
+  每次 → Agent Resources（resources: file://）
+  偶尔 → Skill（resources: skill://）
 
-### 触发方式
-
-- **自动**：AI 根据用户请求自动匹配 skill 描述并激活
-- **斜杠命令**：skill 名即命令名，如 `pr-review` skill → `/pr-review` 命令直接调用
-- 用 `/context show` 查看当前已加载的 skill
-
-### Skill 文件夹结构
-
-```
-my-skill/
-├── SKILL.md             # 必需，主指令文件（建议 < 500 行）
-├── scripts/             # 可选，可执行脚本（Python、Bash、JavaScript 等）
-├── references/          # 可选，参考文档（详细说明放这里，SKILL.md 中引用时才加载）
-└── assets/              # 可选，静态资源（模板、配置、数据文件等）
-```
-
-### SKILL.md 格式
-
-必须以 YAML frontmatter 开头：
-
-```markdown
----
-name: pr-review
-description: Review pull requests for code quality, security issues, and test coverage. Use when reviewing PRs or preparing code for review.
----
-
-## Review checklist
-
-1. Check for vulnerabilities, injection risks, exposed secrets
-2. Verify edge cases and failure modes are handled
-3. Confirm new code has appropriate tests
-
-For detailed checks, see `references/checklist.md`.
-Run validation: `scripts/validate.py`
+Q4: 是否仅本次任务临时用？
+  是 → prompt_template 内嵌 或 /context add（会话结束即失效）
+  否 → 走上面几层
 ```
 
-**Frontmatter 字段**：
+### 3.3 反例清单（最常见错误）
 
-| 字段 | 必需 | 说明 |
-|------|------|------|
-| `name` | 是 | 必须与文件夹名一致。仅限小写字母、数字、连字符，不能以连字符开头/结尾，不能连续连字符，最长 64 字符 |
-| `description` | 是 | 描述何时激活此 skill，AI 据此判断是否匹配。应包含具体关键词和动作。最长 1024 字符 |
-| `license` | 否 | 许可证名称或引用（如 `Apache-2.0`） |
-| `compatibility` | 否 | 环境要求（如依赖的工具、网络访问），最长 500 字符 |
-| `metadata` | 否 | 附加键值数据（如 `author`、`version`） |
-| `allowed-tools` | 否 | 空格分隔的预批准工具列表（实验性） |
+| ❌ 错误做法 | 后果 | ✅ 正确做法 |
+|-----------|------|-----------|
+| 把整个 `docs/reference/` 塞进所有 agent 的 resources | 每次启动浪费数十万 token，触发 compaction | 只给该 agent 角色相关的规范；其他走 Knowledge Base |
+| 把外部参考资料（`multica/`、`gstack/`）放进 steering | 每次加载，内容与本项目代码无关 | 已在 `.nxignore`；**按需 `/context add`**，任务结束不保留 |
+| Skill 描述写成 "helps with code review" | AI 匹配不到关键词，永远激活不了 | `"Review pull requests for security, test coverage, and breaking changes. Use when reviewing PRs or preparing code for review."` |
+| 本任务的需求文档硬编码到 steering | 下个任务的需求覆盖不了，污染所有 agent | 放到 subagent 的 `prompt_template` 或精确到单文件 `resources` |
+| SKILL.md 写成 800 行的长文 | AI 匹配后全量加载，浪费上下文 | SKILL.md < 500 行，详细规则放 `references/`，SKILL.md 引用时才加载 |
+| 多个 agent 都加载相同的 `commit-standard.md` | 提交规范适用全员，应上升为 steering | 要么 steering 内摘录红线，要么 steering 引用链接（不硬塞全文） |
+| knowledgeBase 里放 `docs/`（整个目录） | 搜索命中率乱，上下文无关内容进来 | 按子目录分：product → `docs/prd`；architect → `docs/design/framework`；tester → `docs/reference/dev/test` |
 
-### 作用域
+## 4. 本项目 Agent 资源配置清单
 
-| 位置 | 作用域 | 用途 |
-|------|--------|------|
-| `.kiro/skills/` | Workspace | 项目特定工作流、团队约定 |
-| `~/.kiro/skills/` | Global | 个人通用工作流，跨项目生效 |
-
-同名时 workspace 优先于 global。
-
-### 默认 agent vs 自定义 agent
-
-- **默认 agent**（kiro_default）：自动加载两个位置的 skill，无需配置
-- **自定义 agent**：需要在 `resources` 中显式添加 `skill://` URI：
+### 4.1 通用（所有 agent 必配）
 
 ```json
 {
-  "name": "my-agent",
   "resources": [
-    "skill://.kiro/skills/*/SKILL.md",
-    "skill://~/.kiro/skills/*/SKILL.md"
+    "file://AGENTS.md",
+    "file://docs/reference/team/Readme.md",
+    "file://docs/reference/team/collaboration-standard.md",
+    "file://docs/reference/team/process-standard.md",
+    "file://docs/reference/team/roles/{role}.md"
   ]
 }
 ```
 
-### Skill vs Steering
+外加 Steering 自动加载的 `.kiro/steering/collaboration.md`，所有 agent 都无需显式配置。
 
-| | Skill | Steering |
-|---|---|---|
-| 标准 | 开放标准（[Agent Skills](https://agentskills.io)） | Kiro 专有 |
-| 加载方式 | 按需激活 | 始终加载 |
-| 可包含子资源 | 是（`scripts/`、`references/`、`assets/`） | 否 |
-| 适用场景 | 可复用工作流、可共享的指令包 | 项目规范和约定 |
-| 版本控制 | 建议提交到仓库，团队共享 | 同左 |
+### 4.2 各 agent 差异化配置
 
-### 最佳实践
+| Agent | 差异化 resources（在通用之外） | knowledgeBase | 典型 Skill |
+|-------|-------------------------------|---------------|-----------|
+| **kiro_default**（协调者） | `docs/task/backlog.md`、`docs/task/aaf-v0.1.0.md`、`docs/task/_template/dispatch-log.md`、`docs/task/_template/context-stats.md` | `docs/task/` | 自动加载所有 skill（默认 agent 特性） |
+| **product** | `docs/prd/Readme.md`、`requirement-standard.md`、`roadmap.md`、`task/_template/requirement.md` | `docs/task/backlog.md`、`docs/prd` | `doc-writing` |
+| **architect** | `docs/design/Readme.md`、`architecture-constraints.md`、`code-review-standard.md`、`domain-modeling-standard.md`、`task/_template/{design,review,audit}.md` | `docs/design/framework` | `coding-standards`、`architecture-audit`（拟立） |
+| **developer-api** | `architecture-constraints.md`、`coding-style-standard.md`（Java）、`domain-modeling-standard.md`、`unit-test-standard.md`、`commit-standard.md`、`task/_template/dev-log.md` | `docs/design/service` | `coding-standards` |
+| **developer-web** | `architecture-constraints.md`、前端 `coding-style-standard.md`（若有）、`unit-test-standard.md`、`commit-standard.md`、`task/_template/dev-log.md` | `docs/design/webui` | `coding-standards`、`frontend-state-management`（拟立） |
+| **developer-app** | 类似 developer-web，替换为 uniapp 规范 | `docs/design/uniapp` | 同上 |
+| **designer** | `docs/design/ui/Readme.md`、`ui-experience.md`、`design-system.md` | `docs/design/ui` | `design-review`（拟立） |
+| **qa** | `docs/reference/team/process-audit-standard.md`、`task/_template/process-audit.md` | `docs/task/` | `process-audit`（拟立） |
+| **tester** | `docs/reference/dev/test/*`（单测/集成/验收 3 份）、`task/_template/test-report.md` | `docs/design/service` | `e2e-testing`（拟立，配合 AAF-023 #6 Playwright） |
+| **kiro_planner** | （默认配置，规划任务少量加载） | — | — |
+| **kiro_guide** | 官方 Kiro 文档索引 | — | — |
 
-- **描述要精确**：AI 靠 description 决定是否激活。"Review pull requests for security and test coverage" 优于 "helps with code review"
-- **SKILL.md 保持精简**：建议 < 500 行，详细文档放 `references/`
-- **确定性任务用脚本**：校验、文件生成、API 调用等放 `scripts/`，比让 LLM 生成更可靠
-- **选对作用域**：个人习惯 → global，团队流程 → workspace
-- **纳入版本控制**：将 `.kiro/skills/` 提交到仓库，确保团队共享相同工作流
-- **文件引用用相对路径**：从 SKILL.md 出发引用，保持一层深度，避免深层嵌套
+### 4.3 配置原则
 
-### 本项目推荐目录结构
+- **单 agent resources 总量控制在 < 100KB**（约 25K token），给任务上下文留足余量
+- **禁止 resources 通配符 `**/*.md`**：精确列出每个文件，避免扩张到整个目录
+- **新增规范文档时先问**：这是"所有 agent 要看的"（→ steering）、"某 agent 每次要看的"（→ resources）、还是"偶尔用到的"（→ skill）？错位是上下文膨胀的主因
 
+## 5. Steering 规范（硬约束摘要）
+
+Steering 的作用是**红线清单**，不是完整规范。红线来自 `docs/reference/team/collaboration-standard.md` + 编码规范 + 测试规范的**不可违反硬点**。
+
+**Steering 文件硬规则**：
+- 每个 `.md` < 5KB（约 1250 字）
+- 不内联完整规范，只摘录关键硬约束 + 链接到 `docs/reference/` 的详细文档
+- 新增 steering 文件需协调者审批；不属于"所有 agent 必须知道"的内容不进 steering
+
+当前 AAF 仅有一份 `collaboration.md`（84 行红线）。新增候选：
+- `coding-rules.md`（全局 AI 行为硬规则：禁兼容层/不 broad refactors/注释语言/优先已有模式）——等编码规范 A/B/C/D 落地后抽取
+
+## 6. Skill 规范（精简）
+
+Skill 遵循开放标准 [Agent Skills](https://agentskills.io)，是可移植的指令包。
+
+### 6.1 作用域
+
+| 位置 | 作用域 | 用途 |
+|------|--------|------|
+| `.kiro/skills/` | Workspace | AAF 项目特定工作流（优先） |
+| `~/.kiro/skills/` | Global | 个人通用工作流，跨项目 |
+
+同名冲突时 workspace 优先。
+
+### 6.2 SKILL.md 格式要点
+
+```markdown
+---
+name: skill-slug           # 必须与文件夹名一致
+description: 精确描述何时激活此 skill（带关键词和动作）。最长 1024 字符
+---
+
+## 主内容（< 500 行）
+
+详细参考：`references/xxx.md`
+校验脚本：`scripts/xxx.sh`
 ```
-.kiro/skills/
-├── coding-standards/
-│   ├── SKILL.md          ← Java 编码规范详细指南
-│   └── references/       ← 详细规则文档
-├── architecture-patterns/
-│   ├── SKILL.md          ← 架构模式参考
-│   └── references/
-└── troubleshooting/
-    ├── SKILL.md          ← 常见问题排查指南
-    ├── scripts/          ← 诊断脚本
-    └── references/
-```
 
-## 上下文监控
+**Frontmatter 字段约束**：
+- `name`：小写字母 + 数字 + 连字符，不能以 `-` 开头/结尾，≤ 64 字符
+- `description`：包含具体关键词和触发场景；AI 靠这个判断是否匹配——写得精确才激活得对
+- 可选：`license` / `compatibility` / `metadata` / `allowed-tools`
 
-每个智能体（包括协调者）在任务结束前，自行统计上下文使用情况并写入任务目录的 `context-stats.md`：
+### 6.3 Skill 最佳实践
 
-- 上下文使用百分比
-- 加载的 resources 文件列表及大小
-- 实际用到 / 未用到的文件
-- 任务耗时（轮次数）
+- **描述精确**：`"Review PRs for security and test coverage"` 优于 `"helps with code review"`
+- **SKILL.md 精简**：< 500 行，细节放 `references/`
+- **确定性任务用脚本**：校验/文件生成/API 调用放 `scripts/`，比让 LLM 生成可靠
+- **纳入版本控制**：`.kiro/skills/` 提交仓库
 
-协调者在任务完成后汇总所有智能体的统计数据，写入 `dispatch-log.md`，分析：
+### 6.4 AAF 当前 skill 清单
 
-- 哪些 agent 的 resources 配置需要精简
-- 哪些任务的 prompt_template 过长
+详见 `.kiro/skills/`。当前已有：
+- `coding-standards`：编码规范
+- `doc-writing`：文档编写
+- `iteration-management`：迭代管理
+- `skill-creator`：skill 创建工具
+- 其他 Nx 相关（`nx-generate` / `nx-workspace` / `nx-plugins` 等）
+
+拟立：`architecture-audit`、`process-audit`、`e2e-testing`、`frontend-state-management`、`design-review`（见改进意见池）。
+
+## 7. 上下文监控（强制产出）
+
+### 7.1 硬约束
+
+- **上下文使用率 ≤ 50%**（来自 `.kiro/steering/collaboration.md`）
+- 每个 agent 在任务结束前**必须**自行统计并写入 `docs/task/v*/AAF-xxx/context-stats.md`：
+  - 上下文使用百分比 + 最大历史水位
+  - 加载的 resources 文件列表及字节数
+  - 实际用到的 vs 未用到的文件（由 agent 自我报告）
+  - 任务耗时（对话轮次数）
+
+### 7.2 协调者汇总
+
+任务完成后协调者在 `dispatch-log.md` 汇总：
+- 哪些 agent resources 配置需要精简（某些文件每次都不用）
+- 哪些 prompt_template 过长
 - 流程中哪个环节消耗上下文最多
 
-这些数据是过程改进的核心输入，用于持续优化智能体配置和协作流程。
+这些数据是**过程改进的核心输入**，驱动 agent 配置的持续优化。
 
-### 常用命令
+### 7.3 常用命令
 
 | 命令 | 用途 |
 |------|------|
@@ -175,3 +217,15 @@ Run validation: `scripts/validate.py`
 | `/context clear` | 清除所有会话级上下文 |
 | `/compact` | 手动触发上下文压缩 |
 | `/knowledge add <path>` | 添加内容到知识库 |
+| `/knowledge list` | 列出所有知识库 |
+| `/knowledge remove <id>` | 移除知识库 |
+
+---
+
+## 参考
+
+- [Kiro Context Management](https://kiro.dev/docs/cli/chat/context/)
+- [Agent Skills Specification](https://agentskills.io/specification)
+- [.kiro/steering/collaboration.md](../../../.kiro/steering/collaboration.md) —— 协作硬约束
+- [docs/reference/team/collaboration-standard.md](./collaboration-standard.md) —— 协作详细规范
+- [AGENTS.md](../../../AGENTS.md) —— agent 入口索引
