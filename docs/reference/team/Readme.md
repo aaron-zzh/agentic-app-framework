@@ -1,9 +1,25 @@
+---
+level: Practice
+layer: Model
+purpose: 团队规范目录索引，团队架构与角色的唯一真理来源
+status: published
+version: 1.0.0
+date: 2026-05-06
+author: AaronZZH
+changelog:
+  - 2026-05-06 | 补充 Front Matter
+---
+
 # 团队管理（唯一真理来源）
 
 价值驱动 敏捷开发 CMMI5 AI结对编程 规范驱动
 
-> 本文档是 AAF 人机协作开发团队的**唯一真理来源**。组织架构、角色分工、协作流程、过程规范均以本文档及其子文档为准。
-> AGENTS.md 和 `.kiro/steering/collaboration.md` 中的团队协作内容引用自本目录。
+> **本文档及其子文档是 AAF 人机协作团队的唯一真理来源。**
+> 组织架构、角色分工、协作流程、过程规范均以此目录为准。
+>
+> `AGENTS.md` 和 `.kiro/steering/collaboration.md` 只提供**摘要 + 硬约束**，详细规范在此目录下的具体文件。两者发生冲突时以本目录为准并在 [改进意见](../../prd/improvements.md) 中记录。
+>
+> **修改约束**：本目录下的规范文档**只能由协调者修改**。其他 agent 发现问题在 `dev-log.md` 或 `improvements.md` 中提出，由协调者评估后更新。
 
 ## 团队定位
 
@@ -80,7 +96,7 @@ AI 不等待人类审批，完成即提交；人类按风险等级按需审查�
 
 - 任务编号格式 `AAF-{三位序号}`，全局递增
 - 提交时在脚注中关联：`Task: AAF-XXX`
-- 详见 [任务管理规范](../../task/README.md)
+- 详见 [任务管理规范](../../task/Readme.md)
 
 ## 引用本文档的地方
 
@@ -92,4 +108,4 @@ AI 不等待人类审批，完成即提交；人类按风险等级按需审查�
 ## 更多参考
 
 - [AI 开发指南](../../guide/ai-development-guide.md) — 完整指南
-- [任务看板](backlog.md) — 所有待办的唯一来源
+- [任务看板](../../task/backlog.md) — 所有待办的唯一来源

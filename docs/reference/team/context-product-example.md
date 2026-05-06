@@ -1,3 +1,15 @@
+---
+level: Practice
+layer: Model
+purpose: 产品经理智能体上下文配置的参考示例
+status: published
+version: 1.0.0
+date: 2026-05-06
+author: AaronZZH
+changelog:
+  - 2026-05-06 | 补充 Front Matter
+---
+
 # 产品经理智能体上下文设计（仅示例）
 
 ## 角色概述
@@ -20,9 +32,10 @@
 | ------------------------------ | -------------------------- | ------------------------ |
 | `file://AGENTS.md`             | 项目概述、技术栈、团队架构 | ✅ 了解项目全貌和协作对象 |
 | `file://docs/roles/product.md` | 角色职责和输出要求         | ✅ 核心指导文件           |
-| `file://docs/prd/Readme.md`   | 需求管理规范（来源、生命周期、变更流程） | ✅ 需求工作的核心规范     |
+| `file://docs/prd/Readme.md`   | 需求管理入口（目录索引） | ✅ 了解需求目录结构     |
+| `file://docs/reference/dev/requirement-standard.md` | 需求管理规范（原则、层级、生命周期、变更流程） | ✅ 需求工作的核心规范 |
 
-**预估上下文占用**：~3 个文件，约 2500-3500 tokens（< 5%）
+**预估上下文占用**：~4 个文件，约 3500-4500 tokens（< 5%）
 
 ### Skills（`skill://`，按需加载）
 
@@ -32,7 +45,7 @@
 | ------------------------- | -------------- | -------------------------------------------------------------------- |
 | `requirement-development` | 编写需求文档时 | 需求编写规范、用户故事格式、Gherkin 语法、需求层级说明、需求文档模板 |
 
-**Skill 内容来源**：从 `docs/prd/Readme.md`（需求管理规范）和 `docs/prd/requirement-management.md`（需求生命周期）中提取关键规则。
+**Skill 内容来源**：从 `docs/prd/Readme.md`（需求管理入口）和 `docs/reference/dev/requirement-standard.md`（需求管理规范）中提取关键规则。
 
 ### Knowledge Base（搜索时加载）
 
@@ -66,6 +79,7 @@
     "file://AGENTS.md",
     "file://docs/reference/team/roles/product.md",
     "file://docs/prd/Readme.md",
+    "file://docs/reference/dev/requirement-standard.md",
     "skill://.kiro/skills/requirement-development/SKILL.md"
   ],
   "knowledgeBase": [
@@ -85,7 +99,7 @@
 .kiro/skills/requirement-development/
 ├── SKILL.md              # 需求编写指南（触发词、核心规则）
 └── references/
-    ├── requirement-spec.md  # 完整需求管理规范（从 docs/prd/Readme.md 提取）
+    ├── requirement-spec.md  # 完整需求管理规范（从 docs/prd/Readme.md 提取，含来源、生命周期、变更流程）
     └── requirement-template.md  # 需求文档模板（从 docs/task/_template/requirement.md 提取）
 ```
 
