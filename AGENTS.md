@@ -43,6 +43,71 @@ docs/          → 项目文档（Diátaxis 四象限 + Team/Dev 规范）
 
 developer 完工前必跑 `pnpm check:affected`，失败循环修复到全绿。
 
+## 开发流程（摘要）
+
+> 详见 [迭代过程规范](docs/reference/team/process-standard.md)。
+
+### 迭代全景
+
+```text
+准备 → 启动 → 执行 → 发布 → 总结
+                ↑        |
+                └── 回退 ←┘（质量门控不通过）
+```
+
+周期 2-4 周。默认**交互模式**（每阶段完成后等待人类指令）；人类明确说"自动执行"时切换批量模式。
+
+### 核心原则
+
+- **一句话开发**：人类给出目标 → AI 全流程执行 → 系统自动化保障 → 人类异步审核
+- **规范驱动**：先写规范再写代码，规范是人类和 AI 的共同真理来源（Spec-Anchored 模式）
+- **质量内建**：验证与确认分离，系统自动化门控，问题按类型回退修复
+
+### 阶段概览
+
+| 阶段 | 目标 | 入口条件 | 关键步骤 |
+|------|------|---------|---------|
+| **1. 准备** | 明确迭代范围 | 人类提出版本目标 | 版本规划 → 需求调研 → 用户故事拆分 → 技术预研 → 选取迭代范围 |
+| **2. 执行** | 按任务流水线交付 | Epic 已审核并录入 backlog | 需求细化 → 技术设计 → UI 设计 → 编码 → 审查 → 验收 → 审计 → 质量门控 |
+| **3. 发布** | 部署验证 | 质量门控通过 + 🔴 人类确认 | 测试环境部署 → DB 迁移 → 用户验收 → 发布说明 → 正式发布 |
+| **4. 总结** | 回顾改进 | 发布完成 | 迭代回顾 → 度量分析 → 过程改进 → 知识沉淀 → backlog 归档 |
+
+### 执行阶段：任务流水线
+
+```text
+product(Epic→Story 拆分 + Spec 细化)
+  + architect(技术设计 + 任务拆分)
+    → designer(UI/交互设计)           ← 涉及前端时
+      → developer(编码 + 单元测试)    ← 验证（check）
+        → architect(代码审查)
+          → tester(验收测试)          ← 确认（acceptance）
+            → qa(过程审计)
+              → 质量门控（blocker=0 且 major≤2）
+```
+
+### 各步骤关键要求
+
+| 步骤 | 负责人 | 关键产出 | 适用规范 |
+|------|--------|---------|---------|
+| 需求细化 | product | Spec（数据模型、业务规则、Gherkin AC） | [需求管理规范](docs/reference/dev/requirement-standard.md) |
+| 技术设计 | architect | 接口签名 + 类结构 + ADR + 技术任务 `#N` | [架构约束](docs/reference/dev/architecture-constraints.md) |
+| UI 设计 | designer | 页面结构 + 交互流程 + 组件规范 | [UI 设计规范](docs/design/ui/Readme.md) |
+| 编码实现 | developer | 源码 + `dev-log.md` + `check:affected` 全绿 | [编码风格](docs/reference/dev/apps/service/coding-style-standard.md) |
+| 代码审查 | architect | `review.md`（blocker/major/minor 计数） | [代码审查规范](docs/reference/dev/code-review-standard.md) |
+| 验收测试 | tester | `test-report.md`（AC 覆盖矩阵） | [验收测试规范](docs/reference/dev/test/acceptance-test-standard.md) |
+| 过程审计 | qa | 审计记录（流程合规 + 文档完整性） | [过程审计规范](docs/reference/team/process-audit-standard.md) |
+
+### 规范驱动流转
+
+```text
+需求规格(product) → 设计规格(architect) → 代码(developer) → 测试(tester) → 审计(qa)
+     ↑                    ↑                    ↑                ↑              ↑
+     └────────────────────┴────────────────────┴────────────────┴──────────────┘
+                          发现偏离 → 向上游反馈修正
+```
+
+下游发现与上游规范矛盾时，必须向上游反馈修正，不得自行偏离。
+
 ## AI 行为硬规则（编码时遵守）
 
 以下规则参考 multica CLAUDE.md 高密度风格，部分条目已登记 [改进意见 A-F](docs/prd/improvements.md) 待评估采纳，当前 agent 应主动遵循（作为软约束，未来转硬约束）：
