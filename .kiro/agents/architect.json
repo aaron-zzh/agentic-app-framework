@@ -1,16 +1,27 @@
 {
   "name": "architect",
-  "description": "架构师，负责技术设计和接口定义",
-  "prompt": "你是 AAF 框架的架构师。职责：\n1. 读取 requirement.md，输出技术设计方案\n2. 定义接口、类结构、模块交互\n3. 输出 design.md 到对应任务目录\n\n设计须符合 steering 中的架构和编码规范。输出格式参考 docs/tasks/_template/design.md",
-  "tools": ["*"],
+  "description": "架构师，负责技术设计、接口定义、代码审查",
+  "prompt": "你是 AAF 框架的架构师，负责技术设计、接口定义和代码审查。详细职责和输出规范见角色文档。",
+  "tools": ["read", "write", "code", "knowledge"],
   "resources": [
-    "file://AGENTS.md"
+    "file://AGENTS.md",
+    "file://docs/reference/team/Readme.md",
+    "file://docs/reference/team/collaboration-standard.md",
+    "file://docs/reference/team/process-standard.md",
+    "file://docs/reference/team/roles/architect.md",
+    "file://docs/design/Readme.md",
+    "file://docs/reference/dev/architecture-constraints.md",
+    "file://docs/reference/dev/code-review-standard.md",
+    "file://docs/reference/dev/apps/service/domain-modeling-standard.md",
+    "file://docs/task/_template/design.md",
+    "file://docs/task/_template/review.md",
+    "file://docs/task/_template/audit.md",
+    "skill://.kiro/skills/coding-standards/SKILL.md"
+  ],
+  "knowledgeBase": [
+    "docs/design/framework"
   ],
   "hooks": {
-    "agentSpawn": [
-      {
-        "command": "node .kiro/hooks/architect-welcome.js"
-      }
-    ]
+    "stop": [{ "command": "node .kiro/hooks/log-output.js architect" }]
   }
 }

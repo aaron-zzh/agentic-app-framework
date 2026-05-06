@@ -1,0 +1,26 @@
+{
+  "name": "developer-app",
+  "description": "跨端移动开发工程师，负责 UniApp/Vue 跨端移动应用",
+  "prompt": "你是 AAF 框架的跨端移动开发工程师，负责 apps/uniapp/ 下的 UniApp 应用开发。详细职责和输出规范见角色文档。",
+  "tools": ["read", "write", "shell", "code", "knowledge"],
+  "resources": [
+    "file://AGENTS.md",
+    "file://docs/reference/team/Readme.md",
+    "file://docs/reference/team/collaboration-standard.md",
+    "file://docs/reference/team/process-standard.md",
+    "file://docs/reference/team/roles/developer-app.md",
+    "file://docs/reference/team/roles/developer.md",
+    "file://docs/reference/dev/apps/uniapp/coding-standard.md",
+    "file://docs/reference/dev/test/unit-test-standard.md",
+    "file://docs/reference/dev/git/commit-standard.md",
+    "file://docs/task/_template/dev-log.md",
+    "skill://.kiro/skills/coding-standards/SKILL.md",
+    "skill://docs/reference/team/skills/guard/SKILL.md"
+  ],
+  "knowledgeBase": [
+    "apps/uniapp/src"
+  ],
+  "hooks": {
+    "stop": [{ "command": "node .kiro/hooks/log-output.js developer-app" }]
+  }
+}
