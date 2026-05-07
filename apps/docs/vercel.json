@@ -1,6 +1,6 @@
 {
   "buildCommand": "cd ../.. && pnpm nx build docs",
-  "outputDirectory": "apps/docs/.next",
+  "outputDirectory": ".next",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "nextjs",
   "ignoreCommand": "git diff HEAD^ HEAD --name-only | grep -qE '^(docs/|apps/docs/)' && exit 1 || exit 0"
