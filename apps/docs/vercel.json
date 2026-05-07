@@ -3,5 +3,5 @@
   "outputDirectory": "apps/docs/.next",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "nextjs",
-  "ignoreCommand": "bash scripts/vercel-ignore-docs.sh"
+  "ignoreCommand": "git diff HEAD^ HEAD --name-only | grep -qE '^(docs/|apps/docs/)' && exit 1 || exit 0"
 }
