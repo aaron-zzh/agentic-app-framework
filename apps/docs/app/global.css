@@ -4,6 +4,7 @@
 
 html {
   scrollbar-gutter: stable;
+  --fd-sidebar-width: 278px;
 }
 
 html > body[data-scroll-locked] {
