@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.xuejiai</groupId>
-    <artifactId>agentic-app-framework-parent</artifactId>
+    <artifactId>aaf-root</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>agentic-app-framework-parent</name>
+    <name>aaf-root</name>
 
     <modules>
         <module>apps/service</module>
