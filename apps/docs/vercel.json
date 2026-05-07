@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd ../.. && pnpm nx build docs",
+  "outputDirectory": "apps/docs/.next",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "nextjs",
+  "ignoreCommand": "bash scripts/vercel-ignore-docs.sh"
+}

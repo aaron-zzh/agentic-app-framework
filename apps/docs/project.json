@@ -1,0 +1,35 @@
+{
+  "name": "docs",
+  "projectType": "application",
+  "sourceRoot": "apps/docs",
+  "targets": {
+    "build": {
+      "command": "next build",
+      "options": { "cwd": "apps/docs" },
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/docs/**/*"],
+      "outputs": ["{projectRoot}/.next"]
+    },
+    "dev": {
+      "command": "next dev --port 3001",
+      "options": { "cwd": "apps/docs" },
+      "continuous": true
+    },
+    "start": {
+      "command": "next start",
+      "options": { "cwd": "apps/docs" },
+      "continuous": true
+    },
+    "typecheck": {
+      "command": "fumadocs-mdx && tsc --noEmit -p tsconfig.json",
+      "options": { "cwd": "apps/docs" },
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*.ts", "{projectRoot}/**/*.tsx", "{projectRoot}/tsconfig.json"]
+    },
+    "check": {
+      "dependsOn": ["typecheck", "build"],
+      "executor": "nx:noop",
+      "description": "developer 完工自验证：typecheck + build"
+    }
+  }
+}

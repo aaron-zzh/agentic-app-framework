@@ -1,0 +1,64 @@
+---
+title: 组件测试页
+description: 测试 MDX 组件渲染效果
+status: published
+---
+
+# 组件测试页
+
+## Mermaid 图表
+
+```mermaid
+graph TD
+  A[用户请求] --> B{路由判断}
+  B -->|API| C[后端服务]
+  B -->|页面| D[前端渲染]
+  C --> E[数据库]
+  D --> F[浏览器]
+```
+
+## 代码块
+
+```java
+@RestController
+@RequestMapping("/api/chat")
+public class ChatController {
+    @PostMapping
+    public Flux<String> chat(@RequestBody ChatRequest request) {
+        return chatService.stream(request.message());
+    }
+}
+```
+
+## Callout
+
+<Callout type="info">这是一个信息提示框。</Callout>
+
+<Callout type="warn">这是一个警告提示框。</Callout>
+
+## Tabs
+
+<Tabs items={['Java', 'TypeScript']}>
+  <Tab value="Java">
+
+```java
+System.out.println("Hello AAF");
+```
+
+  </Tab>
+  <Tab value="TypeScript">
+
+```ts
+console.log('Hello AAF');
+```
+
+  </Tab>
+</Tabs>
+
+## Steps
+
+<Steps>
+  <Step>安装依赖</Step>
+  <Step>配置数据库连接</Step>
+  <Step>启动服务</Step>
+</Steps>
