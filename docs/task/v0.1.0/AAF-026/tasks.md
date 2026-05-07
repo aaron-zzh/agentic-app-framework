@@ -1,6 +1,6 @@
 ---
 level: Practice
-layer: Model
+layer: Product
 purpose: AAF-026 技术任务拆分
 status: active
 version: 1.0.0
@@ -14,16 +14,16 @@ author: architect
 
 | # | 任务 | 依赖 | 预估 | 说明 |
 |---|------|------|------|------|
-| #1 | 初始化 apps/docs 项目骨架 | 无 | S | Nx 项目 + Next.js + Fumadocs 依赖 + project.json |
-| #2 | 配置内容源（source.config.ts + lib/source.ts） | #1 | M | 指向 docs/ 目录，实现内容过滤，验证上级目录引用 |
-| #3 | 实现文档页面路由和渲染 | #2 | S | layout.tsx + page.tsx + MDX 组件 |
-| #4 | 实现首页 | #3 | S | 项目介绍 + 快速入口导航 |
-| #5 | 配置搜索功能 | #2 | S | Orama 搜索 API Route + 搜索 UI |
-| #6 | 处理 Readme.md → index 映射 | #2 | M | 验证并实现目录索引页映射 |
+| ✅ #1 | 初始化 apps/docs 项目骨架 | 无 | S | Nx 项目 + Next.js + Fumadocs 依赖 + project.json |
+| ✅ #2 | 配置内容源（source.config.ts + lib/source.ts） | #1 | M | 指向 docs/ 目录，实现内容过滤，验证上级目录引用 |
+| ✅ #3 | 实现文档页面路由和渲染 | #2 | S | layout.tsx + page.tsx + MDX 组件 |
+| ✅ #4 | 实现首页 | #3 | S | 项目介绍 + 快速入口导航 |
+| ✅ #5 | 配置搜索功能 | #2 | S | Orama 搜索 API Route + 搜索 UI |
+| ✅ #6 | 处理 Readme.md → index 映射 | #2 | M | 验证并实现目录索引页映射 |
 | ✅ #7 | 配置 meta.json 导航排序 | #6 | S | 为对外目录添加 meta.json，配置 Root Folder tabs |
-| #8 | 实现 draft 文档过滤 | #2 | S | frontmatter schema + loader 过滤 status:draft |
+| ✅ #8 | 实现 draft 文档过滤 | #2 | S | frontmatter schema + loader 过滤 status:draft |
 | ✅ #9 | Vercel 部署配置 | #3 | S | vercel.json + ignored build step 配置 |
-| #10 | 验收测试 + 构建验证 | #1-#9 | M | 确认所有 AC 通过，check 全绿 |
+| ✅ #10 | 验收测试 + 构建验证 | #1-#9 | M | 确认所有 AC 通过，check 全绿 |
 
 ## 任务详情
 

@@ -1,6 +1,6 @@
 ---
 level: Practice
-layer: Model
+layer: Product
 purpose: AAF-026 对外文档站点技术设计
 status: active
 version: 1.0.0

@@ -1,6 +1,6 @@
 ---
 level: Practice
-layer: Model
+layer: Product
 purpose: 对外文档站点需求规格
 status: active
 version: 1.2.0
