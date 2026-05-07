@@ -7,7 +7,6 @@ version: 1.0.0
 date: 2026-05-05
 author: AaronZZH
 deciders: [AaronZZH, 协调者]
-related-tasks: [AAF-023 #6]
 ---
 
 # ADR-001: 前端测试框架选型 — Vitest vs Jest

@@ -7,7 +7,6 @@ version: 1.0.0
 date: 2026-05-05
 author: AaronZZH
 deciders: [AaronZZH, 协调者]
-related-tasks: [AAF-023 #8]
 ---
 
 # ADR-002: 后端测试环境 — 本地真实 DB vs Testcontainers

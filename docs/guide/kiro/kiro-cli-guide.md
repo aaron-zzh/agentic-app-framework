@@ -328,7 +328,7 @@ Kiro CLI 支持直接在终端聊天中**分析图片内容**（需模型具备�
 
 当其他工具无法完成任务时，Kiro 可以执行 Shell 命令。
 
-```test
+```text
 > 运行 mvn clean install
 > 执行 git status
 > 运行测试并分析结果

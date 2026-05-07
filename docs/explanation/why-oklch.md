@@ -1,25 +1,8 @@
----
-level: Theory
-layer: Pattern
-purpose: 解释为什么现代 CSS 应该选择 OKLCH 颜色空间
-status: published
-version: 1.0.0
-date: 2026-03-30
-author: AaronZZH
-scope:
-  includes:
-    - 传统颜色模型局限性
-    - OKLCH 优势与使用方法
-gains:
-  - 能理解 OKLCH 的感知均匀性优势
-  - 能在项目中使用 OKLCH 定义颜色
----
-
-# 为什么现代CSS应该选择OKLCH：从颜色科学到设计系统革新
 
 在数字界面中，颜色不仅是美学的载体，更是信息传递的重要工具。CSS Color Level 4 标准引入了 OKLCH 颜色空间, 提供​​感知均匀性​​（颜色差异与实际视觉感受一致），解决传统HSL/HSV在调整颜色时的不自然问题。文本帮助你快速掌握OKLCH的核心概念和应用逻辑。重点是理解其​​感知均匀性​​和​​与HSL的对比优势​​，这能帮助你在设计或代码中更科学地使用颜色。
 
-![palette generator](./img/oklch/palette-generator.png)
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/2592d396bf5b4573b406570eb89fce97.png)
+
 
 ## **一、传统颜色模型的局限性**
 
@@ -30,7 +13,8 @@ gains:
    - 无法表达广色域P3颜色
    - 缺乏可预测的亮度关系
 
-![alt text](./img/oklch/oklch-vs-rgb-hex.png)
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/3cad8cd8014249b38ba5730f7fccb540.png#pic_center =x240)
+
 
 2. HSL：
    - 伪均匀色彩空间（实际亮度感知不一致）
@@ -39,7 +23,8 @@ gains:
 
 OKLCH的工作原理与HSL相似，但它比HSL更好地编码亮度。
 
-![alt text](./img/oklch/color.png)
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/de6b0c96b2434a75bcc2e70841761c38.png#pic_center =x400)
+
 
 HSL的主要问题是它使用一个圆柱形的色彩空间。每个色调都有相同的饱和度（0-100%）。但在现实中，我们的显示器和眼睛对不同的色调有不同的最大饱和度。HSL 通过变形颜色空间和扩展颜色，以具有相同的最大值来隐藏这种复杂性。
 
@@ -62,7 +47,9 @@ a:hover {
 }
 ```
 
-![alt text](./img/oklch/color-picker.png)
+[**OKLCH颜色选择器和转换器**](https://oklch.com)
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/12dc93636a084bdaa9b49ae4a390d337.png#pic_center)
+
 
 ### **优势**
 
@@ -71,6 +58,8 @@ a:hover {
 - 与 HSL 不同，OKLCH 更适合颜色修改和调色板生成。它使用感知亮度，所以没有更多意想不到的结果。
 - 可读性：与 rgb 或十六进制 `#ca0000` 不同，OKLCH是人类可读的。通过查看数字，您可以快速了解值代表的颜色。
 - 无障碍设计：精准的亮度控制确保 OKLCH 提供更好的无障碍（a11y）支持
+
+![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/9a0e3b43dccd46288cdb729527a6f9bc.png#pic_center)
 
 ## **三、如何使用 OKLCH**
 
@@ -148,7 +137,7 @@ a:hover {
 
 OKLCH不仅是一个新的颜色格式，更是开启现代色彩工程的钥匙。它解决了传统模型的三大痛点：人机交互的直觉性、广色域的未来兼容性、设计系统的可维护性。在Apple设备覆盖率超60%的今天，拥抱OKLCH就是为下一个十年的Web体验打下基石。
 
-**立即体验**：[OKLCH颜色选择器和转换器](https://oklch.com) ｜ [调色板生成器](https://huetone.ardov.me)
+## **立即体验**：[OKLCH颜色选择器和转换器](https://oklch.com) ｜ [调色板生成器](https://huetone.ardov.me)
 
 ## 参考资料
 
@@ -156,5 +145,3 @@ OKLCH不仅是一个新的颜色格式，更是开启现代色彩工程的钥匙
 - <https://developer.mozilla.org/zh-CN/docs/Web/CSS/color_value/oklch>
 
 ## END
-
-> 如果这篇文章对您有所帮助，欢迎点赞、分享和留言，让更多的人受益。感谢您的细心阅读，如果发现了任何错误或需要补充的地方，请随时告诉我，我会尽快处理 `^_^ `

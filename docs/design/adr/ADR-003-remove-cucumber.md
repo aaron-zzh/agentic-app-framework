@@ -7,7 +7,6 @@ version: 1.0.0
 date: 2026-05-05
 author: AaronZZH
 deciders: [AaronZZH, 协调者]
-related-tasks: [AAF-023 #7]
 ---
 
 # ADR-003: 后端验收测试 — 移除 Cucumber，统一 JUnit 5

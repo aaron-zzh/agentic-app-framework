@@ -1,4 +1,4 @@
-﻿# 规范驱动开发（SDD）：AI时代的软件工程新范式
+﻿# 规范驱动开发（SDD）
 
 ![在这里插入图片描述](https://i-blog.csdnimg.cn/direct/036539afa6654b1bbaef7825a3c82bd6.png#pic_center)
 

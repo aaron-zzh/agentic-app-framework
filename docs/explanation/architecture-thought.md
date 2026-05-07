@@ -2,7 +2,7 @@
 level: Thought
 layer: Principle
 purpose: 阐述 AAF 架构设计背后的思考过程
-status: draft
+status: published
 version: 0.1.0
 date: 2026-03-30
 author: AaronZZH
@@ -51,7 +51,7 @@ AAF 面对三个核心张力：
 
 ## 核心观点
 
-![alt text](../design/agent/agent.jpg)
+![alt text](../design/framework/core/agent.jpg)
 
 > 理论与实践相结合：价值驱动、元理论、知识框架、五度空间模型、第一性原理
 
