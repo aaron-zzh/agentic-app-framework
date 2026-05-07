@@ -3,12 +3,16 @@ import {
   DocsBody,
   DocsDescription,
   DocsPage,
-  DocsTitle,
+  DocsTitle, EditOnGitHub,
+  PageLastUpdate
 } from 'fumadocs-ui/layouts/docs/page';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
+
+import { getGithubLastEdit } from 'fumadocs-core/content/github';
+import {GITHUB_DOCS_BASEURL, GITHUB_OWNER, GITHUB_REPO} from "@/lib/github";
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -28,11 +32,21 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   }
 
   const MDX = page.data.body;
+  const lastModifiedTime = await getGithubLastEdit({
+    owner: GITHUB_OWNER,
+    repo: GITHUB_REPO,
+    path: `docs/${page.path}`,
+  });
+  const githubUrl = GITHUB_DOCS_BASEURL + page.path;
 
   return (
-    <DocsPage toc={page.data.toc}>
+    <DocsPage toc={page.data.toc} tableOfContent={{style: 'clerk'}}>
       <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
+      <DocsDescription>{page.data.purpose}</DocsDescription>
+      <div className="flex flex-row flex-wrap items-center border-b pb-2 mb-6 justify-between gap-4 empty:hidden">
+        {lastModifiedTime && <PageLastUpdate date={lastModifiedTime} />}
+        <EditOnGitHub href={githubUrl}/>
+      </div>
       <DocsBody>
         <MDX
           components={getMDXComponents({
