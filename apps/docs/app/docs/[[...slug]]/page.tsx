@@ -36,7 +36,8 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
     owner: GITHUB_OWNER,
     repo: GITHUB_REPO,
     path: `docs/${page.path}`,
-  });
+    token: process.env.GITHUB_TOKEN,
+  }).catch(() => null);
   const githubUrl = GITHUB_DOCS_BASEURL + page.path;
 
   return (
