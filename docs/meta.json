@@ -1,0 +1,12 @@
+{
+  "title": "文档",
+  "pages": [
+    "Readme",
+    "guide",
+    "design",
+    "reference",
+    "explanation",
+    "tutorial",
+    "..."
+  ]
+}

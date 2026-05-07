@@ -1,0 +1,5 @@
+{
+  "title": "原理",
+  "root": true,
+  "pages": ["product-overview", "Readme", "architecture-thought", "design-principles", "spec-driven-development", "..."]
+}

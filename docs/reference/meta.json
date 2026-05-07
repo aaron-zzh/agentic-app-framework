@@ -1,0 +1,5 @@
+{
+  "title": "规范",
+  "root": true,
+  "pages": ["Readme", "dev", "api", "content-system", "theory", "..."]
+}
