@@ -112,6 +112,27 @@ changelog:
     - 对应 [tech-stack.md §6.2 横切防护](../../../design/apps/service/tech-stack.md#62-横切防护aaf-frameworkprotection) 与 [§7.3 设计约束](../../../design/apps/service/tech-stack.md#73-设计约束)
     - verify: `pnpm nx run service:test` 跑 `LayeringTest` 新增用例全绿；故意写一条跨模块直接访问 service 的代码即时报错
 
+### Phase 5：框架基础能力脚手架
+
+> 来源：[tech-stack.md §6 框架内置能力](../../../design/apps/service/tech-stack.md#六框架内置能力开箱即用)。
+> 只实现所有业务 Epic 共同依赖的最小公共能力，具体业务能力随各 Epic 引入。
+
+14. [ ] #30 框架基础能力脚手架 — developer-api (依赖: #17, #27)
+    - **aaf-common**：
+      - `Result<T>` 统一响应体（code/message/data/timestamp）
+      - `ErrorCode` 错误码注册表 + `BusinessException`
+      - `BaseEntity`（id/createTime/updateTime/deleted/version）+ JPA 审计自动填充
+      - `PageRequest` / `PageResult<T>` 分页协议
+    - **aaf-api/config**：
+      - `@RestControllerAdvice` 全局异常处理 → 错误码映射 → `Result` 响应
+      - Jackson 全局配置（日期格式、空值策略、Record 支持）
+      - CORS 配置
+    - **aaf-framework（安全最小骨架）**：
+      - Spring Security 配置（JWT 签发/校验/刷新骨架，不含完整 RBAC）
+      - `ActorContext` 占位接口（为四层权限模型预留扩展点）
+    - 不实现：权限注解、数据权限、操作日志、缓存、限流等（随业务 Epic 引入）
+    - verify: 写一个 `GET /api/hello` 返回 `Result<String>`；JWT 认证通过；无 Token 返回 401 + 标准错误码
+
 <!-- 状态标记：[ ] 待开始 | ⏳ 进行中 | ✅ 已完成 | ❌ 已取消 | 🚫 阻塞中 -->
 <!-- 完成任务时标注负责人：✅ #N 任务描述 - {agent} -->
 
