@@ -31,25 +31,41 @@ agentic-app-framework/
 ├── aaf-common/                                # 公共模块
 │   ├── pom.xml
 │   └── src/main/java/com/xuejiai/aaf/common/
-│       ├── constant/
-│       ├── exception/
-│       ├── util/
-│       └── model/                             # Result、PageInfo
+│       ├── constant/                          # 常量
+│       ├── exception/                         # 异常体系
+│       ├── util/                              # 工具类
+│       ├── model/                             # Result、PageInfo
+│       ├── enums/                             # 通用枚举
+│       └── annotation/                        # 通用注解定义（@OperationLog、@Trans 等）
 │
 ├── aaf-framework/                             # 核心框架（引擎层 + 智能层）
 │   ├── pom.xml
 │   └── src/main/java/com/xuejiai/aaf/framework/
-│       ├── engine/
+│       ├── engine/                            # 引擎层
 │       │   ├── doc/                           # 文档引擎
 │       │   ├── monitor/                       # 监控引擎
 │       │   ├── permission/                    # 权限引擎
 │       │   ├── license/                       # 授权引擎
 │       │   ├── chat/                          # 聊天引擎
-│       │   └── [其余引擎建包占位]
-│       ├── intelligent/
+│       │   ├── workflow/                      # Flowable 8 封装
+│       │   ├── knowledge/                     # 向量检索 + 文档解析
+│       │   ├── dsl/                           # ANTLR4 + Magic-DSL
+│       │   ├── rule/                          # Easy Rules 封装
+│       │   ├── codegen/                       # FreeMarker 代码生成
+│       │   └── datasource/                    # 外部数据源适配（v0.2+，JDBC/HTTP/File 统一数据集）
+│       ├── intelligent/                       # 智能层
 │       │   ├── core/                          # Spring AI ChatClient 封装
 │       │   ├── agent/                         # Agent 接口 + SequentialAgentExecutor
-│       │   └── [cognition/assistant/team 建包占位]
+│       │   ├── cognition/                     # 记忆 + 知识 + 价值观
+│       │   ├── assistant/                     # 会话 + 情感
+│       │   └── team/                          # 多智能体协作
+│       ├── protection/                        # 防护（限流/幂等/分布式锁）
+│       ├── security/                          # 认证授权（Spring Security 配置）
+│       ├── storage/                           # 文件存储（FileStorage 接口 + 多后端）
+│       ├── message/                           # 消息推送（WebSocket/SSE/短信/邮件）
+│       ├── log/                               # 操作日志 + 登录日志（AOP 实现）
+│       ├── cache/                             # 缓存封装（Caffeine + Redis 两级）
+│       ├── data/                              # 数据权限（@DataScope + JPA 拦截器）
 │       └── config/                            # 框架自动配置
 │
 ├── aaf-auto-dev/                              # AI 自动开发（运行时在线代码生成与自进化）
@@ -104,6 +120,25 @@ aaf-dependencies（BOM）
 | system | 无 | 用户/角色/权限 |
 
 > 判断标准：换一个业务系统还能复用 → 放 framework；与本系统强绑定 → 放 module
+
+## 业务模块组织原则
+
+`aaf-api/module/` 下按**功能组件**独立拆分，每个模块自包含、可独立开发，不导致系统臃肿：
+
+- **按功能域划分**：`system/`、`document/`、`chat/` 各自独立，互不耦合
+- **按需引入**：未来新增模块（如 `mall/`、`crm/`）只需新建目录，不影响已有模块
+- **跨模块通过 `api/` 包交互**：每个模块可设 `api/` 子包暴露接口 + DTO，其他模块只依赖接口，不直接访问对方的 service/repository/entity
+- **ArchUnit 守护边界**：禁止跨模块直接访问非 `api/` 包内容
+- **领域建模**：模块内 `domain/` 按聚合划分子包，详见 [领域建模规范](../../reference/dev/apps/service/domain-modeling-standard.md)
+
+```text
+module/
+├── system/          # 用户/角色/权限/部门（基础必备）
+├── document/        # 文档管理（按需）
+├── chat/            # 聊天协作（按需）
+├── knowledge/       # 知识库管理（按需）
+└── [新模块]/        # 新增功能域，独立目录，零侵入
+```
 
 ## 各模块职责
 

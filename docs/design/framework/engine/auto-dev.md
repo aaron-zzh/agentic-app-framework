@@ -392,6 +392,47 @@ CLI 内部实现：读写 `docs/task/` 文件 + PostgreSQL（Phase 2 后）+ 调
 
 **Phase 1 简化实现**：不启动任何后台 worker，文件状态变化由前端访问时即时扫描。这满足 architecture-thought.md **"最小可行实现"** 原则。
 
+### 4.6 kiro-cli 协作接口（集成契约）
+
+控制台与 kiro-cli 的事件/日志对接采用 **HTTP 上报 + SSE 下推** 模式，属于 "kiro-cli → AAF 后端 → Web UI" 的单向观测通道：
+
+```text
+kiro-cli（本地执行）
+  ├─ POST /api/monitor/events    上报执行事件（dispatch / run 状态变更 / artifact 创建 / blocker）
+  ├─ POST /api/monitor/logs      上报执行日志（thinking / tool_call / output / error）
+  ↓
+AAF 后端（aaf-api: collab-console 模块）
+  ↓ 持久化到 agent_run / task_message / activity_log / inbox_item
+  ↓
+SSE /api/monitor/stream → Web 前端实时展示（Dashboard / Timeline / Inbox）
+```
+
+**接口职责拆分**：
+
+| 接口 | 方向 | 内容 | 对应数据表 |
+|------|------|------|-----------|
+| `POST /api/monitor/events` | kiro-cli → 后端 | 状态变更（dispatched/running/completed/blocked）· artifact 创建 · 审核请求 | `agent_run` / `activity_log` / `inbox_item` |
+| `POST /api/monitor/logs` | kiro-cli → 后端 | Agent 执行流水（subagent stage 输入输出、关键中间状态） | `task_message` |
+| `SSE /api/monitor/stream` | 后端 → Web | 广播聚合后的事件给前端 Dashboard / Timeline | 对应 §4.3 WebSocket 事件的 SSE 兜底通道 |
+
+**为什么选 HTTP + SSE 而非 WebSocket**（与 [tech-stack.md §4 流式推送决策](../../apps/service/tech-stack.md#四关键架构决策) 一致）：
+
+- kiro-cli 是**短生命周期子进程**，HTTP 比 WebSocket 连接管理简单，失败重试天然
+- SSE 单向够用——Web UI 只需接收推送，交互事件走 §4.3 的 WebSocket 通道双通道并存
+- 上报失败时 kiro-cli 可**本地缓存后异步重放**，不阻塞 agent 执行
+
+**渐进落地（呼应 §9.2 外挂观察者策略）**：
+
+| 阶段 | 实现 |
+|------|------|
+| **Phase 1** | kiro-cli 未提供 hooks，三接口不实现；控制台只读 `session 目录` + `git log` + `docs/task/` 文件 |
+| **Phase 2** | 若 kiro-cli 仍未原生支持，实现 **shim 工具**（post-commit hook / 完工时 `curl` 手动触发）按本表契约上报 |
+| **Phase 3+** | kiro-cli 原生支持 webhook / MCP server 后，直接对接原生事件；本接口退化为兼容层 |
+
+**安全边界**：
+- 接口仅监听 `127.0.0.1` 本地回环，v0.1 单人场景无需鉴权
+- v2.0 开放给 AAF 框架用户时升级为 PAT Token 鉴权（对应 §3.10 设置页 CLI token）
+
 ---
 
 ## 5. 与现有体系的关系

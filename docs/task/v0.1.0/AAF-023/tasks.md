@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: AAF-023 项目基础框架搭建的技术任务清单
 status: active
-version: 2.0.0
-date: 2026-05-07
+version: 2.1.0
+date: 2026-05-08
 author: AaronZZH
 changelog:
+  - 2026-05-08 | 追加 Phase 4：tech-stack.md v2.0 定稿后的工程化细化（#26-#29 pom 清理/BOM 完善/common 轻量化/包结构约定）
   - 2026-05-07 | 调整执行策略：先参考成熟项目建完整目录结构，再做功能验证；新增 UniApp 结构任务；格式化方案改为 Spotless
   - 2026-05-05 | 初始版本
 ---
@@ -77,6 +78,39 @@ changelog:
    - 后端：`spotless-maven-plugin` + Google Java Format，`pnpm nx run service:format`
    - 前端：ESLint 整合 Prettier，IDEA 保存时自动触发
    - verify: `pnpm format:check` 全绿，IDEA 保存自动格式化
+
+### Phase 4：技术选型 v2.0 落地细化
+
+> 来源：[tech-stack.md v2.0](../../../design/apps/service/tech-stack.md) 定稿后的工程化收尾。
+> 依赖 #17（多模块骨架）与 #21（ArchUnit）先行完成。
+
+10. [ ] #26 根 pom 清理与 Preview 特性启用 — developer-api (依赖: #17)
+    - 移除 WebFlux / R2DBC 全栈依赖（仅保留 SSE / `Flux<ChatResponse>` 所需部分）
+    - 统一 `annotationProcessorPaths`：Lombok + MapStruct + `spring-boot-configuration-processor`（子模块不再各自重复声明）
+    - 三处同步开启 `--enable-preview`：`maven-compiler-plugin` / `maven-surefire-plugin` / `spring-boot-maven-plugin`
+    - 对应 [tech-stack.md §1 Preview 特性封装](../../../design/apps/service/tech-stack.md#一java-25-核心特性) 与 [§4 并发模型决策](../../../design/apps/service/tech-stack.md#四关键架构决策)
+    - verify: `pnpm nx run service:build` 成功；Structured Concurrency / Stable Values 示例编译通过；`pnpm nx run service:test` 可执行带 preview 的测试
+
+11. [ ] #27 aaf-dependencies BOM 完善（参考芋道 yudao-bom） — developer-api (依赖: #17)
+    - 参考 ruoyi-vue-pro `yudao-bom/pom.xml` 结构组织版本管理
+    - 按 [tech-stack.md §3 依赖清单](../../../design/apps/service/tech-stack.md#三核心依赖清单) 分组（Web / 数据 / 业务 / 安全 / 工具 / 观测 / 构建）
+    - 对外仅通过 `<dependencyManagement>` 暴露版本，不引入传递依赖
+    - verify: aaf-common / aaf-framework / aaf-auto-dev / aaf-api 的 `pom.xml` 全部通过 BOM 继承，无显式版本号散落
+
+12. [ ] #28 aaf-common 依赖轻量化 — developer-api (依赖: #17)
+    - Spring Web / Validation / Jackson / Jakarta Servlet 等使用 `<scope>provided</scope>`
+    - 目标：aaf-common 作为工具/基础实体库可被非 Web 场景（批处理、CLI、sandbox）引入而不强制传递 Web 能力
+    - 例外：错误码 / `Result<T>` / `BaseEntity` 依赖 Jackson 注解 → 保留 `provided` 即可，由消费方提供
+    - verify: 新建临时模块仅依赖 aaf-common（不引 `spring-boot-starter-web`），可编译通过并使用 `Result<T>` / `BaseEntity`
+
+13. [ ] #29 包结构约定与 ArchUnit 规则扩展 — developer-api + architect (依赖: #17, 扩展 #21)
+    - **protection 包聚合**：`aaf-framework` 下新建 `protection` 包，聚合限流（`@RateLimiter`）/ 幂等（`@Idempotent`）/ 分布式锁（`@DistributedLock`）—— 同属防护性横切关注点，共享 Redis 基础设施
+    - **模块 api 包暴露**：业务模块（`aaf-api/module/{name}/`）内新增 `api/` 子包，放置跨模块接口 + DTO；`service/` / `dal/` 仅模块内可见
+    - 扩展 #21 ArchUnit 规则：
+      - 跨业务模块访问只允许通过目标模块的 `api` 子包（禁止直接 import `service`/`dal`）
+      - `@RateLimiter` / `@Idempotent` / `@DistributedLock` 注解必须位于 `com.xuejiai.aaf.framework.protection` 包下
+    - 对应 [tech-stack.md §6.2 横切防护](../../../design/apps/service/tech-stack.md#62-横切防护aaf-frameworkprotection) 与 [§7.3 设计约束](../../../design/apps/service/tech-stack.md#73-设计约束)
+    - verify: `pnpm nx run service:test` 跑 `LayeringTest` 新增用例全绿；故意写一条跨模块直接访问 service 的代码即时报错
 
 <!-- 状态标记：[ ] 待开始 | ⏳ 进行中 | ✅ 已完成 | ❌ 已取消 | 🚫 阻塞中 -->
 <!-- 完成任务时标注负责人：✅ #N 任务描述 - {agent} -->

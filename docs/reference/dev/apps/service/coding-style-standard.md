@@ -436,6 +436,16 @@ private void doSomething() {
 - 敏感配置使用环境变量或配置中心
 - 数据库密码等信息不提交到代码仓库
 
+## 禁止清单
+
+| 禁止项 | 原因 | 正确做法 |
+|--------|------|---------|
+| `@Value` 散落在 Service 中 | 配置分散难维护 | 集中到 `@ConfigurationProperties` 类 |
+| 事务内调用外部 API（LLM/S3/HTTP） | 长时间占用 DB 连接，事务超时风险 | 外部调用放事务外，或用事件异步处理 |
+| 同类内部调用 `@Transactional` 方法 | AOP 代理不生效，事务不会开启 | 拆到另一个 Bean，或用 `self` 注入 |
+| `throw new RuntimeException(...)` | 绕过全局异常处理 | 统一用 `BusinessException(ErrorCode.XXX)` |
+| 循环调用 DB（N+1） | 性能灾难 | 批量查询 `findAllById()` 或 `@EntityGraph` |
+
 ## 检查清单
 
 创建新模块前，确认：
