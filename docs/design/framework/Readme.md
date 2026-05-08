@@ -47,6 +47,7 @@ framework/
 |------|------|
 | [atom-memory-engine.md](engine/atom-memory-engine.md) | AtomMemory 原子记忆引擎（支撑 Cognition.Memory） |
 | [nexus-kb-engine.md](engine/nexus-kb-engine.md) | NexusKB 连接式知识引擎（支撑 Cognition.Knowledge） |
+| [semantic-calc-engine.md](engine/semantic-calc-engine.md) | SemanticCalc 语义计算引擎（横切支撑 Cognition/Learning/Agent） |
 | [auto-dev.md](engine/auto-dev.md) | AI 自动开发引擎 |
 | [document-engine.md](engine/document-engine.md) | 文档引擎设计 |
 | [conversational-interaction.md](engine/conversational-interaction.md) | 对话式交互设计 |
