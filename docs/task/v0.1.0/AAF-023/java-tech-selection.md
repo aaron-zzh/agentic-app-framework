@@ -89,6 +89,10 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 | Document Reader | Tika/Markdown/Jsoup 多格式文档解析 |
 | Structured Output | 类型安全的 LLM 输出解析（直接映射到 Java Record） |
 | Evaluation Framework | 内置 AI 输出质量评估（相关性、忠实度） |
+| **AgentScope Java** | 多智能体编排框架（Spring Boot starter），内置：Token 用量统计、模型路由、Memory 管理、RAG、Human-in-the-Loop、Observability Studio、Online Training、Hook System、AG-UI/A2A 协议、Pipeline/Supervisor/Handoffs |
+| Prompt 模板管理 | 系统级 Prompt 版本化存储 + 动态加载（基于 AgentScope + 文档引擎） |
+| 模型路由 | 按任务类型/成本/延迟自动选择模型（AgentScope Routing 内置） |
+| Token 用量统计 | 每次 LLM 调用消耗记录，支持配额控制和成本分析（AgentScope getChatUsage() 内置） |
 
 ## 四、推荐核心技术栈
 
@@ -107,6 +111,11 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 | 工作流 | Flowable 7 | - | BPMN 2.0 标准，Spring Boot 集成成熟 |
 | 安全 | Spring Security 7 + JWT | - | RBAC + OAuth2 Resource Server |
 | 无密码认证 | Spring Security WebAuthn | - | 指纹/Face ID/硬件密钥，v0.1.0 暂缓 |
+| 参数校验 | spring-boot-starter-validation | - | Bean Validation 3.1，需显式引入 |
+| 邮件发送 | spring-boot-starter-mail | - | 邮件通知/验证码发送 |
+| 实时协同 | Yjs（CRDT） | - | 多人协作编辑，OT/CRDT 冲突合并 |
+| 沙箱执行 | GraalVM Polyglot Sandbox | - | Agent 代码安全隔离执行，v2.0 迁移到 actormesh |
+| 敏感配置加密 | Jasypt | - | DB 密码等敏感配置加密，不明文存配置文件 |
 | 容错 | Resilience4j | - | 熔断/重试/超时/舱壁，LLM 调用必备 |
 | 图查询 | neo4j-cypher-dsl | - | 类型安全 Cypher 构建，替代字符串拼接 |
 | IP 归属地 | ip2region | - | 用户管理/操作日志 IP 解析，纯本地库 |
@@ -171,6 +180,12 @@ AAF 框架层（`aaf-common` + `aaf-framework`）为业务开发者提供以下�
 | 多租户隔离 | 租户上下文自动注入，数据自动过滤 | aaf-framework |
 | 权限注解 | `@RequiresPermission` / `@RequiresRole` 声明式鉴权，`@PreAuthorize` Spring Security 原生支持 | aaf-framework |
 | 安全防护 | XSS 过滤（请求参数净化）/ SQL 注入防护（参数化查询）/ 登录失败锁定（Redis 计数 + 临时封禁） | aaf-framework |
+| 数据脱敏 | `@Sensitive` 注解，日志/响应中手机号/身份证/邮箱自动脱敏 | aaf-framework |
+| 幂等控制 | `@Idempotent` 注解 + Redis，防重复提交 | aaf-framework |
+| 链路追踪 | TraceId 自动注入（MDC + 虚拟线程适配），请求全链路可追踪 | aaf-framework |
+| 消息推送 | WebSocket/SSE 统一推送封装（系统通知/任务进度/Agent 状态） | aaf-framework |
+| 健康检查扩展 | 自定义 HealthIndicator（LLM 可用性/向量库连通性/Neo4j 连通性） | aaf-framework |
+| 多语言国际化 | i18n 错误码/消息多语言，`MessageSource` 统一管理 | aaf-framework |
 | 分布式锁 | `@DistributedLock` 注解 + Redis 实现 | aaf-framework |
 | 缓存 | `@Cacheable/@CacheEvict` Spring Cache 注解，本地 Caffeine + 远程 Redis 两级，配置切换 | aaf-framework |
 | 接口限流 | Resilience4j `@RateLimiter` 注解，单体内限流；分布式场景升级为 Redis 滑动窗口 | aaf-framework |
