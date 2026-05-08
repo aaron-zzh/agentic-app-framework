@@ -18,7 +18,8 @@ changelog:
 
 - 遵循阿里巴巴 Java 开发手册
 - 遵循 [架构约束规范](../../architecture-constraints.md)（依赖方向、分层纪律、模块边界）
-- 使用 Lombok 简化样板代码（`@Data`、`@Builder`、`@Slf4j` 等）
+- 使用 Lombok 简化 JPA 实体样板代码（`@Getter`、`@Setter`、`@NoArgsConstructor`、`@Builder`、`@Slf4j`）
+- **VO / DTO / Event 使用 Record**，不再需要 Lombok `@Data`（详见"Java 25 现代特性规范"）
 - 代码即文档，保持可读性，必要处添加注释
 - **注释语言统一中文**，禁止中英混用（与 `docs/` 真理源一致）
 - 编写单元测试（JUnit 5 + Mockito），保证功能正确性
@@ -204,10 +205,10 @@ public class DocumentServiceImpl implements DocumentService { ... }
 
 ```
 aaf-api/src/main/resources/
-├── application.yml           # 主配置文件
-├── application-dev.yml       # 开发环境
-├── application-test.yml      # 测试环境
-└── application-prod.yml      # 生产环境
+├── application.yaml           # 主配置文件
+├── application-dev.yaml       # 开发环境
+├── application-test.yaml      # 测试环境
+└── application-prod.yaml      # 生产环境
 ```
 
 ### 配置命名
@@ -288,21 +289,19 @@ docs/
 | -------- | --------------------------- | ----------------------- |
 | 单元测试 | JUnit 5 + Mockito           | Service/Mapper 逻辑验证 |
 | 集成测试 | JUnit 5 + `@SpringBootTest` | Controller/API 测试     |
-| 验收测试 | JUnit 5 + Gherkin 风格命名  | 端到端业务场景验证      |
+| 验收测试 | JUnit 5 + Failsafe          | 端到端业务场景验证      |
 
 ### 测试文件命名
 
 ```
-{ClassName}Test.java
+{ClassName}Test.java          # 单元测试（Surefire）
+{ClassName}IT.java            # 集成测试（Failsafe）
+{ClassName}AcceptanceTest.java # 验收测试（Failsafe）
 ```
 
 ### 单元测试示例
 
 > 代码示例见 [测试代码片段](../../snippets/testing-snippets.md#单元测试)
-
-### 验收测试示例
-
-> 代码示例见 [测试代码片段](../../snippets/testing-snippets.md#验收测试cucumber)
 
 ## 日志规范
 
@@ -331,6 +330,132 @@ docs/
 | `ParamException`    | 参数异常 |
 
 > 代码示例见 [编码代码片段](../../snippets/coding-snippets.md#异常定义)
+
+## Java 25 现代特性规范
+
+> 起因：[tech-stack.md §1](../../../design/apps/service/tech-stack.md#一java-25-核心特性)，Record / Sealed / Pattern Matching 是 AAF 首选。
+
+### Record 使用规范
+
+**原则：不可变数据载体一律用 Record，不用 Class + Lombok。**
+
+| 场景 | 用 Record | 用 Class |
+|------|-----------|----------|
+| 请求/响应 VO | ✅ 首选 | 需要 Builder 模式或继承时 |
+| 领域事件 | ✅ 首选 | — |
+| 配置属性 | ✅ `@ConfigurationProperties` 支持 Record | 需要 `@Value` 默认值时 |
+| 内部值对象 | ✅ 首选 | — |
+| JPA 实体 | ❌ 不可用 | ✅ 实体必须用 Class（JPA 需要无参构造 + 可变状态） |
+| 需要继承的类 | ❌ Record 是 final | ✅ 用 Class 或 Sealed Class |
+
+**VO 命名（Record 版）：**
+
+```java
+// ✅ 请求 VO —— Record，字段即校验
+public record UserCreateReqVO(
+        @NotBlank String username,
+        @Email String email,
+        @Size(min = 6) String password
+) {}
+
+// ✅ 响应 VO —— Record，天然不可变
+public record UserRespVO(
+        Long id,
+        String username,
+        String email,
+        LocalDateTime createTime
+) {}
+
+// ✅ 分页请求 —— 继承公共分页参数
+public record UserPageReqVO(
+        String keyword,
+        Integer status,
+        int pageNo,
+        int pageSize
+) {}
+```
+
+**Record 与 Lombok 的关系：**
+
+| 场景 | Lombok | Record |
+|------|--------|--------|
+| VO / DTO / Event | ❌ 不再需要 `@Data` | ✅ Record 自带 equals/hashCode/toString |
+| JPA Entity | ✅ `@Getter` `@Setter` `@NoArgsConstructor` | ❌ 不可用 |
+| Builder 模式 | ✅ `@Builder` | ❌ Record 无 Builder（用静态工厂方法替代） |
+
+### Sealed Classes 使用规范
+
+**原则：有限状态/类型集合用 Sealed，替代 abstract class + 散落子类。**
+
+适用场景：
+- 工作流节点类型
+- Agent 状态机
+- 错误码分类
+- 命令/事件多态
+
+```java
+// ✅ 工作流节点 —— 有限类型集合
+public sealed interface WorkflowNode
+        permits StartNode, EndNode, TaskNode, GatewayNode, SubProcessNode {
+    String id();
+    String name();
+}
+
+public record StartNode(String id, String name) implements WorkflowNode {}
+public record EndNode(String id, String name) implements WorkflowNode {}
+public record TaskNode(String id, String name, String assignee) implements WorkflowNode {}
+public record GatewayNode(String id, String name, GatewayType type) implements WorkflowNode {}
+public record SubProcessNode(String id, String name, String processId) implements WorkflowNode {}
+
+// ✅ Agent 执行结果 —— 有限状态
+public sealed interface AgentResult
+        permits AgentResult.Success, AgentResult.Failure, AgentResult.NeedConfirm {
+    record Success(String output) implements AgentResult {}
+    record Failure(String reason, Exception cause) implements AgentResult {}
+    record NeedConfirm(String question, Runnable onConfirm) implements AgentResult {}
+}
+```
+
+### Pattern Matching 使用规范
+
+**原则：用 switch 表达式 + pattern matching 替代 if-else 链和 visitor 模式。**
+
+```java
+// ✅ 类型安全分支 —— 编译器保证穷举
+public String describe(WorkflowNode node) {
+    return switch (node) {
+        case StartNode s -> "流程开始: " + s.name();
+        case EndNode e -> "流程结束: " + e.name();
+        case TaskNode t -> "任务: " + t.name() + " 指派: " + t.assignee();
+        case GatewayNode g -> "网关: " + g.name() + " 类型: " + g.type();
+        case SubProcessNode sp -> "子流程: " + sp.processId();
+    };
+}
+
+// ✅ 守卫条件（guarded pattern）
+public void handle(AgentResult result) {
+    switch (result) {
+        case AgentResult.Success s when s.output().length() > 1000 ->
+            log.info("长输出，截断展示");
+        case AgentResult.Success s ->
+            log.info("成功: {}", s.output());
+        case AgentResult.Failure f ->
+            log.error("失败: {}", f.reason(), f.cause());
+        case AgentResult.NeedConfirm c ->
+            notifyUser(c.question());
+    }
+}
+
+// ❌ 禁止 —— 用 instanceof 链做类型判断
+if (node instanceof StartNode) { ... }
+else if (node instanceof EndNode) { ... }
+else if (node instanceof TaskNode) { ... }
+```
+
+**何时不用 Pattern Matching：**
+- 简单 null 检查 → 用 `Objects.requireNonNull` 或 `Optional`
+- 单一类型判断 → 普通 `instanceof` 即可
+- 非 sealed 类型 → switch 无法保证穷举，用 if-else 或策略模式
 
 ## 并发编程规范（Virtual Threads）
 
@@ -445,6 +570,44 @@ private void doSomething() {
 | 同类内部调用 `@Transactional` 方法 | AOP 代理不生效，事务不会开启 | 拆到另一个 Bean，或用 `self` 注入 |
 | `throw new RuntimeException(...)` | 绕过全局异常处理 | 统一用 `BusinessException(ErrorCode.XXX)` |
 | 循环调用 DB（N+1） | 性能灾难 | 批量查询 `findAllById()` 或 `@EntityGraph` |
+
+## 代码格式化规范（Spotless + Google Java Format）
+
+> pom.xml 已配置 `spotless-maven-plugin`，开发者无需手动格式化。
+
+### 格式化方案
+
+| 配置项 | 值 | 说明 |
+|--------|-----|------|
+| 格式化引擎 | Google Java Format 1.22.0 | 业界标准，零争议 |
+| 缩进风格 | AOSP（4 空格） | 比 Google 默认 2 空格更易读 |
+| import 顺序 | `java` → `javax` → `org` → `com` → `com.xuejiai` → 静态 | 分组清晰 |
+| 未使用 import | 自动移除 | — |
+| 尾部空白 | 自动清除 | — |
+| 文件末尾 | 强制换行 | — |
+
+### 开发者工作流
+
+```bash
+# 格式化所有 Java 文件
+pnpm nx run service:format
+
+# 检查格式（CI 强制，不通过即失败）
+pnpm nx run service:lint
+```
+
+### IDE 配置
+
+**IntelliJ IDEA**：安装 `google-java-format` 插件 → Settings → google-java-format → 勾选 Enable → 选择 AOSP style。保存时自动格式化。
+
+**VS Code**：不推荐直接编辑 Java，使用 `pnpm nx run service:format` 命令行格式化。
+
+### 规则
+
+- **不手动调格式**：所有格式由 Spotless 统一处理，禁止手动对齐/换行
+- **提交前自动检查**：`pnpm check:affected` 包含格式检查，格式不通过视为未完工
+- **不加 `// @formatter:off`**：除非极特殊场景（如 ASCII art 注释），禁止关闭格式化
+- **新文件自动覆盖**：`src/main/java/**/*.java` 和 `src/test/java/**/*.java` 全部纳入
 
 ## 检查清单
 
