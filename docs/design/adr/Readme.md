@@ -44,6 +44,7 @@ changelog:
 | [ADR-001](ADR-001-vitest-vs-jest.md) | 前端测试框架选型：Vitest vs Jest | accepted | 前端单测工具链、AAF-023 #6 |
 | [ADR-002](ADR-002-local-env-vs-testcontainers.md) | 后端测试环境：本地真实 DB vs Testcontainers | accepted | 后端测试环境、CI 配置、AAF-023 #8 |
 | [ADR-003](ADR-003-remove-cucumber.md) | 后端测试框架：移除 Cucumber，统一 JUnit 5 | accepted | 后端测试工具链、验收测试规范、AAF-023 #7 |
+| [ADR-004](ADR-004-virtual-threads-over-webflux.md) | 全量 Virtual Threads + JDBC，放弃 WebFlux + R2DBC | accepted | 后端并发模型、依赖清理、编码规范、AAF-023 #17 |
 
 ## 与其他文档的关系
 

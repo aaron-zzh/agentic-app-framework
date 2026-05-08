@@ -72,7 +72,7 @@ agentic-app-framework/
         │   │   │   ├── service/
         │   │   │   ├── domain/
         │   │   │   ├── repository/
-        │   │   │   └── vo/
+        │   │   │   └── vo/                    # 入参 XxxReqVO + 出参 XxxRespVO，统一放此目录
         │   │   ├── document/                  # 文档管理
         │   │   └── chat/                      # 聊天协作
         │   └── examples/                      # 示例代码（@Profile("examples")）

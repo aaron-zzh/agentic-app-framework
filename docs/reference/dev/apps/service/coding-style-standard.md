@@ -22,7 +22,6 @@ changelog:
 - 代码即文档，保持可读性，必要处添加注释
 - **注释语言统一中文**，禁止中英混用（与 `docs/` 真理源一致）
 - 编写单元测试（JUnit 5 + Mockito），保证功能正确性
-- 使用 Cucumber 编写验收测试，自然语言描述业务场景
 - 遵守 Git 提交规范
 
 ## 模块命名规范
@@ -144,7 +143,33 @@ aaf-api/src/main/java/com/xuejiai/aaf/module/{name}/
 - **对象转换**：MapStruct Convert 接口模板
 - **实体内异常**：实体内抛 BusinessException 的时机与写法
 
-### 类命名
+### Service 层规范
+
+**业务 Service 直接写类，不加接口**：
+
+```java
+// ✅ 正确 —— 直接写 Service 类
+@Service
+@RequiredArgsConstructor
+public class DocumentService {
+    private final DocumentRepository repo;
+    public Document create(CreateDocumentRequest req) { ... }
+}
+
+// ❌ 不必要 —— 同一 Service 只有一个实现时禁止加接口
+public interface DocumentService { ... }
+public class DocumentServiceImpl implements DocumentService { ... }
+```
+
+**需要定义接口的场景**：
+
+| 场景 | 示例 |
+|------|------|
+| 框架扩展点（用户可自定义实现） | `FileStorage`、`TaskHandler`、`AuthenticationProvider` |
+| 跨模块依赖（framework 定义，api 实现） | `AgentExecutor`、`EmbeddingService` |
+| 确实有多个实现 | `FileStorage` → Local / MinIO / OSS |
+
+
 
 | 类型       | 命名规则                              | 示例             |
 | ---------- | ------------------------------------- | ---------------- |
@@ -153,8 +178,10 @@ aaf-api/src/main/java/com/xuejiai/aaf/module/{name}/
 | Repository | `{Name}Repository`                    | `UserRepository` |
 | 实体类     | `{Name}`                              | `User`           |
 | 对象映射   | `{Name}Convert`                       | `UserConvert`    |
-| DTO        | `{Name}CreateDTO` / `{Name}UpdateDTO` | `UserCreateDTO`  |
-| VO         | `{Name}VO`                            | `UserVO`         |
+| 入参 VO    | `{Name}{动作}ReqVO`                   | `UserCreateReqVO` / `UserPageReqVO` |
+| 出参 VO    | `{Name}RespVO` / `{Name}SimpleRespVO` | `UserRespVO` / `UserSimpleRespVO` |
+
+> 统一使用 `VO` 后缀，不使用 `DTO`。入参加 `Req`，出参加 `Resp`，均放 `vo/` 目录。
 
 ### 注解使用
 
@@ -162,10 +189,14 @@ aaf-api/src/main/java/com/xuejiai/aaf/module/{name}/
 
 ### 工具类使用
 
-优先使用框架提供的工具类：
+优先级（从高到低）：
 
-- `cn.hutool.core.util.*` - Hutool 工具类
-- `com.xuejiai.aaf.common.util.*` - AAF 公共工具类
+1. `java.*` / `java.time.*` / `java.nio.file.*` — JDK 标准库优先
+2. `org.springframework.*` — Spring 工具类（StringUtils、CollectionUtils 等）
+3. `com.xuejiai.aaf.common.util.*` — AAF 公共工具类
+4. 按需引入单一职责小库（如 commons-lang3、guava 局部使用）
+
+**禁止引入 Hutool**（hutool-all / hutool-core）：体积大、与 Spring/JDK 重复、传递依赖风险高。
 
 ## 配置文件规范
 
@@ -257,7 +288,7 @@ docs/
 | -------- | --------------------------- | ----------------------- |
 | 单元测试 | JUnit 5 + Mockito           | Service/Mapper 逻辑验证 |
 | 集成测试 | JUnit 5 + `@SpringBootTest` | Controller/API 测试     |
-| 验收测试 | Cucumber                    | 端到端业务场景验证      |
+| 验收测试 | JUnit 5 + Gherkin 风格命名  | 端到端业务场景验证      |
 
 ### 测试文件命名
 
@@ -300,6 +331,81 @@ docs/
 | `ParamException`    | 参数异常 |
 
 > 代码示例见 [编码代码片段](../../snippets/coding-snippets.md#异常定义)
+
+## 并发编程规范（Virtual Threads）
+
+> 起因：[ADR-004](../../../design/adr/ADR-004-virtual-threads-over-webflux.md)
+
+AAF 全量启用虚拟线程（`spring.threads.virtual.enabled=true`），业务代码默认运行在虚拟线程上。
+
+### 核心规则
+
+| 规则 | 说明 |
+|------|------|
+| 禁止 `synchronized` | 会 pin carrier thread，统一用 `ReentrantLock` |
+| 禁止自建线程池处理 I/O | 虚拟线程已覆盖，`new FixedThreadPool` 处理 I/O 任务是反模式 |
+| 禁止 WebFlux 全栈响应式 | 业务代码不使用 Mono/Flux，仅 SSE 流式输出例外 |
+| 连接池大小需匹配 | HikariCP `maximumPoolSize` 需匹配 DB `max_connections`，不能用默认 10 |
+
+### 不需要特殊处理的场景
+
+```java
+// 串行调用 —— 直接写，虚拟线程自动处理阻塞
+@PostMapping("/api/documents")
+public Document create(@RequestBody CreateDocumentRequest req) {
+    var doc = documentService.create(req);       // DB 阻塞 → 虚拟线程挂起，不占 OS 线程
+    knowledgeService.index(doc);                  // 外部调用 → 同上
+    notificationService.notify(doc.ownerId());    // 外部调用 → 同上
+    return doc;
+}
+```
+
+### 需要主动设计的场景
+
+**1. 并行调用降低延迟**（用 StructuredTaskScope）：
+
+```java
+// 3 个接口各 1s，并行后总耗时 1s
+try (var scope = StructuredTaskScope.open()) {
+    var a = scope.fork(() -> serviceA.call());
+    var b = scope.fork(() -> serviceB.call());
+    var c = scope.fork(() -> serviceC.call());
+    scope.join();
+}
+```
+
+**2. 下游资源保护**（连接池/限流）：
+
+```java
+// 外部 API 限流 100 QPS —— 用 Semaphore 或 Resilience4j RateLimiter
+private final Semaphore limiter = new Semaphore(100);
+```
+
+**3. CPU 密集任务**（隔离到平台线程池）：
+
+```java
+@Async("cpuIntensiveExecutor")  // 固定大小 = CPU 核心数
+public void parseHugeDocument(Document doc) { ... }
+```
+
+### 锁的写法
+
+```java
+// ❌ 禁止
+private synchronized void doSomething() { ... }
+
+// ✅ 正确
+private final ReentrantLock lock = new ReentrantLock();
+
+private void doSomething() {
+    lock.lock();
+    try {
+        // ...
+    } finally {
+        lock.unlock();
+    }
+}
+```
 
 ## 性能规范
 
