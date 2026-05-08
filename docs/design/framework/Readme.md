@@ -37,14 +37,16 @@ framework/
 
 | 文档 | 说明 |
 |------|------|
-| [agent.md](core/agent.md) | 智能体系统设计（五层智能架构） |
-| [atom-memory.md](core/atom-memory.md) | 记忆系统（占位） |
-| [nexusKB.md](core/nexusKB.md) | 知识库引擎（占位） |
+| [agent.md](core/agent.md) | 智能体系统设计（五层智能架构总览） |
+| [cognition/Readme.md](core/cognition/Readme.md) | 认知层设计（Layer 1 Cognition，Memory/Knowledge/Value/Retrieval） |
+| [actor-model.md](core/actor-model.md) | Actor 模型设计 |
 
 ### 专项引擎 `engine/`
 
 | 文档 | 说明 |
 |------|------|
+| [atom-memory-engine.md](engine/atom-memory-engine.md) | AtomMemory 原子记忆引擎（支撑 Cognition.Memory） |
+| [nexus-kb-engine.md](engine/nexus-kb-engine.md) | NexusKB 连接式知识引擎（支撑 Cognition.Knowledge） |
 | [auto-dev.md](engine/auto-dev.md) | AI 自动开发引擎 |
 | [document-engine.md](engine/document-engine.md) | 文档引擎设计 |
 | [conversational-interaction.md](engine/conversational-interaction.md) | 对话式交互设计 |

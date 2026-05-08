@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: AAF 认知层（Cognition）设计 - Layer 1 持久级·跨 Agent 共享的认知基础
 status: draft
-version: 2.1.0
+version: 2.2.0
 date: 2026-05-08
 author: AaronZZH
 changelog:
+  - 2026-05-08 v2.2.0 | 补充与引擎层的关系章节；引入 SemanticCalcEngine 语义计算引擎；Cognition 模块 vs 引擎实现职责分工
   - 2026-05-08 v2.1.0 | 对齐认知心理学信息加工模型：加入工作记忆、注意力资源、双反馈通道
   - 2026-05-08 v2.0.0 | 加入价值观、明确三分区与被动循环、Learning 重新定位为横切反哺通道
   - 2026-05-08 v1.0.0 | 初稿（Memory/Knowledge/Retrieval/Learning 四组件）
@@ -464,7 +465,106 @@ Agent 循环的反馈分为**即时**和**异步**两个通道，服务不同粒
 | Layer 4 Team | Team 共享 Knowledge + Value，**不共享 Memory**（隐私隔离） | Team → Cognition（Knowledge/Value）|
 | 横切 Learning | 异步反哺通道，Agent 执行结果 → 评估 → 更新 Cognition | Agent → Learning → Cognition |
 
-## 八、实现路径
+## 八、与引擎层的关系（Cognition 模块 vs 引擎实现）
+
+Cognition 层的组件（Memory/Knowledge/Value/Retrieval）是**业务语义接口**，底层依赖**引擎层**（Layer 2 引擎）的通用执行能力。两层严格分工。
+
+### 职责分工
+
+| 层 | 角色 | 感知的信息 | 不感知的信息 |
+|----|------|----------|-------------|
+| Cognition 模块 | 业务语义接口 | 分区/权限/价值观/记忆类型/生命周期 | 存储技术/索引算法 |
+| 引擎层 | 通用执行能力 | 存储技术/索引算法/性能优化 | 业务语义/分区语义/价值观 |
+
+类比 Spring 生态：`Memory` 模块 ≈ Spring Data Repository，`AtomMemoryEngine` ≈ Hibernate/JDBC。
+
+### 引擎清单（支撑 Cognition 的四个引擎）
+
+| 引擎 | 支撑组件 | 通用能力 |
+|------|---------|---------|
+| **AtomMemoryEngine**（原子记忆引擎） | Memory | 原子记忆片段的存储/索引/检索，支持时序+语义双索引、双时态、压缩归档 |
+| **NexusKBEngine**（连接式知识引擎） | Knowledge | 向量+图谱混合存储，ECL 管道、多跳推理、混合检索、Reranker |
+| **SemanticCalcEngine**（语义计算引擎） | Memory/Knowledge/Retrieval/Learning | Embedding 生成、语义相似度、实体抽取、关系抽取、语义分类、语义漂移检测、语义对齐 |
+| **ValueRuleEngine**（价值观规则引擎） | Value | 规则解析、优先级仲裁、行为校验、冲突判定 |
+
+### SemanticCalcEngine（语义计算引擎）
+
+**为什么独立为引擎**：语义计算是跨组件复用的横切能力，不属于某个具体认知组件。
+
+| 能力 | 用途 | 谁使用 |
+|------|------|-------|
+| Embedding 生成 | 文本 → 向量 | Memory 索引、Knowledge ECL、Retrieval 查询 |
+| 语义相似度 | 向量间相似度计算 | Retrieval 排序、Memory 去重 |
+| 实体抽取（NER） | 文本 → 实体列表 | Knowledge Cognify 阶段、Agent 感知 |
+| 关系抽取 | 文本 → 实体关系三元组 | Knowledge 图谱构建 |
+| 语义分类/聚类 | 文本归类、主题聚类 | Memory 归档、Knowledge 分类 |
+| **语义漂移检测** | 工具行为 vs 知识描述不一致告警 | Learning 反哺通道 |
+| 语义对齐 | 去重、同义词合并 | Memory 压缩、Knowledge 去重 |
+| 意图识别 | 用户输入 → 意图类别 | Agent 感知、Assistant 路由 |
+
+### 调用链示例
+
+**记忆写入**：
+
+```
+Agent.execute()
+    ↓
+MemoryService.record(scope, memory)      ← Cognition 业务语义
+    ├─ 分区路由（用户私有/工作区）
+    ├─ ValueService.validate(...)         ← 价值观校验
+    └─ SemanticCalcEngine.embed(...)      ← 引擎：生成向量
+         ↓
+AtomMemoryEngine.store(...)               ← 引擎：写入存储
+    ↓
+PgVector / Neo4j / Redis                 ← 基础设施
+```
+
+**知识检索**：
+
+```
+Agent.execute()
+    ↓
+RetrievalService.retrieve(query)          ← Cognition 融合路由
+    ├─ SemanticCalcEngine.embed(query)    ← 引擎：查询向量化
+    ├─ NexusKBEngine.hybridSearch(...)    ← 引擎：向量+图谱
+    ├─ AtomMemoryEngine.recall(...)       ← 引擎：记忆检索
+    └─ SemanticCalcEngine.rerank(...)     ← 引擎：重排序
+         ↓
+ValueService.filter(...)                  ← 价值观过滤
+    ↓
+返回聚合结果给 Agent
+```
+
+### 依赖方向（架构约束）
+
+```
+Cognition 模块（Memory/Knowledge/Value/Retrieval）
+    ↓ 允许调用
+引擎层（AtomMemoryEngine / NexusKBEngine / SemanticCalcEngine / ValueRuleEngine / ...）
+    ↓ 允许调用
+基础设施层（PgVector / Neo4j / Redis / LLM API）
+
+❌ 引擎层不能依赖 Cognition 模块
+❌ 下层不能依赖上层
+```
+
+### 引擎的多场景复用
+
+引擎是通用能力，**不绑定单个认知组件**，可被多处使用：
+
+```
+SemanticCalcEngine
+    ├── 被 Cognition.Memory 使用 → 记忆向量化、去重
+    ├── 被 Cognition.Knowledge 使用 → ECL Cognify
+    ├── 被 Cognition.Retrieval 使用 → 查询理解、重排
+    ├── 被 Learning 使用 → 语义漂移检测
+    ├── 被 Agent 感知使用 → 意图识别、实体抽取
+    └── 被文档服务使用 → 文档自动分类
+```
+
+这正是引擎层用 AtomMemory/Nexus 这种**特色命名**的原因——是通用能力，不绑定特定认知组件；而 Cognition 的 Memory/Knowledge 使用**通用名**，更直观。
+
+## 九、实现路径
 
 | 版本 | 内容 |
 |------|------|
@@ -475,7 +575,7 @@ Agent 循环的反馈分为**即时**和**异步**两个通道，服务不同粒
 | v0.9 | 整合联调（程序化记忆 + 语义漂移检测 + 规范自进化提议）|
 | v1.0 | 时态回溯完善 + 知识生长闭环 + 情感记忆 + 价值观演化治理 |
 
-## 九、参考框架借鉴表
+## 十、参考框架借鉴表
 
 | 框架 | 借鉴点 | 不借鉴点 |
 |------|--------|---------|
@@ -486,23 +586,32 @@ Agent 循环的反馈分为**即时**和**异步**两个通道，服务不同粒
 | M-FLOW | 图路由 Bundle Search 思想 | 具体实现 |
 | ReMe | 程序化记忆（"如何做"）、Markdown 存储 | 完全本地化部署 |
 
-## 十、所在模块
+## 十一、所在模块
+
+### Cognition 业务语义层（认知模块）
 
 ```
-aaf-framework/
-  └── intelligent/
-      └── cognition/
-          ├── memory/              # 记忆系统
-          ├── knowledge/           # 知识库
-          ├── value/               # 价值观系统
-          └── retrieval/           # 融合检索（服务组件）
+aaf-framework/intelligent/cognition/
+  ├── memory/          # 记忆业务接口与分区策略
+  ├── knowledge/       # 知识库业务接口与双视图
+  ├── value/           # 价值观规则与校验接口
+  └── retrieval/       # 融合检索路由（服务组件）
 
-aaf-framework/
-  └── intelligent/
-      └── learning/                # 横切反哺通道（不属 cognition 包）
+aaf-framework/intelligent/learning/
+  └── (横切反哺通道，不属 cognition 包)
 ```
 
-## 十一、相关文档
+### 引擎层实现（通用能力）
+
+```
+aaf-framework/engine/
+  ├── atom-memory/     # 原子记忆引擎（支撑 Memory）
+  ├── nexus-kb/        # 连接式知识引擎（支撑 Knowledge）
+  ├── semantic-calc/   # 语义计算引擎（Embedding / NER / 相似度 / 漂移检测）
+  └── value-rule/      # 价值观规则引擎（支撑 Value）
+```
+
+## 十二、相关文档
 
 - [智能体系统设计](../agent.md) - 五层智能架构总览
 - [记忆系统详细设计](memory.md) - 待创建

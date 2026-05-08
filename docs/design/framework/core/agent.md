@@ -132,8 +132,8 @@ Layer 0  内核层  Core                              【请求级·无状态】
 
 ### 核心引擎
 
-- **记忆引擎**：详见 [atom-memory.md](atom-memory.md)（待完善）
-- **知识库引擎**：详见 [nexusKB.md](nexusKB.md)（待完善）
+- **记忆引擎**：详见 [AtomMemory 原子记忆引擎](../engine/atom-memory-engine.md)
+- **知识库引擎**：详见 [NexusKB 连接式知识引擎](../engine/nexus-kb-engine.md)
 
 ### 设计要点
 
@@ -350,8 +350,9 @@ while True:
 
 - [元引擎设计](../meta-engine.md) - 智能体系统的编排基础设施
 - [对话式交互设计](../engine/conversational-interaction.md) - 人机交互入口
-- [记忆系统设计](atom-memory.md) - Cognition 层记忆引擎（待完善）
-- [知识库设计](nexusKB.md) - Cognition 层知识引擎（待完善）
+- [认知层设计](cognition/Readme.md) - Layer 1 Cognition 总览
+- [AtomMemory 原子记忆引擎](../engine/atom-memory-engine.md) - Memory 模块的引擎实现
+- [NexusKB 连接式知识引擎](../engine/nexus-kb-engine.md) - Knowledge 模块的引擎实现
 
 ## 思考
 
