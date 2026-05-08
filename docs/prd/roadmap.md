@@ -4,6 +4,20 @@
 
 > 规划版本时请先参考 [产品概述](../explanation/product-overview.md)，确保版本目标与产品方向一致。
 
+## 代码库构成
+
+| 代码库 | 技术栈 | 定位 | 启动版本 |
+|--------|--------|------|---------|
+| `apps/service` | Spring Boot 4 + Java 25 | 后端核心，AI 原生框架引擎 | v0.1.0 |
+| `apps/webui` | Next.js 16 + React 19 + TypeScript | Web 前端，对话式交互主入口 | v0.1.0 |
+| `apps/uniapp` | UniApp + Vue 3 | 跨端移动应用（小程序/APP） | v0.1.0 结构，v0.3+ 功能迭代 |
+| `apps/actormesh` | C++20/23，io_uring，无共享 Actor 模型 | 高性能异步执行引擎，Agent Sandbox 底座 | v2.0 按需引入 |
+
+**迭代策略**：
+- `service` / `webui` / `uniapp` 每个版本同步迭代，功能对齐
+- `uniapp` 优先级低于 `webui`，同版本内 webui 先行，uniapp 跟进核心功能
+- `actormesh` v2.0 前不启动；v0.x 沙箱执行用 GraalVM Polyglot Sandbox 替代，待 actormesh 稳定后迁移
+
 ## v0.1.0 — 基础框架搭建（当前）
 
 > 目标：传统 MVC 架构搭建基础设施，验证 AI 协作开发流程，为后续元引擎打地基。
