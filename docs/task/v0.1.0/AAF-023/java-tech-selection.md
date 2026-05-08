@@ -187,7 +187,8 @@ AAF 框架层（`aaf-common` + `aaf-framework`）为业务开发者提供以下�
 | 多租户隔离 | 租户上下文自动注入，数据自动过滤 | aaf-framework |
 | 权限注解 | `@RequiresPermission` / `@RequiresRole` 声明式鉴权，`@PreAuthorize` Spring Security 原生支持 | aaf-framework |
 | 数据权限 | `@DataScope` 注解按部门/用户/自定义规则过滤查询结果，SQL 自动注入 where 条件 | aaf-framework |
-| 第三方登录 | OAuth2 Client，支持微信/GitHub/Google 等主流平台登录 | aaf-framework |
+| 第三方登录 | OAuth2 Client，优先支持微信/企业微信/钉钉，扩展支持飞书/GitHub/Google | aaf-framework |
+| 第三方集成 | 企业微信/钉钉/飞书统一接入层，覆盖消息推送、通知、组织架构同步、审批流转 | aaf-framework |
 | API Key 管理 | B2B 场景外部系统调用鉴权（区别于用户 JWT），支持配额/过期/撤销 | aaf-framework |
 | 短信服务 | 统一 `SmsSender` 接口，多厂商实现（阿里云/腾讯云/Twilio），配置切换 | aaf-framework |
 | 乐观锁 | JPA `@Version` 注解防并发更新冲突，BaseEntity 基础能力 | aaf-common |
