@@ -49,6 +49,7 @@ framework/
 | [nexus-kb-engine.md](engine/nexus-kb-engine.md) | NexusKB 连接式知识引擎（支撑 Cognition.Knowledge） |
 | [semantic-calc-engine.md](engine/semantic-calc-engine.md) | SemanticCalc 语义计算引擎（横切支撑 Cognition/Learning/Agent） |
 | [data-process-engine.md](engine/data-process-engine.md) | DataProcess 数据处理分析引擎（v2.0 迁移到 actormesh） |
+| [physics-spacetime-engine.md](engine/physics-spacetime-engine.md) | PhysicsSpaceTime 物理时空引擎（世界模型 + 语义引力 + 虚拟空间基础） |
 | [auto-dev.md](engine/auto-dev.md) | AI 自动开发引擎 |
 | [document-engine.md](engine/document-engine.md) | 文档引擎设计 |
 | [conversational-interaction.md](engine/conversational-interaction.md) | 对话式交互设计 |

@@ -99,6 +99,11 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 | Prompt 注入防御 | 输入净化 + 意图一致性校验（对比原始意图与最终 Prompt），防止恶意 prompt 劫持 |
 | 语音处理 | ASR（语音转文字）+ TTS（文字转语音），优先对接云服务（阿里云/火山引擎/OpenAI Whisper API） |
 | 图像处理 | OCR / 图像识别 / 多模态理解，优先对接云服务（阿里云 OCR / GPT-4V / Gemini Vision） |
+| **情感感知** | 文本情绪分类 + 操作节奏分析，驱动回应风格/信息密度自适应；情感记忆本地加密，不外传不训练 |
+| **置信度门控** | 执行分级：>0.9 自动 / 0.7-0.9 确认 / <0.7 转人工；不可逆操作强制人工；结果先暂存再提交（渐进提交） |
+| **输出溯源** | 每条输出携带生成链路 ID，追溯到 Agent/工具调用/知识来源/模型调用，审计归档 |
+| **AI 效果评估** | Spring AI Evaluation（相关性/忠实度）+ 用户反馈收集 + RAGAS 指标，反哺 Learning 层 |
+| **LLM 可观测性** | 基于 OTLP + AgentScope Observability Studio，Agent 执行可视化 + 调用链追踪 + Token 用量分析 |
 
 ## 四、推荐核心技术栈
 
@@ -123,6 +128,11 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 | 沙箱执行 | GraalVM Polyglot Sandbox | - | Agent 代码安全隔离执行，v2.0 迁移到 actormesh |
 | 敏感配置加密 | Jasypt | - | DB 密码等敏感配置加密，不明文存配置文件 |
 | 容错 | Resilience4j | - | 熔断/重试/超时/舱壁，LLM 调用必备 |
+| 限流/配额 | Bucket4j | - | Token 桶算法，Token 预算感知 + API 配额管控 |
+| DSL 解析 | ANTLR4 | - | Magic-DSL 语法解析，元引擎核心 |
+| 规则引擎 | Easy Rules | - | 轻量规则引擎（促销/通知/权限规则），复杂场景可升级 Drools |
+| 热部署调试 | Arthas | - | 运行时诊断 + 类热替换，支持自进化代码热加载 |
+| 密钥管理 | HashiCorp Vault / 云 KMS | - | 密钥 KMS 托管 + 自动轮换，Jasypt 仅作本地兜底 |
 | 图查询 | neo4j-cypher-dsl | - | 类型安全 Cypher 构建，替代字符串拼接 |
 | IP 归属地 | ip2region | - | 用户管理/操作日志 IP 解析，纯本地库 |
 | 文件导出 | EasyExcel | - | Excel 流式读写，内存友好，注解驱动，底层基于 POI |
@@ -162,7 +172,6 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 |------|---------|------|
 | **ruoyi-vue-pro（芋道）** | Maven 多模块 BOM 管理、权限体系、代码生成、多租户 | github.com/YunaiV/ruoyi-vue-pro |
 | **JeecgBoot** | 低代码引擎、Online 表单、工作流集成、模块拆分 | github.com/jeecgboot/JeecgBoot |
-| **pig** | Spring Security OAuth2 最佳实践、微服务网关、RBAC | gitee.com/log4j/pig |
 | **Spring AI Samples** | ChatClient/MCP/Tool Calling/RAG 官方示例 | github.com/spring-projects/spring-ai |
 | **Langchain4j** | Agent 编排模式、Memory 策略、Tool 注册（设计参考，不引入） | github.com/langchain4j/langchain4j |
 | **Dify** | AI 应用工作流编排、知识库管理、Agent 策略（产品参考） | github.com/langgenius/dify |
@@ -214,6 +223,14 @@ AAF 框架层（`aaf-common` + `aaf-framework`）为业务开发者提供以下�
 | AI 对话封装 | ChatClient 统一入口 + 记忆管理 + 流式 SSE | aaf-framework |
 | 全文与语义检索 | PostgreSQL FTS（中文分词）+ PgVector 向量相似度，精确/全文/语义三层递进，零额外搜索引擎 | aaf-framework |
 | 工具注册 | `@McpTool` 声明式注册，LLM 自动发现和调用 | aaf-framework |
+| **工具白名单** | 工具注册表 + 白名单校验器，Agent 调用前强制校验，不在白名单直接拒绝 | aaf-framework |
+| **DSL 解析封装** | ANTLR4 封装 + Magic-DSL 语法骨架，支持 dev/runtime/doc 三域解析，详见 [Magic-DSL 设计](../../../design/framework/engine/magic-dsl.md) | aaf-framework |
+| **规则引擎封装** | Easy Rules 封装 + DSL 驱动规则定义，支持促销/通知/权限规则运行时 | aaf-framework |
+| **热部署能力** | 自定义 ClassLoader + Arthas API 封装，支持 aaf-auto-dev 生成代码的沙箱验证后热加载 | aaf-framework |
+| **成本配额管理** | Bucket4j + Token 计数器，按用户/租户/API 维度配额，超额告警/降级 | aaf-framework |
+| **输出溯源 ID** | 每次 Agent/LLM 调用生成 TraceId 扩展（traceId + agentId + modelId + toolChain），与 MDC 联动审计 | aaf-framework |
+| **情感记忆存储** | 本地加密存储（AES）+ 用户私有区隔离，不进入模型训练、不跨用户、不外传 | aaf-framework |
+| **物理时空引擎** | 世界模型（坐标系/空间层级/时间维度）+ 物质定义（文档作为物质，有坐标/体积/质量）+ 物理规则（运动/碰撞/引力聚合/语义相似度驱动聚合），v2.0 对接 actormesh。详见 [物理时空引擎设计](../../../design/framework/engine/physics-spacetime-engine.md) | aaf-framework |
 
 ## 八、业务实现路径：现阶段 vs 未来迁移
 
@@ -279,7 +296,22 @@ v1.0.0  🟡 扩展点全部开放给 DSL，🔴 模块永久保留硬编码
 3. **业务规则外置**：硬编码中的业务规则（如校验、计算）集中到独立方法，不散落在 Controller 中
 4. **状态机显式化**：有状态流转的模块用枚举 + 状态转换方法，不用 if-else 隐式控制
 
-## 九、不选/暂缓的技术
+## 九、元引擎运行时（v0.2+ 技术占位）
+
+当前 v0.1.0 以传统 MVC 为主，元引擎相关运行时从 v0.2 开始逐步上线。技术选型提前占位，避免未来大改：
+
+| 运行时 | 版本 | 核心技术 | 说明 |
+|-------|------|---------|------|
+| **实体运行时** | v0.2+ | Liquibase 动态 DDL + JPA MetaModel + 自动生成 API | DSL 定义实体 → 动态建表 → 自动 CRUD |
+| **工作流运行时** | v0.3+ | Flowable 7 动态部署 + Magic-DSL | DSL 描述流程 → Flowable 实例化 |
+| **权限运行时** | v0.4+ | Spring Security + 规则引擎 + DSL | DSL 定义权限规则 → 动态鉴权 |
+| **规则引擎运行时** | v0.4+ | Easy Rules / Drools + DSL | 促销/通知/数据权限规则 |
+| **自定义逻辑挂载** | v0.5+ | Spring Cloud Function + 自定义 ClassLoader + 沙箱 | AI 生成代码 → 沙箱验证 → 热加载 |
+| **自进化闭环** | v0.9+ | 行为采集 + 效果评估 + 规范更新 + 代码重生成 | Learning 层闭环，详见认知层设计 |
+
+详见 [元引擎设计](../../../design/framework/meta-engine.md) 与 [路线图](../../../prd/roadmap.md)。
+
+## 十、不选/暂缓的技术
 
 | 技术 | 原因 |
 |------|------|
@@ -292,7 +324,7 @@ v1.0.0  🟡 扩展点全部开放给 DSL，🔴 模块永久保留硬编码
 | R2DBC | 虚拟线程下 JDBC 已非阻塞瓶颈，R2DBC 增加复杂度无收益 |
 | Testcontainers | ADR-002 已决策：本地真实 DB + CI service container |
 
-## 十、下一步
+## 十一、下一步
 
 1. 基于本选型更新 `pom.xml`（移除 WebFlux/R2DBC 全栈依赖，保留 SSE 部分）
 2. 完善 `aaf-dependencies` BOM（参考芋道写法）
