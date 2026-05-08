@@ -93,6 +93,11 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 | Prompt 模板管理 | 系统级 Prompt 版本化存储 + 动态加载（基于 AgentScope + 文档引擎） |
 | 模型路由 | 按任务类型/成本/延迟自动选择模型（AgentScope Routing 内置） |
 | Token 用量统计 | 每次 LLM 调用消耗记录，支持配额控制和成本分析（AgentScope getChatUsage() 内置） |
+| LLM 响应缓存 | 相同 prompt + 参数缓存响应，降低 Token 成本（Advisor Chain + Redis 实现） |
+| 内容审核 | 输入/输出敏感词过滤 + 违禁内容检测，优先对接云服务（阿里云/腾讯云内容安全 API） |
+| Prompt 注入防御 | 输入净化 + 意图一致性校验（对比原始意图与最终 Prompt），防止恶意 prompt 劫持 |
+| 语音处理 | ASR（语音转文字）+ TTS（文字转语音），优先对接云服务（阿里云/火山引擎/OpenAI Whisper API） |
+| 图像处理 | OCR / 图像识别 / 多模态理解，优先对接云服务（阿里云 OCR / GPT-4V / Gemini Vision） |
 
 ## 四、推荐核心技术栈
 
@@ -123,6 +128,7 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 | 文件存储 | MinIO + 阿里云 OSS + AWS S3 | - | 统一 FileStorage 接口，配置切换后端 |
 | 迁移 | Flyway | - | 版本化 DDL，团队协作友好 |
 | 监控 | Micrometer + Prometheus + Grafana + OTLP | - | Spring Boot 4 内置 OpenTelemetry，Grafana 可视化 |
+| 错误告警 | Sentry | - | 生产异常实时告警 + 堆栈聚合 + 性能追踪 |
 | 日志 | SLF4J + Logback → Structured Logging | - | JSON 结构化日志，便于采集 |
 | 工具库 | MapStruct + Lombok | - | 编译期代码生成，零运行时开销 |
 | 测试 | JUnit 5 + Mockito + ArchUnit | - | 分层测试 + 架构守护 |
@@ -168,6 +174,7 @@ AAF 框架层（`aaf-common` + `aaf-framework`）为业务开发者提供以下�
 | 能力 | 说明 | 所在模块 |
 |------|------|---------|
 | 全局异常处理 | @RestControllerAdvice 统一捕获，标准错误响应格式 + 错误码体系 | aaf-api/config |
+| 错误码体系 | 错误码注册表，与 `BusinessException` 绑定，前端按 code 做国际化；模块级错误码区段划分 | aaf-common |
 | 统一响应封装 | `Result<T>` 标准响应体（code/message/data/timestamp） | aaf-common |
 | 参数校验集成 | Bean Validation 自动绑定 + 字段级错误信息返回 | aaf-common |
 | 分页查询封装 | `PageRequest` / `PageResult<T>` 统一分页协议 | aaf-common |
@@ -179,6 +186,12 @@ AAF 框架层（`aaf-common` + `aaf-framework`）为业务开发者提供以下�
 | 登录日志 | 记录登录时间/IP/设备/成功失败，支持异常登录告警 | aaf-framework |
 | 多租户隔离 | 租户上下文自动注入，数据自动过滤 | aaf-framework |
 | 权限注解 | `@RequiresPermission` / `@RequiresRole` 声明式鉴权，`@PreAuthorize` Spring Security 原生支持 | aaf-framework |
+| 数据权限 | `@DataScope` 注解按部门/用户/自定义规则过滤查询结果，SQL 自动注入 where 条件 | aaf-framework |
+| 第三方登录 | OAuth2 Client，支持微信/GitHub/Google 等主流平台登录 | aaf-framework |
+| API Key 管理 | B2B 场景外部系统调用鉴权（区别于用户 JWT），支持配额/过期/撤销 | aaf-framework |
+| 短信服务 | 统一 `SmsSender` 接口，多厂商实现（阿里云/腾讯云/Twilio），配置切换 | aaf-framework |
+| 乐观锁 | JPA `@Version` 注解防并发更新冲突，BaseEntity 基础能力 | aaf-common |
+| 系统参数 | 运行时可动态调整的业务配置（与字典区分：字典是枚举选项，参数是可调配置），支持类型化读取 | aaf-framework |
 | 安全防护 | XSS 过滤（请求参数净化）/ SQL 注入防护（参数化查询）/ 登录失败锁定（Redis 计数 + 临时封禁） | aaf-framework |
 | 数据脱敏 | `@Sensitive` 注解，日志/响应中手机号/身份证/邮箱自动脱敏 | aaf-framework |
 | 幂等控制 | `@Idempotent` 注解 + Redis，防重复提交 | aaf-framework |
