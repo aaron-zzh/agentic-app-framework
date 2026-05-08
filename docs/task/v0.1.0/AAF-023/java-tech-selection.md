@@ -86,6 +86,7 @@ Layer 1  基础设施层     PostgreSQL + PgVector / Neo4j / Redis / Agent Sandb
 | Advisor Chain | 请求/响应拦截链（RAG、日志、安全过滤） |
 | Vector Store 抽象 | PgVector/Milvus 统一接口，Embedding 自动管理 |
 | Chat Memory | JDBC 持久化对话记忆，支持窗口/摘要策略 |
+| **认知层（Cognition）** | Memory（记忆）+ Knowledge（知识库）+ Retrieval（融合检索）+ Learning（学习优化）四个独立组件，基于 PgVector+Neo4j+Redis 自实现，借鉴 Mem0/Graphiti/Cognee/LightRAG 精华，不集成 Python 框架。详见 [认知层设计](../../../design/framework/cognition/readme.md) |
 | Document Reader | Tika/Markdown/Jsoup 多格式文档解析 |
 | Structured Output | 类型安全的 LLM 输出解析（直接映射到 Java Record） |
 | Evaluation Framework | 内置 AI 输出质量评估（相关性、忠实度） |
