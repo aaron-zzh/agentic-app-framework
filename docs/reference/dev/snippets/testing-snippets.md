@@ -8,7 +8,7 @@ date: 2026-03-30
 author: AaronZZH
 scope:
   includes:
-    - 单元测试、Cucumber 验收测试
+    - 单元测试、验收测试
 gains:
   - 能快速编写标准测试代码
 ---
@@ -38,13 +38,29 @@ public class UserServiceTest {
 }
 ```
 
-## 验收测试（Cucumber）
+## 验收测试（JUnit 5 + Gherkin DisplayName）
 
-```gherkin
-Feature: 用户管理
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+class UserAcceptanceTest {
 
-  Scenario: 创建用户
-    Given 管理员已登录
-    When 创建用户名为 "test" 的用户
-    Then 用户创建成功
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    @DisplayName("AC-1: 管理员创建用户 → 用户创建成功")
+    void admin_creates_user_successfully() throws Exception {
+        // Given 管理员已登录
+        // When 创建用户名为 "test" 的用户
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"username": "test"}
+                    """))
+                // Then 用户创建成功
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.username").value("test"));
+    }
+}
 ```

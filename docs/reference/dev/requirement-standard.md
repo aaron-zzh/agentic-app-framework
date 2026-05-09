@@ -166,7 +166,7 @@ Then <预期结果>
 （校验规则、异常处理、性能要求）
 
 ### 测试要点
-- **验收测试**：Cucumber `.feature` 文件
+- **验收测试**：JUnit 5 `*AcceptanceTest.java`（AC 用 `@DisplayName` 引用）
 - **单元测试**：JUnit 5 + Mockito
 - **关键场景**：（边界条件、异常路径）
 ```

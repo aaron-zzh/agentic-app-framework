@@ -27,7 +27,7 @@ author: AaronZZH
 | [编码风格规范](apps/service/coding-style-standard.md) | 命名、包结构、异常、日志 | 后端 |
 | [领域建模规范](apps/service/domain-modeling-standard.md) | DDD 实体、聚合、仓储设计 | 后端 |
 | [单元测试规范](test/unit-test-standard.md) | JUnit 5 + Mockito | 后端 |
-| [验收测试规范](test/acceptance-test-standard.md) | Cucumber Gherkin | 全端 |
+| [验收测试规范](test/acceptance-test-standard.md) | JUnit 5 + Gherkin DisplayName | 全端 |
 | [集成测试规范](test/integration-test-standard.md) | 模块间集成测试 | 后端 |
 | [提交规范](git/commit-standard.md) | 约定式提交格式 | 全端 |
 | [分支管理规范](git/branch-manage-standard.md) | 分支命名与合并策略 | 全端 |

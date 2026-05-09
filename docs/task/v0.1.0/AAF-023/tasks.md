@@ -47,7 +47,7 @@ changelog:
    - Spring Web / Validation / Jackson / Jakarta Servlet 使用 `<scope>provided</scope>`
    - verify: 临时模块仅依赖 aaf-common（不引 starter-web）可编译通过
 
-5. [ ] #23 测试规范清理（去 Cucumber） — developer-api
+5. ✅ #23 测试规范清理（去 Cucumber） — developer-api
    - 去除规范文档里的 Cucumber 引用，pom 显式加 `spring-boot-starter-test`
    - 来源：[ADR-003](../../../design/adr/ADR-003-remove-cucumber.md)
    - verify: `grep -r "Cucumber" docs/` 无命中（除 ADR 历史记录）

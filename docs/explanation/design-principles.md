@@ -61,7 +61,7 @@ gains:
 
 - 任何功能开发前，先在 `docs/prd/` 中编写用户故事和需求规格
 - 代码是规范的实现结果，持续与规范对齐
-- 验收标准以 Cucumber Gherkin 语法编写，可直接转为自动化测试
+- 验收标准以 Gherkin 语法编写在需求文档，测试用 `@DisplayName` 引用 AC 编号
 
 详见 [需求管理](../prd/README.md) | [规范驱动开发（SDD）](spec-driven-development.md)
 
