@@ -52,7 +52,7 @@ changelog:
    - 来源：[ADR-003](../../../design/adr/ADR-003-remove-cucumber.md)
    - verify: `grep -r "Cucumber" docs/` 无命中（除 ADR 历史记录）
 
-6. [ ] #21 ArchUnit 分层规则激活 — developer-api (依赖: #17)
+6. [x] #21 ArchUnit 分层规则激活 — developer-api (依赖: #17)
    - 替换 LayeringTest.java 占位，启用 5 条真实分层规则
    - verify: `pnpm nx run service:test` 运行 LayeringTest，违规即报错
 
@@ -71,7 +71,13 @@ changelog:
    - application-dev/prod/test.yaml 环境隔离
    - verify: `pnpm nx run service:serve` 启动后数据库自动建表
 
-10. [ ] #24 测试环境基础设施（本地 + CI） — developer-api (依赖: #20)
+10. [ ] #31 用户管理 CRUD 接口 — developer-api (依赖: #20, #30)
+    - Entity + Repository + Service + Controller 完整链路
+    - 接口：创建 / 查询详情 / 分页列表 / 更新 / 删除（逻辑删除）
+    - 使用 `Result<T>` + `PageResult<T>` 统一响应
+    - verify: Swagger 中 CRUD 接口可正常调用
+
+11. [ ] #24 测试环境基础设施（本地 + CI） — developer-api (依赖: #20)
     - 本地：PostgreSQL 17（pgvector）+ Neo4j 5，`aaf_test` 独立数据库
     - CI：GitHub Actions service container
     - 来源：[ADR-002](../../../design/adr/ADR-002-local-env-vs-testcontainers.md)
