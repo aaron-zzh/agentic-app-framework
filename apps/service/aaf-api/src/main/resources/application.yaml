@@ -1,3 +1,11 @@
 spring:
   application:
     name: aaf
+  jpa:
+    open-in-view: false
+
+aaf:
+  security:
+    jwt:
+      secret: aaf-dev-secret-must-be-at-least-32-bytes-long!!
+      expire-seconds: 7200
