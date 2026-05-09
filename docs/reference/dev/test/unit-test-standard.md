@@ -58,6 +58,25 @@ should_{预期行为}_when_{条件}
 - `should_return_empty_when_no_records_found`
 - `should_throw_exception_when_user_not_authenticated`
 
+## @DisplayName 约定
+
+每个测试方法必须加 `@DisplayName`，用中文 Gherkin 格式（Given/When/Then）表达验收条件：
+
+```java
+@Test
+@DisplayName("Given 用户名不存在 When 创建用户 Then 返回新用户信息")
+void should_create_user_when_username_not_exists() { ... }
+
+@Test
+@DisplayName("Given 用户不存在 When 按 ID 查询 Then 抛出 NOT_FOUND 异常")
+void should_throw_exception_when_id_not_exists() { ... }
+```
+
+**规则**：
+- 方法名用英文（`should_xxx_when_xxx`），保证代码可读性和 IDE 兼容
+- `@DisplayName` 用中文 Gherkin，保证测试报告对业务人员可读
+- Gherkin 作为 AC 表达格式保留在 `@DisplayName` 中，不落地为 `.feature` 文件
+
 ## 覆盖策略
 
 - 核心业务逻辑 100% 覆盖主路径
@@ -70,6 +89,110 @@ should_{预期行为}_when_{条件}
 - 无业务逻辑的 getter/setter、DTO、纯配置类
 - 框架自动生成的代码（MapStruct 生成的 Mapper 实现）
 - 一次性脚本（如数据迁移工具），在 `dev-log.md` 说明原因
+
+## 测试基类
+
+AAF 提供测试基类，减少样板代码：
+
+| 基类 | 用途 | 位置 |
+|------|------|------|
+| `BaseMockitoUnitTest` | 纯 Mockito 单测（Service 层） | `com.xuejiai.aaf.test` |
+
+继承基类后无需手动添加 `@ExtendWith(MockitoExtension.class)`：
+
+```java
+class UserServiceTest extends BaseMockitoUnitTest {
+    @Mock private UserRepository userRepository;
+    @InjectMocks private UserService userService;
+    // ...
+}
+```
+
+## 测试方法内部结构
+
+每个测试方法内部用注释分段，保持统一结构：
+
+```java
+@Test
+@DisplayName("Given 用户名不存在 When 创建用户 Then 返回新用户信息")
+void should_create_user_when_username_not_exists() {
+    // 准备参数
+    var request = new UserCreateReqVO("newuser", "123456", "新用户");
+
+    // mock 方法
+    when(userRepository.existsByUsernameAndDeletedFalse("newuser")).thenReturn(false);
+    when(passwordEncoder.encode("123456")).thenReturn("encoded");
+    when(userRepository.save(any())).thenAnswer(inv -> {
+        User e = inv.getArgument(0);
+        e.setId(1L);
+        return e;
+    });
+
+    // 调用
+    UserRespVO response = userService.create(request);
+
+    // 断言
+    assertThat(response.username()).isEqualTo("newuser");
+    assertThat(response.nickname()).isEqualTo("新用户");
+    verify(passwordEncoder).encode("123456");
+}
+```
+
+**分段规则**：
+- `// 准备参数` — 构造入参和测试数据
+- `// mock 方法` — 设置 Mock 行为
+- `// 调用` — 执行被测方法
+- `// 断言` — 验证结果
+- 简单场景可合并为 `// 调用 + 断言`
+
+## 完整示例
+
+### Service 层单元测试
+
+```java
+class UserServiceTest extends BaseMockitoUnitTest {
+
+    @Mock private UserRepository userRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @InjectMocks private UserService userService;
+
+    @Test
+    @DisplayName("Given 用户不存在 When 按 ID 查询 Then 抛出 NOT_FOUND 异常")
+    void should_throw_exception_when_id_not_exists() {
+        // mock 方法
+        when(userRepository.findByIdAndDeletedFalse(99L)).thenReturn(Optional.empty());
+
+        // 调用 + 断言
+        assertThatThrownBy(() -> userService.getById(99L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("用户不存在");
+    }
+}
+```
+
+### Controller 层单元测试
+
+```java
+@WebMvcTest(UserController.class)
+class UserControllerTest {
+
+    @Autowired private MockMvc mockMvc;
+    @MockitoBean private UserService userService;
+
+    @Test
+    @DisplayName("Given 用户存在 When GET /users/{id} Then 返回用户详情")
+    @WithMockUser
+    void should_return_user_when_get_by_id() throws Exception {
+        // mock 方法
+        when(userService.getById(1L)).thenReturn(sampleUser);
+
+        // 调用 + 断言
+        mockMvc.perform(get("/api/system/users/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(1));
+    }
+}
+```
 
 ## 与验收测试的区别
 

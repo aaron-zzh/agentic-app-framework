@@ -10,11 +10,10 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,9 +26,9 @@ import com.xuejiai.aaf.module.system.repository.UserRepository;
 import com.xuejiai.aaf.module.system.vo.UserCreateReqVO;
 import com.xuejiai.aaf.module.system.vo.UserRespVO;
 import com.xuejiai.aaf.module.system.vo.UserUpdateReqVO;
+import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
-@ExtendWith(MockitoExtension.class)
-class UserServiceTest {
+class UserServiceTest extends BaseMockitoUnitTest {
 
     @Mock private UserRepository userRepository;
     @Mock private PasswordEncoder passwordEncoder;
@@ -48,8 +47,12 @@ class UserServiceTest {
     }
 
     @Test
-    void create_成功() {
+    @DisplayName("Given 用户名不存在 When 创建用户 Then 返回新用户信息")
+    void should_create_user_when_username_not_exists() {
+        // 准备参数
         var request = new UserCreateReqVO("newuser", "123456", "新用户");
+
+        // mock 方法
         when(userRepository.existsByUsernameAndDeletedFalse("newuser")).thenReturn(false);
         when(passwordEncoder.encode("123456")).thenReturn("encoded");
         when(userRepository.save(any())).thenAnswer(inv -> {
@@ -58,72 +61,98 @@ class UserServiceTest {
             return e;
         });
 
+        // 调用
         UserRespVO response = userService.create(request);
 
+        // 断言
         assertThat(response.username()).isEqualTo("newuser");
         assertThat(response.nickname()).isEqualTo("新用户");
         verify(passwordEncoder).encode("123456");
     }
 
     @Test
-    void create_用户名已存在_抛异常() {
+    @DisplayName("Given 用户名已存在 When 创建用户 Then 抛出业务异常")
+    void should_throw_exception_when_username_already_exists() {
+        // 准备参数
         var request = new UserCreateReqVO("existing", "123456", "已存在");
+
+        // mock 方法
         when(userRepository.existsByUsernameAndDeletedFalse("existing")).thenReturn(true);
 
+        // 调用 + 断言
         assertThatThrownBy(() -> userService.create(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("用户名已存在");
     }
 
     @Test
-    void getById_存在() {
+    @DisplayName("Given 用户存在 When 按 ID 查询 Then 返回用户信息")
+    void should_return_user_when_id_exists() {
+        // mock 方法
         when(userRepository.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(user));
 
+        // 调用
         UserRespVO response = userService.getById(1L);
 
+        // 断言
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.username()).isEqualTo("testuser");
     }
 
     @Test
-    void getById_不存在_抛异常() {
+    @DisplayName("Given 用户不存在 When 按 ID 查询 Then 抛出 NOT_FOUND 异常")
+    void should_throw_exception_when_id_not_exists() {
+        // mock 方法
         when(userRepository.findByIdAndDeletedFalse(99L)).thenReturn(Optional.empty());
 
+        // 调用 + 断言
         assertThatThrownBy(() -> userService.getById(99L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("用户不存在");
     }
 
     @Test
-    void page_返回分页结果() {
+    @DisplayName("Given 有用户数据 When 分页查询 Then 返回分页结果")
+    void should_return_page_result_when_query_users() {
+        // mock 方法
         var page = new PageImpl<>(List.of(user));
         when(userRepository.findAllByDeletedFalse(any(Pageable.class))).thenReturn(page);
 
+        // 调用
         PageResult<UserRespVO> result = userService.page(new PageParam(1, 10));
 
+        // 断言
         assertThat(result.total()).isEqualTo(1);
         assertThat(result.list()).hasSize(1);
         assertThat(result.list().getFirst().username()).isEqualTo("testuser");
     }
 
     @Test
-    void update_成功() {
+    @DisplayName("Given 用户存在 When 更新昵称和状态 Then 返回更新后的用户")
+    void should_update_user_when_id_exists() {
+        // mock 方法
         when(userRepository.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
+        // 调用
         UserRespVO response = userService.update(1L, new UserUpdateReqVO("新昵称", (short) 0));
 
+        // 断言
         assertThat(response.nickname()).isEqualTo("新昵称");
         assertThat(response.status()).isEqualTo((short) 0);
     }
 
     @Test
-    void delete_逻辑删除() {
+    @DisplayName("Given 用户存在 When 删除 Then 逻辑删除并设置删除时间")
+    void should_soft_delete_user_when_id_exists() {
+        // mock 方法
         when(userRepository.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
+        // 调用
         userService.delete(1L);
 
+        // 断言
         assertThat(user.getDeleted()).isTrue();
         assertThat(user.getDeleteTime()).isNotNull();
         verify(userRepository).save(user);
