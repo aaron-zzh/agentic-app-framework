@@ -194,6 +194,103 @@ class UserControllerTest {
 }
 ```
 
+## 特殊测试场景
+
+### 业务异常断言
+
+验证方法在特定条件下抛出正确的业务异常和错误码：
+
+```java
+@Test
+@DisplayName("Given 存在子部门 When 删除父部门 Then 抛出 DEPT_EXITS_CHILDREN 异常")
+void should_throw_when_delete_dept_with_children() {
+    // 准备参数
+    when(deptRepository.existsByParentId(1L)).thenReturn(true);
+
+    // 调用 + 断言
+    assertThatThrownBy(() -> deptService.delete(1L))
+            .isInstanceOf(BusinessException.class)
+            .extracting("code")
+            .isEqualTo(DeptErrorCode.EXITS_CHILDREN.code());
+}
+```
+
+### 参数化测试（多组输入验证同一逻辑）
+
+```java
+@ParameterizedTest
+@DisplayName("Given 各种非法状态值 When 更新状态 Then 抛出参数异常")
+@ValueSource(shorts = {-1, 2, 99})
+void should_throw_when_invalid_status(short invalidStatus) {
+    assertThatThrownBy(() -> userService.update(1L, new UserUpdateReqVO(null, invalidStatus)))
+            .isInstanceOf(BusinessException.class);
+}
+```
+
+### AOP / 拦截器测试
+
+测试注解驱动的横切逻辑（数据权限、日志、限流等）：
+
+```java
+class DataPermissionInterceptorTest extends BaseMockitoUnitTest {
+
+    @InjectMocks private DataPermissionInterceptor interceptor;
+    @Mock private MethodInvocation invocation;
+
+    @Test
+    @DisplayName("Given 方法无 @DataPermission When 拦截 Then 默认启用数据权限")
+    void should_enable_permission_when_no_annotation() throws Throwable {
+        // mock 方法
+        when(invocation.getMethod()).thenReturn(getMethod("noAnnotation"));
+        when(invocation.proceed()).thenReturn("result");
+
+        // 调用
+        interceptor.invoke(invocation);
+
+        // 断言
+        assertTrue(interceptor.getCache().values().iterator().next().enable());
+    }
+}
+```
+
+### 集合 diff 测试（批量操作场景）
+
+验证批量新增/更新/删除的正确性：
+
+```java
+@Test
+@DisplayName("Given 新旧列表 When diff Then 正确区分新增、更新、删除")
+void should_diff_list_correctly() {
+    // 准备参数
+    var oldList = List.of(new Item(1L, "A"), new Item(2L, "B"));
+    var newList = List.of(new Item(1L, "A2"), new Item(null, "C"));
+
+    // 调用
+    var result = CollectionUtils.diffList(oldList, newList, (o, n) -> o.id().equals(n.id()));
+
+    // 断言
+    assertThat(result.creates()).hasSize(1);   // C 是新增
+    assertThat(result.updates()).hasSize(1);   // A→A2 是更新
+    assertThat(result.deletes()).hasSize(1);   // B 是删除
+}
+```
+
+### 时间相关测试
+
+避免 `LocalDateTime.now()` 导致测试不稳定，使用固定时间或 Clock：
+
+```java
+@Test
+@DisplayName("Given Token 已过期 When 校验 Then 返回 false")
+void should_return_false_when_token_expired() {
+    // 准备参数（固定时间）
+    var expiredToken = createToken(LocalDateTime.of(2020, 1, 1, 0, 0));
+
+    // 调用 + 断言
+    assertThat(tokenService.isValid(expiredToken)).isFalse();
+}
+```
+
 ## 与验收测试的区别
 
 | 维度 | 单元测试（developer） | 验收测试（tester） |
