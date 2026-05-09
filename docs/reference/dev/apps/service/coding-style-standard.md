@@ -457,6 +457,57 @@ else if (node instanceof TaskNode) { ... }
 - 单一类型判断 → 普通 `instanceof` 即可
 - 非 sealed 类型 → switch 无法保证穷举，用 if-else 或策略模式
 
+### 现代语法替换清单
+
+以下场景**必须**使用新语法替换传统写法，Code Review 中发现旧写法视为 minor：
+
+| 场景 | ❌ 旧写法 | ✅ 新写法 | 说明 |
+|------|----------|----------|------|
+| 多行字符串 | `"line1\n" + "line2\n"` | `"""` text block `"""` | SQL、JSON、模板 |
+| 类型判断后转型 | `if (obj instanceof Foo) { Foo f = (Foo) obj; }` | `if (obj instanceof Foo f)` | Pattern variable |
+| 多分支类型判断 | if-else instanceof 链 | `switch` + pattern matching | sealed 类型必须用 switch |
+| null + 类型混合判断 | if-null-then-else-instanceof | `switch` + `case null` | Java 21+ |
+| 不可变数据载体 | Class + Lombok `@Data` | `record` | VO / DTO / Event |
+| 局部变量类型明显 | `Map<String, List<UserRespVO>> map = new HashMap<>()` | `var map = new HashMap<String, List<UserRespVO>>()` | 右侧类型已明确时用 `var` |
+| 资源管理 | try-finally close | try-with-resources | 所有 `AutoCloseable` |
+| 集合创建 | `Arrays.asList(...)` / `new ArrayList<>(List.of(...))` | `List.of(...)` / `Set.of(...)` / `Map.of(...)` | 不可变集合优先 |
+| 空集合返回 | `return new ArrayList<>()` | `return List.of()` | 不可变空集合 |
+| Optional 链 | if-null 嵌套 | `Optional.map().orElse()` | 但不过度嵌套，超过 3 层改回 if |
+| 字符串拼接 | `"Hello " + name + "!"` | `"Hello %s!".formatted(name)` 或 STR template | 超过 2 个变量时 |
+| switch 表达式 | switch + break + 赋值 | `var x = switch(...) { case A -> ...; }` | 有返回值的 switch |
+| 并行任务 | `ExecutorService` + `Future` | `StructuredTaskScope` | Java 21+ 结构化并发 |
+
+### var 使用规范
+
+`var` 仅在**右侧类型已明确**时使用，禁止降低可读性：
+
+```java
+// ✅ 右侧类型明确
+var user = new User();
+var list = userRepository.findAll();
+var map = new HashMap<String, Integer>();
+
+// ✅ 工厂方法 / 链式调用，返回类型显而易见
+var encoder = BCryptPasswordEncoder();
+var result = Result.success(data);
+
+// ❌ 禁止 —— 右侧类型不明确
+var data = service.process(input);  // 返回什么类型？
+var x = calculate();                // 完全看不出类型
+```
+
+### String Templates（预览特性）
+
+Java 21+ 的字符串模板（如果启用 preview）：
+
+```java
+// ✅ 多变量拼接时优先用 formatted 或 String Template
+var msg = "用户 %s（ID=%d）登录失败".formatted(username, userId);
+
+// ❌ 禁止超过 2 个变量的 + 拼接
+var msg = "用户 " + username + "（ID=" + userId + "）登录失败";
+```
+
 ## 并发编程规范（Virtual Threads）
 
 > 起因：[ADR-004](../../../design/adr/ADR-004-virtual-threads-over-webflux.md)

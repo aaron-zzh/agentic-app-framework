@@ -13,6 +13,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.common.util.NicknameGenerator;
 import com.xuejiai.aaf.module.system.domain.User;
 import com.xuejiai.aaf.module.system.repository.UserRepository;
 import com.xuejiai.aaf.module.system.vo.UserCreateReqVO;
@@ -38,7 +39,7 @@ public class UserService {
         User user = new User();
         user.setUsername(request.username());
         user.setPassword(passwordEncoder.encode(request.password()));
-        user.setNickname(request.nickname());
+        user.setNickname(request.nickname() != null ? request.nickname() : NicknameGenerator.generate());
         userRepository.save(user);
         return toRespVO(user);
     }
