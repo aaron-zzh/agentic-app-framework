@@ -19,7 +19,7 @@ import lombok.Setter;
 /**
  * 实体基类，所有 JPA 实体继承此类。
  *
- * <p>提供 id、创建时间、更新时间、逻辑删除字段，审计字段自动填充。
+ * <p>提供 id、审计字段（创建/更新人和时间）、逻辑删除、备注。
  */
 @Getter
 @Setter
@@ -31,14 +31,26 @@ public abstract class BaseEntity implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "create_by")
+    private Long createBy;
+
     @CreatedDate
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
+
+    @Column(name = "update_by")
+    private Long updateBy;
 
     @LastModifiedDate
     @Column(name = "update_time")
     private LocalDateTime updateTime;
 
+    @Column(name = "delete_time")
+    private LocalDateTime deleteTime;
+
     @Column(name = "deleted")
     private Boolean deleted = false;
+
+    @Column(name = "remark")
+    private String remark;
 }

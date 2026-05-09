@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aaf_test
+    username: postgres
+    password: postgres
+  data:
+    neo4j:
+      uri: bolt://localhost:7687
+      authentication:
+        username: neo4j
+        password: neo4j
+    redis:
+      host: localhost
+      port: 6379
+  jpa:
+    show-sql: true
+  flyway:
+    clean-disabled: false
+
+aaf:
+  security:
+    jwt:
+      secret: aaf-test-secret-must-be-at-least-32-bytes-long!
+      expire-seconds: 3600

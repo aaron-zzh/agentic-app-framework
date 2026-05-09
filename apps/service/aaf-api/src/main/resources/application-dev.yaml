@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aaf_dev
+    username: postgres
+    password: postgres
+  data:
+    neo4j:
+      uri: bolt://localhost:7687
+      authentication:
+        username: neo4j
+        password: neo4j
+    redis:
+      host: localhost
+      port: 6379
+  jpa:
+    show-sql: true
+
+aaf:
+  security:
+    jwt:
+      secret: aaf-dev-secret-must-be-at-least-32-bytes-long!!
+      expire-seconds: 7200
