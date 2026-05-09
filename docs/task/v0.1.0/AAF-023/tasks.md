@@ -52,7 +52,7 @@ changelog:
    - 来源：[ADR-003](../../../design/adr/ADR-003-remove-cucumber.md)
    - verify: `grep -r "Cucumber" docs/` 无命中（除 ADR 历史记录）
 
-6. [x] #21 ArchUnit 分层规则激活 — developer-api (依赖: #17)
+6. ✅ #21 ArchUnit 分层规则激活 — developer-api (依赖: #17)
    - 替换 LayeringTest.java 占位，启用 5 条真实分层规则
    - verify: `pnpm nx run service:test` 运行 LayeringTest，违规即报错
 
@@ -60,13 +60,13 @@ changelog:
    - `spotless-maven-plugin` + Google Java Format
    - verify: `pnpm nx run service:format` + `pnpm format:check` 全绿
 
-8. [x] #30 框架基础能力脚手架 — developer-api (依赖: #27, #28)
+8. ✅ #30 框架基础能力脚手架 — developer-api (依赖: #27, #28)
    - **aaf-common**：`Result<T>` / 错误码体系 / `BaseEntity` / 分页封装
    - **aaf-api/config**：全局异常处理 / Jackson 配置 / CORS
    - **aaf-framework**：Spring Security JWT 骨架 + `ActorContext` 占位
    - verify: `GET /api/hello` 返回 `Result<String>`；JWT 认证通过；无 Token 返回 401
 
-9. [x] #20 Flyway 数据库迁移初始化 + 环境配置分离 — developer-api (依赖: #30)
+9. ✅ #20 Flyway 数据库迁移初始化 + 环境配置分离 — developer-api (依赖: #30)
    - 初始表：sys_user、doc_document、autodev_request、autodev_generated_code、autodev_execution_log
    - application-dev/prod/test.yaml 环境隔离
    - verify: `pnpm nx run service:serve` 启动后数据库自动建表

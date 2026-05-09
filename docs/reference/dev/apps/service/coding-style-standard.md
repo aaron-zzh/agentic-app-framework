@@ -179,10 +179,10 @@ public class DocumentServiceImpl implements DocumentService { ... }
 | Repository | `{Name}Repository`                    | `UserRepository` |
 | 实体类     | `{Name}`                              | `User`           |
 | 对象映射   | `{Name}Convert`                       | `UserConvert`    |
-| 入参 VO    | `{Name}{动作}ReqVO`                   | `UserCreateReqVO` / `UserPageReqVO` |
-| 出参 VO    | `{Name}RespVO` / `{Name}SimpleRespVO` | `UserRespVO` / `UserSimpleRespVO` |
+| 入参 DTO   | `{Name}{动作}DTO`                     | `UserCreateDTO` / `UserPageDTO` |
+| 出参 VO    | `{Name}VO` / `{Name}SimpleVO`         | `UserVO` / `UserSimpleVO` |
 
-> 统一使用 `VO` 后缀，不使用 `DTO`。入参加 `Req`，出参加 `Resp`，均放 `vo/` 目录。
+> 入参用 `DTO` 后缀，出参用 `VO` 后缀，统一放 `vo/` 目录。
 
 ### 注解使用
 
@@ -351,23 +351,23 @@ docs/
 **VO 命名（Record 版）：**
 
 ```java
-// ✅ 请求 VO —— Record，字段即校验
-public record UserCreateReqVO(
+// ✅ 入参 DTO —— Record，字段即校验
+public record UserCreateDTO(
         @NotBlank String username,
         @Email String email,
         @Size(min = 6) String password
 ) {}
 
-// ✅ 响应 VO —— Record，天然不可变
-public record UserRespVO(
+// ✅ 出参 VO —— Record，天然不可变
+public record UserVO(
         Long id,
         String username,
         String email,
         LocalDateTime createTime
 ) {}
 
-// ✅ 分页请求 —— 继承公共分页参数
-public record UserPageReqVO(
+// ✅ 分页请求 DTO
+public record UserPageDTO(
         String keyword,
         Integer status,
         int pageNo,

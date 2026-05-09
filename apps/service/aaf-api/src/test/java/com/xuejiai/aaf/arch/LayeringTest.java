@@ -1,27 +1,26 @@
 package com.xuejiai.aaf.arch;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-
 /**
  * 分层架构约束测试。
  *
- * <p>利用 ArchUnit 在编译期自动检测代码是否违反分层架构规则。每次执行单元测试时，
- * 会扫描 {@code com.xuejiai.aaf} 包下所有 class 文件，验证包之间的依赖方向是否合规。
- * 违规代码会导致测试失败，无需等待人工 Code Review 即可发现架构腐化。
+ * <p>利用 ArchUnit 在编译期自动检测代码是否违反分层架构规则。每次执行单元测试时， 会扫描 {@code com.xuejiai.aaf} 包下所有 class
+ * 文件，验证包之间的依赖方向是否合规。 违规代码会导致测试失败，无需等待人工 Code Review 即可发现架构腐化。
  *
  * <p>当前守护的规则：
+ *
  * <ol>
- *   <li>domain 层禁止依赖 controller / service / repository（领域模型保持纯净）</li>
- *   <li>controller 层禁止跨越 service 直接调用 repository（必须经过业务层）</li>
- *   <li>controller 层禁止直接依赖 domain 实体（通过 VO 交互，解耦接口与领域）</li>
- *   <li>业务模块之间禁止直接访问对方内部（需通过 api 包暴露的接口交互）</li>
- *   <li>framework 层禁止依赖业务模块（依赖方向：module → framework → common）</li>
+ *   <li>domain 层禁止依赖 controller / service / repository（领域模型保持纯净）
+ *   <li>controller 层禁止跨越 service 直接调用 repository（必须经过业务层）
+ *   <li>controller 层禁止直接依赖 domain 实体（通过 VO 交互，解耦接口与领域）
+ *   <li>业务模块之间禁止直接访问对方内部（需通过 api 包暴露的接口交互）
+ *   <li>framework 层禁止依赖业务模块（依赖方向：module → framework → common）
  * </ol>
  *
  * <p>对应规范：{@code docs/reference/dev/architecture-constraints.md}。

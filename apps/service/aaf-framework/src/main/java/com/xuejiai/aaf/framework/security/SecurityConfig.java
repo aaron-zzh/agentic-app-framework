@@ -6,13 +6,16 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -42,8 +45,16 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(SecretKey jwtSecretKey) {
-        return NimbusJwtDecoder.withSecretKey(jwtSecretKey).build();
+    public JwtDecoder jwtDecoder(SecretKey jwtSecretKey, JwtProperties properties) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey).build();
+        // 验证 issuer 和 audience
+        OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> validators =
+                new DelegatingOAuth2TokenValidator<>(
+                        JwtValidators.createDefaultWithIssuer(properties.issuer()),
+                        new JwtClaimValidator<java.util.List<String>>(
+                                "aud", aud -> aud != null && aud.contains(properties.audience())));
+        decoder.setJwtValidator(validators);
+        return decoder;
     }
 
     @Bean
@@ -52,8 +63,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtUtils jwtUtils(JwtEncoder jwtEncoder, JwtProperties properties) {
-        return new JwtUtils(jwtEncoder, properties.expireSeconds());
+    public JwtUtils jwtUtils(
+            JwtEncoder jwtEncoder, StringRedisTemplate redisTemplate, JwtProperties properties) {
+        return new JwtUtils(
+                jwtEncoder,
+                redisTemplate,
+                properties.expireSeconds(),
+                properties.refreshExpireSeconds(),
+                properties.issuer(),
+                properties.audience());
     }
 
     @Bean

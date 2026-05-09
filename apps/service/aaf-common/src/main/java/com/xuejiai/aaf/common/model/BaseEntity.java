@@ -20,8 +20,7 @@ import lombok.Setter;
 /**
  * 实体基类，所有 JPA 实体继承此类。
  *
- * <p>提供 id、审计字段（创建/更新人和时间）、逻辑删除、备注。
- * 逻辑删除由 Hibernate {@code @SoftDelete} 自动处理，查询时自动过滤已删除记录。
+ * <p>提供 id、审计字段（创建/更新人和时间）、逻辑删除、备注。 逻辑删除由 Hibernate {@code @SoftDelete} 自动处理，查询时自动过滤已删除记录。
  */
 @Getter
 @Setter

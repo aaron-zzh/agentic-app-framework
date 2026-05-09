@@ -8,7 +8,7 @@ create table sys_user (
     username    varchar(50)  not null unique,
     password    varchar(200) not null,
     nickname    varchar(100),
-    status      smallint     not null default 1,
+    status      integer      not null default 0,
     create_by   bigint,
     create_time timestamp(6) not null default current_timestamp,
     update_by   bigint,
@@ -19,7 +19,11 @@ create table sys_user (
 );
 
 comment on table sys_user is '系统用户';
-comment on column sys_user.status is '1 启用 / 0 禁用';
+comment on column sys_user.status is '0 正常 / 1 禁用';
+
+-- 默认管理员 admin/admin
+insert into sys_user (username, password, nickname, status)
+values ('admin', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '管理员', 0);
 
 -- ==================== 文档模块 ====================
 
