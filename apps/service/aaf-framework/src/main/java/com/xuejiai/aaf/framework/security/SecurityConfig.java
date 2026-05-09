@@ -26,6 +26,7 @@ public class SecurityConfig {
     /** 公开路径，无需认证 */
     private static final String[] PUBLIC_PATHS = {
         "/api/auth/**",
+        "/api/hello",
         "/actuator/**",
         "/swagger-ui/**",
         "/swagger-ui.html",

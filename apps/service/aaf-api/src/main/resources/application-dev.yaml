@@ -1,22 +1,31 @@
 spring:
+  autoconfigure:
+    exclude:
+      # AI 相关
+      # - org.springframework.ai.model.chat.memory.repository.jdbc.autoconfigure.JdbcChatMemoryRepositoryAutoConfiguration
+      # - org.springframework.ai.model.chat.memory.autoconfigure.ChatMemoryAutoConfiguration
+      # - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      # - org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
+      # Neo4j 相关
+      - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration
   datasource:
-    url: jdbc:postgresql://localhost:5432/aaf_dev
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf-dev}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
   data:
     neo4j:
-      uri: bolt://localhost:7687
+      uri: ${NEO4J_URI:bolt://localhost:7687}
       authentication:
-        username: neo4j
-        password: neo4j
+        username: ${NEO4J_USERNAME:neo4j}
+        password: ${NEO4J_PASSWORD:neo4j}
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   jpa:
     show-sql: true
 
 aaf:
   security:
     jwt:
-      secret: aaf-dev-secret-must-be-at-least-32-bytes-long!!
-      expire-seconds: 7200
+      secret: ${JWT_SECRET:aaf-dev-secret-must-be-at-least-32-bytes-long!!}
+      expire-seconds: ${JWT_EXPIRE_SECONDS:7200}
