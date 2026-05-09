@@ -38,12 +38,12 @@ changelog:
    - 三处同步开启 `--enable-preview`：compiler / surefire / spring-boot plugin
    - verify: `pnpm nx run service:build` 成功；preview 特性示例编译通过
 
-3. [ ] #27 aaf-dependencies BOM 完善 — developer-api (依赖: #17)
+3. ✅ #27 aaf-dependencies BOM 完善 — developer-api (依赖: #17)
    - 参考 ruoyi-vue-pro `yudao-bom/pom.xml` 结构
    - 按 [tech-stack.md §3](../../../design/apps/service/tech-stack.md#三核心依赖清单) 分组管理版本
    - verify: 子模块 pom 无显式版本号散落
 
-4. [ ] #28 aaf-common 依赖轻量化 — developer-api (依赖: #27)
+4. ✅ #28 aaf-common 依赖轻量化 — developer-api (依赖: #27)
    - Spring Web / Validation / Jackson / Jakarta Servlet 使用 `<scope>provided</scope>`
    - verify: 临时模块仅依赖 aaf-common（不引 starter-web）可编译通过
 
