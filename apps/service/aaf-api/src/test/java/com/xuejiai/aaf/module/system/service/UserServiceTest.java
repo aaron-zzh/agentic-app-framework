@@ -53,7 +53,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
         var request = new UserCreateReqVO("newuser", "123456", "新用户");
 
         // mock 方法
-        when(userRepository.existsByUsernameAndDeletedFalse("newuser")).thenReturn(false);
+        when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(passwordEncoder.encode("123456")).thenReturn("encoded");
         when(userRepository.save(any())).thenAnswer(inv -> {
             User e = inv.getArgument(0);
@@ -77,7 +77,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
         var request = new UserCreateReqVO("existing", "123456", "已存在");
 
         // mock 方法
-        when(userRepository.existsByUsernameAndDeletedFalse("existing")).thenReturn(true);
+        when(userRepository.existsByUsername("existing")).thenReturn(true);
 
         // 调用 + 断言
         assertThatThrownBy(() -> userService.create(request))
@@ -89,7 +89,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 用户存在 When 按 ID 查询 Then 返回用户信息")
     void should_return_user_when_id_exists() {
         // mock 方法
-        when(userRepository.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         // 调用
         UserRespVO response = userService.getById(1L);
@@ -103,7 +103,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 用户不存在 When 按 ID 查询 Then 抛出 NOT_FOUND 异常")
     void should_throw_exception_when_id_not_exists() {
         // mock 方法
-        when(userRepository.findByIdAndDeletedFalse(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         // 调用 + 断言
         assertThatThrownBy(() -> userService.getById(99L))
@@ -116,7 +116,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
     void should_return_page_result_when_query_users() {
         // mock 方法
         var page = new PageImpl<>(List.of(user));
-        when(userRepository.findAllByDeletedFalse(any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(page);
 
         // 调用
         PageResult<UserRespVO> result = userService.page(new PageParam(1, 10));
@@ -131,7 +131,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 用户存在 When 更新昵称和状态 Then 返回更新后的用户")
     void should_update_user_when_id_exists() {
         // mock 方法
-        when(userRepository.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
         // 调用
@@ -143,18 +143,15 @@ class UserServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 用户存在 When 删除 Then 逻辑删除并设置删除时间")
-    void should_soft_delete_user_when_id_exists() {
+    @DisplayName("Given 用户存在 When 删除 Then 调用 deleteById")
+    void should_delete_user_when_id_exists() {
         // mock 方法
-        when(userRepository.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(user));
-        when(userRepository.save(any())).thenReturn(user);
+        when(userRepository.existsById(1L)).thenReturn(true);
 
         // 调用
         userService.delete(1L);
 
         // 断言
-        assertThat(user.getDeleted()).isTrue();
-        assertThat(user.getDeleteTime()).isNotNull();
-        verify(userRepository).save(user);
+        verify(userRepository).deleteById(1L);
     }
 }

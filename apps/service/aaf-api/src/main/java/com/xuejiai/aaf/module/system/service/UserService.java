@@ -1,7 +1,5 @@
 package com.xuejiai.aaf.module.system.service;
 
-import java.time.LocalDateTime;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -33,7 +31,7 @@ public class UserService {
     /** 创建用户 */
     @Transactional
     public UserRespVO create(UserCreateReqVO request) {
-        if (userRepository.existsByUsernameAndDeletedFalse(request.username())) {
+        if (userRepository.existsByUsername(request.username())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "用户名已存在");
         }
         User user = new User();
@@ -48,7 +46,7 @@ public class UserService {
     public UserRespVO getById(Long id) {
         User user =
                 userRepository
-                        .findByIdAndDeletedFalse(id)
+                        .findById(id)
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在"));
         return toRespVO(user);
@@ -58,7 +56,7 @@ public class UserService {
     public PageResult<UserRespVO> page(PageParam param) {
         PageRequest pageRequest =
                 PageRequest.of(param.pageNo() - 1, param.pageSize(), Sort.by("id").descending());
-        Page<User> page = userRepository.findAllByDeletedFalse(pageRequest);
+        Page<User> page = userRepository.findAll(pageRequest);
         return new PageResult<>(
                 page.getContent().stream().map(this::toRespVO).toList(),
                 page.getTotalElements());
@@ -69,7 +67,7 @@ public class UserService {
     public UserRespVO update(Long id, UserUpdateReqVO request) {
         User user =
                 userRepository
-                        .findByIdAndDeletedFalse(id)
+                        .findById(id)
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在"));
         if (request.nickname() != null) {
@@ -82,17 +80,13 @@ public class UserService {
         return toRespVO(user);
     }
 
-    /** 删除用户（逻辑删除） */
+    /** 删除用户（@SoftDelete 自动处理逻辑删除） */
     @Transactional
     public void delete(Long id) {
-        User user =
-                userRepository
-                        .findByIdAndDeletedFalse(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在"));
-        user.setDeleted(true);
-        user.setDeleteTime(LocalDateTime.now());
-        userRepository.save(user);
+        if (!userRepository.existsById(id)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在");
+        }
+        userRepository.deleteById(id);
     }
 
     private UserRespVO toRespVO(User user) {

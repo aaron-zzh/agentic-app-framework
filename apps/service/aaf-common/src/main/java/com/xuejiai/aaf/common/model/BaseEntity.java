@@ -3,6 +3,7 @@ package com.xuejiai.aaf.common.model;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SoftDelete;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -20,11 +21,13 @@ import lombok.Setter;
  * 实体基类，所有 JPA 实体继承此类。
  *
  * <p>提供 id、审计字段（创建/更新人和时间）、逻辑删除、备注。
+ * 逻辑删除由 Hibernate {@code @SoftDelete} 自动处理，查询时自动过滤已删除记录。
  */
 @Getter
 @Setter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
+@SoftDelete(columnName = "deleted")
 public abstract class BaseEntity implements Serializable {
 
     @Id
@@ -47,9 +50,6 @@ public abstract class BaseEntity implements Serializable {
 
     @Column(name = "delete_time")
     private LocalDateTime deleteTime;
-
-    @Column(name = "deleted")
-    private Boolean deleted = false;
 
     @Column(name = "remark")
     private String remark;
