@@ -1,10 +1,13 @@
 package com.xuejiai.aaf.module.system.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.system.domain.User;
+import com.xuejiai.aaf.module.system.vo.UserSimpleVO;
 
 /** 用户数据访问层。Hibernate @SoftDelete 自动过滤已删除记录。 */
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -12,4 +15,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
 
     boolean existsByUsername(String username);
+
+    /** 查询简要列表（仅 id/username/nickname），用于下拉选择等场景。 */
+    @Query(
+            "SELECT new com.xuejiai.aaf.module.system.vo.UserSimpleVO(u.id, u.username, u.nickname) FROM User u")
+    List<UserSimpleVO> findSimpleList();
 }

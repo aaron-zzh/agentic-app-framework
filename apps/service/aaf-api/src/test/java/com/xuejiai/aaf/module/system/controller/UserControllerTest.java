@@ -22,12 +22,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xuejiai.aaf.common.model.PageParam;
+
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.module.system.service.UserService;
-import com.xuejiai.aaf.module.system.vo.UserCreateReqVO;
-import com.xuejiai.aaf.module.system.vo.UserRespVO;
-import com.xuejiai.aaf.module.system.vo.UserUpdateReqVO;
+import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
+import com.xuejiai.aaf.module.system.vo.UserPageDTO;
+import com.xuejiai.aaf.module.system.vo.UserUpdateDTO;
+import com.xuejiai.aaf.module.system.vo.UserVO;
 
 /** 用户接口单元测试（@WebMvcTest 切片测试，不加载完整上下文）。 */
 @WebMvcTest(UserController.class)
@@ -37,14 +38,14 @@ class UserControllerTest {
     @MockitoBean private UserService userService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final UserRespVO sampleUser = new UserRespVO(1L, "testuser", "测试", (short) 1, null, null);
+    private final UserVO sampleUser = new UserVO(1L, "testuser", "测试", (short) 1, null, null);
 
     @Test
     @DisplayName("Given 合法请求 When POST /users Then 返回成功")
     @WithMockUser
     void should_create_user_when_valid_request() throws Exception {
         // 准备参数
-        var request = new UserCreateReqVO("testuser", "123456", "测试");
+        var request = new UserCreateDTO("testuser", "123456", "测试");
 
         // mock 方法
         when(userService.create(any())).thenReturn(sampleUser);
@@ -78,7 +79,7 @@ class UserControllerTest {
     void should_return_page_when_list_users() throws Exception {
         // mock 方法
         var pageResult = new PageResult<>(List.of(sampleUser), 1L);
-        when(userService.page(any(PageParam.class))).thenReturn(pageResult);
+        when(userService.page(any(UserPageDTO.class))).thenReturn(pageResult);
 
         // 调用 + 断言
         mockMvc.perform(get("/api/system/users").param("pageNo", "1").param("pageSize", "10"))
@@ -92,7 +93,7 @@ class UserControllerTest {
     @WithMockUser
     void should_update_user_when_valid_request() throws Exception {
         // 准备参数
-        var updated = new UserRespVO(1L, "testuser", "新昵称", (short) 1, null, null);
+        var updated = new UserVO(1L, "testuser", "新昵称", (short) 1, null, null);
 
         // mock 方法
         when(userService.update(eq(1L), any())).thenReturn(updated);
@@ -103,7 +104,7 @@ class UserControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         objectMapper.writeValueAsString(
-                                                new UserUpdateReqVO("新昵称", (short) 1))))
+                                                new UserUpdateDTO("新昵称", 1))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.nickname").value("新昵称"));
     }

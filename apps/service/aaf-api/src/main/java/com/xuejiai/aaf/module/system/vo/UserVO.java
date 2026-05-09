@@ -3,7 +3,7 @@ package com.xuejiai.aaf.module.system.vo;
 import java.time.LocalDateTime;
 
 /** 用户响应。 */
-public record UserRespVO(
+public record UserVO(
         Long id,
         String username,
         String nickname,
