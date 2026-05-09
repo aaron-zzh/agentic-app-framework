@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.xuejiai</groupId>
+		<artifactId>aaf</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>aaf-auto-dev</artifactId>
+	<name>AAF Auto Dev</name>
+	<description>AI 自动开发：运行时代码生成、分析、自进化</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.xuejiai</groupId>
+			<artifactId>aaf-framework</artifactId>
+		</dependency>
+
+		<!-- 代码生成 -->
+		<dependency>
+			<groupId>org.freemarker</groupId>
+			<artifactId>freemarker</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.javaparser</groupId>
+			<artifactId>javaparser-core</artifactId>
+		</dependency>
+
+		<!-- 工具 -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- 测试 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+</project>

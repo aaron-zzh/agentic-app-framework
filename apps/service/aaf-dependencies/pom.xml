@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.xuejiai</groupId>
+	<artifactId>aaf-dependencies</artifactId>
+	<version>${revision}</version>
+	<packaging>pom</packaging>
+
+	<name>AAF Dependencies</name>
+	<description>AAF 统一依赖版本管理（BOM），子模块引入依赖不写版本号</description>
+
+	<properties>
+		<revision>0.1.0-SNAPSHOT</revision>
+		<flatten-maven-plugin.version>1.7.2</flatten-maven-plugin.version>
+		<!-- Spring 生态 -->
+		<spring-boot.version>4.0.6</spring-boot.version>
+		<spring-ai.version>2.0.0-M4</spring-ai.version>
+		<!-- Web / API -->
+		<springdoc.version>3.0.2</springdoc.version>
+		<!-- 数据访问 -->
+		<neo4j-cypher-dsl.version>2025.2.7</neo4j-cypher-dsl.version>
+		<!-- 业务能力 -->
+		<flowable.version>8.0.0</flowable.version>
+		<easy-rules.version>4.1.0</easy-rules.version>
+		<antlr4.version>4.13.2</antlr4.version>
+		<freemarker.version>2.3.34</freemarker.version>
+		<javaparser.version>3.26.4</javaparser.version>
+		<!-- 安全 / 防护 -->
+		<resilience4j.version>2.3.0</resilience4j.version>
+		<bucket4j.version>8.14.0</bucket4j.version>
+		<jasypt.version>3.0.5</jasypt.version>
+		<!-- 工具 / 集成 -->
+		<mapstruct.version>1.6.3</mapstruct.version>
+		<lombok.version>1.18.46</lombok.version>
+		<fesod.version>2.0.1</fesod.version>
+		<commonmark.version>0.24.0</commonmark.version>
+		<yauaa.version>7.29.0</yauaa.version>
+		<oshi.version>6.12.0</oshi.version>
+		<ip2region.version>3.3.0</ip2region.version>
+		<tinypinyin.version>2.0.3.RELEASE</tinypinyin.version>
+		<!-- 可观测性 -->
+		<sentry.version>8.27.0</sentry.version>
+		<!-- 测试 -->
+		<archunit.version>1.3.0</archunit.version>
+		<instancio.version>5.4.0</instancio.version>
+		<!-- 内部模块 -->
+		<aaf.version>${revision}</aaf.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- ==================== Spring 生态 BOM ==================== -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>${spring-boot.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework.ai</groupId>
+				<artifactId>spring-ai-bom</artifactId>
+				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>io.sentry</groupId>
+				<artifactId>sentry-bom</artifactId>
+				<version>${sentry.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!-- ==================== 内部模块 ==================== -->
+			<dependency>
+				<groupId>com.xuejiai</groupId>
+				<artifactId>aaf-common</artifactId>
+				<version>${aaf.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.xuejiai</groupId>
+				<artifactId>aaf-framework</artifactId>
+				<version>${aaf.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.xuejiai</groupId>
+				<artifactId>aaf-auto-dev</artifactId>
+				<version>${aaf.version}</version>
+			</dependency>
+
+			<!-- ==================== Web / API ==================== -->
+			<dependency>
+				<groupId>org.springdoc</groupId>
+				<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+				<version>${springdoc.version}</version>
+			</dependency>
+
+			<!-- ==================== 数据访问 ==================== -->
+			<dependency>
+				<groupId>org.neo4j</groupId>
+				<artifactId>neo4j-cypher-dsl</artifactId>
+				<version>${neo4j-cypher-dsl.version}</version>
+			</dependency>
+
+			<!-- ==================== 业务能力 ==================== -->
+			<dependency>
+				<groupId>org.flowable</groupId>
+				<artifactId>flowable-spring-boot-starter</artifactId>
+				<version>${flowable.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jeasy</groupId>
+				<artifactId>easy-rules-core</artifactId>
+				<version>${easy-rules.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.antlr</groupId>
+				<artifactId>antlr4-runtime</artifactId>
+				<version>${antlr4.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.freemarker</groupId>
+				<artifactId>freemarker</artifactId>
+				<version>${freemarker.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.javaparser</groupId>
+				<artifactId>javaparser-core</artifactId>
+				<version>${javaparser.version}</version>
+			</dependency>
+
+			<!-- ==================== 安全 / 防护 ==================== -->
+			<dependency>
+				<groupId>io.github.resilience4j</groupId>
+				<artifactId>resilience4j-spring-boot3</artifactId>
+				<version>${resilience4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.bucket4j</groupId>
+				<artifactId>bucket4j_jdk17-core</artifactId>
+				<version>${bucket4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.ulisesbocchio</groupId>
+				<artifactId>jasypt-spring-boot-starter</artifactId>
+				<version>${jasypt.version}</version>
+			</dependency>
+
+			<!-- ==================== 工具 / 集成 ==================== -->
+			<dependency>
+				<groupId>org.mapstruct</groupId>
+				<artifactId>mapstruct</artifactId>
+				<version>${mapstruct.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.mapstruct</groupId>
+				<artifactId>mapstruct-processor</artifactId>
+				<version>${mapstruct.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.commonmark</groupId>
+				<artifactId>commonmark</artifactId>
+				<version>${commonmark.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>nl.basjes.parse.useragent</groupId>
+				<artifactId>yauaa</artifactId>
+				<version>${yauaa.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.oshi</groupId>
+				<artifactId>oshi-core</artifactId>
+				<version>${oshi.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.lionsoul</groupId>
+				<artifactId>ip2region</artifactId>
+				<version>${ip2region.version}</version>
+			</dependency>
+
+			<!-- ==================== 测试 ==================== -->
+			<dependency>
+				<groupId>com.tngtech.archunit</groupId>
+				<artifactId>archunit-junit5</artifactId>
+				<version>${archunit.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.instancio</groupId>
+				<artifactId>instancio-junit</artifactId>
+				<version>${instancio.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>flatten-maven-plugin</artifactId>
+				<version>${flatten-maven-plugin.version}</version>
+				<configuration>
+					<updatePomFile>true</updatePomFile>
+					<flattenMode>resolveCiFriendliesOnly</flattenMode>
+				</configuration>
+				<executions>
+					<execution>
+						<id>flatten</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>flatten</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>flatten.clean</id>
+						<phase>clean</phase>
+						<goals>
+							<goal>clean</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

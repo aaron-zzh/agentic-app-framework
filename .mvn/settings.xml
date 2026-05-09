@@ -4,16 +4,11 @@
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
     <localRepository>D:/maven-repo</localRepository>
     <mirrors>
-<!--        <mirror>-->
-<!--            <id>aliyunmaven</id>-->
-<!--            <mirrorOf>*</mirrorOf>-->
-<!--            <name>阿里云公共仓库</name>-->
-<!--            <url>https://maven.aliyun.com/repository/public</url>-->
-<!--        </mirror>-->
         <mirror>
-            <id>huaweicloud</id>
-            <mirrorOf>*</mirrorOf>
-            <url>https://mirrors.huaweicloud.com/repository/maven/</url>
+            <id>aliyunmaven</id>
+            <mirrorOf>central</mirrorOf>
+            <name>阿里云公共仓库</name>
+            <url>https://maven.aliyun.com/repository/public</url>
         </mirror>
         <mirror>
             <id>maven-default-http-blocker</id>
@@ -23,4 +18,21 @@
             <blocked>true</blocked>
         </mirror>
     </mirrors>
+    <profiles>
+        <profile>
+            <id>extra-repos</id>
+            <repositories>
+                <repository>
+                    <id>huaweicloud</id>
+                    <name>华为云</name>
+                    <url>https://mirrors.huaweicloud.com/repository/maven/</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+    <activeProfiles>
+        <activeProfile>extra-repos</activeProfile>
+    </activeProfiles>
 </settings>

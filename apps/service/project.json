@@ -1,17 +1,17 @@
 {
   "name": "service",
   "projectType": "application",
-  "sourceRoot": "apps/service/src",
+  "sourceRoot": "apps/service/aaf-api/src",
   "targets": {
     "build": {
       "command": "mvnw.cmd package -DskipTests",
       "options": { "cwd": "apps/service" },
       "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pom.xml"],
-      "outputs": ["{projectRoot}/target"]
+      "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
+      "outputs": ["{projectRoot}/**/target"]
     },
     "serve": {
-      "command": "mvnw.cmd spring-boot:run",
+      "command": "mvnw.cmd spring-boot:run -pl aaf-api",
       "options": { "cwd": "apps/service" },
       "continuous": true
     },
@@ -19,7 +19,7 @@
       "command": "mvnw.cmd spotless:check",
       "options": { "cwd": "apps/service" },
       "cache": true,
-      "inputs": ["{projectRoot}/src/**/*.java", "{projectRoot}/pom.xml"]
+      "inputs": ["{projectRoot}/**/src/**/*.java", "{projectRoot}/**/pom.xml"]
     },
     "format": {
       "command": "mvnw.cmd spotless:apply",
@@ -29,16 +29,16 @@
       "command": "mvnw.cmd test",
       "options": { "cwd": "apps/service" },
       "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pom.xml"],
-      "outputs": ["{projectRoot}/target/surefire-reports"],
+      "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
+      "outputs": ["{projectRoot}/**/target/surefire-reports"],
       "description": "developer 单测（Surefire：*Test.java，含 ArchUnit）"
     },
     "acceptance": {
       "command": "mvnw.cmd verify -DskipITs=false",
       "options": { "cwd": "apps/service" },
       "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pom.xml"],
-      "outputs": ["{projectRoot}/target/failsafe-reports"],
+      "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
+      "outputs": ["{projectRoot}/**/target/failsafe-reports"],
       "description": "tester 验收 / 集成测试（Failsafe：*IT.java / *AcceptanceTest.java）"
     },
     "check": {

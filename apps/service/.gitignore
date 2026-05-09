@@ -5,6 +5,7 @@ target/
 
 ### Maven ###
 .mvn/wrapper/maven-wrapper.jar
+.flattened-pom.xml
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -14,7 +15,18 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 
-### STS ###
+### Logs ###
+*.log
+logs/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+
+### Eclipse / STS ###
 .apt_generated
 .classpath
 .factorypath
@@ -22,12 +34,6 @@ buildNumber.properties
 .settings
 .springBeans
 .sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
 
 ### NetBeans ###
 /nbproject/private/
@@ -42,5 +48,19 @@ build/
 ### VS Code ###
 .vscode/
 
-# Application
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### Application ###
 application-prod.yml
+application-prod.yaml
+
+### JRebel ###
+rebel.xml
+
+### Misc ###
+*.swp
+*.class
+hs_err_pid*
