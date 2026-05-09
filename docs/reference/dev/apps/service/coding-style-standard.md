@@ -496,6 +496,79 @@ var data = service.process(input);  // 返回什么类型？
 var x = calculate();                // 完全看不出类型
 ```
 
+### Optional 使用规范
+
+推荐用于返回值表达"可能为空"的语义，禁止滥用：
+
+```java
+// ✅ Repository 返回值
+Optional<User> findByUsername(String username);
+
+// ✅ 链式处理（≤3 层）
+String city = user.getAddress()
+        .map(Address::getCity)
+        .orElse("未知");
+
+// ✅ orElseThrow 替代手动 if-null-throw
+User user = userRepository.findByIdAndDeletedFalse(id)
+        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在"));
+
+// ❌ 禁止作为方法参数
+void update(Optional<String> nickname) { ... }
+
+// ❌ 禁止作为实体字段
+@Column private Optional<String> nickname;
+
+// ❌ 禁止超过 3 层嵌套（改回 if-else）
+optional.map(...).flatMap(...).map(...).filter(...).orElse(...)  // 太深，不可读
+```
+
+**规则**：
+- 返回值用 `Optional` 表达可空语义 ✅
+- 参数用 `@Nullable` 注解或方法重载 ✅
+- 实体字段直接用 null ✅
+- 超过 3 层链式调用改回 if-else ✅
+
+### 函数式编程规范（Stream / Lambda）
+
+推荐用于集合转换，禁止过度嵌套和副作用操作：
+
+```java
+// ✅ 集合转换（map / filter / collect）
+var names = users.stream()
+        .filter(u -> u.getStatus() == 1)
+        .map(User::getUsername)
+        .toList();
+
+// ✅ 方法引用优先于 Lambda
+.map(User::getId)       // ✅
+.map(u -> u.getId())    // ❌ 有方法引用时不用 Lambda
+
+// ✅ 简单 Lambda（1-2 行）
+list.forEach(item -> log.info("处理: {}", item.getName()));
+
+// ❌ 禁止超过 3 行的 Lambda —— 提取为私有方法
+list.forEach(item -> {
+    validate(item);
+    transform(item);
+    save(item);        // 太长，提取为 processItem(item)
+});
+
+// ❌ 禁止 forEach 内修改外部状态
+var result = new ArrayList<>();
+list.forEach(item -> result.add(transform(item)));  // 用 .map().toList() 替代
+
+// ❌ 禁止 parallelStream —— 用虚拟线程 + StructuredTaskScope
+list.parallelStream().map(...).toList();  // 不可控，线程池共享问题
+```
+
+**规则**：
+- Stream 链式不超过 5 步，超过拆分为中间变量或方法
+- Lambda 不超过 3 行，超过提取为私有方法
+- 优先方法引用 `Class::method`
+- 禁止 `forEach` 内修改外部可变状态（用 `map` + `collect`）
+- 禁止 `parallelStream`（AAF 用虚拟线程处理并行）
+
 ### String Templates（预览特性）
 
 Java 21+ 的字符串模板（如果启用 preview）：
