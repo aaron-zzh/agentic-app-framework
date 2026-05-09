@@ -1,6 +1,9 @@
 spring:
   application:
     name: aaf
+    version: '@project.version@'
+  config:
+    import: optional:file:.env[.properties]
   profiles:
     active: dev
   jpa:

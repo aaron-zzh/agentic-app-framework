@@ -11,7 +11,7 @@
       "outputs": ["{projectRoot}/**/target"]
     },
     "serve": {
-      "command": "mvnw.cmd spring-boot:run -pl aaf-api",
+      "command": "mvnw.cmd install -DskipTests -q && mvnw.cmd spring-boot:run -f aaf-api/pom.xml",
       "options": { "cwd": "apps/service" },
       "continuous": true
     },
