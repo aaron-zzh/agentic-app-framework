@@ -56,7 +56,7 @@ changelog:
    - 替换 LayeringTest.java 占位，启用 5 条真实分层规则
    - verify: `pnpm nx run service:test` 运行 LayeringTest，违规即报错
 
-7. [ ] #25 统一格式化方案（后端 Spotless） — developer-api (依赖: #17)
+7. ✅ #25 统一格式化方案（后端 Spotless） — developer-api (依赖: #17)
    - `spotless-maven-plugin` + Google Java Format
    - verify: `pnpm nx run service:format` + `pnpm format:check` 全绿
 

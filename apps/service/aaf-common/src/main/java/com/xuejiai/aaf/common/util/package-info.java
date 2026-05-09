@@ -1,4 +1,2 @@
-/**
- * 通用工具类。
- */
+/** 通用工具类。 */
 package com.xuejiai.aaf.common.util;

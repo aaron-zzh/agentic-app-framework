@@ -1,4 +1,2 @@
-/**
- * 通用枚举定义。
- */
+/** 通用枚举定义。 */
 package com.xuejiai.aaf.common.enums;

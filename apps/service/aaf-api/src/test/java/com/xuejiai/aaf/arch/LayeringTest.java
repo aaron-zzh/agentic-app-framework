@@ -23,9 +23,7 @@ import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
         importOptions = {ImportOption.DoNotIncludeTests.class})
 class LayeringTest {
 
-    /**
-     * 占位规则：确认 ArchUnit 能扫描到主包，验证工具链通畅。
-     */
+    /** 占位规则：确认 ArchUnit 能扫描到主包，验证工具链通畅。 */
     @ArchTest
     static final ArchRule placeholder_arch_scanning_works =
             ArchRuleDefinition.classes()

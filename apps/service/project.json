@@ -16,13 +16,13 @@
       "continuous": true
     },
     "lint": {
-      "command": "mvnw.cmd spotless:check",
+      "command": "mvnw.cmd com.diffplug.spotless:spotless-maven-plugin:check",
       "options": { "cwd": "apps/service" },
       "cache": true,
       "inputs": ["{projectRoot}/**/src/**/*.java", "{projectRoot}/**/pom.xml"]
     },
     "format": {
-      "command": "mvnw.cmd spotless:apply",
+      "command": "mvnw.cmd com.diffplug.spotless:spotless-maven-plugin:apply",
       "options": { "cwd": "apps/service" }
     },
     "test": {
