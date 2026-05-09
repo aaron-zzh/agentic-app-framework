@@ -26,13 +26,13 @@ changelog:
 
 ### 后端主线（按执行顺序）
 
-1. [ ] #17 Maven 多模块拆分 + 完整包目录 — architect + developer-api
+1. ✅ #17 Maven 多模块拆分 + 完整包目录 — architect + developer-api
    - 参考芋道 `yudao-framework` 模块结构、JeecgBoot 模块拆分方式
    - 拆分为：aaf-dependencies / aaf-common / aaf-framework / aaf-auto-dev / aaf-api
    - 对照 [module-structure.md](../../../design/apps/service/module-structure.md) 创建完整包目录（含占位 `package-info.java`）
    - verify: `pnpm nx run service:build` 成功，五个模块独立编译通过
 
-2. [ ] #26 根 pom 清理与 Preview 特性启用 — developer-api (依赖: #17)
+2. ✅ #26 根 pom 清理与 Preview 特性启用 — developer-api (依赖: #17)
    - 移除 WebFlux / R2DBC 全栈依赖（仅保留 SSE / `Flux<ChatResponse>` 所需部分）
    - 统一 `annotationProcessorPaths`：Lombok + MapStruct + `spring-boot-configuration-processor`
    - 三处同步开启 `--enable-preview`：compiler / surefire / spring-boot plugin
