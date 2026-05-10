@@ -38,7 +38,7 @@ class UserControllerTest {
     @MockitoBean private UserService userService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final UserVO sampleUser = new UserVO(1L, "testuser", "测试", (short) 1, null, null);
+    private final UserVO sampleUser = new UserVO(1L, "testuser", "测试", 1, null, null);
 
     @Test
     @DisplayName("Given 合法请求 When POST /users Then 返回成功")
@@ -93,7 +93,7 @@ class UserControllerTest {
     @WithMockUser
     void should_update_user_when_valid_request() throws Exception {
         // 准备参数
-        var updated = new UserVO(1L, "testuser", "新昵称", (short) 1, null, null);
+        var updated = new UserVO(1L, "testuser", "新昵称", 1, null, null);
 
         // mock 方法
         when(userService.update(eq(1L), any())).thenReturn(updated);

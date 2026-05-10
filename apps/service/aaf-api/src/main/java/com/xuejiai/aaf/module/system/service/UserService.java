@@ -53,9 +53,16 @@ public class UserService {
 
     /** 分页查询 */
     public PageResult<UserVO> page(UserPageDTO req) {
-        var pageRequest =
-                PageRequest.of(req.pageNo() - 1, req.pageSize(), Sort.by("id").descending());
-        Page<User> page = userRepository.findAll(pageRequest);
+        var pageable = req.toPageable();
+        // 无排序时默认按 id 降序
+        if (!pageable.getSort().isSorted()) {
+            pageable =
+                    PageRequest.of(
+                            pageable.getPageNumber(),
+                            pageable.getPageSize(),
+                            Sort.by("id").descending());
+        }
+        Page<User> page = userRepository.findAll(pageable);
         return new PageResult<>(
                 page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
@@ -86,6 +93,20 @@ public class UserService {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在");
         }
         userRepository.deleteById(id);
+    }
+
+    /** 批量删除用户 */
+    @Transactional
+    public void deleteBatch(List<Long> ids) {
+        userRepository.deleteAllByIdInBatch(ids);
+    }
+
+    /** 修改用户状态 */
+    @Transactional
+    public void updateStatus(Long id, Integer status) {
+        var user = requireUser(id);
+        user.setStatus(status);
+        userRepository.save(user);
     }
 
     /** 修改密码（用户自己操作，需验证旧密码） */

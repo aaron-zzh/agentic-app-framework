@@ -123,7 +123,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
         when(userRepository.findAll(any(Pageable.class))).thenReturn(page);
 
         // 调用
-        PageResult<UserVO> result = userService.page(new UserPageDTO(null, null, null, 1, 10));
+        PageResult<UserVO> result = userService.page(new UserPageDTO());
 
         // 断言
         assertThat(result.total()).isEqualTo(1);
@@ -143,7 +143,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
 
         // 断言
         assertThat(response.nickname()).isEqualTo("新昵称");
-        assertThat(response.status()).isEqualTo((short) 0);
+        assertThat(response.status()).isEqualTo(0);
     }
 
     @Test

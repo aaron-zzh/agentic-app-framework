@@ -10,9 +10,12 @@ import com.xuejiai.aaf.module.system.service.AuthService;
 import com.xuejiai.aaf.module.system.vo.AuthLoginDTO;
 import com.xuejiai.aaf.module.system.vo.AuthLoginVO;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 /** 认证接口。 */
+@Tag(name = "认证")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -23,19 +26,19 @@ public class AuthController {
         this.authService = authService;
     }
 
-    /** 账号密码登录 */
+    @Operation(summary = "账号密码登录")
     @PostMapping("/login")
     public Result<AuthLoginVO> login(@Valid @RequestBody AuthLoginDTO dto) {
         return Result.success(authService.login(dto));
     }
 
-    /** 刷新令牌 */
+    @Operation(summary = "刷新令牌")
     @PostMapping("/refresh")
     public Result<AuthLoginVO> refresh(@RequestBody RefreshRequest request) {
         return Result.success(authService.refresh(request.refreshToken()));
     }
 
-    /** 登出 */
+    @Operation(summary = "登出")
     @PostMapping("/logout")
     public Result<Void> logout(@RequestBody RefreshRequest request) {
         authService.logout(request.refreshToken());

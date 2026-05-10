@@ -7,6 +7,6 @@ public record UserVO(
         Long id,
         String username,
         String nickname,
-        Short status,
+        Integer status,
         LocalDateTime createTime,
         LocalDateTime updateTime) {}
