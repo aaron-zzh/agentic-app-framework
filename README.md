@@ -1,5 +1,8 @@
 # AI 原生应用开发框架 Agentic App Framework (AAF)
 
+[![CI](https://github.com/aaron-zzh/agentic-app-framework/workflows/CI/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions)
+[![Commitlint](https://github.com/aaron-zzh/agentic-app-framework/workflows/Commitlint/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions)
+
 > 元引擎是这套分层架构的整体，不是某层的子项。整个 AAF 系统就是元引擎——将意图转化为执行，将执行转化为知识。自我开发、自我进化、规范驱动的围栏工程
 
 ## 项目简介
