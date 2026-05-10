@@ -3,7 +3,7 @@ package com.xuejiai.aaf.common.model;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -22,13 +22,20 @@ import lombok.Setter;
 /**
  * 实体基类，所有 JPA 实体继承此类。
  *
- * <p>提供 id、审计字段（创建/更新人和时间）、逻辑删除、备注。 逻辑删除由 Hibernate {@code @SoftDelete} 自动处理，查询时自动过滤已删除记录。
+ * <p>提供 id、审计字段（创建/更新人和时间）、逻辑删除、备注。
+ * 逻辑删除通过 {@code @SQLRestriction} 自动过滤查询，子类需加 {@code @SQLDelete} 指定删除 SQL。
+ *
+ * <p>子类示例：
+ * <pre>{@code
+ * @SQLDelete(sql = "UPDATE sys_user SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+ * public class User extends BaseEntity { ... }
+ * }</pre>
  */
 @Getter
 @Setter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
-@SoftDelete(columnName = "deleted")
+@SQLRestriction("deleted = false")
 public abstract class BaseEntity implements Serializable {
 
     @Id
@@ -53,6 +60,9 @@ public abstract class BaseEntity implements Serializable {
 
     @Column(name = "delete_time")
     private LocalDateTime deleteTime;
+
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
 
     @Column(name = "remark")
     private String remark;

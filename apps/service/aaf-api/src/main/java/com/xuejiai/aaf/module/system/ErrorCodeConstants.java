@@ -24,4 +24,5 @@ public interface ErrorCodeConstants {
     ErrorCode USER_NOT_FOUND = ErrorCode.of(1_001_000, "用户不存在");
     ErrorCode USER_USERNAME_EXISTS = ErrorCode.of(1_001_001, "用户名已存在");
     ErrorCode USER_PASSWORD_INCORRECT = ErrorCode.of(1_001_002, "旧密码不正确");
+    ErrorCode USER_ADMIN_DELETE_FORBIDDEN = ErrorCode.of(1_001_003, "不允许删除管理员");
 }

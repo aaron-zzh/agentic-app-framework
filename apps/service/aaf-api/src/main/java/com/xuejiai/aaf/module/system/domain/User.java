@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.system.domain;
 
+import org.hibernate.annotations.SQLDelete;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
@@ -16,6 +17,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_user")
+@SQLDelete(sql = "UPDATE sys_user SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class User extends BaseEntity {
 
     @Column(name = "username", nullable = false, unique = true, length = 50)

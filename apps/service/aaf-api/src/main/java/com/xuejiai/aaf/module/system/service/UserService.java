@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_ADMIN_DELETE_FORBIDDEN;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +95,7 @@ public class UserService {
     /** 删除用户 */
     @Transactional
     public void delete(Long id) {
+        validateNotAdmin(id);
         if (!userRepository.existsById(id)) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在");
         }
@@ -102,7 +105,8 @@ public class UserService {
     /** 批量删除用户 */
     @Transactional
     public void deleteBatch(List<Long> ids) {
-        userRepository.deleteAllByIdInBatch(ids);
+        ids.forEach(this::validateNotAdmin);
+        userRepository.deleteAllById(ids);
     }
 
     /** 修改用户状态 */
@@ -168,6 +172,14 @@ public class UserService {
     // public UserImportResultVO importUsers(List<UserImportDTO> users, boolean updateSupport) { }
 
     // ==================== 内部方法 ====================
+
+    private static final Long ADMIN_USER_ID = 1L;
+
+    private void validateNotAdmin(Long id) {
+        if (ADMIN_USER_ID.equals(id)) {
+            throw exception(USER_ADMIN_DELETE_FORBIDDEN);
+        }
+    }
 
     private User requireUser(Long id) {
         return userRepository
