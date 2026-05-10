@@ -4,7 +4,9 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.SoftDelete;
+import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -33,6 +35,7 @@ public abstract class BaseEntity implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @CreatedBy
     @Column(name = "create_by")
     private Long createBy;
 
@@ -40,6 +43,7 @@ public abstract class BaseEntity implements Serializable {
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
 
+    @LastModifiedBy
     @Column(name = "update_by")
     private Long updateBy;
 

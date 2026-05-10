@@ -1,9 +1,21 @@
 package com.xuejiai.aaf.config;
 
+import java.util.Optional;
+
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-/** JPA 审计配置，启用 @CreatedDate / @LastModifiedDate 自动填充。 */
+import com.xuejiai.aaf.framework.security.ActorContext;
+
+/** JPA 审计配置，启用 @CreatedDate / @LastModifiedDate / @CreatedBy / @LastModifiedBy 自动填充。 */
 @Configuration
 @EnableJpaAuditing
-public class JpaAuditingConfig {}
+public class JpaAuditingConfig {
+
+    @Bean
+    public AuditorAware<Long> auditorAware(ActorContext actorContext) {
+        return actorContext::currentUserId;
+    }
+}

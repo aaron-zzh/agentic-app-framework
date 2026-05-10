@@ -6,6 +6,7 @@ import static com.xuejiai.aaf.module.system.ErrorCodeConstants.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.security.ActorContext;
 import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.module.system.domain.User;
 import com.xuejiai.aaf.module.system.repository.UserRepository;
@@ -22,6 +23,13 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final ActorContext actorContext;
+
+    /** 获取当前登录用户 ID */
+    public Long currentUserId() {
+        return actorContext.currentUserId()
+                .orElseThrow(() -> exception(AUTH_TOKEN_EXPIRED));
+    }
 
     /** 账号密码登录 */
     public AuthLoginVO login(AuthLoginDTO dto) {

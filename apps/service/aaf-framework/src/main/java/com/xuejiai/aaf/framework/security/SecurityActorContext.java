@@ -14,12 +14,19 @@ public class SecurityActorContext implements ActorContext {
     @Override
     public Optional<Long> currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
-            try {
+        if (auth == null || !auth.isAuthenticated()) {
+            return Optional.empty();
+        }
+        Object principal = auth.getPrincipal();
+        try {
+            if (principal instanceof Jwt jwt) {
                 return Optional.of(Long.valueOf(jwt.getSubject()));
-            } catch (NumberFormatException e) {
-                return Optional.empty();
             }
+            if (principal instanceof String str) {
+                return Optional.of(Long.valueOf(str));
+            }
+        } catch (NumberFormatException e) {
+            return Optional.empty();
         }
         return Optional.empty();
     }
