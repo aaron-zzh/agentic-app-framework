@@ -1,0 +1,42 @@
+name: Release
+
+# 暂未启用自动触发，v0.1.0 发布时取消注释
+on:
+  workflow_dispatch:
+  # push:
+  #   tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build all projects
+        run: pnpm nx run-many -t build
+
+      - name: Release (version + changelog + GitHub Release)
+        run: pnpm nx release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

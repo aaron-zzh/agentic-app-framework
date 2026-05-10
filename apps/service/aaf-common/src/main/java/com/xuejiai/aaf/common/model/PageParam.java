@@ -50,11 +50,18 @@ public class PageParam implements Serializable {
 
     /** 构建 Spring Data Pageable，含排序。不分页时返回 Pageable.unpaged()。 */
     public Pageable toPageable() {
+        return toPageable(Sort.unsorted());
+    }
+
+    /** 构建 Spring Data Pageable，无排序时使用 defaultSort。 */
+    public Pageable toPageable(Sort defaultSort) {
+        Sort sortObj = buildSort();
+        if (!sortObj.isSorted()) {
+            sortObj = defaultSort;
+        }
         if (isNoPaging()) {
-            Sort sortObj = buildSort();
             return sortObj.isSorted() ? Pageable.unpaged(sortObj) : Pageable.unpaged();
         }
-        Sort sortObj = buildSort();
         return sortObj.isSorted()
                 ? PageRequest.of(pageNo - 1, pageSize, sortObj)
                 : PageRequest.of(pageNo - 1, pageSize);

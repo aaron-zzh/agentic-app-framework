@@ -33,6 +33,18 @@
   ],
   "nxCloudId": "69f20b1c4d6f30222ee77b06",
   "analytics": false,
+  "release": {
+    "projects": ["docs", "webui"],
+    "version": {
+      "conventionalCommits": true
+    },
+    "changelog": {
+      "workspaceChangelog": {
+        "file": "CHANGELOG.md",
+        "createRelease": "github"
+      }
+    }
+  },
   "generators": {
     "@nx/next": {
       "application": {

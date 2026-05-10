@@ -2,54 +2,92 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: [main]
 
-permissions:
-  actions: read
-  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  main:
+  check:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: aaf-dev
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - uses: actions/checkout@v4
         with:
-          filter: tree:0
           fetch-depth: 0
 
-      # 启用 Nx Cloud 分布式任务
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="acceptance"
-
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-java@v4
         with:
-          node-version: 20
-          cache: 'pnpm'
+          distribution: temurin
+          java-version: 25
 
       - uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
         with:
-          distribution: 'temurin'
-          java-version: '25'
+          node-version: 22
+          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
-      # 阶段 1：格式检查（快速失败）
-      - name: Format check
-        run: npx nx record -- pnpm format:check
+      - uses: nrwl/nx-set-shas@v4
 
-      # 阶段 2：developer 自验证（lint + typecheck + 单测 + build）
-      - name: Developer check (lint / typecheck / unit test / build)
-        run: npx nx affected -t check --base=origin/main
+      - run: pnpm format:check
 
-      # 阶段 3：tester 验收（集成测试、验收测试）
-      - name: Tester acceptance
-        run: npx nx affected -t acceptance --base=origin/main
+      - run: pnpm check:specs
 
-      # Nx Cloud self-healing
-      - run: npx nx fix-ci
+      - run: pnpm check:affected
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: aaf-dev
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+      - name: Upload service coverage
         if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: apps/service/aaf-api/target/site/jacoco/jacoco.xml
+          flags: service
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload webui coverage
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: apps/webui/coverage/coverage-final.json
+          flags: webui
+          token: ${{ secrets.CODECOV_TOKEN }}

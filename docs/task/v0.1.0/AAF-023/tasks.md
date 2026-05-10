@@ -71,16 +71,18 @@ changelog:
    - application-dev/prod/test.yaml 环境隔离
    - verify: `pnpm nx run service:serve` 启动后数据库自动建表
 
-10. [ ] #31 用户管理 CRUD 接口 — developer-api (依赖: #20, #30)
+10. ✅ #31 用户管理 CRUD 接口 — developer-api (依赖: #20, #30)
     - Entity + Repository + Service + Controller 完整链路
     - 接口：创建 / 查询详情 / 分页列表 / 更新 / 删除（逻辑删除）
     - 使用 `Result<T>` + `PageResult<T>` 统一响应
-    - verify: Swagger 中 CRUD 接口可正常调用
+    - 补充：批量删除 / 修改状态 / OpenAPI 注解 / 分页排序 / SpecificationBuilder 条件查询
+    - verify: Swagger 中 CRUD 接口可正常调用 ✅
 
-11. [ ] #24 测试环境基础设施（本地 + CI） — developer-api (依赖: #20)
-    - 本地：PostgreSQL 17（pgvector）+ Neo4j 5，`aaf_test` 独立数据库
-    - CI：GitHub Actions service container
+11. ✅ #24 CI 基础设施（GitHub Actions） — developer-api (依赖: #20)
+    - CI：GitHub Actions service container（PostgreSQL + Redis）
+    - workflow 跑 `pnpm check:affected`（编译 + 单测 + lint）
     - 来源：[ADR-002](../../../design/adr/ADR-002-local-env-vs-testcontainers.md)
+    - verify: PR 触发 CI 全绿
 
 11. [ ] #29 包结构约定与 ArchUnit 规则扩展 — developer-api + architect (依赖: #21, #30)
     - `aaf-framework` 新建 `protection` 包（限流/幂等/分布式锁聚合）
