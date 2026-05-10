@@ -28,6 +28,11 @@ spring:
   jpa:
     show-sql: true
 
+logging:
+  level:
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+    org.springframework.web.filter.AbstractRequestLoggingFilter: DEBUG
+
 aaf:
   flyway:
     clean-on-start: true
