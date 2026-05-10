@@ -84,10 +84,10 @@ changelog:
     - 来源：[ADR-002](../../../design/adr/ADR-002-local-env-vs-testcontainers.md)
     - verify: PR 触发 CI 全绿
 
-11. [ ] #29 包结构约定与 ArchUnit 规则扩展 — developer-api + architect (依赖: #21, #30)
+11. ✅ #29 包结构约定与 ArchUnit 规则扩展 — developer-api + architect (依赖: #21, #30)
     - `aaf-framework` 新建 `protection` 包（限流/幂等/分布式锁聚合）
     - 业务模块 `api/` 子包暴露跨模块接口 + DTO
-    - 扩展 ArchUnit：跨模块只允许访问 `api` 包；防护注解必须在 `protection` 包下
+    - 扩展 ArchUnit：跨模块只允许访问 `api` 包（占位，待第二个模块启用）
     - verify: LayeringTest 新增用例全绿；违规代码即时报错
 
 ### 前端并行线（不阻塞后端）

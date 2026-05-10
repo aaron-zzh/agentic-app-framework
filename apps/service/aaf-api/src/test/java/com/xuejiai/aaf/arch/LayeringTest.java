@@ -95,4 +95,16 @@ class LayeringTest {
                     .dependOnClassesThat()
                     .resideInAPackage("com.xuejiai.aaf.module..")
                     .as("framework 层禁止依赖业务模块（依赖方向：module → framework → common）");
+
+    /** 规则 6：跨模块依赖只允许访问目标模块的 api 包 */
+    @ArchTest
+    static final ArchRule crossModuleOnlyViaApi =
+            com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices()
+                    .matching("com.xuejiai.aaf.module.(*)..")
+                    .should()
+                    .notDependOnEachOther()
+                    .ignoreDependency(
+                            com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage("..module.."),
+                            com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage("..module..api.."))
+                    .as("跨模块依赖只允许通过 api 包");
 }
