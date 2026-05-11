@@ -21,11 +21,11 @@
       "continuous": true
     },
     "typecheck": {
-      "command": "tsc --noEmit -p tsconfig.json",
+      "command": "tsgo --noEmit -p tsconfig.json",
       "options": { "cwd": "apps/webui" },
       "cache": true,
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/next-env.d.ts"],
-      "description": "TypeScript 类型检查"
+      "description": "TypeScript 类型检查（native preview）"
     },
     "test": {
       "command": "vitest run --passWithNoTests",
