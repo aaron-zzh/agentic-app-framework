@@ -408,7 +408,7 @@ while True:
 ## 相关文档
 
 - [元引擎设计](../meta-engine.md) - 智能体系统的编排基础设施
-- [对话式交互设计](../engine/conversational-interaction.md) - 人机交互入口
+- [对话式交互设计](../../apps/webui/tmp/conversational-interaction.md) - 人机交互入口
 - [认知层设计](cognition/Readme.md) - Layer 1 Cognition 总览
 - [AtomMemory 原子记忆引擎](../engine/atom-memory-engine.md) - Memory 模块的引擎实现
 - [NexusKB 连接式知识引擎](../engine/nexus-kb-engine.md) - Knowledge 模块的引擎实现

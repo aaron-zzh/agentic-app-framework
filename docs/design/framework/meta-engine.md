@@ -1006,7 +1006,7 @@ Agent 超时          →  切换简化流程（直接 LLM 调用）
 - 元引擎负责意图解析、执行调度、状态管理，不包含 UI 逻辑
 - 两者通过 DSL 和事件解耦，可独立演化
 
-详见 [对话式交互设计](./engine/conversational-interaction.md)。
+详见 [对话式交互设计](../apps/webui/tmp/conversational-interaction.md)
 
 ## 设计可行性分析
 

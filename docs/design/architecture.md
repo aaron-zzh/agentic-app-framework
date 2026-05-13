@@ -271,7 +271,7 @@ packages/       → 共享库（待建设）
 | 文档 | 说明 |
 |------|------|
 | [元引擎设计](framework/meta-engine.md) | DSL 解释器、引擎编排、自进化机制 |
-| [对话式交互设计](framework/engine/conversational-interaction.md) | 意图→DSL→语义组件动态组装，多端统一模型 |
+| [对话式交互设计](apps/webui/tmp/conversational-interaction.md) | 意图→DSL→语义组件动态组装，多端统一模型 |
 
 ### 后端（service）
 

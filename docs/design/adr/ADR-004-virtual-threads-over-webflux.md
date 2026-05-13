@@ -114,7 +114,7 @@ spring:
 ## More Information
 
 - 讨论记录：AAF-023 技术选型对话（2026-05-08）
-- 技术选型文档：[java-tech-selection.md](../../task/v0.1.0/AAF-023/java-tech-selection.md)
+- 技术选型文档：[tech-stack.md](../apps/service/tech-stack.md)
 - 后续动作：
   - pom.xml 移除 R2DBC 相关依赖（spring-boot-starter-data-r2dbc、r2dbc-postgresql、r2dbc-h2）
   - application.yml 添加 `spring.threads.virtual.enabled=true`

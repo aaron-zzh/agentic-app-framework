@@ -190,7 +190,7 @@ AAF 已具备完整基础设施（PostgreSQL + PgVector + Neo4j + Redis），且
 ## 组件一：Memory（记忆系统）
 
 > 借鉴 **Mem0**（多级架构）+ **Graphiti**（双时态）+ **ReMe**（程序化记忆）
-> 详见 [memory.md](memory.md)
+> 详见 [atom-memory-engine.md](../../engine/atom-memory-engine.md)
 
 ### 记忆分类
 
@@ -238,7 +238,7 @@ public interface MemoryService {
 
 > **统一存储底座**：同时服务用户（知识管理业务系统）和 Agent（检索推理）。
 > 借鉴 **Cognee**（ECL 管道）+ **LightRAG**（混合检索）+ **Graphiti**（知识图谱）
-> 详见 [knowledge.md](knowledge.md)
+> 详见 [nexus-kb-engine.md](../../engine/nexus-kb-engine.md)
 
 ### 双视图服务
 
@@ -290,7 +290,6 @@ public interface KnowledgeService {
 ## 组件三：Value（价值观系统）
 
 > 团队级伦理约束，全局一致，影响所有 Agent 的决策。
-> 详见 [value.md](value.md)
 
 ### 为什么独立成组件
 
@@ -331,7 +330,6 @@ public interface ValueService {
 ## 组件四：Retrieval（融合检索层·服务组件）
 
 > 借鉴 **M-FLOW** 图路由思想。**服务于核心三件套的统一访问入口**。
-> 详见 [retrieval.md](retrieval.md)
 
 ### 职责
 
@@ -401,7 +399,7 @@ Value.propose   → 价值观更新建议（必须人工审核）
 
 Learning 是**元引擎自进化机制的认知侧实现**。它把 Agent 的执行结果转化为 Cognition 的更新输入，但不直接修改代码/DSL——那是元引擎的职责。
 
-详见 [元引擎 - 自进化机制](../../engine/meta-engine.md#自进化机制)。
+详见 [meta-engine.md](../../meta-engine.md)
 
 ### 关键约束
 
@@ -613,9 +611,8 @@ aaf-framework/engine/
 
 ## 十二、相关文档
 
-- [智能体系统设计](../agent.md) - 五层智能架构总览
-- [记忆系统详细设计](memory.md) - 待创建
-- [知识库详细设计](knowledge.md) - 待创建
-- [价值观系统详细设计](value.md) - 待创建
+- [agent.md](../agent.md) - 五层智能架构总览
+- [记忆系统详细设计](../../engine/atom-memory-engine.md) - 待创建
+- [知识库详细设计](../../engine/nexus-kb-engine.md) - 待创建
 - [融合检索详细设计](retrieval.md) - 待创建
-- [元引擎自进化机制](../../engine/meta-engine.md#自进化机制)
+- [元引擎自进化机制](../../meta-engine.md#自进化机制)

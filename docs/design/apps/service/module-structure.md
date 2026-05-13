@@ -129,7 +129,7 @@ aaf-dependencies（BOM）
 - **按需引入**：未来新增模块（如 `mall/`、`crm/`）只需新建目录，不影响已有模块
 - **跨模块通过 `api/` 包交互**：每个模块可设 `api/` 子包暴露接口 + DTO，其他模块只依赖接口，不直接访问对方的 service/repository/entity
 - **ArchUnit 守护边界**：禁止跨模块直接访问非 `api/` 包内容
-- **领域建模**：模块内 `domain/` 按聚合划分子包，详见 [领域建模规范](../../reference/dev/apps/service/domain-modeling-standard.md)
+- **领域建模**：模块内 `domain/` 按聚合划分子包，详见 [领域建模规范](../../../reference/dev/apps/service/domain-modeling-standard.md)
 
 ```text
 module/

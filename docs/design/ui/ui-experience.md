@@ -18,7 +18,7 @@ gains:
   - 能为不同用户生成差异化的界面体验
 related:
   - design-system.md（视觉 token 规范）
-  - ../framework/engine/conversational-interaction.md（对话式交互设计）
+  - ../apps/webui/conversational-interaction.md（对话式交互设计）
   - ../framework/engine/meta-engine.md（元引擎 doc 域）
 ---
 

@@ -37,7 +37,7 @@ gains:
 
 - 语义组件和 DSL 与 webui 共用同一套后端定义
 - 适配层只处理渲染差异，业务逻辑不重复
-- 详见 [对话式交互设计 — 多端统一](../../framework/engine/conversational-interaction.md)
+- 详见 [对话式交互设计 — 多端统一](../webui/tmp/conversational-interaction.md)
 
 ## 与 webui 的关系
 

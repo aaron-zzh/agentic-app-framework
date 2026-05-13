@@ -302,7 +302,7 @@ v0.1.0 采用单启动模块 + 分包隔离，后续按需拆分为独立 Maven 
 
 | 能力 | 封装价值 |
 |------|---------|
-| DSL 解析封装 | 在 ANTLR4 之上封装 Magic-DSL 语法骨架，dev/runtime/doc 三域解析。详见 [Magic-DSL 设计](../../../design/framework/engine/magic-dsl.md) |
+| DSL 解析封装 | 在 ANTLR4 之上封装 Magic-DSL 语法骨架，dev/runtime/doc 三域解析。详见 [Magic-DSL 设计](../../framework/dsl/magic-dsl.md) |
 | AI 工作流编排 | DSL 定义 AI 流程 → Flowable 实例化执行，v0.3+ 自动暴露为 REST API |
 | 规则引擎封装 | 在 Easy Rules 之上封装 DSL 驱动规则定义，支持促销/通知/权限规则运行时热更新 |
 | 热部署能力 | 自定义 ClassLoader + Arthas API 封装，aaf-auto-dev 生成代码沙箱验证后热加载 |
@@ -353,7 +353,7 @@ v0.1.0 采用单启动模块 + 分包隔离，后续按需拆分为独立 Maven 
 
 | 运行时 | 版本 | 核心技术 | 说明 |
 |-------|------|---------|------|
-| **实体运行时** | v0.2+ | Liquibase 动态 DDL + JPA MetaModel + 自动生成 API | DSL 定义实体 → 动态建表 → 自动 CRUD |
+| **实体运行时** | v0.2+ | ALTER TABLE 动态加列 + JPA MetaModel + 自动生成 API | DSL 定义实体 → 动态建表 → 自动 CRUD；用户自定义字段详见 [custom-fields.md](../../framework/custom-fields.md) |
 | **工作流运行时** | v0.3+ | Flowable 动态部署 + Magic-DSL | DSL 描述流程 → Flowable 实例化 |
 | **权限运行时** | v0.4+ | Spring Security + 规则引擎 + DSL | DSL 定义权限规则 → 动态鉴权 |
 | **规则引擎运行时** | v0.4+ | Easy Rules / Drools + DSL | 促销/通知/数据权限规则 |

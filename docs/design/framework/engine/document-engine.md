@@ -142,6 +142,18 @@ AAF 文档的特殊性决定了单一技术无法完整覆盖：
 
 Agent 执行文档的回放：结构化存储每个执行步骤（工具调用入参/出参/耗时），按时间线顺序展示，不依赖 CRDT。
 
+### 版本防抖策略
+
+不是每次编辑都创建版本——通过 Debounce 合并短时间内的多次编辑为一个 Revision：
+
+```text
+用户编辑 → 重置 debounce 计时器（默认 5 分钟）
+  → 计时器到期 → 创建 Revision 快照
+  → 或：用户手动保存 / 关闭文档 / 切换页面 → 立即创建 Revision
+```
+
+协作者归属：通过 Redis Set（`collaborators:{docId}`）追踪当前编辑会话的所有参与者，创建 Revision 时将 Set 内容写入 `collaboratorIds` 字段并清空 Set。
+
 ### Op Log 压缩策略
 
 Yjs 操作日志无限增长，定期压缩：
@@ -185,6 +197,45 @@ Op Log 清理（冷数据）→ 只保留快照，删除原始 Op Log
 - 实时显示其他用户的光标位置和选区
 - 显示当前文档的在线用户列表
 - Agent 写入时显示"AI 正在编辑"状态指示
+
+---
+
+## 嵌套结构与排序
+
+### 导航树冗余存储
+
+文档通过 `parentDocumentId` 形成树，但递归查询性能差。采用冗余 JSON 树存储在 Collection 级别：
+
+```text
+Collection 表
+  └── documentStructure: JSONB  → NavigationNode[] 树形结构
+
+NavigationNode {
+  id: string          // 文档 ID
+  title: string
+  index: string       // fractional-index 排序键
+  children: NavigationNode[]
+}
+```
+
+- 侧边栏导航直接读取 JSON 树，零递归查询
+- 文档标题变更时通过 BeforeSave hook 同步更新对应节点
+- 文档移动/删除时同步更新树结构
+
+### fractional-index 排序
+
+文档和块的拖拽排序使用分数索引（fractional-index），支持任意位置插入而不需要重排所有节点：
+
+```text
+文档 A: index = "a0"
+文档 B: index = "a1"
+文档 C: index = "a2"
+
+在 A 和 B 之间插入 D → D.index = "a0V"（介于 "a0" 和 "a1" 之间）
+无需更新 A、B、C 的 index
+```
+
+适用场景：文档树排序、看板卡片排序、块级拖拽排序。
 
 ---
 
