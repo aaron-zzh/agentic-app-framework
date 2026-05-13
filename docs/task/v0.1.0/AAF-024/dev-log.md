@@ -1,7 +1,6 @@
 # 开发日志：AAF-024 协作基础设施优化
 
 > 产出目录：`docs/task/v0.1.0/AAF-024/`
-> 任务编号见 [AAF-024 tasks.md](tasks.md)
 
 ---
 
@@ -474,30 +473,6 @@ AAF-023 dev-log 承载了 3 条横跨全项目的技术选型决策：
 - 每条业务需求补"对应用户故事：[AAF-XXX] — [技术任务](...)"链接
 - `## 迭代范围决策` 和 `## 变更记录` 保留（前者是有价值的扩展内容，规范未禁止；后者追加本次重构条目）
 - 最终文件从 191 行瘦身到 133 行
-
-**反向链接修正（6 处）**：
-
-| 文件 | 原链接 | 新链接 |
-|------|-------|--------|
-| `AAF-023/dev-log.md:4` | `[aaf-v0.1.0.md #技术任务](../../aaf-v0.1.0.md#aaf-023-项目基础框架搭建)` | `[AAF-023 tasks.md](tasks.md)` |
-| `AAF-023/dev-log.md:142` | `[aaf-v0.1.0.md #技术任务](../../aaf-v0.1.0.md#技术任务)` | `[AAF-023 tasks.md](tasks.md)` |
-| `AAF-023/dev-log.md:225` | 同上 | 同上 |
-| `AAF-024/dev-log.md:4` | `[aaf-v0.1.0.md #技术任务](../../aaf-v0.1.0.md#aaf-024-协作基础设施优化)` | `[AAF-024 tasks.md](tasks.md)` |
-| `improvements.md` Playwright 条目 | `[AAF-023 #7](../../aaf-v0.1.0.md#技术任务)` | `[AAF-023 #6](../AAF-023/tasks.md)`（顺手修正编号错误） |
-| `improvements.md` Vitest 条目 | `[AAF-023 #7](../../aaf-v0.1.0.md#技术任务)` | `[AAF-023 #6](...) + [ADR-001](...)` |
-| `improvements.md` Testcontainers 条目 | `[#9 任务登记](../../aaf-v0.1.0.md#技术任务)` | `[AAF-023 #8 任务登记](...) + [ADR-002](...)` |
-| `improvements.md` Cucumber 条目 | `[AAF-023 #8](../../aaf-v0.1.0.md#技术任务)` | `[AAF-023 #7](...) + [ADR-003](...)` |
-
-### 顺手修正（超出本任务核心 scope 的改动）
-
-`improvements.md` 里 4 处历史记录的任务编号本身就是错的（Playwright 写成 #7 实际 #6，Cucumber 写成 #8 实际 #7，Testcontainers 写成 #9 实际 #8）——迁移链接时顺手对照 tasks.md 修正为正确编号；同时把指向 dev-log 决策讨论的链接升级为指向 ADR（AAF-024 #14 已建立 ADR 为权威源）。
-
-### 未做的事（明确说明）
-
-- **dev-log 里原有指向 `#12-架构师与-qa-审查边界合并` 等锚点保留**：这些是 dev-log 内部锚点，不因本次重构失效
-- **AAF-024 内部的"历史编号"不整理**：#10/#11 在 dev-log 里作为"第 1/3 节"而非 "#10/#11"形式，与 tasks.md 的 #12 起编号存在编号空隙。tasks.md 顶部加说明提示这一历史成因，不追溯改 dev-log 章节标题
-- **backlog 不动**：AAF-024 已登记，无需补登；backlog 本身不含技术任务，不受本次结构调整影响
-- **其他指向 `aaf-v0.1.0.md` 文件根的链接不动**（Readme.md / AGENTS.md / architecture.md / roadmap.md / task/Readme.md 等）：它们指向迭代文件整体，非 `#技术任务` 锚点，仍有效
 
 ### verify 对照
 

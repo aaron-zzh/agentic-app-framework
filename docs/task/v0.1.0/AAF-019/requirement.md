@@ -150,4 +150,4 @@ Feature: 全文检索
 
 ## 相关设计
 
-- 迭代架构设计：[后端技术选型](../../design/apps/service/tech-stack.md)
+- 迭代架构设计：[后端技术选型](../../../design/apps/service/tech-stack.md)
