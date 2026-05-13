@@ -4,7 +4,7 @@ layer: Product
 purpose: AAF v0.1.0 版本迭代计划
 status: active
 version: "0.1.0"
-date: 2026-05-03
+date: 2026-05-13
 author: AaronZZH
 scope:
   includes:
@@ -15,130 +15,200 @@ gains:
 
 # AAF v0.1.0 迭代计划
 
-> **目标**：**以传统 MVC 架构**搭建自动化开发平台与初步文档系统，验证并优化 "AI 与人类对等协作" 的开发流程，为 `aaf-auto-dev` 全流程能力打地基，同时提供可视化的协作控制台让人类用户监督和指挥 kiro-cli 智能体。
+> **目标**：搭建**配置驱动的结构化视图引擎**——以 EntityDef 为核心，实现"注册配置即生成完整 CRUD 应用"的前后端框架。同时验证 AI 协作开发流程，为后续无代码/元引擎打地基。
 >
-> **阶段定位**：v0.1.0 是**过渡期**——传统 MVC + AI 能力增强的组合；**v2.0 才开始逐步引擎化**（引入 Flowable / 向量库 / MCP / Agent Sandbox 等专项引擎）；**v3.0+ 转向纯元引擎 / DSL 驱动 / 无代码开发**。v0.1.x 与 v1.0 都保持 "传统 MVC + AI 协作" 定位；本版本**不追求**元引擎级抽象，任何提前引入元引擎特性的建议都需要走"过渡期是否仍应保留传统实现"评估。
+> **阶段定位**：v0.1.0 交付一个**完整可用的配置驱动低代码后台框架**。前端采用 TypeScript 配置 + ViewEngine 渲染架构（编译时类型安全），后端提供通用 CRUD API + 权限 + 工作流集成。v0.2+ 在此基础上引入运行时动态 EntityDef（无代码）和 DSL 引擎。
 >
-> **核心假设**：在传统 MVC 上验证"人 + AI 协作做 MVC 应用"可行后，后续才有条件把协作模式迁移到引擎层，最终过渡到元引擎。
+> **核心假设**：配置驱动视图引擎是元引擎的自然前置——先用 TypeScript 配置验证"EntityDef → 自动生成 UI"的模式，再迁移到运行时 JSON + 数据库存储。
 >
-> v0.1.0 是**元引擎骨架 + AI 协作开发基础设施**：五层架构全部建包占位，重点模块有传统实现；文档管理系统作为核心基础设施，支撑 AI 协作开发流程；聊天协作界面验证 AI 直接操作文档的可行性；Auto Dev 监控验证多 Agent 代码生成流水线；协作控制台让人类以 Web 方式监督 agent；用户权限和开源授权控制为后续商业化奠基。
+> **周期**：2026-05-03 ~ 2026-06-15（6 周）
 >
-> **周期**：2026-05-03 ~ 2026-05-30（4 周）
->
-> **架构设计**：[后端技术选型](../design/apps/service/tech-stack.md)
+> **设计文档**：[结构化交互模式设计](../design/apps/webui/interaction-mode-structured-view.md) | [补充设计](../design/apps/webui/structured-view-supplements.md) | [后端技术选型](../design/apps/service/tech-stack.md)
+
+## 用户故事总览
+
+| 编号 | 名称 | 依赖 | 状态 |
+|------|------|------|------|
+| AAF-023 | 项目基础框架搭建 | 无 | 后端完成，前端进行中 |
+| AAF-028 | 视图引擎核心 | AAF-023 | 待开始 |
+| AAF-029 | 数据交互层 | AAF-028 | 待开始 |
+| AAF-030 | 表单引擎 | AAF-028 | 待开始 |
+| AAF-031 | 协作与通知 | AAF-028 | 待开始 |
+| AAF-032 | 权限与流程 | AAF-029, AAF-030 | 待开始 |
+| AAF-033 | 平台能力 | AAF-032 | 待开始 |
+
+### 依赖图
+
+```text
+AAF-023（基础框架）
+  ↓
+AAF-028（视图引擎核心）
+  ↓
+┌─────────────┬─────────────┐
+AAF-029       AAF-030       AAF-031
+（数据交互）   （表单引擎）   （协作通知）
+└──────┬──────┘             │
+       ↓                    │
+AAF-032（权限与流程）        │
+       ↓                    │
+AAF-033（平台能力） ←────────┘
+```
+
+029/030/031 在 028 完成后可并行开发。
 
 ## 业务需求
 
-> 每条业务需求对应 backlog 中一个或多个用户故事（AAF-XXX），技术任务拆分在各用户故事目录下的 `tasks.md`。
+> 每条业务需求对应 backlog 中一个用户故事（AAF-XXX），技术任务拆分在各用户故事目录下的 `tasks.md`。
 
-### 项目基础框架搭建
+### AAF-023：项目基础框架搭建
 
-搭建前后端开发骨架：后端建立 Maven 多模块结构（aaf-dependencies / aaf-common / aaf-framework / aaf-auto-dev / aaf-api），完成 Flyway 数据库迁移初始化和环境配置分离；前端初始化 Next.js 16 + TypeScript 项目（apps/webui），配置 Nx monorepo 集成。为后续所有模块开发提供基础，其他所有 Epic 依赖此项。
+搭建前后端开发骨架：后端 Maven 多模块（aaf-dependencies / aaf-common / aaf-framework / aaf-auto-dev / aaf-api）+ Flyway + CI；前端 Next.js 16 + TypeScript + Nx 集成。
 
-初始数据库表：sys_user、doc_document、autodev_request、autodev_generated_code、autodev_execution_log。
+- 技术任务：[tasks.md](v0.1.0/AAF-023/tasks.md)
+- 状态：后端 #17~#31 全部完成，前端 #18 设计完成待落地
 
-- 对应用户故事：[AAF-023](v0.1.0/AAF-023/) — [技术任务](v0.1.0/AAF-023/tasks.md)
+### AAF-028：视图引擎核心
 
-### 文档管理系统
+实现配置驱动的视图渲染框架核心：
 
-基于 PostgreSQL（内容）+ Neo4j（关系图谱）实现块状多层次网络文档存储，支持文档 CRUD、版本快照、全文检索、文档关系管理，以及与本地文件系统的双向同步。
+- **EntityDef 注册表**：实体配置的定义、注册、查找
+- **ViewEngine**：根据 URL 参数 + EntityDef 自动选择渲染器（列表/表单/看板）
+- **组件注册表**：字段类型 → UI 组件映射 + 自定义覆盖
+- **Mixin/继承**：EntityDef 支持 mixins 和 extends，消除重复配置
+- **插件机制**：registerFieldType / registerViewType / registerBatchAction
+- **错误边界**：分层错误边界（应用级/视图级/字段级/Widget级）+ 优雅降级
+- **工作区布局**：AppHeader + Sidebar + ViewSwitcher + Toolbar
+- **动态路由**：`[module]/page.tsx` + `[module]/[id]/page.tsx`
 
-- 对应用户故事：AAF-XXX（待 product 拆分并录入 backlog）
+覆盖设计文档章节：一~十二、二十四、三十、六十二、六十四
 
-### 聊天协作界面
+### AAF-029：数据交互层
 
-基于 Spring AI 实现流式对话接口，AI 可通过 Tool 直接修改文档，文档变更通过 WebSocket/SSE 实时推送。前端（Next.js）提供聊天界面和基于 Lexical 的文档编辑器，支持在线查看和编辑并同步到本地文件。
+实现视图引擎的数据获取、展示和操作能力：
 
-- 对应用户故事：AAF-XXX（待 product 拆分并录入 backlog）
+- **通用 Hooks**：useEntityList / useEntityRecord / useEntityMutation / useEntityDelete
+- **URL 状态管理**：nuqs 管理 view/page/sort/search/filter 参数
+- **高级列表**：列配置、虚拟滚动、行拖拽排序、分组操作、行内编辑
+- **搜索与筛选**：筛选构建器、操作符映射、筛选收藏、全局跨实体搜索
+- **导入导出**：CSV/XLSX/PDF 导出、向导式导入、嵌套导入
+- **Server Actions**：前端触发后端操作（单条/批量）
+- **透视报表**：拖拽维度/指标生成数据透视表
+- **批量异步化**：大数据量操作自动异步 + 进度轮询
 
-### Auto Dev 监控
+覆盖设计文档章节：六、七、十七、二十一、二十二、三十一、三十四、三十九、四十八、四十九、五十二、六十三
 
-基于 Spring AI 实现多 Agent 代码生成（规划 → 编码 → 审查），支持 kiro-cli 上报执行日志，通过 SSE 实时推送执行状态。前端提供 Auto Dev 监控面板，展示触发生成、实时执行状态和历史记录。
+### AAF-030：表单引擎
 
-- 对应用户故事：AAF-XXX（待 product 拆分并录入 backlog）
+实现完整的表单渲染、校验和交互能力：
 
-### 用户与权限模块
+- **字段体系**：text/number/date/select/relationship/richText/upload/code/json 等全类型
+- **关联字段**：异步搜索、快速创建、反向关联、级联选择
+- **文件上传**：拖拽上传、进度条、图片裁剪/预览
+- **条件可见性**：visibleWhen / readOnlyWhen / requiredWhen
+- **统一表达式上下文**：FieldContext（$record/$user/$parent/$params/$env）
+- **公式字段**：前端实时计算 + 后端持久化
+- **跨字段校验**：实体级 ValidationRule（cross_field / unique / custom）
+- **子表明细行**：一对多嵌套编辑（订单明细模式）
+- **向导弹窗**：多步骤 Wizard 流程
+- **离开确认**：未保存修改拦截
+- **Smart Button**：关联数据计数快捷按钮
+- **二维码扫描**：移动端扫码填入字段
+- **签名字段**：Canvas 手写签名
+- **多币种/单位**：金额和数量字段的多币种/单位支持
 
-实现用户注册/登录（JWT）、角色权限管理（RBAC）、Spring Security 集成，以及 Next.js 登录页。作为 AI 协作开发流程的压力测试场景，验证从需求文档到代码的完整流水线。
+覆盖设计文档章节：十八、十九、二十五~二十八、三十二、三十六、五十、五十一、五十六、六十、六十一
 
-- 对应用户故事：AAF-XXX（待 product 拆分并录入 backlog）
+### AAF-031：协作与通知
 
-### 开源授权控制
+实现多人协作和通知体系：
 
-框架开源，通过启动时一次性 JWT 校验（RS256，公钥内置）+ 分散式权限耦合实现零运行时开销的离线 Premium 权限管理。合法用户放置 JWT 文件即可开箱即用，无需联网、无设备绑定。
+- **实时协作**：乐观锁 + WebSocket 在线感知 + 字段级编辑提示
+- **CRDT 协同**：richText 字段 Yjs 实时协同编辑
+- **版本历史**：自动版本快照 + 字段级 Diff + 一键回滚
+- **活动流**：操作日志 + 评论 + @提及 + 活动调度
+- **通知系统**：Toast（sonner）即时通知
+- **消息中心**：持久化站内信 + 分类 + 已读/未读 + 通知偏好
+- **PWA 推送**：Service Worker + Notification API
+- **字段订阅**：用户关注记录/字段变更 → 推送通知
+- **@待办联动**：被 @提及自动生成待办事项
 
-- 对应用户故事：AAF-XXX（待 product 拆分并录入 backlog）
+覆盖设计文档章节：十三、十四、二十、二十九、三十三、四十六、五十四、五十五
 
-### 协作控制台界面（基础版）
+### AAF-032：权限与流程
 
-面向一人作者的协作控制台 Web 界面（`apps/webui` 下新增路由），让作者不必逐个打开 agent 会话，就能在一屏掌握：当前 Epic 进度 / 所有活跃任务的派发状态 / 等待审核的 🔴 高风险任务 / 所有 agent 上下文占用健康度。**仅实现只读仪表板 + Task Timeline + 审核 Inbox 三个页面**，数据来源是文件系统扫描（`docs/task/` + `.kiro/`）+ `git log`，不建数据库表、不引入 WebSocket、不引入 Autopilot。后续阶段：Phase 2（DB 持久化 + WebSocket + 审核闭环）在 **v1.0** 落地；Phase 3（Autopilot + Skill 晋升）与 **v2.0** 框架 Autopilot 能力同步；Phase 4（多 agent 并行）留 **v3.0+**。详细设计见 [协作控制台设计](../design/framework/engine/auto-dev.md)。
+实现企业级权限控制和业务流程能力：
 
-- 对应用户故事：AAF-XXX（待 product 拆分并录入 backlog，暂记为 AAF-025）
+- **RBAC 权限**：EntityAccess（实体级 read/create/update/delete + 字段级 visible/editable）
+- **行级数据权限**：声明式 DataAccessRule + $user 表达式 + 后端 SQL 注入
+- **审批工作流**：Flowable 集成 + 前端状态展示 + 审批操作按钮 + 审批时间线
+- **审批委托**：全权/按流程/单次委托 + 转交
+- **自动化规则**：触发器（创建/更新/字段变更/定时/延迟）+ 条件 + 操作链
+- **审计日志**：字段级变更记录 + 不可篡改 + 管理员视图
+- **软删除回收站**：deleted_at 标记 + 恢复 + 定时清理 + 关联级联
+- **计划任务管理**：任务列表 + 执行日志 + 告警 + 手动触发
+- **数据归档**：按时间/状态自动归档 + 归档视图切换
 
-### 协作基础设施优化
+覆盖设计文档章节：十五、四十、四十二、四十四、四十五、四十七、五十七、五十九
 
-把"真理源归一"和"流程落地性"两件事做透，消除当前规范驱动项目中的反向漂移：AGENTS.md / steering / docs/reference/team 三方文档真理源归一；Agent 派发触发条件按风险分级明确；architect 代码审查与 qa 过程审计边界分离；规范-代码一致性自动检查；ADR 目录建立让决策可追溯；规范文档 Front Matter 规范化。本条需求在迭代中期（2026-05-05）根据协作实践反思新增。
+### AAF-033：平台能力
 
-- 对应用户故事：[AAF-024](v0.1.0/AAF-024/) — [技术任务](v0.1.0/AAF-024/tasks.md)
+实现 SaaS 平台级能力：
+
+- **多租户**：组织切换器 + X-Org-Id 隔离 + 组织管理 + 个人工作空间
+- **仪表盘**：可配置 Widget（counter/chart/list/progress/shortcut）+ 拖拽布局
+- **无代码编辑器**：v0.1 Monaco JSON 编辑（带 schema 校验）→ 后续表单化/拖拽式
+- **AI 感知**：AIPageContext 收集 + 主动建议 + 字段补全 + 操作推荐
+- **国际化**：next-intl + 字段标签/选项/校验错误多语言
+- **响应式移动端**：断点适配 + 卡片模式 + 触摸优化
+- **模板记录**：从现有记录/空白创建模板 + 快速新建
+- **数据对比**：两条记录并排对比 + 差异高亮 + 合并
+- **Livechat**：assistant-ui 统一架构 + 客服/机器人/AI 助理三种 runtime
+
+覆盖设计文档章节：十六、二十三、三十五、三十七、三十八、四十一、四十三、五十三、五十八
 
 ## 迭代范围决策
+
+### v0.1.0 引入的技术
+
+| 技术 | 用途 | 故事 |
+|------|------|------|
+| TanStack Query | 服务端状态管理 | AAF-028 |
+| Zustand | 客户端 UI 状态 | AAF-028 |
+| nuqs | URL 状态管理 | AAF-029 |
+| shadcn/ui | 基础 UI 组件 | AAF-028 |
+| @dnd-kit | 拖拽（看板/排序） | AAF-029 |
+| react-hook-form + Zod | 表单 + 校验 | AAF-030 |
+| sonner | Toast 通知 | AAF-031 |
+| Yjs | CRDT 实时协同 | AAF-031 |
+| Flowable | 审批工作流 | AAF-032 |
+| next-intl | 国际化 | AAF-033 |
+| react-grid-layout | 仪表盘布局 | AAF-033 |
 
 ### v0.1.0 不引入的技术
 
 | 技术 | 原因 | 计划版本 |
 |------|------|----------|
-| Redis | 单机运行，JWT 无状态认证不需要 | v2.0（引擎化） |
-| Flowable | 工作流引擎建包占位，本迭代无工作流场景 | v2.0（引擎化） |
-| PgVector/向量库 | 知识库引擎建包占位，本迭代无语义检索场景 | v2.0（引擎化） |
-| CRDT/Yjs | 实时协同建包占位，本迭代单用户编辑 | v3.0（元引擎化后评估） |
-
-### 各模块实现范围
-
-**aaf-framework / engine**
-
-| 引擎 | v0.1.0 实现 |
-|------|------------|
-| 文档引擎（doc） | 块状存储（PostgreSQL）+ 关系图谱（Neo4j）+ 全文检索 + 本地双向同步 |
-| 监控引擎（monitor） | 执行日志记录、SSE 事件推送 |
-| 权限引擎（permission） | JWT 生成/验证、RBAC 角色权限、Spring Security 集成 |
-| 授权引擎（license） | 启动时 RS256 JWT 校验、全局 LICENSE 对象、分散式权限锚点 |
-| 聊天引擎（chat） | Spring AI 流式对话、Tool 注册与调用（文档读写 Tool） |
-| 其余引擎 | 建包 + `package-info.java` 说明职责 |
-
-**aaf-framework / intelligent**
-
-| 层 | v0.1.0 实现 |
-|----|------------|
-| Core | Spring AI ChatClient 封装，支持 DeepSeek/OpenAI |
-| Agent | `Agent` 接口 + `SequentialAgentExecutor` 顺序编排 |
-| 其余层 | 建包占位 |
-
-**aaf-auto-dev**：PlanningAgent / CodingAgent / ReviewAgent 顺序执行，kiro-cli 监控接口
-
-**aaf-api/module**：用户（注册/登录/JWT/RBAC）、文档（CRUD/版本/Neo4j/检索/同步）、聊天（历史/Tool/SSE）
-
-**apps/webui**：登录页、聊天协作界面（Lexical 编辑器 + SSE）、Auto Dev 监控面板
+| PgVector/向量库 | 无语义检索场景 | v0.2（知识库引擎） |
+| Elasticsearch/Meilisearch | 全局搜索先用 PostgreSQL tsvector | v0.3（数据量增长后） |
+| Magic-DSL 完整语言 | 需要词法/语法解析器，当前用 JSON + 表达式求值器覆盖 | v0.3+（元引擎） |
+| Agent Sandbox | 无代码执行隔离场景 | v2.0 |
+| actormesh (C++) | 性能引擎，当前 Java 足够 | v2.0 |
 
 ### 不做什么
 
-- 不做 Redis 缓存
-- 不做 Flowable 工作流执行
-- 不做向量检索和语义搜索
-- 不做实时多人协同编辑（CRDT）
-- 不做多 Agent 并行执行
+- 不做 Magic-DSL 完整语言解析器（多范式/分层/分域），用 JSON 配置 + 表达式求值器替代
+- 不做多 Agent 并行执行（顺序编排足够）
 - 不做沙箱代码执行
-- 不做移动端、微信端适配
-- 不做自进化闭环
+- 不做 UniApp 功能实现（仅保留目录结构）
+- 不做微服务拆分
+- 不做 CRDT 以外的离线编辑能力
 
 ## 变更记录
 
 | 日期 | 变更内容 | 原因 |
 |------|---------|------|
 | 2026-05-03 | 初始版本，确定迭代范围 | 版本规划讨论 |
-| 2026-05-03 | 补充 Auto Dev 监控需求，完善数据库初始表清单 | 参考 v0 计划调整 |
-| 2026-05-03 | 项目模块结构对齐 java-module-structure.md（aaf-api 替代 aaf-modules/apps/service） | 规范一致性 |
-| 2026-05-05 | 新增业务需求"协作基础设施优化"（对应 AAF-024） | 迭代中期协作实践反思，登记真理源归一 / 派发规则 / 审查边界等改进 |
-| 2026-05-05 | AAF-024 #12 完成：合并 architect 与 qa 审查边界，qa 不再查代码内容，产出 `process-audit.md` | 消除 architect code-review 与 qa process-audit 的规范合规重叠 |
-| 2026-05-05 | AAF-024 #14 完成：建立 `docs/design/adr/` 目录，迁移 3 条决策为独立 ADR-001/002/003，3 份测试规范回链「起因：ADR-NNN」 | 决策真理源归一；支撑规则溯源（multica P1.5）|
-| 2026-05-05 | AAF-024 #16 完成：技术任务迁出迭代文件，放入各用户故事的 `tasks.md`；同步修 README 笔误 | 修正违反任务管理规范"迭代文件不包含技术任务"的结构问题 |
-| 2026-05-06 | ① 目标段补"传统 MVC 过渡期"阶段定位，明确 v0.1.x 与 v1.0 保持传统 MVC、v2.0 引擎化、v3.0+ 元引擎化 ② 新增业务需求"协作控制台界面（基础版）"，纳入 v0.1 范围 ③ 迭代范围决策里"v0.2/v0.3"计划版本号改为"v2.0/v3.0" ④ 保留"开源授权控制"业务需求 | 明确 v0.1 过渡期定位 + 协作控制台纳入本迭代 + 版本路线与 roadmap 对齐（主版本语义） |
+| 2026-05-05 | 新增 AAF-024 协作基础设施优化 | 迭代中期协作实践反思 |
+| 2026-05-06 | 补充"传统 MVC 过渡期"阶段定位 | 明确 v0.1 定位 |
+| 2026-05-10 | AAF-023 #18 前端调研阶段完成 | 产出 6 份设计文档 |
+| 2026-05-13 | **重大重规划**：v0.1.0 目标从"传统 MVC 验证"改为"配置驱动视图引擎"。归档 AAF-018/019/020/022，新增 AAF-028~033 六个结构化视图引擎用户故事。原因：结构化交互模式设计（64 章）已形成完整的配置驱动低代码框架设计，原有按模块拆分的用户故事无法覆盖，需按架构层次重新组织 | 前端架构设计完成后的自然演进 |
