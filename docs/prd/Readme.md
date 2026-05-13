@@ -43,15 +43,3 @@ docs/prd/
   └── {module-name}/             # 模块目录（kebab-case）
       └── {feature-name}.md      # 功能需求（用户故事 + 需求规格）
 ```
-
-### 现有模块
-
-| 模块 | 文档 | 说明 |
-|------|------|------|
-| auto-dev/ | [auto-dev-monitor.md](features/auto-dev-monitor.md) | Auto Dev 多智能体代码生成 + kiro-cli 监控 |
-| document/ | [document-management.md](features/document-management.md) | 文档管理系统（块状存储 + Neo4j 关系图谱 + 全文检索） |
-| chat/ | [chat-collaboration.md](features/chat-collaboration.md) | 聊天协作界面（流式对话 + AI Tool 修改文档） |
-| system/ | [user-auth.md](features/user-auth.md) | 用户认证 + RBAC 角色权限 |
-| framework/ | [license-control.md](features/license-control.md) | 开源框架授权控制（离线 JWT + 分散式权限耦合） |
-
-> 随功能增长按模块持续新建子目录，结构与 `auto-dev/` 一致。

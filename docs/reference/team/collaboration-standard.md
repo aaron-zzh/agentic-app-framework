@@ -569,6 +569,53 @@ AI 的核心价值是**将模糊意图转化为系统可执行的方案**，优�
 | 架构变更     | architect 出方案 + 🔴 人类审核 |
 | 接口签名变更 | 协调者同步所有使用方          |
 
+## dev-log 记录规范
+
+> dev-log.md 是 developer 的核心产出物之一，记录任务完成情况、关键决策、可复用知识。
+
+### 格式
+
+```markdown
+## #N 任务标题
+
+✅ 日期 — 负责人
+
+- 明细（≤5 条，涵盖：完成内容、重要决策、关键变更）
+
+> **问题**：现象 → 根因 → 解法（仅高复用价值时记录）
+
+> **沉淀**：结论（仅高复用价值时记录）
+```
+
+### 写作原则
+
+- 精炼：每条 ≤20 字为佳，可用简化文言缩短，只记结果不记过程
+- ≤5 条明细涵盖：做了什么 + 选了什么（决策） + 改了什么（关键变更）
+- 问题/沉淀非必填，仅可复用价值高时记录
+- 决策类条目若已有 ADR，仅写结论 + 链接，不重复论证
+
+### 示例
+
+```markdown
+## #17 Maven 多模块拆分
+
+✅ 05-07 — developer-api
+
+- 拆为 dependencies/common/framework/auto-dev/api 五模块
+- 建完整包目录，含占位 package-info.java
+- 五模块独立编译通过
+
+## #30 框架基础能力脚手架
+
+✅ 05-09 — developer-api
+
+- common：Result<T> / 错误码 / BaseEntity / 分页
+- framework：Security JWT 骨架 + ActorContext
+- 决策：common 依赖用 provided scope，避免污染下游
+
+> **沉淀**：provided scope 不传递——common 用 provided 引 Spring Web，下游不引 starter-web 则无此类
+```
+
 ## 反馈方式
 
 | 方式                             | 适用场景           | 响应速度 |

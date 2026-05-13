@@ -60,6 +60,13 @@
 
 执行中出现 5 文件以上改动 / 接口签名变更 / 涉及权限安全 → **强制升级为 🔴**。详见 [协作规范 #Agent 派发触发条件](../../docs/reference/team/collaboration-standard.md#agent-派发触发条件)。
 
+## dev-log 记录规范（摘要）
+
+- 格式：`## #N 标题` + `✅ 日期 — 负责人` + ≤5 条明细（完成内容 / 决策 / 关键变更）
+- 精炼：每条 ≤20 字，只记结果不记过程，可用简化文言
+- 问题/沉淀：仅高复用价值时以 blockquote 追加，非必填
+- 详见 [协作规范 #dev-log 记录规范](../../docs/reference/team/collaboration-standard.md#dev-log-记录规范)
+
 ## 文档真理源
 
 - **`docs/` 下的规范是唯一真理**。AGENTS.md 和本文件是摘要/红线

@@ -333,7 +333,7 @@ docs/
 
 ## Java 25 现代特性规范
 
-> 起因：[tech-stack.md §1](../../../design/apps/service/tech-stack.md#一java-25-核心特性)，Record / Sealed / Pattern Matching 是 AAF 首选。
+> 起因：[tech-stack.md §1](../../../../design/apps/service/tech-stack.md#一java-25-核心特性)，Record / Sealed / Pattern Matching 是 AAF 首选。
 
 ### Record 使用规范
 
@@ -583,7 +583,7 @@ var msg = "用户 " + username + "（ID=" + userId + "）登录失败";
 
 ## 并发编程规范（Virtual Threads）
 
-> 起因：[ADR-004](../../../design/adr/ADR-004-virtual-threads-over-webflux.md)
+> 起因：[ADR-004](../../../../design/adr/ADR-004-virtual-threads-over-webflux.md)
 
 AAF 全量启用虚拟线程（`spring.threads.virtual.enabled=true`），业务代码默认运行在虚拟线程上。
 
