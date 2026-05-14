@@ -31,6 +31,7 @@ author: AaronZZH
 
 2. [ ] #2 补充缺失依赖 — developer-app (依赖: #1)
    - 安装：`@hyoga/uni-socket.io weixin-js-sdk gesti`
+   - uni_modules 引入：`lime-painter`（海报生成）、`lime-qrcode`（二维码）
    - 安装 dev：`vconsole rollup-plugin-visualizer vite-plugin-compression`
    - 确认 `pinia-plugin-persistedstate` 支持 `uni.storage`，否则换 `pinia-plugin-persist-uni`
    - verify: `pnpm nx run uniapp:type-check` 无类型错误
@@ -126,11 +127,11 @@ author: AaronZZH
     - verify: AI 回复中的代码块、列表、加粗、表格正确渲染
 
 19. [ ] #19 Canvas 海报生成与编辑 — developer-app (依赖: #2)
-    - 引入 `gesti`（手势 Canvas 库，参考 kids-app `pages/school/print/gesti/`）
-    - 创建 `src/components/common/PosterEditor.vue`：可拖拽/缩放/旋转元素（背景图、头像、文字、二维码）
-    - 创建 `src/components/common/PosterCanvas.vue`：固定模板快速生成（不需编辑时用）
+    - **固定模板**：用 `lime-painter`（声明式 JSON 配置）实现快速海报生成，支持背景图、头像、文字、`lime-qrcode` 二维码
+    - **可编辑模式**：用 `gesti` 实现拖拽/缩放/旋转元素的交互式编辑器（参考 kids-app `print/gesti/`）
+    - 创建 `src/components/common/PosterPreview.vue`（lime-painter 固定模板）和 `src/components/common/PosterEditor.vue`（gesti 可编辑）
     - 暴露 `generate()` 返回临时图片路径，支持 `uni.saveImageToPhotosAlbum` 保存
-    - verify: 可拖拽调整元素位置，生成海报并保存到相册
+    - verify: 固定模板一键生成海报；可编辑模式可拖拽元素；均可保存到相册
 
 20. [ ] #20 消息通知页 — developer-app (依赖: #11)
     - 创建 `subPages/message/list.vue`：消息列表，已读/未读状态，alova usePagination 分页
