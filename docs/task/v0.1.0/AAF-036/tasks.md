@@ -102,7 +102,29 @@ author: AaronZZH
     - 清理 `pages.config.ts` 对应路由
     - verify: `pnpm nx run uniapp:build:mp-weixin` 构建成功，主包 < 2MB
 
-## 验收标准
+### 五、通用页面补充
+
+15. [ ] #15 启动页与登录流程 — developer-app (依赖: #9)
+    - 创建 `pages/startup/index.vue`：检查登录态，决定跳首页或登录页
+    - 创建 `pages/login/index.vue`：微信一键登录（`wx.login` + 手机号授权）+ H5 账号密码登录
+    - verify: 未登录冷启动跳登录页；登录成功跳首页；token 有效时跳过登录
+
+16. [ ] #16 消息通知页 — developer-app (依赖: #11)
+    - 创建 `subPages/message/list.vue`：消息列表（系统通知/业务消息），已读/未读状态
+    - 创建 `subPages/message/detail.vue`：消息详情
+    - 个人中心加消息入口 + 未读角标
+    - verify: 消息列表可正常展示，点击跳详情
+
+17. [ ] #17 用户信息与设置 — developer-app (依赖: #11)
+    - 创建 `subPages/profile/edit.vue`：头像上传（alova 上传）、昵称、手机号修改
+    - 创建 `subPages/settings/index.vue`：通知设置、隐私协议、关于、退出登录、清除缓存
+    - verify: 头像上传成功，设置项可正常操作
+
+18. [ ] #18 管理端扩展页面 — developer-app (依赖: #12)
+    - 创建 `subPages/admin/notice/`：公告列表 + 发布/编辑（富文本，mp-html 渲染）
+    - 创建 `subPages/admin/roles/`：角色列表 + 权限配置
+    - 创建 `subPages/admin/settings/`：系统配置（KV 表单）
+    - verify: 管理员可发布公告，可配置角色权限
 
 - [ ] `pnpm nx dev uniapp` 可启动 H5 开发服务
 - [ ] `pnpm nx run uniapp:build:mp-weixin` 构建成功，主包 < 2MB
@@ -110,4 +132,18 @@ author: AaronZZH
 - [ ] `pnpm nx run uniapp:type-check` 通过
 - [ ] 微信小程序和 H5 均可接收 SSE 流式响应
 - [ ] 双角色路由拦截正常工作
+- [ ] `.kiro/skills/` 包含 4 个 wot-ui skill
+
+
+## 验收标准
+
+- [ ] `pnpm nx dev uniapp` 可启动 H5 开发服务
+- [ ] `pnpm nx run uniapp:build:mp-weixin` 构建成功，主包 < 2MB
+- [ ] `pnpm nx run uniapp:lint` 通过，无 `any` 类型错误
+- [ ] `pnpm nx run uniapp:type-check` 通过
+- [ ] 微信小程序和 H5 均可接收 SSE 流式响应
+- [ ] 双角色路由拦截正常工作（普通用户无法进入管理分包）
+- [ ] 登录流程完整（微信一键登录 + H5 账号密码）
+- [ ] 消息通知、用户信息编辑、设置页可正常使用
+- [ ] 管理端公告、角色权限页面可正常操作
 - [ ] `.kiro/skills/` 包含 4 个 wot-ui skill
