@@ -48,13 +48,13 @@ author: AaronZZH
 
 ### 视图引擎
 
-5. [ ] #36 ViewEngine 核心渲染器 — developer-web (依赖: #34, #35)
+5. ✅ #36 ViewEngine 核心渲染器 — developer-web (依赖: #34, #35)
    - 实现 `ViewEngine` 组件：根据 URL `?view=` 参数选择渲染器
    - 支持视图类型：list / form / kanban（graph/chart/calendar 占位）
    - 支持 `entity.overrides?.[view]` 自定义视图覆盖
    - verify: 访问 `/workspace/document?view=list` 正确路由到 ListView
 
-6. [ ] #37 动态路由搭建 — developer-web (依赖: #36)
+6. ✅ #37 动态路由搭建 — developer-web (依赖: #36)
    - 创建 `app/(workspace)/[module]/page.tsx`（列表/看板入口）
    - 创建 `app/(workspace)/[module]/[id]/page.tsx`（表单入口）
    - 路由参数解析 → 查找 EntityDef → 传入 ViewEngine
