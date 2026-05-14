@@ -4,6 +4,11 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --layout-sidebar-width: 240px;
+  --layout-sidebar-collapsed-width: 64px;
+  --layout-header-height: 48px;
+  --layout-content-padding: 16px;
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
