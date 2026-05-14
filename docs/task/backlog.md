@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-035**，新一级用户故事从 AAF-036 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-036**，新一级用户故事从 AAF-037 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.1.0）
 
@@ -24,6 +24,7 @@
 - [ ] AAF-021 (创建: 05-03) Auto Dev 平台（AI 协作开发监控与管理）需求规格：[requirement.md](v0.1.0/AAF-021/requirement.md) (依赖: AAF-023)
 - [ ] AAF-025 (创建: 05-06) 在线源码查看系统（目录浏览 + 语法高亮 + 文件搜索 + Git 历史 + Agent 代码引用跳转）(依赖: AAF-023, AAF-021)
 - [ ] AAF-034 (创建: 05-13) 企业 Landing Page（产品介绍 + 功能亮点 + 定价方案 + CTA + 响应式 + SEO 优化）(依赖: AAF-023)
+- [ ] AAF-036 (创建: 05-15) 移动端脚手架（uniapp 用户+管理员双角色移动端基础框架：wot-starter-v2 + 平台抽象层 + SSE 双端流式通信 + 权限路由 + 启动序列 + 管理分包）设计文档：[tech-stack.md](../design/apps/uniapp/tech-stack.md) | [directory-structure.md](../design/apps/uniapp/directory-structure.md) | [mobile-admin.md](../design/apps/uniapp/mobile-admin.md) (依赖: AAF-023)
 
 ## 开发中
 

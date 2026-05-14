@@ -36,6 +36,7 @@ gains:
 | AAF-031 | 协作与通知 | AAF-028 | 待开始 |
 | AAF-032 | 权限与流程 | AAF-029, AAF-030 | 待开始 |
 | AAF-033 | 平台能力 | AAF-032 | 待开始 |
+| AAF-036 | 移动端脚手架 | AAF-023 | 待开始 |
 
 ### 依赖图
 
@@ -165,6 +166,24 @@ AAF-033（平台能力） ←────────┘
 - **Livechat**：assistant-ui 统一架构 + 客服/机器人/AI 助理三种 runtime
 
 覆盖设计文档章节：十六、二十三、三十五、三十七、三十八、四十一、四十三、五十三、五十八
+
+### AAF-036：移动端脚手架
+
+搭建用户+管理员双角色移动端基础框架，以 wot-starter-v2 为基础，补充 AAF 特有的工程化能力：
+
+- **工程接入**：接入 Nx monorepo（project.json + pnpm workspace），补充缺失依赖
+- **平台抽象层**：`src/platform/` 统一封装微信/H5/APP 差异，消除 `#ifdef` 散落
+- **SSE 双端流式通信**：`src/request/stream.ts`（wx.request enableChunked）+ `stream_h5.ts`（fetchEventSource）
+- **WebSocket**：`src/request/websocket.ts` 封装（@hyoga/uni-socket.io）
+- **应用启动序列**：`store/app.ts` init()（检查网络 → 设置主题 → 检查登录态）
+- **权限路由**：`router/index.ts` uni.addInterceptor + @wot-ui/router 双层拦截
+- **双角色体系**：用户端（主包 pages/）+ 管理端（分包 subPages/admin/）
+- **AI Skills 迁移**：`.agents/skills/` → `.kiro/skills/` 对齐 AAF 工具链
+- **脚手架清理**：移除 wot-starter demo 页（starter-cleaner skill）
+
+- 技术任务：[tasks.md](v0.1.0/AAF-036/tasks.md)
+- 设计文档：[tech-stack.md](../design/apps/uniapp/tech-stack.md) | [directory-structure.md](../design/apps/uniapp/directory-structure.md) | [mobile-admin.md](../design/apps/uniapp/mobile-admin.md)
+- 状态：待开始
 
 ## 迭代范围决策
 

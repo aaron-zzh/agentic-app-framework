@@ -3,300 +3,215 @@ level: Practice
 layer: Product
 purpose: AAF 小程序/APP 目录结构设计（apps/uniapp）
 status: published
-version: 1.1.0
-date: 2026-05-14
+version: 2.0.0
+date: 2026-05-15
 author: AaronZZH
 changelog:
-  - 2026-05-14 | v1.1 基于 wot-starter 重构，加入 platform/、build/、request/stream 等
+  - 2026-05-15 | v2.0 以第一性原则重写，聚焦 AAF 最佳实践，去除脚手架实现细节
+  - 2026-05-14 | v1.1 基于 wot-starter 结构调整
   - 2026-05-14 | v1.0 初版
 gains:
-  - 了解 uniapp 目录分层规则与各层职责
+  - 理解 AAF uniapp 端的目录分层原则
   - 新成员能快速定位代码放置位置
   - 掌握与 webui 共享层（packages/）的边界
 ---
 
 # AAF 小程序/APP 目录结构设计
 
-> 技术选型依据见 [tech-stack.md](./tech-stack.md) | 与 webui 对比见 [comparison.md](./comparison.md)
->
-> 以 **wot-starter** 为基础，在其目录结构上补充 AAF 特有的 `platform/`、`request/stream`、`build/` 分层等。
+> 技术选型依据见 [tech-stack.md](./tech-stack.md) | 移动管理端方案见 [mobile-admin.md](./mobile-admin.md)
 
 ## 一、设计原则
 
-### 1.1 对话优先，轻量化
+### 1.1 三个核心问题
 
-uniapp 端以对话交互为主，UI 轻量，不引入 webui 的双栏工作区模式。目录结构比 webui 更扁平，减少嵌套层级。
+目录结构回答三个问题：
+
+1. **这段代码属于哪个关注点？**（路由 / UI / 逻辑 / 数据 / 平台）
+2. **它的复用范围是什么？**（仅此页面 / 跨页面 / 跨端）
+3. **它依赖谁，谁依赖它？**（依赖方向单向，禁止循环）
 
 ### 1.2 分层与依赖方向
 
 ```text
-packages/  ←  composables/  ←  pages/
-（共享层）    （逻辑层）        （路由层）
-                  ↑
-            components/  ←  pages/
-            （组件层）
-                  ↑
-    utils/ + platform/ + api/  ←  所有层均可依赖
-            （基础层）
+packages/（跨端共享）
+    ↑
+pages/ + subPages/（路由层）
+    ↑
+components/（UI 层）    composables/（逻辑层）
+    ↑                        ↑
+        store/ + api/ + request/ + platform/（基础层）
+                        ↑
+                    utils/（工具层）
 ```
 
-依赖方向规则（单向，禁止反向引用）：
-- `pages/` → 可引用 components/ composables/ utils/ store/ api/
-- `components/` → 可引用 composables/ utils/，禁止引用 pages/
-- `composables/` → 可引用 utils/ store/ api/ platform/，禁止引用 components/ pages/
-- `platform/` → 仅依赖 uni API，禁止引用业务层
-- `utils/` → 零内部依赖
-- `packages/` → 跨 webui 和 uniapp 共享，零内部依赖
+规则：上层可引用下层，禁止反向。同层之间：`composables/` 可引用 `store/`，`components/` 禁止引用 `store/`（通过 props/emit 通信）。
 
-### 1.3 各层职责
+### 1.3 分包策略
 
-| 层 | 职责 | 示例 |
-|----|------|------|
-| `pages/` | 路由页面，组合 components + composables | chat/index.vue, home/index.vue |
-| `subPages/` | 分包页面，避免主包超限 | subPages/settings/ |
-| `layouts/` | 约定式布局（vite-plugin-uni-layouts） | default.vue, tabbar.vue |
-| `components/` | 无业务语义的纯 UI 组件 | ChatBubble.vue, StreamText.vue |
-| `composables/` | 组合式逻辑，可复用的 hooks | useChat.ts, useAuth.ts |
-| `store/` | Pinia 状态模块 | app.ts, user.ts, chat.ts |
-| `api/` | alova 请求层（含 mock） | core/, mock/, apiDefinitions.ts |
-| `request/` | 流式通信（SSE/WebSocket） | stream.ts, stream_h5.ts |
-| `platform/` | 平台差异化抽象层 | index.ts, provider/weixin/ |
-| `router/` | 路由守卫与权限拦截 | index.ts |
-| `utils/` | 纯函数工具 | format.ts, storage.ts |
-| `styles/` | 全局样式、主题变量 | uni.scss |
-| `static/` | 静态资源 | logo.png |
+小程序主包限制 2MB，分包策略：
+- **主包**：启动必需的页面（首页、对话、个人中心）+ 全局基础设施
+- **业务分包**：按功能域划分，各自独立，互不依赖
+- **Echarts 分包**：图表库体积大，单独分包按需加载
 
 ## 二、目录树
 
 ```text
 apps/uniapp/
 ├── src/
-│   ├── pages/                        # 主包路由页面（vite-plugin-uni-pages）
-│   │   ├── index/
-│   │   │   └── index.vue             # 首页
+│   ├── pages/                    # 主包：启动必需页面
+│   │   ├── index/                # 首页（tabbar）
+│   │   ├── chat/                 # AI 对话（tabbar）
+│   │   │   └── [id].vue          # 对话详情（动态路由）
+│   │   └── profile/              # 个人中心（tabbar）
+│   │
+│   ├── subPages/                 # 业务分包（按功能域）
+│   │   ├── agent/                # 智能体广场
+│   │   ├── knowledge/            # 知识库
+│   │   └── admin/                # 管理端（角色权限控制）
+│   │       ├── dashboard/        # 数据看板
+│   │       ├── users/            # 用户管理
+│   │       └── audit/            # 内容审核
+│   │
+│   ├── subEcharts/               # Echarts 分包（图表按需加载）
+│   │
+│   ├── layouts/                  # 约定式布局
+│   │   ├── default.vue           # 空白布局（登录页等）
+│   │   └── tabbar.vue            # 含底部导航的布局
+│   │
+│   ├── components/               # 纯 UI 组件（无业务语义，无 store 依赖）
 │   │   ├── chat/
-│   │   │   ├── index.vue             # 对话列表
-│   │   │   └── [id].vue              # 对话详情（动态路由）
+│   │   │   ├── ChatBubble.vue    # 对话气泡
+│   │   │   ├── MessageInput.vue  # 输入框
+│   │   │   └── StreamText.vue    # 流式文字渲染
 │   │   ├── agent/
-│   │   │   └── index.vue             # 智能体广场
-│   │   └── profile/
-│   │       └── index.vue             # 个人中心
+│   │   │   └── AgentCard.vue     # 智能体卡片
+│   │   └── common/
+│   │       ├── GlobalToast.vue   # 全局 Toast
+│   │       ├── GlobalLoading.vue # 全局 Loading
+│   │       └── GlobalDialog.vue  # 全局 Dialog
 │   │
-│   ├── subPages/                     # 分包页面（@uni-ku/bundle-optimizer 管理）
-│   │   ├── knowledge/                # 知识库（分包）
-│   │   └── settings/                 # 设置（分包）
+│   ├── composables/              # 可复用组合式逻辑
+│   │   ├── useChat.ts            # 对话逻辑（调用 request/stream）
+│   │   ├── useAuth.ts            # 认证状态
+│   │   ├── useAgent.ts           # 智能体操作
+│   │   ├── useTheme.ts           # 主题切换
+│   │   ├── useTabbar.ts          # tabbar 状态
+│   │   ├── useGlobalToast.ts     # 全局 Toast
+│   │   ├── useGlobalLoading.ts   # 全局 Loading
+│   │   └── useGlobalDialog.ts    # 全局 Dialog
 │   │
-│   ├── layouts/                      # 约定式布局
-│   │   ├── default.vue               # 空白布局
-│   │   └── tabbar.vue                # 含底部 tabbar 的布局
+│   ├── store/                    # Pinia 全局状态（纯客户端 UI 状态）
+│   │   ├── app.ts                # 应用状态 + init() 启动序列
+│   │   ├── user.ts               # 用户状态（登录态、权限）
+│   │   ├── chat.ts               # 对话状态（消息列表、流式状态）
+│   │   └── theme.ts              # 主题状态
 │   │
-│   ├── components/                   # 通用 UI 组件
-│   │   ├── chat/
-│   │   │   ├── ChatBubble.vue        # 对话气泡
-│   │   │   ├── MessageInput.vue      # 输入框
-│   │   │   └── StreamText.vue        # 流式文字渲染
-│   │   ├── common/
-│   │   │   ├── GlobalToast.vue       # 全局 Toast（wot-starter 内置）
-│   │   │   ├── GlobalMessage.vue     # 全局 Message
-│   │   │   └── GlobalLoading.vue     # 全局 Loading
-│   │   └── agent/
-│   │       └── AgentCard.vue
-│   │
-│   ├── composables/                  # 组合式逻辑
-│   │   ├── useChat.ts                # 对话逻辑（调用 request/stream）
-│   │   ├── useAuth.ts                # 认证状态
-│   │   ├── useAgent.ts               # 智能体操作
-│   │   ├── useTheme.ts               # 主题切换（wot-starter 内置）
-│   │   ├── useTabbar.ts              # tabbar 状态
-│   │   ├── useGlobalToast.ts         # 全局 Toast composable
-│   │   └── useGlobalLoading.ts       # 全局 Loading composable
-│   │
-│   ├── store/                        # Pinia 状态
-│   │   ├── index.ts                  # store 入口 + 持久化配置
-│   │   ├── app.ts                    # 应用全局状态（含 init() 启动序列）
-│   │   ├── user.ts                   # 用户状态
-│   │   ├── chat.ts                   # 对话状态
-│   │   └── themeStore.ts             # 主题状态（wot-starter 内置）
-│   │
-│   ├── api/                          # alova 请求层
+│   ├── api/                      # alova 请求层（服务端数据）
 │   │   ├── core/
-│   │   │   ├── instance.ts           # alova 实例（@alova/adapter-uniapp）
-│   │   │   ├── middleware.ts         # 全局中间件（token 注入、错误处理）
-│   │   │   └── handlers.ts           # 响应处理
-│   │   ├── mock/                     # @alova/mock 开发 mock
-│   │   ├── apiDefinitions.ts         # alova gen 生成的接口定义
-│   │   ├── createApis.ts             # alova gen 生成的请求方法
-│   │   └── globals.d.ts              # alova gen 生成的类型
+│   │   │   ├── instance.ts       # alova 实例 + 拦截器
+│   │   │   └── handlers.ts       # 统一响应处理
+│   │   ├── chat.ts               # 对话接口
+│   │   ├── agent.ts              # 智能体接口
+│   │   ├── user.ts               # 用户接口
+│   │   └── mock/                 # 开发 mock（@alova/mock）
 │   │
-│   ├── request/                      # 流式通信（SSE/WebSocket）
-│   │   ├── stream.ts                 # 微信小程序 SSE（wx.request enableChunked）
-│   │   ├── stream_h5.ts              # H5 SSE（fetchEventSource，仅 #ifdef H5）
-│   │   └── websocket.ts              # WebSocket 封装（可选）
+│   ├── request/                  # 流式通信（SSE/WebSocket，alova 不覆盖此场景）
+│   │   ├── stream.ts             # 微信小程序 SSE（wx.request enableChunked）
+│   │   ├── stream_h5.ts          # H5 SSE（fetchEventSource，#ifdef H5）
+│   │   └── websocket.ts          # WebSocket 封装
 │   │
-│   ├── platform/                     # 平台差异化抽象层（借鉴 kids-app）
-│   │   ├── index.ts                  # 统一导出：name/provider/platform/pay/share/checkNetwork
+│   ├── platform/                 # 平台差异化抽象（调用方无需写 #ifdef）
+│   │   ├── index.ts              # 统一接口：name/checkNetwork/capsule/navbar
 │   │   └── provider/
-│   │       └── weixin/               # 微信专属能力（登录/支付/分享）
+│   │       └── weixin/           # 微信专属：登录/支付/分享/JS-SDK
 │   │
-│   ├── router/                       # 路由守卫
-│   │   └── index.ts                  # uni.addInterceptor 权限拦截（借鉴 kids-app）
+│   ├── router/                   # 路由守卫与权限拦截
+│   │   └── index.ts              # @wot-ui/router + uni.addInterceptor 权限层
 │   │
-│   ├── utils/                        # 纯函数工具
+│   ├── utils/                    # 纯函数工具（无副作用，无平台依赖）
 │   │   └── index.ts
 │   │
-│   ├── uni.scss                      # uni-app 全局样式变量
-│   ├── static/                       # 静态资源
-│   ├── App.vue                       # 应用根组件（调用 useAppStore.init()）
-│   ├── App.ku.vue                    # uni-ku-root 版本（wot-starter 内置）
-│   ├── main.ts                       # 入口文件
-│   ├── env.d.ts
-│   ├── auto-imports.d.ts             # unplugin-auto-import 生成
-│   └── components.d.ts               # vite-plugin-uni-components 生成
+│   ├── static/                   # 静态资源
+│   ├── uni.scss                  # 全局样式变量
+│   ├── App.vue                   # 根组件（onLaunch 调用 useAppStore.init()）
+│   └── main.ts                   # 入口
 │
-├── build/                            # Vite 配置分层（借鉴 kids-app）
-│   ├── plugins/
-│   │   └── index.ts                  # 所有 Vite 插件集中注册
-│   └── config/
-│       └── proxy.ts                  # 开发代理配置
-│
-├── docs/                             # wot-starter 内置文档站（VitePress）
-├── pages.config.ts                   # 路由配置（替代 pages.json）
-├── manifest.config.ts                # 应用配置（替代 manifest.json）
-├── alova.config.ts                   # alova gen 配置
-├── uno.config.ts                     # UnoCSS 配置
-├── vite.config.ts                    # Vite 配置（引用 build/）
-├── tsconfig.json
+├── pages.config.ts               # 路由配置（TypeScript，替代 pages.json）
+├── manifest.config.ts            # 应用配置（TypeScript，替代 manifest.json）
+├── alova.config.ts               # alova gen 配置（OpenAPI → 代码生成）
+├── uno.config.ts                 # UnoCSS 配置
+├── vite.config.ts                # Vite 配置
 └── package.json
 ```
 
-## 三、关键模块说明
+## 三、各层职责边界
 
-### 3.1 store/app.ts — 统一启动序列
-
-借鉴 kids-app 的 `init()` 模式，在 `App.vue` 的 `onLaunch` 中调用一次：
-
-```typescript
-// store/app.ts
-export const useAppStore = defineStore('app', () => {
-  async function init() {
-    // 1. 检查网络
-    const online = await platform.checkNetwork()
-    if (!online) return router.error('NetworkError')
-    // 2. 加载远程配置（可选）
-    // 3. 设置主题
-    useThemeStore().init()
-    // 4. 检查登录态
-    const userStore = useUserStore()
-    if (userStore.isLogin) await userStore.refreshToken()
-  }
-  return { init }
-})
-```
-
-### 3.2 platform/index.ts — 平台抽象层
-
-借鉴 kids-app 思路，用 Composition API 重写，消除 `#ifdef` 散落：
-
-```typescript
-// platform/index.ts
-const platform = {
-  name,           // 'WechatMiniProgram' | 'H5' | 'App'
-  provider,       // 'wechat' | ''
-  checkNetwork,   // () => Promise<boolean>
-  getCapsule,     // 胶囊按钮信息
-  navbar,         // 导航栏高度
-}
-export default platform
-```
-
-### 3.3 router/index.ts — 权限拦截
-
-借鉴 kids-app 的 `uni.addInterceptor` 方式，在导航层统一拦截：
-
-```typescript
-// router/index.ts
-uni.addInterceptor('navigateTo', {
-  invoke(args) {
-    return checkPermission(args.url)
-  },
-})
-uni.addInterceptor('redirectTo', {
-  invoke(args) {
-    return checkPermission(args.url)
-  },
-})
-```
-
-### 3.4 request/stream.ts — 微信小程序 SSE
-
-```typescript
-// 微信小程序不支持标准 SSE，用 wx.request enableChunked 模拟
-function streamPost(url, data, onData, onError?, onComplete?) {
-  const requestTask = wx.request({
-    url: baseUrl + url,
-    method: 'POST',
-    enableChunked: true,
-    // ...
-  })
-  requestTask.onChunkReceived((res) => onData(decode(res.data)))
-  return requestTask // 返回 task 供外部 abort()
-}
-```
-
-### 3.5 api/core/instance.ts — alova 实例
-
-```typescript
-import { createAlova } from 'alova'
-import AdapterUniapp from '@alova/adapter-uniapp'
-
-export const alovaInstance = createAlova({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  ...AdapterUniapp(),
-  beforeRequest(method) {
-    const token = uni.getStorageSync('token')
-    if (token) method.config.headers['Authorization'] = `Bearer ${token}`
-  },
-})
-```
+| 层 | 职责 | 禁止 |
+|----|------|------|
+| `pages/` | 路由页面，组合 components + composables | 含业务逻辑，直接调用 api/ |
+| `subPages/` | 同 pages/，按功能域分包 | 跨分包直接引用 |
+| `components/` | 纯 UI，接受 props，emit 事件 | 引用 store/、api/、router/ |
+| `composables/` | 可复用逻辑，封装 store + api 的组合 | 引用 components/ |
+| `store/` | 纯客户端 UI 状态 | 存放服务端数据（用 alova 管） |
+| `api/` | alova 请求，服务端数据获取与缓存 | 含 UI 逻辑 |
+| `request/` | SSE/WebSocket 流式通信 | 含业务逻辑（只负责传输） |
+| `platform/` | 平台差异封装 | 含业务逻辑 |
+| `router/` | 路由守卫、权限拦截 | 含页面逻辑 |
+| `utils/` | 纯函数 | 副作用、平台 API 调用 |
 
 ## 四、文件放置决策树
 
 ```text
 这段代码应该放哪里？
 │
-├── webui 和 uniapp 都需要？ → packages/（共享层）
+├── webui 和 uniapp 都需要？ → packages/（跨端共享）
 │
-├── 平台差异化（微信/H5/APP）？ → platform/
+├── 平台差异（微信/H5/APP 行为不同）？ → platform/
 │
-├── 流式通信（SSE/WebSocket）？ → request/
+├── SSE / WebSocket 流式通信？ → request/
 │
-├── 常规 HTTP 请求？ → api/
+├── 常规 HTTP 请求 / 数据缓存？ → api/
 │
-├── 纯 UI，无业务语义？ → components/
+├── 全局状态（UI 状态，非服务端数据）？ → store/
 │
-├── 可复用的组合式逻辑？ → composables/
+├── 可复用逻辑（跨页面的 hooks）？ → composables/
 │
-├── 全局状态？ → store/
+├── 纯 UI 组件（无业务语义）？ → components/
 │
-├── 纯函数工具？ → utils/
+├── 纯函数工具（无副作用）？ → utils/
 │
-├── 路由守卫/权限？ → router/
+├── 路由守卫 / 权限？ → router/
 │
-└── 页面路由？ → pages/ 或 subPages/（分包）
+└── 页面路由？
+    ├── 启动必需（tabbar 页）→ pages/
+    └── 按需加载 → subPages/{功能域}/
 ```
 
-## 五、与 webui 目录结构对比
+## 五、关键设计决策
 
-| 维度 | webui（apps/webui） | uniapp（apps/uniapp） |
-|------|--------------------|--------------------|
-| 路由层 | `app/`（Next.js App Router） | `pages/` + `subPages/`（分包） |
-| 布局层 | `app/layout.tsx` | `layouts/`（vite-plugin-uni-layouts） |
-| 功能层 | `features/`（复杂功能模块） | 无（直接用 composables） |
-| 组件层 | `components/`（ui/ + common/ + form/） | `components/`（按业务域分组） |
-| 逻辑层 | `lib/`（api/ + queries/ + store/） | `composables/` + `api/` + `store/` |
-| 流式通信 | 无独立层（assistant-ui 封装） | `request/`（自研双端实现） |
-| 平台层 | 无（仅 Web） | `platform/`（多端差异抽象） |
-| 状态管理 | TanStack Query + Zustand | alova（请求策略）+ Pinia（UI 状态） |
-| 样式 | Tailwind v4 | UnoCSS + `@wot-ui/unocss-preset` |
-| 构建配置 | Next.js 内置 | `build/`（plugins/ + config/） |
-| 共享层 | `packages/`（待建设） | `packages/`（同上） |
+### 5.1 store 只管 UI 状态，不管服务端数据
+
+服务端数据（列表、详情、分页）由 alova 的请求策略管理（`useRequest`、`usePagination`），不复制到 store。store 只存：登录态、主题、tabbar 选中项、流式对话的实时状态等纯客户端状态。
+
+### 5.2 request/ 与 api/ 分离
+
+`api/` 用 alova 处理标准 HTTP（有缓存、重试、分页策略）。`request/` 处理 SSE/WebSocket 流式通信（alova 不覆盖此场景），两者职责清晰，不混用。
+
+### 5.3 platform/ 消除 #ifdef 散落
+
+所有平台差异集中在 `platform/` 封装，业务代码调用 `platform.checkNetwork()` 而不是写 `#ifdef H5 ... #endif`。平台判断只在 `platform/` 内部出现。
+
+### 5.4 分包按功能域，不按技术层
+
+`subPages/admin/` 是管理端所有页面，`subPages/knowledge/` 是知识库所有页面。不按"所有列表页"/"所有详情页"分包——那样会导致分包间依赖混乱。
+
+### 5.5 App.vue 只做初始化编排
+
+```typescript
+// App.vue
+onLaunch(async () => {
+  await useAppStore().init()  // 检查网络 → 设置主题 → 检查登录态
+})
+```
+
+`init()` 内部按顺序调用各 store/composable，App.vue 本身不含业务逻辑。
