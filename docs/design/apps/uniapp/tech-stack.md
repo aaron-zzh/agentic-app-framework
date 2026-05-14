@@ -38,6 +38,12 @@ gains:
 | 组合式工具 | @vueuse/core | ^11 | 通用 composable 工具集 |
 | 国际化 | vue-i18n | ^9 | 多语言支持 |
 | 图表 | uni-echarts | ^2 | 分包加载，避免主包超限 |
+| WebSocket | @hyoga/uni-socket.io | ^3 | Socket.IO 协议，AI 对话 WebSocket 场景 |
+| 微信 JS-SDK | weixin-js-sdk | ^1.6 | H5 端微信能力（分享/支付/登录） |
+| 富文本渲染 | mp-html | ^2.5 | 小程序富文本渲染（uni_modules） |
+| 包体积分析 | rollup-plugin-visualizer | ^5 | 构建产物分析，分包优化辅助 |
+| Gzip 压缩 | vite-plugin-compression | ^0.5 | H5 端构建产物压缩 |
+| 移动端调试 | vconsole | ^3 | 真机调试控制台（仅开发环境） |
 | 测试 | Vitest + vitest-environment-uniapp | ^4 | 单元测试，与 webui 统一 |
 | 代码规范 | @uni-helper/eslint-config | ^0.5 | uni-app 专属 ESLint 规则 |
 | 提交规范 | commitlint + git-cz | — | 与 AAF 主仓库规范一致 |
@@ -48,6 +54,18 @@ gains:
 **直接以 wot-starter 为起点**，不从零搭建，不从 kids-app 提取升级。
 
 wot-starter 已内置：uni-helper 插件三件套、UnoCSS、Pinia、@wot-ui/router、alova、vue-i18n、uni-echarts、暗黑模式、全局 Toast/Message/Loading、AI skills、commitlint、包体积优化。
+
+**wot-starter 创建后需额外安装**（kids-app 对比分析补充）：
+
+```bash
+# 运行时依赖
+pnpm add @hyoga/uni-socket.io weixin-js-sdk
+
+# 开发依赖
+pnpm add -D vconsole rollup-plugin-visualizer vite-plugin-compression
+```
+
+> `mp-html` 通过 uni_modules 引入（wot-starter 已内置）；`pinia-plugin-persistedstate` 需确认支持 `uni.storage`，否则换回 `pinia-plugin-persist-uni`。
 
 **在 wot-starter 基础上补充的内容**（来自 kids-app 的工程化借鉴）：
 
