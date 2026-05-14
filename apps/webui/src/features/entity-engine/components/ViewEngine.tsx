@@ -14,6 +14,7 @@
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
+import { KanbanView } from "./views/KanbanView"
 import { ListView } from "./views/ListView"
 
 /** 支持的视图类型 */
@@ -53,7 +54,7 @@ export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps)
     case "list":
       return <ListView entity={entity} />
     case "kanban":
-      return <ViewPlaceholder entity={entity} view="kanban" />
+      return <KanbanView entity={entity} />
     case "form":
       return <ViewPlaceholder entity={entity} view="form" recordId={recordId} />
     default:

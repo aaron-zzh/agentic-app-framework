@@ -21,8 +21,10 @@ export interface EntityDef {
   apiPath: string
   /** 侧边栏图标（lucide 图标名） */
   icon?: string
-  /** 侧边栏分组 */
+  /** 侧边栏分组（英文 slug） */
   group?: string
+  /** 分组显示名称 */
+  groupLabel?: string
   /** 描述 */
   description?: string
 

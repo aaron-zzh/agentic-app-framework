@@ -35,9 +35,9 @@ describe("entityRegistry", () => {
 
   it("getByGroup 按 group 分组", () => {
     const groups = entityRegistry.getByGroup()
-    expect(groups["内容管理"]).toHaveLength(1)
-    expect(groups["系统管理"]).toHaveLength(1)
-    expect(groups["项目管理"]).toHaveLength(1)
+    expect(groups.content).toHaveLength(1)
+    expect(groups.system).toHaveLength(1)
+    expect(groups.project).toHaveLength(1)
   })
 
   it("解析结果应缓存", () => {

@@ -20,7 +20,7 @@ import { resolveExtends, resolveMixins } from "./resolve"
  *
  * // 按分组获取（侧边栏菜单）
  * const groups = entityRegistry.getByGroup()
- * // { "内容管理": [documentEntity], "项目管理": [taskEntity] }
+ * // { content: [documentEntity], project: [taskEntity] }
  * ```
  */
 class EntityRegistry {
@@ -78,7 +78,7 @@ class EntityRegistry {
     const all = this.getAll()
     const groups: Record<string, EntityDef[]> = {}
     for (const def of all) {
-      const group = def.group ?? "其他"
+      const group = def.group ?? "other"
       if (!groups[group]) groups[group] = []
       groups[group].push(def)
     }

@@ -1,6 +1,8 @@
 /**
  * 示例实体配置——用于开发阶段验证视图引擎
  * @author AaronZZH & Kiro
+ *
+ * TODO: 后端 EntityDef API 就绪后删除本文件，改为从 GET /api/entity-defs 加载
  */
 
 import type { EntityDef } from "../types"
@@ -12,7 +14,8 @@ export const documentEntity: EntityDef = {
   labelPlural: "文档",
   apiPath: "/api/documents",
   icon: "file-text",
-  group: "内容管理",
+  group: "content",
+  groupLabel: "内容管理",
   fields: [
     { type: "text", name: "title", label: "标题", required: true },
     {
@@ -49,7 +52,8 @@ export const userEntity: EntityDef = {
   labelPlural: "用户",
   apiPath: "/api/system/users",
   icon: "users",
-  group: "系统管理",
+  group: "system",
+  groupLabel: "系统管理",
   fields: [
     { type: "text", name: "username", label: "用户名", required: true },
     { type: "text", name: "nickname", label: "昵称", required: true },
@@ -82,7 +86,8 @@ export const taskEntity: EntityDef = {
   labelPlural: "任务",
   apiPath: "/api/tasks",
   icon: "check-square",
-  group: "项目管理",
+  group: "project",
+  groupLabel: "项目管理",
   fields: [
     { type: "text", name: "title", label: "标题", required: true },
     { type: "textarea", name: "description", label: "描述" },
