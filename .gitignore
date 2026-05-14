@@ -70,3 +70,5 @@ logs/
 *.log
 log/
 
+
+vitest.config.*.timestamp*

@@ -14,7 +14,9 @@
       "!{projectRoot}/**/*.test.*",
       "!{projectRoot}/**/*.spec.*",
       "!{projectRoot}/**/__tests__/**",
-      "!{projectRoot}/**/*.accept.test.*"
+      "!{projectRoot}/**/*.accept.test.*",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json"
     ],
     "test": [
       "{projectRoot}/src/**/*.ts",
@@ -30,7 +32,9 @@
     {
       "plugin": "@nx/js/typescript",
       "options": {
-        "typecheck": { "targetName": "typecheck" },
+        "typecheck": {
+          "targetName": "typecheck"
+        },
         "build": {
           "targetName": "build",
           "configName": "tsconfig.lib.json",
@@ -41,7 +45,9 @@
     },
     {
       "plugin": "@nx/next/plugin",
-      "include": ["apps/*"],
+      "include": [
+        "apps/*"
+      ],
       "options": {
         "startTargetName": "start",
         "buildTargetName": "build",
@@ -50,12 +56,23 @@
         "buildDepsTargetName": "build-deps",
         "watchDepsTargetName": "watch-deps"
       }
+    },
+    {
+      "plugin": "@nx/vitest",
+      "options": {
+        "testTargetName": "vitest:test",
+        "ciTargetName": "test-ci",
+        "testMode": "watch"
+      }
     }
   ],
   "nxCloudId": "69f20b1c4d6f30222ee77b06",
   "analytics": false,
   "release": {
-    "projects": ["docs", "webui"],
+    "projects": [
+      "docs",
+      "webui"
+    ],
     "version": {
       "conventionalCommits": true
     },
@@ -72,6 +89,13 @@
         "style": "css",
         "linter": "none"
       }
+    }
+  },
+  "targetDefaults": {
+    "test": {
+      "dependsOn": [
+        "^build"
+      ]
     }
   }
 }
