@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "create-wot-ui-theme": {
+      "source": "wot-ui/open-wot",
+      "sourceType": "github",
+      "computedHash": "0557819ce03183457bd196af213996963b5713641bf76546306d826501bab188"
+    },
+    "wot-ui-cli": {
+      "source": "wot-ui/open-wot",
+      "sourceType": "github",
+      "computedHash": "b2e370a30ff8f1e31c4b1a0ac91d16928d6fc90e68f02913e659986c94d88b0c"
+    },
+    "wot-ui-unocss-preset-guide": {
+      "source": "wot-ui/open-wot",
+      "sourceType": "github",
+      "computedHash": "bf1f6f752d0fef15063b56df11a902ff110ae177d867cef76b953ef237c05a70"
+    },
+    "wot-ui-v2": {
+      "source": "wot-ui/open-wot",
+      "sourceType": "github",
+      "computedHash": "207723b8a0e23cb5657ce9dae012ab92c0d6397212d56b07fafbdbc1ba9c3c2e"
+    }
+  }
+}

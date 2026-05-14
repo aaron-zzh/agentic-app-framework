@@ -1,0 +1,61 @@
+{
+  "name": "uniapp",
+  "projectType": "application",
+  "sourceRoot": "apps/uniapp/src",
+  "targets": {
+    "dev": {
+      "command": "uni",
+      "options": { "cwd": "apps/uniapp" },
+      "continuous": true,
+      "description": "H5 开发服务"
+    },
+    "dev:mp-weixin": {
+      "command": "uni -p mp-weixin",
+      "options": { "cwd": "apps/uniapp" },
+      "continuous": true,
+      "description": "微信小程序开发"
+    },
+    "build": {
+      "command": "uni build",
+      "options": { "cwd": "apps/uniapp" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pages.config.ts", "{projectRoot}/vite.config.ts"],
+      "outputs": ["{projectRoot}/dist"],
+      "description": "H5 构建"
+    },
+    "build:mp-weixin": {
+      "command": "uni build -p mp-weixin",
+      "options": { "cwd": "apps/uniapp" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pages.config.ts", "{projectRoot}/vite.config.ts"],
+      "outputs": ["{projectRoot}/dist/build/mp-weixin"],
+      "description": "微信小程序构建"
+    },
+    "typecheck": {
+      "command": "vue-tsc --noEmit",
+      "options": { "cwd": "apps/uniapp" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json"],
+      "description": "TypeScript 类型检查"
+    },
+    "lint": {
+      "command": "eslint .",
+      "options": { "cwd": "apps/uniapp" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/eslint.config.mjs"],
+      "description": "ESLint 检查"
+    },
+    "test": {
+      "command": "vitest run --passWithNoTests",
+      "options": { "cwd": "apps/uniapp" },
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*"],
+      "description": "单元测试"
+    },
+    "check": {
+      "dependsOn": ["lint", "typecheck", "test"],
+      "executor": "nx:noop",
+      "description": "developer 完工自验证：lint + typecheck + 单测"
+    }
+  }
+}
