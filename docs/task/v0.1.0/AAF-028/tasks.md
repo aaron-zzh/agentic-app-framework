@@ -26,7 +26,7 @@ author: AaronZZH
    - 放置于 `apps/webui/src/lib/entity-engine/types/`
    - verify: `pnpm nx run webui:typecheck` 通过
 
-2. [ ] #33 Mixin 与继承机制 — developer-web (依赖: #32)
+2. ✅ #33 Mixin 与继承机制 — developer-web (依赖: #32)
    - 实现 `resolveMixins(def)` 函数：合并 mixin 字段到 EntityDef
    - 实现 `resolveExtends(def, registry)` 函数：继承父实体配置
    - 内置 Mixin：TimestampMixin / AuditMixin / SoftDeleteMixin / OrgMixin
