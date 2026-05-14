@@ -109,7 +109,7 @@ author: AaronZZH
 
 ### 基础字段组件
 
-13. [ ] #44 基础字段组件集 — developer-web (依赖: #35)
+13. ✅ #44 基础字段组件集 — developer-web (依赖: #35)
     - 表单组件：TextInput / TextareaInput / NumberInput / DatePicker / CheckboxInput / SelectInput
     - 列表单元格：TextCell / DateCell / BadgeCell / CheckCell
     - 所有组件遵循 `FieldProps<T>` / `CellProps<T>` 契约

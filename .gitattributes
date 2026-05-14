@@ -1,2 +1,2 @@
-/mvnw text eol=lf
-*.cmd text eol=crlf
+* text=auto eol=lf
+*.{cmd,bat} text eol=crlf

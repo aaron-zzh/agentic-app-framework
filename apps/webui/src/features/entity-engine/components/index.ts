@@ -1,2 +1,5 @@
 export { ViewEngine } from "./ViewEngine"
 export type { ViewType } from "./ViewEngine"
+export { registerDefaultComponents } from "./register"
+export * from "./fields"
+export { TextCell, DateCell, BadgeCell, CheckCell } from "./cells"
