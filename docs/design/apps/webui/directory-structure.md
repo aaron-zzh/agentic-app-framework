@@ -400,21 +400,53 @@ packages/
 
 ---
 
-## 四、路由设计
+## 四、路由与布局设计
 
-### 4.1 结构化视图模式
+### 4.1 布局类型总览
+
+| 路由组 | 用途 | 布局特征 | 参考来源 |
+|--------|------|---------|---------|
+| `(workspace)` | 管理后台主界面 | 侧边栏 + 顶栏 + 内容区 | next-ts dashboard |
+| `(marketing)` | 产品首页/定价/模板市场/帮助中心 | 顶部导航 + 内容 + 页脚 | next-ts main |
+| `(auth)` | 登录/注册/忘记密码 | 居中卡片（移动端）/ 左右分栏（桌面端） | next-ts auth-centered/split |
+| `(canvas)` | 画板/全屏编辑/虚拟空间 | 全屏，浮动工具栏 | AAF 独有 |
+
+### 4.2 结构化视图模式（workspace）
 
 ```text
 (workspace)/
 ├── layout.tsx              → 固定布局：侧边栏 + 顶栏 + 内容区
+├── dashboard/page.tsx      → 仪表盘
 ├── [module]/page.tsx       → 默认视图（列表）
 ├── [module]/[id]/page.tsx  → 详情/编辑视图（表单）
-└── [module]/@modal/[id]/page.tsx → 弹窗视图（拦截路由）
+├── [module]/@modal/[id]/page.tsx → 弹窗视图（拦截路由）
+└── settings/               → 系统设置
 ```
 
-视图类型通过 URL 参数区分：`/document?view=list|kanban|calendar`
+视图类型通过 URL 参数区分：`/workspace/document?view=list|kanban|calendar`
 
-### 4.2 生成式交互模式
+### 4.3 营销页面（marketing）
+
+```text
+(marketing)/
+├── layout.tsx              → 顶部导航 + 页脚
+├── page.tsx                → 产品首页（Hero + 特性 + CTA）
+├── pricing/page.tsx        → 定价页
+├── templates/page.tsx      → 模板市场
+└── docs/[...slug]/page.tsx → 帮助文档
+```
+
+### 4.4 认证流程（auth）
+
+```text
+(auth)/
+├── layout.tsx              → 居中卡片布局（响应式：桌面左右分栏，移动端居中）
+├── login/page.tsx
+├── register/page.tsx
+└── forgot-password/page.tsx
+```
+
+### 4.5 生成式交互模式（canvas）
 
 ```text
 (canvas)/
@@ -423,13 +455,49 @@ packages/
 └── compose/[pageId]/page.tsx → 生成式页面（DSL 驱动）
 ```
 
-### 4.3 路由组语义
+### 4.6 布局组件对应关系
 
-| 路由组 | 布局特征 |
-|--------|---------|
-| `(auth)` | 居中卡片，无导航 |
-| `(workspace)` | 侧边栏 + 顶栏 + 内容区 |
-| `(canvas)` | 全屏，浮动工具栏 |
+```text
+sections/layout/
+├── AppSidebar.tsx             → workspace 侧边栏
+├── AppHeader.tsx              → workspace 顶栏
+├── ViewSwitcher.tsx           → 视图切换 Tab
+├── nav-config.ts              → workspace 导航配置（从 entityRegistry 生成）
+├── MarketingHeader.tsx        → marketing 顶部导航（logo + 链接 + 登录按钮）
+├── MarketingFooter.tsx        → marketing 页脚（链接分组 + 版权）
+├── AuthLayout.tsx             → auth 布局容器（居中卡片 / 左右分栏）
+└── components/
+    ├── AccountMenu.tsx        → 用户头像下拉菜单
+    ├── SearchBar.tsx          → ⌘K 搜索
+    └── NotificationBell.tsx   → 通知铃铛
+```
+
+### 4.7 布局 CSS 变量
+
+```css
+:root {
+  /* workspace */
+  --layout-sidebar-width: 240px;
+  --layout-sidebar-collapsed-width: 64px;
+  --layout-header-height: 48px;
+  --layout-content-padding: 16px;
+  /* marketing */
+  --layout-marketing-header-height: 64px;
+  --layout-marketing-max-width: 1200px;
+  /* auth */
+  --layout-auth-card-width: 420px;
+}
+```
+
+### 4.8 与 next-ts 布局系统的差异
+
+| 维度 | next-ts | AAF |
+|------|---------|-----|
+| 布局切换 | 手动传 Layout 组件 prop | Next.js 路由组自动切换（零配置） |
+| 布局原语 | `LayoutSection` slot 模式（header/sidebar/footer） | 不需要——每个路由组 layout.tsx 直接组合 |
+| 导航模式 | vertical/horizontal/mini 运行时切换 | 固定 vertical + 折叠态（toggle） |
+| 样式方案 | MUI styled + CSS 变量 | Tailwind + CSS 变量 |
+| 响应式 | MUI breakpoints | Tailwind 断点 + container queries |
 
 ---
 
