@@ -3,7 +3,10 @@
  * @author AaronZZH & Kiro
  */
 
-import type { FieldDef } from "./field"
+import type { FieldDef, GroupField, RowField, TabsField } from "./field"
+
+/** 数据字段（排除布局字段） */
+export type DataFieldDef = Exclude<FieldDef, GroupField | TabsField | RowField>
 
 /** 表单字段组件 Props */
 export interface FieldProps<T = unknown> {
@@ -12,12 +15,12 @@ export interface FieldProps<T = unknown> {
   onChange: (value: T) => void
   error?: string
   disabled?: boolean
-  field: FieldDef
+  field: DataFieldDef
 }
 
 /** 列表单元格组件 Props */
 export interface CellProps<T = unknown> {
   value: T
   record: Record<string, unknown>
-  field: FieldDef
+  field: DataFieldDef
 }

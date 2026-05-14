@@ -61,7 +61,7 @@ author: AaronZZH
    - 404 处理：slug 不存在时显示"实体未注册"
    - verify: 动态路由正确解析 module 参数并渲染对应实体
 
-7. [ ] #38 ListView 基础实现 — developer-web (依赖: #36)
+7. ✅ #38 ListView 基础实现 — developer-web (依赖: #36)
    - 基于 shadcn/ui DataTable 实现列表视图
    - 从 `entity.listView.columns` 读取列配置
    - 每列根据字段类型从 cellComponents 获取渲染组件

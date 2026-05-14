@@ -19,5 +19,5 @@ export type {
   TextField,
   UploadField
 } from "./field"
-export type { CellProps, FieldProps } from "./props"
+export type { CellProps, DataFieldDef, FieldProps } from "./props"
 export type { FormViewConfig, KanbanViewConfig, LayoutField, ListViewConfig } from "./views"

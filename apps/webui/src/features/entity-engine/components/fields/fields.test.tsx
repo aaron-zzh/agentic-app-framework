@@ -6,7 +6,7 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
-import type { FieldProps, SelectField, TextField } from "../../types"
+import type { SelectField, TextField } from "../../types"
 
 import { CheckboxInput } from "./CheckboxInput"
 import { SelectInput } from "./SelectInput"

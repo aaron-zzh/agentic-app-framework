@@ -15,6 +15,7 @@
 import type { EntityDef } from "../types"
 
 import { getViewComponent } from "../lib/component-registry"
+import { ListView } from "./views/ListView"
 
 /** 支持的视图类型 */
 export type ViewType = "list" | "form" | "kanban" | "graph" | "chart" | "calendar"
@@ -48,10 +49,10 @@ export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps)
     return <ViewComponent />
   }
 
-  // 内置视图占位
+  // 内置视图
   switch (view) {
     case "list":
-      return <ViewPlaceholder entity={entity} view="list" />
+      return <ListView entity={entity} />
     case "kanban":
       return <ViewPlaceholder entity={entity} view="kanban" />
     case "form":

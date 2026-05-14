@@ -24,11 +24,16 @@ import type { ComponentType } from "react"
 
 import type { CellProps, FieldProps } from "../types"
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 注册表需要接受任意泛型的组件
+type AnyFieldComponent = ComponentType<FieldProps<any>>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyCellComponent = ComponentType<CellProps<any>>
+
 /** 表单字段组件映射：字段 type → React 组件 */
-const fieldComponents = new Map<string, ComponentType<FieldProps>>()
+const fieldComponents = new Map<string, AnyFieldComponent>()
 
 /** 列表单元格组件映射：字段 type → React 组件 */
-const cellComponents = new Map<string, ComponentType<CellProps>>()
+const cellComponents = new Map<string, AnyCellComponent>()
 
 /** 视图类型组件映射：view type → React 组件 */
 const viewComponents = new Map<string, ComponentType>()
@@ -46,12 +51,12 @@ export interface BatchActionDef {
 const batchActions = new Map<string, BatchActionDef>()
 
 /** 注册表单字段组件 */
-export function registerFieldType(type: string, component: ComponentType<FieldProps>): void {
+export function registerFieldType(type: string, component: AnyFieldComponent): void {
   fieldComponents.set(type, component)
 }
 
 /** 注册列表单元格组件 */
-export function registerCellType(type: string, component: ComponentType<CellProps>): void {
+export function registerCellType(type: string, component: AnyCellComponent): void {
   cellComponents.set(type, component)
 }
 
@@ -66,12 +71,12 @@ export function registerBatchAction(action: BatchActionDef): void {
 }
 
 /** 获取表单字段组件 */
-export function getFieldComponent(type: string): ComponentType<FieldProps> | undefined {
+export function getFieldComponent(type: string): AnyFieldComponent | undefined {
   return fieldComponents.get(type)
 }
 
 /** 获取列表单元格组件 */
-export function getCellComponent(type: string): ComponentType<CellProps> | undefined {
+export function getCellComponent(type: string): AnyCellComponent | undefined {
   return cellComponents.get(type)
 }
 

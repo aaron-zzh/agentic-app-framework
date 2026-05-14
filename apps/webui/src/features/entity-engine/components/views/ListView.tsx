@@ -1,0 +1,93 @@
+/**
+ * 列表视图——基于 EntityDef.listView 配置渲染数据表格
+ * @author AaronZZH & Kiro
+ *
+ * 用法：
+ * ```tsx
+ * <ListView entity={entityDef} data={records} loading={isLoading} />
+ * ```
+ */
+
+"use client"
+
+import type { DataFieldDef, EntityDef } from "../../types"
+
+import { getCellComponent } from "../../lib/component-registry"
+
+interface ListViewProps {
+  entity: EntityDef
+  data?: Record<string, unknown>[]
+  loading?: boolean
+}
+
+export function ListView({ entity, data = [], loading }: ListViewProps) {
+  const { listView, fields } = entity
+  const columns = listView.columns
+    .map((name) => {
+      const field = fields.find((f) => "name" in f && (f as { name: string }).name === name)
+      return field && "name" in field ? { name, field: field as DataFieldDef } : null
+    })
+    .filter(Boolean) as { name: string; field: DataFieldDef }[]
+
+  if (loading) {
+    return <ListSkeleton columns={columns.length} />
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+        <p className="text-sm">暂无数据</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full overflow-auto">
+      <table className="w-full caption-bottom text-sm">
+        <thead className="border-b">
+          <tr>
+            {columns.map((col) => (
+              <th key={col.name} className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                {col.field.label ?? col.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((record, i) => (
+            <tr key={(record.id as string) ?? i} className="border-b transition-colors hover:bg-muted/50">
+              {columns.map((col) => {
+                const Cell = getCellComponent(col.field.type)
+                const value = record[col.name]
+                return (
+                  <td key={col.name} className="h-10 px-4 align-middle">
+                    {Cell ? (
+                      <Cell value={value} record={record} field={col.field} />
+                    ) : (
+                      <span className="truncate">{String(value ?? "—")}</span>
+                    )}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** 列表骨架屏 */
+function ListSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }) {
+  return (
+    <div className="w-full space-y-2 p-4">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex gap-4">
+          {Array.from({ length: columns }).map((_, j) => (
+            <div key={j} className="h-8 flex-1 animate-pulse rounded bg-muted" />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
