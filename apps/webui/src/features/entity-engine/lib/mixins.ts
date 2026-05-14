@@ -1,3 +1,8 @@
+/**
+ * 内置 Mixin 定义——对应后端 BaseEntity 字段集合
+ * @author AaronZZH & Kiro
+ */
+
 import type { FieldDef } from "../types"
 
 /** Mixin 定义：一组可复用的字段集合 */

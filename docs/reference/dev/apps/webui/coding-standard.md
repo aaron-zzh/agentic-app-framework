@@ -117,6 +117,16 @@ source.onerror = () => source.close()
 
 - **注释语言统一中文**，禁止中英混用（与 `docs/` 真理源一致）
 - TypeScript 类型必须显式，禁 `any` / 禁 `@ts-ignore`（特殊情况加注释解释）
+- **文件级注释**：每个模块文件顶部加 JSDoc，说明用途 + `@author`
+- **导出函数/类**：一句话说明，复杂逻辑加用法示例
+- **不加** `@since` / `@version`（用 git blame 追溯）
+
+```ts
+/**
+ * 实体注册表：管理所有 EntityDef 的注册、解析和查找
+ * @author AaronZZH & Kiro
+ */
+```
 
 
 ## 响应式布局

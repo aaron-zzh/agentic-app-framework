@@ -1,3 +1,8 @@
+/**
+ * EntityDef 主接口——配置驱动视图引擎的核心契约
+ * @author AaronZZH & Kiro
+ */
+
 import type { ComponentType } from "react"
 
 import type { EntityAccess } from "./access"

@@ -1,3 +1,8 @@
+/**
+ * 视图配置类型——列表/表单/看板视图的配置接口
+ * @author AaronZZH & Kiro
+ */
+
 import type { GroupField, RowField, TabsField } from "./field"
 
 /** 列表视图配置 */

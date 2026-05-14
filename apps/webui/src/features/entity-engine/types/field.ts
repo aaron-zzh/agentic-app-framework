@@ -1,3 +1,8 @@
+/**
+ * 字段定义类型——联合类型按 type 区分各字段类型
+ * @author AaronZZH & Kiro
+ */
+
 import type { ComponentType } from "react"
 
 import type { CellProps, FieldProps } from "./props"

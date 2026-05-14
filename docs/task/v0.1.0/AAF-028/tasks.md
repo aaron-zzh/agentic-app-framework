@@ -33,7 +33,7 @@ author: AaronZZH
    - 合并规则：同名字段自身覆盖 Mixin，hooks 合并执行
    - verify: 单元测试覆盖合并/覆盖/继承场景
 
-3. [ ] #34 实体注册表（Entity Registry） — developer-web (依赖: #33)
+3. ✅ #34 实体注册表（Entity Registry） — developer-web (依赖: #33)
    - 实现 `entityRegistry` 对象：注册/查找/列举实体
    - 启动时自动解析 mixins + extends
    - 导出 `getEntityDef(slug)` / `getAllEntities()` / `getEntitiesByGroup()`

@@ -1,10 +1,25 @@
+/**
+ * Mixin 合并与继承解析
+ * @author AaronZZH & Kiro
+ */
+
 import type { EntityDef, FieldDef } from "../types"
 
 import { builtinMixins, type MixinDef } from "./mixins"
 
 /**
  * 合并 Mixin 字段到 EntityDef
- * 规则：Mixin 字段追加到 fields 末尾，同名字段自身覆盖 Mixin
+ *
+ * 规则：
+ * - Mixin 字段追加到 fields 末尾
+ * - 同名字段自身覆盖 Mixin（自身优先）
+ * - 多个 Mixin 按声明顺序合并
+ *
+ * ```ts
+ * const resolved = resolveMixins(entity)
+ * // entity.mixins: ["timestamp", "audit"]
+ * // → fields 末尾追加 createTime/updateTime/createBy/updateBy
+ * ```
  */
 export function resolveMixins(
   def: EntityDef,
@@ -37,7 +52,17 @@ export function resolveMixins(
 
 /**
  * 解析继承：从父实体继承配置
- * 规则：子实体字段覆盖父实体同名字段，视图配置浅合并
+ *
+ * 规则：
+ * - 子实体字段覆盖父实体同名字段
+ * - 父实体独有字段追加到子实体前面
+ * - listView 浅合并（子覆盖父）
+ * - formView/kanbanView/access 子无则继承父
+ *
+ * ```ts
+ * const article: EntityDef = { extends: "base-doc", fields: [...] }
+ * const resolved = resolveExtends(article, (slug) => registry.get(slug))
+ * ```
  */
 export function resolveExtends(
   def: EntityDef,

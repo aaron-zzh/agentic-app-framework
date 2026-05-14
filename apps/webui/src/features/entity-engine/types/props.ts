@@ -1,3 +1,8 @@
+/**
+ * 组件 Props 契约——表单字段和列表单元格的统一接口
+ * @author AaronZZH & Kiro
+ */
+
 import type { FieldDef } from "./field"
 
 /** 表单字段组件 Props */
