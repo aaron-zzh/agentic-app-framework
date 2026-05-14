@@ -80,11 +80,15 @@ apps/uniapp/
 │   │
 │   ├── components/               # 纯 UI 组件（无业务语义，无 store 依赖）
 │   │   ├── chat/
-│   │   │   ├── ChatBubble.vue    # 对话气泡
-│   │   │   ├── MessageInput.vue  # 输入框
+│   │   │   ├── ChatBubble.vue    # 对话气泡（mp-html 渲染，支持 Markdown）
+│   │   │   ├── MessageInput.vue  # 输入框（含图片选择入口）
+│   │   │   ├── ImagePicker.vue   # 图片选择预览（多模态输入）
 │   │   │   └── StreamText.vue    # 流式文字渲染
 │   │   ├── agent/
 │   │   │   └── AgentCard.vue     # 智能体卡片
+│   │   ├── poster/
+│   │   │   ├── PosterPreview.vue # 固定模板海报（lime-painter 声明式）
+│   │   │   └── PosterEditor.vue  # 可编辑海报（gesti 手势交互）
 │   │   └── common/
 │   │       ├── GlobalToast.vue   # 全局 Toast
 │   │       ├── GlobalLoading.vue # 全局 Loading
@@ -94,6 +98,7 @@ apps/uniapp/
 │   │   ├── useChat.ts            # 对话逻辑（调用 request/stream）
 │   │   ├── useAuth.ts            # 认证状态
 │   │   ├── useAgent.ts           # 智能体操作
+│   │   ├── useUploader.ts        # 文件上传（S3预签名+图片压缩）
 │   │   ├── useTheme.ts           # 主题切换
 │   │   ├── useTabbar.ts          # tabbar 状态
 │   │   ├── useGlobalToast.ts     # 全局 Toast
@@ -130,6 +135,13 @@ apps/uniapp/
 │   │
 │   ├── utils/                    # 纯函数工具（无副作用，无平台依赖）
 │   │   └── index.ts
+│   │
+│   ├── uni_modules/              # uni_modules 插件（源码形式，不走 npm）
+│   │   ├── mp-html/              # 富文本渲染（wot-starter 内置）
+│   │   ├── z-paging/             # 虚拟列表分页（聊天记录模式）
+│   │   ├── lime-painter/         # 声明式海报生成
+│   │   ├── lime-qrcode/          # 二维码生成
+│   │   └── qiun-data-charts/     # 轻量图表（备选，主方案用 uni-echarts）
 │   │
 │   ├── static/                   # 静态资源
 │   ├── uni.scss                  # 全局样式变量

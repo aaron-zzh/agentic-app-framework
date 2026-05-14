@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: AAF 小程序/APP 技术选型与决策记录
 status: published
-version: 1.1.0
-date: 2026-05-14
+version: 1.2.0
+date: 2026-05-15
 author: AaronZZH
 changelog:
+  - 2026-05-15 | v1.2 补充 z-paging/marked/lime-painter/lime-qrcode/gesti/qiun-data-charts 选型
   - 2026-05-14 | v1.1 UI 库换为 wot-design-uni v2，HTTP 换为 alova，明确以 wot-starter 为脚手架基础
   - 2026-05-14 | v1.0 初版
 gains:
@@ -38,9 +39,14 @@ gains:
 | 组合式工具 | @vueuse/core | ^11 | 通用 composable 工具集 |
 | 国际化 | vue-i18n | ^9 | 多语言支持 |
 | 图表 | uni-echarts | ^2 | 分包加载，避免主包超限 |
+| 虚拟列表 | z-paging | uni_modules | 聊天记录模式 + 虚拟列表，AI 对话消息列表必需 |
+| Markdown 渲染 | marked + mp-html | ^14 | Markdown → HTML → mp-html 渲染链，AI 回复渲染 |
+| 海报生成 | lime-painter | uni_modules | 声明式 JSON 配置海报，固定模板场景 |
+| 海报编辑 | gesti | ^1.4 | Canvas 手势库，可拖拽/缩放/旋转元素 |
+| 二维码 | lime-qrcode | uni_modules | 二维码生成，海报/分享场景 |
 | WebSocket | @hyoga/uni-socket.io | ^3 | Socket.IO 协议，AI 对话 WebSocket 场景 |
 | 微信 JS-SDK | weixin-js-sdk | ^1.6 | H5 端微信能力（分享/支付/登录） |
-| 富文本渲染 | mp-html | ^2.5 | 小程序富文本渲染（uni_modules） |
+| 富文本渲染 | mp-html | ^2.5 | 小程序富文本渲染（uni_modules，wot-starter 内置） |
 | 包体积分析 | rollup-plugin-visualizer | ^5 | 构建产物分析，分包优化辅助 |
 | Gzip 压缩 | vite-plugin-compression | ^0.5 | H5 端构建产物压缩 |
 | 移动端调试 | vconsole | ^3 | 真机调试控制台（仅开发环境） |
