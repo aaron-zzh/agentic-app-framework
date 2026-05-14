@@ -102,25 +102,51 @@ author: AaronZZH
     - 清理 `pages.config.ts` 对应路由
     - verify: `pnpm nx run uniapp:build:mp-weixin` 构建成功，主包 < 2MB
 
-### 五、通用页面补充
+### 五、通用能力补充
 
 15. [ ] #15 启动页与登录流程 — developer-app (依赖: #9)
     - 创建 `pages/startup/index.vue`：检查登录态，决定跳首页或登录页
     - 创建 `pages/login/index.vue`：微信一键登录（`wx.login` + 手机号授权）+ H5 账号密码登录
     - verify: 未登录冷启动跳登录页；登录成功跳首页；token 有效时跳过登录
 
-16. [ ] #16 消息通知页 — developer-app (依赖: #11)
-    - 创建 `subPages/message/list.vue`：消息列表（系统通知/业务消息），已读/未读状态
-    - 创建 `subPages/message/detail.vue`：消息详情
-    - 个人中心加消息入口 + 未读角标
-    - verify: 消息列表可正常展示，点击跳详情
+16. [ ] #16 文件上传 composable — developer-app (依赖: #10)
+    - 创建 `src/composables/useUploader.ts`，封装：S3 预签名上传（`uni.request PUT`）、服务端直传（alova uploadFile）、图片压缩（`uni.compressImage`，超 3MB 自动压缩）、上传进度
+    - 参考 kids-app `hooks/useNutUploader.ts` 实现，去除 nutui 依赖
+    - verify: 图片上传成功，超 3MB 自动压缩后上传
 
-17. [ ] #17 用户信息与设置 — developer-app (依赖: #11)
-    - 创建 `subPages/profile/edit.vue`：头像上传（alova 上传）、昵称、手机号修改
+17. [ ] #17 AI 对话消息列表（虚拟列表） — developer-app (依赖: #11)
+    - 引入 `z-paging`（uni_modules），实现聊天记录模式（`use-chat-record-mode`）+ 虚拟列表（`use-virtual-list`）
+    - 创建 `src/components/chat/ChatBubble.vue`：用户/AI 气泡，AI 消息用 `mp-html` 渲染（支持 HTML 内容）
+    - 创建 `src/components/chat/StreamText.vue`：流式文字追加渲染
+    - verify: 消息列表 100 条以上滚动流畅，流式内容实时追加
+
+18. [ ] #18 Markdown 渲染 — developer-app (依赖: #17)
+    - 引入 `marked`（或复用 uview-plus 内置的 `marked.esm.js`），将 Markdown 转 HTML
+    - 在 `ChatBubble.vue` 中 AI 消息走 `marked → mp-html` 渲染链
+    - verify: AI 回复中的代码块、列表、加粗、表格正确渲染
+
+19. [ ] #19 Canvas 海报生成组件 — developer-app (依赖: #2)
+    - 创建 `src/components/common/PosterCanvas.vue`，封装 Canvas 绘制：背景图、头像（圆形裁剪）、文字、二维码
+    - 参考 kids-app `pages/app/sign.vue`，适配微信小程序 Canvas 2D API
+    - 暴露 `generate()` 返回临时图片路径，支持 `uni.saveImageToPhotosAlbum` 保存
+    - verify: 可生成包含头像+文字+二维码的海报并保存到相册
+
+20. [ ] #20 消息通知页 — developer-app (依赖: #11)
+    - 创建 `subPages/message/list.vue`：消息列表，已读/未读状态，alova usePagination 分页
+    - 创建 `subPages/message/detail.vue`：消息详情，mp-html 渲染富文本内容
+    - 个人中心加消息入口 + 未读角标
+    - verify: 消息列表分页正常，点击跳详情，已读状态更新
+
+21. [ ] #21 用户信息与设置 — developer-app (依赖: #16)
+    - 创建 `subPages/profile/edit.vue`：头像上传（useUploader）、昵称、手机号修改
     - 创建 `subPages/settings/index.vue`：通知设置、隐私协议、关于、退出登录、清除缓存
     - verify: 头像上传成功，设置项可正常操作
 
-18. [ ] #18 管理端扩展页面 — developer-app (依赖: #12)
+22. [ ] #22 管理端扩展页面 — developer-app (依赖: #12)
+    - 创建 `subPages/admin/notice/`：公告列表 + 发布/编辑（mp-html 渲染）
+    - 创建 `subPages/admin/roles/`：角色列表 + 权限配置
+    - 创建 `subPages/admin/settings/`：系统配置（KV 表单）
+    - verify: 管理员可发布公告，可配置角色权限
     - 创建 `subPages/admin/notice/`：公告列表 + 发布/编辑（富文本，mp-html 渲染）
     - 创建 `subPages/admin/roles/`：角色列表 + 权限配置
     - 创建 `subPages/admin/settings/`：系统配置（KV 表单）
@@ -144,6 +170,9 @@ author: AaronZZH
 - [ ] 微信小程序和 H5 均可接收 SSE 流式响应
 - [ ] 双角色路由拦截正常工作（普通用户无法进入管理分包）
 - [ ] 登录流程完整（微信一键登录 + H5 账号密码）
+- [ ] AI 对话消息列表 100 条以上滚动流畅，Markdown 正确渲染
+- [ ] 图片上传支持 S3 预签名，超 3MB 自动压缩
+- [ ] Canvas 海报可生成并保存到相册
 - [ ] 消息通知、用户信息编辑、设置页可正常使用
 - [ ] 管理端公告、角色权限页面可正常操作
 - [ ] `.kiro/skills/` 包含 4 个 wot-ui skill
