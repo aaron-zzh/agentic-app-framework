@@ -147,6 +147,18 @@ author: AaronZZH
     - 创建 `subPages/admin/roles/`：角色列表 + 权限配置
     - 创建 `subPages/admin/settings/`：系统配置（KV 表单）
     - verify: 管理员可发布公告，可配置角色权限
+
+23. [ ] #23 多模态图像处理 — developer-app (依赖: #16, #17)
+    - 创建 `src/components/chat/ImagePicker.vue`：图片选择 + 预览 + 删除，支持多图
+    - 在 `MessageInput.vue` 集成图片选择入口（相册/拍照）
+    - 在 `ChatBubble.vue` 支持图片消息渲染（用户发送的图片 + AI 返回的图片）
+    - 参考 kids-app `editor/image.vue` 的上传 + AI 处理流程
+    - verify: 可选图上传，AI 回复中图片正常展示
+
+24. [ ] #24 Echarts 图表封装 — developer-app (依赖: #12)
+    - 在 `subEcharts/` 分包封装常用图表组件：折线图、柱状图、饼图、数据看板卡片
+    - 管理端 `admin/dashboard/` 使用图表组件展示数据概览
+    - verify: 管理端看板图表正常渲染，分包加载不影响主包体积
     - 创建 `subPages/admin/notice/`：公告列表 + 发布/编辑（富文本，mp-html 渲染）
     - 创建 `subPages/admin/roles/`：角色列表 + 权限配置
     - 创建 `subPages/admin/settings/`：系统配置（KV 表单）
