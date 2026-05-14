@@ -1,5 +1,5 @@
 {
-  "name": "@org/webui",
+  "name": "@aaf/webui",
   "version": "0.0.1",
   "private": true,
   "nx": {
@@ -10,6 +10,9 @@
     "@assistant-ui/react-ag-ui": "^0.0.29",
     "@assistant-ui/react-streamdown": "^0.3.0",
     "@base-ui/react": "^1.4.1",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@tailwindcss/postcss": "^4.3.0",
     "@tanstack/react-query": "^5.100.10",
     "class-variance-authority": "^0.7.1",
