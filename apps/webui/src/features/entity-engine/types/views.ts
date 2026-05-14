@@ -44,6 +44,8 @@ export interface KanbanViewConfig {
   cardDescription?: string
   /** 卡片头像字段 */
   cardAvatar?: string
+  /** 列显示顺序（用户可拖拽调整，不影响 options 定义） */
+  columnOrder?: string[]
 }
 
 /** 布局字段类型 */

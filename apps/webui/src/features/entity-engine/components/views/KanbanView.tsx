@@ -1,5 +1,5 @@
 /**
- * 看板视图——基于 @dnd-kit 实现拖拽状态变更
+ * 看板视图——基于 @dnd-kit 实现拖拽状态变更 + 列内排序 + 列排序
  * @author AaronZZH & Kiro
  *
  * 用法：
@@ -11,16 +11,18 @@
 "use client"
 
 import {
-  closestCorners,
   DndContext,
-  type DragEndEvent,
   DragOverlay,
-  type DragStartEvent,
   PointerSensor,
+  closestCorners,
   useSensor,
-  useSensors
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent
 } from "@dnd-kit/core"
-import { useState } from "react"
+import { SortableContext, arrayMove, horizontalListSortingStrategy } from "@dnd-kit/sortable"
+import { useCallback, useMemo, useState } from "react"
 
 import type { EntityDef, SelectField, SelectOption } from "../../types"
 import { KanbanCard } from "./KanbanCard"
@@ -46,9 +48,20 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
   const statusFieldDef = fields.find((f) => "name" in f && f.name === statusField) as
     | SelectField
     | undefined
-  const columns: SelectOption[] = statusFieldDef?.options ?? []
+  const allOptions: SelectOption[] = statusFieldDef?.options ?? []
+
+  // 列顺序：优先使用 columnOrder 配置，否则按 options 定义顺序
+  const [columnOrder, setColumnOrder] = useState<string[]>(
+    () => kanbanView?.columnOrder ?? allOptions.map((o) => o.value)
+  )
+
+  const columns = useMemo(
+    () => columnOrder.map((v) => allOptions.find((o) => o.value === v)).filter(Boolean) as SelectOption[],
+    [columnOrder, allOptions]
+  )
 
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeType, setActiveType] = useState<"card" | "column" | null>(null)
   const [localData, setLocalData] = useState(data)
 
   // 当外部 data 变化时同步
@@ -58,33 +71,86 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  const activeRecord = activeId ? localData.find((r) => String(r.id) === activeId) : null
+  const activeRecord = activeId && activeType === "card"
+    ? localData.find((r) => String(r.id) === activeId)
+    : null
 
-  if (!kanbanView) {
-    return <p className="p-4 text-muted-foreground text-sm">未配置看板视图</p>
-  }
+  const isColumnId = useCallback(
+    (id: string) => columnOrder.includes(id),
+    [columnOrder]
+  )
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id))
+    const id = String(event.active.id)
+    setActiveId(id)
+    setActiveType(isColumnId(id) ? "column" : "card")
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event
+    if (!over || activeType !== "card") return
+
+    const activeRecordId = String(active.id)
+    const overId = String(over.id)
+
+    // 确定目标列
+    const targetColumn = isColumnId(overId)
+      ? overId
+      : getRecordColumn(overId)
+
+    const sourceColumn = getRecordColumn(activeRecordId)
+
+    if (sourceColumn && targetColumn && sourceColumn !== targetColumn) {
+      // 跨列移动：乐观更新
+      setLocalData((prev) =>
+        prev.map((r) =>
+          String(r.id) === activeRecordId ? { ...r, [statusField]: targetColumn } : r
+        )
+      )
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     setActiveId(null)
+    setActiveType(null)
 
     if (!over) return
 
-    const recordId = String(active.id)
-    const newStatus = String(over.id)
+    const activeIdStr = String(active.id)
+    const overIdStr = String(over.id)
+
+    // 列排序
+    if (activeType === "column") {
+      if (activeIdStr !== overIdStr && isColumnId(overIdStr)) {
+        setColumnOrder((prev) => {
+          const oldIndex = prev.indexOf(activeIdStr)
+          const newIndex = prev.indexOf(overIdStr)
+          return arrayMove(prev, oldIndex, newIndex)
+        })
+      }
+      return
+    }
+
+    // 卡片拖拽完成：通知外部状态变更
+    const record = localData.find((r) => String(r.id) === activeIdStr)
+    if (record) {
+      const currentStatus = record[statusField] as string
+      const originalRecord = data.find((r) => String(r.id) === activeIdStr)
+      const originalStatus = originalRecord?.[statusField] as string
+      if (currentStatus !== originalStatus) {
+        onStatusChange?.(activeIdStr, currentStatus)
+      }
+    }
+  }
+
+  function getRecordColumn(recordId: string): string | undefined {
     const record = localData.find((r) => String(r.id) === recordId)
+    return record ? (record[statusField] as string) : undefined
+  }
 
-    if (!record || record[statusField] === newStatus) return
-
-    // 乐观更新
-    setLocalData((prev) =>
-      prev.map((r) => (String(r.id) === recordId ? { ...r, [statusField]: newStatus } : r))
-    )
-    onStatusChange?.(recordId, newStatus)
+  if (!kanbanView) {
+    return <p className="p-4 text-sm text-muted-foreground">未配置看板视图</p>
   }
 
   if (loading) {
@@ -96,38 +162,47 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto p-4">
-        {columns.map((col) => {
-          const items = localData.filter((r) => r[statusField] === col.value)
-          return (
-            <KanbanColumn
-              key={col.value}
-              id={col.value}
-              label={col.label}
-              color={col.color}
-              count={items.length}
-            >
-              {items.map((record) => (
-                <KanbanCard
-                  key={String(record.id)}
-                  id={String(record.id)}
-                  title={String(record[cardTitle] ?? "")}
-                  description={cardDescription ? String(record[cardDescription] ?? "") : undefined}
-                />
-              ))}
-            </KanbanColumn>
-          )
-        })}
-      </div>
+      <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+        <div className="flex gap-4 overflow-x-auto p-4">
+          {columns.map((col) => {
+            const items = localData.filter((r) => r[statusField] === col.value)
+            const itemIds = items.map((r) => String(r.id))
+            return (
+              <KanbanColumn
+                key={col.value}
+                id={col.value}
+                label={col.label}
+                color={col.color}
+                count={items.length}
+                itemIds={itemIds}
+              >
+                {items.map((record) => (
+                  <KanbanCard
+                    key={String(record.id)}
+                    id={String(record.id)}
+                    title={String(record[cardTitle] ?? "")}
+                    description={
+                      cardDescription ? String(record[cardDescription] ?? "") : undefined
+                    }
+                  />
+                ))}
+              </KanbanColumn>
+            )
+          })}
+        </div>
+      </SortableContext>
 
       <DragOverlay>
         {activeRecord ? (
           <KanbanCard
             id={String(activeRecord.id)}
             title={String(activeRecord[cardTitle] ?? "")}
-            description={cardDescription ? String(activeRecord[cardDescription] ?? "") : undefined}
+            description={
+              cardDescription ? String(activeRecord[cardDescription] ?? "") : undefined
+            }
             overlay
           />
         ) : null}
