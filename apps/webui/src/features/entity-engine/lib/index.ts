@@ -1,3 +1,4 @@
+export { buildZodSchema } from "./build-zod-schema"
 export type { BatchActionDef } from "./component-registry"
 export {
   clearComponentRegistry,

@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: AAF 前端目录结构设计（apps/webui + packages/）
 status: draft
-version: 2.0.0
-date: 2026-05-13
+version: 2.1.0
+date: 2026-05-14
 author: AaronZZH
 changelog:
+  - 2026-05-14 | v2.1 借鉴 next-ts：表单体系（Form/Field/schemaUtils）、sections/view/ 子目录、路由常量集中、CSS 变量布局、导航配置分离
   - 2026-05-13 | v2.0 重写：增加 features/ 层、依赖方向规则、插件门控、Nx 边界约束
   - 2026-05-10 | v1.0 初版
 ---
@@ -216,7 +217,9 @@ apps/webui/
 
 │   ├── sections/                     → 业务区块层（按领域组织）
 │   │   ├── chat/                     → 对话协作（基于 assistant-ui）
-│   │   │   ├── ChatPage.tsx          → 对话页面组装（AssistantRuntimeProvider）
+│   │   │   ├── view/                 → 页面入口（barrel export）
+│   │   │   │   ├── index.ts
+│   │   │   │   └── chat-view.tsx     → 对话页面组装
 │   │   │   ├── AgentToolUIs.tsx      → makeAssistantToolUI 注册
 │   │   │   └── AgentContext.tsx      → makeAssistantVisible 注册
 │   │   ├── canvas/                   → 画板/生成式交互
@@ -224,12 +227,18 @@ apps/webui/
 │   │   │   ├── SemanticCard.tsx      → 语义组件卡片
 │   │   │   └── CardRenderer.tsx      → 卡片类型分发渲染器
 │   │   ├── document/                 → 文档编辑（消费 features/rich-text-editor）
-│   │   │   ├── DocumentEditor.tsx    → 页面组装（preset='document'）
-│   │   │   ├── DocumentOutline.tsx
-│   │   │   └── DocumentList.tsx
+│   │   │   ├── view/                 → 页面入口
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── document-list-view.tsx
+│   │   │   │   └── document-edit-view.tsx
+│   │   │   ├── document-form.tsx     → 表单组件（创建/编辑复用）
+│   │   │   └── document-outline.tsx
 │   │   ├── workflow/                 → 工作流（消费 features/flow-editor）
-│   │   │   ├── FlowEditorPage.tsx    → 页面组装（mode='workflow'）
-│   │   │   └── FlowList.tsx
+│   │   │   ├── view/
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── flow-list-view.tsx
+│   │   │   │   └── flow-editor-view.tsx
+│   │   │   └── flow-toolbar.tsx
 │   │   ├── knowledge/               → 知识库
 │   │   │   ├── KnowledgeList.tsx
 │   │   │   ├── DocumentUpload.tsx
@@ -242,6 +251,7 @@ apps/webui/
 │   │   │   ├── AppSidebar.tsx
 │   │   │   ├── AppHeader.tsx
 │   │   │   ├── CommandBar.tsx        → ⌘K 命令面板
+│   │   │   ├── nav-config.ts         → 导航配置数据（纯数据，与组件分离）
 │   │   │   └── components/           → AccountMenu / SearchBar / NotificationBell
 │   │   └── settings/                 → 设置区块
 │   │       ├── ProfileForm.tsx
@@ -263,7 +273,17 @@ apps/webui/
 │   │   │   ├── VirtualList.tsx
 │   │   │   └── MarkdownRenderer.tsx
 │   │   ├── form/                     → 表单组件（react-hook-form + zod）
-│   │   │   └── FormTextField / FormSelect / FormUpload / FormWrapper
+│   │   │   ├── form.tsx              → Form 包装器（FormProvider + <form> 标签）
+│   │   │   ├── fields.ts            → Field 命名空间对象（Field.Text / Field.Select / ...）
+│   │   │   ├── schema-utils.ts      → Zod schema 工厂函数（email/phone/file/date）
+│   │   │   ├── field-text.tsx       → 文本输入（Controller + shadcn Input）
+│   │   │   ├── field-textarea.tsx   → 多行文本
+│   │   │   ├── field-number.tsx     → 数字输入
+│   │   │   ├── field-select.tsx     → 下拉选择
+│   │   │   ├── field-checkbox.tsx   → 复选框
+│   │   │   ├── field-date.tsx       → 日期选择
+│   │   │   ├── field-upload.tsx     → 文件上传
+│   │   │   └── field-editor.tsx     → 富文本（消费 features/rich-text-editor）
 │   │   └── icons/                    → 图标（lucide-react 扩展）
 │   │
 │   ├── lib/                          → 逻辑层
@@ -297,8 +317,12 @@ apps/webui/
 │   │   ├── theme/                    → 主题（tokens/css-vars/config）
 │   │   ├── hooks/                    → 通用 hooks（use-stream/use-debounce/use-keyboard）
 │   │   ├── schemas/                  → Zod schema（运行时校验 + 类型推导）
+│   │   │   ├── utils.ts              → schema 工厂函数（email/phone/file/date/nullableInput）
+│   │   │   └── {domain}.ts           → 按领域定义 schema（user/document/...）
 │   │   ├── utils/                    → 纯函数工具（format/cn/url/tree/event-bus）
-│   │   ├── constants/                → 路由常量/应用配置
+│   │   ├── constants/                → 应用配置
+│   │   │   ├── paths.ts              → 路由常量集中定义（含动态路由函数）
+│   │   │   └── config.ts             → 应用级配置常量
 │   │   └── _mock/                    → 开发阶段 Mock 数据（_ 前缀 = 内部）
 │   │
 │   ├── providers/                    → React Context Providers
@@ -426,6 +450,105 @@ Zustand 只存纯客户端 UI 状态，禁止存服务端数据（那是 TanStac
 
 直接消费 `@assistant-ui/react` + `@assistant-ui/react-ag-ui`（npm 包），不自研。对话 UI 通过 CLI 注入到 `components/assistant-ui/`（源码可改造）。
 
+### 5.4 表单组件体系（components/form/）
+
+借鉴 next-ts 的 hook-form 组件设计，提供两层表单能力：
+
+**通用层**（`components/form/`）— 手写表单页面使用：
+
+```tsx
+// Form 包装器：封装 FormProvider + <form> 标签
+<Form methods={methods} onSubmit={onSubmit}>
+  <Field.Text name="email" label="邮箱" />
+  <Field.Select name="role" label="角色" options={roleOptions} />
+  <Field.Upload name="avatar" label="头像" />
+</Form>
+```
+
+- `form.tsx`：Form 包装器，封装 `FormProvider` + `<form>` + 可选 `onSubmit`
+- `fields.ts`：Field 命名空间对象，统一导出所有表单控件（`Field.Text` / `Field.Select` / ...）
+- `schema-utils.ts`：Zod schema 工厂函数，统一校验规则（`schemaUtils.email()` / `schemaUtils.phone()` / `schemaUtils.file()`）
+- `field-*.tsx`：每个控件基于 shadcn/ui 原语 + `Controller` 封装，外部只需传 `name` + `label`
+
+**引擎层**（`features/entity-engine/`）— EntityDef 配置驱动：
+
+- FormView 从 component-registry 动态获取字段组件
+- `buildZodSchema(fields)` 根据 FieldDef[] 自动生成 Zod schema
+- 两层共享底层 shadcn/ui 原语，但入口不同（静态 vs 动态）
+
+### 5.5 路由常量集中管理
+
+借鉴 next-ts 的 `routes/paths.ts`，在 `lib/constants/paths.ts` 集中定义所有路由路径：
+
+```ts
+const ROOTS = { WORKSPACE: '/workspace', AUTH: '/auth' }
+
+export const paths = {
+  auth: {
+    login: `${ROOTS.AUTH}/login`,
+    register: `${ROOTS.AUTH}/register`,
+  },
+  workspace: {
+    root: ROOTS.WORKSPACE,
+    module: (slug: string) => `${ROOTS.WORKSPACE}/${slug}`,
+    record: (slug: string, id: string) => `${ROOTS.WORKSPACE}/${slug}/${id}`,
+    settings: `${ROOTS.WORKSPACE}/settings`,
+  },
+}
+```
+
+路径变更只改一处，动态路由参数类型安全，IDE 自动补全友好。
+
+### 5.6 CSS 变量驱动布局尺寸
+
+借鉴 next-ts 的布局 CSS 变量模式，在 `global.css` 中定义布局尺寸变量：
+
+```css
+:root {
+  --layout-sidebar-width: 256px;
+  --layout-sidebar-collapsed-width: 64px;
+  --layout-header-height: 56px;
+  --layout-content-padding: 24px;
+}
+```
+
+布局组件通过 CSS 变量控制尺寸，主题切换/响应式调整只需修改变量值，无需改组件代码。
+
+### 5.7 导航配置数据分离
+
+借鉴 next-ts 的 `nav-config-dashboard.tsx`，将导航菜单数据从组件中分离：
+
+```ts
+// sections/layout/nav-config.ts — 纯数据，无 React 依赖
+export const navConfig = [
+  { group: 'content', label: '内容管理', items: [
+    { title: '文档', path: paths.workspace.module('document'), icon: 'file-text' },
+    { title: '知识库', path: paths.workspace.module('knowledge'), icon: 'book' },
+  ]},
+  // ...
+]
+```
+
+EntityDef 注册表可自动生成导航配置（`entityRegistry.getByGroup()` → navConfig），手动配置作为覆盖/补充。
+
+### 5.8 sections/view/ 子目录模式
+
+当同一业务域有多个页面视图时（列表/详情/创建/编辑），用 `view/` 子目录统一管理页面入口：
+
+```text
+sections/document/
+├── view/                       → 页面入口（barrel export）
+│   ├── index.ts
+│   ├── document-list-view.tsx  → 列表页组装
+│   └── document-edit-view.tsx  → 编辑页组装
+├── document-form.tsx           → 表单组件（创建/编辑复用，通过 props 区分）
+└── document-outline.tsx        → 大纲组件
+```
+
+- `view/` 与 `app/` 路由一一对应，app/ 的 page.tsx 只引用 view
+- 业务组件扁平放置在 section 根目录
+- 创建/编辑共用一个 form 组件（`*-form.tsx`），通过 `isEdit` prop 区分
+
 ---
 
 ## 六、文件命名规范
@@ -480,3 +603,11 @@ Zustand 只存纯客户端 UI 状态，禁止存服务端数据（那是 TanStac
 | `(canvas)/` | AG-UI Canvas 模式 | Agent 驱动 UI 状态 |
 | `components/assistant-ui/` | assistant-ui CLI 注入 | 对话 UI 源码可改造 |
 | 依赖方向规则 | Nx enforce-module-boundaries | 单向依赖，lint 强制 |
+| `components/form/` Field 命名空间 | next-ts `components/hook-form/fields.tsx` | `Field.Text` 统一入口，语义清晰 |
+| `components/form/` Form 包装器 | next-ts `form-provider.tsx` | 封装 FormProvider + form 标签 |
+| `lib/schemas/utils.ts` schema 工厂 | next-ts `schema-utils.ts` | `schemaUtils.email()` 统一校验规则 |
+| `lib/constants/paths.ts` 路由常量 | next-ts `routes/paths.ts` | 集中定义 + 动态路由函数化 |
+| CSS 变量驱动布局尺寸 | next-ts `layouts/` CSS variables | `--layout-sidebar-width` 等变量控制 |
+| `sections/layout/nav-config.ts` | next-ts `nav-config-dashboard.tsx` | 导航配置数据与组件分离 |
+| `sections/*/view/` 子目录 | next-ts `sections/*/view/` | 多页面域统一入口 + barrel export |
+| 创建/编辑表单复用 | next-ts `*-create-edit-form.tsx` | 同一组件通过 props 区分模式 |

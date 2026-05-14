@@ -14,6 +14,7 @@
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
+import { FormView } from "./views/FormView"
 import { KanbanView } from "./views/KanbanView"
 import { ListView } from "./views/ListView"
 
@@ -56,7 +57,7 @@ export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps)
     case "kanban":
       return <KanbanView entity={entity} />
     case "form":
-      return <ViewPlaceholder entity={entity} view="form" recordId={recordId} />
+      return <FormView entity={entity} />
     default:
       return <ViewPlaceholder entity={entity} view={view} />
   }
