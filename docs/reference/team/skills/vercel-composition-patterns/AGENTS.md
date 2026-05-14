@@ -217,7 +217,7 @@ function ComposerSubmit() {
   const {
     actions: { submit },
   } = use(ComposerContext)
-  return <Button onPress={submit}>Send</Button>
+  return <Button1 onPress={submit}>Send</Button1>
 }
 
 // Export as compound component
@@ -542,7 +542,7 @@ function ForwardButton() {
   const {
     actions: { submit },
   } = use(ComposerContext)
-  return <Button onPress={submit}>Forward</Button>
+  return <Button1 onPress={submit}>Forward</Button1>
 }
 
 // This preview lives OUTSIDE Composer.Frame but can read composer's state!
@@ -679,7 +679,7 @@ function ForwardMessageDialog() {
 
 function ForwardButton() {
   const { actions } = use(Composer.Context)
-  return <Button onPress={actions.submit}>Forward</Button>
+  return <Button1 onPress={actions.submit}>Forward</Button1>
 }
 ```
 

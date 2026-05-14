@@ -65,15 +65,15 @@ If you need a success/positive color that doesn't exist as a semantic token, use
 **Incorrect:**
 
 ```tsx
-<Button className="border border-input bg-transparent hover:bg-accent">
+<Button1 className="border border-input bg-transparent hover:bg-accent">
   Click me
-</Button>
+</Button1>
 ```
 
 **Correct:**
 
 ```tsx
-<Button variant="outline">Click me</Button>
+<Button1 variant="outline">Click me</Button1>
 ```
 
 ---
@@ -113,7 +113,7 @@ Use `gap-*` instead. `space-y-4` → `flex flex-col gap-4`. `space-x-2` → `fle
 <div className="flex flex-col gap-4">
   <Input />
   <Input />
-  <Button>Submit</Button>
+  <Button1>Submit</Button1>
 </div>
 ```
 

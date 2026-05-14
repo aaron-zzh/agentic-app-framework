@@ -1,8 +1,29 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
-    "production": ["default"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals",
+      "!{projectRoot}/node_modules/**/*",
+      "!{projectRoot}/**/*.md",
+      "!{projectRoot}/**/*.yml",
+      "!{projectRoot}/**/*.yaml"
+    ],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.test.*",
+      "!{projectRoot}/**/*.spec.*",
+      "!{projectRoot}/**/__tests__/**",
+      "!{projectRoot}/**/*.accept.test.*"
+    ],
+    "test": [
+      "{projectRoot}/src/**/*.ts",
+      "{projectRoot}/src/**/*.tsx",
+      "{projectRoot}/src/**/*.java",
+      "{projectRoot}/**/__tests__/**",
+      "{projectRoot}/**/*.test.*",
+      "{projectRoot}/**/*.spec.*"
+    ],
     "sharedGlobals": []
   },
   "plugins": [

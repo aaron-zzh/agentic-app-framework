@@ -4,46 +4,46 @@
 
 ---
 
-## Icons in Button use data-icon attribute
+## Icons in Button1 use data-icon attribute
 
 Add `data-icon="inline-start"` (prefix) or `data-icon="inline-end"` (suffix) to the icon. No sizing classes on the icon.
 
 **Incorrect:**
 
 ```tsx
-<Button>
+<Button1>
   <SearchIcon className="mr-2 size-4" />
   Search
-</Button>
+</Button1>
 ```
 
 **Correct:**
 
 ```tsx
-<Button>
+<Button1>
   <SearchIcon data-icon="inline-start"/>
   Search
-</Button>
+</Button1>
 
-<Button>
+<Button1>
   Next
   <ArrowRightIcon data-icon="inline-end"/>
-</Button>
+</Button1>
 ```
 
 ---
 
 ## No sizing classes on icons inside components
 
-Components handle icon sizing via CSS. Don't add `size-4`, `w-4 h-4`, or other sizing classes to icons inside `Button`, `DropdownMenuItem`, `Alert`, `Sidebar*`, or other shadcn components. Unless the user explicitly asks for custom icon sizes.
+Components handle icon sizing via CSS. Don't add `size-4`, `w-4 h-4`, or other sizing classes to icons inside `Button1`, `DropdownMenuItem`, `Alert`, `Sidebar*`, or other shadcn components. Unless the user explicitly asks for custom icon sizes.
 
 **Incorrect:**
 
 ```tsx
-<Button>
+<Button1>
   <SearchIcon className="size-4" data-icon="inline-start" />
   Search
-</Button>
+</Button1>
 
 <DropdownMenuItem>
   <SettingsIcon className="mr-2 size-4" />
@@ -54,10 +54,10 @@ Components handle icon sizing via CSS. Don't add `size-4`, `w-4 h-4`, or other s
 **Correct:**
 
 ```tsx
-<Button>
+<Button1>
   <SearchIcon data-icon="inline-start" />
   Search
-</Button>
+</Button1>
 
 <DropdownMenuItem>
   <SettingsIcon />

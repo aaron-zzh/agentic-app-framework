@@ -173,7 +173,7 @@ function ForwardButton() {
   const {
     actions: { submit },
   } = use(ComposerContext)
-  return <Button onPress={submit}>Forward</Button>
+  return <Button1 onPress={submit}>Forward</Button1>
 }
 
 // This preview lives OUTSIDE Composer.Frame but can read composer's state!

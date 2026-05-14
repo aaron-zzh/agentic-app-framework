@@ -94,13 +94,13 @@ npx shadcn@latest add button --dry-run
 npx shadcn@latest add button --diff
 
 # Show the diff for a specific file.
-npx shadcn@latest add button --diff button.tsx
+npx shadcn@latest add button --diff button1.tsx
 
 # Show contents for all files (top 5).
 npx shadcn@latest add button --view
 
 # Show the full content of a specific file.
-npx shadcn@latest add button --view button.tsx
+npx shadcn@latest add button --view button1.tsx
 
 # Works with URLs too.
 npx shadcn@latest add https://api.npoint.io/abc123 --dry-run

@@ -60,19 +60,19 @@ gains:
 
 ### 3.2 样式与 UI 组件
 
-| 用途 | 依赖 | 备注 |
-|------|------|------|
-| 原子化 CSS | tailwindcss v4 | CSS-first 配置（无 JS 配置文件），Rust 引擎，增量构建 5ms |
-| 组件库 | shadcn/ui | Radix UI 原语 + Tailwind 样式，源码复制到项目，零依赖锁定 |
-| 无障碍原语 | @radix-ui/react-* | shadcn/ui 底层，WAI-ARIA 合规 |
-| 类名合并 | tailwind-merge | 智能合并 Tailwind 类名，解决冲突覆盖，`cn()` 工具函数底层 |
-| 条件类名 | clsx | 轻量条件类名拼接，配合 tailwind-merge 组成 `cn()` |
-| 组件变体 | class-variance-authority | 组件 size/variant/color 变体管理，shadcn/ui 核心依赖 |
-| 动画工具类 | tw-animate-css | Tailwind v4 动画工具类，CSS-first 兼容 |
-| 主题切换 | next-themes | 暗色/亮色/系统主题切换，SSR 无闪烁，与 CSS 变量配合 |
-| 图标 | lucide-react | Tree-shakeable SVG 图标 |
-| 颜色系统 | OKLCH | 感知均匀色彩空间，P3 广色域，主题一致性 |
-| 动画 | framer-motion | View Transitions 补充，复杂交互动画 |
+| 用途 | 依赖 | 备注                                           |
+|------|------|----------------------------------------------|
+| 原子化 CSS | tailwindcss v4 | CSS-first 配置（无 JS 配置文件），Rust 引擎，增量构建 5ms     |
+| 组件库 | shadcn/ui | Base UI 原语 + Tailwind 样式，源码复制到项目，零依赖锁定       |
+| 无障碍原语 | @base-ui-components/react | shadcn/ui 底层（Base UI），WAI-ARIA 合规，MUI 团队维护 |
+| 类名合并 | tailwind-merge | 智能合并 Tailwind 类名，解决冲突覆盖，`cn()` 工具函数底层        |
+| 条件类名 | clsx | 轻量条件类名拼接，配合 tailwind-merge 组成 `cn()`         |
+| 组件变体 | class-variance-authority | 组件 size/variant/color 变体管理，shadcn/ui 核心依赖    |
+| 动画工具类 | tw-animate-css | Tailwind v4 动画工具类，CSS-first 兼容               |
+| 主题切换 | next-themes | 暗色/亮色/系统主题切换，SSR 无闪烁，与 CSS 变量配合              |
+| 图标 | lucide-react | Tree-shakeable SVG 图标                        |
+| 颜色系统 | OKLCH | 感知均匀色彩空间，P3 广色域，主题一致性                        |
+| 动画 | framer-motion | View Transitions 补充，复杂交互动画                   |
 | tailwindcss插件| tw-shimmer/tw-glass | 骨架屏/加载 shimmer 效果插件，AI 等待状态、毛玻璃折射效果插件，UI 层次感 |
 
 ### 3.3 状态管理
@@ -186,26 +186,26 @@ gains:
 
 ## 四、关键架构决策
 
-| 决策 | 选择                      | 放弃                              | 理由 |
-|------|-------------------------|---------------------------------|------|
-| 渲染策略 | RSC + PPR（静态壳 + 动态流式）   | 纯 CSR / 纯 SSR                   | 首屏即时 + 个性化内容流式注入，TTFB 降低 60-80% |
-| 路由 | App Router（文件系统）        | Pages Router                    | RSC 原生支持、Layout 嵌套、并行路由、拦截路由 |
-| 构建器 | Turbopack（默认） | Webpack | 5-10x 更快，Rust 引擎，文件系统缓存 |
-| 样式方案 | Tailwind CSS v4 + OKLCH | CSS Modules / styled-components | 零运行时、CSS-first 配置、Rust 引擎极速构建、与 shadcn/ui 生态一致 |
-| 组件库 | shadcn/ui（源码复制）         | Ant Design / MUI / Chakra       | 零依赖锁定、完全可控、Radix 无障碍原语、Tailwind 原生、RSC 友好 |
-| 服务端状态 | TanStack Query + TanStack DB | SWR / Apollo Client         | Query 管数据获取缓存；DB 提供规范化集合 + live queries + 乐观更新 |
-| 客户端状态 | Zustand                 | Redux         | 极简 API、零样板、与 RSC 边界清晰；TanStack DB 覆盖跨组件响应式场景 |
-| GraphQL 客户端 | graphql-request + TanStack Query | urql / Apollo Client / Relay | 统一缓存管理（一套 TanStack 生态）、轻量（3KB）、无独立缓存层冲突 |
-| 富文本编辑器 | Lexical                 | Slate / TipTap / ProseMirror    | Meta 出品、插件架构、AI Tool 可操作节点、React 19 兼容、协同支持 |
+| 决策 | 选择                      | 放弃                              | 理由                                                        |
+|------|-------------------------|---------------------------------|-----------------------------------------------------------|
+| 渲染策略 | RSC + PPR（静态壳 + 动态流式）   | 纯 CSR / 纯 SSR                   | 首屏即时 + 个性化内容流式注入，TTFB 降低 60-80%                           |
+| 路由 | App Router（文件系统）        | Pages Router                    | RSC 原生支持、Layout 嵌套、并行路由、拦截路由                              |
+| 构建器 | Turbopack（默认） | Webpack | 5-10x 更快，Rust 引擎，文件系统缓存                                   |
+| 样式方案 | Tailwind CSS v4 + OKLCH | CSS Modules / styled-components | 零运行时、CSS-first 配置、Rust 引擎极速构建、与 shadcn/ui 生态一致            |
+| 组件库 | shadcn/ui（源码复制）         | Ant Design / MUI / Chakra       | 零依赖锁定、完全可控、BaseUI 无障碍原语、Tailwind 原生、RSC 友好                     |
+| 服务端状态 | TanStack Query + TanStack DB | SWR / Apollo Client         | Query 管数据获取缓存；DB 提供规范化集合 + live queries + 乐观更新            |
+| 客户端状态 | Zustand                 | Redux         | 极简 API、零样板、与 RSC 边界清晰；TanStack DB 覆盖跨组件响应式场景              |
+| GraphQL 客户端 | graphql-request + TanStack Query | urql / Apollo Client / Relay | 统一缓存管理（一套 TanStack 生态）、轻量（3KB）、无独立缓存层冲突                   |
+| 富文本编辑器 | Lexical                 | Slate / TipTap / ProseMirror    | Meta 出品、插件架构、AI Tool 可操作节点、React 19 兼容、协同支持               |
 | Lint + Format | Biome                   | ESLint + Prettier               | 单工具替代两个、Rust 引擎 10-35x 更快、零配置冲突、Next.js 16 移除 `next lint` |
-| URL 状态 | nuqs                    | 手动 searchParams                 | 类型安全、服务端/客户端双向、shallow 更新不触发服务端重渲染 |
-| 流式通信 | SSE（对话） + WebSocket（协作） | 全 WebSocket                     | SSE 语义匹配单向推送、浏览器原生、WebSocket 仅双向协作场景 |
-| AI 对话集成 | assistant-ui（AG-UI 协议） | CopilotKit / Vercel AI SDK 独立使用 | AG-UI 事件模型支持多 Agent/状态同步/人工审批；composable primitives |
-| 命令面板 | cmdk                    | kbar / 自研                       | 轻量（2KB）、无样式锁定、shadcn/ui 官方集成、WAI-ARIA 合规 |
-| 画板引擎 | tldraw（v2.0+）           | Excalidraw          | SDK 设计可嵌入、React 原生、协同内置、形状/连线/文本一体化 |
-| 流程图 | @xyflow/react           | 自研 / mermaid                    | 节点+边声明式 API、拖拽/缩放/布局内置、React 19 兼容、社区活跃 |
-| 图表 | ECharts                 | D3 / Chart.js / Recharts        | 声明式配置适合 React、SSR 支持、图表类型丰富；D3 仅按需引入子模块做力导向等自定义可视化 |
-| 测试框架 | Vitest + Playwright     | Jest + Cypress                  | Vite 原生速度、ESM 原生支持、Playwright 跨浏览器更稳定 |
+| URL 状态 | nuqs                    | 手动 searchParams                 | 类型安全、服务端/客户端双向、shallow 更新不触发服务端重渲染                        |
+| 流式通信 | SSE（对话） + WebSocket（协作） | 全 WebSocket                     | SSE 语义匹配单向推送、浏览器原生、WebSocket 仅双向协作场景                      |
+| AI 对话集成 | assistant-ui（AG-UI 协议） | CopilotKit / Vercel AI SDK 独立使用 | AG-UI 事件模型支持多 Agent/状态同步/人工审批；composable primitives       |
+| 命令面板 | cmdk                    | kbar / 自研                       | 轻量（2KB）、无样式锁定、shadcn/ui 官方集成、WAI-ARIA 合规                  |
+| 画板引擎 | tldraw（v2.0+）           | Excalidraw          | SDK 设计可嵌入、React 原生、协同内置、形状/连线/文本一体化                       |
+| 流程图 | @xyflow/react           | 自研 / mermaid                    | 节点+边声明式 API、拖拽/缩放/布局内置、React 19 兼容、社区活跃                   |
+| 图表 | ECharts                 | D3 / Chart.js / Recharts        | 声明式配置适合 React、SSR 支持、图表类型丰富；D3 仅按需引入子模块做力导向等自定义可视化        |
+| 测试框架 | Vitest + Playwright     | Jest + Cypress                  | Vite 原生速度、ESM 原生支持、Playwright 跨浏览器更稳定                     |
 
 **无代码能力**：前端通过 EntityDef 驱动视图渲染，EntityDef 支持后端动态存储。用户/AI 通过对话或配置界面创建实体 → 后端自动建表 + 注册 API → 前端获取 EntityDef 自动渲染完整 CRUD 界面。全程无需编写前端代码、无需部署。详见 [结构化视图 · AI 生成实体](./interaction-mode-structured-view.md) | [用户自定义字段](../../framework/custom-fields.md)。
 

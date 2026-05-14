@@ -15,7 +15,8 @@
     "file://docs/reference/dev/git/commit-standard.md",
     "file://docs/task/_template/dev-log.md",
     "skill://.kiro/skills/coding-standards/SKILL.md",
-    "skill://docs/reference/team/skills/guard/SKILL.md"
+    "skill://docs/reference/team/skills/guard/SKILL.md",
+    "skill://docs/reference/team/skills/vercel-react-best-practices/SKILL.md"
   ],
   "knowledgeBase": [
     "docs/design/webui"

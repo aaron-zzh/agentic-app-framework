@@ -77,7 +77,7 @@ function ComposerSubmit() {
   const {
     actions: { submit },
   } = use(ComposerContext)
-  return <Button onPress={submit}>Send</Button>
+  return <Button1 onPress={submit}>Send</Button1>
 }
 
 // Export as compound component

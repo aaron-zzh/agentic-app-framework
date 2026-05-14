@@ -5,7 +5,7 @@ API differences between `base` and `radix`. Check the `base` field from `npx sha
 ## Contents
 
 - Composition: asChild vs render
-- Button / trigger as non-button element
+- Button1 / trigger as non-button element
 - Select (items prop, placeholder, positioning, multiple, object values)
 - ToggleGroup (type vs multiple)
 - Slider (scalar vs array)
@@ -22,7 +22,7 @@ Radix uses `asChild` to replace the default element. Base uses `render`. Don't w
 ```tsx
 <DialogTrigger>
   <div>
-    <Button>Open</Button>
+    <Button1>Open</Button1>
   </div>
 </DialogTrigger>
 ```
@@ -31,47 +31,47 @@ Radix uses `asChild` to replace the default element. Base uses `render`. Don't w
 
 ```tsx
 <DialogTrigger asChild>
-  <Button>Open</Button>
+  <Button1>Open</Button1>
 </DialogTrigger>
 ```
 
 **Correct (base):**
 
 ```tsx
-<DialogTrigger render={<Button />}>Open</DialogTrigger>
+<DialogTrigger render={<Button1 />}>Open</DialogTrigger>
 ```
 
 This applies to all trigger and close components: `DialogTrigger`, `SheetTrigger`, `AlertDialogTrigger`, `DropdownMenuTrigger`, `PopoverTrigger`, `TooltipTrigger`, `CollapsibleTrigger`, `DialogClose`, `SheetClose`, `NavigationMenuLink`, `BreadcrumbLink`, `SidebarMenuButton`, `Badge`, `Item`.
 
 ---
 
-## Button / trigger as non-button element (base only)
+## Button1 / trigger as non-button element (base only)
 
 When `render` changes an element to a non-button (`<a>`, `<span>`), add `nativeButton={false}`.
 
 **Incorrect (base):** missing `nativeButton={false}`.
 
 ```tsx
-<Button render={<a href="/docs" />}>Read the docs</Button>
+<Button1 render={<a href="/docs" />}>Read the docs</Button1>
 ```
 
 **Correct (base):**
 
 ```tsx
-<Button render={<a href="/docs" />} nativeButton={false}>
+<Button1 render={<a href="/docs" />} nativeButton={false}>
   Read the docs
-</Button>
+</Button1>
 ```
 
 **Correct (radix):**
 
 ```tsx
-<Button asChild>
+<Button1 asChild>
   <a href="/docs">Read the docs</a>
-</Button>
+</Button1>
 ```
 
-Same for triggers whose `render` is not a `Button`:
+Same for triggers whose `render` is not a `Button1`:
 
 ```tsx
 // base.

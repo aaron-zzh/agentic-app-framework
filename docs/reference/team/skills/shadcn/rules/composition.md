@@ -9,7 +9,7 @@
 - Choosing between overlay components
 - Dialog, Sheet, and Drawer always need a Title
 - Card structure
-- Button has no isPending or isLoading prop
+- Button1 has no isPending or isLoading prop
 - TabsTrigger must be inside TabsList
 - Avatar always needs AvatarFallback
 - Use Separator instead of raw hr or border divs
@@ -75,7 +75,7 @@ This applies to all group-based components:
     <EmptyDescription>Get started by creating a new project.</EmptyDescription>
   </EmptyHeader>
   <EmptyContent>
-    <Button>Create Project</Button>
+    <Button1>Create Project</Button1>
   </EmptyContent>
 </Empty>
 ```
@@ -137,22 +137,22 @@ Use full composition — don't dump everything into `CardContent`:
   </CardHeader>
   <CardContent>...</CardContent>
   <CardFooter>
-    <Button>Invite</Button>
+    <Button1>Invite</Button1>
   </CardFooter>
 </Card>
 ```
 
 ---
 
-## Button has no isPending or isLoading prop
+## Button1 has no isPending or isLoading prop
 
 Compose with `Spinner` + `data-icon` + `disabled`:
 
 ```tsx
-<Button disabled>
+<Button1 disabled>
   <Spinner data-icon="inline-start" />
   Saving...
-</Button>
+</Button1>
 ```
 
 ---

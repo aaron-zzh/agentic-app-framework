@@ -93,30 +93,36 @@ changelog:
 ### 前端并行线（不阻塞后端）
 
 12. ⏳ #18 前端参考调研 + 完整目录结构 — architect + developer-web
-    - 参考 Dify、xueji、ag-ui/ai-sdk
-    - 完善 `apps/webui/` 目录结构 + 基础依赖（TanStack Query + Zustand + ai-sdk）
+    - 参考 Dify、xueji、ag-ui/assistant-ui
+    - 完善 `apps/webui/` 目录结构 + 基础依赖
     - 创建 [docs/design/apps/webui/tech-stack.md](../../../design/apps/webui/tech-stack.md)
     - verify: `pnpm nx run webui:dev` 启动成功
-    - **子任务进度**（2026-05-12）：
+    - **子任务进度**（2026-05-14）：
       - ✅ 前端目录结构设计：[directory-structure.md](../../../design/apps/webui/directory-structure.md)
-      - ✅ CopilotKit Nx monorepo 工程化分析：[copilotkit-nx-monorepo-analysis.md](../../../design/apps/webui/copilotkit-nx-monorepo-analysis.md)
+      - ✅ 前端技术选型：[tech-stack.md](../../../design/apps/webui/tech-stack.md)
+      - ✅ Nx 工程化分析 → 已沉淀到 [Nx Monorepo 最佳实践](../../guide/development/nx-monorepo-best-practices.md)
+      - ✅ namedInputs 精细化 + pnpm.overrides 统一版本（已实施）
       - ⏳ 前端双模式交互设计：
         - [ ] [interaction-modes.md](../../../design/apps/webui/interaction-modes.md)（总体概述 + 模式定位 + 切换策略）
         - [ ] [interaction-mode-structured-view.md](../../../design/apps/webui/interaction-mode-structured-view.md)（结构化视图模式评审定稿）
         - [ ] [interaction-mode-generative.md](../../../design/apps/webui/tmp/interaction-mode-generative.md)（生成式交互模式评审定稿）
       - [ ] 实际创建 `apps/webui/` 完整目录结构（按 directory-structure.md 落地）
-      - [ ] 安装基础依赖（tailwindcss v4 / shadcn/ui / TanStack Query / Zustand / ai-sdk / biome）
-      - [ ] 验证：`pnpm nx run webui:dev` 启动成功
+      - [ ] 安装基础依赖 + 配置：
+        - tailwindcss v4（替换当前 global.css）+ OKLCH 主题变量
+        - shadcn/ui 初始化（`cn()` 工具函数 + 首批组件 button/input/dialog）
+        - TanStack Query + QueryProvider 骨架
+        - Zustand（空 store 占位）
+        - next-themes（ThemeProvider 骨架）
+        - assistant-ui（仅安装，028 后使用）
+      - [ ] Biome 配置（biome.json + Nx lint target 接入）
+      - [ ] 验证：`pnpm nx run webui:dev` 启动成功 + `pnpm nx run webui:check` 全绿
 
-13. [ ] #22 前端测试栈对齐（Vitest + Playwright） — developer-web (依赖: #18)
+13. [ ] #22 前端 E2E 测试栈（Playwright） — developer-web (依赖: #18)
     - 来源：[ADR-001](../../../design/adr/ADR-001-vitest-vs-jest.md)
-    - verify: `pnpm nx run webui:test` + `pnpm nx run webui-e2e:e2e` 跑通
+    - Vitest 单测已在 #18 中就绪，本任务仅补充 Playwright E2E
+    - verify: `pnpm nx run webui-e2e:e2e` 跑通
 
-14. [ ] #25 前端格式化（ESLint + Prettier） — developer-web (依赖: #18)
-    - ESLint 整合 Prettier，IDEA 保存时自动触发
-    - verify: `pnpm format:check` 全绿
-
-15. [ ] #19 UniApp 参考调研 + 完整目录结构 — architect + developer-app
+14. [ ] #19 UniApp 参考调研 + 完整目录结构 — architect + developer-app
     - 参考 kids-app 项目结构
     - 创建 [docs/design/apps/uniapp/tech-stack.md](../../../design/apps/uniapp/tech-stack.md)
     - verify: 目录结构创建完成，`package.json` 就绪

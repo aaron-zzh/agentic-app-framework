@@ -8,8 +8,8 @@
     "check:specs": "node scripts/check-spec-consistency.mjs",
     "acceptance": "nx run-many -t acceptance",
     "acceptance:affected": "nx affected -t acceptance",
-    "format": "nx format:write",
-    "format:check": "nx format:check",
+    "format": "biome check --write",
+    "format:check": "biome check",
     "commitlint": "commitlint --from HEAD~1 --to HEAD",
     "changelog": "nx release --dry-run",
     "release": "nx release"
@@ -19,8 +19,9 @@
     "node": ">=24.0.0",
     "pnpm": ">=11.0.0"
   },
-  "packageManager": "pnpm@11.0.9",
+  "packageManager": "pnpm@11.1.1+sha512.d1fdf5f73c617b64fa1a56a81c3c8dfe0e966e33a6010aa256b517ae77be21d93e05affc0de1a83b0e4f29d569f68b446ae8f068cd7247c0bb3df0fb4d7bdf9a",
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@commitlint/cli": "^21.0.0",
     "@commitlint/config-conventional": "^21.0.0",
     "@nx/js": "22.7.0",
@@ -34,14 +35,21 @@
     "@types/react-dom": "^19.0.0",
     "@typescript/native-preview": "7.0.0-dev.20260511.1",
     "nx": "22.7.0",
-    "prettier": "^3.8.1",
-    "tslib": "^2.3.0",
-    "typescript": "~5.9.2"
+    "tslib": "^2.3.0"
   },
   "dependencies": {
     "next": "^16.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "zod": "^4.4.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "^19.2.5",
+      "react-dom": "^19.2.5",
+      "@types/react": "^19.0.0",
+      "@types/react-dom": "^19.0.0",
+      "typescript": "^6.0.3"
+    }
   }
 }

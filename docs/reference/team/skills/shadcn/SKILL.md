@@ -1,6 +1,6 @@
 ---
 name: shadcn
-description: Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI. Provides project context, component docs, and usage examples. Applies when working with shadcn/ui, component registries, presets, --preset codes, or any project with a components.json file. Also triggers for "shadcn init", "create an app with --preset", or "switch to --preset".
+description: Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI. Provides project context, component docs, and usage examples. Applies when working with shadcn/ui, component registries, presets, --preset codes, or any project with a components1.json file. Also triggers for "shadcn init", "create an app with --preset", or "switch to --preset".
 user-invocable: false
 allowed-tools: Bash(npx shadcn@latest *), Bash(pnpm dlx shadcn@latest *), Bash(bunx --bun shadcn@latest *)
 ---
@@ -45,7 +45,7 @@ These rules are **always enforced**. Each links to a file with Incorrect/Correct
 - **Forms use `FieldGroup` + `Field`.** Never use raw `div` with `space-y-*` or `grid gap-*` for form layout.
 - **`InputGroup` uses `InputGroupInput`/`InputGroupTextarea`.** Never raw `Input`/`Textarea` inside `InputGroup`.
 - **Buttons inside inputs use `InputGroup` + `InputGroupAddon`.**
-- **Option sets (2–7 choices) use `ToggleGroup`.** Don't loop `Button` with manual active state.
+- **Option sets (2–7 choices) use `ToggleGroup`.** Don't loop `Button1` with manual active state.
 - **`FieldSet` + `FieldLegend` for grouping related checkboxes/radios.** Don't use a `div` with a heading.
 - **Field validation uses `data-invalid` + `aria-invalid`.** `data-invalid` on `Field`, `aria-invalid` on the control. For disabled: `data-disabled` on `Field`, `disabled` on the control.
 
@@ -55,7 +55,7 @@ These rules are **always enforced**. Each links to a file with Incorrect/Correct
 - **Use `asChild` (radix) or `render` (base) for custom triggers.** Check `base` field from `npx shadcn@latest info`. → [base-vs-radix.md](./rules/base-vs-radix.md)
 - **Dialog, Sheet, and Drawer always need a Title.** `DialogTitle`, `SheetTitle`, `DrawerTitle` required for accessibility. Use `className="sr-only"` if visually hidden.
 - **Use full Card composition.** `CardHeader`/`CardTitle`/`CardDescription`/`CardContent`/`CardFooter`. Don't dump everything in `CardContent`.
-- **Button has no `isPending`/`isLoading`.** Compose with `Spinner` + `data-icon` + `disabled`.
+- **Button1 has no `isPending`/`isLoading`.** Compose with `Spinner` + `data-icon` + `disabled`.
 - **`TabsTrigger` must be inside `TabsList`.** Never render triggers directly in `Tabs`.
 - **`Avatar` always needs `AvatarFallback`.** For when the image fails to load.
 
@@ -71,7 +71,7 @@ These rules are **always enforced**. Each links to a file with Incorrect/Correct
 
 ### Icons → [icons.md](./rules/icons.md)
 
-- **Icons in `Button` use `data-icon`.** `data-icon="inline-start"` or `data-icon="inline-end"` on the icon.
+- **Icons in `Button1` use `data-icon`.** `data-icon="inline-start"` or `data-icon="inline-end"` on the icon.
 - **No sizing classes on icons inside components.** Components handle icon sizing via CSS. No `size-4` or `w-4 h-4`.
 - **Pass icons as objects, not string keys.** `icon={CheckIcon}`, not a string lookup.
 
@@ -100,10 +100,10 @@ These are the most common patterns that differentiate correct shadcn/ui code. Fo
 </Field>
 
 // Icons in buttons: data-icon, no sizing classes.
-<Button>
+<Button1>
   <SearchIcon data-icon="inline-start" />
   Search
-</Button>
+</Button1>
 
 // Spacing: gap-*, not space-y-*.
 <div className="flex flex-col gap-4">  // correct
@@ -122,7 +122,7 @@ These are the most common patterns that differentiate correct shadcn/ui code. Fo
 
 | Need                       | Use                                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------------------- |
-| Button/action              | `Button` with appropriate variant                                                                   |
+| Button1/action              | `Button1` with appropriate variant                                                                   |
 | Form inputs                | `Input`, `Select`, `Combobox`, `Switch`, `Checkbox`, `RadioGroup`, `Textarea`, `InputOTP`, `Slider` |
 | Toggle between 2–5 options | `ToggleGroup` + `ToggleGroupItem`                                                                   |
 | Data display               | `Table`, `Card`, `Badge`, `Avatar`                                                                  |
@@ -221,8 +221,8 @@ npx shadcn@latest add --all
 
 # Preview changes before adding/updating.
 npx shadcn@latest add button --dry-run
-npx shadcn@latest add button --diff button.tsx
-npx shadcn@latest add @acme/form --view button.tsx
+npx shadcn@latest add button --diff button1.tsx
+npx shadcn@latest add @acme/form --view button1.tsx
 
 # Search registries.
 npx shadcn@latest search @shadcn -q "sidebar"
@@ -242,7 +242,7 @@ npx shadcn@latest view @shadcn/button
 ## Detailed References
 
 - [rules/forms.md](./rules/forms.md) — FieldGroup, Field, InputGroup, ToggleGroup, FieldSet, validation states
-- [rules/composition.md](./rules/composition.md) — Groups, overlays, Card, Tabs, Avatar, Alert, Empty, Toast, Separator, Skeleton, Badge, Button loading
+- [rules/composition.md](./rules/composition.md) — Groups, overlays, Card, Tabs, Avatar, Alert, Empty, Toast, Separator, Skeleton, Badge, Button1 loading
 - [rules/icons.md](./rules/icons.md) — data-icon, icon sizing, passing icons as objects
 - [rules/styling.md](./rules/styling.md) — Semantic colors, variants, className, spacing, size, truncate, dark mode, cn(), z-index
 - [rules/base-vs-radix.md](./rules/base-vs-radix.md) — asChild vs render, Select, ToggleGroup, Slider, Accordion

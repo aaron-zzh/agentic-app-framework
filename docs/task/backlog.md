@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-034**，新一级用户故事从 AAF-035 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-035**，新一级用户故事从 AAF-036 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.1.0）
 
@@ -32,6 +32,7 @@
 ## 待排期
 
 - [ ] AAF-027 (创建: 05-10) LLM 调用录制与回放（测试基础设施：拦截 LLM API 请求录制为 JSON，测试时回放，避免真实调用，保证确定性 + 降低成本）参考：Mastra `_llm-recorder`、WireMock、Spring AI MockChatModel
+- [ ] AAF-035 (创建: 05-14) Nx 工程化持续优化（lefthook 迁移 + enforce-module-boundaries + publint/attw + 共享 tsconfig 包 + Changeset 版本管理）(依赖: AAF-028 packages/ 落地后)
 
 ## 已完成
 

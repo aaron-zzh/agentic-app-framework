@@ -123,4 +123,11 @@ author: AaronZZH
     - TanStack Query isLoading/isFetching 状态集成
     - verify: 首次加载显示骨架屏，数据到达后切换为真实内容
 
+### 工程化
+
+15. [ ] #15 targetDefaults 统一配置 — developer-web (依赖: #1)
+    - 在 nx.json 添加 `targetDefaults`：build（`^build` + production inputs）、test（test inputs）、typecheck（`^build`）
+    - 各 project.json 中移除与 targetDefaults 重复的 inputs/outputs/dependsOn
+    - verify: `pnpm check:affected` 全绿，缓存行为不变
+
 <!-- 状态标记：[ ] 待开始 | ⏳ 进行中 | ✅ 已完成 -->

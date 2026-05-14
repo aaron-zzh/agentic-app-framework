@@ -114,7 +114,7 @@ app/(workspace)/workflow/[flowId]/
 | 复用范围 | 全局 | 跨业务域 | 单一业务域 |
 | 状态管理 | props only | 内部 store + 对外 API | 依赖 lib/ |
 | 商业化控制 | 不控制 | 部分能力按插件门控 | 整体按插件门控 |
-| 例子 | Button, Dialog | FlowEditor, RichTextEditor | ChatPage, WorkflowPage |
+| 例子 | Button1, Dialog | FlowEditor, RichTextEditor | ChatPage, WorkflowPage |
 
 
 ---

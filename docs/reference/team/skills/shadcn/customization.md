@@ -147,9 +147,9 @@ Prefer these approaches in order:
 ### 1. Built-in variants
 
 ```tsx
-<Button variant="outline" size="sm">
+<Button1 variant="outline" size="sm">
   Click
-</Button>
+</Button1>
 ```
 
 ### 2. Tailwind classes via `className`
@@ -163,7 +163,7 @@ Prefer these approaches in order:
 Edit the component source to add a variant via `cva`:
 
 ```tsx
-// components/ui/button.tsx
+// components/ui/button1.tsx
 warning: "bg-warning text-warning-foreground hover:bg-warning/90",
 ```
 
@@ -203,7 +203,7 @@ To preview exactly what would change before updating, use `--dry-run` and `--dif
 
 ```bash
 npx shadcn@latest add button --dry-run        # see all affected files
-npx shadcn@latest add button --diff button.tsx # see the diff for a specific file
+npx shadcn@latest add button --diff button1.tsx # see the diff for a specific file
 ```
 
 See [Updating Components in SKILL.md](./SKILL.md#updating-components) for the full smart merge workflow.

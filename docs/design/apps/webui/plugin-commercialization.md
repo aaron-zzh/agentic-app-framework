@@ -160,7 +160,7 @@ function UpgradeHint({ plugin }: { plugin: string }) {
       <Lock className="size-12 text-muted-foreground" />
       <h3>{def.name}</h3>
       <p className="text-muted-foreground">{def.description}</p>
-      <Button>升级到 {def.tier} 解锁</Button>
+      <Button1>升级到 {def.tier} 解锁</Button1>
     </div>
   )
 }

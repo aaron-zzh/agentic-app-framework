@@ -7,11 +7,11 @@
       "command": "next build",
       "options": { "cwd": "apps/webui" },
       "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/next.config.js", "{projectRoot}/tsconfig.json"],
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/next.config.ts", "{projectRoot}/tsconfig.json", "{projectRoot}/postcss.config.mjs"],
       "outputs": ["{projectRoot}/.next"]
     },
     "dev": {
-      "command": "next dev",
+      "command": "next dev --turbopack",
       "options": { "cwd": "apps/webui" },
       "continuous": true
     },
@@ -27,6 +27,12 @@
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/next-env.d.ts"],
       "description": "TypeScript 类型检查（native preview）"
     },
+    "lint": {
+      "command": "biome check apps/webui/src",
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{workspaceRoot}/biome.json"],
+      "description": "Biome lint + format 检查"
+    },
     "test": {
       "command": "vitest run --passWithNoTests",
       "options": { "cwd": "apps/webui" },
@@ -41,9 +47,9 @@
       "description": "tester 验收 / E2E（*.accept.test.ts(x) 或 Playwright，视未来引入的工具）"
     },
     "check": {
-      "dependsOn": ["typecheck", "test", "build"],
+      "dependsOn": ["lint", "typecheck", "test", "build"],
       "executor": "nx:noop",
-      "description": "developer 完工自验证：typecheck + 单测 + build（eslint 待引入后加入）"
+      "description": "developer 完工自验证：lint + typecheck + 单测 + build"
     }
   }
 }

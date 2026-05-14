@@ -236,7 +236,7 @@ AAF 后端 Maven 模块依赖方向（详见 [architecture-constraints.md](docs/
 - 上下文使用率不得超过 50%
 - 规范文档（`docs/reference/`）只能由协调者修改
 - 一个知识点一份文档；发现重复记录到 [改进意见](docs/prd/improvements.md)
-- 开发记录：第一次迭代（v0.1.0）前期暂不记录开发记录，从下次迭代开始记录
+- 开发记录：v0.1.0 采用轻量模式——每完成一个任务在 `dev-log.md` 中记录一行：`- ✅ #N 标题 — 一句话核心点（日期）`。从 v0.2.0 开始使用完整格式
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

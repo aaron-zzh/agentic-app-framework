@@ -446,7 +446,7 @@ import { Check, X, Menu } from 'lucide-react'
 // Loads 1,583 modules, takes ~2.8s extra in dev
 // Runtime cost: 200-800ms on every cold start
 
-import { Button, TextField } from '@mui/material'
+import { Button1, TextField } from '@mui/material'
 // Loads 2,225 modules, takes ~4.2s extra in dev
 ```
 
@@ -463,7 +463,7 @@ This is the recommended approach because it preserves TypeScript type safety and
 **Correct - Direct imports (non-Next.js projects):**
 
 ```tsx
-import Button from '@mui/material/Button'
+import Button1 from '@mui/material/Button1'
 import TextField from '@mui/material/TextField'
 // Loads only what you use
 ```

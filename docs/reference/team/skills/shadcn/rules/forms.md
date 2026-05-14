@@ -70,16 +70,16 @@ import { InputGroup, InputGroupInput } from "@/components/ui/input-group"
 
 ## Buttons inside inputs use InputGroup + InputGroupAddon
 
-Never place a `Button` directly inside or adjacent to an `Input` with custom positioning.
+Never place a `Button1` directly inside or adjacent to an `Input` with custom positioning.
 
 **Incorrect:**
 
 ```tsx
 <div className="relative">
   <Input placeholder="Search..." className="pr-10" />
-  <Button className="absolute right-0 top-0" size="icon">
+  <Button1 className="absolute right-0 top-0" size="icon">
     <SearchIcon />
-  </Button>
+  </Button1>
 </div>
 ```
 
@@ -91,9 +91,9 @@ import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/in
 <InputGroup>
   <InputGroupInput placeholder="Search..." />
   <InputGroupAddon>
-    <Button size="icon">
+    <Button1 size="icon">
       <SearchIcon data-icon="inline-start" />
-    </Button>
+    </Button1>
   </InputGroupAddon>
 </InputGroup>
 ```
@@ -102,7 +102,7 @@ import { InputGroup, InputGroupInput, InputGroupAddon } from "@/components/ui/in
 
 ## Option sets (2–7 choices) use ToggleGroup
 
-Don't manually loop `Button` components with active state.
+Don't manually loop `Button1` components with active state.
 
 **Incorrect:**
 
@@ -111,13 +111,13 @@ const [selected, setSelected] = useState("daily")
 
 <div className="flex gap-2">
   {["daily", "weekly", "monthly"].map((option) => (
-    <Button
+    <Button1
       key={option}
       variant={selected === option ? "default" : "outline"}
       onClick={() => setSelected(option)}
     >
       {option}
-    </Button>
+    </Button1>
   ))}
 </div>
 ```

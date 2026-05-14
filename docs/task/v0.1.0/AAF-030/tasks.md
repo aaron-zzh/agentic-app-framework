@@ -128,7 +128,7 @@ author: AaronZZH
     - 每步独立校验，[上一步] [下一步/完成]
     - verify: 三步向导流程正确执行
 
-16. [ ] #16 Smart Button — developer-web (依赖: AAF-029 #1)
+16. [ ] #16 Smart Button1 — developer-web (依赖: AAF-029 #1)
     - 从 `entity.smartButtons` 配置读取
     - 后端返回计数字段 → 渲染为 FormHeader 下方按钮
     - 点击跳转到关联实体列表（带筛选条件）
