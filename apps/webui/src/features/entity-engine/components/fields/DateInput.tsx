@@ -11,16 +11,21 @@ export function DateInput({ name, value, onChange, error, disabled, field }: Fie
   const dateField = field as DateField
   return (
     <div className="space-y-1">
-      {field.label && <label className="text-sm font-medium">{field.label}</label>}
+      {field.label && (
+        <label htmlFor={name} className="font-medium text-sm">
+          {field.label}
+        </label>
+      )}
       <Input
         type={dateField.includeTime ? "datetime-local" : "date"}
+        id={name}
         name={name}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         aria-invalid={!!error}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-xs">{error}</p>}
     </div>
   )
 }

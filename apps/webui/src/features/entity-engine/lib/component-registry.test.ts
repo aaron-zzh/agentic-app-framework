@@ -9,7 +9,7 @@ import {
   registerBatchAction,
   registerCellType,
   registerFieldType,
-  registerViewType,
+  registerViewType
 } from "./component-registry"
 
 describe("componentRegistry", () => {
@@ -45,7 +45,7 @@ describe("componentRegistry", () => {
     registerBatchAction({
       key: "archive",
       label: "归档",
-      handler: async () => {},
+      handler: async () => {}
     })
     const actions = getBatchActions()
     expect(actions).toHaveLength(1)
@@ -57,7 +57,7 @@ describe("componentRegistry", () => {
       key: "sendEmail",
       label: "发送邮件",
       handler: async () => {},
-      visibleFor: ["contact"],
+      visibleFor: ["contact"]
     })
     expect(getBatchActions("contact")).toHaveLength(1)
     expect(getBatchActions("task")).toHaveLength(0)

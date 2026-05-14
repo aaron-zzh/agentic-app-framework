@@ -12,7 +12,12 @@ import { CheckboxInput } from "./CheckboxInput"
 import { SelectInput } from "./SelectInput"
 import { TextInput } from "./TextInput"
 
-const textField: TextField = { type: "text", name: "title", label: "标题", placeholder: "请输入标题" }
+const textField: TextField = {
+  type: "text",
+  name: "title",
+  label: "标题",
+  placeholder: "请输入标题"
+}
 
 describe("TextInput", () => {
   it("渲染标签和输入框", () => {
@@ -63,8 +68,8 @@ describe("SelectInput", () => {
     label: "状态",
     options: [
       { label: "草稿", value: "draft" },
-      { label: "已发布", value: "published" },
-    ],
+      { label: "已发布", value: "published" }
+    ]
   }
 
   it("渲染选项", () => {

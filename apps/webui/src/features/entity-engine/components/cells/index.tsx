@@ -23,7 +23,7 @@ export function BadgeCell({ value, field }: CellProps<string>) {
   const option = selectField.options?.find((o) => o.value === value)
   if (!option) return <span className="text-muted-foreground">—</span>
   return (
-    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground">
+    <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground text-xs">
       {option.label}
     </span>
   )

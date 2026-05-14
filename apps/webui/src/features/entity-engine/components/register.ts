@@ -12,7 +12,14 @@
 import { registerCellType, registerFieldType } from "../lib/component-registry"
 
 import { BadgeCell, CheckCell, DateCell, TextCell } from "./cells"
-import { CheckboxInput, DateInput, NumberInput, SelectInput, TextareaInput, TextInput } from "./fields"
+import {
+  CheckboxInput,
+  DateInput,
+  NumberInput,
+  SelectInput,
+  TextareaInput,
+  TextInput
+} from "./fields"
 
 export function registerDefaultComponents(): void {
   // 表单字段组件

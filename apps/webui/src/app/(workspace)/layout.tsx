@@ -12,7 +12,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen">
       <aside className="w-60 border-r bg-sidebar p-4">
-        <div className="text-sm font-medium text-sidebar-foreground">AAF</div>
+        <div className="font-medium text-sidebar-foreground text-sm">AAF</div>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>
     </div>

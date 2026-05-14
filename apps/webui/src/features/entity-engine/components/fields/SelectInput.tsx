@@ -9,8 +9,13 @@ export function SelectInput({ name, value, onChange, error, disabled, field }: F
   const selectField = field as SelectField
   return (
     <div className="space-y-1">
-      {field.label && <label className="text-sm font-medium">{field.label}</label>}
+      {field.label && (
+        <label htmlFor={name} className="font-medium text-sm">
+          {field.label}
+        </label>
+      )}
       <select
+        id={name}
         name={name}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
@@ -25,7 +30,7 @@ export function SelectInput({ name, value, onChange, error, disabled, field }: F
           </option>
         ))}
       </select>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-xs">{error}</p>}
     </div>
   )
 }

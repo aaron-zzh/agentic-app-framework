@@ -24,9 +24,9 @@ import type { ComponentType } from "react"
 
 import type { CellProps, FieldProps } from "../types"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 注册表需要接受任意泛型的组件
+// biome-ignore lint/suspicious/noExplicitAny: 注册表需要接受任意泛型的组件
 type AnyFieldComponent = ComponentType<FieldProps<any>>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: 注册表需要接受任意泛型的组件
 type AnyCellComponent = ComponentType<CellProps<any>>
 
 /** 表单字段组件映射：字段 type → React 组件 */

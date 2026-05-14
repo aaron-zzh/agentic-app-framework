@@ -12,9 +12,8 @@
 
 "use client"
 
-import type { EntityDef } from "../types"
-
 import { getViewComponent } from "../lib/component-registry"
+import type { EntityDef } from "../types"
 import { ListView } from "./views/ListView"
 
 /** 支持的视图类型 */
@@ -63,10 +62,18 @@ export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps)
 }
 
 /** 视图占位组件（后续被 ListView/KanbanView/FormView 替换） */
-function ViewPlaceholder({ entity, view, recordId }: { entity: EntityDef; view: string; recordId?: string }) {
+function ViewPlaceholder({
+  entity,
+  view,
+  recordId
+}: {
+  entity: EntityDef
+  view: string
+  recordId?: string
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 p-8 text-muted-foreground">
-      <p className="text-lg font-medium">{entity.label}</p>
+      <p className="font-medium text-lg">{entity.label}</p>
       <p className="text-sm">
         视图：{view}
         {recordId && ` | 记录：${recordId}`}

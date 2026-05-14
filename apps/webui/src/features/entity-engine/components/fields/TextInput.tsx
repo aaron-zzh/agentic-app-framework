@@ -10,8 +10,13 @@ import type { FieldProps } from "../../types"
 export function TextInput({ name, value, onChange, error, disabled, field }: FieldProps<string>) {
   return (
     <div className="space-y-1">
-      {field.label && <label className="text-sm font-medium">{field.label}</label>}
+      {field.label && (
+        <label htmlFor={name} className="font-medium text-sm">
+          {field.label}
+        </label>
+      )}
       <Input
+        id={name}
         name={name}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
@@ -19,7 +24,7 @@ export function TextInput({ name, value, onChange, error, disabled, field }: Fie
         disabled={disabled}
         aria-invalid={!!error}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-xs">{error}</p>}
     </div>
   )
 }

@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest"
-
-import type { EntityDef, FieldDef } from "../types"
-
 import { resolveExtends, resolveMixins } from "../lib"
+import type { EntityDef, FieldDef } from "../types"
 
 /** 从 fields 中提取所有字段名 */
 function fieldNames(fields: FieldDef[]): string[] {
@@ -15,10 +13,10 @@ const baseEntity: EntityDef = {
   apiPath: "/api/tasks",
   fields: [
     { type: "text", name: "title", required: true },
-    { type: "select", name: "status", options: [{ label: "待办", value: "todo" }] },
+    { type: "select", name: "status", options: [{ label: "待办", value: "todo" }] }
   ],
   listView: { columns: ["title", "status"] },
-  mixins: ["timestamp", "audit"],
+  mixins: ["timestamp", "audit"]
 }
 
 describe("resolveMixins", () => {
@@ -35,10 +33,7 @@ describe("resolveMixins", () => {
   it("同名字段自身覆盖 mixin", () => {
     const entity: EntityDef = {
       ...baseEntity,
-      fields: [
-        ...baseEntity.fields,
-        { type: "date", name: "createTime", label: "自定义创建时间" },
-      ],
+      fields: [...baseEntity.fields, { type: "date", name: "createTime", label: "自定义创建时间" }]
     }
     const resolved = resolveMixins(entity)
     const createTimeFields = resolved.fields.filter(
@@ -66,10 +61,10 @@ describe("resolveExtends", () => {
     apiPath: "/api/base-docs",
     fields: [
       { type: "text", name: "title", required: true },
-      { type: "date", name: "publishedAt" },
+      { type: "date", name: "publishedAt" }
     ],
     listView: { columns: ["title", "publishedAt"], defaultSort: "publishedAt:desc" },
-    formView: { autosave: { enabled: true, debounceMs: 2000 } },
+    formView: { autosave: { enabled: true, debounceMs: 2000 } }
   }
 
   const childEntity: EntityDef = {
@@ -79,9 +74,9 @@ describe("resolveExtends", () => {
     extends: "base-doc",
     fields: [
       { type: "richText", name: "content" },
-      { type: "text", name: "title", label: "文章标题" },
+      { type: "text", name: "title", label: "文章标题" }
     ],
-    listView: { columns: ["title", "content"] },
+    listView: { columns: ["title", "content"] }
   }
 
   const getParent = (slug: string) => (slug === "base-doc" ? parentEntity : undefined)

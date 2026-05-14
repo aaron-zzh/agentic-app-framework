@@ -13,13 +13,16 @@
     "file://docs/reference/dev/apps/webui/coding-standard.md",
     "file://docs/reference/dev/test/unit-test-standard.md",
     "file://docs/reference/dev/git/commit-standard.md",
+    "file://docs/design/apps/webui/tech-stack.md",
+    "file://docs/design/apps/webui/directory-structure.md",
+    "file://docs/design/apps/webui/interaction-mode-structured-view.md",
     "file://docs/task/_template/dev-log.md",
     "skill://.kiro/skills/coding-standards/SKILL.md",
     "skill://docs/reference/team/skills/guard/SKILL.md",
     "skill://docs/reference/team/skills/vercel-react-best-practices/SKILL.md"
   ],
   "knowledgeBase": [
-    "docs/design/webui"
+    "docs/design/apps/webui"
   ],
   "hooks": {
     "stop": [{ "command": "node .kiro/hooks/log-output.js developer-web" }]

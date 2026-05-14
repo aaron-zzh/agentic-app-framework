@@ -22,24 +22,24 @@ export const documentEntity: EntityDef = {
       options: [
         { label: "草稿", value: "draft", color: "gray" },
         { label: "已发布", value: "published", color: "green" },
-        { label: "已归档", value: "archived", color: "orange" },
-      ],
+        { label: "已归档", value: "archived", color: "orange" }
+      ]
     },
     { type: "relationship", name: "author", label: "作者", relationTo: "user" },
-    { type: "richText", name: "content", label: "内容" },
+    { type: "richText", name: "content", label: "内容" }
   ],
   listView: {
     columns: ["title", "status", "author", "updateTime"],
     defaultSort: "updateTime:desc",
     searchableFields: ["title", "content"],
     filterableFields: ["status", "author"],
-    batchActions: ["delete", "archive"],
+    batchActions: ["delete", "archive"]
   },
   kanbanView: { statusField: "status", cardTitle: "title" },
   formView: {
-    autosave: { enabled: true, debounceMs: 2000 },
+    autosave: { enabled: true, debounceMs: 2000 }
   },
-  mixins: ["baseEntity"],
+  mixins: ["baseEntity"]
 }
 
 /** 用户实体 */
@@ -61,18 +61,18 @@ export const userEntity: EntityDef = {
       label: "状态",
       options: [
         { label: "正常", value: "active", color: "green" },
-        { label: "禁用", value: "disabled", color: "red" },
-      ],
-    },
+        { label: "禁用", value: "disabled", color: "red" }
+      ]
+    }
   ],
   listView: {
     columns: ["username", "nickname", "email", "status", "createTime"],
     defaultSort: "createTime:desc",
     searchableFields: ["username", "nickname", "email"],
     filterableFields: ["status"],
-    batchActions: ["delete"],
+    batchActions: ["delete"]
   },
-  mixins: ["baseEntity"],
+  mixins: ["baseEntity"]
 }
 
 /** 任务实体 */
@@ -93,8 +93,8 @@ export const taskEntity: EntityDef = {
       options: [
         { label: "待办", value: "todo", color: "gray" },
         { label: "进行中", value: "in_progress", color: "blue" },
-        { label: "已完成", value: "done", color: "green" },
-      ],
+        { label: "已完成", value: "done", color: "green" }
+      ]
     },
     {
       type: "select",
@@ -103,21 +103,21 @@ export const taskEntity: EntityDef = {
       options: [
         { label: "低", value: "low", color: "gray" },
         { label: "中", value: "medium", color: "orange" },
-        { label: "高", value: "high", color: "red" },
-      ],
+        { label: "高", value: "high", color: "red" }
+      ]
     },
     { type: "relationship", name: "assignee", label: "负责人", relationTo: "user" },
-    { type: "date", name: "dueDate", label: "截止日期" },
+    { type: "date", name: "dueDate", label: "截止日期" }
   ],
   listView: {
     columns: ["title", "status", "priority", "assignee", "dueDate"],
     defaultSort: "createTime:desc",
     searchableFields: ["title", "description"],
     filterableFields: ["status", "priority", "assignee"],
-    batchActions: ["delete"],
+    batchActions: ["delete"]
   },
   kanbanView: { statusField: "status", cardTitle: "title", cardDescription: "description" },
-  mixins: ["baseEntity"],
+  mixins: ["baseEntity"]
 }
 
 /** 所有示例实体 */

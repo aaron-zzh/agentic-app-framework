@@ -44,7 +44,7 @@ export function resolveMixins(
   // 只追加自身没有的 Mixin 字段
   const mergedFields = [
     ...def.fields,
-    ...mixinFields.filter((f) => "name" in f && !ownFieldNames.has((f as { name: string }).name)),
+    ...mixinFields.filter((f) => "name" in f && !ownFieldNames.has((f as { name: string }).name))
   ]
 
   return { ...def, fields: mergedFields }
@@ -92,6 +92,6 @@ export function resolveExtends(
     listView: { ...parent.listView, ...def.listView },
     formView: def.formView ?? parent.formView,
     kanbanView: def.kanbanView ?? parent.kanbanView,
-    access: def.access ?? parent.access,
+    access: def.access ?? parent.access
   }
 }

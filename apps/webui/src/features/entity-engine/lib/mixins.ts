@@ -16,8 +16,8 @@ export const TimestampMixin: MixinDef = {
   name: "timestamp",
   fields: [
     { type: "date", name: "createTime", label: "创建时间", readOnly: true, includeTime: true },
-    { type: "date", name: "updateTime", label: "更新时间", readOnly: true, includeTime: true },
-  ],
+    { type: "date", name: "updateTime", label: "更新时间", readOnly: true, includeTime: true }
+  ]
 }
 
 /** 审计 Mixin（createBy / updateBy） */
@@ -25,8 +25,8 @@ export const AuditMixin: MixinDef = {
   name: "audit",
   fields: [
     { type: "relationship", name: "createBy", label: "创建人", relationTo: "user", readOnly: true },
-    { type: "relationship", name: "updateBy", label: "更新人", relationTo: "user", readOnly: true },
-  ],
+    { type: "relationship", name: "updateBy", label: "更新人", relationTo: "user", readOnly: true }
+  ]
 }
 
 /** 软删除 Mixin（deleted / deleteTime） */
@@ -34,24 +34,28 @@ export const SoftDeleteMixin: MixinDef = {
   name: "softDelete",
   fields: [
     { type: "checkbox", name: "deleted", label: "已删除", hidden: true, defaultValue: false },
-    { type: "date", name: "deleteTime", label: "删除时间", hidden: true, includeTime: true },
-  ],
+    { type: "date", name: "deleteTime", label: "删除时间", hidden: true, includeTime: true }
+  ]
 }
 
 /** 多租户 Mixin（orgId） */
 export const OrgMixin: MixinDef = {
   name: "org",
   fields: [
-    { type: "relationship", name: "orgId", label: "所属组织", relationTo: "organization", hidden: true },
-  ],
+    {
+      type: "relationship",
+      name: "orgId",
+      label: "所属组织",
+      relationTo: "organization",
+      hidden: true
+    }
+  ]
 }
 
 /** 备注 Mixin（remark） */
 export const RemarkMixin: MixinDef = {
   name: "remark",
-  fields: [
-    { type: "textarea", name: "remark", label: "备注" },
-  ],
+  fields: [{ type: "textarea", name: "remark", label: "备注" }]
 }
 
 /**
@@ -64,8 +68,8 @@ export const BaseEntityMixin: MixinDef = {
     ...TimestampMixin.fields,
     ...AuditMixin.fields,
     ...SoftDeleteMixin.fields,
-    ...RemarkMixin.fields,
-  ],
+    ...RemarkMixin.fields
+  ]
 }
 
 /** 内置 Mixin 注册表 */
@@ -75,5 +79,5 @@ export const builtinMixins: Record<string, MixinDef> = {
   softDelete: SoftDeleteMixin,
   org: OrgMixin,
   remark: RemarkMixin,
-  baseEntity: BaseEntityMixin,
+  baseEntity: BaseEntityMixin
 }

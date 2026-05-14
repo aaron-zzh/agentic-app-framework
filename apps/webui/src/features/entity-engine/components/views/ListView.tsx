@@ -10,9 +10,8 @@
 
 "use client"
 
-import type { DataFieldDef, EntityDef } from "../../types"
-
 import { getCellComponent } from "../../lib/component-registry"
+import type { DataFieldDef, EntityDef } from "../../types"
 
 interface ListViewProps {
   entity: EntityDef
@@ -47,7 +46,10 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
         <thead className="border-b">
           <tr>
             {columns.map((col) => (
-              <th key={col.name} className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+              <th
+                key={col.name}
+                className="h-10 px-4 text-left align-middle font-medium text-muted-foreground"
+              >
                 {col.field.label ?? col.name}
               </th>
             ))}
@@ -55,7 +57,10 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
         </thead>
         <tbody>
           {data.map((record, i) => (
-            <tr key={(record.id as string) ?? i} className="border-b transition-colors hover:bg-muted/50">
+            <tr
+              key={(record.id as string) ?? i}
+              className="border-b transition-colors hover:bg-muted/50"
+            >
               {columns.map((col) => {
                 const Cell = getCellComponent(col.field.type)
                 const value = record[col.name]
@@ -82,8 +87,10 @@ function ListSkeleton({ columns, rows = 5 }: { columns: number; rows?: number })
   return (
     <div className="w-full space-y-2 p-4">
       {Array.from({ length: rows }).map((_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
         <div key={i} className="flex gap-4">
           {Array.from({ length: columns }).map((_, j) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
             <div key={j} className="h-8 flex-1 animate-pulse rounded bg-muted" />
           ))}
         </div>
