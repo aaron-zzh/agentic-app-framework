@@ -39,7 +39,7 @@ author: AaronZZH
    - 导出 `getEntityDef(slug)` / `getAllEntities()` / `getEntitiesByGroup()`
    - verify: 注册 2-3 个示例实体（document/user/task），查找正确
 
-4. [ ] #35 组件注册表（Component Registry） — developer-web (依赖: #32)
+4. ✅ #35 组件注册表（Component Registry） — developer-web (依赖: #32)
    - 实现 `fieldComponents` 映射：字段类型 → 表单组件
    - 实现 `cellComponents` 映射：字段类型 → 列表单元格组件
    - 支持 `registerFieldType()` / `registerViewType()` / `registerBatchAction()` 扩展 API

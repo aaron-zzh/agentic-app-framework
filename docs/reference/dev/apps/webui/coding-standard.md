@@ -119,6 +119,8 @@ source.onerror = () => source.close()
 - TypeScript 类型必须显式，禁 `any` / 禁 `@ts-ignore`（特殊情况加注释解释）
 - **文件级注释**：每个模块文件顶部加 JSDoc，说明用途 + `@author`
 - **导出函数/类**：一句话说明，复杂逻辑加用法示例
+- **公共 API 文件**（注册表、工具函数、Provider 等被多处消费的模块）：文件头注释必须包含用法示例（`@example` 或代码块）
+- **设计文档不全或代码逻辑复杂时**：在对应用户故事目录（如 `docs/task/v0.1.0/AAF-028/`）或 `dev-log.md` 中补充说明，确保后续维护者能理解决策背景
 - **不加** `@since` / `@version`（用 git blame 追溯）
 
 ```ts
