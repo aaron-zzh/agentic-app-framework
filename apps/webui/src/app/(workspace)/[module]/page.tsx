@@ -3,10 +3,12 @@
  * @author AaronZZH & Kiro
  */
 
+import { Suspense } from "react"
 import { notFound } from "next/navigation"
 
 import { entityRegistry } from "@/features/entity-engine"
 import { ViewEngine } from "@/features/entity-engine/components"
+import { Toolbar } from "@/sections/layout/Toolbar"
 
 interface PageProps {
   params: Promise<{ module: string }>
@@ -20,5 +22,14 @@ export default async function ModulePage({ params, searchParams }: PageProps) {
   const entity = entityRegistry.get(module)
   if (!entity) return notFound()
 
-  return <ViewEngine entity={entity} view={view} />
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <Suspense>
+        <Toolbar entity={entity} />
+      </Suspense>
+      <div className="flex-1 overflow-auto">
+        <ViewEngine entity={entity} view={view} />
+      </div>
+    </div>
+  )
 }
