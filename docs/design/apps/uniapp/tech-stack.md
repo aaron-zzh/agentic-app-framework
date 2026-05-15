@@ -28,7 +28,7 @@ gains:
 | 语言 | Vue 3 + TypeScript | Vue ~3.4 / TS ~5.5 | `<script setup>` Composition API，严格模式 |
 | 构建工具 | Vite | ^5 | 与 webui 统一，HMR 极速 |
 | 脚手架基础 | wot-starter | latest | wot-design-uni 官方模板，开箱即用 |
-| UI 组件库 | wot-design-uni | ^1.14（→ v2） | 真正 Vue 3 Composition API，AI 友好 |
+| UI 组件库 | @wot-ui/ui（wot-design-uni v2） | ^2.0 | 真正 Vue 3 Composition API，AI 友好，v2 换包名 |
 | 原子化 CSS | UnoCSS + `@uni-helper/unocss-preset-uni` | 66.x | 多端兼容原子类；v2 起可用 `@wot-ui/unocss-preset` |
 | 状态管理 | Pinia | ^2 | Vue 3 官方推荐，支持持久化 |
 | 路由 | vite-plugin-uni-pages + @wot-ui/router | ^0.3 / ^1.1 | 文件路由 + 类型安全路由守卫 |

@@ -14,8 +14,15 @@
     "file://docs/reference/dev/test/unit-test-standard.md",
     "file://docs/reference/dev/git/commit-standard.md",
     "file://docs/task/_template/dev-log.md",
+    "file://docs/design/apps/uniapp/tech-stack.md",
+    "file://docs/design/apps/uniapp/directory-structure.md",
+    "file://docs/design/apps/uniapp/mobile-admin.md",
     "skill://.kiro/skills/coding-standards/SKILL.md",
-    "skill://docs/reference/team/skills/guard/SKILL.md"
+    "skill://docs/reference/team/skills/guard/SKILL.md",
+    "skill://docs/reference/team/skills/create-wot-ui-theme/SKILL.md",
+    "skill://docs/reference/team/skills/wot-ui-cli/SKILL.md",
+    "skill://docs/reference/team/skills/wot-ui-unocss-preset-guide/SKILL.md",
+    "skill://docs/reference/team/skills/wot-ui-v2/SKILL.md"
   ],
   "knowledgeBase": [
     "apps/uniapp/src"

@@ -12,3 +12,5 @@ allowBuilds:
   nx: true
   sharp: true
   vue-demi: true
+overrides:
+  unconfig: 7.3.2
