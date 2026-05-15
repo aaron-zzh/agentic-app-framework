@@ -1,12 +1,3 @@
-/*
- * @Author: weisheng
- * @Date: 2025-09-02 09:42:36
- * @LastEditTime: 2026-04-10 11:01:37
- * @LastEditors: weisheng
- * @Description:
- * @FilePath: /wot-starter/src/composables/types/theme.ts
- * 记得注释
- */
 import type { ConfigProviderThemeVars } from '@wot-ui/ui'
 
 export type PrimaryShadeKey

@@ -1,11 +1,3 @@
-/*
- * @Author: weisheng
- * @Date: 2023-05-20 10:00:00
- * @LastEditTime: 2025-06-26 21:59:35
- * @LastEditors: weisheng
- * @Description: 通用mock处理
- * @FilePath: /wot-starter/src/api/mock/modules/common.ts
- */
 import { defineMock } from '@alova/mock'
 import { generateMockData } from '../utils/generators'
 

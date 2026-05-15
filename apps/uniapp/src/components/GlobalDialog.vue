@@ -1,12 +1,3 @@
-<!--
- * @Author: weisheng
- * @Date: 2025-09-02 09:42:36
- * @LastEditTime: 2026-04-08 18:36:24
- * @LastEditors: weisheng
- * @Description:
- * @FilePath: /wot-starter/src/components/GlobalDialog.vue
- * 记得注释
--->
 <script lang="ts" setup>
 import { deepClone, isFunction } from '@wot-ui/ui/common/util'
 

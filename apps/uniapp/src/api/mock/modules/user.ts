@@ -1,11 +1,3 @@
-/*
- * @Author: weisheng
- * @Date: 2025-06-15 14:35:00
- * @LastEditTime: 2025-06-27 09:43:25
- * @LastEditors: weisheng
- * @Description: Pet Store - User相关接口的mock数据
- * @FilePath: /wot-starter/src/api/mock/modules/user.ts
- */
 import { defineMock } from '@alova/mock'
 import { generateMockData } from '../utils/generators'
 

@@ -1,12 +1,3 @@
-<!--
- * @Author: weisheng
- * @Date: 2025-09-15 18:51:03
- * @LastEditTime: 2025-09-16 13:12:22
- * @LastEditors: weisheng
- * @Description:
- * @FilePath: /wot-starter/src/subEcharts/echarts/components/BarChart.vue
- * 记得注释
--->
 <script setup lang="ts">
 import { BarChart } from 'echarts/charts'
 import { DatasetComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'

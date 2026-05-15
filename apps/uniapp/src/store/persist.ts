@@ -1,12 +1,3 @@
-/*
- * @Author: weisheng
- * @Date: 2025-06-23 22:23:05
- * @LastEditTime: 2025-06-24 19:03:21
- * @LastEditors: weisheng
- * @Description:
- * @FilePath: /wot-starter/src/store/persist.ts
- * 记得注释
- */
 import type { PiniaPluginContext } from 'pinia'
 
 function persist({ store }: PiniaPluginContext, excludedIds: string[]) {

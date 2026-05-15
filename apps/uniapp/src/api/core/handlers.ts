@@ -1,11 +1,3 @@
-/*
- * @Author: weisheng
- * @Date: 2025-04-17 15:58:11
- * @LastEditTime: 2025-06-15 21:47:22
- * @LastEditors: weisheng
- * @Description: Alova response and error handlers
- * @FilePath: /wot-starter/src/api/core/handlers.ts
- */
 import type { Method } from 'alova'
 import router from '@/router'
 
