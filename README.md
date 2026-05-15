@@ -165,22 +165,31 @@ pnpm approve-builds
 ### 常用开发命令
 
 ```bash
-# ——— Nx 任务（推荐，统一入口） ———
+# ——— Nx 任务（统一入口，推荐） ———
+
+# 后端编译 + 单测
+pnpm nx test service
+
+# 后端构建
+pnpm nx build service
+
+# 后端清理（清除 target 缓存）
+pnpm nx clean service
 
 # 启动前端开发服务器
-pnpm nx run webui:dev
+pnpm nx dev webui
 
-# 类型检查
-pnpm nx run webui:typecheck
+# 前端类型检查
+pnpm nx typecheck webui
 
-# 单元测试
-pnpm nx run webui:test
+# 前端单元测试
+pnpm nx test webui
 
-# 构建
-pnpm nx run webui:build
+# 前端构建
+pnpm nx build webui
 
-# Lint（biome）
-pnpm nx run webui:lint
+# 前端 Lint（biome）
+pnpm nx lint webui
 
 # 全部项目自验证（lint + 单测 + typecheck + build）
 pnpm check
@@ -188,24 +197,16 @@ pnpm check
 # 只验证受影响的项目（开发完成后必跑）
 pnpm check:affected
 
-# ——— 后端（Maven，通过 Nx 桥接） ———
-
-# 后端编译 + 单测
-pnpm nx run service:test
-
-# 后端构建
-pnpm nx run service:build
-
 # ——— E2E 测试（Playwright） ———
 
 # 首次使用需安装浏览器（仅一次）
 npx playwright install chromium
 
 # 运行 E2E 测试（headless，自动启动 webui dev server）
-pnpm nx run webui-e2e:e2e
+pnpm nx e2e webui-e2e
 
 # 有头模式（可视化调试）
-pnpm nx run webui-e2e:e2e -- --headed
+pnpm nx e2e webui-e2e -- --headed
 ```
 
 ### 配置管理
@@ -235,10 +236,10 @@ aaf:
 pnpm nx run-many -t build
 
 # 仅构建后端
-mvn clean install
+pnpm nx build service
 
-# 跳过测试构建
-mvn clean install -DskipTests
+# 仅构建前端
+pnpm nx build webui
 ```
 
 > 更多构建与开发流程请参考 构建与开发指南

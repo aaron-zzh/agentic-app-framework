@@ -135,7 +135,7 @@ author: AaronZZH
     - Vitest 单测已就绪，本任务补充 Playwright E2E
     - verify: `pnpm nx run webui-e2e:e2e` 跑通
 
-17. [ ] #48 UniApp 参考调研 + 完整目录结构 — architect + developer-app
+17. ✅ #48 UniApp 参考调研 + 完整目录结构 — architect + developer-app
     - 来源：AAF-023 #19
     - 参考 kids-app 项目结构
     - 创建 [docs/design/apps/uniapp/tech-stack.md](../../../design/apps/uniapp/tech-stack.md)
