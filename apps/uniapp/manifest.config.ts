@@ -1,20 +1,11 @@
-/*
- * @Author: weisheng
- * @Date: 2025-08-28 20:59:43
- * @LastEditTime: 2025-11-17 14:28:09
- * @LastEditors: weisheng
- * @Description:
- * @FilePath: /wot-starter/manifest.config.ts
- * 记得注释
- */
 import { defineManifestConfig } from '@uni-helper/vite-plugin-uni-manifest'
 
 export default defineManifestConfig({
-  'name': 'wot-starter',
-  'appid': '__UNI__1208592',
-  'description': '',
-  'versionName': '1.0.0',
-  'versionCode': '100',
+  'name': 'aaf-uniapp',
+  'appid': '__UNI__AAF0001',
+  'description': 'AAF 移动端 — AI 原生应用框架',
+  'versionName': '0.1.0',
+  'versionCode': '1',
   'transformPx': false,
   /* 5+App特有相关 */
   'app-plus': {
