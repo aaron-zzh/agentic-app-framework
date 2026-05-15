@@ -13,6 +13,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 
+import { FieldErrorBoundary } from "@/components/common/FieldErrorBoundary"
+
 import { getFieldComponent } from "../../lib/component-registry"
 import type { DataFieldDef, EntityDef, FieldDef, LayoutField } from "../../types"
 import { buildZodSchema } from "../../lib/build-zod-schema"
@@ -141,14 +143,16 @@ function FieldRenderer({ field, form }: { field: DataFieldDef; form: ReturnType<
   }
 
   return (
-    <Component
-      name={field.name}
-      value={value ?? ""}
-      onChange={(v: unknown) => setValue(field.name, v, { shouldValidate: true })}
-      error={error}
-      disabled={field.readOnly}
-      field={field}
-    />
+    <FieldErrorBoundary fieldName={field.label ?? field.name}>
+      <Component
+        name={field.name}
+        value={value ?? ""}
+        onChange={(v: unknown) => setValue(field.name, v, { shouldValidate: true })}
+        error={error}
+        disabled={field.readOnly}
+        field={field}
+      />
+    </FieldErrorBoundary>
   )
 }
 

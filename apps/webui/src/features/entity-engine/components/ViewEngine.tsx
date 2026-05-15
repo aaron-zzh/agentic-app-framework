@@ -12,6 +12,8 @@
 
 "use client"
 
+import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
+
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
 import { FormView } from "./views/FormView"
@@ -30,6 +32,15 @@ interface ViewEngineProps {
 
 /** 视图引擎：根据 view 参数选择渲染器 */
 export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps) {
+  return (
+    <ViewErrorBoundary>
+      <ViewEngineInner entity={entity} view={view} recordId={recordId} />
+    </ViewErrorBoundary>
+  )
+}
+
+/** 内部渲染逻辑 */
+function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
   // 优先使用实体级自定义覆盖
   if (view === "list" && entity.overrides?.listView) {
     const Override = entity.overrides.listView
