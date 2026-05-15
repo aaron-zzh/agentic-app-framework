@@ -128,7 +128,7 @@ function openPrivacy() {
           v-model="form.mobile"
           placeholder="请输入手机号"
           type="number"
-          maxlength="11"
+          :maxlength="11"
           prefix-icon="phone"
           clearable
         />
@@ -148,7 +148,7 @@ function openPrivacy() {
       <!-- 切换登录方式（小程序内） -->
       <!-- #ifdef MP-WEIXIN -->
       <view v-if="loginType === 'account'" class="mt-4 flex flex-col gap-3">
-        <wd-input v-model="form.mobile" placeholder="请输入手机号" type="number" maxlength="11" clearable />
+        <wd-input v-model="form.mobile" placeholder="请输入手机号" type="number" :maxlength="11" clearable />
         <wd-input v-model="form.password" placeholder="请输入密码" show-password clearable />
         <wd-button block @click="onAccountLogin">
           登录

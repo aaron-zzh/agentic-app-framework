@@ -56,3 +56,19 @@ pnpm nx run uniapp:typecheck
 - [路由与权限拦截](../../docs/guide/uniapp/router.md)
 - [请求与状态管理](../../docs/guide/uniapp/request-and-state.md)
 - [分包优化](../../docs/guide/uniapp/bundle-optimizer.md)
+
+## ⚠️ 版本约束注意事项
+
+uni-app 内部绑定 **Vue 3.4.x**，以下依赖必须与之对齐，**不可随意升级**：
+
+| 包 | 锁定版本 | 原因 |
+|---|---|---|
+| `vue` | `~3.4.38` | uni-app 内部依赖 `@vue/shared@3.4.x`，Vue 3.5 会导致 `compiler-sfc` 内部 API 不兼容 |
+| `pinia` | `^2.3.1` | Pinia 3.x 依赖 `@vue/devtools-api` 等 Vue 3.5+ 生态包，在 uni-app 环境下缺失 |
+| `vue-i18n` | `^9.14.0` | v10/v11 不再支持，且依赖 Vue 3.5+ |
+| `@vueuse/core` | `^11.0.3` | v12+ 要求 Vue 3.5+；v11 对应 `@vueuse/shared@^11.0.3` |
+| `@vueuse/shared` | `^11.0.3` | 必须与 `@vueuse/core` 版本一致 |
+
+> 等待 uni-app 官方支持 Vue 3.5 后，上述限制才能解除。关注 [@dcloudio/uni-app](https://www.npmjs.com/package/@dcloudio/uni-app) 版本更新。
+
+**pnpm monorepo 额外注意**：pnpm 默认不自动安装 peer dependencies（`auto-install-peers=false`）。如遇 `Could not resolve` 报错，先检查是否为缺失的 peer dep，手动补装即可。

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePage({
   name: 'startup',
+  type: 'home',
   style: { navigationBarTitleText: '', navigationStyle: 'custom' },
 })
 

@@ -79,6 +79,9 @@ export default defineManifestConfig({
     usingComponents: true,
   },
   'h5': {
+    router: {
+      mode: 'history',
+    },
     darkmode: true,
     themeLocation: 'theme.json',
   },

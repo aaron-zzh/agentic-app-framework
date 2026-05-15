@@ -12,6 +12,9 @@ node_modules
 dist
 *.local
 
+# Vite temp files
+*.timestamp-*.mjs
+
 # Editor directories and files
 .idea
 *.suo

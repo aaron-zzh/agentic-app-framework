@@ -9,7 +9,7 @@ definePage({
 })
 
 const route = useRoute()
-const chatId = computed(() => route.params.id as string)
+const chatId = computed(() => route.query.id as string)
 const userStore = useUserStore()
 const toast = useGlobalToast()
 

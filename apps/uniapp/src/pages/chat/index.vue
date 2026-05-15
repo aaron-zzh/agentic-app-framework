@@ -14,7 +14,7 @@ const chatList = ref([
 
 function onNewChat() {
   // TODO: 调用接口创建新对话
-  router.push({ name: 'chat-detail', params: { id: 'new' } })
+  router.push({ name: 'chat-detail', query: { id: 'new' } })
 }
 </script>
 
@@ -36,7 +36,7 @@ function onNewChat() {
           :title="item.title"
           :label="item.lastMessage"
           is-link
-          @click="router.push({ name: 'chat-detail', params: { id: item.id } })"
+          @click="router.push({ name: 'chat-detail', query: { id: item.id } })"
         />
       </wd-cell-group>
     </view>
