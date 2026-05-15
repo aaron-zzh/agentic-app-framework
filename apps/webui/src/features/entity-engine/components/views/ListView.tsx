@@ -10,9 +10,16 @@
 
 "use client"
 
+import { useRef } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
+
 import { getCellComponent } from "../../lib/component-registry"
 import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
+
+/** 虚拟滚动启用阈值 */
+const VIRTUAL_THRESHOLD = 100
+const ROW_HEIGHT = 40
 
 interface ListViewProps {
   entity: EntityDef
@@ -41,6 +48,12 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
         <p className="text-sm">暂无数据</p>
       </div>
     )
+  }
+
+  const useVirtual = data.length > VIRTUAL_THRESHOLD
+
+  if (useVirtual) {
+    return <VirtualTable columns={columns} data={data} />
   }
 
   return (
@@ -80,6 +93,73 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
               })}
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+type ColumnInfo = { name: string; field: DataFieldDef; def: ColumnDef }
+
+/** 虚拟滚动表格（数据量 > 100 时自动启用） */
+function VirtualTable({ columns, data }: { columns: ColumnInfo[]; data: Record<string, unknown>[] }) {
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  })
+
+  return (
+    <div ref={parentRef} className="w-full overflow-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
+      <table className="w-full caption-bottom text-sm">
+        <thead className="sticky top-0 z-10 border-b bg-background">
+          <tr>
+            {columns.map((col) => (
+              <th
+                key={col.name}
+                className="h-10 px-4 text-left align-middle font-medium text-muted-foreground"
+                style={col.def.width ? { width: col.def.width } : undefined}
+              >
+                {col.field.label ?? col.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const record = data[virtualRow.index]
+            return (
+              <tr
+                key={(record.id as string) ?? virtualRow.index}
+                className="border-b transition-colors hover:bg-muted/50"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {columns.map((col) => {
+                  const Cell = getCellComponent(col.field.type)
+                  const value = record[col.name]
+                  return (
+                    <td key={col.name} className="h-10 px-4 align-middle">
+                      {Cell ? (
+                        <Cell value={value} record={record} field={col.field} />
+                      ) : (
+                        <span className="truncate">{String(value ?? "—")}</span>
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
