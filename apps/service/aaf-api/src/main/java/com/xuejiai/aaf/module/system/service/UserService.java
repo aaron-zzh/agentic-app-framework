@@ -19,11 +19,13 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.NicknameGenerator;
 import com.xuejiai.aaf.module.system.domain.User;
+import com.xuejiai.aaf.util.ImportExecutor;
 import com.xuejiai.aaf.module.system.mapper.UserConvert;
 import com.xuejiai.aaf.module.system.repository.UserRepository;
 import com.xuejiai.aaf.module.system.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
 import com.xuejiai.aaf.module.system.vo.UserExportVO;
+import com.xuejiai.aaf.module.system.vo.UserImportVO;
 import com.xuejiai.aaf.module.system.vo.UserPageDTO;
 import com.xuejiai.aaf.module.system.vo.UserSimpleVO;
 import com.xuejiai.aaf.module.system.vo.UserUpdateDTO;
@@ -38,6 +40,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final jakarta.validation.Validator validator;
 
     /** 创建用户 */
     @Transactional
@@ -135,6 +138,43 @@ public class UserService {
         var user = requireUser(id);
         user.changePassword(passwordEncoder, newPassword);
         userRepository.save(user);
+    }
+
+    // ==================== 导入 ====================
+
+    /** 批量导入用户。先全部校验，通过后分批入库。 */
+    @Transactional
+    public ImportExecutor.ImportResult importUsers(List<UserImportVO> list, boolean updateSupport) {
+        return ImportExecutor.<UserImportVO>builder()
+                .validator(validator)
+                .data(list)
+                .duplicateChecker(row -> {
+                    if (!updateSupport && userRepository.existsByUsername(row.getUsername())) {
+                        return "用户名 " + row.getUsername() + " 已存在";
+                    }
+                    return null;
+                })
+                .consumer(batch -> batch.forEach(this::saveImportRow))
+                .build()
+                .execute();
+    }
+
+    private void saveImportRow(UserImportVO row) {
+        var existing = userRepository.findByUsername(row.getUsername());
+        if (existing.isPresent()) {
+            var user = existing.get();
+            if (row.getNickname() != null) user.setNickname(row.getNickname());
+            if (row.getStatus() != null) user.setStatus(row.getStatus());
+            userRepository.save(user);
+        } else {
+            var user = new User();
+            user.setUsername(row.getUsername());
+            user.setNickname(row.getNickname() != null ? row.getNickname() : row.getUsername());
+            String pwd = row.getPassword() != null ? row.getPassword() : "123456";
+            user.changePassword(passwordEncoder, pwd);
+            if (row.getStatus() != null) user.setStatus(row.getStatus());
+            userRepository.save(user);
+        }
     }
 
     // ==================== 查询方法 ====================

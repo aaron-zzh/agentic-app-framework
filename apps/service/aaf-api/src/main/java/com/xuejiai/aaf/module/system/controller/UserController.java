@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.util.ExcelUtils;
 
@@ -28,6 +29,8 @@ import com.xuejiai.aaf.module.system.service.UserService;
 import com.xuejiai.aaf.module.system.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
 import com.xuejiai.aaf.module.system.vo.UserExportVO;
+import com.xuejiai.aaf.module.system.vo.UserImportVO;
+import com.xuejiai.aaf.util.ImportExecutor;
 import com.xuejiai.aaf.module.system.vo.UserPageDTO;
 import com.xuejiai.aaf.module.system.vo.UserResetPasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserSimpleVO;
@@ -116,6 +119,16 @@ public class UserController {
             @PathVariable Long id, @Validated @RequestBody UserResetPasswordDTO request) {
         userService.resetPassword(id, request.password());
         return Result.success();
+    }
+
+    @Operation(summary = "导入用户", description = "上传 Excel 文件批量导入用户")
+    @PostMapping("/import")
+    public Result<ImportExecutor.ImportResult> importUsers(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "updateSupport", defaultValue = "false") boolean updateSupport)
+            throws IOException {
+        var list = ExcelUtils.read(file, UserImportVO.class);
+        return Result.success(userService.importUsers(list, updateSupport));
     }
 
     @Operation(summary = "导出用户列表", description = "支持 xlsx/csv 格式")

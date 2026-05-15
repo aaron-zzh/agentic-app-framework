@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.util;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -18,6 +19,7 @@ import org.apache.poi.ss.usermodel.VerticalAlignment;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Excel 导出工具类。基于 Apache Fesod 封装。
@@ -94,5 +96,19 @@ public final class ExcelUtils {
         response.setContentType(contentType);
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Content-Disposition", "attachment; filename=\"" + encoded + "\"");
+    }
+
+    /**
+     * 读取 Excel/CSV 文件，返回数据列表。
+     *
+     * @param file 上传的文件
+     * @param head 数据类（含 @ExcelProperty 注解）
+     */
+    public static <T> List<T> read(MultipartFile file, Class<T> head) throws IOException {
+        try (InputStream in = file.getInputStream()) {
+            return FesodSheet.read(in, head, null)
+                    .autoCloseStream(false)
+                    .doReadAllSync();
+        }
     }
 }
