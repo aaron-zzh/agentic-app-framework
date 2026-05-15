@@ -1,97 +1,73 @@
 import type { Method } from 'alova'
 import router from '@/router'
 
-// Custom error class for API errors
+/** API 业务错误 */
 export class ApiError extends Error {
-  code: number
-  data?: any
-
-  constructor(message: string, code: number, data?: any) {
+  constructor(
+    message: string,
+    public code: number,
+    public data?: unknown,
+  ) {
     super(message)
     this.name = 'ApiError'
-    this.code = code
-    this.data = data
   }
 }
 
-// Define a type for the expected API response structure
-interface ApiResponse {
+/** AAF 统一响应格式 */
+interface ApiResponse<T = unknown> {
   code: number
-  msg?: string
-  data?: any
-  success?: boolean
-  total?: number
-  more?: boolean
+  message?: string
+  data: T
 }
 
-// Handle successful responses
+/** 处理 401：清除 token 并跳登录页 */
+function handleUnauthorized(): void {
+  useUserStore().logout()
+  const toast = useGlobalToast()
+  toast.error({ msg: '登录已过期，请重新登录', duration: 500 })
+  setTimeout(() => router.replaceAll({ name: 'login' }), 500)
+}
+
+/** 成功响应处理：解包 { code, data, message } */
 export async function handleAlovaResponse(
   response: UniApp.RequestSuccessCallbackResult | UniApp.UploadFileSuccessCallbackResult | UniApp.DownloadSuccessData,
-) {
-  const globalToast = useGlobalToast()
-  // Extract status code and data from UniApp response
+): Promise<unknown> {
   const { statusCode, data } = response as UniNamespace.RequestSuccessCallbackResult
 
-  // 处理401/403错误（如果不是在handleAlovaResponse中处理的）
-  if ((statusCode === 401 || statusCode === 403)) {
-    // 如果是未授权错误，清除用户信息并跳转到登录页
-    globalToast.error({ msg: '登录已过期，请重新登录！', duration: 500 })
-    const timer = setTimeout(() => {
-      clearTimeout(timer)
-      router.replaceAll({ name: 'login' })
-    }, 500)
-
-    throw new ApiError('登录已过期，请重新登录！', statusCode, data)
+  if (statusCode === 401) {
+    handleUnauthorized()
+    throw new ApiError('登录已过期', 401, data)
   }
 
-  // Handle HTTP error status codes
   if (statusCode >= 400) {
-    globalToast.error(`Request failed with status: ${statusCode}`)
-    throw new ApiError(`Request failed with status: ${statusCode}`, statusCode, data)
+    throw new ApiError(`请求失败 (${statusCode})`, statusCode, data)
   }
 
-  // The data is already parsed by UniApp adapter
   const json = data as ApiResponse
-  // Log response in development
-  if (import.meta.env.MODE === 'development') {
-    console.log('[Alova Response]', json)
+  // 业务错误码（非 0 视为失败）
+  if (json.code !== 0 && json.code !== 200) {
+    const msg = json.message ?? '请求失败'
+    useGlobalToast().error(msg)
+    throw new ApiError(msg, json.code, json.data)
   }
 
-  // Return data for successful responses
-  return json
+  // 解包：直接返回 data 字段
+  return json.data
 }
 
-// Handle request errors
-export function handleAlovaError(error: any, method: Method) {
-  const globalToast = useGlobalToast()
-  // Log error in development
-  if (import.meta.env.MODE === 'development') {
-    console.error('[Alova Error]', error, method)
+/** 错误响应处理 */
+export function handleAlovaError(error: unknown, _method: Method): never {
+  if (error instanceof ApiError && (error.code === 401)) {
+    handleUnauthorized()
   }
-
-  // 处理401/403错误（如果不是在handleAlovaResponse中处理的）
-  if (error instanceof ApiError && (error.code === 401 || error.code === 403)) {
-    // 如果是未授权错误，清除用户信息并跳转到登录页
-    globalToast.error({ msg: '登录已过期，请重新登录！', duration: 500 })
-    const timer = setTimeout(() => {
-      clearTimeout(timer)
-      router.replaceAll({ name: 'login' })
-    }, 500)
-    throw new ApiError('登录已过期，请重新登录！', error.code, error.data)
+  else if ((error as Error).name === 'NetworkError') {
+    useGlobalToast().error('网络错误，请检查网络连接')
   }
-
-  // Handle different types of errors
-  if (error.name === 'NetworkError') {
-    globalToast.error('网络错误，请检查您的网络连接')
+  else if ((error as Error).name === 'TimeoutError') {
+    useGlobalToast().error('请求超时，请重试')
   }
-  else if (error.name === 'TimeoutError') {
-    globalToast.error('请求超时，请重试')
-  }
-  else if (error instanceof ApiError) {
-    globalToast.error(error.message || '请求失败')
-  }
-  else {
-    globalToast.error('发生意外错误')
+  else if (!(error instanceof ApiError)) {
+    useGlobalToast().error('请求失败，请稍后重试')
   }
 
   throw error
