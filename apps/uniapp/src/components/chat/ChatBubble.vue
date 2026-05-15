@@ -36,6 +36,8 @@ export interface ChatMessage {
   createTime: number
   /** AI 消息是否还在流式输出中 */
   streaming?: boolean
+  /** 图片消息（用户发送的图片或 AI 返回的图片） */
+  images?: string[]
   /**
    * 内嵌交互组件（待实现）
    * 后端在 SSE 响应中携带此字段，前端根据 type 渲染对应组件
@@ -72,6 +74,17 @@ function renderMarkdown(content: string): string {
         <wd-icon name="chat" size="18px" color="#fff" />
       </view>
       <view class="max-w-4/5 rounded-2 rounded-tl-none bg-white p-3 shadow-sm">
+        <!-- 图片消息 -->
+        <view v-if="message.images?.length" class="mb-2 flex flex-wrap gap-1">
+          <image
+            v-for="(img, i) in message.images"
+            :key="i"
+            :src="img"
+            class="h-24 w-24 rounded-1"
+            mode="aspectFill"
+            @tap="uni.previewImage({ current: i, urls: message.images! })"
+          />
+        </view>
         <mp-html v-if="message.content" :content="renderMarkdown(message.content)" />
         <!-- 流式输出中的光标 -->
         <text v-if="message.streaming" class="animate-pulse text-gray-400">▋</text>
@@ -81,7 +94,18 @@ function renderMarkdown(content: string): string {
     <!-- 用户消息（右对齐） -->
     <view v-else class="flex items-start justify-end gap-2">
       <view class="max-w-4/5 rounded-2 rounded-tr-none p-3 text-white" style="background: #8e44ad">
-        <text class="text-sm leading-relaxed">{{ message.content }}</text>
+        <!-- 图片消息 -->
+        <view v-if="message.images?.length" class="mb-2 flex flex-wrap gap-1">
+          <image
+            v-for="(img, i) in message.images"
+            :key="i"
+            :src="img"
+            class="h-24 w-24 rounded-1"
+            mode="aspectFill"
+            @tap="uni.previewImage({ current: i, urls: message.images! })"
+          />
+        </view>
+        <text v-if="message.content" class="text-sm leading-relaxed">{{ message.content }}</text>
       </view>
       <view class="h-9 w-9 flex shrink-0 items-center justify-center rounded-full bg-gray-200">
         <wd-icon name="user" size="18px" color="#8e44ad" />

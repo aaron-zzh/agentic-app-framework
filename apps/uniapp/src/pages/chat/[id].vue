@@ -39,15 +39,24 @@ async function onQuery(_pageNo: number, _pageSize: number) {
 }
 
 /** 发送消息 */
-async function onSend() {
-  const text = inputText.value.trim()
-  if (!text || isStreaming.value)
+async function onSend(text: string = inputText.value, images: Array<{ url?: string }> = []) {
+  const trimmed = text.trim()
+  const imageUrls = images.map(img => img.url).filter(Boolean) as string[]
+  if (!trimmed && !imageUrls.length)
+    return
+  if (isStreaming.value)
     return
 
   inputText.value = ''
 
   // 追加用户消息
-  const userMsg: ChatMessage = { id: genId(), type: 'user', content: text, createTime: Date.now() }
+  const userMsg: ChatMessage = {
+    id: genId(),
+    type: 'user',
+    content: trimmed,
+    images: imageUrls.length ? imageUrls : undefined,
+    createTime: Date.now(),
+  }
   pagingRef.value?.addChatRecordData(userMsg)
 
   // 追加 AI 占位消息
@@ -58,7 +67,7 @@ async function onSend() {
   resetBuffer()
 
   const headers = { Authorization: `Bearer ${userStore.token}` }
-  const body = { chatId: chatId.value, message: text }
+  const body = { chatId: chatId.value, message: trimmed, images: imageUrls.length ? imageUrls : undefined }
   const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/ai/chat/stream`
 
   // #ifdef MP-WEIXIN
@@ -155,31 +164,11 @@ function onScrollToUpper() {
     </z-paging>
 
     <!-- 输入框 -->
-    <view class="flex items-end gap-2 border-t border-gray-100 bg-white px-4 py-3">
-      <wd-textarea
-        v-model="inputText"
-        class="flex-1"
-        placeholder="请输入问题..."
-        :maxlength="500"
-        autosize
-        :auto-height="true"
-        @confirm="onSend"
-      />
-      <wd-button
-        v-if="!isStreaming"
-        size="small"
-        @click="onSend"
-      >
-        发送
-      </wd-button>
-      <wd-button
-        v-else
-        size="small"
-        type="error"
-        @click="onStop"
-      >
-        停止
-      </wd-button>
-    </view>
+    <message-input
+      v-model="inputText"
+      :streaming="isStreaming"
+      @send="onSend"
+      @stop="onStop"
+    />
   </view>
 </template>
