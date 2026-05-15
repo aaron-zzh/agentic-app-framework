@@ -142,9 +142,60 @@ packages/        → 共享库（待建设）
 
 - JDK 25+
 - Maven 3.9+
+- Node.js 22+
+- pnpm 11+
 - Postgresql 16.0+
 - Neo4j
 - Redis
+
+### 安装依赖
+
+```bash
+# 安装所有前端依赖（monorepo 根目录执行）
+pnpm install
+
+# 给指定子项目安装包
+pnpm add <package> --filter @aaf/webui
+pnpm add -D <package> --filter @aaf/webui
+
+# 首次安装后如遇 ERR_PNPM_IGNORED_BUILDS，执行：
+pnpm approve-builds
+```
+
+### 常用开发命令
+
+```bash
+# ——— Nx 任务（推荐，统一入口） ———
+
+# 启动前端开发服务器
+pnpm nx run webui:dev
+
+# 类型检查
+pnpm nx run webui:typecheck
+
+# 单元测试
+pnpm nx run webui:test
+
+# 构建
+pnpm nx run webui:build
+
+# Lint（biome）
+pnpm nx run webui:lint
+
+# 全部项目自验证（lint + 单测 + typecheck + build）
+pnpm check
+
+# 只验证受影响的项目（开发完成后必跑）
+pnpm check:affected
+
+# ——— 后端（Maven，通过 Nx 桥接） ———
+
+# 后端编译 + 单测
+pnpm nx run service:test
+
+# 后端构建
+pnpm nx run service:build
+```
 
 ### 配置管理
 
@@ -169,7 +220,10 @@ aaf:
 ### 构建项目
 
 ```bash
-# 构建所有模块
+# 构建所有模块（前端 + 后端）
+pnpm nx run-many -t build
+
+# 仅构建后端
 mvn clean install
 
 # 跳过测试构建

@@ -59,6 +59,7 @@
     },
     {
       "plugin": "@nx/vitest",
+      "include": ["apps/webui"],
       "options": {
         "testTargetName": "vitest:test",
         "ciTargetName": "test-ci",

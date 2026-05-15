@@ -4,8 +4,11 @@ packages:
 allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
+  '@uni-helper/unocss-preset-uni': true
+  core-js: true
   esbuild: true
   less: true
   msw: true
   nx: true
   sharp: true
+  vue-demi: true
