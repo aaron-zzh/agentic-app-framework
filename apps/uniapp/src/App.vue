@@ -1,5 +1,7 @@
 <script setup lang="ts">
-onLaunch(() => {})
+onLaunch(async () => {
+  await useAppStore().init()
+})
 </script>
 
 <style lang="scss">
