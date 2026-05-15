@@ -1,0 +1,115 @@
+@mixin campus-theme-vars {
+  /* Campus Purple Theme — 校园服务紫色主题 */
+  /* 主色参考：#8e44ad（紫）渐变至 #3498db（蓝） */
+
+  /* Primary */
+  --wot-primary-1: #F9F0FDFF;
+  --wot-primary-2: #EDD5F7FF;
+  --wot-primary-3: #D9A8EEFF;
+  --wot-primary-4: #C07AE3FF;
+  --wot-primary-5: #A855D4FF;
+  --wot-primary-6: #8E44ADFF;
+  --wot-primary-7: #73369AFF;
+  --wot-primary-8: #5A2880FF;
+  --wot-primary-9: #421C62FF;
+  --wot-primary-10: #2C1042FF;
+
+  /* Danger */
+  --wot-danger-main: #F14646FF;
+  --wot-danger-hover: #FB7C7CFF;
+  --wot-danger-clicked: #DC2C2CFF;
+  --wot-danger-disabled: #FFC9C9FF;
+  --wot-danger-particular: #FFE3E3FF;
+  --wot-danger-surface: #FFF5F5FF;
+
+  /* Success */
+  --wot-success-main: #12B886FF;
+  --wot-success-hover: #59CDAAFF;
+  --wot-success-clicked: #0F956CFF;
+  --wot-success-disabled: #B8EADBFF;
+  --wot-success-particular: #E7F8F3FF;
+  --wot-success-surface: #F3FBF9FF;
+
+  /* Warning */
+  --wot-warning-main: #F57F00FF;
+  --wot-warning-hover: #FFA94DFF;
+  --wot-warning-clicked: #D05706FF;
+  --wot-warning-disabled: #FFD8A8FF;
+  --wot-warning-particular: #FFE8CCFF;
+  --wot-warning-surface: #FFF6EBFF;
+
+  /* Text */
+  --wot-text-main: #1D1F29FF;
+  --wot-text-secondary: #4E5369FF;
+  --wot-text-auxiliary: #868A9CFF;
+  --wot-text-disabled: #C9CBD4FF;
+  --wot-text-placeholder: #A9ACB8FF;
+  --wot-text-white: #FFFFFFFF;
+
+  /* Icon */
+  --wot-icon-main: #8E44ADFF;
+  --wot-icon-secondary: #A855D4FF;
+  --wot-icon-auxiliary: #C07AE3FF;
+  --wot-icon-disabled: #D9A8EEFF;
+  --wot-icon-placeholder: #EDD5F7FF;
+  --wot-icon-white: #FFFFFFFF;
+
+  /* Border */
+  --wot-border-extra-strong: #C07AE3FF;
+  --wot-border-strong: #D9A8EEFF;
+  --wot-border-main: #EDD5F7FF;
+  --wot-border-light: #F9F0FDFF;
+  --wot-border-white: #FFFFFFFF;
+  --wot-border-zero: transparent;
+
+  /* Filled */
+  --wot-filled-extra-strong: #D9A8EEFF;
+  --wot-filled-strong: #EDD5F7FF;
+  --wot-filled-content: #F0E6FFFF;
+  --wot-filled-bottom: #F9F0FDFF;
+  --wot-filled-oppo: #FFFFFFFF;
+  --wot-filled-zero: transparent;
+
+  /* Divider */
+  --wot-divider-main: #00000014;
+  --wot-divider-light: #0000000A;
+  --wot-divider-strong: #00000026;
+  --wot-divider-white: #FFFFFFFF;
+
+  /* Feedback */
+  --wot-feedback-hover: #8E44AD14;
+  --wot-feedback-active: #8E44AD1F;
+  --wot-feedback-accent: #8E44AD14;
+
+  /* Opacity filled */
+  --wot-opacfilled-tooltip-toast-cover: #000000BF;
+  --wot-opacfilled-main-cover: #0000008C;
+  --wot-opacfilled-light-cover: #0000004D;
+
+  /* Picker view mask */
+  --wot-picker-view-mask-start-color: #FFFFFFD9;
+  --wot-picker-view-mask-end-color: #FFFFFF33;
+
+  /* Classify application */
+  --wot-classifyapplication-yellow-background: #FFFAF1FF;
+  --wot-classifyapplication-yellow-border: #FDD78CFF;
+  --wot-classifyapplication-yellow-content: #FAAD14FF;
+  --wot-classifyapplication-Cyan-background: #F4FBFDFF;
+  --wot-classifyapplication-Cyan-border: #BDEAF1FF;
+  --wot-classifyapplication-Cyan-content: #22B8CFFF;
+  --wot-classifyapplication-Purple-background: #F9F0FDFF;
+  --wot-classifyapplication-Purple-border: #D9A8EEFF;
+  --wot-classifyapplication-Purple-content: #8E44ADFF;
+  --wot-classifyapplication-Grape-background: #FBF6FDFF;
+  --wot-classifyapplication-Grape-border: #EEBEFAFF;
+  --wot-classifyapplication-Grape-content: #AE3EC9FF;
+  --wot-classifyapplication-Pink-background: #FFF0F6FF;
+  --wot-classifyapplication-Pink-border: #FCC2D7FF;
+  --wot-classifyapplication-Pink-content: #FF357CFF;
+}
+
+page,
+.wot-theme-campus,
+.wot-theme-campus .wd-root-portal {
+  @include campus-theme-vars();
+}

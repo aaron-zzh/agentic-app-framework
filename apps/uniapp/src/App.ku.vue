@@ -3,7 +3,7 @@ const { themeVars, theme } = useManualTheme()
 </script>
 
 <template>
-  <wd-config-provider :theme-vars="themeVars" :theme="theme" :custom-class="`page-wraper ${theme}`">
+  <wd-config-provider :theme-vars="themeVars" :theme="theme" :custom-class="`page-wraper wot-theme-campus ${theme}`">
     <ku-root-view />
     <wd-notify />
     <wd-dialog />

@@ -74,3 +74,30 @@ $uni-color-subtitle: #555; // 二级标题颜色
 $uni-font-size-subtitle: 18px;
 $uni-color-paragraph: #3f536e; // 文章段落颜色
 $uni-font-size-paragraph: 15px;
+
+/* ===== Campus 主题设计规范 ===== */
+
+/* 主色 */
+$campus-primary: #8e44ad;
+$campus-primary-light: #f0e6ff;
+$campus-gradient: linear-gradient(180deg, #8e44ad, #3498db);
+
+/* 圆角 */
+$campus-radius-sm: 8rpx;
+$campus-radius-md: 16rpx;
+$campus-radius-lg: 24rpx;
+$campus-radius-card: 24rpx;   /* 卡片圆角 */
+$campus-radius-btn: 16rpx;    /* 按钮圆角 */
+$campus-radius-input: 16rpx;  /* 输入框圆角 */
+
+/* 阴影 */
+$campus-shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+$campus-shadow-float: 0 8rpx 24rpx rgba(142, 68, 173, 0.15);
+
+/* 间距 */
+$campus-spacing-xs: 8rpx;
+$campus-spacing-sm: 16rpx;
+$campus-spacing-md: 24rpx;
+$campus-spacing-lg: 32rpx;
+$campus-spacing-xl: 48rpx;
+$campus-page-padding: 32rpx;  /* 页面左右内边距 */
