@@ -1,5 +1,5 @@
 /**
- * Field.Textarea——多行文本输入
+ * Field.Textarea——RHF 封装（复用 entity-engine TextareaInput）
  * @author AaronZZH & Kiro
  */
 
@@ -7,6 +7,8 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
+import { TextareaInput } from "@/features/entity-engine/components/fields"
+import type { DataFieldDef } from "@/features/entity-engine/types"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldTextareaProps {
@@ -21,26 +23,24 @@ export interface FieldTextareaProps {
 export function FieldTextarea({ name, label, placeholder, rows = 3, className, disabled }: FieldTextareaProps) {
   const { control } = useFormContext()
 
+  const fieldDef: DataFieldDef = { type: "textarea", name, label, placeholder, rows }
+
   return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field, fieldState: { error } }) => (
-        <div className={cn("space-y-1", className)}>
-          {label && <label className="text-sm font-medium">{label}</label>}
-          <textarea
-            {...field}
-            rows={rows}
-            placeholder={placeholder}
+    <div className={cn(className)}>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field, fieldState: { error } }) => (
+          <TextareaInput
+            name={name}
+            value={field.value ?? ""}
+            onChange={field.onChange}
+            error={error?.message}
             disabled={disabled}
-            className={cn(
-              "flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-              error && "border-destructive"
-            )}
+            field={fieldDef}
           />
-          {error && <p className="text-xs text-destructive">{error.message}</p>}
-        </div>
-      )}
-    />
+        )}
+      />
+    </div>
   )
 }

@@ -1,5 +1,5 @@
 /**
- * Field.Number——数字输入
+ * Field.Number——RHF 封装（复用 entity-engine NumberInput）
  * @author AaronZZH & Kiro
  */
 
@@ -7,6 +7,8 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
+import { NumberInput } from "@/features/entity-engine/components/fields"
+import type { DataFieldDef } from "@/features/entity-engine/types"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldNumberProps {
@@ -23,32 +25,24 @@ export interface FieldNumberProps {
 export function FieldNumber({ name, label, placeholder, min, max, step, className, disabled }: FieldNumberProps) {
   const { control } = useFormContext()
 
+  const fieldDef: DataFieldDef = { type: "number", name, label, placeholder, min, max, step }
+
   return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field, fieldState: { error } }) => (
-        <div className={cn("space-y-1", className)}>
-          {label && <label className="text-sm font-medium">{label}</label>}
-          <input
-            type="number"
-            value={field.value ?? ""}
-            onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-            onBlur={field.onBlur}
-            ref={field.ref}
-            min={min}
-            max={max}
-            step={step}
-            placeholder={placeholder}
+    <div className={cn(className)}>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field, fieldState: { error } }) => (
+          <NumberInput
+            name={name}
+            value={field.value}
+            onChange={field.onChange}
+            error={error?.message}
             disabled={disabled}
-            className={cn(
-              "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-              error && "border-destructive"
-            )}
+            field={fieldDef}
           />
-          {error && <p className="text-xs text-destructive">{error.message}</p>}
-        </div>
-      )}
-    />
+        )}
+      />
+    </div>
   )
 }

@@ -1,5 +1,5 @@
 /**
- * Field.Text——文本输入表单控件
+ * Field.Text——RHF 封装（复用 entity-engine TextInput）
  * @author AaronZZH & Kiro
  */
 
@@ -7,6 +7,8 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
+import { TextInput } from "@/features/entity-engine/components/fields"
+import type { DataFieldDef } from "@/features/entity-engine/types"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldTextProps {
@@ -21,26 +23,24 @@ export interface FieldTextProps {
 export function FieldText({ name, label, placeholder, type = "text", className, disabled }: FieldTextProps) {
   const { control } = useFormContext()
 
+  const fieldDef: DataFieldDef = { type: "text", name, label, placeholder }
+
   return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field, fieldState: { error } }) => (
-        <div className={cn("space-y-1", className)}>
-          {label && <label className="text-sm font-medium">{label}</label>}
-          <input
-            {...field}
-            type={type}
-            placeholder={placeholder}
+    <div className={cn(className)}>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field, fieldState: { error } }) => (
+          <TextInput
+            name={name}
+            value={field.value ?? ""}
+            onChange={field.onChange}
+            error={error?.message}
             disabled={disabled}
-            className={cn(
-              "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-              error && "border-destructive"
-            )}
+            field={fieldDef}
           />
-          {error && <p className="text-xs text-destructive">{error.message}</p>}
-        </div>
-      )}
-    />
+        )}
+      />
+    </div>
   )
 }

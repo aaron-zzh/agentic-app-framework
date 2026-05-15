@@ -9,6 +9,7 @@
  *   <Field.Select name="role" label="角色" options={options} />
  *   <Field.Number name="age" label="年龄" min={0} max={150} />
  *   <Field.Checkbox name="agree" label="同意协议" />
+ *   <Field.Switch name="enabled" label="启用" />
  *   <Field.Date name="birthday" label="生日" />
  *   <Field.Textarea name="bio" label="简介" rows={4} />
  * </Form>
@@ -19,6 +20,7 @@ import { FieldCheckbox } from "./field-checkbox"
 import { FieldDate } from "./field-date"
 import { FieldNumber } from "./field-number"
 import { FieldSelect } from "./field-select"
+import { FieldSwitch } from "./field-switch"
 import { FieldText } from "./field-text"
 import { FieldTextarea } from "./field-textarea"
 
@@ -28,5 +30,6 @@ export const Field = {
   Number: FieldNumber,
   Select: FieldSelect,
   Checkbox: FieldCheckbox,
+  Switch: FieldSwitch,
   Date: FieldDate
 }

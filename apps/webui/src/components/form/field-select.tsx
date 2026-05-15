@@ -1,5 +1,5 @@
 /**
- * Field.Select——下拉选择
+ * Field.Select——RHF 封装（复用 entity-engine SelectInput）
  * @author AaronZZH & Kiro
  */
 
@@ -7,12 +7,9 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
+import { SelectInput } from "@/features/entity-engine/components/fields"
+import type { DataFieldDef, SelectOption } from "@/features/entity-engine/types"
 import { cn } from "@/lib/utils/cn"
-
-export interface SelectOption {
-  label: string
-  value: string
-}
 
 export interface FieldSelectProps {
   name: string
@@ -26,29 +23,24 @@ export interface FieldSelectProps {
 export function FieldSelect({ name, label, options, placeholder, className, disabled }: FieldSelectProps) {
   const { control } = useFormContext()
 
+  const fieldDef: DataFieldDef = { type: "select", name, label, placeholder, options }
+
   return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field, fieldState: { error } }) => (
-        <div className={cn("space-y-1", className)}>
-          {label && <label className="text-sm font-medium">{label}</label>}
-          <select
-            {...field}
+    <div className={cn(className)}>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field, fieldState: { error } }) => (
+          <SelectInput
+            name={name}
+            value={field.value ?? ""}
+            onChange={field.onChange}
+            error={error?.message}
             disabled={disabled}
-            className={cn(
-              "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-              error && "border-destructive"
-            )}
-          >
-            {placeholder && <option value="">{placeholder}</option>}
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          {error && <p className="text-xs text-destructive">{error.message}</p>}
-        </div>
-      )}
-    />
+            field={fieldDef}
+          />
+        )}
+      />
+    </div>
   )
 }
