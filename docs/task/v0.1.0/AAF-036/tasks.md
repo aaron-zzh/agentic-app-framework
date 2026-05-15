@@ -23,69 +23,69 @@ author: AaronZZH
 
 ### 一、工程接入
 
-1. [ ] #1 接入 Nx monorepo — developer-app
+1. [ ] #3601 接入 Nx monorepo — developer-app
    - 删除 `apps/uniapp/pnpm-workspace.yaml`
    - 创建 `apps/uniapp/project.json`，定义 targets：`dev`、`build:mp-weixin`、`build:h5`、`lint`、`type-check`
    - 根目录 `pnpm install` 验证依赖解析
    - verify: `pnpm nx dev uniapp` 可启动 H5 开发服务
 
-2. [ ] #2 补充缺失依赖 — developer-app (依赖: #1)
+2. [ ] #3602 补充缺失依赖 — developer-app (依赖: #3601)
    - 安装：`@hyoga/uni-socket.io weixin-js-sdk gesti`
    - uni_modules 引入：`lime-painter`（海报生成）、`lime-qrcode`（二维码）
    - 安装 dev：`vconsole rollup-plugin-visualizer vite-plugin-compression`
    - 确认 `pinia-plugin-persistedstate` 支持 `uni.storage`，否则换 `pinia-plugin-persist-uni`
    - verify: `pnpm nx run uniapp:type-check` 无类型错误
 
-3. [ ] #3 ESLint 对齐 AAF 规范 — developer-app (依赖: #1)
+3. [ ] #3603 ESLint 对齐 AAF 规范 — developer-app (依赖: #3601)
    - `eslint.config.mjs` 补充：`@typescript-eslint/no-explicit-any: error`、`no-console: warn`
    - verify: `pnpm nx run uniapp:lint` 通过
 
 ### 二、基础设施
 
-4. [ ] #4 平台抽象层 — developer-app (依赖: #2)
+4. [ ] #3604 平台抽象层 — developer-app (依赖: #3602)
    - 创建 `src/platform/index.ts`：`name`、`provider`、`checkNetwork()`、`getCapsule()`、`navbar`
    - 创建 `src/platform/provider/weixin/index.ts`：`load()`（JS-SDK 初始化）、`checkUpdate()`
    - 所有 `#ifdef` 只在 `platform/` 内部出现
    - verify: H5 和微信小程序均可调用 `platform.checkNetwork()`
 
-5. [ ] #5 SSE 双端流式通信 — developer-app (依赖: #2)
+5. [ ] #3605 SSE 双端流式通信 — developer-app (依赖: #3602)
    - 从 kids-app 移植 `src/request/stream.ts`（`wx.request` + `enableChunked: true`）
    - 从 kids-app 移植 `src/request/stream_h5.ts`（`fetchEventSource`，`#ifdef H5`）
    - 统一 UTF-8 解码、SSE 格式解析、buffer 处理
    - verify: 微信开发者工具和 H5 均可接收流式响应
 
-6. [ ] #6 WebSocket 封装 — developer-app (依赖: #2)
+6. [ ] #3606 WebSocket 封装 — developer-app (依赖: #3602)
    - 创建 `src/request/websocket.ts`，基于 `@hyoga/uni-socket.io` 封装连接/断开/重连/事件监听
    - verify: 可建立连接并收发消息
 
-7. [ ] #7 应用启动序列 — developer-app (依赖: #4)
+7. [ ] #3607 应用启动序列 — developer-app (依赖: #3604)
    - 创建 `src/store/app.ts`，`init()`：检查网络 → 设置主题 → 检查登录态
    - `App.vue` 的 `onLaunch` 调用 `useAppStore().init()`
    - verify: 冷启动序列按顺序执行，网络异常跳错误页
 
-8. [ ] #8 权限路由拦截 — developer-app (依赖: #7)
+8. [ ] #3608 权限路由拦截 — developer-app (依赖: #3607)
    - `src/router/index.ts` 在 `@wot-ui/router` 基础上加 `uni.addInterceptor('navigateTo/redirectTo')`
    - 未登录跳登录页，无权限跳首页，管理端路由校验管理员角色
    - verify: 未登录访问鉴权页自动跳转；普通用户访问 `subPages/admin/` 被拦截
 
 ### 三、核心业务骨架
 
-9. [ ] #9 用户状态与认证 — developer-app (依赖: #8)
+9. [ ] #3609 用户状态与认证 — developer-app (依赖: #3608)
    - 创建 `src/store/user.ts`：token、用户信息、角色（user/admin）、权限列表、登录/登出
    - 持久化到 `uni.storage`
    - verify: 登录后重启小程序，用户状态保持
 
-10. [ ] #10 alova 请求实例配置 — developer-app (依赖: #9)
+10. [ ] #3610 alova 请求实例配置 — developer-app (依赖: #3609)
     - 完善 `src/api/core/instance.ts`：baseURL 从环境变量读取，token 自动注入，401 自动跳登录
     - 完善 `src/api/core/handlers.ts`：统一解包 `{ code, data, message }` 响应格式
     - verify: 请求 401 时自动清除 token 并跳转登录页
 
-11. [ ] #11 用户端页面骨架 — developer-app (依赖: #9)
+11. [ ] #3611 用户端页面骨架 — developer-app (依赖: #3609)
     - 创建主包页面：`pages/index/`（首页）、`pages/chat/`（对话列表 + `[id].vue` 详情）、`pages/profile/`（个人中心）
     - 配置 `pages.config.ts` tabbar（首页/对话/我的）
     - verify: 三个 tabbar 页面可正常切换
 
-12. [ ] #12 管理端分包骨架 — developer-app (依赖: #8)
+12. [ ] #3612 管理端分包骨架 — developer-app (依赖: #3608)
     - 创建 `src/subPages/admin/`：`dashboard/`、`users/`、`audit/`（各含占位页面）
     - `pages.config.ts` 配置 admin 分包
     - 个人中心加入角色切换入口（管理员可见）
@@ -93,11 +93,11 @@ author: AaronZZH
 
 ### 四、AI Skills 迁移与清理
 
-13. [ ] #13 AI Skills 迁移 — developer-app (依赖: #1)
+13. [ ] #3613 AI Skills 迁移 — developer-app (依赖: #3601)
     - 将 `.agents/skills/` 下 4 个 skill 迁移到 `.kiro/skills/`，对齐 AAF Kiro 格式
     - verify: Kiro 可识别并加载 uniapp skill
 
-14. [ ] #14 脚手架 Demo 清理 — developer-app (依赖: #11, #12)
+14. [ ] #3614 脚手架 Demo 清理 — developer-app (依赖: #3611, #3612)
     - 删除 `src/subPages/` 下演示页（router/pinia/request/feedback/skills/ci/create-uni/icon/uni-ku-root）
     - 删除 `src/pages/about/`、`src/components/DemoBlock.vue`
     - 清理 `pages.config.ts` 对应路由
@@ -105,59 +105,59 @@ author: AaronZZH
 
 ### 五、通用能力补充
 
-15. [ ] #15 启动页与登录流程 — developer-app (依赖: #9)
+15. [ ] #3615 启动页与登录流程 — developer-app (依赖: #3609)
     - 创建 `pages/startup/index.vue`：检查登录态，决定跳首页或登录页
     - 创建 `pages/login/index.vue`：微信一键登录（`wx.login` + 手机号授权）+ H5 账号密码登录
     - verify: 未登录冷启动跳登录页；登录成功跳首页；token 有效时跳过登录
 
-16. [ ] #16 文件上传 composable — developer-app (依赖: #10)
+16. [ ] #3616 文件上传 composable — developer-app (依赖: #3610)
     - 创建 `src/composables/useUploader.ts`，封装：S3 预签名上传（`uni.request PUT`）、服务端直传（alova uploadFile）、图片压缩（`uni.compressImage`，超 3MB 自动压缩）、上传进度
     - 参考 kids-app `hooks/useNutUploader.ts` 实现，去除 nutui 依赖
     - verify: 图片上传成功，超 3MB 自动压缩后上传
 
-17. [ ] #17 AI 对话消息列表（虚拟列表） — developer-app (依赖: #11)
+17. [ ] #3617 AI 对话消息列表（虚拟列表） — developer-app (依赖: #3611)
     - 引入 `z-paging`（uni_modules），实现聊天记录模式（`use-chat-record-mode`）+ 虚拟列表（`use-virtual-list`）
     - 创建 `src/components/chat/ChatBubble.vue`：用户/AI 气泡，AI 消息用 `mp-html` 渲染（支持 HTML 内容）
     - 创建 `src/components/chat/StreamText.vue`：流式文字追加渲染
     - verify: 消息列表 100 条以上滚动流畅，流式内容实时追加
 
-18. [ ] #18 Markdown 渲染 — developer-app (依赖: #17)
+18. [ ] #3618 Markdown 渲染 — developer-app (依赖: #3617)
     - 引入 `marked`（或复用 uview-plus 内置的 `marked.esm.js`），将 Markdown 转 HTML
     - 在 `ChatBubble.vue` 中 AI 消息走 `marked → mp-html` 渲染链
     - verify: AI 回复中的代码块、列表、加粗、表格正确渲染
 
-19. [ ] #19 Canvas 海报生成与编辑 — developer-app (依赖: #2)
+19. [ ] #3619 Canvas 海报生成与编辑 — developer-app (依赖: #3602)
     - **固定模板**：用 `lime-painter`（声明式 JSON 配置）实现快速海报生成，支持背景图、头像、文字、`lime-qrcode` 二维码
     - **可编辑模式**：用 `gesti` 实现拖拽/缩放/旋转元素的交互式编辑器（参考 kids-app `print/gesti/`）
     - 创建 `src/components/common/PosterPreview.vue`（lime-painter 固定模板）和 `src/components/common/PosterEditor.vue`（gesti 可编辑）
     - 暴露 `generate()` 返回临时图片路径，支持 `uni.saveImageToPhotosAlbum` 保存
     - verify: 固定模板一键生成海报；可编辑模式可拖拽元素；均可保存到相册
 
-20. [ ] #20 消息通知页 — developer-app (依赖: #11)
+20. [ ] #3620 消息通知页 — developer-app (依赖: #3611)
     - 创建 `subPages/message/list.vue`：消息列表，已读/未读状态，alova usePagination 分页
     - 创建 `subPages/message/detail.vue`：消息详情，mp-html 渲染富文本内容
     - 个人中心加消息入口 + 未读角标
     - verify: 消息列表分页正常，点击跳详情，已读状态更新
 
-21. [ ] #21 用户信息与设置 — developer-app (依赖: #16)
+21. [ ] #3621 用户信息与设置 — developer-app (依赖: #3616)
     - 创建 `subPages/profile/edit.vue`：头像上传（useUploader）、昵称、手机号修改
     - 创建 `subPages/settings/index.vue`：通知设置、隐私协议、关于、退出登录、清除缓存
     - verify: 头像上传成功，设置项可正常操作
 
-22. [ ] #22 管理端扩展页面 — developer-app (依赖: #12)
+22. [ ] #3622 管理端扩展页面 — developer-app (依赖: #3612)
     - 创建 `subPages/admin/notice/`：公告列表 + 发布/编辑（mp-html 渲染）
     - 创建 `subPages/admin/roles/`：角色列表 + 权限配置
     - 创建 `subPages/admin/settings/`：系统配置（KV 表单）
     - verify: 管理员可发布公告，可配置角色权限
 
-23. [ ] #23 多模态图像处理 — developer-app (依赖: #16, #17)
+23. [ ] #3623 多模态图像处理 — developer-app (依赖: #3616, #3617)
     - 创建 `src/components/chat/ImagePicker.vue`：图片选择 + 预览 + 删除，支持多图
     - 在 `MessageInput.vue` 集成图片选择入口（相册/拍照）
     - 在 `ChatBubble.vue` 支持图片消息渲染（用户发送的图片 + AI 返回的图片）
     - 参考 kids-app `editor/image.vue` 的上传 + AI 处理流程
     - verify: 可选图上传，AI 回复中图片正常展示
 
-24. [ ] #24 Echarts 图表封装 — developer-app (依赖: #12)
+24. [ ] #3624 Echarts 图表封装 — developer-app (依赖: #3612)
     - 在 `subEcharts/` 分包封装常用图表组件：折线图、柱状图、饼图、数据看板卡片
     - 管理端 `admin/dashboard/` 使用图表组件展示数据概览
     - verify: 管理端看板图表正常渲染，分包加载不影响主包体积
