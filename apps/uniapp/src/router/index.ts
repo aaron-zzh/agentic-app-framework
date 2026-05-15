@@ -1,79 +1,79 @@
 /// <reference types="@uni-helper/vite-plugin-uni-pages/client" />
 import { pages, subPackages } from 'virtual:uni-pages'
 
+/** 管理端分包路径前缀 */
+const ADMIN_PREFIX = '/subPages/admin/'
+
+/** 不需要登录的白名单页面 */
+const WHITE_LIST = [
+  '/pages/startup/index',
+  '/pages/login/index',
+]
+
+// ===== @wot-ui/router 路由实例 =====
+
 function generateRoutes() {
-  const routes = pages.map((page) => {
-    const newPath = `/${page.path}`
-    return { ...page, path: newPath }
-  })
-  if (subPackages && subPackages.length > 0) {
-    subPackages.forEach((subPackage) => {
-      const subRoutes = subPackage.pages.map((page: any) => {
-        const newPath = `/${subPackage.root}/${page.path}`
-        return { ...page, path: newPath }
-      })
-      routes.push(...subRoutes)
+  const routes = pages.map(page => ({ ...page, path: `/${page.path}` }))
+  subPackages?.forEach((pkg) => {
+    pkg.pages.forEach((page: { path: string }) => {
+      routes.push({ ...page, path: `/${pkg.root}/${page.path}` })
     })
-  }
+  })
   return routes
 }
 
-const router = createRouter({
-  routes: generateRoutes(),
-})
-router.beforeEach((to, from, next) => {
-  console.log('🚀 beforeEach 守卫触发:', { to, from })
+const router = createRouter({ routes: generateRoutes() })
 
-  // 演示：基本的导航日志记录
-  if (to.path && from.path) {
-    console.log(`📍 导航: ${from.path} → ${to.path}`)
+router.beforeEach((to, _from, next) => {
+  const userStore = useUserStore()
+
+  // 白名单直接放行
+  if (WHITE_LIST.includes(to.path)) {
+    return next()
   }
 
-  // 演示：对受保护页面的简单拦截
-  if (to.name === 'demo-protected') {
-    const { confirm: showConfirm } = useGlobalDialog()
-    console.log('🛡️ 检测到访问受保护页面')
-
-    return new Promise<void>((resolve, reject) => {
-      showConfirm({
-        title: '守卫拦截演示',
-        msg: '这是一个受保护的页面，需要确认后才能访问',
-        confirmButtonText: '允许访问',
-        cancelButtonText: '取消',
-        success() {
-          console.log('✅ 用户确认访问，允许导航')
-          next()
-          resolve()
-        },
-        fail() {
-          console.log('❌ 用户取消访问，阻止导航')
-          next(false)
-          reject(new Error('用户取消访问'))
-        },
-      })
-    })
+  // 未登录跳登录页
+  if (!userStore.isLoggedIn) {
+    return next({ name: 'login' })
   }
 
-  // 继续导航
+  // 管理端路由校验管理员角色
+  if (to.path.startsWith(ADMIN_PREFIX) && !userStore.isAdmin) {
+    return next({ name: 'index' })
+  }
+
   next()
 })
 
-router.afterEach((to, from) => {
-  console.log('🎯 afterEach 钩子触发:', { to, from })
-
-  // 演示：简单的页面切换记录
-  if (to.path) {
-    console.log(`📄 页面切换完成: ${to.path}`)
-  }
-
-  // 演示：针对 afterEach 演示页面的简单提示
-  if (to.name === 'demo-aftereach') {
-    const { show: showToast } = useGlobalToast()
-    console.log('📊 进入 afterEach 演示页面')
-    setTimeout(() => {
-      showToast('afterEach 钩子已触发！')
-    }, 500)
-  }
-})
-
 export default router
+
+// ===== uni.addInterceptor 原生导航拦截 =====
+// 覆盖 @wot-ui/router 未处理的 uni.navigateTo 等原生跳转
+
+function checkAccess(url: string): boolean {
+  const path = `/${url.split('?')[0].replace(/^\//, '')}`
+  const userStore = useUserStore()
+
+  if (WHITE_LIST.includes(path))
+    return true
+
+  if (!userStore.isLoggedIn) {
+    uni.redirectTo({ url: '/pages/login/index' })
+    return false
+  }
+
+  if (path.startsWith(ADMIN_PREFIX) && !userStore.isAdmin) {
+    uni.switchTab({ url: '/pages/index/index' })
+    return false
+  }
+
+  return true
+}
+
+;(['navigateTo', 'redirectTo', 'reLaunch'] as const).forEach((method) => {
+  uni.addInterceptor(method, {
+    invoke(args: { url: string }) {
+      return checkAccess(args.url)
+    },
+  })
+})
