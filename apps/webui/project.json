@@ -33,10 +33,7 @@
       "options": { "cwd": "apps/webui" },
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/vitest.config.ts"]
     },
-    "acceptance": {
-      "command": "vitest run --config vitest.acceptance.config.ts --passWithNoTests",
-      "options": { "cwd": "apps/webui" }
-    },
+
     "check": {
       "executor": "nx:noop"
     }

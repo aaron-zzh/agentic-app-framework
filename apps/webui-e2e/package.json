@@ -1,0 +1,11 @@
+{
+  "name": "@aaf/webui-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "webui-e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

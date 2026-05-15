@@ -195,6 +195,17 @@ pnpm nx run service:test
 
 # 后端构建
 pnpm nx run service:build
+
+# ——— E2E 测试（Playwright） ———
+
+# 首次使用需安装浏览器（仅一次）
+npx playwright install chromium
+
+# 运行 E2E 测试（headless，自动启动 webui dev server）
+pnpm nx run webui-e2e:e2e
+
+# 有头模式（可视化调试）
+pnpm nx run webui-e2e:e2e -- --headed
 ```
 
 ### 配置管理

@@ -1,0 +1,14 @@
+{
+  "name": "webui-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/webui-e2e/src",
+  "implicitDependencies": ["webui"],
+  "targets": {
+    "e2e": {
+      "command": "playwright test",
+      "options": { "cwd": "apps/webui-e2e" },
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/playwright.config.ts"],
+      "outputs": ["{projectRoot}/test-results"]
+    }
+  }
+}
