@@ -18,6 +18,8 @@ const inputText = ref('')
 const isStreaming = ref(false)
 const pagingRef = ref()
 const showNewMsgTip = ref(false)
+/** 当前正在流式输出的 AI 消息，用于 SSE 回调中直接更新内容 */
+const streamingMsg = ref<ChatMessage | null>(null)
 
 // 生成消息 ID
 let msgIdCounter = 0
@@ -59,8 +61,9 @@ async function onSend(text: string = inputText.value, images: Array<{ url?: stri
   }
   pagingRef.value?.addChatRecordData(userMsg)
 
-  // 追加 AI 占位消息
+  // 追加 AI 占位消息，并保留引用供 SSE 回调更新
   const aiMsg: ChatMessage = { id: genId(), type: 'assistant', content: '', createTime: Date.now(), streaming: true }
+  streamingMsg.value = aiMsg
   pagingRef.value?.addChatRecordData(aiMsg)
 
   isStreaming.value = true
@@ -73,16 +76,22 @@ async function onSend(text: string = inputText.value, images: Array<{ url?: stri
   // #ifdef MP-WEIXIN
   streamPost(apiUrl, body, headers, {
     onData: (chunk) => {
-      messageList.value[0].content += chunk
+      if (streamingMsg.value)
+        streamingMsg.value.content += chunk
     },
     onComplete: () => {
-      messageList.value[0].streaming = false
+      if (streamingMsg.value)
+        streamingMsg.value.streaming = false
+      streamingMsg.value = null
       isStreaming.value = false
       showNewMsgTip.value = true
     },
     onError: () => {
-      messageList.value[0].content = '请求失败，请重试'
-      messageList.value[0].streaming = false
+      if (streamingMsg.value) {
+        streamingMsg.value.content = '请求失败，请重试'
+        streamingMsg.value.streaming = false
+      }
+      streamingMsg.value = null
       isStreaming.value = false
     },
   })
@@ -93,16 +102,22 @@ async function onSend(text: string = inputText.value, images: Array<{ url?: stri
   const ctrl = new AbortController()
   streamPostH5(apiUrl, body, headers, {
     onData: (chunk) => {
-      messageList.value[0].content += chunk
+      if (streamingMsg.value)
+        streamingMsg.value.content += chunk
     },
     onComplete: () => {
-      messageList.value[0].streaming = false
+      if (streamingMsg.value)
+        streamingMsg.value.streaming = false
+      streamingMsg.value = null
       isStreaming.value = false
       showNewMsgTip.value = true
     },
     onError: () => {
-      messageList.value[0].content = '请求失败，请重试'
-      messageList.value[0].streaming = false
+      if (streamingMsg.value) {
+        streamingMsg.value.content = '请求失败，请重试'
+        streamingMsg.value.streaming = false
+      }
+      streamingMsg.value = null
       isStreaming.value = false
     },
   }, ctrl)
@@ -112,8 +127,9 @@ async function onSend(text: string = inputText.value, images: Array<{ url?: stri
 /** 停止流式输出 */
 function onStop() {
   isStreaming.value = false
-  if (messageList.value[0]?.streaming) {
-    messageList.value[0].streaming = false
+  if (streamingMsg.value) {
+    streamingMsg.value.streaming = false
+    streamingMsg.value = null
   }
   toast.warning({ msg: '已停止' })
 }
@@ -152,7 +168,7 @@ function onScrollToUpper() {
     >
       <template #cell="{ item }">
         <view style="transform: scaleY(-1)">
-          <chat-bubble :message="item" />
+          <chat-bubble :message="item" @widget-submit="onSend" />
         </view>
       </template>
       <template #backToTop>

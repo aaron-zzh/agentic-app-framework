@@ -23,6 +23,7 @@ interface ApiResponse<T = unknown> {
 /** 处理 401：清除 token 并跳登录页 */
 function handleUnauthorized(): void {
   useUserStore().logout()
+
   const toast = useGlobalToast()
   toast.error({ msg: '登录已过期，请重新登录', duration: 500 })
   setTimeout(() => router.replaceAll({ name: 'login' }), 500)

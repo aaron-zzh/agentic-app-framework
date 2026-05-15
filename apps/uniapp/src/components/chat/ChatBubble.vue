@@ -28,6 +28,7 @@
  * 用户可发送图片，AI 可返回图片，在气泡中渲染缩略图，点击预览。
  */
 import { marked } from 'marked'
+import ChatWidget from './ChatWidget.vue'
 
 export interface ChatMessage {
   id: string
@@ -39,7 +40,7 @@ export interface ChatMessage {
   /** 图片消息（用户发送的图片或 AI 返回的图片） */
   images?: string[]
   /**
-   * 内嵌交互组件（待实现）
+   * 内嵌交互组件
    * 后端在 SSE 响应中携带此字段，前端根据 type 渲染对应组件
    */
   widget?: {
@@ -52,17 +53,66 @@ export interface ChatMessage {
   }
 }
 
-defineProps<{
+const props = defineProps<{
   message: ChatMessage
   userAvatar?: string
+}>()
+
+const emit = defineEmits<{
+  /** widget 提交，将结果作为下一条消息发送 */
+  widgetSubmit: [text: string]
 }>()
 
 /** Markdown → HTML，供 mp-html 渲染 */
 function renderMarkdown(content: string): string {
   if (!content)
     return ''
-  // marked 同步解析，返回 HTML 字符串
   return marked.parse(content, { async: false }) as string
+}
+
+/**
+ * 拦截 mp-html 的链接点击事件（#3626）
+ * 支持协议：
+ * - route://页面名?参数  → uni-app 内部路由跳转
+ * - http(s)://           → webview 或外部浏览器
+ * - tel://               → 拨打电话
+ */
+function onLinkTap(e: { href: string }) {
+  const { href } = e
+  if (!href)
+    return
+
+  if (href.startsWith('route://')) {
+    // 解析 route://页面名?key=value
+    const withoutScheme = href.slice('route://'.length)
+    const [pageName, queryStr] = withoutScheme.split('?')
+    const query: Record<string, string> = {}
+    if (queryStr) {
+      queryStr.split('&').forEach((pair) => {
+        const [k, v] = pair.split('=')
+        if (k)
+          query[decodeURIComponent(k)] = decodeURIComponent(v ?? '')
+      })
+    }
+    uni.navigateTo({ url: `/${pageName}${queryStr ? `?${queryStr}` : ''}` })
+  }
+  else if (href.startsWith('tel://')) {
+    uni.makePhoneCall({ phoneNumber: href.slice('tel://'.length) })
+  }
+  else if (href.startsWith('http://') || href.startsWith('https://')) {
+    // #ifdef MP-WEIXIN
+    uni.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(href)}` })
+    // #endif
+    // #ifdef H5
+    window.open(href, '_blank')
+    // #endif
+  }
+}
+
+function onWidgetSubmit(text: string) {
+  if (props.message.widget)
+    props.message.widget.submitted = true
+  emit('widgetSubmit', text)
 }
 </script>
 
@@ -73,21 +123,33 @@ function renderMarkdown(content: string): string {
       <view class="h-9 w-9 flex shrink-0 items-center justify-center rounded-full bg-[#8e44ad]">
         <wd-icon name="chat" size="18px" color="#fff" />
       </view>
-      <view class="max-w-4/5 rounded-2 rounded-tl-none bg-white p-3 shadow-sm">
-        <!-- 图片消息 -->
-        <view v-if="message.images?.length" class="mb-2 flex flex-wrap gap-1">
-          <image
-            v-for="(img, i) in message.images"
-            :key="i"
-            :src="img"
-            class="h-24 w-24 rounded-1"
-            mode="aspectFill"
-            @tap="uni.previewImage({ current: i, urls: message.images! })"
+      <view class="max-w-4/5">
+        <view class="rounded-2 rounded-tl-none bg-white p-3 shadow-sm">
+          <!-- 图片消息 -->
+          <view v-if="message.images?.length" class="mb-2 flex flex-wrap gap-1">
+            <image
+              v-for="(img, i) in message.images"
+              :key="i"
+              :src="img"
+              class="h-24 w-24 rounded-1"
+              mode="aspectFill"
+              @tap="uni.previewImage({ current: i, urls: message.images! })"
+            />
+          </view>
+          <mp-html
+            v-if="message.content"
+            :content="renderMarkdown(message.content)"
+            @linktap="onLinkTap"
           />
+          <!-- 流式输出中的光标 -->
+          <text v-if="message.streaming" class="animate-pulse text-gray-400">▋</text>
         </view>
-        <mp-html v-if="message.content" :content="renderMarkdown(message.content)" />
-        <!-- 流式输出中的光标 -->
-        <text v-if="message.streaming" class="animate-pulse text-gray-400">▋</text>
+        <!-- 内嵌交互组件（未提交时显示） -->
+        <chat-widget
+          v-if="message.widget && !message.widget.submitted"
+          :widget="message.widget"
+          @submit="onWidgetSubmit"
+        />
       </view>
     </view>
 
