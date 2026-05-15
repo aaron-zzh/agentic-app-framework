@@ -47,4 +47,4 @@
 - 源码：按架构约束放置（详见各 developer-* 子文档）
 - 单元测试：`src/test/java/**/*Test.java` 或 `src/**/*.test.ts(x)`
 - 开发日志：`docs/task/{版本}/{AAF-XXX}/dev-log.md`
-- 提交消息：Conventional Commits，脚注关联技术任务 `Task: #N`
+- 提交消息：Conventional Commits，脚注关联技术任务 `Task: #XXXNN`

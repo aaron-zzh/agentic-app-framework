@@ -161,7 +161,7 @@ git config --global commit.template .gitmessage.txt
 - 使用有意义的提交信息
 - 遵循原子提交原则，提交符合多种类型时，应拆分为多次提交
 - 在提交前 review 自己的改动
-- 在脚注中通过 `Task:` 关联技术任务编号（如 `Task: #42`）
+- 在脚注中通过 `Task:` 关联技术任务编号（如 `Task: #02801`）
 - 脚注用 `-` 作连字符（如 `Reviewed-by`），`BREAKING CHANGE` 例外
 
 ### DON'T ❌

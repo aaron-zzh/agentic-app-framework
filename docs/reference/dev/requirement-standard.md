@@ -180,7 +180,7 @@ Epic（Level 1）→ Story 拆分（Level 2）→ Spec + 技术设计（Level 3�
 
 1. **编写 Epic（Level 1）**：准备阶段由 product 完成，描述业务目标和范围，录入 backlog
 2. **拆分 Story（Level 2）**：执行阶段入口由 product 将 Epic 拆分为可独立交付的 Story
-3. **细化 Spec + 技术设计（Level 3）**：product 补充精确 AC、数据模型、业务规则、约束；architect 完成接口定义、类结构、模块交互、ADR；architect 将 Story 拆分为技术任务（`#N`）
+3. **细化 Spec + 技术设计（Level 3）**：product 补充精确 AC、数据模型、业务规则、约束；architect 完成接口定义、类结构、模块交互、ADR；architect 将 Story 拆分为技术任务（`#XXXNN`）
 4. **评审**：🔴 高风险设计必须人类审核
 5. **实现**：根据规范编码（AI 生成或手写）
 6. **验证**：对照 Spec 中的 AC 和测试要点验收

@@ -201,7 +201,7 @@ product(Epic→Story 拆分 + Spec 细化)
 - product 为每个 Story 补充 Spec：数据模型、业务规则、约束与边界、精确 AC（Gherkin）、测试要点
 - product 编写**产品设计文档**（功能流程复杂或多步骤交互时）：用户旅程、功能流程、交互逻辑，存放在 `docs/design/{module}/`
 - architect 完成**技术设计文档**：接口定义（完整签名）、类结构、模块交互、ADR，存放在 `docs/design/{module}/`
-- architect 将 Story 拆分为技术任务（`#N`），标注依赖，记录在迭代文件中
+- architect 将 Story 拆分为技术任务（`#XXXNN`），标注依赖，记录在迭代文件中
 - 🔴 高风险设计必须人类审核后再进入开发
 
 **设计文档触发条件**：
