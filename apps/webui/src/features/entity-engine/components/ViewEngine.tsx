@@ -13,6 +13,7 @@
 "use client"
 
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
+import { useEntityList } from "@/lib/queries/use-entity-list"
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
@@ -64,7 +65,7 @@ function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
   // 内置视图
   switch (view) {
     case "list":
-      return <ListView entity={entity} />
+      return <ConnectedListView entity={entity} />
     case "kanban":
       return <KanbanView entity={entity} />
     case "form":
@@ -72,6 +73,12 @@ function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
     default:
       return <ViewPlaceholder entity={entity} view={view} />
   }
+}
+
+/** 列表视图——连接数据层 */
+function ConnectedListView({ entity }: { entity: EntityDef }) {
+  const { data, isLoading } = useEntityList(entity)
+  return <ListView entity={entity} data={data} loading={isLoading} />
 }
 
 /** 视图占位组件（后续被 ListView/KanbanView/FormView 替换） */
