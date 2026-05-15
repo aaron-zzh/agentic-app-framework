@@ -51,11 +51,11 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 11
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -91,3 +91,23 @@ jobs:
           files: apps/webui/coverage/coverage-final.json
           flags: webui
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build uniapp (mp-weixin)
+        run: pnpm nx run uniapp:build:mp-weixin
+
+      - name: Build uniapp (H5)
+        run: pnpm nx run uniapp:build
+
+      - name: Upload uniapp mp-weixin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uniapp-mp-weixin
+          path: apps/uniapp/dist/build/mp-weixin/
+          retention-days: 7
+
+      - name: Upload uniapp H5 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uniapp-h5
+          path: apps/uniapp/dist/build/h5/
+          retention-days: 7

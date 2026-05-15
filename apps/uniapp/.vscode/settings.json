@@ -52,5 +52,22 @@
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
     "vite.config.*": "pages.config.*, manifest.config.*, uno.config.*, volar.config.*, *.env, .env.*, alova.config.*"
-  }
+  },
+
+  // cSpell 词典（uniapp 生态常用词）
+  "cSpell.words": [
+    "alova",
+    "composables",
+    "dcloudio",
+    "gesti",
+    "hyoga",
+    "pinia",
+    "qrcode",
+    "tabbar",
+    "uniapp",
+    "unocss",
+    "vueuse",
+    "weixin",
+    "wot"
+  ]
 }
