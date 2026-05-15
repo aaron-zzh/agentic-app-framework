@@ -17,6 +17,12 @@ interface BaseFieldDef {
   defaultValue?: unknown
   placeholder?: string
   description?: string
+  /** 条件可见性表达式 */
+  visibleWhen?: string
+  /** 条件只读表达式 */
+  readOnlyWhen?: string
+  /** 条件必填表达式 */
+  requiredWhen?: string
   /** 字段级组件覆盖 */
   components?: {
     Field?: ComponentType<FieldProps>
