@@ -3,7 +3,10 @@
  * @author AaronZZH & Kiro
  */
 
+import { Suspense } from "react"
+
 import { entityRegistry, sampleEntities } from "@/features/entity-engine"
+import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { AppHeader } from "@/sections/layout/AppHeader"
 import { AppSidebar } from "@/sections/layout/AppSidebar"
 
@@ -13,6 +16,9 @@ entityRegistry.registerAll(sampleEntities)
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden">
+      <Suspense>
+        <TopProgressBar />
+      </Suspense>
       <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader />
