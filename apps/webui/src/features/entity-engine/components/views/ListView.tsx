@@ -11,7 +11,8 @@
 "use client"
 
 import { getCellComponent } from "../../lib/component-registry"
-import type { DataFieldDef, EntityDef } from "../../types"
+import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
+import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 
 interface ListViewProps {
   entity: EntityDef
@@ -20,13 +21,15 @@ interface ListViewProps {
 }
 
 export function ListView({ entity, data = [], loading }: ListViewProps) {
-  const { listView, fields } = entity
-  const columns = listView.columns
-    .map((name) => {
-      const field = fields.find((f) => "name" in f && (f as { name: string }).name === name)
-      return field && "name" in field ? { name, field: field as DataFieldDef } : null
+  const { fields, listView } = entity
+  const { visibleColumns } = useColumnPreferences(entity.slug, listView)
+
+  const columns = visibleColumns
+    .map((col) => {
+      const field = fields.find((f) => "name" in f && (f as { name: string }).name === col.name)
+      return field && "name" in field ? { name: col.name, field: field as DataFieldDef, def: col } : null
     })
-    .filter(Boolean) as { name: string; field: DataFieldDef }[]
+    .filter(Boolean) as { name: string; field: DataFieldDef; def: ColumnDef }[]
 
   if (loading) {
     return <ListSkeleton columns={columns.length} />
@@ -49,6 +52,7 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
               <th
                 key={col.name}
                 className="h-10 px-4 text-left align-middle font-medium text-muted-foreground"
+                style={col.def.width ? { width: col.def.width } : undefined}
               >
                 {col.field.label ?? col.name}
               </th>

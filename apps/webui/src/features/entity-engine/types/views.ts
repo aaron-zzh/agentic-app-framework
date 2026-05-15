@@ -5,10 +5,26 @@
 
 import type { GroupField, RowField, TabsField } from "./field"
 
+/** 列定义 */
+export interface ColumnDef {
+  /** 字段 name */
+  name: string
+  /** 列宽（px 或百分比） */
+  width?: string
+  /** 固定列（left/right） */
+  fixed?: "left" | "right"
+  /** 可排序 */
+  sortable?: boolean
+  /** 可调整宽度 */
+  resizable?: boolean
+  /** 默认隐藏 */
+  hidden?: boolean
+}
+
 /** 列表视图配置 */
 export interface ListViewConfig {
-  /** 显示的列（字段 name 列表） */
-  columns: string[]
+  /** 显示的列（字段 name 或完整列定义） */
+  columns: (string | ColumnDef)[]
   /** 默认排序："fieldName:asc|desc" */
   defaultSort?: string
   /** 可搜索字段 */
@@ -21,6 +37,8 @@ export interface ListViewConfig {
   batchActions?: string[]
   /** 每页条数 */
   pageSize?: number
+  /** 允许行拖拽排序 */
+  draggable?: boolean
 }
 
 /** 表单视图配置 */
