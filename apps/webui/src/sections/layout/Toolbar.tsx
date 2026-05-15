@@ -1,19 +1,29 @@
 /**
- * Toolbar——视图工具栏（搜索 + 新建按钮 + 视图切换）
+ * Toolbar——视图工具栏（参考禅道/Ones 搜索视图设计）
  * @author AaronZZH & Kiro
+ *
+ * 布局：
+ * 行1：[+ 创建] [更多操作]          视图切换 | 分组 | 过滤 | 共N个 | 设置
+ * 行2：[常驻筛选器...] 搜索框(⌘K) [+ 添加条件]
+ * 行3（条件存在时）：[高级查询] [另存为视图] [清除条件]
  */
 
 "use client"
 
 import Link from "next/link"
+import { useCallback, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 
 import { cn } from "@/lib/utils/cn"
 import type { EntityDef } from "@/features/entity-engine/types"
+import { useFilterParams } from "@/lib/queries/use-filter-params"
+import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
+import { SearchBar } from "@/features/entity-engine/components/SearchBar"
+import { ListTabs } from "@/features/entity-engine/components/ListTabs"
 
 const views = [
   { key: "list", label: "列表", icon: "☰" },
-  { key: "kanban", label: "看板", icon: "▦" }
+  { key: "kanban", label: "看板", icon: "▦" },
 ] as const
 
 interface ToolbarProps {
@@ -26,50 +36,76 @@ export function Toolbar({ entity }: ToolbarProps) {
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") ?? "list"
   const canCreate = entity.access?.create !== false
+  const [filters, setFilters] = useFilterParams()
+  const [activeTab, setActiveTab] = useState("")
+
+  // Tab 切换时添加/替换对应字段筛选
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value)
+    const tabField = entity.listView.tabs?.field
+    if (!tabField) return
+    const without = filters.filter((f) => f.field !== tabField)
+    if (value) {
+      setFilters([...without, { field: tabField, operator: "eq", value }])
+    } else {
+      setFilters(without)
+    }
+  }, [entity, filters, setFilters])
 
   return (
-    <div className="flex items-center justify-between border-b px-4 py-2">
-      <div className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold">{entity.label}</h1>
-
-        {/* 视图切换 */}
-        <div className="flex items-center gap-0.5 rounded-md border p-0.5">
-          {views.map((v) => (
+    <div className="border-b">
+      {/* 行1：操作按钮 + 视图控制 */}
+      <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center gap-2">
+          {canCreate && (
             <Link
-              key={v.key}
-              href={`${pathname}?view=${v.key}`}
-              title={v.label}
-              className={cn(
-                "rounded px-2 py-1 text-xs transition-colors",
-                currentView === v.key
-                  ? "bg-accent font-medium text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              href={`${pathname}/new`}
+              className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              {v.icon}
+              + 创建
             </Link>
-          ))}
+          )}
+          {/* TODO: #02915 Server Actions 批量操作菜单 */}
+          <button type="button" className="h-8 rounded-md border px-3 text-sm text-muted-foreground" disabled>
+            更多操作 ▾
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-0.5 rounded-md border p-0.5">
+            {views.map((v) => (
+              <Link
+                key={v.key}
+                href={`${pathname}?view=${v.key}`}
+                title={v.label}
+                className={cn(
+                  "rounded px-2 py-1 text-xs transition-colors",
+                  currentView === v.key
+                    ? "bg-accent font-medium text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {v.icon}
+              </Link>
+            ))}
+          </div>
+          <span className="text-xs">分组: 无</span>
+          <span>共 {searchParams.get("total") ?? "—"} 个</span>
+          <button type="button" className="text-xs hover:text-foreground" disabled>⚙ 设置</button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* 搜索框 */}
-        <input
-          type="text"
-          placeholder="搜索..."
-          className="h-8 w-48 rounded-md border border-input bg-transparent px-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
+      {/* 行2：状态 Tab（配置了 tabs 时显示） */}
+      <ListTabs entity={entity} activeValue={activeTab} onChange={handleTabChange} />
 
-        {/* 新建按钮 */}
-        {canCreate && (
-          <Link
-            href={`${pathname}/new`}
-            className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            + 新建
-          </Link>
-        )}
+      {/* 行3：统一搜索栏 */}
+      <div className="flex items-center gap-2 px-4 py-2">
+        <SearchBar entity={entity} filters={filters} onChange={setFilters} />
+        <FilterFavorites entitySlug={entity.slug} currentFilters={filters} onApply={setFilters} />
       </div>
     </div>
   )
 }
+
+
+

@@ -41,6 +41,15 @@ export interface ListViewConfig {
   draggable?: boolean
   /** 分组字段 */
   groupBy?: string
+  /** Tab 快捷筛选配置 */
+  tabs?: {
+    /** 按哪个字段生成 Tab */
+    field: string
+    /** 显示计数 */
+    showCount?: boolean
+    /** 自定义 Tab 项（不配则从字段 options 自动生成） */
+    items?: { value: string; label: string }[]
+  }
 }
 
 /** 表单视图配置 */
