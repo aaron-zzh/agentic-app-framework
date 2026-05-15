@@ -65,7 +65,7 @@ const menuItems = [
     <!-- 其他设置 -->
     <view class="mx-4 mt-4 rounded-3 bg-white">
       <wd-cell-group>
-        <wd-cell title="设置" icon="setting" is-link />
+        <wd-cell title="设置" icon="setting" is-link @click="router.push({ name: 'settings' })" />
         <wd-cell title="联系客服" icon="chat" is-link />
         <wd-cell v-if="userStore.isLoggedIn" title="退出登录" icon="close-circle" @click="userStore.logout()" />
       </wd-cell-group>
