@@ -16,6 +16,7 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { getCellComponent } from "../../lib/component-registry"
 import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
+import { DraggableListView } from "./DraggableListView"
 
 /** 虚拟滚动启用阈值 */
 const VIRTUAL_THRESHOLD = 100
@@ -48,6 +49,11 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
         <p className="text-sm">暂无数据</p>
       </div>
     )
+  }
+
+  // 拖拽排序模式
+  if (entity.listView.draggable) {
+    return <DraggableListView columns={columns} data={data} />
   }
 
   const useVirtual = data.length > VIRTUAL_THRESHOLD
