@@ -23,6 +23,7 @@ import com.xuejiai.aaf.module.system.mapper.UserConvert;
 import com.xuejiai.aaf.module.system.repository.UserRepository;
 import com.xuejiai.aaf.module.system.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
+import com.xuejiai.aaf.module.system.vo.UserExportVO;
 import com.xuejiai.aaf.module.system.vo.UserPageDTO;
 import com.xuejiai.aaf.module.system.vo.UserSimpleVO;
 import com.xuejiai.aaf.module.system.vo.UserUpdateDTO;
@@ -137,6 +138,19 @@ public class UserService {
     }
 
     // ==================== 查询方法 ====================
+
+    /** 导出用户列表（不分页，应用筛选条件）。 */
+    public List<UserExportVO> listForExport(UserPageDTO req) {
+        Specification<User> spec = buildSpec(req);
+        Sort sort = req.buildSort();
+        if (!sort.isSorted()) {
+            sort = Sort.by("id").descending();
+        }
+        return userRepository.findAll(spec, sort).stream()
+                .map(u -> new UserExportVO(u.getId(), u.getUsername(), u.getNickname(),
+                        u.getStatus(), u.getCreateTime()))
+                .toList();
+    }
 
     /** 批量查询用户 */
     public List<User> getUserList(Collection<Long> ids) {

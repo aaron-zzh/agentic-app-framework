@@ -149,7 +149,7 @@ Preview 特性（Structured Concurrency、Stable Values）在 `aaf-framework` �
 |------|------|------|
 | 对象映射 | MapStruct + Lombok | 编译期代码生成 |
 | 文件存储 | MinIO / 阿里云 OSS / AWS S3 | 统一 FileStorage 接口 |
-| 文件导出 | Apache Fesod 2.0.1 | 原 EasyExcel → FastExcel → Fesod |
+| 文件导出 | Apache Fesod 2.0.1-incubating | 原 EasyExcel → FastExcel → Fesod |
 | PDF 导出 | iText 8 | 报表 PDF |
 | Word 导出 | poi-tl | 模板驱动 |
 | Markdown 解析 | commonmark-java | 知识库文档导入 |

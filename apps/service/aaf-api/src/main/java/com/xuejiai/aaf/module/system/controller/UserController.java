@@ -1,7 +1,9 @@
 package com.xuejiai.aaf.module.system.controller;
 
+import java.io.IOException;
 import java.util.List;
 
+import org.apache.fesod.sheet.support.ExcelTypeEnum;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -12,14 +14,20 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.xuejiai.aaf.util.ExcelUtils;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.system.service.UserService;
 import com.xuejiai.aaf.module.system.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
+import com.xuejiai.aaf.module.system.vo.UserExportVO;
 import com.xuejiai.aaf.module.system.vo.UserPageDTO;
 import com.xuejiai.aaf.module.system.vo.UserResetPasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserSimpleVO;
@@ -108,5 +116,17 @@ public class UserController {
             @PathVariable Long id, @Validated @RequestBody UserResetPasswordDTO request) {
         userService.resetPassword(id, request.password());
         return Result.success();
+    }
+
+    @Operation(summary = "导出用户列表", description = "支持 xlsx/csv 格式")
+    @GetMapping("/export")
+    public void export(
+            @ParameterObject UserPageDTO request,
+            @RequestParam(defaultValue = "xlsx") String format,
+            HttpServletResponse response)
+            throws IOException {
+        var type = "csv".equalsIgnoreCase(format) ? ExcelTypeEnum.CSV : ExcelTypeEnum.XLSX;
+        var data = userService.listForExport(request);
+        ExcelUtils.write(response, "用户列表", "用户", UserExportVO.class, data, type);
     }
 }
