@@ -229,7 +229,7 @@ AAF 后端 Maven 模块依赖方向（详见 [architecture-constraints.md](docs/
 
 ## 硬约束（摘要，详见 steering 与编码规范）
 
-- 任务编号：用户故事 `AAF-{三位}`、技术任务 `#XXXNN`（XXX=故事编号，NN=序号）；提交脚注 `Task: #XXXNN`
+- 任务编号：用户故事 `AAF-{三位}`、技术任务 `#XXXNN`（XXX=故事编号，NN=序号，无前缀零）；提交脚注 `Task: #XXXNN`
 - 完工前必跑 `pnpm check:affected`，失败汇报视为未完工
 - 批量修改文件（≥5 个）或改接口签名 → 协调者评估
 - 🔴 高风险设计必须人类审核后再开发

@@ -6,7 +6,7 @@
 ## 任务编号与提交
 
 - 用户故事：`AAF-{三位}`，管理在 [backlog.md](../../docs/task/backlog.md)
-- 技术任务：`#XXXNN`（XXX=用户故事编号后三位，NN=两位序号），管理在 `docs/task/v{version}/AAF-XXX/tasks.md`
+- 技术任务：`#XXXNN`（XXX=用户故事编号后三位，NN=两位序号，无前缀零），管理在 `docs/task/v{version}/AAF-XXX/tasks.md`
 - 提交脚注：`Task: #XXXNN`（详见 [提交规范](../../docs/reference/dev/git/commit-standard.md)）
 
 ## 完工门禁
