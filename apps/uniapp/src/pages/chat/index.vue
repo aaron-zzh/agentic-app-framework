@@ -1,13 +1,13 @@
 <script setup lang="ts">
 definePage({
-  name: 'index',
+  name: 'chat',
   layout: 'tabbar',
-  style: { navigationBarTitleText: '首页' },
+  style: { navigationBarTitleText: 'AI 对话' },
 })
 </script>
 
 <template>
   <view class="p-4">
-    <text>首页（待开发）</text>
+    <text>对话列表（待开发）</text>
   </view>
 </template>
