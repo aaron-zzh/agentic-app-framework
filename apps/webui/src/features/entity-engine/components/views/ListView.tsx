@@ -17,6 +17,7 @@ import { getCellComponent } from "../../lib/component-registry"
 import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { DraggableListView } from "./DraggableListView"
+import { GroupedListView } from "./GroupedListView"
 
 /** 虚拟滚动启用阈值 */
 const VIRTUAL_THRESHOLD = 100
@@ -54,6 +55,14 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
   // 拖拽排序模式
   if (entity.listView.draggable) {
     return <DraggableListView columns={columns} data={data} />
+  }
+
+  // 分组模式
+  if (entity.listView.groupBy) {
+    const groupField = entity.fields.find(
+      (f) => "name" in f && (f as DataFieldDef).name === entity.listView.groupBy
+    ) as DataFieldDef | undefined
+    return <GroupedListView columns={columns} data={data} groupBy={entity.listView.groupBy} groupField={groupField} />
   }
 
   const useVirtual = data.length > VIRTUAL_THRESHOLD

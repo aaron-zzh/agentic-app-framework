@@ -39,6 +39,8 @@ export interface ListViewConfig {
   pageSize?: number
   /** 允许行拖拽排序 */
   draggable?: boolean
+  /** 分组字段 */
+  groupBy?: string
 }
 
 /** 表单视图配置 */
