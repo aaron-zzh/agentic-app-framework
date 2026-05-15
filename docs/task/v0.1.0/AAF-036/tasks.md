@@ -167,6 +167,23 @@ author: AaronZZH
     - 创建 `subPages/admin/settings/`：系统配置（KV 表单）
     - verify: 管理员可发布公告，可配置角色权限
 
+25. [ ] #3625 对话内嵌交互组件（widget）— developer-app (依赖: #3617)
+    - 在 `ChatMessage` 类型中扩展 `widget` 字段（form/select/confirm/card）
+    - 创建 `src/components/chat/ChatWidget.vue`：根据 `widget.type` 动态渲染对应组件
+    - `form`：基于 wot-ui `wd-form` 渲染动态表单，提交后作为下一条消息发送
+    - `select`：单选/多选，选择后继续对话
+    - `confirm`：确认操作按钮
+    - `card`：展示卡片（商品、课程、用户信息等）
+    - 后端 SSE 响应中携带 widget 配置，前端解析并渲染
+    - verify: AI 回复中可渲染表单并提交，选择后继续对话
+
+26. [ ] #3626 对话内联路由跳转 — developer-app (依赖: #3617)
+    - 在 `ChatBubble.vue` 中监听 `mp-html` 的 `@linktap` 事件
+    - 识别 `route://` 协议，解析页面名称和参数，调用 `router.push()` 跳转
+    - 支持协议：`route://页面名?参数`（内部路由）、`http(s)://`（webview）、`tel://`（拨号）
+    - 示例：AI 回复"前往[个人中心](route://profile)修改信息"，点击直接跳转
+    - verify: 点击 AI 回复中的链接可正确跳转到对应页面
+
 - [ ] `pnpm nx dev uniapp` 可启动 H5 开发服务
 - [ ] `pnpm nx run uniapp:build:mp-weixin` 构建成功，主包 < 2MB
 - [ ] `pnpm nx run uniapp:lint` 通过，无 `any` 类型错误
