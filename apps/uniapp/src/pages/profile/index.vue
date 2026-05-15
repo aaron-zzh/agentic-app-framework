@@ -11,7 +11,7 @@ const router = useRouter()
 const menuItems = [
   { name: '我的订单', icon: 'list', path: '' },
   { name: '我的地址', icon: 'location', path: '' },
-  { name: '消息通知', icon: 'chat', path: '' },
+  { name: '消息通知', icon: 'chat', path: 'message-list' },
   { name: '用户指南', icon: 'info', path: '' },
 ]
 </script>
