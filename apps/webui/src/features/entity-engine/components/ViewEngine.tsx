@@ -14,6 +14,7 @@
 
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
 import { useEntityList } from "@/lib/queries/use-entity-list"
+import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
@@ -75,9 +76,15 @@ function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
   }
 }
 
-/** 列表视图——连接数据层 */
+/** 列表视图——连接数据层 + URL 状态 */
 function ConnectedListView({ entity }: { entity: EntityDef }) {
-  const { data, isLoading } = useEntityList(entity)
+  const [params] = useEntitySearchParams()
+  const { data, isLoading } = useEntityList(entity, {
+    page: params.page,
+    pageSize: params.pageSize,
+    sort: params.sort ?? undefined,
+    search: params.search ?? undefined,
+  })
   return <ListView entity={entity} data={data} loading={isLoading} />
 }
 

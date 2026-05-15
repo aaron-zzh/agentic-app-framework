@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
 import { QueryProvider } from "@/providers/QueryProvider"
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <ThemeProvider>
           <QueryProvider>
-            {children}
+            <NuqsAdapter>
+              {children}
+            </NuqsAdapter>
             <ToastProvider />
           </QueryProvider>
         </ThemeProvider>
