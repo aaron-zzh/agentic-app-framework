@@ -27,6 +27,8 @@
  * ### 3. 图片消息（#3623 多模态）
  * 用户可发送图片，AI 可返回图片，在气泡中渲染缩略图，点击预览。
  */
+import { marked } from 'marked'
+
 export interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
@@ -52,6 +54,14 @@ defineProps<{
   message: ChatMessage
   userAvatar?: string
 }>()
+
+/** Markdown → HTML，供 mp-html 渲染 */
+function renderMarkdown(content: string): string {
+  if (!content)
+    return ''
+  // marked 同步解析，返回 HTML 字符串
+  return marked.parse(content, { async: false }) as string
+}
 </script>
 
 <template>
@@ -62,7 +72,7 @@ defineProps<{
         <wd-icon name="chat" size="18px" color="#fff" />
       </view>
       <view class="max-w-4/5 rounded-2 rounded-tl-none bg-white p-3 shadow-sm">
-        <mp-html v-if="message.content" :content="message.content" />
+        <mp-html v-if="message.content" :content="renderMarkdown(message.content)" />
         <!-- 流式输出中的光标 -->
         <text v-if="message.streaming" class="animate-pulse text-gray-400">▋</text>
       </view>
