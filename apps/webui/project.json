@@ -6,7 +6,6 @@
     "build": {
       "command": "next build",
       "options": { "cwd": "apps/webui" },
-      "cache": true,
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/next.config.ts", "{projectRoot}/tsconfig.json", "{projectRoot}/postcss.config.mjs"],
       "outputs": ["{projectRoot}/.next"]
     },
@@ -23,33 +22,23 @@
     "typecheck": {
       "command": "tsgo --noEmit -p tsconfig.json",
       "options": { "cwd": "apps/webui" },
-      "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/next-env.d.ts"],
-      "description": "TypeScript 类型检查（native preview）"
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/next-env.d.ts"]
     },
     "lint": {
       "command": "biome check apps/webui/src",
-      "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{workspaceRoot}/biome.json"],
-      "description": "Biome lint + format 检查"
+      "inputs": ["{projectRoot}/src/**/*", "{workspaceRoot}/biome.json"]
     },
     "test": {
       "command": "vitest run --passWithNoTests",
       "options": { "cwd": "apps/webui" },
-      "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/vitest.config.ts"],
-      "description": "developer 单测（Vitest：*.test.ts(x) / *.spec.ts(x)）"
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/vitest.config.ts"]
     },
     "acceptance": {
       "command": "vitest run --config vitest.acceptance.config.ts --passWithNoTests",
-      "options": { "cwd": "apps/webui" },
-      "cache": true,
-      "description": "tester 验收 / E2E（*.accept.test.ts(x) 或 Playwright，视未来引入的工具）"
+      "options": { "cwd": "apps/webui" }
     },
     "check": {
-      "dependsOn": ["lint", "typecheck", "test", "build"],
-      "executor": "nx:noop",
-      "description": "developer 完工自验证：lint + typecheck + 单测 + build"
+      "executor": "nx:noop"
     }
   }
 }

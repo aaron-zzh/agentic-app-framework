@@ -6,7 +6,6 @@
     "build": {
       "command": "next build",
       "options": { "cwd": "apps/docs" },
-      "cache": true,
       "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/docs/**/*"],
       "outputs": ["{projectRoot}/.next"]
     },
@@ -23,13 +22,11 @@
     "typecheck": {
       "command": "fumadocs-mdx && tsc --noEmit -p tsconfig.json",
       "options": { "cwd": "apps/docs" },
-      "cache": true,
       "inputs": ["{projectRoot}/**/*.ts", "{projectRoot}/**/*.tsx", "{projectRoot}/tsconfig.json"]
     },
     "check": {
       "dependsOn": ["typecheck", "build"],
-      "executor": "nx:noop",
-      "description": "developer 完工自验证：typecheck + build"
+      "executor": "nx:noop"
     }
   }
 }

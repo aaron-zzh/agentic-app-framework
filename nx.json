@@ -93,10 +93,24 @@
     }
   },
   "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "cache": true
+    },
     "test": {
-      "dependsOn": [
-        "^build"
-      ]
+      "inputs": ["test", "^production"],
+      "cache": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    },
+    "check": {
+      "dependsOn": ["lint", "typecheck", "test", "build"]
     }
   }
 }
