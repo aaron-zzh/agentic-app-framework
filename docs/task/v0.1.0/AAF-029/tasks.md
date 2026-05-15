@@ -147,4 +147,15 @@ author: AaronZZH
     - 后端 `GET /api/tasks/{taskId}/progress`
     - verify: 批量删除 200 条触发异步，进度条正确更新
 
+### 复杂导出（SSE 进度推送）
+
+18. [ ] #2918 耗时导出 SSE 进度推送 — developer-api (依赖: #2917)
+    - 场景：大数据量导出、文件/图片批量导出等耗时操作
+    - SSE 端点：`GET /api/{entity}/export-progress/{taskId}`，返回 `text/event-stream`
+    - 进度 VO：taskId / current / total / percentage / status(RUNNING/COMPLETED/FAILED) / errorMessage
+    - 进度控制：按 total/100 步长推送，避免频繁推送
+    - 前端 EventSource 接收进度，完成/失败时关闭连接
+    - 参考：arts-service `exportPics` SSE + Multi emitter 模式
+    - verify: 导出 1000+ 条数据时前端进度条实时更新
+
 <!-- 状态标记：[ ] 待开始 | ⏳ 进行中 | ✅ 已完成 -->
