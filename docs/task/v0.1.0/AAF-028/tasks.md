@@ -69,14 +69,14 @@ author: AaronZZH
    - 空状态 / 加载骨架屏
    - verify: document 实体列表正确渲染列和 mock 数据
 
-8. [ ] #39 KanbanView 基础实现 — developer-web (依赖: #36)
+8. ✅ #39 KanbanView 基础实现 — developer-web (依赖: #36)
    - 基于 @dnd-kit 实现看板视图
    - 从 `entity.kanbanView.statusField` 读取分列字段
    - 卡片标题从 `cardTitle` 字段取值
    - 拖拽卡片触发状态变更（optimistic update）
    - verify: task 实体看板正确分列，拖拽触发状态更新
 
-9. [ ] #40 FormView 基础实现 — developer-web (依赖: #36)
+9. ✅ #40 FormView 基础实现 — developer-web (依赖: #36)
    - 基于 react-hook-form + Zod 实现表单视图
    - `buildZodSchema(fields)` 自动生成校验 schema
    - 按 `formView.layout` 渲染 tabs/group/row 布局（无 layout 时线性渲染）
@@ -85,14 +85,14 @@ author: AaronZZH
 
 ### 工作区布局
 
-10. [ ] #41 工作区布局壳 — developer-web (依赖: #37)
+10. ✅ #41 工作区布局壳 — developer-web (依赖: #37)
     - 实现 `AppHeader`：logo + ⌘K 命令面板入口 + 用户菜单
     - 实现 `Sidebar`：从 entityRegistry 自动生成菜单（按 group 分组）
     - 实现 `ViewSwitcher`：列表/看板/图表 Tab 切换
     - 实现面包屑：路由 + entity.label + 记录标题
     - verify: 侧边栏正确显示注册实体，点击切换路由
 
-11. [ ] #42 视图切换与 Toolbar — developer-web (依赖: #41, #38)
+11. ✅ #42 视图切换与 Toolbar — developer-web (依赖: #41, #38)
     - ViewSwitcher 切换 `?view=` 参数
     - Toolbar：搜索框 + [+ 新建] 按钮 + 视图切换图标
     - [+ 新建] 根据 `access.create` 控制显示/隐藏
@@ -100,7 +100,7 @@ author: AaronZZH
 
 ### 错误边界与降级
 
-12. [ ] #43 分层错误边界 — developer-web (依赖: #36, #40)
+12. ✅ #43 分层错误边界 — developer-web (依赖: #36, #40)
     - Layer 1: `app/error.tsx` 应用级兜底
     - Layer 2: ViewEngine 内部 ErrorBoundary（视图级）
     - Layer 3: FieldComponent 包裹 ErrorBoundary（字段级）
@@ -116,7 +116,7 @@ author: AaronZZH
     - 支持 `disabled` / `error` 状态
     - verify: 各组件独立渲染正确，Props 类型安全
 
-14. [ ] #45 加载状态与骨架屏 — developer-web (依赖: #38, #40)
+14. ✅ #45 加载状态与骨架屏 — developer-web (依赖: #38, #40)
     - 列表骨架屏：匹配列数/行数
     - 表单骨架屏：匹配字段数
     - 路由切换顶部进度条
@@ -125,12 +125,12 @@ author: AaronZZH
 
 ### 工程化
 
-15. [ ] #46 targetDefaults 统一配置 — developer-web (依赖: #32)
+15. ✅ #46 targetDefaults 统一配置 — developer-web (依赖: #32)
     - 在 nx.json 添加 `targetDefaults`：build（`^build` + production inputs）、test（test inputs）、typecheck（`^build`）
     - 各 project.json 中移除与 targetDefaults 重复的 inputs/outputs/dependsOn
     - verify: `pnpm check:affected` 全绿，缓存行为不变
 
-16. [ ] #47 Playwright E2E 测试栈 — developer-web (依赖: #37)
+16. ✅ #47 Playwright E2E 测试栈 — developer-web (依赖: #37)
     - 来源：AAF-023 #22，前置页面就绪后引入
     - Vitest 单测已就绪，本任务补充 Playwright E2E
     - verify: `pnpm nx run webui-e2e:e2e` 跑通

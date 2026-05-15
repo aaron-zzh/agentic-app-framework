@@ -18,7 +18,6 @@
     "build": {
       "command": "uni build",
       "options": { "cwd": "apps/uniapp" },
-      "cache": true,
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/pages.config.ts", "{projectRoot}/vite.config.ts"],
       "outputs": ["{projectRoot}/dist"],
       "description": "H5 构建"
@@ -34,14 +33,12 @@
     "typecheck": {
       "command": "vue-tsc --noEmit",
       "options": { "cwd": "apps/uniapp" },
-      "cache": true,
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json"],
       "description": "TypeScript 类型检查"
     },
     "lint": {
       "command": "eslint .",
       "options": { "cwd": "apps/uniapp" },
-      "cache": true,
       "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/eslint.config.mjs"],
       "description": "ESLint 检查"
     },
