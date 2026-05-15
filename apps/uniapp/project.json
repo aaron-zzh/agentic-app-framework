@@ -46,11 +46,8 @@
       "description": "ESLint 检查"
     },
     "test": {
-      "command": "vitest run --passWithNoTests",
-      "options": { "cwd": "apps/uniapp" },
-      "cache": true,
-      "inputs": ["{projectRoot}/src/**/*"],
-      "description": "单元测试"
+      "executor": "nx:noop",
+      "description": "uniapp 暂不配置单元测试"
     },
     "check": {
       "dependsOn": ["lint", "typecheck", "test"],

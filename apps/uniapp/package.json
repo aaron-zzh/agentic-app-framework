@@ -53,15 +53,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:docs": "eslint docs --ext .js,.ts,.vue,.mts,.cts --ignore-pattern '**/*.md'",
-    "prepare": "husky install",
-    "commit": "git-cz",
-    "release-major": "standard-version --release-as major",
-    "release-minor": "standard-version --release-as minor",
-    "release-patch": "standard-version --release-as patch",
-    "alova-gen": "alova gen -f",
-    "docs:dev": "pnpm -F docs docs:dev",
-    "docs:build": "pnpm run build:h5 && pnpm -F docs docs:build",
-    "docs:preview": "pnpm -F docs docs:preview"
+    "alova-gen": "alova gen -f"
   },
   "dependencies": {
     "@alova/adapter-uniapp": "^2.0.14",
@@ -83,21 +75,23 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-4080520251106001",
     "@dcloudio/uni-mp-xhs": "3.0.0-4080520251106001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-4080520251106001",
-    "@vueuse/core": "^11.0.3",
+    "@hyoga/uni-socket.io": "^3.0.4",
+    "@vueuse/core": "^14.3.0",
     "@wot-ui/router": "^1.1.2",
     "@wot-ui/ui": "^2.0.5",
-    "@wot-ui/unocss-preset": "0.0.1-beta.4",
+    "@wot-ui/unocss-preset": "1.0.0",
     "alova": "^3.3.4",
     "echarts": "^6.0.0",
-    "pinia": "^2.3.1",
+    "gesti": "^1.4.54",
+    "pinia": "^3.0.4",
     "uni-echarts": "^2.2.5",
-    "vue": "~3.4.38",
-    "vue-i18n": "^9.14.0"
+    "vue": "~3.5.34",
+    "vue-i18n": "^11.4.2",
+    "weixin-js-sdk": "^1.6.5"
   },
   "devDependencies": {
     "@alova/wormhole": "^1.1.2",
-    "@commitlint/cli": "^19.5.0",
-    "@commitlint/config-conventional": "^19.5.0",
+    "@antfu/eslint-config": "^8.3.0",
     "@dcloudio/types": "^3.4.12",
     "@dcloudio/uni-automator": "3.0.0-4080520251106001",
     "@dcloudio/uni-cli-shared": "3.0.0-4080520251106001",
@@ -106,11 +100,11 @@
     "@dcloudio/vite-plugin-uni": "3.0.0-4080520251106001",
     "@iconify-json/carbon": "^1.1.37",
     "@mini-types/alipay": "^3.0.14",
-    "@types/node": "^20.16.2",
-    "@uni-helper/eslint-config": "^0.5.0",
+    "@types/node": "^24.12.4",
+    "@uni-helper/eslint-config": "^0.7.3",
     "@uni-helper/plugin-uni": "^0.1.0",
     "@uni-helper/uni-env": "^0.2.0",
-    "@uni-helper/uni-types": "1.0.0-alpha.6",
+    "@uni-helper/uni-types": "1.0.0",
     "@uni-helper/unocss-preset-uni": "^0.2.11",
     "@uni-helper/vite-plugin-uni-components": "^0.2.6",
     "@uni-helper/vite-plugin-uni-layouts": "^0.1.11",
@@ -121,28 +115,18 @@
     "@uni-ku/root": "^1.4.1",
     "@unocss/eslint-config": "^66.5.6",
     "@vue/runtime-core": "^3.4.38",
-    "@vue/tsconfig": "^0.5.1",
-    "commitizen": "^4.3.1",
-    "cz-conventional-changelog": "^3.3.0",
+    "@vue/tsconfig": "^0.9.1",
     "eslint": "^9.39.1",
-    "git-cz": "^4.9.0",
-    "husky": "^8.0.3",
-    "lint-staged": "^15.2.9",
-    "miniprogram-api-typings": "^3.12.3",
+    "miniprogram-api-typings": "^5.2.0",
+    "rollup-plugin-visualizer": "^5.13.1",
     "sass": "^1.99.0",
-    "standard-version": "^9.5.0",
     "typescript": "~5.5.4",
-    "unocss": "66.0.0",
-    "unplugin-auto-import": "^0.18.2",
+    "unconfig": "7.3.2",
+    "unocss": "66.6.8",
+    "unplugin-auto-import": "^21.0.0",
+    "vconsole": "^3.15.1",
     "vite": "^5.2.8",
-    "vue-tsc": "^2.0.29"
-  },
-  "pnpm": {
-    "overrides": {
-      "unconfig": "7.3.2"
-    }
-  },
-  "lint-staged": {
-    "*": "eslint --fix"
+    "vite-plugin-compression": "^0.5.1",
+    "vue-tsc": "^3.2.9"
   }
 }
