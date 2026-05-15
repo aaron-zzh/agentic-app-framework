@@ -37,9 +37,11 @@ export const useAppStore = defineStore('app', {
       const themeStore = useThemeStore()
       themeStore.initSystemTheme()
 
-      // 4. 检查登录态（user store 在 #3609 实现后接入）
-      // const userStore = useUserStore()
-      // await userStore.checkLogin()
+      // 4. 检查登录态
+      const userStore = useUserStore()
+      if (!userStore.isLoggedIn) {
+        // 未登录由路由守卫处理跳转，此处仅记录状态
+      }
 
       this.initialized = true
     },
