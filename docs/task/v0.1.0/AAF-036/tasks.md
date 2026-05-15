@@ -12,7 +12,7 @@ author: AaronZZH
 
 > 需求：移动端脚手架（详见 [aaf-v0.1.0.md 业务需求](../../aaf-v0.1.0.md#aaf-036移动端脚手架)）
 > 设计：[tech-stack.md](../../../design/apps/uniapp/tech-stack.md) | [directory-structure.md](../../../design/apps/uniapp/directory-structure.md) | [mobile-admin.md](../../../design/apps/uniapp/mobile-admin.md)
-> 参考：kids-app（SSE/platform/权限拦截）| wot-starter-v2（工程基础）
+> 参考：kids-app（SSE/platform/权限拦截）| wot-starter-v2（工程基础）| tmp/uniapp/school（首个真实业务原型，校园服务类应用）
 > 负责人：developer-app | 创建：05-15
 
 ## 执行策略
@@ -83,7 +83,8 @@ author: AaronZZH
 11. [ ] #3611 用户端页面骨架 — developer-app (依赖: #3609)
     - 创建主包页面：`pages/index/`（首页）、`pages/chat/`（对话列表 + `[id].vue` 详情）、`pages/profile/`（个人中心）
     - 配置 `pages.config.ts` tabbar（首页/对话/我的）
-    - verify: 三个 tabbar 页面可正常切换
+    - **首页参考 `tmp/uniapp/school`**：Banner + 公告栏 + 服务宫格（4列），后续第一个真实项目（校园服务类应用）将基于此结构开发，技术实现参考 kids-app 及 AAF 技术选型
+    - verify: 三个 tabbar 页面可正常切换，首页服务宫格可点击
 
 12. [ ] #3612 管理端分包骨架 — developer-app (依赖: #3608)
     - 创建 `src/subPages/admin/`：`dashboard/`、`users/`、`audit/`（各含占位页面）
