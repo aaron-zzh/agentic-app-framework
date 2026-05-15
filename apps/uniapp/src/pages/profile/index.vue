@@ -20,7 +20,7 @@ const menuItems = [
   <scroll-view scroll-y class="h-full bg-gray-50">
     <!-- 顶部渐变背景 + 用户信息 -->
     <view class="px-4 pb-8 pt-12" style="background: linear-gradient(180deg, #8e44ad, #3498db)">
-      <view class="flex items-center gap-3" @tap="userStore.isLoggedIn ? undefined : router.push({ name: 'login' })">
+      <view class="flex items-center gap-3" @tap="userStore.isLoggedIn ? router.push({ name: 'profile-edit' }) : router.push({ name: 'login' })">
         <wd-icon name="user" size="56px" color="#fff" class="rounded-full bg-white/20 p-2" />
         <view class="flex-1">
           <text class="block text-base text-white font-medium">
