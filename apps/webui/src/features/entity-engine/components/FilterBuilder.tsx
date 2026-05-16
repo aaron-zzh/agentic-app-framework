@@ -22,25 +22,25 @@ const operatorsByType: Record<string, { value: string; label: string }[]> = {
     { value: "contains", label: "包含" },
     { value: "eq", label: "等于" },
     { value: "startsWith", label: "开头是" },
-    { value: "isEmpty", label: "为空" },
+    { value: "isEmpty", label: "为空" }
   ],
   number: [
     { value: "eq", label: "等于" },
     { value: "gt", label: "大于" },
     { value: "lt", label: "小于" },
-    { value: "between", label: "介于" },
+    { value: "between", label: "介于" }
   ],
   date: [
     { value: "eq", label: "等于" },
     { value: "gt", label: "晚于" },
     { value: "lt", label: "早于" },
-    { value: "between", label: "介于" },
+    { value: "between", label: "介于" }
   ],
   select: [
     { value: "eq", label: "等于" },
     { value: "in", label: "属于" },
-    { value: "neq", label: "不等于" },
-  ],
+    { value: "neq", label: "不等于" }
+  ]
 }
 
 function getOperators(fieldType: string) {
@@ -58,7 +58,8 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
   const [open, setOpen] = useState(false)
 
   const filterableFields = entity.fields.filter(
-    (f): f is DataFieldDef => "name" in f && f.type !== "group" && f.type !== "tabs" && f.type !== "row"
+    (f): f is DataFieldDef =>
+      "name" in f && f.type !== "group" && f.type !== "tabs" && f.type !== "row"
   )
 
   const addFilter = useCallback(() => {
@@ -96,10 +97,14 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
                 <select
                   className="h-8 rounded border px-2 text-sm"
                   value={filter.field}
-                  onChange={(e) => updateFilter(i, { field: e.target.value, operator: "contains", value: "" })}
+                  onChange={(e) =>
+                    updateFilter(i, { field: e.target.value, operator: "contains", value: "" })
+                  }
                 >
                   {filterableFields.map((f) => (
-                    <option key={f.name} value={f.name}>{f.label ?? f.name}</option>
+                    <option key={f.name} value={f.name}>
+                      {f.label ?? f.name}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -108,7 +113,9 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
                   onChange={(e) => updateFilter(i, { operator: e.target.value })}
                 >
                   {operators.map((op) => (
-                    <option key={op.value} value={op.value}>{op.label}</option>
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
                   ))}
                 </select>
                 {filter.operator !== "isEmpty" && (
@@ -121,7 +128,7 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
                 )}
                 <button
                   type="button"
-                  className="h-8 px-2 text-sm text-muted-foreground hover:text-destructive"
+                  className="h-8 px-2 text-muted-foreground text-sm hover:text-destructive"
                   onClick={() => removeFilter(i)}
                 >
                   ✕
@@ -131,11 +138,7 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
           })}
         </div>
       )}
-      <button
-        type="button"
-        className="text-sm text-primary hover:underline"
-        onClick={addFilter}
-      >
+      <button type="button" className="text-primary text-sm hover:underline" onClick={addFilter}>
         + 添加筛选
       </button>
     </div>

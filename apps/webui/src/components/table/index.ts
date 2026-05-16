@@ -1,4 +1,4 @@
-export { TableHead } from "./TableHead"
 export type { HeadCell } from "./TableHead"
-export { TableSelectedAction } from "./TableSelectedAction"
+export { TableHead } from "./TableHead"
 export { TablePagination } from "./TablePagination"
+export { TableSelectedAction } from "./TableSelectedAction"

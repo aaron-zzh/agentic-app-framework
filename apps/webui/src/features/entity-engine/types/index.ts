@@ -20,4 +20,10 @@ export type {
   UploadField
 } from "./field"
 export type { CellProps, DataFieldDef, FieldProps } from "./props"
-export type { FormViewConfig, KanbanViewConfig, ColumnDef, LayoutField, ListViewConfig } from "./views"
+export type {
+  ColumnDef,
+  FormViewConfig,
+  KanbanViewConfig,
+  LayoutField,
+  ListViewConfig
+} from "./views"

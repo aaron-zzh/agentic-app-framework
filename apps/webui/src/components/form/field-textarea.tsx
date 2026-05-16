@@ -20,7 +20,14 @@ export interface FieldTextareaProps {
   disabled?: boolean
 }
 
-export function FieldTextarea({ name, label, placeholder, rows = 3, className, disabled }: FieldTextareaProps) {
+export function FieldTextarea({
+  name,
+  label,
+  placeholder,
+  rows = 3,
+  className,
+  disabled
+}: FieldTextareaProps) {
   const { control } = useFormContext()
 
   const fieldDef: DataFieldDef = { type: "textarea", name, label, placeholder, rows }

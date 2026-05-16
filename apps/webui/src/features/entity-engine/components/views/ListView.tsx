@@ -10,12 +10,12 @@
 
 "use client"
 
-import { useRef } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
-
+import { useRef } from "react"
+import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { getCellComponent } from "../../lib/component-registry"
 import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
-import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
+import { ColumnConfigPanel } from "../ColumnConfigPanel"
 import { DraggableListView } from "./DraggableListView"
 import { GroupedListView } from "./GroupedListView"
 
@@ -31,12 +31,22 @@ interface ListViewProps {
 
 export function ListView({ entity, data = [], loading }: ListViewProps) {
   const { fields, listView } = entity
-  const { visibleColumns } = useColumnPreferences(entity.slug, listView)
+  const { visibleColumns, preferences, toggleColumn, resetColumns } = useColumnPreferences(
+    entity.slug,
+    listView
+  )
+
+  // 字段名 → 标签映射（供列配置面板显示）
+  const fieldLabels = Object.fromEntries(
+    fields.filter((f): f is DataFieldDef => "name" in f).map((f) => [f.name, f.label ?? f.name])
+  )
 
   const columns = visibleColumns
     .map((col) => {
       const field = fields.find((f) => "name" in f && (f as { name: string }).name === col.name)
-      return field && "name" in field ? { name: col.name, field: field as DataFieldDef, def: col } : null
+      return field && "name" in field
+        ? { name: col.name, field: field as DataFieldDef, def: col }
+        : null
     })
     .filter(Boolean) as { name: string; field: DataFieldDef; def: ColumnDef }[]
 
@@ -62,7 +72,14 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
     const groupField = entity.fields.find(
       (f) => "name" in f && (f as DataFieldDef).name === entity.listView.groupBy
     ) as DataFieldDef | undefined
-    return <GroupedListView columns={columns} data={data} groupBy={entity.listView.groupBy} groupField={groupField} />
+    return (
+      <GroupedListView
+        columns={columns}
+        data={data}
+        groupBy={entity.listView.groupBy}
+        groupField={groupField}
+      />
+    )
   }
 
   const useVirtual = data.length > VIRTUAL_THRESHOLD
@@ -85,6 +102,14 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
                 {col.field.label ?? col.name}
               </th>
             ))}
+            <th className="h-10 w-8 px-1 text-right align-middle">
+              <ColumnConfigPanel
+                preferences={preferences}
+                onToggle={toggleColumn}
+                onReset={resetColumns}
+                labels={fieldLabels}
+              />
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -106,6 +131,7 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
                   </td>
                 )
               })}
+              <td className="w-8" />
             </tr>
           ))}
         </tbody>
@@ -117,18 +143,28 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
 type ColumnInfo = { name: string; field: DataFieldDef; def: ColumnDef }
 
 /** 虚拟滚动表格（数据量 > 100 时自动启用） */
-function VirtualTable({ columns, data }: { columns: ColumnInfo[]; data: Record<string, unknown>[] }) {
+function VirtualTable({
+  columns,
+  data
+}: {
+  columns: ColumnInfo[]
+  data: Record<string, unknown>[]
+}) {
   const parentRef = useRef<HTMLDivElement>(null)
 
   const virtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 10,
+    overscan: 10
   })
 
   return (
-    <div ref={parentRef} className="w-full overflow-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
+    <div
+      ref={parentRef}
+      className="w-full overflow-auto"
+      style={{ maxHeight: "calc(100vh - 200px)" }}
+    >
       <table className="w-full caption-bottom text-sm">
         <thead className="sticky top-0 z-10 border-b bg-background">
           <tr>
@@ -156,7 +192,7 @@ function VirtualTable({ columns, data }: { columns: ColumnInfo[]; data: Record<s
                   left: 0,
                   width: "100%",
                   height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translateY(${virtualRow.start}px)`
                 }}
               >
                 {columns.map((col) => {

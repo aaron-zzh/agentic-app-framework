@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildFieldContext, resolveValue, evaluateCondition } from "./field-context"
+import { buildFieldContext, evaluateCondition, resolveValue } from "./field-context"
 
 describe("FieldContext", () => {
   const ctx = buildFieldContext(

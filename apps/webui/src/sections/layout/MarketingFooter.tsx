@@ -39,16 +39,19 @@ export function MarketingFooter() {
       <div className="mx-auto max-w-[var(--layout-marketing-max-width)] px-6 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div>
-            <span className="text-lg font-bold">AAF</span>
-            <p className="mt-2 text-sm text-muted-foreground">AI 原生应用开发框架</p>
+            <span className="font-bold text-lg">AAF</span>
+            <p className="mt-2 text-muted-foreground text-sm">AI 原生应用开发框架</p>
           </div>
           {footerGroups.map((group) => (
             <div key={group.title}>
-              <p className="text-sm font-medium">{group.title}</p>
+              <p className="font-medium text-sm">{group.title}</p>
               <ul className="mt-2 space-y-1.5">
                 {group.links.map((link) => (
                   <li key={link.href}>
-                    <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
+                    <Link
+                      href={link.href}
+                      className="text-muted-foreground text-sm hover:text-foreground"
+                    >
                       {link.label}
                     </Link>
                   </li>
@@ -57,7 +60,7 @@ export function MarketingFooter() {
             </div>
           ))}
         </div>
-        <div className="mt-8 border-t pt-6 text-center text-xs text-muted-foreground">
+        <div className="mt-8 border-t pt-6 text-center text-muted-foreground text-xs">
           © {new Date().getFullYear()} AAF. All rights reserved.
         </div>
       </div>

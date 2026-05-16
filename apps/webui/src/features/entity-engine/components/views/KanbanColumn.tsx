@@ -25,7 +25,9 @@ interface KanbanColumnProps {
 /** 看板列（可拖拽排序） */
 export function KanbanColumn({ id, label, color, count, itemIds, children }: KanbanColumnProps) {
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id })
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -45,16 +47,10 @@ export function KanbanColumn({ id, label, color, count, itemIds, children }: Kan
         isDragging && "opacity-50"
       )}
     >
-      <div
-        className="mb-2 flex cursor-grab items-center gap-2 px-1"
-        {...attributes}
-        {...listeners}
-      >
-        {color && (
-          <span className="size-2.5 rounded-full" style={{ backgroundColor: color }} />
-        )}
-        <span className="text-sm font-medium">{label}</span>
-        <span className="text-xs text-muted-foreground">({count})</span>
+      <div className="mb-2 flex cursor-grab items-center gap-2 px-1" {...attributes} {...listeners}>
+        {color && <span className="size-2.5 rounded-full" style={{ backgroundColor: color }} />}
+        <span className="font-medium text-sm">{label}</span>
+        <span className="text-muted-foreground text-xs">({count})</span>
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div className="flex flex-1 flex-col gap-2">{children}</div>

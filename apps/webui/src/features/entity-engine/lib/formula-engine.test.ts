@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { evaluateFormula } from "./formula-engine"
 import { buildFieldContext } from "./field-context"
+import { evaluateFormula } from "./formula-engine"
 
 describe("formulaEngine", () => {
   const ctx = buildFieldContext({ price: 100, quantity: 3, discount: 10, tax: 0.08 })

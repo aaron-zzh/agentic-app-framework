@@ -22,7 +22,16 @@ export interface FieldNumberProps {
   disabled?: boolean
 }
 
-export function FieldNumber({ name, label, placeholder, min, max, step, className, disabled }: FieldNumberProps) {
+export function FieldNumber({
+  name,
+  label,
+  placeholder,
+  min,
+  max,
+  step,
+  className,
+  disabled
+}: FieldNumberProps) {
   const { control } = useFormContext()
 
   const fieldDef: DataFieldDef = { type: "number", name, label, placeholder, min, max, step }

@@ -39,30 +39,46 @@ export function useTable(props?: UseTableProps): UseTableReturn {
   const [dense, setDense] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
 
-  const onSort = useCallback((field: string) => {
-    setOrder((prev) => (orderBy === field && prev === "asc" ? "desc" : "asc"))
-    setOrderBy(field)
-  }, [orderBy])
+  const onSort = useCallback(
+    (field: string) => {
+      setOrder((prev) => (orderBy === field && prev === "asc" ? "desc" : "asc"))
+      setOrderBy(field)
+    },
+    [orderBy]
+  )
 
   const onSelectRow = useCallback((id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
-    )
+    setSelected((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]))
   }, [])
 
   const onSelectAllRows = useCallback((checked: boolean, ids: string[]) => {
     setSelected(checked ? ids : [])
   }, [])
 
-  const onChangePage = useCallback((p: number) => { setPage(p) }, [])
-  const onChangePageSize = useCallback((s: number) => { setPage(1); setPageSize(s) }, [])
+  const onChangePage = useCallback((p: number) => {
+    setPage(p)
+  }, [])
+  const onChangePageSize = useCallback((s: number) => {
+    setPage(1)
+    setPageSize(s)
+  }, [])
   const onChangeDense = useCallback(() => setDense((v) => !v), [])
   const onResetPage = useCallback(() => setPage(1), [])
 
   return {
-    page, pageSize, order, orderBy, dense, selected,
-    onSort, onSelectRow, onSelectAllRows,
-    onChangePage, onChangePageSize, onChangeDense, onResetPage,
-    setSelected,
+    page,
+    pageSize,
+    order,
+    orderBy,
+    dense,
+    selected,
+    onSort,
+    onSelectRow,
+    onSelectAllRows,
+    onChangePage,
+    onChangePageSize,
+    onChangeDense,
+    onResetPage,
+    setSelected
   }
 }

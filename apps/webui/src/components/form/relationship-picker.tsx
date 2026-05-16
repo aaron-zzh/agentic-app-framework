@@ -33,7 +33,7 @@ export function RelationshipPicker({
   disabled,
   multiple = false,
   searchEndpoint,
-  displayField = "name",
+  displayField = "name"
 }: RelationshipPickerProps) {
   const [query, setQuery] = useState("")
   const [options, setOptions] = useState<Option[]>([])
@@ -54,7 +54,12 @@ export function RelationshipPicker({
         const res = await fetch(`${searchEndpoint}?search=${encodeURIComponent(query)}&limit=10`)
         const json = await res.json()
         const list = (json.data?.list ?? json.data ?? []) as Record<string, unknown>[]
-        setOptions(list.map((r) => ({ id: r.id as string, label: r[displayField] as string ?? String(r.id) })))
+        setOptions(
+          list.map((r) => ({
+            id: r.id as string,
+            label: (r[displayField] as string) ?? String(r.id)
+          }))
+        )
       } catch {
         setOptions([])
       } finally {
@@ -63,7 +68,13 @@ export function RelationshipPicker({
     }, 300)
   }, [query, searchEndpoint, displayField])
 
-  const selectedIds = multiple ? (Array.isArray(value) ? value : []) : value ? [value as string] : []
+  const selectedIds = multiple
+    ? Array.isArray(value)
+      ? value
+      : []
+    : value
+      ? [value as string]
+      : []
 
   const handleSelect = useCallback(
     (opt: Option) => {
@@ -98,10 +109,19 @@ export function RelationshipPicker({
       {selectedIds.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selectedIds.map((id) => (
-            <span key={id} className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
+            <span
+              key={id}
+              className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs"
+            >
               {id}
               {!disabled && (
-                <button type="button" className="hover:text-destructive" onClick={() => handleRemove(id)}>✕</button>
+                <button
+                  type="button"
+                  className="hover:text-destructive"
+                  onClick={() => handleRemove(id)}
+                >
+                  ✕
+                </button>
               )}
             </span>
           ))}
@@ -114,15 +134,18 @@ export function RelationshipPicker({
           className="h-9 w-full rounded-md border px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
           placeholder="搜索关联记录..."
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
           onFocus={() => setOpen(true)}
           disabled={disabled}
         />
-        {loading && <span className="absolute right-3 top-2.5 text-xs animate-spin">⏳</span>}
+        {loading && <span className="absolute top-2.5 right-3 animate-spin text-xs">⏳</span>}
 
         {/* 下拉选项 */}
         {open && options.length > 0 && (
-          <ul className="absolute left-0 top-10 z-20 max-h-48 w-full overflow-auto rounded-md border bg-background shadow-md">
+          <ul className="absolute top-10 left-0 z-20 max-h-48 w-full overflow-auto rounded-md border bg-background shadow-md">
             {options.map((opt) => (
               <li key={opt.id}>
                 <button
@@ -138,7 +161,7 @@ export function RelationshipPicker({
           </ul>
         )}
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-xs">{error}</p>}
     </div>
   )
 }

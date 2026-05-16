@@ -3,10 +3,10 @@
  * @author AaronZZH & Kiro
  */
 
-import { renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { type ReactNode, createElement } from "react"
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { renderHook, waitFor } from "@testing-library/react"
+import { createElement, type ReactNode } from "react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { EntityDef } from "@/features/entity-engine/types"
 import { useEntityList } from "@/lib/queries/use-entity-list"
@@ -17,7 +17,7 @@ global.fetch = mockFetch
 
 function createWrapper() {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: { queries: { retry: false } }
   })
   return ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children)
@@ -27,13 +27,13 @@ const mockEntity: Pick<EntityDef, "slug" | "apiPath" | "fields" | "listView"> = 
   slug: "task",
   apiPath: "/api/task",
   fields: [],
-  listView: { columns: [] },
+  listView: { columns: [] }
 }
 
 function mockApiResponse(list: Record<string, unknown>[], total = list.length) {
   mockFetch.mockResolvedValueOnce({
     ok: true,
-    json: async () => ({ code: 0, data: { list, total, page: 1, pageSize: 20 } }),
+    json: async () => ({ code: 0, data: { list, total, page: 1, pageSize: 20 } })
   })
 }
 
@@ -45,10 +45,9 @@ describe("useEntityList", () => {
   it("获取列表数据", async () => {
     mockApiResponse([{ id: "1", title: "任务一" }])
 
-    const { result } = renderHook(
-      () => useEntityList(mockEntity as EntityDef),
-      { wrapper: createWrapper() }
-    )
+    const { result } = renderHook(() => useEntityList(mockEntity as EntityDef), {
+      wrapper: createWrapper()
+    })
 
     expect(result.current.isLoading).toBe(true)
 
@@ -83,14 +82,8 @@ describe("useEntityList", () => {
 
     const wrapper = createWrapper()
 
-    const { result: r1 } = renderHook(
-      () => useEntityList(mockEntity as EntityDef),
-      { wrapper }
-    )
-    const { result: r2 } = renderHook(
-      () => useEntityList(otherEntity as EntityDef),
-      { wrapper }
-    )
+    const { result: r1 } = renderHook(() => useEntityList(mockEntity as EntityDef), { wrapper })
+    const { result: r2 } = renderHook(() => useEntityList(otherEntity as EntityDef), { wrapper })
 
     await waitFor(() => expect(r1.current.isLoading).toBe(false))
     await waitFor(() => expect(r2.current.isLoading).toBe(false))

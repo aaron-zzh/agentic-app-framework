@@ -5,7 +5,7 @@
  * queryKey 包含 entity.slug + 所有参数，自动实现缓存隔离
  */
 
-import { useQuery, keepPreviousData } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 
 import type { EntityDef } from "@/features/entity-engine/types"
 import { fetchList, type ListParams, type PageResult } from "@/lib/api/client"
@@ -20,10 +20,7 @@ export interface UseEntityListResult {
 }
 
 /** 通用列表查询 Hook */
-export function useEntityList(
-  entity: EntityDef,
-  params: ListParams = {}
-): UseEntityListResult {
+export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEntityListResult {
   const { page = 1, pageSize = 20, sort, search, ...filters } = params
 
   const queryKey = [entity.slug, "list", { page, pageSize, sort, search, ...filters }]
@@ -31,7 +28,7 @@ export function useEntityList(
   const { data, isLoading, isFetching, error } = useQuery<PageResult<Record<string, unknown>>>({
     queryKey,
     queryFn: () => fetchList(entity.apiPath, { page, pageSize, sort, search, ...filters }),
-    placeholderData: keepPreviousData,
+    placeholderData: keepPreviousData
   })
 
   return {
@@ -39,10 +36,10 @@ export function useEntityList(
     pagination: {
       page: data?.page ?? page,
       pageSize: data?.pageSize ?? pageSize,
-      total: data?.total ?? 0,
+      total: data?.total ?? 0
     },
     isLoading,
     isFetching,
-    error: error as Error | null,
+    error: error as Error | null
   }
 }

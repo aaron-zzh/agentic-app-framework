@@ -5,17 +5,17 @@
  * 安全求值：仅支持白名单函数，无 eval
  */
 
-import { resolveValue, type FieldContext } from "./field-context"
+import { type FieldContext, resolveValue } from "./field-context"
 
 /** 支持的函数 */
 const functions: Record<string, (...args: number[]) => number> = {
   SUM: (...args) => args.reduce((a, b) => a + b, 0),
-  AVG: (...args) => args.length ? args.reduce((a, b) => a + b, 0) / args.length : 0,
+  AVG: (...args) => (args.length ? args.reduce((a, b) => a + b, 0) / args.length : 0),
   MIN: (...args) => Math.min(...args),
   MAX: (...args) => Math.max(...args),
   ABS: (a) => Math.abs(a),
   ROUND: (a, d = 0) => Number(a.toFixed(d)),
-  IF: (cond, t, f) => cond ? t : f,
+  IF: (cond, t, f) => (cond ? t : f)
 }
 
 /**

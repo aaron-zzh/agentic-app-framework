@@ -15,7 +15,7 @@ export function TableSelectedAction({
   numSelected,
   rowCount,
   onSelectAllRows,
-  action,
+  action
 }: TableSelectedActionProps) {
   if (!numSelected) return null
 
@@ -25,15 +25,13 @@ export function TableSelectedAction({
         type="checkbox"
         className="h-4 w-4 rounded border"
         checked={numSelected === rowCount}
-        ref={(el) => { if (el) el.indeterminate = numSelected > 0 && numSelected < rowCount }}
+        ref={(el) => {
+          if (el) el.indeterminate = numSelected > 0 && numSelected < rowCount
+        }}
         onChange={(e) => onSelectAllRows(e.target.checked)}
       />
-      <span className="text-sm font-medium text-primary">
-        已选 {numSelected} 项
-      </span>
-      <div className="ml-auto flex items-center gap-1">
-        {action}
-      </div>
+      <span className="font-medium text-primary text-sm">已选 {numSelected} 项</span>
+      <div className="ml-auto flex items-center gap-1">{action}</div>
     </div>
   )
 }

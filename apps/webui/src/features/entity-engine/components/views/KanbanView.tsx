@@ -11,17 +11,17 @@
 "use client"
 
 import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
   closestCorners,
-  useSensor,
-  useSensors,
+  DndContext,
   type DragEndEvent,
   type DragOverEvent,
-  type DragStartEvent
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors
 } from "@dnd-kit/core"
-import { SortableContext, arrayMove, horizontalListSortingStrategy } from "@dnd-kit/sortable"
+import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable"
 import { useCallback, useMemo, useState } from "react"
 
 import type { EntityDef, SelectField, SelectOption } from "../../types"
@@ -56,7 +56,10 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
   )
 
   const columns = useMemo(
-    () => columnOrder.map((v) => allOptions.find((o) => o.value === v)).filter(Boolean) as SelectOption[],
+    () =>
+      columnOrder
+        .map((v) => allOptions.find((o) => o.value === v))
+        .filter(Boolean) as SelectOption[],
     [columnOrder, allOptions]
   )
 
@@ -71,14 +74,10 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  const activeRecord = activeId && activeType === "card"
-    ? localData.find((r) => String(r.id) === activeId)
-    : null
+  const activeRecord =
+    activeId && activeType === "card" ? localData.find((r) => String(r.id) === activeId) : null
 
-  const isColumnId = useCallback(
-    (id: string) => columnOrder.includes(id),
-    [columnOrder]
-  )
+  const isColumnId = useCallback((id: string) => columnOrder.includes(id), [columnOrder])
 
   function handleDragStart(event: DragStartEvent) {
     const id = String(event.active.id)
@@ -94,9 +93,7 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
     const overId = String(over.id)
 
     // 确定目标列
-    const targetColumn = isColumnId(overId)
-      ? overId
-      : getRecordColumn(overId)
+    const targetColumn = isColumnId(overId) ? overId : getRecordColumn(overId)
 
     const sourceColumn = getRecordColumn(activeRecordId)
 
@@ -150,7 +147,7 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
   }
 
   if (!kanbanView) {
-    return <p className="p-4 text-sm text-muted-foreground">未配置看板视图</p>
+    return <p className="p-4 text-muted-foreground text-sm">未配置看板视图</p>
   }
 
   if (loading) {
@@ -200,9 +197,7 @@ export function KanbanView({ entity, data = [], loading, onStatusChange }: Kanba
           <KanbanCard
             id={String(activeRecord.id)}
             title={String(activeRecord[cardTitle] ?? "")}
-            description={
-              cardDescription ? String(activeRecord[cardDescription] ?? "") : undefined
-            }
+            description={cardDescription ? String(activeRecord[cardDescription] ?? "") : undefined}
             overlay
           />
         ) : null}

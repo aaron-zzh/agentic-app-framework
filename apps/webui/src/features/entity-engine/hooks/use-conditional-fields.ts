@@ -34,8 +34,12 @@ export function useConditionalFields(
 
     for (const field of fields) {
       const visible = field.visibleWhen ? evaluateCondition(field.visibleWhen, ctx) : true
-      const readOnly = field.readOnlyWhen ? evaluateCondition(field.readOnlyWhen, ctx) : !!field.readOnly
-      const required = field.requiredWhen ? evaluateCondition(field.requiredWhen, ctx) : !!field.required
+      const readOnly = field.readOnlyWhen
+        ? evaluateCondition(field.readOnlyWhen, ctx)
+        : !!field.readOnly
+      const required = field.requiredWhen
+        ? evaluateCondition(field.requiredWhen, ctx)
+        : !!field.required
 
       result[field.name] = { visible, readOnly, required }
     }

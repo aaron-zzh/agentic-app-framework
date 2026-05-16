@@ -30,7 +30,7 @@ export function RichTextEditor({
   placeholder = "输入内容...",
   disabled,
   error,
-  minHeight = 200,
+  minHeight = 200
 }: RichTextEditorProps) {
   // 降级实现：textarea（Tiptap 依赖未安装时）
   const handleChange = useCallback(
@@ -62,7 +62,7 @@ export function RichTextEditor({
         placeholder={placeholder}
         disabled={disabled}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-xs">{error}</p>}
     </div>
   )
 }
@@ -70,12 +70,7 @@ export function RichTextEditor({
 /** 工具栏按钮（占位） */
 function ToolbarButton({ label, title }: { label: string; title: string }) {
   return (
-    <button
-      type="button"
-      className="h-7 w-7 rounded text-xs hover:bg-muted"
-      title={title}
-      disabled
-    >
+    <button type="button" className="h-7 w-7 rounded text-xs hover:bg-muted" title={title} disabled>
       {label}
     </button>
   )

@@ -14,10 +14,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 
 import { FieldErrorBoundary } from "@/components/common/FieldErrorBoundary"
-
+import { buildZodSchema } from "../../lib/build-zod-schema"
 import { getFieldComponent } from "../../lib/component-registry"
 import type { DataFieldDef, EntityDef, FieldDef, LayoutField } from "../../types"
-import { buildZodSchema } from "../../lib/build-zod-schema"
 
 interface FormViewProps {
   entity: EntityDef
@@ -46,13 +45,11 @@ export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-4">
-      {formView?.layout
-        ? renderLayout(formView.layout, fields, form)
-        : renderLinear(fields, form)}
+      {formView?.layout ? renderLayout(formView.layout, fields, form) : renderLinear(fields, form)}
       <div className="flex justify-end pt-4">
         <button
           type="submit"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
         >
           保存
         </button>
@@ -79,7 +76,7 @@ function renderLayout(layout: LayoutField[], fields: FieldDef[], form: ReturnTyp
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: layout 静态配置
           <fieldset key={i} className="space-y-3 rounded-md border p-4">
-            <legend className="px-2 text-sm font-medium">{item.label}</legend>
+            <legend className="px-2 font-medium text-sm">{item.label}</legend>
             {item.fields.map((f) => {
               if (f.type === "group" || f.type === "tabs" || f.type === "row") return null
               const df = f as DataFieldDef
@@ -93,7 +90,10 @@ function renderLayout(layout: LayoutField[], fields: FieldDef[], form: ReturnTyp
           <div key={i} className="space-y-3">
             <div className="flex gap-2 border-b">
               {item.tabs.map((tab) => (
-                <span key={tab.label} className="border-b-2 border-primary px-3 py-1.5 text-sm font-medium">
+                <span
+                  key={tab.label}
+                  className="border-primary border-b-2 px-3 py-1.5 font-medium text-sm"
+                >
                   {tab.label}
                 </span>
               ))}
@@ -114,7 +114,11 @@ function renderLayout(layout: LayoutField[], fields: FieldDef[], form: ReturnTyp
               if (f.type === "group" || f.type === "tabs" || f.type === "row") return null
               const df = f as DataFieldDef
               return (
-                <div key={df.name} style={{ width: (f as { width?: string }).width ?? "auto" }} className="flex-1">
+                <div
+                  key={df.name}
+                  style={{ width: (f as { width?: string }).width ?? "auto" }}
+                  className="flex-1"
+                >
                   <FieldRenderer field={df} form={form} />
                 </div>
               )
@@ -130,13 +134,17 @@ function renderLayout(layout: LayoutField[], fields: FieldDef[], form: ReturnTyp
 /** 单个字段渲染器 */
 function FieldRenderer({ field, form }: { field: DataFieldDef; form: ReturnType<typeof useForm> }) {
   const Component = getFieldComponent(field.type)
-  const { watch, setValue, formState: { errors } } = form
+  const {
+    watch,
+    setValue,
+    formState: { errors }
+  } = form
   const value = watch(field.name)
   const error = errors[field.name]?.message as string | undefined
 
   if (!Component) {
     return (
-      <div className="text-xs text-muted-foreground">
+      <div className="text-muted-foreground text-xs">
         未注册的字段类型：{field.type}（{field.name}）
       </div>
     )

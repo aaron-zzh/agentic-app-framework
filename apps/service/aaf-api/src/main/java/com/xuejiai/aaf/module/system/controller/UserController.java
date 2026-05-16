@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.controller;
 import java.io.IOException;
 import java.util.List;
 
+import com.xuejiai.aaf.util.ImportExecutor;
 import org.apache.fesod.sheet.support.ExcelTypeEnum;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
@@ -30,7 +31,7 @@ import com.xuejiai.aaf.module.system.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
 import com.xuejiai.aaf.module.system.vo.UserExportVO;
 import com.xuejiai.aaf.module.system.vo.UserImportVO;
-import com.xuejiai.aaf.util.ImportExecutor;
+import com.xuejiai.aaf.module.system.async.AsyncTaskService;
 import com.xuejiai.aaf.module.system.vo.UserPageDTO;
 import com.xuejiai.aaf.module.system.vo.UserResetPasswordDTO;
 import com.xuejiai.aaf.module.system.vo.UserSimpleVO;
@@ -50,6 +51,7 @@ import lombok.RequiredArgsConstructor;
 public class UserController {
 
     private final UserService userService;
+    private final AsyncTaskService asyncTaskService;
 
     @Operation(summary = "获取用户精简列表", description = "下拉选择场景，不分页")
     @GetMapping("/simple")
@@ -90,11 +92,20 @@ public class UserController {
         return Result.success();
     }
 
-    @Operation(summary = "批量删除用户")
+    @Operation(summary = "批量删除用户", description = "超过 100 条自动转异步，返回 taskId")
     @DeleteMapping
-    public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
-        userService.deleteBatch(ids);
-        return Result.success();
+    public Result<?> deleteBatch(@RequestBody List<Long> ids) {
+        if (ids.size() <= 100) {
+            userService.deleteBatch(ids);
+            return Result.success();
+        }
+        String taskId = asyncTaskService.submit("user:deleteBatch", ids.size(), task -> {
+            for (int i = 0; i < ids.size(); i++) {
+                try { userService.delete(ids.get(i)); } catch (Exception ignored) {}
+                task.setCurrent(i + 1);
+            }
+        });
+        return Result.success(java.util.Map.of("taskId", taskId, "async", true));
     }
 
     @Operation(summary = "修改用户状态", description = "启用/禁用")

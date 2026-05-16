@@ -51,7 +51,7 @@ function GroupSection({
   label,
   count,
   columns,
-  records,
+  records
 }: {
   label: string
   count: number
@@ -64,12 +64,12 @@ function GroupSection({
     <div className="border-b">
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-medium hover:bg-muted/50"
+        className="flex w-full items-center gap-2 px-4 py-2 text-left font-medium text-sm hover:bg-muted/50"
         onClick={() => setCollapsed(!collapsed)}
       >
         <span className="text-xs">{collapsed ? "▶" : "▼"}</span>
         <span>{label}</span>
-        <span className="text-xs text-muted-foreground">({count})</span>
+        <span className="text-muted-foreground text-xs">({count})</span>
       </button>
       {!collapsed && (
         <table className="w-full text-sm">

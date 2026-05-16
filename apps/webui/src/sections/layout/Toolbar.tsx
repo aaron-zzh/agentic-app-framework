@@ -11,19 +11,18 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
-
-import { cn } from "@/lib/utils/cn"
+import { useCallback, useState } from "react"
+import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
+import { ListTabs } from "@/features/entity-engine/components/ListTabs"
+import { SearchBar } from "@/features/entity-engine/components/SearchBar"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { useFilterParams } from "@/lib/queries/use-filter-params"
-import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
-import { SearchBar } from "@/features/entity-engine/components/SearchBar"
-import { ListTabs } from "@/features/entity-engine/components/ListTabs"
+import { cn } from "@/lib/utils/cn"
 
 const views = [
   { key: "list", label: "列表", icon: "☰" },
-  { key: "kanban", label: "看板", icon: "▦" },
+  { key: "kanban", label: "看板", icon: "▦" }
 ] as const
 
 interface ToolbarProps {
@@ -40,17 +39,20 @@ export function Toolbar({ entity }: ToolbarProps) {
   const [activeTab, setActiveTab] = useState("")
 
   // Tab 切换时添加/替换对应字段筛选
-  const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value)
-    const tabField = entity.listView.tabs?.field
-    if (!tabField) return
-    const without = filters.filter((f) => f.field !== tabField)
-    if (value) {
-      setFilters([...without, { field: tabField, operator: "eq", value }])
-    } else {
-      setFilters(without)
-    }
-  }, [entity, filters, setFilters])
+  const handleTabChange = useCallback(
+    (value: string) => {
+      setActiveTab(value)
+      const tabField = entity.listView.tabs?.field
+      if (!tabField) return
+      const without = filters.filter((f) => f.field !== tabField)
+      if (value) {
+        setFilters([...without, { field: tabField, operator: "eq", value }])
+      } else {
+        setFilters(without)
+      }
+    },
+    [entity, filters, setFilters]
+  )
 
   return (
     <div className="border-b">
@@ -60,18 +62,22 @@ export function Toolbar({ entity }: ToolbarProps) {
           {canCreate && (
             <Link
               href={`${pathname}/new`}
-              className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
             >
               + 创建
             </Link>
           )}
           {/* TODO: #02915 Server Actions 批量操作菜单 */}
-          <button type="button" className="h-8 rounded-md border px-3 text-sm text-muted-foreground" disabled>
+          <button
+            type="button"
+            className="h-8 rounded-md border px-3 text-muted-foreground text-sm"
+            disabled
+          >
             更多操作 ▾
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 text-muted-foreground text-sm">
           <div className="flex items-center gap-0.5 rounded-md border p-0.5">
             {views.map((v) => (
               <Link
@@ -91,7 +97,9 @@ export function Toolbar({ entity }: ToolbarProps) {
           </div>
           <span className="text-xs">分组: 无</span>
           <span>共 {searchParams.get("total") ?? "—"} 个</span>
-          <button type="button" className="text-xs hover:text-foreground" disabled>⚙ 设置</button>
+          <button type="button" className="text-xs hover:text-foreground" disabled>
+            ⚙ 设置
+          </button>
         </div>
       </div>
 
@@ -106,6 +114,3 @@ export function Toolbar({ entity }: ToolbarProps) {
     </div>
   )
 }
-
-
-

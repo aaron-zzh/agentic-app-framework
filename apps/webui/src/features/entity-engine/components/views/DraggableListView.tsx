@@ -5,22 +5,22 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
 import {
-  DndContext,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
   PointerSensor,
   useSensor,
-  useSensors,
-  type DragEndEvent,
+  useSensors
 } from "@dnd-kit/core"
 import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
   arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useCallback, useState } from "react"
 
 import { getCellComponent } from "../../lib/component-registry"
 import type { ColumnDef, DataFieldDef } from "../../types"
@@ -77,7 +77,12 @@ export function DraggableListView({ columns, data, onReorder }: DraggableListVie
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             <tbody>
               {items.map((record) => (
-                <SortableRow key={record.id as string} id={record.id as string} record={record} columns={columns} />
+                <SortableRow
+                  key={record.id as string}
+                  id={record.id as string}
+                  record={record}
+                  columns={columns}
+                />
               ))}
             </tbody>
           </SortableContext>
@@ -88,13 +93,23 @@ export function DraggableListView({ columns, data, onReorder }: DraggableListVie
 }
 
 /** 可排序行 */
-function SortableRow({ id, record, columns }: { id: string; record: Record<string, unknown>; columns: ColumnInfo[] }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+function SortableRow({
+  id,
+  record,
+  columns
+}: {
+  id: string
+  record: Record<string, unknown>
+  columns: ColumnInfo[]
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.5 : 1
   }
 
   return (

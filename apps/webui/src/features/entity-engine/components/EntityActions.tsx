@@ -7,8 +7,8 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useCallback, useState } from "react"
 
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
 import { ApiError } from "@/lib/api/client"
@@ -47,7 +47,7 @@ function ActionButton({
   action,
   entity,
   record,
-  selectedIds,
+  selectedIds
 }: {
   action: EntityAction
   entity: EntityDef
@@ -76,7 +76,7 @@ function ActionButton({
       const res = await fetch(action.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       })
 
       if (!res.ok) {

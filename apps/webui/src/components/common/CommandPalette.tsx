@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { entityRegistry } from "@/features/entity-engine"
 import type { EntityDef } from "@/features/entity-engine/types"
@@ -70,8 +70,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       } else if (e.key === "Enter") {
         e.preventDefault()
         const item = results[selectedIndex]
-        if (item?.href) { router.push(item.href); onClose() }
-        else if (item?.action) { item.action(); onClose() }
+        if (item?.href) {
+          router.push(item.href)
+          onClose()
+        } else if (item?.action) {
+          item.action()
+          onClose()
+        }
       } else if (e.key === "Escape") {
         onClose()
       }
@@ -102,24 +107,29 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                 type="button"
                 className={`flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm ${i === selectedIndex ? "bg-muted" : "hover:bg-muted/50"}`}
                 onClick={() => {
-                  if (item.href) { router.push(item.href); onClose() }
-                  else if (item.action) { item.action(); onClose() }
+                  if (item.href) {
+                    router.push(item.href)
+                    onClose()
+                  } else if (item.action) {
+                    item.action()
+                    onClose()
+                  }
                 }}
               >
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {item.type === "entity" ? "📄" : item.type === "navigation" ? "→" : "⚡"}
                 </span>
                 <span className="flex-1">
                   <span>{item.label}</span>
                   {item.description && (
-                    <span className="ml-2 text-xs text-muted-foreground">{item.description}</span>
+                    <span className="ml-2 text-muted-foreground text-xs">{item.description}</span>
                   )}
                 </span>
               </button>
             </li>
           ))}
           {results.length === 0 && (
-            <li className="px-3 py-4 text-center text-sm text-muted-foreground">无结果</li>
+            <li className="px-3 py-4 text-center text-muted-foreground text-sm">无结果</li>
           )}
         </ul>
       </div>
@@ -134,7 +144,7 @@ function getDefaultResults(): SearchResult[] {
     type: "navigation" as const,
     label: e.label,
     description: e.description,
-    href: `/${e.slug}`,
+    href: `/${e.slug}`
   }))
 }
 
@@ -149,7 +159,7 @@ function searchAll(query: string): SearchResult[] {
       type: "navigation" as const,
       label: e.label,
       description: `前往 ${e.labelPlural ?? e.label}`,
-      href: `/${e.slug}`,
+      href: `/${e.slug}`
     }))
 
   // TODO: 后端 /api/search?q= 跨实体记录搜索
@@ -161,7 +171,7 @@ function searchCommands(query: string): SearchResult[] {
   const commands: SearchResult[] = [
     { type: "command", label: "新建记录", description: "在当前实体创建", action: () => {} },
     { type: "command", label: "切换主题", description: "深色/浅色", action: () => {} },
-    { type: "command", label: "导出数据", description: "导出当前列表", action: () => {} },
+    { type: "command", label: "导出数据", description: "导出当前列表", action: () => {} }
   ]
   if (!query) return commands
   const q = query.toLowerCase()

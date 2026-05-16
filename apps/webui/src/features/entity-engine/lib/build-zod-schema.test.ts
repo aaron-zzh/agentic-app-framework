@@ -38,10 +38,17 @@ describe("buildZodSchema", () => {
   })
 
   it("should validate select enum", () => {
-    const fields: FieldDef[] = [{
-      type: "select", name: "status", required: true,
-      options: [{ label: "Draft", value: "draft" }, { label: "Published", value: "published" }]
-    }]
+    const fields: FieldDef[] = [
+      {
+        type: "select",
+        name: "status",
+        required: true,
+        options: [
+          { label: "Draft", value: "draft" },
+          { label: "Published", value: "published" }
+        ]
+      }
+    ]
     const schema = buildZodSchema(fields)
     expect(schema.safeParse({ status: "draft" }).success).toBe(true)
     expect(schema.safeParse({ status: "invalid" }).success).toBe(false)

@@ -41,9 +41,7 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
 
   const updateCell = useCallback(
     (rowIndex: number, field: string, cellValue: unknown) => {
-      const next = value.map((row, i) =>
-        i === rowIndex ? { ...row, [field]: cellValue } : row
-      )
+      const next = value.map((row, i) => (i === rowIndex ? { ...row, [field]: cellValue } : row))
       onChange(next)
     },
     [value, onChange]
@@ -66,7 +64,7 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
             <tr>
               <th className="w-8 px-2 py-1.5 text-center text-xs">#</th>
               {fields.map((f) => (
-                <th key={f.name} className="px-3 py-1.5 text-left text-xs font-medium">
+                <th key={f.name} className="px-3 py-1.5 text-left font-medium text-xs">
                   {f.label ?? f.name}
                 </th>
               ))}
@@ -76,7 +74,7 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
           <tbody>
             {value.map((row, i) => (
               <tr key={(row._key as string) ?? i} className="border-t">
-                <td className="px-2 py-1 text-center text-xs text-muted-foreground">{i + 1}</td>
+                <td className="px-2 py-1 text-center text-muted-foreground text-xs">{i + 1}</td>
                 {fields.map((f) => (
                   <td key={f.name} className="px-1 py-1">
                     <input
@@ -91,7 +89,7 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
                   <td className="px-1 py-1 text-center">
                     <button
                       type="button"
-                      className="text-xs text-muted-foreground hover:text-destructive"
+                      className="text-muted-foreground text-xs hover:text-destructive"
                       onClick={() => removeRow(i)}
                     >
                       ✕
@@ -105,9 +103,9 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
           {summaries && (
             <tfoot className="border-t bg-muted/20">
               <tr>
-                <td className="px-2 py-1.5 text-xs font-medium">合计</td>
+                <td className="px-2 py-1.5 font-medium text-xs">合计</td>
                 {fields.map((f) => (
-                  <td key={f.name} className="px-3 py-1.5 text-sm font-medium">
+                  <td key={f.name} className="px-3 py-1.5 font-medium text-sm">
                     {summaries[f.name] !== undefined ? summaries[f.name] : ""}
                   </td>
                 ))}
@@ -119,11 +117,7 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
       </div>
 
       {!disabled && (
-        <button
-          type="button"
-          className="text-sm text-primary hover:underline"
-          onClick={addRow}
-        >
+        <button type="button" className="text-primary text-sm hover:underline" onClick={addRow}>
           + 添加行
         </button>
       )}

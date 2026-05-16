@@ -18,7 +18,7 @@ const operatorLabels: Record<string, string> = {
   between: "介于",
   startsWith: "开头是",
   isEmpty: "为空",
-  in: "属于",
+  in: "属于"
 }
 
 interface FilterChipsProps {
@@ -49,9 +49,7 @@ export function FilterChips({ entity, filters, onRemove, onClear }: FilterChipsP
           >
             <span className="font-medium">{label}</span>
             <span className="text-muted-foreground">{op}</span>
-            {filter.operator !== "isEmpty" && (
-              <span>{filter.value}</span>
-            )}
+            {filter.operator !== "isEmpty" && <span>{filter.value}</span>}
             <button
               type="button"
               className="ml-0.5 text-muted-foreground hover:text-destructive"
@@ -64,7 +62,7 @@ export function FilterChips({ entity, filters, onRemove, onClear }: FilterChipsP
       })}
       <button
         type="button"
-        className="text-xs text-muted-foreground hover:text-destructive"
+        className="text-muted-foreground text-xs hover:text-destructive"
         onClick={onClear}
       >
         清除全部

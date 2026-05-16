@@ -10,10 +10,10 @@
  */
 
 import {
+  createSearchParamsCache,
   parseAsInteger,
   parseAsString,
-  createSearchParamsCache,
-  parseAsStringLiteral,
+  parseAsStringLiteral
 } from "nuqs/server"
 
 /** 支持的视图类型 */
@@ -25,7 +25,7 @@ export const searchParamsParsers = {
   page: parseAsInteger.withDefault(1),
   pageSize: parseAsInteger.withDefault(20),
   sort: parseAsString,
-  search: parseAsString,
+  search: parseAsString
 }
 
 /** 服务端参数缓存（用于 Server Component） */

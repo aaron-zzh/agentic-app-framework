@@ -31,7 +31,7 @@ export function TableHead({
   rowCount = 0,
   numSelected = 0,
   onSort,
-  onSelectAllRows,
+  onSelectAllRows
 }: TableHeadProps) {
   return (
     <thead className="border-b bg-muted/30">
@@ -42,7 +42,9 @@ export function TableHead({
               type="checkbox"
               className="h-4 w-4 rounded border"
               checked={rowCount > 0 && numSelected === rowCount}
-              ref={(el) => { if (el) el.indeterminate = numSelected > 0 && numSelected < rowCount }}
+              ref={(el) => {
+                if (el) el.indeterminate = numSelected > 0 && numSelected < rowCount
+              }}
               onChange={(e) => onSelectAllRows(e.target.checked)}
             />
           </th>
@@ -51,7 +53,7 @@ export function TableHead({
           <th
             key={cell.id}
             className={cn(
-              "h-10 px-4 text-left align-middle text-xs font-medium text-muted-foreground",
+              "h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs",
               cell.align === "center" && "text-center",
               cell.align === "right" && "text-right"
             )}

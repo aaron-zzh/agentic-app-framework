@@ -3,20 +3,24 @@
  * @author AaronZZH & Kiro
  */
 
-import { renderHook, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { type ReactNode, createElement } from "react"
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { act, renderHook, waitFor } from "@testing-library/react"
+import { createElement, type ReactNode } from "react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { EntityDef } from "@/features/entity-engine/types"
-import { useEntityRecord, useEntityMutation, useEntityDelete } from "@/lib/queries/use-entity-mutations"
+import {
+  useEntityDelete,
+  useEntityMutation,
+  useEntityRecord
+} from "@/lib/queries/use-entity-mutations"
 
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
 function createWrapper() {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   })
   return ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children)
@@ -26,7 +30,7 @@ const entity = {
   slug: "task",
   apiPath: "/task",
   fields: [],
-  listView: { columns: [] },
+  listView: { columns: [] }
 } as unknown as EntityDef
 
 describe("useEntityRecord", () => {
@@ -35,11 +39,11 @@ describe("useEntityRecord", () => {
   it("根据 id 查询单条记录", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ code: 0, data: { id: "1", title: "任务一" } }),
+      json: async () => ({ code: 0, data: { id: "1", title: "任务一" } })
     })
 
     const { result } = renderHook(() => useEntityRecord(entity, "1"), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper()
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
@@ -48,7 +52,7 @@ describe("useEntityRecord", () => {
 
   it("id 为 undefined 时不发请求", () => {
     const { result } = renderHook(() => useEntityRecord(entity, undefined), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper()
     })
     expect(result.current.fetchStatus).toBe("idle")
   })
@@ -60,11 +64,11 @@ describe("useEntityMutation", () => {
   it("创建记录（无 id）", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ code: 0, data: { id: "new-1", title: "新任务" } }),
+      json: async () => ({ code: 0, data: { id: "new-1", title: "新任务" } })
     })
 
     const { result } = renderHook(() => useEntityMutation(entity), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper()
     })
 
     await act(async () => {
@@ -72,20 +76,17 @@ describe("useEntityMutation", () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/api/task",
-      expect.objectContaining({ method: "POST" })
-    )
+    expect(mockFetch).toHaveBeenCalledWith("/api/task", expect.objectContaining({ method: "POST" }))
   })
 
   it("更新记录（有 id）", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ code: 0, data: { id: "1", title: "已更新" } }),
+      json: async () => ({ code: 0, data: { id: "1", title: "已更新" } })
     })
 
     const { result } = renderHook(() => useEntityMutation(entity, "1"), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper()
     })
 
     await act(async () => {
@@ -106,11 +107,11 @@ describe("useEntityDelete", () => {
   it("批量删除", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ code: 0, data: null }),
+      json: async () => ({ code: 0, data: null })
     })
 
     const { result } = renderHook(() => useEntityDelete(entity), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper()
     })
 
     await act(async () => {
@@ -122,7 +123,7 @@ describe("useEntityDelete", () => {
       "/api/task",
       expect.objectContaining({
         method: "DELETE",
-        body: JSON.stringify({ ids: ["1", "2", "3"] }),
+        body: JSON.stringify({ ids: ["1", "2", "3"] })
       })
     )
   })

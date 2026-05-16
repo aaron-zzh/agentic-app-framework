@@ -25,7 +25,7 @@ export function buildFieldContext(
     $user: user,
     $parent: options?.parent,
     $params: options?.params,
-    $env: { now: new Date().toISOString() },
+    $env: { now: new Date().toISOString() }
   }
 }
 
@@ -42,7 +42,10 @@ export function resolveValue(expr: string, ctx: FieldContext): unknown {
   if (trimmed === "true") return true
   if (trimmed === "false") return false
   // 字面量：字符串（引号包裹）
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
     return trimmed.slice(1, -1)
   }
 
@@ -75,12 +78,20 @@ export function evaluateCondition(expr: string, ctx: FieldContext): boolean {
     const left = resolveValue(expr.slice(0, idx), ctx)
     const right = resolveValue(expr.slice(idx + op.length), ctx)
     switch (op) {
-      case "===": case "==": return left === right
-      case "!==": case "!=": return left !== right
-      case ">": return Number(left) > Number(right)
-      case "<": return Number(left) < Number(right)
-      case ">=": return Number(left) >= Number(right)
-      case "<=": return Number(left) <= Number(right)
+      case "===":
+      case "==":
+        return left === right
+      case "!==":
+      case "!=":
+        return left !== right
+      case ">":
+        return Number(left) > Number(right)
+      case "<":
+        return Number(left) < Number(right)
+      case ">=":
+        return Number(left) >= Number(right)
+      case "<=":
+        return Number(left) <= Number(right)
     }
   }
 

@@ -23,7 +23,7 @@ export function TablePagination({
   dense,
   onChangePage,
   onChangePageSize,
-  onChangeDense,
+  onChangeDense
 }: TablePaginationProps) {
   const totalPages = Math.ceil(total / pageSize)
   const from = (page - 1) * pageSize + 1
@@ -33,15 +33,20 @@ export function TablePagination({
     <div className="flex items-center justify-between border-t px-4 py-2">
       <div className="flex items-center gap-3">
         {onChangeDense && (
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <input type="checkbox" className="h-3.5 w-3.5 rounded border" checked={dense} onChange={onChangeDense} />
+          <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border"
+              checked={dense}
+              onChange={onChangeDense}
+            />
             紧凑
           </label>
         )}
       </div>
 
       <div className="flex items-center gap-4 text-sm">
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
           每页
           <select
             className="h-7 rounded border px-1 text-xs"
@@ -49,12 +54,14 @@ export function TablePagination({
             onChange={(e) => onChangePageSize(Number(e.target.value))}
           >
             {PAGE_SIZE_OPTIONS.map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </label>
 
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {total > 0 ? `${from}–${to} / ${total}` : "0 条"}
         </span>
 

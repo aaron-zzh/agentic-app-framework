@@ -28,13 +28,13 @@ export class FieldErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="space-y-1 rounded border border-destructive/30 bg-destructive/5 p-2">
-          <p className="text-xs text-destructive">
+          <p className="text-destructive text-xs">
             字段{this.props.fieldName ? `"${this.props.fieldName}"` : ""}渲染异常
           </p>
           <button
             type="button"
             onClick={() => this.setState({ error: null })}
-            className="text-xs text-muted-foreground underline"
+            className="text-muted-foreground text-xs underline"
           >
             重试
           </button>

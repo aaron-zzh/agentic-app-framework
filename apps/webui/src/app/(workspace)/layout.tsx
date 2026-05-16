@@ -4,9 +4,8 @@
  */
 
 import { Suspense } from "react"
-
-import { entityRegistry, sampleEntities } from "@/features/entity-engine"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
+import { entityRegistry, sampleEntities } from "@/features/entity-engine"
 import { AppHeader } from "@/sections/layout/AppHeader"
 import { AppSidebar } from "@/sections/layout/AppSidebar"
 

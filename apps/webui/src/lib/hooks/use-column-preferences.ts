@@ -20,9 +20,7 @@ const STORAGE_KEY_PREFIX = "aaf:columns:"
 
 /** 从 ListViewConfig.columns 解析为标准 ColumnDef */
 function normalizeColumns(columns: ListViewConfig["columns"]): ColumnDef[] {
-  return columns.map((col) =>
-    typeof col === "string" ? { name: col } : col
-  )
+  return columns.map((col) => (typeof col === "string" ? { name: col } : col))
 }
 
 /** 读取 localStorage 偏好 */
@@ -52,7 +50,7 @@ export function useColumnPreferences(entitySlug: string, config: ListViewConfig)
     return allColumns.map((col, i) => ({
       name: col.name,
       visible: !col.hidden,
-      order: i,
+      order: i
     }))
   })
 
@@ -71,9 +69,7 @@ export function useColumnPreferences(entitySlug: string, config: ListViewConfig)
   const toggleColumn = useCallback(
     (name: string) => {
       setPreferences((prev) => {
-        const next = prev.map((p) =>
-          p.name === name ? { ...p, visible: !p.visible } : p
-        )
+        const next = prev.map((p) => (p.name === name ? { ...p, visible: !p.visible } : p))
         savePreferences(entitySlug, next)
         return next
       })
@@ -87,7 +83,7 @@ export function useColumnPreferences(entitySlug: string, config: ListViewConfig)
       setPreferences((prev) => {
         const next = prev.map((p) => ({
           ...p,
-          order: orderedNames.indexOf(p.name),
+          order: orderedNames.indexOf(p.name)
         }))
         savePreferences(entitySlug, next)
         return next
@@ -101,7 +97,7 @@ export function useColumnPreferences(entitySlug: string, config: ListViewConfig)
     const defaults = allColumns.map((col, i) => ({
       name: col.name,
       visible: !col.hidden,
-      order: i,
+      order: i
     }))
     setPreferences(defaults)
     localStorage.removeItem(`${STORAGE_KEY_PREFIX}${entitySlug}`)

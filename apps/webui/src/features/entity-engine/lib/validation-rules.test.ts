@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { validateRules, type ValidationRule } from "./validation-rules"
+import { type ValidationRule, validateRules } from "./validation-rules"
 
 describe("validateRules", () => {
   const rules: ValidationRule[] = [
@@ -8,15 +8,15 @@ describe("validateRules", () => {
       condition: "$record.endDate > $record.startDate",
       message: "结束日期必须晚于开始日期",
       level: "error",
-      fields: ["startDate", "endDate"],
+      fields: ["startDate", "endDate"]
     },
     {
       name: "amountWarning",
       condition: "$record.amount <= 10000",
       message: "金额超过 10000，请确认",
       level: "warning",
-      fields: ["amount"],
-    },
+      fields: ["amount"]
+    }
   ]
 
   it("全部通过", () => {

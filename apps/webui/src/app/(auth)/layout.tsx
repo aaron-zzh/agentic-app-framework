@@ -9,12 +9,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* 左侧品牌区（桌面端可见） */}
       <div className="hidden flex-1 items-center justify-center bg-muted lg:flex">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">AAF</h1>
+          <h1 className="font-bold text-3xl">AAF</h1>
           <p className="mt-2 text-muted-foreground">AI 原生应用开发框架</p>
         </div>
       </div>
       {/* 右侧表单区 */}
-      <div className="flex flex-1 items-center justify-center p-6 lg:flex-none lg:w-[var(--layout-auth-card-width)] lg:px-12">
+      <div className="flex flex-1 items-center justify-center p-6 lg:w-[var(--layout-auth-card-width)] lg:flex-none lg:px-12">
         {children}
       </div>
     </div>

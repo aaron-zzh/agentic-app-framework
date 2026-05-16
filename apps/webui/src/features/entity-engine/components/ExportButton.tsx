@@ -20,7 +20,10 @@ export function ExportButton({ entity }: ExportButtonProps) {
   const handleExport = useCallback(
     (format: "csv" | "xlsx") => {
       const fields = entity.fields
-        .filter((f): f is DataFieldDef => "name" in f && f.type !== "group" && f.type !== "tabs" && f.type !== "row")
+        .filter(
+          (f): f is DataFieldDef =>
+            "name" in f && f.type !== "group" && f.type !== "tabs" && f.type !== "row"
+        )
         .map((f) => f.name)
         .join(",")
 
@@ -36,17 +39,25 @@ export function ExportButton({ entity }: ExportButtonProps) {
     <div className="relative inline-block">
       <button
         type="button"
-        className="h-7 rounded border px-2 text-xs text-muted-foreground hover:text-foreground"
+        className="h-7 rounded border px-2 text-muted-foreground text-xs hover:text-foreground"
         onClick={() => setOpen(!open)}
       >
         ↓ 导出
       </button>
       {open && (
-        <div className="absolute right-0 top-8 z-20 w-32 rounded-md border bg-background shadow-md">
-          <button type="button" className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted" onClick={() => handleExport("csv")}>
+        <div className="absolute top-8 right-0 z-20 w-32 rounded-md border bg-background shadow-md">
+          <button
+            type="button"
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
+            onClick={() => handleExport("csv")}
+          >
             CSV
           </button>
-          <button type="button" className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted" onClick={() => handleExport("xlsx")}>
+          <button
+            type="button"
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
+            onClick={() => handleExport("xlsx")}
+          >
             XLSX
           </button>
         </div>

@@ -20,7 +20,9 @@ interface KanbanCardProps {
 
 /** 看板卡片 */
 export function KanbanCard({ id, title, description, overlay }: KanbanCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -39,9 +41,9 @@ export function KanbanCard({ id, title, description, overlay }: KanbanCardProps)
         overlay && "rotate-2 shadow-lg"
       )}
     >
-      <p className="text-sm font-medium leading-tight">{title}</p>
+      <p className="font-medium text-sm leading-tight">{title}</p>
       {description && (
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{description}</p>
+        <p className="mt-1 line-clamp-2 text-muted-foreground text-xs">{description}</p>
       )}
     </div>
   )

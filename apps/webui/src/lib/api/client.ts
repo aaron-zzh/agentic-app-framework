@@ -45,7 +45,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json", ...init?.headers },
-    ...init,
+    ...init
   })
 
   if (!res.ok) {
@@ -77,10 +77,7 @@ export function fetchList<T = Record<string, unknown>>(
 }
 
 /** 获取单条记录 */
-export function fetchRecord<T = Record<string, unknown>>(
-  apiPath: string,
-  id: string
-): Promise<T> {
+export function fetchRecord<T = Record<string, unknown>>(apiPath: string, id: string): Promise<T> {
   return request<T>(`${apiPath}/${id}`)
 }
 

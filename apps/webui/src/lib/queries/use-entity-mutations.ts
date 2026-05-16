@@ -13,7 +13,7 @@ export function useEntityRecord(entity: EntityDef, id: string | undefined) {
   return useQuery<Record<string, unknown>>({
     queryKey: [entity.slug, "record", id],
     queryFn: () => fetchRecord(entity.apiPath, id!),
-    enabled: !!id,
+    enabled: !!id
   })
 }
 
@@ -23,16 +23,14 @@ export function useEntityMutation(entity: EntityDef, id?: string) {
 
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      id
-        ? updateRecord(entity.apiPath, id, data)
-        : createRecord(entity.apiPath, data),
+      id ? updateRecord(entity.apiPath, id, data) : createRecord(entity.apiPath, data),
     onSuccess: () => {
       // 刷新列表和当前记录缓存
       queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
       if (id) {
         queryClient.invalidateQueries({ queryKey: [entity.slug, "record", id] })
       }
-    },
+    }
   })
 }
 
@@ -44,6 +42,6 @@ export function useEntityDelete(entity: EntityDef) {
     mutationFn: (ids: string[]) => deleteRecord(entity.apiPath, ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
-    },
+    }
   })
 }

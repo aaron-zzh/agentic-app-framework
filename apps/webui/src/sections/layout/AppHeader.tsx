@@ -20,8 +20,13 @@ export function AppHeader() {
         className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
         aria-label="Toggle sidebar"
       >
-        <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h16M4 12h16M4 18h16"
+          />
         </svg>
       </button>
 
@@ -31,7 +36,7 @@ export function AppHeader() {
       {/* ⌘K 命令面板入口 */}
       <button
         type="button"
-        className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+        className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-muted-foreground text-xs hover:bg-accent"
       >
         <span>搜索...</span>
         <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>

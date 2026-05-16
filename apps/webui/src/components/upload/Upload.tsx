@@ -45,7 +45,7 @@ export function Upload({
   onRemove,
   placeholder,
   error,
-  disabled,
+  disabled
 }: UploadProps) {
   const [dragActive, setDragActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -56,7 +56,7 @@ export function Upload({
         .filter((f) => f.size <= maxSize * 1024 * 1024)
         .map((file) => ({
           file,
-          preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+          preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined
         }))
 
       if (multiple) {
@@ -90,9 +90,14 @@ export function Upload({
       {/* 拖拽区域 */}
       <div
         className={`relative flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors ${
-          dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
+          dragActive
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25 hover:border-primary/50"
         } ${error ? "border-destructive" : ""} ${disabled ? "pointer-events-none opacity-50" : ""}`}
-        onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragActive(true)
+        }}
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
@@ -108,13 +113,13 @@ export function Upload({
           disabled={disabled}
         />
         <span className="text-2xl">📁</span>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-muted-foreground text-sm">
           {placeholder ?? (multiple ? "拖拽文件到此处，或点击选择" : "拖拽文件到此处，或点击选择")}
         </p>
-        <p className="text-xs text-muted-foreground">最大 {maxSize}MB</p>
+        <p className="text-muted-foreground text-xs">最大 {maxSize}MB</p>
       </div>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-xs">{error}</p>}
 
       {/* 文件预览列表 */}
       {value.length > 0 && (
@@ -125,12 +130,22 @@ export function Upload({
               {item.preview ? (
                 <img src={item.preview} alt="" className="h-8 w-8 rounded object-cover" />
               ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-xs">📄</span>
+                <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-xs">
+                  📄
+                </span>
               )}
               <span className="flex-1 truncate text-sm">{item.file.name}</span>
-              <span className="text-xs text-muted-foreground">{(item.file.size / 1024).toFixed(0)}KB</span>
+              <span className="text-muted-foreground text-xs">
+                {(item.file.size / 1024).toFixed(0)}KB
+              </span>
               {onRemove && (
-                <button type="button" className="text-muted-foreground hover:text-destructive" onClick={() => onRemove(i)}>✕</button>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => onRemove(i)}
+                >
+                  ✕
+                </button>
               )}
             </li>
           ))}
@@ -144,7 +159,7 @@ export function Upload({
 export function UploadAvatar({
   value,
   onChange,
-  disabled,
+  disabled
 }: {
   value?: string
   onChange?: (file: File) => void
@@ -169,7 +184,14 @@ export function UploadAvatar({
       onClick={() => inputRef.current?.click()}
       onKeyDown={undefined}
     >
-      <input ref={inputRef} type="file" className="hidden" accept="image/*" onChange={handleChange} disabled={disabled} />
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept="image/*"
+        onChange={handleChange}
+        disabled={disabled}
+      />
       {preview ? (
         <img src={preview} alt="avatar" className="h-full w-full object-cover" />
       ) : (

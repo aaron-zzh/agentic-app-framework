@@ -38,21 +38,15 @@ export const schemaUtils = {
 
   /** 日期（字符串格式） */
   date: (props?: { error?: ErrorMessages }) =>
-    z
-      .string()
-      .min(1, { message: props?.error?.required ?? "日期不能为空" }),
+    z.string().min(1, { message: props?.error?.required ?? "日期不能为空" }),
 
   /** 单文件（string URL 或空） */
   file: (props?: { error?: string }) =>
-    z
-      .string()
-      .min(1, { message: props?.error ?? "请上传文件" }),
+    z.string().min(1, { message: props?.error ?? "请上传文件" }),
 
   /** 多文件 */
   files: (props?: { error?: string; min?: number }) =>
-    z
-      .array(z.string())
-      .min(props?.min ?? 1, { message: props?.error ?? "请上传文件" }),
+    z.array(z.string()).min(props?.min ?? 1, { message: props?.error ?? "请上传文件" }),
 
   /** 必填文本 */
   requiredText: (props?: { error?: string; min?: number; max?: number }) => {
@@ -63,8 +57,5 @@ export const schemaUtils = {
 
   /** 可空输入（空字符串转 null） */
   nullable: <T extends z.ZodTypeAny>(schema: T, props?: { error?: string }) =>
-    z.preprocess(
-      (val) => (val === "" || val === undefined ? null : val),
-      schema.nullable()
-    )
+    z.preprocess((val) => (val === "" || val === undefined ? null : val), schema.nullable())
 }

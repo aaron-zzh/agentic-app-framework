@@ -7,9 +7,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-
-import { cn } from "@/lib/utils/cn"
 import { useUIStore } from "@/lib/store/ui-store"
+import { cn } from "@/lib/utils/cn"
 
 import { buildNavConfig } from "./nav-config"
 
@@ -24,12 +23,12 @@ export function AppSidebar() {
   return (
     <aside className="flex w-[var(--layout-sidebar-width)] shrink-0 flex-col border-r bg-sidebar">
       <div className="flex h-[var(--layout-header-height)] items-center px-4">
-        <span className="text-lg font-bold text-sidebar-foreground">AAF</span>
+        <span className="font-bold text-lg text-sidebar-foreground">AAF</span>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 py-2">
         {navConfig.map((group) => (
           <div key={group.group} className="mb-4">
-            <p className="mb-1 px-2 text-xs font-medium uppercase text-muted-foreground">
+            <p className="mb-1 px-2 font-medium text-muted-foreground text-xs uppercase">
               {group.label}
             </p>
             {group.items.map((item) => (

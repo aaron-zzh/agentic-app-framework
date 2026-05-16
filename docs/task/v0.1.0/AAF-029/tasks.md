@@ -20,29 +20,29 @@ author: AaronZZH
 
 ### 通用数据 Hooks
 
-1. [ ] #2901 useEntityList Hook — developer-webui
+1. [x] #2901 useEntityList Hook — developer-webui
    - 基于 TanStack Query 封装，自动拼接 `entity.apiPath` + 分页/排序/筛选参数
    - 返回 `{ data, pagination, isLoading, isFetching }`
    - queryKey 包含 entity.slug + 所有参数（自动缓存隔离）
    - verify: mock API 下列表数据正确获取和缓存
 
-2. [ ] #2902 useEntityRecord / useEntityMutation / useEntityDelete — developer-webui (依赖: #2901)
+2. [x] #2902 useEntityRecord / useEntityMutation / useEntityDelete — developer-webui (依赖: #2901)
    - `useEntityRecord(entity, id)`：单条记录查询
    - `useEntityMutation(entity, id?)`：创建/更新，optimistic update
    - `useEntityDelete(entity)`：删除（支持批量 ids）
    - 自动 invalidateQueries 刷新列表
    - verify: CRUD 全链路 mock 测试通过
 
-3. [ ] #2903 后端通用 CRUD API — developer-service
-   - 基于 AAF-023 #31 用户管理模式，抽象为通用 EntityController
-   - 端点：`GET /api/{entity}` / `GET /api/{entity}/{id}` / `POST` / `PUT` / `DELETE`
-   - 支持分页（page/pageSize）、排序（sort=field:asc）、筛选（field=value）
+3. [x] #2903 后端通用 CRUD 基类 — developer-service
+   - 抽取 BaseCrudController / BaseCrudService 通用基类
+   - 支持分页（page/pageSize）、排序（sort=field:asc）、筛选（Specification）
    - 统一 `Result<T>` / `PageResult<T>` 响应
-   - verify: Swagger 中通用端点可调用
+   - 具体业务实体继承基类即可获得完整 CRUD 端点
+   - verify: 编译通过，接口签名与 UserController 一致
 
 ### URL 状态管理
 
-4. [ ] #2904 nuqs URL 状态集成 — developer-webui (依赖: #2901)
+4. [x] #2904 nuqs URL 状态集成 — developer-webui (依赖: #2901)
    - 安装配置 nuqs，定义类型安全的 URL 参数 schema
    - 参数：`view` / `page` / `pageSize` / `sort` / `search` + 动态筛选 key
    - useEntityList 从 URL 参数读取查询条件
@@ -51,25 +51,25 @@ author: AaronZZH
 
 ### 高级列表能力
 
-5. [ ] #2905 列配置与用户自定义列 — developer-webui (依赖: #2901)
+5. [x] #2905 列配置与用户自定义列 — developer-webui (依赖: #2901)
    - 支持 `ColumnDef`：width / fixed / sortable / resizable / hidden
    - 列配置面板：拖拽排序 + 显示/隐藏勾选
    - 保存为用户偏好（localStorage）
    - verify: 隐藏/显示列生效，刷新后偏好保持
 
-6. [ ] #2906 虚拟滚动 — developer-webui (依赖: #2905)
+6. [x] #2906 虚拟滚动 — developer-webui (依赖: #2905)
    - 集成 @tanstack/react-virtual
    - 数据量 > 100 行自动启用
    - 保持 DOM 节点数恒定
    - verify: 1000 行数据流畅滚动，DOM 节点数 < 50
 
-7. [ ] #2907 行拖拽排序 — developer-webui (依赖: #2905)
+7. [x] #2907 行拖拽排序 — developer-webui (依赖: #2905)
    - `listView.draggable: true` 时启用
    - @dnd-kit 实现行拖拽
    - 拖拽完成批量更新 `orderField`
    - verify: 拖拽行后 sortOrder 正确更新
 
-8. [ ] #2908 列表分组 — developer-webui (依赖: #2905)
+8. [x] #2908 列表分组 — developer-webui (依赖: #2905)
    - `listView.groupBy` 配置分组字段
    - 分组头：折叠/展开 + 聚合信息（计数）
    - 拖拽记录跨分组 = 修改分组字段值
@@ -77,20 +77,20 @@ author: AaronZZH
 
 ### 搜索与筛选
 
-9. [ ] #2909 筛选构建器 — developer-webui (依赖: #2904)
+9. [x] #2909 筛选构建器 — developer-webui (依赖: #2904)
    - [+ 添加筛选] 弹出筛选面板
    - 根据字段类型自动推断操作符（operatorsByType）
    - 多条件 AND/OR 组合
    - 筛选条件同步到 URL 参数
    - verify: 添加筛选条件后列表正确过滤
 
-10. [ ] #2910 筛选收藏 — developer-webui (依赖: #2909)
+10. [x] #2910 筛选收藏 — developer-webui (依赖: #2909)
     - [保存为收藏] → 命名 → 存入 localStorage / 后端 user_preference
     - 收藏列表展示 + 一键应用 + 设为默认
     - 支持团队共享（后端存储）
     - verify: 保存/加载/删除收藏筛选正确
 
-11. [ ] #2911 全局搜索（跨实体） — developer-webui + developer-service (依赖: #2901)
+11. [x] #2911 全局搜索（跨实体） — developer-webui + developer-service (依赖: #2901)
     - ⌘K 命令面板增强：输入关键词跨所有实体搜索
     - 后端 `GET /api/search?q=keyword&entities=all&limit=5`
     - 前端聚合结果分组展示（实体/命令/导航/最近访问）
@@ -99,13 +99,13 @@ author: AaronZZH
 
 ### 导入导出
 
-12. [ ] #2912 列表导出 — developer-webui + developer-service (依赖: #2901)
+12. [x] #2912 列表导出 — developer-webui + developer-service (依赖: #2901)
     - 工具栏 [导出] 按钮 → 选择格式（CSV/XLSX）+ 选择字段
     - 后端 `GET /api/{entity}/export?format=csv&fields=...`
     - 前端触发下载
     - verify: 导出 CSV 文件内容与列表数据一致
 
-13. [ ] #2913 数据导入向导 — developer-webui + developer-service (依赖: #2912)
+13. [x] #2913 数据导入向导 — developer-webui + developer-service (依赖: #2912)
     - 向导流程：上传 → 字段映射 → 预览校验 → 冲突策略 → 执行 → 结果
     - AI 自动匹配列名到字段
     - 基于 EntityDef.fields 的 Zod Schema 校验每行
@@ -121,7 +121,7 @@ author: AaronZZH
 
 ### Server Actions
 
-15. [ ] #2915 Server Actions 前端触发 — developer-webui (依赖: #2902)
+15. [x] #2915 Server Actions 前端触发 — developer-webui (依赖: #2902)
     - 从 `entity.actions` 读取操作配置
     - 按 `position` 渲染到 formHeader / listToolbar / rowAction / contextMenu
     - 执行流程：确认 → POST endpoint → loading → Toast + invalidate

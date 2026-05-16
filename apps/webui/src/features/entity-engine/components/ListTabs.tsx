@@ -5,8 +5,8 @@
 
 "use client"
 
-import { cn } from "@/lib/utils/cn"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import { cn } from "@/lib/utils/cn"
 
 interface ListTabsProps {
   entity: EntityDef
@@ -27,9 +27,9 @@ export function ListTabs({ entity, activeValue, onChange, counts }: ListTabsProp
   // 生成 Tab 项：优先用配置，否则从字段 options 自动生成
   const items = tabsConfig.items ?? [
     { value: "", label: "全部" },
-    ...((field?.type === "select" && "options" in field)
+    ...(field?.type === "select" && "options" in field
       ? (field as { options: { value: string; label: string }[] }).options
-      : []),
+      : [])
   ]
 
   return (
@@ -48,10 +48,12 @@ export function ListTabs({ entity, activeValue, onChange, counts }: ListTabsProp
         >
           {item.label}
           {tabsConfig.showCount && counts?.[item.value] !== undefined && (
-            <span className={cn(
-              "rounded-full px-1.5 py-0.5 text-xs",
-              activeValue === item.value ? "bg-primary/10 text-primary" : "bg-muted"
-            )}>
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-xs",
+                activeValue === item.value ? "bg-primary/10 text-primary" : "bg-muted"
+              )}
+            >
               {counts[item.value]}
             </span>
           )}

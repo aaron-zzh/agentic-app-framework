@@ -25,6 +25,11 @@ comment on column sys_user.status is '0 正常 / 1 禁用';
 insert into sys_user (username, password, nickname, status)
 values ('admin', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '管理员', 0);
 
+-- 普通用户 user1, user2
+insert into sys_user (username, password, nickname, status)
+values ('user1', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '用户1', 0),
+       ('user2', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '用户2', 0);
+
 -- ==================== 文档模块 ====================
 
 create table doc_document (

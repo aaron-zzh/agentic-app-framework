@@ -23,7 +23,11 @@ function loadFavorites(entitySlug: string): FilterFavorite[] {
   if (typeof window === "undefined") return []
   const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${entitySlug}`)
   if (!raw) return []
-  try { return JSON.parse(raw) } catch { return [] }
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return []
+  }
 }
 
 /** 保存收藏 */
@@ -73,28 +77,47 @@ export function FilterFavorites({ entitySlug, currentFilters, onApply }: FilterF
     <div className="relative inline-block">
       <button
         type="button"
-        className="text-sm text-muted-foreground hover:text-foreground"
+        className="text-muted-foreground text-sm hover:text-foreground"
         onClick={() => setOpen(!open)}
       >
         ⭐ 收藏
       </button>
       {open && (
-        <div className="absolute right-0 top-8 z-20 w-56 rounded-md border bg-background p-2 shadow-md">
+        <div className="absolute top-8 right-0 z-20 w-56 rounded-md border bg-background p-2 shadow-md">
           {favorites.length > 0 && (
             <ul className="mb-2 space-y-1">
               {favorites.map((fav, i) => (
-                <li key={fav.name} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-muted">
+                <li
+                  key={fav.name}
+                  className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-muted"
+                >
                   <button
                     type="button"
                     className="flex-1 text-left"
-                    onClick={() => { onApply(fav.filters); setOpen(false) }}
+                    onClick={() => {
+                      onApply(fav.filters)
+                      setOpen(false)
+                    }}
                   >
                     {fav.isDefault && <span className="mr-1 text-xs">★</span>}
                     {fav.name}
                   </button>
                   <span className="flex gap-1">
-                    <button type="button" className="text-xs text-muted-foreground hover:text-primary" onClick={() => handleSetDefault(i)} title="设为默认">★</button>
-                    <button type="button" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => handleDelete(i)}>✕</button>
+                    <button
+                      type="button"
+                      className="text-muted-foreground text-xs hover:text-primary"
+                      onClick={() => handleSetDefault(i)}
+                      title="设为默认"
+                    >
+                      ★
+                    </button>
+                    <button
+                      type="button"
+                      className="text-muted-foreground text-xs hover:text-destructive"
+                      onClick={() => handleDelete(i)}
+                    >
+                      ✕
+                    </button>
                   </span>
                 </li>
               ))}
@@ -111,7 +134,7 @@ export function FilterFavorites({ entitySlug, currentFilters, onApply }: FilterF
               />
               <button
                 type="button"
-                className="rounded bg-primary px-2 text-xs text-primary-foreground"
+                className="rounded bg-primary px-2 text-primary-foreground text-xs"
                 onClick={handleSave}
               >
                 保存
@@ -119,7 +142,7 @@ export function FilterFavorites({ entitySlug, currentFilters, onApply }: FilterF
             </div>
           )}
           {favorites.length === 0 && currentFilters.length === 0 && (
-            <p className="py-2 text-center text-xs text-muted-foreground">暂无收藏</p>
+            <p className="py-2 text-center text-muted-foreground text-xs">暂无收藏</p>
           )}
         </div>
       )}

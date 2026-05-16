@@ -5,8 +5,8 @@
 
 "use client"
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useMemo } from "react"
-import { useSearchParams, useRouter, usePathname } from "next/navigation"
 
 import type { FilterCondition } from "@/features/entity-engine/components/FilterBuilder"
 
@@ -32,7 +32,7 @@ function decodeFilters(searchParams: URLSearchParams): FilterCondition[] {
     filters.push({
       field,
       operator: value.slice(0, colonIdx),
-      value: value.slice(colonIdx + 1),
+      value: value.slice(colonIdx + 1)
     })
   }
   return filters

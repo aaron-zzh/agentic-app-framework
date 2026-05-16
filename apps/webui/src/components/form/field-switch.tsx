@@ -44,7 +44,7 @@ export function FieldSwitch({ name, label, className, disabled }: FieldSwitchPro
             />
           </button>
           {label && <label className="text-sm">{label}</label>}
-          {error && <p className="text-xs text-destructive">{error.message}</p>}
+          {error && <p className="text-destructive text-xs">{error.message}</p>}
         </div>
       )}
     />

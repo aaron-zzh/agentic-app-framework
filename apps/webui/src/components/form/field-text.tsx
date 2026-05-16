@@ -20,7 +20,14 @@ export interface FieldTextProps {
   disabled?: boolean
 }
 
-export function FieldText({ name, label, placeholder, type = "text", className, disabled }: FieldTextProps) {
+export function FieldText({
+  name,
+  label,
+  placeholder,
+  type = "text",
+  className,
+  disabled
+}: FieldTextProps) {
   const { control } = useFormContext()
 
   const fieldDef: DataFieldDef = { type: "text", name, label, placeholder }

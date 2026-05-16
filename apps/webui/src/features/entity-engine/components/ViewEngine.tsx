@@ -83,7 +83,7 @@ function ConnectedListView({ entity }: { entity: EntityDef }) {
     page: params.page,
     pageSize: params.pageSize,
     sort: params.sort ?? undefined,
-    search: params.search ?? undefined,
+    search: params.search ?? undefined
   })
   return <ListView entity={entity} data={data} loading={isLoading} />
 }

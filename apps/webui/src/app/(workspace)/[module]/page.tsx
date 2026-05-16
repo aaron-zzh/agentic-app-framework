@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { Suspense } from "react"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 
 import { entityRegistry } from "@/features/entity-engine"
 import { ViewEngine } from "@/features/entity-engine/components"

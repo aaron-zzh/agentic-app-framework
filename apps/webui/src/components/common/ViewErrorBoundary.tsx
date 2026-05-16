@@ -29,8 +29,8 @@ export class ViewErrorBoundary extends Component<Props, State> {
       return (
         this.props.fallback ?? (
           <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-destructive/50 bg-destructive/5 p-8">
-            <p className="text-sm font-medium text-destructive">视图渲染失败</p>
-            <p className="text-xs text-muted-foreground">{this.state.error.message}</p>
+            <p className="font-medium text-destructive text-sm">视图渲染失败</p>
+            <p className="text-muted-foreground text-xs">{this.state.error.message}</p>
             <button
               type="button"
               onClick={() => this.setState({ error: null })}

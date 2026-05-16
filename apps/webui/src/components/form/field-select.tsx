@@ -20,7 +20,14 @@ export interface FieldSelectProps {
   disabled?: boolean
 }
 
-export function FieldSelect({ name, label, options, placeholder, className, disabled }: FieldSelectProps) {
+export function FieldSelect({
+  name,
+  label,
+  options,
+  placeholder,
+  className,
+  disabled
+}: FieldSelectProps) {
   const { control } = useFormContext()
 
   const fieldDef: DataFieldDef = { type: "select", name, label, placeholder, options }
