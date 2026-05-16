@@ -2,7 +2,7 @@
  * AI 对话接口
  * 参考 zhiyuan-app/src/api/ai/chat.ts
  */
-import { alovaInstance } from '../core/instance'
+import { alovaInstance } from './core/instance'
 
 export interface ChatConversation {
   id: number

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePage({
   name: 'chat',
+  meta: { public: true },
   layout: 'tabbar',
   style: { navigationBarTitleText: 'AI 对话' },
 })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePage({
   name: 'profile',
+  meta: { public: true },
   layout: 'tabbar',
   style: { navigationBarTitleText: '我的', navigationBarBackgroundColor: '#8e44ad', navigationBarTextStyle: 'white' },
 })

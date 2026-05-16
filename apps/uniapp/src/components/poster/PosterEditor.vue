@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-nocheck -- gesti 类型定义不完整，待官方修复后移除
 /**
  * 可编辑海报组件（gesti Canvas 手势库）
  * 支持：拖拽 / 缩放 / 旋转元素

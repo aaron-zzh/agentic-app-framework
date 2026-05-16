@@ -23,6 +23,24 @@ AAF 移动端应用（小程序 / H5 / APP），基于 [wot-starter](https://git
 - **路由**：`@wot-ui/router` + `uni.addInterceptor`
 - **流式通信**：SSE 双端实现 + WebSocket（`@hyoga/uni-socket.io`）
 
+## 特性
+
+- ⚡️ [Vue 3](https://github.com/vuejs/core), [Vite](https://github.com/vitejs/vite), [pnpm](https://pnpm.io/), [esbuild](https://github.com/evanw/esbuild) - 就是快！
+- 🗂 [基于文件的路由](./src/pages)
+- 📦 [组件自动化加载](./src/components)
+- 📑 [布局系统](./src/layouts)
+- 🐂 [Wot UI V2](https://github.com/wot-ui/wot-ui) - 一个轻量、美观、AI友好的 uni-app 组件库
+- 🚦 [@wot-ui/router](https://github.com/wot-ui/my-uni) - 适用于uni-app&vue3的轻量级路由库
+- 🔄 [Uni Mini CI](https://github.com/Moonofweisheng/uni-mini-ci) - 一个小程序端持续集成的插件
+- 🌐 [Alova](https://alova.js.org/zh-CN/) - 极致高效的请求工具集
+- 🆒 [Uni Ku](https://uni-ku.js.org/) - 非常酷的 uni-app 插件库
+- 📊 [Uni Echarts](https://uni-echarts.xiaohe.ink/) - 适用于 uni-app 的 Apache ECharts 组件
+- 🎨 [UnoCSS](https://github.com/unocss/unocss) - 高性能且极具灵活性的即时原子化 CSS 引擎
+- 😃 [图标集](https://github.com/antfu/unocss/tree/main/packages/preset-icons)
+- 🔥 使用 [新的 `<script setup>` 语法](https://github.com/vuejs/rfcs/pull/227)
+- 📥 [API 自动加载](https://github.com/antfu/unplugin-auto-import) - 直接使用 Composition API 无需引入
+- 🦾 [TypeScript](https://www.typescriptlang.org/) & [ESLint](https://eslint.org/) - 保证代码质量
+
 ## 开发命令
 
 ```bash
@@ -50,13 +68,6 @@ pnpm nx run uniapp:typecheck
 - 开发环境默认连接本地后端 `http://localhost:8080`，见 `.env.development`
 - 如需覆盖，复制 `.env.local.example` 为 `.env.local`
 
-## 开发指南
-
-- [Tabbar 配置](../../docs/guide/uniapp/tabbar.md)
-- [路由与权限拦截](../../docs/guide/uniapp/router.md)
-- [请求与状态管理](../../docs/guide/uniapp/request-and-state.md)
-- [分包优化](../../docs/guide/uniapp/bundle-optimizer.md)
-
 ## ⚠️ 版本约束注意事项
 
 uni-app 内部绑定 **Vue 3.4.x**，以下依赖必须与之对齐，**不可随意升级**：
@@ -68,7 +79,5 @@ uni-app 内部绑定 **Vue 3.4.x**，以下依赖必须与之对齐，**不可�
 | `vue-i18n` | `^9.14.0` | v10/v11 不再支持，且依赖 Vue 3.5+ |
 | `@vueuse/core` | `^11.0.3` | v12+ 要求 Vue 3.5+；v11 对应 `@vueuse/shared@^11.0.3` |
 | `@vueuse/shared` | `^11.0.3` | 必须与 `@vueuse/core` 版本一致 |
-
-> 等待 uni-app 官方支持 Vue 3.5 后，上述限制才能解除。关注 [@dcloudio/uni-app](https://www.npmjs.com/package/@dcloudio/uni-app) 版本更新。
 
 **pnpm monorepo 额外注意**：pnpm 默认不自动安装 peer dependencies（`auto-install-peers=false`）。如遇 `Could not resolve` 报错，先检查是否为缺失的 peer dep，手动补装即可。

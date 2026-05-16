@@ -1,11 +1,17 @@
 import { defineUniPages } from '@uni-helper/vite-plugin-uni-pages'
 
 export default defineUniPages({
-  pages: [],
+  pages: [
+    {
+      path: 'pages/startup/index',
+      type: 'page',
+      style: { navigationBarTitleText: '', navigationStyle: 'custom' },
+    },
+  ],
   globalStyle: {
     navigationBarBackgroundColor: '@navBgColor',
     navigationBarTextStyle: '@navTxtStyle',
-    navigationBarTitleText: '校园互帮',
+    navigationBarTitleText: 'AAF-Uniapp',
     backgroundColor: '@bgColor',
     backgroundTextStyle: '@bgTxtStyle',
     backgroundColorTop: '@bgColorTop',

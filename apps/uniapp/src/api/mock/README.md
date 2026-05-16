@@ -6,102 +6,97 @@
 
 ```
 mock/
-├── modules/                       # 按模块分类的模拟数据
-│   ├── common.ts                 # 通用模拟处理
-│   ├── loginInterface.ts         # 登录相关接口的模拟数据
-│   ├── mdataInterface.ts         # 主数据相关接口的模拟数据
-│   ├── vehsaleusesignInterface.ts # 车销使用签收相关接口的模拟数据
-│   ├── vehsaleusesignarvInterface.ts # 车销使用签收到货相关接口的模拟数据
-│   ├── user.ts                   # 用户相关的模拟数据
-│   ├── university.ts             # 大学相关的模拟数据
-│   └── feedback.ts               # 反馈相关的模拟数据
-├── utils/                         # 工具目录
-│   ├── index.ts                  # 工具导出文件
-│   └── generators.ts             # 模拟数据生成工具
-└── mockAdapter.ts                # 模拟适配器配置
+├── modules/          # 按业务域分类的 mock 定义
+│   ├── common.ts     # 通用兜底处理（匹配所有未定义路径）
+│   ├── message.ts    # 消息列表分页（演示 usePagination）
+│   ├── pet.ts        # petstore 宠物接口（演示 alova gen）
+│   ├── store.ts      # petstore 商店接口
+│   └── user.ts       # petstore 用户接口
+├── utils/
+│   └── generators.ts # mock 数据生成工具函数
+├── mockAdapter.ts    # mock 适配器（注册所有模块，全局拦截）
+└── README.md
 ```
 
-## 使用方法
+## 请求拦截原理
 
-模拟数据已经通过 `@alova/mock` 和 `@alova/adapter-uniapp` 集成到项目中。在开发环境中，API 请求会自动使用模拟数据进行响应。
-
-### 启用/禁用模拟
-
-在 `mockAdapter.ts` 中，可以通过修改 `enable` 选项来启用或禁用模拟：
-
-```typescript
-const mockAdapter = createAlovaMockAdapter(allMocks, {
-  // ...
-  enable: true, // 设置为 false 可禁用模拟
-  // ...
-})
+```
+页面调用 API 方法
+    ↓
+alovaInstance 发起请求
+    ↓
+mockAdapter 按路径匹配（matchMode: 'pathname'）
+    ↓
+命中 mock 定义 → 直接返回模拟数据（不发网络请求）
+未命中         → 走 uniappRequestAdapter 发真实请求
 ```
 
-### 添加新的模拟数据
+`mockAdapter.ts` 中 `enable: true` 全局开启，所有匹配到 mock 定义的路径都会被拦截。
 
-1. 在 `modules` 目录下创建新的模块文件或在现有文件中添加
-2. 使用 `defineMock` 函数定义模拟数据
-3. 在 `mockAdapter.ts` 中导入并添加到 `allMocks` 数组中
+## 添加新的 mock
 
-示例：
+1. 在 `modules/` 下新建或修改模块文件：
 
-```typescript
+```ts
 // modules/example.ts
 import { defineMock } from '@alova/mock'
-
-// mockAdapter.ts
-import exampleMocks from './modules/example'
+import { generateMockData } from '../utils/generators'
 
 export default defineMock({
-  '[GET]/api/example': () => {
-    return {
-      code: 200,
-      data: { /* 模拟数据 */ },
-      message: 'success'
-    }
-  }
+  // GET 列表（支持分页参数）
+  '[GET]/mock/example': ({ query }) => {
+    const page = Number(query?.page ?? 1)
+    const pageSize = Number(query?.pageSize ?? 10)
+    const total = 35
+    const list = Array.from({ length: total }, (_, i) => ({ id: i + 1, name: `项目${i + 1}` }))
+      .slice((page - 1) * pageSize, page * pageSize)
+    return generateMockData.listResponse(list, total)
+  },
+
+  // POST 创建
+  '[POST]/mock/example': ({ data }) => {
+    return generateMockData.baseResponse({ id: generateMockData.id(), ...data })
+  },
 })
+```
+
+2. 在 `mockAdapter.ts` 中注册：
+
+```ts
+import exampleMocks from './modules/example'
 
 const allMocks = [
-  // ...
-  exampleMocks
+  // ...已有模块
+  exampleMocks,
 ]
 ```
 
-## 模拟数据生成工具
+> mock 路径建议加 `/mock/` 前缀，避免与真实接口路径冲突。
 
-在 `utils/generators.ts` 中提供了一系列用于生成模拟数据的工具函数，可以在各个模块中复用：
+## mock 数据生成工具
 
-```typescript
-import { generateMockData } from '../utils'
+`utils/generators.ts` 提供常用生成函数：
 
-// 生成随机ID
-const id = generateMockData.id()
+```ts
+import { generateMockData } from '../utils/generators'
 
-// 生成随机名称
-const name = generateMockData.name('前缀')
-
-// 生成随机数组
-const array = generateMockData.array(index => ({
-  id: generateMockData.id(),
-  name: generateMockData.name(`项目${index}`)
-}), 10)
-
-// 生成基础响应对象
-const response = generateMockData.baseResponse(data)
-
-// 生成列表响应对象
-const listResponse = generateMockData.listResponse(items, total, more)
-
-// 生成业务对象
-const user = generateMockData.user()
-const goods = generateMockData.goods(0)
-const vehSaleEmp = generateMockData.vehSaleEmp(0)
+generateMockData.id()                          // 随机 ID
+generateMockData.name('前缀')                  // 随机名称
+generateMockData.number(1, 100)                // 随机数字
+generateMockData.boolean()                     // 随机布尔
+generateMockData.datetime(-7)                  // 7天前的时间字符串
+generateMockData.array(i => ({ id: i }), 10)  // 生成长度为 10 的数组
+generateMockData.baseResponse(data)            // { code: 2000, data, msg: '操作成功' }
+generateMockData.listResponse(list, total)     // { code: 2000, data: list, total, msg }
 ```
 
-## 注意事项
+## 启用/禁用 mock
 
-1. 模拟数据应尽量接近真实数据结构，以便于开发和测试
-2. 对于需要保持一致性的数据（如ID引用），可以使用固定值而非随机生成
-3. 可以使用请求参数来定制模拟响应，例如分页、筛选等
-4. 模拟数据应包含各种场景，包括成功和失败的情况
+在 `mockAdapter.ts` 中修改 `enable`：
+
+```ts
+const mockAdapter = createAlovaMockAdapter(allMocks, {
+  enable: true,   // false 则所有请求走真实接口
+  delay: 300,     // 模拟网络延迟（ms）
+})
+```

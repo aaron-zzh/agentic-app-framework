@@ -53,13 +53,11 @@ export const useManualThemeStore = defineStore('manualTheme', {
       }
     },
 
-    /**
-     * 设置导航栏颜色
-     */
     setNavigationBarColor() {
       uni.setNavigationBarColor({
         frontColor: this.theme === 'light' ? '#000000' : '#ffffff',
         backgroundColor: this.theme === 'light' ? '#ffffff' : '#000000',
+        fail: () => {}, // navigationStyle: custom 页面无原生导航栏，忽略
       })
     },
 

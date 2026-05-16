@@ -1,10 +1,17 @@
 <script setup lang="ts">
 definePage({
   name: 'login',
+  meta: { public: true },
   style: { navigationBarTitleText: '', navigationStyle: 'custom' },
 })
 
 const router = useRouter()
+const route = useRoute()
+
+function redirectAfterLogin() {
+  const redirect = route.query.redirect as string | undefined
+  router.replaceAll({ path: redirect || '/pages/index/index' })
+}
 const { loading, close: closeLoading } = useGlobalLoading()
 const toast = useGlobalToast()
 
@@ -36,10 +43,7 @@ async function onWxLogin(e: any) {
     // userStore.login(result.token, result.userInfo)
     console.warn('wx login code:', code, 'phoneCode:', e.detail.code)
     toast.success({ msg: '登录成功（待接入后端）' })
-    router.replaceAll({ name: 'index' })
-  }
-  catch {
-    toast.error({ msg: '登录失败，请重试' })
+    redirectAfterLogin()
   }
   finally {
     closeLoading()
@@ -66,7 +70,7 @@ async function onAccountLogin() {
     // const result = await authApi.login(form)
     // userStore.login(result.token, result.userInfo)
     toast.success({ msg: '登录成功（待接入后端）' })
-    router.replaceAll({ name: 'index' })
+    redirectAfterLogin()
   }
   catch {
     toast.error({ msg: '账号或密码错误' })
@@ -136,7 +140,7 @@ function openPrivacy() {
           v-model="form.password"
           placeholder="请输入密码"
           show-password
-          prefix-icon="lock-on"
+          prefix-icon="lock"
           clearable
         />
         <wd-button block @click="onAccountLogin">

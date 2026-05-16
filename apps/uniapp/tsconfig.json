@@ -12,18 +12,25 @@
       "miniprogram-api-typings",
       "@uni-helper/uni-types",
       "@wot-ui/ui/global",
-      "uni-echarts/global"
+      "uni-echarts/global",
+      "@uni-helper/vite-plugin-uni-pages"
     ],
     "sourceMap": true
   },
   "vueCompilerOptions": {
-    // 调整 Volar（Vue 语言服务工具）解析行为，用于为 uni-app 组件提供 TypeScript 类型
-    "plugins": ["@uni-helper/uni-types/volar-plugin"]
+    "plugins": ["@uni-helper/uni-types/volar-plugin"],
+    "skipTemplateCodegen": false,
+    "lib": "vue3"
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/uni_modules"
   ]
 }

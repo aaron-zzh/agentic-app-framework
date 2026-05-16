@@ -123,7 +123,7 @@
     "@uni-ku/root": "^1.4.1",
     "@unocss/eslint-config": "^66.5.6",
     "@vue/runtime-core": "^3.4.21",
-    "@vue/tsconfig": "^0.9.1",
+    "@vue/tsconfig": "^0.5.1",
     "eslint": "^9.39.1",
     "miniprogram-api-typings": "^5.2.0",
     "rollup-plugin-visualizer": "^5.13.1",
@@ -135,6 +135,6 @@
     "vconsole": "^3.15.1",
     "vite": "5.2.8",
     "vite-plugin-compression": "^0.5.1",
-    "vue-tsc": "^3.2.9"
+    "vue-tsc": "^2.0.29"
   }
 }

@@ -10,6 +10,6 @@ onLaunch(async () => {
 .page-wraper {
   min-height: calc(100vh - var(--window-top));
   box-sizing: border-box;
-  background: var(--wot-filled-content);
+  background: var(--wot-filled-oppo);
 }
 </style>

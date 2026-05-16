@@ -66,6 +66,6 @@ async function onToggleStatus(item: Notice) {
       </wd-cell-group>
     </view>
 
-    <wd-loadmore v-if="list.length" :state="isLastPage ? 'nomore' : 'loading'" />
+    <wd-loadmore v-if="list.length" :state="isLastPage ? 'finished' : 'loading'" />
   </view>
 </template>

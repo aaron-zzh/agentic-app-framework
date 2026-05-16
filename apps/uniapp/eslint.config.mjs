@@ -5,7 +5,7 @@ export default uni(
     unocss: true,
     markdown: false,
     rules: {
-      'no-console': 'warn',
+      'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       'eslint-comments/no-unlimited-disable': 'off',
     },

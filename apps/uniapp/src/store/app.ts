@@ -34,8 +34,8 @@ export const useAppStore = defineStore('app', {
       platform.load()
 
       // 3. 初始化主题
-      const themeStore = useThemeStore()
-      themeStore.initSystemTheme()
+      const manualThemeStore = useManualThemeStore()
+      manualThemeStore.initTheme()
 
       // 4. 检查登录态
       const userStore = useUserStore()

@@ -33,5 +33,3 @@ export const alovaInstance = createAlova({
 })
 
 export default alovaInstance
-
-export default alovaInstance

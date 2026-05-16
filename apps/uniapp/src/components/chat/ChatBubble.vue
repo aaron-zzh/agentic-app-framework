@@ -114,6 +114,10 @@ function onWidgetSubmit(text: string) {
     props.message.widget.submitted = true
   emit('widgetSubmit', text)
 }
+
+function previewImage(current: number, urls: string[]) {
+  uni.previewImage({ current, urls })
+}
 </script>
 
 <template>
@@ -133,7 +137,7 @@ function onWidgetSubmit(text: string) {
               :src="img"
               class="h-24 w-24 rounded-1"
               mode="aspectFill"
-              @tap="uni.previewImage({ current: i, urls: message.images! })"
+              @tap="previewImage(i, message.images!)"
             />
           </view>
           <mp-html
@@ -164,7 +168,7 @@ function onWidgetSubmit(text: string) {
             :src="img"
             class="h-24 w-24 rounded-1"
             mode="aspectFill"
-            @tap="uni.previewImage({ current: i, urls: message.images! })"
+            @tap="previewImage(i, message.images!)"
           />
         </view>
         <text v-if="message.content" class="text-sm leading-relaxed">{{ message.content }}</text>

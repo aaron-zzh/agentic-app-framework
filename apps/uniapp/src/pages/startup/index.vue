@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePage({
   name: 'startup',
-  type: 'home',
+  meta: { public: true },
   style: { navigationBarTitleText: '', navigationStyle: 'custom' },
 })
 
@@ -17,7 +17,7 @@ onMounted(async () => {
   ])
 
   const isValid = result.status === 'fulfilled' && result.value === true
-  router.replaceAll({ name: isValid ? 'index' : 'login' })
+  router.replaceAll(isValid ? '/pages/index/index' : '/pages/login/index')
 })
 
 /**

@@ -10,7 +10,7 @@ const router = useRouter()
 const route = useRoute()
 
 // 从路由参数获取基本信息（避免等待接口才能显示标题）
-const params = route.params as {
+const params = route.query as {
   id: string
   logId?: string
   hasRead?: string
@@ -69,7 +69,7 @@ function onViewSource() {
 
   const routeName = DATASOURCE_ROUTE_MAP[type]
   if (routeName) {
-    router.push({ name: routeName, params: { id } })
+    router.push({ name: routeName, query: { id: String(id) } })
   }
   else {
     useGlobalToast().warning({ msg: '暂不支持跳转此类型' })
