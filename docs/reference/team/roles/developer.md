@@ -4,9 +4,9 @@
 
 | AI 智能体 | 技术栈 | 详细说明 |
 |-----------|-------|---------|
-| developer-web | Next.js / React / TypeScript | [developer-web.md](developer-web.md) |
-| developer-app | UniApp / Vue | [developer-app.md](developer-app.md) |
-| developer-api | Java / Spring Boot / Spring AI | [developer-api.md](developer-api.md) |
+| developer-webui | Next.js / React / TypeScript | [developer-webui.md](developer-webui.md) |
+| developer-uniapp | UniApp / Vue | [developer-uniapp.md](developer-uniapp.md) |
+| developer-service | Java / Spring Boot / Spring AI | [developer-service.md](developer-service.md) |
 
 ## 通用职责边界（所有 developer-* 适用）
 

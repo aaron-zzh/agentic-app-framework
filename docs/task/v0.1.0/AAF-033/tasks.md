@@ -11,7 +11,7 @@ author: AaronZZH
 # 平台能力（AAF-033）
 
 > 设计：[结构化交互模式设计](../../../design/apps/webui/interaction-mode-structured-view.md) 章节十六、二十三、三十五、三十七、三十八、四十一、四十三、五十三、五十八
-> 负责人：architect + developer-web + developer-api | 创建：05-13
+> 负责人：architect + developer-webui + developer-service | 创建：05-13
 
 ## 任务列表
 
@@ -20,7 +20,7 @@ author: AaronZZH
 
 ### 多租户
 
-1. [ ] #1 多租户后端 — developer-api
+1. [ ] #1 多租户后端 — developer-service
    - organization 表 + org_member 表
    - 所有业务表增加 org_id 列
    - 全局 JPA Filter：`WHERE org_id = :currentOrgId`（从请求头 X-Org-Id 获取）
@@ -28,7 +28,7 @@ author: AaronZZH
    - 个人工作空间：每用户自动创建特殊组织
    - verify: 不同组织数据完全隔离
 
-2. [ ] #2 组织切换前端 — developer-web (依赖: #1)
+2. [ ] #2 组织切换前端 — developer-webui (依赖: #1)
    - AppHeader 左侧组织切换器
    - 切换组织 → 更新 session → 设置 X-Org-Id 请求头 → invalidateQueries
    - 组织管理页面：基本信息 / 成员管理 / 邀请
@@ -36,13 +36,13 @@ author: AaronZZH
 
 ### 仪表盘
 
-3. [ ] #3 仪表盘后端 — developer-api
+3. [ ] #3 仪表盘后端 — developer-service
    - sys_dashboard 表 + sys_dashboard_widget 表
    - Widget 数据查询 API：根据 WidgetConfig 执行聚合查询
    - 支持 counter / chart / list / progress 类型
    - verify: Widget 查询返回正确聚合数据
 
-4. [ ] #4 仪表盘前端 — developer-web (依赖: #3)
+4. [ ] #4 仪表盘前端 — developer-webui (依赖: #3)
    - `/workspace/dashboard` 路由
    - react-grid-layout 拖拽布局
    - Widget 组件：CounterWidget / ChartWidget / ListWidget / ProgressWidget / ShortcutWidget
@@ -53,7 +53,7 @@ author: AaronZZH
 
 ### 国际化
 
-5. [ ] #5 i18n 基础设施 — developer-web
+5. [ ] #5 i18n 基础设施 — developer-webui
    - 集成 next-intl
    - 字段标签：`labelKey` → `t(labelKey)` 运行时解析
    - 选项国际化：`option.labelKey` 支持
@@ -63,7 +63,7 @@ author: AaronZZH
 
 ### 响应式移动端
 
-6. [ ] #6 响应式适配 — developer-web
+6. [ ] #6 响应式适配 — developer-webui
    - 断点规则：≥1280 桌面 / 768-1279 平板 / <768 手机
    - 手机：底部 Tab 导航 + 侧边栏折叠
    - 列表视图手机模式：卡片列表（2-3 关键字段）
@@ -74,14 +74,14 @@ author: AaronZZH
 
 ### AI 感知
 
-7. [ ] #7 AI 感知服务 — developer-web
+7. [ ] #7 AI 感知服务 — developer-webui
    - AIAwarenessService 全局单例
    - `collectContext()` 收集 AIPageContext（当前实体/视图/字段/表单值/操作历史）
    - 敏感字段 `aiExclude: true` 排除
    - 操作历史仅保留最近 50 步
    - verify: 不同页面 collectContext 返回正确上下文
 
-8. [ ] #8 AI 建议 UI — developer-web (依赖: #7)
+8. [ ] #8 AI 建议 UI — developer-webui (依赖: #7)
    - 字段自动补全：输入框下方灰色建议，Tab 接受
    - 操作建议：右下角浮动气泡
    - 错误修复：错误信息旁 [AI 修复] 按钮
@@ -91,7 +91,7 @@ author: AaronZZH
 
 ### 无代码编辑器
 
-9. [ ] #9 EntityDef JSON 编辑器（v0.1 版） — developer-web
+9. [ ] #9 EntityDef JSON 编辑器（v0.1 版） — developer-webui
    - `/workspace/admin/entities` 管理页面
    - Monaco Editor 编辑 EntityDef JSON
    - JSON Schema 校验 + 自动补全
@@ -99,7 +99,7 @@ author: AaronZZH
    - 保存后 invalidate entityRegistry 缓存
    - verify: 编辑 JSON 后预览正确，保存后新实体可访问
 
-10. [ ] #10 EntityDef 后端存储 — developer-api (依赖: #9)
+10. [ ] #10 EntityDef 后端存储 — developer-service (依赖: #9)
     - sys_entity_def 表：slug / config(JSONB) / builtin / enabled / version
     - API：CRUD + 合并逻辑（内置配置不可被数据库覆盖）
     - 前端启动时 `GET /api/entity-defs` 加载全量
@@ -109,7 +109,7 @@ author: AaronZZH
 
 ### 模板记录
 
-11. [ ] #11 模板记录 — developer-web + developer-api
+11. [ ] #11 模板记录 — developer-webui + developer-service
     - sys_record_template 表：entity_slug / name / field_values(JSONB) / created_by / is_shared
     - [+ 新建] 按钮展开模板列表
     - 从现有记录 [另存为模板]
@@ -118,7 +118,7 @@ author: AaronZZH
 
 ### 数据对比
 
-12. [ ] #12 数据对比视图 — developer-web
+12. [ ] #12 数据对比视图 — developer-webui
     - 列表选中 2 条 → 批量操作 [对比]
     - 并排展示 + 差异高亮（= / ≠ / ≈）
     - [仅显示差异] 筛选
@@ -127,7 +127,7 @@ author: AaronZZH
 
 ### Livechat
 
-13. [ ] #13 Livechat 基础架构 — developer-web + developer-api
+13. [ ] #13 Livechat 基础架构 — developer-webui + developer-service
     - 基于 assistant-ui 统一组件（Thread/ThreadList/Composer）
     - ExternalStoreRuntime 对接 WebSocket 后端
     - 三种 runtime 占位：AgUiRuntime / LivechatRuntime / IMRuntime
@@ -136,7 +136,7 @@ author: AaronZZH
 
 ### 运行时扩展
 
-14. [ ] #14 用户自定义字段 — developer-web + developer-api (依赖: #10)
+14. [ ] #14 用户自定义字段 — developer-webui + developer-service (依赖: #10)
     - 管理员在表单/列表视图 ⚙️ → [自定义字段]
     - 弹窗选择字段类型 → 填写标签和配置 → 确认
     - 后端自动 ALTER TABLE ADD COLUMN
@@ -144,7 +144,7 @@ author: AaronZZH
     - 删除为逻辑隐藏（数据保留）
     - verify: 添加自定义字段后表单和列表立即显示
 
-15. [ ] #15 AI 对话生成 EntityDef — developer-web (依赖: #9, #10)
+15. [ ] #15 AI 对话生成 EntityDef — developer-webui (依赖: #9, #10)
     - 对话入口：无代码编辑器中 [AI 生成] 按钮 / ⌘K 命令面板
     - 用户描述需求 → AI 生成完整 EntityDef JSON
     - 实时预览生成结果（ViewEngine 渲染）
@@ -152,7 +152,7 @@ author: AaronZZH
     - 用户确认 → 保存到 sys_entity_def → 自动建表 → 生效
     - verify: 对话生成实体后可正常 CRUD
 
-16. [ ] #16 命令面板（⌘K） — developer-web
+16. [ ] #16 命令面板（⌘K） — developer-webui
     - 全局快捷键 ⌘K / Ctrl+K 唤起
     - 搜索：实体记录 + 命令 + 导航 + 最近访问
     - 输入 `>` 仅搜索命令

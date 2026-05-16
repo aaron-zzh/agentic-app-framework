@@ -58,9 +58,9 @@ changelog:
 
 | AI 智能体 | 技术栈 | 负责范围 |
 |-----------|-------|---------|
-| developer-web | Next.js / React / TypeScript | 前端 Web 应用 |
-| developer-app | UniApp / Vue | 跨端移动应用 |
-| developer-api | Java / Spring Boot / Spring AI | 后端全栈（L1-L5 后端） |
+| developer-webui | Next.js / React / TypeScript | 前端 Web 应用 |
+| developer-uniapp | UniApp / Vue | 跨端移动应用 |
+| developer-service | Java / Spring Boot / Spring AI | 后端全栈（L1-L5 后端） |
 
 > 划分原则：按架构分层 + 端划分，层不随模块增长而变化。同层模块技术同质，一个 developer 处理。
 

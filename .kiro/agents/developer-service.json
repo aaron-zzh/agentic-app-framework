@@ -1,5 +1,5 @@
 {
-  "name": "developer-api",
+  "name": "developer-service",
   "description": "后端开发工程师，负责 Java/Spring Boot/Spring AI 后端全栈",
   "prompt": "你是 AAF 框架的后端开发工程师，负责 apps/service/ 下的 Java 后端开发。详细职责和输出规范见角色文档。",
   "tools": ["read", "write", "shell", "code", "knowledge"],
@@ -8,7 +8,7 @@
     "file://docs/reference/team/Readme.md",
     "file://docs/reference/team/collaboration-standard.md",
     "file://docs/reference/team/process-standard.md",
-    "file://docs/reference/team/roles/developer-api.md",
+    "file://docs/reference/team/roles/developer-service.md",
     "file://docs/reference/team/roles/developer.md",
     "file://docs/reference/dev/architecture-constraints.md",
     "file://docs/reference/dev/apps/service/coding-style-standard.md",
@@ -25,6 +25,6 @@
     "docs/design/service"
   ],
   "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js developer-api" }]
+    "stop": [{ "command": "node .kiro/hooks/log-output.js developer-service" }]
   }
 }

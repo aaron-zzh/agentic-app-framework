@@ -11,7 +11,7 @@ author: AaronZZH
 # 数据交互层（AAF-029）
 
 > 设计：[结构化交互模式设计](../../../design/apps/webui/interaction-mode-structured-view.md) 章节六、七、十七、二十一、二十二、三十一、三十四、三十九、四十八、四十九、五十二、六十三
-> 负责人：architect + developer-web + developer-api | 创建：05-13
+> 负责人：architect + developer-webui + developer-service | 创建：05-13
 
 ## 任务列表
 
@@ -20,20 +20,20 @@ author: AaronZZH
 
 ### 通用数据 Hooks
 
-1. [ ] #2901 useEntityList Hook — developer-web
+1. [ ] #2901 useEntityList Hook — developer-webui
    - 基于 TanStack Query 封装，自动拼接 `entity.apiPath` + 分页/排序/筛选参数
    - 返回 `{ data, pagination, isLoading, isFetching }`
    - queryKey 包含 entity.slug + 所有参数（自动缓存隔离）
    - verify: mock API 下列表数据正确获取和缓存
 
-2. [ ] #2902 useEntityRecord / useEntityMutation / useEntityDelete — developer-web (依赖: #2901)
+2. [ ] #2902 useEntityRecord / useEntityMutation / useEntityDelete — developer-webui (依赖: #2901)
    - `useEntityRecord(entity, id)`：单条记录查询
    - `useEntityMutation(entity, id?)`：创建/更新，optimistic update
    - `useEntityDelete(entity)`：删除（支持批量 ids）
    - 自动 invalidateQueries 刷新列表
    - verify: CRUD 全链路 mock 测试通过
 
-3. [ ] #2903 后端通用 CRUD API — developer-api
+3. [ ] #2903 后端通用 CRUD API — developer-service
    - 基于 AAF-023 #31 用户管理模式，抽象为通用 EntityController
    - 端点：`GET /api/{entity}` / `GET /api/{entity}/{id}` / `POST` / `PUT` / `DELETE`
    - 支持分页（page/pageSize）、排序（sort=field:asc）、筛选（field=value）
@@ -42,7 +42,7 @@ author: AaronZZH
 
 ### URL 状态管理
 
-4. [ ] #2904 nuqs URL 状态集成 — developer-web (依赖: #2901)
+4. [ ] #2904 nuqs URL 状态集成 — developer-webui (依赖: #2901)
    - 安装配置 nuqs，定义类型安全的 URL 参数 schema
    - 参数：`view` / `page` / `pageSize` / `sort` / `search` + 动态筛选 key
    - useEntityList 从 URL 参数读取查询条件
@@ -51,25 +51,25 @@ author: AaronZZH
 
 ### 高级列表能力
 
-5. [ ] #2905 列配置与用户自定义列 — developer-web (依赖: #2901)
+5. [ ] #2905 列配置与用户自定义列 — developer-webui (依赖: #2901)
    - 支持 `ColumnDef`：width / fixed / sortable / resizable / hidden
    - 列配置面板：拖拽排序 + 显示/隐藏勾选
    - 保存为用户偏好（localStorage）
    - verify: 隐藏/显示列生效，刷新后偏好保持
 
-6. [ ] #2906 虚拟滚动 — developer-web (依赖: #2905)
+6. [ ] #2906 虚拟滚动 — developer-webui (依赖: #2905)
    - 集成 @tanstack/react-virtual
    - 数据量 > 100 行自动启用
    - 保持 DOM 节点数恒定
    - verify: 1000 行数据流畅滚动，DOM 节点数 < 50
 
-7. [ ] #2907 行拖拽排序 — developer-web (依赖: #2905)
+7. [ ] #2907 行拖拽排序 — developer-webui (依赖: #2905)
    - `listView.draggable: true` 时启用
    - @dnd-kit 实现行拖拽
    - 拖拽完成批量更新 `orderField`
    - verify: 拖拽行后 sortOrder 正确更新
 
-8. [ ] #2908 列表分组 — developer-web (依赖: #2905)
+8. [ ] #2908 列表分组 — developer-webui (依赖: #2905)
    - `listView.groupBy` 配置分组字段
    - 分组头：折叠/展开 + 聚合信息（计数）
    - 拖拽记录跨分组 = 修改分组字段值
@@ -77,20 +77,20 @@ author: AaronZZH
 
 ### 搜索与筛选
 
-9. [ ] #2909 筛选构建器 — developer-web (依赖: #2904)
+9. [ ] #2909 筛选构建器 — developer-webui (依赖: #2904)
    - [+ 添加筛选] 弹出筛选面板
    - 根据字段类型自动推断操作符（operatorsByType）
    - 多条件 AND/OR 组合
    - 筛选条件同步到 URL 参数
    - verify: 添加筛选条件后列表正确过滤
 
-10. [ ] #2910 筛选收藏 — developer-web (依赖: #2909)
+10. [ ] #2910 筛选收藏 — developer-webui (依赖: #2909)
     - [保存为收藏] → 命名 → 存入 localStorage / 后端 user_preference
     - 收藏列表展示 + 一键应用 + 设为默认
     - 支持团队共享（后端存储）
     - verify: 保存/加载/删除收藏筛选正确
 
-11. [ ] #2911 全局搜索（跨实体） — developer-web + developer-api (依赖: #2901)
+11. [ ] #2911 全局搜索（跨实体） — developer-webui + developer-service (依赖: #2901)
     - ⌘K 命令面板增强：输入关键词跨所有实体搜索
     - 后端 `GET /api/search?q=keyword&entities=all&limit=5`
     - 前端聚合结果分组展示（实体/命令/导航/最近访问）
@@ -99,20 +99,20 @@ author: AaronZZH
 
 ### 导入导出
 
-12. [ ] #2912 列表导出 — developer-web + developer-api (依赖: #2901)
+12. [ ] #2912 列表导出 — developer-webui + developer-service (依赖: #2901)
     - 工具栏 [导出] 按钮 → 选择格式（CSV/XLSX）+ 选择字段
     - 后端 `GET /api/{entity}/export?format=csv&fields=...`
     - 前端触发下载
     - verify: 导出 CSV 文件内容与列表数据一致
 
-13. [ ] #2913 数据导入向导 — developer-web + developer-api (依赖: #2912)
+13. [ ] #2913 数据导入向导 — developer-webui + developer-service (依赖: #2912)
     - 向导流程：上传 → 字段映射 → 预览校验 → 冲突策略 → 执行 → 结果
     - AI 自动匹配列名到字段
     - 基于 EntityDef.fields 的 Zod Schema 校验每行
     - 后端 `POST /api/{entity}/import`
     - verify: 上传 CSV → 映射 → 导入成功，错误行报告正确
 
-14. [ ] #2914 嵌套导入（主从关联） — developer-web + developer-api (依赖: #2913)
+14. [ ] #2914 嵌套导入（主从关联） — developer-webui + developer-service (依赖: #2913)
     - 支持 XLSX 多 Sheet / JSON 嵌套格式
     - 关系映射步骤：主实体 + 子实体 + 关联列
     - 事务性写入（主+子原子操作）
@@ -121,7 +121,7 @@ author: AaronZZH
 
 ### Server Actions
 
-15. [ ] #2915 Server Actions 前端触发 — developer-web (依赖: #2902)
+15. [ ] #2915 Server Actions 前端触发 — developer-webui (依赖: #2902)
     - 从 `entity.actions` 读取操作配置
     - 按 `position` 渲染到 formHeader / listToolbar / rowAction / contextMenu
     - 执行流程：确认 → POST endpoint → loading → Toast + invalidate
@@ -130,7 +130,7 @@ author: AaronZZH
 
 ### 透视报表
 
-16. [ ] #2916 透视视图 — developer-web + developer-api (依赖: #2901)
+16. [ ] #2916 透视视图 — developer-webui + developer-service (依赖: #2901)
     - 视图切换器新增 [📊 透视] Tab
     - 维度面板：拖拽字段到行/列/值区域
     - 后端 `POST /api/{entity}/pivot` 执行 GROUP BY 聚合
@@ -140,7 +140,7 @@ author: AaronZZH
 
 ### 批量异步化
 
-17. [ ] #2917 批量操作异步化 — developer-web + developer-api (依赖: #2902)
+17. [ ] #2917 批量操作异步化 — developer-webui + developer-service (依赖: #2902)
     - 阈值判断：≤100 同步，>100 异步
     - 异步流程：POST → 返回 taskId → 轮询进度 → 完成通知
     - 进度 UI：进度条 + 百分比 + 预计时间 + [取消]
@@ -149,7 +149,7 @@ author: AaronZZH
 
 ### 复杂导出（SSE 进度推送）
 
-18. [ ] #2918 耗时导出 SSE 进度推送 — developer-api (依赖: #2917)
+18. [ ] #2918 耗时导出 SSE 进度推送 — developer-service (依赖: #2917)
     - 场景：大数据量导出、文件/图片批量导出等耗时操作
     - SSE 端点：`GET /api/{entity}/export-progress/{taskId}`，返回 `text/event-stream`
     - 进度 VO：taskId / current / total / percentage / status(RUNNING/COMPLETED/FAILED) / errorMessage

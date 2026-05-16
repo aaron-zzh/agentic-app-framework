@@ -1,4 +1,4 @@
-# 跨端移动开发工程师（developer-app）
+# 跨端移动开发工程师（developer-uniapp）
 
 ## 岗位定位
 

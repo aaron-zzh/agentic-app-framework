@@ -12,7 +12,7 @@ author: AaronZZH
 
 > 参考：[Nx Monorepo 最佳实践](../../guide/development/nx-monorepo-best-practices.md)
 > 前置：AAF-028 packages/ 首个共享包落地后启动
-> 负责人：architect + developer-web | 创建：05-14
+> 负责人：architect + developer-webui | 创建：05-14
 
 ## 背景
 
@@ -22,7 +22,7 @@ v0.1.0 已完成基础工程化（namedInputs 精细化 + pnpm.overrides 统一�
 
 ### P0：packages/ 落地时同步做
 
-1. [ ] #1 共享 tsconfig 包 — developer-web
+1. [ ] #1 共享 tsconfig 包 — developer-webui
    - 创建 `packages/_config/tsconfig/`（base.json / nextjs.json / library.json）
    - 各项目 tsconfig.json 改为 extends 共享配置
    - verify: `pnpm check:affected` 全绿
@@ -32,7 +32,7 @@ v0.1.0 已完成基础工程化（namedInputs 精细化 + pnpm.overrides 统一�
    - 在 nx.json 或 Biome 中配置依赖方向约束
    - verify: 违反方向的 import 报错
 
-3. [ ] #3 publint + attw 发布检查 — developer-web
+3. [ ] #3 publint + attw 发布检查 — developer-webui
    - packages/ 各包 project.json 添加 publint / attw target
    - 加入 check 依赖链
    - verify: 故意写错 exports 字段时 publint 报错
@@ -44,7 +44,7 @@ v0.1.0 已完成基础工程化（namedInputs 精细化 + pnpm.overrides 统一�
    - 定义 release 工作流（changeset → version → publish）
    - verify: 创建 changeset 文件后 `changeset version` 正确更新版本号
 
-5. [ ] #5 共享 tailwind-config 包 — developer-web
+5. [ ] #5 共享 tailwind-config 包 — developer-webui
    - 创建 `packages/_config/tailwind/`（共享 preset）
    - webui 的 CSS 引用共享预设
    - verify: 主题 token 统一生效

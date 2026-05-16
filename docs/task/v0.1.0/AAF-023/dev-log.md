@@ -39,7 +39,7 @@
 
 ## #17 Maven 多模块拆分
 
-✅ 05-07 — developer-api
+✅ 05-07 — developer-service
 
 - 拆为 dependencies/common/framework/auto-dev/api 五模块
 - 建完整包目录，含占位 package-info.java
@@ -47,46 +47,46 @@
 
 ## #26 根 pom 清理与 Preview 启用
 
-✅ 05-07 — developer-api
+✅ 05-07 — developer-service
 
 - 移除 WebFlux/R2DBC 全栈依赖，仅留 SSE 部分
 - 三处同步开启 --enable-preview
 
 ## #27 aaf-dependencies BOM 完善
 
-✅ 05-07 — developer-api
+✅ 05-07 — developer-service
 
 - 按 tech-stack.md 分组管理版本，子模块无散落版本号
 
 ## #28 aaf-common 依赖轻量化
 
-✅ 05-07 — developer-api
+✅ 05-07 — developer-service
 
 - Spring Web/Validation/Jackson 改 provided scope
 - 决策：避免 common 污染下游依赖树
 
 ## #23 测试规范清理（去 Cucumber）
 
-✅ 05-08 — developer-api
+✅ 05-08 — developer-service
 
 - 去除文档 6 处 Cucumber 引用，pom 加 starter-test
 
 ## #21 ArchUnit 分层规则激活
 
-✅ 05-08 — developer-api
+✅ 05-08 — developer-service
 
 - 启用 5 条真实分层规则，违规即报错
 
 ## #25 统一格式化（后端 Spotless）
 
-✅ 05-08 — developer-api
+✅ 05-08 — developer-service
 
 - spotless-maven-plugin + Google Java Format
 - format:check 全绿
 
 ## #30 框架基础能力脚手架
 
-✅ 05-09 — developer-api
+✅ 05-09 — developer-service
 
 - common：Result<T> / 错误码 / BaseEntity / 分页
 - api/config：全局异常 / Jackson / CORS
@@ -95,14 +95,14 @@
 
 ## #20 Flyway 迁移 + 环境分离
 
-✅ 05-09 — developer-api
+✅ 05-09 — developer-service
 
 - 初始表五张（sys_user/doc_document/autodev_*）
 - dev/prod/test 三套 yaml 隔离
 
 ## #31 用户管理 CRUD
 
-✅ 05-10 — developer-api
+✅ 05-10 — developer-service
 
 - Entity→Repository→Service→Controller 完整链路
 - Result<T> + PageResult<T> + SpecificationBuilder 条件查询
@@ -110,14 +110,14 @@
 
 ## #24 CI 基础设施（GitHub Actions）
 
-✅ 05-10 — developer-api
+✅ 05-10 — developer-service
 
 - service container：PostgreSQL + Redis
 - workflow 跑 check:affected，PR 触发全绿
 
 ## #29 包结构约定与 ArchUnit 扩展
 
-✅ 05-10 — developer-api + architect
+✅ 05-10 — developer-service + architect
 
 - framework 新建 protection 包（限流/幂等/锁）
 - 业务模块 api/ 子包暴露跨模块接口
@@ -125,7 +125,7 @@
 
 ## #18 前端参考调研 + 目录结构
 
-⏳ 进行中 — architect + developer-web
+⏳ 进行中 — architect + developer-webui
 
 - ✅ 20 个参考项目分析 + 12 个目录结构对比
 - ✅ 前端目录结构设计（两种交互模式 + packages/ 规划）

@@ -44,9 +44,9 @@
 |-------|------------------|---------|
 | architect | 5 项 → 13 项 | 加 team 权威规范、code-review-standard、domain-modeling-standard、_template/design、_template/review、_template/audit |
 | designer | 2 项 → 6 项 | 加 team 权威规范、design/ui/Readme |
-| developer-api | 5 项 → 13 项 | 修复 `java-module-structure.md` 死链；加 team 权威规范、coding-style-standard、domain-modeling-standard、test/unit-test-standard、commit-standard、_template/dev-log |
-| developer-app | 4 项 → 11 项 | 加 team 权威规范、apps/uniapp/coding-standard、test/unit-test-standard、commit-standard、_template/dev-log |
-| developer-web | 4 项 → 11 项 | 加 team 权威规范、apps/webui/coding-standard、test/unit-test-standard、commit-standard、_template/dev-log |
+| developer-service | 5 项 → 13 项 | 修复 `java-module-structure.md` 死链；加 team 权威规范、coding-style-standard、domain-modeling-standard、test/unit-test-standard、commit-standard、_template/dev-log |
+| developer-uniapp | 4 项 → 11 项 | 加 team 权威规范、apps/uniapp/coding-standard、test/unit-test-standard、commit-standard、_template/dev-log |
+| developer-webui | 4 项 → 11 项 | 加 team 权威规范、apps/webui/coding-standard、test/unit-test-standard、commit-standard、_template/dev-log |
 | product | 5 项 → 9 项 | 加 team 权威规范、roadmap、_template/requirement；knowledgeBase 加 docs/prd |
 | qa | 2 项 → 8 项 | 加 team 权威规范、process-audit-standard、measurement-standard、_template/review |
 | tester | 3 项 → 10 项 | 加 team 权威规范、test/unit/integration/acceptance-test-standard、_template/test-report |

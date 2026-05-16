@@ -1,6 +1,6 @@
 ---
 name: guard
-description: '危险操作防护与编辑范围锁定。USE WHEN: (1) 在生产环境附近工作、(2) 调试时需要限制编辑范围防止误改、(3) 执行破坏性命令前、(4) 用户说"小心点"、"be careful"、"锁定范围"、"freeze"。自动激活于 root-cause-investigation 调试期间。'
+description: '危险操作防护与编辑范围锁定。USE WHEN: (1) 在生产环境附近工作、(2) 调试时需要限制编辑范围防止误改、(3) 执行破坏性命令前、(4) 用户说"小心点"、"be careful"、"锁定范围"、"freeze"。'
 ---
 
 ## 两层防护

@@ -44,7 +44,7 @@ changelog:
 | **提交规范要点** | Conventional Commits 格式 + `Task: #N` 脚注 | steering（红线摘要）+ `docs/reference/dev/git/commit-standard.md`（详细）引用 | 每次提交都要遵守 |
 | **可复用工作流** | "如何创建 Maven 模块"、"如何写 ADR"、"如何审查代码" | `.kiro/skills/{slug}/SKILL.md` | 偶尔才需要，按需激活省上下文 |
 | **Skill 详细参考** | Java 编码规范细则、验收测试模板代码 | `.kiro/skills/{slug}/references/*.md` | 渐进披露，SKILL.md 引用时才加载 |
-| **角色必看源码/规范** | developer-api 的 Controller 基类、coding-style-standard.md、roles/developer.md | agent `resources: file://` | 该 agent 每次都要 |
+| **角色必看源码/规范** | developer-service 的 Controller 基类、coding-style-standard.md、roles/developer.md | agent `resources: file://` | 该 agent 每次都要 |
 | **规范总览入口** | `docs/reference/team/Readme.md`、`docs/reference/dev/architecture-constraints.md` | 相关 agent `resources: file://` | 规范导航表 |
 | **任务模板** | `docs/task/_template/requirement.md` / `design.md` / `dev-log.md` / `review.md` / `audit.md` | 对应产出 agent `resources: file://` | product 用 requirement 模板，architect 用 design 模板 |
 | **本次任务上下文** | 本次 `AAF-025` 的需求/设计/验收标准 | subagent `prompt_template` 内嵌 或 精确到单文件的 `resources` | 每任务不同，不走全局 |
@@ -110,9 +110,9 @@ Q4: 是否仅本次任务临时用？
 | **kiro_default**（协调者） | `docs/task/backlog.md`、`docs/task/aaf-v0.1.0.md`、`docs/task/_template/dispatch-log.md`、`docs/task/_template/context-stats.md` | `docs/task/` | 自动加载所有 skill（默认 agent 特性） |
 | **product** | `docs/prd/Readme.md`、`requirement-standard.md`、`roadmap.md`、`task/_template/requirement.md` | `docs/task/backlog.md`、`docs/prd` | `doc-writing` |
 | **architect** | `docs/design/Readme.md`、`architecture-constraints.md`、`code-review-standard.md`、`domain-modeling-standard.md`、`task/_template/{design,review,audit}.md` | `docs/design/framework` | `coding-standards`、`architecture-audit`（拟立） |
-| **developer-api** | `architecture-constraints.md`、`coding-style-standard.md`（Java）、`domain-modeling-standard.md`、`unit-test-standard.md`、`commit-standard.md`、`task/_template/dev-log.md` | `docs/design/service` | `coding-standards` |
-| **developer-web** | `architecture-constraints.md`、前端 `coding-style-standard.md`（若有）、`unit-test-standard.md`、`commit-standard.md`、`task/_template/dev-log.md` | `docs/design/webui` | `coding-standards`、`frontend-state-management`（拟立） |
-| **developer-app** | 类似 developer-web，替换为 uniapp 规范 | `docs/design/uniapp` | 同上 |
+| **developer-service** | `architecture-constraints.md`、`coding-style-standard.md`（Java）、`domain-modeling-standard.md`、`unit-test-standard.md`、`commit-standard.md`、`task/_template/dev-log.md` | `docs/design/service` | `coding-standards` |
+| **developer-webui** | `architecture-constraints.md`、前端 `coding-style-standard.md`（若有）、`unit-test-standard.md`、`commit-standard.md`、`task/_template/dev-log.md` | `docs/design/webui` | `coding-standards`、`frontend-state-management`（拟立） |
+| **developer-uniapp** | 类似 developer-webui，替换为 uniapp 规范 | `docs/design/uniapp` | 同上 |
 | **designer** | `docs/design/ui/Readme.md`、`ui-experience.md`、`design-system.md` | `docs/design/ui` | `design-review`（拟立） |
 | **qa** | `docs/reference/team/process-audit-standard.md`、`task/_template/process-audit.md` | `docs/task/` | `process-audit`（拟立） |
 | **tester** | `docs/reference/dev/test/*`（单测/集成/验收 3 份）、`task/_template/test-report.md` | `docs/design/service` | `e2e-testing`（拟立，配合 AAF-023 #6 Playwright） |

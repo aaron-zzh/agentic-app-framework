@@ -17,9 +17,9 @@ kiro_default（协调者）
   ├── designer      → UI/交互设计（涉及前端时）
   │
   ├── 【开发群组】（可并行）
-  │   ├── developer-api   → 后端 Java/Spring Boot
-  │   ├── developer-web   → 前端 Next.js/React
-  │   └── developer-app   → UniApp 小程序/APP
+  │   ├── developer-service   → 后端 Java/Spring Boot
+  │   ├── developer-webui   → 前端 Next.js/React
+  │   └── developer-uniapp   → UniApp 小程序/APP
   │
   ├── tester        → 验收测试、需求覆盖验证
   └── qa            → 过程审计、规范合规检查
@@ -114,7 +114,7 @@ docs/task/v0.1.0/AAF-001/
 如果想直接和某个 agent 对话：
 
 ```
-/agent swap developer-api
+/agent swap developer-service
 ```
 
 ## AI 自主开发演进路径

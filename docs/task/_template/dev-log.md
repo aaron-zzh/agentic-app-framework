@@ -1,6 +1,6 @@
 # 开发记录：{任务名称}
 
-执行者：{actor_type}/{actor_id} <!-- AI/developer-api | AI/architect | Human/AaronZZH -->
+执行者：{actor_type}/{actor_id} <!-- AI/developer-service | AI/architect | Human/AaronZZH -->
 
 ## 实现文件
 

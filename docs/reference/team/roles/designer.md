@@ -19,12 +19,12 @@
 
 - 涉及前端界面的 🟡/🔴 任务触发
 - 纯后端任务、纯规范调整跳过
-- 🟢 低风险 UI 微调（改颜色/间距）由协调者或 developer-web 兼任
+- 🟢 低风险 UI 微调（改颜色/间距）由协调者或 developer-webui 兼任
 
 ## 不做什么（边界）
 
 - 不做技术选型（那是 architect 的事）
-- 不写前端代码（那是 developer-web/developer-app 的事）
+- 不写前端代码（那是 developer-webui/developer-uniapp 的事）
 - 不定义 API 接口（那是 architect 的事）
 - 不做需求分析（那是 product 的事）
 

@@ -95,7 +95,7 @@ status: 草案
 | 实体 | 说明 | AAF 调整 |
 |------|------|---------|
 | `user` | 人类用户 | 单条记录，一人公司 |
-| `agent` | kiro-cli 内置 agent 配置 | 绑定到 `.kiro/agents/*.yaml`，11 个 role（kiro_default / product / architect / developer-api/app/web / designer / qa / tester / kiro_planner / kiro_guide） |
+| `agent` | kiro-cli 内置 agent 配置 | 绑定到 `.kiro/agents/*.yaml`，11 个 role（kiro_default / product / architect / developer-service/app/web / designer / qa / tester / kiro_planner / kiro_guide） |
 | `agent_skill` · `skill` | agent 挂载的可复用说明文档 | 映射到 `.kiro/skills/*`，支持 "晋升" 机制（把 dev-log 片段变成 skill） |
 | `epic` | 用户故事/史诗 | 映射到 `docs/task/backlog.md` + `docs/task/v*/AAF-*/` |
 | `task` | 技术任务 | 映射到 `docs/task/v*/AAF-*/tasks.md` 的 `#N` 条目 |
@@ -184,7 +184,7 @@ Web UI 是主入口，CLI 是补充——"不想开浏览器" 场景、"脚本�
 # Epic / Task 管理
 aaf epic list [--version v0.1.0] [--status in_progress]
 aaf epic status AAF-025
-aaf task list [--epic AAF-025] [--assignee developer-api]
+aaf task list [--epic AAF-025] [--assignee developer-service]
 aaf task create "修复登录 bug" --epic AAF-025 --risk 🟡
 aaf task start #42                 # queued → dispatched
 aaf task done #42                  # running → completed（触发 check:affected）
@@ -193,7 +193,7 @@ aaf task assign #42 --to tester
 
 # 派发（Polymorphic Actor + 风险分级，对应 AAF-024 #11 规则）
 aaf dispatch #42                   # 按 risk 自动选派发链
-aaf dispatch #42 --agents developer-api,tester   # 手动指定
+aaf dispatch #42 --agents developer-service,tester   # 手动指定
 
 # 审核（🔴 任务）
 aaf review                         # 列出 inbox 中待审核项
@@ -383,7 +383,7 @@ CLI 内部实现：读写 `docs/task/` 文件 + PostgreSQL（Phase 2 后）+ 调
 | Worker | 周期 | 职责 |
 |--------|------|------|
 | **File System Scanner** | 每 60s | 扫描 `docs/task/` 和 `.kiro/` 发现新的 Task / Artifact / Skill / ADR，同步到 DB 索引（Phase 1 可用 Next.js ISR 或前端轮询替代） |
-| **Git Activity Logger** | 每 5min | 从 `git log` 抽取 commit 生成 activity 事件（如 "developer-api 完成 #42 的 dev-log"） |
+| **Git Activity Logger** | 每 5min | 从 `git log` 抽取 commit 生成 activity 事件（如 "developer-service 完成 #42 的 dev-log"） |
 | **Context Usage Monitor** | 每次 dispatch 结束触发 | 读取该 agent 当时的 context_usage，写入 `context_usage` 表；超过 50% 阈值发 `context.warning` 事件 |
 | **Regulation Check Runner** | 每 6 小时 | 跑 AAF-024 #13 一致性检查脚本，结果写入 `activity_log` + 失败项入 Inbox |
 | **Run Sweeper**（Phase 2+） | 每 30s | 扫描 `dispatched > 5min` 或 `running > 2h` 的 run，标记为 failed（借鉴 multica） |
@@ -636,7 +636,7 @@ Phase 2+ 结构化存储的 14 张核心表 + 4 张 AAF 特有表。仅列关键
 | 表 | 关键字段 |
 |----|---------|
 | `user` | id · email · name · avatar_url · created_at |
-| `agent` | id · role (enum: kiro_default/product/architect/developer-api/...) · yaml_path · resources_json · status (idle/working/blocked/offline/archived) · max_concurrent |
+| `agent` | id · role (enum: kiro_default/product/architect/developer-service/...) · yaml_path · resources_json · status (idle/working/blocked/offline/archived) · max_concurrent |
 | `epic` | id · code (AAF-xxx) · iteration_version · title · status (backlog/in_progress/done) · priority · p_rank (P0/P1/P2) |
 | `task` | id · epic_id · seq (#N) · title · status (queued/running/...) · assignee_type · assignee_id · creator_type · creator_id · parent_task_id · acceptance_criteria (JSONB) · risk_level (🟢🟡🔴) · due_date · position |
 | `comment` | id · task_id · actor_type · actor_id · type (comment/status_change/system) · content · parent_id · created_at |
@@ -666,7 +666,7 @@ Phase 2+ 结构化存储的 14 张核心表 + 4 张 AAF 特有表。仅列关键
 | 表 | 关键字段 |
 |----|---------|
 | `artifact` | id · task_id · type (requirement/design/dev-log/test-report/review/audit) · file_path · author_actor_type · author_actor_id · version · created_at |
-| `dispatch_log` | id · task_id · dispatcher_actor_id · risk_level (🟢🟡🔴) · agent_chain (JSONB: [product, architect, developer-api, tester, qa]) · dispatched_at · expected_duration · actual_duration |
+| `dispatch_log` | id · task_id · dispatcher_actor_id · risk_level (🟢🟡🔴) · agent_chain (JSONB: [product, architect, developer-service, tester, qa]) · dispatched_at · expected_duration · actual_duration |
 | `context_usage` | id · agent_id · run_id · percent · token_used · token_limit · warned (bool, 是否超 50%) · recorded_at |
 | `regulation_check` | id · check_type (dependency/ci_target/link/archunit) · rule_description · passed · failure_detail · severity · ran_at |
 

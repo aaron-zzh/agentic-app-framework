@@ -1,17 +1,17 @@
 # 开发记录：AAF-036 移动端脚手架
 
-执行者：AI/developer-app
+执行者：AI/developer-uniapp
 
 ## #3614 脚手架 Demo 清理
 
-✅ 2026-05-15 — developer-app
+✅ 2026-05-15 — developer-uniapp
 
 - 演示页已不存在（前序任务已清理），`pages/about/` 和 `DemoBlock.vue` 均已删除
 - `pages.config.ts` 无残留演示路由
 
 ## #3617 AI 对话消息列表（虚拟列表）
 
-✅ 2026-05-15 — developer-app
+✅ 2026-05-15 — developer-uniapp
 
 - 修复 SSE 回调中 `messageList.value[0]` 错误引用
 - 改用独立 `streamingMsg` ref 追踪当前流式 AI 消息对象
@@ -21,7 +21,7 @@
 
 ## #3625 对话内嵌交互组件（widget）
 
-✅ 2026-05-15 — developer-app
+✅ 2026-05-15 — developer-uniapp
 
 - 创建 `ChatWidget.vue`，支持 form/select/confirm/card 四种类型
 - form：`wd-form` 动态渲染字段，支持 text/number/textarea/select
@@ -32,7 +32,7 @@
 
 ## #3626 对话内联路由跳转
 
-✅ 2026-05-15 — developer-app
+✅ 2026-05-15 — developer-uniapp
 
 - `ChatBubble.vue` 监听 `mp-html` 的 `@linktap` 事件
 - `route://页面名?参数` → `uni.navigateTo`

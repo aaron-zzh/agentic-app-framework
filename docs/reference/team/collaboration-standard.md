@@ -232,7 +232,7 @@ AI 的核心价值是**将模糊意图转化为系统可执行的方案**，优�
 |------|---------|------|------------|
 | product | `requirement.md`（含 Gherkin AC） | architect | requirement.md 存在 + AC ≥ 1 条 |
 | architect | `design.md`（接口签名 + 数据模型 + 模块交互）+ `tasks.md` | developer | design.md 存在 + 接口定义非空 + tasks.md 有 `#N` 编号 |
-| designer | `ui-design.md`（页面结构 + 交互流程） | developer-web / developer-app | ui-design.md 存在（仅涉及前端时校验；纯后端跳过） |
+| designer | `ui-design.md`（页面结构 + 交互流程） | developer-webui / developer-uniapp | ui-design.md 存在（仅涉及前端时校验；纯后端跳过） |
 | developer | 源码 + `dev-log.md` + `pnpm check:affected` 全绿 | architect(review) | dev-log.md 存在 + check 全绿日志 |
 | architect | `review.md`（代码审查结论） | tester | review.md 存在 + 无未修复 blocker |
 | developer | check 全绿（review 后修复轮次） | tester | check 全绿（tester 发现编译挂/单测红立即退回） |
@@ -460,7 +460,7 @@ AI 的核心价值是**将模糊意图转化为系统可执行的方案**，优�
 | 维度                    | 说明                                     |
 | ----------------------- | ---------------------------------------- |
 | **人类**                | 🔴 审核迁移脚本和回滚方案                 |
-| **AI（developer-api）** | 编写迁移脚本，测试环境验证，准备回滚方案 |
+| **AI（developer-service）** | 编写迁移脚本，测试环境验证，准备回滚方案 |
 | **系统**                | Flyway                                   |
 | **审核**                | 🔴 必须审核                               |
 
@@ -599,7 +599,7 @@ AI 的核心价值是**将模糊意图转化为系统可执行的方案**，优�
 ```markdown
 ## #17 Maven 多模块拆分
 
-✅ 05-07 — developer-api
+✅ 05-07 — developer-service
 
 - 拆为 dependencies/common/framework/auto-dev/api 五模块
 - 建完整包目录，含占位 package-info.java
@@ -607,7 +607,7 @@ AI 的核心价值是**将模糊意图转化为系统可执行的方案**，优�
 
 ## #30 框架基础能力脚手架
 
-✅ 05-09 — developer-api
+✅ 05-09 — developer-service
 
 - common：Result<T> / 错误码 / BaseEntity / 分页
 - framework：Security JWT 骨架 + ActorContext

@@ -136,7 +136,7 @@
 |------|---------|------|-----------|
 | product | `requirement.md`（含 Gherkin AC） | architect | AC ≥ 1 条 |
 | architect | `design.md` + `tasks.md` | developer | 接口定义非空 + `#N` 编号 |
-| designer | `ui-design.md` | developer-web/app | 仅涉及前端时校验 |
+| designer | `ui-design.md` | developer-webui/app | 仅涉及前端时校验 |
 | developer | 源码 + `dev-log.md` + check 全绿 | architect(review) | dev-log 存在 + check 全绿 |
 | architect | `review.md` | tester | 无未修复 blocker |
 | tester | `test-report.md`（AC 覆盖矩阵） | qa | 每条 AC 有对应结果 |
