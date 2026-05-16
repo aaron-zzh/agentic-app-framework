@@ -36,6 +36,7 @@ class UserControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private UserService userService;
+    @MockitoBean private com.xuejiai.aaf.module.system.async.AsyncTaskService asyncTaskService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final UserVO sampleUser = new UserVO(1L, "testuser", "测试", 1, null, null);
@@ -55,7 +56,7 @@ class UserControllerTest {
                         post("/api/system/users")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.username").value("testuser"));
     }

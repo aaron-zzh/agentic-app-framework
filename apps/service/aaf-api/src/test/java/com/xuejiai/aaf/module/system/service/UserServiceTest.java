@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -118,14 +119,11 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @Test
     @DisplayName("Given 有用户数据 When 分页查询 Then 返回分页结果")
     void should_return_page_result_when_query_users() {
-        // mock 方法
         var page = new PageImpl<>(List.of(user));
-        when(userRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        // 调用
         PageResult<UserVO> result = userService.page(new UserPageDTO());
 
-        // 断言
         assertThat(result.total()).isEqualTo(1);
         assertThat(result.list()).hasSize(1);
         assertThat(result.list().getFirst().username()).isEqualTo("testuser");
@@ -150,13 +148,13 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 用户存在 When 删除 Then 调用 deleteById")
     void should_delete_user_when_id_exists() {
         // mock 方法
-        when(userRepository.existsById(1L)).thenReturn(true);
+        when(userRepository.existsById(2L)).thenReturn(true);
 
         // 调用
-        userService.delete(1L);
+        userService.delete(2L);
 
         // 断言
-        verify(userRepository).deleteById(1L);
+        verify(userRepository).deleteById(2L);
     }
 
     @Test
