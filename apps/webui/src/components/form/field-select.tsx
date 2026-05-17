@@ -1,5 +1,5 @@
 /**
- * Field.Select——RHF 封装（复用 entity-engine SelectInput）
+ * Field.Select——RHF 下拉选择控件
  * @author AaronZZH & Kiro
  */
 
@@ -7,9 +7,21 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
-import { SelectInput } from "@/features/entity-engine/components/fields"
-import type { DataFieldDef, SelectOption } from "@/features/entity-engine/types"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils/cn"
+
+export interface SelectOption {
+  label: string
+  value: string
+}
 
 export interface FieldSelectProps {
   name: string
@@ -29,23 +41,34 @@ export function FieldSelect({
   disabled
 }: FieldSelectProps) {
   const { control } = useFormContext()
-
-  const fieldDef: DataFieldDef = { type: "select", name, label, placeholder, options }
-
   return (
-    <div className={cn(className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      {label && <Label htmlFor={name}>{label}</Label>}
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState: { error } }) => (
-          <SelectInput
-            name={name}
-            value={field.value ?? ""}
-            onChange={field.onChange}
-            error={error?.message}
-            disabled={disabled}
-            field={fieldDef}
-          />
+          <>
+            <Select
+              value={field.value ?? ""}
+              onValueChange={(v) => field.onChange(v ?? "")}
+              disabled={disabled}
+            >
+              <SelectTrigger id={name} className="w-full" aria-invalid={!!error}>
+                <SelectValue placeholder={placeholder ?? "请选择"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {options.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {error && <p className="text-destructive text-xs">{error.message}</p>}
+          </>
         )}
       />
     </div>

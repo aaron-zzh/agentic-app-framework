@@ -89,7 +89,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
       {/* 遮罩 */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} onKeyDown={undefined} />
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        aria-label="关闭"
+        onClick={onClose}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+      />
       {/* 面板 */}
       <div className="relative w-full max-w-lg rounded-lg border bg-background shadow-xl">
         <input

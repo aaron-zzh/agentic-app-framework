@@ -1,5 +1,5 @@
 /**
- * Field.Date——RHF 封装（复用 entity-engine DateInput）
+ * Field.Date——RHF 日期输入控件
  * @author AaronZZH & Kiro
  */
 
@@ -7,8 +7,8 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
-import { DateInput } from "@/features/entity-engine/components/fields"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldDateProps {
@@ -21,23 +21,24 @@ export interface FieldDateProps {
 
 export function FieldDate({ name, label, includeTime, className, disabled }: FieldDateProps) {
   const { control } = useFormContext()
-
-  const fieldDef: DataFieldDef = { type: "date", name, label, includeTime }
-
   return (
-    <div className={cn(className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      {label && <Label htmlFor={name}>{label}</Label>}
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState: { error } }) => (
-          <DateInput
-            name={name}
-            value={field.value ?? ""}
-            onChange={field.onChange}
-            error={error?.message}
-            disabled={disabled}
-            field={fieldDef}
-          />
+          <>
+            <Input
+              id={name}
+              type={includeTime ? "datetime-local" : "date"}
+              disabled={disabled}
+              aria-invalid={!!error}
+              {...field}
+              value={field.value ?? ""}
+            />
+            {error && <p className="text-destructive text-xs">{error.message}</p>}
+          </>
         )}
       />
     </div>

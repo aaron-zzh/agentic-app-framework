@@ -57,10 +57,7 @@ interface FilterBuilderProps {
 export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps) {
   const [open, setOpen] = useState(false)
 
-  const filterableFields = entity.fields.filter(
-    (f): f is DataFieldDef =>
-      "name" in f && f.type !== "group" && f.type !== "tabs" && f.type !== "row"
-  )
+  const filterableFields = entity.fields.filter((f): f is DataFieldDef => "name" in f)
 
   const addFilter = useCallback(() => {
     const first = filterableFields[0]

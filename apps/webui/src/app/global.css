@@ -11,6 +11,12 @@
   --layout-marketing-header-height: 64px;
   --layout-marketing-max-width: 1200px;
   --layout-auth-card-width: 420px;
+  /* canvas 布局 */
+  --layout-canvas-toolbar-height: 48px;
+  /* z-index 层级 */
+  --layout-sidebar-zindex: 20;
+  --layout-header-zindex: 30;
+  --layout-overlay-zindex: 40;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

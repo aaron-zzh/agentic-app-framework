@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
 import { QueryProvider } from "@/providers/QueryProvider"
 import { ThemeProvider } from "@/providers/ThemeProvider"
@@ -21,8 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <ThemeProvider>
           <QueryProvider>
-            <NuqsAdapter>{children}</NuqsAdapter>
-            <ToastProvider />
+            <TooltipProvider>
+              <NuqsAdapter>{children}</NuqsAdapter>
+              <ToastProvider />
+            </TooltipProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

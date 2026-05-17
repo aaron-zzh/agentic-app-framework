@@ -26,7 +26,7 @@ export function GroupedListView({ columns, data, groupBy, groupField }: GroupedL
     for (const record of data) {
       const key = String(record[groupBy] ?? "未分组")
       if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(record)
+      map.get(key)?.push(record)
     }
     return [...map.entries()]
   }, [data, groupBy])

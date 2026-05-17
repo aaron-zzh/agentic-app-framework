@@ -5,14 +5,26 @@
 
 "use client"
 
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 
-/** 离开确认 Hook */
-export function useUnsavedGuard(isDirty: boolean, autosave = false) {
+export interface UnsavedGuardState {
+  /** 是否显示确认对话框 */
+  showDialog: boolean
+  /** 关闭对话框 */
+  closeDialog: () => void
+  /** 确认离开（放弃修改） */
+  confirmLeave: () => void
+  /** 尝试离开（有 dirty 时弹框，否则直接执行） */
+  tryLeave: (onLeave: () => void) => void
+}
+
+export function useUnsavedGuard(isDirty: boolean, autosave = false): UnsavedGuardState {
+  const [showDialog, setShowDialog] = useState(false)
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null)
+
   // 浏览器关闭/刷新拦截
   useEffect(() => {
     if (!isDirty || autosave) return
-
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault()
     }
@@ -20,11 +32,28 @@ export function useUnsavedGuard(isDirty: boolean, autosave = false) {
     return () => window.removeEventListener("beforeunload", handler)
   }, [isDirty, autosave])
 
-  /** 路由跳转前调用，返回 true 允许离开 */
-  const confirmLeave = useCallback((): boolean => {
-    if (!isDirty || autosave) return true
-    return window.confirm("有未保存的修改，确定离开吗？")
-  }, [isDirty, autosave])
+  const tryLeave = useCallback(
+    (onLeave: () => void) => {
+      if (!isDirty || autosave) {
+        onLeave()
+        return
+      }
+      setPendingLeave(() => onLeave)
+      setShowDialog(true)
+    },
+    [isDirty, autosave]
+  )
 
-  return { confirmLeave }
+  const confirmLeave = useCallback(() => {
+    setShowDialog(false)
+    pendingLeave?.()
+    setPendingLeave(null)
+  }, [pendingLeave])
+
+  const closeDialog = useCallback(() => {
+    setShowDialog(false)
+    setPendingLeave(null)
+  }, [])
+
+  return { showDialog, closeDialog, confirmLeave, tryLeave }
 }

@@ -1,68 +1,34 @@
 /**
  * Subtable——子表明细行（一对多嵌套编辑）
  * @author AaronZZH & Kiro
- *
- * 功能：增删改行 + 行拖拽排序 + 汇总行 + Tab 键横向移动
  */
 
 "use client"
 
-import { useCallback } from "react"
-
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import type { DataFieldDef } from "@/features/entity-engine/types"
+import { useSubtable } from "@/lib/hooks/use-subtable"
 
 interface SubtableProps {
-  /** 子表字段定义 */
   fields: DataFieldDef[]
-  /** 行数据 */
   value: Record<string, unknown>[]
-  /** 变更回调 */
   onChange: (rows: Record<string, unknown>[]) => void
-  /** 禁用 */
   disabled?: boolean
-  /** 汇总字段（自动计算 sum） */
   summaryFields?: string[]
 }
 
-/** 子表明细行组件 */
 export function Subtable({ fields, value = [], onChange, disabled, summaryFields }: SubtableProps) {
-  const addRow = useCallback(() => {
-    const empty: Record<string, unknown> = {}
-    for (const f of fields) empty[f.name] = ""
-    onChange([...value, { ...empty, _key: crypto.randomUUID() }])
-  }, [fields, value, onChange])
-
-  const removeRow = useCallback(
-    (index: number) => {
-      onChange(value.filter((_, i) => i !== index))
-    },
-    [value, onChange]
-  )
-
-  const updateCell = useCallback(
-    (rowIndex: number, field: string, cellValue: unknown) => {
-      const next = value.map((row, i) => (i === rowIndex ? { ...row, [field]: cellValue } : row))
-      onChange(next)
-    },
-    [value, onChange]
-  )
-
-  // 汇总计算
-  const summaries = summaryFields?.reduce(
-    (acc, f) => {
-      acc[f] = value.reduce((sum, row) => sum + (Number(row[f]) || 0), 0)
-      return acc
-    },
-    {} as Record<string, number>
-  )
+  const { addRow, removeRow, updateCell, computeSummaries } = useSubtable(fields, value, onChange)
+  const summaries = computeSummaries(summaryFields)
 
   return (
-    <div className="space-y-2">
-      <div className="overflow-auto rounded border">
+    <div className="flex flex-col gap-2">
+      <div className="overflow-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-muted/30">
             <tr>
-              <th className="w-8 px-2 py-1.5 text-center text-xs">#</th>
+              <th className="w-8 px-2 py-1.5 text-center text-muted-foreground text-xs">#</th>
               {fields.map((f) => (
                 <th key={f.name} className="px-3 py-1.5 text-left font-medium text-xs">
                   {f.label ?? f.name}
@@ -75,31 +41,44 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
             {value.map((row, i) => (
               <tr key={(row._key as string) ?? i} className="border-t">
                 <td className="px-2 py-1 text-center text-muted-foreground text-xs">{i + 1}</td>
-                {fields.map((f) => (
+                {fields.map((f, fi) => (
                   <td key={f.name} className="px-1 py-1">
-                    <input
-                      className="h-7 w-full rounded border px-2 text-sm disabled:opacity-50"
+                    <Input
+                      className="h-7"
                       value={String(row[f.name] ?? "")}
                       onChange={(e) => updateCell(i, f.name, e.target.value)}
                       disabled={disabled}
+                      // Tab 到最后一列最后一行时自动添加新行
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Tab" &&
+                          !e.shiftKey &&
+                          fi === fields.length - 1 &&
+                          i === value.length - 1
+                        ) {
+                          e.preventDefault()
+                          addRow()
+                        }
+                      }}
                     />
                   </td>
                 ))}
                 {!disabled && (
                   <td className="px-1 py-1 text-center">
-                    <button
+                    <Button
                       type="button"
-                      className="text-muted-foreground text-xs hover:text-destructive"
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => removeRow(i)}
+                      aria-label="删除行"
                     >
-                      ✕
-                    </button>
+                      ×
+                    </Button>
                   </td>
                 )}
               </tr>
             ))}
           </tbody>
-          {/* 汇总行 */}
           {summaries && (
             <tfoot className="border-t bg-muted/20">
               <tr>
@@ -117,9 +96,9 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
       </div>
 
       {!disabled && (
-        <button type="button" className="text-primary text-sm hover:underline" onClick={addRow}>
+        <Button type="button" variant="ghost" size="sm" className="self-start" onClick={addRow}>
           + 添加行
-        </button>
+        </Button>
       )}
     </div>
   )

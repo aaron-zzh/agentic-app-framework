@@ -11,7 +11,7 @@
 
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useId, useRef, useState } from "react"
 
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
 import type { FilterCondition } from "./FilterBuilder"
@@ -31,10 +31,7 @@ export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
   const [selectedField, setSelectedField] = useState<DataFieldDef | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const allFields = entity.fields.filter(
-    (f): f is DataFieldDef =>
-      "name" in f && f.type !== "group" && f.type !== "tabs" && f.type !== "row"
-  )
+  const allFields = entity.fields.filter((f): f is DataFieldDef => "name" in f)
 
   const filteredFields = query
     ? allFields.filter((f) => (f.label ?? f.name).toLowerCase().includes(query.toLowerCase()))
@@ -117,9 +114,8 @@ export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
           const fieldDef = allFields.find((fd) => fd.name === f.field)
           const label = f.field === "__search" ? "关键词" : (fieldDef?.label ?? f.field)
           return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 筛选条件列表
             <span
-              key={i}
+              key={`${f.field}-${f.operator}-${String(f.value)}`}
               className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-xs"
             >
               <span className="font-medium">{label}:</span>
@@ -241,6 +237,7 @@ function DateRangePopover({
   onCancel: () => void
 }) {
   const [start, setStart] = useState("")
+  const uid = useId()
   const [end, setEnd] = useState("")
 
   return (
@@ -248,8 +245,11 @@ function DateRangePopover({
       <p className="mb-2 text-primary text-xs">请至少输入一个日期</p>
       <div className="space-y-2">
         <div>
-          <label className="font-medium text-xs">开始日期</label>
+          <label htmlFor={`${uid}-start`} className="font-medium text-xs">
+            开始日期
+          </label>
           <input
+            id={`${uid}-start`}
             type="date"
             className="mt-0.5 h-8 w-full rounded border px-2 text-sm"
             value={start}
@@ -257,8 +257,11 @@ function DateRangePopover({
           />
         </div>
         <div>
-          <label className="font-medium text-xs">结束日期</label>
+          <label htmlFor={`${uid}-end`} className="font-medium text-xs">
+            结束日期
+          </label>
           <input
+            id={`${uid}-end`}
             type="date"
             className="mt-0.5 h-8 w-full rounded border px-2 text-sm"
             value={end}

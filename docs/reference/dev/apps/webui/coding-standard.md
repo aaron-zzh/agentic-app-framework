@@ -22,12 +22,45 @@ app/                  Next.js App Router 页面（路由即目录）
     page.tsx          页面组件（Server Component 优先）
     layout.tsx
 components/           共享组件
-  ui/                 纯展示组件（无业务逻辑）
-  feature/            业务组件（含状态和逻辑）
+  ui/                 shadcn/ui 原语（CLI 生成 + 自写原子组件）
+  form/               表单控件（基于 ui/ 组合，value/onChange 接口）
+  common/             通用非表单组件（基于 ui/ 组合）
+features/
+  entity-engine/
+    components/
+      fields/         EntityDef 驱动的字段渲染器（消费 form/ + ui/）
 lib/
   api/                API 客户端（按模块分文件）
-  hooks/              自定义 Hook
+  hooks/              自定义 Hook（逻辑层）
   utils/              工具函数
+```
+
+### 组件分层依赖方向
+
+```
+components/ui/   ←   components/form/   ←   features/entity-engine/components/fields/
+components/ui/   ←   components/common/
+```
+
+**各层职责**：
+
+| 层 | 位置 | 职责 | 接口特征 |
+|----|------|------|---------|
+| `ui/` | `components/ui/` | shadcn 原语 + 自写原子组件，无状态，无业务语义 | 纯 props |
+| `form/` | `components/form/` | 表单输入控件，可有内部 UI 状态，无业务语义 | `value / onChange / error / disabled` |
+| `common/` | `components/common/` | 通用非表单组件，可有内部状态，无业务语义 | 按需 |
+| `fields/` | `features/entity-engine/components/fields/` | EntityDef 驱动的字段渲染器，消费 `form/` + `ui/` | `FieldProps`（含 `FieldDef`） |
+
+**新组件放哪——判断树**：
+
+```
+需要新组件？
+├─ shadcn/ui 有 → pnpm dlx shadcn add xxx → components/ui/   ← 优先
+├─ 原子级 UI，无状态，无业务语义 → components/ui/（自写）
+├─ 表单输入控件（value/onChange 接口） → components/form/
+├─ 通用非表单，无业务语义 → components/common/
+├─ 需要 FieldDef，EntityDef 驱动 → features/entity-engine/components/fields/
+└─ 有业务语义（知道具体业务概念） → features/ 或 sections/
 ```
 
 ## 状态管理
@@ -71,6 +104,16 @@ export default function AgentChatPage({ params }: { params: { id: string } }) {
 - 复杂组件（工作流编辑器/协作面板）：必须分离，否则不可维护
 
 **禁止**：在 UI 组件内直接调用 API、直接操作 store、包含业务判断逻辑。
+
+**表单控件的逻辑分离规则**：
+
+| 控件复杂度 | 是否抽 hook | 说明 |
+|-----------|------------|------|
+| 简单（Money/QRScanner） | ❌ | 直接写在组件内 |
+| 中等（RelationshipPicker/Cascader/Signature） | ✅ | 数据逻辑抽到 `lib/hooks/use-xxx.ts` |
+| 复杂（Subtable/Upload） | ✅ | 必须分离，否则不可维护 |
+
+只拆**数据逻辑**（API 调用、状态计算、副作用）；open/close/hover 等纯 UI 交互状态留在组件内。
 
 ## 组件规范
 
@@ -135,3 +178,126 @@ source.onerror = () => source.close()
 
 - 组件内部响应式优先使用 container queries（`@container` + `@断点:`），仅在需要响应视口时使用传统断点（`md:` / `lg:`）
 - 判断标准：组件可能被放在不同宽度的容器中 → 用 `@container`；组件始终占满视口宽度 → 用传统断点
+
+## 常见 Lint 问题规范
+
+### a11y（无障碍）
+
+**`noLabelWithoutControl`**：`<label>` 必须通过 `htmlFor` 关联控件，或直接包裹控件。
+```tsx
+// ✅
+<label htmlFor="email">邮箱</label>
+<input id="email" />
+
+// ❌
+<label>邮箱</label>
+<input />
+```
+
+**`useSemanticElements`**：有交互行为的元素用语义标签，不用 `div role="button"`。
+```tsx
+// ✅ 点击触发操作
+<button type="button" onClick={handleClick}>操作</button>
+
+// ❌
+<div role="button" onClick={handleClick}>操作</div>
+
+// 例外：拖拽区域、role="group" 等无对应语义元素时，加 biome-ignore 注释
+// biome-ignore lint/a11y/useSemanticElements: 拖拽上传区域需要 div
+```
+
+**`noStaticElementInteractions`**：非交互元素（div/span）有事件处理时，必须同时有 `role` 和 `onKeyDown`。
+```tsx
+// ✅ 遮罩层用 button
+<button type="button" className="overlay" onClick={onClose} onKeyDown={(e) => e.key === "Escape" && onClose()} />
+
+// ❌
+<div onClick={onClose} onKeyDown={undefined} />
+```
+
+**`useUniqueElementIds`**：同一页面内 `id` 必须唯一，组件内用 `useId()` 生成。
+```tsx
+// ✅
+const uid = useId()
+<label htmlFor={`${uid}-email`}>邮箱</label>
+<input id={`${uid}-email`} />
+
+// ❌ 静态 id 在组件多次渲染时重复
+<label htmlFor="email">邮箱</label>
+<input id="email" />
+```
+
+### correctness（正确性）
+
+**`useExhaustiveDependencies`**：`useCallback`/`useEffect` 依赖数组必须完整。纯函数（不依赖外部状态）不需要加入依赖，加 biome-ignore 注释说明原因。
+```tsx
+// ✅ 纯函数不加入依赖
+// biome-ignore lint/correctness/useExhaustiveDependencies: getPos 是纯函数
+const draw = useCallback((e) => { ... }, [drawing])
+
+// ✅ stable setter 不需要加入依赖
+const stop = useCallback(() => setDrawing(false), [])
+```
+
+**`noUnusedFunctionParameters`**：未使用的参数加 `_` 前缀。
+```tsx
+// ✅
+function Component({ value, onChange: _onChange }: Props) { ... }
+
+// ❌
+function Component({ value, onChange }: Props) { ... } // onChange 未使用
+```
+
+### performance（性能）
+
+**`noImgElement`**：优先用 `next/image`。对 blob URL / data URL 等 next/image 不支持的场景，加 biome-ignore 行注释（不是 JSX 注释）。
+```tsx
+// ✅ 动态 URL 用 next/image
+import Image from "next/image"
+<Image src={url} alt="..." width={100} height={100} />
+
+// ✅ blob/data URL 加注释
+// biome-ignore lint/performance/noImgElement: blob URL，next/image 不支持
+<img src={blobUrl} alt="预览" />
+
+// ❌ JSX 注释位置错误（三元表达式内）
+{condition ? (
+  {/* biome-ignore ... */}  // ← 语法错误
+  <img />
+) : null}
+```
+
+### suspicious（可疑）
+
+**`noConsole`**：生产代码禁用 `console.*`。调试完成后删除，或用 Toast/日志服务替代。
+
+**`noArrayIndexKey`**：列表 key 不用数组索引，用稳定的业务 id 或字段组合。
+```tsx
+// ✅
+items.map((item) => <div key={item.id}>...</div>)
+filters.map((f) => <span key={`${f.field}-${f.operator}-${String(f.value)}`}>...</span>)
+
+// ❌
+items.map((item, i) => <div key={i}>...</div>)
+```
+
+### Base UI 特有问题
+
+shadcn/ui 使用 Base UI（`@base-ui/react`）而非 Radix，API 有差异：
+
+| Radix | Base UI |
+|-------|---------|
+| `asChild` prop | `render` prop（接受 ReactElement） |
+| `onValueChange={(v) => fn(v)}` | `onValueChange={(v) => fn(v ?? "")}` （v 可能为 null） |
+| `openDelay` | 不支持（PreviewCard 无此 prop） |
+
+```tsx
+// ✅ Base UI Button asChild 等效写法
+<Button
+  nativeButton={false}
+  render={<Link href="/path">链接</Link>}
+/>
+
+// ✅ Select onValueChange 处理 null
+<Select onValueChange={(v) => onChange(v ?? "")}>
+```

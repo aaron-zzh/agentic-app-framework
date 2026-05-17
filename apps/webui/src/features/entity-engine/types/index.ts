@@ -1,5 +1,12 @@
 export type { EntityAccess, FieldAccess } from "./access"
-export type { EntityAction, EntityDef, EntityHooks } from "./entity"
+export type {
+  EntityAction,
+  EntityDef,
+  EntityHooks,
+  ImportConfig,
+  NestedImportConfig,
+  SmartButton
+} from "./entity"
 export type {
   CheckboxField,
   CodeField,
@@ -25,5 +32,8 @@ export type {
   FormViewConfig,
   KanbanViewConfig,
   LayoutField,
-  ListViewConfig
+  ListViewConfig,
+  PivotConfig,
+  PivotMeasure,
+  PivotViewConfig
 } from "./views"

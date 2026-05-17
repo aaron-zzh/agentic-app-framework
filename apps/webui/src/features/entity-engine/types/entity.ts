@@ -7,7 +7,7 @@ import type { ComponentType } from "react"
 
 import type { EntityAccess } from "./access"
 import type { FieldDef } from "./field"
-import type { FormViewConfig, KanbanViewConfig, ListViewConfig } from "./views"
+import type { FormViewConfig, KanbanViewConfig, ListViewConfig, PivotViewConfig } from "./views"
 
 /** 实体完整定义——配置驱动视图引擎的核心契约 */
 export interface EntityDef {
@@ -37,12 +37,20 @@ export interface EntityDef {
   formView?: FormViewConfig
   /** 看板视图配置 */
   kanbanView?: KanbanViewConfig
+  /** 透视视图配置 */
+  pivotView?: PivotViewConfig
 
   /** 权限配置 */
   access?: EntityAccess
 
   /** 实体级动作 */
   actions?: EntityAction[]
+
+  /** Smart Buttons（表单顶部统计快捷按钮） */
+  smartButtons?: SmartButton[]
+
+  /** 导入配置 */
+  import?: ImportConfig
 
   /** 生命周期钩子 */
   hooks?: EntityHooks
@@ -83,4 +91,36 @@ export interface EntityHooks {
   beforeDelete?: (ids: string[]) => boolean
   afterDelete?: (ids: string[]) => void
   beforeView?: (record: Record<string, unknown>) => Record<string, unknown>
+}
+
+/** 导入配置 */
+export interface ImportConfig {
+  enabled: boolean
+  formats?: ("csv" | "xlsx" | "json")[]
+  maxRows?: number
+  uniqueFields?: string[]
+  templateDownload?: boolean
+  /** 嵌套导入（主从关联） */
+  nested?: NestedImportConfig[]
+}
+
+/** 嵌套导入配置 */
+export interface NestedImportConfig {
+  /** 子实体 slug */
+  childEntity: string
+  /** 子表中的外键字段 */
+  foreignKey: string
+  /** 主表中用于匹配的字段 */
+  matchBy: string
+  /** 子实体显示名称 */
+  childLabel?: string
+}
+
+/** Smart Button 配置 */
+export interface SmartButton {
+  key: string
+  label: string // 支持 {count} 占位符
+  icon?: string
+  countField: string // 后端返回的计数字段名
+  linkTo: string // 支持 {id} 占位符
 }

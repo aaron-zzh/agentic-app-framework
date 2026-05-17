@@ -17,6 +17,7 @@ interface State {
 }
 
 /** 字段级错误边界——单个字段组件报错时降级为文本展示 */
+// biome-ignore lint/style/useReactFunctionComponents: ErrorBoundary 必须用 class 组件
 export class FieldErrorBoundary extends Component<Props, State> {
   override state: State = { error: null }
 

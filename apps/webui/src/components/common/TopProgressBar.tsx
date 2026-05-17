@@ -17,6 +17,7 @@ export function TopProgressBar() {
   const [loading, setLoading] = useState(false)
 
   // 路由变化时短暂显示进度条
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setLoading 是 stable setter
   useEffect(() => {
     setLoading(true)
     const timer = setTimeout(() => setLoading(false), 300)

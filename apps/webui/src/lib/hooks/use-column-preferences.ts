@@ -60,7 +60,8 @@ export function useColumnPreferences(entitySlug: string, config: ListViewConfig)
       [...preferences]
         .filter((p) => p.visible)
         .sort((a, b) => a.order - b.order)
-        .map((p) => allColumns.find((c) => c.name === p.name)!)
+        .map((p) => allColumns.find((c) => c.name === p.name))
+        .filter((c): c is ColumnDef => c !== undefined)
         .filter(Boolean),
     [preferences, allColumns]
   )

@@ -6,10 +6,12 @@
 import { Suspense } from "react"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { entityRegistry, sampleEntities } from "@/features/entity-engine"
+import { registerDefaultComponents } from "@/features/entity-engine/components/register"
 import { AppHeader } from "@/sections/layout/AppHeader"
 import { AppSidebar } from "@/sections/layout/AppSidebar"
 
-// 注册示例实体（后续改为从后端动态加载）
+// 注册默认字段组件 + 示例实体
+registerDefaultComponents()
 entityRegistry.registerAll(sampleEntities)
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {

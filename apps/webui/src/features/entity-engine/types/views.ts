@@ -61,6 +61,8 @@ export interface FormViewConfig {
     enabled: boolean
     debounceMs?: number
   }
+  /** label 位置：top=上方（默认）| left=左侧（Odoo 风格，紧凑） */
+  labelLayout?: "top" | "left"
 }
 
 /** 看板视图配置 */
@@ -79,3 +81,26 @@ export interface KanbanViewConfig {
 
 /** 布局字段类型 */
 export type LayoutField = GroupField | TabsField | RowField
+
+/** 透视视图配置 */
+export interface PivotViewConfig {
+  enabled: boolean
+  /** 可用作维度的字段 */
+  dimensions: string[]
+  /** 可用指标 */
+  measures: PivotMeasure[]
+  /** 默认透视配置 */
+  defaultConfig?: PivotConfig
+}
+
+export interface PivotMeasure {
+  field: string
+  aggregations: ("count" | "sum" | "avg" | "min" | "max")[]
+  label?: string
+}
+
+export interface PivotConfig {
+  rows: string[]
+  columns?: string[]
+  values: { field: string; aggregation: string }[]
+}

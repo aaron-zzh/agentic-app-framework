@@ -3,20 +3,21 @@
  * @author AaronZZH & Kiro
  */
 
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+
 import type { FieldProps } from "../../types"
 
 export function CheckboxInput({ name, value, onChange, disabled, field }: FieldProps<boolean>) {
   return (
-    <label className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        name={name}
+    <div className="flex items-center gap-2">
+      <Checkbox
+        id={name}
         checked={value ?? false}
-        onChange={(e) => onChange(e.target.checked)}
+        onCheckedChange={(checked) => onChange(checked === true)}
         disabled={disabled}
-        className="h-4 w-4 rounded border-input"
       />
-      {field.label && <span className="text-sm">{field.label}</span>}
-    </label>
+      {field.label && <Label htmlFor={name}>{field.label}</Label>}
+    </div>
   )
 }

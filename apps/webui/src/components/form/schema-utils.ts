@@ -56,6 +56,6 @@ export const schemaUtils = {
   },
 
   /** 可空输入（空字符串转 null） */
-  nullable: <T extends z.ZodTypeAny>(schema: T, props?: { error?: string }) =>
+  nullable: <T extends z.ZodTypeAny>(schema: T, _props?: { error?: string }) =>
     z.preprocess((val) => (val === "" || val === undefined ? null : val), schema.nullable())
 }

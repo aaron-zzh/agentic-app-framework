@@ -25,10 +25,7 @@ export function ImportWizard({ entity, open, onClose }: ImportWizardProps) {
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [result, setResult] = useState<{ success: number; errors: number } | null>(null)
 
-  const entityFields = entity.fields.filter(
-    (f): f is DataFieldDef =>
-      "name" in f && f.type !== "group" && f.type !== "tabs" && f.type !== "row"
-  )
+  const entityFields = entity.fields.filter((f): f is DataFieldDef => "name" in f)
 
   // 上传文件并解析表头
   const handleUpload = useCallback(
@@ -86,7 +83,13 @@ export function ImportWizard({ entity, open, onClose }: ImportWizardProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} onKeyDown={undefined} />
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        aria-label="关闭"
+        onClick={onClose}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+      />
       <div className="relative w-full max-w-lg rounded-lg border bg-background p-6 shadow-xl">
         <h2 className="mb-4 font-semibold text-lg">导入 {entity.label}</h2>
 

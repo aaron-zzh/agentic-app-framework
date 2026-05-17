@@ -17,6 +17,7 @@ interface State {
 }
 
 /** 视图级错误边界——某个视图渲染失败时显示错误卡片 */
+// biome-ignore lint/style/useReactFunctionComponents: ErrorBoundary 必须用 class 组件
 export class ViewErrorBoundary extends Component<Props, State> {
   override state: State = { error: null }
 

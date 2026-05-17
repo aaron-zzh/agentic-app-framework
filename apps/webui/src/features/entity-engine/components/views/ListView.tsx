@@ -16,8 +16,11 @@ import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { getCellComponent } from "../../lib/component-registry"
 import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
 import { ColumnConfigPanel } from "../ColumnConfigPanel"
+import { registerDefaultComponents } from "../register"
 import { DraggableListView } from "./DraggableListView"
 import { GroupedListView } from "./GroupedListView"
+
+registerDefaultComponents()
 
 /** 虚拟滚动启用阈值 */
 const VIRTUAL_THRESHOLD = 100

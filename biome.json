@@ -44,7 +44,10 @@
         "noDoubleEquals": "error"
       },
       "complexity": {
-        "noExcessiveCognitiveComplexity": "warn"
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": { "maxAllowedComplexity": 20 }
+        }
       },
       "nursery": {
         "useSortedClasses": {

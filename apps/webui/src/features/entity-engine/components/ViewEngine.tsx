@@ -21,6 +21,7 @@ import type { EntityDef } from "../types"
 import { FormView } from "./views/FormView"
 import { KanbanView } from "./views/KanbanView"
 import { ListView } from "./views/ListView"
+import { PivotView } from "./views/PivotView"
 
 /** 支持的视图类型 */
 export type ViewType = "list" | "form" | "kanban" | "graph" | "chart" | "calendar"
@@ -42,7 +43,7 @@ export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps)
 }
 
 /** 内部渲染逻辑 */
-function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
+function ViewEngineInner({ entity, view = "list", recordId: _recordId }: ViewEngineProps) {
   // 优先使用实体级自定义覆盖
   if (view === "list" && entity.overrides?.listView) {
     const Override = entity.overrides.listView
@@ -71,6 +72,8 @@ function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
       return <KanbanView entity={entity} />
     case "form":
       return <FormView entity={entity} />
+    case "pivot":
+      return <PivotView entity={entity} />
     default:
       return <ViewPlaceholder entity={entity} view={view} />
   }

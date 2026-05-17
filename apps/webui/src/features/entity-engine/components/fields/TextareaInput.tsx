@@ -3,6 +3,9 @@
  * @author AaronZZH & Kiro
  */
 
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+
 import type { FieldProps } from "../../types"
 
 export function TextareaInput({
@@ -13,22 +16,18 @@ export function TextareaInput({
   disabled,
   field
 }: FieldProps<string>) {
+  const rows = field.type === "textarea" && "rows" in field ? (field.rows ?? 3) : 3
   return (
-    <div className="space-y-1">
-      {field.label && (
-        <label htmlFor={name} className="font-medium text-sm">
-          {field.label}
-        </label>
-      )}
-      <textarea
+    <div className="flex flex-col gap-1.5">
+      {field.label && <Label htmlFor={name}>{field.label}</Label>}
+      <Textarea
         id={name}
         name={name}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={field.placeholder}
         disabled={disabled}
-        rows={field.type === "textarea" && "rows" in field ? (field.rows ?? 3) : 3}
-        className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        rows={rows}
         aria-invalid={!!error}
       />
       {error && <p className="text-destructive text-xs">{error}</p>}

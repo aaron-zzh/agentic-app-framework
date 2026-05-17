@@ -3,8 +3,12 @@
  * @author AaronZZH & Kiro
  */
 
-import Link from "next/link"
+"use client"
 
+import Link from "next/link"
+import { useTheme } from "next-themes"
+
+import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/constants/paths"
 
 const navLinks = [
@@ -16,10 +20,14 @@ const navLinks = [
 
 /** 营销页顶部导航 */
 export function MarketingHeader() {
+  const { theme, setTheme } = useTheme()
+
   return (
     <header className="sticky top-0 z-50 flex h-[var(--layout-marketing-header-height)] items-center border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-[var(--layout-marketing-max-width)] items-center justify-between px-6">
-        <Link href="/" className="font-bold text-xl">
+        <Link href="/" className="flex items-center gap-2 font-bold text-xl">
+          {/* biome-ignore lint/performance/noImgElement: logo 无需 next/image 优化 */}
+          <img src="/logo.png" alt="AAF logo" className="size-7" />
           AAF
         </Link>
 
@@ -35,19 +43,22 @@ export function MarketingHeader() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href={paths.auth.login}
-            className="text-muted-foreground text-sm hover:text-foreground"
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label="切换主题"
           >
-            登录
-          </Link>
-          <Link
-            href={paths.auth.register}
-            className="rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-          >
-            免费开始
-          </Link>
+            <span className="dark:hidden">🌙</span>
+            <span className="hidden dark:inline">☀️</span>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={paths.auth.login}>登录</Link>
+          </Button>
+          <Button size="sm" asChild>
+            <Link href={paths.auth.register}>免费开始</Link>
+          </Button>
         </div>
       </div>
     </header>

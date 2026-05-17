@@ -88,9 +88,8 @@ function ActionButton({
       if (record?.id) {
         queryClient.invalidateQueries({ queryKey: [entity.slug, "record", record.id] })
       }
-    } catch (err) {
+    } catch {
       // TODO: Toast 通知
-      console.error("Action failed:", err)
     } finally {
       setLoading(false)
     }

@@ -76,6 +76,40 @@ export const userEntity: EntityDef = {
     filterableFields: ["status"],
     batchActions: ["delete"]
   },
+  formView: {
+    labelLayout: "left",
+    layout: [
+      {
+        type: "group",
+        label: "基本信息",
+        fields: [
+          {
+            type: "row",
+            fields: [
+              { type: "text", name: "username", label: "用户名", required: true },
+              { type: "text", name: "nickname", label: "昵称", required: true }
+            ]
+          },
+          {
+            type: "row",
+            fields: [
+              { type: "email", name: "email", label: "邮箱" },
+              { type: "text", name: "phone", label: "手机号" }
+            ]
+          },
+          {
+            type: "select",
+            name: "status",
+            label: "状态",
+            options: [
+              { label: "正常", value: "active", color: "green" },
+              { label: "禁用", value: "disabled", color: "red" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   mixins: ["baseEntity"]
 }
 

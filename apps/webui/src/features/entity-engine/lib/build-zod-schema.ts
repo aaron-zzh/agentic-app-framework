@@ -30,69 +30,46 @@ export function buildZodSchema(fields: FieldDef[]): z.ZodObject<Record<string, z
 
 /** 根据单个字段定义生成对应的 Zod schema */
 function buildFieldSchema(field: DataFieldDef): z.ZodTypeAny {
-  let schema: z.ZodTypeAny
+  const base = buildBaseSchema(field)
+  return field.required ? base : base.optional()
+}
 
+function buildBaseSchema(field: DataFieldDef): z.ZodTypeAny {
   switch (field.type) {
-    case "text":
-    case "textarea":
     case "email":
+      return z.string().email({ message: "邮箱格式无效" })
+    case "text": {
+      let s = z.string()
+      if (field.minLength) s = s.min(field.minLength)
+      if (field.maxLength) s = s.max(field.maxLength)
+      return s
+    }
+    case "textarea":
+      return field.maxLength ? z.string().max(field.maxLength) : z.string()
     case "richText":
     case "code":
     case "json":
-      schema = z.string()
-      if (field.type === "email") {
-        schema = z.string().email({ message: "邮箱格式无效" })
-      }
-      if (field.type === "text" && field.maxLength) {
-        schema = (schema as z.ZodString).max(field.maxLength)
-      }
-      if (field.type === "text" && field.minLength) {
-        schema = (schema as z.ZodString).min(field.minLength)
-      }
-      if (field.type === "textarea" && field.maxLength) {
-        schema = (schema as z.ZodString).max(field.maxLength)
-      }
-      break
-
-    case "number":
-      schema = z.number()
-      if (field.min !== undefined) schema = (schema as z.ZodNumber).min(field.min)
-      if (field.max !== undefined) schema = (schema as z.ZodNumber).max(field.max)
-      break
-
-    case "checkbox":
-      schema = z.boolean()
-      break
-
     case "date":
-      schema = z.string()
-      break
-
+      return z.string()
+    case "number": {
+      let s = z.number()
+      if (field.min !== undefined) s = s.min(field.min)
+      if (field.max !== undefined) s = s.max(field.max)
+      return s
+    }
+    case "checkbox":
+      return z.boolean()
     case "select":
       if (field.options.length > 0) {
         const values = field.options.map((o) => o.value) as [string, ...string[]]
-        schema = field.multiple ? z.array(z.enum(values)) : z.enum(values)
-      } else {
-        schema = z.string()
+        return field.multiple ? z.array(z.enum(values)) : z.enum(values)
       }
-      break
-
+      return z.string()
     case "relationship":
-      schema = field.hasMany ? z.array(z.string()) : z.string()
-      break
-
+      return field.hasMany ? z.array(z.string()) : z.string()
     case "upload":
-      schema = field.multiple ? z.array(z.string()) : z.string()
-      break
-
+      return field.multiple ? z.array(z.string()) : z.string()
     default:
-      schema = z.unknown()
+      return z.unknown()
   }
-
-  // required 处理：非必填字段允许空值
-  if (!field.required) {
-    schema = schema.optional()
-  }
-
-  return schema
 }

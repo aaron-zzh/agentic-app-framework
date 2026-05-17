@@ -4,17 +4,15 @@
  */
 
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
 import type { FieldProps, NumberField } from "../../types"
 
 export function NumberInput({ name, value, onChange, error, disabled, field }: FieldProps<number>) {
   const numField = field as NumberField
   return (
-    <div className="space-y-1">
-      {field.label && (
-        <label htmlFor={name} className="font-medium text-sm">
-          {field.label}
-        </label>
-      )}
+    <div className="flex flex-col gap-1.5">
+      {field.label && <Label htmlFor={name}>{field.label}</Label>}
       <Input
         type="number"
         id={name}

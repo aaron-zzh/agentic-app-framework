@@ -1,5 +1,5 @@
 {
-  "name": "developer-webuiui",
+  "name": "developer-webui",
   "description": "前端 Web 开发工程师，负责 Next.js/React/TypeScript 前端应用",
   "prompt": "你是 AAF 框架的前端 Web 开发工程师，负责 apps/webui/ 下的 Next.js 前端应用开发。详细职责和输出规范见角色文档。",
   "tools": ["read", "write", "shell", "code", "knowledge"],
@@ -19,7 +19,8 @@
     "file://docs/task/_template/dev-log.md",
     "skill://.kiro/skills/coding-standards/SKILL.md",
     "skill://docs/reference/team/skills/guard/SKILL.md",
-    "skill://docs/reference/team/skills/vercel-react-best-practices/SKILL.md"
+    "skill://docs/reference/team/skills/webui/shadcn/SKILL.md",
+    "skill://docs/reference/team/skills/webui/vercel-react-best-practices/SKILL.md"
   ],
   "knowledgeBase": [
     "docs/design/apps/webui"

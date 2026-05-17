@@ -1,5 +1,5 @@
 /**
- * Field.Checkbox——RHF 封装（复用 entity-engine CheckboxInput）
+ * Field.Checkbox——RHF 复选框控件
  * @author AaronZZH & Kiro
  */
 
@@ -7,8 +7,8 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
-import { CheckboxInput } from "@/features/entity-engine/components/fields"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldCheckboxProps {
@@ -20,25 +20,21 @@ export interface FieldCheckboxProps {
 
 export function FieldCheckbox({ name, label, className, disabled }: FieldCheckboxProps) {
   const { control } = useFormContext()
-
-  const fieldDef: DataFieldDef = { type: "checkbox", name, label }
-
   return (
-    <div className={cn(className)}>
-      <Controller
-        name={name}
-        control={control}
-        render={({ field, fieldState: { error } }) => (
-          <CheckboxInput
-            name={name}
-            value={field.value ?? false}
-            onChange={field.onChange}
-            error={error?.message}
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <div className={cn("flex items-center gap-2", className)}>
+          <Checkbox
+            id={name}
+            checked={field.value ?? false}
+            onCheckedChange={(checked) => field.onChange(checked === true)}
             disabled={disabled}
-            field={fieldDef}
           />
-        )}
-      />
-    </div>
+          {label && <Label htmlFor={name}>{label}</Label>}
+        </div>
+      )}
+    />
   )
 }

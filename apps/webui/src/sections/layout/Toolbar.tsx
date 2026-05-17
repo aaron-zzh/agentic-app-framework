@@ -20,11 +20,6 @@ import type { EntityDef } from "@/features/entity-engine/types"
 import { useFilterParams } from "@/lib/queries/use-filter-params"
 import { cn } from "@/lib/utils/cn"
 
-const views = [
-  { key: "list", label: "列表", icon: "☰" },
-  { key: "kanban", label: "看板", icon: "▦" }
-] as const
-
 interface ToolbarProps {
   entity: EntityDef
 }
@@ -37,6 +32,13 @@ export function Toolbar({ entity }: ToolbarProps) {
   const canCreate = entity.access?.create !== false
   const [filters, setFilters] = useFilterParams()
   const [activeTab, setActiveTab] = useState("")
+
+  // 动态视图列表（透视视图按需显示）
+  const availableViews = [
+    { key: "list", label: "列表", icon: "☰" },
+    { key: "kanban", label: "看板", icon: "▦" },
+    ...(entity.pivotView?.enabled ? [{ key: "pivot", label: "透视", icon: "⊞" }] : [])
+  ]
 
   // Tab 切换时添加/替换对应字段筛选
   const handleTabChange = useCallback(
@@ -79,7 +81,7 @@ export function Toolbar({ entity }: ToolbarProps) {
 
         <div className="flex items-center gap-3 text-muted-foreground text-sm">
           <div className="flex items-center gap-0.5 rounded-md border p-0.5">
-            {views.map((v) => (
+            {availableViews.map((v) => (
               <Link
                 key={v.key}
                 href={`${pathname}?view=${v.key}`}

@@ -87,3 +87,38 @@
 ✅ 2026-05-16 — developer-webui
 
 - `EntityActions.tsx`：按 `position` 过滤，确认弹窗，POST endpoint，loading，invalidateQueries
+
+## #2914 嵌套导入（主从关联）
+
+✅ 2026-05-17 — developer-webui
+
+- `NestedImportWizard.tsx`：5 步向导（上传→关系映射→字段映射→预览校验→结果）
+- 支持 JSON 嵌套格式（自动识别主从结构）和 CSV（单主表）
+- 孤儿检测：子记录找不到主记录时预览阶段报错
+- 主表 + 子表字段分别映射，POST `/import/nested` 事务性写入
+- `EntityDef` 新增 `import.nested` 配置 + `NestedImportConfig` 类型
+
+## #2916 透视视图
+
+✅ 2026-05-17 — developer-webui
+
+- `PivotView.tsx`：左侧维度/指标面板 + 右侧配置区 + 结果表格
+- 点击维度加入行，点击指标加入值，POST `/pivot` 执行 GROUP BY 聚合
+- `EntityDef` 新增 `pivotView?: PivotViewConfig` 配置
+- ViewEngine 新增 `pivot` case；Toolbar 视图切换动态显示透视 Tab
+
+## #2917 批量操作异步化
+
+✅ 2026-05-17 — developer-webui
+
+- `use-batch-operation.ts`：阈值 100 条，≤100 同步，>100 异步轮询 `/api/tasks/{taskId}/progress`
+- `BatchProgressBar.tsx`：进度条 + 百分比 + 预计剩余时间 + [取消] 按钮
+- 取消时调用 `/api/tasks/{taskId}/cancel`
+
+## #2918 耗时导出 SSE 进度推送
+
+✅ 2026-05-17 — developer-webui
+
+- `use-export-progress.ts`：EventSource 接收 SSE 进度，完成后自动触发浏览器下载
+- `ExportButton.tsx` 升级：接入 SSE 进度，导出中按钮显示百分比，完成后自动下载
+- 小数据量（后端不返回 taskId）直接下载，无 SSE 开销

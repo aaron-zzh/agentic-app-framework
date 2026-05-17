@@ -1,5 +1,5 @@
 /**
- * Field.Textarea——RHF 封装（复用 entity-engine TextareaInput）
+ * Field.Textarea——RHF 多行文本控件
  * @author AaronZZH & Kiro
  */
 
@@ -7,8 +7,8 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
-import { TextareaInput } from "@/features/entity-engine/components/fields"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldTextareaProps {
@@ -29,23 +29,25 @@ export function FieldTextarea({
   disabled
 }: FieldTextareaProps) {
   const { control } = useFormContext()
-
-  const fieldDef: DataFieldDef = { type: "textarea", name, label, placeholder, rows }
-
   return (
-    <div className={cn(className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      {label && <Label htmlFor={name}>{label}</Label>}
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState: { error } }) => (
-          <TextareaInput
-            name={name}
-            value={field.value ?? ""}
-            onChange={field.onChange}
-            error={error?.message}
-            disabled={disabled}
-            field={fieldDef}
-          />
+          <>
+            <Textarea
+              id={name}
+              placeholder={placeholder}
+              disabled={disabled}
+              rows={rows}
+              aria-invalid={!!error}
+              {...field}
+              value={field.value ?? ""}
+            />
+            {error && <p className="text-destructive text-xs">{error.message}</p>}
+          </>
         )}
       />
     </div>

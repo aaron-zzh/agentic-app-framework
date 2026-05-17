@@ -1,5 +1,5 @@
 /**
- * Field.Number——RHF 封装（复用 entity-engine NumberInput）
+ * Field.Number——RHF 数字输入控件
  * @author AaronZZH & Kiro
  */
 
@@ -7,8 +7,8 @@
 
 import { Controller, useFormContext } from "react-hook-form"
 
-import { NumberInput } from "@/features/entity-engine/components/fields"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldNumberProps {
@@ -33,23 +33,29 @@ export function FieldNumber({
   disabled
 }: FieldNumberProps) {
   const { control } = useFormContext()
-
-  const fieldDef: DataFieldDef = { type: "number", name, label, placeholder, min, max, step }
-
   return (
-    <div className={cn(className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      {label && <Label htmlFor={name}>{label}</Label>}
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState: { error } }) => (
-          <NumberInput
-            name={name}
-            value={field.value}
-            onChange={field.onChange}
-            error={error?.message}
-            disabled={disabled}
-            field={fieldDef}
-          />
+          <>
+            <Input
+              id={name}
+              type="number"
+              placeholder={placeholder}
+              disabled={disabled}
+              min={min}
+              max={max}
+              step={step}
+              aria-invalid={!!error}
+              {...field}
+              value={field.value ?? ""}
+              onChange={(e) => field.onChange(e.target.valueAsNumber)}
+            />
+            {error && <p className="text-destructive text-xs">{error.message}</p>}
+          </>
         )}
       />
     </div>

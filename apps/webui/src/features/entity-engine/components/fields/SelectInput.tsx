@@ -3,33 +3,42 @@
  * @author AaronZZH & Kiro
  */
 
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
+
 import type { FieldProps, SelectField } from "../../types"
 
 export function SelectInput({ name, value, onChange, error, disabled, field }: FieldProps<string>) {
   const selectField = field as SelectField
   return (
-    <div className="space-y-1">
-      {field.label && (
-        <label htmlFor={name} className="font-medium text-sm">
-          {field.label}
-        </label>
-      )}
-      <select
-        id={name}
-        name={name}
+    <div className="flex flex-col gap-1.5">
+      {field.label && <Label htmlFor={name}>{field.label}</Label>}
+      <Select
         value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
+        onValueChange={(v) => onChange(v ?? "")}
         disabled={disabled}
-        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         aria-invalid={!!error}
       >
-        <option value="">{field.placeholder ?? "请选择"}</option>
-        {selectField.options?.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id={name} className="w-full">
+          <SelectValue placeholder={field.placeholder ?? "请选择"} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {selectField.options?.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
       {error && <p className="text-destructive text-xs">{error}</p>}
     </div>
   )

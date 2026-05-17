@@ -88,6 +88,7 @@ export function Upload({
   return (
     <div className="space-y-2">
       {/* 拖拽区域 */}
+      {/* biome-ignore lint/a11y/useSemanticElements: 拖拽上传区域需要 div，button 不支持拖拽语义 */}
       <div
         className={`relative flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors ${
           dragActive
@@ -101,7 +102,12 @@ export function Upload({
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        onKeyDown={undefined}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") inputRef.current?.click()
+        }}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-label="上传文件"
       >
         <input
           ref={inputRef}
@@ -128,6 +134,7 @@ export function Upload({
             // biome-ignore lint/suspicious/noArrayIndexKey: 文件列表
             <li key={i} className="flex items-center gap-2 rounded border px-3 py-1.5">
               {item.preview ? (
+                // biome-ignore lint/performance/noImgElement: 文件预览为 blob URL
                 <img src={item.preview} alt="" className="h-8 w-8 rounded object-cover" />
               ) : (
                 <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-xs">
@@ -179,10 +186,12 @@ export function UploadAvatar({
   )
 
   return (
-    <div
+    <button
+      type="button"
       className={`relative h-24 w-24 cursor-pointer overflow-hidden rounded-full border-2 border-dashed ${disabled ? "pointer-events-none opacity-50" : "hover:border-primary"}`}
       onClick={() => inputRef.current?.click()}
-      onKeyDown={undefined}
+      disabled={disabled}
+      aria-label="上传头像"
     >
       <input
         ref={inputRef}
@@ -193,12 +202,13 @@ export function UploadAvatar({
         disabled={disabled}
       />
       {preview ? (
+        // biome-ignore lint/performance/noImgElement: 头像预览为 blob URL
         <img src={preview} alt="avatar" className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-muted-foreground">
           <span className="text-xl">📷</span>
         </div>
       )}
-    </div>
+    </button>
   )
 }

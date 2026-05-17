@@ -12,7 +12,7 @@ import { createRecord, deleteRecord, fetchRecord, updateRecord } from "@/lib/api
 export function useEntityRecord(entity: EntityDef, id: string | undefined) {
   return useQuery<Record<string, unknown>>({
     queryKey: [entity.slug, "record", id],
-    queryFn: () => fetchRecord(entity.apiPath, id!),
+    queryFn: () => fetchRecord(entity.apiPath, id ?? ""),
     enabled: !!id
   })
 }

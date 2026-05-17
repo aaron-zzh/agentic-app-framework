@@ -4,17 +4,14 @@
  */
 
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import type { FieldProps } from "../../types"
 
 export function TextInput({ name, value, onChange, error, disabled, field }: FieldProps<string>) {
   return (
-    <div className="space-y-1">
-      {field.label && (
-        <label htmlFor={name} className="font-medium text-sm">
-          {field.label}
-        </label>
-      )}
+    <div className="flex flex-col gap-1.5">
+      {field.label && <Label htmlFor={name}>{field.label}</Label>}
       <Input
         id={name}
         name={name}

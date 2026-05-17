@@ -32,7 +32,8 @@ export function Wizard({ open, onClose, onComplete, steps, title }: WizardProps)
   const step = steps[currentStep]
 
   const form = useForm({
-    resolver: step?.schema ? zodResolver(step.schema) : undefined
+    // biome-ignore lint/suspicious/noExplicitAny: zodResolver 需要具体 ZodType，用 any 绕过泛型推断
+    resolver: step?.schema ? zodResolver(step.schema as any) : undefined
   })
 
   const handleNext = useCallback(async () => {
@@ -59,7 +60,13 @@ export function Wizard({ open, onClose, onComplete, steps, title }: WizardProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} onKeyDown={undefined} />
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        aria-label="关闭"
+        onClick={onClose}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+      />
       <div className="relative w-full max-w-lg rounded-lg border bg-background shadow-xl">
         {/* 标题 */}
         <div className="border-b px-6 py-4">

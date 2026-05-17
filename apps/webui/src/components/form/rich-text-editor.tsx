@@ -8,7 +8,7 @@
 
 "use client"
 
-import { useCallback, useEffect } from "react"
+import { useCallback } from "react"
 
 interface RichTextEditorProps {
   value?: string
