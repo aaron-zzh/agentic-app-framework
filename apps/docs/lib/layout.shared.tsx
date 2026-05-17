@@ -7,7 +7,7 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <>
-          <Image src="/logo.png" alt="AAF" width={24} height={24} className="rounded" />
+          <Image src="/logo/logo.png" alt="AAF" width={24} height={24} className="rounded" />
           Agentic App Framework
         </>
       ),

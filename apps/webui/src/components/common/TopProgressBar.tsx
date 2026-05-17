@@ -1,37 +1,58 @@
 /**
- * TopProgressBar——路由切换时的顶部细线进度条
+ * TopProgressBar——路由切换时的顶部进度条（仅超时才显示）
  * @author AaronZZH & Kiro
+ *
+ * 快速切换（<200ms）不显示，避免闪烁。超时后短暂显示再消失。
  */
 
 "use client"
 
 import { usePathname, useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils/cn"
 
-/** 顶部进度条（路由切换时自动显示） */
+/** 延迟阈值（ms），低于此时间不显示进度条 */
+const DELAY = 200
+/** 显示持续时间（ms） */
+const DURATION = 500
+
 export function TopProgressBar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [loading, setLoading] = useState(false)
+  const [visible, setVisible] = useState(false)
+  const delayRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const hideRef = useRef<ReturnType<typeof setTimeout>>(null)
 
-  // 路由变化时短暂显示进度条
-  // biome-ignore lint/correctness/useExhaustiveDependencies: setLoading 是 stable setter
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname/searchParams 变化触发
   useEffect(() => {
-    setLoading(true)
-    const timer = setTimeout(() => setLoading(false), 300)
-    return () => clearTimeout(timer)
+    // 清除上一轮 timer
+    if (delayRef.current) clearTimeout(delayRef.current)
+    if (hideRef.current) clearTimeout(hideRef.current)
+
+    // 延迟显示
+    delayRef.current = setTimeout(() => {
+      setVisible(true)
+      // 显示一段时间后自动隐藏
+      hideRef.current = setTimeout(() => setVisible(false), DURATION)
+    }, DELAY)
+
+    // 路由切换完成（新页面渲染）→ 立即隐藏
+    return () => {
+      if (delayRef.current) clearTimeout(delayRef.current)
+      if (hideRef.current) clearTimeout(hideRef.current)
+      setVisible(false)
+    }
   }, [pathname, searchParams])
 
   return (
     <div
       className={cn(
-        "fixed top-0 left-0 z-50 h-0.5 w-full transition-opacity duration-200",
-        loading ? "opacity-100" : "opacity-0"
+        "fixed top-0 left-0 z-[9999] h-0.5 w-full transition-opacity duration-150",
+        visible ? "opacity-100" : "opacity-0"
       )}
     >
-      <div className="h-full animate-[progress_1s_ease-in-out_infinite] bg-primary" />
+      <div className="h-full animate-[progress_2s_ease-out_forwards] bg-primary shadow-[0_0_4px] shadow-primary/50" />
     </div>
   )
 }

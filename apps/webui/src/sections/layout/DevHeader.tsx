@@ -9,7 +9,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
-
+import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils/cn"
@@ -43,11 +43,7 @@ export function DevHeader() {
     <header className="sticky top-0 z-50 flex h-12 items-center border-b bg-background/95 backdrop-blur">
       <div className="flex w-full items-center gap-4 px-4">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2 font-bold text-base">
-          {/* biome-ignore lint/performance/noImgElement: logo 无需 next/image 优化 */}
-          <img src="/logo.png" alt="AAF logo" className="size-6" />
-          AAF
-        </Link>
+        <Brand size="sm" />
         <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs">
           dev
         </span>

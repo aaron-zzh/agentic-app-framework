@@ -1,26 +1,33 @@
 /**
- * AppSidebar——从 entityRegistry 自动生成侧边栏菜单
+ * AppSidebar——侧边栏导航
  * @author AaronZZH & Kiro
+ *
+ * 支持：展开态（完整菜单） + 折叠态（仅图标）
+ * 菜单数据来自 nav-config（本地 + entityRegistry 合并）
  */
 
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
 import {
   CheckSquare,
+  ChevronDown,
   FileText,
   LayoutDashboard,
+  type LucideIcon,
   Settings,
   Users
 } from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useState } from "react"
+import { Brand } from "@/components/brand/Brand"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
-import { paths } from "@/lib/constants/paths"
-import { buildNavConfig } from "./nav-config"
+import { buildNavConfig, type NavGroup, type NavItem } from "./nav-config"
 
-/** 图标名 → 组件映射 */
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+/** 图标名 → lucide 组件映射 */
+const ICON_MAP: Record<string, LucideIcon> = {
+  "layout-dashboard": LayoutDashboard,
   "file-text": FileText,
   users: Users,
   "check-square": CheckSquare,
@@ -28,61 +35,183 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {
-  const Icon = name ? iconMap[name] : undefined
-  if (!Icon) return <span className={cn("size-4", className)} />
-  return <Icon className={cn("size-4", className)} />
+  const Icon = name ? ICON_MAP[name] : undefined
+  if (!Icon) return <span className={cn("size-4 shrink-0", className)} />
+  return <Icon className={cn("size-4 shrink-0", className)} />
 }
 
 /** 侧边栏 */
 export function AppSidebar() {
   const pathname = usePathname()
-  const sidebarOpen = useUIStore((s) => s.sidebarOpen)
+  const { sidebarOpen, toggleSidebar } = useUIStore()
   const navConfig = buildNavConfig()
 
-  if (!sidebarOpen) return null
-
   return (
-    <aside className="flex w-[var(--layout-sidebar-width)] shrink-0 flex-col border-r bg-sidebar">
-      <div className="flex h-[var(--layout-header-height)] items-center px-4">
-        <span className="font-bold text-lg text-sidebar-foreground">AAF</span>
-      </div>
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
-        {/* Dashboard */}
-        <Link
-          href={paths.workspace.dashboard}
-          className={cn(
-            "mb-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
-            pathname === paths.workspace.dashboard &&
-              "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-          )}
-        >
-          <LayoutDashboard className="size-4" />
-          <span>工作台</span>
-        </Link>
+    <aside
+      className={cn(
+        "relative flex shrink-0 flex-col border-r bg-sidebar transition-[width] duration-200",
+        sidebarOpen
+          ? "w-[var(--layout-sidebar-width)]"
+          : "w-[var(--layout-sidebar-collapsed-width)]"
+      )}
+    >
+      {/* 边缘折叠按钮 */}
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className="absolute top-[calc(var(--layout-header-height)/2)] -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground"
+        aria-label={sidebarOpen ? "收起侧边栏" : "展开侧边栏"}
+      >
+        <ChevronDown
+          className={cn("size-3.5 transition-transform", sidebarOpen ? "-rotate-90" : "rotate-90")}
+        />
+      </button>
 
-        {/* 实体菜单 */}
+      {/* Brand */}
+      <div className="flex h-[var(--layout-header-height)] items-center px-4">
+        <Brand collapsed={!sidebarOpen} href="/workspace/dashboard" />
+      </div>
+
+      {/* 导航 */}
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
         {navConfig.map((group) => (
-          <div key={group.group} className="mb-4">
-            <p className="mb-1 px-2 font-medium text-muted-foreground text-xs uppercase">
-              {group.label}
-            </p>
-            {group.items.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
-                  pathname.startsWith(item.path) &&
-                    "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                )}
-              >
-                <NavIcon name={item.icon} />
-                <span>{item.title}</span>
-              </Link>
-            ))}
-          </div>
+          <NavGroupSection
+            key={group.subheader}
+            group={group}
+            pathname={pathname}
+            collapsed={!sidebarOpen}
+          />
         ))}
       </nav>
     </aside>
+  )
+}
+
+/** 导航分组 */
+function NavGroupSection({
+  group,
+  pathname,
+  collapsed
+}: {
+  group: NavGroup
+  pathname: string
+  collapsed: boolean
+}) {
+  const [open, setOpen] = useState(true)
+
+  return (
+    <div className="mb-3">
+      {/* 分组标题 */}
+      {collapsed ? (
+        <div className="mx-2 my-2 border-t" />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex w-full items-center px-2 py-1"
+        >
+          <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+            {group.subheader}
+          </span>
+        </button>
+      )}
+
+      {(open || collapsed) && (
+        <ul className="mt-0.5 space-y-0.5">
+          {group.items.map((item) => (
+            <NavItemRow key={item.path} item={item} pathname={pathname} collapsed={collapsed} />
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/** 单个菜单项（支持递归子菜单） */
+function NavItemRow({
+  item,
+  pathname,
+  collapsed,
+  depth = 0
+}: {
+  item: NavItem
+  pathname: string
+  collapsed: boolean
+  depth?: number
+}) {
+  const [childOpen, setChildOpen] = useState(false)
+  const isActive = item.deepMatch ? pathname.startsWith(item.path) : pathname === item.path
+  const hasChildren = !collapsed && item.children && item.children.length > 0
+
+  const itemClass = cn(
+    "flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
+    isActive && "bg-primary/10 font-medium text-primary",
+    item.disabled && "pointer-events-none opacity-50",
+    collapsed && "justify-center px-2"
+  )
+
+  const itemStyle = collapsed ? undefined : { paddingLeft: `${depth * 12 + 8}px`, paddingRight: 8 }
+
+  const content = (
+    <>
+      {depth === 0 && <NavIcon name={item.icon} />}
+      {depth > 0 && !collapsed && (
+        <span className="size-1.5 shrink-0 rounded-full bg-current opacity-30" />
+      )}
+      {!collapsed && <span className="flex-1 truncate text-left">{item.title}</span>}
+      {!collapsed && item.badge && (
+        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-primary text-xs">
+          {item.badge}
+        </span>
+      )}
+      {hasChildren && !collapsed && (
+        <ChevronDown
+          className={cn(
+            "size-3.5 text-muted-foreground transition-transform",
+            childOpen && "rotate-180"
+          )}
+        />
+      )}
+    </>
+  )
+
+  return (
+    <li>
+      {hasChildren ? (
+        <button
+          type="button"
+          onClick={() => setChildOpen(!childOpen)}
+          title={collapsed ? item.title : undefined}
+          className={itemClass}
+          style={itemStyle}
+        >
+          {content}
+        </button>
+      ) : (
+        <Link
+          href={item.path}
+          title={collapsed ? item.title : undefined}
+          className={itemClass}
+          style={itemStyle}
+        >
+          {content}
+        </Link>
+      )}
+
+      {/* 子菜单 */}
+      {hasChildren && childOpen && (
+        <ul className="mt-0.5 space-y-0.5">
+          {item.children?.map((child) => (
+            <NavItemRow
+              key={child.path}
+              item={child}
+              pathname={pathname}
+              collapsed={collapsed}
+              depth={depth + 1}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }

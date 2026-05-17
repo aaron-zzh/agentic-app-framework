@@ -189,7 +189,7 @@ pnpm nx test webui
 pnpm nx build webui
 
 # 前端 Lint（biome）
-pnpm nx lint webui
+pnpm nx lint webui <--fix>
 
 # 全部项目自验证（lint + 单测 + typecheck + build）
 pnpm check

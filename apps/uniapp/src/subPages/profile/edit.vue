@@ -73,7 +73,7 @@ async function onSave() {
     <view class="mx-4 mt-4 flex flex-col items-center rounded-3 bg-white py-6">
       <view class="relative">
         <image
-          :src="form.avatar || '/static/logo.svg'"
+          :src="form.avatar || '/static/logo/logo.png'"
           class="h-20 w-20 rounded-full"
           mode="aspectFill"
         />

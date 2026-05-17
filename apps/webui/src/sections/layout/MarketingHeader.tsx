@@ -7,7 +7,7 @@
 
 import Link from "next/link"
 import { useTheme } from "next-themes"
-
+import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/constants/paths"
 
@@ -25,11 +25,7 @@ export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-50 flex h-[var(--layout-marketing-header-height)] items-center border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-[var(--layout-marketing-max-width)] items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-          {/* biome-ignore lint/performance/noImgElement: logo 无需 next/image 优化 */}
-          <img src="/logo.png" alt="AAF logo" className="size-7" />
-          AAF
-        </Link>
+        <Brand size="lg" />
 
         <nav className="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => (

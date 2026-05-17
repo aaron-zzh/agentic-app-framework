@@ -161,3 +161,9 @@ export const taskEntity: EntityDef = {
 
 /** 所有示例实体 */
 export const sampleEntities: EntityDef[] = [documentEntity, userEntity, taskEntity]
+
+// ─── 模块 side effect：自动注册示例实体 ─────────────────────────────────────
+// 无论服务端还是客户端 import 本模块都会执行注册
+import { entityRegistry } from "../lib/registry"
+
+entityRegistry.registerAll(sampleEntities)
