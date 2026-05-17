@@ -15,23 +15,24 @@ const KEYS = {
 
 /** 通知列表（后端就绪前使用 mock） */
 export function useNotifications(params: NotificationListParams = {}) {
+  const mockList = _notifications.map((n) => ({
+    id: n.id,
+    type: n.type,
+    title: n.title,
+    body: n.description,
+    read: !n.isUnRead,
+    createdAt: n.createdAt
+  }))
+
   return useQuery({
     queryKey: KEYS.list(params),
-    queryFn: () => notificationApi.list(params),
-    // TODO: 后端就绪后移除 placeholderData
-    placeholderData: {
-      list: _notifications.map((n) => ({
-        id: n.id,
-        type: n.type,
-        title: n.title,
-        body: n.description,
-        read: !n.isUnRead,
-        createdAt: n.createdAt
-      })),
-      total: _notifications.length,
+    // TODO: 后端就绪后替换为 notificationApi.list(params)
+    queryFn: async () => ({
+      list: mockList,
+      total: mockList.length,
       page: 1,
       pageSize: 20
-    }
+    })
   })
 }
 
@@ -39,10 +40,9 @@ export function useNotifications(params: NotificationListParams = {}) {
 export function useUnreadCount() {
   return useQuery({
     queryKey: KEYS.unreadCount,
-    queryFn: () => notificationApi.unreadCount(),
-    // TODO: 后端就绪后移除 placeholderData
-    placeholderData: { count: _notifications.filter((n) => n.isUnRead).length },
-    refetchInterval: 60_000 // 每分钟轮询一次（WebSocket 就绪后移除）
+    // TODO: 后端就绪后替换为 notificationApi.unreadCount()
+    queryFn: async () => ({ count: _notifications.filter((n) => n.isUnRead).length }),
+    refetchInterval: 60_000
   })
 }
 

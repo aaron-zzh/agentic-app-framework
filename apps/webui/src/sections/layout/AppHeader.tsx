@@ -84,7 +84,7 @@ function MobileSidebar() {
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">
       <div className="mb-4 px-4">
-        <Brand href="/workspace/dashboard" />
+        <Brand href="/dashboard" />
       </div>
       {navConfig.map(
         (group: {

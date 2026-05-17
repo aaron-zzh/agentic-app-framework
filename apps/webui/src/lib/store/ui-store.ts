@@ -2,16 +2,17 @@ import { create } from "zustand"
 
 export type ThemeColor = "default" | "blue" | "green"
 
-/** 客户端 UI 状态（侧边栏/主题/布局模式等） */
 interface UIState {
   sidebarOpen: boolean
   toggleSidebar: () => void
-  /** 紧凑布局（内容区有 maxWidth 限制），false = 全宽 */
   compactLayout: boolean
   toggleCompactLayout: () => void
-  /** 主题色 */
   themeColor: ThemeColor
   setThemeColor: (color: ThemeColor) => void
+  /** 当前在侧边面板/抽屉中打开的记录 ID，null = 关闭 */
+  recordPanelId: string | null
+  openRecordPanel: (id: string) => void
+  closeRecordPanel: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -20,5 +21,8 @@ export const useUIStore = create<UIState>((set) => ({
   compactLayout: true,
   toggleCompactLayout: () => set((s) => ({ compactLayout: !s.compactLayout })),
   themeColor: "default",
-  setThemeColor: (color) => set({ themeColor: color })
+  setThemeColor: (color) => set({ themeColor: color }),
+  recordPanelId: null,
+  openRecordPanel: (id) => set({ recordPanelId: id }),
+  closeRecordPanel: () => set({ recordPanelId: null })
 }))

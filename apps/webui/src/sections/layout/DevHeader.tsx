@@ -15,12 +15,12 @@ import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils/cn"
 
 const devPages = [
-  { label: "组件", href: "/components" },
-  { label: "UI", href: "/components/ui" },
+  { label: "工作区", href: "/workspace" },
+  { label: "全部", href: "/components" },
+  { label: "基础", href: "/components/ui" },
   { label: "表单", href: "/components/form" },
   { label: "反馈", href: "/components/feedback" },
-  { label: "编辑器", href: "/components/editor" },
-  { label: "工作区", href: "/workspace" }
+  { label: "编辑器", href: "/components/editor" }
 ]
 
 /** 主题切换按钮 */

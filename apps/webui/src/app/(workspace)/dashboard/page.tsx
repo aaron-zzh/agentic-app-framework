@@ -3,7 +3,9 @@
  * @author AaronZZH & Kiro
  */
 
+import Link from "next/link"
 import { entityRegistry } from "@/features/entity-engine"
+import { paths } from "@/lib/constants/paths"
 
 export default function DashboardPage() {
   const entities = entityRegistry.getAll()
@@ -14,14 +16,14 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {entities.map((e) => (
-          <a
+          <Link
             key={e.slug}
-            href={`/workspace/${e.slug}`}
+            href={paths.workspace.module(e.slug)}
             className="flex flex-col gap-2 rounded-lg border p-4 transition-colors hover:bg-accent"
           >
             <span className="font-medium">{e.label}</span>
             <span className="text-muted-foreground text-sm">{e.apiPath}</span>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

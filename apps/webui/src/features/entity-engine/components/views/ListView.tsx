@@ -12,7 +12,11 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRef } from "react"
+import { useRouter } from "next/navigation"
+import { ExternalLink } from "lucide-react"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
+import { paths } from "@/lib/constants/paths"
+import { useUIStore } from "@/lib/store/ui-store"
 import { getCellComponent } from "../../lib/component-registry"
 import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
 import { ColumnConfigPanel } from "../ColumnConfigPanel"
@@ -33,6 +37,8 @@ interface ListViewProps {
 }
 
 export function ListView({ entity, data = [], loading }: ListViewProps) {
+  const router = useRouter()
+  const openRecordPanel = useUIStore((s) => s.openRecordPanel)
   const { fields, listView } = entity
   const { visibleColumns, preferences, toggleColumn, resetColumns } = useColumnPreferences(
     entity.slug,
@@ -119,7 +125,11 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
           {data.map((record, i) => (
             <tr
               key={(record.id as string) ?? i}
-              className="border-b transition-colors hover:bg-muted/50"
+              className="group cursor-pointer border-b transition-colors hover:bg-muted/50"
+              onClick={() => {
+                const id = record.id as string
+                if (id) openRecordPanel(id)
+              }}
             >
               {columns.map((col) => {
                 const Cell = getCellComponent(col.field.type)
@@ -134,7 +144,21 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
                   </td>
                 )
               })}
-              <td className="w-8" />
+              {/* 尾部操作按钮：跳转完整详情页 */}
+              <td className="w-10 px-2 align-middle">
+                <button
+                  type="button"
+                  className="invisible rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground group-hover:visible"
+                  aria-label="打开详情页"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const id = record.id as string
+                    if (id) router.push(paths.workspace.record(entity.slug, id))
+                  }}
+                >
+                  <ExternalLink className="size-3.5" />
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

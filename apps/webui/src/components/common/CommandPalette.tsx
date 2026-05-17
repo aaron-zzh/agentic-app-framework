@@ -97,12 +97,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
         {/* 最近访问（Mock） */}
         <CommandGroup heading="最近访问">
-          <CommandItem onSelect={() => navigate("/workspace/document")}>
+          <CommandItem onSelect={() => navigate("/document")}>
             <FileText className="text-muted-foreground" />
             <span>Q2 季度报告</span>
             <span className="ml-auto text-muted-foreground text-xs">文档</span>
           </CommandItem>
-          <CommandItem onSelect={() => navigate("/workspace/task")}>
+          <CommandItem onSelect={() => navigate("/task")}>
             <FileText className="text-muted-foreground" />
             <span>前端重构任务</span>
             <span className="ml-auto text-muted-foreground text-xs">任务</span>

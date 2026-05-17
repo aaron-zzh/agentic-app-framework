@@ -1,16 +1,13 @@
 /**
  * useEntityList——基于 TanStack Query 的通用列表查询 Hook
  * @author AaronZZH & Kiro
- *
- * queryKey 包含 entity.slug + 所有参数，自动实现缓存隔离
  */
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-
 import type { EntityDef } from "@/features/entity-engine/types"
 import { fetchList, type ListParams, type PageResult } from "@/lib/api/client"
+import { _mockEntityData } from "@/lib/_mock/entities"
 
-/** useEntityList 返回值 */
 export interface UseEntityListResult {
   data: Record<string, unknown>[]
   pagination: { page: number; pageSize: number; total: number }
@@ -19,7 +16,6 @@ export interface UseEntityListResult {
   error: Error | null
 }
 
-/** 通用列表查询 Hook */
 export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEntityListResult {
   const { page = 1, pageSize = 20, sort, search, ...filters } = params
 
@@ -27,7 +23,14 @@ export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEn
 
   const { data, isLoading, isFetching, error } = useQuery<PageResult<Record<string, unknown>>>({
     queryKey,
-    queryFn: () => fetchList(entity.apiPath, { page, pageSize, sort, search, ...filters }),
+    queryFn: async () => {
+      // TODO: 后端就绪后移除 mock，直接用 fetchList
+      const mock = _mockEntityData[entity.slug]
+      if (mock) {
+        return { list: mock, total: mock.length, page, pageSize }
+      }
+      return fetchList(entity.apiPath, { page, pageSize, sort, search, ...filters })
+    },
     placeholderData: keepPreviousData
   })
 

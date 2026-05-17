@@ -1,12 +1,11 @@
 /**
- * 记录详情/编辑页——表单视图入口
+ * 实体记录详情页——表单视图 + RecordPanel 布局
  * @author AaronZZH & Kiro
  */
 
 import { notFound } from "next/navigation"
-
 import { entityRegistry } from "@/features/entity-engine"
-import { ViewEngine } from "@/features/entity-engine/components"
+import { EntityRecordView } from "@/sections/entity/view"
 
 interface PageProps {
   params: Promise<{ module: string; id: string }>
@@ -18,5 +17,5 @@ export default async function RecordPage({ params }: PageProps) {
   const entity = entityRegistry.get(module)
   if (!entity) return notFound()
 
-  return <ViewEngine entity={entity} view="form" recordId={id} />
+  return <EntityRecordView entity={entity} recordId={id} />
 }

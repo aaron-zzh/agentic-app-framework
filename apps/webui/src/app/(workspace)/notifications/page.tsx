@@ -13,57 +13,42 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TypographyH1 } from "@/components/ui/typography"
 import type { NotificationItem, NotificationType } from "@/lib/api/notification"
 import { notify } from "@/lib/notification"
-import {
-  useMarkRead,
-  useNotifications,
-  useRemoveNotifications
-} from "@/lib/queries/use-notifications"
+import { useMarkRead, useNotifications, useRemoveNotifications } from "@/lib/queries/use-notifications"
 import { cn } from "@/lib/utils/cn"
 import { NotificationIcon } from "@/sections/layout/notifications/icons"
 
 const TYPE_LABELS: Record<NotificationType | "all", string> = {
-  all: "全部",
-  approval: "审批",
-  system: "系统",
-  mention: "协作",
-  task: "业务",
-  change: "变更"
+  all: "全部", approval: "审批", system: "系统", mention: "协作", task: "业务", change: "变更"
 }
+
+type Tab = "all" | "unread" | "read"
 
 export default function NotificationsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [activeTab, setActiveTab] = useState<"all" | "unread" | "read">("all")
+  const [activeTab, setActiveTab] = useState<Tab>("all")
 
-  const { data: allData } = useNotifications()
-  const { data: unreadData } = useNotifications({ read: false })
+  const { data } = useNotifications()
   const { mutate: markRead } = useMarkRead()
   const { mutate: remove } = useRemoveNotifications()
 
-  const allItems = allData?.list ?? []
-  const unreadItems = unreadData?.list ?? []
+  const allItems = data?.list ?? []
+  const unreadItems = allItems.filter((n) => !n.read)
   const readItems = allItems.filter((n) => n.read)
-
-  const currentItems =
-    activeTab === "all" ? allItems : activeTab === "unread" ? unreadItems : readItems
+  const currentItems = activeTab === "all" ? allItems : activeTab === "unread" ? unreadItems : readItems
 
   const allSelected = selectedIds.size === currentItems.length && currentItems.length > 0
   const someSelected = selectedIds.size > 0 && !allSelected
 
-  const toggleSelect = (id: string) => {
+  const toggleSelect = (id: string) =>
     setSelectedIds((prev) => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-  }
-
-  const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? new Set() : new Set(currentItems.map((n) => n.id)))
-  }
 
   const handleMarkRead = () => {
     const ids = selectedIds.size > 0 ? [...selectedIds] : undefined
@@ -91,33 +76,19 @@ export default function NotificationsPage() {
   return (
     <PageContainer>
       <TypographyH1 className="mb-6 text-2xl">消息中心</TypographyH1>
-      <div className="flex flex-col gap-4">
-        {/* 工具栏 */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleMarkRead}>
-            {selectedIds.size > 0 ? `标记已读 (${selectedIds.size})` : "全部标为已读"}
-          </Button>
-          {selectedIds.size > 0 && (
-            <Button variant="outline" size="sm" onClick={handleRemove}>
-              删除 ({selectedIds.size})
-            </Button>
-          )}
-        </div>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => {
-            setActiveTab(v as typeof activeTab)
-            setSelectedIds(new Set())
-          }}
-        >
+      {/* Tab 切换 + 工具栏同行 */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => { setActiveTab(v as Tab); setSelectedIds(new Set()) }}
+        className="mb-3"
+      >
+        <div className="flex items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="all">
               全部
               {allItems.length > 0 && (
-                <Badge variant="secondary" className="ml-1.5 text-[10px]">
-                  {allItems.length}
-                </Badge>
+                <Badge variant="secondary" className="ml-1.5 text-[10px]">{allItems.length}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="unread">
@@ -131,73 +102,76 @@ export default function NotificationsPage() {
             <TabsTrigger value="read">已读</TabsTrigger>
           </TabsList>
 
-          {(["all", "unread", "read"] as const).map((tab) => (
-            <TabsContent key={tab} value={tab}>
-              <div className="rounded-lg border">
-                {currentItems.length === 0 ? (
-                  <Empty className="py-12">
-                    <EmptyHeader>
-                      <EmptyTitle>暂无通知</EmptyTitle>
-                      <EmptyDescription>
-                        {tab === "unread" ? "所有通知均已读" : "没有相关通知"}
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                ) : (
-                  <>
-                    {/* 全选行 */}
-                    <div className="flex items-center gap-3 px-4 py-2">
-                      <Checkbox
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="全选"
-                      />
-                      <span className="text-muted-foreground text-xs">
-                        {selectedIds.size > 0 ? `已选 ${selectedIds.size} 条` : "全选"}
-                      </span>
-                    </div>
-                    <Separator />
-                    <ScrollArea className="max-h-[600px]">
-                      <ul>
-                        {currentItems.map((item) => (
-                          <NotificationRow
-                            key={item.id}
-                            item={item}
-                            selected={selectedIds.has(item.id)}
-                            onToggle={() => toggleSelect(item.id)}
-                          />
-                        ))}
-                      </ul>
-                    </ScrollArea>
-                  </>
-                )}
-              </div>
-            </TabsContent>
-          ))}
-        </Tabs>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleMarkRead}>
+              {selectedIds.size > 0 ? `标记已读 (${selectedIds.size})` : "全部标为已读"}
+            </Button>
+            {selectedIds.size > 0 && (
+              <Button variant="outline" size="sm" onClick={handleRemove}>
+                删除 ({selectedIds.size})
+              </Button>
+            )}
+          </div>
+        </div>
+      </Tabs>
+
+      {/* 单一列表 */}
+      <div className="rounded-lg border">
+        {currentItems.length === 0 ? (
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>暂无通知</EmptyTitle>
+              <EmptyDescription>
+                {activeTab === "unread" ? "所有通知均已读" : "没有相关通知"}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 px-4 py-2">
+              <Checkbox
+                checked={allSelected}
+                indeterminate={someSelected}
+                onCheckedChange={() =>
+                  setSelectedIds(allSelected ? new Set() : new Set(currentItems.map((n) => n.id)))
+                }
+                aria-label="全选"
+              />
+              <span className="text-muted-foreground text-xs">
+                {selectedIds.size > 0 ? `已选 ${selectedIds.size} 条` : "全选"}
+              </span>
+            </div>
+            <Separator />
+            <ScrollArea className="max-h-[600px]">
+              <ul>
+                {currentItems.map((item) => (
+                  <NotificationRow
+                    key={item.id}
+                    item={item}
+                    selected={selectedIds.has(item.id)}
+                    onToggle={() => toggleSelect(item.id)}
+                  />
+                ))}
+              </ul>
+            </ScrollArea>
+          </>
+        )}
       </div>
     </PageContainer>
   )
 }
 
-function NotificationRow({
-  item,
-  selected,
-  onToggle
-}: {
+function NotificationRow({ item, selected, onToggle }: {
   item: NotificationItem
   selected: boolean
   onToggle: () => void
 }) {
   return (
-    <li
-      className={cn(
-        "flex items-start gap-3 border-b border-dashed px-4 py-3 last:border-0",
-        !item.read && "bg-primary/5",
-        selected && "bg-accent"
-      )}
-    >
+    <li className={cn(
+      "flex items-start gap-3 border-b border-dashed px-4 py-3 last:border-0",
+      !item.read && "bg-primary/5",
+      selected && "bg-accent"
+    )}>
       <Checkbox
         className="mt-1 shrink-0"
         checked={selected}
