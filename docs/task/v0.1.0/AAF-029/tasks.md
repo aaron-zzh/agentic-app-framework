@@ -112,7 +112,7 @@ author: AaronZZH
     - 后端 `POST /api/{entity}/import`
     - verify: 上传 CSV → 映射 → 导入成功，错误行报告正确
 
-14. [ ] #2914 嵌套导入（主从关联） — developer-webui + developer-service (依赖: #2913)
+14. [x] #2914 嵌套导入（主从关联） — developer-webui + developer-service (依赖: #2913)
     - 支持 XLSX 多 Sheet / JSON 嵌套格式
     - 关系映射步骤：主实体 + 子实体 + 关联列
     - 事务性写入（主+子原子操作）
@@ -130,7 +130,7 @@ author: AaronZZH
 
 ### 透视报表
 
-16. [ ] #2916 透视视图 — developer-webui + developer-service (依赖: #2901)
+16. [x] #2916 透视视图 — developer-webui + developer-service (依赖: #2901)
     - 视图切换器新增 [📊 透视] Tab
     - 维度面板：拖拽字段到行/列/值区域
     - 后端 `POST /api/{entity}/pivot` 执行 GROUP BY 聚合
@@ -140,7 +140,7 @@ author: AaronZZH
 
 ### 批量异步化
 
-17. [ ] #2917 批量操作异步化 — developer-webui + developer-service (依赖: #2902)
+17. [x] #2917 批量操作异步化 — developer-webui + developer-service (依赖: #2902)
     - 阈值判断：≤100 同步，>100 异步
     - 异步流程：POST → 返回 taskId → 轮询进度 → 完成通知
     - 进度 UI：进度条 + 百分比 + 预计时间 + [取消]
@@ -149,7 +149,7 @@ author: AaronZZH
 
 ### 复杂导出（SSE 进度推送）
 
-18. [ ] #2918 耗时导出 SSE 进度推送 — developer-service (依赖: #2917)
+18. [x] #2918 耗时导出 SSE 进度推送 — developer-service (依赖: #2917)
     - 场景：大数据量导出、文件/图片批量导出等耗时操作
     - SSE 端点：`GET /api/{entity}/export-progress/{taskId}`，返回 `text/event-stream`
     - 进度 VO：taskId / current / total / percentage / status(RUNNING/COMPLETED/FAILED) / errorMessage

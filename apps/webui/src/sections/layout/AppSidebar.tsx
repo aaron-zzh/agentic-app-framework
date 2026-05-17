@@ -7,10 +7,31 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import {
+  CheckSquare,
+  FileText,
+  LayoutDashboard,
+  Settings,
+  Users
+} from "lucide-react"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
-
+import { paths } from "@/lib/constants/paths"
 import { buildNavConfig } from "./nav-config"
+
+/** 图标名 → 组件映射 */
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  "file-text": FileText,
+  users: Users,
+  "check-square": CheckSquare,
+  settings: Settings
+}
+
+function NavIcon({ name, className }: { name?: string; className?: string }) {
+  const Icon = name ? iconMap[name] : undefined
+  if (!Icon) return <span className={cn("size-4", className)} />
+  return <Icon className={cn("size-4", className)} />
+}
 
 /** 侧边栏 */
 export function AppSidebar() {
@@ -26,6 +47,20 @@ export function AppSidebar() {
         <span className="font-bold text-lg text-sidebar-foreground">AAF</span>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 py-2">
+        {/* Dashboard */}
+        <Link
+          href={paths.workspace.dashboard}
+          className={cn(
+            "mb-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
+            pathname === paths.workspace.dashboard &&
+              "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+          )}
+        >
+          <LayoutDashboard className="size-4" />
+          <span>工作台</span>
+        </Link>
+
+        {/* 实体菜单 */}
         {navConfig.map((group) => (
           <div key={group.group} className="mb-4">
             <p className="mb-1 px-2 font-medium text-muted-foreground text-xs uppercase">
@@ -41,6 +76,7 @@ export function AppSidebar() {
                     "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                 )}
               >
+                <NavIcon name={item.icon} />
                 <span>{item.title}</span>
               </Link>
             ))}
