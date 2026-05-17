@@ -16,7 +16,10 @@ import { cn } from "@/lib/utils/cn"
 
 const devPages = [
   { label: "组件", href: "/components" },
-  { label: "Toast", href: "/toast" },
+  { label: "UI", href: "/components/ui" },
+  { label: "表单", href: "/components/form" },
+  { label: "反馈", href: "/components/feedback" },
+  { label: "编辑器", href: "/components/editor" },
   { label: "工作区", href: "/workspace" }
 ]
 
@@ -54,7 +57,10 @@ export function DevHeader() {
         {/* 导航 */}
         <nav className="flex items-center gap-1">
           {devPages.map((p) => {
-            const active = pathname.startsWith(p.href)
+            // 索引页精确匹配，子页面前缀匹配
+            const active = p.href === "/components"
+              ? pathname === "/components"
+              : pathname.startsWith(p.href)
             return (
               <Link
                 key={p.href}
