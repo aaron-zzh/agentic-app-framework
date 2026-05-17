@@ -1,84 +1,43 @@
 /**
- * NotificationItem——单条通知（含按类型的操作按钮）
+ * NotificationItem——单条通知
  * @author AaronZZH & Kiro
  */
 
-import type { Notification } from "@/lib/_mock/notifications"
+"use client"
+
+import type { NotificationItem as NotificationItemType } from "@/lib/api/notification"
 import { cn } from "@/lib/utils/cn"
 import { NotificationIcon } from "./icons"
 
-interface NotificationItemProps {
-  notification: Notification
+interface Props {
+  notification: NotificationItemType
+  onRead?: (id: string) => void
 }
 
-export function NotificationItem({ notification }: NotificationItemProps) {
+export function NotificationItem({ notification, onRead }: Props) {
   return (
     <li
-      className={cn(
-        "flex gap-3 border-b border-dashed px-4 py-3 last:border-0",
-        notification.isUnRead && "bg-primary/5"
-      )}
+      className={cn("border-b border-dashed last:border-0", !notification.read && "bg-primary/5")}
     >
-      <NotificationIcon type={notification.type} />
-      <div className="min-w-0 flex-1">
-        <p className={cn("text-sm", notification.isUnRead && "font-medium")}>
-          {notification.title}
-        </p>
-        {notification.description && (
-          <p className="mt-0.5 text-muted-foreground text-xs">{notification.description}</p>
-        )}
-        <p className="mt-1 text-muted-foreground text-xs">
-          {formatTimeAgo(notification.createdAt)}
-        </p>
-        <NotificationAction type={notification.type} />
-      </div>
-      {notification.isUnRead && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
+      <button
+        type="button"
+        className="flex w-full gap-3 px-4 py-3 text-left hover:bg-accent/50"
+        onClick={() => onRead?.(notification.id)}
+      >
+        <NotificationIcon type={notification.type} />
+        <div className="min-w-0 flex-1">
+          <p className={cn("text-sm", !notification.read && "font-medium")}>{notification.title}</p>
+          {notification.body && (
+            <p className="mt-0.5 text-muted-foreground text-xs">{notification.body}</p>
+          )}
+          <p className="mt-1 text-muted-foreground text-xs">
+            {formatTimeAgo(notification.createdAt)}
+          </p>
+        </div>
+        {!notification.read && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
+      </button>
     </li>
   )
-}
-
-/** 按通知类型渲染操作按钮 */
-function NotificationAction({ type }: { type: string }) {
-  switch (type) {
-    case "approval":
-      return (
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            className="rounded bg-primary px-3 py-1 text-primary-foreground text-xs hover:bg-primary/90"
-          >
-            审批
-          </button>
-          <button type="button" className="rounded border px-3 py-1 text-xs hover:bg-accent">
-            驳回
-          </button>
-        </div>
-      )
-    case "mention":
-      return (
-        <div className="mt-2">
-          <button type="button" className="rounded border px-3 py-1 text-xs hover:bg-accent">
-            查看详情
-          </button>
-        </div>
-      )
-    case "task":
-      return (
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            className="rounded bg-primary px-3 py-1 text-primary-foreground text-xs hover:bg-primary/90"
-          >
-            处理
-          </button>
-          <button type="button" className="rounded border px-3 py-1 text-xs hover:bg-accent">
-            忽略
-          </button>
-        </div>
-      )
-    default:
-      return null
-  }
 }
 
 function formatTimeAgo(dateStr: string): string {

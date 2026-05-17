@@ -46,7 +46,7 @@ import { RichTextEditor } from "@/features/rich-text-editor"
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h2 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+      <h2 className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">
         {title}
       </h2>
       <div className="flex flex-wrap items-start gap-3">{children}</div>

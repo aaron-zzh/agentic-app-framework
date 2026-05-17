@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils/cn"
 
 const devPages = [
   { label: "组件", href: "/components" },
+  { label: "Toast", href: "/toast" },
   { label: "工作区", href: "/workspace" }
 ]
 

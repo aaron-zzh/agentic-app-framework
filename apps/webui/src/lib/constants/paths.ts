@@ -26,6 +26,8 @@ export const paths = {
     dashboard: `${ROOTS.WORKSPACE}/dashboard`,
     module: (slug: string) => `${ROOTS.WORKSPACE}/${slug}`,
     record: (slug: string, id: string) => `${ROOTS.WORKSPACE}/${slug}/${id}`,
-    settings: `${ROOTS.WORKSPACE}/settings`
+    settings: `${ROOTS.WORKSPACE}/settings`,
+    notifications: `${ROOTS.WORKSPACE}/notifications`,
+    todos: `${ROOTS.WORKSPACE}/todos`
   }
 }

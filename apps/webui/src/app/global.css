@@ -192,3 +192,37 @@
     width: 95%;
   }
 }
+
+/* ─── Toast / Snackbar 类型颜色 ──────────────────────────────── */
+/* icon 容器通过 currentColor 继承颜色，toast 主体背景保持 bg-background */
+
+.toast-success .toast-icon {
+  color: oklch(0.55 0.17 155);
+} /* emerald */
+.toast-error .toast-icon {
+  color: oklch(0.577 0.245 27.325);
+} /* destructive */
+.toast-warning .toast-icon {
+  color: oklch(0.7 0.18 80);
+} /* amber */
+.toast-info .toast-icon {
+  color: oklch(0.55 0.2 250);
+} /* blue */
+
+.dark .toast-success .toast-icon {
+  color: oklch(0.7 0.15 155);
+}
+.dark .toast-error .toast-icon {
+  color: oklch(0.704 0.191 22.216);
+}
+.dark .toast-warning .toast-icon {
+  color: oklch(0.8 0.16 80);
+}
+.dark .toast-info .toast-icon {
+  color: oklch(0.7 0.18 250);
+}
+
+/* 有关闭按钮时，content 右侧留出空间避免遮挡 */
+[data-sonner-toast][data-close-button="true"] [data-content] {
+  padding-right: 1.5rem;
+}

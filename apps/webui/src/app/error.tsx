@@ -14,7 +14,7 @@ export default function GlobalError({
 }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-      <h1 className="font-bold text-2xl">出错了</h1>
+      <h1 className="font-bold text-2xl tracking-tight">出错了</h1>
       <p className="text-muted-foreground text-sm">{error.message || "发生了未知错误"}</p>
       <button
         type="button"

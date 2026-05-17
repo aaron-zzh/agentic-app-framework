@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: AAF 前端组件与目录规范，开发时查阅
 status: published
-version: 1.0.0
-date: 2026-05-05
+version: 1.1.0
+date: 2026-05-17
 author: AaronZZH
 gains:
   - 能正确组织前端目录和组件
@@ -301,3 +301,50 @@ shadcn/ui 使用 Base UI（`@base-ui/react`）而非 Radix，API 有差异：
 // ✅ Select onValueChange 处理 null
 <Select onValueChange={(v) => onChange(v ?? "")}>
 ```
+
+
+## shadcn/ui 优先使用规则
+
+### 硬规则：写 UI 前先查 shadcn
+
+**每次需要 UI 元素时，必须先执行以下检查顺序，不得跳过：**
+
+```
+1. components/ui/ 目录已有？ → 直接用
+2. shadcn 官方有？ → npx shadcn@latest add <name>，再用
+3. 都没有 → 自己写，放 components/ui/（原子）或 components/common/（复合）
+```
+
+查询命令：`npx shadcn@latest search "@shadcn" --query <关键词>`
+
+### 必须用 shadcn 的场景（不得用原生 HTML）
+
+| 场景 | 禁止 | 应该用 |
+|------|------|--------|
+| 复选框 | `<input type="checkbox">` | `<Checkbox>` |
+| 单选框 | `<input type="radio">` | `<RadioGroup>` |
+| 下拉选择 | `<select>` | `<Select>` |
+| 开关 | `<input type="checkbox">` 模拟 | `<Switch>` |
+| 对话框/弹窗 | `<dialog>` 或自定义 div | `<Dialog>` / `<AlertDialog>` |
+| 抽屉 | 自定义 fixed div | `<Sheet>` / `<Drawer>` |
+| 提示气泡 | `title` 属性 | `<Tooltip>` |
+| 空状态 | 自定义 `<p>` 或 div | `<Empty>` |
+| 用户头像 | 自定义 div + 首字母 | `<Avatar>` + `<AvatarFallback>` |
+| 选项组（2-7 个） | 手写 button 循环 + active 状态 | `<ToggleGroup>` |
+| 滚动区域 | `overflow-y-auto` div | `<ScrollArea>`（内容动态/需自定义滚动条时） |
+| 加载占位 | 自定义 `animate-pulse` div | `<Skeleton>` |
+| 标签/徽标 | 自定义 span + 样式 | `<Badge>` |
+| 分割线 | `<hr>` 或 `<div className="border-t">` | `<Separator>` |
+
+### 允许用原生 HTML 的场景
+
+- 语义明确且无交互的纯展示元素：`<p>` `<span>` `<ul>` `<li>` `<time>` 等
+- shadcn 无对应组件的自定义布局结构
+- 性能敏感的长列表行内元素（避免组件开销）
+
+### 发现遗漏时的处理
+
+代码审查或自查发现用了原生 HTML 替代 shadcn 组件时：
+1. 安装对应 shadcn 组件：`npx shadcn@latest add <name>`
+2. 替换原生 HTML
+3. 在 `dev-log.md` 记录（如在任务范围内）

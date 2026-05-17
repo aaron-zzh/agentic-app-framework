@@ -6,7 +6,9 @@
 "use client"
 
 import { Bell } from "lucide-react"
-import { Badge as ShadcnBadge } from "@/components/ui/badge"
+import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Sheet,
   SheetContent,
@@ -16,12 +18,14 @@ import {
   SheetTrigger
 } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { _notifications } from "@/lib/_mock/notifications"
+import { paths } from "@/lib/constants/paths"
+import { useMarkRead, useNotifications, useUnreadCount } from "@/lib/queries/use-notifications"
 import { CountBadge } from "./count-badge"
 import { NotificationItem } from "./notification-item"
 
 export function NotificationDrawer() {
-  const totalUnRead = _notifications.filter((n) => n.isUnRead).length
+  const { data: countData } = useUnreadCount()
+  const unreadCount = countData?.count ?? 0
 
   return (
     <Sheet>
@@ -31,80 +35,103 @@ export function NotificationDrawer() {
         render={<button type="button" />}
       >
         <Bell className="size-5" />
-        {totalUnRead > 0 && (
-          <ShadcnBadge
+        {unreadCount > 0 && (
+          <Badge
             variant="destructive"
             className="absolute -top-1 -right-1 size-[18px] justify-center border-2 border-background p-0 text-[10px]"
           >
-            {totalUnRead}
-          </ShadcnBadge>
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </Badge>
         )}
       </SheetTrigger>
       <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>通知</SheetTitle>
-          <SheetDescription>您有 {totalUnRead} 条未读消息</SheetDescription>
+          <SheetDescription>
+            {unreadCount > 0 ? `您有 ${unreadCount} 条未读消息` : "暂无未读消息"}
+          </SheetDescription>
         </SheetHeader>
-        <NotificationList />
+        <NotificationPanel />
       </SheetContent>
     </Sheet>
   )
 }
 
-function NotificationList() {
-  const all = _notifications
-  const unread = _notifications.filter((n) => n.isUnRead)
-  const read = _notifications.filter((n) => !n.isUnRead)
+function NotificationPanel() {
+  const { data: all } = useNotifications()
+  const { data: unread } = useNotifications({ read: false })
+  const { mutate: markRead } = useMarkRead()
+
+  const allItems = all?.list ?? []
+  const unreadItems = unread?.list ?? []
+  const readItems = allItems.filter((n) => n.read)
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between px-4 py-2">
+        {unreadItems.length > 0 && (
+          <button
+            type="button"
+            className="text-muted-foreground text-xs hover:text-foreground"
+            onClick={() => markRead(undefined)}
+          >
+            全部标为已读
+          </button>
+        )}
+      </div>
+
       <Tabs defaultValue="all" className="flex flex-1 flex-col overflow-hidden">
         <TabsList className="w-full shrink-0 rounded-none px-4">
           <TabsTrigger value="all">
             全部
-            <CountBadge count={all.length} />
+            <CountBadge count={allItems.length} />
           </TabsTrigger>
           <TabsTrigger value="unread">
             未读
-            <CountBadge count={unread.length} variant="info" />
+            <CountBadge count={unreadItems.length} variant="info" />
           </TabsTrigger>
           <TabsTrigger value="read">
             已读
-            <CountBadge count={read.length} variant="success" />
+            <CountBadge count={readItems.length} variant="success" />
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="flex-1 overflow-y-auto">
-          <NotificationItems items={all} />
+          <NotificationList items={allItems} onRead={(id) => markRead([id])} />
         </TabsContent>
         <TabsContent value="unread" className="flex-1 overflow-y-auto">
-          <NotificationItems items={unread} />
+          <NotificationList items={unreadItems} onRead={(id) => markRead([id])} />
         </TabsContent>
         <TabsContent value="read" className="flex-1 overflow-y-auto">
-          <NotificationItems items={read} />
+          <NotificationList items={readItems} />
         </TabsContent>
       </Tabs>
 
       <div className="shrink-0 border-t p-4">
-        <button
-          type="button"
-          className="w-full rounded-md border py-2 text-center text-muted-foreground text-sm hover:bg-accent"
-        >
-          查看全部通知
-        </button>
+        <Button variant="outline" className="w-full" asChild>
+          <Link href={paths.workspace.notifications}>查看全部通知</Link>
+        </Button>
       </div>
     </div>
   )
 }
 
-function NotificationItems({ items }: { items: typeof _notifications }) {
-  if (items.length === 0) {
+import type { NotificationItem as NotificationItemType } from "@/lib/api/notification"
+
+function NotificationList({
+  items,
+  onRead
+}: {
+  items: NotificationItemType[]
+  onRead?: (id: string) => void
+}) {
+  if (!items || items.length === 0) {
     return <p className="p-8 text-center text-muted-foreground text-sm">暂无通知</p>
   }
   return (
-    <ul className="divide-y">
+    <ul>
       {items.map((item) => (
-        <NotificationItem key={item.id} notification={item} />
+        <NotificationItem key={item.id} notification={item} onRead={onRead} />
       ))}
     </ul>
   )
