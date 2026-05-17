@@ -12,6 +12,7 @@
  *   <Field.Switch name="enabled" label="启用" />
  *   <Field.Date name="birthday" label="生日" />
  *   <Field.Textarea name="bio" label="简介" rows={4} />
+ *   <Field.Upload name="cover" label="封面" accept="image/*" />
  * </Form>
  * ```
  */
@@ -23,6 +24,7 @@ import { FieldSelect } from "./field-select"
 import { FieldSwitch } from "./field-switch"
 import { FieldText } from "./field-text"
 import { FieldTextarea } from "./field-textarea"
+import { FieldUpload } from "./field-upload"
 
 export const Field = {
   Text: FieldText,
@@ -31,5 +33,6 @@ export const Field = {
   Select: FieldSelect,
   Checkbox: FieldCheckbox,
   Switch: FieldSwitch,
-  Date: FieldDate
+  Date: FieldDate,
+  Upload: FieldUpload
 }

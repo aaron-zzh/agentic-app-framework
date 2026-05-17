@@ -12,6 +12,7 @@ import { UnsavedGuardDialog } from "@/components/common/UnsavedGuardDialog"
 import { Wizard } from "@/components/common/Wizard"
 import { FieldMoney, FieldQuantity } from "@/components/form/field-money"
 import { FieldSignature } from "@/components/form/field-signature"
+import { FieldTextarea } from "@/components/form/field-textarea"
 import { Field } from "@/components/form/fields"
 import { Form } from "@/components/form/form"
 import { Subtable } from "@/components/form/subtable"
@@ -35,9 +36,12 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import type { UploadFile } from "@/components/upload"
+import { Upload, UploadAvatar } from "@/components/upload"
 import { FormView } from "@/features/entity-engine/components/views/FormView"
 import { taskEntity, userEntity } from "@/features/entity-engine/entities"
 import type { DataFieldDef } from "@/features/entity-engine/types"
+import { RichTextEditor } from "@/features/rich-text-editor"
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -248,8 +252,11 @@ export default function ComponentsPage() {
       <SubtableSection />
       <SignatureSection />
       <MoneySection />
+      <ImageUploadSection />
       <WizardSection />
       <UnsavedGuardSection />
+      <RichTextSection />
+      <TextareaUpgradeSection />
     </PageContainer>
   )
 }
@@ -343,6 +350,150 @@ function UnsavedGuardSection() {
         }}
         onCancel={() => setOpen(false)}
       />
+    </Section>
+  )
+}
+
+/** 富文本编辑器——四种 preset */
+function RichTextSection() {
+  const [richHtml, setRichHtml] = useState("")
+  const [chatterHtml, setChatterHtml] = useState("")
+  const [minimalHtml, setMinimalHtml] = useState("")
+  return (
+    <Section title="RichTextEditor（Lexical）">
+      <div className="w-full space-y-6">
+        {/* richField preset */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">richField（表单字段，完整工具栏）</p>
+          <RichTextEditor
+            value={richHtml}
+            onChange={setRichHtml}
+            placeholder="输入富文本内容..."
+            preset="richField"
+          />
+          {richHtml && (
+            <p className="text-muted-foreground text-xs">HTML 长度：{richHtml.length}</p>
+          )}
+        </div>
+
+        {/* chatter preset */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">chatter（评论输入，支持 @mention）</p>
+          <RichTextEditor
+            value={chatterHtml}
+            onChange={setChatterHtml}
+            placeholder="输入评论，@ 提及用户..."
+            preset="chatter"
+          />
+        </div>
+
+        {/* minimal preset */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">minimal（简单格式，粗体/斜体）</p>
+          <RichTextEditor
+            value={minimalHtml}
+            onChange={setMinimalHtml}
+            placeholder="简单文本..."
+            preset="minimal"
+            minHeight={80}
+          />
+        </div>
+
+        {/* document preset */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">document（文档编辑，含图片上传）</p>
+          <RichTextEditor
+            value=""
+            onChange={() => {}}
+            placeholder="支持图片上传（工具栏 🖼 或粘贴/拖拽）..."
+            preset="document"
+            uploadEndpoint="/api/upload"
+          />
+        </div>
+
+        {/* disabled */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">disabled 只读状态</p>
+          <RichTextEditor
+            value="<p>这是<strong>只读</strong>内容，<em>无法编辑</em>。</p>"
+            preset="richField"
+            disabled
+          />
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+/** Textarea 升级为富文本 */
+function TextareaUpgradeSection() {
+  const methods = useForm({ defaultValues: { content: "", notes: "" } })
+  return (
+    <Section title="Textarea 升级富文本（点击右上角切换）">
+      <Form methods={methods} className="w-full max-w-lg space-y-4">
+        <FieldTextarea name="content" label="内容（可升级）" rows={4} allowRichText />
+        <FieldTextarea name="notes" label="备注（禁止升级）" rows={3} allowRichText={false} />
+      </Form>
+    </Section>
+  )
+}
+
+/** 图像上传——Upload 组件 + 头像上传 + 表单集成 */
+function ImageUploadSection() {
+  const [files, setFiles] = useState<UploadFile[]>([])
+  const [avatar, setAvatar] = useState<string>()
+  const methods = useForm({ defaultValues: { cover: "", gallery: [] as string[] } })
+
+  return (
+    <Section title="Image Upload（图像压缩 + OSS 直传）">
+      <div className="w-full space-y-6">
+        {/* 基础上传 */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">基础上传（自动压缩 + 进度条）</p>
+          <Upload
+            accept="image/*"
+            multiple
+            value={files}
+            onChange={setFiles}
+            onRemove={(i) => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+            onUploaded={(results) => {
+              // biome-ignore lint/suspicious/noConsole: 示例页面
+              console.log("上传完成:", results)
+            }}
+            imageOptions={{ maxWidth: 1280, quality: 0.75 }}
+          />
+          {files.length > 0 && (
+            <p className="text-muted-foreground text-xs">
+              已选 {files.length} 个文件，状态：{files.map((f) => f.status ?? "pending").join(", ")}
+            </p>
+          )}
+        </div>
+
+        {/* 头像上传 */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">头像上传（圆形裁剪 + 512px 压缩）</p>
+          <div className="flex items-center gap-4">
+            <UploadAvatar
+              value={avatar}
+              onChange={(url) => setAvatar(url)}
+              imageOptions={{ maxWidth: 512, maxHeight: 512, quality: 0.85 }}
+            />
+            {avatar && <span className="text-muted-foreground text-xs">已上传 ✓</span>}
+          </div>
+        </div>
+
+        {/* 表单集成 Field.Upload */}
+        <div className="space-y-1">
+          <p className="font-medium text-sm">Field.Upload（表单绑定 + 自动删除旧文件）</p>
+          <Form methods={methods} className="max-w-sm space-y-3">
+            <Field.Upload name="cover" label="封面图（单张）" accept="image/*" maxSize={5} />
+            <Field.Upload name="gallery" label="图片集（多张）" accept="image/*" multiple />
+            <Button type="submit" size="sm">
+              提交
+            </Button>
+          </Form>
+        </div>
+      </div>
     </Section>
   )
 }

@@ -1,17 +1,27 @@
 /**
- * Upload——文件上传组件（拖拽 + 点击 + 预览 + 多文件）
+ * Upload——文件上传组件（拖拽 + 点击 + 预览 + 图像压缩 + OSS 直传）
  * @author AaronZZH & Kiro
- * 参考 next-ts Upload 设计，使用原生 drag & drop
+ *
+ * 图像文件自动走 useImageUpload（压缩 + 预签名上传）
+ * 非图像文件走普通上传
  */
 
 "use client"
 
 import { useCallback, useRef, useState } from "react"
+import {
+  type ImageUploadOptions,
+  type UploadResult,
+  useImageUpload
+} from "@/lib/hooks/use-image-upload"
 
 export interface UploadFile {
   file: File
   preview?: string
+  /** 上传后的远程 URL */
+  url?: string
   progress?: number
+  status?: "pending" | "uploading" | "done" | "error"
 }
 
 interface UploadProps {
@@ -27,12 +37,18 @@ interface UploadProps {
   onChange?: (files: UploadFile[]) => void
   /** 删除文件 */
   onRemove?: (index: number) => void
+  /** 上传完成回调（返回远程 URL） */
+  onUploaded?: (results: UploadResult[]) => void
   /** 占位文字 */
   placeholder?: string
   /** 错误状态 */
   error?: string
   /** 禁用 */
   disabled?: boolean
+  /** 自动上传（选择后立即上传），默认 true */
+  autoUpload?: boolean
+  /** 图像上传配置 */
+  imageOptions?: ImageUploadOptions
 }
 
 /** 文件上传组件 */
@@ -43,29 +59,61 @@ export function Upload({
   value = [],
   onChange,
   onRemove,
+  onUploaded,
   placeholder,
   error,
-  disabled
+  disabled,
+  autoUpload = true,
+  imageOptions
 }: UploadProps) {
   const [dragActive, setDragActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const {
+    upload: uploadImage,
+    uploading,
+    progress
+  } = useImageUpload({
+    usePresign: true,
+    ...imageOptions
+  })
 
-  const handleFiles = useCallback(
-    (fileList: FileList) => {
-      const newFiles: UploadFile[] = Array.from(fileList)
-        .filter((f) => f.size <= maxSize * 1024 * 1024)
-        .map((file) => ({
-          file,
-          preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined
-        }))
+  const processFiles = useCallback(
+    async (fileList: FileList) => {
+      const validFiles = Array.from(fileList).filter((f) => f.size <= maxSize * 1024 * 1024)
+      const newItems: UploadFile[] = validFiles.map((file) => ({
+        file,
+        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+        status: "pending" as const
+      }))
 
-      if (multiple) {
-        onChange?.([...value, ...newFiles])
-      } else {
-        onChange?.(newFiles.slice(0, 1))
+      const updated = multiple ? [...value, ...newItems] : newItems.slice(0, 1)
+      onChange?.(updated)
+
+      if (!autoUpload) return
+
+      // 自动上传
+      const results: UploadResult[] = []
+      const finalItems = [...updated]
+
+      for (let i = 0; i < newItems.length; i++) {
+        const idx = multiple ? value.length + i : i
+        const item = newItems[i]
+        finalItems[idx] = { ...item, status: "uploading" }
+        onChange?.([...finalItems])
+
+        try {
+          const result = await uploadImage(item.file)
+          results.push(result)
+          finalItems[idx] = { ...item, url: result.url, status: "done" }
+        } catch {
+          finalItems[idx] = { ...item, status: "error" }
+        }
+        onChange?.([...finalItems])
       }
+
+      if (results.length > 0) onUploaded?.(results)
     },
-    [multiple, maxSize, value, onChange]
+    [multiple, maxSize, value, onChange, onUploaded, autoUpload, uploadImage]
   )
 
   const handleDrop = useCallback(
@@ -73,16 +121,19 @@ export function Upload({
       e.preventDefault()
       setDragActive(false)
       if (disabled) return
-      handleFiles(e.dataTransfer.files)
+      processFiles(e.dataTransfer.files)
     },
-    [disabled, handleFiles]
+    [disabled, processFiles]
   )
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) handleFiles(e.target.files)
+      if (e.target.files) {
+        processFiles(e.target.files)
+        e.target.value = ""
+      }
     },
-    [handleFiles]
+    [processFiles]
   )
 
   return (
@@ -120,9 +171,16 @@ export function Upload({
         />
         <span className="text-2xl">📁</span>
         <p className="mt-2 text-muted-foreground text-sm">
-          {placeholder ?? (multiple ? "拖拽文件到此处，或点击选择" : "拖拽文件到此处，或点击选择")}
+          {placeholder ?? "拖拽文件到此处，或点击选择"}
         </p>
         <p className="text-muted-foreground text-xs">最大 {maxSize}MB</p>
+        {uploading && (
+          <div className="absolute inset-x-4 bottom-2">
+            <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-destructive text-xs">{error}</p>}
@@ -131,10 +189,10 @@ export function Upload({
       {value.length > 0 && (
         <ul className="space-y-1">
           {value.map((item, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 文件列表
+            // biome-ignore lint/suspicious/noArrayIndexKey: 文件列表无稳定 id
             <li key={i} className="flex items-center gap-2 rounded border px-3 py-1.5">
               {item.preview ? (
-                // biome-ignore lint/performance/noImgElement: 文件预览为 blob URL
+                // biome-ignore lint/performance/noImgElement: blob URL，next/image 不支持
                 <img src={item.preview} alt="" className="h-8 w-8 rounded object-cover" />
               ) : (
                 <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-xs">
@@ -143,13 +201,21 @@ export function Upload({
               )}
               <span className="flex-1 truncate text-sm">{item.file.name}</span>
               <span className="text-muted-foreground text-xs">
-                {(item.file.size / 1024).toFixed(0)}KB
+                {item.status === "uploading"
+                  ? "上传中..."
+                  : item.status === "error"
+                    ? "失败"
+                    : `${(item.file.size / 1024).toFixed(0)}KB`}
               </span>
+              {item.status === "done" && <span className="text-green-600 text-xs">✓</span>}
               {onRemove && (
                 <button
                   type="button"
                   className="text-muted-foreground hover:text-destructive"
-                  onClick={() => onRemove(i)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRemove(i)
+                  }}
                 >
                   ✕
                 </button>
@@ -162,27 +228,43 @@ export function Upload({
   )
 }
 
-/** 头像上传（圆形裁剪预览） */
+/** 头像上传（圆形裁剪预览 + 图像压缩） */
 export function UploadAvatar({
   value,
   onChange,
-  disabled
+  disabled,
+  imageOptions
 }: {
   value?: string
-  onChange?: (file: File) => void
+  onChange?: (url: string, file: File) => void
   disabled?: boolean
+  imageOptions?: ImageUploadOptions
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState(value)
+  const { upload, uploading } = useImageUpload({
+    maxWidth: 512,
+    maxHeight: 512,
+    quality: 0.85,
+    usePresign: true,
+    ...imageOptions
+  })
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file) return
+      e.target.value = ""
+
+      // 立即显示本地预览
       setPreview(URL.createObjectURL(file))
-      onChange?.(file)
+
+      // 压缩 + 上传
+      const result = await upload(file)
+      setPreview(result.url)
+      onChange?.(result.url, file)
     },
-    [onChange]
+    [onChange, upload]
   )
 
   return (
@@ -190,7 +272,7 @@ export function UploadAvatar({
       type="button"
       className={`relative h-24 w-24 cursor-pointer overflow-hidden rounded-full border-2 border-dashed ${disabled ? "pointer-events-none opacity-50" : "hover:border-primary"}`}
       onClick={() => inputRef.current?.click()}
-      disabled={disabled}
+      disabled={disabled || uploading}
       aria-label="上传头像"
     >
       <input
@@ -202,11 +284,16 @@ export function UploadAvatar({
         disabled={disabled}
       />
       {preview ? (
-        // biome-ignore lint/performance/noImgElement: 头像预览为 blob URL
+        // biome-ignore lint/performance/noImgElement: blob URL / 远程 URL 混合
         <img src={preview} alt="avatar" className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-muted-foreground">
           <span className="text-xl">📷</span>
+        </div>
+      )}
+      {uploading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          <span className="text-white text-xs">上传中...</span>
         </div>
       )}
     </button>
