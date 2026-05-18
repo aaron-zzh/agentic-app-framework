@@ -2,33 +2,24 @@
  * 列表视图——基于 EntityDef.listView 配置渲染数据表格
  * @author AaronZZH & Kiro
  *
- * 用法：
- * ```tsx
- * <ListView entity={entityDef} data={records} loading={isLoading} />
- * ```
+ * 基于 @tanstack/react-table，支持排序/分页/行选择/批量操作
  */
 
 "use client"
 
-import { useVirtualizer } from "@tanstack/react-virtual"
-import { useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ExternalLink } from "lucide-react"
-import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { paths } from "@/lib/constants/paths"
+import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { useUIStore } from "@/lib/store/ui-store"
-import { getCellComponent } from "../../lib/component-registry"
-import type { ColumnDef, DataFieldDef, EntityDef } from "../../types"
+import { buildColumns } from "../../lib/build-columns"
+import type { DataFieldDef, EntityDef } from "../../types"
 import { ColumnConfigPanel } from "../ColumnConfigPanel"
 import { registerDefaultComponents } from "../register"
+import { DataTable } from "./DataTable"
 import { DraggableListView } from "./DraggableListView"
 import { GroupedListView } from "./GroupedListView"
 
 registerDefaultComponents()
-
-/** 虚拟滚动启用阈值 */
-const VIRTUAL_THRESHOLD = 100
-const ROW_HEIGHT = 40
 
 interface ListViewProps {
   entity: EntityDef
@@ -39,40 +30,36 @@ interface ListViewProps {
 export function ListView({ entity, data = [], loading }: ListViewProps) {
   const router = useRouter()
   const openRecordPanel = useUIStore((s) => s.openRecordPanel)
-  const { fields, listView } = entity
   const { visibleColumns, preferences, toggleColumn, resetColumns } = useColumnPreferences(
     entity.slug,
-    listView
+    entity.listView
   )
 
   // 字段名 → 标签映射（供列配置面板显示）
   const fieldLabels = Object.fromEntries(
-    fields.filter((f): f is DataFieldDef => "name" in f).map((f) => [f.name, f.label ?? f.name])
+    entity.fields
+      .filter((f): f is DataFieldDef => "name" in f)
+      .map((f) => [f.name, f.label ?? f.name])
   )
 
-  const columns = visibleColumns
-    .map((col) => {
-      const field = fields.find((f) => "name" in f && (f as { name: string }).name === col.name)
-      return field && "name" in field
-        ? { name: col.name, field: field as DataFieldDef, def: col }
-        : null
-    })
-    .filter(Boolean) as { name: string; field: DataFieldDef; def: ColumnDef }[]
-
   if (loading) {
-    return <ListSkeleton columns={columns.length} />
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-        <p className="text-sm">暂无数据</p>
-      </div>
-    )
+    return <ListSkeleton columns={visibleColumns.length} />
   }
 
   // 拖拽排序模式
   if (entity.listView.draggable) {
+    const columns = visibleColumns
+      .map((col) => {
+        const field = entity.fields.find(
+          (f) => "name" in f && (f as DataFieldDef).name === col.name
+        ) as DataFieldDef | undefined
+        return field ? { name: col.name, field, def: col } : null
+      })
+      .filter(Boolean) as {
+      name: string
+      field: DataFieldDef
+      def: (typeof visibleColumns)[number]
+    }[]
     return <DraggableListView columns={columns} data={data} />
   }
 
@@ -81,6 +68,18 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
     const groupField = entity.fields.find(
       (f) => "name" in f && (f as DataFieldDef).name === entity.listView.groupBy
     ) as DataFieldDef | undefined
+    const columns = visibleColumns
+      .map((col) => {
+        const field = entity.fields.find(
+          (f) => "name" in f && (f as DataFieldDef).name === col.name
+        ) as DataFieldDef | undefined
+        return field ? { name: col.name, field, def: col } : null
+      })
+      .filter(Boolean) as {
+      name: string
+      field: DataFieldDef
+      def: (typeof visibleColumns)[number]
+    }[]
     return (
       <GroupedListView
         columns={columns}
@@ -91,156 +90,53 @@ export function ListView({ entity, data = [], loading }: ListViewProps) {
     )
   }
 
-  const useVirtual = data.length > VIRTUAL_THRESHOLD
+  // TanStack Table 列定义
+  const tableColumns = buildColumns(entity, visibleColumns)
 
-  if (useVirtual) {
-    return <VirtualTable columns={columns} data={data} />
-  }
-
-  return (
-    <div className="w-full overflow-auto">
-      <table className="w-full caption-bottom text-sm">
-        <thead className="border-b">
-          <tr>
-            {columns.map((col) => (
-              <th
-                key={col.name}
-                className="h-10 px-4 text-left align-middle font-medium text-muted-foreground"
-                style={col.def.width ? { width: col.def.width } : undefined}
-              >
-                {col.field.label ?? col.name}
-              </th>
-            ))}
-            <th className="h-10 w-8 px-1 text-right align-middle">
-              <ColumnConfigPanel
-                preferences={preferences}
-                onToggle={toggleColumn}
-                onReset={resetColumns}
-                labels={fieldLabels}
-              />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((record, i) => (
-            <tr
-              key={(record.id as string) ?? i}
-              className="group cursor-pointer border-b transition-colors hover:bg-muted/50"
-              onClick={() => {
-                const id = record.id as string
-                if (id) openRecordPanel(id)
-              }}
-            >
-              {columns.map((col) => {
-                const Cell = getCellComponent(col.field.type)
-                const value = record[col.name]
-                return (
-                  <td key={col.name} className="h-10 px-4 align-middle">
-                    {Cell ? (
-                      <Cell value={value} record={record} field={col.field} />
-                    ) : (
-                      <span className="truncate">{String(value ?? "—")}</span>
-                    )}
-                  </td>
-                )
-              })}
-              {/* 尾部操作按钮：跳转完整详情页 */}
-              <td className="w-10 px-2 align-middle">
-                <button
-                  type="button"
-                  className="invisible rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground group-hover:visible"
-                  aria-label="打开详情页"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const id = record.id as string
-                    if (id) router.push(paths.workspace.record(entity.slug, id))
-                  }}
-                >
-                  <ExternalLink className="size-3.5" />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+  const columnConfigAction = (
+    <ColumnConfigPanel
+      preferences={preferences}
+      onToggle={toggleColumn}
+      onReset={resetColumns}
+      labels={fieldLabels}
+    />
   )
-}
-
-type ColumnInfo = { name: string; field: DataFieldDef; def: ColumnDef }
-
-/** 虚拟滚动表格（数据量 > 100 时自动启用） */
-function VirtualTable({
-  columns,
-  data
-}: {
-  columns: ColumnInfo[]
-  data: Record<string, unknown>[]
-}) {
-  const parentRef = useRef<HTMLDivElement>(null)
-
-  const virtualizer = useVirtualizer({
-    count: data.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 10
-  })
 
   return (
-    <div
-      ref={parentRef}
-      className="w-full overflow-auto"
-      style={{ maxHeight: "calc(100vh - 200px)" }}
-    >
-      <table className="w-full caption-bottom text-sm">
-        <thead className="sticky top-0 z-10 border-b bg-background">
-          <tr>
-            {columns.map((col) => (
-              <th
-                key={col.name}
-                className="h-10 px-4 text-left align-middle font-medium text-muted-foreground"
-                style={col.def.width ? { width: col.def.width } : undefined}
-              >
-                {col.field.label ?? col.name}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const record = data[virtualRow.index]
-            return (
-              <tr
-                key={(record.id as string) ?? virtualRow.index}
-                className="border-b transition-colors hover:bg-muted/50"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`
-                }}
-              >
-                {columns.map((col) => {
-                  const Cell = getCellComponent(col.field.type)
-                  const value = record[col.name]
-                  return (
-                    <td key={col.name} className="h-10 px-4 align-middle">
-                      {Cell ? (
-                        <Cell value={value} record={record} field={col.field} />
-                      ) : (
-                        <span className="truncate">{String(value ?? "—")}</span>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={tableColumns}
+      data={data}
+      headerAction={columnConfigAction}
+      onRowClick={(row) => {
+        const id = row.id as string
+        if (id) openRecordPanel(id)
+      }}
+      renderRowActions={(row) => (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="rounded px-2 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation()
+              const id = row.id as string
+              if (id) router.push(paths.workspace.record(entity.slug, id))
+            }}
+          >
+            编辑
+          </button>
+          <span className="text-border">|</span>
+          <button
+            type="button"
+            className="rounded px-2 py-0.5 text-destructive text-xs hover:bg-destructive/10"
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            删除
+          </button>
+        </div>
+      )}
+    />
   )
 }
 

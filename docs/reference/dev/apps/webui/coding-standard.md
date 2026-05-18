@@ -69,6 +69,19 @@ components/ui/   ←   components/common/
 - 永远不把服务器数据复制到 Zustand
 - WS 事件只 invalidate query，不直接写 store
 
+## Hooks 使用规范
+
+**优先使用 `@aaf/hooks` 中的 hook 替代裸 `useState`**：
+
+| 场景 | 使用 | 而非 |
+|------|------|------|
+| 布尔开关（弹窗/展开/加载） | `useBoolean()` | `useState(false)` + 手动 toggle |
+| Tab/视图切换 | `useTabs(defaultValue)` | `useState(defaultValue)` |
+| 对象状态浅合并 | `useSetState(initial)` | `useState` + 手动展开 |
+| Popover/Menu 锚点 | `usePopover()` | `useState<HTMLElement \| null>(null)` |
+
+**判断标准**：如果 `useState` 的 setter 只用于 `true/false/toggle`、tab 切换、或对象部分更新，必须用对应的 `@aaf/hooks`。自定义业务逻辑的状态仍用 `useState`。
+
 ## 组件三层分离
 
 中等以上复杂度的组件必须分离为三层：

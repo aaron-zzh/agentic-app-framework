@@ -5,6 +5,7 @@
 
 "use client"
 
+import { useBoolean } from "@aaf/hooks"
 import { Bell } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -26,9 +27,10 @@ import { NotificationItem } from "./notification-item"
 export function NotificationDrawer() {
   const { data: countData } = useUnreadCount()
   const unreadCount = countData?.count ?? 0
+  const { value: open, setValue: setOpen, onFalse: onClose } = useBoolean()
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent"
         aria-label="通知"
@@ -51,13 +53,13 @@ export function NotificationDrawer() {
             {unreadCount > 0 ? `您有 ${unreadCount} 条未读消息` : "暂无未读消息"}
           </SheetDescription>
         </SheetHeader>
-        <NotificationPanel />
+        <NotificationPanel onClose={onClose} />
       </SheetContent>
     </Sheet>
   )
 }
 
-function NotificationPanel() {
+function NotificationPanel({ onClose }: { onClose: () => void }) {
   const { data: all } = useNotifications()
   const { data: unread } = useNotifications({ read: false })
   const { mutate: markRead } = useMarkRead()
@@ -109,7 +111,9 @@ function NotificationPanel() {
 
       <div className="shrink-0 border-t p-4">
         <Button variant="outline" className="w-full" asChild>
-          <Link href={paths.workspace.notifications}>查看全部通知</Link>
+          <Link href={paths.workspace.notifications} onClick={onClose}>
+            查看全部通知
+          </Link>
         </Button>
       </div>
     </div>

@@ -13,6 +13,7 @@
 "use client"
 
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
+import { useEntityDetail } from "@/lib/queries/use-entity-detail"
 import { useEntityList } from "@/lib/queries/use-entity-list"
 import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
@@ -43,7 +44,7 @@ export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps)
 }
 
 /** 内部渲染逻辑 */
-function ViewEngineInner({ entity, view = "list", recordId: _recordId }: ViewEngineProps) {
+function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
   // 优先使用实体级自定义覆盖
   if (view === "list" && entity.overrides?.listView) {
     const Override = entity.overrides.listView
@@ -71,7 +72,7 @@ function ViewEngineInner({ entity, view = "list", recordId: _recordId }: ViewEng
     case "kanban":
       return <KanbanView entity={entity} />
     case "form":
-      return <FormView entity={entity} />
+      return <ConnectedFormView entity={entity} recordId={recordId} />
     case "pivot":
       return <PivotView entity={entity} />
     default:
@@ -89,6 +90,12 @@ function ConnectedListView({ entity }: { entity: EntityDef }) {
     search: params.search ?? undefined
   })
   return <ListView entity={entity} data={data} loading={isLoading} />
+}
+
+/** 表单视图——连接数据层 */
+function ConnectedFormView({ entity, recordId }: { entity: EntityDef; recordId?: string }) {
+  const { data, isLoading } = useEntityDetail(entity, recordId)
+  return <FormView entity={entity} data={data ?? undefined} loading={isLoading} />
 }
 
 /** 视图占位组件（后续被 ListView/KanbanView/FormView 替换） */

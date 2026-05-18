@@ -3,17 +3,17 @@
  * @author AaronZZH & Kiro
  *
  * 布局：
- * 行1：[+ 创建] [更多操作]          视图切换 | 分组 | 过滤 | 共N个 | 设置
+ * 行1：[更多操作]          视图切换 | 分组 | 过滤 | 共N个 | 设置
  * 行2：[常驻筛选器...] 搜索框(⌘K) [+ 添加条件]
  * 行3（条件存在时）：[高级查询] [另存为视图] [清除条件]
  */
 
 "use client"
 
+import { useTabs } from "@aaf/hooks"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
-import { useTabs } from "@aaf/hooks"
 import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
 import { ListTabs } from "@/features/entity-engine/components/ListTabs"
 import { SearchBar } from "@/features/entity-engine/components/SearchBar"
@@ -30,7 +30,6 @@ export function Toolbar({ entity }: ToolbarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") ?? "list"
-  const canCreate = entity.access?.create !== false
   const [filters, setFilters] = useFilterParams()
   const tabs = useTabs("")
 
@@ -62,14 +61,6 @@ export function Toolbar({ entity }: ToolbarProps) {
       {/* 行1：操作按钮 + 视图控制 */}
       <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-2">
-          {canCreate && (
-            <Link
-              href={`${pathname}/new`}
-              className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-            >
-              + 创建
-            </Link>
-          )}
           {/* TODO: #02915 Server Actions 批量操作菜单 */}
           <button
             type="button"

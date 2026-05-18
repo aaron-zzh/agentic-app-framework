@@ -21,8 +21,8 @@
 
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 import { ExternalLink } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
@@ -104,7 +104,7 @@ export function ComponentLayout({
     )
     for (const el of sectionRefs.current.values()) observer.observe(el)
     return () => observer.disconnect()
-  }, [sectionData])
+  }, [])
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)

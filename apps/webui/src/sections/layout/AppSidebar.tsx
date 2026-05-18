@@ -8,6 +8,8 @@
 
 "use client"
 
+import { isExternalLink } from "@aaf/core"
+import { useBoolean } from "@aaf/hooks"
 import {
   CheckSquare,
   ChevronDown,
@@ -19,8 +21,6 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { isExternalLink } from "@aaf/core"
-import { useBoolean } from "@aaf/hooks"
 import { Brand } from "@/components/brand/Brand"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
@@ -106,11 +106,7 @@ function NavGroupSection({
       {collapsed ? (
         <div className="mx-2 my-2 border-t" />
       ) : (
-        <button
-          type="button"
-          onClick={toggleOpen}
-          className="flex w-full items-center px-2 py-1"
-        >
+        <button type="button" onClick={toggleOpen} className="flex w-full items-center px-2 py-1">
           <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
             {group.subheader}
           </span>
@@ -125,6 +121,42 @@ function NavGroupSection({
         </ul>
       )}
     </div>
+  )
+}
+
+/** 菜单项内容（图标 + 文字 + badge + 展开箭头） */
+function NavItemContent({
+  item,
+  depth,
+  collapsed,
+  childOpen
+}: {
+  item: NavItem
+  depth: number
+  collapsed: boolean
+  childOpen: boolean
+}) {
+  return (
+    <>
+      {depth === 0 && <NavIcon name={item.icon} />}
+      {depth > 0 && !collapsed && (
+        <span className="size-1.5 shrink-0 rounded-full bg-current opacity-30" />
+      )}
+      {!collapsed && <span className="flex-1 truncate text-left">{item.title}</span>}
+      {!collapsed && item.badge && (
+        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-primary text-xs">
+          {item.badge}
+        </span>
+      )}
+      {!collapsed && item.children && item.children.length > 0 && (
+        <ChevronDown
+          className={cn(
+            "size-3.5 text-muted-foreground transition-transform",
+            childOpen && "rotate-180"
+          )}
+        />
+      )}
+    </>
   )
 }
 
@@ -152,28 +184,8 @@ function NavItemRow({
   )
 
   const itemStyle = collapsed ? undefined : { paddingLeft: `${depth * 12 + 8}px`, paddingRight: 8 }
-
   const content = (
-    <>
-      {depth === 0 && <NavIcon name={item.icon} />}
-      {depth > 0 && !collapsed && (
-        <span className="size-1.5 shrink-0 rounded-full bg-current opacity-30" />
-      )}
-      {!collapsed && <span className="flex-1 truncate text-left">{item.title}</span>}
-      {!collapsed && item.badge && (
-        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-primary text-xs">
-          {item.badge}
-        </span>
-      )}
-      {hasChildren && !collapsed && (
-        <ChevronDown
-          className={cn(
-            "size-3.5 text-muted-foreground transition-transform",
-            childOpen && "rotate-180"
-          )}
-        />
-      )}
-    </>
+    <NavItemContent item={item} depth={depth} collapsed={collapsed} childOpen={childOpen} />
   )
 
   return (

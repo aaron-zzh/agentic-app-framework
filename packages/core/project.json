@@ -3,6 +3,11 @@
   "projectType": "library",
   "sourceRoot": "packages/core/src",
   "targets": {
+    "build": {
+      "command": "tsc -p tsconfig.lib.json",
+      "options": { "cwd": "packages/core" },
+      "outputs": ["{projectRoot}/dist"]
+    },
     "typecheck": {
       "command": "tsgo --noEmit -p tsconfig.lib.json",
       "options": { "cwd": "packages/core" }
