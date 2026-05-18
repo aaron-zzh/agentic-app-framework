@@ -52,6 +52,20 @@ export const OrgMixin: MixinDef = {
   ]
 }
 
+/** 工作区 Mixin（workspaceId） */
+export const WorkspaceMixin: MixinDef = {
+  name: "workspace",
+  fields: [
+    {
+      type: "relationship",
+      name: "workspaceId",
+      label: "所属工作区",
+      relationTo: "workspace",
+      hidden: true
+    }
+  ]
+}
+
 /** 备注 Mixin（remark） */
 export const RemarkMixin: MixinDef = {
   name: "remark",
@@ -60,7 +74,7 @@ export const RemarkMixin: MixinDef = {
 
 /**
  * 基础实体 Mixin（对应后端 BaseEntity 全部字段）
- * 包含：timestamp + audit + softDelete + remark
+ * 包含：timestamp + audit + softDelete + workspace + remark
  */
 export const BaseEntityMixin: MixinDef = {
   name: "baseEntity",
@@ -68,6 +82,7 @@ export const BaseEntityMixin: MixinDef = {
     ...TimestampMixin.fields,
     ...AuditMixin.fields,
     ...SoftDeleteMixin.fields,
+    ...WorkspaceMixin.fields,
     ...RemarkMixin.fields
   ]
 }
@@ -78,6 +93,7 @@ export const builtinMixins: Record<string, MixinDef> = {
   audit: AuditMixin,
   softDelete: SoftDeleteMixin,
   org: OrgMixin,
+  workspace: WorkspaceMixin,
   remark: RemarkMixin,
   baseEntity: BaseEntityMixin
 }

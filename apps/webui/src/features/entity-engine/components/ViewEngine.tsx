@@ -19,6 +19,7 @@ import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
+import type { ViewSettings } from "./ViewSettingsSheet"
 import { FormView } from "./views/FormView"
 import { KanbanView } from "./views/KanbanView"
 import { ListView } from "./views/ListView"
@@ -32,19 +33,26 @@ interface ViewEngineProps {
   view?: string
   /** 记录 ID（表单视图时传入） */
   recordId?: string
+  /** 视图设置（由 EntityListView 传入） */
+  viewSettings?: ViewSettings
 }
 
 /** 视图引擎：根据 view 参数选择渲染器 */
-export function ViewEngine({ entity, view = "list", recordId }: ViewEngineProps) {
+export function ViewEngine({ entity, view = "list", recordId, viewSettings }: ViewEngineProps) {
   return (
     <ViewErrorBoundary>
-      <ViewEngineInner entity={entity} view={view} recordId={recordId} />
+      <ViewEngineInner
+        entity={entity}
+        view={view}
+        recordId={recordId}
+        viewSettings={viewSettings}
+      />
     </ViewErrorBoundary>
   )
 }
 
 /** 内部渲染逻辑 */
-function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
+function ViewEngineInner({ entity, view = "list", recordId, viewSettings }: ViewEngineProps) {
   // 优先使用实体级自定义覆盖
   if (view === "list" && entity.overrides?.listView) {
     const Override = entity.overrides.listView
@@ -68,7 +76,7 @@ function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
   // 内置视图
   switch (view) {
     case "list":
-      return <ConnectedListView entity={entity} />
+      return <ConnectedListView entity={entity} viewSettings={viewSettings} />
     case "kanban":
       return <KanbanView entity={entity} />
     case "form":
@@ -81,21 +89,41 @@ function ViewEngineInner({ entity, view = "list", recordId }: ViewEngineProps) {
 }
 
 /** 列表视图——连接数据层 + URL 状态 */
-function ConnectedListView({ entity }: { entity: EntityDef }) {
-  const [params] = useEntitySearchParams()
-  const { data, isLoading } = useEntityList(entity, {
-    page: params.page,
-    pageSize: params.pageSize,
+function ConnectedListView({
+  entity,
+  viewSettings
+}: {
+  entity: EntityDef
+  viewSettings?: ViewSettings
+}) {
+  const [params, setParams] = useEntitySearchParams()
+  const serverPagination = viewSettings?.serverPagination ?? false
+
+  const { data, isLoading, pagination } = useEntityList(entity, {
+    // 服务端分页：传 page/pageSize；一次性查询：只传排序/搜索，后端返回全量
+    ...(serverPagination && { page: params.page, pageSize: params.pageSize }),
     sort: params.sort ?? undefined,
     search: params.search ?? undefined
   })
-  return <ListView entity={entity} data={data} loading={isLoading} />
+
+  return (
+    <ListView
+      entity={entity}
+      data={data}
+      loading={isLoading}
+      viewSettings={viewSettings}
+      // 服务端分页时，把翻页/改页大小的控制权交给 URL 参数
+      serverPagination={serverPagination ? pagination : undefined}
+      onPageChange={serverPagination ? (page) => setParams({ page }) : undefined}
+      onPageSizeChange={serverPagination ? (pageSize) => setParams({ pageSize }) : undefined}
+    />
+  )
 }
 
 /** 表单视图——连接数据层 */
 function ConnectedFormView({ entity, recordId }: { entity: EntityDef; recordId?: string }) {
   const { data, isLoading } = useEntityDetail(entity, recordId)
-  return <FormView entity={entity} data={data ?? undefined} loading={isLoading} />
+  return <FormView key={recordId} entity={entity} data={data ?? undefined} loading={isLoading} />
 }
 
 /** 视图占位组件（后续被 ListView/KanbanView/FormView 替换） */

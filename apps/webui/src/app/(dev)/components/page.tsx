@@ -29,6 +29,11 @@ const SECTIONS = [
     title: "编辑器",
     href: "/components/editor",
     description: "RichTextEditor（Lexical）— richField / chatter / minimal / document 四种 preset"
+  },
+  {
+    title: "动画",
+    href: "/components/animate",
+    description: "AnimateBorder / MotionViewport / MotionContainer — framer-motion 动画组件"
   }
 ]
 

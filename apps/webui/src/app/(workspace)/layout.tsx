@@ -8,6 +8,7 @@
  */
 
 import { Suspense } from "react"
+import { MotionLazy } from "@/components/animate"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { registerDefaultComponents } from "@/features/entity-engine/components/register"
 import "@/features/entity-engine/entities"
@@ -19,18 +20,20 @@ registerDefaultComponents()
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Suspense>
-        <TopProgressBar />
-      </Suspense>
-      {/* 桌面端固定侧边栏 */}
-      <div className="hidden md:flex">
-        <AppSidebar />
+    <MotionLazy>
+      <div className="flex h-screen overflow-hidden">
+        <Suspense>
+          <TopProgressBar />
+        </Suspense>
+        {/* 桌面端固定侧边栏 */}
+        <div className="hidden md:flex">
+          <AppSidebar />
+        </div>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <AppHeader />
+          <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
+        </div>
       </div>
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <AppHeader />
-        <main className="flex-1 overflow-auto">{children}</main>
-      </div>
-    </div>
+    </MotionLazy>
   )
 }

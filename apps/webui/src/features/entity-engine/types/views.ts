@@ -53,6 +53,8 @@ export interface ListViewConfig {
   pageSize?: number
   /** 允许行拖拽排序 */
   draggable?: boolean
+  /** 拖拽排序字段（integer，拖拽完成后更新此字段）；有此字段时才允许开启拖拽 */
+  orderField?: string
   /** 分组字段 */
   groupBy?: string
   /** Tab 快捷筛选配置 */

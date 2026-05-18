@@ -7,6 +7,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { _mockEntityData } from "@/lib/_mock/entities"
 import { fetchList, type ListParams, type PageResult } from "@/lib/api/client"
+import { useUIStore } from "@/lib/store/ui-store"
 
 export interface UseEntityListResult {
   data: Record<string, unknown>[]
@@ -18,8 +19,10 @@ export interface UseEntityListResult {
 
 export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEntityListResult {
   const { page = 1, pageSize = 20, sort, search, ...filters } = params
+  const workspaceId = useUIStore((s) => s.currentWorkspace?.id)
 
-  const queryKey = [entity.slug, "list", { page, pageSize, sort, search, ...filters }]
+  // workspaceId 加入 queryKey，切换工作区时自动重新请求
+  const queryKey = [entity.slug, "list", { workspaceId, page, pageSize, sort, search, ...filters }]
 
   const { data, isLoading, isFetching, error } = useQuery<PageResult<Record<string, unknown>>>({
     queryKey,

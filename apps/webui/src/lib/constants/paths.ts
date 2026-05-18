@@ -25,6 +25,7 @@ export const paths = {
     module: (slug: string) => `/module/${slug}`,
     record: (slug: string, id: string) => `/module/${slug}/${id}`,
     settings: "/settings",
+    settingsNotifications: "/settings/notifications",
     notifications: "/notifications",
     todos: "/todos"
   }

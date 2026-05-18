@@ -14,7 +14,7 @@ import { useTabs } from "@aaf/hooks"
 import { RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
 import { ListTabs } from "@/features/entity-engine/components/ListTabs"
@@ -28,6 +28,9 @@ import { cn } from "@/lib/utils/cn"
 
 interface ToolbarProps {
   entity: EntityDef
+  /** 由父层管理的视图设置（提升状态后由 EntityListView 传入） */
+  viewSettings: ViewSettings
+  onViewSettingsChange: (settings: ViewSettings) => void
 }
 
 /** 判断实体是否有快速筛选配置 */
@@ -42,27 +45,24 @@ function getHasQuickFilters(entity: EntityDef, viewSettings?: ViewSettings): boo
 }
 
 /** 视图工具栏 */
-export function Toolbar({ entity }: ToolbarProps) {
+export function Toolbar({
+  entity,
+  viewSettings,
+  onViewSettingsChange: setViewSettings
+}: ToolbarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") ?? "list"
   const [filters, setFilters] = useFilterParams()
   const tabs = useTabs("")
-  const [viewSettings, setViewSettings] = useState<ViewSettings>(() => {
-    if (typeof window === "undefined") return {}
-    const raw = localStorage.getItem(`aaf:view-settings:${entity.slug}`)
-    if (!raw) return {}
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return {}
-    }
-  })
 
-  // 有效的 Tab 字段：viewSettings 覆盖 > EntityDef 配置
+  // 有效的 Tab 字段：
+  //   viewSettings.tabField === undefined → 未配置，回退到 EntityDef
+  //   viewSettings.tabField === ""        → 用户明确关闭 Tab
+  //   viewSettings.tabField === "xxx"     → 用户选择了字段
   const effectiveTabField =
     viewSettings.tabField !== undefined
-      ? viewSettings.tabField
+      ? viewSettings.tabField || null
       : (entity.listView.tabs?.field ?? null)
 
   // 构造有效的 entity（覆盖 tabs 配置）
@@ -99,25 +99,13 @@ export function Toolbar({ entity }: ToolbarProps) {
     [entity, filters, setFilters, tabs]
   )
 
-  return (
-    <div className="border-b">
-      {/* 行1：左侧(Tab + 快速筛选) + 右侧(视图切换 + 设置) */}
-      <div className="flex items-start justify-between px-4 py-2">
-        {/* 左侧：Tab 和快速筛选两行 */}
-        <div className="flex flex-1 flex-col gap-1.5">
-          <ListTabs entity={effectiveEntity} activeValue={tabs.value} onChange={handleTabChange} />
-          {getHasQuickFilters(entity, viewSettings) && (
-            <QuickFilterBar
-              entity={effectiveEntity}
-              filters={filters}
-              onChange={setFilters}
-              viewSettings={viewSettings}
-            />
-          )}
-        </div>
+  const hasTabs = !!effectiveTabField
 
-        {/* 右侧：视图切换 + 设置 */}
-        <div className="flex shrink-0 items-center gap-1 pt-0.5">
+  return (
+    <div className="relative border-b">
+      {/* 视图切换 + 设置——有 Tab 时固定到右上角，无 Tab 时在行1右侧 */}
+      {hasTabs && (
+        <div className="absolute top-1.5 right-3 z-10 flex items-center gap-1">
           <div className="flex items-center gap-0.5 rounded-md border p-0.5">
             {availableViews.map((v) => (
               <Link
@@ -137,10 +125,49 @@ export function Toolbar({ entity }: ToolbarProps) {
           </div>
           <ViewSettingsSheet entity={entity} onSettingsChange={setViewSettings} />
         </div>
+      )}
+
+      {/* 行1：Tab + 快速筛选（无 Tab 时含右侧视图切换） */}
+      <div className="flex items-start justify-between px-4 py-1">
+        <div className="flex flex-1 flex-col gap-1">
+          <ListTabs entity={effectiveEntity} activeValue={tabs.value} onChange={handleTabChange} />
+          {getHasQuickFilters(entity, viewSettings) && (
+            <QuickFilterBar
+              entity={effectiveEntity}
+              filters={filters}
+              onChange={setFilters}
+              viewSettings={viewSettings}
+            />
+          )}
+        </div>
+
+        {/* 无 Tab 时右侧显示视图切换 + 设置 */}
+        {!hasTabs && (
+          <div className="flex shrink-0 items-center gap-1 pt-0.5">
+            <div className="flex items-center gap-0.5 rounded-md border p-0.5">
+              {availableViews.map((v) => (
+                <Link
+                  key={v.key}
+                  href={`${pathname}?view=${v.key}`}
+                  title={v.label}
+                  className={cn(
+                    "rounded px-2 py-1 text-xs transition-colors",
+                    currentView === v.key
+                      ? "bg-accent font-medium text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {v.icon}
+                </Link>
+              ))}
+            </div>
+            <ViewSettingsSheet entity={entity} onSettingsChange={setViewSettings} />
+          </div>
+        )}
       </div>
 
       {/* 行2：搜索框（含已选条件 chips）+ 收藏 + 刷新 */}
-      <div className="flex items-center gap-2 px-4 py-2">
+      <div className="flex items-center gap-2 px-4 pt-2 pb-1.5">
         <SearchBar entity={entity} filters={filters} onChange={setFilters} />
         <FilterFavorites entitySlug={entity.slug} currentFilters={filters} onApply={setFilters} />
         <Tooltip>

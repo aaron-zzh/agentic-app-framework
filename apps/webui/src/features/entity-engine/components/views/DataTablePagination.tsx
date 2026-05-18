@@ -13,23 +13,26 @@ interface DataTablePaginationProps<TData> {
   table: Table<TData>
   dense?: boolean
   onDenseChange?: (dense: boolean) => void
+  /** 服务端总条数（服务端分页模式时传入） */
+  serverTotal?: number
 }
 
 export function DataTablePagination<TData>({
   table,
   dense = false,
-  onDenseChange
+  onDenseChange,
+  serverTotal
 }: DataTablePaginationProps<TData>) {
   const uid = useId()
   const denseId = `${uid}-dense`
   const pageIndex = table.getState().pagination.pageIndex
   const pageCount = table.getPageCount()
-  const totalCount = table.getFilteredRowModel().rows.length
+  const totalCount = serverTotal ?? table.getFilteredRowModel().rows.length
 
   const pages = getPageNumbers(pageIndex, pageCount)
 
   return (
-    <div className="flex items-center border-t px-4 pt-4">
+    <div className="flex shrink-0 items-center border-t px-4 py-3">
       {/* 左侧：紧凑模式 */}
       <div className="flex flex-1 items-center gap-2">
         <label

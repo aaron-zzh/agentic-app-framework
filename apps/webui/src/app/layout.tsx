@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -11,7 +11,17 @@ import "./global.css"
 
 export const metadata: Metadata = {
   title: "AAF",
-  description: "Agentic App Framework"
+  description: "Agentic App Framework",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AAF"
+  }
+}
+
+export const viewport: Viewport = {
+  themeColor: "#000000"
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

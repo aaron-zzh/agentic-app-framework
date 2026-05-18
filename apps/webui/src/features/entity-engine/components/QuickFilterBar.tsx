@@ -12,6 +12,14 @@
 "use client"
 
 import { useCallback } from "react"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import type { DataFieldDef, EntityDef } from "../types"
 import type { FilterCondition } from "./FilterBuilder"
 import type { ViewSettings } from "./ViewSettingsSheet"
@@ -28,7 +36,7 @@ export function QuickFilterBar({ entity, filters, onChange, viewSettings }: Quic
   if (!fields.length) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 pt-2">
       {fields.map((field) => (
         <QuickFilterField key={field.name} field={field} filters={filters} onChange={onChange} />
       ))}
@@ -61,32 +69,32 @@ function QuickFilterField({
     [field.name, filters, onChange]
   )
 
-  const baseClass =
-    "h-9 rounded-md border bg-background px-3 text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+  const baseClass = "h-9 text-sm w-36"
 
   // select 字段 → 下拉
   if (field.type === "select" && "options" in field) {
     const options = (field as unknown as { options: { value: string; label: string }[] }).options
     return (
-      <select
-        className={baseClass}
-        value={currentValue}
-        onChange={(e) => handleChange(e.target.value)}
-      >
-        <option value="">{field.label ?? field.name}</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={currentValue} onValueChange={(v) => handleChange(v ?? "")}>
+        <SelectTrigger className="h-9 w-36 text-sm">
+          <SelectValue placeholder={field.label ?? field.name} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">{field.label ?? field.name}</SelectItem>
+          {options.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     )
   }
 
   // date 字段 → 日期输入
   if (field.type === "date") {
     return (
-      <input
+      <Input
         type="date"
         className={baseClass}
         title={field.label ?? field.name}
@@ -99,9 +107,9 @@ function QuickFilterField({
   // number 字段 → 数字输入
   if (field.type === "number") {
     return (
-      <input
+      <Input
         type="number"
-        className={`${baseClass} w-32`}
+        className={baseClass}
         placeholder={field.label ?? field.name}
         value={currentValue}
         onChange={(e) => handleChange(e.target.value, "eq")}
@@ -111,9 +119,9 @@ function QuickFilterField({
 
   // text/email 等 → 文本输入
   return (
-    <input
+    <Input
       type="text"
-      className={`${baseClass} w-36`}
+      className={baseClass}
       placeholder={field.label ?? field.name}
       value={currentValue}
       onChange={(e) => handleChange(e.target.value, "contains")}

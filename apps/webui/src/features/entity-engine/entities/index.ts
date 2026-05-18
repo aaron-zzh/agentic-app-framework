@@ -159,6 +159,7 @@ export const taskEntity: EntityDef = {
     searchableFields: ["title", "description"],
     filterableFields: ["status", "priority", "assignee"],
     batchActions: ["delete"],
+    orderField: "sortOrder",
     quickFilters: [
       { label: "待办", field: "status", operator: "eq", value: "todo" },
       { label: "进行中", field: "status", operator: "eq", value: "in_progress" },

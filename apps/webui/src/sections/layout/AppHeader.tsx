@@ -7,13 +7,16 @@
 
 "use client"
 
-import { Menu, Moon, Search, Sun } from "lucide-react"
+import { m } from "framer-motion"
+import { Menu, Moon, Search, Sun, Users } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useState } from "react"
+import { AnimateBorder, transitionTap, varHover, varTap } from "@/components/animate"
 import { Brand } from "@/components/brand/Brand"
 import { CommandPalette } from "@/components/common/CommandPalette"
 import { ThemeSettings } from "@/components/common/ThemeSettings"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Sheet,
   SheetContent,
@@ -24,7 +27,9 @@ import {
 } from "@/components/ui/sheet"
 import { useCommandPalette } from "@/lib/hooks/use-command-palette"
 import { cn } from "@/lib/utils/cn"
+import { ContactsPanel } from "./ContactsPanel"
 import { NotificationDrawer } from "./notifications"
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
 
 export function AppHeader() {
   const { open: cmdOpen, onClose: cmdClose } = useCommandPalette()
@@ -34,11 +39,21 @@ export function AppHeader() {
   return (
     <header className="flex h-[var(--layout-header-height)] shrink-0 items-center gap-2 border-b bg-background px-4">
       <SidebarToggle />
+      <WorkspaceSwitcher />
       <Breadcrumb />
       <div className="flex-1" />
       <SearchButton onClick={() => setCmdManualOpen(true)} />
       <ThemeToggle />
       <NotificationDrawer />
+      <ContactsPanel>
+        <button
+          type="button"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="联系人"
+        >
+          <Users className="size-4" />
+        </button>
+      </ContactsPanel>
       <SettingsButton />
       <UserAvatar />
       <CommandPalette
@@ -157,21 +172,24 @@ function ThemeToggle() {
   )
 }
 
-/** 用户头像菜单 */
-function UserAvatar({ src }: { src?: string }) {
+/** 用户头像菜单（参考 next-ts AccountButton） */
+function UserAvatar({ src, displayName }: { src?: string; displayName?: string }) {
   return (
-    <button
+    <m.button
       type="button"
-      className="size-8 overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-primary/20"
+      whileTap={varTap(0.96)}
+      whileHover={varHover(1.04)}
+      transition={transitionTap()}
+      className="inline-flex items-center justify-center border-none bg-transparent p-0"
       aria-label="用户菜单"
     >
-      {/* biome-ignore lint/performance/noImgElement: 头像小图无需 next/image */}
-      <img
-        src={src || "/assets/avatar/avatar.png"}
-        alt="用户头像"
-        className="size-full object-cover"
-      />
-    </button>
+      <AnimateBorder rounded="full" borderWidth={1.5} size={40} glowSize={60} duration={8}>
+        <Avatar className="!size-[36px] after:hidden">
+          <AvatarImage src={src || "/assets/avatar/avatar.png"} alt={displayName || "用户头像"} />
+          <AvatarFallback>{displayName?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+        </Avatar>
+      </AnimateBorder>
+    </m.button>
   )
 }
 

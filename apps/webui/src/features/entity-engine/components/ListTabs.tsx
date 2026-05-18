@@ -39,7 +39,7 @@ export function ListTabs({ entity, activeValue, onChange, counts }: ListTabsProp
           key={item.value}
           type="button"
           className={cn(
-            "relative flex items-center gap-1.5 px-4 py-2.5 text-sm transition-colors",
+            "relative flex items-center gap-1.5 px-4 py-2 text-sm transition-colors",
             activeValue === item.value
               ? "font-medium text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-primary"
               : "text-muted-foreground hover:text-foreground"

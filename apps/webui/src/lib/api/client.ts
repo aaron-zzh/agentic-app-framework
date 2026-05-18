@@ -38,13 +38,20 @@ export class ApiError extends Error {
   }
 }
 
+import { useUIStore } from "@/lib/store/ui-store"
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 
 /** 通用 fetch 封装 */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`
+  const workspaceId = useUIStore.getState().currentWorkspace?.id
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(workspaceId && { "X-Workspace-Id": workspaceId }),
+      ...init?.headers
+    },
     ...init
   })
 
