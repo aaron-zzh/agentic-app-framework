@@ -36,7 +36,12 @@ export const documentEntity: EntityDef = {
     defaultSort: "updateTime:desc",
     searchableFields: ["title", "content"],
     filterableFields: ["status", "author"],
-    batchActions: ["delete", "archive"]
+    batchActions: ["delete", "archive"],
+    quickFilters: [
+      { label: "草稿", field: "status", operator: "eq", value: "draft" },
+      { label: "已发布", field: "status", operator: "eq", value: "published" },
+      { label: "已归档", field: "status", operator: "eq", value: "archived" }
+    ]
   },
   kanbanView: { statusField: "status", cardTitle: "title" },
   formView: {
@@ -153,7 +158,12 @@ export const taskEntity: EntityDef = {
     defaultSort: "createTime:desc",
     searchableFields: ["title", "description"],
     filterableFields: ["status", "priority", "assignee"],
-    batchActions: ["delete"]
+    batchActions: ["delete"],
+    quickFilters: [
+      { label: "待办", field: "status", operator: "eq", value: "todo" },
+      { label: "进行中", field: "status", operator: "eq", value: "in_progress" },
+      { label: "高优先级", field: "priority", operator: "eq", value: "high" }
+    ]
   },
   kanbanView: { statusField: "status", cardTitle: "title", cardDescription: "description" },
   mixins: ["baseEntity"]

@@ -5,8 +5,12 @@
 
 "use client"
 
+import { useBoolean } from "@aaf/hooks"
+import { Bookmark, Star, X } from "lucide-react"
 import { useCallback, useState } from "react"
-
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { FilterCondition } from "./FilterBuilder"
 
 /** 收藏条目 */
@@ -18,7 +22,6 @@ export interface FilterFavorite {
 
 const STORAGE_KEY_PREFIX = "aaf:filter-favorites:"
 
-/** 读取收藏 */
 function loadFavorites(entitySlug: string): FilterFavorite[] {
   if (typeof window === "undefined") return []
   const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${entitySlug}`)
@@ -30,7 +33,6 @@ function loadFavorites(entitySlug: string): FilterFavorite[] {
   }
 }
 
-/** 保存收藏 */
 function saveFavorites(entitySlug: string, favorites: FilterFavorite[]) {
   localStorage.setItem(`${STORAGE_KEY_PREFIX}${entitySlug}`, JSON.stringify(favorites))
 }
@@ -41,10 +43,9 @@ interface FilterFavoritesProps {
   onApply: (filters: FilterCondition[]) => void
 }
 
-/** 筛选收藏组件 */
 export function FilterFavorites({ entitySlug, currentFilters, onApply }: FilterFavoritesProps) {
   const [favorites, setFavorites] = useState<FilterFavorite[]>(() => loadFavorites(entitySlug))
-  const [open, setOpen] = useState(false)
+  const { value: open, setValue: setOpen } = useBoolean()
   const [newName, setNewName] = useState("")
 
   const handleSave = useCallback(() => {
@@ -74,83 +75,83 @@ export function FilterFavorites({ entitySlug, currentFilters, onApply }: FilterF
   )
 
   return (
-    <div className="relative inline-block">
-      <button
-        type="button"
-        className="text-muted-foreground text-sm hover:text-foreground"
-        onClick={() => setOpen(!open)}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            title="收藏筛选"
+            className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          />
+        }
       >
-        ⭐ 收藏
-      </button>
-      {open && (
-        <div className="absolute top-8 right-0 z-20 w-56 rounded-md border bg-background p-2 shadow-md">
-          {favorites.length > 0 && (
-            <ul className="mb-2 space-y-1">
-              {favorites.map((fav, i) => (
-                <li
-                  key={fav.name}
-                  className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-muted"
-                >
-                  <button
-                    type="button"
-                    className="flex-1 text-left"
-                    onClick={() => {
-                      onApply(fav.filters)
-                      setOpen(false)
-                    }}
-                  >
-                    {fav.isDefault && <span className="mr-1 text-xs">★</span>}
-                    {fav.name}
-                  </button>
-                  <span className="flex gap-1">
-                    <button
-                      type="button"
-                      className="text-muted-foreground text-xs hover:text-primary"
-                      onClick={() => handleSetDefault(i)}
-                      title="设为默认"
-                    >
-                      ★
-                    </button>
-                    <button
-                      type="button"
-                      className="text-muted-foreground text-xs hover:text-destructive"
-                      onClick={() => handleDelete(i)}
-                    >
-                      ✕
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {currentFilters.length > 0 && (
-            <div className="flex gap-1 border-t pt-2">
-              <input
-                className="h-7 flex-1 rounded border px-2 text-xs"
-                placeholder="收藏名称"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSave()}
-              />
-              <button
-                type="button"
-                className="rounded bg-primary px-2 text-primary-foreground text-xs"
-                onClick={handleSave}
+        <Bookmark className="size-4" />
+      </PopoverTrigger>
+
+      <PopoverContent className="w-64 p-2" align="end">
+        {favorites.length > 0 && (
+          <ul className="mb-2 space-y-0.5">
+            {favorites.map((fav, i) => (
+              <li
+                key={fav.name}
+                className="flex items-center gap-1 rounded px-2 py-1.5 hover:bg-muted"
               >
-                保存
-              </button>
-            </div>
-          )}
-          {favorites.length === 0 && currentFilters.length === 0 && (
-            <p className="py-2 text-center text-muted-foreground text-xs">暂无收藏</p>
-          )}
-        </div>
-      )}
-    </div>
+                <button
+                  type="button"
+                  className="flex-1 truncate text-left text-sm"
+                  onClick={() => {
+                    onApply(fav.filters)
+                    setOpen(false)
+                  }}
+                >
+                  {fav.isDefault && (
+                    <Star className="mr-1 inline size-3 fill-yellow-400 text-yellow-400" />
+                  )}
+                  {fav.name}
+                </button>
+                <button
+                  type="button"
+                  className="shrink-0 text-muted-foreground hover:text-yellow-500"
+                  onClick={() => handleSetDefault(i)}
+                  title="设为默认"
+                >
+                  <Star className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleDelete(i)}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {currentFilters.length > 0 && (
+          <div className="flex gap-1.5 border-t pt-2">
+            <Input
+              className="h-7 flex-1 text-xs"
+              placeholder="收藏名称"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            />
+            <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSave}>
+              保存
+            </Button>
+          </div>
+        )}
+
+        {favorites.length === 0 && currentFilters.length === 0 && (
+          <p className="py-3 text-center text-muted-foreground text-xs">暂无收藏筛选</p>
+        )}
+      </PopoverContent>
+    </Popover>
   )
 }
 
-/** 获取默认收藏（启动时自动应用） */
 export function getDefaultFavorite(entitySlug: string): FilterCondition[] | null {
   const favorites = loadFavorites(entitySlug)
   const def = favorites.find((f) => f.isDefault)

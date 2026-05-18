@@ -11,18 +11,34 @@
 "use client"
 
 import { useTabs } from "@aaf/hooks"
+import { RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
 import { ListTabs } from "@/features/entity-engine/components/ListTabs"
+import { QuickFilterBar } from "@/features/entity-engine/components/QuickFilterBar"
 import { SearchBar } from "@/features/entity-engine/components/SearchBar"
-import type { EntityDef } from "@/features/entity-engine/types"
+import type { ViewSettings } from "@/features/entity-engine/components/ViewSettingsSheet"
+import { ViewSettingsSheet } from "@/features/entity-engine/components/ViewSettingsSheet"
+import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
 import { useFilterParams } from "@/lib/queries/use-filter-params"
 import { cn } from "@/lib/utils/cn"
 
 interface ToolbarProps {
   entity: EntityDef
+}
+
+/** 判断实体是否有快速筛选配置 */
+function getHasQuickFilters(entity: EntityDef, viewSettings?: ViewSettings): boolean {
+  if (viewSettings?.quickFilterFields?.length) return true
+  if (entity.listView.quickFilters?.length) return true
+  const filterableFields = entity.listView.filterableFields ?? []
+  if (!filterableFields.length) return false
+  return entity.fields.some(
+    (f) => "name" in f && "type" in f && filterableFields.includes((f as DataFieldDef).name)
+  )
 }
 
 /** 视图工具栏 */
@@ -32,6 +48,33 @@ export function Toolbar({ entity }: ToolbarProps) {
   const currentView = searchParams.get("view") ?? "list"
   const [filters, setFilters] = useFilterParams()
   const tabs = useTabs("")
+  const [viewSettings, setViewSettings] = useState<ViewSettings>(() => {
+    if (typeof window === "undefined") return {}
+    const raw = localStorage.getItem(`aaf:view-settings:${entity.slug}`)
+    if (!raw) return {}
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return {}
+    }
+  })
+
+  // 有效的 Tab 字段：viewSettings 覆盖 > EntityDef 配置
+  const effectiveTabField =
+    viewSettings.tabField !== undefined
+      ? viewSettings.tabField
+      : (entity.listView.tabs?.field ?? null)
+
+  // 构造有效的 entity（覆盖 tabs 配置）
+  const effectiveEntity = effectiveTabField
+    ? {
+        ...entity,
+        listView: {
+          ...entity.listView,
+          tabs: { ...entity.listView.tabs, field: effectiveTabField }
+        }
+      }
+    : { ...entity, listView: { ...entity.listView, tabs: undefined } }
 
   // 动态视图列表（透视视图按需显示）
   const availableViews = [
@@ -58,20 +101,23 @@ export function Toolbar({ entity }: ToolbarProps) {
 
   return (
     <div className="border-b">
-      {/* 行1：操作按钮 + 视图控制 */}
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-center gap-2">
-          {/* TODO: #02915 Server Actions 批量操作菜单 */}
-          <button
-            type="button"
-            className="h-8 rounded-md border px-3 text-muted-foreground text-sm"
-            disabled
-          >
-            更多操作 ▾
-          </button>
+      {/* 行1：左侧(Tab + 快速筛选) + 右侧(视图切换 + 设置) */}
+      <div className="flex items-start justify-between px-4 py-2">
+        {/* 左侧：Tab 和快速筛选两行 */}
+        <div className="flex flex-1 flex-col gap-1.5">
+          <ListTabs entity={effectiveEntity} activeValue={tabs.value} onChange={handleTabChange} />
+          {getHasQuickFilters(entity, viewSettings) && (
+            <QuickFilterBar
+              entity={effectiveEntity}
+              filters={filters}
+              onChange={setFilters}
+              viewSettings={viewSettings}
+            />
+          )}
         </div>
 
-        <div className="flex items-center gap-3 text-muted-foreground text-sm">
+        {/* 右侧：视图切换 + 设置 */}
+        <div className="flex shrink-0 items-center gap-1 pt-0.5">
           <div className="flex items-center gap-0.5 rounded-md border p-0.5">
             {availableViews.map((v) => (
               <Link
@@ -89,21 +135,27 @@ export function Toolbar({ entity }: ToolbarProps) {
               </Link>
             ))}
           </div>
-          <span className="text-xs">分组: 无</span>
-          <span>共 {searchParams.get("total") ?? "—"} 个</span>
-          <button type="button" className="text-xs hover:text-foreground" disabled>
-            ⚙ 设置
-          </button>
+          <ViewSettingsSheet entity={entity} onSettingsChange={setViewSettings} />
         </div>
       </div>
 
-      {/* 行2：状态 Tab（配置了 tabs 时显示） */}
-      <ListTabs entity={entity} activeValue={tabs.value} onChange={handleTabChange} />
-
-      {/* 行3：统一搜索栏 */}
+      {/* 行2：搜索框（含已选条件 chips）+ 收藏 + 刷新 */}
       <div className="flex items-center gap-2 px-4 py-2">
         <SearchBar entity={entity} filters={filters} onChange={setFilters} />
         <FilterFavorites entitySlug={entity.slug} currentFilters={filters} onApply={setFilters} />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              />
+            }
+          >
+            <RefreshCw className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>刷新</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )

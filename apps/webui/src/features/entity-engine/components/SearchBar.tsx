@@ -11,7 +11,7 @@
 
 "use client"
 
-import { useCallback, useId, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
 import type { FilterCondition } from "./FilterBuilder"
@@ -33,9 +33,16 @@ export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
 
   const allFields = entity.fields.filter((f): f is DataFieldDef => "name" in f)
 
-  const filteredFields = query
-    ? allFields.filter((f) => (f.label ?? f.name).toLowerCase().includes(query.toLowerCase()))
+  // 可筛选字段：配置了 filterableFields 则只显示这些，否则显示全部
+  const filterableFields = entity.listView.filterableFields?.length
+    ? allFields.filter((f) => entity.listView.filterableFields?.includes(f.name))
     : allFields
+
+  const filteredFields = query
+    ? filterableFields.filter((f) =>
+        (f.label ?? f.name).toLowerCase().includes(query.toLowerCase())
+      )
+    : filterableFields
 
   // 选择字段
   const handleSelectField = useCallback((field: DataFieldDef) => {
@@ -103,23 +110,45 @@ export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
       ? (selectedField as unknown as { options: { value: string; label: string }[] }).options
       : null
 
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // 点击外部关闭建议面板
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setPhase("idle")
+        setSelectedField(null)
+        setQuery("")
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   return (
-    <div className="relative flex-1">
+    <div ref={containerRef} className="relative flex-1">
       {/* 搜索框容器 */}
-      <div className="flex min-h-[36px] flex-wrap items-center gap-1 rounded-md border px-2 py-1 focus-within:ring-1 focus-within:ring-ring">
+      <div className="flex min-h-[36px] flex-wrap items-center gap-1 rounded-md px-2 py-1 focus-within:bg-muted/50">
         <span className="text-muted-foreground">🔍</span>
 
         {/* 已选条件 tag */}
         {filters.map((f, i) => {
           const fieldDef = allFields.find((fd) => fd.name === f.field)
           const label = f.field === "__search" ? "关键词" : (fieldDef?.label ?? f.field)
+          // select 字段显示 option label 而非原始 value
+          const valueLabel =
+            fieldDef?.type === "select" && "options" in fieldDef
+              ? ((
+                  fieldDef as unknown as { options: { value: string; label: string }[] }
+                ).options.find((o) => o.value === f.value)?.label ?? f.value)
+              : f.value
           return (
             <span
               key={`${f.field}-${f.operator}-${String(f.value)}`}
               className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-xs"
             >
               <span className="font-medium">{label}:</span>
-              <span>{f.value}</span>
+              <span>{valueLabel}</span>
               <button
                 type="button"
                 className="ml-0.5 hover:text-destructive"

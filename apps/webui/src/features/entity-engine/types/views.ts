@@ -21,6 +21,18 @@ export interface ColumnDef {
   hidden?: boolean
 }
 
+/** 快捷筛选项 */
+export interface QuickFilter {
+  /** 显示名称 */
+  label: string
+  /** 筛选字段 */
+  field: string
+  /** 操作符 */
+  operator: string
+  /** 筛选值 */
+  value: string
+}
+
 /** 列表视图配置 */
 export interface ListViewConfig {
   /** 显示的列（字段 name 或完整列定义） */
@@ -31,6 +43,8 @@ export interface ListViewConfig {
   searchableFields?: string[]
   /** 可筛选字段 */
   filterableFields?: string[]
+  /** 快捷筛选（显示在搜索栏旁，点击直接添加条件） */
+  quickFilters?: QuickFilter[]
   /** 行内编辑 */
   inlineEdit?: boolean
   /** 批量操作 */

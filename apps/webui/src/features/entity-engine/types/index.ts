@@ -35,5 +35,6 @@ export type {
   ListViewConfig,
   PivotConfig,
   PivotMeasure,
-  PivotViewConfig
+  PivotViewConfig,
+  QuickFilter
 } from "./views"
