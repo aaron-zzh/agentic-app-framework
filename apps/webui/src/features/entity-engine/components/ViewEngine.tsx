@@ -19,11 +19,11 @@ import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
-import type { ViewSettings } from "./ViewSettingsSheet"
-import { FormView } from "./views/FormView"
-import { KanbanView } from "./views/KanbanView"
-import { ListView } from "./views/ListView"
-import { PivotView } from "./views/PivotView"
+import { FormView } from "./form"
+import { KanbanView } from "./kanban"
+import type { ViewSettings } from "./list"
+import { ListView } from "./list"
+import { PivotView } from "./pivot"
 
 /** 支持的视图类型 */
 export type ViewType = "list" | "form" | "kanban" | "graph" | "chart" | "calendar"

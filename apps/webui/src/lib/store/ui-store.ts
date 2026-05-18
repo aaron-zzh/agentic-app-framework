@@ -17,7 +17,8 @@ interface UIState {
   setThemeColor: (color: ThemeColor) => void
   /** 当前在侧边面板/抽屉中打开的记录 ID，null = 关闭 */
   recordPanelId: string | null
-  openRecordPanel: (id: string) => void
+  recordPanelMode: "panel" | "drawer"
+  openRecordPanel: (id: string, mode?: "panel" | "drawer") => void
   closeRecordPanel: () => void
   /** 当前工作区 */
   currentWorkspace: WorkspaceItem | null
@@ -34,7 +35,8 @@ export const useUIStore = create<UIState>((set) => ({
   themeColor: "default",
   setThemeColor: (color) => set({ themeColor: color }),
   recordPanelId: null,
-  openRecordPanel: (id) => set({ recordPanelId: id }),
+  recordPanelMode: "panel",
+  openRecordPanel: (id, mode = "panel") => set({ recordPanelId: id, recordPanelMode: mode }),
   closeRecordPanel: () => set({ recordPanelId: null }),
   currentWorkspace: null,
   workspaces: [],

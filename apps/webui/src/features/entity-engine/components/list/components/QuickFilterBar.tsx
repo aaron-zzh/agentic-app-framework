@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import type { DataFieldDef, EntityDef } from "../types"
+import type { DataFieldDef, EntityDef } from "../../../types"
 import type { FilterCondition } from "./FilterBuilder"
 import type { ViewSettings } from "./ViewSettingsSheet"
 

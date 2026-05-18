@@ -12,10 +12,10 @@ export function ServiceWorkerRegister() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js")
-        .then((reg) => {
+        .then((_reg) => {
           // console.info("[SW] 注册成功:", reg.scope)
         })
-        .catch((err) => {
+        .catch((_err) => {
           // console.warn("[SW] 注册失败:", err)
         })
     }

@@ -12,6 +12,7 @@ import {
   closestCenter,
   DndContext,
   type DragEndEvent,
+  type DraggableAttributes,
   PointerSensor,
   useSensor,
   useSensors
@@ -24,13 +25,18 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import {
+  type Cell,
   type ColumnDef,
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type Header,
+  type PaginationState,
+  type Row,
   type RowSelectionState,
   type SortingState,
+  type Updater,
   useReactTable
 } from "@tanstack/react-table"
 import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical, Trash2 } from "lucide-react"
@@ -51,32 +57,40 @@ import { DataTablePagination } from "./DataTablePagination"
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[]
   data: TData[]
-  /** 行点击回调 */
   onRowClick?: (row: TData) => void
-  /** 批量删除回调 */
   onBatchDelete?: (rows: TData[]) => void
-  /** 行尾操作渲染 */
   renderRowActions?: (row: TData) => React.ReactNode
-  /** 表头右侧额外操作（如列配置） */
   headerAction?: React.ReactNode
-  /** 是否启用行选择 */
   enableSelection?: boolean
-  /** 是否启用列头排序（默认 true） */
   enableSort?: boolean
-  /** 是否启用行拖拽排序 */
   draggable?: boolean
-  /** 拖拽完成回调（返回新顺序的 id 数组） */
   onReorder?: (ids: string[]) => void
-  /** 服务端分页信息（有值时切换为服务端分页模式） */
   serverPagination?: { page: number; pageSize: number; total: number }
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
-  /** 表格内容折行 */
   wordWrap?: boolean
-  /** 数据列固定：none / first / first-two */
   columnFreeze?: "none" | "first" | "first-two"
-  /** 操作列固定 */
   actionColumnFixed?: boolean
+}
+
+/** 计算左固定列 id 列表 */
+function buildLeftPinnedIds<TData>(
+  columns: ColumnDef<TData, unknown>[],
+  draggable: boolean,
+  enableSelection: boolean,
+  columnFreeze: "none" | "first" | "first-two"
+): string[] {
+  const getColId = (col: ColumnDef<TData, unknown>) =>
+    col.id ?? (col as { accessorKey?: string }).accessorKey ?? ""
+  const fixed: string[] = []
+  if (draggable) fixed.push("drag")
+  if (enableSelection) fixed.push("select")
+  if (columnFreeze === "first" && columns[0]) fixed.push(getColId(columns[0]))
+  if (columnFreeze === "first-two") {
+    if (columns[0]) fixed.push(getColId(columns[0]))
+    if (columns[1]) fixed.push(getColId(columns[1]))
+  }
+  return fixed.filter(Boolean)
 }
 
 export function DataTable<TData>({
@@ -103,24 +117,6 @@ export function DataTable<TData>({
   const [items, setItems] = useState<TData[]>(data)
   const { value: dense, setValue: setDense } = useBoolean(false)
 
-  // 计算需要左固定的列 id（选择列 + 拖拽列 + 数据列）
-  // TanStack Table 用 accessorKey 作为列 id（无显式 id 时）
-  const getColId = (col: ColumnDef<TData, unknown>) =>
-    col.id ?? (col as { accessorKey?: string }).accessorKey ?? ""
-
-  const leftPinnedIds = (() => {
-    const fixed: string[] = []
-    if (draggable) fixed.push("drag")
-    if (enableSelection) fixed.push("select")
-    if (columnFreeze === "first" && columns[0]) fixed.push(getColId(columns[0]))
-    if (columnFreeze === "first-two") {
-      if (columns[0]) fixed.push(getColId(columns[0]))
-      if (columns[1]) fixed.push(getColId(columns[1]))
-    }
-    return fixed.filter(Boolean)
-  })()
-
-  // 拖拽传感器
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const handleDragEnd = useCallback(
@@ -137,7 +133,7 @@ export function DataTable<TData>({
     },
     [onReorder]
   )
-  // 组装列：拖拽列 + 选择列 + 数据列 + 操作列
+
   const allColumns: ColumnDef<TData, unknown>[] = [
     ...(draggable ? [dragHandleColumn<TData>()] : []),
     ...(enableSelection ? [selectColumn<TData>()] : []),
@@ -146,6 +142,7 @@ export function DataTable<TData>({
   ]
 
   const tableData = draggable ? items : data
+  const leftPinnedIds = buildLeftPinnedIds(columns, draggable, enableSelection, columnFreeze)
 
   const table = useReactTable({
     data: tableData,
@@ -159,12 +156,8 @@ export function DataTable<TData>({
         left: leftPinnedIds,
         right: actionColumnFixed && renderRowActions ? ["actions"] : []
       },
-      // 服务端分页：把 page/pageSize 状态交给外部控制
       ...(serverPagination && {
-        pagination: {
-          pageIndex: serverPagination.page - 1,
-          pageSize: serverPagination.pageSize
-        }
+        pagination: { pageIndex: serverPagination.page - 1, pageSize: serverPagination.pageSize }
       })
     },
     onSortingChange: setSorting,
@@ -174,12 +167,13 @@ export function DataTable<TData>({
     columnResizeMode: "onChange",
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    // 服务端分页：manualPagination=true，pageCount 由后端决定
+    enableRowSelection: enableSelection,
+    enableSorting: enableSort,
     ...(serverPagination
       ? {
           manualPagination: true,
           pageCount: Math.ceil(serverPagination.total / serverPagination.pageSize),
-          onPaginationChange: (updater) => {
+          onPaginationChange: (updater: Updater<PaginationState>) => {
             const prev = {
               pageIndex: serverPagination.page - 1,
               pageSize: serverPagination.pageSize
@@ -189,9 +183,7 @@ export function DataTable<TData>({
             if (next.pageSize !== prev.pageSize) onPageSizeChange?.(next.pageSize)
           }
         }
-      : { getPaginationRowModel: getPaginationRowModel() }),
-    enableRowSelection: enableSelection,
-    enableSorting: enableSort
+      : { getPaginationRowModel: getPaginationRowModel() })
   })
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
@@ -199,78 +191,25 @@ export function DataTable<TData>({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* 表格 */}
       <div className="relative flex-1 overflow-auto">
-        {/* 批量操作浮层——覆盖表头 */}
         {hasSelection && (
-          <div className="absolute inset-x-0 top-0 z-10 flex h-10 items-center gap-3 border-b bg-accent px-2">
-            <Checkbox
-              checked={table.getIsAllPageRowsSelected()}
-              indeterminate={table.getIsSomePageRowsSelected()}
-              onCheckedChange={(checked) => table.toggleAllPageRowsSelected(!!checked)}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <span className="font-medium text-primary text-sm">已选 {selectedRows.length} 项</span>
-            <div className="flex-1" />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              onClick={() => onBatchDelete?.(selectedRows.map((r) => r.original))}
-            >
-              <Trash2 className="mr-1 size-4" />
-              删除
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setRowSelection({})}>
-              取消选择
-            </Button>
-          </div>
+          <BatchActionBar
+            count={selectedRows.length}
+            allSelected={table.getIsAllPageRowsSelected()}
+            someSelected={table.getIsSomePageRowsSelected()}
+            onToggleAll={(checked) => table.toggleAllPageRowsSelected(checked)}
+            onDelete={() => onBatchDelete?.(selectedRows.map((r) => r.original))}
+            onClear={() => setRowSelection({})}
+          />
         )}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <Table>
             <TableHeader className="sticky top-0 z-[5] bg-card">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const isPinned = header.column.getIsPinned()
-                    // shadow 只加在固定了数据列时的最后一个左固定列
-                    const isLastLeft = isPinned === "left" && header.column.getIsLastColumn("left") && columnFreeze !== "none"
-                    // 用 getStart/getAfter 计算 sticky 偏移（依赖 columnDef.size）
-                    const stickyLeft = isPinned === "left" ? header.column.getStart("left") : undefined
-                    const stickyRight = isPinned === "right" ? header.column.getAfter("right") : undefined
-                    return (
-                      <TableHead
-                        key={header.id}
-                        style={{
-                          width: isPinned
-                            ? header.getSize()
-                            : header.column.columnDef.size
-                            ? header.getSize()
-                            : undefined,
-                          minWidth: isPinned ? header.getSize() : undefined,
-                          maxWidth: isPinned ? header.getSize() : undefined,
-                          left: isPinned === "left" ? stickyLeft : undefined,
-                          right: isPinned === "right" ? stickyRight : undefined,
-                          backgroundColor: isPinned ? "var(--card)" : undefined,
-                          boxShadow: isLastLeft ? "4px 0 8px -4px rgba(0,0,0,0.15)" : undefined
-                        }}
-                        className={cn(
-                          header.column.getCanSort() ? "cursor-pointer select-none" : "",
-                          isPinned && "sticky z-[6]"
-                        )}
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <div className="flex items-center gap-1">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() && (
-                            <SortIcon direction={header.column.getIsSorted()} />
-                          )}
-                        </div>
-                      </TableHead>
-                    )
-                  })}
+                  {headerGroup.headers.map((header) => (
+                    <DataTableHead key={header.id} header={header} columnFreeze={columnFreeze} />
+                  ))}
                 </TableRow>
               ))}
             </TableHeader>
@@ -310,8 +249,6 @@ export function DataTable<TData>({
           </Table>
         </DndContext>
       </div>
-
-      {/* 分页 */}
       <DataTablePagination
         table={table}
         dense={dense}
@@ -319,6 +256,203 @@ export function DataTable<TData>({
         serverTotal={serverPagination?.total}
       />
     </div>
+  )
+}
+
+/** 批量操作浮层 */
+function BatchActionBar({
+  count,
+  allSelected,
+  someSelected,
+  onToggleAll,
+  onDelete,
+  onClear
+}: {
+  count: number
+  allSelected: boolean
+  someSelected: boolean
+  onToggleAll: (checked: boolean) => void
+  onDelete: () => void
+  onClear: () => void
+}) {
+  return (
+    <div className="absolute inset-x-0 top-0 z-10 flex h-10 items-center gap-3 border-b bg-accent px-2">
+      <Checkbox
+        checked={allSelected}
+        indeterminate={someSelected}
+        onCheckedChange={(checked) => onToggleAll(!!checked)}
+        onClick={(e) => e.stopPropagation()}
+      />
+      <span className="font-medium text-primary text-sm">已选 {count} 项</span>
+      <div className="flex-1" />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:text-destructive"
+        onClick={onDelete}
+      >
+        <Trash2 className="mr-1 size-4" />
+        删除
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onClear}>
+        取消选择
+      </Button>
+    </div>
+  )
+}
+
+/** 表头单元格 */
+function DataTableHead<TData>({
+  header,
+  columnFreeze
+}: {
+  header: Header<TData, unknown>
+  columnFreeze: "none" | "first" | "first-two"
+}) {
+  const isPinned = header.column.getIsPinned()
+  const isLastLeft =
+    isPinned === "left" && header.column.getIsLastColumn("left") && columnFreeze !== "none"
+  const stickyLeft = isPinned === "left" ? header.column.getStart("left") : undefined
+  const stickyRight = isPinned === "right" ? header.column.getAfter("right") : undefined
+
+  return (
+    <TableHead
+      style={{
+        width: isPinned
+          ? header.getSize()
+          : header.column.columnDef.size
+            ? header.getSize()
+            : undefined,
+        minWidth: isPinned ? header.getSize() : undefined,
+        maxWidth: isPinned ? header.getSize() : undefined,
+        left: isPinned === "left" ? stickyLeft : undefined,
+        right: isPinned === "right" ? stickyRight : undefined,
+        backgroundColor: isPinned ? "var(--card)" : undefined,
+        boxShadow: isLastLeft ? "4px 0 8px -4px rgba(0,0,0,0.15)" : undefined
+      }}
+      className={cn(
+        header.column.getCanSort() ? "cursor-pointer select-none" : "",
+        isPinned && "sticky z-[6]"
+      )}
+      onClick={header.column.getToggleSortingHandler()}
+    >
+      <div className="flex items-center gap-1">
+        {header.isPlaceholder
+          ? null
+          : flexRender(header.column.columnDef.header, header.getContext())}
+        {header.column.getCanSort() && <SortIcon direction={header.column.getIsSorted()} />}
+      </div>
+    </TableHead>
+  )
+}
+
+/** 可拖拽行 */
+function DraggableRow<TData>({
+  row,
+  draggable,
+  dense,
+  wordWrap,
+  columnFreeze,
+  onRowClick
+}: {
+  row: Row<TData>
+  draggable: boolean
+  dense: boolean
+  wordWrap: boolean
+  columnFreeze: "none" | "first" | "first-two"
+  onRowClick?: (row: TData) => void
+}) {
+  const id = (row.original as Record<string, unknown>).id as string
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: id ?? row.id
+  })
+  const style = draggable
+    ? { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+    : undefined
+
+  return (
+    <TableRow
+      ref={draggable ? setNodeRef : undefined}
+      style={style}
+      data-state={row.getIsSelected() && "selected"}
+      className="group cursor-pointer"
+      onClick={() => onRowClick?.(row.original)}
+    >
+      {row.getVisibleCells().map((cell) => (
+        <DataTableCell
+          key={cell.id}
+          cell={cell}
+          draggable={draggable}
+          dense={dense}
+          wordWrap={wordWrap}
+          columnFreeze={columnFreeze}
+          dragHandleProps={{ attributes, listeners }}
+        />
+      ))}
+    </TableRow>
+  )
+}
+
+/** 表格单元格（含拖拽手柄特殊处理） */
+function DataTableCell<TData>({
+  cell,
+  draggable,
+  dense,
+  wordWrap,
+  columnFreeze,
+  dragHandleProps
+}: {
+  cell: Cell<TData, unknown>
+  draggable: boolean
+  dense: boolean
+  wordWrap: boolean
+  columnFreeze: "none" | "first" | "first-two"
+  dragHandleProps: {
+    attributes: DraggableAttributes
+    listeners: ReturnType<typeof useSortable>["listeners"]
+  }
+}) {
+  const isPinned = cell.column.getIsPinned()
+  const isLastLeft =
+    isPinned === "left" && cell.column.getIsLastColumn("left") && columnFreeze !== "none"
+  const stickyLeft = isPinned === "left" ? cell.column.getStart("left") : undefined
+  const stickyRight = isPinned === "right" ? cell.column.getAfter("right") : undefined
+  const pinnedStyle = {
+    left: isPinned === "left" ? stickyLeft : undefined,
+    right: isPinned === "right" ? stickyRight : undefined,
+    backgroundColor: isPinned ? "var(--card)" : undefined,
+    boxShadow: isLastLeft ? "4px 0 8px -4px rgba(0,0,0,0.15)" : undefined
+  }
+
+  if (cell.column.id === "drag") {
+    return (
+      <TableCell className={cn("w-9 px-1", isPinned && "sticky z-[4]")} style={pinnedStyle}>
+        {draggable && (
+          // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: 拖拽手柄
+          <div
+            className="flex cursor-grab items-center justify-center text-muted-foreground hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+          >
+            <GripVertical className="size-4" />
+          </div>
+        )}
+      </TableCell>
+    )
+  }
+
+  return (
+    <TableCell
+      className={cn(
+        dense ? "py-1" : "",
+        wordWrap ? "whitespace-normal break-words" : "whitespace-nowrap",
+        isPinned && "sticky z-[4]"
+      )}
+      style={pinnedStyle}
+    >
+      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+    </TableCell>
   )
 }
 
@@ -385,93 +519,6 @@ function dragHandleColumn<TData>(): ColumnDef<TData, unknown> {
     size: 36,
     enableSorting: false,
     header: () => null,
-    cell: () => null // 由 DraggableRow 直接渲染手柄
+    cell: () => null
   }
-}
-
-/** 可拖拽行——拖拽模式下替换普通 TableRow */
-function DraggableRow<TData>({
-  row,
-  draggable,
-  dense,
-  wordWrap,
-  columnFreeze,
-  onRowClick
-}: {
-  row: import("@tanstack/react-table").Row<TData>
-  draggable: boolean
-  dense: boolean
-  wordWrap: boolean
-  columnFreeze: "none" | "first" | "first-two"
-  onRowClick?: (row: TData) => void
-}) {
-  const id = (row.original as Record<string, unknown>).id as string
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: id ?? row.id
-  })
-
-  const style = draggable
-    ? { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
-    : undefined
-
-  return (
-    <TableRow
-      ref={draggable ? setNodeRef : undefined}
-      style={style}
-      data-state={row.getIsSelected() && "selected"}
-      className="group cursor-pointer"
-      onClick={() => onRowClick?.(row.original)}
-    >
-      {row.getVisibleCells().map((cell) => {
-        const isPinned = cell.column.getIsPinned()
-        const isLastLeft = isPinned === "left" && cell.column.getIsLastColumn("left") && columnFreeze !== "none"
-        const stickyLeft = isPinned === "left" ? cell.column.getStart("left") : undefined
-        const stickyRight = isPinned === "right" ? cell.column.getAfter("right") : undefined
-
-        if (cell.column.id === "drag") {
-          return (
-            <TableCell
-              key={cell.id}
-              className={cn("w-9 px-1", isPinned && "sticky z-[4]")}
-              style={{
-                left: isPinned === "left" ? stickyLeft : undefined,
-                backgroundColor: isPinned ? "var(--card)" : undefined,
-                boxShadow: isLastLeft ? "4px 0 8px -4px rgba(0,0,0,0.15)" : undefined
-              }}
-            >
-              {draggable && (
-                // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: 拖拽手柄
-                <div
-                  className="flex cursor-grab items-center justify-center text-muted-foreground hover:text-foreground"
-                  onClick={(e) => e.stopPropagation()}
-                  {...attributes}
-                  {...listeners}
-                >
-                  <GripVertical className="size-4" />
-                </div>
-              )}
-            </TableCell>
-          )
-        }
-        return (
-          <TableCell
-            key={cell.id}
-            className={cn(
-              dense ? "py-1" : "",
-              wordWrap ? "whitespace-normal break-words" : "whitespace-nowrap",
-              isPinned && "sticky z-[4]"
-            )}
-            style={{
-              left: isPinned === "left" ? stickyLeft : undefined,
-              right: isPinned === "right" ? stickyRight : undefined,
-              backgroundColor: isPinned ? "var(--card)" : undefined,
-              boxShadow: isLastLeft ? "4px 0 8px -4px rgba(0,0,0,0.15)" : undefined
-            }}
-          >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </TableCell>
-        )
-      })}
-    </TableRow>
-  )
 }

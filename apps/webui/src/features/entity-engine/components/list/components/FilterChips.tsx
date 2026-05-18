@@ -8,7 +8,7 @@
 "use client"
 
 import { Trash2, X } from "lucide-react"
-import type { DataFieldDef, EntityDef } from "../types"
+import type { DataFieldDef, EntityDef } from "../../../types"
 import type { FilterCondition } from "./FilterBuilder"
 
 interface FilterChipsProps {

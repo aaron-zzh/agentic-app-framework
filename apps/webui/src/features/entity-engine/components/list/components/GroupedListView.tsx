@@ -7,8 +7,8 @@
 
 import { useMemo, useState } from "react"
 
-import { getCellComponent } from "../../lib/component-registry"
-import type { ColumnDef, DataFieldDef } from "../../types"
+import { getCellComponent } from "../../../lib/component-registry"
+import type { ColumnDef, DataFieldDef } from "../../../types"
 
 type ColumnInfo = { name: string; field: DataFieldDef; def: ColumnDef }
 

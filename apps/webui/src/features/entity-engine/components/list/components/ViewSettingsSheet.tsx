@@ -8,22 +8,16 @@
 
 "use client"
 
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors
-} from "@dnd-kit/core"
+import { useBoolean } from "@aaf/hooks"
 import type { DragEndEvent } from "@dnd-kit/core"
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
   useSortable,
   verticalListSortingStrategy
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { useBoolean } from "@aaf/hooks"
 import { GripVertical, HelpCircle, Search, Settings } from "lucide-react"
 import { useCallback, useId, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -68,6 +62,8 @@ export interface ViewSettings {
   serverPagination?: boolean
   /** 自定义列顺序和可见性 */
   columns?: { name: string; visible: boolean; order: number; width?: number }[]
+  /** 点击行的行为：panel=侧边快速查看（默认）detail=跳转详情页 drawer=底部抽屉 none=无 */
+  rowClickAction?: "panel" | "detail" | "drawer" | "none"
 }
 
 function loadSettings(entitySlug: string): ViewSettings {
@@ -104,22 +100,26 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
   const defaultColumns = allFields.map((f, i) => ({
     name: f.name,
     visible: listColumns.includes(f.name),
-    order: i
+    order: i,
+    width: undefined as number | undefined
   }))
   const columns = draft.columns ?? defaultColumns
 
   // 实时保存：每次 patch 立即持久化并通知外部
-  const patch = useCallback((p: Partial<ViewSettings>) => {
-    setDraft((prev) => {
-      const next = { ...prev, ...p }
-      // 用 setTimeout 把副作用移出渲染周期
-      setTimeout(() => {
-        saveSettings(entity.slug, next)
-        onSettingsChange?.(next)
-      }, 0)
-      return next
-    })
-  }, [entity.slug, onSettingsChange])
+  const patch = useCallback(
+    (p: Partial<ViewSettings>) => {
+      setDraft((prev) => {
+        const next = { ...prev, ...p }
+        // 用 setTimeout 把副作用移出渲染周期
+        setTimeout(() => {
+          saveSettings(entity.slug, next)
+          onSettingsChange?.(next)
+        }, 0)
+        return next
+      })
+    },
+    [entity.slug, onSettingsChange]
+  )
 
   // 拖拽排序
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -162,12 +162,16 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
         <Settings className="size-4" />
       </SheetTrigger>
 
-      <SheetContent side="right" className="flex w-[400px] flex-col p-0 sm:max-w-[400px]" hideOverlay>
+      <SheetContent
+        side="right"
+        className="flex w-[400px] flex-col p-0 sm:max-w-[400px]"
+        hideOverlay
+      >
         <SheetHeader className="border-b px-6 py-4">
           <SheetTitle>设置</SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-4">
           {/* 基础设置 */}
           <section>
             <h3 className="mb-4 font-semibold text-base">基础设置</h3>
@@ -178,7 +182,14 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground text-sm">自动折行</span>
                 <Tooltip>
-                  <TooltipTrigger render={<button type="button" className="text-muted-foreground/50 hover:text-muted-foreground" />}>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="text-muted-foreground/50 hover:text-muted-foreground"
+                      />
+                    }
+                  >
                     <HelpCircle className="size-3.5" />
                   </TooltipTrigger>
                   <TooltipContent>启用后表格内容自动折行，禁用则截断文本</TooltipContent>
@@ -206,7 +217,10 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                 ].map((opt) => (
                   <div key={opt.value} className="flex items-center gap-1.5">
                     <RadioGroupItem value={opt.value} id={`${uid}-freeze-${opt.value}`} />
-                    <Label htmlFor={`${uid}-freeze-${opt.value}`} className="text-sm font-normal cursor-pointer">
+                    <Label
+                      htmlFor={`${uid}-freeze-${opt.value}`}
+                      className="cursor-pointer font-normal text-sm"
+                    >
                       {opt.label}
                     </Label>
                   </div>
@@ -215,11 +229,21 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
             </div>
 
             {/* 操作列固定 */}
-            <label htmlFor={`${uid}-action-fixed`} className="mb-3 flex items-center justify-between">
+            <label
+              htmlFor={`${uid}-action-fixed`}
+              className="mb-3 flex items-center justify-between"
+            >
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground text-sm">固定操作列</span>
                 <Tooltip>
-                  <TooltipTrigger render={<button type="button" className="text-muted-foreground/50 hover:text-muted-foreground" />}>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="text-muted-foreground/50 hover:text-muted-foreground"
+                      />
+                    }
+                  >
                     <HelpCircle className="size-3.5" />
                   </TooltipTrigger>
                   <TooltipContent>操作列固定在最后一列永久可见</TooltipContent>
@@ -231,6 +255,35 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                 onCheckedChange={(v) => patch({ actionColumnFixed: v })}
               />
             </label>
+
+            {/* 点击行行为 */}
+            <div className="mb-3">
+              <p className="mb-2 text-muted-foreground text-sm">点击行</p>
+              <RadioGroup
+                value={draft.rowClickAction ?? "panel"}
+                onValueChange={(v) =>
+                  patch({ rowClickAction: v as ViewSettings["rowClickAction"] })
+                }
+                className="flex gap-4"
+              >
+                {[
+                  { value: "panel", label: "侧边" },
+                  { value: "detail", label: "跳转" },
+                  { value: "drawer", label: "抽屉" },
+                  { value: "none", label: "无" }
+                ].map((opt) => (
+                  <div key={opt.value} className="flex items-center gap-1.5">
+                    <RadioGroupItem value={opt.value} id={`${uid}-row-click-${opt.value}`} />
+                    <Label
+                      htmlFor={`${uid}-row-click-${opt.value}`}
+                      className="cursor-pointer font-normal text-sm"
+                    >
+                      {opt.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
           </section>
 
           <Separator />
@@ -249,23 +302,39 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                   onChange={(e) => patch({ tabField: e.target.value || undefined })}
                 >
                   <option value="">不显示</option>
-                  {allFields.filter((f) => f.type === "select").map((f) => (
-                    <option key={f.name} value={f.name}>{f.label ?? f.name}</option>
-                  ))}
+                  {allFields
+                    .filter((f) => f.type === "select")
+                    .map((f) => (
+                      <option key={f.name} value={f.name}>
+                        {f.label ?? f.name}
+                      </option>
+                    ))}
                 </select>
               </div>
             )}
 
             {/* 服务端分页 */}
-            <label htmlFor={`${uid}-server-page`} className="mb-3 flex items-center justify-between">
+            <label
+              htmlFor={`${uid}-server-page`}
+              className="mb-3 flex items-center justify-between"
+            >
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground text-sm">服务端分页</span>
                 <Tooltip>
-                  <TooltipTrigger render={<button type="button" className="text-muted-foreground/50 hover:text-muted-foreground" />}>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="text-muted-foreground/50 hover:text-muted-foreground"
+                      />
+                    }
+                  >
                     <HelpCircle className="size-3.5" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    {(draft.serverPagination ?? false) ? "每页向后端请求数据" : "一次性加载全量数据"}
+                    {(draft.serverPagination ?? false)
+                      ? "每页向后端请求数据"
+                      : "一次性加载全量数据"}
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -282,7 +351,14 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                 <div className="flex items-center gap-1">
                   <span className="text-muted-foreground text-sm">允许拖放排序</span>
                   <Tooltip>
-                    <TooltipTrigger render={<button type="button" className="text-muted-foreground/50 hover:text-muted-foreground" />}>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          className="text-muted-foreground/50 hover:text-muted-foreground"
+                        />
+                      }
+                    >
                       <HelpCircle className="size-3.5" />
                     </TooltipTrigger>
                     <TooltipContent>按 {entity.listView.orderField} 字段排序</TooltipContent>
@@ -361,7 +437,7 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
 
             {/* 搜索 */}
             <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="搜索"
                 value={search}
@@ -371,7 +447,11 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
             </div>
 
             {/* 列列表 */}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
               <SortableContext
                 items={filteredColumns.map((c) => c.name)}
                 strategy={verticalListSortingStrategy}
@@ -394,14 +474,20 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                         width={col.width}
                         disabled={isFirst}
                         onToggle={() => !isFirst && toggleColumn(col.name)}
-                        onFilterToggle={() => patch({
-                          quickFilterFields: isFiltered
-                            ? current.filter((n) => n !== col.name)
-                            : [...current, col.name]
-                        })}
-                        onWidthChange={(w) => patch({
-                          columns: columns.map((c) => c.name === col.name ? { ...c, width: w } : c)
-                        })}
+                        onFilterToggle={() =>
+                          patch({
+                            quickFilterFields: isFiltered
+                              ? current.filter((n) => n !== col.name)
+                              : [...current, col.name]
+                          })
+                        }
+                        onWidthChange={(w) =>
+                          patch({
+                            columns: columns.map((c) =>
+                              c.name === col.name ? { ...c, width: w } : c
+                            )
+                          })
+                        }
                       />
                     )
                   })}
@@ -464,7 +550,7 @@ function SortableColumnItem({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
         "flex items-center gap-2 rounded-md px-2 py-1.5",
-        isDragging && "opacity-50 bg-muted",
+        isDragging && "bg-muted opacity-50",
         !disabled && "hover:bg-muted/50"
       )}
     >
@@ -472,7 +558,7 @@ function SortableColumnItem({
       <button
         type="button"
         className={cn(
-          "cursor-grab text-muted-foreground/40 hover:text-muted-foreground shrink-0",
+          "shrink-0 cursor-grab text-muted-foreground/40 hover:text-muted-foreground",
           disabled && "invisible"
         )}
         {...attributes}
@@ -493,7 +579,7 @@ function SortableColumnItem({
       {/* 标签 */}
       <span className={cn("flex-1 text-sm", disabled && "text-muted-foreground")}>
         {label}
-        {disabled && <span className="ml-1 text-xs text-muted-foreground/60">（默认）</span>}
+        {disabled && <span className="ml-1 text-muted-foreground/60 text-xs">（默认）</span>}
       </span>
 
       {/* 列宽输入 */}
@@ -509,7 +595,7 @@ function SortableColumnItem({
       />
 
       {/* 快速筛选开关 */}
-      <div className="w-16 shrink-0 flex justify-center">
+      <div className="flex w-16 shrink-0 justify-center">
         <Switch
           checked={filtered}
           onCheckedChange={onFilterToggle}

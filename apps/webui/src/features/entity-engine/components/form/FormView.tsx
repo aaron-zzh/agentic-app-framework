@@ -31,12 +31,31 @@ interface FormViewProps {
   onSubmit?: (values: Record<string, unknown>) => void
 }
 
+/** 审计元信息字段名（固定渲染到表单末尾只读区） */
+const AUDIT_FIELD_NAMES = new Set(["createTime", "updateTime", "createBy", "updateBy"])
+/** 软删除字段名（不渲染） */
+const HIDDEN_FIELD_NAMES = new Set(["deleted", "deleteTime"])
+
 /** 表单视图 */
 export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
   const { fields, formView } = entity
-  const schema = buildZodSchema(fields)
   const labelLayout = formView?.labelLayout ?? "top"
 
+  // 过滤掉软删除字段和 hidden 字段，审计字段单独处理
+  const visibleFields = fields.filter((f) => {
+    if (!("name" in f)) return true
+    const df = f as DataFieldDef
+    if (HIDDEN_FIELD_NAMES.has(df.name)) return false
+    if (df.hidden) return false
+    if (AUDIT_FIELD_NAMES.has(df.name)) return false
+    return true
+  })
+
+  const auditFields = fields.filter(
+    (f): f is DataFieldDef => "name" in f && AUDIT_FIELD_NAMES.has((f as DataFieldDef).name)
+  )
+
+  const schema = buildZodSchema(visibleFields)
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: data ?? {}
@@ -54,8 +73,12 @@ export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
     <FormProvider {...form}>
       <form onSubmit={handleSubmit} className="space-y-4 p-4">
         {formView?.layout
-          ? renderLayout(formView.layout, fields, entity, labelLayout)
-          : renderLinear(fields, entity, labelLayout)}
+          ? renderLayout(formView.layout, visibleFields, entity, labelLayout)
+          : renderLinear(visibleFields, entity, labelLayout)}
+
+        {/* 审计信息只读区 */}
+        {auditFields.length > 0 && data && <AuditInfo fields={auditFields} data={data} />}
+
         <div className="flex justify-end pt-4">
           <button
             type="submit"
@@ -264,6 +287,75 @@ function FieldRenderer({
   }
 
   return fieldEl
+}
+
+/** 审计信息只读展示区 */
+function AuditInfo({ fields, data }: { fields: DataFieldDef[]; data: Record<string, unknown> }) {
+  const timeFields = fields.filter((f) => f.type === "date")
+  const userFields = fields.filter((f) => f.type !== "date")
+
+  const renderValue = (f: DataFieldDef) => {
+    const val = data[f.name]
+    if (val == null) return <span className="text-muted-foreground">—</span>
+
+    if (f.type === "date") {
+      const str = String(val)
+      const display = /^\d{4}-\d{2}-\d{2}T/.test(str) ? new Date(str).toLocaleString("zh-CN") : str
+      return <span>{display}</span>
+    }
+
+    if (typeof val === "object" && val !== null) {
+      const o = val as Record<string, unknown>
+      const name = String(
+        o.displayName ?? o.nickname ?? o.username ?? o.name ?? o.title ?? o.id ?? "—"
+      )
+      const avatar = o.avatar ?? o.imgUrl ?? o.avatarUrl
+      return (
+        <div className="flex items-center gap-1.5">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary text-xs">
+            {avatar ? (
+              // biome-ignore lint/performance/noImgElement: 动态头像 URL
+              <img src={String(avatar)} alt={name} className="size-5 rounded-full object-cover" />
+            ) : (
+              name.slice(0, 1)
+            )}
+          </span>
+          <span>{name}</span>
+        </div>
+      )
+    }
+
+    return <span>{String(val)}</span>
+  }
+
+  return (
+    <div className="rounded-md border border-dashed px-4 py-3 text-sm">
+      {timeFields.length > 0 && (
+        <div className="mb-2 grid grid-cols-2 gap-x-6 gap-y-2">
+          {timeFields.map((f) => (
+            <div key={f.name} className="flex items-center gap-2">
+              <span className="w-16 shrink-0 text-right text-muted-foreground text-xs">
+                {f.label ?? f.name}
+              </span>
+              {renderValue(f)}
+            </div>
+          ))}
+        </div>
+      )}
+      {userFields.length > 0 && (
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+          {userFields.map((f) => (
+            <div key={f.name} className="flex items-center gap-2">
+              <span className="w-16 shrink-0 text-right text-muted-foreground text-xs">
+                {f.label ?? f.name}
+              </span>
+              {renderValue(f)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** 表单骨架屏 */

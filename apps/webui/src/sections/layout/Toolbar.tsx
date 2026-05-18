@@ -16,12 +16,14 @@ import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
-import { ListTabs } from "@/features/entity-engine/components/ListTabs"
-import { QuickFilterBar } from "@/features/entity-engine/components/QuickFilterBar"
-import { SearchBar } from "@/features/entity-engine/components/SearchBar"
-import type { ViewSettings } from "@/features/entity-engine/components/ViewSettingsSheet"
-import { ViewSettingsSheet } from "@/features/entity-engine/components/ViewSettingsSheet"
+import type { ViewSettings } from "@/features/entity-engine/components/list"
+import {
+  FilterFavorites,
+  ListTabs,
+  QuickFilterBar,
+  SearchBar,
+  ViewSettingsSheet
+} from "@/features/entity-engine/components/list"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
 import { useFilterParams } from "@/lib/queries/use-filter-params"
 import { cn } from "@/lib/utils/cn"

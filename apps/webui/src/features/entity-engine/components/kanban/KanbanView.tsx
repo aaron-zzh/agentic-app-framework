@@ -25,8 +25,7 @@ import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-
 import { useCallback, useMemo, useState } from "react"
 
 import type { EntityDef, SelectField, SelectOption } from "../../types"
-import { KanbanCard } from "./KanbanCard"
-import { KanbanColumn } from "./KanbanColumn"
+import { KanbanCard, KanbanColumn } from "./components"
 
 interface KanbanViewProps {
   entity: EntityDef

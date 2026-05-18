@@ -13,11 +13,9 @@ import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { useUIStore } from "@/lib/store/ui-store"
 import { buildColumns } from "../../lib/build-columns"
 import type { DataFieldDef, EntityDef } from "../../types"
-import { ColumnConfigPanel } from "../ColumnConfigPanel"
 import { registerDefaultComponents } from "../register"
-import type { ViewSettings } from "../ViewSettingsSheet"
-import { DataTable } from "./DataTable"
-import { GroupedListView } from "./GroupedListView"
+import type { ViewSettings } from "./components"
+import { ColumnConfigPanel, DataTable, GroupedListView } from "./components"
 
 registerDefaultComponents()
 
@@ -44,16 +42,20 @@ export function ListView({
 }: ListViewProps) {
   const router = useRouter()
   const openRecordPanel = useUIStore((s) => s.openRecordPanel)
-  const { visibleColumns: defaultVisibleColumns, preferences, toggleColumn, resetColumns } = useColumnPreferences(
-    entity.slug,
-    entity.listView
-  )
+  const {
+    visibleColumns: defaultVisibleColumns,
+    preferences,
+    toggleColumn,
+    resetColumns
+  } = useColumnPreferences(entity.slug, entity.listView)
 
   // viewSettings.columns 存在时，用它覆盖 useColumnPreferences 的结果
   const visibleColumns = (() => {
     const settingsCols = viewSettings?.columns
     if (!settingsCols?.length) return defaultVisibleColumns
-    const allFieldDefs = entity.fields.filter((f): f is import("../../types").DataFieldDef => "name" in f)
+    const allFieldDefs = entity.fields.filter(
+      (f): f is import("../../types").DataFieldDef => "name" in f
+    )
     return [...settingsCols]
       .filter((c) => c.visible)
       .sort((a, b) => a.order - b.order)
@@ -143,7 +145,11 @@ export function ListView({
       actionColumnFixed={viewSettings?.actionColumnFixed ?? true}
       onRowClick={(row) => {
         const id = row.id as string
-        if (id) openRecordPanel(id)
+        if (!id) return
+        const action = viewSettings?.rowClickAction ?? "panel"
+        if (action === "panel") openRecordPanel(id, "panel")
+        else if (action === "drawer") openRecordPanel(id, "drawer")
+        else if (action === "detail") router.push(paths.workspace.record(entity.slug, id))
       }}
       renderRowActions={(row) => (
         <div className="flex items-center gap-1">

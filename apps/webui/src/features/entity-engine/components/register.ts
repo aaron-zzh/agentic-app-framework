@@ -11,7 +11,7 @@
 
 import { registerCellType, registerFieldType } from "../lib/component-registry"
 
-import { BadgeCell, CheckCell, DateCell, TextCell } from "./cells"
+import { BadgeCell, CheckCell, DateCell, RelationCell, TextCell } from "./cells"
 import {
   CheckboxInput,
   DateInput,
@@ -39,5 +39,5 @@ export function registerDefaultComponents(): void {
   registerCellType("date", DateCell)
   registerCellType("select", BadgeCell)
   registerCellType("checkbox", CheckCell)
-  registerCellType("relationship", TextCell)
+  registerCellType("relationship", RelationCell)
 }

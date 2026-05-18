@@ -151,10 +151,26 @@ export const taskEntity: EntityDef = {
       ]
     },
     { type: "relationship", name: "assignee", label: "负责人", relationTo: "user" },
-    { type: "date", name: "dueDate", label: "截止日期" }
+    { type: "date", name: "dueDate", label: "截止日期" },
+    {
+      type: "relationship",
+      name: "updateBy",
+      label: "最后修改人",
+      relationTo: "user",
+      readOnly: true
+    }
   ],
   listView: {
-    columns: ["title", "status", "priority", "assignee", "dueDate"],
+    columns: [
+      "title",
+      "status",
+      "priority",
+      "assignee",
+      "dueDate",
+      "updateBy",
+      "updateTime",
+      "createTime"
+    ],
     defaultSort: "createTime:desc",
     searchableFields: ["title", "description"],
     filterableFields: ["status", "priority", "assignee"],

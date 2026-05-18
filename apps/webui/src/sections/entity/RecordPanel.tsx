@@ -11,8 +11,8 @@
 import { X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ViewEngine } from "@/features/entity-engine/components"
 import type { EntityDef } from "@/features/entity-engine/types"
 
@@ -22,9 +22,11 @@ interface Props {
   onClose: () => void
   /** 左侧列表内容（桌面端并排显示） */
   children: React.ReactNode
+  /** panel=侧边面板（默认）drawer=强制底部抽屉 */
+  mode?: "panel" | "drawer"
 }
 
-export function RecordPanel({ entity, recordId, onClose, children }: Props) {
+export function RecordPanel({ entity, recordId, onClose, children, mode = "panel" }: Props) {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -36,22 +38,19 @@ export function RecordPanel({ entity, recordId, onClose, children }: Props) {
 
   const detail = <ViewEngine entity={entity} view="form" recordId={recordId} />
 
-  // 移动端：底部 Drawer，列表保持可见
-  if (isMobile) {
+  // drawer 模式：右侧 Sheet，手机端全屏
+  if (mode === "drawer" || isMobile) {
     return (
       <>
         {children}
-        <Drawer open onClose={onClose} direction="bottom">
-          <DrawerContent className="max-h-[85vh]">
-            <DrawerHeader className="flex items-center justify-between border-b">
-              <DrawerTitle>{entity.label}详情</DrawerTitle>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="size-4" />
-              </Button>
-            </DrawerHeader>
+        <Sheet open onOpenChange={(open) => !open && onClose()}>
+          <SheetContent side="right" className="sm:!max-w-[620px] flex w-full flex-col p-0">
+            <SheetHeader className="border-b px-4 py-3">
+              <SheetTitle>{entity.label}详情</SheetTitle>
+            </SheetHeader>
             <div className="flex-1 overflow-auto">{detail}</div>
-          </DrawerContent>
-        </Drawer>
+          </SheetContent>
+        </Sheet>
       </>
     )
   }
