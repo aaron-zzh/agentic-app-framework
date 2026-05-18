@@ -24,6 +24,7 @@
     "@biomejs/biome": "^2.4.15",
     "@commitlint/cli": "^21.0.0",
     "@commitlint/config-conventional": "^21.0.0",
+    "@nx/devkit": "22.7.0",
     "@nx/js": "22.7.0",
     "@nx/maven": "22.7.0",
     "@nx/next": "22.7.0",

@@ -6,6 +6,8 @@
     "name": "webui"
   },
   "dependencies": {
+    "@aaf/core": "workspace:*",
+    "@aaf/hooks": "workspace:*",
     "@assistant-ui/react": "^0.14.0",
     "@assistant-ui/react-ag-ui": "^0.0.29",
     "@assistant-ui/react-streamdown": "^0.3.0",

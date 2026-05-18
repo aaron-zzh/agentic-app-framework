@@ -19,7 +19,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { isExternalLink } from "@aaf/core"
+import { useBoolean } from "@aaf/hooks"
 import { Brand } from "@/components/brand/Brand"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
@@ -97,7 +98,7 @@ function NavGroupSection({
   pathname: string
   collapsed: boolean
 }) {
-  const [open, setOpen] = useState(true)
+  const { value: open, onToggle: toggleOpen } = useBoolean(true)
 
   return (
     <div className="mb-3">
@@ -107,7 +108,7 @@ function NavGroupSection({
       ) : (
         <button
           type="button"
-          onClick={() => setOpen(!open)}
+          onClick={toggleOpen}
           className="flex w-full items-center px-2 py-1"
         >
           <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
@@ -139,7 +140,7 @@ function NavItemRow({
   collapsed: boolean
   depth?: number
 }) {
-  const [childOpen, setChildOpen] = useState(false)
+  const { value: childOpen, onToggle: toggleChild } = useBoolean(false)
   const isActive = item.deepMatch ? pathname.startsWith(item.path) : pathname === item.path
   const hasChildren = !collapsed && item.children && item.children.length > 0
 
@@ -180,13 +181,24 @@ function NavItemRow({
       {hasChildren ? (
         <button
           type="button"
-          onClick={() => setChildOpen(!childOpen)}
+          onClick={() => toggleChild()}
           title={collapsed ? item.title : undefined}
           className={itemClass}
           style={itemStyle}
         >
           {content}
         </button>
+      ) : isExternalLink(item.path) ? (
+        <a
+          href={item.path}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={collapsed ? item.title : undefined}
+          className={itemClass}
+          style={itemStyle}
+        >
+          {content}
+        </a>
       ) : (
         <Link
           href={item.path}

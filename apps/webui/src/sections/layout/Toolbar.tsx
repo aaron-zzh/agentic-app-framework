@@ -12,7 +12,8 @@
 
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
+import { useTabs } from "@aaf/hooks"
 import { FilterFavorites } from "@/features/entity-engine/components/FilterFavorites"
 import { ListTabs } from "@/features/entity-engine/components/ListTabs"
 import { SearchBar } from "@/features/entity-engine/components/SearchBar"
@@ -31,7 +32,7 @@ export function Toolbar({ entity }: ToolbarProps) {
   const currentView = searchParams.get("view") ?? "list"
   const canCreate = entity.access?.create !== false
   const [filters, setFilters] = useFilterParams()
-  const [activeTab, setActiveTab] = useState("")
+  const tabs = useTabs("")
 
   // 动态视图列表（透视视图按需显示）
   const availableViews = [
@@ -43,7 +44,7 @@ export function Toolbar({ entity }: ToolbarProps) {
   // Tab 切换时添加/替换对应字段筛选
   const handleTabChange = useCallback(
     (value: string) => {
-      setActiveTab(value)
+      tabs.setValue(value)
       const tabField = entity.listView.tabs?.field
       if (!tabField) return
       const without = filters.filter((f) => f.field !== tabField)
@@ -53,7 +54,7 @@ export function Toolbar({ entity }: ToolbarProps) {
         setFilters(without)
       }
     },
-    [entity, filters, setFilters]
+    [entity, filters, setFilters, tabs]
   )
 
   return (
@@ -106,7 +107,7 @@ export function Toolbar({ entity }: ToolbarProps) {
       </div>
 
       {/* 行2：状态 Tab（配置了 tabs 时显示） */}
-      <ListTabs entity={entity} activeValue={activeTab} onChange={handleTabChange} />
+      <ListTabs entity={entity} activeValue={tabs.value} onChange={handleTabChange} />
 
       {/* 行3：统一搜索栏 */}
       <div className="flex items-center gap-2 px-4 py-2">

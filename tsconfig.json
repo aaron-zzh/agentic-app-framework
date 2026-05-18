@@ -7,7 +7,13 @@
       "path": "./apps/webui"
     },
     {
-      "path": "./packages/entity-engine"
+      "path": "./packages/hooks"
+    },
+    {
+      "path": "./apps/docs"
+    },
+    {
+      "path": "./packages/core"
     }
   ]
 }

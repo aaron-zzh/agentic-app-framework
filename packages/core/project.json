@@ -1,0 +1,18 @@
+{
+  "name": "core",
+  "projectType": "library",
+  "sourceRoot": "packages/core/src",
+  "targets": {
+    "typecheck": {
+      "command": "tsgo --noEmit -p tsconfig.lib.json",
+      "options": { "cwd": "packages/core" }
+    },
+    "test": {
+      "command": "vitest run",
+      "options": { "cwd": "packages/core" }
+    },
+    "lint": {
+      "command": "biome check packages/core/src"
+    }
+  }
+}

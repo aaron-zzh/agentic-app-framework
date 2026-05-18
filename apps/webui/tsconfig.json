@@ -45,5 +45,13 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     ".next"
+  ],
+  "references": [
+    {
+      "path": "../../packages/hooks"
+    },
+    {
+      "path": "../../packages/core"
+    }
   ]
 }

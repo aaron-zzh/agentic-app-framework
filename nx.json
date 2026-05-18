@@ -59,7 +59,14 @@
     },
     {
       "plugin": "@nx/vitest",
-      "include": ["apps/webui"],
+      "include": [
+        "apps/webui",
+        "packages/hooks",
+        "packages/core"
+      ],
+      "exclude": [
+        "apps/uniapp"
+      ],
       "options": {
         "testTargetName": "vitest:test",
         "ciTargetName": "test-ci",
