@@ -9,7 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import {
-  Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
@@ -109,7 +114,11 @@ export default function UiPage() {
           component: (
             <ComponentBox>
               <div className="flex items-center gap-2">
-                <Checkbox id={`${uid}-c1`} checked={checked} onCheckedChange={(v) => setChecked(v === true)} />
+                <Checkbox
+                  id={`${uid}-c1`}
+                  checked={checked}
+                  onCheckedChange={(v) => setChecked(v === true)}
+                />
                 <Label htmlFor={`${uid}-c1`}>复选框（{checked ? "✓" : "○"}）</Label>
               </div>
               <div className="flex items-center gap-2">
@@ -151,8 +160,20 @@ export default function UiPage() {
             <ComponentBox className="flex-col gap-3">
               <Progress value={progress} className="w-64" />
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setProgress(Math.max(0, progress - 10))}>-10</Button>
-                <Button size="sm" variant="outline" onClick={() => setProgress(Math.min(100, progress + 10))}>+10</Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setProgress(Math.max(0, progress - 10))}
+                >
+                  -10
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setProgress(Math.min(100, progress + 10))}
+                >
+                  +10
+                </Button>
                 <span className="text-muted-foreground text-sm">{progress}%</span>
               </div>
             </ComponentBox>
@@ -176,10 +197,16 @@ export default function UiPage() {
                 <TabsList>
                   <TabsTrigger value="tab1">标签一</TabsTrigger>
                   <TabsTrigger value="tab2">标签二</TabsTrigger>
-                  <TabsTrigger value="tab3" disabled>禁用</TabsTrigger>
+                  <TabsTrigger value="tab3" disabled>
+                    禁用
+                  </TabsTrigger>
                 </TabsList>
-                <TabsContent value="tab1" className="p-3 text-sm">标签一的内容</TabsContent>
-                <TabsContent value="tab2" className="p-3 text-sm">标签二的内容</TabsContent>
+                <TabsContent value="tab1" className="p-3 text-sm">
+                  标签一的内容
+                </TabsContent>
+                <TabsContent value="tab2" className="p-3 text-sm">
+                  标签二的内容
+                </TabsContent>
               </Tabs>
             </ComponentBox>
           )

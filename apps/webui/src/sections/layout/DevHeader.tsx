@@ -58,9 +58,8 @@ export function DevHeader() {
         <nav className="flex items-center gap-1">
           {devPages.map((p) => {
             // 索引页精确匹配，子页面前缀匹配
-            const active = p.href === "/components"
-              ? pathname === "/components"
-              : pathname.startsWith(p.href)
+            const active =
+              p.href === "/components" ? pathname === "/components" : pathname.startsWith(p.href)
             return (
               <Link
                 key={p.href}

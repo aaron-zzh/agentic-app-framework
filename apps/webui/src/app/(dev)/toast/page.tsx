@@ -12,8 +12,12 @@ import { Button } from "@/components/ui/button"
 import { notify } from "@/lib/notification"
 
 const POSITIONS = [
-  "top-left", "top-center", "top-right",
-  "bottom-left", "bottom-center", "bottom-right"
+  "top-left",
+  "top-center",
+  "top-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right"
 ] as const
 
 export default function ToastPage() {
@@ -37,11 +41,21 @@ export default function ToastPage() {
           description: "四种语义类型 + 默认类型",
           component: (
             <ComponentBox>
-              <Button variant="outline" onClick={() => notify.success("保存成功")}>Success</Button>
-              <Button variant="outline" onClick={() => notify.error("保存失败")}>Error</Button>
-              <Button variant="outline" onClick={() => notify.warning("注意：操作不可逆")}>Warning</Button>
-              <Button variant="outline" onClick={() => notify.info("系统将于今晚维护")}>Info</Button>
-              <Button variant="outline" onClick={() => toast("这是一条默认消息")}>Default</Button>
+              <Button variant="outline" onClick={() => notify.success("保存成功")}>
+                Success
+              </Button>
+              <Button variant="outline" onClick={() => notify.error("保存失败")}>
+                Error
+              </Button>
+              <Button variant="outline" onClick={() => notify.warning("注意：操作不可逆")}>
+                Warning
+              </Button>
+              <Button variant="outline" onClick={() => notify.info("系统将于今晚维护")}>
+                Info
+              </Button>
+              <Button variant="outline" onClick={() => toast("这是一条默认消息")}>
+                Default
+              </Button>
             </ComponentBox>
           )
         },
@@ -52,13 +66,19 @@ export default function ToastPage() {
             <ComponentBox>
               <Button
                 variant="outline"
-                onClick={() => notify.success("文件上传成功", { description: "document.pdf 已上传到知识库" })}
+                onClick={() =>
+                  notify.success("文件上传成功", { description: "document.pdf 已上传到知识库" })
+                }
               >
                 Success + Description
               </Button>
               <Button
                 variant="outline"
-                onClick={() => notify.error("网络请求失败", { description: "请检查网络连接后重试（错误码 503）" })}
+                onClick={() =>
+                  notify.error("网络请求失败", {
+                    description: "请检查网络连接后重试（错误码 503）"
+                  })
+                }
               >
                 Error + Description
               </Button>
@@ -107,7 +127,9 @@ export default function ToastPage() {
               >
                 Loading → Success
               </Button>
-              <Button variant="outline" onClick={handlePromise}>Promise</Button>
+              <Button variant="outline" onClick={handlePromise}>
+                Promise
+              </Button>
             </ComponentBox>
           )
         },
@@ -117,7 +139,12 @@ export default function ToastPage() {
           component: (
             <ComponentBox>
               {POSITIONS.map((pos) => (
-                <Button key={pos} variant="outline" size="sm" onClick={() => toast(pos, { position: pos })}>
+                <Button
+                  key={pos}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toast(pos, { position: pos })}
+                >
                   {pos}
                 </Button>
               ))}
@@ -130,7 +157,9 @@ export default function ToastPage() {
             <ComponentBox>
               <Button
                 variant="outline"
-                onClick={() => toast("自定义内容", { description: "支持传入任意 ReactNode", icon: "🎉" })}
+                onClick={() =>
+                  toast("自定义内容", { description: "支持传入任意 ReactNode", icon: "🎉" })
+                }
               >
                 Custom Icon (emoji)
               </Button>

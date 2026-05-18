@@ -18,7 +18,13 @@ export const _mockEntityData: Record<string, Record<string, unknown>[]> = {
   ],
   task: [
     { id: "1", title: "完成登录功能", status: "done", priority: "high", assignee: "alice" },
-    { id: "2", title: "设计数据库 Schema", status: "in_progress", priority: "high", assignee: "bob" },
+    {
+      id: "2",
+      title: "设计数据库 Schema",
+      status: "in_progress",
+      priority: "high",
+      assignee: "bob"
+    },
     { id: "3", title: "编写单元测试", status: "todo", priority: "medium", assignee: "alice" },
     { id: "4", title: "部署测试环境", status: "todo", priority: "low", assignee: "admin" }
   ]

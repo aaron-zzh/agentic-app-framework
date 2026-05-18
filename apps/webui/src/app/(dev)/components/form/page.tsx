@@ -36,10 +36,14 @@ export default function FormPage() {
               <Form methods={methods} className="w-full max-w-sm space-y-4">
                 <Field.Text name="name" label="姓名" placeholder="请输入姓名" />
                 <Field.Number name="age" label="年龄" min={0} max={150} />
-                <Field.Select name="role" label="角色" options={[
-                  { label: "管理员", value: "admin" },
-                  { label: "普通用户", value: "user" }
-                ]} />
+                <Field.Select
+                  name="role"
+                  label="角色"
+                  options={[
+                    { label: "管理员", value: "admin" },
+                    { label: "普通用户", value: "user" }
+                  ]}
+                />
                 <Field.Textarea name="bio" label="简介" rows={3} />
                 <Field.Date name="date" label="日期" />
                 <Field.Checkbox name="agree" label="同意协议" />
@@ -92,7 +96,12 @@ function SubtableDemo() {
   return (
     <ComponentBox className="items-start justify-start">
       <div className="w-full">
-        <Subtable fields={fields} value={rows} onChange={setRows} summaryFields={["price", "qty"]} />
+        <Subtable
+          fields={fields}
+          value={rows}
+          onChange={setRows}
+          summaryFields={["price", "qty"]}
+        />
       </div>
     </ComponentBox>
   )
@@ -129,20 +138,31 @@ function UploadDemo() {
     <ComponentBox className="flex-col items-start gap-6">
       <div className="w-full space-y-1">
         <p className="font-medium text-sm">基础上传（自动压缩 + 进度条）</p>
-        <Upload accept="image/*" multiple value={files} onChange={setFiles}
+        <Upload
+          accept="image/*"
+          multiple
+          value={files}
+          onChange={setFiles}
           onRemove={(i) => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
-          imageOptions={{ maxWidth: 1280, quality: 0.75 }} />
+          imageOptions={{ maxWidth: 1280, quality: 0.75 }}
+        />
       </div>
       <div className="space-y-1">
         <p className="font-medium text-sm">头像上传（圆形裁剪）</p>
-        <UploadAvatar value={avatar} onChange={setAvatar} imageOptions={{ maxWidth: 512, maxHeight: 512 }} />
+        <UploadAvatar
+          value={avatar}
+          onChange={setAvatar}
+          imageOptions={{ maxWidth: 512, maxHeight: 512 }}
+        />
       </div>
       <div className="w-full space-y-1">
         <p className="font-medium text-sm">Field.Upload（表单绑定）</p>
         <Form methods={methods} className="max-w-sm space-y-3">
           <Field.Upload name="cover" label="封面图（单张）" accept="image/*" maxSize={5} />
           <Field.Upload name="gallery" label="图片集（多张）" accept="image/*" multiple />
-          <Button type="submit" size="sm">提交</Button>
+          <Button type="submit" size="sm">
+            提交
+          </Button>
         </Form>
       </div>
     </ComponentBox>
@@ -168,8 +188,13 @@ function WizardDemo() {
     <ComponentBox>
       <Button onClick={() => setOpen(true)}>打开向导</Button>
       {result && <p className="text-muted-foreground text-sm">完成：{JSON.stringify(result)}</p>}
-      <Wizard open={open} onClose={() => setOpen(false)}
-        onComplete={(data) => { setResult(data); setOpen(false) }}
+      <Wizard
+        open={open}
+        onClose={() => setOpen(false)}
+        onComplete={(data) => {
+          setResult(data)
+          setOpen(false)
+        }}
         title="三步向导示例"
         steps={[
           { label: "步骤一", content: <p className="text-sm">填写基本信息</p> },
@@ -185,10 +210,17 @@ function UnsavedGuardDemo() {
   const [open, setOpen] = useState(false)
   return (
     <ComponentBox>
-      <Button variant="outline" onClick={() => setOpen(true)}>模拟有未保存修改</Button>
-      <UnsavedGuardDialog open={open}
-        onDiscardAndLeave={() => { alert("放弃修改"); setOpen(false) }}
-        onCancel={() => setOpen(false)} />
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        模拟有未保存修改
+      </Button>
+      <UnsavedGuardDialog
+        open={open}
+        onDiscardAndLeave={() => {
+          alert("放弃修改")
+          setOpen(false)
+        }}
+        onCancel={() => setOpen(false)}
+      />
     </ComponentBox>
   )
 }

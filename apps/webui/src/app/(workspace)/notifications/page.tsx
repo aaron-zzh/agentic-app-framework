@@ -17,12 +17,21 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TypographyH1 } from "@/components/ui/typography"
 import type { NotificationItem, NotificationType } from "@/lib/api/notification"
 import { notify } from "@/lib/notification"
-import { useMarkRead, useNotifications, useRemoveNotifications } from "@/lib/queries/use-notifications"
+import {
+  useMarkRead,
+  useNotifications,
+  useRemoveNotifications
+} from "@/lib/queries/use-notifications"
 import { cn } from "@/lib/utils/cn"
 import { NotificationIcon } from "@/sections/layout/notifications/icons"
 
 const TYPE_LABELS: Record<NotificationType | "all", string> = {
-  all: "全部", approval: "审批", system: "系统", mention: "协作", task: "业务", change: "变更"
+  all: "全部",
+  approval: "审批",
+  system: "系统",
+  mention: "协作",
+  task: "业务",
+  change: "变更"
 }
 
 type Tab = "all" | "unread" | "read"
@@ -38,7 +47,8 @@ export default function NotificationsPage() {
   const allItems = data?.list ?? []
   const unreadItems = allItems.filter((n) => !n.read)
   const readItems = allItems.filter((n) => n.read)
-  const currentItems = activeTab === "all" ? allItems : activeTab === "unread" ? unreadItems : readItems
+  const currentItems =
+    activeTab === "all" ? allItems : activeTab === "unread" ? unreadItems : readItems
 
   const allSelected = selectedIds.size === currentItems.length && currentItems.length > 0
   const someSelected = selectedIds.size > 0 && !allSelected
@@ -80,7 +90,10 @@ export default function NotificationsPage() {
       {/* Tab 切换 + 工具栏同行 */}
       <Tabs
         value={activeTab}
-        onValueChange={(v) => { setActiveTab(v as Tab); setSelectedIds(new Set()) }}
+        onValueChange={(v) => {
+          setActiveTab(v as Tab)
+          setSelectedIds(new Set())
+        }}
         className="mb-3"
       >
         <div className="flex items-center justify-between gap-2">
@@ -88,7 +101,9 @@ export default function NotificationsPage() {
             <TabsTrigger value="all">
               全部
               {allItems.length > 0 && (
-                <Badge variant="secondary" className="ml-1.5 text-[10px]">{allItems.length}</Badge>
+                <Badge variant="secondary" className="ml-1.5 text-[10px]">
+                  {allItems.length}
+                </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="unread">
@@ -161,17 +176,23 @@ export default function NotificationsPage() {
   )
 }
 
-function NotificationRow({ item, selected, onToggle }: {
+function NotificationRow({
+  item,
+  selected,
+  onToggle
+}: {
   item: NotificationItem
   selected: boolean
   onToggle: () => void
 }) {
   return (
-    <li className={cn(
-      "flex items-start gap-3 border-b border-dashed px-4 py-3 last:border-0",
-      !item.read && "bg-primary/5",
-      selected && "bg-accent"
-    )}>
+    <li
+      className={cn(
+        "flex items-start gap-3 border-b border-dashed px-4 py-3 last:border-0",
+        !item.read && "bg-primary/5",
+        selected && "bg-accent"
+      )}
+    >
       <Checkbox
         className="mt-1 shrink-0"
         checked={selected}

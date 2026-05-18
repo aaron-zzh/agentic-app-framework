@@ -11,12 +11,14 @@ const SECTIONS = [
   {
     title: "UI 基础组件",
     href: "/components/ui",
-    description: "Button / Badge / Input / Select / Checkbox / Switch / Tabs / Tooltip / Progress / Skeleton"
+    description:
+      "Button / Badge / Input / Select / Checkbox / Switch / Tabs / Tooltip / Progress / Skeleton"
   },
   {
     title: "表单组件",
     href: "/components/form",
-    description: "Field / Form / FormView / Subtable / Signature / Money / Upload / Wizard / UnsavedGuard"
+    description:
+      "Field / Form / FormView / Subtable / Signature / Money / Upload / Wizard / UnsavedGuard"
   },
   {
     title: "反馈组件",
