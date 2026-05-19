@@ -44,14 +44,18 @@
 		<oshi.version>7.1.0</oshi.version>
 		<ip2region.version>3.3.7</ip2region.version>
 		<tinypinyin.version>2.0.3.RELEASE</tinypinyin.version>
+		<!-- 文档解析 -->
+		<pdfbox.version>3.0.4</pdfbox.version>
+		<poi.version>5.4.1</poi.version>
+		<jsoup.version>1.18.3</jsoup.version>
 		<!-- AgentScope -->
 		<agentscope.version>1.0.12</agentscope.version>
 		<!-- A2A -->
 		<spring-ai-a2a.version>0.2.0</spring-ai-a2a.version>
 		<a2a-java-sdk.version>0.3.3.Final</a2a-java-sdk.version>
 		<!-- 短信 SDK -->
-		<aliyun-dysmsapi.version>3.1.0</aliyun-dysmsapi.version>
-		<tencentcloud-sms.version>3.1.1100</tencentcloud-sms.version>
+		<aliyun-dysmsapi.version>4.5.1</aliyun-dysmsapi.version>
+		<tencentcloud-sms.version>3.1.1451</tencentcloud-sms.version>
 		<!-- 可观测性 -->
 		<sentry.version>8.41.0</sentry.version>
 		<!-- 测试 -->
@@ -216,7 +220,7 @@
 			<!-- ==================== 工具 / 集成 ==================== -->
 			<dependency>
 				<groupId>com.aliyun</groupId>
-				<artifactId>alibabacloud-dysmsapi20170525</artifactId>
+				<artifactId>dysmsapi20170525</artifactId>
 				<version>${aliyun-dysmsapi.version}</version>
 			</dependency>
 			<dependency>
@@ -243,6 +247,21 @@
 				<groupId>org.commonmark</groupId>
 				<artifactId>commonmark</artifactId>
 				<version>${commonmark.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.pdfbox</groupId>
+				<artifactId>pdfbox</artifactId>
+				<version>${pdfbox.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.poi</groupId>
+				<artifactId>poi-ooxml</artifactId>
+				<version>${poi.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jsoup</groupId>
+				<artifactId>jsoup</artifactId>
+				<version>${jsoup.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>nl.basjes.parse.useragent</groupId>

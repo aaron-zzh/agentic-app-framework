@@ -14,8 +14,8 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.agent.*;
 
-import io.agentscope.agent.ReActAgent;
-import io.agentscope.message.Msg;
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.message.Msg;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -2,8 +2,8 @@ package com.xuejiai.aaf.framework.logging.health;
 
 import javax.sql.DataSource;
 
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
 
 /** 数据库连通性增强健康检查（补充连接池信息）。 */

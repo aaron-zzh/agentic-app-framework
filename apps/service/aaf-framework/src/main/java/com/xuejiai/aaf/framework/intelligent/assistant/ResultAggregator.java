@@ -9,7 +9,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import io.agentscope.message.Msg;
+import io.agentscope.core.message.Msg;
 
 import lombok.Getter;
 import lombok.Setter;

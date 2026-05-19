@@ -9,7 +9,7 @@ import java.util.List;
 
 import jakarta.persistence.*;
 
-import com.xuejiai.aaf.common.entity.BaseEntity;
+import com.xuejiai.aaf.common.model.BaseEntity;
 
 import lombok.Getter;
 import lombok.Setter;

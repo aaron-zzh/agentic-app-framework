@@ -87,8 +87,11 @@ public class TaskConsumer {
         }
     }
 
-    private void processMessage(String stream, MapRecord<String, String, String> record) {
-        var task = RedisStreamTaskQueue.fromMap(record.getValue());
+    @SuppressWarnings("unchecked")
+    private void processMessage(String stream, MapRecord<String, Object, Object> record) {
+        var map = new java.util.HashMap<String, String>();
+        record.getValue().forEach((k, v) -> map.put(String.valueOf(k), String.valueOf(v)));
+        var task = RedisStreamTaskQueue.fromMap(map);
         var handler = handlerRegistry.getHandler(task.type());
         if (handler == null) {
             log.warn("未找到任务处理器: {}", task.type());

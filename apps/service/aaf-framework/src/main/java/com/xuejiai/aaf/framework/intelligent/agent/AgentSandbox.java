@@ -10,8 +10,8 @@ import java.util.concurrent.*;
 
 import org.springframework.stereotype.Component;
 
-import io.agentscope.agent.ReActAgent;
-import io.agentscope.message.Msg;
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.message.Msg;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;

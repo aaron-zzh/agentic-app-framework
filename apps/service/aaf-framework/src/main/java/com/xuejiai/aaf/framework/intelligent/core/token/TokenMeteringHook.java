@@ -7,9 +7,9 @@ package com.xuejiai.aaf.framework.intelligent.core.token;
 
 import org.springframework.stereotype.Component;
 
-import io.agentscope.agent.hook.Hook;
-import io.agentscope.agent.hook.HookEvent;
-import io.agentscope.agent.hook.PostCallEvent;
+import io.agentscope.core.hook.Hook;
+import io.agentscope.core.hook.HookEvent;
+import io.agentscope.core.hook.PostCallEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

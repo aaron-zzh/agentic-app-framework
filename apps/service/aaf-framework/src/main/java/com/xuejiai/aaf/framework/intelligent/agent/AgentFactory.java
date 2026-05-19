@@ -5,17 +5,14 @@
  */
 package com.xuejiai.aaf.framework.intelligent.agent;
 
-import java.time.Duration;
-
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook;
 
-import io.agentscope.agent.ReActAgent;
-import io.agentscope.model.DashScopeChatModel;
-import io.agentscope.model.OpenAIChatModel;
-import io.agentscope.tool.Toolkit;
-import io.agentscope.tool.mcp.McpToolkit;
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.model.DashScopeChatModel;
+import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.core.tool.Toolkit;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,8 +36,6 @@ public class AgentFactory {
         var builder = ReActAgent.builder()
                 .name(definition.getName())
                 .sysPrompt(definition.getSystemPrompt())
-                .maxIterations(definition.getMaxIterations())
-                .timeout(Duration.ofSeconds(definition.getTimeoutSeconds()))
                 .hook(tokenMeteringHook);
 
         // 配置模型
@@ -63,16 +58,9 @@ public class AgentFactory {
     private void configureTools(ReActAgent.Builder builder, AgentDefinition definition) {
         var toolkit = new Toolkit();
 
-        // MCP 工具绑定
+        // MCP 工具绑定（TODO: v0.4 完善 MCP 集成）
         if (definition.getMcpServers() != null && !definition.getMcpServers().isBlank()) {
-            try {
-                var mcpToolkit = McpToolkit.builder()
-                        .serverUrl(definition.getMcpServers())
-                        .build();
-                toolkit.merge(mcpToolkit);
-            } catch (Exception e) {
-                log.warn("MCP 工具加载失败 [{}]: {}", definition.getAgentId(), e.getMessage());
-            }
+            log.debug("MCP 服务器配置: {}", definition.getMcpServers());
         }
 
         builder.toolkit(toolkit);
