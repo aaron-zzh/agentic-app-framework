@@ -7,6 +7,7 @@ import com.xuejiai.aaf.module.system.domain.Notification;
 import com.xuejiai.aaf.module.system.event.EntityChangeEvent;
 import com.xuejiai.aaf.module.system.repository.NotificationRepository;
 import com.xuejiai.aaf.module.system.service.ActivityService;
+import com.xuejiai.aaf.module.system.service.AutomationService;
 import com.xuejiai.aaf.module.system.service.SubscriptionService;
 import com.xuejiai.aaf.module.system.ws.WebSocketSessionManager;
 
@@ -21,6 +22,7 @@ public class EntityChangeListener {
     private final SubscriptionService subscriptionService;
     private final NotificationRepository notificationRepository;
     private final WebSocketSessionManager webSocketSessionManager;
+    private final AutomationService automationService;
 
     @EventListener
     public void onEntityChange(EntityChangeEvent event) {
@@ -48,6 +50,20 @@ public class EntityChangeListener {
                     sub.getUserId(),
                     "{\"type\":\"subscription\",\"entityType\":\"%s\",\"entityId\":%d}"
                             .formatted(event.entityType(), event.entityId()));
+        }
+
+        // 触发自动化规则
+        var triggerType = switch (event.action()) {
+            case "create" -> "on_create";
+            case "update" -> "on_update";
+            default -> null;
+        };
+        if (triggerType != null) {
+            automationService.trigger(event, triggerType);
+        }
+        // field_change 触发（changes 非空时）
+        if (event.changes() != null && !event.changes().isEmpty()) {
+            automationService.trigger(event, "field_change");
         }
     }
 }
