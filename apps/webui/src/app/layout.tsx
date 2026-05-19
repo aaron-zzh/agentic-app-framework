@@ -4,6 +4,7 @@ import { NuqsAdapter } from "nuqs/adapters/next/app"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
 import { QueryProvider } from "@/providers/QueryProvider"
+import { ServiceWorkerRegister } from "@/providers/ServiceWorkerRegister"
 import { ThemeProvider } from "@/providers/ThemeProvider"
 import { ToastProvider } from "@/providers/ToastProvider"
 
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#000000"
+  themeColor: "#0f172a"
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ToastProvider />
             </TooltipProvider>
           </QueryProvider>
+          <ServiceWorkerRegister />
         </ThemeProvider>
       </body>
     </html>
