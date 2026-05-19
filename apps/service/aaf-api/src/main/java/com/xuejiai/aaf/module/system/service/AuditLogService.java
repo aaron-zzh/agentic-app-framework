@@ -27,9 +27,14 @@ public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final ActorContext actorContext;
 
-    /** 记录审计日志 */
+    /** 记录审计日志（含链式哈希校验）。 */
     @Transactional
     public void record(String entityType, Long entityId, String action, String changes) {
+        // 获取前一条记录的 hash
+        var previousHash = auditLogRepository.findTopByOrderByIdDesc()
+                .map(AuditLog::getHash)
+                .orElse(null);
+
         var log = new AuditLog();
         log.setEntityType(entityType);
         log.setEntityId(entityId);
@@ -38,6 +43,12 @@ public class AuditLogService {
         log.setUserId(actorContext.currentUserId().orElse(null));
         log.setIp(resolveIp());
         log.setCreatedAt(LocalDateTime.now());
+        log.setPreviousHash(previousHash);
+
+        // 计算当前记录哈希
+        var content = entityType + entityId + action + (changes != null ? changes : "");
+        log.setHash(com.xuejiai.aaf.framework.logging.AuditLogInterceptor.computeHash(previousHash, content));
+
         auditLogRepository.save(log);
     }
 

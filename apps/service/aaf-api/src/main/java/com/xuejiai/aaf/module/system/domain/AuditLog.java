@@ -55,6 +55,14 @@ public class AuditLog {
     @Column(name = "ip", length = 45)
     private String ip;
 
+    /** 当前记录内容 SHA-256 哈希 */
+    @Column(name = "hash", length = 64)
+    private String hash;
+
+    /** 前一条记录的哈希，形成链式校验 */
+    @Column(name = "previous_hash", length = 64)
+    private String previousHash;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 }

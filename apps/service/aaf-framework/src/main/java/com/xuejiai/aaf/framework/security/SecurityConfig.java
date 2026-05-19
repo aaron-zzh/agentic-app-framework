@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -25,6 +26,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 /** Spring Security 配置，OAuth2 Resource Server + JWT。 */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
@@ -45,14 +47,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(SecretKey jwtSecretKey, JwtProperties properties) {
+    public JwtDecoder jwtDecoder(SecretKey jwtSecretKey, JwtProperties properties, JwtUtils jwtUtils) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey).build();
-        // 验证 issuer 和 audience
+        // 验证 issuer、audience 和黑名单
         OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> validators =
                 new DelegatingOAuth2TokenValidator<>(
                         JwtValidators.createDefaultWithIssuer(properties.issuer()),
                         new JwtClaimValidator<java.util.List<String>>(
-                                "aud", aud -> aud != null && aud.contains(properties.audience())));
+                                "aud", aud -> aud != null && aud.contains(properties.audience())),
+                        new JwtBlacklistValidator(jwtUtils));
         decoder.setJwtValidator(validators);
         return decoder;
     }

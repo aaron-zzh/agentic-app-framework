@@ -18,6 +18,8 @@ public interface UserRepository
 
     boolean existsByUsername(String username);
 
+    Optional<User> findByEmail(String email);
+
     /** 查询简要列表（仅 id/username/nickname），用于下拉选择等场景。 */
     @Query(
             "SELECT new com.xuejiai.aaf.module.system.vo.UserSimpleVO(u.id, u.username, u.nickname) FROM User u")

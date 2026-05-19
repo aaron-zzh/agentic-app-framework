@@ -17,7 +17,8 @@ export const paths = {
   root: "/",
   auth: {
     login: "/auth/login",
-    register: "/auth/register"
+    register: "/auth/register",
+    forgotPassword: "/auth/forgot-password"
   },
   workspace: {
     root: "/dashboard",

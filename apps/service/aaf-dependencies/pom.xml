@@ -27,6 +27,10 @@
 		<antlr4.version>4.13.2</antlr4.version>
 		<freemarker.version>2.3.34</freemarker.version>
 		<javaparser.version>3.28.1</javaparser.version>
+		<!-- 存储 -->
+		<minio.version>8.5.17</minio.version>
+		<aliyun-oss.version>3.18.1</aliyun-oss.version>
+		<thumbnailator.version>0.4.20</thumbnailator.version>
 		<!-- 安全 / 防护 -->
 		<resilience4j.version>2.4.0</resilience4j.version>
 		<bucket4j.version>8.18.0</bucket4j.version>
@@ -40,6 +44,9 @@
 		<oshi.version>7.1.0</oshi.version>
 		<ip2region.version>3.3.7</ip2region.version>
 		<tinypinyin.version>2.0.3.RELEASE</tinypinyin.version>
+		<!-- 短信 SDK -->
+		<aliyun-dysmsapi.version>3.1.0</aliyun-dysmsapi.version>
+		<tencentcloud-sms.version>3.1.1100</tencentcloud-sms.version>
 		<!-- 可观测性 -->
 		<sentry.version>8.41.0</sentry.version>
 		<!-- 测试 -->
@@ -134,6 +141,23 @@
 
 			<!-- ==================== 安全 / 防护 ==================== -->
 			<dependency>
+				<groupId>io.minio</groupId>
+				<artifactId>minio</artifactId>
+				<version>${minio.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aliyun.oss</groupId>
+				<artifactId>aliyun-sdk-oss</artifactId>
+				<version>${aliyun-oss.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>net.coobird</groupId>
+				<artifactId>thumbnailator</artifactId>
+				<version>${thumbnailator.version}</version>
+			</dependency>
+
+			<!-- ==================== 安全 / 防护 ==================== -->
+			<dependency>
 				<groupId>io.github.resilience4j</groupId>
 				<artifactId>resilience4j-spring-boot3</artifactId>
 				<version>${resilience4j.version}</version>
@@ -150,6 +174,16 @@
 			</dependency>
 
 			<!-- ==================== 工具 / 集成 ==================== -->
+			<dependency>
+				<groupId>com.aliyun</groupId>
+				<artifactId>alibabacloud-dysmsapi20170525</artifactId>
+				<version>${aliyun-dysmsapi.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.tencentcloudapi</groupId>
+				<artifactId>tencentcloud-sdk-java-sms</artifactId>
+				<version>${tencentcloud-sms.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.apache.fesod</groupId>
 				<artifactId>fesod-sheet</artifactId>

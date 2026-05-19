@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.domain;
 
+import java.time.LocalDateTime;
+
 import org.hibernate.annotations.SQLDelete;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -33,6 +35,38 @@ public class User extends BaseEntity {
     @Column(name = "status", nullable = false)
     private Integer status = CommonStatusEnum.ENABLE.getCode();
 
+    /** 邮箱 */
+    @Column(name = "email", length = 200)
+    private String email;
+
+    /** 手机号 */
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    /** 头像 URL */
+    @Column(name = "avatar", length = 500)
+    private String avatar;
+
+    /** 邮箱是否验证 */
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
+    /** 最后登录时间 */
+    @Column(name = "last_login_time")
+    private LocalDateTime lastLoginTime;
+
+    /** 最后登录 IP */
+    @Column(name = "last_login_ip", length = 50)
+    private String lastLoginIp;
+
+    /** 登录失败次数 */
+    @Column(name = "login_fail_count", nullable = false)
+    private Integer loginFailCount = 0;
+
+    /** 锁定到期时间 */
+    @Column(name = "lock_time")
+    private LocalDateTime lockTime;
+
     // ==================== 业务方法 ====================
 
     /** 校验密码是否匹配 */
@@ -48,5 +82,28 @@ public class User extends BaseEntity {
     /** 修改密码 */
     public void changePassword(PasswordEncoder encoder, String newPassword) {
         this.password = encoder.encode(newPassword);
+    }
+
+    /** 是否被锁定 */
+    public boolean isLocked() {
+        return lockTime != null && lockTime.isAfter(LocalDateTime.now());
+    }
+
+    /** 记录登录失败 */
+    public void recordLoginFail() {
+        this.loginFailCount = (this.loginFailCount == null ? 0 : this.loginFailCount) + 1;
+    }
+
+    /** 重置登录失败计数 */
+    public void resetLoginFail() {
+        this.loginFailCount = 0;
+        this.lockTime = null;
+    }
+
+    /** 记录登录成功 */
+    public void recordLoginSuccess(String ip) {
+        this.lastLoginTime = LocalDateTime.now();
+        this.lastLoginIp = ip;
+        resetLoginFail();
     }
 }

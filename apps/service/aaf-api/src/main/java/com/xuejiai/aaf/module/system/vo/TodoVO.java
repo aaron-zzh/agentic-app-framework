@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.system.vo;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,5 +14,5 @@ public record TodoVO(
         String sourceEntity,
         Long sourceId,
         String status,
-        LocalDate dueDate,
+        LocalDateTime dueDate,
         LocalDateTime createTime) {}

@@ -28,6 +28,12 @@
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
 
+		<!-- 邮件 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- 工作流 -->
 		<dependency>
 			<groupId>org.flowable</groupId>
@@ -78,6 +84,22 @@
 		<dependency>
 			<groupId>org.apache.fesod</groupId>
 			<artifactId>fesod-sheet</artifactId>
+		</dependency>
+
+		<!-- 存储（按需引入，本地开发只需 thumbnailator） -->
+		<dependency>
+			<groupId>net.coobird</groupId>
+			<artifactId>thumbnailator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.minio</groupId>
+			<artifactId>minio</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.aliyun.oss</groupId>
+			<artifactId>aliyun-sdk-oss</artifactId>
+			<optional>true</optional>
 		</dependency>
 
 		<!-- 开发工具 -->
