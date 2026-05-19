@@ -21,6 +21,7 @@ public class CommentService {
     private static final Pattern MENTION_PATTERN = Pattern.compile("@(\\d+)");
 
     private final CommentRepository commentRepository;
+    private final TodoService todoService;
 
     /** 创建评论 */
     @Transactional
@@ -30,7 +31,13 @@ public class CommentService {
         comment.setEntityId(entityId);
         comment.setContent(content);
         comment.setMentions(extractMentions(content));
-        return commentRepository.save(comment);
+        var saved = commentRepository.save(comment);
+
+        // 为每个 @用户创建待办
+        extractMentionIds(content).forEach(userId ->
+                todoService.create(userId, "你在评论中被提及", "comment", entityType, entityId));
+
+        return saved;
     }
 
     /** 更新评论 */
@@ -60,5 +67,15 @@ public class CommentService {
             return null;
         }
         return "[" + String.join(",", ids) + "]";
+    }
+
+    /** 提取 @mentions，返回用户 ID 列表 */
+    private List<Long> extractMentionIds(String content) {
+        var matcher = MENTION_PATTERN.matcher(content);
+        var ids = new java.util.ArrayList<Long>();
+        while (matcher.find()) {
+            ids.add(Long.parseLong(matcher.group(1)));
+        }
+        return ids;
     }
 }
