@@ -10,6 +10,7 @@ import { useCallback, useState } from "react"
 import { Controller, useFormContext } from "react-hook-form"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+// 依赖方向例外：表单控件消费 feature 层的富文本编辑器（"升级为富文本"场景）
 import { RichTextEditor } from "@/features/rich-text-editor"
 import { cn } from "@/lib/utils/cn"
 

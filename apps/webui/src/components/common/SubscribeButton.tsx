@@ -19,7 +19,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import type { EntityDef, FieldDef } from "@/features/entity-engine/types"
+import type { EntityDef, FieldDef } from "@/lib/types/entity"
 import type { SubscriptionChannel } from "@/lib/api/subscription"
 import {
   useRemoveSubscription,

@@ -1,40 +1,4 @@
-export type { EntityAccess, FieldAccess } from "./access"
-export type {
-  EntityAction,
-  EntityDef,
-  EntityHooks,
-  ImportConfig,
-  NestedImportConfig,
-  SmartButton
-} from "./entity"
-export type {
-  CheckboxField,
-  CodeField,
-  DateField,
-  EmailField,
-  FieldDef,
-  GroupField,
-  JsonField,
-  NumberField,
-  RelationshipField,
-  RichTextField,
-  RowField,
-  SelectField,
-  SelectOption,
-  TabsField,
-  TextareaField,
-  TextField,
-  UploadField
-} from "./field"
-export type { CellProps, DataFieldDef, FieldProps } from "./props"
-export type {
-  ColumnDef,
-  FormViewConfig,
-  KanbanViewConfig,
-  LayoutField,
-  ListViewConfig,
-  PivotConfig,
-  PivotMeasure,
-  PivotViewConfig,
-  QuickFilter
-} from "./views"
+/**
+ * 类型定义的真实来源在 lib/types/entity，此处重导出保持向后兼容
+ */
+export type * from "@/lib/types/entity"

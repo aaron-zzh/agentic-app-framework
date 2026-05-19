@@ -20,7 +20,7 @@
 import { useCallback, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import type { EntityDef } from "@/features/entity-engine/types"
+import type { EntityDef } from "@/lib/types/entity"
 import { ApiError, fetchRecord, updateRecord } from "@/lib/api/client"
 
 interface ConflictState {

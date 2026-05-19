@@ -12,8 +12,7 @@
 
 import { useCallback, useState } from "react"
 
-import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
-import type { PivotConfig, PivotMeasure } from "@/features/entity-engine/types/views"
+import type { DataFieldDef, EntityDef, PivotConfig, PivotMeasure } from "@/features/entity-engine/types"
 import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 interface PivotViewProps {

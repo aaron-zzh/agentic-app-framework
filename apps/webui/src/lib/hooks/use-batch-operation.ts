@@ -16,7 +16,7 @@
 import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 
-import type { EntityDef } from "@/features/entity-engine/types"
+import type { EntityDef } from "@/lib/types/entity"
 
 /** 同步阈值 */
 const SYNC_THRESHOLD = 100

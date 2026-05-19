@@ -35,7 +35,7 @@ import {
   CommandList,
   CommandSeparator
 } from "@/components/ui/command"
-import { entityRegistry } from "@/features/entity-engine"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 import { paths } from "@/lib/constants/paths"
 import type { CommandItem as CommandDef, RecentItem } from "@/lib/hooks/use-command-palette"
 

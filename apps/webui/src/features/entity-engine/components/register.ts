@@ -11,14 +11,36 @@
 
 import { registerCellType, registerFieldType } from "../lib/component-registry"
 
-import { BadgeCell, CheckCell, DateCell, RelationCell, TextCell } from "./cells"
 import {
+  BadgeCell,
+  CheckCell,
+  CodeCell,
+  DateCell,
+  FormulaCell,
+  JsonCell,
+  MoneyCell,
+  RelationCell,
+  RichTextCell,
+  SwitchCell,
+  TextCell,
+  UploadCell
+} from "./cells"
+import {
+  CascaderInput,
   CheckboxInput,
   DateInput,
+  MoneyInput,
   NumberInput,
+  QuantityInput,
+  RelationshipInput,
+  RichTextInput,
   SelectInput,
+  SignatureInput,
+  SubtableInput,
+  SwitchInput,
   TextareaInput,
-  TextInput
+  TextInput,
+  UploadInput
 } from "./fields"
 
 export function registerDefaultComponents(): void {
@@ -30,6 +52,15 @@ export function registerDefaultComponents(): void {
   registerFieldType("checkbox", CheckboxInput)
   registerFieldType("select", SelectInput)
   registerFieldType("date", DateInput)
+  registerFieldType("relationship", RelationshipInput)
+  registerFieldType("richText", RichTextInput)
+  registerFieldType("upload", UploadInput)
+  registerFieldType("switch", SwitchInput)
+  registerFieldType("money", MoneyInput)
+  registerFieldType("quantity", QuantityInput)
+  registerFieldType("signature", SignatureInput)
+  registerFieldType("cascader", CascaderInput)
+  registerFieldType("subtable", SubtableInput)
 
   // 列表单元格组件
   registerCellType("text", TextCell)
@@ -40,4 +71,11 @@ export function registerDefaultComponents(): void {
   registerCellType("select", BadgeCell)
   registerCellType("checkbox", CheckCell)
   registerCellType("relationship", RelationCell)
+  registerCellType("richText", RichTextCell)
+  registerCellType("upload", UploadCell)
+  registerCellType("json", JsonCell)
+  registerCellType("code", CodeCell)
+  registerCellType("switch", SwitchCell)
+  registerCellType("money", MoneyCell)
+  registerCellType("formula", FormulaCell)
 }

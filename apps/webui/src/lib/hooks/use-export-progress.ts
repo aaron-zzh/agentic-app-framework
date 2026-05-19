@@ -15,7 +15,7 @@
 import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 
-import type { EntityDef } from "@/features/entity-engine/types"
+import type { EntityDef } from "@/lib/types/entity"
 
 export type ExportStatus = "idle" | "pending" | "running" | "completed" | "failed"
 

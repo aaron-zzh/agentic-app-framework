@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { PageDefRecord } from "@/features/page-engine/types"
+import type { PageDefRecord } from "@/lib/types/page"
 
 import { ApiError } from "./client"
 

@@ -7,14 +7,9 @@
 
 import { useCallback, useState } from "react"
 
-import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import type { DataFieldDef, EntityDef, FilterCondition } from "@/lib/types/entity"
 
-/** 筛选条件 */
-export interface FilterCondition {
-  field: string
-  operator: string
-  value: string
-}
+export type { FilterCondition } from "@/lib/types/entity"
 
 /** 字段类型 → 可用操作符 */
 const operatorsByType: Record<string, { value: string; label: string }[]> = {

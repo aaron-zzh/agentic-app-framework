@@ -7,7 +7,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import type { DataFieldDef } from "@/lib/types/entity"
 import { useSubtable } from "@/lib/hooks/use-subtable"
 
 interface SubtableProps {

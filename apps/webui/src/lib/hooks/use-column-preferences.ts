@@ -7,7 +7,7 @@
 
 import { useCallback, useMemo, useState } from "react"
 
-import type { ColumnDef, ListViewConfig } from "@/features/entity-engine/types"
+import type { ColumnDef, ListViewConfig } from "@/lib/types/entity"
 
 /** 用户列偏好 */
 export interface ColumnPreference {

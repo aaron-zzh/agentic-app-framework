@@ -8,7 +8,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useMemo } from "react"
 
-import type { FilterCondition } from "@/features/entity-engine/components/list"
+import type { FilterCondition } from "@/lib/types/entity/filter"
 
 const FILTER_PREFIX = "f_"
 

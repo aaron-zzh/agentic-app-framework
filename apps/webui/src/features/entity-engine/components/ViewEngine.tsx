@@ -26,7 +26,7 @@ import { ListView } from "./list"
 import { PivotView } from "./pivot"
 
 /** 支持的视图类型 */
-export type ViewType = "list" | "form" | "kanban" | "graph" | "chart" | "calendar"
+export type ViewType = "list" | "form" | "kanban" | "pivot" | "graph" | "chart" | "calendar"
 
 interface ViewEngineProps {
   entity: EntityDef

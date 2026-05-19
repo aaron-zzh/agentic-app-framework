@@ -5,7 +5,7 @@
 
 import { useCallback } from "react"
 
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import type { DataFieldDef } from "@/lib/types/entity"
 
 export function useSubtable(
   fields: DataFieldDef[],

@@ -46,6 +46,13 @@ export type FieldDef =
   | JsonField
   | CodeField
   | UploadField
+  | SwitchField
+  | MoneyField
+  | QuantityField
+  | FormulaField
+  | SignatureField
+  | CascaderField
+  | SubtableField
   | GroupField
   | TabsField
   | RowField
@@ -129,6 +136,56 @@ export interface UploadField extends BaseFieldDef {
   accept?: string
   maxSize?: number
   multiple?: boolean
+}
+
+export interface SwitchField extends BaseFieldDef {
+  type: "switch"
+}
+
+export interface MoneyField extends BaseFieldDef {
+  type: "money"
+  currencies: string[]
+  defaultCurrency: string
+  showConverted?: boolean
+  convertTo?: string
+}
+
+export interface QuantityField extends BaseFieldDef {
+  type: "quantity"
+  units: string[]
+  defaultUnit: string
+  showConverted?: boolean
+  convertTo?: string
+}
+
+export interface FormulaField extends BaseFieldDef {
+  type: "formula"
+  expression: string
+  resultType: "number" | "text" | "date"
+  precision?: number
+  displayFormat?: string
+}
+
+export interface SignatureField extends BaseFieldDef {
+  type: "signature"
+  width?: number
+  height?: number
+}
+
+export interface CascaderField extends BaseFieldDef {
+  type: "cascader"
+  levels: { relationTo: string; label: string; dependsOn?: string }[]
+}
+
+export interface SubtableField extends BaseFieldDef {
+  type: "subtable"
+  childEntity: string
+  columns: string[]
+  minRows?: number
+  maxRows?: number
+  summary?: { field: string; aggregation: "sum" | "avg" | "count"; label?: string }[]
+  sortable?: boolean
+  defaultRow?: Record<string, unknown>
 }
 
 // —— 布局字段 ——

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/command"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import type { FieldProps } from "@/features/entity-engine/types"
+import type { FieldProps } from "@/lib/types/entity"
 import { useRelationshipPicker } from "@/lib/hooks/use-relationship-picker"
 
 interface RelationshipPickerProps extends FieldProps<string | string[]> {

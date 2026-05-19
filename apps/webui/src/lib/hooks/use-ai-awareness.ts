@@ -6,7 +6,7 @@
 
 import { useCallback } from "react"
 
-import type { FieldDef } from "@/features/entity-engine/types/field"
+import type { FieldDef } from "@/lib/types/entity"
 
 import type { AIPageContext, ActionRecord } from "../store/ai-awareness-store"
 import { useAIAwarenessStore } from "../store/ai-awareness-store"

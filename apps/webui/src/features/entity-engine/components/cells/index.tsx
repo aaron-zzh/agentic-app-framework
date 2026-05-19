@@ -34,6 +34,68 @@ export function CheckCell({ value }: CellProps<boolean>) {
   return <span>{value ? "✓" : "—"}</span>
 }
 
+/** 富文本单元格——HTML 截断展示 */
+export function RichTextCell({ value }: CellProps<string>) {
+  if (!value) return <span className="text-muted-foreground">—</span>
+  // 去除 HTML 标签后截断
+  const text = value.replace(/<[^>]*>/g, "")
+  return <span className="truncate">{text.length > 80 ? `${text.slice(0, 80)}…` : text}</span>
+}
+
+/** 文件上传单元格——展示文件名 */
+export function UploadCell({ value }: CellProps<unknown>) {
+  if (!value) return <span className="text-muted-foreground">—</span>
+  if (Array.isArray(value)) {
+    return <span className="truncate">{value.length} 个文件</span>
+  }
+  const name = typeof value === "object" && value !== null
+    ? ((value as Record<string, unknown>).name as string) ?? ((value as Record<string, unknown>).filename as string)
+    : String(value)
+  return <span className="truncate">{name ?? "—"}</span>
+}
+
+/** JSON 单元格——预览 */
+export function JsonCell({ value }: CellProps<unknown>) {
+  if (value === null || value === undefined) return <span className="text-muted-foreground">—</span>
+  const preview = JSON.stringify(value).slice(0, 60)
+  return (
+    <code className="truncate rounded bg-muted px-1 py-0.5 font-mono text-xs">
+      {preview.length >= 60 ? `${preview}…` : preview}
+    </code>
+  )
+}
+
+/** 代码单元格——代码片段预览 */
+export function CodeCell({ value }: CellProps<string>) {
+  if (!value) return <span className="text-muted-foreground">—</span>
+  const preview = value.split("\n")[0]?.slice(0, 60) ?? ""
+  return (
+    <code className="truncate rounded bg-muted px-1 py-0.5 font-mono text-xs">
+      {preview}
+    </code>
+  )
+}
+
+/** 开关单元格——复用 CheckCell 逻辑 */
+export function SwitchCell({ value }: CellProps<boolean>) {
+  return <span>{value ? "✓" : "—"}</span>
+}
+
+/** 金额单元格——格式化展示 */
+export function MoneyCell({ value }: CellProps<{ value: number; currency: string } | null>) {
+  if (!value) return <span className="text-muted-foreground">—</span>
+  return (
+    <span>
+      {value.value.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} {value.currency}
+    </span>
+  )
+}
+
+/** 公式单元格——复用 TextCell */
+export function FormulaCell({ value }: CellProps<unknown>) {
+  return <span className="truncate">{value != null ? String(value) : "—"}</span>
+}
+
 /** 关联单元格——头像/颜色 + 名称，点击跳转实体详情 */
 export function RelationCell({ value, field }: CellProps<unknown>) {
   if (!value) return <span className="text-muted-foreground">—</span>
