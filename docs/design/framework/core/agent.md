@@ -3,11 +3,12 @@ level: Practice
 layer: Model
 purpose: 智能体系统的架构设计与协作机制
 status: published
-version: 1.0.0
-date: 2026-05-06
+version: 2.0.0
+date: 2026-05-20
 author: AaronZZH
 changelog:
-  - 2026-05-06 | 补充 Front Matter
+  - 2026-05-20 v2.0.0 | 补充架构可视化图、关键关系说明、技能/工具分层、技术方案与抽象层、包结构设计（engine/tool + engine/skill + intelligent/ 三层分工）、Actor+Role+MemoryStrategy、Agent 池化说明
+  - 2026-05-06 v1.0.0 | 补充 Front Matter
 ---
 
 # 智能体系统设计
@@ -58,6 +59,242 @@ Layer 0  内核层  Core                              【请求级·无状态】
          认知循环：推理 / 生成 / 上下文窗口管理
          LLM + Context，上下文由调用方（Agent）组装后传入
          无状态，可水平扩展、池化复用
+```
+
+### 架构可视化
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 4  Team  协作层                              【项目级】   │
+│  高层抽象：多个 Assistant 基于 A2A 协议协作完成复杂目标          │
+│  目标对齐 → 任务分发 → 进度同步 → 结果聚合 → 冲突仲裁           │
+│  A2A 协议：Assistant 间异步消息通信，不要求同框架/同进程         │
+│  轻量会话级状态（任务分配表/进度/仲裁结果），不持有数据级状态    │
+└─────────────────────────────────────────────────────────────────┘
+                              ↕ 调度/回调
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 3  Assistant  助理层                         【会话级】   │
+│  情感感知 → 意图理解 → Skill 匹配 → Agent 调度 → 反馈整合        │
+│                                                                  │
+│  Assistant = Actor + Role + MemoryStrategy                       │
+│                                                                  │
+│  ┌───────────────────────┐  ┌──────────────────────────────┐    │
+│  │  Actor（人格载体）     │  │  Role（能力配置）             │    │
+│  │  name / persona       │  │  1..N Skill（任务级路由）     │    │
+│  │  systemPrompt / avatar│  │  1..N Tool（工具白名单）      │    │
+│  │  可复用·跨 Role        │  │  可复用·跨 Actor              │    │
+│  └───────────────────────┘  └──────────────────────────────┘    │
+│                    ↓                  ↓                          │
+│              ┌─────────────────────────────┐                    │
+│              │  MemoryStrategy（记忆管道）   │                    │
+│              │  决定从哪些源拉取上下文        │                    │
+│              └─────────────────────────────┘                    │
+└─────────────────────────────────────────────────────────────────┘
+                              ↕ 调度/回调
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 2  Agent  智能体层                           【任务级】   │
+│  感知 → 规划 → 执行（调用工具+技能）→ 评估 → 学习               │
+│  AAF 语义无状态：执行前注入 MemoryContext，执行后写回 Cognition  │
+│  AgentPool 池化复用：借出前重置框架内部状态，归还前清空          │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Tool（工具系统）engine/tool/                            │    │
+│  │  ToolRegistry：Spring Bean 自动发现 + MCP 协议发现       │    │
+│  │  ToolCallDispatcher：参数校验 → 执行 → 结果回传          │    │
+│  │  契约（FunctionDefinition + ToolProvider）在 Core 层定义 │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Checkpoint（检查点）runtime/                            │    │
+│  │  每步执行后保存状态快照（步骤 + 中间结果 + 工作记忆）     │    │
+│  │  失败时从最近检查点恢复，指数退避重试                     │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+        ↑ 执行前拉取（MemoryPipeline）  ↓ 执行后写回（store）
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 1  Cognition  认知基础层          【持久级·跨 Agent 共享】 │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │    Memory    │  │  Knowledge   │  │    Value     │          │
+│  │   记忆系统    │  │   知识库      │  │   价值观      │          │
+│  │ 短期/长期/    │  │ 向量+图谱+    │  │ 伦理约束+     │          │
+│  │ 情景/程序化   │  │ 关键词混合    │  │ 优先级规则    │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│         └─────────────────┼─────────────────┘                   │
+│                           ↓                                      │
+│              ┌────────────────────────┐                         │
+│              │    MemoryPipeline      │  ← 上下文组装流水线       │
+│              │  查询理解 → 路由决策    │                         │
+│              │  → 并行检索（混合检索） │                         │
+│              │  → RRF 融合 → 重排     │                         │
+│              │  → MemoryContext       │  → 注入 Prompt           │
+│              └────────────────────────┘                         │
+│  状态分区：用户私有区 / 全局共享区 / Agent 工作区                 │
+└─────────────────────────────────────────────────────────────────┘
+                              ↕ 上下文传入 / 结果返回
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 0  Core  内核层                              【请求级】   │
+│  LLM 推理 / 上下文窗口管理 / Token 预算控制 / 多模型路由          │
+│  FunctionDefinition + ToolProvider 接口契约（工具系统契约层）    │
+│  完全无状态，上下文由 Agent 组装后传入                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 关键关系说明
+
+| 关系 | 说明 |
+|------|------|
+| Agent ↔ Cognition **水平协作** | Agent 无状态，Cognition 是横向共享底座；不是上下级，是执行者与记忆库的协作关系 |
+| MemoryPipeline | Cognition 对外暴露的上下文组装接口；混合检索（向量+图谱+关键词+RRF）是其内部的并行检索步骤 |
+| 混合检索 ⊂ MemoryPipeline | 混合检索 = 管道第 3-4 步（并行检索 + RRF 融合），不等于管道本身 |
+| MemoryStrategy | Assistant 层配置，决定 MemoryPipeline 使用哪些 Stage（Memory/Knowledge/混合/程序化优先） |
+| Learning（横切） | 异步反哺通道，Agent 执行结果 → 评估 → 更新 Memory/Knowledge/Value，不属于 Cognition 内部循环 |
+| **User → Assistant（1:N）** | 一个用户可拥有多个 Assistant，每个 Assistant 有独立人格/技能集/记忆策略 |
+| **Assistant → Agent（1:N）** | 一个 Assistant 协调多个 Agent，按 Skill 匹配路由，Agent 全局注册按能力共享 |
+| **Team → Assistant（1:N）** | Team 是高层抽象，多个 Assistant 基于 A2A 协议协作；Assistant 可独立运行，也可加入 Team |
+| **A2A 协议** | Assistant 间异步消息通信，不要求同框架/同进程，支持跨服务协作 |
+| **Agent 池化** | AgentScope ReActAgent 内部有对话历史（非真正无状态），借出前重置/归还前清空，对上层透明为无状态 |
+
+### 技能与工具的分层
+
+```text
+Assistant 层  ←  Skill（技能）+ Tool（工具白名单）定义/配置在此
+  │  Skill = 粗粒度·任务级路由（触发条件 + 绑定 Agent + 系统 Prompt）
+  │  Tool  = 细粒度·原子工具白名单（Assistant 配置，Agent 执行时继承）
+  ↓ 调度
+Agent 层      ←  Tool 注册与调用在此（engine/tool/）
+  │  ToolRegistry：Spring Bean + MCP 发现，按 assistantId 白名单过滤
+  │  ToolCallDispatcher：参数校验 → 执行 → 结果回传
+  ↓ 接口契约
+Core 层       ←  FunctionDefinition + ToolProvider 接口定义在此
+```
+
+| 概念 | 定义/配置层 | 执行层 | 说明 |
+|------|--------|--------|------|
+| Skill（技能） | Assistant | Agent | 粗粒度·任务级，触发条件 + Agent 绑定，是 Assistant→Agent 的路由规则 |
+| Tool（工具） | Assistant（白名单配置）/ Core（契约） | Agent（执行） | 细粒度·原子级，Assistant 配置可用工具集，Agent 执行时按白名单调用 |
+| MCP 工具 | 外部服务注册 | Agent | 通过 MCP 协议发现，统一注册到 ToolRegistry，受 Assistant 白名单控制 |
+
+### 技术方案与抽象层
+
+每层定义 AAF 自己的接口，实现层依赖具体框架，上层只依赖接口——框架可替换，业务逻辑不变。
+
+```text
+层          AAF 接口（稳定）              当前实现（可替换）
+────────────────────────────────────────────────────────────
+Team        TeamOrchestrator（接口）      DefaultTeamOrchestrator
+Assistant   AssistantExecutor            DefaultAssistantExecutor
+Agent       AgentExecutor                AgentScopeExecutor（包装 ReActAgent）
+Cognition   MemoryPipeline 等已有接口    自实现（AtomMemoryEngine + PgVector + Neo4j）
+Core        LlmClient（两种实现）         SpringAiLlmClient / AgentScopeLlmClient
+```
+
+**Core 层两种 LLM 封装**：
+
+```text
+LlmClient（接口）
+  ├── SpringAiLlmClient
+  │     包装 Spring AI ChatClient
+  │     用于：直接 LLM 调用（对话引擎、记忆提取、重排等）
+  └── AgentScopeLlmClient
+        包装 AgentScope OpenAIChatModel
+        用于：AgentScope ReActAgent 内部的 LLM 调用
+        统一接入 AiModel 表的模型配置和 Token 计量
+```
+
+### 包结构设计（engine 提供引擎，intelligent 提供业务语义和接口抽象）
+
+三层分工：`engine/` 通用执行能力，`intelligent/core/` 接口契约，`intelligent/*/` 业务语义。编排层（v0.6）只依赖 Core 接口。
+
+```text
+com.xuejiai.aaf.framework/
+│
+├── engine/                        ← 引擎层：通用执行能力（无业务语义）
+│   ├── memory/                    原子记忆引擎（AtomMemoryEngine）
+│   ├── knowledge/                 知识库引擎（NexusKBEngine/HybridSearch/ECL）
+│   ├── tool/                      工具引擎
+│   │   ├── ToolRegistry           工具注册表（Spring Bean + MCP 发现）
+│   │   ├── ToolCallDispatcher     调用分发（参数校验→执行→结果封装）
+│   │   ├── McpToolService         MCP 协议工具发现
+│   │   ├── SpringAiToolAdapter    Spring AI ToolCallback 适配
+│   │   └── ScriptSandbox          脚本安全执行（扩展 AgentScope，加资源限制）
+│   └── skill/                     技能引擎
+│       ├── SkillDefinition        @Entity：触发条件 + 绑定 Agent + 指令 + builtIn/version
+│       ├── SkillDefinitionRepository
+│       ├── SkillMatchEngine       技能匹配（意图 + 关键词，用户自定义优先于内置）
+│       ├── BuiltinSkills          枚举：4 个内置技能（self-awareness/user-understanding/self-learning/skill-creation）
+│       └── BuiltinSkillInitializer ApplicationRunner：启动时 upsert 内置技能到数据库
+│
+├── intelligent/                   ← 智能层：接口契约 + 业务语义
+│   ├── core/                      接口契约层（稳定，零框架依赖）
+│   │   ├── agent/AgentExecutor    接口：execute / interrupt / reset / getName
+│   │   ├── assistant/AssistantExecutor 接口：chat
+│   │   ├── skill/SkillProvider    接口：match / getDefinitions
+│   │   ├── skill/SkillDef         Record：纯数据契约
+│   │   ├── tool/ToolProvider      接口：getDefinitions / call
+│   │   ├── tool/FunctionDefinition Record：name / description / parameters
+│   │   ├── memory/MemoryPipeline  接口：execute(PipelineInput) → MemoryContext
+│   │   ├── memory/MemoryStrategy  枚举：MEMORY_ONLY / KNOWLEDGE_ONLY / HYBRID / PROCEDURAL_FIRST / FULL
+│   │   ├── llm/LlmClient          接口：call / stream
+│   │   ├── model/                 AiModel @Entity + 模型管理
+│   │   ├── prompt/                PromptTemplate @Entity + 模板引擎
+│   │   └── token/                 Token 计量与配额
+│   │
+│   ├── agent/                     Agent 实现（依赖 engine/tool + engine/skill）← 执行工具和技能
+│   │   ├── AgentScopeExecutor     实现 AgentExecutor，包装 ReActAgent
+│   │   ├── AgentFactory           返回 AgentExecutor
+│   │   ├── AgentDefinition        @Entity + Repository
+│   │   ├── AgentRegistryService
+│   │   ├── CognitiveCycleExecutor
+│   │   └── runtime/               运行时基础设施
+│   │       ├── AgentPool          池化复用（借出重置/归还清空）
+│   │       ├── AgentSandbox       虚拟线程隔离（依赖 AgentExecutor）
+│   │       ├── AgentEventBus      消息路由
+│   │       └── AgentCheckpointService 检查点（含 workingMemorySnapshot）
+│   │
+│   ├── assistant/                 Assistant 实现（依赖 engine/skill 查询，调度 agent 执行）
+│   │   ├── DefaultAssistantExecutor 实现 AssistantExecutor
+│   │   ├── AssistantDefinition    @Entity：Actor + Role + MemoryStrategy
+│   │   ├── actor/Actor            @Entity：人格载体（name/persona/systemPrompt/avatar）
+│   │   ├── role/Role              @Entity：能力配置（Skill 集 + Tool 白名单）
+│   │   ├── SessionManager
+│   │   ├── AgentDispatcher
+│   │   ├── IntentUnderstandingService
+│   │   ├── EmotionPerceptionService
+│   │   └── ResultAggregator
+│   │
+│   ├── cognition/                 认知层（依赖 engine/memory + engine/knowledge）
+│   │   ├── memory/                记忆业务语义（ShortTermMemoryService 等）
+│   │   ├── pipeline/              MemoryPipeline 各实现 + Factory
+│   │   └── retrieval/             UnifiedRetrievalService
+│   │
+│   ├── learning/                  学习反哺通道（产出按 assistantId/全局分流）
+│   │   ├── LearningSkill          内置学习技能触发入口
+│   │   ├── LearningPipeline       学习流程
+│   │   ├── TrajectoryCollector / EffectEvaluator / ProceduralDistiller
+│   │   └── SelfImprovementService / KnowledgeGrowthService / ValueUpdateProposer
+│   │
+│   ├── team/                      Team 实现
+│   │   ├── DefaultTeamOrchestrator（原 TeamOrchestrator 类改名）
+│   │   ├── A2AProtocolService / TaskDistributor / ProgressSyncService / ConflictArbitrator
+│   │
+│   └── ai/                        LLM 封装（两种实现）
+│       ├── SpringAiLlmClient      实现 LlmClient（Spring AI ChatClient）
+│       ├── AgentScopeLlmClient    实现 LlmClient（AgentScope Model）
+│       └── ModelRouter / ChatContextBuilder / AiProperties
+│
+└── ...（storage/messaging/security/crud 等基础设施）
+```
+
+**编排时整合**（v0.6 工作流节点只依赖 Core 接口）：
+
+```text
+工作流节点          依赖的 Core 接口        实际执行
+AgentNode      →   AgentExecutor      →   engine/tool + engine/skill + intelligent/agent
+AssistantNode  →   AssistantExecutor  →   engine/skill（查询）+ intelligent/assistant（调度）
+MemoryNode     →   MemoryPipeline     →   engine/memory + engine/knowledge
+ToolNode       →   ToolProvider       →   engine/tool
+SkillNode      →   SkillProvider      →   engine/skill
+LlmNode        →   LlmClient          →   intelligent/ai
 ```
 
 ### 架构特性
