@@ -5,5 +5,7 @@
 
 export { ReadOnlyRenderer } from "./components/ReadOnlyRenderer"
 export { RichTextEditor } from "./components/RichTextEditor"
+export { CollaborativeEditor } from "./collaboration"
+export type { CollaborativeEditorProps } from "./collaboration"
 export type { PresetName } from "./presets"
 export type { MentionUser, RichTextEditorProps } from "./types"
