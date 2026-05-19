@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://www.xuejiai.com/aaf/workflow">
+
+    <process id="generic-approval" name="通用审批流程" isExecutable="true">
+
+        <startEvent id="start" name="提交审批"/>
+
+        <sequenceFlow id="flow-start-approve" sourceRef="start" targetRef="approve"/>
+
+        <userTask id="approve" name="审批" flowable:assignee="${assignee}"/>
+
+        <sequenceFlow id="flow-approve-gateway" sourceRef="approve" targetRef="gateway"/>
+
+        <exclusiveGateway id="gateway" name="审批结果判断"/>
+
+        <sequenceFlow id="flow-approved" sourceRef="gateway" targetRef="end-approved">
+            <conditionExpression>${approved == true}</conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow-rejected" sourceRef="gateway" targetRef="end-rejected">
+            <conditionExpression>${approved == false}</conditionExpression>
+        </sequenceFlow>
+
+        <endEvent id="end-approved" name="审批通过"/>
+
+        <endEvent id="end-rejected" name="审批驳回"/>
+
+    </process>
+
+</definitions>
