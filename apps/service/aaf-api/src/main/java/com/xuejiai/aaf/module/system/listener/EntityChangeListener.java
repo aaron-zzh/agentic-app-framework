@@ -7,18 +7,20 @@ import com.xuejiai.aaf.module.system.domain.Notification;
 import com.xuejiai.aaf.module.system.event.EntityChangeEvent;
 import com.xuejiai.aaf.module.system.repository.NotificationRepository;
 import com.xuejiai.aaf.module.system.service.ActivityService;
+import com.xuejiai.aaf.module.system.service.AuditLogService;
 import com.xuejiai.aaf.module.system.service.AutomationService;
 import com.xuejiai.aaf.module.system.service.SubscriptionService;
 import com.xuejiai.aaf.module.system.ws.WebSocketSessionManager;
 
 import lombok.RequiredArgsConstructor;
 
-/** 监听实体变更事件，自动记录活动日志并通知订阅者。 */
+/** 监听实体变更事件，自动记录活动日志、审计日志并通知订阅者。 */
 @Component
 @RequiredArgsConstructor
 public class EntityChangeListener {
 
     private final ActivityService activityService;
+    private final AuditLogService auditLogService;
     private final SubscriptionService subscriptionService;
     private final NotificationRepository notificationRepository;
     private final WebSocketSessionManager webSocketSessionManager;
@@ -28,6 +30,13 @@ public class EntityChangeListener {
     public void onEntityChange(EntityChangeEvent event) {
         // 记录活动日志
         activityService.record(
+                event.entityType(),
+                event.entityId(),
+                event.action(),
+                event.changes());
+
+        // 记录审计日志
+        auditLogService.record(
                 event.entityType(),
                 event.entityId(),
                 event.action(),
