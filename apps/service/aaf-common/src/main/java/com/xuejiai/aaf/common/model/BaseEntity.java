@@ -22,7 +22,7 @@ import lombok.Setter;
 /**
  * 实体基类，所有 JPA 实体继承此类。
  *
- * <p>提供 id、审计字段（创建/更新人和时间）、逻辑删除、备注。
+ * <p>提供 id、多租户（org_id / workspace_id）、审计字段（创建/更新人和时间）、逻辑删除、备注。
  * 逻辑删除通过 {@code @SQLRestriction} 自动过滤查询，子类需加 {@code @SQLDelete} 指定删除 SQL。
  *
  * <p>子类示例：
@@ -41,6 +41,14 @@ public abstract class BaseEntity implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /** 所属组织 ID */
+    @Column(name = "org_id")
+    private Long orgId;
+
+    /** 所属工作空间 ID */
+    @Column(name = "workspace_id")
+    private Long workspaceId;
 
     @CreatedBy
     @Column(name = "create_by")
