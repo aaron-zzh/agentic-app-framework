@@ -32,7 +32,7 @@ import { NotificationDrawer } from "./notifications"
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
 
 export function AppHeader() {
-  const { open: cmdOpen, onClose: cmdClose } = useCommandPalette()
+  const { open: cmdOpen, onClose: cmdClose, commands, recentItems, addRecent } = useCommandPalette()
   const [cmdManualOpen, setCmdManualOpen] = useState(false)
   const isCommandOpen = cmdOpen || cmdManualOpen
 
@@ -62,6 +62,9 @@ export function AppHeader() {
           cmdClose()
           setCmdManualOpen(false)
         }}
+        commands={commands}
+        recentItems={recentItems}
+        addRecent={addRecent}
       />
     </header>
   )

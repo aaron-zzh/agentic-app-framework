@@ -17,6 +17,7 @@
     "file://docs/design/apps/webui/tech-stack.md",
     "file://docs/design/apps/webui/directory-structure.md",
     "file://docs/design/apps/webui/interaction-mode-structured-view.md",
+    "file://docs/design/apps/webui/tech-design/realtime-data-strategy.md",
     "file://docs/task/_template/dev-log.md",
     "skill://.kiro/skills/coding-standards/SKILL.md",
     "skill://docs/reference/team/skills/guard/SKILL.md",

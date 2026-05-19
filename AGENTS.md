@@ -26,7 +26,17 @@ apps/uniapp/   → UniApp 小程序/APP（待开发）
 packages/      → 共享库（待建设）
 docs/          → 项目文档（Diátaxis 四象限 + Team/Dev 规范）
 .kiro/         → 智能体配置（steering / agents / prompts / hooks / skills）
+tmp/           → 参考项目与素材（不参与构建，仅供 AI 查阅学习）
 ```
+
+### tmp/ 参考目录索引
+
+| 目录 | 用途 | 关键项目 |
+|------|------|---------|
+| `tmp/mem/` | 记忆与知识库架构参考 | graphiti（Neo4j 时序图谱）、m_flow（图路由记忆）、ReMe（AgentScope 程序化记忆）、mem0（多级记忆架构） |
+| `tmp/agent/` | 智能体框架参考 | agentscope（含 java/studio/runtime/samples）、camel、CowAgent |
+| `tmp/nextjs/` | Next.js 应用参考 | next-ts|
+| `tmp/java/` | Java 后端参考 | ruoyi-vue-pro、JeecgBoot |
 
 - 后端根包：`com.xuejiai.aaf`，业务模块 `com.xuejiai.aaf.module.{模块名}`
 - 后端 Maven 命令通过 `project.json` 桥接为 Nx target，统一 `pnpm nx <target> service`
@@ -116,6 +126,7 @@ product(Epic→Story 拆分 + Spec 细化)
 - **不做 broad refactors**：只改任务要求的代码范围。借机重构相邻模块即 blocker（与"≥5 文件需协调者评估"配套）
 - **优先已有模式**：同一问题已有实现 → 复用或改造；禁止并行抽象（两套做同一件事）
 - **代码注释语言**：Java / TS 代码内注释保持一致（建议中文，与 `docs/` 真理源一致），禁中英混用
+- **文档禁编号**：编写文档时章节标题不加数字编号（如"一、""1."），用 Markdown 标题层级表达结构。已有编号的历史文档不主动修改，新建和重写时遵守
 - **TypeScript 严格模式**：类型必须显式，禁 `any` / 禁 `@ts-ignore`（特殊情况加注释解释）
 - **前端服务端状态边界**：TanStack Query 管服务端缓存；Zustand 仅管客户端 UI；禁止把服务端数据复制到 Zustand
 - **测试放置**：共享逻辑 → `packages/*.test.ts`；平台接线 → `apps/*.test.tsx`；测试需 mock `next/*` 来测共享组件即 blocker（位置错误）

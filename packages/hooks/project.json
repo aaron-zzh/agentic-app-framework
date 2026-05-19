@@ -2,6 +2,7 @@
   "name": "hooks",
   "projectType": "library",
   "sourceRoot": "packages/hooks/src",
+  "tags": ["scope:shared", "type:util"],
   "targets": {
     "build": {
       "command": "tsc -p tsconfig.lib.json",
@@ -18,6 +19,11 @@
     },
     "lint": {
       "command": "biome check packages/hooks/src"
+    },
+    "publint": {
+      "command": "publint",
+      "options": { "cwd": "packages/hooks" },
+      "dependsOn": ["build"]
     }
   }
 }

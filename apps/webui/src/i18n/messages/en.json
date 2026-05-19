@@ -1,0 +1,64 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "confirm": "Confirm",
+    "back": "Back",
+    "loading": "Loading...",
+    "noData": "No data",
+    "actions": "Actions",
+    "export": "Export",
+    "import": "Import",
+    "refresh": "Refresh",
+    "filter": "Filter",
+    "sort": "Sort",
+    "reset": "Reset"
+  },
+  "validation": {
+    "required": "This field is required",
+    "string": {
+      "min": "Must be at least {min} characters",
+      "max": "Must be at most {max} characters",
+      "email": "Please enter a valid email address"
+    },
+    "number": {
+      "min": "Must be at least {min}",
+      "max": "Must be at most {max}",
+      "invalid": "Please enter a valid number"
+    },
+    "date": {
+      "invalid": "Please enter a valid date"
+    },
+    "invalid_type": "Invalid type",
+    "invalid_enum": "Please select a valid option"
+  },
+  "entity": {
+    "field": {
+      "title": "Title",
+      "status": "Status",
+      "author": "Author",
+      "content": "Content",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "description": "Description",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    }
+  },
+  "layout": {
+    "language": "Language",
+    "switchLanguage": "Switch Language",
+    "zh": "中文",
+    "en": "English"
+  }
+}

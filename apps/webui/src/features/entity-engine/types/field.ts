@@ -23,6 +23,8 @@ interface BaseFieldDef {
   readOnlyWhen?: string
   /** 条件必填表达式 */
   requiredWhen?: string
+  /** 排除该字段不纳入 AI 感知上下文 */
+  aiExclude?: boolean
   /** 字段级组件覆盖 */
   components?: {
     Field?: ComponentType<FieldProps>

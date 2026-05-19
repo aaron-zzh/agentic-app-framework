@@ -1,16 +1,31 @@
 /**
- * CommandPalette——⌘K 全局搜索（基于 shadcn Command + cmdk）
+ * CommandPalette——⌘K 全局命令面板（基于 shadcn Command + cmdk）
  * @author AaronZZH & Kiro
  *
- * 功能：跨实体搜索 + 导航 + 命令执行
- * 输入 > 前缀仅搜索命令
+ * 功能：
+ * - 跨实体搜索 + 导航 + 命令执行 + 最近访问
+ * - 输入 `>` 前缀进入命令模式（仅显示命令组）
+ * - 支持插件通过 commandRegistry 注册自定义命令
+ * - 选择导航项自动记录到最近访问
+ *
+ * @example
+ * ```tsx
+ * const { open, onClose, recentItems, addRecent, commands } = useCommandPalette()
+ * <CommandPalette open={open} onClose={onClose} recentItems={recentItems} addRecent={addRecent} commands={commands} />
+ * ```
  */
 
 "use client"
 
-import { FileText, Search, Settings, Zap } from "lucide-react"
+import {
+  Clock,
+  LayoutDashboard,
+  Navigation,
+  Terminal
+} from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+
 import {
   CommandDialog,
   CommandEmpty,
@@ -22,30 +37,78 @@ import {
 } from "@/components/ui/command"
 import { entityRegistry } from "@/features/entity-engine"
 import { paths } from "@/lib/constants/paths"
+import type { CommandItem as CommandDef, RecentItem } from "@/lib/hooks/use-command-palette"
+
+// ─── Props ────────────────────────────────────────────────────────────────
 
 interface CommandPaletteProps {
   open: boolean
   onClose: () => void
+  commands: CommandDef[]
+  recentItems: RecentItem[]
+  addRecent: (item: Omit<RecentItem, "timestamp">) => void
 }
 
 /** 全局命令面板 */
-export function CommandPalette({ open, onClose }: CommandPaletteProps) {
+export function CommandPalette({
+  open,
+  onClose,
+  commands,
+  recentItems,
+  addRecent
+}: CommandPaletteProps) {
   const router = useRouter()
   const [query, setQuery] = useState("")
 
+  // 打开时清空搜索
   useEffect(() => {
     if (open) setQuery("")
   }, [open])
 
+  /** 是否为命令模式（> 前缀） */
+  const isCommandMode = query.startsWith(">")
+
+  /** 导航到目标并记录最近访问 */
   const navigate = useCallback(
-    (href: string) => {
+    (href: string, label: string, subtitle?: string, icon?: string) => {
+      addRecent({ id: href, label, subtitle, href, icon })
       router.push(href)
       onClose()
     },
-    [router, onClose]
+    [router, onClose, addRecent]
   )
 
-  const entities = entityRegistry.getAll()
+  /** 执行命令 */
+  const executeCommand = useCallback(
+    (cmd: CommandDef) => {
+      cmd.action()
+      onClose()
+    },
+    [onClose]
+  )
+
+  /** 从实体注册表生成导航项 */
+  const navigationItems = useMemo(() => {
+    const entities = entityRegistry.getAll()
+    return entities.map((e) => ({
+      slug: e.slug,
+      label: e.label,
+      group: e.groupLabel ?? e.group ?? "",
+      icon: e.icon,
+      href: paths.workspace.module(e.slug)
+    }))
+  }, [])
+
+  /** 按 group 分组的命令 */
+  const commandGroups = useMemo(() => {
+    const groups: Record<string, CommandDef[]> = {}
+    for (const cmd of commands) {
+      const g = cmd.group || "命令"
+      if (!groups[g]) groups[g] = []
+      groups[g].push(cmd)
+    }
+    return groups
+  }, [commands])
 
   return (
     <CommandDialog
@@ -53,61 +116,94 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       onOpenChange={(v) => {
         if (!v) onClose()
       }}
-      title="搜索"
-      description="搜索页面、记录或执行命令"
+      title="命令面板"
+      description="搜索页面、记录或执行命令。输入 > 进入命令模式。"
     >
-      <CommandInput placeholder="搜索页面、记录、命令..." value={query} onValueChange={setQuery} />
+      <CommandInput
+        placeholder={isCommandMode ? "输入命令..." : "搜索页面、记录、命令...（> 进入命令模式）"}
+        value={query}
+        onValueChange={setQuery}
+      />
       <CommandList>
         <CommandEmpty>无匹配结果</CommandEmpty>
 
-        {/* 导航 */}
-        <CommandGroup heading="页面">
-          <CommandItem onSelect={() => navigate(paths.workspace.dashboard)}>
-            <Search className="text-muted-foreground" />
-            <span>工作台</span>
-          </CommandItem>
-          {entities.map((e) => (
-            <CommandItem key={e.slug} onSelect={() => navigate(paths.workspace.module(e.slug))}>
-              <FileText className="text-muted-foreground" />
-              <span>{e.label}</span>
-              <span className="ml-auto text-muted-foreground text-xs">{e.group}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
+        {/* 命令模式：仅显示命令 */}
+        {isCommandMode ? (
+          <>
+            {Object.entries(commandGroups).map(([group, cmds]) => (
+              <CommandGroup key={group} heading={group}>
+                {cmds.map((cmd) => (
+                  <CommandItem key={cmd.id} onSelect={() => executeCommand(cmd)}>
+                    <Terminal className="text-muted-foreground" />
+                    <span>{cmd.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </>
+        ) : (
+          <>
+            {/* 最近访问 */}
+            {recentItems.length > 0 && (
+              <>
+                <CommandGroup heading="最近访问">
+                  {recentItems.map((item) => (
+                    <CommandItem
+                      key={item.id}
+                      onSelect={() => navigate(item.href, item.label, item.subtitle, item.icon)}
+                    >
+                      <Clock className="text-muted-foreground" />
+                      <span>{item.label}</span>
+                      {item.subtitle && (
+                        <span className="ml-auto text-muted-foreground text-xs">
+                          {item.subtitle}
+                        </span>
+                      )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            )}
 
-        <CommandSeparator />
+            {/* 导航 */}
+            <CommandGroup heading="导航">
+              <CommandItem
+                onSelect={() => navigate(paths.workspace.dashboard, "工作台", undefined, undefined)}
+              >
+                <LayoutDashboard className="text-muted-foreground" />
+                <span>工作台</span>
+              </CommandItem>
+              {navigationItems.map((item) => (
+                  <CommandItem
+                    key={item.slug}
+                    onSelect={() => navigate(item.href, item.label, item.group, item.icon)}
+                  >
+                    <Navigation className="text-muted-foreground" />
+                    <span>{item.label}</span>
+                    <span className="ml-auto text-muted-foreground text-xs">{item.group}</span>
+                  </CommandItem>
+                ))}
+            </CommandGroup>
 
-        {/* 命令 */}
-        <CommandGroup heading="命令">
-          <CommandItem
-            onSelect={() => {
-              onClose()
-            }}
-          >
-            <Zap className="text-muted-foreground" />
-            <span>新建记录</span>
-          </CommandItem>
-          <CommandItem onSelect={() => navigate(paths.workspace.settings)}>
-            <Settings className="text-muted-foreground" />
-            <span>设置</span>
-          </CommandItem>
-        </CommandGroup>
-
-        <CommandSeparator />
-
-        {/* 最近访问（Mock） */}
-        <CommandGroup heading="最近访问">
-          <CommandItem onSelect={() => navigate("/document")}>
-            <FileText className="text-muted-foreground" />
-            <span>Q2 季度报告</span>
-            <span className="ml-auto text-muted-foreground text-xs">文档</span>
-          </CommandItem>
-          <CommandItem onSelect={() => navigate("/task")}>
-            <FileText className="text-muted-foreground" />
-            <span>前端重构任务</span>
-            <span className="ml-auto text-muted-foreground text-xs">任务</span>
-          </CommandItem>
-        </CommandGroup>
+            {/* 命令 */}
+            {commands.length > 0 && (
+              <>
+                <CommandSeparator />
+                {Object.entries(commandGroups).map(([group, cmds]) => (
+                  <CommandGroup key={group} heading={group}>
+                    {cmds.map((cmd) => (
+                      <CommandItem key={cmd.id} onSelect={() => executeCommand(cmd)}>
+                        <Terminal className="text-muted-foreground" />
+                        <span>{cmd.label}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ))}
+              </>
+            )}
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   )

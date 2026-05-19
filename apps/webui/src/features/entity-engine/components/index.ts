@@ -1,4 +1,5 @@
 export { ActivityStream } from "./ActivityStream"
+export * from "./compare"
 export { BadgeCell, CheckCell, DateCell, RelationCell, TextCell } from "./cells"
 export { EntityActions } from "./EntityActions"
 export * from "./fields"

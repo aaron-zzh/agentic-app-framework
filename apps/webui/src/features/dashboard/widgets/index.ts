@@ -1,0 +1,10 @@
+/**
+ * 仪表盘 Widget 组件统一导出
+ * @author AaronZZH & Kiro
+ */
+
+export { CounterWidget } from "./CounterWidget"
+export { ChartWidget } from "./ChartWidget"
+export { ListWidget } from "./ListWidget"
+export { ProgressWidget } from "./ProgressWidget"
+export { ShortcutWidget } from "./ShortcutWidget"

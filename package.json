@@ -11,7 +11,7 @@
     "format": "biome check --write",
     "format:check": "biome check",
     "commitlint": "commitlint --from HEAD~1 --to HEAD",
-    "changelog": "nx release --dry-run",
+    "changelog": "nx release changelog",
     "release": "nx release"
   },
   "private": true,
@@ -39,6 +39,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260511.1",
     "@vitest/coverage-v8": "^3.0.5",
     "nx": "22.7.0",
+    "publint": "^0.3.21",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "vite": "^8.0.0",

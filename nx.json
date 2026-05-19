@@ -78,8 +78,8 @@
   "analytics": false,
   "release": {
     "projects": [
-      "docs",
-      "webui"
+      "core",
+      "hooks"
     ],
     "version": {
       "conventionalCommits": true
@@ -99,6 +99,27 @@
       }
     }
   },
+  "sync": {
+    "applyChanges": "all-files"
+  },
+  "projects": {
+    "webui": { "tags": ["scope:app", "type:app"] },
+    "service": { "tags": ["scope:app", "type:service"] },
+    "core": { "tags": ["scope:shared", "type:util"] },
+    "hooks": { "tags": ["scope:shared", "type:util"] }
+  },
+  "moduleBoundaries": {
+    "rules": [
+      {
+        "sourceTag": "scope:app",
+        "onlyDependOnLibsWithTags": ["scope:app", "scope:shared"]
+      },
+      {
+        "sourceTag": "scope:shared",
+        "onlyDependOnLibsWithTags": ["scope:shared"]
+      }
+    ]
+  },
   "targetDefaults": {
     "build": {
       "dependsOn": ["^build"],
@@ -117,7 +138,7 @@
       "cache": true
     },
     "check": {
-      "dependsOn": ["lint", "typecheck", "test", "build"]
+      "dependsOn": ["lint", "typecheck", "test", "build", "publint"]
     }
   }
 }
