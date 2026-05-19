@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   Settings,
+  Trash2,
   Users
 } from "lucide-react"
 import Link from "next/link"
@@ -32,7 +33,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   "file-text": FileText,
   users: Users,
   "check-square": CheckSquare,
-  settings: Settings
+  settings: Settings,
+  "trash-2": Trash2
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {

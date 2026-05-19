@@ -43,6 +43,7 @@ const BOTTOM_NAV: NavGroup[] = [
   {
     subheader: "系统",
     items: [
+      { title: "🗑️ 回收站", path: paths.workspace.trash, icon: "trash-2" },
       {
         title: "设置",
         path: paths.workspace.settings,

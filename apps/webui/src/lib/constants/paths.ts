@@ -27,6 +27,7 @@ export const paths = {
     settings: "/settings",
     settingsNotifications: "/settings/notifications",
     notifications: "/notifications",
-    todos: "/todos"
+    todos: "/todos",
+    trash: "/trash"
   }
 }
