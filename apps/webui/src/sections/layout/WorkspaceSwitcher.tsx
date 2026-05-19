@@ -1,15 +1,17 @@
 /**
- * WorkspaceSwitcher——工作区切换器
+ * WorkspaceSwitcher——组织切换器
  * @author AaronZZH & Kiro
  *
- * 从 ui-store 读取工作区列表和当前工作区，切换时：
- * 1. 更新 store.currentWorkspace
- * 2. useEntityList 通过 useWorkspaceId() 自动携带新的 workspaceId
+ * 切换组织时：
+ * 1. 更新 org-store.currentOrgId（持久化到 localStorage）
+ * 2. API client 自动从 org-store 读取 X-Org-Id 请求头
+ * 3. invalidateQueries 刷新所有数据
  */
 
 "use client"
 
 import { ChevronsUpDown, Plus } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -21,16 +23,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import type { WorkspaceItem } from "@/lib/store/ui-store"
-import { useUIStore } from "@/lib/store/ui-store"
+import { useOrgStore } from "@/lib/store/org-store"
+import { useOrganizations } from "@/lib/queries/use-organizations"
 
 export function WorkspaceSwitcher() {
-  const current = useUIStore((s) => s.currentWorkspace)
-  const workspaces = useUIStore((s) => s.workspaces)
-  const setCurrentWorkspace = useUIStore((s) => s.setCurrentWorkspace)
+  const queryClient = useQueryClient()
+  const currentOrgId = useOrgStore((s) => s.currentOrgId)
+  const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId)
+  const { data: orgs } = useOrganizations()
 
-  const list: WorkspaceItem[] = workspaces.length ? workspaces : [{ id: "1", name: "默认工作区" }]
-  const active = current ?? list[0]
+  const list = orgs ?? []
+  const active = list.find((o) => o.id === currentOrgId) ?? list[0]
+
+  /** 切换组织 */
+  function handleSwitch(orgId: string) {
+    if (orgId === currentOrgId) return
+    setCurrentOrgId(orgId)
+    queryClient.invalidateQueries()
+  }
 
   return (
     <DropdownMenu>
@@ -44,40 +54,42 @@ export function WorkspaceSwitcher() {
       >
         <Avatar className="size-6 rounded-md after:hidden">
           <AvatarImage
-            src={active.logo ?? "/assets/icons/ChatBc.png"}
-            alt={active.name}
+            src={active?.logo ?? "/assets/icons/ChatBc.png"}
+            alt={active?.name ?? "组织"}
             className="object-cover"
           />
           <AvatarFallback className="rounded-md bg-primary/10 font-semibold text-primary text-xs">
-            {active.name.slice(0, 1)}
+            {active?.name?.slice(0, 1) ?? "O"}
           </AvatarFallback>
         </Avatar>
-        <span className="max-w-28 truncate font-medium text-sm">{active.name}</span>
+        <span className="max-w-28 truncate font-medium text-sm">
+          {active?.name ?? "选择组织"}
+        </span>
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-64 overflow-hidden p-0">
         <div className="p-1.5">
           <DropdownMenuGroup>
-            <DropdownMenuLabel>工作区</DropdownMenuLabel>
-            {list.map((ws) => (
+            <DropdownMenuLabel>组织</DropdownMenuLabel>
+            {list.map((org) => (
               <DropdownMenuItem
-                key={ws.id}
-                onClick={() => setCurrentWorkspace(ws)}
+                key={org.id}
+                onClick={() => handleSwitch(org.id)}
                 className="gap-2.5 rounded-md px-2 py-2"
               >
                 <Avatar className="size-7 rounded-md after:hidden">
                   <AvatarImage
-                    src={ws.logo ?? "/assets/icons/ChatBc.png"}
-                    alt={ws.name}
+                    src={org.logo ?? "/assets/icons/ChatBc.png"}
+                    alt={org.name}
                     className="object-cover"
                   />
                   <AvatarFallback className="rounded-md bg-gradient-to-br from-violet-500 to-indigo-500 font-semibold text-white text-xs">
-                    {ws.name.slice(0, 1)}
+                    {org.name.slice(0, 1)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="flex-1 truncate text-sm">{ws.name}</span>
-                {active.id === ws.id && (
+                <span className="flex-1 truncate text-sm">{org.name}</span>
+                {active?.id === org.id && (
                   <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
                     当前
                   </Badge>
@@ -94,7 +106,7 @@ export function WorkspaceSwitcher() {
             <div className="flex size-7 items-center justify-center rounded-md border border-muted-foreground/40 border-dashed bg-background/50">
               <Plus className="size-3.5 text-muted-foreground" />
             </div>
-            <span className="text-sm">创建工作区</span>
+            <span className="text-sm">创建组织</span>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>
