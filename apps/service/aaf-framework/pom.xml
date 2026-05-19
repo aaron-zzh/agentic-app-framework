@@ -41,7 +41,7 @@
 		<!-- AOP -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-aop</artifactId>
+			<artifactId>spring-boot-starter-aspectj</artifactId>
 		</dependency>
 
 		<!-- 可观测性 -->
@@ -85,6 +85,7 @@
 			<groupId>org.freemarker</groupId>
 			<artifactId>freemarker</artifactId>
 		</dependency>
+		<!-- TODO: 短信 SDK 暂未在镜像仓库可用，待解决 -->
 		<dependency>
 			<groupId>com.aliyun</groupId>
 			<artifactId>alibabacloud-dysmsapi20170525</artifactId>
@@ -94,6 +95,12 @@
 			<groupId>com.tencentcloudapi</groupId>
 			<artifactId>tencentcloud-sdk-java-sms</artifactId>
 			<optional>true</optional>
+		</dependency>
+
+		<!-- AI -->
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-openai</artifactId>
 		</dependency>
 
 		<!-- 存储 -->

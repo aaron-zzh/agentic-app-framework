@@ -2,6 +2,8 @@ package com.xuejiai.aaf.module.system.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,10 +55,26 @@ public class ChatService {
                 .toList();
     }
 
+    /** 分页获取会话消息（按时间倒序） */
+    @Transactional(readOnly = true)
+    public Page<ChatMessageVO> getMessagesPaged(Long sessionId, int page, int size) {
+        return messageRepository
+                .findBySessionIdOrderByCreateTimeDesc(sessionId, PageRequest.of(page, size))
+                .map(this::toMessageVO);
+    }
+
+    /** 归档会话（设置状态为 ARCHIVED） */
+    @Transactional
+    public void archiveSession(Long sessionId) {
+        var session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+        session.setStatus("ARCHIVED");
+        sessionRepository.save(session);
+    }
+
     /** 保存消息 */
     @Transactional
     public ChatMessageVO saveMessage(Long senderId, String senderType, Long sessionId, String role, String content) {
-        // 校验会话存在
         sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
 
@@ -68,6 +86,36 @@ public class ChatService {
         message.setContent(content);
         messageRepository.save(message);
         return toMessageVO(message);
+    }
+
+    /** 保存消息（含 Token 计数和元数据） */
+    @Transactional
+    public ChatMessageVO saveMessage(
+            Long senderId, String senderType, Long sessionId,
+            String role, String content, Integer tokenCount, String metadata) {
+        sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+
+        var message = new ChatMessage();
+        message.setSessionId(sessionId);
+        message.setSenderId(senderId);
+        message.setSenderType(senderType);
+        message.setRole(role);
+        message.setContent(content);
+        message.setTokenCount(tokenCount);
+        message.setMetadata(metadata);
+        messageRepository.save(message);
+        return toMessageVO(message);
+    }
+
+    /** 累加会话 Token 用量 */
+    @Transactional
+    public void addSessionTokens(Long sessionId, long tokens) {
+        var session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+        var current = session.getTotalTokens() != null ? session.getTotalTokens() : 0L;
+        session.setTotalTokens(current + tokens);
+        sessionRepository.save(session);
     }
 
     private ChatSessionVO toSessionVO(ChatSession s) {

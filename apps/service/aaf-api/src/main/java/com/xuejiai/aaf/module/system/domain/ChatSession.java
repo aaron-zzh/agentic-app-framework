@@ -32,4 +32,16 @@ public class ChatSession extends BaseEntity {
     /** 创建者用户 ID */
     @Column(name = "creator_id", nullable = false)
     private Long creatorId;
+
+    /** 关联的 Agent ID */
+    @Column(name = "agent_id", length = 100)
+    private String agentId;
+
+    /** 使用的模型 ID */
+    @Column(name = "model_id", length = 100)
+    private String modelId;
+
+    /** 累计消耗 Token 数 */
+    @Column(name = "total_tokens")
+    private Long totalTokens;
 }

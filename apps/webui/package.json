@@ -9,6 +9,7 @@
     "@aaf/core": "workspace:*",
     "@aaf/hooks": "workspace:*",
     "@aaf/tailwind-config": "workspace:*",
+    "@ag-ui/client": "^0.0.53",
     "@assistant-ui/react": "^0.14.0",
     "@assistant-ui/react-ag-ui": "^0.0.29",
     "@assistant-ui/react-streamdown": "^0.3.0",

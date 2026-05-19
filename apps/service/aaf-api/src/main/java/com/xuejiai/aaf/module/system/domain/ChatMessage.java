@@ -36,4 +36,12 @@ public class ChatMessage extends BaseEntity {
     /** 消息内容 */
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    /** 消息消耗的 Token 数 */
+    @Column(name = "token_count")
+    private Integer tokenCount;
+
+    /** 元数据（JSON 格式，存储模型信息、耗时等） */
+    @Column(name = "metadata", columnDefinition = "TEXT")
+    private String metadata;
 }

@@ -34,6 +34,13 @@ spring:
       mail.smtp.ssl.enable: true
   jpa:
     show-sql: true
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-placeholder}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
 
 logging:
   level:
@@ -43,6 +50,19 @@ logging:
 aaf:
   flyway:
     clean-on-start: true
+  ai:
+    default-model: default
+    fallback-model: default
+    models:
+      default:
+        provider: openai
+        api-key: ${OPENAI_API_KEY:sk-placeholder}
+        base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+        model: ${OPENAI_MODEL:gpt-4o-mini}
+        max-tokens: 4096
+        temperature: 0.7
+    prompts:
+      chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
   task:
     scheduler:
       pool-size: 4
