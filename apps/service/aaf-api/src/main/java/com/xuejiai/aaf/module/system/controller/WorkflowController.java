@@ -12,10 +12,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.module.system.service.DelegationService;
 import com.xuejiai.aaf.module.system.service.WorkflowService;
 import com.xuejiai.aaf.module.system.vo.WorkflowActionDTO;
 import com.xuejiai.aaf.module.system.vo.WorkflowStartDTO;
 import com.xuejiai.aaf.module.system.vo.WorkflowStatusVO;
+import com.xuejiai.aaf.module.system.vo.WorkflowTransferDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 public class WorkflowController {
 
     private final WorkflowService workflowService;
+    private final DelegationService delegationService;
     private final ActorContext actorContext;
 
     @Operation(summary = "启动审批流程")
@@ -64,5 +67,12 @@ public class WorkflowController {
     @GetMapping("/{processInstanceId}/history")
     public Result<List<WorkflowStatusVO.HistoryItem>> getHistory(@PathVariable String processInstanceId) {
         return Result.success(workflowService.getHistory(processInstanceId));
+    }
+
+    @Operation(summary = "单次转交任务")
+    @PostMapping("/transfer")
+    public Result<Void> transfer(@Validated @RequestBody WorkflowTransferDTO dto) {
+        delegationService.transfer(dto);
+        return Result.success();
     }
 }
