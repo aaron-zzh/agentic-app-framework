@@ -1,0 +1,20 @@
+package com.xuejiai.aaf.module.system.repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.xuejiai.aaf.module.system.domain.OrgMember;
+
+/** 组织成员仓储。 */
+public interface OrgMemberRepository extends JpaRepository<OrgMember, Long> {
+
+    List<OrgMember> findByUserIdAndDeletedFalse(Long userId);
+
+    List<OrgMember> findByOrgIdAndDeletedFalse(Long orgId);
+
+    Optional<OrgMember> findByOrgIdAndUserIdAndDeletedFalse(Long orgId, Long userId);
+
+    boolean existsByOrgIdAndUserIdAndDeletedFalse(Long orgId, Long userId);
+}

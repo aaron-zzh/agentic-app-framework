@@ -3,6 +3,9 @@ package com.xuejiai.aaf.common.model;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -37,6 +40,8 @@ import lombok.Setter;
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 @SQLRestriction("deleted = false")
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "orgId", type = Long.class))
+@Filter(name = "tenantFilter", condition = "org_id = :orgId")
 public abstract class BaseEntity implements Serializable {
 
     @Id
