@@ -5,17 +5,19 @@
 
 import { ApiError } from "./client"
 
-export type NotificationChannel = "inApp" | "email" | "wechat"
+/** 通知通道类型 */
+export type NotificationChannel = "inApp" | "email"
 
-export interface NotificationPreferenceItem {
-  /** 通知类别 */
-  type: string
-  /** 各通道是否启用 */
-  channels: Record<NotificationChannel, boolean>
+/** 单个类别的通道配置 */
+export interface ChannelConfig {
+  inApp: boolean
+  email: boolean
 }
 
+/** 通知偏好（前端模型） */
 export interface NotificationPreference {
-  items: NotificationPreferenceItem[]
+  /** 各类别的通道配置 */
+  preferences: Record<string, ChannelConfig>
   /** 免打扰开始时间，格式 "HH:mm" */
   quietStart?: string
   /** 免打扰结束时间，格式 "HH:mm" */
@@ -36,7 +38,9 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const notificationPreferenceApi = {
+  /** 获取当前用户通知偏好 */
   get: () => req<NotificationPreference>("/notification-preferences"),
+  /** 更新通知偏好 */
   update: (data: NotificationPreference) =>
     req<void>("/notification-preferences", { method: "PUT", body: JSON.stringify(data) })
 }
