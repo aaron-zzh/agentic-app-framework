@@ -12,6 +12,16 @@ author: AaronZZH
 
 > 负责人：architect + developer-service | 创建：05-19
 
+## 参考项目
+
+| 任务 | 参考项目 | 参考路径 | 借鉴点 |
+|------|---------|---------|--------|
+| #5501 文档导入器 | Cognee | `tmp/mem/` 设计思想 | ECL 管道 Extract 阶段、多格式解析 |
+| #5502 网页抓取 | — | — | 标准实现（Jsoup + Readability） |
+| #5503 自动分块策略 | Cognee + LightRAG | `tmp/mem/` 设计思想 | 按文档类型自动选择策略、质量评估 |
+| #5504 增量更新 | Graphiti | `tmp/mem/graphiti/graphiti_core/` | 变更检测、差量重索引、版本追踪 |
+| #5505 管道编排 | Cognee | `tmp/mem/` 设计思想 | ECL（Extract-Cognify-Load）管道模式 |
+
 ## 任务列表
 
 ### 文档导入

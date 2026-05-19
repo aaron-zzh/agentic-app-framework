@@ -12,6 +12,16 @@ author: AaronZZH
 
 > 负责人：architect + developer-service | 创建：05-19
 
+## 参考项目
+
+| 任务 | 参考项目 | 参考路径 | 借鉴点 |
+|------|---------|---------|--------|
+| #5301 PgVector 集成 | Spring AI | 官方文档 | VectorStore 抽象、PgVectorStore 实现 |
+| #5302 文档分块 | Cognee | `tmp/mem/` 设计思想 | ECL 管道中 Extract 阶段的分块策略 |
+| #5303 Embedding 生成 | Spring AI + Cognee | 官方文档 | EmbeddingModel 抽象、批量生成、缓存 |
+| #5304 相似度搜索 | LightRAG + M-FLOW | `tmp/mem/m_flow/` | 混合检索、图路由 Bundle Search |
+| #5305 管理 API | Cognee | `tmp/mem/` 设计思想 | 知识库生命周期管理 |
+
 ## 任务列表
 
 ### 向量存储

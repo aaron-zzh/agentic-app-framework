@@ -12,6 +12,16 @@ author: AaronZZH
 
 > 负责人：architect + developer-service | 创建：05-19
 
+## 参考项目
+
+| 任务 | 参考项目 | 参考路径 | 借鉴点 |
+|------|---------|---------|--------|
+| #5601 混合检索 | LightRAG + M-FLOW | `tmp/mem/m_flow/m_flow/` | 向量+BM25+图谱三路融合、RRF 排序 |
+| #5602 检索增强生成 | LightRAG + Mem0 | `tmp/mem/mem0/mem0/` | Prompt 注入模板、上下文窗口优化 |
+| #5603 引用溯源 | Cognee | `tmp/mem/` 设计思想 | 答案→源文档映射、引用标注 |
+| #5604 置信度评分 | M-FLOW | `tmp/mem/m_flow/m_flow/` | 置信度传播、可靠性评估 |
+| #5605 RAG 评估 | Spring AI Evaluation | 官方文档 | Faithfulness/Relevancy 评估框架 |
+
 ## 任务列表
 
 ### 混合检索

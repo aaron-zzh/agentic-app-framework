@@ -12,6 +12,16 @@ author: AaronZZH
 
 > 负责人：architect + developer-service | 创建：05-19
 
+## 参考项目
+
+| 任务 | 参考项目 | 参考路径 | 借鉴点 |
+|------|---------|---------|--------|
+| #5401 Neo4j 图谱建模 | Graphiti | `tmp/mem/graphiti/graphiti_core/` | 双时态模型、节点/边 Schema 设计 |
+| #5402 实体关系抽取 | Cognee + Graphiti | `tmp/mem/graphiti/graphiti_core/` | LLM 驱动 NER、三元组生成、去重合并 |
+| #5403 图增强检索 | M-FLOW | `tmp/mem/m_flow/m_flow/` | 子图检索、社区发现、Bundle Search |
+| #5404 多跳推理 | M-FLOW + Graphiti | `tmp/mem/m_flow/m_flow/` | 图路由推理、置信度传播、路径可视化 |
+| #5405 图谱维护 | Graphiti | `tmp/mem/graphiti/graphiti_core/` | 增量更新、冲突解决、版本管理 |
+
 ## 任务列表
 
 ### 图谱建模
