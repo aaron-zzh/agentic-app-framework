@@ -175,6 +175,70 @@
   --sidebar-primary-foreground: oklch(0.15 0 0);
 }
 
+/* 知识紫主题（design-system secondary） */
+.theme-purple {
+  --primary: oklch(0.50 0.15 290);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.50 0.15 290);
+  --sidebar-primary: oklch(0.50 0.15 290);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+.dark.theme-purple {
+  --primary: oklch(0.7 0.14 290);
+  --primary-foreground: oklch(0.15 0 0);
+  --ring: oklch(0.7 0.14 290);
+  --sidebar-primary: oklch(0.7 0.14 290);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+}
+
+/* 行动橙主题（design-system tertiary） */
+.theme-orange {
+  --primary: oklch(0.62 0.18 55);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.62 0.18 55);
+  --sidebar-primary: oklch(0.62 0.18 55);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+.dark.theme-orange {
+  --primary: oklch(0.75 0.16 55);
+  --primary-foreground: oklch(0.15 0 0);
+  --ring: oklch(0.75 0.16 55);
+  --sidebar-primary: oklch(0.75 0.16 55);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+}
+
+/* 玫红主题 */
+.theme-rose {
+  --primary: oklch(0.55 0.2 10);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.55 0.2 10);
+  --sidebar-primary: oklch(0.55 0.2 10);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+.dark.theme-rose {
+  --primary: oklch(0.7 0.18 10);
+  --primary-foreground: oklch(0.15 0 0);
+  --ring: oklch(0.7 0.18 10);
+  --sidebar-primary: oklch(0.7 0.18 10);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+}
+
+/* 青色主题 */
+.theme-cyan {
+  --primary: oklch(0.55 0.15 200);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.55 0.15 200);
+  --sidebar-primary: oklch(0.55 0.15 200);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+.dark.theme-cyan {
+  --primary: oklch(0.7 0.14 200);
+  --primary-foreground: oklch(0.15 0 0);
+  --ring: oklch(0.7 0.14 200);
+  --sidebar-primary: oklch(0.7 0.14 200);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+}
+
 @keyframes progress {
   0% {
     width: 0%;
