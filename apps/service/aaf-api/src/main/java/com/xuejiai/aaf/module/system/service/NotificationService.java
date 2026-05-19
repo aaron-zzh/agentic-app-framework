@@ -55,6 +55,18 @@ public class NotificationService {
                 .ifPresent(notificationRepository::delete);
     }
 
+    /** 发送系统通知 */
+    @Transactional
+    public void sendSystemNotification(Long userId, String title, String body) {
+        var notification = new Notification();
+        notification.setUserId(userId);
+        notification.setType("system");
+        notification.setTitle(title);
+        notification.setBody(body);
+        notification.setIsRead(false);
+        notificationRepository.save(notification);
+    }
+
     private NotificationVO toVO(Notification n) {
         return new NotificationVO(
                 n.getId(),
