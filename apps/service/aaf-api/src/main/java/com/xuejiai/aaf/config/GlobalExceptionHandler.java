@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.config;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +22,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** 乐观锁冲突（数据已被其他人修改） */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Result<?> handleOptimisticLock(ObjectOptimisticLockingFailureException e) {
+        log.info("乐观锁冲突: {}", e.getMessage());
+        return Result.error(409, "数据已被修改，请刷新后重试");
+    }
 
     /** 业务异常 */
     @ExceptionHandler(BusinessException.class)
