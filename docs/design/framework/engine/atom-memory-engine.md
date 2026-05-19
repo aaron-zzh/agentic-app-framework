@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: AtomMemory 原子记忆引擎设计——Cognition.Memory 的通用执行能力
 status: draft
-version: 2.0.0
-date: 2026-05-08
+version: 2.1.0
+date: 2026-05-19
 author: AaronZZH
 changelog:
+  - 2026-05-19 v2.1.0 | 更新参考框架对照表（整合 M-FLOW/Graphiti/ReMe）；新增 Agentic 边界说明
   - 2026-05-08 v2.0.0 | 重新定位为引擎层实现，从 core/ 迁移到 engine/
   - 2026-05-06 v1.0.0 | 初稿占位（原 core/atom-memory.md）
 ---
@@ -106,11 +107,41 @@ public interface AtomMemoryEngine {
 
 ## 与业界框架的对照
 
-| 框架 | 借鉴点 | 差异 |
-|------|--------|------|
-| Mem0 | 记忆原子化思路 | 独立部署 vs AAF 内嵌 |
-| Graphiti | 双时态模型 | Zep 云服务 vs AAF 自管 |
-| ReMe | Markdown 存储、可读可编辑 | 完全本地 vs AAF 统一存储 |
+| 框架 | 借鉴点 | 差异 | AAF 吸收方式 |
+|------|--------|------|-------------|
+| **Mem0** | 记忆原子化、多级架构、LLM 价值判断 | 独立部署 vs AAF 内嵌 | MemoryAtom 原子化 + 三分区隔离 |
+| **Graphiti** | 双时态模型（valid_at/invalid_at/expired_at）、Episodes 溯源、增量图构建 | Zep 云服务 vs AAF 自管 | MemoryAtom 双时态字段 + Neo4j 情景图 |
+| **M-FLOW** | 倒锥形四层有向图、Bundle Search、程序化记忆、时间衰减 | Python 实现 vs Java | BundleSearchService + TimeDecayStrategy |
+| **ReMe** | 程序化记忆蒸馏流水线（Trajectory→Extraction→Validation→Addition）、ReActAgent 摘要 | 完全本地 vs AAF 统一存储 | Learning 蒸馏通道 + ProceduralMemoryService |
+
+### Agentic 边界（引擎层 vs 认知层）
+
+本引擎（AtomMemoryEngine）是**纯算法层**，不调用 LLM。Agentic 能力由上层 Memory 模块在调用引擎前/后执行：
+
+```
+Agent 调用 MemoryService.record()
+    ↓
+Memory 模块（Agentic）：
+    ├─ LLM 判断记忆价值（是否值得存）
+    ├─ LLM 实体/关系抽取（结构化）
+    ├─ LLM 去重判断（与已有记忆是否重复）
+    └─ 构造 MemoryAtom
+    ↓
+AtomMemoryEngine.store()  ← 纯算法：写入 PgVector + Neo4j
+```
+
+```
+Agent 调用 RetrievalService.retrieve()
+    ↓
+Retrieval 模块（Agentic）：
+    ├─ LLM 查询意图理解 + 路由决策
+    ↓
+AtomMemoryEngine.searchHybrid()  ← 纯算法：向量+时序+标签检索
+    ↓
+Retrieval 模块（Agentic）：
+    ├─ LLM 重排序（Reranker）
+    └─ LLM 结果重写（组装连贯上下文）
+```
 
 ## 非目标
 

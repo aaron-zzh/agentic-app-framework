@@ -31,10 +31,25 @@ public class HybridSearchService {
      * 三路混合检索 + RRF 融合排序
      */
     public List<RagSearchResult> search(String query, Long knowledgeBaseId, HybridSearchConfig config) {
-        // 三路并行检索
-        var vectorResults = vectorSearch(query, knowledgeBaseId, config.topK());
-        var bm25Results = bm25Search(query, knowledgeBaseId, config.topK());
-        var graphResults = graphSearch(query, knowledgeBaseId, config.topK());
+        // 三路并行检索（虚拟线程）
+        List<RagSearchResult> vectorResults;
+        List<RagSearchResult> bm25Results;
+        List<RagSearchResult> graphResults;
+
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var vectorFuture = executor.submit(() -> vectorSearch(query, knowledgeBaseId, config.topK()));
+            var bm25Future = executor.submit(() -> bm25Search(query, knowledgeBaseId, config.topK()));
+            var graphFuture = executor.submit(() -> graphSearch(query, knowledgeBaseId, config.topK()));
+
+            vectorResults = vectorFuture.get();
+            bm25Results = bm25Future.get();
+            graphResults = graphFuture.get();
+        } catch (Exception e) {
+            // 降级为串行
+            vectorResults = vectorSearch(query, knowledgeBaseId, config.topK());
+            bm25Results = bm25Search(query, knowledgeBaseId, config.topK());
+            graphResults = graphSearch(query, knowledgeBaseId, config.topK());
+        }
 
         // RRF 融合
         Map<String, double[]> scoreMap = new LinkedHashMap<>(); // content -> [rrfScore]

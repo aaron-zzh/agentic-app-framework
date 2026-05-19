@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: AAF 认知层（Cognition）设计 - Layer 1 持久级·跨 Agent 共享的认知基础
 status: draft
-version: 2.2.0
-date: 2026-05-08
+version: 2.3.0
+date: 2026-05-19
 author: AaronZZH
 changelog:
+  - 2026-05-19 v2.3.0 | 新增"分层 Agentic 策略"章节；整合 ReMe/Graphiti/M-FLOW/Mem0 四项目精华；补充程序化记忆蒸馏流水线；Retrieval 增加 Agentic 检索流程
   - 2026-05-08 v2.2.0 | 补充与引擎层的关系章节；引入 SemanticCalcEngine 语义计算引擎；Cognition 模块 vs 引擎实现职责分工
   - 2026-05-08 v2.1.0 | 对齐认知心理学信息加工模型：加入工作记忆、注意力资源、双反馈通道
   - 2026-05-08 v2.0.0 | 加入价值观、明确三分区与被动循环、Learning 重新定位为横切反哺通道
@@ -353,6 +354,18 @@ public interface ValueService {
 - **重排序**：检索结果通过 Reranker 重新打分（借鉴 LightRAG）
 - **价值观校验**：所有检索结果出库前经过 Value 过滤（敏感/违规过滤）
 - **缓存层**：相同查询结果缓存（Redis），降低重复检索成本
+- **Agentic 检索流程**（借鉴 ReMe 全链路 LLM）：
+
+```
+用户查询
+  ↓ LLM 查询理解（意图识别 + 实体抽取 + 时间解析）
+  ↓ 路由决策（Memory/Knowledge/混合）
+  ↓ 并行检索（向量 + 图谱 + 关键词 + Bundle Search）
+  ↓ LLM 重排序（Cross-Encoder / Reranker）
+  ↓ LLM 结果合并重写（组装连贯上下文片段）
+  ↓ Value 校验过滤
+  ↓ 返回结构化结果
+```
 
 ### 对外接口
 
@@ -393,6 +406,36 @@ Learning 处理（异步）：
 Memory.update   → 经验写入程序化记忆
 Knowledge.update → 知识生长（实体关系补充）
 Value.propose   → 价值观更新建议（必须人工审核）
+```
+
+### 程序化记忆蒸馏流水线（借鉴 ReMe）
+
+Learning 通道中最核心的 Agentic 能力——从 Agent 执行轨迹中蒸馏"如何做"的经验：
+
+```
+执行轨迹（Trajectory）
+    ↓ TrajectoryPreprocess（清洗、格式化）
+    ↓ TrajectorySegmentation（按任务边界分段）
+    ↓ 分流判断（成功/失败/可对比）
+    ├─ SuccessExtraction → 提取成功模式（when_to_use + experience）
+    ├─ FailureExtraction → 提取失败教训（when_to_avoid + lesson）
+    └─ ComparativeExtraction → 对比分析（同任务不同策略的优劣）
+    ↓ MemoryValidation（LLM 校验提取质量）
+    ↓ MemoryDeduplication（与已有程序化记忆去重）
+    ↓ MemoryAddition（写入 ProceduralMemory）
+```
+
+**蒸馏产出结构**：
+```json
+{
+  "task_type": "代码审查",
+  "when_to_use": "当需要检查 Java 代码的线程安全问题时",
+  "experience": "优先检查共享可变状态、synchronized 范围、ConcurrentHashMap 使用",
+  "quality_score": 0.85,
+  "source_trajectory_id": "uuid",
+  "use_count": 3,
+  "success_count": 2
+}
 ```
 
 ### 与元引擎自进化的关系
@@ -573,18 +616,71 @@ SemanticCalcEngine
 | v0.9 | 整合联调（程序化记忆 + 语义漂移检测 + 规范自进化提议）|
 | v1.0 | 时态回溯完善 + 知识生长闭环 + 情感记忆 + 价值观演化治理 |
 
-## 十、参考框架借鉴表
+## 十、分层 Agentic 策略（架构决策）
 
-| 框架 | 借鉴点 | 不借鉴点 |
-|------|--------|---------|
-| Mem0 | 多级记忆架构（用户/会话/Agent） | 独立部署、Python 依赖 |
-| Graphiti | 双时态模型、动态知识图谱 | Zep 云服务依赖 |
-| Cognee | ECL 管道、统一记忆层设计 | 独立进程、Python 实现 |
-| LightRAG | 混合检索、Reranker | RAG 框架全栈 |
-| M-FLOW | 图路由 Bundle Search 思想 | 具体实现 |
-| ReMe | 程序化记忆（"如何做"）、Markdown 存储 | 完全本地化部署 |
+> **核心问题**：记忆系统本身是否应该是 Agentic 的？
+> **结论**：分层 Agentic——引擎层纯算法，认知层写入/检索时 Agentic，Learning 通道异步 Agentic。
 
-## 十一、所在模块
+### 业界参考项目的 Agentic 程度
+
+| 框架 | 写入时 | 检索时 | 维护时 | 核心创新 |
+|------|--------|--------|--------|---------|
+| **Mem0** | ✅ LLM 判断记忆价值 | ❌ 纯向量检索 | ❌ 无自主维护 | 多级记忆架构（用户/会话/Agent） |
+| **M-FLOW** | ✅ LLM 驱动实体抽取/路由 | ⚠️ Bundle Search 是算法 | ❌ 无自主维护 | 图路由 Bundle Search（找证据链而非孤立片段） |
+| **Graphiti** | ✅✅ LLM 实体抽取+去重+关系推断 | ⚠️ 混合检索是算法 | ✅ 自动失效旧事实 | 双时态模型（valid_at/invalid_at/expired_at） |
+| **ReMe** | ✅✅✅ ReActAgent 驱动摘要 | ✅ 全链路 LLM（BuildQuery→Rerank→Rewrite） | ✅✅ 程序化记忆蒸馏流水线 | 经验蒸馏（when_to_use + experience） |
+
+### AAF 的分层 Agentic 策略
+
+| 层次 | Agentic 程度 | 触发时机 | 说明 |
+|------|-------------|---------|------|
+| **AtomMemoryEngine（引擎层）** | ❌ 纯算法 | - | 存储/索引/检索是确定性操作，不调用 LLM |
+| **Memory 模块写入（认知层）** | ✅ Agentic | 被 Agent 调用时 | LLM 判断记忆价值、实体抽取、结构化（借鉴 Graphiti） |
+| **Retrieval 融合检索（认知层）** | ✅ Agentic | 被 Agent 调用时 | LLM 理解查询意图、路由策略、重排重写（借鉴 ReMe） |
+| **Learning 程序化蒸馏（横切）** | ✅✅ Agentic | 异步触发 | 从执行轨迹蒸馏经验（借鉴 ReMe 流水线） |
+
+**关键约束**：
+- Cognition 仍然是**被动响应**的——不主动触发循环
+- "被动响应"≠"不用 LLM"，而是"不主动触发，但被调用时可以用 Agent 级能力处理"
+- Agentic 的**触发方**在上层（Agent/Assistant）或横切通道（Learning），不在 Cognition 内部
+
+### 各环节 LLM 使用决策
+
+| 环节 | 是否用 LLM | 原因 |
+|------|-----------|------|
+| 向量存储/索引 | ❌ | 确定性操作，Embedding 由 SemanticCalcEngine 提供 |
+| 时序索引/双时态查询 | ❌ | 纯数据库查询 |
+| Bundle Search 图遍历 | ❌ | 算法驱动（相似度×权重×时间衰减） |
+| **记忆价值判断** | ✅ | 需要理解语义决定是否值得记忆 |
+| **实体/关系抽取** | ✅ | 从非结构化文本提取结构化信息 |
+| **查询意图理解** | ✅ | 决定检索路由策略 |
+| **检索结果重排/重写** | ✅ | 根据上下文重新组织检索结果 |
+| **程序化记忆蒸馏** | ✅ | 从轨迹中提取"如何做"的经验 |
+| **记忆去重/合并** | ✅ | 语义级判断两条记忆是否重复 |
+
+## 十一、参考框架借鉴表
+
+| 框架 | 借鉴点 | 不借鉴点 | AAF 对应实现 |
+|------|--------|---------|-------------|
+| **Mem0** | 多级记忆架构（用户/会话/Agent）、记忆价值判断 | 独立部署、Python 依赖 | Memory 三分区隔离 + 记忆写入时 LLM 价值评估 |
+| **Graphiti** | 双时态模型、Episodes 溯源、增量图构建、LLM 驱动实体抽取 | Zep 云服务依赖 | MemoryAtom 双时态字段 + Neo4j 情景图 + 写入时 Agentic |
+| **M-FLOW** | 图路由 Bundle Search、倒锥形四层有向图、程序化记忆、时间衰减 | 具体实现细节 | BundleSearchService + ProceduralMemoryService + TimeDecayStrategy |
+| **ReMe** | 程序化记忆蒸馏流水线、ReActAgent 驱动摘要、全链路 LLM 检索 | 完全本地化/Markdown 存储 | Learning 蒸馏通道 + Retrieval Agentic 检索 |
+| **Cognee** | ECL 管道、统一记忆层设计 | 独立进程、Python 实现 | NexusKBEngine ECL 管道 |
+| **LightRAG** | 混合检索、Reranker | RAG 框架全栈 | Retrieval 混合检索 + SemanticCalcEngine Reranker |
+
+### 各框架核心创新与 AAF 吸收方式
+
+```
+Mem0 ──────→ 多级架构 ──────────→ AAF 三分区（用户私有/全局共享/Agent 工作区）
+Graphiti ──→ 双时态 + 溯源 ────→ AAF MemoryAtom(valid_from/valid_to/event_time) + Episodes
+M-FLOW ───→ Bundle Search ────→ AAF BundleSearchService（图遍历找证据链）
+ReMe ─────→ 程序化蒸馏 ────────→ AAF Learning 通道（TrajectoryPreprocess→Extraction→Validation→Addition）
+ReMe ─────→ Agentic 检索 ─────→ AAF Retrieval（查询理解→路由→检索→重排→重写）
+Graphiti ──→ 增量图构建 ────────→ AAF 写入时 Agentic（LLM 实体抽取+去重+关系推断）
+```
+
+## 十二、所在模块
 
 ### Cognition 业务语义层（认知模块）
 
@@ -609,7 +705,7 @@ aaf-framework/engine/
   └── value-rule/      # 价值观规则引擎（支撑 Value）
 ```
 
-## 十二、相关文档
+## 十三、相关文档
 
 - [agent.md](../agent.md) - 五层智能架构总览
 - [记忆系统详细设计](../../engine/atom-memory-engine.md) - 待创建

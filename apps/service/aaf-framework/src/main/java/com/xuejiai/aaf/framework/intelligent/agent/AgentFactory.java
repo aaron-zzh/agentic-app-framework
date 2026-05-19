@@ -10,9 +10,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook;
 
 import io.agentscope.core.ReActAgent;
-import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.OpenAIChatModel;
-import io.agentscope.core.tool.Toolkit;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AgentFactory {
 
     private final TokenMeteringHook tokenMeteringHook;
+    private final McpToolService mcpToolService;
 
     /**
      * 创建 Agent 实例。
@@ -42,27 +41,15 @@ public class AgentFactory {
         configureModel(builder, definition);
 
         // 配置工具（MCP + 本地）
-        configureTools(builder, definition);
+        builder.toolkit(mcpToolService.buildToolkit(definition));
 
         return builder.build();
     }
 
     private void configureModel(ReActAgent.Builder builder, AgentDefinition definition) {
-        // 默认使用 OpenAI 兼容接口（覆盖 DashScope/DeepSeek/Qwen 等）
         var model = OpenAIChatModel.builder()
                 .modelName(definition.getModelId() != null ? definition.getModelId() : "gpt-4o")
                 .build();
         builder.model(model);
-    }
-
-    private void configureTools(ReActAgent.Builder builder, AgentDefinition definition) {
-        var toolkit = new Toolkit();
-
-        // MCP 工具绑定（TODO: v0.4 完善 MCP 集成）
-        if (definition.getMcpServers() != null && !definition.getMcpServers().isBlank()) {
-            log.debug("MCP 服务器配置: {}", definition.getMcpServers());
-        }
-
-        builder.toolkit(toolkit);
     }
 }

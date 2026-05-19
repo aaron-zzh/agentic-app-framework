@@ -35,6 +35,11 @@ public class AgentRegistryService {
         return repository.findByAgentId(agentId);
     }
 
+    /** 按 ID 查找（返回 null 而非 Optional，供内部调用） */
+    public AgentDefinition findById(String agentId) {
+        return repository.findByAgentId(agentId).orElse(null);
+    }
+
     /** 获取所有活跃 Agent */
     public List<AgentDefinition> listActive() {
         return repository.findByStatus("active");
