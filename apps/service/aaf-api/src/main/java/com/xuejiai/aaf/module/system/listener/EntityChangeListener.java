@@ -3,24 +3,51 @@ package com.xuejiai.aaf.module.system.listener;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.module.system.domain.Notification;
 import com.xuejiai.aaf.module.system.event.EntityChangeEvent;
+import com.xuejiai.aaf.module.system.repository.NotificationRepository;
 import com.xuejiai.aaf.module.system.service.ActivityService;
+import com.xuejiai.aaf.module.system.service.SubscriptionService;
+import com.xuejiai.aaf.module.system.ws.WebSocketSessionManager;
 
 import lombok.RequiredArgsConstructor;
 
-/** 监听实体变更事件，自动记录活动日志。 */
+/** 监听实体变更事件，自动记录活动日志并通知订阅者。 */
 @Component
 @RequiredArgsConstructor
 public class EntityChangeListener {
 
     private final ActivityService activityService;
+    private final SubscriptionService subscriptionService;
+    private final NotificationRepository notificationRepository;
+    private final WebSocketSessionManager webSocketSessionManager;
 
     @EventListener
     public void onEntityChange(EntityChangeEvent event) {
+        // 记录活动日志
         activityService.record(
                 event.entityType(),
                 event.entityId(),
                 event.action(),
                 event.changes());
+
+        // 查询订阅者并生成通知
+        var subscribers = subscriptionService.findSubscribers(event.entityType(), event.entityId());
+        for (var sub : subscribers) {
+            var notification = new Notification();
+            notification.setUserId(sub.getUserId());
+            notification.setType("subscription");
+            notification.setTitle("字段变更通知");
+            notification.setBody(event.entityType() + " #" + event.entityId() + " " + event.action());
+            notification.setEntityType(event.entityType());
+            notification.setEntityId(event.entityId());
+            notificationRepository.save(notification);
+
+            // 实时推送
+            webSocketSessionManager.sendToUser(
+                    sub.getUserId(),
+                    "{\"type\":\"subscription\",\"entityType\":\"%s\",\"entityId\":%d}"
+                            .formatted(event.entityType(), event.entityId()));
+        }
     }
 }
