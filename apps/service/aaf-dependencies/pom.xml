@@ -44,6 +44,11 @@
 		<oshi.version>7.1.0</oshi.version>
 		<ip2region.version>3.3.7</ip2region.version>
 		<tinypinyin.version>2.0.3.RELEASE</tinypinyin.version>
+		<!-- AgentScope -->
+		<agentscope.version>1.0.12</agentscope.version>
+		<!-- A2A -->
+		<spring-ai-a2a.version>0.2.0</spring-ai-a2a.version>
+		<a2a-java-sdk.version>0.3.3.Final</a2a-java-sdk.version>
 		<!-- 短信 SDK -->
 		<aliyun-dysmsapi.version>3.1.0</aliyun-dysmsapi.version>
 		<tencentcloud-sms.version>3.1.1100</tencentcloud-sms.version>
@@ -99,6 +104,36 @@
 			</dependency>
 
 			<!-- ==================== Web / API ==================== -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-spring-boot-starter</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-a2a-spring-boot-starter</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-agui-spring-boot-starter</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-reme</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springaicommunity</groupId>
+				<artifactId>spring-ai-a2a-server-autoconfigure</artifactId>
+				<version>${spring-ai-a2a.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.a2asdk</groupId>
+				<artifactId>a2a-java-sdk-client</artifactId>
+				<version>${a2a-java-sdk.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.springframework.ai</groupId>
 				<artifactId>spring-ai-starter-model-openai</artifactId>
