@@ -125,6 +125,7 @@
 		<dependency>
 			<groupId>io.agentscope</groupId>
 			<artifactId>agentscope-extensions-reme</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- 图数据库 -->

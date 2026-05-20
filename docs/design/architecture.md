@@ -13,8 +13,6 @@ gains:
 
 # AAF 架构概览
 
-> 元引擎是这套分层架构的整体，不是某层的子项。整个 AAF 系统就是元引擎——将意图转化为执行，将执行转化为知识。
-
 架构思想见 [架构思想](../explanation/architecture-thought.md)，本文档只做结构性概览和文档导航。
 
 ## **AI 原生六大核心能力**
@@ -134,13 +132,15 @@ flowchart TB
 
 Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Agent（无状态任务执行）→ Assistant（会话/情感/调度）→ Team（多 Assistant 协作）
 
-> 详见 [智能体系统设计](framework/core/agent.md)
+> 详见 [智能体系统设计](framework/intelligent/agent.md)
 
 ## Layer 2 引擎层
 
 > 通用执行能力，无具体业务语义，被上层直接调用。
 
-### 调度机制
+### 元引擎
+
+> 元引擎是 AAF 的核心执行引擎，负责编排各专项引擎、DSL 调度、状态管理和自进化。
 
 | 组件 | 职责 |
 |------|------|
@@ -177,6 +177,7 @@ Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Age
 | 搜索引擎 | 跨资源统一搜索、语义检索、权限过滤、结果聚合 | [search.md](framework/engine/search.md) |
 | 插件引擎 | 插件注册/加载/隔离/版本管理，支撑市场生态 | [plugin.md](framework/engine/plugin.md) |
 | 推荐引擎 | 基于使用历史和语义相似度的个性化推荐 | [recommendation.md](framework/engine/recommendation.md) |
+| Prompt 引擎 | 提示词库管理、链式组装、Few-shot、评估优化 | [prompt.md](framework/engine/prompt.md) |
 | 权限引擎 | 认证、RBAC、数据权限、组织隔离 | [access-control.md](framework/security/access-control.md) |
 
 ## Layer 1 基础设施层
@@ -187,6 +188,40 @@ Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Age
 - **运行时环境**：JVM 沙箱、Agent Sandbox、热加载、进程隔离、智能降级
 - **消息与通信**：消息队列、SSE 流式输出
 
+## 实现计划
+
+| 组件 | 类别 | 实现版本 |
+| --- | --- |- -- |
+| 元引擎 - 执行调度器 | 元引擎 | v1.0 |
+| 元引擎 - 状态管理器 | 元引擎 | v1.0 |
+| 元引擎 - 置信度门控器 | 元引擎 | v1.0 |
+| 元引擎 - 元数据管理器 | 元引擎 | v1.0 |
+| 元引擎 - 上下文管理器 | 元引擎 | v1.0 |
+| 权限引擎 | 专项引擎 | v1.0 |
+| 调度引擎 | 专项引擎 | v1.0 |
+| 消息引擎 | 专项引擎 | v1.0 |
+| 监控引擎 | 专项引擎 | v1.0 |
+| 文档引擎 | 专项引擎 | v1.0 |
+| 工具引擎 | 专项引擎 | v1.0 |
+| 工作流引擎 | 专项引擎 | v1.0 |
+| 预算控制 | 专项引擎 | v1.0 |
+| 知识库引擎 | 专项引擎 | v1.0 |
+| 记忆引擎 | 专项引擎 | v1.0 |
+| 技能引擎 | 专项引擎 | v1.0 |
+| 编排引擎 | 专项引擎 | v1.0 |
+| 外部数据源 | 专项引擎 | v1.0 |
+| 积分引擎 | 专项引擎 | v1.0 |
+| 结算引擎 | 专项引擎 | v1.0 |
+| DSL 引擎 | 专项引擎 | v2.0 |
+| 搜索引擎 | 专项引擎 | v2.0 |
+| 语义组件引擎 | 专项引擎 | v2.0 |
+| 语义计算引擎 | 专项引擎 | v2.0 |
+| 自进化引擎 | 专项引擎 | v2.0 |
+| 数据处理引擎 | 专项引擎 | v2.0 |
+| 插件引擎 | 专项引擎 | v2.0 |
+| 推荐引擎 | 专项引擎 | v2.0 |
+| 空间引擎 | 专项引擎 | v2.0 |
+
 ## 文档导航
 
 ### 框架设计
@@ -194,9 +229,10 @@ Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Age
 | 文档 | 说明 |
 |------|------|
 | [生态架构](ecosystem.md) | 框架、产品、运营生态三层定位 |
-| [元引擎设计](framework/meta-engine.md) | AAF 框架核心设计：DSL、引擎编排、运行时能力、自进化机制 |
-| [智能体系统设计](framework/core/agent.md) | 五层智能架构详细设计 |
-| [认知层设计](framework/core/cognition.md) | Cognition：记忆/知识/价值观/检索管道 |
+| [架构细化](framework/architecture-detail.md) | 组件关系图、代码架构全景、模块边界约束 |
+| [元引擎设计](framework/meta-engine.md) | 核心引擎：调度机制、引擎编排、DSL 调度、自进化机制 |
+| [智能体系统设计](framework/intelligent/agent.md) | 五层智能架构详细设计 |
+| [认知层设计](framework/intelligent/cognition.md) | Cognition：记忆/知识/价值观/检索管道 |
 
 ### 技术选型
 

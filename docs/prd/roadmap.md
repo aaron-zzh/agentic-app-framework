@@ -89,7 +89,17 @@
 
 ## v0.4 — 智能体与五层智能架构
 
-> 目标：实现五层智能架构（Core→Cognition→Agent→Assistant→Team），参考 AgentScope + ReMe 构建智能体系统。
+> 目标：实现五层智能架构（Core→Cognition→Agent→Assistant→Team），基于 AgentScope 薄门面模式（ADR-005）构建智能体系统，引入 AgentScope 官方扩展替换自研组件，实现用户画像系统和记忆管道读写分离。
+
+| 里程碑 | 内容 |
+|--------|------|
+| AAF-048 Core 内核层 | LLM 抽象、Prompt 引擎、Token 计量 |
+| AAF-049 Cognition 认知层 | 记忆引擎（AtomMemory）、读管道（RetrievalPipeline）、写管道（MemoryWritePipeline）、参考 ReMe 实现 AafLongTermMemory |
+| AAF-050 Agent 智能体层 | AgentScope 薄门面、工具/MCP、Agent 池化 |
+| AAF-051 Assistant 助理层 | 会话管理、情感感知、引入 agentscope-agui-spring-boot-starter |
+| AAF-052 Team 协作层 | 多 Assistant 编排、引入 agentscope-a2a-spring-boot-starter、工作流+Agentic 两种编排模式 |
+| AAF-087 用户画像系统 | UserProfileService + UserUnderstandingSkill 定期更新画像 |
+| AAF-088 AgentScope 扩展引入 | session-redis + autocontext-memory + reme 扩展 |
 
 ## v0.5 — 知识库与 RAG
 

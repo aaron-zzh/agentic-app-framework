@@ -31,26 +31,28 @@ framework/
 
 | 文档 | 说明 |
 |------|------|
+| [architecture-detail.md](architecture-detail.md) | 架构细化（组件关系图、代码架构全景、模块边界） |
 | [meta-engine.md](meta-engine.md) | 元引擎核心设计（调度、状态、上下文、置信度门控） |
+| [personalization.md](personalization.md) | 用户感知与个性化（记忆管道、上下文、状态管理协同） |
 
 ### 核心智能 `core/`
 
 | 文档 | 说明 |
 |------|------|
-| [agent.md](core/agent.md) | 智能体系统设计（五层智能架构总览） |
-| [cognition/Readme.md](core/cognition/Readme.md) | 认知层设计（Layer 1 Cognition，Memory/Knowledge/Value/Retrieval） |
-| [actor-model.md](core/actor-model.md) | Actor 模型设计 |
+| [agent.md](intelligent/agent.md) | 智能体系统设计（五层智能架构总览） |
+| [cognition.md](intelligent/cognition.md) | 认知层设计（Layer 1 Cognition，Memory/Knowledge/Value/Retrieval） |
+| [actor.md](intelligent/actor.md) | Actor 模型设计 |
 
 ### 专项引擎 `engine/`
 
 | 文档                                                                | 说明 |
 |-------------------------------------------------------------------|------|
-| [atom-memory-engine.md](engine/atom-memory-engine.md)             | AtomMemory 原子记忆引擎（支撑 Cognition.Memory） |
-| [nexus-kb-engine.md](engine/nexus-kb-engine.md)                   | NexusKB 连接式知识引擎（支撑 Cognition.Knowledge） |
-| [semantic-calc-engine.md](engine/semantic-calc-engine.md)         | SemanticCalc 语义计算引擎（横切支撑 Cognition/Learning/Agent） |
-| [data-process-engine.md](engine/data-process-engine.md)           | DataProcess 数据处理分析引擎（v2.0 迁移到 actormesh） |
-| [physics-spacetime-engine.md](engine/physics-spacetime-engine.md) | PhysicsSpaceTime 物理时空引擎（世界模型 + 语义引力 + 虚拟空间基础） |
-| [auto-dev.md](engine/auto-dev.md)                                 | AI 自动开发引擎 |
+| [atom-memory.md](engine/atom-memory.md)             | AtomMemory 原子记忆引擎（支撑 Cognition.Memory） |
+| [nexus-knowledge.md](engine/nexus-knowledge.md)                   | NexusKB 连接式知识引擎（支撑 Cognition.Knowledge） |
+| [semantic-compute.md](engine/semantic-compute.md)         | SemanticCalc 语义计算引擎（横切支撑 Cognition/Learning/Agent） |
+| [data-process.md](engine/data-process.md)           | DataProcess 数据处理分析引擎（v2.0 迁移到 actormesh） |
+| [physics-spacetime.md](engine/physics-spacetime.md) | PhysicsSpaceTime 物理时空引擎（世界模型 + 语义引力 + 虚拟空间基础） |
+| [auto-dev.md](./auto-dev.md)                                 | AI 自动开发引擎 |
 | [document-engine.md](engine/document-engine.md)                   | 文档引擎设计 |
 | [magic-dsl.md](./dsl/magic-dsl.md)                                | DSL 设计（占位） |
 

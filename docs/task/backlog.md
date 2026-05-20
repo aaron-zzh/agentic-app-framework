@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-086**，新一级用户故事从 AAF-087 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-088**，新一级用户故事从 AAF-089 开始。添加新条目后必须同步更新此行。
 
 ## 待排期
 
@@ -36,10 +36,12 @@
 ### v0.4 — 智能体与五层智能架构
 
 - [ ] AAF-048 (创建: 05-19) Core 内核层（LLM 抽象 Spring AI、Prompt 模板引擎、Function Calling、Token 计量）
-- [ ] AAF-049 (创建: 05-19) Cognition 认知层（记忆引擎：短期 Redis + 长期 PostgreSQL + 图谱 Neo4j，参考 M-FLOW/ReMe）
-- [ ] AAF-050 (创建: 05-19) Agent 智能体层（Agent 定义与注册、工具绑定 MCP 协议、感知→规划→执行→评估循环、Agent 沙箱）
-- [ ] AAF-051 (创建: 05-19) Assistant 助理层（会话管理、情感感知、意图理解、Agent 调度、多 Agent 结果聚合）
-- [ ] AAF-052 (创建: 05-19) Team 协作层（多 Assistant 编排、A2A 协议、任务分发与进度同步、冲突仲裁）
+- [ ] AAF-049 (创建: 05-19) Cognition 认知层（记忆引擎：短期 Redis + 长期 PostgreSQL + 图谱 Neo4j，参考 M-FLOW/ReMe；读写管道分离：RetrievalPipeline 可编排 / MemoryWritePipeline 固定流程）
+- [ ] AAF-050 (创建: 05-19) Agent 智能体层（Agent 定义与注册、工具绑定 MCP 协议、感知→规划→执行→评估循环、Agent 沙箱；基于 AgentScope 薄门面实现，见 ADR-005）
+- [ ] AAF-051 (创建: 05-19) Assistant 助理层（会话管理、情感感知、意图理解、Agent 调度、多 Agent 结果聚合；引入 agentscope-agui-spring-boot-starter 替换自研 AgUiStreamHandler）
+- [ ] AAF-052 (创建: 05-19) Team 协作层（多 Assistant 编排、A2A 协议；引入 agentscope-a2a-spring-boot-starter；支持工作流编排 + Agentic 自主决策两种模式）
+- [ ] AAF-087 (创建: 05-20) 用户画像系统（UserProfileService 结构化存储偏好/行为/情感三维度；内置 UserUnderstandingSkill 定期扫描近期记忆 → LLM 提炼 → 更新画像；替换当前临时用长期记忆检索的方案）
+- [ ] AAF-088 (创建: 05-20) AgentScope 扩展引入与验证（agui/a2a starter 已引入待验证；补充 session-redis 替换自研 SessionManager；补充 autocontext-memory 补全 Token 预算截断；参考 reme 源码实现 AafLongTermMemory 对接 AtomMemory 引擎，不直接依赖 reme 外部服务）
 
 ### v0.5 — 知识库与 RAG
 
