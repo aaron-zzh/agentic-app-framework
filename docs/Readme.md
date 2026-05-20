@@ -51,7 +51,7 @@ AAF 项目文档统一管理入口。
 - 🔐 权限系统 — 权限设计方案
 - 📄 文档引擎 — 文档系统设计
 - 📦 模块设计 — 模块化设计
-- 🤖 [智能体设计](design/framework/core/agent.md) — Agent 相关设计
+- 🤖 [智能体设计](design/framework/intelligent/agent.md) — Agent 相关设计
 - 🎨 [UI 设计](design/ui/Readme.md) — 界面与设计系统
 - 🛠️ Auto Dev 设计 — AI 自动开发
 

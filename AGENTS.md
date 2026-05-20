@@ -34,7 +34,7 @@ tmp/           → 参考项目与素材（不参与构建，仅供 AI 查阅学
 | 目录 | 用途 | 关键项目 |
 |------|------|---------|
 | `tmp/mem/` | 记忆与知识库架构参考 | graphiti（Neo4j 时序图谱）、m_flow（图路由记忆）、ReMe（AgentScope 程序化记忆）、mem0（多级记忆架构） |
-| `tmp/agent/` | 智能体框架参考 | agentscope（含 java/studio/runtime/samples）、camel、CowAgent |
+| `tmp/agent/` | 智能体框架参考 | agentscope（含 agentscope-java/studio/runtime/samples）、camel、CowAgent |
 | `tmp/nextjs/` | Next.js 应用参考 | next-ts|
 | `tmp/java/` | Java 后端参考 | ruoyi-vue-pro、JeecgBoot |
 

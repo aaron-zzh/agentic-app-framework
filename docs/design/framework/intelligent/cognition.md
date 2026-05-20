@@ -191,7 +191,7 @@ AAF 已具备完整基础设施（PostgreSQL + PgVector + Neo4j + Redis），且
 ## 组件一：Memory（记忆系统）
 
 > 借鉴 **Mem0**（多级架构）+ **Graphiti**（双时态）+ **ReMe**（程序化记忆）
-> 详见 [atom-memory-engine.md](../../engine/atom-memory-engine.md)
+> 详见 [atom-memory.md](../../engine/atom-memory.md)
 
 ### 记忆分类
 
@@ -239,7 +239,7 @@ public interface MemoryService {
 
 > **统一存储底座**：同时服务用户（知识管理业务系统）和 Agent（检索推理）。
 > 借鉴 **Cognee**（ECL 管道）+ **LightRAG**（混合检索）+ **Graphiti**（知识图谱）
-> 详见 [nexus-kb-engine.md](../../engine/nexus-kb-engine.md)
+> 详见 [nexus-knowledge.md](../../engine/nexus-knowledge.md)
 
 ### 双视图服务
 
@@ -704,11 +704,3 @@ aaf-framework/engine/
   ├── semantic-calc/   # 语义计算引擎（Embedding / NER / 相似度 / 漂移检测）
   └── value-rule/      # 价值观规则引擎（支撑 Value）
 ```
-
-## 十三、相关文档
-
-- [agent.md](../agent.md) - 五层智能架构总览
-- [记忆系统详细设计](../../engine/atom-memory-engine.md) - 待创建
-- [知识库详细设计](../../engine/nexus-kb-engine.md) - 待创建
-- [融合检索详细设计](retrieval.md) - 待创建
-- [元引擎自进化机制](../../meta-engine.md#自进化机制)

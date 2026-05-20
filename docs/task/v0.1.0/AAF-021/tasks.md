@@ -1,7 +1,7 @@
 # 技术任务：Auto Dev 平台（AAF-021）
 
 > 需求：[requirement.md](requirement.md)
-> 设计：[后端技术选型](../../../design/apps/service/tech-stack.md) | [Actor 模型](../../../design/framework/core/actor-model.md)
+> 设计：[后端技术选型](../../../design/apps/service/tech-stack.md) | [Actor 模型](../../../design/framework/intelligent/actor.md)
 > 负责人：待分配 | 创建：05-06
 
 ## 任务列表

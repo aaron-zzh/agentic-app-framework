@@ -76,7 +76,7 @@ Preview 特性（Structured Concurrency、Stable Values）在 `aaf-framework` �
 
 | 能力 | 说明                                                                                                                                                                                              |
 |------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 认知层（Cognition） | Memory + Knowledge + Value（价值观） + Retrieval（融合检索） + Learning 横切，基于 PgVector/Neo4j/Redis 自实现，借鉴 Mem0/Graphiti/Cognee/LightRAG，不集成 Python 框架。详见 [认知层设计](../../framework/core/cognition/Readme.md) |
+| 认知层（Cognition） | Memory + Knowledge + Value（价值观） + Retrieval（融合检索） + Learning 横切，基于 PgVector/Neo4j/Redis 自实现，借鉴 Mem0/Graphiti/Cognee/LightRAG，不集成 Python 框架。详见 [认知层设计](../../framework/intelligent/cognition.md) |
 | 情感感知 | 文本情绪分类 + 操作节奏分析，驱动回应风格/信息密度自适应；情感记忆本地加密，不外传                                                                                                                                                     |
 | 置信度门控 | >0.9 自动 / 0.7-0.9 确认 / <0.7 转人工；不可逆操作强制人工；结果暂存后提交                                                                                                                                               |
 | 输出溯源 | 每条输出携带 TraceId（agentId + modelId + toolChain + 知识来源），审计归档                                                                                                                                       |
@@ -306,7 +306,7 @@ v0.1.0 采用单启动模块 + 分包隔离，后续按需拆分为独立 Maven 
 | AI 工作流编排 | DSL 定义 AI 流程 → Flowable 实例化执行，v0.3+ 自动暴露为 REST API |
 | 规则引擎封装 | 在 Easy Rules 之上封装 DSL 驱动规则定义，支持促销/通知/权限规则运行时热更新 |
 | 热部署能力 | 自定义 ClassLoader + Arthas API 封装，aaf-auto-dev 生成代码沙箱验证后热加载 |
-| 物理时空引擎 | 世界模型 + 物质定义 + 物理规则（语义相似度驱动聚合），v2.0 对接 actormesh。详见 [物理时空引擎设计](../../../design/framework/engine/physics-spacetime-engine.md) |
+| 物理时空引擎 | 世界模型 + 物质定义 + 物理规则（语义相似度驱动聚合），v2.0 对接 actormesh。详见 [物理时空引擎设计](../../../design/framework/engine/physics-spacetime.md) |
 
 ### 6.10 业务模块（aaf-api/module/system）
 
@@ -353,7 +353,7 @@ v0.1.0 采用单启动模块 + 分包隔离，后续按需拆分为独立 Maven 
 
 | 运行时 | 版本 | 核心技术 | 说明 |
 |-------|------|---------|------|
-| **实体运行时** | v0.2+ | ALTER TABLE 动态加列 + JPA MetaModel + 自动生成 API | DSL 定义实体 → 动态建表 → 自动 CRUD；用户自定义字段详见 [custom-fields.md](../../framework/custom-fields.md) |
+| **实体运行时** | v0.2+ | ALTER TABLE 动态加列 + JPA MetaModel + 自动生成 API | DSL 定义实体 → 动态建表 → 自动 CRUD；用户自定义字段详见 [custom-fields.md](../../framework/core/custom-fields.md) |
 | **工作流运行时** | v0.3+ | Flowable 动态部署 + Magic-DSL | DSL 描述流程 → Flowable 实例化 |
 | **权限运行时** | v0.4+ | Spring Security + 规则引擎 + DSL | DSL 定义权限规则 → 动态鉴权 |
 | **规则引擎运行时** | v0.4+ | Easy Rules / Drools + DSL | 促销/通知/数据权限规则 |

@@ -15,7 +15,9 @@ changelog:
 
 > **引擎层（Layer 2）的通用执行能力**，支撑 Cognition.Knowledge 模块。
 > 引擎只关心"怎么存/怎么索引/怎么检索"，不感知双视图/价值观/分区等业务语义。
-> 认知层接入见：[Cognition 设计 - Knowledge 模块](../core/cognition/Readme.md#组件二knowledge知识库)
+> 认知层接入见：[Cognition 设计 - Knowledge 模块](../intelligent/cognition.md#组件二knowledge知识库)
+
+内置：提示词库、领域术语
 
 ## 定位
 
@@ -157,7 +159,7 @@ KnowledgeNodes + KnowledgeRelations
 
 ## 相关文档
 
-- [Cognition 认知层设计](../core/cognition/Readme.md)
-- [SemanticCalcEngine 语义计算引擎](semantic-calc-engine.md)（待创建）
-- [AtomMemory 原子记忆引擎](atom-memory-engine.md)
+- [Cognition 认知层设计](../intelligent/cognition.md)
+- [SemanticCalcEngine 语义计算引擎](semantic-compute.md)（待创建）
+- [AtomMemory 原子记忆引擎](atom-memory.md)
 - [文档引擎](document-engine.md)

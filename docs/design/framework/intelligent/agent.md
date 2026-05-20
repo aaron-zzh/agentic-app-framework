@@ -1,19 +1,18 @@
 ---
 level: Practice
 layer: Model
-purpose: 智能体系统的架构设计与协作机制
+purpose: 五层智能架构：智能体系统的架构设计与协作机制
 status: published
 version: 2.0.0
 date: 2026-05-20
 author: AaronZZH
-changelog:
-  - 2026-05-20 v2.0.0 | 补充架构可视化图、关键关系说明、技能/工具分层、技术方案与抽象层、包结构设计（engine/tool + engine/skill + intelligent/ 三层分工）、Actor+Role+MemoryStrategy、Agent 池化说明
-  - 2026-05-06 v1.0.0 | 补充 Front Matter
+gains:
+  - 架构可视化图、关键关系说明、技能/工具分层、技术方案、包结构设计
 ---
 
-# 智能体系统设计
+# 五层智能架构多智能体系统设计
 
-> 五层智能架构：从内核到协作，分层认知，渐进决策。
+> 从内核到协作，分层认知，渐进决策。
 
 ## 设计原则
 
@@ -27,6 +26,59 @@ changelog:
 - **可验证性优先**：规划阶段将模糊任务降维为可自动验证的子任务，评估阶段区分"可自动验证"和"需人工审查"，可验证部分自主推进，不可验证部分留决策日志异步审查
 - **能力护栏**：根据任务类型动态限定 Agent 操作范围，限定范围换取信任空间，减少人工审查成本
 - **瓶颈迁移意识**：执行近乎免费，规划与审查是新瓶颈——Agent 的核心价值是帮用户规划和审查，而非仅仅执行
+
+### 待整理
+
+  ```text
+  Layer 4  协作层  Team                              【项目级】
+           认知循环：目标对齐 → 任务分发 → 进度同步 → 结果聚合 → 冲突仲裁
+           多个 Assistant 组成团队，支持 Leader 协调或平等协作
+           状态：轻量会话级状态（任务分配表、进度、仲裁结果），不持有数据级状态
+
+  Layer 3  助理层  Assistant                         【会话级】
+          认知循环：情感感知 → 意图理解 → 上下文构建 → Agent调度 → 反馈整合 → 记忆更新
+          面向人，有人格 / 角色扮演，持有多个 Agent，向上可加入 Team
+          情感感知：识别用户情绪状态，动态调整回应风格、信息密度、界面呈现
+          能力护栏：根据任务类型动态限定 Agent 操作范围（限定范围换取信任空间，减少审查成本）
+          状态：用户画像（含情感偏好）、长期记忆引用（实体存于 Cognition），会话上下文
+
+  Layer 2  智能体层  Agent                          【无状态·任务级】
+           认知循环：感知 → 规划 → 执行 → 评估 → 学习↔记忆
+           感知模块：输入解析、意图识别        ← 感觉皮层
+           规划模块：目标分解、任务排序、可验证性降维（将模糊任务拆为可自动验证的子任务）  ← 前额叶
+           执行模块：工具调用、代码生成        ← 小脑
+           评估模块：结果验证（可验证→自动检查；不可验证→标记待人工审查）、置信度评估  ← 评估阶段
+           价值模块：优先级判断、伦理约束      ← 杏仁核（评估阶段介入）
+           状态：无状态，执行前从 Cognition 拉取记忆/知识，执行后写回，自身不持久化
+
+  Layer 1  认知基础层  Cognition（跨 Agent 共享）     【持久级】
+          认知循环：存储 / 检索 / 更新 / 遗忘（被动响应，不主动触发）
+          记忆：短期 / 长期 / 情景 / 情感 / **决策日志**，用户/Agent 私有，时序+语义双索引
+          决策日志：每次 AI 自主推进的决策记录（决策点、选项、理由、置信度、可验证性），支持异步人工审查
+          情感记忆：用户情绪偏好、历史情绪模式、高压场景下的交互偏好，本地存储不外传
+          知识：领域知识，静态，全局共享，向量检索
+          价值观：团队级伦理约束，全局一致
+          状态分区：用户私有区（含情感记忆）/ 全局共享区 / Agent 工作区 / 决策审计区
+
+  Layer 0  内核层  Core（不可变）                    【无状态·请求级】
+           认知循环：推理 / 生成 / 上下文窗口管理
+           LLM + Context，上下文由调用方（Agent）组装后传入
+           无状态，可水平扩展、池化复用
+  ```
+
+- **无状态层可水平扩展**：Core 和 Agent 设计为无状态，支持池化和并发；同一 Agent 定义可并发处理多个任务实例，失败直接重新调度无需恢复状态
+- **状态集中在 Cognition**：Team / Assistant 只持有轻量会话级状态，数据级状态统一由 Cognition 管理，避免状态分散导致一致性问题
+- **认知循环分层原则**：每层有且只有一个认知循环，粒度从项目级到请求级逐层细化；上层循环通过调度触发下层循环，下层结果通过回调返回上层，不允许跨层直接触发
+- **私有与共享分离**：Agent 内感知 / 规划 / 执行模块私有，不跨 Agent 共享；记忆 / 知识 / 价值观下沉到 Layer 1，多 Agent 共享，避免知识孤岛
+- **引擎与业务解耦**：引擎层提供通用能力（Agent 编排、工作流执行、知识检索、记忆管理），业务模块只依赖引擎接口，不直接操作底层
+- **渐进决策模型**：决策分三个粒度展开——Agent 层粗粒度规划后执行中细化（决策树展开：走一步看一步，每步结果作为下一步规划输入）；Assistant 层意图漏斗收敛用户需求后再调度（意图澄清优先于执行，通过最少问题快速收敛）；Team 层目标假设性分解后动态调整（目标不清晰不阻塞执行）
+- **决策权跨层流动**：低置信度决策上报上层处理，高置信度决策本层直接执行，决策权随置信度在层间动态流动，不固定归属某层
+- **可撤销渐进提交**：执行步骤先进入暂存态，用户或上层确认后提交，未确认前可回滚，避免低置信度操作直接生效
+- **智能降级策略**：AI 服务不可用 → 降级规则引擎；知识检索失败 → 使用默认知识库；Agent 超时 → 切换简化流程
+- **知识能力一体**：知识库与工具系统绑定，禁止独立迭代导致语义漂移
+- **三层上下文分离**：知识库（静态、领域、全局共享）/ 记忆库（动态、个体、时序+语义双索引）/ 上下文（临时、会话级、KV 存储）职责严格隔离，不允许跨层直接读写
+- **执行结果反哺知识**：工具调用结果、Agent 执行日志自动归档，经评估后更新知识库，形成知识生长闭环
+- 智能体池化、知识分片、记忆压缩：定期归档和摘要
 
 ## 五层智能架构
 
@@ -49,7 +101,7 @@ Layer 2  智能体层  Agent                           【任务级·无状态�
          无状态任务执行单元，执行前从 Cognition 拉取记忆/知识，执行后写回
          状态：无状态，自身不持久化
 
-Layer 1  认知基础层  Cognition                     【持久级·跨 Agent 共享】
+Layer 1  认知基础层  Cognition                     【持久级·跨 Agent 共享·横向共享底座】
          认知循环：存储 / 检索 / 更新 / 遗忘（被动响应，不主动触发）
          记忆 + 知识 + 价值观 + 决策日志，为上层提供认知基础
          决策日志：每次 AI 自主推进的决策记录（决策点、选项、理由、置信度、可验证性），支持异步审查
@@ -138,6 +190,15 @@ Layer 0  内核层  Core                              【请求级·无状态】
 │  完全无状态，上下文由 Agent 组装后传入                            │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### 工作流引擎
+
+TODO
+
+### 交互 A2A AG-UI 内部通信
+
+- 表达组件语音文本、交互流程、生成图像视频3D模型
+- 如何更快的组装提示词（图片文字、自动优化、可视化）
 
 ### 关键关系说明
 
@@ -313,8 +374,6 @@ LlmNode        →   LlmClient          →   intelligent/ai
 - 下层结果通过回调返回上层
 - **禁止跨层直接触发**（如 Team 不能直接调用 Core）
 
----
-
 ## Layer 0 内核层 Core
 
 > 无状态·请求级，LLM 推理的最小执行单元
@@ -325,6 +384,8 @@ LlmNode        →   LlmClient          →   intelligent/ai
 - 上下文窗口管理
 - Token 预算控制
 - 多模型路由（按任务类型选择模型）
+
+### 提示词
 
 ### 认知循环
 
@@ -346,8 +407,6 @@ LlmNode        →   LlmClient          →   intelligent/ai
 - 上下文由调用方（Agent）组装后传入，Core 不负责上下文管理
 - 支持 function calling，工具调用决策在此层完成
 - 模型选择策略：简单任务用轻量模型，复杂任务用强模型
-
----
 
 ## Layer 1 认知基础层 Cognition
 
@@ -376,16 +435,14 @@ LlmNode        →   LlmClient          →   intelligent/ai
 
 ### 核心引擎
 
-- **记忆引擎**：详见 [AtomMemory 原子记忆引擎](../engine/atom-memory-engine.md)
-- **知识库引擎**：详见 [NexusKB 连接式知识引擎](../engine/nexus-kb-engine.md)
+- **记忆引擎**：详见 [AtomMemory 原子记忆引擎](../engine/atom-memory.md)
+- **知识库引擎**：详见 [NexusKB 连接式知识引擎](../engine/nexus-knowledge.md)
 
 ### 设计要点
 
 - 时序 + 语义双索引，支持按时间和语义检索
 - 情感记忆本地存储，不用于训练或外传
 - 遗忘机制：低价值记忆定期归档或清理
-
----
 
 ## Layer 2 智能体层 Agent
 
@@ -427,7 +484,25 @@ LlmNode        →   LlmClient          →   intelligent/ai
 
 **最适合场景**：编码 Agent（从需求文档到完整 PR），复杂度高、价值高、错误可控。
 
+Is the task complex enough? No- Workflows Yes - Agents
+Is the task valuable enough? <$0.1 Workflows >$1 - Agents
+Are all parts of the task doable? No - Reduce scopeYes - Agents
+What is the cost of error/error discovery? High - Read-only/human-in-the-loopLow - Agents
+
+「是否需要建Agent」快速checklist:
+
+- 任务复杂度低 --> 用Workflow即可
+- 结果价值不高 --> 优先Workflow
+- 所有步骤都可执行 --> 缩小范围或加人工
+- 错误成本高 --> 增加审核机制
+
+最适合场景: 编码Agent(从需求文档到完整PR)，复杂度高、价值高、错误可控。
+后期可加:并行工具调用、轨迹缓存、进度可视化。
+核心心法: Workflow适合可预测任务，Agent适合动态场景。成功关键在于精准定位、保持简单、对Agent有限视角的理解。
+
 ### 单 Agent 最小闭环
+
+Agents are models using tools in a loop, 保持极致简单最小闭环只需要:环境+工具+系统提示。后期再逐步加优化。
 
 ```python
 env = Environment()
@@ -439,18 +514,47 @@ while True:
     env.state = tools.run(action)
 ```
 
-核心心法：**站在 Agent 视角思考，它只能看到你给的上下文**。
+核心心法：**站在 Agent 视角思考，它只能看到你给的上下文**。每次提示前都要模拟它的“视野”。
 
-### 核心引擎
+### 引擎
 
 - **工具引擎**：详见 [../engine/tools.md](../engine/tools.md)（待创建）
-- **沙箱环境**：详见 [../engine/sandbox.md](../engine/sandbox.md)（待创建）
 
----
+### 智能体运行时
+
+Agent 运行时、工具执行沙箱
 
 ## Layer 3 助理层 Assistant
 
 > 会话级，面向人的交互入口，有人格和角色
+
+- "5层记忆：潜意识、短期、长期、原则偏好、具体要求" → 属于 Cognition 子文档 cognition.md
+- "技能：5层迭代递归，自学生成技能、遗传技能；基础/通用/专业技能分层" → 文档 engine/skills.md
+- "工具：自定义工具、MCP、API、数据库访问" → 属于 engine/tools.md（已标注待创建）
+- "知识库：提示词库、领域术语" → 属于 engine/nexus-knowledge.md（已存在）
+- "交互：语音文本、图像视频3D" → 属于 apps/webui/ 交互设计文档
+- "工作流引擎" → 属于 engine/workflow/ 子文档（待建）
+- 角色 Role
+- 演员 Actor
+
+![alt text](agent.jpg)
+
+- 一个独立助理，拥有多技能、由多个智能体块组成
+- 组成要素及其相互作用机制，通信协议、任务分配策略...
+- 感知 → 规划 → 执行 → 学习 ↔ 记忆
+  - 查询提交和评估、场景感知、目的分析确认、技能加载、算力估算
+  - 知识源选择、上下文、提示词生成：多种检索选项中选择：记忆、结构化数据库（Text-to-SQL引擎？）、文档（本地/在线）、语义计算、向量检索、网络搜索、推荐引擎、规范约束
+  - 数据整合、校验检查评估学习、生成回复、表达
+- 规划决策：智能体核心、内置算法，渐进决策，总分总
+- 任务管理：目标、时间、精力
+
+![alt text](llm.svg)
+
+步骤1：查询分析、场景意图、问题分类
+步骤2：记忆和策略，策略选择（直接回复、单/多步智能检索）
+步骤3：工具选择和数据收集
+步骤4：提示构建，整合数据优化，验证循环迭代
+步骤5：生成响应
 
 ### 职责
 
@@ -486,7 +590,9 @@ while True:
 - 持有多个 Agent，根据任务类型调度
 - 向上可加入 Team 参与多 Assistant 协作
 
----
+### Actor
+
+### 角色
 
 ## Layer 4 协作层 Team
 
@@ -522,8 +628,6 @@ while True:
 - **A2A 协议**：Agent-to-Agent，多智能体间通信
 - 支持同步和异步通信模式
 
----
-
 ## 渐进决策模型
 
 ### 决策粒度
@@ -548,8 +652,6 @@ while True:
 - 用户或上层确认后提交
 - 未确认前可回滚
 
----
-
 ## 智能降级策略
 
 | 场景 | 降级方案 |
@@ -561,8 +663,6 @@ while True:
 
 降级不静默发生，对话区会明确告知用户当前处于降级模式及原因。
 
----
-
 ## 技术选型
 
 | 能力 | 技术选型 |
@@ -571,8 +671,6 @@ while True:
 | 工具协议 | MCP（Model Context Protocol） |
 | 多智能体通信 | A2A 协议 |
 | 人机交互 | AG-UI 协议 |
-
----
 
 ## 思考与待解决问题
 
@@ -598,11 +696,13 @@ while True:
 ```
 
 **为什么不全用工作流？**
+
 - 工作流适合**可预测、步骤固定**的流程（审批、发布、CI/CD）
 - 但具体执行中的问题解决是**动态的**——Agent 需要根据中间结果调整策略
 - 强行把动态过程编排为工作流 → 节点爆炸、分支复杂、维护困难
 
 **为什么不全用自主 Agent？**
+
 - 纯自主 Agent 缺乏全局视角，容易偏离主线
 - 固定流程（如开发流水线）的步骤顺序是业务约束，不应由 Agent 自行决定
 - 工作流提供**可审计、可回退、可监控**的流程骨架
@@ -615,10 +715,10 @@ while True:
 | 任务执行 | Agent 自主规划 | Agent 自身 | 编码、调研、文档编写、问题诊断 |
 | 子任务协作 | Agent 动态创建子 Agent | 父 Agent | 复杂任务分解后并行执行 |
 
-**Kiro 开发流程的映射：**
+**自动开发流程的映射：**
 
 ```text
-工作流骨架（固定）：
+工作流Workflow、角色Role、执行者Actor
   product → architect → developer → architect(review) → tester → qa
 
 每个节点内（自主）：
@@ -631,7 +731,8 @@ while True:
 ```
 
 **设计约束：**
-- 工作流节点的**进入/退出条件**是确定性的（如"check 全绿才能进入 review"）
+
+- 工作流节点的**进入/退出条件**是确定性的
 - Agent 在节点内的**执行过程**是自主的，但受预算和时间约束
 - Agent 可以**向上请求**：发现任务超出能力范围时，上报工作流层决策（升级/回退/人工介入）
 
@@ -647,116 +748,9 @@ while True:
 
 > Multi-agents need new ways of communicating: How to expand from synchronous USER:ASSISTANT turns?
 
----
-
 ## 相关文档
 
-- [元引擎设计](../meta-engine.md) - 智能体系统的编排基础设施
-- [对话式交互设计](../../apps/webui/tmp/conversational-interaction.md) - 人机交互入口
-- [认知层设计](cognition/Readme.md) - Layer 1 Cognition 总览
-- [AtomMemory 原子记忆引擎](../engine/atom-memory-engine.md) - Memory 模块的引擎实现
-- [NexusKB 连接式知识引擎](../engine/nexus-kb-engine.md) - Knowledge 模块的引擎实现
-
-## 思考
-
-Agents need budget-awareness:
-How do we explain and enforce 5 mins/$10/2M tokens budgets?
-
-Tools should be self-evolving:
-How can models improve their own tool ergonomics?
-
-Multi-agents need new ways of communicating:
-How to expand from synchronous USER:ASSISTANT turns?
-
-## 何时启用智能体
-
-Is the task complex enough? No- Workflows Yes - Agents
-Is the task valuable enough? <$0.1 Workflows >$1 - Agents
-Are all parts of the task doable? No - Reduce scopeYes - Agents
-What is the cost of error/error discovery? High - Read-only/human-in-the-loopLow - Agents
-
-## 单智能体设计
-
-Agents are models using tools in a loop, 保持极致简单最小闭环只需要:环境+工具+系统提示。后期再逐步加优化。
-
-```python
-env = Environment()
-tools= Tools(env)
-system_prompt = "Goals, constraints, and how to act"
-while True:
-  action = llm.run(system_prompt + env.state)
-  env.state = tools.run(action)
-```
-
-站在Agent视角思考它只能看到你给的上下文，每次提示前都要模拟它的“视野”。
-
-「是否需要建Agent」快速checklist:
-
-- 任务复杂度低 --> 用Workflow即可
-- 结果价值不高 --> 优先Workflow
-- 所有步骤都可执行 --> 缩小范围或加人工
-- 错误成本高 --> 增加审核机制
-
-最适合场景: 编码Agent(从需求文档到完整PR)，复杂度高、价值高、错误可控。
-后期可加:并行工具调用、轨迹缓存、进度可视化。
-核心心法: Workflow适合可预测任务，Agent适合动态场景。成功关键在于精准定位、保持简单、对Agent有限视角的理解。
-
-## 智能助理
-
-![alt text](agent.jpg)
-
-- 一个独立助理，拥有多技能、由多个智能体块组成
-- 组成要素及其相互作用机制，通信协议、任务分配策略...
-- 感知 → 规划 → 执行 → 学习 ↔ 记忆
-  - 查询提交和评估、场景感知、目的分析确认、技能加载、算力估算
-  - 知识源选择、上下文、提示词生成：多种检索选项中选择：记忆、结构化数据库（Text-to-SQL引擎？）、文档（本地/在线）、语义计算、向量检索、网络搜索、推荐引擎、规范约束
-  - 数据整合、校验检查评估学习、生成回复、表达
-- 规划决策：智能体核心、内置算法，渐进决策，总分总
-- 任务管理：目标、时间、精力
-
-![alt text](agent.svg)
-
-步骤1：查询分析、场景意图、问题分类
-步骤2：记忆和策略，策略选择（直接回复、单/多步智能检索）
-步骤3：工具选择和数据收集
-步骤4：提示构建，整合数据优化，验证循环迭代
-步骤5：生成响应
-
-### 提示词
-
-### 记忆
-
-5层，潜意识、短期记忆、长期记忆、原则偏好兴趣性格、具体要求
-
-### 知识库
-
-提示词库、领域术语
-
-![检索增强](agentic-rag.jpg)
-
-### 交互
-
-- 表达组件语音文本、交互流程、生成图像视频3D模型
-- 如何更快的组装提示词（图片文字、自动优化、可视化）
-
-### 工具
-
-自定义工具、mcp、API、数据库访问
-
-### 技能
-
-5层迭代递归，自学生成技能、遗传技能
-
-- 基础技能：提示词生成、组合接口查询+直接操作数据库、生成执行脚本
-- 通用技能：知识价值评估
-- 专业技能
-
-### 角色
-
-角色扮演
-
-### 工作流引擎
-
-## 多智能体
-
-多 Agent 异步运行时、工具执行沙箱
+- [元引擎设计](../meta-engine.md) - 基础设施
+- [认知层设计](./cognition.md) - Layer 1 Cognition 总览
+- [AtomMemory 记忆引擎](../engine/atom-memory.md) - Memory 模块的引擎实现
+- [NexusKB 知识引擎](../engine/nexus-knowledge.md) - Knowledge 模块的引擎实现

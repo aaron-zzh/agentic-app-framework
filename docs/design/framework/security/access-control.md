@@ -30,7 +30,7 @@ author: AaronZZH
 - 业务代码通过 `ActorContext.current()` 获取当前 Actor，不关心底层认证方式
 - 权限规则对 Actor 统一生效，不为 Agent 单独建一套权限体系
 
-详见 [Actor 模型设计](../core/actor-model.md)。
+详见 [Actor 模型设计](../intelligent/actor.md)。
 
 ## 2. 核心公式
 

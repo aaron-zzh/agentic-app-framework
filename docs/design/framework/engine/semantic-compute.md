@@ -14,7 +14,7 @@ changelog:
 
 > **引擎层（Layer 2）的通用执行能力**，提供跨组件复用的语义计算能力。
 > 本文档为占位，详细设计待补充。
-> 认知层接入见：[Cognition 设计 - 与引擎层的关系](../core/cognition/Readme.md#八与引擎层的关系cognition-模块-vs-引擎实现)
+> 认知层接入见：[Cognition 设计 - 与引擎层的关系](../intelligent/cognition.md#八与引擎层的关系cognition-模块-vs-引擎实现)
 
 ## 定位
 
@@ -146,6 +146,6 @@ public interface SemanticCalcEngine {
 
 ## 相关文档
 
-- [Cognition 认知层设计](../core/cognition/Readme.md)
-- [AtomMemory 原子记忆引擎](atom-memory-engine.md)
-- [NexusKB 连接式知识引擎](nexus-kb-engine.md)
+- [Cognition 认知层设计](../intelligent/cognition.md)
+- [AtomMemory 原子记忆引擎](atom-memory.md)
+- [NexusKB 连接式知识引擎](nexus-knowledge.md)

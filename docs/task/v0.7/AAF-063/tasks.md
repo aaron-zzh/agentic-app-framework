@@ -10,7 +10,7 @@ author: AaronZZH
 
 # 协调者引擎（AAF-063）
 
-> 设计文档：[用户感知与语义界面（AI 决策记录章节）](../../../design/apps/webui/user-awareness-semantic-ui.md) | [Auto Dev 设计](../../../design/framework/engine/auto-dev.md)
+> 设计文档：[用户感知与语义界面（AI 决策记录章节）](../../../design/apps/webui/user-awareness-semantic-ui.md) | [Auto Dev 设计](../../../design/framework/auto-dev.md)
 > 负责人：architect + developer-service | 创建：05-19
 
 ## 任务列表

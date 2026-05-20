@@ -1464,7 +1464,7 @@ AI 可直接生成/修改 EntityDef 配置，因为配置本身是结构化 JSON
   4. 返回成功 → 前端即可正常读写数据
 ```
 
-无需预先建表、无需写迁移脚本、无需重启服务。用户/AI 定义 EntityDef → 系统自动生成表结构和 API。详见 [用户自定义字段](../../framework/custom-fields.md)。
+无需预先建表、无需写迁移脚本、无需重启服务。用户/AI 定义 EntityDef → 系统自动生成表结构和 API。详见 [用户自定义字段](../../framework/core/custom-fields.md)。
 
 
 

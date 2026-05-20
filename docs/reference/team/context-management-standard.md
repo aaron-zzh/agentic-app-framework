@@ -49,7 +49,7 @@ changelog:
 | **任务模板** | `docs/task/_template/requirement.md` / `design.md` / `dev-log.md` / `review.md` / `audit.md` | 对应产出 agent `resources: file://` | product 用 requirement 模板，architect 用 design 模板 |
 | **本次任务上下文** | 本次 `AAF-025` 的需求/设计/验收标准 | subagent `prompt_template` 内嵌 或 精确到单文件的 `resources` | 每任务不同，不走全局 |
 | **历史任务产出物** | `docs/task/v0.1.0/AAF-023/dev-log.md` | Knowledge Base `docs/task/` | 不污染 resources，靠搜索 |
-| **整模块设计文档** | `docs/design/framework/meta-engine.md`（50KB+） | Knowledge Base `docs/design/framework` | 整体大，按搜索命中片段 |
+| **整模块设计文档** | `docs/design/framework/`（50KB+） | Knowledge Base `docs/design/framework` | 整体大，按搜索命中片段 |
 | **外部参考项目代码** | `docs/design/auto-dev/multica/`、`gstack/` | **不进任何层级**，按需 `/context add` | 大且与本项目直接代码无关 |
 | **整个代码库** | `apps/service/`、`apps/webui/` 源码 | Knowledge Base（必要时）或 `code` 工具按需读 | 不应全量载入 |
 

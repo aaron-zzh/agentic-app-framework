@@ -16,7 +16,9 @@ changelog:
 
 > **引擎层（Layer 2）的通用执行能力**，支撑 Cognition.Memory 模块。
 > 引擎只关心"怎么存/怎么索引/怎么检索"，不感知分区/权限/价值观等业务语义。
-> 认知层接入见：[Cognition 设计 - Memory 模块](../core/cognition/Readme.md#组件一memory记忆系统)
+> 认知层接入见：[Cognition 设计 - Memory 模块](../intelligent/cognition.md#组件一memory记忆系统)
+
+5层，潜意识、短期记忆、长期记忆、原则偏好兴趣性格、具体要求
 
 ## 定位
 
@@ -151,9 +153,9 @@ Retrieval 模块（Agentic）：
 
 ## 相关文档
 
-- [Cognition 认知层设计](../core/cognition/Readme.md)
-- [SemanticCalcEngine 语义计算引擎](semantic-calc-engine.md)（待创建）
-- [NexusKB 连接式知识引擎](nexus-kb-engine.md)
+- [Cognition 认知层设计](../intelligent/cognition.md)
+- [SemanticCalcEngine 语义计算引擎](semantic-compute.md)（待创建）
+- [NexusKB 连接式知识引擎](nexus-knowledge.md)
 
 ---
 

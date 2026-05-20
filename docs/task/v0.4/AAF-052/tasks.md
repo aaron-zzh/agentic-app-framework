@@ -56,3 +56,6 @@ author: AaronZZH
 - [ ] 团队相关表迁移脚本（`ai_team` / `ai_team_member` / `ai_team_task`）
 - [ ] 团队执行日志与审计
 - [ ] 团队协作可视化（执行流程图、进度看板）
+
+- [ ] AAF-087 (创建: 05-20) 用户画像系统（UserProfileService 结构化存储偏好/行为/情感三维度；内置 UserUnderstandingSkill 定期扫描近期记忆 → LLM 提炼 → 更新画像；替换当前临时用长期记忆检索的方案）
+- [ ] AAF-088 (创建: 05-20) AgentScope 扩展引入与验证（agui/a2a starter 已引入待验证；补充 session-redis 替换自研 SessionManager；补充 autocontext-memory 补全 Token 预算截断；参考 reme 源码实现 AafLongTermMemory 对接 AtomMemory 引擎，不直接依赖 reme 外部服务）

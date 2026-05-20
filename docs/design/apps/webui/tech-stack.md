@@ -207,7 +207,7 @@ gains:
 | 图表 | ECharts                 | D3 / Chart.js / Recharts        | 声明式配置适合 React、SSR 支持、图表类型丰富；D3 仅按需引入子模块做力导向等自定义可视化        |
 | 测试框架 | Vitest + Playwright     | Jest + Cypress                  | Vite 原生速度、ESM 原生支持、Playwright 跨浏览器更稳定                     |
 
-**无代码能力**：前端通过 EntityDef 驱动视图渲染，EntityDef 支持后端动态存储。用户/AI 通过对话或配置界面创建实体 → 后端自动建表 + 注册 API → 前端获取 EntityDef 自动渲染完整 CRUD 界面。全程无需编写前端代码、无需部署。详见 [结构化视图 · AI 生成实体](./interaction-mode-structured-view.md) | [用户自定义字段](../../framework/custom-fields.md)。
+**无代码能力**：前端通过 EntityDef 驱动视图渲染，EntityDef 支持后端动态存储。用户/AI 通过对话或配置界面创建实体 → 后端自动建表 + 注册 API → 前端获取 EntityDef 自动渲染完整 CRUD 界面。全程无需编写前端代码、无需部署。详见 [结构化视图 · AI 生成实体](./interaction-mode-structured-view.md) | [用户自定义字段](../../framework/core/custom-fields.md)。
 
 ## 五、前端架构分层
 
