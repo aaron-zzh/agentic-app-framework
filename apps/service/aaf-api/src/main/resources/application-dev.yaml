@@ -26,6 +26,12 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+  graphql:
+    graphiql:
+      enabled: true   # 开发环境启用 GraphiQL 调试界面（访问 /graphiql）
+    schema:
+      printer:
+        enabled: true
   mail:
     host: ${MAIL_HOST:smtp.qq.com}
     port: ${MAIL_PORT:465}

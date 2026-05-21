@@ -1,0 +1,32 @@
+"""
+电影图谱 GraphQL Schema
+演示 Spring for GraphQL + Neo4j 的集成用法
+"""
+
+type Movie {
+    title: String!
+    tagline: String
+    released: Int
+    actors: [Person]
+}
+
+type Person {
+    name: String!
+    born: Int
+}
+
+type Query {
+    "查询所有电影"
+    movies: [Movie]
+
+    "按标题模糊搜索电影"
+    searchMovies(title: String!): [Movie]
+
+    "按标题查询电影详情（含演员）"
+    movie(title: String!): Movie
+}
+
+type Mutation {
+    "为电影投票"
+    vote(title: String!): Boolean
+}
