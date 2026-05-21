@@ -9,10 +9,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * AtomMemoryEngine：纯算法层，不调用 LLM。
- * 负责原子记忆片段的存储/索引/检索。
- */
+/** AtomMemoryEngine：纯算法层，不调用 LLM。 负责原子记忆片段的存储/索引/检索。 */
 public interface AtomMemoryEngine {
 
     // ===== 存储 =====

@@ -2,11 +2,10 @@ package com.xuejiai.aaf.framework.task.queue;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -30,8 +29,9 @@ public class RedisStreamTaskQueue implements TaskQueue {
     public static final String STREAM_DEAD = "task_queue:dead";
 
     private final StringRedisTemplate redisTemplate;
-    private final ScheduledExecutorService delayScheduler = Executors.newSingleThreadScheduledExecutor(
-            r -> Thread.ofVirtual().name("task-delay").unstarted(r));
+    private final ScheduledExecutorService delayScheduler =
+            Executors.newSingleThreadScheduledExecutor(
+                    r -> Thread.ofVirtual().name("task-delay").unstarted(r));
 
     @Override
     public String enqueue(AsyncTaskMessage task) {

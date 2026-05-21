@@ -1,24 +1,22 @@
 package com.xuejiai.aaf.framework.intelligent.assistant;
 
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Assistant 定义：Actor（人格）+ Role（能力）+ MemoryStrategy（记忆管道）的组合。
- * 一个用户可拥有多个 Assistant，每个 Assistant 有独立的人格、技能集和记忆策略。
+ * Assistant 定义：Actor（人格）+ Role（能力）+ MemoryStrategy（记忆管道）的组合。 一个用户可拥有多个 Assistant，每个 Assistant
+ * 有独立的人格、技能集和记忆策略。
  */
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_assistant", indexes = {
-    @Index(columnList = "userId"),
-    @Index(columnList = "assistantId")
-})
+@Table(
+        name = "ai_assistant",
+        indexes = {@Index(columnList = "userId"), @Index(columnList = "assistantId")})
 public class AssistantDefinition extends BaseEntity {
 
     /** Assistant 唯一标识 */

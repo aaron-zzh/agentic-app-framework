@@ -1,23 +1,22 @@
 package com.xuejiai.aaf.framework.engine.knowledge.chunker;
 
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * 分块器工厂，根据策略返回对应实现
- */
+import org.springframework.stereotype.Component;
+
+/** 分块器工厂，根据策略返回对应实现 */
 @Component
 public class ChunkerFactory {
 
     private final Map<ChunkStrategy, DocumentChunker> chunkerMap;
 
     public ChunkerFactory(List<DocumentChunker> chunkers) {
-        this.chunkerMap = chunkers.stream()
-                .collect(Collectors.toMap(DocumentChunker::strategy, Function.identity()));
+        this.chunkerMap =
+                chunkers.stream()
+                        .collect(Collectors.toMap(DocumentChunker::strategy, Function.identity()));
     }
 
     public DocumentChunker getChunker(ChunkStrategy strategy) {

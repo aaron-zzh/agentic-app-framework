@@ -19,7 +19,8 @@ public interface MemoryAtomRepository extends JpaRepository<MemoryAtom, UUID> {
     List<MemoryAtom> findByUserIdAndScopeAndValidToIsNull(Long userId, String scope);
 
     /** 按时间范围查询 */
-    @Query("""
+    @Query(
+            """
         SELECT m FROM MemoryAtom m
         WHERE m.userId = :userId AND m.validTo IS NULL
           AND m.eventTime BETWEEN :start AND :end
@@ -28,12 +29,15 @@ public interface MemoryAtomRepository extends JpaRepository<MemoryAtom, UUID> {
     List<MemoryAtom> findByTimeRange(Long userId, Instant start, Instant end);
 
     /** 向量相似度检索（原生 SQL，PgVector cosine distance） */
-    @Query(value = """
+    @Query(
+            value =
+                    """
         SELECT * FROM memory_atom
         WHERE user_id = :userId AND valid_to IS NULL
         ORDER BY embedding <=> cast(:queryVec AS vector)
         LIMIT :topK
-        """, nativeQuery = true)
+        """,
+            nativeQuery = true)
     List<MemoryAtom> searchByVector(Long userId, String queryVec, int topK);
 
     /** 更新权重 */
@@ -43,7 +47,8 @@ public interface MemoryAtomRepository extends JpaRepository<MemoryAtom, UUID> {
 
     /** 更新访问信息 */
     @Modifying
-    @Query("""
+    @Query(
+            """
         UPDATE MemoryAtom m
         SET m.accessCount = m.accessCount + 1, m.lastAccessedAt = :now
         WHERE m.id IN :ids

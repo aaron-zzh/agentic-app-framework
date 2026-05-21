@@ -19,9 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 执行状态广播、进度汇报、超时检测。
- */
+/** 执行状态广播、进度汇报、超时检测。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -42,8 +40,10 @@ public class ProgressSyncService {
         progress.setLastUpdatedAt(Instant.now());
 
         // 广播进度事件
-        eventBus.publish("progress:" + taskId,
-                AgentEventBus.AgentMessage.of(agentId, "team", "进度: " + percentage + "% - " + message));
+        eventBus.publish(
+                "progress:" + taskId,
+                AgentEventBus.AgentMessage.of(
+                        agentId, "team", "进度: " + percentage + "% - " + message));
     }
 
     /** 获取任务进度 */
@@ -55,14 +55,17 @@ public class ProgressSyncService {
     public Map<String, TaskProgress> detectTimeouts(Duration threshold) {
         var now = Instant.now();
         var timeouts = new ConcurrentHashMap<String, TaskProgress>();
-        progressMap.forEach((taskId, progress) -> {
-            if (progress.getLastUpdatedAt() != null
-                    && Duration.between(progress.getLastUpdatedAt(), now).compareTo(threshold) > 0
-                    && progress.getPercentage() < 100) {
-                timeouts.put(taskId, progress);
-                log.warn("任务 [{}] 超时，最后更新: {}", taskId, progress.getLastUpdatedAt());
-            }
-        });
+        progressMap.forEach(
+                (taskId, progress) -> {
+                    if (progress.getLastUpdatedAt() != null
+                            && Duration.between(progress.getLastUpdatedAt(), now)
+                                            .compareTo(threshold)
+                                    > 0
+                            && progress.getPercentage() < 100) {
+                        timeouts.put(taskId, progress);
+                        log.warn("任务 [{}] 超时，最后更新: {}", taskId, progress.getLastUpdatedAt());
+                    }
+                });
         return timeouts;
     }
 

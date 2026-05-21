@@ -27,7 +27,8 @@ public class SpringEmailSender implements EmailSender {
 
     @Async
     @Override
-    public void sendWithAttachment(String to, String subject, String htmlContent, List<Attachment> attachments) {
+    public void sendWithAttachment(
+            String to, String subject, String htmlContent, List<Attachment> attachments) {
         try {
             var message = mailSender.createMimeMessage();
             var helper = new MimeMessageHelper(message, !attachments.isEmpty(), "UTF-8");
@@ -39,8 +40,10 @@ public class SpringEmailSender implements EmailSender {
                 helper.setReplyTo(properties.replyTo());
             }
             for (var attachment : attachments) {
-                helper.addAttachment(attachment.filename(),
-                        new ByteArrayResource(attachment.content()), attachment.contentType());
+                helper.addAttachment(
+                        attachment.filename(),
+                        new ByteArrayResource(attachment.content()),
+                        attachment.contentType());
             }
             mailSender.send(message);
             log.info("邮件发送成功: to={}, subject={}", to, subject);

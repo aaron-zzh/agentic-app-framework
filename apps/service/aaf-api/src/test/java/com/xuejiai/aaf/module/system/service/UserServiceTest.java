@@ -21,13 +21,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.model.PageResult;
-import com.xuejiai.aaf.module.system.domain.User;
-import com.xuejiai.aaf.module.system.repository.UserRepository;
-import com.xuejiai.aaf.module.system.vo.UserChangePasswordDTO;
-import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
-import com.xuejiai.aaf.module.system.vo.UserPageDTO;
-import com.xuejiai.aaf.module.system.vo.UserUpdateDTO;
-import com.xuejiai.aaf.module.system.vo.UserVO;
+import com.xuejiai.aaf.module.system.user.domain.User;
+import com.xuejiai.aaf.module.system.user.repository.UserRepository;
+import com.xuejiai.aaf.module.system.user.service.UserService;
+import com.xuejiai.aaf.module.system.user.vo.UserChangePasswordDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserCreateDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserPageDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserUpdateDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserVO;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class UserServiceTest extends BaseMockitoUnitTest {
@@ -120,7 +121,8 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 有用户数据 When 分页查询 Then 返回分页结果")
     void should_return_page_result_when_query_users() {
         var page = new PageImpl<>(List.of(user));
-        when(userRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+        when(userRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(page);
 
         PageResult<UserVO> result = userService.page(new UserPageDTO());
 

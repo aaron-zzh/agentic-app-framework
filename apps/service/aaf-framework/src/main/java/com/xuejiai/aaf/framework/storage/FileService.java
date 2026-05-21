@@ -19,16 +19,17 @@ public class FileService {
     private final StorageService storageService;
     private final ImageProcessor imageProcessor;
 
-    /**
-     * 上传文件。
-     */
+    /** 上传文件。 */
     public FileVO upload(MultipartFile file) {
         try {
             var key =
                     storageService.upload(
-                            file.getInputStream(), file.getOriginalFilename(), file.getContentType());
+                            file.getInputStream(),
+                            file.getOriginalFilename(),
+                            file.getContentType());
             var url = storageService.getUrl(key);
-            return new FileVO(key, url, file.getOriginalFilename(), file.getSize(), file.getContentType());
+            return new FileVO(
+                    key, url, file.getOriginalFilename(), file.getSize(), file.getContentType());
         } catch (IOException e) {
             throw new StorageException("文件上传失败", e);
         }
@@ -53,9 +54,7 @@ public class FileService {
         return result;
     }
 
-    /**
-     * 删除文件。
-     */
+    /** 删除文件。 */
     public void delete(String key) {
         storageService.delete(key);
         // 尝试删除缩略图（忽略不存在的情况）
@@ -66,9 +65,7 @@ public class FileService {
         }
     }
 
-    /**
-     * 获取文件访问 URL。
-     */
+    /** 获取文件访问 URL。 */
     public String getUrl(String key) {
         return storageService.getUrl(key);
     }

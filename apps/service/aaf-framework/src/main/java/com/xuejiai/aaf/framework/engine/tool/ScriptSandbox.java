@@ -11,9 +11,7 @@ import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 脚本工具安全执行沙箱。
- * 扩展 AgentScope 的脚本执行能力（execute_python_code/execute_shell_command），
- * 补充资源限制、文件系统隔离和审计日志。
+ * 脚本工具安全执行沙箱。 扩展 AgentScope 的脚本执行能力（execute_python_code/execute_shell_command）， 补充资源限制、文件系统隔离和审计日志。
  */
 @Slf4j
 @Component
@@ -25,7 +23,7 @@ public class ScriptSandbox {
     /**
      * 在沙箱中执行 Python 脚本。
      *
-     * @param code    Python 代码
+     * @param code Python 代码
      * @param timeout 超时时间
      * @return 执行结果
      */
@@ -35,10 +33,11 @@ public class ScriptSandbox {
             var tmpFile = tmpDir.resolve("script.py");
             Files.writeString(tmpFile, code);
 
-            var process = new ProcessBuilder("python3", tmpFile.toString())
-                .directory(tmpDir.toFile())
-                .redirectErrorStream(false)
-                .start();
+            var process =
+                    new ProcessBuilder("python3", tmpFile.toString())
+                            .directory(tmpDir.toFile())
+                            .redirectErrorStream(false)
+                            .start();
 
             var effectiveTimeout = timeout != null ? timeout : DEFAULT_TIMEOUT;
             boolean finished = process.waitFor(effectiveTimeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -78,9 +77,8 @@ public class ScriptSandbox {
             return ScriptResult.error("命令被安全策略拒绝");
         }
         try {
-            var process = new ProcessBuilder("sh", "-c", command)
-                .redirectErrorStream(false)
-                .start();
+            var process =
+                    new ProcessBuilder("sh", "-c", command).redirectErrorStream(false).start();
 
             var effectiveTimeout = timeout != null ? timeout : DEFAULT_TIMEOUT;
             boolean finished = process.waitFor(effectiveTimeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -116,6 +114,7 @@ public class ScriptSandbox {
         public static ScriptResult timeout() {
             return new ScriptResult(false, "", "执行超时", -1);
         }
+
         public static ScriptResult error(String message) {
             return new ScriptResult(false, "", message, -1);
         }

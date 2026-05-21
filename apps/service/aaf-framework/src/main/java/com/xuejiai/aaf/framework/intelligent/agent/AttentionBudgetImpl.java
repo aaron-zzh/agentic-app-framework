@@ -7,10 +7,7 @@ package com.xuejiai.aaf.framework.intelligent.agent;
 
 import org.springframework.stereotype.Service;
 
-/**
- * Token 预算分配：按比例分配剩余 Token 给各信息源。
- * 策略：输出预留 → 记忆 30% → 知识 40% → 历史 20% → 工具 10%
- */
+/** Token 预算分配：按比例分配剩余 Token 给各信息源。 策略：输出预留 → 记忆 30% → 知识 40% → 历史 20% → 工具 10% */
 @Service
 public class AttentionBudgetImpl implements AttentionBudget {
 
@@ -26,11 +23,10 @@ public class AttentionBudgetImpl implements AttentionBudget {
         available = Math.max(0, available);
 
         return new Allocation(
-            (int) (available * MEMORY_RATIO),
-            (int) (available * KNOWLEDGE_RATIO),
-            (int) (available * TOOL_RATIO),
-            (int) (available * HISTORY_RATIO),
-            OUTPUT_RESERVE
-        );
+                (int) (available * MEMORY_RATIO),
+                (int) (available * KNOWLEDGE_RATIO),
+                (int) (available * TOOL_RATIO),
+                (int) (available * HISTORY_RATIO),
+                OUTPUT_RESERVE);
     }
 }

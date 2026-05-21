@@ -18,10 +18,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.retrieval.UnifiedRetrieva
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 工作记忆实现：从融合检索结果中选取最相关的 N 项作为 Agent 焦点。
- * 有限容量（3-7 项），任务结束释放。
- */
+/** 工作记忆实现：从融合检索结果中选取最相关的 N 项作为 Agent 焦点。 有限容量（3-7 项），任务结束释放。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,7 +30,8 @@ public class WorkingMemoryImpl implements WorkingMemory {
     @Override
     public void focus(String agentId, String query, int maxItems) {
         // 从融合检索获取结果，转为焦点项
-        var result = retrievalService.retrieve(new RetrievalRequest(query, null, null, maxItems * 2));
+        var result =
+                retrievalService.retrieve(new RetrievalRequest(query, null, null, maxItems * 2));
 
         var items = new ArrayList<FocusItem>();
 

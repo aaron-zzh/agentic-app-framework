@@ -23,19 +23,21 @@ public class RequestMetricsFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    protected void doFilterInternal(
+            HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         var sample = Timer.start(registry);
         try {
             chain.doFilter(request, response);
         } finally {
             var path = normalizePath(request.getRequestURI());
-            sample.stop(Timer.builder("aaf_http_requests")
-                    .tag("method", request.getMethod())
-                    .tag("path", path)
-                    .tag("status", String.valueOf(response.getStatus()))
-                    .description("HTTP 请求耗时")
-                    .register(registry));
+            sample.stop(
+                    Timer.builder("aaf_http_requests")
+                            .tag("method", request.getMethod())
+                            .tag("path", path)
+                            .tag("status", String.valueOf(response.getStatus()))
+                            .description("HTTP 请求耗时")
+                            .register(registry));
         }
     }
 
@@ -43,7 +45,9 @@ public class RequestMetricsFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         var path = request.getRequestURI();
         // 排除 actuator 和静态资源
-        return path.startsWith("/actuator") || path.startsWith("/swagger") || path.startsWith("/v3/api-docs");
+        return path.startsWith("/actuator")
+                || path.startsWith("/swagger")
+                || path.startsWith("/v3/api-docs");
     }
 
     /** 路径归一化：将路径参数替换为占位符，避免高基数标签。 */

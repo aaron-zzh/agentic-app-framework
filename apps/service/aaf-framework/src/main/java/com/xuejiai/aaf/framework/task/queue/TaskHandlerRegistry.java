@@ -17,7 +17,9 @@ public class TaskHandlerRegistry {
     private final Map<String, TaskHandler> handlers;
 
     public TaskHandlerRegistry(List<TaskHandler> handlerList) {
-        this.handlers = handlerList.stream().collect(Collectors.toMap(TaskHandler::taskType, Function.identity()));
+        this.handlers =
+                handlerList.stream()
+                        .collect(Collectors.toMap(TaskHandler::taskType, Function.identity()));
         log.info("注册任务处理器: {}", handlers.keySet());
     }
 

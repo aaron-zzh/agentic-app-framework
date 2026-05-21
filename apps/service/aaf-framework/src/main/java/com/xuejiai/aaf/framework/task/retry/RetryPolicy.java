@@ -10,9 +10,11 @@ import java.time.Duration;
  * @param multiplier 退避倍数
  * @param maxDelay 最大延迟
  */
-public record RetryPolicy(int maxRetries, Duration initialDelay, double multiplier, Duration maxDelay) {
+public record RetryPolicy(
+        int maxRetries, Duration initialDelay, double multiplier, Duration maxDelay) {
 
-    public static final RetryPolicy DEFAULT = new RetryPolicy(3, Duration.ofSeconds(1), 2.0, Duration.ofSeconds(60));
+    public static final RetryPolicy DEFAULT =
+            new RetryPolicy(3, Duration.ofSeconds(1), 2.0, Duration.ofSeconds(60));
 
     /** 计算第 n 次重试的延迟 */
     public Duration delayForAttempt(int attempt) {

@@ -10,20 +10,14 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import io.agentscope.core.message.Msg;
-
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 多 Agent 结果合并、冲突解决、置信度加权。
- */
+/** 多 Agent 结果合并、冲突解决、置信度加权。 */
 @Service
 public class ResultAggregator {
 
-    /**
-     * 聚合多个 Agent 的响应结果。
-     * 策略：按置信度加权合并，冲突时取最高置信度。
-     */
+    /** 聚合多个 Agent 的响应结果。 策略：按置信度加权合并，冲突时取最高置信度。 */
     public AggregatedResult aggregate(List<AgentResult> results) {
         if (results.isEmpty()) {
             return new AggregatedResult("无结果", 0.0);
@@ -34,9 +28,10 @@ public class ResultAggregator {
         }
 
         // 按置信度排序，取最高
-        var sorted = results.stream()
-                .sorted((a, b) -> Double.compare(b.getConfidence(), a.getConfidence()))
-                .toList();
+        var sorted =
+                results.stream()
+                        .sorted((a, b) -> Double.compare(b.getConfidence(), a.getConfidence()))
+                        .toList();
 
         var best = sorted.getFirst();
 

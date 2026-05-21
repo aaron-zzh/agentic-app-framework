@@ -23,13 +23,29 @@ public class TaskRegistry {
 
     /** 暂停任务 */
     public void pause(String name) {
-        definitions.computeIfPresent(name, (k, v) -> new TaskDefinition(v.name(), v.cronExpression(), v.taskClass(), false, v.description()));
+        definitions.computeIfPresent(
+                name,
+                (k, v) ->
+                        new TaskDefinition(
+                                v.name(),
+                                v.cronExpression(),
+                                v.taskClass(),
+                                false,
+                                v.description()));
         log.info("暂停定时任务: {}", name);
     }
 
     /** 恢复任务 */
     public void resume(String name) {
-        definitions.computeIfPresent(name, (k, v) -> new TaskDefinition(v.name(), v.cronExpression(), v.taskClass(), true, v.description()));
+        definitions.computeIfPresent(
+                name,
+                (k, v) ->
+                        new TaskDefinition(
+                                v.name(),
+                                v.cronExpression(),
+                                v.taskClass(),
+                                true,
+                                v.description()));
         log.info("恢复定时任务: {}", name);
     }
 

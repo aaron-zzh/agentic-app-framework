@@ -5,10 +5,9 @@
  */
 package com.xuejiai.aaf.framework.intelligent.core.prompt;
 
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,9 +15,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_prompt_template", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"name", "version"})
-})
+@Table(
+        name = "ai_prompt_template",
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"name", "version"})})
 public class PromptTemplate extends BaseEntity {
 
     /** 模板名称（唯一标识） */

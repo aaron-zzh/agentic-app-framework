@@ -18,9 +18,7 @@ import lombok.Setter;
 @RelationshipProperties
 public class GraphMemoryRelation {
 
-    @Id
-    @GeneratedValue
-    private Long id;
+    @Id @GeneratedValue private Long id;
 
     /** 关系类型描述（如 "认识"、"参与"、"属于"） */
     private String relationType;
@@ -32,6 +30,5 @@ public class GraphMemoryRelation {
     private Instant eventTime;
 
     /** 目标节点 */
-    @TargetNode
-    private GraphMemoryNode target;
+    @TargetNode private GraphMemoryNode target;
 }

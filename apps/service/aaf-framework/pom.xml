@@ -117,6 +117,12 @@
 		<dependency>
 			<groupId>io.agentscope</groupId>
 			<artifactId>agentscope-a2a-spring-boot-starter</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.jboss.slf4j</groupId>
+					<artifactId>slf4j-jboss-logmanager</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>io.agentscope</groupId>
@@ -158,8 +164,8 @@
 
 		<!-- 存储 -->
 		<dependency>
-			<groupId>io.minio</groupId>
-			<artifactId>minio</artifactId>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

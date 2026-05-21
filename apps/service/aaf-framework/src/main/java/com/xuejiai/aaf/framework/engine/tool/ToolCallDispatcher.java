@@ -5,10 +5,7 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 工具调用分发器：参数校验 → 执行 → 结果封装。
- * 从 ToolRegistry 查找工具，执行并返回结构化结果。
- */
+/** 工具调用分发器：参数校验 → 执行 → 结果封装。 从 ToolRegistry 查找工具，执行并返回结构化结果。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -20,7 +17,7 @@ public class ToolCallDispatcher {
      * 执行工具调用。
      *
      * @param functionName 工具名称
-     * @param arguments    参数 JSON 字符串
+     * @param arguments 参数 JSON 字符串
      * @return 调用结果
      */
     public ToolCallResult dispatch(String functionName, String arguments) {
@@ -43,10 +40,12 @@ public class ToolCallDispatcher {
     }
 
     /** 工具调用结果 */
-    public record ToolCallResult(String functionName, boolean success, String output, String error) {
+    public record ToolCallResult(
+            String functionName, boolean success, String output, String error) {
         public static ToolCallResult success(String name, String output) {
             return new ToolCallResult(name, true, output, null);
         }
+
         public static ToolCallResult error(String name, String error) {
             return new ToolCallResult(name, false, null, error);
         }

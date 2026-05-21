@@ -24,7 +24,9 @@ public class MessageTemplateEngine {
     /** 渲染模板内容 */
     public String render(String templateContent, Map<String, Object> variables) {
         try {
-            var template = new Template("msg", new java.io.StringReader(templateContent), freemarkerConfig);
+            var template =
+                    new Template(
+                            "msg", new java.io.StringReader(templateContent), freemarkerConfig);
             var writer = new StringWriter();
             template.process(variables, writer);
             return writer.toString();

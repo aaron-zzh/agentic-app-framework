@@ -21,8 +21,6 @@ public class MetricsConfig {
     /** 消息发送计数器。 */
     @Bean
     public Counter messageSentCounter(MeterRegistry registry) {
-        return Counter.builder("aaf_message_sent_total")
-                .description("消息发送总数")
-                .register(registry);
+        return Counter.builder("aaf_message_sent_total").description("消息发送总数").register(registry);
     }
 }

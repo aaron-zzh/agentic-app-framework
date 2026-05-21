@@ -38,14 +38,17 @@ public class ProceduralMemoryService {
     /** 记录使用并反馈成功/失败 */
     @Transactional
     public void recordUsage(Long memoryId, boolean success) {
-        repository.findById(memoryId).ifPresent(m -> {
-            m.setUseCount(m.getUseCount() + 1);
-            if (success) {
-                m.setSuccessCount(m.getSuccessCount() + 1);
-            }
-            // 更新质量评分
-            m.setQualityScore((double) m.getSuccessCount() / m.getUseCount());
-            repository.save(m);
-        });
+        repository
+                .findById(memoryId)
+                .ifPresent(
+                        m -> {
+                            m.setUseCount(m.getUseCount() + 1);
+                            if (success) {
+                                m.setSuccessCount(m.getSuccessCount() + 1);
+                            }
+                            // 更新质量评分
+                            m.setQualityScore((double) m.getSuccessCount() / m.getUseCount());
+                            repository.save(m);
+                        });
     }
 }

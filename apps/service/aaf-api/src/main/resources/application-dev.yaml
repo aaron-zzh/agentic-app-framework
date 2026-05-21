@@ -6,7 +6,9 @@ spring:
       # - org.springframework.ai.model.chat.memory.autoconfigure.ChatMemoryAutoConfiguration
       # - org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
       # Neo4j 相关
-      - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration
+      # - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration
+      # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jDataAutoConfiguration
+      # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jRepositoriesAutoConfiguration
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf-dev}
     username: ${DB_USERNAME:postgres}
@@ -15,12 +17,14 @@ spring:
     clean-disabled: false
     # 开发阶段频繁修改 V1，跳过校验；启动前手动 clean 或删库重建
     validate-on-migrate: false
+    locations: classpath:db/migration-new,classpath:db/testdata
   data:
     neo4j:
       uri: ${NEO4J_URI:bolt://localhost:7687}
       authentication:
         username: ${NEO4J_USERNAME:neo4j}
         password: ${NEO4J_PASSWORD:neo4j}
+      schema-generate: create
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}

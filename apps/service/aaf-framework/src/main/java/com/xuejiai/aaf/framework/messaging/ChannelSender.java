@@ -10,5 +10,6 @@ public interface ChannelSender {
     MessageChannel channel();
 
     /** 发送消息到指定接收人 */
-    void send(List<String> recipients, String subject, String content, Map<String, Object> variables);
+    void send(
+            List<String> recipients, String subject, String content, Map<String, Object> variables);
 }

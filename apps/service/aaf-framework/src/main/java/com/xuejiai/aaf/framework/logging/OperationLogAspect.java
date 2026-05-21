@@ -31,10 +31,12 @@ public class OperationLogAspect {
     private final ApplicationEventPublisher eventPublisher;
 
     private static final SpelExpressionParser PARSER = new SpelExpressionParser();
-    private static final DefaultParameterNameDiscoverer DISCOVERER = new DefaultParameterNameDiscoverer();
+    private static final DefaultParameterNameDiscoverer DISCOVERER =
+            new DefaultParameterNameDiscoverer();
 
     @Around("@annotation(operationLog)")
-    public Object around(ProceedingJoinPoint joinPoint, OperationLog operationLog) throws Throwable {
+    public Object around(ProceedingJoinPoint joinPoint, OperationLog operationLog)
+            throws Throwable {
         var start = System.currentTimeMillis();
         Object result = null;
         String errorMsg = null;
@@ -65,7 +67,9 @@ public class OperationLogAspect {
             String errorMsg,
             long duration) {
         var method = ((MethodSignature) joinPoint.getSignature()).getMethod();
-        var ctx = new MethodBasedEvaluationContext(joinPoint.getTarget(), method, joinPoint.getArgs(), DISCOVERER);
+        var ctx =
+                new MethodBasedEvaluationContext(
+                        joinPoint.getTarget(), method, joinPoint.getArgs(), DISCOVERER);
         // 将返回值放入 SpEL 上下文
         ctx.setVariable("result", result);
 
@@ -90,23 +94,24 @@ public class OperationLogAspect {
         var params = truncate(Arrays.toString(joinPoint.getArgs()), 2000);
         var responseStr = result != null ? truncate(result.toString(), 2000) : null;
 
-        var event = new OperationLogEvent(
-                actorContext.currentUserId().orElse(null),
-                null, // username 由持久化层补充
-                annotation.module(),
-                annotation.type().name(),
-                description,
-                bizNo,
-                requestMethod,
-                requestUrl,
-                params,
-                responseStr,
-                ip,
-                userAgent,
-                duration,
-                success,
-                errorMsg != null ? truncate(errorMsg, 500) : null,
-                LocalDateTime.now());
+        var event =
+                new OperationLogEvent(
+                        actorContext.currentUserId().orElse(null),
+                        null, // username 由持久化层补充
+                        annotation.module(),
+                        annotation.type().name(),
+                        description,
+                        bizNo,
+                        requestMethod,
+                        requestUrl,
+                        params,
+                        responseStr,
+                        ip,
+                        userAgent,
+                        duration,
+                        success,
+                        errorMsg != null ? truncate(errorMsg, 500) : null,
+                        LocalDateTime.now());
 
         eventPublisher.publishEvent(event);
     }
@@ -128,7 +133,10 @@ public class OperationLogAspect {
                 if (endIdx == -1) break;
                 var expr = result.substring(startIdx + 2, endIdx);
                 var value = PARSER.parseExpression(expr).getValue(ctx, String.class);
-                result = result.substring(0, startIdx) + (value != null ? value : "") + result.substring(endIdx + 1);
+                result =
+                        result.substring(0, startIdx)
+                                + (value != null ? value : "")
+                                + result.substring(endIdx + 1);
             }
             return result;
         } catch (Exception ex) {

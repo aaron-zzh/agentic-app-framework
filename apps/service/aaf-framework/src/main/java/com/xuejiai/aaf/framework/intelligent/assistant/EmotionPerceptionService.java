@@ -9,17 +9,11 @@ import org.springframework.stereotype.Service;
 
 import lombok.Getter;
 
-/**
- * 情感分析、语气适配、个性化回复风格。
- * 通过文本情绪分类驱动回应风格/信息密度自适应。
- */
+/** 情感分析、语气适配、个性化回复风格。 通过文本情绪分类驱动回应风格/信息密度自适应。 */
 @Service
 public class EmotionPerceptionService {
 
-    /**
-     * 分析用户情感状态。
-     * 当前使用关键词规则，后续可升级为 LLM 情感分类。
-     */
+    /** 分析用户情感状态。 当前使用关键词规则，后续可升级为 LLM 情感分类。 */
     public EmotionState analyze(String userInput) {
         var input = userInput.toLowerCase();
 
@@ -60,7 +54,11 @@ public class EmotionPerceptionService {
     /** 情感状态 */
     @Getter
     public enum EmotionState {
-        NEUTRAL, POSITIVE, FRUSTRATED, CONFUSED, URGENT
+        NEUTRAL,
+        POSITIVE,
+        FRUSTRATED,
+        CONFUSED,
+        URGENT
     }
 
     /** 回复风格建议 */

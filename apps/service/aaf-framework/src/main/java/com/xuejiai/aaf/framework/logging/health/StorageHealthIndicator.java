@@ -21,7 +21,9 @@ public class StorageHealthIndicator implements HealthIndicator {
         try {
             // 尝试获取一个不存在文件的 URL，验证存储服务连通性
             storageService.getUrl("health-check-probe");
-            return Health.up().withDetail("type", storageService.getClass().getSimpleName()).build();
+            return Health.up()
+                    .withDetail("type", storageService.getClass().getSimpleName())
+                    .build();
         } catch (Exception e) {
             return Health.down(e)
                     .withDetail("type", storageService.getClass().getSimpleName())

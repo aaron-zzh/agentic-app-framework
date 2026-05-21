@@ -16,11 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Agent-to-Agent 通信协议实现。
- * 基于 AgentScope A2A 扩展，提供 AAF 层面的消息路由和协议封装。
- * 支持同步和异步通信模式。
- */
+/** Agent-to-Agent 通信协议实现。 基于 AgentScope A2A 扩展，提供 AAF 层面的消息路由和协议封装。 支持同步和异步通信模式。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -28,7 +28,7 @@
 		<freemarker.version>2.3.34</freemarker.version>
 		<javaparser.version>3.28.1</javaparser.version>
 		<!-- 存储 -->
-		<minio.version>8.5.17</minio.version>
+		<aws-s3.version>2.31.1</aws-s3.version>
 		<aliyun-oss.version>3.18.1</aliyun-oss.version>
 		<thumbnailator.version>0.4.20</thumbnailator.version>
 		<!-- 安全 / 防护 -->
@@ -185,9 +185,9 @@
 
 			<!-- ==================== 安全 / 防护 ==================== -->
 			<dependency>
-				<groupId>io.minio</groupId>
-				<artifactId>minio</artifactId>
-				<version>${minio.version}</version>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>s3</artifactId>
+				<version>${aws-s3.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>com.aliyun.oss</groupId>

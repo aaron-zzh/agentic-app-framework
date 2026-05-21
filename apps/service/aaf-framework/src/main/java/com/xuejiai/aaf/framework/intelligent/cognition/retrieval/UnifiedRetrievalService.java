@@ -1,8 +1,7 @@
 /**
  * 融合检索服务——跨 Memory/Knowledge/Value 的统一路由与聚合。
  *
- * <p>对齐认知心理学：线索依赖提取 + 激活扩散 + 注意力资源分配。
- * 不是又一个检索引擎，是跨认知组件的路由和聚合层。
+ * <p>对齐认知心理学：线索依赖提取 + 激活扩散 + 注意力资源分配。 不是又一个检索引擎，是跨认知组件的路由和聚合层。
  *
  * @author AaronZZH & Kiro
  */
@@ -28,9 +27,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRerankerServ
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 统一融合检索入口：并行查 Memory + Knowledge，RRF 融合，LLM 重排。
- */
+/** 统一融合检索入口：并行查 Memory + Knowledge，RRF 融合，LLM 重排。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -61,18 +58,37 @@ public class UnifiedRetrievalService {
         List<RagSearchResult> knowledgeResults = List.of();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            Future<List<MemoryAtom>> memoryFuture = route.searchMemory()
-                ? executor.submit(() -> memoryEngine.searchByVector(request.userId(), queryEmbedding, route.memoryTopK()))
-                : executor.submit(() -> List.<MemoryAtom>of());
+            Future<List<MemoryAtom>> memoryFuture =
+                    route.searchMemory()
+                            ? executor.submit(
+                                    () ->
+                                            memoryEngine.searchByVector(
+                                                    request.userId(),
+                                                    queryEmbedding,
+                                                    route.memoryTopK()))
+                            : executor.submit(() -> List.<MemoryAtom>of());
 
-            Future<List<MemoryBundle>> bundleFuture = route.searchBundles()
-                ? executor.submit(() -> memoryEngine.searchBundles(request.userId(), queryEmbedding, route.bundleTopK(), null))
-                : executor.submit(() -> List.<MemoryBundle>of());
+            Future<List<MemoryBundle>> bundleFuture =
+                    route.searchBundles()
+                            ? executor.submit(
+                                    () ->
+                                            memoryEngine.searchBundles(
+                                                    request.userId(),
+                                                    queryEmbedding,
+                                                    route.bundleTopK(),
+                                                    null))
+                            : executor.submit(() -> List.<MemoryBundle>of());
 
-            Future<List<RagSearchResult>> knowledgeFuture = route.searchKnowledge() && request.knowledgeBaseId() != null
-                ? executor.submit(() -> knowledgeSearch.search(request.query(), request.knowledgeBaseId(),
-                    new HybridSearchConfig(0.4, 0.3, 0.3, route.knowledgeTopK())))
-                : executor.submit(() -> List.<RagSearchResult>of());
+            Future<List<RagSearchResult>> knowledgeFuture =
+                    route.searchKnowledge() && request.knowledgeBaseId() != null
+                            ? executor.submit(
+                                    () ->
+                                            knowledgeSearch.search(
+                                                    request.query(),
+                                                    request.knowledgeBaseId(),
+                                                    new HybridSearchConfig(
+                                                            0.4, 0.3, 0.3, route.knowledgeTopK())))
+                            : executor.submit(() -> List.<RagSearchResult>of());
 
             memoryResults = memoryFuture.get();
             bundles = bundleFuture.get();
@@ -80,11 +96,16 @@ public class UnifiedRetrievalService {
         } catch (Exception e) {
             log.warn("融合检索并行失败，降级串行: {}", e.getMessage());
             if (route.searchMemory()) {
-                memoryResults = memoryEngine.searchByVector(request.userId(), queryEmbedding, route.memoryTopK());
+                memoryResults =
+                        memoryEngine.searchByVector(
+                                request.userId(), queryEmbedding, route.memoryTopK());
             }
             if (route.searchKnowledge() && request.knowledgeBaseId() != null) {
-                knowledgeResults = knowledgeSearch.search(request.query(), request.knowledgeBaseId(),
-                    new HybridSearchConfig(0.4, 0.3, 0.3, route.knowledgeTopK()));
+                knowledgeResults =
+                        knowledgeSearch.search(
+                                request.query(),
+                                request.knowledgeBaseId(),
+                                new HybridSearchConfig(0.4, 0.3, 0.3, route.knowledgeTopK()));
             }
         }
 
@@ -117,49 +138,61 @@ public class UnifiedRetrievalService {
     }
 
     /** RRF 融合：将记忆结果和知识库结果统一排序 */
-    private List<FusedItem> fuseResults(List<MemoryAtom> memory, List<RagSearchResult> knowledge, int topK) {
+    private List<FusedItem> fuseResults(
+            List<MemoryAtom> memory, List<RagSearchResult> knowledge, int topK) {
         Map<String, double[]> scoreMap = new LinkedHashMap<>();
         Map<String, FusedItem> itemMap = new LinkedHashMap<>();
 
         // 记忆结果 RRF
-        IntStream.range(0, memory.size()).forEach(rank -> {
-            var atom = memory.get(rank);
-            var key = "mem:" + atom.getId();
-            scoreMap.computeIfAbsent(key, k -> new double[]{0.0})[0] += 0.5 * (1.0 / (RRF_K + rank + 1));
-            itemMap.putIfAbsent(key, new FusedItem(atom.getContent(), "memory", scoreMap.get(key)[0]));
-        });
+        IntStream.range(0, memory.size())
+                .forEach(
+                        rank -> {
+                            var atom = memory.get(rank);
+                            var key = "mem:" + atom.getId();
+                            scoreMap.computeIfAbsent(key, k -> new double[] {0.0})[0] +=
+                                    0.5 * (1.0 / (RRF_K + rank + 1));
+                            itemMap.putIfAbsent(
+                                    key,
+                                    new FusedItem(
+                                            atom.getContent(), "memory", scoreMap.get(key)[0]));
+                        });
 
         // 知识库结果 RRF
-        IntStream.range(0, knowledge.size()).forEach(rank -> {
-            var item = knowledge.get(rank);
-            var key = "kb:" + item.content().hashCode();
-            scoreMap.computeIfAbsent(key, k -> new double[]{0.0})[0] += 0.5 * (1.0 / (RRF_K + rank + 1));
-            itemMap.putIfAbsent(key, new FusedItem(item.content(), item.source(), scoreMap.get(key)[0]));
-        });
+        IntStream.range(0, knowledge.size())
+                .forEach(
+                        rank -> {
+                            var item = knowledge.get(rank);
+                            var key = "kb:" + item.content().hashCode();
+                            scoreMap.computeIfAbsent(key, k -> new double[] {0.0})[0] +=
+                                    0.5 * (1.0 / (RRF_K + rank + 1));
+                            itemMap.putIfAbsent(
+                                    key,
+                                    new FusedItem(
+                                            item.content(), item.source(), scoreMap.get(key)[0]));
+                        });
 
         return scoreMap.entrySet().stream()
-            .sorted((a, b) -> Double.compare(b.getValue()[0], a.getValue()[0]))
-            .limit(topK)
-            .map(e -> {
-                var item = itemMap.get(e.getKey());
-                return new FusedItem(item.content(), item.source(), e.getValue()[0]);
-            })
-            .toList();
+                .sorted((a, b) -> Double.compare(b.getValue()[0], a.getValue()[0]))
+                .limit(topK)
+                .map(
+                        e -> {
+                            var item = itemMap.get(e.getKey());
+                            return new FusedItem(item.content(), item.source(), e.getValue()[0]);
+                        })
+                .toList();
     }
 
     /** 路由决策 */
     private record RouteDecision(
-        boolean searchMemory, boolean searchBundles, boolean searchKnowledge,
-        int memoryTopK, int bundleTopK, int knowledgeTopK
-    ) {}
+            boolean searchMemory,
+            boolean searchBundles,
+            boolean searchKnowledge,
+            int memoryTopK,
+            int bundleTopK,
+            int knowledgeTopK) {}
 
     /** 检索请求 */
-    public record RetrievalRequest(
-        String query,
-        Long userId,
-        Long knowledgeBaseId,
-        int topK
-    ) {
+    public record RetrievalRequest(String query, Long userId, Long knowledgeBaseId, int topK) {
         public RetrievalRequest {
             if (topK <= 0) topK = 10;
         }
@@ -167,11 +200,10 @@ public class UnifiedRetrievalService {
 
     /** 融合检索结果 */
     public record RetrievalResult(
-        List<MemoryAtom> memoryResults,
-        List<MemoryBundle> bundles,
-        List<RagSearchResult> knowledgeResults,
-        List<FusedItem> fused
-    ) {}
+            List<MemoryAtom> memoryResults,
+            List<MemoryBundle> bundles,
+            List<RagSearchResult> knowledgeResults,
+            List<FusedItem> fused) {}
 
     /** 融合后的单条结果 */
     public record FusedItem(String content, String source, double score) {}

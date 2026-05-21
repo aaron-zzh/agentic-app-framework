@@ -8,7 +8,6 @@ package com.xuejiai.aaf.framework.intelligent.cognition.memory;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,10 +15,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_long_term_memory", indexes = {
-    @Index(columnList = "userId,importance DESC"),
-    @Index(columnList = "userId,createdAt DESC")
-})
+@Table(
+        name = "ai_long_term_memory",
+        indexes = {
+            @Index(columnList = "userId,importance DESC"),
+            @Index(columnList = "userId,createdAt DESC")
+        })
 public class LongTermMemory {
 
     @Id

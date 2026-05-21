@@ -24,8 +24,7 @@ public class StorageWebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         var local = properties.local();
-        registry
-                .addResourceHandler(local.urlPrefix() + "/**")
+        registry.addResourceHandler(local.urlPrefix() + "/**")
                 .addResourceLocations("file:" + local.basePath() + "/");
     }
 }

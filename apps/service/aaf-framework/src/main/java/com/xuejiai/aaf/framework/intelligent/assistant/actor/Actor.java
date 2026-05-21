@@ -1,16 +1,12 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.actor;
 
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Actor（人格载体）：定义助理的人格、角色扮演和基础系统提示词。
- * 可复用——同一个 Actor 可绑定不同 Role 组成多个 Assistant。
- */
+/** Actor（人格载体）：定义助理的人格、角色扮演和基础系统提示词。 可复用——同一个 Actor 可绑定不同 Role 组成多个 Assistant。 */
 @Getter
 @Setter
 @Entity

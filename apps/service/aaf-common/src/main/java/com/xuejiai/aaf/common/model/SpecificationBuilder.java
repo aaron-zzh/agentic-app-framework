@@ -12,6 +12,7 @@ import jakarta.persistence.criteria.Predicate;
  * JPA Specification 链式构建器。值为 null/空时自动跳过条件。
  *
  * <p>使用示例：
+ *
  * <pre>{@code
  * Specification<User> spec = SpecificationBuilder.<User>builder()
  *     .likeIfPresent("username", req.getUsername())
@@ -57,7 +58,8 @@ public class SpecificationBuilder<T> {
 
     public SpecificationBuilder<T> geIfPresent(String field, Comparable<?> value) {
         if (value != null) {
-            conditions.add((root, cb) -> cb.greaterThanOrEqualTo(root.get(field), (Comparable) value));
+            conditions.add(
+                    (root, cb) -> cb.greaterThanOrEqualTo(root.get(field), (Comparable) value));
         }
         return this;
     }
@@ -76,9 +78,12 @@ public class SpecificationBuilder<T> {
         return this;
     }
 
-    public SpecificationBuilder<T> betweenIfPresent(String field, Comparable<?> val1, Comparable<?> val2) {
+    public SpecificationBuilder<T> betweenIfPresent(
+            String field, Comparable<?> val1, Comparable<?> val2) {
         if (val1 != null && val2 != null) {
-            conditions.add((root, cb) -> cb.between(root.get(field), (Comparable) val1, (Comparable) val2));
+            conditions.add(
+                    (root, cb) ->
+                            cb.between(root.get(field), (Comparable) val1, (Comparable) val2));
         } else if (val1 != null) {
             geIfPresent(field, val1);
         } else if (val2 != null) {
@@ -99,16 +104,16 @@ public class SpecificationBuilder<T> {
             if (conditions.isEmpty()) {
                 return null;
             }
-            Predicate[] predicates = conditions.stream()
-                    .map(c -> c.toPredicate(root, cb))
-                    .toArray(Predicate[]::new);
+            Predicate[] predicates =
+                    conditions.stream().map(c -> c.toPredicate(root, cb)).toArray(Predicate[]::new);
             return cb.and(predicates);
         };
     }
 
     @FunctionalInterface
     private interface SpecCondition {
-        Predicate toPredicate(jakarta.persistence.criteria.Root<?> root,
-                             jakarta.persistence.criteria.CriteriaBuilder cb);
+        Predicate toPredicate(
+                jakarta.persistence.criteria.Root<?> root,
+                jakarta.persistence.criteria.CriteriaBuilder cb);
     }
 }

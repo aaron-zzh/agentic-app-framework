@@ -8,21 +8,16 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Component;
-
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.PostRemove;
 import jakarta.persistence.PostUpdate;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 审计日志事件记录。
  *
- * <p>通过 Spring 事件发布审计变更，由业务层异步持久化。 注意：JPA EntityListener 不支持直接注入 Spring Bean，
- * 需通过 {@link AuditLogInterceptorHelper} 静态引用获取 publisher。
+ * <p>通过 Spring 事件发布审计变更，由业务层异步持久化。 注意：JPA EntityListener 不支持直接注入 Spring Bean， 需通过 {@link
+ * AuditLogInterceptorHelper} 静态引用获取 publisher。
  */
 @Slf4j
 public class AuditLogInterceptor {
@@ -70,7 +65,8 @@ public class AuditLogInterceptor {
         return map;
     }
 
-    private void publishAuditEvent(Object entity, String action, Map<String, Object> before, Map<String, Object> after) {
+    private void publishAuditEvent(
+            Object entity, String action, Map<String, Object> before, Map<String, Object> after) {
         var publisher = AuditLogInterceptorHelper.getPublisher();
         if (publisher == null) {
             log.debug("ApplicationEventPublisher 未就绪，跳过审计记录");
@@ -78,14 +74,17 @@ public class AuditLogInterceptor {
         }
         var entityType = entity.getClass().getSimpleName();
         Long entityId = extractId(entity);
-        publisher.publishEvent(new AuditChangeEvent(entityType, entityId, action, before, after, LocalDateTime.now()));
+        publisher.publishEvent(
+                new AuditChangeEvent(
+                        entityType, entityId, action, before, after, LocalDateTime.now()));
     }
 
     private Long extractId(Object entity) {
         try {
-            var idField = entity.getClass().getSuperclass() != null
-                    ? findIdField(entity.getClass())
-                    : null;
+            var idField =
+                    entity.getClass().getSuperclass() != null
+                            ? findIdField(entity.getClass())
+                            : null;
             if (idField != null) {
                 idField.setAccessible(true);
                 var val = idField.get(entity);

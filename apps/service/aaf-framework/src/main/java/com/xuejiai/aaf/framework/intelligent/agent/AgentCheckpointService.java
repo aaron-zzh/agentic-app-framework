@@ -21,11 +21,12 @@ import lombok.extern.slf4j.Slf4j;
  * Agent 执行状态管理：检查点保存/恢复 + 重试策略。
  *
  * <p>检查点存 Redis（TTL 自动过期），支持：
+ *
  * <ul>
- *   <li>每步执行完保存检查点</li>
- *   <li>失败时从最近检查点恢复</li>
- *   <li>指数退避重试</li>
- *   <li>任务完成后自动清理</li>
+ *   <li>每步执行完保存检查点
+ *   <li>失败时从最近检查点恢复
+ *   <li>指数退避重试
+ *   <li>任务完成后自动清理
  * </ul>
  */
 @Slf4j
@@ -76,9 +77,7 @@ public class AgentCheckpointService {
         return null;
     }
 
-    /**
-     * 清理检查点（任务完成后调用）。
-     */
+    /** 清理检查点（任务完成后调用）。 */
     public void clearCheckpoint(String executionId) {
         redisTemplate.delete(KEY_PREFIX + executionId);
     }

@@ -6,6 +6,12 @@
       <excludeFolder url="file://$MODULE_DIR$/.vscode" />
       <excludeFolder url="file://$MODULE_DIR$/docs/tmp" />
       <excludeFolder url="file://$MODULE_DIR$/logs" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/docs/.source" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/webui-e2e/playwright-report" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/webui-e2e/test-results" />
+      <excludeFolder url="file://$MODULE_DIR$/docs/design/apps/webui/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/docs/prd/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/core/out-tsc" />
     </content>
   </component>
 </module>

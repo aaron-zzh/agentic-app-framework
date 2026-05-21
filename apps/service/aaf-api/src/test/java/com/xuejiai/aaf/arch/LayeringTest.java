@@ -104,7 +104,9 @@ class LayeringTest {
                     .should()
                     .notDependOnEachOther()
                     .ignoreDependency(
-                            com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage("..module.."),
-                            com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage("..module..api.."))
+                            com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage(
+                                    "..module.."),
+                            com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage(
+                                    "..module..api.."))
                     .as("跨模块依赖只允许通过 api 包");
 }

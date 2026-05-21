@@ -10,9 +10,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.stereotype.Component;
 
-/**
- * Word 文档导入器，基于 Apache POI
- */
+/** Word 文档导入器，基于 Apache POI */
 @Component
 public class WordImporter implements DocumentImporter {
 

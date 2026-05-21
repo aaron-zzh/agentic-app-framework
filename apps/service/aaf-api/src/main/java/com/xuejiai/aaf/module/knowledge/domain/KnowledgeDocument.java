@@ -1,13 +1,15 @@
 package com.xuejiai.aaf.module.knowledge.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.enums.knowledge.DocumentStatusEnum;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 知识库文档。 */
 @Getter
@@ -44,9 +46,9 @@ public class KnowledgeDocument extends BaseEntity {
     @Column(name = "content_hash", length = 64)
     private String contentHash;
 
-    /** 状态：0=待处理，1=处理中，2=已完成，3=失败 */
+    /** 状态 */
     @Column(name = "status", nullable = false)
-    private Integer status = 0;
+    private Integer status = DocumentStatusEnum.PENDING.getCode();
 
     /** 错误信息 */
     @Column(name = "error_message", length = 2000)

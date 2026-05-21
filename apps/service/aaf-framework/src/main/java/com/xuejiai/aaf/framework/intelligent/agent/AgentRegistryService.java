@@ -13,10 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * Agent 定义与注册：元数据管理、能力声明、生命周期。
- * 运行时 Agent 实例由 AgentFactory 根据定义创建。
- */
+/** Agent 定义与注册：元数据管理、能力声明、生命周期。 运行时 Agent 实例由 AgentFactory 根据定义创建。 */
 @Service
 @RequiredArgsConstructor
 public class AgentRegistryService {
@@ -53,18 +50,24 @@ public class AgentRegistryService {
     /** 停用 Agent */
     @Transactional
     public void deactivate(String agentId) {
-        repository.findByAgentId(agentId).ifPresent(d -> {
-            d.setStatus("inactive");
-            repository.save(d);
-        });
+        repository
+                .findByAgentId(agentId)
+                .ifPresent(
+                        d -> {
+                            d.setStatus("inactive");
+                            repository.save(d);
+                        });
     }
 
     /** 归档 Agent */
     @Transactional
     public void archive(String agentId) {
-        repository.findByAgentId(agentId).ifPresent(d -> {
-            d.setStatus("archived");
-            repository.save(d);
-        });
+        repository
+                .findByAgentId(agentId)
+                .ifPresent(
+                        d -> {
+                            d.setStatus("archived");
+                            repository.save(d);
+                        });
     }
 }

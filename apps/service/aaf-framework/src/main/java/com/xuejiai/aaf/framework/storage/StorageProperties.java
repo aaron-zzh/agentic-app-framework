@@ -5,34 +5,26 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * 存储配置属性。
  *
- * <p>通过 aaf.storage.type 切换存储后端。
+ * <p>通过 aaf.storage.type 切换存储后端。S3 配置兼容 MinIO / 阿里云 OSS / AWS S3。
  */
 @ConfigurationProperties(prefix = "aaf.storage")
 public record StorageProperties(
-        StorageType type,
-        LocalProperties local,
-        OssProperties oss,
-        MinioProperties minio) {
+        StorageType type, LocalProperties local, S3Properties s3) {
 
     /** 存储类型枚举 */
     public enum StorageType {
         LOCAL,
-        OSS,
-        MINIO
+        S3
     }
 
     /** 本地存储配置 */
     public record LocalProperties(String basePath, String urlPrefix) {}
 
-    /** 阿里云 OSS 配置 */
-    public record OssProperties(
+    /** S3 兼容存储配置（MinIO / 阿里云 OSS / AWS S3） */
+    public record S3Properties(
             String endpoint,
-            String accessKeyId,
-            String accessKeySecret,
+            String accessKey,
+            String secretKey,
             String bucketName,
-            String stsRoleArn) {}
-
-    /** MinIO 配置 */
-    public record MinioProperties(
-            String endpoint, String accessKey, String secretKey, String bucketName) {}
+            String region) {}
 }

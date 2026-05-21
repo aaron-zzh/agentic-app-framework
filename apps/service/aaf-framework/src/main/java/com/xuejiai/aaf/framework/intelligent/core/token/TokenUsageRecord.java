@@ -8,7 +8,6 @@ package com.xuejiai.aaf.framework.intelligent.core.token;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,11 +15,13 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_token_usage", indexes = {
-    @Index(columnList = "userId,createdAt"),
-    @Index(columnList = "conversationId"),
-    @Index(columnList = "modelId,createdAt")
-})
+@Table(
+        name = "ai_token_usage",
+        indexes = {
+            @Index(columnList = "userId,createdAt"),
+            @Index(columnList = "conversationId"),
+            @Index(columnList = "modelId,createdAt")
+        })
 public class TokenUsageRecord {
 
     @Id

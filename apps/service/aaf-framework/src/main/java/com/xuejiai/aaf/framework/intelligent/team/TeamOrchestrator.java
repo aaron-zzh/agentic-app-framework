@@ -15,10 +15,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
-/**
- * 多 Assistant 编排：团队定义、角色分配、协作模式。
- * 支持 Leader 协调和平等协作两种模式。
- */
+/** 多 Assistant 编排：团队定义、角色分配、协作模式。 支持 Leader 协调和平等协作两种模式。 */
 @Service
 @RequiredArgsConstructor
 public class TeamOrchestrator {
@@ -74,6 +71,6 @@ public class TeamOrchestrator {
     /** 协作模式 */
     public enum CollaborationMode {
         LEADER_COORDINATED, // Leader 统筹
-        PEER_COLLABORATION  // 平等协作
+        PEER_COLLABORATION // 平等协作
     }
 }

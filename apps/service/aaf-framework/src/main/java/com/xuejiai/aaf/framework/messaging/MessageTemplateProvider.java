@@ -9,5 +9,6 @@ public interface MessageTemplateProvider {
     Optional<MessageTemplateInfo> findByCode(String code);
 
     /** 模板信息 */
-    record MessageTemplateInfo(String code, MessageChannel channel, String subject, String content) {}
+    record MessageTemplateInfo(
+            String code, MessageChannel channel, String subject, String content) {}
 }

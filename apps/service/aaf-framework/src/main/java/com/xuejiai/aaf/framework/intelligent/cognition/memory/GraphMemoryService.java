@@ -22,7 +22,8 @@ public class GraphMemoryService {
 
     /** 存储实体节点 */
     @Transactional
-    public GraphMemoryNode storeEntity(Long userId, String name, String entityType, String summary) {
+    public GraphMemoryNode storeEntity(
+            Long userId, String name, String entityType, String summary) {
         var node = new GraphMemoryNode();
         node.setUserId(userId);
         node.setName(name);

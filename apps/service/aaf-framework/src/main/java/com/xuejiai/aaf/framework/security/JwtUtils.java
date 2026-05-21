@@ -92,7 +92,9 @@ public class JwtUtils {
     public void blacklistToken(String jti, Instant expiresAt) {
         long ttl = Duration.between(Instant.now(), expiresAt).getSeconds();
         if (ttl > 0) {
-            redisTemplate.opsForValue().set(TOKEN_BLACKLIST_PREFIX + jti, "1", Duration.ofSeconds(ttl));
+            redisTemplate
+                    .opsForValue()
+                    .set(TOKEN_BLACKLIST_PREFIX + jti, "1", Duration.ofSeconds(ttl));
         }
     }
 
@@ -106,7 +108,9 @@ public class JwtUtils {
     /** 记录用户设备会话 */
     public void saveSession(Long userId, String deviceId, String refreshToken) {
         String key = USER_SESSIONS_PREFIX + userId;
-        redisTemplate.opsForHash().put(key, deviceId, refreshToken + "|" + Instant.now().toString());
+        redisTemplate
+                .opsForHash()
+                .put(key, deviceId, refreshToken + "|" + Instant.now().toString());
         redisTemplate.expire(key, Duration.ofSeconds(refreshExpireSeconds));
     }
 

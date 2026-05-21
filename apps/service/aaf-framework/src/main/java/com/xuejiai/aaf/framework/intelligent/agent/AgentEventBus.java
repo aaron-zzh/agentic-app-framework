@@ -15,10 +15,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Agent 间消息传递和事件总线。
- * 支持发布/订阅模式，Agent 可以订阅特定主题接收消息。
- */
+/** Agent 间消息传递和事件总线。 支持发布/订阅模式，Agent 可以订阅特定主题接收消息。 */
 @Slf4j
 @Component
 public class AgentEventBus {
@@ -29,13 +26,14 @@ public class AgentEventBus {
     public void publish(String topic, AgentMessage message) {
         var listeners = subscribers.get(topic);
         if (listeners != null) {
-            listeners.forEach(listener -> {
-                try {
-                    listener.accept(message);
-                } catch (Exception e) {
-                    log.warn("事件处理异常 [topic={}]: {}", topic, e.getMessage());
-                }
-            });
+            listeners.forEach(
+                    listener -> {
+                        try {
+                            listener.accept(message);
+                        } catch (Exception e) {
+                            log.warn("事件处理异常 [topic={}]: {}", topic, e.getMessage());
+                        }
+                    });
         }
     }
 

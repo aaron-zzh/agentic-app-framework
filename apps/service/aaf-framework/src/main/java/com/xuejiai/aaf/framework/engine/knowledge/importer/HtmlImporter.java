@@ -8,12 +8,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
 
-/**
- * HTML 文档导入器，基于 Jsoup
- */
+/** HTML 文档导入器，基于 Jsoup */
 @Component
 public class HtmlImporter implements DocumentImporter {
 
@@ -39,7 +36,9 @@ public class HtmlImporter implements DocumentImporter {
             if (HEADING_TAGS.contains(tag)) {
                 // 保存前一段
                 if (!currentText.isEmpty()) {
-                    sections.add(new DocumentSection(currentText.toString().strip(), currentLevel, Map.of()));
+                    sections.add(
+                            new DocumentSection(
+                                    currentText.toString().strip(), currentLevel, Map.of()));
                     currentText.setLength(0);
                 }
                 currentLevel = Integer.parseInt(tag.substring(1));
@@ -53,7 +52,8 @@ public class HtmlImporter implements DocumentImporter {
             }
         }
         if (!currentText.isEmpty()) {
-            sections.add(new DocumentSection(currentText.toString().strip(), currentLevel, Map.of()));
+            sections.add(
+                    new DocumentSection(currentText.toString().strip(), currentLevel, Map.of()));
         }
 
         // 提取标题

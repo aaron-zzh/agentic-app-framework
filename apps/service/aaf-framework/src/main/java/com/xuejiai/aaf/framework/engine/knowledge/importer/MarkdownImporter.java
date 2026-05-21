@@ -14,9 +14,7 @@ import org.commonmark.node.Text;
 import org.commonmark.parser.Parser;
 import org.springframework.stereotype.Component;
 
-/**
- * Markdown 文档导入器，基于 commonmark-java
- */
+/** Markdown 文档导入器，基于 commonmark-java */
 @Component
 public class MarkdownImporter implements DocumentImporter {
 
@@ -43,7 +41,9 @@ public class MarkdownImporter implements DocumentImporter {
             if (node instanceof Heading heading) {
                 // 保存前一段
                 if (!currentText.isEmpty()) {
-                    sections.add(new DocumentSection(currentText.toString().strip(), currentLevel[0], Map.of()));
+                    sections.add(
+                            new DocumentSection(
+                                    currentText.toString().strip(), currentLevel[0], Map.of()));
                     currentText.setLength(0);
                 }
                 currentLevel[0] = heading.getLevel();
@@ -63,7 +63,8 @@ public class MarkdownImporter implements DocumentImporter {
         }
         // 最后一段
         if (!currentText.isEmpty()) {
-            sections.add(new DocumentSection(currentText.toString().strip(), currentLevel[0], Map.of()));
+            sections.add(
+                    new DocumentSection(currentText.toString().strip(), currentLevel[0], Map.of()));
         }
 
         long totalChars = sections.stream().mapToLong(s -> s.content().length()).sum();
@@ -72,12 +73,13 @@ public class MarkdownImporter implements DocumentImporter {
 
     private String extractText(Node node) {
         var sb = new StringBuilder();
-        node.accept(new AbstractVisitor() {
-            @Override
-            public void visit(Text text) {
-                sb.append(text.getLiteral());
-            }
-        });
+        node.accept(
+                new AbstractVisitor() {
+                    @Override
+                    public void visit(Text text) {
+                        sb.append(text.getLiteral());
+                    }
+                });
         return sb.toString();
     }
 }

@@ -20,14 +20,16 @@ public interface MemoryRelationRepository extends JpaRepository<MemoryRelation, 
     List<MemoryRelation> findByTargetId(UUID targetId);
 
     /** 查找原子的所有关联（出边 + 入边） */
-    @Query("""
+    @Query(
+            """
         SELECT r FROM MemoryRelation r
         WHERE r.sourceId = :atomId OR r.targetId = :atomId
         """)
     List<MemoryRelation> findByAtomId(UUID atomId);
 
     /** 批量查找多个原子的关联 */
-    @Query("""
+    @Query(
+            """
         SELECT r FROM MemoryRelation r
         WHERE r.sourceId IN :atomIds OR r.targetId IN :atomIds
         """)

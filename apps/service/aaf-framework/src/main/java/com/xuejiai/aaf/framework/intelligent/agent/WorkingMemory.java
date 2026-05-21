@@ -1,8 +1,7 @@
 /**
  * 工作记忆接口——Agent 任务级注意焦点（对齐认知心理学工作记忆模型）。
  *
- * <p>工作记忆 ≠ 短期记忆。工作记忆是 Agent 当前任务的"注意焦点"（3-7 项），
- * 从长期记忆/知识库中主动提取最相关信息，组装为 LLM prompt 的一部分。
+ * <p>工作记忆 ≠ 短期记忆。工作记忆是 Agent 当前任务的"注意焦点"（3-7 项）， 从长期记忆/知识库中主动提取最相关信息，组装为 LLM prompt 的一部分。
  *
  * <p>特性：有限容量、任务级生命周期、不持久化。
  *
@@ -12,10 +11,7 @@ package com.xuejiai.aaf.framework.intelligent.agent;
 
 import java.util.List;
 
-/**
- * Agent 工作记忆：管理当前任务的注意焦点。
- * 混合检索时实现——从记忆系统 + 知识库检索后，选择最相关的 N 项放入焦点。
- */
+/** Agent 工作记忆：管理当前任务的注意焦点。 混合检索时实现——从记忆系统 + 知识库检索后，选择最相关的 N 项放入焦点。 */
 public interface WorkingMemory {
 
     /**
@@ -52,11 +48,10 @@ public interface WorkingMemory {
 
     /** 焦点项：工作记忆中的一个条目 */
     record FocusItem(
-        /** 来源类型：memory / knowledge / tool_result / intermediate */
-        String source,
-        /** 内容 */
-        String content,
-        /** 相关性分数 */
-        double relevance
-    ) {}
+            /** 来源类型：memory / knowledge / tool_result / intermediate */
+            String source,
+            /** 内容 */
+            String content,
+            /** 相关性分数 */
+            double relevance) {}
 }

@@ -36,9 +36,12 @@ public class DefaultMemoryWritePipeline implements MemoryWritePipeline {
     @Override
     public void execute(WriteInput input) {
         // 步骤 1：提取
-        var extracted = extractionService.extract(
-            input.userMessage(), input.assistantReply(), input.userId(), input.sessionId()
-        );
+        var extracted =
+                extractionService.extract(
+                        input.userMessage(),
+                        input.assistantReply(),
+                        input.userId(),
+                        input.sessionId());
         if (extracted.isEmpty()) {
             log.debug("写管道：无值得记忆的片段，跳过后续步骤 sessionId={}", input.sessionId());
             return;
@@ -48,8 +51,11 @@ public class DefaultMemoryWritePipeline implements MemoryWritePipeline {
         var deduplicated = deduplicationService.deduplicate(extracted, input.userId());
 
         // 步骤 3：写入（由 MemoryExtractionService 内部持久化，此处记录日志）
-        log.debug("写管道：写入 {} 条记忆 userId={} sessionId={}",
-            deduplicated.size(), input.userId(), input.sessionId());
+        log.debug(
+                "写管道：写入 {} 条记忆 userId={} sessionId={}",
+                deduplicated.size(),
+                input.userId(),
+                input.sessionId());
 
         // 步骤 4：遗忘（异步，TODO: 接入 TimeDecayStrategy）
     }

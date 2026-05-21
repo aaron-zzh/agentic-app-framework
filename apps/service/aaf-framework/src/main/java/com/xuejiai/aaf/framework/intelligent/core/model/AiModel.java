@@ -5,12 +5,9 @@
  */
 package com.xuejiai.aaf.framework.intelligent.core.model;
 
-import java.time.LocalDateTime;
-
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 

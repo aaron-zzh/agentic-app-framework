@@ -26,15 +26,22 @@ public class PromptTemplateService {
 
     /** 渲染模板：将变量注入到模板内容中 */
     public String render(String templateName, Map<String, String> variables) {
-        var template = repository.findByNameAndActiveTrue(templateName)
-                .orElseThrow(() -> new IllegalArgumentException("模板不存在: " + templateName));
+        var template =
+                repository
+                        .findByNameAndActiveTrue(templateName)
+                        .orElseThrow(() -> new IllegalArgumentException("模板不存在: " + templateName));
         return interpolate(template.getContent(), variables);
     }
 
     /** 按指定版本渲染 */
     public String render(String templateName, int version, Map<String, String> variables) {
-        var template = repository.findByNameAndVersion(templateName, version)
-                .orElseThrow(() -> new IllegalArgumentException("模板版本不存在: " + templateName + " v" + version));
+        var template =
+                repository
+                        .findByNameAndVersion(templateName, version)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "模板版本不存在: " + templateName + " v" + version));
         return interpolate(template.getContent(), variables);
     }
 
@@ -53,10 +60,13 @@ public class PromptTemplateService {
         int nextVersion = existing.isEmpty() ? 1 : existing.getFirst().getVersion() + 1;
 
         // 失活旧版本
-        existing.stream().filter(PromptTemplate::getActive).forEach(t -> {
-            t.setActive(false);
-            repository.save(t);
-        });
+        existing.stream()
+                .filter(PromptTemplate::getActive)
+                .forEach(
+                        t -> {
+                            t.setActive(false);
+                            repository.save(t);
+                        });
 
         var template = new PromptTemplate();
         template.setName(name);

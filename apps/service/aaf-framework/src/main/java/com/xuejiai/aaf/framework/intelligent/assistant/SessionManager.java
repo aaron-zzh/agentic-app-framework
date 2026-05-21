@@ -21,10 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 会话管理：多会话并行、会话状态机、会话恢复。
- * 会话状态存储在 Redis 中，支持跨实例恢复。
- */
+/** 会话管理：多会话并行、会话状态机、会话恢复。 会话状态存储在 Redis 中，支持跨实例恢复。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -64,11 +61,13 @@ public class SessionManager {
 
     /** 更新会话状态 */
     public void updateStatus(String sessionId, SessionStatus status) {
-        getSession(sessionId).ifPresent(s -> {
-            s.setStatus(status);
-            s.setLastActiveAt(Instant.now());
-            persist(s);
-        });
+        getSession(sessionId)
+                .ifPresent(
+                        s -> {
+                            s.setStatus(status);
+                            s.setLastActiveAt(Instant.now());
+                            persist(s);
+                        });
     }
 
     /** 关闭会话 */
@@ -115,6 +114,10 @@ public class SessionManager {
 
     /** 会话状态枚举 */
     public enum SessionStatus {
-        ACTIVE, WAITING, PROCESSING, SUSPENDED, CLOSED
+        ACTIVE,
+        WAITING,
+        PROCESSING,
+        SUSPENDED,
+        CLOSED
     }
 }

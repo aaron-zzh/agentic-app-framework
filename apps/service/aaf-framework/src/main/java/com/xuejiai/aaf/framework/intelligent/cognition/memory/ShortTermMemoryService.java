@@ -11,16 +11,12 @@ import java.util.List;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 短期记忆：对话级上下文缓存，TTL 自动过期。
- * 存储在 Redis 中，key 格式：memory:short:{conversationId}
- */
+/** 短期记忆：对话级上下文缓存，TTL 自动过期。 存储在 Redis 中，key 格式：memory:short:{conversationId} */
 @Slf4j
 @Service
 @RequiredArgsConstructor

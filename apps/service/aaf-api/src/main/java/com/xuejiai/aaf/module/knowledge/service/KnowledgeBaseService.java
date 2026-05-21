@@ -46,7 +46,8 @@ public class KnowledgeBaseService {
     /** 分页查询知识库列表 */
     public PageResult<KnowledgeBaseVO> list(Pageable pageable) {
         Page<KnowledgeBase> page = knowledgeBaseRepository.findAll(pageable);
-        return new PageResult<>(page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+        return new PageResult<>(
+                page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
 
     /** 查询知识库详情 */
@@ -77,22 +78,32 @@ public class KnowledgeBaseService {
     public KnowledgeBaseStatsVO getStats(Long id) {
         findById(id);
         long docCount = knowledgeDocumentRepository.countByKnowledgeBaseId(id);
-        long chunkCount = ((Number) entityManager
-                .createNativeQuery("SELECT COUNT(*) FROM knowledge_chunk WHERE knowledge_base_id = :id")
-                .setParameter("id", id)
-                .getSingleResult()).longValue();
-        long embeddingCount = ((Number) entityManager
-                .createNativeQuery("SELECT COUNT(*) FROM knowledge_embedding WHERE knowledge_base_id = :id")
-                .setParameter("id", id)
-                .getSingleResult()).longValue();
+        long chunkCount =
+                ((Number)
+                                entityManager
+                                        .createNativeQuery(
+                                                "SELECT COUNT(*) FROM knowledge_chunk WHERE knowledge_base_id = :id")
+                                        .setParameter("id", id)
+                                        .getSingleResult())
+                        .longValue();
+        long embeddingCount =
+                ((Number)
+                                entityManager
+                                        .createNativeQuery(
+                                                "SELECT COUNT(*) FROM knowledge_embedding WHERE knowledge_base_id = :id")
+                                        .setParameter("id", id)
+                                        .getSingleResult())
+                        .longValue();
         return new KnowledgeBaseStatsVO(docCount, chunkCount, embeddingCount);
     }
 
     /** 查询知识库下的文档列表 */
     public PageResult<KnowledgeDocumentVO> listDocuments(Long id, Pageable pageable) {
         findById(id);
-        Page<KnowledgeDocument> page = knowledgeDocumentRepository.findByKnowledgeBaseId(id, pageable);
-        return new PageResult<>(page.getContent().stream().map(this::toDocVO).toList(), page.getTotalElements());
+        Page<KnowledgeDocument> page =
+                knowledgeDocumentRepository.findByKnowledgeBaseId(id, pageable);
+        return new PageResult<>(
+                page.getContent().stream().map(this::toDocVO).toList(), page.getTotalElements());
     }
 
     private KnowledgeBase findById(Long id) {

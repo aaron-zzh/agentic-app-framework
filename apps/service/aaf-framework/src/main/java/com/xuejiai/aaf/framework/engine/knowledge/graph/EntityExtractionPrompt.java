@@ -1,14 +1,13 @@
 package com.xuejiai.aaf.framework.engine.knowledge.graph;
 
-/**
- * 实体关系抽取 Prompt 模板
- */
+/** 实体关系抽取 Prompt 模板 */
 public final class EntityExtractionPrompt {
 
     private EntityExtractionPrompt() {}
 
     /** 系统提示词：指导 LLM 从文本中抽取实体关系三元组 */
-    public static final String SYSTEM_PROMPT = """
+    public static final String SYSTEM_PROMPT =
+            """
             你是一个知识图谱构建专家。请从给定文本中抽取实体和关系，以三元组形式返回。
 
             规则：
@@ -26,7 +25,8 @@ public final class EntityExtractionPrompt {
             """;
 
     /** 用户提示词模板，{text} 为待抽取文本 */
-    public static final String USER_PROMPT_TEMPLATE = """
+    public static final String USER_PROMPT_TEMPLATE =
+            """
             请从以下文本中抽取实体关系三元组：
 
             {text}

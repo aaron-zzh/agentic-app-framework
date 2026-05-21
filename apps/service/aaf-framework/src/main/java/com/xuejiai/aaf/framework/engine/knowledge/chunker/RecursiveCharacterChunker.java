@@ -1,15 +1,13 @@
 package com.xuejiai.aaf.framework.engine.knowledge.chunker;
 
-import org.springframework.stereotype.Component;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 递归字符分块器，按分隔符层级递归分割
- */
+import org.springframework.stereotype.Component;
+
+/** 递归字符分块器，按分隔符层级递归分割 */
 @Component
 public class RecursiveCharacterChunker implements DocumentChunker {
 
@@ -19,7 +17,8 @@ public class RecursiveCharacterChunker implements DocumentChunker {
     }
 
     @Override
-    public List<DocumentChunk> chunk(String content, ChunkConfig config, Map<String, Object> baseMetadata) {
+    public List<DocumentChunk> chunk(
+            String content, ChunkConfig config, Map<String, Object> baseMetadata) {
         var texts = splitRecursive(content, config.separators(), config.chunkSize());
         // 合并重叠窗口
         var chunks = new ArrayList<DocumentChunk>();
@@ -27,7 +26,9 @@ public class RecursiveCharacterChunker implements DocumentChunker {
         for (var text : texts) {
             var metadata = new HashMap<>(baseMetadata);
             metadata.put("chunk_index", index);
-            chunks.add(new DocumentChunk(text, index, metadata, FixedSizeChunker.estimateTokenCount(text)));
+            chunks.add(
+                    new DocumentChunk(
+                            text, index, metadata, FixedSizeChunker.estimateTokenCount(text)));
             index++;
         }
         return chunks;

@@ -1,7 +1,5 @@
 package com.xuejiai.aaf.module.knowledge.repository;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +12,7 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
 
     Page<KnowledgeDocument> findByKnowledgeBaseId(Long knowledgeBaseId, Pageable pageable);
 
-    @Query("SELECT COUNT(d) FROM KnowledgeDocument d WHERE d.knowledgeBaseId = :knowledgeBaseId AND d.deleted = false")
+    @Query(
+            "SELECT COUNT(d) FROM KnowledgeDocument d WHERE d.knowledgeBaseId = :knowledgeBaseId AND d.deleted = false")
     long countByKnowledgeBaseId(Long knowledgeBaseId);
 }

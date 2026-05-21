@@ -36,12 +36,13 @@ class ImportExecutorTest {
         var data = List.of(new SampleRow("张三"), new SampleRow("李四"), new SampleRow("王五"));
         var saved = new ArrayList<SampleRow>();
 
-        var result = ImportExecutor.<SampleRow>builder()
-                .validator(validator)
-                .data(data)
-                .consumer(saved::addAll)
-                .build()
-                .execute();
+        var result =
+                ImportExecutor.<SampleRow>builder()
+                        .validator(validator)
+                        .data(data)
+                        .consumer(saved::addAll)
+                        .build()
+                        .execute();
 
         assertThat(result.successCount()).isEqualTo(3);
         assertThat(result.failureCount()).isEqualTo(0);
@@ -54,12 +55,13 @@ class ImportExecutorTest {
         var data = List.of(new SampleRow("张三"), new SampleRow(""), new SampleRow(null));
         var saved = new ArrayList<SampleRow>();
 
-        var result = ImportExecutor.<SampleRow>builder()
-                .validator(validator)
-                .data(data)
-                .consumer(saved::addAll)
-                .build()
-                .execute();
+        var result =
+                ImportExecutor.<SampleRow>builder()
+                        .validator(validator)
+                        .data(data)
+                        .consumer(saved::addAll)
+                        .build()
+                        .execute();
 
         assertThat(result.successCount()).isEqualTo(0);
         assertThat(result.failureCount()).isEqualTo(2);
@@ -73,12 +75,13 @@ class ImportExecutorTest {
         var data = List.of(new SampleRow("张三"), new SampleRow("李四"));
         var saved = new ArrayList<SampleRow>();
 
-        var result = ImportExecutor.<SampleRow>builder()
-                .data(data)
-                .duplicateChecker(row -> "张三".equals(row.getName()) ? "名称已存在" : null)
-                .consumer(saved::addAll)
-                .build()
-                .execute();
+        var result =
+                ImportExecutor.<SampleRow>builder()
+                        .data(data)
+                        .duplicateChecker(row -> "张三".equals(row.getName()) ? "名称已存在" : null)
+                        .consumer(saved::addAll)
+                        .build()
+                        .execute();
 
         assertThat(result.successCount()).isEqualTo(0);
         assertThat(result.failureCount()).isEqualTo(1);
@@ -92,12 +95,13 @@ class ImportExecutorTest {
         var data = List.of(new SampleRow("A"), new SampleRow("B"), new SampleRow("C"));
         var batches = new ArrayList<List<SampleRow>>();
 
-        var result = ImportExecutor.<SampleRow>builder()
-                .data(data)
-                .consumer(batch -> batches.add(new ArrayList<>(batch)))
-                .batchSize(2)
-                .build()
-                .execute();
+        var result =
+                ImportExecutor.<SampleRow>builder()
+                        .data(data)
+                        .consumer(batch -> batches.add(new ArrayList<>(batch)))
+                        .batchSize(2)
+                        .build()
+                        .execute();
 
         assertThat(result.successCount()).isEqualTo(3);
         assertThat(batches).hasSize(2);
@@ -108,17 +112,16 @@ class ImportExecutorTest {
     @Test
     @DisplayName("错误超过 50 条时截断显示")
     void should_truncate_errors_at_50() {
-        var data = IntStream.range(0, 60)
-                .mapToObj(i -> new SampleRow(null))
-                .toList();
+        var data = IntStream.range(0, 60).mapToObj(i -> new SampleRow(null)).toList();
         var saved = new ArrayList<SampleRow>();
 
-        var result = ImportExecutor.<SampleRow>builder()
-                .validator(validator)
-                .data(data)
-                .consumer(saved::addAll)
-                .build()
-                .execute();
+        var result =
+                ImportExecutor.<SampleRow>builder()
+                        .validator(validator)
+                        .data(data)
+                        .consumer(saved::addAll)
+                        .build()
+                        .execute();
 
         assertThat(result.failureCount()).isEqualTo(60);
         assertThat(result.failureMessages()).hasSize(50);
@@ -128,9 +131,7 @@ class ImportExecutorTest {
     @Test
     @DisplayName("data 为空时抛异常")
     void should_throw_when_data_is_null() {
-        assertThatThrownBy(() -> ImportExecutor.<SampleRow>builder()
-                .consumer(batch -> {})
-                .build())
+        assertThatThrownBy(() -> ImportExecutor.<SampleRow>builder().consumer(batch -> {}).build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("data");
     }
@@ -138,9 +139,7 @@ class ImportExecutorTest {
     @Test
     @DisplayName("consumer 为空时抛异常")
     void should_throw_when_consumer_is_null() {
-        assertThatThrownBy(() -> ImportExecutor.<SampleRow>builder()
-                .data(List.of())
-                .build())
+        assertThatThrownBy(() -> ImportExecutor.<SampleRow>builder().data(List.of()).build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("consumer");
     }

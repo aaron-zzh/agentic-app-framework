@@ -5,24 +5,19 @@
  */
 package com.xuejiai.aaf.framework.intelligent.cognition.memory;
 
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 程序化记忆：经验蒸馏、SOP 记忆、技能记忆。
- * 参考 ReMe，存储"如何做"的经验，以 Markdown 格式持久化。
- */
+/** 程序化记忆：经验蒸馏、SOP 记忆、技能记忆。 参考 ReMe，存储"如何做"的经验，以 Markdown 格式持久化。 */
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_procedural_memory", indexes = {
-    @Index(columnList = "userId,category"),
-    @Index(columnList = "taskType")
-})
+@Table(
+        name = "ai_procedural_memory",
+        indexes = {@Index(columnList = "userId,category"), @Index(columnList = "taskType")})
 public class ProceduralMemory extends BaseEntity {
 
     /** 所属用户（null 表示全局共享） */

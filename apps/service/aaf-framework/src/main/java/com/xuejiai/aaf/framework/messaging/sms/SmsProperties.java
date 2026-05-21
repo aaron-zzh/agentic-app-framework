@@ -6,9 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "aaf.messaging.sms")
 public record SmsProperties(
         /** 短信服务商：aliyun / tencent */
-        String provider,
-        AliyunConfig aliyun,
-        TencentConfig tencent) {
+        String provider, AliyunConfig aliyun, TencentConfig tencent) {
 
     public record AliyunConfig(String accessKeyId, String accessKeySecret, String signName) {}
 

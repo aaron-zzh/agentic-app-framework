@@ -1,19 +1,15 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.role;
 
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Role（能力配置）：定义助理的技能集和工具白名单。
- * 可复用——同一个 Role 可绑定不同 Actor 组成多个 Assistant。
- */
+/** Role（能力配置）：定义助理的技能集和工具白名单。 可复用——同一个 Role 可绑定不同 Actor 组成多个 Assistant。 */
 @Getter
 @Setter
-@Entity
+@Entity(name = "AiRole")
 @Table(name = "ai_role")
 public class Role extends BaseEntity {
 
@@ -29,17 +25,11 @@ public class Role extends BaseEntity {
     @Column(length = 512)
     private String description;
 
-    /**
-     * 绑定的技能 ID 列表（JSON 数组）。
-     * 对应 engine/skill/SkillDefinition.skillId。
-     */
+    /** 绑定的技能 ID 列表（JSON 数组）。 对应 engine/skill/SkillDefinition.skillId。 */
     @Column(columnDefinition = "TEXT")
     private String skillIds;
 
-    /**
-     * 工具白名单（JSON 数组，assistantId 维度）。
-     * 对应 engine/tool/ToolRegistry 中注册的工具名。
-     */
+    /** 工具白名单（JSON 数组，assistantId 维度）。 对应 engine/tool/ToolRegistry 中注册的工具名。 */
     @Column(columnDefinition = "TEXT")
     private String toolWhitelist;
 

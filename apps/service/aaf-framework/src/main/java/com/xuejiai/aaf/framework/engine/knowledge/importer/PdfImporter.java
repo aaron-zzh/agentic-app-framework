@@ -12,9 +12,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
 
-/**
- * PDF 文档导入器，基于 Apache PDFBox
- */
+/** PDF 文档导入器，基于 Apache PDFBox */
 @Component
 public class PdfImporter implements DocumentImporter {
 

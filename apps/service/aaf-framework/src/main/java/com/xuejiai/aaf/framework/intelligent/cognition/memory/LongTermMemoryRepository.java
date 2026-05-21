@@ -21,8 +21,9 @@ public interface LongTermMemoryRepository extends JpaRepository<LongTermMemory, 
     List<LongTermMemory> findTop20ByUserIdOrderByCreatedAtDesc(Long userId);
 
     /** 获取低价值记忆（用于归档/清理） */
-    @Query("SELECT m FROM LongTermMemory m WHERE m.userId = :userId " +
-            "AND m.importance < :threshold AND m.lastAccessedAt < :before")
+    @Query(
+            "SELECT m FROM LongTermMemory m WHERE m.userId = :userId "
+                    + "AND m.importance < :threshold AND m.lastAccessedAt < :before")
     List<LongTermMemory> findLowValueMemories(Long userId, Double threshold, LocalDateTime before);
 
     /** 按类型查找 */

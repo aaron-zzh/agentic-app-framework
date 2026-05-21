@@ -19,10 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
-/**
- * 包装 ChatClient 调用，提供主模型异常时切换 fallback 模型的降级能力，
- * 并在每次调用后发布 {@link TokenUsageEvent}。
- */
+/** 包装 ChatClient 调用，提供主模型异常时切换 fallback 模型的降级能力， 并在每次调用后发布 {@link TokenUsageEvent}。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -114,14 +111,14 @@ public class ResilientChatService {
     }
 
     private void publishUsage(ChatResponse response, Long userId, String model) {
-        if (response == null || response.getMetadata() == null || response.getMetadata().getUsage() == null) {
+        if (response == null
+                || response.getMetadata() == null
+                || response.getMetadata().getUsage() == null) {
             return;
         }
         var usage = response.getMetadata().getUsage();
-        eventPublisher.publishEvent(new TokenUsageEvent(
-                userId,
-                model,
-                usage.getPromptTokens(),
-                usage.getCompletionTokens()));
+        eventPublisher.publishEvent(
+                new TokenUsageEvent(
+                        userId, model, usage.getPromptTokens(), usage.getCompletionTokens()));
     }
 }

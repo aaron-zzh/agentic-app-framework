@@ -39,15 +39,15 @@ public class ScheduledTaskExecutor {
 
     @EventListener(ApplicationReadyEvent.class)
     public void onReady() {
-        taskRegistry.listAll().stream()
-                .filter(TaskDefinition::enabled)
-                .forEach(this::schedule);
+        taskRegistry.listAll().stream().filter(TaskDefinition::enabled).forEach(this::schedule);
     }
 
     /** 调度单个任务 */
     public void schedule(TaskDefinition def) {
         cancel(def.name());
-        var future = taskScheduler.schedule(() -> executeWithLock(def), new CronTrigger(def.cronExpression()));
+        var future =
+                taskScheduler.schedule(
+                        () -> executeWithLock(def), new CronTrigger(def.cronExpression()));
         scheduledFutures.put(def.name(), future);
         log.info("调度定时任务: {} [{}]", def.name(), def.cronExpression());
     }
@@ -70,8 +70,12 @@ public class ScheduledTaskExecutor {
 
     private void executeWithLock(TaskDefinition def) {
         var lockKey = LOCK_PREFIX + def.name();
-        var acquired = Boolean.TRUE.equals(
-                redisTemplate.opsForValue().setIfAbsent(lockKey, "1", DEFAULT_LOCK_TTL_SECONDS, TimeUnit.SECONDS));
+        var acquired =
+                Boolean.TRUE.equals(
+                        redisTemplate
+                                .opsForValue()
+                                .setIfAbsent(
+                                        lockKey, "1", DEFAULT_LOCK_TTL_SECONDS, TimeUnit.SECONDS));
         if (!acquired) {
             log.debug("任务 {} 未获取到锁，跳过执行", def.name());
             return;

@@ -20,8 +20,8 @@ import com.xuejiai.aaf.common.model.Result;
 /**
  * 通用 CRUD Controller 基类。提供标准 REST 端点：分页查询、单条查询、创建、更新、删除、批量删除。
  *
- * <p>子类只需加 {@code @RestController}、{@code @RequestMapping}、{@code @Tag} 注解，
- * 并注入对应的 Service 即可获得完整 CRUD 能力。子类可覆写方法添加 OpenAPI 注解。
+ * <p>子类只需加 {@code @RestController}、{@code @RequestMapping}、{@code @Tag} 注解， 并注入对应的 Service 即可获得完整
+ * CRUD 能力。子类可覆写方法添加 OpenAPI 注解。
  *
  * @param <E> 实体类型
  * @param <V> 响应 VO 类型
@@ -29,8 +29,7 @@ import com.xuejiai.aaf.common.model.Result;
  * @param <U> 更新 DTO 类型
  * @param <P> 分页查询 DTO 类型
  */
-public abstract class BaseCrudController<
-        E extends BaseEntity, V, C, U, P extends PageParam> {
+public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extends PageParam> {
 
     /** 子类提供 Service 实例。 */
     protected abstract BaseCrudService<E, V, C, U, P> getService();

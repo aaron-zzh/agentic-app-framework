@@ -15,11 +15,16 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    locations: classpath:db/migration-new
+    placeholder-replacement: false
 
 server:
   servlet:
     context-path: /
+
+aaf:
+  app:
+    company-name: ${AAF_COMPANY_NAME:学记智能}
 
 management:
   endpoints:

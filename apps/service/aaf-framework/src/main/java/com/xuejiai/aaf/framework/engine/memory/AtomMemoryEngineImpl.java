@@ -66,24 +66,39 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
         List<MemoryAtom> timeResults;
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            Future<List<MemoryAtom>> vectorFuture = query.queryEmbedding() != null
-                ? executor.submit(() -> searchByVector(query.userId(), query.queryEmbedding(), query.topK() * 3))
-                : executor.submit(() -> List.<MemoryAtom>of());
+            Future<List<MemoryAtom>> vectorFuture =
+                    query.queryEmbedding() != null
+                            ? executor.submit(
+                                    () ->
+                                            searchByVector(
+                                                    query.userId(),
+                                                    query.queryEmbedding(),
+                                                    query.topK() * 3))
+                            : executor.submit(() -> List.<MemoryAtom>of());
 
-            Future<List<MemoryAtom>> timeFuture = (query.timeStart() != null && query.timeEnd() != null)
-                ? executor.submit(() -> searchByTime(query.userId(), query.timeStart(), query.timeEnd()))
-                : executor.submit(() -> List.<MemoryAtom>of());
+            Future<List<MemoryAtom>> timeFuture =
+                    (query.timeStart() != null && query.timeEnd() != null)
+                            ? executor.submit(
+                                    () ->
+                                            searchByTime(
+                                                    query.userId(),
+                                                    query.timeStart(),
+                                                    query.timeEnd()))
+                            : executor.submit(() -> List.<MemoryAtom>of());
 
             vectorResults = vectorFuture.get();
             timeResults = timeFuture.get();
         } catch (Exception e) {
             log.warn("混合检索并行执行失败，降级为串行: {}", e.getMessage());
-            vectorResults = query.queryEmbedding() != null
-                ? searchByVector(query.userId(), query.queryEmbedding(), query.topK() * 3)
-                : List.of();
-            timeResults = (query.timeStart() != null && query.timeEnd() != null)
-                ? searchByTime(query.userId(), query.timeStart(), query.timeEnd())
-                : List.of();
+            vectorResults =
+                    query.queryEmbedding() != null
+                            ? searchByVector(
+                                    query.userId(), query.queryEmbedding(), query.topK() * 3)
+                            : List.of();
+            timeResults =
+                    (query.timeStart() != null && query.timeEnd() != null)
+                            ? searchByTime(query.userId(), query.timeStart(), query.timeEnd())
+                            : List.of();
         }
 
         // 合并去重 + 时间衰减评分
@@ -92,17 +107,22 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
         timeResults.forEach(a -> merged.putIfAbsent(a.getId(), a));
 
         // 标签过滤
-        var filtered = merged.values().stream()
-            .filter(a -> matchTags(a, query.tags()))
-            .toList();
+        var filtered = merged.values().stream().filter(a -> matchTags(a, query.tags())).toList();
 
         // 按时间衰减分数排序
-        var scored = filtered.stream()
-            .sorted(Comparator.comparingDouble(
-                (MemoryAtom a) -> a.getWeight() * timeDecay.score(a.getEventTime(), now, query.queryTime())
-            ).reversed())
-            .limit(query.topK())
-            .toList();
+        var scored =
+                filtered.stream()
+                        .sorted(
+                                Comparator.comparingDouble(
+                                                (MemoryAtom a) ->
+                                                        a.getWeight()
+                                                                * timeDecay.score(
+                                                                        a.getEventTime(),
+                                                                        now,
+                                                                        query.queryTime()))
+                                        .reversed())
+                        .limit(query.topK())
+                        .toList();
 
         // 记录访问
         if (!scored.isEmpty()) {
@@ -114,7 +134,8 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
     }
 
     @Override
-    public List<MemoryBundle> searchBundles(Long userId, float[] queryVec, int topK, Instant queryTime) {
+    public List<MemoryBundle> searchBundles(
+            Long userId, float[] queryVec, int topK, Instant queryTime) {
         return bundleSearch.search(userId, queryVec, topK, queryTime);
     }
 

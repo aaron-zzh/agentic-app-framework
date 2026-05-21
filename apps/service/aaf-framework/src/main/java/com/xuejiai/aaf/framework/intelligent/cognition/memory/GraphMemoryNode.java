@@ -20,9 +20,7 @@ import lombok.Setter;
 @Node("MemoryEntity")
 public class GraphMemoryNode {
 
-    @Id
-    @GeneratedValue
-    private Long id;
+    @Id @GeneratedValue private Long id;
 
     /** 实体名称 */
     private String name;

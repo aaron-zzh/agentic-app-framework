@@ -23,8 +23,11 @@ public class DistributedLockAspect {
     @Around("@annotation(lock)")
     public Object around(ProceedingJoinPoint pjp, DistributedLock lock) throws Throwable {
         var key = "dlock:" + lock.key();
-        var acquired = Boolean.TRUE.equals(
-                redisTemplate.opsForValue().setIfAbsent(key, "1", lock.ttlSeconds(), TimeUnit.SECONDS));
+        var acquired =
+                Boolean.TRUE.equals(
+                        redisTemplate
+                                .opsForValue()
+                                .setIfAbsent(key, "1", lock.ttlSeconds(), TimeUnit.SECONDS));
         if (!acquired) {
             log.debug("分布式锁获取失败，跳过执行: {}", key);
             return null;

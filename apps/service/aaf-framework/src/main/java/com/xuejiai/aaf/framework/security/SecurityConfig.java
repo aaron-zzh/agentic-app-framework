@@ -47,7 +47,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(SecretKey jwtSecretKey, JwtProperties properties, JwtUtils jwtUtils) {
+    public JwtDecoder jwtDecoder(
+            SecretKey jwtSecretKey, JwtProperties properties, JwtUtils jwtUtils) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey).build();
         // 验证 issuer、audience 和黑名单
         OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> validators =

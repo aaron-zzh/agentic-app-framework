@@ -14,25 +14,22 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
-/**
- * 意图理解：多轮意图跟踪、意图消歧、槽位填充。
- * 通过 LLM 分析用户输入，提取意图和槽位。
- */
+/** 意图理解：多轮意图跟踪、意图消歧、槽位填充。 通过 LLM 分析用户输入，提取意图和槽位。 */
 @Service
 @RequiredArgsConstructor
 public class IntentUnderstandingService {
 
-    /**
-     * 分析用户意图。
-     * 当前使用规则匹配，后续可升级为 LLM 意图分类。
-     */
+    /** 分析用户意图。 当前使用规则匹配，后续可升级为 LLM 意图分类。 */
     public IntentResult analyze(String userInput, List<String> conversationHistory) {
         var result = new IntentResult();
         result.setRawInput(userInput);
 
         // 简单意图分类（后续由 LLM 驱动）
-        if (userInput.contains("?") || userInput.contains("？") || userInput.startsWith("什么")
-                || userInput.startsWith("如何") || userInput.startsWith("为什么")) {
+        if (userInput.contains("?")
+                || userInput.contains("？")
+                || userInput.startsWith("什么")
+                || userInput.startsWith("如何")
+                || userInput.startsWith("为什么")) {
             result.setIntent("question");
         } else if (userInput.startsWith("/") || userInput.startsWith("@")) {
             result.setIntent("command");
@@ -45,8 +42,8 @@ public class IntentUnderstandingService {
     }
 
     /** 槽位填充：从对话上下文中提取缺失参数 */
-    public Map<String, String> fillSlots(IntentResult intent, Map<String, String> requiredSlots,
-            List<String> history) {
+    public Map<String, String> fillSlots(
+            IntentResult intent, Map<String, String> requiredSlots, List<String> history) {
         // TODO: 通过 LLM 从上下文中提取槽位值
         return Map.of();
     }

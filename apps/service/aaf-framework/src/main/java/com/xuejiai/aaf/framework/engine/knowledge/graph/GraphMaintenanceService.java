@@ -2,13 +2,12 @@ package com.xuejiai.aaf.framework.engine.knowledge.graph;
 
 import java.util.Map;
 
-import lombok.RequiredArgsConstructor;
 import org.neo4j.driver.Driver;
 import org.springframework.stereotype.Service;
 
-/**
- * 图谱维护服务 — 实体合并、健康检查、文档清理
- */
+import lombok.RequiredArgsConstructor;
+
+/** 图谱维护服务 — 实体合并、健康检查、文档清理 */
 @Service
 @RequiredArgsConstructor
 public class GraphMaintenanceService {
@@ -17,7 +16,8 @@ public class GraphMaintenanceService {
 
     /** 合并实体：将 source 的关系转移到 target，然后删除 source */
     public void mergeEntity(Long sourceId, Long targetId) {
-        var cypher = """
+        var cypher =
+                """
                 MATCH (s) WHERE id(s) = $sourceId
                 MATCH (t) WHERE id(t) = $targetId
                 MATCH (s)-[r]-(x) WHERE x <> t
@@ -33,7 +33,8 @@ public class GraphMaintenanceService {
 
     /** 图谱健康度检查 */
     public GraphHealthReport healthCheck(Long knowledgeBaseId) {
-        var cypher = """
+        var cypher =
+                """
                 MATCH (n:KnowledgeEntity {knowledgeBaseId: $kbId})
                 WITH count(n) AS totalNodes
                 OPTIONAL MATCH (:KnowledgeEntity {knowledgeBaseId: $kbId})-[r]-(:KnowledgeEntity {knowledgeBaseId: $kbId})
@@ -48,8 +49,7 @@ public class GraphMaintenanceService {
                     record.get("totalNodes").asLong(),
                     record.get("totalRelations").asLong(),
                     record.get("isolatedNodes").asLong(),
-                    record.get("avgDegree").asDouble()
-            );
+                    record.get("avgDegree").asDouble());
         }
     }
 

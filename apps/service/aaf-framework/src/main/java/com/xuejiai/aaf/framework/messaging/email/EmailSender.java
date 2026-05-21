@@ -9,5 +9,6 @@ public interface EmailSender {
     void send(String to, String subject, String htmlContent);
 
     /** 发送带附件的 HTML 邮件 */
-    void sendWithAttachment(String to, String subject, String htmlContent, List<Attachment> attachments);
+    void sendWithAttachment(
+            String to, String subject, String htmlContent, List<Attachment> attachments);
 }

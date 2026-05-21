@@ -1,13 +1,16 @@
 package com.xuejiai.aaf.module.knowledge.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
+
+import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 知识库。 */
 @Getter
@@ -44,7 +47,7 @@ public class KnowledgeBase extends BaseEntity {
     @Column(name = "chunk_overlap")
     private Integer chunkOverlap;
 
-    /** 状态：0=正常，1=禁用 */
+    /** 状态 */
     @Column(name = "status", nullable = false)
-    private Integer status = 0;
+    private Integer status = CommonStatusEnum.ENABLE.getCode();
 }

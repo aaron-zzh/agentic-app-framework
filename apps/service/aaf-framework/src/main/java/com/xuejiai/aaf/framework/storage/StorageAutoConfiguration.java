@@ -22,15 +22,9 @@ public class StorageAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "aaf.storage", name = "type", havingValue = "oss")
-    public StorageService ossStorageService(StorageProperties properties) {
-        return new OssStorageService(properties.oss());
-    }
-
-    @Bean
-    @ConditionalOnProperty(prefix = "aaf.storage", name = "type", havingValue = "minio")
-    public StorageService minioStorageService(StorageProperties properties) {
-        return new MinioStorageService(properties.minio());
+    @ConditionalOnProperty(prefix = "aaf.storage", name = "type", havingValue = "s3")
+    public StorageService s3StorageService(StorageProperties properties) {
+        return new S3StorageService(properties.s3());
     }
 
     @Bean

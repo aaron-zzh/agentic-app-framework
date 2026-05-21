@@ -11,14 +11,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 
 import io.agentscope.core.tool.Toolkit;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * MCP 工具管理：发现、注册、权限校验、调用。
- * Agent 通过此服务获取可用工具集，绑定到 AgentScope Toolkit。
- */
+/** MCP 工具管理：发现、注册、权限校验、调用。 Agent 通过此服务获取可用工具集，绑定到 AgentScope Toolkit。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -54,17 +50,13 @@ public class McpToolService {
         return toolkit;
     }
 
-    /**
-     * 校验工具调用权限。
-     */
+    /** 校验工具调用权限。 */
     public boolean isAllowed(String agentId, String toolName) {
         var allowed = whitelist.get(agentId);
         return allowed == null || allowed.contains(toolName);
     }
 
-    /**
-     * 获取 Agent 可用工具列表。
-     */
+    /** 获取 Agent 可用工具列表。 */
     public List<String> listTools(String agentId) {
         return whitelist.getOrDefault(agentId, List.of());
     }

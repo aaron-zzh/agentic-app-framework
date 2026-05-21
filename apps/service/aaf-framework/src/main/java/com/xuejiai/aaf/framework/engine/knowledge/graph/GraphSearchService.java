@@ -2,16 +2,14 @@ package com.xuejiai.aaf.framework.engine.knowledge.graph;
 
 import java.util.*;
 
-import lombok.RequiredArgsConstructor;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.Record;
 import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Path;
 import org.springframework.stereotype.Service;
 
-/**
- * 图增强检索服务 — 子图搜索、路径发现、社区检测
- */
+import lombok.RequiredArgsConstructor;
+
+/** 图增强检索服务 — 子图搜索、路径发现、社区检测 */
 @Service
 @RequiredArgsConstructor
 public class GraphSearchService {
@@ -20,7 +18,8 @@ public class GraphSearchService {
 
     /** N 跳子图检索 */
     public List<KnowledgeEntity> subgraphSearch(Long entityId, int hops) {
-        var cypher = "MATCH (n)-[*1..%d]-(m) WHERE id(n) = $entityId RETURN DISTINCT m".formatted(hops);
+        var cypher =
+                "MATCH (n)-[*1..%d]-(m) WHERE n.id = $entityId RETURN DISTINCT m".formatted(hops);
         try (var session = driver.session()) {
             return session.run(cypher, Map.of("entityId", entityId))
                     .list(record -> mapToEntity(record.get("m").asNode()));
@@ -29,25 +28,29 @@ public class GraphSearchService {
 
     /** 两实体间所有最短路径 */
     public List<List<KnowledgeEntity>> findPaths(Long fromId, Long toId, int maxDepth) {
-        var cypher = "MATCH p = allShortestPaths((a)-[*..%d]-(b)) WHERE id(a) = $fromId AND id(b) = $toId RETURN p".formatted(maxDepth);
+        var cypher =
+                "MATCH p = allShortestPaths((a)-[*..%d]-(b)) WHERE a.id = $fromId AND b.id = $toId RETURN p"
+                        .formatted(maxDepth);
         try (var session = driver.session()) {
             return session.run(cypher, Map.of("fromId", fromId, "toId", toId))
-                    .list(record -> {
-                        Path path = record.get("p").asPath();
-                        List<KnowledgeEntity> entities = new ArrayList<>();
-                        path.nodes().forEach(node -> entities.add(mapToEntity(node)));
-                        return entities;
-                    });
+                    .list(
+                            record -> {
+                                Path path = record.get("p").asPath();
+                                List<KnowledgeEntity> entities = new ArrayList<>();
+                                path.nodes().forEach(node -> entities.add(mapToEntity(node)));
+                                return entities;
+                            });
         }
     }
 
     /** 简化版社区发现 — 按连通分量分组 */
     public Map<Integer, List<KnowledgeEntity>> detectCommunities(Long knowledgeBaseId) {
         // 获取所有节点及其邻接关系，用 BFS 划分连通分量
-        var cypher = """
+        var cypher =
+                """
                 MATCH (n:KnowledgeEntity {knowledgeBaseId: $kbId})
                 OPTIONAL MATCH (n)--(m:KnowledgeEntity {knowledgeBaseId: $kbId})
-                RETURN id(n) AS nodeId, n AS node, collect(id(m)) AS neighbors
+                RETURN n.id AS nodeId, n AS node, collect(m.id) AS neighbors
                 """;
         try (var session = driver.session()) {
             var records = session.run(cypher, Map.of("kbId", knowledgeBaseId)).list();
@@ -88,7 +91,7 @@ public class GraphSearchService {
 
     private KnowledgeEntity mapToEntity(Node node) {
         var entity = new KnowledgeEntity();
-        entity.setId(node.id());
+        entity.setId(node.get("id").asLong(0));
         entity.setName(node.get("name").asString(null));
         entity.setType(node.get("type").asString(null));
         entity.setKnowledgeBaseId(node.get("knowledgeBaseId").asLong(0));

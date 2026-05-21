@@ -24,11 +24,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.model.PageResult;
-import com.xuejiai.aaf.module.system.service.UserService;
-import com.xuejiai.aaf.module.system.vo.UserCreateDTO;
-import com.xuejiai.aaf.module.system.vo.UserPageDTO;
-import com.xuejiai.aaf.module.system.vo.UserUpdateDTO;
-import com.xuejiai.aaf.module.system.vo.UserVO;
+import com.xuejiai.aaf.module.system.task.async.AsyncTaskService;
+import com.xuejiai.aaf.module.system.user.controller.UserController;
+import com.xuejiai.aaf.module.system.user.service.UserService;
+import com.xuejiai.aaf.module.system.user.vo.UserCreateDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserPageDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserUpdateDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserVO;
 
 /** 用户接口单元测试（@WebMvcTest 切片测试，不加载完整上下文）。 */
 @WebMvcTest(UserController.class)
@@ -36,7 +38,7 @@ class UserControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private UserService userService;
-    @MockitoBean private com.xuejiai.aaf.module.system.async.AsyncTaskService asyncTaskService;
+    @MockitoBean private AsyncTaskService asyncTaskService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final UserVO sampleUser = new UserVO(1L, "testuser", "测试", 1, null, null);

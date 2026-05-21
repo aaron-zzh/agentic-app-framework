@@ -14,8 +14,4 @@ import java.util.List;
  * @param relations 原子间关系
  * @param score bundle 整体分数
  */
-public record MemoryBundle(
-    List<MemoryAtom> atoms,
-    List<MemoryRelation> relations,
-    double score
-) {}
+public record MemoryBundle(List<MemoryAtom> atoms, List<MemoryRelation> relations, double score) {}

@@ -14,7 +14,12 @@ import java.util.UUID;
  * @param createdAt 创建时间
  */
 public record AsyncTaskMessage(
-        String id, String type, String payload, int priority, int maxRetries, LocalDateTime createdAt) {
+        String id,
+        String type,
+        String payload,
+        int priority,
+        int maxRetries,
+        LocalDateTime createdAt) {
 
     public AsyncTaskMessage(String type, String payload) {
         this(UUID.randomUUID().toString(), type, payload, 5, 3, LocalDateTime.now());

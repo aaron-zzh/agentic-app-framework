@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.*;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,11 +16,13 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "memory_relation", indexes = {
-    @Index(columnList = "sourceId"),
-    @Index(columnList = "targetId"),
-    @Index(columnList = "relationType")
-})
+@Table(
+        name = "memory_relation",
+        indexes = {
+            @Index(columnList = "sourceId"),
+            @Index(columnList = "targetId"),
+            @Index(columnList = "relationType")
+        })
 public class MemoryRelation {
 
     @Id

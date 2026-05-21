@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.framework.task.queue;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,9 +21,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 任务消费者。使用 XREADGROUP 消费 Redis Stream，按优先级轮询。
- */
+/** 任务消费者。使用 XREADGROUP 消费 Redis Stream，按优先级轮询。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -32,7 +29,8 @@ public class TaskConsumer {
 
     private static final String GROUP = "aaf-consumers";
     private static final String CONSUMER_NAME = "consumer-1";
-    private static final List<String> STREAMS = List.of("task_queue:high", "task_queue:normal", "task_queue:low");
+    private static final List<String> STREAMS =
+            List.of("task_queue:high", "task_queue:normal", "task_queue:low");
 
     private final StringRedisTemplate redisTemplate;
     private final TaskHandlerRegistry handlerRegistry;
@@ -47,7 +45,9 @@ public class TaskConsumer {
         ensureGroups();
         running.set(true);
         var threads = taskProperties.getQueue().getConsumerThreads();
-        executor = Executors.newFixedThreadPool(threads, r -> Thread.ofVirtual().name("task-consumer").unstarted(r));
+        executor =
+                Executors.newFixedThreadPool(
+                        threads, r -> Thread.ofVirtual().name("task-consumer").unstarted(r));
         for (int i = 0; i < threads; i++) {
             executor.submit(this::pollLoop);
         }
@@ -67,11 +67,16 @@ public class TaskConsumer {
         while (running.get()) {
             try {
                 for (var stream : STREAMS) {
-                    var messages = redisTemplate.opsForStream().read(
-                            Consumer.from(GROUP, CONSUMER_NAME),
-                            org.springframework.data.redis.connection.stream.StreamReadOptions.empty()
-                                    .count(1).block(timeout),
-                            StreamOffset.create(stream, ReadOffset.lastConsumed()));
+                    var messages =
+                            redisTemplate
+                                    .opsForStream()
+                                    .read(
+                                            Consumer.from(GROUP, CONSUMER_NAME),
+                                            org.springframework.data.redis.connection.stream
+                                                    .StreamReadOptions.empty()
+                                                    .count(1)
+                                                    .block(timeout),
+                                            StreamOffset.create(stream, ReadOffset.lastConsumed()));
                     if (messages != null) {
                         for (var msg : messages) {
                             processMessage(stream, msg);

@@ -2,7 +2,6 @@ package com.xuejiai.aaf.util;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -12,6 +11,7 @@ import jakarta.validation.Validator;
  * 通用导入执行器。校验 → 分批入库，其他实体复用。
  *
  * <p>使用示例：
+ *
  * <pre>{@code
  * var result = ImportExecutor.<UserImportVO>builder()
  *     .validator(validator)
@@ -49,8 +49,10 @@ public class ImportExecutor<T> {
     public ImportResult execute() {
         var errors = validate();
         if (!errors.isEmpty()) {
-            var display = errors.size() > MAX_ERROR_DISPLAY
-                    ? errors.subList(0, MAX_ERROR_DISPLAY) : errors;
+            var display =
+                    errors.size() > MAX_ERROR_DISPLAY
+                            ? errors.subList(0, MAX_ERROR_DISPLAY)
+                            : errors;
             return new ImportResult(0, errors.size(), display);
         }
         // 分批入库

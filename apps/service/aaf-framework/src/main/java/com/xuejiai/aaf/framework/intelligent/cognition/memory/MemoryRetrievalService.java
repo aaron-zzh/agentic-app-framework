@@ -2,10 +2,11 @@
  * 记忆融合检索服务（对齐认知心理学：线索依赖提取 + 激活扩散）。
  *
  * <p>认知心理学对齐：人类记忆检索不是全量扫描，而是：
+ *
  * <ol>
- *   <li>线索识别：根据查询线索判断应激活哪类记忆</li>
- *   <li>激活扩散：从种子记忆沿关系网络扩散</li>
- *   <li>提取重构：将激活的片段重新组装为连贯回忆</li>
+ *   <li>线索识别：根据查询线索判断应激活哪类记忆
+ *   <li>激活扩散：从种子记忆沿关系网络扩散
+ *   <li>提取重构：将激活的片段重新组装为连贯回忆
  * </ol>
  *
  * @author AaronZZH & Kiro
@@ -18,19 +19,16 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.HybridQuery;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
 import com.xuejiai.aaf.framework.engine.memory.MemoryBundle;
-import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 多源融合检索：根据查询意图动态路由到不同记忆类型，
- * 分配检索预算，并行检索后重排输出。
- */
+/** 多源融合检索：根据查询意图动态路由到不同记忆类型， 分配检索预算，并行检索后重排输出。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -79,12 +77,15 @@ public class MemoryRetrievalService {
 
         // 4. 按预算并行检索各类记忆
         if (queryEmbedding != null && budget.atomicTopK > 0) {
-            var atomicResults = atomMemoryEngine.searchByVector(userId, queryEmbedding, budget.atomicTopK);
+            var atomicResults =
+                    atomMemoryEngine.searchByVector(userId, queryEmbedding, budget.atomicTopK);
             context.setAtomicMemories(atomicResults);
         }
 
         if (queryEmbedding != null && budget.episodicTopK > 0) {
-            var bundles = atomMemoryEngine.searchBundles(userId, queryEmbedding, budget.episodicTopK, null);
+            var bundles =
+                    atomMemoryEngine.searchBundles(
+                            userId, queryEmbedding, budget.episodicTopK, null);
             context.setEpisodicBundles(bundles);
         }
 
@@ -93,8 +94,11 @@ public class MemoryRetrievalService {
         }
 
         // 5. 重排（对原子记忆做 LLM 重排序）
-        if (query != null && context.getAtomicMemories() != null && context.getAtomicMemories().size() > 1) {
-            context.setAtomicMemories(reranker.rerank(query, context.getAtomicMemories(), budget.atomicTopK));
+        if (query != null
+                && context.getAtomicMemories() != null
+                && context.getAtomicMemories().size() > 1) {
+            context.setAtomicMemories(
+                    reranker.rerank(query, context.getAtomicMemories(), budget.atomicTopK));
         }
 
         // 6. 兼容旧接口：长期记忆
@@ -114,15 +118,15 @@ public class MemoryRetrievalService {
     }
 
     /** 混合检索（时序 + 语义 + 标签） */
-    public List<MemoryAtom> retrieveHybrid(Long userId, float[] queryEmbedding,
-                                           Instant timeStart, Instant timeEnd, int topK) {
+    public List<MemoryAtom> retrieveHybrid(
+            Long userId, float[] queryEmbedding, Instant timeStart, Instant timeEnd, int topK) {
         var query = new HybridQuery(userId, queryEmbedding, timeStart, timeEnd, null, null, topK);
         return atomMemoryEngine.searchHybrid(query);
     }
 
     /** Bundle Search：图路由证据链检索 */
-    public List<MemoryBundle> retrieveBundles(Long userId, float[] queryEmbedding,
-                                             int topK, Instant queryTime) {
+    public List<MemoryBundle> retrieveBundles(
+            Long userId, float[] queryEmbedding, int topK, Instant queryTime) {
         return atomMemoryEngine.searchBundles(userId, queryEmbedding, topK, queryTime);
     }
 
@@ -133,23 +137,27 @@ public class MemoryRetrievalService {
 
     // ===== 查询意图路由（对齐认知心理学：线索类型决定激活模式） =====
 
-    /**
-     * 查询意图分类（轻量规则，不调 LLM）。
-     * 认知心理学：不同线索类型激活不同记忆系统——
-     * 时间线索→情景记忆，语义线索→长期记忆，"怎么做"→程序化记忆。
-     */
+    /** 查询意图分类（轻量规则，不调 LLM）。 认知心理学：不同线索类型激活不同记忆系统—— 时间线索→情景记忆，语义线索→长期记忆，"怎么做"→程序化记忆。 */
     private QueryIntent classifyIntent(String query) {
         if (query == null || query.isBlank()) return QueryIntent.GENERAL;
 
         var lower = query.toLowerCase();
         // 程序化意图：怎么做/步骤/流程/方法
-        if (lower.contains("怎么") || lower.contains("如何") || lower.contains("步骤")
-            || lower.contains("流程") || lower.contains("方法") || lower.contains("how to")) {
+        if (lower.contains("怎么")
+                || lower.contains("如何")
+                || lower.contains("步骤")
+                || lower.contains("流程")
+                || lower.contains("方法")
+                || lower.contains("how to")) {
             return QueryIntent.PROCEDURAL;
         }
         // 时序意图：什么时候/上次/之前/昨天
-        if (lower.contains("什么时候") || lower.contains("上次") || lower.contains("之前")
-            || lower.contains("昨天") || lower.contains("上周") || lower.contains("when")) {
+        if (lower.contains("什么时候")
+                || lower.contains("上次")
+                || lower.contains("之前")
+                || lower.contains("昨天")
+                || lower.contains("上周")
+                || lower.contains("when")) {
             return QueryIntent.TEMPORAL;
         }
         // 因果意图：为什么/原因/因为
@@ -159,21 +167,23 @@ public class MemoryRetrievalService {
         return QueryIntent.GENERAL;
     }
 
-    /**
-     * 预算分配（借鉴 M-FLOW 软路由）。
-     * 根据意图动态调整各类记忆的检索数量。
-     */
+    /** 预算分配（借鉴 M-FLOW 软路由）。 根据意图动态调整各类记忆的检索数量。 */
     private RetrievalBudget allocateBudget(QueryIntent intent) {
         return switch (intent) {
-            case PROCEDURAL -> new RetrievalBudget(3, 2, 5);  // 程序化优先
-            case TEMPORAL -> new RetrievalBudget(3, 6, 1);    // 情景优先
-            case CAUSAL -> new RetrievalBudget(4, 5, 1);      // 情景+原子
+            case PROCEDURAL -> new RetrievalBudget(3, 2, 5); // 程序化优先
+            case TEMPORAL -> new RetrievalBudget(3, 6, 1); // 情景优先
+            case CAUSAL -> new RetrievalBudget(4, 5, 1); // 情景+原子
             case GENERAL -> new RetrievalBudget(ATOMIC_TOP_K, EPISODIC_TOP_K, PROCEDURAL_TOP_K);
         };
     }
 
     /** 查询意图类型 */
-    private enum QueryIntent { GENERAL, PROCEDURAL, TEMPORAL, CAUSAL }
+    private enum QueryIntent {
+        GENERAL,
+        PROCEDURAL,
+        TEMPORAL,
+        CAUSAL
+    }
 
     /** 检索预算分配 */
     private record RetrievalBudget(int atomicTopK, int episodicTopK, int proceduralTopK) {}
@@ -184,14 +194,19 @@ public class MemoryRetrievalService {
     public static class MemoryContext {
         /** 短期记忆：当前对话上下文 */
         private List<MemoryMessage> recentMessages = new ArrayList<>();
+
         /** 原子记忆：语义相关的长期记忆片段（已重排） */
         private List<MemoryAtom> atomicMemories = new ArrayList<>();
+
         /** 情景 Bundle：关联证据链 */
         private List<MemoryBundle> episodicBundles = new ArrayList<>();
+
         /** 程序化记忆：经验 SOP */
         private List<ProceduralMemory> proceduralMemories = new ArrayList<>();
+
         /** 兼容旧接口：长期记忆 */
         private List<LongTermMemory> longTermMemories = new ArrayList<>();
+
         /** 兼容旧接口：图谱实体 */
         private List<GraphMemoryNode> relatedEntities = new ArrayList<>();
     }

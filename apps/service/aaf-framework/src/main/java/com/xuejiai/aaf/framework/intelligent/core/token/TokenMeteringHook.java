@@ -10,14 +10,13 @@ import org.springframework.stereotype.Component;
 import io.agentscope.core.hook.Hook;
 import io.agentscope.core.hook.HookEvent;
 import io.agentscope.core.hook.PostCallEvent;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /**
- * AgentScope Hook：在 Agent 调用完成后记录 Token 用量。
- * 桥接 AgentScope 的 getChatUsage() 与 AAF 的 TokenMeteringService。
+ * AgentScope Hook：在 Agent 调用完成后记录 Token 用量。 桥接 AgentScope 的 getChatUsage() 与 AAF 的
+ * TokenMeteringService。
  */
 @Slf4j
 @Component

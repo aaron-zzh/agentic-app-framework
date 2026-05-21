@@ -21,7 +21,8 @@ public interface GraphMemoryRepository extends Neo4jRepository<GraphMemoryNode, 
     List<GraphMemoryNode> findByUserIdAndNameContaining(Long userId, String keyword);
 
     /** 多跳关系查询 */
-    @Query("MATCH (n:MemoryEntity {userId: $userId})-[r:RELATES_TO*1..2]-(m:MemoryEntity) " +
-            "WHERE n.name = $entityName RETURN DISTINCT m")
+    @Query(
+            "MATCH (n:MemoryEntity {userId: $userId})-[r:RELATES_TO*1..2]-(m:MemoryEntity) "
+                    + "WHERE n.name = $entityName RETURN DISTINCT m")
     List<GraphMemoryNode> findRelatedEntities(Long userId, String entityName);
 }

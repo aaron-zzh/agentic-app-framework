@@ -1,15 +1,13 @@
 package com.xuejiai.aaf.framework.engine.knowledge.chunker;
 
-import org.springframework.stereotype.Component;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 固定长度分块器，支持重叠窗口
- */
+import org.springframework.stereotype.Component;
+
+/** 固定长度分块器，支持重叠窗口 */
 @Component
 public class FixedSizeChunker implements DocumentChunker {
 
@@ -19,7 +17,8 @@ public class FixedSizeChunker implements DocumentChunker {
     }
 
     @Override
-    public List<DocumentChunk> chunk(String content, ChunkConfig config, Map<String, Object> baseMetadata) {
+    public List<DocumentChunk> chunk(
+            String content, ChunkConfig config, Map<String, Object> baseMetadata) {
         var chunks = new ArrayList<DocumentChunk>();
         int len = content.length();
         int step = config.chunkSize() - config.overlapSize();

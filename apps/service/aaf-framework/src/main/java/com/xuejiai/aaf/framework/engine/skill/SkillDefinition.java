@@ -1,24 +1,25 @@
 package com.xuejiai.aaf.framework.engine.skill;
 
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 技能定义实体（迁移自 intelligent/assistant/SkillDefinition）。
- * 扩展：builtIn（内置标记）、version（版本号，用于启动时 upsert）、instructions（技能指令）。
+ * 技能定义实体（迁移自 intelligent/assistant/SkillDefinition）。 扩展：builtIn（内置标记）、version（版本号，用于启动时
+ * upsert）、instructions（技能指令）。
  */
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_skill_definition", indexes = {
-    @Index(columnList = "assistantId"),
-    @Index(columnList = "triggerIntent"),
-    @Index(columnList = "builtIn")
-})
+@Table(
+        name = "ai_skill_definition",
+        indexes = {
+            @Index(columnList = "assistantId"),
+            @Index(columnList = "triggerIntent"),
+            @Index(columnList = "builtIn")
+        })
 public class SkillDefinition extends BaseEntity {
 
     /** 技能唯一标识 */

@@ -16,10 +16,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.TokenUsageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Token 计量系统：记录用量、检查配额。
- * 监听 AgentScope 的 getChatUsage() 和 AAF 的 TokenUsageEvent。
- */
+/** Token 计量系统：记录用量、检查配额。 监听 AgentScope 的 getChatUsage() 和 AAF 的 TokenUsageEvent。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -46,7 +43,8 @@ public class TokenMeteringService {
         if (quota <= 0) {
             return false; // 无限制
         }
-        var used = repository.sumTotalTokensByUserSince(userId, LocalDateTime.now().withDayOfMonth(1));
+        var used =
+                repository.sumTotalTokensByUserSince(userId, LocalDateTime.now().withDayOfMonth(1));
         return used >= quota;
     }
 
@@ -56,7 +54,12 @@ public class TokenMeteringService {
     }
 
     /** 记录用量（供 AgentScope Hook 调用） */
-    public void record(Long userId, String modelId, String conversationId, long promptTokens, long completionTokens) {
+    public void record(
+            Long userId,
+            String modelId,
+            String conversationId,
+            long promptTokens,
+            long completionTokens) {
         var record = new TokenUsageRecord();
         record.setUserId(userId);
         record.setModelId(modelId);

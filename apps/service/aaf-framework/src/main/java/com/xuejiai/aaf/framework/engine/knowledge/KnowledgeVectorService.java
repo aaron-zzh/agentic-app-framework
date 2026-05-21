@@ -10,9 +10,7 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 知识库向量服务，封装向量写入和相似度查询
- */
+/** 知识库向量服务，封装向量写入和相似度查询 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -20,9 +18,7 @@ public class KnowledgeVectorService {
 
     private final VectorStore vectorStore;
 
-    /**
-     * 写入文档向量
-     */
+    /** 写入文档向量 */
     public void store(List<Document> documents) {
         vectorStore.add(documents);
         log.info("写入 {} 条向量", documents.size());
@@ -32,7 +28,7 @@ public class KnowledgeVectorService {
      * 相似度查询
      *
      * @param query 查询文本
-     * @param topK  返回条数
+     * @param topK 返回条数
      * @return 相似文档列表
      */
     public List<Document> search(String query, int topK) {
@@ -40,9 +36,7 @@ public class KnowledgeVectorService {
                 SearchRequest.builder().query(query).topK(topK).build());
     }
 
-    /**
-     * 带过滤条件的相似度查询
-     */
+    /** 带过滤条件的相似度查询 */
     public List<Document> search(String query, int topK, String filterExpression) {
         return vectorStore.similaritySearch(
                 SearchRequest.builder()
@@ -52,9 +46,7 @@ public class KnowledgeVectorService {
                         .build());
     }
 
-    /**
-     * 删除向量
-     */
+    /** 删除向量 */
     public void delete(List<String> ids) {
         vectorStore.delete(ids);
     }

@@ -14,10 +14,7 @@ import org.springframework.stereotype.Service;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 结果冲突检测、投票机制、人工升级。
- * 当多个 Agent 对同一问题给出不同答案时进行仲裁。
- */
+/** 结果冲突检测、投票机制、人工升级。 当多个 Agent 对同一问题给出不同答案时进行仲裁。 */
 @Service
 public class ConflictArbitrator {
 
@@ -35,32 +32,39 @@ public class ConflictArbitrator {
             return new ArbitrationResult(null, ArbitrationStrategy.NO_RESULT, false);
         }
         if (results.size() == 1) {
-            return new ArbitrationResult(results.getFirst().getContent(), ArbitrationStrategy.SINGLE, false);
+            return new ArbitrationResult(
+                    results.getFirst().getContent(), ArbitrationStrategy.SINGLE, false);
         }
 
         // 按内容分组（简单相似度：完全相同）
         var groups = results.stream().collect(Collectors.groupingBy(AgentVote::getContent));
 
         // 多数一致
-        var majority = groups.entrySet().stream()
-                .max(Map.Entry.comparingByValue((a, b) -> Integer.compare(a.size(), b.size())))
-                .orElse(null);
+        var majority =
+                groups.entrySet().stream()
+                        .max(
+                                Map.Entry.comparingByValue(
+                                        (a, b) -> Integer.compare(a.size(), b.size())))
+                        .orElse(null);
 
         if (majority != null && majority.getValue().size() > results.size() / 2) {
-            return new ArbitrationResult(majority.getKey(), ArbitrationStrategy.MAJORITY_VOTE, false);
+            return new ArbitrationResult(
+                    majority.getKey(), ArbitrationStrategy.MAJORITY_VOTE, false);
         }
 
         // 按置信度排序
-        var sorted = results.stream()
-                .sorted((a, b) -> Double.compare(b.getConfidence(), a.getConfidence()))
-                .toList();
+        var sorted =
+                results.stream()
+                        .sorted((a, b) -> Double.compare(b.getConfidence(), a.getConfidence()))
+                        .toList();
 
         var best = sorted.getFirst();
         var second = sorted.get(1);
 
         // 置信度差距大，取最高
         if (best.getConfidence() - second.getConfidence() > CONFLICT_THRESHOLD) {
-            return new ArbitrationResult(best.getContent(), ArbitrationStrategy.HIGHEST_CONFIDENCE, false);
+            return new ArbitrationResult(
+                    best.getContent(), ArbitrationStrategy.HIGHEST_CONFIDENCE, false);
         }
 
         // 冲突无法自动解决，升级到人工
@@ -83,14 +87,15 @@ public class ConflictArbitrator {
     }
 
     /** 仲裁结果 */
-    public record ArbitrationResult(String content, ArbitrationStrategy strategy, boolean needsHumanReview) {}
+    public record ArbitrationResult(
+            String content, ArbitrationStrategy strategy, boolean needsHumanReview) {}
 
     /** 仲裁策略 */
     public enum ArbitrationStrategy {
-        SINGLE,              // 只有一个结果
-        MAJORITY_VOTE,       // 多数投票
-        HIGHEST_CONFIDENCE,  // 最高置信度
-        HUMAN_ESCALATION,    // 人工升级
-        NO_RESULT            // 无结果
+        SINGLE, // 只有一个结果
+        MAJORITY_VOTE, // 多数投票
+        HIGHEST_CONFIDENCE, // 最高置信度
+        HUMAN_ESCALATION, // 人工升级
+        NO_RESULT // 无结果
     }
 }

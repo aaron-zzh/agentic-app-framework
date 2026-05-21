@@ -11,16 +11,14 @@ import com.xuejiai.aaf.framework.intelligent.core.function.FunctionDefinition;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 工具注册表：Spring Bean 自动发现 + MCP 工具 + 手动注册。
- * 实现 ToolProvider 接口，按 assistantId 白名单过滤。
- */
+/** 工具注册表：Spring Bean 自动发现 + MCP 工具 + 手动注册。 实现 ToolProvider 接口，按 assistantId 白名单过滤。 */
 @Slf4j
 @Component
 public class ToolRegistry implements FunctionDefinition.ToolProvider {
 
     private final Map<String, ToolCallback> callbacks = new ConcurrentHashMap<>();
     private final Map<String, FunctionDefinition> definitions = new ConcurrentHashMap<>();
+
     /** assistantId → 允许的工具名列表，null 表示全部允许 */
     private final Map<String, List<String>> whitelist = new ConcurrentHashMap<>();
 
@@ -36,11 +34,12 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     public void register(ToolCallback callback) {
         var name = callback.getToolDefinition().name();
         callbacks.put(name, callback);
-        definitions.put(name, new FunctionDefinition(
-            name,
-            callback.getToolDefinition().description(),
-            Map.of("type", "object", "properties", Map.of())
-        ));
+        definitions.put(
+                name,
+                new FunctionDefinition(
+                        name,
+                        callback.getToolDefinition().description(),
+                        Map.of("type", "object", "properties", Map.of())));
         log.info("注册工具: {}", name);
     }
 
@@ -60,10 +59,7 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     public List<ToolCallback> resolveForAssistant(String assistantId) {
         var allowed = whitelist.get(assistantId);
         if (allowed == null) return List.copyOf(callbacks.values());
-        return allowed.stream()
-            .map(callbacks::get)
-            .filter(Objects::nonNull)
-            .toList();
+        return allowed.stream().map(callbacks::get).filter(Objects::nonNull).toList();
     }
 
     @Override

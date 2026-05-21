@@ -2,17 +2,14 @@ package com.xuejiai.aaf.framework.engine.knowledge.search;
 
 import java.util.List;
 
-/**
- * 相似度搜索请求参数
- */
+/** 相似度搜索请求参数 */
 public record SearchRequest(
         String query,
         int topK,
         double similarityThreshold,
         Long knowledgeBaseId,
         Long documentId,
-        List<String> tags
-) {
+        List<String> tags) {
     public SearchRequest(String query) {
         this(query, 5, 0.7, null, null, null);
     }

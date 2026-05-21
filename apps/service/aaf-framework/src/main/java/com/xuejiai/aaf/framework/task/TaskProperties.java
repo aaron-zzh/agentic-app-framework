@@ -24,6 +24,7 @@ public class TaskProperties {
     public static class Queue {
         /** 消费者线程数 */
         private int consumerThreads = 2;
+
         /** 拉取超时时间 */
         private Duration pollTimeout = Duration.ofSeconds(5);
     }

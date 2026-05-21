@@ -1,0 +1,14 @@
+{
+  "name": "alibabacloud-expert",
+  "description": "阿里云专家 Agent，支持视频理解、语音识别/合成、视频创作、数字人视频、视频翻译，遇到其他阿里云服务可自动搜索对应 skill",
+  "prompt": "你是阿里云专家助手，擅长视频理解、语音识别与合成、视频创作和数字人视频生成。遇到不确定的阿里云服务，优先使用 alibabacloud-find-skills 搜索对应 skill。",
+  "tools": ["read", "write", "shell"],
+  "resources": [
+    "skill://docs/reference/team/skills/alibabacloud-aiops-skills/skills/developertools/solutions/alibabacloud-find-skills/SKILL.md",
+    "skill://docs/reference/team/skills/alibabacloud-aiops-skills/skills/aiml/sfm/alibabacloud-bailian-videoanalysis/SKILL.md",
+    "skill://docs/reference/team/skills/alibabacloud-aiops-skills/skills/aiml/sfm/alibabacloud-bailian-voice-creator/SKILL.md",
+    "skill://docs/reference/team/skills/alibabacloud-aiops-skills/skills/aiml/sfm/alibabacloud-bailian-video-creator/SKILL.md",
+    "skill://docs/reference/team/skills/alibabacloud-aiops-skills/skills/aiml/avatar/alibabacloud-avatar-video/SKILL.md",
+    "skill://docs/reference/team/skills/alibabacloud-aiops-skills/skills/mediaservices/ice/alibabacloud-video-translation/SKILL.md"
+  ]
+}

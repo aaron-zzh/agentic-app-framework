@@ -4,13 +4,9 @@ import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
-
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * AgentScope ReActAgent 的 AgentExecutor 适配器。
- * 上层只依赖 AgentExecutor 接口，不直接引用 ReActAgent。
- */
+/** AgentScope ReActAgent 的 AgentExecutor 适配器。 上层只依赖 AgentExecutor 接口，不直接引用 ReActAgent。 */
 @Slf4j
 public class AgentScopeExecutor implements AgentExecutor {
 

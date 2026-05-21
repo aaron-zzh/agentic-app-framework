@@ -5,12 +5,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import javax.imageio.ImageIO;
-
+import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import net.coobird.thumbnailator.geometry.Positions;
-
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 图片处理工具。
@@ -20,9 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ImageProcessor {
 
-    /**
-     * 生成缩略图。
-     */
+    /** 生成缩略图。 */
     public InputStream thumbnail(InputStream input, int width, int height) {
         try {
             var out = new ByteArrayOutputStream();
@@ -33,13 +28,13 @@ public class ImageProcessor {
         }
     }
 
-    /**
-     * 添加文字水印。
-     */
+    /** 添加文字水印。 */
     public InputStream watermark(InputStream input, String text) {
         try {
             // 创建水印图片
-            var watermarkImage = new java.awt.image.BufferedImage(200, 50, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            var watermarkImage =
+                    new java.awt.image.BufferedImage(
+                            200, 50, java.awt.image.BufferedImage.TYPE_INT_ARGB);
             var g = watermarkImage.createGraphics();
             g.setColor(new java.awt.Color(128, 128, 128, 128));
             g.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 20));

@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -16,23 +14,23 @@ import org.jsoup.parser.Parser;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
-/**
- * 网页抓取服务，支持单页/批量抓取和 sitemap 解析
- */
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/** 网页抓取服务，支持单页/批量抓取和 sitemap 解析 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @EnableConfigurationProperties(WebScrapingProperties.class)
 public class WebScrapingService {
 
-    private static final Set<String> NOISE_TAGS = Set.of("script", "style", "nav", "footer", "header", "aside");
+    private static final Set<String> NOISE_TAGS =
+            Set.of("script", "style", "nav", "footer", "header", "aside");
     private static final Set<String> HEADING_TAGS = Set.of("h1", "h2", "h3", "h4", "h5", "h6");
 
     private final WebScrapingProperties properties;
 
-    /**
-     * 单页抓取 + 正文提取
-     */
+    /** 单页抓取 + 正文提取 */
     public ImportResult scrapeUrl(String url) {
         var doc = fetchWithRetry(url);
         var title = doc.title().isBlank() ? url : doc.title();
@@ -53,9 +51,7 @@ public class WebScrapingService {
         return new ImportResult(sections, title, totalChars);
     }
 
-    /**
-     * 批量抓取，每个 URL 间隔速率限制
-     */
+    /** 批量抓取，每个 URL 间隔速率限制 */
     public List<ImportResult> scrapeBatch(List<String> urls) {
         var results = new ArrayList<ImportResult>();
         for (int i = 0; i < urls.size(); i++) {
@@ -72,22 +68,15 @@ public class WebScrapingService {
         return results;
     }
 
-    /**
-     * 解析 sitemap.xml，提取所有 URL
-     */
+    /** 解析 sitemap.xml，提取所有 URL */
     public List<String> parseSitemap(String sitemapUrl) {
         var doc = fetchWithRetry(sitemapUrl);
         // 用 XML 解析器重新解析
         var xmlDoc = Jsoup.parse(doc.html(), "", Parser.xmlParser());
-        return xmlDoc.select("loc").stream()
-                .map(Element::text)
-                .filter(s -> !s.isBlank())
-                .toList();
+        return xmlDoc.select("loc").stream().map(Element::text).filter(s -> !s.isBlank()).toList();
     }
 
-    /**
-     * 找文本密度最高的元素（文本长度 / max(子元素数, 1)）
-     */
+    /** 找文本密度最高的元素（文本长度 / max(子元素数, 1)） */
     private Element findContentRoot(Element body) {
         return body.select("div, article, section, main").stream()
                 .filter(el -> !el.text().isBlank())
@@ -100,9 +89,7 @@ public class WebScrapingService {
         return (double) el.text().length() / childCount;
     }
 
-    /**
-     * 将元素内容解析为 DocumentSection 列表
-     */
+    /** 将元素内容解析为 DocumentSection 列表 */
     private List<DocumentSection> extractSections(Element root) {
         var sections = new ArrayList<DocumentSection>();
         var currentText = new StringBuilder();
@@ -112,7 +99,9 @@ public class WebScrapingService {
             var tag = child.tagName().toLowerCase();
             if (HEADING_TAGS.contains(tag)) {
                 if (!currentText.isEmpty()) {
-                    sections.add(new DocumentSection(currentText.toString().strip(), currentLevel, Map.of()));
+                    sections.add(
+                            new DocumentSection(
+                                    currentText.toString().strip(), currentLevel, Map.of()));
                     currentText.setLength(0);
                 }
                 currentLevel = Integer.parseInt(tag.substring(1));
@@ -126,14 +115,13 @@ public class WebScrapingService {
             }
         }
         if (!currentText.isEmpty()) {
-            sections.add(new DocumentSection(currentText.toString().strip(), currentLevel, Map.of()));
+            sections.add(
+                    new DocumentSection(currentText.toString().strip(), currentLevel, Map.of()));
         }
         return sections;
     }
 
-    /**
-     * 带重试的页面获取
-     */
+    /** 带重试的页面获取 */
     private Document fetchWithRetry(String url) {
         IOException lastException = null;
         for (int i = 0; i <= properties.maxRetries(); i++) {

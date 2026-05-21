@@ -21,17 +21,12 @@ import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AtomMemoryEngineImplTest extends BaseMockitoUnitTest {
 
-    @Mock
-    private MemoryAtomRepository atomRepository;
-    @Mock
-    private MemoryRelationRepository relationRepository;
-    @Mock
-    private BundleSearchService bundleSearch;
-    @Mock
-    private TimeDecayStrategy timeDecay;
+    @Mock private MemoryAtomRepository atomRepository;
+    @Mock private MemoryRelationRepository relationRepository;
+    @Mock private BundleSearchService bundleSearch;
+    @Mock private TimeDecayStrategy timeDecay;
 
-    @InjectMocks
-    private AtomMemoryEngineImpl engine;
+    @InjectMocks private AtomMemoryEngineImpl engine;
 
     @Test
     void store_应保存并返回原子() {
@@ -47,7 +42,7 @@ class AtomMemoryEngineImplTest extends BaseMockitoUnitTest {
     @Test
     void searchByVector_应调用Repository向量检索() {
         var userId = 1L;
-        var vec = new float[]{0.1f, 0.2f, 0.3f};
+        var vec = new float[] {0.1f, 0.2f, 0.3f};
         var expected = List.of(createAtom("结果1"));
         when(atomRepository.searchByVector(eq(userId), anyString(), eq(10))).thenReturn(expected);
 

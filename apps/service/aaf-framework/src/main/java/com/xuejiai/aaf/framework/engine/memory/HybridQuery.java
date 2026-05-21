@@ -20,14 +20,13 @@ import java.util.List;
  * @param topK 返回数量
  */
 public record HybridQuery(
-    Long userId,
-    float[] queryEmbedding,
-    Instant timeStart,
-    Instant timeEnd,
-    Instant queryTime,
-    List<String> tags,
-    int topK
-) {
+        Long userId,
+        float[] queryEmbedding,
+        Instant timeStart,
+        Instant timeEnd,
+        Instant queryTime,
+        List<String> tags,
+        int topK) {
     public HybridQuery {
         if (topK <= 0) topK = 10;
     }

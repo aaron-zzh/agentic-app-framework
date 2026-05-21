@@ -11,10 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.core.memory.PipelineInput;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 默认记忆管道：Memory + Knowledge 混合检索 + RRF 融合 + LLM 重排。
- * 对应 MemoryStrategy.HYBRID（默认策略）。
- */
+/** 默认记忆管道：Memory + Knowledge 混合检索 + RRF 融合 + LLM 重排。 对应 MemoryStrategy.HYBRID（默认策略）。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -30,17 +27,20 @@ public class DefaultMemoryPipeline implements MemoryPipeline {
         var shortTermBlock = formatMessages(recentMessages);
 
         // Stage 2-5: 统一融合检索（长期记忆 + 知识库 + Bundle Search）
-        var retrievalResult = unifiedRetrieval.retrieve(
-            new UnifiedRetrievalService.RetrievalRequest(
-                input.query(), input.userId(), input.knowledgeBaseId(), 10
-            )
-        );
+        var retrievalResult =
+                unifiedRetrieval.retrieve(
+                        new UnifiedRetrievalService.RetrievalRequest(
+                                input.query(), input.userId(), input.knowledgeBaseId(), 10));
 
         var longTermBlock = formatAtoms(retrievalResult.memoryResults());
         var knowledgeBlock = formatKnowledge(retrievalResult.knowledgeResults());
 
-        return new MemoryContext(shortTermBlock, longTermBlock, null, knowledgeBlock,
-            estimateTokens(shortTermBlock, longTermBlock, knowledgeBlock));
+        return new MemoryContext(
+                shortTermBlock,
+                longTermBlock,
+                null,
+                knowledgeBlock,
+                estimateTokens(shortTermBlock, longTermBlock, knowledgeBlock));
     }
 
     private String formatMessages(java.util.List<?> messages) {

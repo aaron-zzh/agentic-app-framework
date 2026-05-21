@@ -10,27 +10,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import jakarta.persistence.*;
-
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 记忆原子：不可再分的最小记忆单元。
- * 双时态模型：event_time（事件发生时间）+ valid_from/valid_to（记忆有效窗口）。
- */
+/** 记忆原子：不可再分的最小记忆单元。 双时态模型：event_time（事件发生时间）+ valid_from/valid_to（记忆有效窗口）。 */
 @Getter
 @Setter
 @Entity
-@Table(name = "memory_atom", indexes = {
-    @Index(columnList = "userId,scope"),
-    @Index(columnList = "userId,eventTime DESC"),
-    @Index(columnList = "userId,weight DESC"),
-    @Index(columnList = "validTo")
-})
+@Table(
+        name = "memory_atom",
+        indexes = {
+            @Index(columnList = "userId,scope"),
+            @Index(columnList = "userId,eventTime DESC"),
+            @Index(columnList = "userId,weight DESC"),
+            @Index(columnList = "validTo")
+        })
 public class MemoryAtom {
 
     @Id

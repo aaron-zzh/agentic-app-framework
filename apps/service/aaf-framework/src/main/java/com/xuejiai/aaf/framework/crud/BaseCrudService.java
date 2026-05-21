@@ -26,8 +26,7 @@ import com.xuejiai.aaf.common.model.PageResult;
  * @param <U> 更新 DTO 类型
  * @param <P> 分页查询 DTO 类型
  */
-public abstract class BaseCrudService<
-        E extends BaseEntity, V, C, U, P extends PageParam> {
+public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends PageParam> {
 
     /** 子类提供 Repository 实例。 */
     protected abstract JpaRepository<E, Long> getRepository();
@@ -58,7 +57,8 @@ public abstract class BaseCrudService<
     public PageResult<V> page(P request) {
         var pageable = request.toPageable(defaultSort());
         Page<E> page = getSpecExecutor().findAll(buildSpec(request), pageable);
-        return new PageResult<>(page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+        return new PageResult<>(
+                page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
 
     /** 查询单条记录。 */
@@ -107,6 +107,9 @@ public abstract class BaseCrudService<
     protected E requireEntity(Long id) {
         return getRepository()
                 .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, entityName() + "不存在"));
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        GlobalErrorCode.NOT_FOUND, entityName() + "不存在"));
     }
 }

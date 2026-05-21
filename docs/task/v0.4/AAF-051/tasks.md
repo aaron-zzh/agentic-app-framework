@@ -91,10 +91,3 @@ author: AaronZZH
 > Assistant 通过内置 `LearningSkill` 触发，产出按数据归属分流（Memory/Value → assistantId 隔离，Knowledge → 全局）。
 
 - [ ] `LearningFeedbackService` 迁移到 `learning/` 包（当前在 `assistant/` 根目录）
-
-### 数据库迁移脚本（阻塞项）
-
-- [ ] `ai_actor` 表迁移脚本
-- [ ] `ai_role` 表迁移脚本
-- [ ] `ai_assistant` 表迁移脚本（重构后的 AssistantDefinition）
-- [ ] `ai_skill_definition` 表迁移脚本（扩展 builtIn/skillVersion/instructions 字段）

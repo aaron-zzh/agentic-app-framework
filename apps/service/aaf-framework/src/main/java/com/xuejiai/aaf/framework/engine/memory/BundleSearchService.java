@@ -14,10 +14,7 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Bundle Search：不是找 K 个最相似的孤立片段，而是找 K 组"证据链"。
- * 算法：向量检索候选 → 图谱扩展邻居 → Bundle 评分 → 去重 → Top-K。
- */
+/** Bundle Search：不是找 K 个最相似的孤立片段，而是找 K 组"证据链"。 算法：向量检索候选 → 图谱扩展邻居 → Bundle 评分 → 去重 → Top-K。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -78,11 +75,12 @@ public class BundleSearchService {
         var deduplicated = deduplicateBundles(bundles, topK);
 
         // 8. 记录访问
-        var accessedIds = deduplicated.stream()
-            .flatMap(b -> b.atoms().stream())
-            .map(MemoryAtom::getId)
-            .distinct()
-            .toList();
+        var accessedIds =
+                deduplicated.stream()
+                        .flatMap(b -> b.atoms().stream())
+                        .map(MemoryAtom::getId)
+                        .distinct()
+                        .toList();
         if (!accessedIds.isEmpty()) {
             atomRepository.recordAccess(accessedIds, now);
         }
@@ -91,12 +89,11 @@ public class BundleSearchService {
     }
 
     private MemoryBundle buildBundle(
-        MemoryAtom seed,
-        List<MemoryRelation> allRelations,
-        Map<UUID, MemoryAtom> atomMap,
-        Instant now,
-        Instant queryTime
-    ) {
+            MemoryAtom seed,
+            List<MemoryRelation> allRelations,
+            Map<UUID, MemoryAtom> atomMap,
+            Instant now,
+            Instant queryTime) {
         // 收集与 seed 相关的关系和原子
         var bundleAtoms = new ArrayList<MemoryAtom>();
         var bundleRelations = new ArrayList<MemoryRelation>();
@@ -105,8 +102,10 @@ public class BundleSearchService {
         for (var rel : allRelations) {
             if (rel.getSourceId().equals(seed.getId()) || rel.getTargetId().equals(seed.getId())) {
                 bundleRelations.add(rel);
-                var neighborId = rel.getSourceId().equals(seed.getId())
-                    ? rel.getTargetId() : rel.getSourceId();
+                var neighborId =
+                        rel.getSourceId().equals(seed.getId())
+                                ? rel.getTargetId()
+                                : rel.getSourceId();
                 var neighbor = atomMap.get(neighborId);
                 if (neighbor != null && !bundleAtoms.contains(neighbor)) {
                     bundleAtoms.add(neighbor);
@@ -117,8 +116,8 @@ public class BundleSearchService {
         // 计算 Bundle 分数 = Σ(原子权重 × 关系权重 × 时间衰减)
         double score = 0.0;
         for (var atom : bundleAtoms) {
-            double atomScore = atom.getWeight()
-                * timeDecay.score(atom.getEventTime(), now, queryTime);
+            double atomScore =
+                    atom.getWeight() * timeDecay.score(atom.getEventTime(), now, queryTime);
             score += atomScore;
         }
         for (var rel : bundleRelations) {
@@ -133,7 +132,10 @@ public class BundleSearchService {
         var result = new ArrayList<MemoryBundle>();
         for (var bundle : sorted) {
             if (result.size() >= topK) break;
-            boolean overlaps = result.stream().anyMatch(existing -> overlapRatio(existing, bundle) > OVERLAP_THRESHOLD);
+            boolean overlaps =
+                    result.stream()
+                            .anyMatch(
+                                    existing -> overlapRatio(existing, bundle) > OVERLAP_THRESHOLD);
             if (!overlaps) {
                 result.add(bundle);
             }

@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.task.TaskMonitor;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
 import com.xuejiai.aaf.framework.task.queue.RedisStreamTaskQueue;
-import com.xuejiai.aaf.framework.task.queue.TaskHandler;
 import com.xuejiai.aaf.framework.task.queue.TaskHandlerRegistry;
 
 import lombok.RequiredArgsConstructor;
@@ -62,8 +61,14 @@ public class RetryableTaskConsumer {
     /** 从死信队列重新入队（手动重试） */
     public void retryFromDeadLetter(AsyncTaskMessage task) {
         // 重置为新任务重新入队
-        var retryTask = new AsyncTaskMessage(
-                task.id(), task.type(), task.payload(), task.priority(), task.maxRetries(), task.createdAt());
+        var retryTask =
+                new AsyncTaskMessage(
+                        task.id(),
+                        task.type(),
+                        task.payload(),
+                        task.priority(),
+                        task.maxRetries(),
+                        task.createdAt());
         taskQueue.enqueue(retryTask);
         log.info("死信任务重新入队: {} [{}]", task.id(), task.type());
     }

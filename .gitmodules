@@ -1,0 +1,3 @@
+[submodule "docs/reference/team/skills/alibabacloud-aiops-skills"]
+	path = docs/reference/team/skills/alibabacloud-aiops-skills
+	url = https://github.com/aliyun/alibabacloud-aiops-skills.git

@@ -1,9 +1,8 @@
 package com.xuejiai.aaf.module.knowledge.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-
-import io.swagger.v3.oas.annotations.media.Schema;
 
 /** 创建知识库请求。 */
 @Schema(description = "创建知识库")

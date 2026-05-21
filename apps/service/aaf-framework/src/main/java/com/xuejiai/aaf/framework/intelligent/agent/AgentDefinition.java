@@ -5,19 +5,13 @@
  */
 package com.xuejiai.aaf.framework.intelligent.agent;
 
-import java.util.List;
-
-import jakarta.persistence.*;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Agent 元数据定义，持久化到数据库。
- * 运行时通过此配置构建 AgentScope ReActAgent 实例。
- */
+/** Agent 元数据定义，持久化到数据库。 运行时通过此配置构建 AgentScope ReActAgent 实例。 */
 @Getter
 @Setter
 @Entity

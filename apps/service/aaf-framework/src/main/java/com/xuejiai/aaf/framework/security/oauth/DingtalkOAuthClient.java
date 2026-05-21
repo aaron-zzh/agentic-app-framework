@@ -32,11 +32,14 @@ public class DingtalkOAuthClient implements OAuthClient {
     @Override
     public String buildAuthorizationUrl(String state) {
         return AUTH_URL
-                + "?client_id=" + config.appKey()
-                + "&redirect_uri=" + URLEncoder.encode(config.redirectUri(), StandardCharsets.UTF_8)
+                + "?client_id="
+                + config.appKey()
+                + "&redirect_uri="
+                + URLEncoder.encode(config.redirectUri(), StandardCharsets.UTF_8)
                 + "&response_type=code"
                 + "&scope=openid"
-                + "&state=" + state
+                + "&state="
+                + state
                 + "&prompt=consent";
     }
 
@@ -44,27 +47,39 @@ public class DingtalkOAuthClient implements OAuthClient {
     @SuppressWarnings("unchecked")
     public OAuthUserInfo exchangeToken(String code) {
         // 用 code 换取 user access_token
-        var tokenResp = restClient.post()
-                .uri(TOKEN_URL)
-                .body(Map.of(
-                        "clientId", config.appKey(),
-                        "clientSecret", config.appSecret(),
-                        "code", code,
-                        "grantType", "authorization_code"))
-                .retrieve()
-                .body(Map.class);
+        var tokenResp =
+                restClient
+                        .post()
+                        .uri(TOKEN_URL)
+                        .body(
+                                Map.of(
+                                        "clientId",
+                                        config.appKey(),
+                                        "clientSecret",
+                                        config.appSecret(),
+                                        "code",
+                                        code,
+                                        "grantType",
+                                        "authorization_code"))
+                        .retrieve()
+                        .body(Map.class);
         log.debug("钉钉 token 响应: {}", tokenResp);
 
         String accessToken = (String) tokenResp.get("accessToken");
         String refreshToken = (String) tokenResp.get("refreshToken");
-        int expiresIn = tokenResp.get("expireIn") != null ? ((Number) tokenResp.get("expireIn")).intValue() : 7200;
+        int expiresIn =
+                tokenResp.get("expireIn") != null
+                        ? ((Number) tokenResp.get("expireIn")).intValue()
+                        : 7200;
 
         // 获取用户信息
-        var userResp = restClient.get()
-                .uri(USERINFO_URL)
-                .header("x-acs-dingtalk-access-token", accessToken)
-                .retrieve()
-                .body(Map.class);
+        var userResp =
+                restClient
+                        .get()
+                        .uri(USERINFO_URL)
+                        .header("x-acs-dingtalk-access-token", accessToken)
+                        .retrieve()
+                        .body(Map.class);
         log.debug("钉钉用户信息响应: {}", userResp);
 
         return new OAuthUserInfo(

@@ -45,13 +45,16 @@ public class LongTermMemoryService {
     /** 记录访问（更新衰减参数） */
     @Transactional
     public void recordAccess(Long memoryId) {
-        repository.findById(memoryId).ifPresent(m -> {
-            m.setAccessCount(m.getAccessCount() + 1);
-            m.setLastAccessedAt(LocalDateTime.now());
-            // 访问频率提升重要性
-            m.setImportance(Math.min(1.0, m.getImportance() + 0.05));
-            repository.save(m);
-        });
+        repository
+                .findById(memoryId)
+                .ifPresent(
+                        m -> {
+                            m.setAccessCount(m.getAccessCount() + 1);
+                            m.setLastAccessedAt(LocalDateTime.now());
+                            // 访问频率提升重要性
+                            m.setImportance(Math.min(1.0, m.getImportance() + 0.05));
+                            repository.save(m);
+                        });
     }
 
     /** 遗忘：归档低价值记忆 */

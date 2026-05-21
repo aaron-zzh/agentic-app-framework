@@ -20,7 +20,11 @@ public class EmailChannelSender implements ChannelSender {
     }
 
     @Override
-    public void send(List<String> recipients, String subject, String content, Map<String, Object> variables) {
+    public void send(
+            List<String> recipients,
+            String subject,
+            String content,
+            Map<String, Object> variables) {
         for (var to : recipients) {
             emailSender.send(to, subject, content);
         }
