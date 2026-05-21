@@ -225,3 +225,71 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_oauth_provider', '微信',    'wechat',  3, 'success'),
 ('sys_oauth_provider', '钉钉',    'dingtalk', 4, 'primary')
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== 支付 & 订单字典（参考 kids-service）====================
+
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('支付渠道',     'pay_channel_code',    0, '支付渠道编码'),
+('支付订单状态', 'pay_order_status',    0, NULL),
+('支付回调状态', 'pay_notify_status',   0, '支付/退款回调通知状态'),
+('支付通知类型', 'pay_notify_type',     0, NULL),
+('退款订单状态', 'pay_refund_status',   0, NULL),
+('转账类型',     'pay_transfer_type',   0, NULL),
+('转账订单状态', 'pay_transfer_status', 0, NULL)
+ON CONFLICT DO NOTHING;
+
+-- pay_channel_code 支付渠道
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_channel_code', '微信公众号支付',   'wx_pub',    1,  'success'),
+('pay_channel_code', '微信小程序支付',   'wx_lite',   2,  'success'),
+('pay_channel_code', '微信 App 支付',    'wx_app',    3,  'success'),
+('pay_channel_code', '微信扫码支付',     'wx_native', 4,  'success'),
+('pay_channel_code', '支付宝 PC 网站',   'alipay_pc', 10, 'primary'),
+('pay_channel_code', '支付宝 Wap 网站',  'alipay_wap',11, 'primary'),
+('pay_channel_code', '支付宝 App 支付',  'alipay_app',12, 'primary'),
+('pay_channel_code', '支付宝扫码支付',   'alipay_qr', 14, 'primary')
+ON CONFLICT DO NOTHING;
+
+-- pay_order_status 支付订单状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_order_status', '等待支付', '0',  1, 'info'),
+('pay_order_status', '支付成功', '10', 2, 'success'),
+('pay_order_status', '支付关闭', '30', 3, 'default')
+ON CONFLICT DO NOTHING;
+
+-- pay_notify_status 支付回调状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_notify_status', '等待通知', '0',  1, 'info'),
+('pay_notify_status', '通知成功', '10', 2, 'success'),
+('pay_notify_status', '通知失败', '20', 3, 'danger')
+ON CONFLICT DO NOTHING;
+
+-- pay_notify_type 支付通知类型
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_notify_type', '支付单', '1', 1, 'primary'),
+('pay_notify_type', '退款单', '2', 2, 'danger')
+ON CONFLICT DO NOTHING;
+
+-- pay_refund_status 退款订单状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_refund_status', '等待退款', '0',  1, 'info'),
+('pay_refund_status', '退款成功', '10', 2, 'success'),
+('pay_refund_status', '退款失败', '20', 3, 'danger')
+ON CONFLICT DO NOTHING;
+
+-- pay_transfer_type 转账类型
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_transfer_type', '支付宝余额', '1', 1, 'primary'),
+('pay_transfer_type', '微信余额',   '2', 2, 'success'),
+('pay_transfer_type', '银行卡',     '3', 3, 'default'),
+('pay_transfer_type', '钱包余额',   '4', 4, 'info')
+ON CONFLICT DO NOTHING;
+
+-- pay_transfer_status 转账订单状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_transfer_status', '等待转账',   '0',  1, 'default'),
+('pay_transfer_status', '转账进行中', '10', 2, 'info'),
+('pay_transfer_status', '转账成功',   '20', 3, 'success'),
+('pay_transfer_status', '转账失败',   '30', 4, 'warning')
+ON CONFLICT DO NOTHING;
