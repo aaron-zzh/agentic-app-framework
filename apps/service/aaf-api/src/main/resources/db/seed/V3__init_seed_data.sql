@@ -171,10 +171,10 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_login_result', '未知异常',     '100', 6, 'danger')
 ON CONFLICT DO NOTHING;
 
--- sys_sms_channel 短信渠道
+-- sys_sms_channel 短信渠道（与 SmsProperties.provider 值一致）
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('sys_sms_channel', '阿里云', 'ALIYUN',  1, 'primary'),
-('sys_sms_channel', '腾讯云', 'TENCENT', 2, 'info')
+('sys_sms_channel', '阿里云', 'aliyun',  1, 'primary'),
+('sys_sms_channel', '腾讯云', 'tencent', 2, 'info')
 ON CONFLICT DO NOTHING;
 
 -- sys_sms_template_type 短信模板类型
