@@ -68,7 +68,6 @@ out
 # Logs
 logs/
 *.log
-log/
-
+/log/
 
 vitest.config.*.timestamp*
