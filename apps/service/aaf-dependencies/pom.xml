@@ -56,11 +56,17 @@
 		<!-- 短信 SDK -->
 		<aliyun-dysmsapi.version>4.5.1</aliyun-dysmsapi.version>
 		<tencentcloud-sms.version>3.1.1451</tencentcloud-sms.version>
+		<!-- DashScope SDK -->
+		<dashscope-sdk-java.version>2.22.18</dashscope-sdk-java.version>
+		<!-- 阿里云图像处理 SDK -->
+		<aliyun-imageenhan.version>1.0.13</aliyun-imageenhan.version>
 		<!-- 可观测性 -->
 		<sentry.version>8.41.0</sentry.version>
 		<!-- 测试 -->
 		<archunit.version>1.4.2</archunit.version>
 		<instancio.version>5.4.0</instancio.version>
+		<!-- 工具 -->
+		<ip2region.version>3.1.1</ip2region.version>
 		<!-- 内部模块 -->
 		<aaf.version>${revision}</aaf.version>
 	</properties>
@@ -195,9 +201,26 @@
 				<version>${aliyun-oss.version}</version>
 			</dependency>
 			<dependency>
+				<groupId>com.alibaba</groupId>
+				<artifactId>dashscope-sdk-java</artifactId>
+				<version>${dashscope-sdk-java.version}</version>
+				<exclusions>
+					<!-- dashscope 传递引入 slf4j-simple，与 logback 冲突 -->
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-simple</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<dependency>
 				<groupId>net.coobird</groupId>
 				<artifactId>thumbnailator</artifactId>
 				<version>${thumbnailator.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aliyun</groupId>
+				<artifactId>imageenhan20190930</artifactId>
+				<version>${aliyun-imageenhan.version}</version>
 			</dependency>
 
 			<!-- ==================== 安全 / 防护 ==================== -->
@@ -289,6 +312,11 @@
 				<groupId>org.instancio</groupId>
 				<artifactId>instancio-junit</artifactId>
 				<version>${instancio.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.lionsoul</groupId>
+				<artifactId>ip2region</artifactId>
+				<version>${ip2region.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
