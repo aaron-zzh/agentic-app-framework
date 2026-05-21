@@ -9,6 +9,7 @@ import com.xuejiai.aaf.module.system.dict.vo.DictDataCreateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataUpdateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataVO;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,14 +25,37 @@ public class DictDataService {
     private final DictDataRepository dictDataRepository;
     private final DictTypeRepository dictTypeRepository;
 
+    /** 获取全部启用字典数据（前端启动时一次性加载）。 */
+    @Cacheable(cacheNames = "dict", key = "'__all__'")
+    public List<DictDataVO> listAll() {
+        return dictDataRepository.findAllEnabledOrderByDictTypeAndSort().stream()
+                .map(this::toVO)
+                .toList();
+    }
+
     /** 按字典类型查询数据列表（带缓存）。 */
     @Cacheable(cacheNames = "dict", key = "#dictType")
     public List<DictDataVO> listByType(String dictType) {
         return dictDataRepository
-                .findByDictTypeAndDeletedFalseOrderBySort(dictType)
+                .findByDictTypeAndStatusAndDeletedFalseOrderBySort(dictType, 0)
                 .stream()
                 .map(this::toVO)
                 .toList();
+    }
+
+    /** 按 value 查 label，找不到返回 value 本身。 */
+    public String getLabelByValue(String dictType, String value) {
+        return dictDataRepository
+                .findByDictTypeAndValueAndDeletedFalse(dictType, value)
+                .map(DictData::getLabel)
+                .orElse(value);
+    }
+
+    /** 按 label 查 value，找不到返回 empty。 */
+    public Optional<String> getValueByLabel(String dictType, String label) {
+        return dictDataRepository
+                .findByDictTypeAndLabelAndDeletedFalse(dictType, label)
+                .map(DictData::getValue);
     }
 
     public DictDataVO getById(Long id) {
@@ -50,6 +74,7 @@ public class DictDataService {
         data.setColorType(dto.colorType());
         data.setCssClass(dto.cssClass());
         data.setRemark(dto.remark());
+        evictAllCache();
         return toVO(dictDataRepository.save(data));
     }
 
@@ -64,6 +89,7 @@ public class DictDataService {
         if (dto.cssClass() != null) data.setCssClass(dto.cssClass());
         if (dto.remark() != null) data.setRemark(dto.remark());
         evictCache(data.getDictType());
+        evictAllCache();
         return toVO(dictDataRepository.save(data));
     }
 
@@ -71,6 +97,7 @@ public class DictDataService {
     public void delete(Long id) {
         var data = requireDictData(id);
         evictCache(data.getDictType());
+        evictAllCache();
         dictDataRepository.deleteById(id);
     }
 
@@ -88,6 +115,9 @@ public class DictDataService {
 
     @CacheEvict(cacheNames = "dict", key = "#dictType")
     public void evictCache(String dictType) {}
+
+    @CacheEvict(cacheNames = "dict", key = "'__all__'")
+    public void evictAllCache() {}
 
     private DictDataVO toVO(DictData d) {
         return new DictDataVO(
