@@ -15,7 +15,6 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
-    locations: classpath:db/migration-new
     placeholder-replacement: false
 
 server:
@@ -25,6 +24,17 @@ server:
 aaf:
   app:
     company-name: ${AAF_COMPANY_NAME:学记智能}
+  ai:
+    default-model: default
+    fallback-model: default
+    prompts:
+      chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
+  task:
+    scheduler:
+      pool-size: 4
+    queue:
+      consumer-threads: 2
+      poll-timeout: 5s
 
 management:
   endpoints:
@@ -44,3 +54,9 @@ management:
   metrics:
     tags:
       application: aaf
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

@@ -1,21 +1,14 @@
 spring:
   autoconfigure:
     exclude:
-      # AI 相关
-      # - org.springframework.ai.model.chat.memory.repository.jdbc.autoconfigure.JdbcChatMemoryRepositoryAutoConfiguration
-      # - org.springframework.ai.model.chat.memory.autoconfigure.ChatMemoryAutoConfiguration
+      # 按需取消注释以禁用特定自动配置
       # - org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
-      # Neo4j 相关
-      # - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration
-      # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jDataAutoConfiguration
-      # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jRepositoriesAutoConfiguration
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf-dev}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
   flyway:
     clean-disabled: false
-    # 开发阶段频繁修改 V1，跳过校验；启动前手动 clean 或删库重建
     validate-on-migrate: false
     locations: classpath:db/migration-new,classpath:db/testdata
   data:
@@ -44,6 +37,8 @@ spring:
       chat:
         options:
           model: ${OPENAI_MODEL:gpt-4o-mini}
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
     vectorstore:
       pgvector:
         table-name: knowledge_embedding
@@ -61,8 +56,6 @@ aaf:
   flyway:
     clean-on-start: true
   ai:
-    default-model: default
-    fallback-model: default
     models:
       default:
         provider: openai
@@ -71,20 +64,13 @@ aaf:
         model: ${OPENAI_MODEL:gpt-4o-mini}
         max-tokens: 4096
         temperature: 0.7
-    prompts:
-      chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
-  task:
-    scheduler:
-      pool-size: 4
-    queue:
-      consumer-threads: 2
-      poll-timeout: 5s
   storage:
     type: local
     local:
       base-path: ${user.home}/aaf-files
       url-prefix: /files
   messaging:
+    # dev 默认不启用短信，避免无配置时启动失败；需要时取消注释并填写 .env
     sms:
       provider: aliyun
       aliyun:
@@ -112,3 +98,9 @@ aaf:
         app-key: ${DINGTALK_APP_KEY:}
         app-secret: ${DINGTALK_APP_SECRET:}
         redirect-uri: ${DINGTALK_REDIRECT_URI:http://localhost:3000/auth/callback/dingtalk}
+
+# ── 示例模块（按需开启，需配置 DASHSCOPE_API_KEY）────────────────
+# aaf:
+#   examples:
+#     agentscope:
+#       enabled: true
