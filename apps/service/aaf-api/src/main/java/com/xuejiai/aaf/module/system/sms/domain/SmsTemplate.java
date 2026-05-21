@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.log.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -8,14 +10,14 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import org.hibernate.annotations.SQLDelete;
-
 /** 短信模板配置，管理签名和厂商模板 ID。 */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_sms_template")
-@SQLDelete(sql = "UPDATE sys_sms_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE sys_sms_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SmsTemplate extends BaseEntity {
 
     /** 业务场景编码，调用方使用 */

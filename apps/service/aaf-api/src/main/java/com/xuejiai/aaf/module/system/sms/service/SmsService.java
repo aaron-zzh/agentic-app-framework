@@ -6,9 +6,9 @@ import java.util.Map;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.messaging.sms.SmsRateLimiter;
 import com.xuejiai.aaf.framework.messaging.sms.SmsSendEvent;
 import com.xuejiai.aaf.framework.messaging.sms.SmsSenderRouter;
-import com.xuejiai.aaf.framework.messaging.sms.SmsRateLimiter;
 import com.xuejiai.aaf.module.system.log.domain.SmsTemplate;
 import com.xuejiai.aaf.module.system.log.repository.SmsTemplateRepository;
 
@@ -18,8 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 短信发送服务。
  *
- * <p>直接使用厂商模板 ID 发送，不经过 FreeMarker 渲染。
- * 签名和模板 ID 从 sys_sms_template 表读取，支持按模板指定厂商。
+ * <p>直接使用厂商模板 ID 发送，不经过 FreeMarker 渲染。 签名和模板 ID 从 sys_sms_template 表读取，支持按模板指定厂商。
  */
 @Slf4j
 @Service
@@ -37,16 +36,18 @@ public class SmsService {
     /**
      * 按业务场景编码发送短信。
      *
-     * @param phone  手机号
-     * @param code   业务场景编码（对应 sys_sms_template.code）
+     * @param phone 手机号
+     * @param code 业务场景编码（对应 sys_sms_template.code）
      * @param params 模板变量
      */
     public void send(String phone, String code, Map<String, String> params) {
         if (!PHONE_PATTERN.matcher(phone).matches()) {
             throw new IllegalArgumentException("手机号格式不正确: " + phone);
         }
-        var template = templateRepository.findByCodeAndStatusAndDeletedFalse(code, (short) 1)
-                .orElseThrow(() -> new IllegalArgumentException("短信模板不存在或已禁用: " + code));
+        var template =
+                templateRepository
+                        .findByCodeAndStatusAndDeletedFalse(code, (short) 1)
+                        .orElseThrow(() -> new IllegalArgumentException("短信模板不存在或已禁用: " + code));
 
         rateLimiter.check(phone);
         doSend(phone, template, params);
@@ -66,10 +67,17 @@ public class SmsService {
             log.error("短信发送失败: phone={}, code={}", phone, template.getCode(), e);
             throw new RuntimeException("短信发送失败", e);
         } finally {
-            eventPublisher.publishEvent(new SmsSendEvent(
-                    phone, template.getApiTemplateId(), params,
-                    provider != null ? provider : "default",
-                    success, sendTime, null, apiCode, apiMsg));
+            eventPublisher.publishEvent(
+                    new SmsSendEvent(
+                            phone,
+                            template.getApiTemplateId(),
+                            params,
+                            provider != null ? provider : "default",
+                            success,
+                            sendTime,
+                            null,
+                            apiCode,
+                            apiMsg));
         }
     }
 }
