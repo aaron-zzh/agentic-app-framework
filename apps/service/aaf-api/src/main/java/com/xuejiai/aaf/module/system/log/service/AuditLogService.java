@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.xuejiai.aaf.common.util.ServletUtils;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.security.ActorContext;
@@ -40,7 +41,7 @@ public class AuditLogService {
         log.setAction(action);
         log.setChanges(changes);
         log.setUserId(actorContext.currentUserId().orElse(null));
-        log.setIp(resolveIp());
+        log.setIp(ServletUtils.getClientIp());
         log.setCreatedAt(LocalDateTime.now());
         log.setPreviousHash(previousHash);
 
@@ -81,16 +82,4 @@ public class AuditLogService {
                 log.getCreatedAt());
     }
 
-    private String resolveIp() {
-        var attrs = RequestContextHolder.getRequestAttributes();
-        if (attrs instanceof ServletRequestAttributes sra) {
-            var request = sra.getRequest();
-            var xff = request.getHeader("X-Forwarded-For");
-            if (xff != null && !xff.isBlank()) {
-                return xff.split(",")[0].trim();
-            }
-            return request.getRemoteAddr();
-        }
-        return null;
-    }
 }
