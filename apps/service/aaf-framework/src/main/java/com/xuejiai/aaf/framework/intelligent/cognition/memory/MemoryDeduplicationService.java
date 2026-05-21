@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
-import com.xuejiai.aaf.framework.intelligent.ai.ResilientChatService;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

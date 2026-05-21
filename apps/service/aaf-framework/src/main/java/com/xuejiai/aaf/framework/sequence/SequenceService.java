@@ -43,11 +43,14 @@ public class SequenceService {
      */
     @Transactional
     public String generate(String code) {
-        var seq = sequenceRepo.findByCodeAndActiveTrue(code)
-                .orElseThrow(() -> new IllegalArgumentException("序列号配置不存在: " + code));
-        long number = Boolean.TRUE.equals(seq.getUseDateRange())
-                ? nextDateRange(seq.getId())
-                : nextGlobal(seq.getId(), seq.getNumberNext(), seq.getNumberIncrement());
+        var seq =
+                sequenceRepo
+                        .findByCodeAndActiveTrue(code)
+                        .orElseThrow(() -> new IllegalArgumentException("序列号配置不存在: " + code));
+        long number =
+                Boolean.TRUE.equals(seq.getUseDateRange())
+                        ? nextDateRange(seq.getId())
+                        : nextGlobal(seq.getId(), seq.getNumberNext(), seq.getNumberIncrement());
         return templateParser.build(seq.getPrefix(), number, seq.getSuffix(), seq.getPadding());
     }
 
@@ -59,27 +62,32 @@ public class SequenceService {
      */
     @Transactional
     public Long nextId(String code) {
-        var seq = sequenceRepo.findByCodeAndActiveTrue(code)
-                .orElseThrow(() -> new IllegalArgumentException("序列号配置不存在: " + code));
+        var seq =
+                sequenceRepo
+                        .findByCodeAndActiveTrue(code)
+                        .orElseThrow(() -> new IllegalArgumentException("序列号配置不存在: " + code));
         return nextGlobal(seq.getId(), seq.getNumberNext(), seq.getNumberIncrement());
     }
 
     /**
      * 批量预分配序列号，返回起始值，调用方自行累加步长。
      *
-     * @param code  序列编码
+     * @param code 序列编码
      * @param count 预分配数量
      * @return 起始序列号
      */
     @Transactional
     public Long generateBatch(String code, int count) {
-        var seq = sequenceRepo.findByCodeAndActiveTrue(code)
-                .orElseThrow(() -> new IllegalArgumentException("序列号配置不存在: " + code));
+        var seq =
+                sequenceRepo
+                        .findByCodeAndActiveTrue(code)
+                        .orElseThrow(() -> new IllegalArgumentException("序列号配置不存在: " + code));
         var pgSeq = "seq_sys_sequence_" + seq.getId();
         ensureSequence(pgSeq, seq.getNumberNext(), seq.getNumberIncrement());
         // 通过 generate_series 一次性消耗 count 个值，返回第一个
-        var results = jdbcTemplate.queryForList(
-                "SELECT nextval(?) FROM generate_series(1, ?)", Long.class, pgSeq, count);
+        var results =
+                jdbcTemplate.queryForList(
+                        "SELECT nextval(?) FROM generate_series(1, ?)", Long.class, pgSeq, count);
         return results.get(0);
     }
 
@@ -93,9 +101,11 @@ public class SequenceService {
 
     private long nextDateRange(Long seqId) {
         var today = LocalDate.now();
-        var dateRange = dateRangeRepo
-                .findBySequenceIdAndDateFromLessThanEqualAndDateToGreaterThanEqual(seqId, today, today)
-                .orElseGet(() -> createDateRange(seqId, today));
+        var dateRange =
+                dateRangeRepo
+                        .findBySequenceIdAndDateFromLessThanEqualAndDateToGreaterThanEqual(
+                                seqId, today, today)
+                        .orElseGet(() -> createDateRange(seqId, today));
         var pgSeq = "seq_sys_date_range_" + dateRange.getId();
         ensureSequence(pgSeq, dateRange.getNumberNext(), 1);
         return jdbcTemplate.queryForObject("SELECT nextval(?)", Long.class, pgSeq);
@@ -103,9 +113,12 @@ public class SequenceService {
 
     private void ensureSequence(String pgSeq, long startValue, int increment) {
         jdbcTemplate.execute(
-                "CREATE SEQUENCE IF NOT EXISTS " + pgSeq
-                + " START " + startValue
-                + " INCREMENT " + increment);
+                "CREATE SEQUENCE IF NOT EXISTS "
+                        + pgSeq
+                        + " START "
+                        + startValue
+                        + " INCREMENT "
+                        + increment);
     }
 
     private SystemSequenceDateRange createDateRange(Long seqId, LocalDate date) {

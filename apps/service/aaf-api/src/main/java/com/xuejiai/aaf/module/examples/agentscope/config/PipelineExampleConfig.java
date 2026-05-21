@@ -1,22 +1,24 @@
 package com.xuejiai.aaf.module.examples.agentscope.config;
 
-import io.agentscope.core.ReActAgent;
-import io.agentscope.core.memory.InMemoryMemory;
-import io.agentscope.core.model.Model;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.memory.InMemoryMemory;
+import io.agentscope.core.model.Model;
+
 /**
  * Pipeline 顺序管道示例配置。
  *
- * <p>业务场景：自然语言 → SQL 生成 → SQL 质量评分，演示多 Agent 串联调用。
- * 使用纯 AgentScope Java ReActAgent，不依赖 Spring AI Alibaba SequentialAgent。
- * 仅在 aaf.examples.agentscope.enabled=true 时激活。
+ * <p>业务场景：自然语言 → SQL 生成 → SQL 质量评分，演示多 Agent 串联调用。 使用纯 AgentScope Java ReActAgent，不依赖 Spring AI
+ * Alibaba SequentialAgent。 仅在 aaf.examples.agentscope.enabled=true 时激活。
  */
 @Configuration
-@ConditionalOnProperty(name = "aaf.examples.agentscope.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(
+        name = "aaf.examples.agentscope.enabled",
+        havingValue = "true",
+        matchIfMissing = false)
 public class PipelineExampleConfig {
 
     private static final String SQL_GENERATOR_PROMPT =

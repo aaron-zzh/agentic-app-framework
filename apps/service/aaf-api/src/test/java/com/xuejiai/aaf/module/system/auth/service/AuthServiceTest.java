@@ -4,12 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +25,6 @@ import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.framework.security.ActorContext;
 import com.xuejiai.aaf.framework.security.JwtUtils;
-import com.xuejiai.aaf.framework.security.oauth.OAuthClient;
 import com.xuejiai.aaf.module.system.auth.vo.SendCodeDTO;
 import com.xuejiai.aaf.module.system.user.repository.UserOauthRepository;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
@@ -50,9 +47,11 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        org.springframework.test.util.ReflectionTestUtils.setField(authService, "companyName", "学记智能");
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                authService, "companyName", "学记智能");
         // OAuthClient List 字段手动注入（@InjectMocks 不处理泛型 List）
-        org.springframework.test.util.ReflectionTestUtils.setField(authService, "oauthClients", List.of());
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                authService, "oauthClients", List.of());
     }
 
     @Test
@@ -65,10 +64,11 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         authService.sendCode(dto);
 
         // 断言：验证码存入 Redis（5分钟）
-        verify(valueOps).set(
-                eq("verify_code:register:test@example.com"),
-                anyString(),
-                eq(java.time.Duration.ofMinutes(5)));
+        verify(valueOps)
+                .set(
+                        eq("verify_code:register:test@example.com"),
+                        anyString(),
+                        eq(java.time.Duration.ofMinutes(5)));
 
         // 断言：邮件通过 MessageService 发送
         var captor = ArgumentCaptor.forClass(MessageRequest.class);
@@ -90,7 +90,8 @@ class AuthServiceTest extends BaseMockitoUnitTest {
 
         // mock 邮件发送失败
         org.mockito.Mockito.doThrow(new RuntimeException("SMTP 连接失败"))
-                .when(messageService).send(any());
+                .when(messageService)
+                .send(any());
 
         // 调用 + 断言：不抛异常
         org.assertj.core.api.Assertions.assertThatCode(() -> authService.sendCode(dto))

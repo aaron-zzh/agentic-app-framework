@@ -24,8 +24,11 @@ class SequenceTemplateParserTest {
         var now = LocalDateTime.now();
         var result = parser.parse("%(year)s-%(month)s-%(day)s");
 
-        assertThat(result).isEqualTo(
-                "%d-%02d-%02d".formatted(now.getYear(), now.getMonthValue(), now.getDayOfMonth()));
+        assertThat(result)
+                .isEqualTo(
+                        "%d-%02d-%02d"
+                                .formatted(
+                                        now.getYear(), now.getMonthValue(), now.getDayOfMonth()));
     }
 
     @Test

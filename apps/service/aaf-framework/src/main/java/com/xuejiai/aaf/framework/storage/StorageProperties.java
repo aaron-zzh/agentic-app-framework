@@ -8,8 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>通过 aaf.storage.type 切换存储后端。S3 配置兼容 MinIO / 阿里云 OSS / AWS S3。
  */
 @ConfigurationProperties(prefix = "aaf.storage")
-public record StorageProperties(
-        StorageType type, LocalProperties local, S3Properties s3) {
+public record StorageProperties(StorageType type, LocalProperties local, S3Properties s3) {
 
     /** 存储类型枚举 */
     public enum StorageType {

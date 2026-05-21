@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +25,7 @@ import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.framework.security.oauth.OAuthClient;
 import com.xuejiai.aaf.framework.security.oauth.OAuthUserInfo;
 import com.xuejiai.aaf.module.system.auth.vo.*;
+import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.domain.UserOauth;
 import com.xuejiai.aaf.module.system.user.repository.UserOauthRepository;
@@ -127,9 +127,24 @@ public class AuthService {
         }
         String code = generateCode();
         String codeKey = VERIFY_CODE_PREFIX + dto.type() + ":" + dto.email();
-        redisTemplate.opsForValue().set(codeKey, code, Duration.ofMinutes(systemConfigService.getInteger("security.verify_code_expire", 5)));
+        redisTemplate
+                .opsForValue()
+                .set(
+                        codeKey,
+                        code,
+                        Duration.ofMinutes(
+                                systemConfigService.getInteger("security.verify_code_expire", 5)));
         redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
         log.info("【验证码】邮箱={}, 类型={}, 验证码={}", dto.email(), dto.type(), code);
+        // 发送验证码邮件
+        var templateCode = "auth.verify_code." + dto.type();
+        messageService.send(new MessageRequest(
+                MessageChannel.EMAIL,
+                templateCode,
+                List.of(dto.email()),
+                Map.of("code", code, "expireMinutes",
+                        systemConfigService.getInteger("security.verify_code_expire", 5)),
+                null));
     }
 
     // ==================== 验证码登录 ====================
@@ -356,9 +371,13 @@ public class AuthService {
 
     private void handleLoginFail(User user) {
         user.recordLoginFail();
-        if (user.getLoginFailCount() >= systemConfigService.getInteger("user.login_fail_lock_count", 5)) {
-            user.setLockTime(LocalDateTime.now().plusMinutes(
-                    systemConfigService.getInteger("user.login_fail_lock_minutes", 30)));
+        if (user.getLoginFailCount()
+                >= systemConfigService.getInteger("user.login_fail_lock_count", 5)) {
+            user.setLockTime(
+                    LocalDateTime.now()
+                            .plusMinutes(
+                                    systemConfigService.getInteger(
+                                            "user.login_fail_lock_minutes", 30)));
         }
         userRepository.save(user);
     }
@@ -375,16 +394,30 @@ public class AuthService {
     private void sendVerifyCode(String email, String type) {
         String code = generateCode();
         String codeKey = VERIFY_CODE_PREFIX + type + ":" + email;
-        redisTemplate.opsForValue().set(codeKey, code, Duration.ofMinutes(systemConfigService.getInteger("security.verify_code_expire", 5)));
+        redisTemplate
+                .opsForValue()
+                .set(
+                        codeKey,
+                        code,
+                        Duration.ofMinutes(
+                                systemConfigService.getInteger("security.verify_code_expire", 5)));
         try {
-            messageService.send(new MessageRequest(
-                    MessageChannel.EMAIL,
-                    "AUTH_VERIFY_CODE",
-                    List.of(email),
-                    Map.of("code", code, "type", type, "expireMinutes",
-                            systemConfigService.getInteger("security.verify_code_expire", 5),
-                            "companyName", companyName),
-                    "【" + companyName + "】安全验证码"));
+            messageService.send(
+                    new MessageRequest(
+                            MessageChannel.EMAIL,
+                            "AUTH_VERIFY_CODE",
+                            List.of(email),
+                            Map.of(
+                                    "code",
+                                    code,
+                                    "type",
+                                    type,
+                                    "expireMinutes",
+                                    systemConfigService.getInteger(
+                                            "security.verify_code_expire", 5),
+                                    "companyName",
+                                    companyName),
+                            "【" + companyName + "】安全验证码"));
         } catch (Exception e) {
             // 邮件发送失败不阻断流程，验证码已存 Redis，开发环境可从日志获取
             log.warn("验证码邮件发送失败，邮箱={}, 类型={}, 验证码={}", email, type, code, e);

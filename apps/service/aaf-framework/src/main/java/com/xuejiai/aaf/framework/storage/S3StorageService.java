@@ -15,7 +15,6 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 /**
@@ -103,6 +102,12 @@ public class S3StorageService implements StorageService {
     private String generateKey(String filename) {
         var ext = filename.contains(".") ? filename.substring(filename.lastIndexOf('.')) : "";
         var date = LocalDate.now();
-        return "%d/%02d/%02d/%s%s".formatted(date.getYear(), date.getMonthValue(), date.getDayOfMonth(), UUID.randomUUID(), ext);
+        return "%d/%02d/%02d/%s%s"
+                .formatted(
+                        date.getYear(),
+                        date.getMonthValue(),
+                        date.getDayOfMonth(),
+                        UUID.randomUUID(),
+                        ext);
     }
 }

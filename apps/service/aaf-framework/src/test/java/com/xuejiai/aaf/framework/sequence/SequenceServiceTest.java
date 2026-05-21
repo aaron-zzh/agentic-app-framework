@@ -2,7 +2,6 @@ package com.xuejiai.aaf.framework.sequence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -20,7 +19,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.xuejiai.aaf.framework.sequence.domain.SystemSequence;
 import com.xuejiai.aaf.framework.sequence.repository.SystemSequenceDateRangeRepository;
 import com.xuejiai.aaf.framework.sequence.repository.SystemSequenceRepository;
-
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class SequenceServiceTest extends BaseMockitoUnitTest {
@@ -44,7 +42,8 @@ class SequenceServiceTest extends BaseMockitoUnitTest {
 
             // mock 方法
             when(sequenceRepo.findByCodeAndActiveTrue("ORDER")).thenReturn(Optional.of(seq));
-            when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), anyString())).thenReturn(1L);
+            when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), anyString()))
+                    .thenReturn(1L);
             when(templateParser.build("ORD-", 1L, null, 4)).thenReturn("ORD-0001");
 
             // 调用
@@ -80,7 +79,8 @@ class SequenceServiceTest extends BaseMockitoUnitTest {
 
             // mock 方法
             when(sequenceRepo.findByCodeAndActiveTrue("GRAPH_NODE")).thenReturn(Optional.of(seq));
-            when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), anyString())).thenReturn(42L);
+            when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), anyString()))
+                    .thenReturn(42L);
 
             // 调用
             var id = sequenceService.nextId("GRAPH_NODE");

@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.log.service;
+package com.xuejiai.aaf.module.system.sms.service;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.framework.messaging.sms.SmsRateLimiter;
 import com.xuejiai.aaf.framework.messaging.sms.SmsSendEvent;
 import com.xuejiai.aaf.framework.messaging.sms.SmsSenderRouter;
-import com.xuejiai.aaf.module.system.log.domain.SmsTemplate;
-import com.xuejiai.aaf.module.system.log.repository.SmsTemplateRepository;
+import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
+import com.xuejiai.aaf.module.system.sms.repository.SmsTemplateRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

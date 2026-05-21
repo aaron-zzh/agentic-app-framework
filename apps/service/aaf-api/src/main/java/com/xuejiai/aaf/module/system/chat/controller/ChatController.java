@@ -15,10 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.intelligent.ai.AiProperties;
-import com.xuejiai.aaf.framework.intelligent.ai.ChatContextBuilder;
-import com.xuejiai.aaf.framework.intelligent.ai.ChatContextBuilder.HistoryMessage;
-import com.xuejiai.aaf.framework.intelligent.ai.ResilientChatService;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder.HistoryMessage;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.security.ActorContext;
 import com.xuejiai.aaf.module.system.chat.service.ChatService;
 import com.xuejiai.aaf.module.system.chat.service.IntentService;

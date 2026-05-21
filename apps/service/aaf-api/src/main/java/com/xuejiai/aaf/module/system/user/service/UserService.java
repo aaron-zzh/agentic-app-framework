@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -20,6 +19,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.NicknameGenerator;
+import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.mapper.UserConvert;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
@@ -175,8 +175,10 @@ public class UserService {
             var user = new User();
             user.setUsername(row.getUsername());
             user.setNickname(row.getNickname() != null ? row.getNickname() : row.getUsername());
-            String pwd = row.getPassword() != null ? row.getPassword()
-                    : systemConfigService.getString("user.default_password", "123456");
+            String pwd =
+                    row.getPassword() != null
+                            ? row.getPassword()
+                            : systemConfigService.getString("user.default_password", "123456");
             user.changePassword(passwordEncoder, pwd);
             if (row.getStatus() != null) user.setStatus(row.getStatus());
             userRepository.save(user);

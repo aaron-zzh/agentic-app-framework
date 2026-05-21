@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
-import com.xuejiai.aaf.module.system.log.domain.domain.Notification;
+import com.xuejiai.aaf.module.system.notify.domain.Notification;
 
 /** 通知数据访问层。 */
 public interface NotificationRepository

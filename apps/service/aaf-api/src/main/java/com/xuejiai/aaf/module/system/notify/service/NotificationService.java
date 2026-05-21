@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
-import com.xuejiai.aaf.module.system.log.domain.domain.Notification;
+import com.xuejiai.aaf.module.system.notify.domain.Notification;
 import com.xuejiai.aaf.module.system.notify.repository.NotificationRepository;
 import com.xuejiai.aaf.module.system.notify.vo.NotificationPageDTO;
 import com.xuejiai.aaf.module.system.notify.vo.NotificationVO;

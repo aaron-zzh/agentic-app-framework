@@ -11,8 +11,7 @@ public class SequenceTemplateParser {
     public String parse(String template) {
         if (template == null || template.isBlank()) return "";
         var now = LocalDateTime.now();
-        return template
-                .replace("%(year)s", String.valueOf(now.getYear()))
+        return template.replace("%(year)s", String.valueOf(now.getYear()))
                 .replace("%(y)s", String.format("%02d", now.getYear() % 100))
                 .replace("%(month)s", String.format("%02d", now.getMonthValue()))
                 .replace("%(day)s", String.format("%02d", now.getDayOfMonth()))

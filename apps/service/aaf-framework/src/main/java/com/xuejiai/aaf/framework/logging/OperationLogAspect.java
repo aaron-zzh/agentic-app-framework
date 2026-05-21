@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.xuejiai.aaf.common.util.ServletUtils;
 import com.xuejiai.aaf.framework.security.ActorContext;
 
 import lombok.RequiredArgsConstructor;
@@ -86,8 +87,8 @@ public class OperationLogAspect {
             var request = sra.getRequest();
             requestMethod = request.getMethod();
             requestUrl = request.getRequestURI();
-            ip = resolveIp(request);
-            userAgent = request.getHeader("User-Agent");
+            ip = ServletUtils.getClientIp(request);
+            userAgent = ServletUtils.getUserAgent(request);
         }
 
         // 请求参数（截断避免过大）
@@ -143,14 +144,6 @@ public class OperationLogAspect {
             log.debug("SpEL 解析失败: {}", template, ex);
             return template;
         }
-    }
-
-    private String resolveIp(jakarta.servlet.http.HttpServletRequest request) {
-        var xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 
     private String truncate(String str, int maxLen) {

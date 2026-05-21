@@ -146,6 +146,11 @@
 			<artifactId>archunit-junit5</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- AgentScope RAG 示例依赖 DashScope Embedding SDK -->
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>dashscope-sdk-java</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

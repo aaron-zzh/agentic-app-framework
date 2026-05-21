@@ -9,38 +9,34 @@ import org.springframework.util.StringUtils;
 public class ValidationUtils {
 
     /** 中国大陆手机号 */
-    private static final Pattern PATTERN_MOBILE =
-            Pattern.compile(
-                    "^(?:(?:\\+|00)86)?1(?:(?:3[\\d])|(?:4[0,1,4-9])|(?:5[0-3,5-9])"
-                            + "|(?:6[2,5-7])|(?:7[0-8])|(?:8[\\d])|(?:9[0-3,5-9]))\\d{8}$");
+    private static final Pattern MOBILE =
+            Pattern.compile("^1[3-9]\\d{9}$");
 
-    /** HTTP/HTTPS/FTP URL */
-    private static final Pattern PATTERN_URL =
-            Pattern.compile(
-                    "^(https?|ftp)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]");
+    /** HTTP/HTTPS URL */
+    private static final Pattern URL =
+            Pattern.compile("^https?://\\S+$");
 
     /** 邮箱 */
-    private static final Pattern PATTERN_EMAIL =
-            Pattern.compile("^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern EMAIL =
+            Pattern.compile("^[\\w._%+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,}$");
 
     /** IPv4 */
-    private static final Pattern PATTERN_IPV4 =
-            Pattern.compile(
-                    "^((25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$");
+    private static final Pattern IPV4 =
+            Pattern.compile("^(\\d{1,3}\\.){3}\\d{1,3}$");
 
     public static boolean isMobile(String mobile) {
-        return StringUtils.hasText(mobile) && PATTERN_MOBILE.matcher(mobile).matches();
+        return StringUtils.hasText(mobile) && MOBILE.matcher(mobile).matches();
     }
 
     public static boolean isUrl(String url) {
-        return StringUtils.hasText(url) && PATTERN_URL.matcher(url).matches();
+        return StringUtils.hasText(url) && URL.matcher(url).matches();
     }
 
     public static boolean isEmail(String email) {
-        return StringUtils.hasText(email) && PATTERN_EMAIL.matcher(email).matches();
+        return StringUtils.hasText(email) && EMAIL.matcher(email).matches();
     }
 
     public static boolean isIpv4(String ip) {
-        return StringUtils.hasText(ip) && PATTERN_IPV4.matcher(ip).matches();
+        return StringUtils.hasText(ip) && IPV4.matcher(ip).matches();
     }
 }

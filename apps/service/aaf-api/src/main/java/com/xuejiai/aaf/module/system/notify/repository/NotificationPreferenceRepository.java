@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.xuejiai.aaf.module.system.log.domain.domain.NotificationPreference;
+import com.xuejiai.aaf.module.system.notify.domain.NotificationPreference;
 
 /** 通知偏好数据访问层。 */
 public interface NotificationPreferenceRepository

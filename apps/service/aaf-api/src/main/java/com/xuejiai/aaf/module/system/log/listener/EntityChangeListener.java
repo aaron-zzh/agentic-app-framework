@@ -3,7 +3,7 @@ package com.xuejiai.aaf.module.system.log.listener;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.module.system.log.domain.domain.Notification;
+import com.xuejiai.aaf.module.system.notify.domain.Notification;
 import com.xuejiai.aaf.module.system.log.event.EntityChangeEvent;
 import com.xuejiai.aaf.module.system.log.service.ActivityService;
 import com.xuejiai.aaf.module.system.log.service.AuditLogService;

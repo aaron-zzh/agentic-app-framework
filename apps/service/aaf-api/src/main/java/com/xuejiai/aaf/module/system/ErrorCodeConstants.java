@@ -39,4 +39,10 @@ public interface ErrorCodeConstants {
 
     // ========== CHAT 模块 1_003_000 ==========
     ErrorCode CHAT_SESSION_NOT_FOUND = ErrorCode.of(1_003_000, "聊天会话不存在");
+
+    // ========== AI MODEL 模块 1_004_000 ==========
+    ErrorCode AI_MODEL_NOT_FOUND = ErrorCode.of(1_004_000, "AI 模型不存在");
+    ErrorCode AI_MODEL_ID_EXISTS = ErrorCode.of(1_004_001, "模型 ID 已存在");
+    ErrorCode AI_MODEL_PROVIDER_NOT_SUPPORTED = ErrorCode.of(1_004_002, "不支持的模型协议类型");
+    ErrorCode AI_MODEL_DISABLED = ErrorCode.of(1_004_003, "模型已禁用");
 }

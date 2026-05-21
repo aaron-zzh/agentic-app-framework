@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.xuejiai.aaf.module.system.log.domain.domain.Subscription;
+import com.xuejiai.aaf.module.system.notify.domain.Subscription;
 
 /** 订阅数据访问层。 */
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {

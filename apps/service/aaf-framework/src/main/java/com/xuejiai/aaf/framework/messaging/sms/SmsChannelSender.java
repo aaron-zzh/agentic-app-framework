@@ -32,9 +32,16 @@ public class SmsChannelSender implements ChannelSender {
     }
 
     @Override
-    public void send(List<String> recipients, String subject, String content, Map<String, Object> variables) {
-        var params = variables.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue())));
+    public void send(
+            List<String> recipients,
+            String subject,
+            String content,
+            Map<String, Object> variables) {
+        var params =
+                variables.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey, e -> String.valueOf(e.getValue())));
 
         for (var phone : recipients) {
             // 手机号格式校验
@@ -59,9 +66,17 @@ public class SmsChannelSender implements ChannelSender {
             apiMsg = e.getMessage();
             log.error("短信发送失败: phone={}, template={}", phone, templateCode, e);
         } finally {
-            eventPublisher.publishEvent(new SmsSendEvent(
-                    phone, templateCode, params, providerName,
-                    success, sendTime, apiRequestId, apiCode, apiMsg));
+            eventPublisher.publishEvent(
+                    new SmsSendEvent(
+                            phone,
+                            templateCode,
+                            params,
+                            providerName,
+                            success,
+                            sendTime,
+                            apiRequestId,
+                            apiCode,
+                            apiMsg));
         }
     }
 }

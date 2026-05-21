@@ -22,8 +22,7 @@ import lombok.Setter;
 public class KnowledgeEntity {
 
     /** 业务 ID，由序列生成器分配，不使用 Neo4j 内部 elementId */
-    @Id
-    private Long id;
+    @Id private Long id;
 
     /** 实体名称 */
     private String name;

@@ -1,9 +1,9 @@
-package com.xuejiai.aaf.module.system.log.controller;
+package com.xuejiai.aaf.module.system.sms.controller;
 
 import java.util.List;
 import java.util.Map;
 
-import com.xuejiai.aaf.module.system.log.service.SmsService;
+import com.xuejiai.aaf.module.system.sms.service.SmsService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,10 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.module.system.log.domain.SmsLog;
-import com.xuejiai.aaf.module.system.log.domain.SmsTemplate;
-import com.xuejiai.aaf.module.system.log.repository.SmsLogRepository;
-import com.xuejiai.aaf.module.system.log.repository.SmsTemplateRepository;
+import com.xuejiai.aaf.module.system.sms.domain.SmsLog;
+import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
+import com.xuejiai.aaf.module.system.sms.repository.SmsLogRepository;
+import com.xuejiai.aaf.module.system.sms.repository.SmsTemplateRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

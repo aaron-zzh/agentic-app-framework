@@ -20,11 +20,13 @@ public class SmsAutoConfiguration {
     @Bean
     public SmsSenderRouter smsSenderRouter(SmsProperties properties) {
         Map<String, SmsSender> senders = new HashMap<>();
-        if (properties.aliyun() != null && properties.aliyun().accessKeyId() != null
+        if (properties.aliyun() != null
+                && properties.aliyun().accessKeyId() != null
                 && !properties.aliyun().accessKeyId().isBlank()) {
             senders.put("aliyun", new AliyunSmsSender(properties.aliyun()));
         }
-        if (properties.tencent() != null && properties.tencent().secretId() != null
+        if (properties.tencent() != null
+                && properties.tencent().secretId() != null
                 && !properties.tencent().secretId().isBlank()) {
             senders.put("tencent", new TencentSmsSender(properties.tencent()));
         }

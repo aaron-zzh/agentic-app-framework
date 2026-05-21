@@ -3,6 +3,10 @@ spring:
     exclude:
       # 按需取消注释以禁用特定自动配置
       # - org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
+      # Neo4j 相关-当前必备，先保留这段
+      # - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration
+      # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jDataAutoConfiguration
+      # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jRepositoriesAutoConfiguration
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf-dev}
     username: ${DB_USERNAME:postgres}
@@ -10,13 +14,14 @@ spring:
   flyway:
     clean-disabled: false
     validate-on-migrate: false
-    locations: classpath:db/migration-new,classpath:db/testdata
+    locations: classpath:db/migration,classpath:db/seed,classpath:db/testdata
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:neo4j}
   data:
     neo4j:
-      uri: ${NEO4J_URI:bolt://localhost:7687}
-      authentication:
-        username: ${NEO4J_USERNAME:neo4j}
-        password: ${NEO4J_PASSWORD:neo4j}
       schema-generate: create
     redis:
       host: ${REDIS_HOST:localhost}
@@ -35,8 +40,7 @@ spring:
       api-key: ${OPENAI_API_KEY:sk-placeholder}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       chat:
-        options:
-          model: ${OPENAI_MODEL:gpt-4o-mini}
+        model: ${OPENAI_MODEL:gpt-4o-mini}
     dashscope:
       api-key: ${DASHSCOPE_API_KEY:}
     vectorstore:
@@ -56,6 +60,8 @@ aaf:
   flyway:
     clean-on-start: true
   ai:
+    # 模型兜底配置：优先级 DB配置 → 此处yaml → Spring AI默认值
+    # 数据库模型管理上线后，此处作为 DB 不可用时的 fallback，建议保留
     models:
       default:
         provider: openai
@@ -98,9 +104,21 @@ aaf:
         app-key: ${DINGTALK_APP_KEY:}
         app-secret: ${DINGTALK_APP_SECRET:}
         redirect-uri: ${DINGTALK_REDIRECT_URI:http://localhost:3000/auth/callback/dingtalk}
+  # ── 示例模块（按需开启，需配置 DASHSCOPE_API_KEY）────────────────
+  examples:
+    agentscope:
+      enabled: true
+      mcp:
+        # NWS 天气 MCP（美国国家气象局，免费无需认证）
+        # 留空则 mcpToolAgent 以无工具模式运行
+        server-url: ${MCP_SERVER_URL:https://nws.caseyjhand.co}
+        transport: ${MCP_TRANSPORT:streamable-http}
 
-# ── 示例模块（按需开启，需配置 DASHSCOPE_API_KEY）────────────────
-# aaf:
-#   examples:
-#     agentscope:
-#       enabled: true
+
+agentscope:
+  a2a:
+    server:
+      card:
+        name: AAF Supervisor Agent
+        description: AAF 多智能体协作框架 - Supervisor Agent，支持日程管理等任务委托
+        version: 0.1.0

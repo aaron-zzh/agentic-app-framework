@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessageSender;
-import com.xuejiai.aaf.module.system.log.domain.domain.Notification;
+import com.xuejiai.aaf.module.system.notify.domain.Notification;
 import com.xuejiai.aaf.module.system.notify.repository.NotificationRepository;
 import com.xuejiai.aaf.module.system.notify.ws.WebSocketSessionManager;
 

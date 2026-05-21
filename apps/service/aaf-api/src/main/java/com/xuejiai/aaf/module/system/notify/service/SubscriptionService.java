@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.module.system.log.domain.domain.Subscription;
+import com.xuejiai.aaf.module.system.notify.domain.Subscription;
 import com.xuejiai.aaf.module.system.notify.repository.SubscriptionRepository;
 
 import lombok.RequiredArgsConstructor;

@@ -29,9 +29,10 @@ public class SystemConfigController {
     /** 按分类查询配置列表（敏感配置 value 返回 null） */
     @GetMapping
     public Result<List<SystemConfigVO>> list(@RequestParam(required = false) String category) {
-        var list = category != null
-                ? configService.listByCategory(category)
-                : configService.listByCategory("*");
+        var list =
+                category != null
+                        ? configService.listByCategory(category)
+                        : configService.listByCategory("*");
         return Result.success(list.stream().map(configService::toVO).toList());
     }
 

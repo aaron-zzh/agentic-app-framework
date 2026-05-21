@@ -12,7 +12,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageTemplateEngine;
 import com.xuejiai.aaf.framework.messaging.MessageTemplateProvider;
-import com.xuejiai.aaf.module.system.log.domain.domain.MessageTemplate;
+import com.xuejiai.aaf.module.system.notify.domain.MessageTemplate;
 import com.xuejiai.aaf.module.system.notify.repository.MessageTemplateRepository;
 import com.xuejiai.aaf.module.system.notify.vo.MessageTemplateCreateDTO;
 import com.xuejiai.aaf.module.system.notify.vo.MessageTemplateUpdateDTO;

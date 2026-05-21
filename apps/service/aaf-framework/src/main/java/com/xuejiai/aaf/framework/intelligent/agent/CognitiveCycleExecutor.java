@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryExtractionService;
-import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

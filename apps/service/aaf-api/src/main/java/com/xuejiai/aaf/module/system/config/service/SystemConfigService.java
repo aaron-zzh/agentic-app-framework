@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
  * 系统配置服务。
  *
  * <p>读取优先级：Redis 缓存 → 数据库 → defaultValue
+ *
  * <p>写入时自动清除缓存。
  */
 @Slf4j
@@ -66,8 +67,10 @@ public class SystemConfigService {
 
     @Transactional
     public void set(String key, String value) {
-        var config = configRepository.findByConfigKeyAndDeletedFalse(key)
-                .orElseThrow(() -> new IllegalArgumentException("配置项不存在: " + key));
+        var config =
+                configRepository
+                        .findByConfigKeyAndDeletedFalse(key)
+                        .orElseThrow(() -> new IllegalArgumentException("配置项不存在: " + key));
         if (!config.getEditable()) {
             throw new IllegalStateException("配置项不可编辑: " + key);
         }
@@ -90,10 +93,17 @@ public class SystemConfigService {
         // 敏感配置不返回 value
         var value = Boolean.TRUE.equals(c.getVisible()) ? c.getValue() : null;
         return new com.xuejiai.aaf.module.system.config.vo.SystemConfigVO(
-                c.getId(), c.getCategory(), c.getConfigKey(),
-                value, c.getDefaultValue(), c.getValueType(),
-                c.getName(), c.getDescription(),
-                c.getVisible(), c.getEditable(), c.getUpdateTime());
+                c.getId(),
+                c.getCategory(),
+                c.getConfigKey(),
+                value,
+                c.getDefaultValue(),
+                c.getValueType(),
+                c.getName(),
+                c.getDescription(),
+                c.getVisible(),
+                c.getEditable(),
+                c.getUpdateTime());
     }
 
     // ── 内部 ──────────────────────────────────────────────────

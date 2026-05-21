@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.log.listener;
+package com.xuejiai.aaf.module.system.sms.listener;
 
 import java.time.LocalDateTime;
 
@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.framework.messaging.sms.SmsSendEvent;
-import com.xuejiai.aaf.module.system.log.domain.SmsLog;
-import com.xuejiai.aaf.module.system.log.repository.SmsLogRepository;
+import com.xuejiai.aaf.module.system.sms.domain.SmsLog;
+import com.xuejiai.aaf.module.system.sms.repository.SmsLogRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

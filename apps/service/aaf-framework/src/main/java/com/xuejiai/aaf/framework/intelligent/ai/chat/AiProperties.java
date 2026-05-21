@@ -3,7 +3,7 @@
  *
  * @author AaronZZH & Kiro
  */
-package com.xuejiai.aaf.framework.intelligent.ai;
+package com.xuejiai.aaf.framework.intelligent.ai.chat;
 
 import java.util.HashMap;
 import java.util.Map;

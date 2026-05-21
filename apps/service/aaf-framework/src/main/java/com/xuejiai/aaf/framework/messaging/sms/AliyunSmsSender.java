@@ -44,7 +44,8 @@ public class AliyunSmsSender implements SmsSender {
             var response = client.sendSms(request);
             if (!"OK".equals(response.getBody().getCode())) {
                 log.error(
-                        "阿里云短信发送失败: code={}, message={}",
+                        "阿里云短信发送失败: sign={}, code={}, message={}",
+                        signName,
                         response.getBody().getCode(),
                         response.getBody().getMessage());
                 throw new RuntimeException("短信发送失败: " + response.getBody().getMessage());

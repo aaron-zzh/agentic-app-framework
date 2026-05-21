@@ -1,10 +1,10 @@
-package com.xuejiai.aaf.module.system.log.repository;
+package com.xuejiai.aaf.module.system.sms.repository;
 
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.xuejiai.aaf.module.system.log.domain.SmsTemplate;
+import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
 
 public interface SmsTemplateRepository extends JpaRepository<SmsTemplate, Long> {
 

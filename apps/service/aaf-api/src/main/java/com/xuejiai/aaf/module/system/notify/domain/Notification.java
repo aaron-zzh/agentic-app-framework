@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.log.domain.domain;
+package com.xuejiai.aaf.module.system.notify.domain;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 

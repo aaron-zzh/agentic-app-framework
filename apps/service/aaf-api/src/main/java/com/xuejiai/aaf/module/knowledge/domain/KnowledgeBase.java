@@ -2,9 +2,8 @@ package com.xuejiai.aaf.module.knowledge.domain;
 
 import org.hibernate.annotations.SQLDelete;
 
-import com.xuejiai.aaf.common.model.BaseEntity;
-
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
+import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

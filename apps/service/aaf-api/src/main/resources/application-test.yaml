@@ -6,13 +6,15 @@ spring:
   flyway:
     clean-disabled: false
     validate-on-migrate: false
-    locations: classpath:db/migration-new
+    locations: classpath:db/migration,classpath:db/seed
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:neo4j}
   data:
     neo4j:
-      uri: ${NEO4J_URI:bolt://localhost:7687}
-      authentication:
-        username: ${NEO4J_USERNAME:neo4j}
-        password: ${NEO4J_PASSWORD:neo4j}
+      schema-generate: none
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}

@@ -15,6 +15,7 @@ import com.xuejiai.aaf.module.system.auth.vo.SendCodeDTO;
  * <p>默认 @Disabled，手动去掉注解后运行，在真实邮箱中验证邮件样式和内容。
  *
  * <p>运行前在 .env 中配置 SMTP 和收件邮箱：
+ *
  * <pre>
  *   MAIL_HOST=smtp.qq.com
  *   MAIL_PORT=465
@@ -29,8 +30,7 @@ import com.xuejiai.aaf.module.system.auth.vo.SendCodeDTO;
 @ActiveProfiles("dev")
 class AuthServiceEmailE2ETest {
 
-    @Autowired
-    private AuthService authService;
+    @Autowired private AuthService authService;
 
     /** 收件邮箱：优先读 TEST_EMAIL 环境变量，其次用发件人地址 */
     @Value("${TEST_EMAIL:${EMAIL_FROM:}}")

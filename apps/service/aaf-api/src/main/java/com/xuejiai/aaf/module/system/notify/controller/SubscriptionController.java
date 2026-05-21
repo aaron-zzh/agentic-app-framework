@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.ActorContext;
-import com.xuejiai.aaf.module.system.log.domain.domain.Subscription;
+import com.xuejiai.aaf.module.system.notify.domain.Subscription;
 import com.xuejiai.aaf.module.system.notify.service.SubscriptionService;
 
 import io.swagger.v3.oas.annotations.Operation;

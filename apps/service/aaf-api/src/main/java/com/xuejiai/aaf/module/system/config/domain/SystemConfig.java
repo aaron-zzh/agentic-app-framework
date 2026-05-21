@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.config.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -8,14 +10,13 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import org.hibernate.annotations.SQLDelete;
-
 /** 系统配置。 */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_config")
-@SQLDelete(sql = "UPDATE sys_config SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql = "UPDATE sys_config SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SystemConfig extends BaseEntity {
 
     /** 分类（security/user/ai/sms/storage） */

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.framework.sequence.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -8,14 +10,14 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import org.hibernate.annotations.SQLDelete;
-
 /** 序列号配置。 */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_sequence")
-@SQLDelete(sql = "UPDATE sys_sequence SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE sys_sequence SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SystemSequence extends BaseEntity {
 
     @Column(nullable = false, length = 100)

@@ -5,7 +5,7 @@ import java.time.LocalTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.module.system.log.domain.domain.NotificationPreference;
+import com.xuejiai.aaf.module.system.notify.domain.NotificationPreference;
 import com.xuejiai.aaf.module.system.notify.repository.NotificationPreferenceRepository;
 
 import lombok.RequiredArgsConstructor;
