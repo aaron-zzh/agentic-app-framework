@@ -31,6 +31,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils/cn"
 import { htmlToEditorState } from "../converters/html"
+import { markdownToEditorState } from "../converters/markdown"
 import { allNodes } from "../lib/nodes"
 import { editorTheme } from "../lib/theme"
 import { AIWritePlugin } from "../plugins/AIWritePlugin"
@@ -52,6 +53,7 @@ export function RichTextEditor({
   error,
   minHeight = 200,
   preset: presetName = "richField",
+  mode = "html",
   uploadEndpoint,
   onMentionSearch
 }: RichTextEditorProps) {
@@ -75,6 +77,7 @@ export function RichTextEditor({
           placeholder={placeholder}
           disabled={disabled}
           minHeight={minHeight}
+          mode={mode}
           uploadEndpoint={uploadEndpoint}
           onMentionSearch={onMentionSearch}
           isInitialized={isInitialized}
@@ -93,6 +96,7 @@ function EditorInner({
   placeholder,
   disabled,
   minHeight,
+  mode = "html",
   uploadEndpoint,
   onMentionSearch,
   isInitialized
@@ -104,12 +108,16 @@ function EditorInner({
   const [editor] = useLexicalComposerContext()
   const [anchorElem, setAnchorElem] = useState<HTMLElement | null>(null)
 
-  // 初始值注入
+  // 初始值注入（按 mode 选择转换器）
   useEffect(() => {
     if (isInitialized.current || !value) return
     isInitialized.current = true
-    htmlToEditorState(editor, value)
-  }, [editor, value, isInitialized])
+    if (mode === "markdown" || mode === "plaintext") {
+      markdownToEditorState(editor, value)
+    } else {
+      htmlToEditorState(editor, value)
+    }
+  }, [editor, value, mode, isInitialized])
 
   // disabled 状态同步
   useEffect(() => {
@@ -150,7 +158,7 @@ function EditorInner({
       <HistoryPlugin />
       <ListPlugin />
       <LinkPlugin />
-      {onChange && <OnChangePlugin onChange={onChange} />}
+      {onChange && <OnChangePlugin onChange={onChange} mode={mode} />}
       {preset.image && <ImagePlugin uploadEndpoint={uploadEndpoint} />}
       {preset.mention && <MentionPlugin onSearch={onMentionSearch} />}
       {preset.slashMenu && !disabled && <SlashMenuPlugin />}

@@ -1,8 +1,6 @@
 /**
- * OnChangePlugin——编辑器内容变更时回调 HTML
+ * OnChangePlugin——编辑器内容变更时回调（支持 html / markdown / plaintext）
  * @author AaronZZH & Kiro
- *
- * 使用 @lexical/react 内置 OnChangePlugin，editorState 回调内调用 $generateHtmlFromNodes 是安全的
  */
 
 "use client"
@@ -10,18 +8,28 @@
 import { $generateHtmlFromNodes } from "@lexical/html"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
 import { OnChangePlugin as LexicalOnChangePlugin } from "@lexical/react/LexicalOnChangePlugin"
-import type { EditorState } from "lexical"
+import { $getRoot, type EditorState } from "lexical"
+import { MARKDOWN_TRANSFORMERS } from "../converters/markdown"
+import { $convertToMarkdownString } from "@lexical/markdown"
+import type { EditorMode } from "../types"
 
 interface OnChangePluginProps {
-  onChange: (html: string) => void
+  onChange: (value: string) => void
+  mode?: EditorMode
 }
 
-export function OnChangePlugin({ onChange }: OnChangePluginProps) {
+export function OnChangePlugin({ onChange, mode = "html" }: OnChangePluginProps) {
   const [editor] = useLexicalComposerContext()
 
   const handleChange = (editorState: EditorState) => {
     editorState.read(() => {
-      onChange($generateHtmlFromNodes(editor))
+      if (mode === "markdown") {
+        onChange($convertToMarkdownString(MARKDOWN_TRANSFORMERS))
+      } else if (mode === "plaintext") {
+        onChange($getRoot().getTextContent())
+      } else {
+        onChange($generateHtmlFromNodes(editor))
+      }
     })
   }
 

@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDocTree, useDocument, useUpdateDocument, useImportDocs } from "@/lib/queries/use-documents"
 import type { DocTreeNode } from "@/lib/types/document"
 import { DocRelationGraph } from "./DocRelationGraph"
+import { RichTextEditor } from "@/features/rich-text-editor"
 import { toast } from "sonner"
 
 export default function DocsPage() {
@@ -144,10 +145,12 @@ export default function DocsPage() {
           <DialogHeader>
             <DialogTitle>编辑文档：{doc?.title}</DialogTitle>
           </DialogHeader>
-          <textarea
-            className="h-96 w-full rounded-md border p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          <RichTextEditor
             value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
+            onChange={setEditContent}
+            preset="document"
+            mode="markdown"
+            minHeight={400}
           />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setEditOpen(false)}>
