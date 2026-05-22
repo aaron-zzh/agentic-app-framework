@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.document.domain;
+package com.xuejiai.aaf.autodev.doc.domain;
 
 import java.time.LocalDateTime;
 
@@ -6,12 +6,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 文档引用关系（doc_link 表）。 */
+/** 开发文档引用关系（autodev_doc_link 表）。 */
 @Getter
 @Setter
 @Entity
-@Table(name = "doc_link")
-public class DocLink {
+@Table(name = "autodev_doc_link")
+public class AutodevDocLink {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

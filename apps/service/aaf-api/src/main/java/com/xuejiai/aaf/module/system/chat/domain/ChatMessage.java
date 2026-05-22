@@ -40,6 +40,18 @@ public class ChatMessage extends BaseEntity {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    /** 消息类型：text / tool_call / tool_result / system_event */
+    @Column(name = "message_type", nullable = false, length = 20)
+    private String messageType = "text";
+
+    /** 行动者类型：human / ai / bot / system */
+    @Column(name = "actor_type", nullable = false, length = 20)
+    private String actorType = "human";
+
+    /** 消息发送时的用户感知上下文（pageId/operation/entityType/entityId 等，JSON） */
+    @Column(name = "awareness_context", columnDefinition = "JSONB")
+    private String awarenessContext;
+
     /** 消息消耗的 Token 数 */
     @Column(name = "token_count")
     private Integer tokenCount;

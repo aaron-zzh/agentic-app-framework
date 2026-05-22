@@ -1,5 +1,5 @@
 /**
- * 文档关系图谱组件（React Flow）
+ * 文档关系图谱组件（React Flow）——共享版
  * @author AaronZZH & Kiro
  */
 "use client"
@@ -16,17 +16,16 @@ import {
   useEdgesState,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
-import { useDocRelations } from "@/lib/queries/use-documents"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { DocRelationGraph } from "@/lib/types/document"
 
 interface Props {
-  docId: number
+  data: DocRelationGraph | undefined
+  isLoading: boolean
   onSelectDoc: (id: number) => void
 }
 
-export function DocRelationGraph({ docId, onSelectDoc }: Props) {
-  const { data, isLoading } = useDocRelations(docId)
-
+export function DocRelationGraphView({ data, isLoading, onSelectDoc }: Props) {
   const { initialNodes, initialEdges } = useMemo(() => {
     if (!data) return { initialNodes: [] as Node[], initialEdges: [] as Edge[] }
 
@@ -38,19 +37,8 @@ export function DocRelationGraph({ docId, onSelectDoc }: Props) {
         y: node.isCenter ? 200 : 50 + Math.floor(i / 3) * 150,
       },
       style: node.isCenter
-        ? {
-            background: "hsl(var(--primary))",
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            padding: "8px 12px",
-          }
-        : {
-            background: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 8,
-            padding: "8px 12px",
-          },
+        ? { background: "hsl(var(--primary))", color: "white", border: "none", borderRadius: 8, padding: "8px 12px" }
+        : { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 12px" },
     }))
 
     const rfEdges: Edge[] = data.edges.map((edge, i) => ({
@@ -67,46 +55,22 @@ export function DocRelationGraph({ docId, onSelectDoc }: Props) {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(initialNodes)
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(initialEdges)
 
-  // 数据变化时同步更新节点和边
   useEffect(() => {
     setRfNodes(initialNodes)
     setRfEdges(initialEdges)
   }, [initialNodes, initialEdges, setRfNodes, setRfEdges])
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      const id = node.data.docId as number
-      onSelectDoc(id)
-    },
+    (_: React.MouseEvent, node: Node) => onSelectDoc(node.data.docId as number),
     [onSelectDoc]
   )
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Skeleton className="h-64 w-full" />
-      </div>
-    )
-  }
-
-  if (!data || data.nodes.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <p>暂无关系数据</p>
-      </div>
-    )
-  }
+  if (isLoading) return <div className="flex h-full items-center justify-center"><Skeleton className="h-64 w-full" /></div>
+  if (!data || data.nodes.length === 0) return <div className="flex h-full items-center justify-center text-muted-foreground"><p>暂无关系数据</p></div>
 
   return (
     <div className="h-full w-full">
-      <ReactFlow
-        nodes={rfNodes}
-        edges={rfEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
-        fitView
-      >
+      <ReactFlow nodes={rfNodes} edges={rfEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeClick} fitView>
         <Background />
         <Controls />
         <MiniMap />

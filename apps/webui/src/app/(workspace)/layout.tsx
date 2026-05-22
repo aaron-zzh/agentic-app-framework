@@ -1,19 +1,17 @@
 /**
- * 工作区布局——侧边栏 + 顶栏 + 主内容区
- * @author AaronZZH & Kiro
+ * 工作区布局——侧边栏 + 顶栏 + 主内容区 + GlobalChatter
+ * Server Component：只做注册和静态初始化
+ * 客户端交互（GlobalChatter、主题切换等）由 WorkspaceLayoutClient 处理
  *
- * 响应式：
- * - ≥768px（md）：固定侧边栏 + 内容区
- * - <768px：侧边栏隐藏，顶栏汉堡菜单点击弹出 Sheet 侧边栏
+ * @author AaronZZH & Kiro
  */
 
 import { Suspense } from "react"
-import { MotionLazy } from "@/components/animate"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { registerDefaultComponents } from "@/features/entity-engine/components/register"
 import "@/features/entity-engine/entities"
-import { AppHeader } from "@/sections/layout/AppHeader"
-import { AppSidebar } from "@/sections/layout/AppSidebar"
+import { WorkspaceLayoutClient } from "@/sections/layout/WorkspaceLayoutClient"
+import { MotionLazy } from "@/components/animate"
 
 // 注册默认字段组件（实体注册已在 entities/index.ts side effect 中完成）
 registerDefaultComponents()
@@ -21,19 +19,10 @@ registerDefaultComponents()
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   return (
     <MotionLazy>
-      <div className="flex h-screen overflow-hidden">
-        <Suspense>
-          <TopProgressBar />
-        </Suspense>
-        {/* 桌面端固定侧边栏 */}
-        <div className="hidden md:flex">
-          <AppSidebar />
-        </div>
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <AppHeader />
-          <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
-        </div>
-      </div>
+      <Suspense>
+        <TopProgressBar />
+      </Suspense>
+      <WorkspaceLayoutClient>{children}</WorkspaceLayoutClient>
     </MotionLazy>
   )
 }

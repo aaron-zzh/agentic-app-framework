@@ -96,6 +96,33 @@ public class ChatService {
         return toMessageVO(message);
     }
 
+    /** 保存消息（含 actorType 和用户感知上下文） */
+    @Transactional
+    public ChatMessageVO saveMessage(
+            Long senderId,
+            String senderType,
+            Long sessionId,
+            String role,
+            String content,
+            String actorType,
+            String awarenessContext) {
+        sessionRepository
+                .findById(sessionId)
+                .orElseThrow(
+                        () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+
+        var message = new ChatMessage();
+        message.setSessionId(sessionId);
+        message.setSenderId(senderId);
+        message.setSenderType(senderType);
+        message.setRole(role);
+        message.setContent(content);
+        message.setActorType(actorType != null ? actorType : "human");
+        message.setAwarenessContext(awarenessContext);
+        messageRepository.save(message);
+        return toMessageVO(message);
+    }
+
     /** 保存消息（含 Token 计数和元数据） */
     @Transactional
     public ChatMessageVO saveMessage(

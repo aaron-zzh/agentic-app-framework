@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-088**，新一级用户故事从 AAF-089 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-096**，新一级用户故事从 AAF-097 开始。添加新条目后必须同步更新此行。
 
 ## 待排期
 
@@ -32,6 +32,14 @@
 - [ ] AAF-045 (创建: 05-19) LiveChatter（实时对话面板、Markdown 渲染、代码高亮、文件预览、对话分支、对话导出）
 - [ ] AAF-046 (创建: 05-19) 语音交互（语音输入 Whisper、语音输出 TTS、实时语音对话模式）
 - [ ] AAF-047 (创建: 05-19) 对话增强（意图识别、Slash 命令、@提及实体、对话中内联操作）
+- [ ] AAF-089 (创建: 05-22) 多会话 ThreadList（ThreadList 统一展示 AI + 客服 + IM 多会话；工作区侧边栏聊天面板；会话切换时 runtime 自动切换；依赖 AAF-045）
+- [ ] AAF-090 (创建: 05-22) 机器人脚本引擎（ChatbotScript/ChatbotStep 数据模型；机器人对话流程 bot→waiting→active；无代码可视化配置；依赖 AAF-058 工作流编排）
+- [ ] AAF-091 (创建: 05-22) 客服工作台（/workspace/livechat 路由；待接入队列/我的会话；访客信息面板；快捷回复模板；依赖 AAF-089）
+- [ ] AAF-092 (创建: 05-22) AI 感知辅助客服（LivechatAIContext 扩展；智能回复建议 suggest_reply ToolUI；情绪预警；意图识别；知识库自动推送；依赖 AAF-091 + AAF-053）
+- [ ] AAF-093 (创建: 05-22) 访客端嵌入 Widget（LivechatWidget 浮窗；/api/livechat/init 初始化接口；机器人欢迎语 + 选项按钮 ToolUI 渲染；依赖 AAF-090）
+- [ ] AAF-094 (创建: 05-22) 满意度评价（会话关闭时评分卡片；POST /api/chat/sessions/{id}/rating；评价数据统计；依赖 AAF-091）
+- [ ] AAF-095 (创建: 05-22) DSL 片段渲染（对话中 ```dsl 代码块 → DslPreviewCard 组件；用户确认后转发后端 DSL 引擎执行；依赖 AAF-044 + DSL 运行时）
+- [ ] AAF-096 (创建: 05-22) IMRuntime 内部 IM（一对一私聊/群组聊天；WebSocket 双向通信；消息已读/未读；依赖 AAF-089）
 
 ### v0.4 — 智能体与五层智能架构
 

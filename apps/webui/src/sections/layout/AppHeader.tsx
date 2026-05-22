@@ -8,7 +8,7 @@
 "use client"
 
 import { m } from "framer-motion"
-import { Menu, Moon, Search, Sun, Users } from "lucide-react"
+import { Menu, Moon, Search, Sun, Users, MessageSquare } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useState } from "react"
@@ -44,6 +44,7 @@ export function AppHeader() {
       <div className="flex-1" />
       <SearchButton onClick={() => setCmdManualOpen(true)} />
       <ThemeToggle />
+      <ChatterToggle />
       <NotificationDrawer />
       <ContactsPanel>
         <button
@@ -234,5 +235,25 @@ function SettingsIcon() {
       />
       <circle cx="12.5" cy="12" r="3" fill="currentColor" />
     </svg>
+  )
+}
+
+
+/** Chatter 全局触发按钮（读取 chatter store，直接控制 open 状态） */
+function ChatterToggle() {
+  // 动态导入避免 store 在 SSR 阶段执行
+  const { useChatterStore } = require("@/stores/chatter-store")
+  const open = useChatterStore((s: { open: boolean }) => s.open)
+  const setOpen = useChatterStore((s: { setOpen: (v: boolean) => void }) => s.setOpen)
+
+  return (
+    <button
+      type="button"
+      className={`flex size-8 items-center justify-center rounded-md hover:bg-accent ${open ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+      aria-label="打开对话"
+      onClick={() => setOpen(!open)}
+    >
+      <MessageSquare className="size-4" />
+    </button>
   )
 }

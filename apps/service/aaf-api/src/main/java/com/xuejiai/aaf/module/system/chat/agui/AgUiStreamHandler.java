@@ -33,7 +33,24 @@ public class AgUiStreamHandler {
      * @param runId 本次运行 ID
      */
     public void handleStream(Flux<ChatResponse> flux, SseEmitter emitter, String runId) {
+        handleStream(flux, emitter, runId, null);
+    }
+
+    /**
+     * 订阅 LLM 流式响应，流结束后回调完整内容（用于持久化）。
+     *
+     * @param flux LLM 流式响应
+     * @param emitter SSE 发射器
+     * @param runId 本次运行 ID
+     * @param onComplete 流结束回调，参数为完整 AI 回复文本（可为 null 表示不需要回调）
+     */
+    public void handleStream(
+            Flux<ChatResponse> flux,
+            SseEmitter emitter,
+            String runId,
+            java.util.function.Consumer<String> onComplete) {
         var messageId = UUID.randomUUID().toString();
+        var fullContent = new StringBuilder();
 
         // 发送 RUN_STARTED + TEXT_MESSAGE_START
         sendEvent(emitter, AgUiEvent.runStarted(runId));
@@ -50,6 +67,7 @@ public class AgUiStreamHandler {
                             // 处理文本内容
                             var text = output.getText();
                             if (text != null && !text.isEmpty()) {
+                                fullContent.append(text);
                                 sendEvent(
                                         emitter,
                                         AgUiEvent.textMessageContent(runId, messageId, text));
@@ -81,6 +99,10 @@ public class AgUiStreamHandler {
                         () -> {
                             sendEvent(emitter, AgUiEvent.textMessageEnd(runId, messageId));
                             sendEvent(emitter, AgUiEvent.runFinished(runId));
+                            // 触发完整内容回调（用于持久化）
+                            if (onComplete != null) {
+                                onComplete.accept(fullContent.toString());
+                            }
                             emitter.complete();
                         })
                 .doOnError(

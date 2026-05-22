@@ -12,110 +12,63 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.module.document.domain.DocLink;
 import com.xuejiai.aaf.module.document.domain.Document;
-import com.xuejiai.aaf.module.document.repository.DocLinkRepository;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.document.vo.*;
 
-/** 文档管理服务。 */
+/** 文档管理服务（业务文档基础 CRUD）。 */
 @Service
 public class DocumentService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
     private final DocumentRepository documentRepository;
-    private final DocLinkRepository docLinkRepository;
-    private final DocImportService docImportService;
 
-    public DocumentService(
-            DocumentRepository documentRepository,
-            DocLinkRepository docLinkRepository,
-            DocImportService docImportService) {
+    public DocumentService(DocumentRepository documentRepository) {
         this.documentRepository = documentRepository;
-        this.docLinkRepository = docLinkRepository;
-        this.docImportService = docImportService;
     }
 
-    /** 获取文档树（按 file_path 构建层级结构）。 */
     public List<DocTreeNodeVO> getTree() {
-        List<Document> docs = documentRepository.findByStatusOrderByFilePath("active");
-        return buildTree(docs);
+        return buildTree(documentRepository.findByStatusOrderByFilePath("active"));
     }
 
-    /** 获取文档详情。 */
     public Document getById(Long id) {
-        return documentRepository
-                .findById(id)
+        return documentRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
     }
 
-    /** 更新文档内容，同步写回本地文件。 */
+    @Transactional
+    public Document create(DocCreateDTO dto) {
+        String filePath = dto.filePath();
+        if (filePath != null) {
+            Path normalized = Path.of(filePath).normalize();
+            if (normalized.toString().replace('\\', '/').contains("..")) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "非法文件路径");
+            }
+        }
+        Document doc = new Document();
+        doc.setTitle(dto.title());
+        doc.setFilePath(filePath);
+        doc.setContent(dto.content() != null ? dto.content() : "");
+        doc.setDocType(dto.docType() != null ? dto.docType() : "spec");
+        doc.setStatus("active");
+        return documentRepository.save(doc);
+    }
+
     @Transactional
     public Document update(Long id, String content) {
         Document doc = getById(id);
         doc.setContent(content);
         documentRepository.save(doc);
-
-        if (doc.getFilePath() != null) {
-            writeToLocalFile(doc.getFilePath(), content);
-        }
-
-        docImportService.extractLinks();
+        if (doc.getFilePath() != null) writeToLocalFile(doc.getFilePath(), content);
         return doc;
     }
 
-    /** 全文检索。 */
     public List<DocSearchResultVO> search(String query) {
         return documentRepository.fullTextSearch(query).stream()
-                .map(
-                        doc ->
-                                new DocSearchResultVO(
-                                        doc.getId(),
-                                        doc.getTitle(),
-                                        doc.getFilePath(),
-                                        extractSnippet(doc.getContent(), query)))
+                .map(d -> new DocSearchResultVO(d.getId(), d.getTitle(), d.getFilePath(),
+                        extractSnippet(d.getContent(), query)))
                 .collect(Collectors.toList());
-    }
-
-    /** 获取文档关系图数据（nodes + edges，1 跳）。 */
-    public DocRelationGraphVO getRelations(Long id) {
-        getById(id); // 校验存在
-
-        List<DocLink> outgoing = docLinkRepository.findBySourceId(id);
-        List<DocLink> incoming = docLinkRepository.findByTargetId(id);
-
-        Set<Long> nodeIds = new HashSet<>();
-        nodeIds.add(id);
-        outgoing.forEach(l -> nodeIds.add(l.getTargetId()));
-        incoming.forEach(l -> nodeIds.add(l.getSourceId()));
-
-        List<Document> nodes = documentRepository.findAllById(nodeIds);
-
-        List<DocRelationGraphVO.Edge> edges = new ArrayList<>();
-        outgoing.forEach(
-                l ->
-                        edges.add(
-                                new DocRelationGraphVO.Edge(
-                                        l.getSourceId(), l.getTargetId(), l.getLinkType())));
-        incoming.forEach(
-                l ->
-                        edges.add(
-                                new DocRelationGraphVO.Edge(
-                                        l.getSourceId(), l.getTargetId(), l.getLinkType())));
-
-        List<DocRelationGraphVO.Node> graphNodes =
-                nodes.stream()
-                        .map(
-                                d ->
-                                        new DocRelationGraphVO.Node(
-                                                d.getId(),
-                                                d.getTitle(),
-                                                d.getFilePath(),
-                                                d.getId().equals(id)))
-                        .collect(Collectors.toList());
-
-        return new DocRelationGraphVO(graphNodes, edges);
     }
 
     private void writeToLocalFile(String filePath, String content) {
@@ -123,7 +76,6 @@ public class DocumentService {
             Path path = Path.of(filePath).toAbsolutePath();
             Files.createDirectories(path.getParent());
             Files.writeString(path, content);
-            log.info("文档已同步写回本地：{}", filePath);
         } catch (IOException e) {
             log.error("写回本地文件失败：{}，原因：{}", filePath, e.getMessage());
         }
@@ -145,26 +97,21 @@ public class DocumentService {
         for (Document doc : docs) {
             String path = doc.getFilePath() != null ? doc.getFilePath() : doc.getTitle();
             String[] parts = path.split("/");
-
             DocTreeNodeVO parent = null;
             var currentPath = new StringBuilder();
+
             for (int i = 0; i < parts.length - 1; i++) {
                 if (i > 0) currentPath.append("/");
                 currentPath.append(parts[i]);
                 String dirPath = currentPath.toString();
                 final int idx = i;
                 final DocTreeNodeVO parentRef = parent;
-                DocTreeNodeVO dir =
-                        dirMap.computeIfAbsent(
-                                dirPath,
-                                k -> {
-                                    var node =
-                                            new DocTreeNodeVO(
-                                                    null, parts[idx], k, true, new ArrayList<>());
-                                    if (parentRef == null) roots.add(node);
-                                    else parentRef.children().add(node);
-                                    return node;
-                                });
+                DocTreeNodeVO dir = dirMap.computeIfAbsent(dirPath, k -> {
+                    var node = new DocTreeNodeVO(null, parts[idx], k, true, new ArrayList<>());
+                    if (parentRef == null) roots.add(node);
+                    else parentRef.children().add(node);
+                    return node;
+                });
                 parent = dir;
             }
 

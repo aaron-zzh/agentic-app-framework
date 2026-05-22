@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.document.service;
+package com.xuejiai.aaf.autodev.doc.service;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -14,31 +14,31 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.yaml.snakeyaml.Yaml;
 
-import com.xuejiai.aaf.module.document.domain.DocLink;
-import com.xuejiai.aaf.module.document.domain.DocNode;
-import com.xuejiai.aaf.module.document.domain.Document;
-import com.xuejiai.aaf.module.document.repository.DocLinkRepository;
-import com.xuejiai.aaf.module.document.repository.DocRelationRepository;
-import com.xuejiai.aaf.module.document.repository.DocumentRepository;
+import com.xuejiai.aaf.autodev.doc.domain.AutodevDoc;
+import com.xuejiai.aaf.autodev.doc.domain.AutodevDocLink;
+import com.xuejiai.aaf.autodev.doc.domain.AutodevDocNode;
+import com.xuejiai.aaf.autodev.doc.repository.AutodevDocLinkRepository;
+import com.xuejiai.aaf.autodev.doc.repository.AutodevDocRelationRepository;
+import com.xuejiai.aaf.autodev.doc.repository.AutodevDocRepository;
 
-/** 文档导入服务：扫描 docs/ 目录，解析 Front Matter，提取双链关系写入 Neo4j。 */
+/** 开发文档导入服务：扫描 docs/ 目录，同步到 autodev_doc 表，提取引用关系写入 Neo4j。 */
 @Service
-public class DocImportService {
+public class AutodevDocImportService {
 
-    private static final Logger log = LoggerFactory.getLogger(DocImportService.class);
+    private static final Logger log = LoggerFactory.getLogger(AutodevDocImportService.class);
 
     private static final Pattern WIKILINK = Pattern.compile("\\[\\[([^\\]]+)\\]\\]");
     private static final Pattern MDLINK = Pattern.compile("\\[[^\\]]*\\]\\(([^)]+\\.md[^)]*)\\)");
 
-    private final DocumentRepository documentRepository;
-    private final DocLinkRepository docLinkRepository;
-    private final DocRelationRepository docRelationRepository;
+    private final AutodevDocRepository docRepository;
+    private final AutodevDocLinkRepository docLinkRepository;
+    private final AutodevDocRelationRepository docRelationRepository;
 
-    public DocImportService(
-            DocumentRepository documentRepository,
-            DocLinkRepository docLinkRepository,
-            DocRelationRepository docRelationRepository) {
-        this.documentRepository = documentRepository;
+    public AutodevDocImportService(
+            AutodevDocRepository docRepository,
+            AutodevDocLinkRepository docLinkRepository,
+            AutodevDocRelationRepository docRelationRepository) {
+        this.docRepository = docRepository;
         this.docLinkRepository = docLinkRepository;
         this.docRelationRepository = docRelationRepository;
     }
@@ -46,7 +46,7 @@ public class DocImportService {
     /** 启动时自动触发全量导入。 */
     @EventListener(ApplicationStartedEvent.class)
     public void onStartup() {
-        log.info("启动时自动扫描 docs/ 目录");
+        log.info("启动时自动扫描 docs/ 目录（autodev_doc）");
         importAll();
     }
 
@@ -69,18 +69,16 @@ public class DocImportService {
                 log.warn("导入文件失败：{}，原因：{}", file, e.getMessage());
             }
         }
-        log.info("文档导入完成，共处理 {} 个文件", count);
-
-        // 所有文档导入后提取链接关系
+        log.info("开发文档导入完成，共处理 {} 个文件", count);
         extractLinks();
         return count;
     }
 
-    /** 提取链接关系（需要所有文档已导入后执行）。 */
+    /** 提取链接关系（所有文档导入后执行）。 */
     @Transactional
     public void extractLinks() {
-        List<Document> docs = documentRepository.findByStatusOrderByFilePath("active");
-        for (Document doc : docs) {
+        List<AutodevDoc> docs = docRepository.findByStatusOrderByFilePath("active");
+        for (AutodevDoc doc : docs) {
             if (doc.getContent() == null) continue;
             try {
                 extractDocLinks(doc, docs);
@@ -98,96 +96,75 @@ public class DocImportService {
         String title = extractTitle(frontMatter, rawContent, file);
         String docType = inferDocType(relativePath);
 
-        // upsert doc_document
-        Document doc = documentRepository.findByFilePath(relativePath).orElse(new Document());
+        AutodevDoc doc = docRepository.findByFilePath(relativePath).orElse(new AutodevDoc());
         doc.setFilePath(relativePath);
         doc.setTitle(title);
         doc.setContent(rawContent);
         doc.setDocType(docType);
         doc.setStatus("active");
         doc.setFrontMatter(frontMatter);
-        documentRepository.save(doc);
+        docRepository.save(doc);
 
-        // upsert Neo4j 节点
-        DocNode node =
+        AutodevDocNode node =
                 docRelationRepository
                         .findByDocId(doc.getId())
-                        .orElse(new DocNode(doc.getId(), title, relativePath));
+                        .orElse(new AutodevDocNode(doc.getId(), title, relativePath));
         node.setTitle(title);
         node.setFilePath(relativePath);
         docRelationRepository.save(node);
     }
 
-    private void extractDocLinks(Document source, List<Document> allDocs) {
+    private void extractDocLinks(AutodevDoc source, List<AutodevDoc> allDocs) {
         docLinkRepository.deleteBySourceId(source.getId());
-
         String content = source.getContent();
         Set<Long> linked = new HashSet<>();
 
-        // 双链 [[文档名]]
         Matcher wm = WIKILINK.matcher(content);
         while (wm.find()) {
             String name = wm.group(1).trim();
             allDocs.stream()
                     .filter(d -> d.getTitle().equalsIgnoreCase(name))
                     .findFirst()
-                    .ifPresent(
-                            target -> {
-                                if (!linked.contains(target.getId())) {
-                                    saveLink(source.getId(), target.getId(), "wikilink");
-                                    linked.add(target.getId());
-                                }
-                            });
+                    .ifPresent(target -> {
+                        if (linked.add(target.getId())) saveLink(source.getId(), target.getId(), "wikilink");
+                    });
         }
 
-        // Markdown 链接 [text](path.md)
         Matcher mm = MDLINK.matcher(content);
         while (mm.find()) {
-            String linkPath = mm.group(1).trim();
-            String resolved = resolveLinkPath(linkPath);
+            String resolved = resolveLinkPath(mm.group(1).trim());
             allDocs.stream()
                     .filter(d -> d.getFilePath() != null && d.getFilePath().endsWith(resolved))
                     .findFirst()
-                    .ifPresent(
-                            target -> {
-                                if (!linked.contains(target.getId())) {
-                                    saveLink(source.getId(), target.getId(), "mdlink");
-                                    linked.add(target.getId());
-                                }
-                            });
+                    .ifPresent(target -> {
+                        if (linked.add(target.getId())) saveLink(source.getId(), target.getId(), "mdlink");
+                    });
         }
     }
 
     private void saveLink(Long sourceId, Long targetId, String linkType) {
-        var link = new DocLink();
+        var link = new AutodevDocLink();
         link.setSourceId(sourceId);
         link.setTargetId(targetId);
         link.setLinkType(linkType);
         docLinkRepository.save(link);
-
-        // 同步写入 Neo4j 关系
         docRelationRepository.mergeRelation(sourceId, targetId, linkType);
     }
 
     private Path resolveDocsRoot() {
-        String docsPath = System.getProperty("aaf.docs.path", "docs");
-        return Path.of(docsPath).toAbsolutePath();
+        return Path.of(System.getProperty("aaf.docs.path", "docs")).toAbsolutePath();
     }
 
     private List<Path> collectMarkdownFiles(Path root) {
         List<Path> files = new ArrayList<>();
         try {
-            Files.walkFileTree(
-                    root,
-                    new SimpleFileVisitor<>() {
-                        @Override
-                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                            if (file.toString().endsWith(".md")) {
-                                files.add(file);
-                            }
-                            return FileVisitResult.CONTINUE;
-                        }
-                    });
+            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (file.toString().endsWith(".md")) files.add(file);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
         } catch (IOException e) {
             log.error("扫描目录失败：{}", e.getMessage());
         }
@@ -199,9 +176,8 @@ public class DocImportService {
         if (!content.startsWith("---")) return Map.of();
         int end = content.indexOf("---", 3);
         if (end < 0) return Map.of();
-        String yaml = content.substring(3, end).trim();
         try {
-            Object parsed = new Yaml().load(yaml);
+            Object parsed = new Yaml().load(content.substring(3, end).trim());
             return parsed instanceof Map ? (Map<String, Object>) parsed : Map.of();
         } catch (Exception e) {
             return Map.of();
@@ -223,7 +199,6 @@ public class DocImportService {
         if (path.contains("/guide/")) return "guide";
         if (path.contains("/reference/")) return "reference";
         if (path.contains("/explanation/")) return "explanation";
-        if (path.contains("/tutorial/")) return "tutorial";
         return "spec";
     }
 
