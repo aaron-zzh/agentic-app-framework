@@ -14,6 +14,7 @@ import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/rea
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
 import { chatApi } from "@/lib/api/chat"
+import { useChatterStore } from "@/stores/chatter-store"
 import type { ChatterTarget } from "./types"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
@@ -48,10 +49,24 @@ interface ChatterRuntimeProps {
  * target/persist 变化时更新 agent url，useAgUiRuntime 热更新不重新挂载
  */
 export function ChatterRuntime({ target, persist, children }: ChatterRuntimeProps) {
-  const agent = useMemo(
-    () => new HttpAgent({ url: getEndpointUrl(target, persist) }),
-    [target, persist]
-  )
+  // 从 store 读取当前页面感知信息，自动注入到每次请求的 state
+  const currentPageId = useChatterStore((s) => s.currentPageId)
+  const configs = useChatterStore((s) => s.configs)
+  const pageConfig = currentPageId ? configs[currentPageId] : undefined
+
+  const agent = useMemo(() => {
+    // awareness 上下文：页面 ID + preset + agentRole，序列化为 JSON 字符串
+    const awarenessContext = JSON.stringify({
+      pageId: currentPageId,
+      preset: pageConfig?.preset,
+      agentRole: target.agentRole ?? pageConfig?.agentRole,
+    })
+    return new HttpAgent({
+      url: getEndpointUrl(target, persist),
+      // initialState 会被合并到每次 run 请求的 state 字段，后端从 state.awarenessContext 读取
+      initialState: { awarenessContext },
+    })
+  }, [target, persist, currentPageId, pageConfig])
 
   const onError = useCallback((error: Error) => {
     // biome-ignore lint/suspicious/noConsole: 错误日志需要记录到控制台供调试

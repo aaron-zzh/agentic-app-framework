@@ -9,6 +9,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +27,7 @@ import reactor.core.publisher.Flux;
 public class ResilientChatService {
 
     private final DynamicChatClientFactory clientFactory;
-    private final ModelRouter modelRouter;
+    private final CapabilityRouter capabilityRouter;
     private final AiModelRepository modelRepository;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -35,8 +37,8 @@ public class ResilientChatService {
      * @param messages 消息列表
      * @param ctx      路由上下文（含 userId、capability、显式 modelId、编排配置、任务特征）
      */
-    public ChatResponse call(List<Message> messages, ModelRoutingContext ctx) {
-        var modelId = modelRouter.resolve(ctx);
+    public ChatResponse call(List<Message> messages, CapabilityRoutingContext ctx) {
+        var modelId = capabilityRouter.resolve(ctx);
         try {
             var response = doCall(messages, modelId);
             publishUsage(response, ctx.userId(), modelId);
@@ -55,14 +57,14 @@ public class ResilientChatService {
      * @param userId   用户 ID
      */
     public ChatResponse call(List<Message> messages, String modelId, Long userId) {
-        return call(messages, ModelRoutingContext.of(userId, "CHAT", modelId));
+        return call(messages, CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
     }
 
     /**
      * 流式调用，使用完整路由上下文。
      */
-    public Flux<ChatResponse> stream(List<Message> messages, ModelRoutingContext ctx) {
-        var modelId = modelRouter.resolve(ctx);
+    public Flux<ChatResponse> stream(List<Message> messages, CapabilityRoutingContext ctx) {
+        var modelId = capabilityRouter.resolve(ctx);
         try {
             return doStream(messages, modelId);
         } catch (Exception e) {
@@ -75,7 +77,7 @@ public class ResilientChatService {
      * 流式调用，简化入口。
      */
     public Flux<ChatResponse> stream(List<Message> messages, String modelId, Long userId) {
-        return stream(messages, ModelRoutingContext.of(userId, "CHAT", modelId));
+        return stream(messages, CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
     }
 
     private ChatResponse callFallback(List<Message> messages, String modelId, Long userId) {

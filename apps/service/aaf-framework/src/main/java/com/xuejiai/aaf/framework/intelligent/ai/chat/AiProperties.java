@@ -19,11 +19,30 @@ import lombok.Setter;
 @ConfigurationProperties(prefix = "aaf.ai")
 public class AiProperties {
 
-    /** 默认模型名称（对应 models Map 中的 key） */
+    /** 默认模型名称（chat 能力兜底，对应 models Map 中的 key） */
     private String defaultModel = "default";
 
     /** 降级模型名称 */
     private String fallbackModel;
+
+    /**
+     * 各能力兜底 modelId，key=capability（CHAT/IMAGE_GEN/VIDEO_GEN/SPEECH_ASR/SPEECH_TTS/RERANK/EMBEDDING）。
+     * 优先级低于 DB（ai_model_preference），高于代码内置默认值。
+     *
+     * <p>yaml 示例：
+     * <pre>
+     * aaf:
+     *   ai:
+     *     default-models:
+     *       IMAGE_GEN: qwen-image-plus
+     *       VIDEO_GEN: wan2.6-i2v-flash
+     *       SPEECH_ASR: qwen3-asr-flash
+     *       SPEECH_TTS: cosyvoice-v3-flash
+     *       RERANK: gte-rerank-v2
+     *       EMBEDDING: text-embedding-v3
+     * </pre>
+     */
+    private Map<String, String> defaultModels = new HashMap<>();
 
     /** 模型配置映射：场景名 → 模型配置 */
     private Map<String, ModelConfig> models = new HashMap<>();

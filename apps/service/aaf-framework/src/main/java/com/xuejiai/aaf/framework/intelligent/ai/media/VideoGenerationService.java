@@ -9,7 +9,11 @@ public interface VideoGenerationService {
     /** 查询任务结果 */
     VideoResult query(String taskId);
 
-    record VideoGenerationRequest(String prompt, String negativePrompt, int durationSeconds) {}
+    record VideoGenerationRequest(String prompt, String negativePrompt, int durationSeconds, String model) {
+        public VideoGenerationRequest(String prompt, String negativePrompt, int durationSeconds) {
+            this(prompt, negativePrompt, durationSeconds, null);
+        }
+    }
 
     record VideoResult(String taskId, Status status, String videoUrl) {
         enum Status { PENDING, PROCESSING, SUCCEEDED, FAILED }

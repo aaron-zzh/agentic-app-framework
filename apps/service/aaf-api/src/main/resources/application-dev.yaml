@@ -68,6 +68,11 @@ aaf:
   ai:
     # 模型兜底配置：优先级 DB配置 → 此处yaml → Spring AI默认值
     # 数据库模型管理上线后，此处作为 DB 不可用时的 fallback，建议保留
+    midjourney:
+      enabled: ${MJ_ENABLED:false}
+      base-url: ${MJ_BASE_URL:https://api.holdai.top/mj}
+      api-key: ${MJ_API_KEY:}
+      notify-url: ${MJ_NOTIFY_URL:}
     models:
       default:
         provider: openai
