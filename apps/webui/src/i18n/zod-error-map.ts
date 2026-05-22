@@ -27,7 +27,7 @@ type TranslateFunction = (key: string, params?: Record<string, string | number>)
  * 应在客户端 Provider 中调用一次
  */
 export function initZodErrorMap(t: TranslateFunction): void {
-  z.setErrorMap((issue, ctx) => {
+  z.setErrorMap((issue) => {
     switch (issue.code) {
       case z.ZodIssueCode.too_small:
         if (issue.type === "string") {
@@ -36,7 +36,7 @@ export function initZodErrorMap(t: TranslateFunction): void {
         if (issue.type === "number") {
           return { message: t("number.min", { min: issue.minimum as number }) }
         }
-        return { message: ctx.defaultError }
+        return { message: issue.message ?? "" }
 
       case z.ZodIssueCode.too_big:
         if (issue.type === "string") {
@@ -45,13 +45,13 @@ export function initZodErrorMap(t: TranslateFunction): void {
         if (issue.type === "number") {
           return { message: t("number.max", { max: issue.maximum as number }) }
         }
-        return { message: ctx.defaultError }
+        return { message: issue.message ?? "" }
 
-      case z.ZodIssueCode.invalid_string:
-        if (issue.validation === "email") {
+      case z.ZodIssueCode.invalid_format:
+        if ("format" in issue && issue.format === "email") {
           return { message: t("string.email") }
         }
-        return { message: ctx.defaultError }
+        return { message: issue.message ?? "" }
 
       case z.ZodIssueCode.invalid_type:
         if (issue.received === "undefined" || issue.received === "null") {
@@ -59,11 +59,11 @@ export function initZodErrorMap(t: TranslateFunction): void {
         }
         return { message: t("invalid_type") }
 
-      case z.ZodIssueCode.invalid_enum_value:
+      case z.ZodIssueCode.invalid_value:
         return { message: t("invalid_enum") }
 
       default:
-        return { message: ctx.defaultError }
+        return { message: issue.message ?? "" }
     }
   })
 }

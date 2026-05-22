@@ -7,7 +7,7 @@
 
 "use client"
 
-import { useThreadMessages } from "@assistant-ui/react"
+import { useThread } from "@assistant-ui/react"
 import { Download } from "lucide-react"
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
@@ -43,7 +43,7 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 }
 
 export function ExportDialog({ selectedMessageIds = [] }: ExportDialogProps) {
-  const messages = useThreadMessages()
+  const { messages } = useThread()
   const [format, setFormat] = useState<ExportFormat>("markdown")
   const [open, setOpen] = useState(false)
 

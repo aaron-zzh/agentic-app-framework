@@ -107,12 +107,14 @@ function AddSectionDialog({ onAdd }: AddSectionDialogProps) {
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
-          <Plus className="mr-1 size-4" />
-          添加区块
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button variant="outline" size="sm" className="w-full">
+            <Plus className="mr-1 size-4" />
+            添加区块
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>选择区块类型</DialogTitle>

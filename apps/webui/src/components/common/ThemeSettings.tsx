@@ -12,8 +12,6 @@ import {
   Languages,
   Monitor,
   Moon,
-  PanelLeft,
-  PanelRight,
   RotateCcw,
   Shrink,
   Sun
@@ -37,11 +35,6 @@ const COLOR_PRESETS: { value: ThemeColor; label: string; cssColor: string }[] = 
   { value: "rose", label: "玫红", cssColor: "oklch(0.55 0.2 10)" },
   { value: "cyan", label: "青色", cssColor: "oklch(0.55 0.15 200)" }
 ]
-
-/* ─── 导航布局选项 ─────────────────────────────────────────── */
-
-type NavLayout = "vertical" | "mini"
-type NavColor = "integrate" | "apparent"
 
 /* ─── 开关卡片组件 ─────────────────────────────────────────── */
 
@@ -74,11 +67,9 @@ function ToggleCard({
       <div className="flex items-center gap-1">
         <span className="font-medium text-sm">{label}</span>
         {tooltip && (
-          <TooltipProvider delayDuration={300}>
+          <TooltipProvider delay={300}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="size-3.5 text-muted-foreground" />
-              </TooltipTrigger>
+              <TooltipTrigger render={<Info className="size-3.5 text-muted-foreground" />} />
               <TooltipContent side="bottom">
                 <p className="text-xs">{tooltip}</p>
               </TooltipContent>

@@ -9,11 +9,11 @@
 "use client"
 
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
-import type { ComponentProps } from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { CodeBlockCopyButton } from "./CodeBlockCopyButton"
 
 /** 代码块包装器：添加复制按钮 */
-function CodeBlockWrapper({ children, ...props }: ComponentProps<"pre">) {
+function CodeBlockWrapper({ children, ...props }: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
   // 从 children 中提取代码文本
   const codeText = extractTextFromChildren(children)
 
@@ -45,7 +45,7 @@ export function MarkdownMessage() {
     <StreamdownTextPrimitive
       shikiTheme={["github-light", "github-dark"]}
       containerClassName="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-th:border prose-th:border-border prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-2"
-      components={{ pre: CodeBlockWrapper }}
+      components={{ Pre: CodeBlockWrapper }}
     />
   )
 }

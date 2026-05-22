@@ -51,7 +51,7 @@ export function RichTextInput({ name, value, onChange, disabled, field }: FieldP
       <RichTextEditor
         value={value as string}
         onChange={onChange as (v: string) => void}
-        readOnly={disabled}
+        disabled={disabled}
       />
     </div>
   )
@@ -147,7 +147,7 @@ export function CascaderInput({ name, value, onChange, error, disabled, field }:
     <FieldCascader
       name={name}
       label={field.label}
-      levels={cascField.levels}
+      levels={cascField.levels.map((l) => ({ ...l, apiPath: l.apiPath ?? `/api/${l.relationTo}` }))}
       value={value as string[] | undefined}
       onChange={onChange as (v: string[]) => void}
       disabled={disabled}

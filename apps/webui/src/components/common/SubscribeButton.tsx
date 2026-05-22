@@ -19,7 +19,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import type { EntityDef, FieldDef } from "@/lib/types/entity"
+import type { DataFieldDef, EntityDef, FieldDef } from "@/lib/types/entity"
 import type { SubscriptionChannel } from "@/lib/api/subscription"
 import {
   useRemoveSubscription,
@@ -33,9 +33,9 @@ interface SubscribeButtonProps {
 }
 
 /** 获取实体中可订阅的数据字段（排除布局字段） */
-function getDataFields(fields: FieldDef[]): FieldDef[] {
+function getDataFields(fields: FieldDef[]): DataFieldDef[] {
   return fields.filter(
-    (f) => f.type !== "group" && f.type !== "tabs" && f.type !== "row"
+    (f): f is DataFieldDef => f.type !== "group" && f.type !== "tabs" && f.type !== "row"
   )
 }
 

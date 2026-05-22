@@ -174,7 +174,7 @@ export interface SignatureField extends BaseFieldDef {
 
 export interface CascaderField extends BaseFieldDef {
   type: "cascader"
-  levels: { relationTo: string; label: string; dependsOn?: string }[]
+  levels: { relationTo: string; label: string; dependsOn?: string; apiPath?: string }[]
 }
 
 export interface SubtableField extends BaseFieldDef {

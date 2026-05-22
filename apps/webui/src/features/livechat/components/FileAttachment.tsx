@@ -7,7 +7,7 @@
 
 "use client"
 
-import { FileIcon, ImageIcon } from "lucide-react"
+import { FileIcon } from "lucide-react"
 import { useState } from "react"
 import {
   Dialog,

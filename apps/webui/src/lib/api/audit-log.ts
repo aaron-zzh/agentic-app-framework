@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { type ListParams, fetchList, type PageResult } from "./client"
+import { type ListParams, fetchList } from "./client"
 
 /** 字段变更记录 */
 export interface FieldChange {

@@ -76,7 +76,7 @@ export default function AuditLogPage() {
         />
         <Select
           value={params.action ?? ""}
-          onValueChange={(v) => updateFilter("action", v)}
+          onValueChange={(v) => updateFilter("action", v ?? "")}
         >
           <SelectTrigger className="w-32">
             <SelectValue placeholder="操作类型" />

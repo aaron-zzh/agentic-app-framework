@@ -180,12 +180,14 @@ function InviteMemberDialog({ orgId }: { orgId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <UserPlus className="mr-1.5 size-4" />
-          邀请成员
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button size="sm" variant="outline">
+            <UserPlus className="mr-1.5 size-4" />
+            邀请成员
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>邀请成员</DialogTitle>

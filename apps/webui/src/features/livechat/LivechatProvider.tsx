@@ -12,7 +12,8 @@ import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
   type ThreadMessage,
-  type ExternalStoreThreadListAdapter
+  type ExternalStoreThreadListAdapter,
+  type AppendMessage
 } from "@assistant-ui/react"
 import { useWebSocket } from "@/lib/hooks/use-websocket"
 import { useChatMessages } from "@/lib/queries/use-chat"
@@ -21,12 +22,25 @@ import type { LivechatRuntimeConfig } from "./runtime"
 
 /** 后端 ChatMessageVO → assistant-ui ThreadMessage */
 function toThreadMessage(msg: ChatMessageVO): ThreadMessage {
+  const isUser = msg.role === "user"
+  if (isUser) {
+    return {
+      id: msg.id,
+      role: "user" as const,
+      content: [{ type: "text" as const, text: msg.content }],
+      createdAt: new Date(msg.createdAt),
+      attachments: [],
+      metadata: { custom: {} }
+    } as ThreadMessage
+  }
   return {
     id: msg.id,
-    role: msg.role === "user" ? "user" : "assistant",
-    content: [{ type: "text", text: msg.content }],
-    createdAt: new Date(msg.createdAt)
-  }
+    role: "assistant" as const,
+    content: [{ type: "text" as const, text: msg.content }],
+    createdAt: new Date(msg.createdAt),
+    status: { type: "complete" as const, reason: "stop" as const },
+    metadata: { custom: {} }
+  } as unknown as ThreadMessage
 }
 
 interface LivechatProviderProps {
@@ -66,7 +80,7 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
     }
   }, [])
 
-  const { status } = useWebSocket({
+  const { } = useWebSocket({
     url: wsUrl,
     onMessage: handleWsMessage,
     enabled: !!sessionId
@@ -74,17 +88,20 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
 
   // 发送消息回调
   const onNew = useCallback(
-    async (message: { content: Array<{ type: string; text?: string }> }) => {
-      const text = message.content.find((c) => c.type === "text")?.text ?? ""
+    async (message: AppendMessage) => {
+      const textPart = message.content.find((c) => c.type === "text")
+      const text = textPart && "text" in textPart ? textPart.text : ""
       if (!text.trim()) return
 
       // 乐观添加用户消息
       const userMsg: ThreadMessage = {
         id: `temp-${Date.now()}`,
-        role: "user",
-        content: [{ type: "text", text }],
-        createdAt: new Date()
-      }
+        role: "user" as const,
+        content: [{ type: "text" as const, text }],
+        createdAt: new Date(),
+        attachments: [],
+        metadata: { custom: {} }
+      } as ThreadMessage
       setMessages((prev) => [...prev, userMsg])
       setIsRunning(true)
 

@@ -10,7 +10,6 @@
 "use client"
 
 import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils/cn"
@@ -80,7 +79,7 @@ export function MobileKanban({ entity, data, onRecordClick, onStatusChange }: Mo
                   <p className="truncate font-medium text-sm">
                     {String(record[cardTitle] ?? "")}
                   </p>
-                  {cardDescription && record[cardDescription] && (
+                  {cardDescription && Boolean(record[cardDescription]) && (
                     <p className="mt-1 line-clamp-2 text-muted-foreground text-xs">
                       {String(record[cardDescription])}
                     </p>

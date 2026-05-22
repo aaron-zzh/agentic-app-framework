@@ -8,7 +8,7 @@
 
 "use client"
 
-import { Thread, ThreadList } from "@assistant-ui/react"
+import { ThreadListPrimitive, ThreadPrimitive, ComposerPrimitive, MessagePrimitive } from "@assistant-ui/react"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -52,13 +52,33 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] p-0">
               <div className="h-full overflow-y-auto pt-8">
-                <ThreadList />
+                <ThreadListPrimitive.Root>
+                  <ThreadListPrimitive.Items>
+                    {() => <div className="px-3 py-2 text-sm hover:bg-accent cursor-pointer" />}
+                  </ThreadListPrimitive.Items>
+                </ThreadListPrimitive.Root>
               </div>
             </SheetContent>
           </Sheet>
         </div>
         <div className="min-h-0 flex-1">
-          <Thread />
+          <ThreadPrimitive.Root className="flex h-full flex-col">
+            <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
+              <ThreadPrimitive.Messages>
+                {({ message }) => (
+                  <div className={`mb-3 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <MessagePrimitive.Content />
+                    </div>
+                  </div>
+                )}
+              </ThreadPrimitive.Messages>
+            </ThreadPrimitive.Viewport>
+            <ComposerPrimitive.Root className="border-t p-3">
+              <ComposerPrimitive.Input className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring" placeholder="输入消息..." />
+              <ComposerPrimitive.Send />
+            </ComposerPrimitive.Root>
+          </ThreadPrimitive.Root>
         </div>
       </div>
     )
@@ -79,7 +99,11 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                   </Button>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto">
-                  <ThreadList />
+                  <ThreadListPrimitive.Root>
+                    <ThreadListPrimitive.Items>
+                      {() => <div className="px-3 py-2 text-sm hover:bg-accent cursor-pointer" />}
+                    </ThreadListPrimitive.Items>
+                  </ThreadListPrimitive.Root>
                 </div>
               </div>
             </ResizablePanel>
@@ -97,7 +121,23 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
               </div>
             )}
             <div className="min-h-0 flex-1">
-              <Thread />
+              <ThreadPrimitive.Root className="flex h-full flex-col">
+                <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
+                  <ThreadPrimitive.Messages>
+                    {({ message }) => (
+                      <div className={`mb-3 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                          <MessagePrimitive.Content />
+                        </div>
+                      </div>
+                    )}
+                  </ThreadPrimitive.Messages>
+                </ThreadPrimitive.Viewport>
+                <ComposerPrimitive.Root className="border-t p-3">
+                  <ComposerPrimitive.Input className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring" placeholder="输入消息..." />
+                  <ComposerPrimitive.Send />
+                </ComposerPrimitive.Root>
+              </ThreadPrimitive.Root>
             </div>
           </div>
         </ResizablePanel>

@@ -8,7 +8,13 @@
 
 "use client"
 
-import { BranchPickerPrimitive, MessagePrimitive } from "@assistant-ui/react"
+import {
+  BranchPickerPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+  useEditComposer,
+  useMessageRuntime
+} from "@assistant-ui/react"
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -47,14 +53,18 @@ export function BranchSwitcher() {
  * 需要放在 user 消息的 MessagePrimitive 上下文内
  */
 export function MessageEditTrigger() {
+  const messageRuntime = useMessageRuntime()
+
   return (
     <MessagePrimitive.If user>
-      <MessagePrimitive.EditComposer.Begin asChild>
-        <Button variant="ghost" size="xs">
-          <Pencil className="size-3" />
-          <span className="sr-only">编辑消息</span>
-        </Button>
-      </MessagePrimitive.EditComposer.Begin>
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={() => messageRuntime.composer.beginEdit()}
+      >
+        <Pencil className="size-3" />
+        <span className="sr-only">编辑消息</span>
+      </Button>
     </MessagePrimitive.If>
   )
 }
@@ -65,19 +75,26 @@ export function MessageEditTrigger() {
  * 提交后自动创建新分支并重新生成
  */
 export function MessageEditComposer() {
+  const editComposer = useEditComposer()
+  const messageRuntime = useMessageRuntime()
+
+  if (editComposer.type !== "edit") return null
+
   return (
-    <MessagePrimitive.EditComposer.Root className="flex flex-col gap-2">
-      <MessagePrimitive.EditComposer.Input className="min-h-[60px] w-full resize-none rounded-md border bg-background p-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
+    <div className="flex flex-col gap-2">
+      <ComposerPrimitive.Input className="min-h-[60px] w-full resize-none rounded-md border bg-background p-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
       <div className="flex justify-end gap-2">
-        <MessagePrimitive.EditComposer.Cancel asChild>
-          <Button variant="outline" size="sm">
-            取消
-          </Button>
-        </MessagePrimitive.EditComposer.Cancel>
-        <MessagePrimitive.EditComposer.Send asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => messageRuntime.composer.cancel()}
+        >
+          取消
+        </Button>
+        <ComposerPrimitive.Send asChild>
           <Button size="sm">重新生成</Button>
-        </MessagePrimitive.EditComposer.Send>
+        </ComposerPrimitive.Send>
       </div>
-    </MessagePrimitive.EditComposer.Root>
+    </div>
   )
 }

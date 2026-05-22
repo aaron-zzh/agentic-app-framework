@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type {
   DashboardWidgetVO,
-  WidgetConfig,
   WidgetType
 } from "@/lib/api/dashboard"
 import { useDashboard, useSaveDashboardLayout } from "@/lib/queries/use-dashboard"

@@ -106,9 +106,7 @@ export default function DelegationSettingsPage() {
           <p className="text-muted-foreground text-sm">将审批权限临时转交给指定代理人</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>新建委托</Button>
-          </DialogTrigger>
+          <DialogTrigger render={<Button>新建委托</Button>} />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>新建审批委托</DialogTitle>

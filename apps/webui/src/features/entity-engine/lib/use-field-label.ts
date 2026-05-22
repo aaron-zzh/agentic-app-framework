@@ -17,7 +17,7 @@
 
 import { useTranslations } from "next-intl"
 
-import type { FieldDef, SelectOption } from "../../types"
+import type { FieldDef, SelectOption } from "@/lib/types/entity"
 
 /** 扩展 BaseFieldDef，支持 labelKey */
 interface FieldWithLabelKey {
@@ -68,7 +68,7 @@ export function useFieldLabel() {
         // labelKey 翻译不存在时 fallback
       }
     }
-    return option.label
+    return option.label ?? ""
   }
 
   return { getFieldLabel, getOptionLabel }

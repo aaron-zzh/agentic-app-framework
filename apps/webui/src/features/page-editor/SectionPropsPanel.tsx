@@ -78,7 +78,7 @@ export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps)
           <Label htmlFor="section-padding" className="text-xs">内边距</Label>
           <Select
             value={section.style?.padding ?? ""}
-            onValueChange={(v) => updateStyle("padding", v)}
+            onValueChange={(v) => updateStyle("padding", v ?? "")}
           >
             <SelectTrigger id="section-padding" className="mt-1 h-8 text-xs">
               <SelectValue placeholder="默认" />
@@ -96,7 +96,7 @@ export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps)
           <Label htmlFor="section-animation" className="text-xs">动效</Label>
           <Select
             value={section.style?.animation ?? "none"}
-            onValueChange={(v) => updateStyle("animation", v)}
+            onValueChange={(v) => updateStyle("animation", v ?? "none")}
           >
             <SelectTrigger id="section-animation" className="mt-1 h-8 text-xs">
               <SelectValue />

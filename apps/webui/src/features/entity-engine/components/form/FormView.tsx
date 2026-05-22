@@ -164,7 +164,8 @@ function renderLayoutItem(
         >
           {item.fields
             .filter(
-              (f): f is DataFieldDef => f.type !== "group" && f.type !== "tabs" && f.type !== "row"
+              (f): f is DataFieldDef & { width?: string } =>
+                f.type !== "group" && f.type !== "tabs" && f.type !== "row"
             )
             .map((f) => (
               <FieldRenderer key={f.name} field={f} labelLayout={labelLayout} />
