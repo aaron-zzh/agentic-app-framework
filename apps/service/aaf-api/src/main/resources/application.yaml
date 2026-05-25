@@ -43,6 +43,10 @@ aaf:
     queue:
       consumer-threads: 2
       poll-timeout: 5s
+  script:
+    engine: process  # process（开发默认） | graalvm（生产推荐，JVM 内沙箱）
+  a2a:
+    engine: local    # local（内存直调） | agentscope（标准 A2A 协议）
 
 management:
   endpoints:
