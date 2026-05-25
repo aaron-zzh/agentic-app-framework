@@ -45,6 +45,8 @@ changelog:
 | [ADR-002](ADR-002-local-env-vs-testcontainers.md) | 后端测试环境：本地真实 DB vs Testcontainers | accepted | 后端测试环境、CI 配置、AAF-023 #8 |
 | [ADR-003](ADR-003-remove-cucumber.md) | 后端测试框架：移除 Cucumber，统一 JUnit 5 | accepted | 后端测试工具链、验收测试规范、AAF-023 #7 |
 | [ADR-004](ADR-004-virtual-threads-over-webflux.md) | 全量 Virtual Threads + JDBC，放弃 WebFlux + R2DBC | accepted | 后端并发模型、依赖清理、编码规范、AAF-023 #17 |
+| [ADR-005](ADR-005-agentscope-integration-strategy.md) | AgentScope 整合策略——薄门面 + 委托 | accepted | 智能层架构、AgentScope 集成模式 |
+| [ADR-006](ADR-006-agentscope-first-llm-path.md) | LLM 调用路径优先级——AgentScope 优先，Spring AI 轻量辅助 | accepted | LLM 调用路径选择、开发者指引 |
 
 ## 与其他文档的关系
 

@@ -15,24 +15,6 @@ author: AaronZZH & Kiro
 ## 整体架构分层
 
 ```mermaid
-graph TB
-    subgraph L5["Layer 5 对话与交互层（aaf-api）"]
-        REST[REST API]
-        GQL[GraphQL]
-        WS[WebSocket]
-        AGUI[AG-UI SSE]
-        GW[安全网关<br/>JWT + RBAC + 限流]
-        CTRL[Controller]
-        REST & GQL & WS & AGUI --> GW --> CTRL
-    end
-
-    subgraph L4["Layer 4 服务层（aaf-api/module）"]
-        ChatSvc[ChatService]
-        AsstMgmt[AssistantManagementService]
-        AgentMgmt[AgentManagementService]
-        KnowMgmt[KnowledgeManagementService]
-        ModelMgmt[ModelManagementService]
-    end
 
     subgraph L3["Layer 3 智能层（aaf-framework/intelligent）"]
         subgraph Team["Team 层"]
@@ -111,33 +93,6 @@ graph TB
 
 ## 两条 LLM 调用路径
 
-> 是否优先使用 AgentScope 路径，还是说我们自己可控的流程尽量使用 SpringAI
-
-```mermaid
-flowchart LR
-    subgraph PathA["路径 A：Spring AI（对话/RAG/记忆提取）"]
-        RCS2[ResilientChatService] --> MR2[ModelRouter] --> DCF2[DynamicChatClientFactory]
-        DCF2 --> OAI[OpenAiChatModel]
-        DCF2 --> ANT[AnthropicChatModel]
-        DCF2 --> OLL[OllamaChatModel]
-    end
-
-    subgraph PathB["路径 B：AgentScope（Agent 执行）"]
-        AF[AgentFactory] --> ASE2[AgentScopeExecutor] --> RAG[ReActAgent]
-        RAG --> OAIAS[OpenAIChatModel<br/>AgentScope]
-    end
-
-    subgraph Shared["共享"]
-        AIM[(ai_model 表)]
-        TUE[TokenUsageEvent]
-        MPT[(ModelPreference 表)]
-    end
-
-    AIM -.-> PathA
-    AIM -.-> PathB
-    TUE -.-> PathA
-    TUE -.-> PathB
-```
 
 ## 一次对话请求的完整调用链
 
