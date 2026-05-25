@@ -46,6 +46,10 @@ public class AgentDefinition extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String tools;
 
+    /** 预授权工具白名单（JSON 数组）——这些工具调用时自动通过，无需确认。 */
+    @Column(columnDefinition = "TEXT")
+    private String allowedTools;
+
     /** MCP 服务器 URL 列表（JSON 数组） */
     @Column(columnDefinition = "TEXT")
     private String mcpServers;

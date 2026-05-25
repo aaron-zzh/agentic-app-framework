@@ -32,38 +32,52 @@ public class ToolPermissionGuard {
 
     /**
      * 包装工具列表，为每个工具加上权限检查。
+     *
+     * @param tools 原始工具列表
+     * @param sessionId 会话 ID
+     * @param agentAllowedTools Agent 预授权白名单（可为 null）
      */
-    public List<ToolCallback> guard(List<ToolCallback> tools, String sessionId) {
+    public List<ToolCallback> guard(List<ToolCallback> tools, String sessionId, List<String> agentAllowedTools) {
         return tools.stream()
-                .map(cb -> wrapWithPermission(cb, sessionId))
+                .map(cb -> wrapWithPermission(cb, sessionId, agentAllowedTools))
                 .toList();
     }
 
-    private ToolCallback wrapWithPermission(ToolCallback original, String sessionId) {
+    /** 兼容旧接口。 */
+    public List<ToolCallback> guard(List<ToolCallback> tools, String sessionId) {
+        return guard(tools, sessionId, null);
+    }
+
+    private ToolCallback wrapWithPermission(ToolCallback original, String sessionId, List<String> agentAllowedTools) {
         var toolName = original.getToolDefinition().name();
         var meta = toolRegistry.listAll().stream()
                 .filter(m -> m.name().equals(toolName))
                 .findFirst()
                 .orElse(null);
 
-        // 无风险或未注册的工具不包装
-        if (meta == null || meta.riskLevel() == ToolRiskLevel.NONE || meta.riskLevel() == ToolRiskLevel.LOW) {
+        // 无元数据的工具不包装（默认放行）
+        if (meta == null) {
             return original;
         }
 
-        return new GuardedToolCallback(original, meta.riskLevel(), sessionId);
+        return new GuardedToolCallback(original, meta.riskLevel(), meta.readOnly(), sessionId, agentAllowedTools);
     }
 
     /** 带权限检查的 ToolCallback 装饰器 */
     private class GuardedToolCallback implements ToolCallback {
         private final ToolCallback delegate;
         private final ToolRiskLevel riskLevel;
+        private final boolean readOnly;
         private final String sessionId;
+        private final List<String> agentAllowedTools;
 
-        GuardedToolCallback(ToolCallback delegate, ToolRiskLevel riskLevel, String sessionId) {
+        GuardedToolCallback(ToolCallback delegate, ToolRiskLevel riskLevel, boolean readOnly,
+                            String sessionId, List<String> agentAllowedTools) {
             this.delegate = delegate;
             this.riskLevel = riskLevel;
+            this.readOnly = readOnly;
             this.sessionId = sessionId;
+            this.agentAllowedTools = agentAllowedTools;
         }
 
         @Override
@@ -73,7 +87,8 @@ public class ToolPermissionGuard {
         public String call(String arguments) {
             var toolName = delegate.getToolDefinition().name();
             var userId = actorContext.currentUserId().orElse(null);
-            var result = permissionChecker.check(sessionId, userId, toolName, riskLevel, false);
+            var result = permissionChecker.check(
+                    sessionId, userId, toolName, riskLevel, readOnly, agentAllowedTools, arguments);
 
             return switch (result) {
                 case GRANTED, AUTO_GRANTED -> delegate.call(arguments);

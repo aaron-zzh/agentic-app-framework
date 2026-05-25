@@ -38,10 +38,10 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     private final Map<String, ToolMeta> metas = new ConcurrentHashMap<>();
 
     /** 工具元数据（含来源、类型、风险等级） */
-    public record ToolMeta(String name, String description, String source, ToolType type, ToolRiskLevel riskLevel, String parametersSchema) {
+    public record ToolMeta(String name, String description, String source, ToolType type, ToolRiskLevel riskLevel, boolean readOnly, String parametersSchema) {
         /** 兼容旧构造 */
         public ToolMeta(String name, String description, String source, String parametersSchema) {
-            this(name, description, source, ToolType.FUNCTION, ToolRiskLevel.NONE, parametersSchema);
+            this(name, description, source, ToolType.FUNCTION, ToolRiskLevel.NONE, false, parametersSchema);
         }
     }
 
@@ -62,7 +62,7 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
         var name = callback.getToolDefinition().name();
         var desc = callback.getToolDefinition().description();
         callbacks.put(name, callback);
-        metas.put(name, new ToolMeta(name, desc, source, null));
+        metas.put(name, new ToolMeta(name, desc, source, ToolType.FUNCTION, ToolRiskLevel.NONE, false, null));
         log.info("注册工具: {} [{}]", name, source);
     }
 
@@ -70,7 +70,7 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     public void register(FunctionDefinition definition, ToolCallback callback, String source) {
         callbacks.put(definition.name(), callback);
         metas.put(definition.name(), new ToolMeta(
-                definition.name(), definition.description(), source, null));
+                definition.name(), definition.description(), source, ToolType.FUNCTION, ToolRiskLevel.NONE, false, null));
         log.info("注册自定义工具: {} [{}]", definition.name(), source);
     }
 
