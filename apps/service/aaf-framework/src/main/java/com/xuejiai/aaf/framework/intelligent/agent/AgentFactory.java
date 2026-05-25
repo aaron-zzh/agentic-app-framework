@@ -32,6 +32,7 @@ public class AgentFactory {
     private final TokenMeteringHook tokenMeteringHook;
     private final McpToolService mcpToolService;
     private final AiModelRepository modelRepository;
+    private final com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService modelManagementService;
 
     /** 创建 AgentExecutor 实例。每次请求创建独立实例（AgentScope Agent 是有状态的，不可并发共享）。 */
     public AgentExecutor create(AgentDefinition definition) {
@@ -55,12 +56,18 @@ public class AgentFactory {
         OpenAIChatModel chatModel;
         if (dbModel != null) {
             chatModel = buildFromDb(dbModel);
+        } else if (modelId != null) {
+            // 尝试 fallback 模型
+            var fallback = modelManagementService.getFallback(modelId).orElse(null);
+            if (fallback != null) {
+                log.info("模型 [{}] 不可用，降级到 fallback [{}]", modelId, fallback.getModelId());
+                chatModel = buildFromDb(fallback);
+            } else {
+                log.warn("模型 [{}] 不可用且无 fallback，降级使用模型名直接调用", modelId);
+                chatModel = OpenAIChatModel.builder().modelName(modelId).build();
+            }
         } else {
-            // 降级：直接用 modelId 作为模型名（依赖环境变量中的 apiKey）
-            log.warn("数据库中未找到启用的模型 [{}]，降级使用模型名直接调用", modelId);
-            chatModel = OpenAIChatModel.builder()
-                    .modelName(modelId != null ? modelId : "gpt-4o")
-                    .build();
+            chatModel = OpenAIChatModel.builder().modelName("gpt-4o").build();
         }
         builder.model(chatModel);
     }

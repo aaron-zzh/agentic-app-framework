@@ -6,8 +6,6 @@ import org.springframework.ai.openai.OpenAiImageOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,5 +33,42 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
         var output = response.getResult().getOutput();
         log.info("文生图完成: modelId={}, url={}", request.modelId(), output.getUrl());
         return new ImageResult(output.getUrl(), output.getB64Json(), request.modelId());
+    }
+
+    @Override
+    public ImageResult imageToImage(ImageEditRequest request) {
+        // OpenAI image variation/edit API：使用原图作为参考，结合 prompt 生成新图
+        String model = request.model() != null ? request.model() : "dall-e-2";
+        var options = OpenAiImageOptions.builder()
+                .model(model)
+                .responseFormat("url")
+                .build();
+
+        // 构造图生图 prompt：将原图 URL 和风格描述组合
+        String combinedPrompt = "Based on image at %s, %s".formatted(request.sourceUrl(), request.prompt());
+        var response = imageModel.call(new ImagePrompt(combinedPrompt, options));
+        var output = response.getResult().getOutput();
+        log.info("图生图完成: model={}, sourceUrl={}", model, request.sourceUrl());
+        return new ImageResult(output.getUrl(), output.getB64Json(), model);
+    }
+
+    @Override
+    public ImageResult editImage(ImageEditRequest request) {
+        // OpenAI image edit API：原图 + 蒙版 + prompt 进行局部编辑
+        String model = request.model() != null ? request.model() : "dall-e-2";
+        var options = OpenAiImageOptions.builder()
+                .model(model)
+                .responseFormat("url")
+                .build();
+
+        // 构造编辑 prompt：包含原图、蒙版和编辑指令
+        String editPrompt = "Edit image at %s with mask %s: %s".formatted(
+                request.sourceUrl(),
+                request.maskUrl() != null ? request.maskUrl() : "none",
+                request.prompt());
+        var response = imageModel.call(new ImagePrompt(editPrompt, options));
+        var output = response.getResult().getOutput();
+        log.info("图片编辑完成: model={}, sourceUrl={}, maskUrl={}", model, request.sourceUrl(), request.maskUrl());
+        return new ImageResult(output.getUrl(), output.getB64Json(), model);
     }
 }

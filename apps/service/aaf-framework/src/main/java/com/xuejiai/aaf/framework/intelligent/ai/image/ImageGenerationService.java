@@ -4,12 +4,28 @@ package com.xuejiai.aaf.framework.intelligent.ai.image;
 public interface ImageGenerationService {
 
     /**
-     * 生成图片。
+     * 文生图。
      *
      * @param request 生成请求
      * @return 生成结果（URL 或 Base64）
      */
     ImageResult generate(ImageRequest request);
+
+    /**
+     * 图生图（参考图 + 风格 Prompt + 强度）。
+     *
+     * @param request 编辑请求（sourceUrl 必填，maskUrl 为 null）
+     * @return 生成结果
+     */
+    ImageResult imageToImage(ImageEditRequest request);
+
+    /**
+     * 局部编辑（原图 + 蒙版区域 + 编辑 Prompt）。
+     *
+     * @param request 编辑请求（sourceUrl + maskUrl + prompt）
+     * @return 生成结果
+     */
+    ImageResult editImage(ImageEditRequest request);
 
     /**
      * 图片生成请求。

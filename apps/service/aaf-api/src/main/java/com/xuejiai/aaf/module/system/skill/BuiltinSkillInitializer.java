@@ -1,8 +1,11 @@
-package com.xuejiai.aaf.framework.engine.skill;
+package com.xuejiai.aaf.module.system.skill;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+
+import com.xuejiai.aaf.framework.engine.skill.BuiltinSkills;
+import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -7,6 +7,8 @@ package com.xuejiai.aaf.framework.intelligent.core.token;
 
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.security.ActorContext;
+
 import io.agentscope.core.hook.Hook;
 import io.agentscope.core.hook.HookEvent;
 import io.agentscope.core.hook.PostCallEvent;
@@ -24,6 +26,7 @@ import reactor.core.publisher.Mono;
 public class TokenMeteringHook implements Hook {
 
     private final TokenMeteringService meteringService;
+    private final ActorContext actorContext;
 
     @Override
     public <T extends HookEvent> Mono<T> onEvent(T event) {
@@ -31,10 +34,11 @@ public class TokenMeteringHook implements Hook {
             var msg = postCall.getFinalMessage();
             if (msg != null && msg.getChatUsage() != null) {
                 var usage = msg.getChatUsage();
-                // TODO: 从上下文获取 userId 和 conversationId
+                var userId = actorContext.currentUserId().orElse(null);
+                var modelName = "agentscope";
                 meteringService.record(
-                        0L, // userId 待从 ScopedValue/SecurityContext 获取
-                        "unknown",
+                        userId,
+                        modelName,
                         null,
                         usage.getInputTokens(),
                         usage.getOutputTokens());

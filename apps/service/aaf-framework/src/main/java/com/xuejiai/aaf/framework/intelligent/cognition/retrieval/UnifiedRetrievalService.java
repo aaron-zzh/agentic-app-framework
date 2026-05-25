@@ -117,6 +117,10 @@ public class UnifiedRetrievalService {
             memoryResults = reranker.rerank(request.query(), memoryResults, route.memoryTopK());
         }
 
+        // Value 校验过滤（P1 占位：后续接入 ValueRuleEngine 过滤不符合价值观的结果）
+        // memoryResults = valueFilter.filter(memoryResults);
+        // knowledgeResults = valueFilter.filter(knowledgeResults);
+
         return new RetrievalResult(memoryResults, bundles, knowledgeResults, fused);
     }
 

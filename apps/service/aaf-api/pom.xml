@@ -34,12 +34,6 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
-		<!-- 工作流 -->
-		<dependency>
-			<groupId>org.flowable</groupId>
-			<artifactId>flowable-spring-boot-starter</artifactId>
-		</dependency>
-
 		<!-- 数据库 -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

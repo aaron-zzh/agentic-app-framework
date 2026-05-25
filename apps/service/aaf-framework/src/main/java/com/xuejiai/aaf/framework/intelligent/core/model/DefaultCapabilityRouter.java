@@ -38,12 +38,12 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
             return ctx.orchestrationModelId();
         }
 
-        // 3. AI 辅助决策，当前是基于任务特征的规则选择 TODO
-        // var aiSelected = aiModelSelector.select(ctx);
-        // if (aiSelected != null) {
-        //     log.debug("能力路由[AI决策]: capability={}, modelId={}", ctx.capability(), aiSelected);
-        //     return aiSelected;
-        // }
+        // 3. AI 辅助决策
+        var aiSelected = aiModelSelector.select(ctx);
+        if (aiSelected != null) {
+            log.debug("能力路由[AI决策]: capability={}, modelId={}", ctx.capability(), aiSelected);
+            return aiSelected;
+        }
 
         // 4. 用户偏好
         if (ctx.userId() != null && ctx.capability() != null) {

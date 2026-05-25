@@ -23,6 +23,7 @@ public class AssistantService {
 
     private final SessionManager sessionManager;
     private final IntentUnderstandingService intentService;
+    private final EmotionPerceptionService emotionService;
     private final SkillMatchService skillMatch;
     private final AgentRegistryService agentRegistry;
     private final CognitiveCycleExecutor cycleExecutor;
@@ -50,16 +51,20 @@ public class AssistantService {
         // 2. 记录用户消息到短期记忆
         shortTermMemory.append(sessionId, new MemoryMessage("user", userInput, null));
 
-        // 3. 意图理解
+        // 3. 情感感知
+        var emotion = emotionService.analyze(userInput);
+        var responseStyle = emotionService.suggestStyle(emotion);
+
+        // 4. 意图理解
         var history =
                 shortTermMemory.getAll(sessionId).stream().map(MemoryMessage::content).toList();
         var intent = intentService.analyze(userInput, history);
 
-        // 4. Skill 匹配
+        // 5. Skill 匹配
         var skill = skillMatch.match(assistantId, userInput);
         var agentId = skill.map(s -> s.getAgentId()).orElse(null);
 
-        // 5. Agent 调度 + 认知循环
+        // 6. Agent 调度 + 认知循环
         String response;
         boolean success;
         if (agentId != null) {
@@ -71,6 +76,13 @@ public class AssistantService {
                             if (s.getSystemPrompt() != null)
                                 definition.setSystemPrompt(s.getSystemPrompt());
                         });
+                // 注入情感感知的回复风格到 system prompt
+                var styleHint = "[回复风格: tone=%s, density=%s, approach=%s]"
+                        .formatted(responseStyle.tone(), responseStyle.density(), responseStyle.approach());
+                definition.setSystemPrompt(
+                        definition.getSystemPrompt() != null
+                                ? definition.getSystemPrompt() + "\n" + styleHint
+                                : styleHint);
                 var result = cycleExecutor.execute(definition, userInput, userId);
                 response = result.response();
                 success = result.success();
@@ -83,10 +95,10 @@ public class AssistantService {
             success = false;
         }
 
-        // 6. 记录助理响应到短期记忆
+        // 7. 记录助理响应到短期记忆
         shortTermMemory.append(sessionId, new MemoryMessage("assistant", response, null));
 
-        // 7. 学习反馈（异步）
+        // 8. 学习反馈（异步）
         learningFeedback.recordExecution(sessionId, userId, intent.getIntent(), success);
 
         sessionManager.updateStatus(sessionId, SessionManager.SessionStatus.ACTIVE);

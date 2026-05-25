@@ -1,141 +1,81 @@
-/*
- * 需要在 aaf-dependencies/pom.xml 中注册版本，并在 aaf-framework/pom.xml 中引入：
- * <dependency>
- *     <groupId>org.flowable</groupId>
- *     <artifactId>flowable-spring-boot-starter</artifactId>
- * </dependency>
- */
 package com.xuejiai.aaf.module.system.workflow.service;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
-import org.flowable.engine.HistoryService;
-import org.flowable.engine.RuntimeService;
-import org.flowable.engine.TaskService;
-import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowStatusVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 工作流服务，封装 Flowable RuntimeService/TaskService。 */
+/** 工作流服务，委托给 WorkflowEngine 引擎层接口。 */
 @Service
 @RequiredArgsConstructor
 public class WorkflowService {
 
     private static final String PROCESS_KEY = "generic-approval";
 
-    private final RuntimeService runtimeService;
-    private final TaskService taskService;
-    private final HistoryService historyService;
+    private final WorkflowEngine workflowEngine;
 
     /** 启动审批流程。 */
     @Transactional
     public String startProcess(
             String entityType, Long entityId, String initiator, String assignee) {
-        var variables =
-                Map.<String, Object>of(
-                        "entityType", entityType,
-                        "entityId", entityId,
-                        "initiator", initiator,
-                        "assignee", assignee);
-        ProcessInstance instance =
-                runtimeService.startProcessInstanceByKey(
-                        PROCESS_KEY, entityType + ":" + entityId, variables);
-        return instance.getId();
+        var variables = Map.<String, Object>of(
+                "entityType", entityType,
+                "entityId", entityId,
+                "initiator", initiator,
+                "assignee", assignee);
+        return workflowEngine.startProcess(PROCESS_KEY, entityType + ":" + entityId, variables);
     }
 
     /** 通过审批。 */
     @Transactional
     public void completeTask(String taskId, String comment) {
-        Task task = getTask(taskId);
-        if (comment != null) {
-            taskService.addComment(taskId, task.getProcessInstanceId(), comment);
-        }
-        taskService.setVariable(taskId, "approved", true);
-        taskService.complete(taskId);
+        workflowEngine.completeTask(taskId, Map.of("approved", true), comment);
     }
 
     /** 驳回审批。 */
     @Transactional
     public void rejectTask(String taskId, String comment) {
-        Task task = getTask(taskId);
-        if (comment != null) {
-            taskService.addComment(taskId, task.getProcessInstanceId(), comment);
-        }
-        taskService.setVariable(taskId, "approved", false);
-        taskService.complete(taskId);
+        workflowEngine.completeTask(taskId, Map.of("approved", false), comment);
     }
 
     /** 查询流程状态。 */
     @Transactional(readOnly = true)
     public WorkflowStatusVO getStatus(String processInstanceId) {
-        var historicInstance =
-                historyService
-                        .createHistoricProcessInstanceQuery()
-                        .processInstanceId(processInstanceId)
-                        .singleResult();
-        if (historicInstance == null) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "流程实例不存在");
-        }
-
-        // 当前待办任务
-        Task currentTask =
-                taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
-
+        var currentTask = workflowEngine.getCurrentTask(processInstanceId);
+        var variables = workflowEngine.getProcessVariables(processInstanceId);
         var history = getHistory(processInstanceId);
 
         return new WorkflowStatusVO(
                 processInstanceId,
-                (String) historicInstance.getProcessVariables().get("entityType"),
-                ((Number) historicInstance.getProcessVariables().get("entityId")).longValue(),
-                (String) historicInstance.getProcessVariables().get("initiator"),
-                historicInstance.getEndTime() != null,
-                currentTask != null ? currentTask.getId() : null,
-                currentTask != null ? currentTask.getAssignee() : null,
+                (String) variables.get("entityType"),
+                variables.get("entityId") instanceof Number n ? n.longValue() : null,
+                (String) variables.get("initiator"),
+                currentTask == null,
+                currentTask != null ? currentTask.taskId() : null,
+                currentTask != null ? currentTask.assignee() : null,
                 history);
     }
 
     /** 查询审批历史。 */
     @Transactional(readOnly = true)
     public List<WorkflowStatusVO.HistoryItem> getHistory(String processInstanceId) {
-        return historyService
-                .createHistoricTaskInstanceQuery()
-                .processInstanceId(processInstanceId)
-                .finished()
-                .orderByHistoricTaskInstanceEndTime()
-                .asc()
-                .includeProcessVariables()
-                .list()
-                .stream()
-                .map(
-                        t ->
-                                new WorkflowStatusVO.HistoryItem(
-                                        t.getName(),
-                                        t.getAssignee(),
-                                        Boolean.TRUE.equals(t.getProcessVariables().get("approved"))
-                                                ? "通过"
-                                                : "驳回",
-                                        null,
-                                        t.getEndTime()
-                                                .toInstant()
-                                                .atZone(ZoneId.systemDefault())
-                                                .toLocalDateTime()))
+        return workflowEngine.getHistory(processInstanceId).stream()
+                .map(r -> new WorkflowStatusVO.HistoryItem(
+                        r.taskName(),
+                        r.assignee(),
+                        r.outcome(),
+                        r.comment(),
+                        LocalDateTime.ofInstant(Instant.ofEpochMilli(r.completedAtMs()), ZoneId.systemDefault())))
                 .toList();
     }
 
-    private Task getTask(String taskId) {
-        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
-        if (task == null) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "任务不存在");
-        }
-        return task;
-    }
 }

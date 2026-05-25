@@ -1,7 +1,11 @@
 package com.xuejiai.aaf.framework.intelligent.cognition.pipeline;
 
+import java.time.Instant;
+
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
+import com.xuejiai.aaf.framework.engine.memory.TimeDecayStrategy;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryDeduplicationService;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryExtractionService;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryWritePipeline;
@@ -19,11 +23,9 @@ import lombok.extern.slf4j.Slf4j;
  *   ↓ 语义相似度比对，合并/更新已有记忆
  * 写入（AtomMemoryEngine，由 MemoryExtractionService 内部调用）
  *   ↓ 原子化存储，双时态索引
- * 遗忘（TimeDecayStrategy，异步触发）
+ * 遗忘（TimeDecayStrategy）
  *   低权重旧记忆降权，高价值记忆永久保留
  * </pre>
- *
- * TODO: 遗忘步骤当前为占位，待 AtomMemoryEngine 遗忘策略完善后接入。
  */
 @Slf4j
 @Component
@@ -32,6 +34,11 @@ public class DefaultMemoryWritePipeline implements MemoryWritePipeline {
 
     private final MemoryExtractionService extractionService;
     private final MemoryDeduplicationService deduplicationService;
+    private final TimeDecayStrategy timeDecayStrategy;
+    private final AtomMemoryEngine atomMemoryEngine;
+
+    /** 衰减分数低于此阈值的记忆将被标记失效 */
+    private static final double DECAY_THRESHOLD = 0.1;
 
     @Override
     public void execute(WriteInput input) {
@@ -57,6 +64,22 @@ public class DefaultMemoryWritePipeline implements MemoryWritePipeline {
                 input.userId(),
                 input.sessionId());
 
-        // 步骤 4：遗忘（异步，TODO: 接入 TimeDecayStrategy）
+        // 步骤 4：遗忘（对用户全量记忆做衰减，低于阈值的标记失效）
+        applyDecay(input.userId());
+    }
+
+    /** 对用户已有记忆计算时间衰减，低于阈值的批量失效。 */
+    private void applyDecay(Long userId) {
+        var now = Instant.now();
+        var atoms = atomMemoryEngine.searchByVector(userId, null, 100);
+        var expired = atoms.stream()
+                .filter(a -> a.getCreatedAt() != null)
+                .filter(a -> timeDecayStrategy.decay(a.getCreatedAt(), now) < DECAY_THRESHOLD)
+                .map(a -> a.getId())
+                .toList();
+        if (!expired.isEmpty()) {
+            atomMemoryEngine.invalidate(expired);
+            log.debug("写管道遗忘：userId={} 失效 {} 条低权重记忆", userId, expired.size());
+        }
     }
 }

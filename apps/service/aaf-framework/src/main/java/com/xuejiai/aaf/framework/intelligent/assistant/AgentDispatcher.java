@@ -14,6 +14,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.AgentFactory;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
+import com.xuejiai.aaf.framework.intelligent.core.token.CreditService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class AgentDispatcher {
     private final AgentRegistryService registryService;
     private final AgentFactory agentFactory;
     private final AgentSandbox sandbox;
+    private final CreditService creditService;
 
     /**
      * 根据意图调度 Agent 执行。
@@ -36,6 +38,8 @@ public class AgentDispatcher {
      * @return Agent 执行结果
      */
     public AgentExecutor.AgentResult dispatch(String intent, String input) {
+        // 预算检查（P1 占位：当前 DefaultCreditService 始终放行）
+        // TODO: 从上下文获取 userId，超额时降级到便宜模型
         var candidates = registryService.findByCapability(intent);
         if (candidates.isEmpty()) {
             candidates = registryService.listActive();

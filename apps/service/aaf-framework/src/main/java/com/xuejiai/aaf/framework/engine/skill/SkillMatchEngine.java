@@ -4,8 +4,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
@@ -13,42 +11,45 @@ import com.xuejiai.aaf.framework.intelligent.core.skill.SkillProvider;
 
 import lombok.RequiredArgsConstructor;
 
-/** 技能匹配引擎：实现 SkillProvider 接口。 用户自定义技能优先于内置技能（同名时用户版本覆盖）。 */
+/**
+ * 技能匹配引擎——纯领域逻辑。
+ *
+ * <p>职责：根据用户输入匹配最合适的技能（意图关键词匹配 + 优先级排序）。
+ * 数据获取通过 {@link SkillStore} 接口，不直接依赖 Repository/Entity。
+ */
 @Service
 @RequiredArgsConstructor
 public class SkillMatchEngine implements SkillProvider {
 
-    private final SkillDefinitionRepository repository;
+    private final SkillStore skillStore;
 
     @Override
     public Optional<SkillDef> match(String assistantId, String userInput) {
-        // 先查用户自定义技能，再查内置技能
-        var skills = repository.findByAssistantIdAndStatus(assistantId, "active");
+        var skills = skillStore.findByAssistant(assistantId);
         if (skills.isEmpty()) {
-            skills = repository.findByBuiltInTrueAndStatus("active");
+            skills = skillStore.findBuiltIn();
         }
         return skills.stream()
                 .filter(s -> matchesIntent(s, userInput))
-                .max(Comparator.comparingInt(SkillDefinition::getPriority))
+                .max(Comparator.comparingInt(SkillStore.SkillRecord::priority))
                 .map(this::toSkillDef);
     }
 
     @Override
     public List<SkillDef> getDefinitions(String assistantId) {
-        var userSkills = repository.findByAssistantIdAndStatus(assistantId, "active");
-        var builtinSkills = repository.findByBuiltInTrueAndStatus("active");
-        // 用户技能覆盖同名内置技能
-        var userSkillIds = userSkills.stream().map(SkillDefinition::getSkillId).toList();
+        var userSkills = skillStore.findByAssistant(assistantId);
+        var builtinSkills = skillStore.findBuiltIn();
+        var userSkillIds = userSkills.stream().map(SkillStore.SkillRecord::skillId).toList();
         var merged = new java.util.ArrayList<>(userSkills);
         builtinSkills.stream()
-                .filter(s -> !userSkillIds.contains(s.getSkillId()))
+                .filter(s -> !userSkillIds.contains(s.skillId()))
                 .forEach(merged::add);
         return merged.stream().map(this::toSkillDef).toList();
     }
 
-    private boolean matchesIntent(SkillDefinition skill, String input) {
-        if (skill.getTriggerIntent() == null || skill.getTriggerIntent().isBlank()) return false;
-        var triggers = skill.getTriggerIntent().replaceAll("[\\[\\]\"]", "").split(",");
+    private boolean matchesIntent(SkillStore.SkillRecord skill, String input) {
+        if (skill.triggerIntent() == null || skill.triggerIntent().isBlank()) return false;
+        var triggers = skill.triggerIntent().replaceAll("[\\[\\]\"]", "").split(",");
         var lower = input.toLowerCase();
         for (var trigger : triggers) {
             if (lower.contains(trigger.trim().toLowerCase())) return true;
@@ -56,33 +57,15 @@ public class SkillMatchEngine implements SkillProvider {
         return false;
     }
 
-    private SkillDef toSkillDef(SkillDefinition entity) {
-        var tools =
-                entity.getTools() != null
-                        ? List.of(entity.getTools().replaceAll("[\\[\\]\"]", "").split(","))
-                        : List.<String>of();
-        var keywords =
-                entity.getTriggerIntent() != null
-                        ? List.of(entity.getTriggerIntent().replaceAll("[\\[\\]\"]", "").split(","))
-                        : List.<String>of();
+    private SkillDef toSkillDef(SkillStore.SkillRecord r) {
+        var tools = r.tools() != null
+                ? List.of(r.tools().replaceAll("[\\[\\]\"]", "").split(","))
+                : List.<String>of();
+        var keywords = r.triggerIntent() != null
+                ? List.of(r.triggerIntent().replaceAll("[\\[\\]\"]", "").split(","))
+                : List.<String>of();
         return new SkillDef(
-                entity.getSkillId(),
-                entity.getName(),
-                entity.getDescription(),
-                entity.getAgentId(),
-                keywords,
-                entity.getSystemPrompt(),
-                tools,
-                entity.getPriority(),
-                Boolean.TRUE.equals(entity.getBuiltIn()));
+                r.skillId(), r.name(), r.description(), r.agentId(),
+                keywords, r.systemPrompt(), tools, r.priority(), r.builtIn());
     }
-}
-
-@Repository
-interface SkillDefinitionRepository extends JpaRepository<SkillDefinition, Long> {
-    List<SkillDefinition> findByAssistantIdAndStatus(String assistantId, String status);
-
-    List<SkillDefinition> findByBuiltInTrueAndStatus(String status);
-
-    Optional<SkillDefinition> findBySkillId(String skillId);
 }
