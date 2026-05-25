@@ -50,6 +50,7 @@ const BOTTOM_NAV: NavGroup[] = [
         icon: "settings",
         children: [
           { title: "个人资料", path: `${paths.workspace.settings}/profile` },
+          { title: "API Key", path: `${paths.workspace.settings}/api-keys` },
           { title: "团队管理", path: `${paths.workspace.settings}/team`, badge: 3 },
           {
             title: "系统配置",
