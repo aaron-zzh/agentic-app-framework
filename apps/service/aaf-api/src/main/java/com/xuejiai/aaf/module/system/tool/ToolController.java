@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
+import com.xuejiai.aaf.framework.engine.tool.generator.ToolBlueprint;
+import com.xuejiai.aaf.framework.engine.tool.generator.ToolGenerator;
+import com.xuejiai.aaf.framework.security.ActorContext;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 public class ToolController {
 
     private final ToolService toolService;
+    private final ToolGenerator toolGenerator;
+    private final ActorContext actorContext;
 
     @Operation(summary = "查询已注册工具列表", description = "可按来源过滤：LOCAL/MCP/CUSTOM")
     @GetMapping
@@ -59,4 +64,33 @@ public class ToolController {
 
     /** 工具调用请求 */
     public record ToolInvokeRequest(@NotBlank String arguments) {}
+
+    @Operation(summary = "AI 生成工具", description = "根据自然语言描述生成工具蓝图（需确认后注册）")
+    @PostMapping("/generate")
+    public Result<String> generate(@RequestBody @Valid ToolGenerateRequest request) {
+        var result = toolGenerator.generateTool(request.description());
+        return Result.success(result);
+    }
+
+    @Operation(summary = "确认并注册生成的工具")
+    @PostMapping("/generate/confirm")
+    public Result<Void> confirmGenerate(@RequestBody @Valid ToolBlueprint blueprint) {
+        toolGenerator.confirmAndRegister(blueprint);
+        return Result.success();
+    }
+
+    @Operation(summary = "查看工具源码")
+    @GetMapping("/{toolName}/source")
+    public Result<String> viewSource(@PathVariable String toolName) {
+        return Result.success(toolGenerator.viewSource(toolName));
+    }
+
+    @Operation(summary = "标记工具为共享", description = "管理员或创建者可将私有工具共享给所有人")
+    @PostMapping("/{toolName}/share")
+    public Result<Void> share(@PathVariable String toolName) {
+        toolGenerator.share(toolName);
+        return Result.success();
+    }
+
+    public record ToolGenerateRequest(@NotBlank String description) {}
 }
