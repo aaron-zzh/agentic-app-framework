@@ -6,8 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.A2AProtocolService;
-
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -33,8 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class TeamOrchestrator {
-
-    private final A2AProtocolService a2aProtocol;
 
     private final Map<String, TeamDefinition> teams = new ConcurrentHashMap<>();
 

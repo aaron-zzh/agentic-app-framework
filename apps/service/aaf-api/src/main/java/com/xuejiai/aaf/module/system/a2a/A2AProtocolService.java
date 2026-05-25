@@ -1,10 +1,12 @@
-package com.xuejiai.aaf.framework.intelligent.assistant;
+package com.xuejiai.aaf.module.system.a2a;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
+
+import com.xuejiai.aaf.framework.intelligent.assistant.AssistantService;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
