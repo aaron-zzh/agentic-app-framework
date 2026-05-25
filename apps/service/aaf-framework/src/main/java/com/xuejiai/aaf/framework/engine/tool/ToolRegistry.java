@@ -7,71 +7,99 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.role.RoleStore;
 import com.xuejiai.aaf.framework.intelligent.core.function.FunctionDefinition;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 工具注册表：Spring Bean 自动发现 + MCP 工具 + 手动注册。 实现 ToolProvider 接口，按 assistantId 白名单过滤。 */
+/**
+ * 工具注册中心——统一管理所有来源的工具。
+ *
+ * <p>注册来源：
+ * <ul>
+ *   <li>LOCAL — Spring Bean 自动发现（@Tool 注解的 ToolCallback）</li>
+ *   <li>MCP — MCP Server 动态注册</li>
+ *   <li>CUSTOM — 用户自定义（通过 API 注册）</li>
+ * </ul>
+ *
+ * <p>白名单从 Role 获取（与技能关联统一）。
+ */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class ToolRegistry implements FunctionDefinition.ToolProvider {
 
-    private final Map<String, ToolCallback> callbacks = new ConcurrentHashMap<>();
-    private final Map<String, FunctionDefinition> definitions = new ConcurrentHashMap<>();
+    private final RoleStore roleStore;
 
-    /** assistantId → 允许的工具名列表，null 表示全部允许 */
-    private final Map<String, List<String>> whitelist = new ConcurrentHashMap<>();
+    /** 工具回调 */
+    private final Map<String, ToolCallback> callbacks = new ConcurrentHashMap<>();
+    /** 工具定义（元数据） */
+    private final Map<String, ToolMeta> metas = new ConcurrentHashMap<>();
+
+    /** 工具元数据（含来源） */
+    public record ToolMeta(String name, String description, String source, String parametersSchema) {}
+
+    public static final String SOURCE_LOCAL = "LOCAL";
+    public static final String SOURCE_MCP = "MCP";
+    public static final String SOURCE_CUSTOM = "CUSTOM";
 
     /** Spring 自动注入所有 ToolCallback Bean */
     @Autowired(required = false)
     public void setToolCallbacks(List<ToolCallback> toolCallbacks) {
         if (toolCallbacks != null) {
-            toolCallbacks.forEach(this::register);
+            toolCallbacks.forEach(cb -> register(cb, SOURCE_LOCAL));
         }
     }
 
-    /** 注册 Spring AI ToolCallback */
-    public void register(ToolCallback callback) {
+    /** 注册工具（带来源标记）。 */
+    public void register(ToolCallback callback, String source) {
         var name = callback.getToolDefinition().name();
+        var desc = callback.getToolDefinition().description();
         callbacks.put(name, callback);
-        definitions.put(
-                name,
-                new FunctionDefinition(
-                        name,
-                        callback.getToolDefinition().description(),
-                        Map.of("type", "object", "properties", Map.of())));
-        log.info("注册工具: {}", name);
+        metas.put(name, new ToolMeta(name, desc, source, null));
+        log.info("注册工具: {} [{}]", name, source);
     }
 
-    /** 手动注册自定义工具 */
-    public void register(FunctionDefinition definition, ToolCallback callback) {
-        definitions.put(definition.name(), definition);
+    /** 注册自定义工具。 */
+    public void register(FunctionDefinition definition, ToolCallback callback, String source) {
         callbacks.put(definition.name(), callback);
-        log.info("注册自定义工具: {}", definition.name());
+        metas.put(definition.name(), new ToolMeta(
+                definition.name(), definition.description(), source, null));
+        log.info("注册自定义工具: {} [{}]", definition.name(), source);
     }
 
-    /** 设置 Assistant 工具白名单 */
-    public void setWhitelist(String assistantId, List<String> toolNames) {
-        whitelist.put(assistantId, toolNames);
-    }
-
-    /** 获取 Assistant 可用工具（按白名单过滤） */
-    public List<ToolCallback> resolveForAssistant(String assistantId) {
-        var allowed = whitelist.get(assistantId);
-        if (allowed == null) return List.copyOf(callbacks.values());
+    /** 按 Role 白名单获取可用工具。 */
+    public List<ToolCallback> resolveForRole(String roleId) {
+        var allowed = roleStore.getToolWhitelist(roleId);
+        if (allowed.isEmpty()) return List.copyOf(callbacks.values());
         return allowed.stream().map(callbacks::get).filter(Objects::nonNull).toList();
     }
 
-    @Override
-    public List<FunctionDefinition> getDefinitions() {
-        return List.copyOf(definitions.values());
+    /** 获取所有工具元数据。 */
+    public List<ToolMeta> listAll() {
+        return List.copyOf(metas.values());
     }
 
+    /** 按来源过滤。 */
+    public List<ToolMeta> listBySource(String source) {
+        return metas.values().stream().filter(m -> source.equals(m.source())).toList();
+    }
+
+    /** 调用工具。 */
     @Override
     public String call(String name, String arguments) {
         var cb = callbacks.get(name);
         if (cb == null) throw new IllegalArgumentException("工具未注册: " + name);
         return cb.call(arguments);
+    }
+
+    @Override
+    public List<FunctionDefinition> getDefinitions() {
+        return metas.values().stream()
+                .map(m -> new FunctionDefinition(m.name(), m.description(),
+                        Map.of("type", "object", "properties", Map.of())))
+                .toList();
     }
 
     public Optional<ToolCallback> getCallback(String name) {
@@ -81,4 +109,10 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     public Set<String> listNames() {
         return Set.copyOf(callbacks.keySet());
     }
+
+    // 兼容旧接口
+    public void register(ToolCallback callback) { register(callback, SOURCE_LOCAL); }
+    public void register(FunctionDefinition def, ToolCallback cb) { register(def, cb, SOURCE_CUSTOM); }
+    public void setWhitelist(String assistantId, List<String> toolNames) { /* 已废弃，走 Role */ }
+    public List<ToolCallback> resolveForAssistant(String assistantId) { return List.copyOf(callbacks.values()); }
 }
