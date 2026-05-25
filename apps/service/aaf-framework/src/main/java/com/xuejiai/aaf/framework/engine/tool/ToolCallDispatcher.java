@@ -5,22 +5,51 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 工具调用分发器：参数校验 → 执行 → 结果封装。 从 ToolRegistry 查找工具，执行并返回结构化结果。 */
+/**
+ * 工具调用分发器——权限检查 → 路由 → 执行 → 结果封装。
+ *
+ * <p>统一调用入口，不管调用方是 Agent/REST/A2A 都走这里。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ToolCallDispatcher {
 
     private final ToolRegistry registry;
+    private final ToolPermissionChecker permissionChecker;
 
     /**
-     * 执行工具调用。
-     *
-     * @param functionName 工具名称
-     * @param arguments 参数 JSON 字符串
-     * @return 调用结果
+     * 执行工具调用（无权限检查，Agent 内部调用）。
      */
     public ToolCallResult dispatch(String functionName, String arguments) {
+        return doDispatch(functionName, arguments);
+    }
+
+    /**
+     * 执行工具调用（含权限检查，外部调用）。
+     */
+    public ToolCallResult dispatchWithPermission(String sessionId, Long userId, String roleId, String functionName, String arguments) {
+        var meta = registry.listAll().stream()
+                .filter(m -> m.name().equals(functionName))
+                .findFirst()
+                .orElse(null);
+        if (meta == null) {
+            return ToolCallResult.error(functionName, "工具未注册: " + functionName);
+        }
+
+        var hasRolePermission = registry.resolveForRole(roleId).stream()
+                .anyMatch(cb -> cb.getToolDefinition().name().equals(functionName));
+        var permission = permissionChecker.check(sessionId, userId, functionName, meta.riskLevel(), hasRolePermission);
+
+        return switch (permission) {
+            case GRANTED, AUTO_GRANTED -> doDispatch(functionName, arguments);
+            case PENDING_APPROVAL -> ToolCallResult.pendingApproval(functionName,
+                    "工具 [%s] 需要授权确认（风险等级: %s）".formatted(functionName, meta.riskLevel()));
+            case DENIED -> ToolCallResult.error(functionName, "工具 [%s] 权限不足，需管理员审批".formatted(functionName));
+        };
+    }
+
+    private ToolCallResult doDispatch(String functionName, String arguments) {
         var callback = registry.getCallback(functionName).orElse(null);
         if (callback == null) {
             return ToolCallResult.error(functionName, "工具未注册: " + functionName);
@@ -41,13 +70,15 @@ public class ToolCallDispatcher {
 
     /** 工具调用结果 */
     public record ToolCallResult(
-            String functionName, boolean success, String output, String error) {
+            String functionName, boolean success, String output, String error, boolean pendingApproval) {
         public static ToolCallResult success(String name, String output) {
-            return new ToolCallResult(name, true, output, null);
+            return new ToolCallResult(name, true, output, null, false);
         }
-
         public static ToolCallResult error(String name, String error) {
-            return new ToolCallResult(name, false, null, error);
+            return new ToolCallResult(name, false, null, error, false);
+        }
+        public static ToolCallResult pendingApproval(String name, String message) {
+            return new ToolCallResult(name, false, message, null, true);
         }
     }
 }

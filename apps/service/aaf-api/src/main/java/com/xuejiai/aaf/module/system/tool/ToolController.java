@@ -48,6 +48,15 @@ public class ToolController {
         return Result.success(toolService.invoke(toolName, request.arguments()));
     }
 
+    @Operation(summary = "授权工具调用", description = "用户确认后授予临时权限（本次会话有效）")
+    @PostMapping("/{toolName}/approve")
+    public Result<Void> approve(
+            @PathVariable String toolName,
+            @RequestParam String sessionId) {
+        toolService.approve(sessionId, toolName);
+        return Result.success();
+    }
+
     /** 工具调用请求 */
     public record ToolInvokeRequest(@NotBlank String arguments) {}
 }

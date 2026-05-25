@@ -8,6 +8,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
+import com.xuejiai.aaf.framework.engine.tool.ToolPermissionChecker;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry.ToolMeta;
 
@@ -20,6 +21,7 @@ public class ToolService {
 
     private final ToolRegistry toolRegistry;
     private final ToolCallDispatcher toolCallDispatcher;
+    private final ToolPermissionChecker permissionChecker;
 
     /** 查询所有已注册工具。 */
     public List<ToolVO> list(String source) {
@@ -53,5 +55,10 @@ public class ToolService {
 
     private ToolVO toVO(ToolMeta meta) {
         return new ToolVO(meta.name(), meta.description(), meta.source(), meta.parametersSchema());
+    }
+
+    /** 用户批准工具调用权限（临时授权）。 */
+    public void approve(String sessionId, String toolName) {
+        permissionChecker.grantTemporary(sessionId, toolName);
     }
 }

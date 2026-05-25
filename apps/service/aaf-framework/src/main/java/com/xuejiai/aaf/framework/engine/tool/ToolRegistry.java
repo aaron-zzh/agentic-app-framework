@@ -37,8 +37,13 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     /** 工具定义（元数据） */
     private final Map<String, ToolMeta> metas = new ConcurrentHashMap<>();
 
-    /** 工具元数据（含来源） */
-    public record ToolMeta(String name, String description, String source, String parametersSchema) {}
+    /** 工具元数据（含来源、类型、风险等级） */
+    public record ToolMeta(String name, String description, String source, ToolType type, ToolRiskLevel riskLevel, String parametersSchema) {
+        /** 兼容旧构造 */
+        public ToolMeta(String name, String description, String source, String parametersSchema) {
+            this(name, description, source, ToolType.FUNCTION, ToolRiskLevel.NONE, parametersSchema);
+        }
+    }
 
     public static final String SOURCE_LOCAL = "LOCAL";
     public static final String SOURCE_MCP = "MCP";
