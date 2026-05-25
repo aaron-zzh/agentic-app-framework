@@ -30,6 +30,7 @@ public class ToolGenerator {
     private final ToolRegistry toolRegistry;
     private final ScriptExecutor scriptExecutor;
     private final HumanApprovalService approvalService;
+    private final GeneratedToolStore toolStore;
 
     private static final String SYSTEM_PROMPT = """
             你是一个工具生成器。根据用户描述生成可执行的 JavaScript 函数。
@@ -74,21 +75,37 @@ public class ToolGenerator {
         return "工具 [%s] 已注册成功（私有，仅你可见）。如需共享请联系管理员。".formatted(blueprint.getName());
     }
 
-    /** 管理员/用户标记工具为共享。 */
+    /**
+     * 标记工具为共享（创建者或管理员可操作）。
+     * 共享后：所有人可见源码、可使用、可复用到自己的 Role。
+     */
     public void share(String toolName) {
-        log.info("工具 [{}] 已标记为共享", toolName);
+        toolStore.updateVisibility(toolName, ToolBlueprint.Visibility.SHARED);
+        log.info("工具 [{}] 已标记为共享（所有人可见源码和使用）", toolName);
     }
 
     /** 查看工具源码。 */
     public String viewSource(String toolName) {
-        return "源码查看功能待持久化实现";
+        return toolStore.findByName(toolName)
+                .map(GeneratedTool::getCode)
+                .orElse("工具不存在或无源码");
     }
 
-    /** 外部调用入口：生成并注册（含 HITL 确认）。 */
+    /** 外部调用入口：生成并注册（含持久化）。 */
     public void confirmAndRegister(ToolBlueprint blueprint) {
         blueprint.setVisibility(ToolBlueprint.Visibility.PRIVATE);
+        // 持久化
+        var entity = new GeneratedTool();
+        entity.setName(blueprint.getName());
+        entity.setDescription(blueprint.getDescription());
+        entity.setParametersJson(blueprint.getParameters() != null ? blueprint.getParameters().toString() : null);
+        entity.setCode(blueprint.getCode());
+        entity.setCreatorUserId(blueprint.getCreatorUserId() != null ? blueprint.getCreatorUserId() : 0L);
+        entity.setVisibility(blueprint.getVisibility());
+        toolStore.save(entity);
+        // 注册到内存
         var callback = new GeneratedToolCallback(blueprint, scriptExecutor);
         toolRegistry.register(callback, ToolRegistry.SOURCE_CUSTOM);
-        log.info("AI 生成工具已注册（PRIVATE）: {}", blueprint.getName());
+        log.info("AI 生成工具已注册并持久化（PRIVATE）: {}", blueprint.getName());
     }
 }

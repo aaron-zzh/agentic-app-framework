@@ -85,7 +85,7 @@ public class ToolController {
         return Result.success(toolGenerator.viewSource(toolName));
     }
 
-    @Operation(summary = "标记工具为共享", description = "管理员或创建者可将私有工具共享给所有人")
+    @Operation(summary = "标记工具为共享", description = "创建者或管理员可将私有工具共享，共享后所有人可见源码和使用")
     @PostMapping("/{toolName}/share")
     public Result<Void> share(@PathVariable String toolName) {
         toolGenerator.share(toolName);
