@@ -12,6 +12,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
+import com.xuejiai.aaf.framework.intelligent.cognition.learning.TrajectoryCollector;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryExtractionService;
 import com.xuejiai.aaf.framework.intelligent.cognition.pipeline.MemoryPipelineFactory;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
@@ -40,6 +41,7 @@ public class CognitiveCycleExecutor {
     private final MemoryExtractionService memoryExtraction;
     private final AgentCheckpointService checkpointService;
     private final MemoryPipelineFactory memoryPipelineFactory;
+    private final TrajectoryCollector trajectoryCollector;
 
     /**
      * 执行完整认知循环（带检查点和重试）。
@@ -121,9 +123,14 @@ public class CognitiveCycleExecutor {
             var duration = Duration.between(startTime, Instant.now());
             checkpointService.clearCheckpoint(executionId);
 
+            // 5. 轨迹采集（异步持久化）
+            collectTrajectory(executionId, agentId, userId, input, responseText, success, duration);
+
             return new CycleResult(responseText, success, duration, memoryContext.totalTokens());
         } catch (Exception e) {
             log.error("[{}] 认知循环失败: {}", definition.getName(), e.getMessage());
+            collectTrajectory(executionId, agentId, userId, input,
+                    e.getMessage(), false, Duration.between(startTime, Instant.now()));
             return new CycleResult(
                     "执行失败: " + e.getMessage(),
                     false,
@@ -146,4 +153,16 @@ public class CognitiveCycleExecutor {
     /** 认知循环执行结果 */
     public record CycleResult(
             String response, boolean success, Duration duration, int memoryItemsUsed) {}
+
+    private void collectTrajectory(
+            String executionId, String agentId, Long userId,
+            String input, String output, boolean success, Duration duration) {
+        try {
+            var trajectory = new TrajectoryCollector.Trajectory(
+                    executionId, agentId, userId, input, output, List.of(), success, duration.toMillis());
+            trajectoryCollector.collect(trajectory);
+        } catch (Exception e) {
+            log.warn("轨迹采集失败 [{}]: {}", executionId, e.getMessage());
+        }
+    }
 }
