@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryExtractionService;
+import com.xuejiai.aaf.framework.intelligent.cognition.pipeline.MemoryPipelineFactory;
+import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
+import com.xuejiai.aaf.framework.intelligent.core.memory.PipelineInput;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,7 @@ public class CognitiveCycleExecutor {
     private final WorkingMemory workingMemory;
     private final MemoryExtractionService memoryExtraction;
     private final AgentCheckpointService checkpointService;
+    private final MemoryPipelineFactory memoryPipelineFactory;
 
     /**
      * 执行完整认知循环（带检查点和重试）。
@@ -46,28 +50,55 @@ public class CognitiveCycleExecutor {
      * @return Agent 响应
      */
     public CycleResult execute(AgentDefinition definition, String input, Long userId) {
+        return execute(definition, input, userId, null, null, null);
+    }
+
+    /**
+     * 执行完整认知循环（含记忆管道上下文注入）。
+     *
+     * @param definition Agent 定义
+     * @param input 用户输入
+     * @param userId 用户 ID
+     * @param conversationId 会话 ID（用于短期记忆检索）
+     * @param memoryStrategy 记忆策略（null 则用默认 HYBRID）
+     * @param knowledgeBaseId 知识库 ID（可为 null）
+     * @return Agent 响应
+     */
+    public CycleResult execute(
+            AgentDefinition definition, String input, Long userId,
+            String conversationId, MemoryStrategy memoryStrategy, Long knowledgeBaseId) {
         var agentId = definition.getAgentId() + ":" + Thread.currentThread().threadId();
         var executionId = agentId + ":" + System.nanoTime();
         var startTime = Instant.now();
 
         try {
-            // 1. 感知（Perceive）：从记忆中提取相关上下文
+            // 1. 感知（Perceive）：通过 MemoryPipeline 拉取完整上下文
+            var pipeline = memoryPipelineFactory.create(memoryStrategy);
+            var memoryContext = pipeline.execute(new PipelineInput(
+                    input, userId, conversationId, knowledgeBaseId));
+            var contextPrompt = memoryContext.toPromptSection();
+
             workingMemory.focus(agentId, input, 5);
-            var focus = workingMemory.getFocus(agentId);
-            log.debug("[{}] 感知完成，工作记忆 {} 项", definition.getName(), focus.size());
+            log.debug("[{}] 感知完成，记忆上下文 {} tokens", definition.getName(), memoryContext.totalTokens());
 
             checkpointService.saveCheckpoint(
                     executionId, 1, buildState(executionId, agentId, "perceive"));
 
-            // 2. 规划 + 执行（Plan + Act）：带重试
+            // 2. 规划 + 执行（Plan + Act）：注入记忆上下文到 Agent prompt
             var response =
                     checkpointService.executeWithRetry(
                             executionId,
                             attempt -> {
+                                // 注入记忆上下文
+                                if (!contextPrompt.isBlank()) {
+                                    var enrichedPrompt = definition.getSystemPrompt() != null
+                                            ? definition.getSystemPrompt() + "\n\n## 上下文记忆\n" + contextPrompt
+                                            : "## 上下文记忆\n" + contextPrompt;
+                                    definition.setSystemPrompt(enrichedPrompt);
+                                }
                                 var agent = agentFactory.create(definition);
                                 var timeout = Duration.ofSeconds(definition.getTimeoutSeconds());
-                                var result = sandbox.execute(agent, input, timeout);
-                                return result;
+                                return sandbox.execute(agent, input, timeout);
                             });
 
             checkpointService.saveCheckpoint(
@@ -90,7 +121,7 @@ public class CognitiveCycleExecutor {
             var duration = Duration.between(startTime, Instant.now());
             checkpointService.clearCheckpoint(executionId);
 
-            return new CycleResult(responseText, success, duration, focus.size());
+            return new CycleResult(responseText, success, duration, memoryContext.totalTokens());
         } catch (Exception e) {
             log.error("[{}] 认知循环失败: {}", definition.getName(), e.getMessage());
             return new CycleResult(

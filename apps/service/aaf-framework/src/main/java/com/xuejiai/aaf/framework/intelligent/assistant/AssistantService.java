@@ -29,6 +29,7 @@ public class AssistantService {
     private final CognitiveCycleExecutor cycleExecutor;
     private final ShortTermMemoryService shortTermMemory;
     private final LearningFeedbackService learningFeedback;
+    private final AssistantDefinitionRepository assistantRepo;
 
     /**
      * 处理用户消息（完整链路）。
@@ -41,6 +42,9 @@ public class AssistantService {
      */
     public AssistantResponse handle(
             String sessionId, Long userId, String assistantId, String userInput) {
+        // 0. 加载 Assistant 配置
+        var assistantDef = assistantRepo.findByAssistantId(assistantId).orElse(null);
+
         // 1. 会话管理
         var session =
                 sessionManager
@@ -83,7 +87,10 @@ public class AssistantService {
                         definition.getSystemPrompt() != null
                                 ? definition.getSystemPrompt() + "\n" + styleHint
                                 : styleHint);
-                var result = cycleExecutor.execute(definition, userInput, userId);
+                var result = cycleExecutor.execute(
+                        definition, userInput, userId, sessionId,
+                        assistantDef != null ? assistantDef.getMemoryStrategy() : null,
+                        assistantDef != null ? assistantDef.getKnowledgeBaseId() : null);
                 response = result.response();
                 success = result.success();
             } else {
