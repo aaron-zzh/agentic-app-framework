@@ -118,6 +118,7 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     // 兼容旧接口
     public void register(ToolCallback callback) { register(callback, SOURCE_LOCAL); }
     public void register(FunctionDefinition def, ToolCallback cb) { register(def, cb, SOURCE_CUSTOM); }
+    public void registerMeta(ToolMeta meta) { metas.put(meta.name(), meta); }
     public void setWhitelist(String assistantId, List<String> toolNames) { /* 已废弃，走 Role */ }
     public List<ToolCallback> resolveForAssistant(String assistantId) { return List.copyOf(callbacks.values()); }
 }
