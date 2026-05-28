@@ -35,6 +35,14 @@ const STATIC_NAV: NavGroup[] = [
   {
     subheader: "概览",
     items: [{ title: "工作台", path: paths.workspace.dashboard, icon: "layout-dashboard" }]
+  },
+  {
+    subheader: "AI 创作",
+    items: [
+      { title: "图像生成", path: paths.aigc.root, icon: "sparkles" },
+      { title: "视频生成", path: paths.aigc.video, icon: "video" },
+      { title: "素材库", path: paths.aigc.assets, icon: "image" },
+    ]
   }
 ]
 

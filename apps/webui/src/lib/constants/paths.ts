@@ -30,5 +30,10 @@ export const paths = {
     notifications: "/notifications",
     todos: "/todos",
     trash: "/trash"
+  },
+  aigc: {
+    root: "/aigc",
+    assets: "/aigc/assets",
+    video: "/aigc/video",
   }
 }
