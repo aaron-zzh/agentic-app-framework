@@ -1,0 +1,44 @@
+/**
+ * 模型查看器场景——加载 GLB 模型展示
+ * @author AaronZZH & Kiro
+ */
+
+"use client"
+
+import { useState } from "react"
+import { ModelViewer } from "@/features/aigc/three/ModelViewer"
+import { Button } from "@/components/ui/button"
+
+const MODELS = [
+  { name: "鸭子", url: "/glb/duck.glb" },
+  { name: "小狗", url: "/glb/dog.glb" },
+  { name: "鹳鸟", url: "/glb/stork.glb" },
+  { name: "鹦鹉", url: "/glb/parrot.glb" },
+  { name: "火烈鸟", url: "/glb/flamingo.glb" },
+]
+
+export default function ModelViewerScene() {
+  const [activeModel, setActiveModel] = useState(MODELS[0])
+
+  return (
+    <div className="flex size-full flex-col">
+      {/* 模型选择栏 */}
+      <div className="flex gap-2 border-b border-border/50 p-3">
+        {MODELS.map((m) => (
+          <Button
+            key={m.url}
+            variant={activeModel.url === m.url ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveModel(m)}
+          >
+            {m.name}
+          </Button>
+        ))}
+      </div>
+      {/* 3D 查看器 */}
+      <div className="flex-1">
+        <ModelViewer modelUrl={activeModel.url} className="size-full" />
+      </div>
+    </div>
+  )
+}

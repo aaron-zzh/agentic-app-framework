@@ -41,6 +41,7 @@ const STATIC_NAV: NavGroup[] = [
     items: [
       { title: "图像生成", path: paths.aigc.root, icon: "sparkles" },
       { title: "视频生成", path: paths.aigc.video, icon: "video" },
+      { title: "3D 展示", path: "/aigc/3d", icon: "box" },
       { title: "素材库", path: paths.aigc.assets, icon: "image" },
     ]
   }
