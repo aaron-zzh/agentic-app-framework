@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { model3dApi, type TextTo3dParams, type ImageTo3dParams } from "@/lib/api/model3d-generation"
+import { model3dApi, type TextTo3dParams, type ImageTo3dParams, type MultiImageTo3dParams } from "@/lib/api/model3d-generation"
 
 const KEYS = {
   task: (taskId: string) => ["model3d", "task", taskId] as const,
@@ -17,14 +17,21 @@ export function useTextTo3d() {
   })
 }
 
-/** 图片生成 3D 模型 */
+/** 单图生成 3D 模型 */
 export function useImageTo3d() {
   return useMutation({
     mutationFn: (params: ImageTo3dParams) => model3dApi.submitImageTo3d(params),
   })
 }
 
-/** 轮询 3D 生成任务状态（直到完成或失败） */
+/** 多图生成 3D 模型（四视角） */
+export function useMultiImageTo3d() {
+  return useMutation({
+    mutationFn: (params: MultiImageTo3dParams) => model3dApi.submitMultiImageTo3d(params),
+  })
+}
+
+/** 轮询 3D 生成任务状态（15秒间隔，直到完成或失败） */
 export function useModel3dTaskStatus(taskId: string | null) {
   return useQuery({
     queryKey: KEYS.task(taskId!),
@@ -32,8 +39,8 @@ export function useModel3dTaskStatus(taskId: string | null) {
     enabled: taskId !== null,
     refetchInterval: (query) => {
       const status = query.state.data?.status
-      if (status === "COMPLETED" || status === "FAILED") return false
-      return 2000
+      if (status === "SUCCEEDED" || status === "FAILED") return false
+      return 15_000
     },
   })
 }

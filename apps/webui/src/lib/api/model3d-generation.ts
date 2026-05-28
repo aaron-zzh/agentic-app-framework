@@ -1,5 +1,5 @@
 /**
- * 3D 模型生成 API 客户端
+ * 3D 模型生成 API 客户端（百炼 Tripo + Meshy）
  * @author AaronZZH & Kiro
  */
 
@@ -10,13 +10,28 @@ const API_PATH = "/aigc/model3d"
 
 export interface TextTo3dParams {
   prompt: string
-  style?: string
-  format?: string
+  /** 贴图质量：standard / detailed */
+  textureQuality?: string
+  /** 是否生成 PBR 材质 */
+  pbr?: boolean
 }
 
 export interface ImageTo3dParams {
   imageUrl: string
-  format?: string
+  textureQuality?: string
+  pbr?: boolean
+}
+
+export interface ImageInputItem {
+  type: string
+  fileToken: string
+}
+
+export interface MultiImageTo3dParams {
+  /** 四视角图片（前/左/后/右），不需要的视角传 null */
+  images: (ImageInputItem | null)[]
+  textureQuality?: string
+  pbr?: boolean
 }
 
 export const model3dApi = {
@@ -27,9 +42,16 @@ export const model3dApi = {
       body: JSON.stringify(params),
     }),
 
-  /** 图片生成 3D 模型 */
+  /** 单图生成 3D 模型 */
   submitImageTo3d: (params: ImageTo3dParams): Promise<string> =>
     request<string>(`${API_PATH}/image-to-3d`, {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+
+  /** 多图生成 3D 模型（四视角：前/左/后/右） */
+  submitMultiImageTo3d: (params: MultiImageTo3dParams): Promise<string> =>
+    request<string>(`${API_PATH}/multi-image-to-3d`, {
       method: "POST",
       body: JSON.stringify(params),
     }),

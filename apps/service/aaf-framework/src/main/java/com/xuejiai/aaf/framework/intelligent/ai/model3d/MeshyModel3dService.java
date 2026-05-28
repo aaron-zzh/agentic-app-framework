@@ -41,8 +41,7 @@ public class MeshyModel3dService implements Model3dGenerationService {
         var body = new HashMap<String, Object>();
         body.put("mode", "preview");
         body.put("prompt", request.prompt());
-        if (request.style() != null) body.put("art_style", request.style());
-        if (request.format() != null) body.put("output_format", request.format());
+        if (request.textureQuality() != null) body.put("texture_quality", request.textureQuality());
         return doSubmit("/text-to-3d", body);
     }
 
@@ -50,8 +49,17 @@ public class MeshyModel3dService implements Model3dGenerationService {
     public String submitImageTo3d(ImageTo3dRequest request) {
         var body = new HashMap<String, Object>();
         body.put("image_url", request.imageUrl());
-        if (request.format() != null) body.put("output_format", request.format());
         return doSubmit("/image-to-3d", body);
+    }
+
+    @Override
+    public String submitMultiImageTo3d(MultiImageTo3dRequest request) {
+        // Meshy 不支持多图，取第一张有效图片走单图
+        var firstImage = request.images().stream()
+                .filter(img -> img != null && img.fileToken() != null)
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("至少需要一张有效图片"));
+        return submitImageTo3d(new ImageTo3dRequest(firstImage.fileToken(), request.textureQuality(), request.pbr()));
     }
 
     @Override
@@ -79,11 +87,11 @@ public class MeshyModel3dService implements Model3dGenerationService {
                     root.has("thumbnail_url") ? root.get("thumbnail_url").asText() : null;
             var prompt = root.has("prompt") ? root.get("prompt").asText() : null;
 
-            return new Model3dTaskResult(taskId, status, modelUrl, thumbnailUrl, prompt);
+            return new Model3dTaskResult(taskId, status, modelUrl, null, thumbnailUrl, prompt);
         } catch (Exception e) {
             log.error("[Meshy] 查询任务失败: taskId={}", taskId, e);
             return new Model3dTaskResult(
-                    taskId, Model3dTaskResult.TaskStatus.FAILED, null, null, null);
+                    taskId, Model3dTaskResult.TaskStatus.FAILED, null, null, null, null);
         }
     }
 

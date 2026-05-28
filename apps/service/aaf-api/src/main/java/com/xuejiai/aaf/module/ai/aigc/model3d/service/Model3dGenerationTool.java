@@ -28,19 +28,19 @@ public class Model3dGenerationTool {
     private final Model3dGenerationService model3dGenerationService;
     private final MediaAssetService mediaAssetService;
 
-    public record Request(String prompt, String style, String format) {}
+    public record Request(String prompt, String textureQuality) {}
 
     public record Response(String taskId, String status, String message) {}
 
     @Bean
     @Description(
-            "根据用户描述生成 3D 模型。参数：prompt(必填)-模型描述, style(可选)-风格如realistic/cartoon, format(可选)-输出格式如glb/fbx")
+            "根据用户描述生成 3D 模型。参数：prompt(必填)-模型描述, textureQuality(可选)-贴图质量standard/detailed")
     public Function<Request, Response> generate3dModel() {
         return request -> {
             log.info("对话触发 3D 模型生成: prompt={}", request.prompt());
             try {
                 var textTo3dRequest =
-                        new TextTo3dRequest(request.prompt(), request.style(), request.format());
+                        new TextTo3dRequest(request.prompt(), request.textureQuality(), null);
                 var taskId = model3dGenerationService.submitTextTo3d(textTo3dRequest);
 
                 // 自动保存到素材库（异步任务，先记录 taskId）
