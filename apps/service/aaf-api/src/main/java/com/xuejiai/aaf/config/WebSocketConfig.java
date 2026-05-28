@@ -7,7 +7,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 
 import com.xuejiai.aaf.module.ai.chat.ws.ChatWebSocketHandler;
 import com.xuejiai.aaf.module.system.notify.ws.NotificationWebSocketHandler;
-import com.xuejiai.aaf.module.ai.voice.ws.AsrWebSocketHandler;
+import com.xuejiai.aaf.module.ai.aigc.voice.ws.AsrWebSocketHandler;
 
 import lombok.RequiredArgsConstructor;
 
