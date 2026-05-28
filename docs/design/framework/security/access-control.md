@@ -84,7 +84,7 @@ author: AaronZZH
 | `org_admin` | 组织内全部权限 | 组织管理员 |
 | `member` | 基础功能 | 普通成员 |
 | `guest` | 只读 | 访客 |
-| `agent` | 受限执行 | AI 智能体专用角色 |
+| `agent` | 委托者权限 ∩ scope | AI 助理，权限继承自委托用户并被 scope 收窄 |
 
 **自定义角色：**
 
@@ -190,18 +190,51 @@ Resource Server 校验 JWT
 | 主体类型 | 标识格式 | 说明 |
 |----------|----------|------|
 | 用户 | `user:{id}` | 自然人，有身份、角色、组织归属 |
-| Agent | `agent:{id}` | AI 智能体，关联触发用户 |
+| AI 助理 | `assistant:{id}` | AI 智能体，代表委托用户操作 |
 | 外部系统 | `system:{id}` | 通过 API Key 接入 |
 
-**Agent 权限规则：**
+**AI 权限模型（委托 + 收窄）：**
 
-```
-Agent 最终权限 = 触发用户权限 ∩ Agent 自身配置
+AI 助理不是独立的权限主体——它代表用户执行操作，权限继承自委托者并被 scope 白名单收窄。
+
+```text
+AI 实际权限 = 委托者权限 ∩ scope 白名单
 ```
 
-- Agent 不能超越触发用户的权限边界
-- Agent 可配置工具白名单/黑名单
-- 高风险操作受置信度门控约束
+- AI 不能超越委托者的权限边界
+- 用户通过 `AssistantDefinition.permissionScope`（JSONB）配置 AI 的权限边界
+- 超出边界时按 `overLimitAction` 处理（ASK/SKIP/PAUSE）
+- 不为 AI 单独建权限体系，复用已有 RBAC + ReBAC
+
+**scope 白名单配置（存储在 AssistantDefinition 表）：**
+
+```java
+public record PermissionScope(
+    List<String> allowedTools,        // ["search", "code-gen", "file-write"]
+    List<String> allowedResources,    // ["space:my-workspace/*", "document:*"]
+    List<String> allowedOperations,   // ["read", "write", "execute"]
+    RiskLevel maxAutoRiskLevel,       // LOW / MEDIUM / HIGH
+    OverLimitAction overLimitAction   // ASK / SKIP / PAUSE
+) {}
+```
+
+**权限判定流程：**
+
+```text
+AI 请求执行操作：
+  1. OperatorContext → 获取 assistant_id
+  2. 查 AssistantDefinition → 获取 delegator_id + permissionScope
+  3. 查委托者权限（RBAC + ReBAC + 记录规则）→ 权限集 A
+  4. 从 permissionScope 获取白名单 → 边界 B
+  5. 实际权限 = A ∩ B
+  6. 判断当前操作是否在实际权限内：
+     ├── 在 → 检查风险等级
+     │     ├── ≤ maxAutoRiskLevel → 自动执行
+     │     └── > maxAutoRiskLevel → 按 overLimitAction 处理
+     └── 不在 → 权限不足，按 overLimitAction 处理
+```
+
+详见 [Operator 模型设计](../operator.md#ai-权限委托模型)。
 
 ### 5.2 权限对象（Which）
 
@@ -233,18 +266,22 @@ Agent 最终权限 = 触发用户权限 ∩ Agent 自身配置
 |------|------|------|----------|
 | once | 单次授权 | Redis | 执行完立即失效 |
 | session | 会话授权 | Redis | 会话结束失效 |
-| permanent | 永久授权 | Neo4j | 需手动撤销 |
+| permanent | 永久授权 | PostgreSQL（ReBAC 关系表 / scope 配置） | 需手动撤销 |
 
 **典型场景：**
 
 ```
-# Agent 请求单次写入文件
-file:config.json#write@agent:agent-123
+# AI 助理请求单次写入文件（overLimitAction=ASK 触发）
+file:config.json#write@assistant:100
 scope: once
 
-# Agent 请求会话级读取目录
-directory:/src#read@agent:agent-123
+# AI 助理请求会话级读取目录
+directory:/src#read@assistant:100
 scope: session
+
+# 用户永久授权（自动追加到 AssistantDefinition.permissionScope）
+assistant:100 → permissionScope.allowedOperations += "delete"
+scope: permanent
 ```
 
 ### 5.5 关系权限模型（ReBAC）
@@ -422,27 +459,31 @@ document:doc-123#viewer@org:other-org
 
 企业需要更强隔离（物理隔离）→ 独立部署。
 
-## 6. 实时交互授权
+## 6. 实时交互授权（AI 权限申请机制）
 
-### 6.1 场景
+### 6.1 触发场景
 
-Agent 执行任务时发现需要额外权限，实时请求用户授权。
+AI 助理执行任务时，权限判定结果为"不在实际权限内"或"超出 maxAutoRiskLevel"，且 `overLimitAction = ASK` 时触发。
+
+| 触发条件 | 说明 |
+|---------|------|
+| 操作不在 scope 白名单内 | 如助理尝试删除文件，但 scope 只允许 read/write |
+| 风险等级超出配置 | 如操作风险为 HIGH，但 maxAutoRiskLevel = MEDIUM |
+| 委托者本身无权限 | 委托者权限不足，AI 自然也无权限 |
 
 ### 6.2 流程
 
-```
-Agent 执行任务
+```text
+AI 执行任务
     ↓
-发现需要额外权限
+权限判定：不在 A ∩ B 内，或风险超出
     ↓
-创建授权请求（pending）
-    ↓
-WebSocket 推送给用户
-    ↓
-用户确认/拒绝
-    ↓
-├─ 确认 → 授予会话级临时权限 → Agent 继续
-└─ 拒绝 → Agent 跳过或终止
+检查 overLimitAction：
+  ├── ASK → 创建授权请求（pending）→ WebSocket 推送给委托者
+  │         ├── 确认 → 授予临时权限（once/session）→ AI 继续
+  │         └── 拒绝 → AI 跳过该操作，继续后续任务
+  ├── SKIP → 直接跳过，记录日志，继续后续任务
+  └── PAUSE → 暂停整个任务，等待用户主动介入
 ```
 
 ### 6.3 授权请求数据
@@ -450,11 +491,13 @@ WebSocket 推送给用户
 | 字段 | 说明 |
 |------|------|
 | requestId | 请求唯一标识 |
-| agentId | 发起请求的 Agent |
+| assistantId | 发起请求的助理 |
+| delegatorId | 委托者（接收推送的用户） |
 | sessionId | 会话 ID |
 | resource | 请求访问的资源 |
-| permission | 请求的权限 |
-| reason | 为什么需要 |
+| operation | 请求的操作 |
+| riskLevel | 操作风险等级 |
+| reason | 为什么需要（AI 生成的说明） |
 | expiresAt | 请求过期时间（默认 5 分钟） |
 
 ### 6.4 临时权限存储
@@ -462,9 +505,19 @@ WebSocket 推送给用户
 会话级临时权限存储在 Redis，会话结束自动失效：
 
 ```
-Key: session_perm:{sessionId}:{resource}:{permission}
+Key: session_perm:{sessionId}:{resource}:{operation}
 TTL: 会话超时时间
 ```
+
+### 6.5 授权范围
+
+| 范围 | 说明 | 存储 | 失效时机 |
+|------|------|------|----------|
+| once | 单次授权 | Redis | 执行完立即失效 |
+| session | 会话授权 | Redis | 会话结束失效 |
+| permanent | 永久授权（更新 scope） | PostgreSQL | 用户手动撤销 |
+
+用户选择 permanent 时，系统自动将该操作追加到 `AssistantDefinition.permissionScope` 中。
 
 ## 7. 置信度门控
 
