@@ -21,7 +21,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder.HistoryMessage;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.service.IntentService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageSendDTO;
@@ -57,7 +57,7 @@ public class ChatController {
 
     private final ChatService chatService;
     private final IntentService intentService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
     private final ResilientChatService resilientChatService;
     private final ChatContextBuilder chatContextBuilder;
     private final AiProperties aiProperties;
@@ -71,14 +71,14 @@ public class ChatController {
     @Operation(summary = "创建会话")
     @PostMapping("/sessions")
     public Result<ChatSessionVO> createSession(@RequestBody @Validated ChatSessionCreateDTO dto) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(chatService.createSession(userId, dto));
     }
 
     @Operation(summary = "获取会话列表")
     @GetMapping("/sessions")
     public Result<List<ChatSessionVO>> listSessions() {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(chatService.listSessions(userId));
     }
 
@@ -107,7 +107,7 @@ public class ChatController {
     @Operation(summary = "发送消息")
     @PostMapping("/messages")
     public Result<ChatMessageVO> sendMessage(@RequestBody @Validated ChatMessageSendDTO dto) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         var message =
                 chatService.saveMessage(userId, "HUMAN", dto.sessionId(), "user", dto.content());
         return Result.success(message);
@@ -140,7 +140,7 @@ public class ChatController {
     public SseEmitter streamChat(
             @PathVariable Long sessionId, @RequestBody @Validated ChatStreamDTO dto) {
 
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         var emitter = new SseEmitter(SSE_TIMEOUT);
 
         // 注册清理回调

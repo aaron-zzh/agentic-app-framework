@@ -16,7 +16,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.xuejiai.aaf.common.util.ServletUtils;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OperationLogAspect {
 
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final SpelExpressionParser PARSER = new SpelExpressionParser();
@@ -97,7 +97,7 @@ public class OperationLogAspect {
 
         var event =
                 new OperationLogEvent(
-                        actorContext.currentUserId().orElse(null),
+                        operatorContext.currentUserId().orElse(null),
                         null, // username 由持久化层补充
                         annotation.module(),
                         annotation.type().name(),

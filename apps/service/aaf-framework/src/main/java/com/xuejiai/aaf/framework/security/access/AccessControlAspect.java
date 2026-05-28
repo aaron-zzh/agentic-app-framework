@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AccessControlAspect {
 
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
     private final FeatureToggleChecker featureToggleChecker;
 
     @Around("@annotation(accessControl)")
@@ -38,7 +38,7 @@ public class AccessControlAspect {
             throws Throwable {
         // 认证检查
         var userId =
-                actorContext
+                operatorContext
                         .currentUserId()
                         .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
 

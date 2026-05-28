@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.task.service.TodoService;
 import com.xuejiai.aaf.module.system.task.vo.TodoPageDTO;
 import com.xuejiai.aaf.module.system.task.vo.TodoStatusDTO;
@@ -33,12 +33,12 @@ import lombok.RequiredArgsConstructor;
 public class TodoController {
 
     private final TodoService todoService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "分页查询待办")
     @GetMapping
     public Result<PageResult<TodoVO>> page(@Validated @ParameterObject TodoPageDTO request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(todoService.page(userId, request));
     }
 
@@ -46,7 +46,7 @@ public class TodoController {
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(
             @PathVariable Long id, @Validated @RequestBody TodoStatusDTO dto) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         todoService.updateStatus(userId, id, dto.status());
         return Result.success();
     }

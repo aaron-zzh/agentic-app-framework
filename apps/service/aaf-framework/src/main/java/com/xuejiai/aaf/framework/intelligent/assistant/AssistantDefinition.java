@@ -6,6 +6,8 @@ import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Assistant 定义：Actor（人格）+ Role（能力）+ MemoryStrategy（记忆管道）的组合。 一个用户可拥有多个 Assistant，每个 Assistant
@@ -27,6 +29,15 @@ public class AssistantDefinition extends BaseEntity {
     @Column(nullable = false)
     private Long userId;
 
+    /** 委托者 ID（权限继承来源，通常等于 userId） */
+    @Column(name = "delegator_id")
+    private Long delegatorId;
+
+    /** 权限边界配置（JSON 存储） */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "permission_scope", columnDefinition = "jsonb")
+    private PermissionScope permissionScope;
+
     /** 关联的 Actor ID（人格载体） */
     @Column(nullable = false, length = 64)
     private String actorId;
@@ -46,4 +57,14 @@ public class AssistantDefinition extends BaseEntity {
     /** 状态：active / inactive */
     @Column(nullable = false, length = 16)
     private String status = "active";
+
+    /** 获取有效的委托者 ID（未设置时回退到 userId） */
+    public Long getEffectiveDelegatorId() {
+        return delegatorId != null ? delegatorId : userId;
+    }
+
+    /** 获取有效的权限边界（未设置时使用默认配置） */
+    public PermissionScope getEffectiveScope() {
+        return permissionScope != null ? permissionScope : PermissionScope.defaults();
+    }
 }

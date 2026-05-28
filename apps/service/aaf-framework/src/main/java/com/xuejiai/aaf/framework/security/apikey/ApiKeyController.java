@@ -8,7 +8,7 @@ import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,14 +26,14 @@ import lombok.RequiredArgsConstructor;
 public class ApiKeyController {
 
     private final ApiKeyRepository repository;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     // ========== 用户接口 ==========
 
     /** 生成 API Key（当前用户）。 */
     @PostMapping
     public Map<String, String> create(@RequestBody CreateRequest req) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         var rawKey = "aaf_dk_" + UUID.randomUUID().toString().replace("-", "");
 
         var apiKey = new ApiKey();
@@ -54,7 +54,7 @@ public class ApiKeyController {
     /** 列出当前用户的 Key。 */
     @GetMapping
     public List<ApiKeyVO> listMine() {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         return repository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(this::toVO)
                 .toList();
@@ -63,7 +63,7 @@ public class ApiKeyController {
     /** 删除自己的 Key。 */
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         var key = repository.findById(id).orElseThrow();
         if (!key.getUserId().equals(userId)) {
             throw new IllegalArgumentException("无权删除");

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.entity.vo.EntityAccessVO;
 import com.xuejiai.aaf.module.system.role.service.PermissionService;
 
@@ -28,13 +28,13 @@ import lombok.RequiredArgsConstructor;
 public class PermissionController {
 
     private final PermissionService permissionService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "查询当前用户对指定实体的权限")
     @GetMapping("/entity/{slug}")
     public Result<EntityAccessVO> getEntityAccess(@PathVariable String slug) {
         Long userId =
-                actorContext
+                operatorContext
                         .currentUserId()
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));

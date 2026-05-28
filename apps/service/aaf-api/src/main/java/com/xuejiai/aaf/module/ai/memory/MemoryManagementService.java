@@ -17,7 +17,7 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtomRepository;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +27,7 @@ public class MemoryManagementService {
 
     private final MemoryAtomRepository repository;
     private final AtomMemoryEngine memoryEngine;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     /**
      * 分页查询当前用户的记忆列表
@@ -37,7 +37,7 @@ public class MemoryManagementService {
      * @return 记忆分页结果
      */
     public PageResult<MemoryAtomVO> list(String scope, Pageable pageable) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         Page<MemoryAtom> page;
         if (scope != null) {
             page = repository.findByUserIdAndScope(userId, scope, pageable);
@@ -55,7 +55,7 @@ public class MemoryManagementService {
      * @return 匹配的记忆列表
      */
     public List<MemoryAtomVO> search(String keyword, String scope) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         List<MemoryAtom> results;
         if (scope != null) {
             results = repository.findByUserIdAndScopeAndContentContaining(userId, scope, keyword);
@@ -82,7 +82,7 @@ public class MemoryManagementService {
      */
     @Transactional
     public void clearByScope(String scope) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         var atoms = repository.findByUserIdAndScope(userId, scope);
         if (!atoms.isEmpty()) {
             memoryEngine.delete(atoms.stream().map(MemoryAtom::getId).toList());
@@ -95,7 +95,7 @@ public class MemoryManagementService {
      * @return 各范围的记忆数量
      */
     public MemoryStatsVO getStats() {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         long shortTerm = repository.countByUserIdAndScope(userId, "short_term");
         long longTerm = repository.countByUserIdAndScope(userId, "long_term");
         long episodic = repository.countByUserIdAndScope(userId, "episodic");

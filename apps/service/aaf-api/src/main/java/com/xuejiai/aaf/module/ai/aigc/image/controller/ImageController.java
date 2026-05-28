@@ -16,7 +16,7 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService.TaskStatus;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.image.service.AiImageService;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.AiImageVO;
 
@@ -42,7 +42,7 @@ public class ImageController {
 
     private final MidjourneyImageService midjourneyService;
     private final AiImageService aiImageService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     // ========== 请求 DTO ==========
 
@@ -62,7 +62,7 @@ public class ImageController {
     @Operation(summary = "提交文生图任务（Midjourney imagine）")
     @PostMapping("/midjourney/imagine")
     public Result<Long> imagine(@RequestBody @Valid ImagineRequest request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         Long id = aiImageService.imagine(userId, request.prompt(), request.base64Images());
         return Result.success(id);
     }
@@ -70,7 +70,7 @@ public class ImageController {
     @Operation(summary = "执行后续操作（放大/变体/重绘）")
     @PostMapping("/midjourney/action")
     public Result<Long> action(@RequestBody @Valid ImageActionRequest request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         Long id = aiImageService.action(userId, request.imageId(), request.customId());
         return Result.success(id);
     }
@@ -104,14 +104,14 @@ public class ImageController {
     public Result<PageResult<AiImageVO>> listImages(
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(aiImageService.pageByUser(userId, pageNo, pageSize));
     }
 
     @Operation(summary = "删除图像")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         aiImageService.delete(userId, id);
         return Result.success();
     }
@@ -119,7 +119,7 @@ public class ImageController {
     @Operation(summary = "查询我的图像列表（全量，兼容旧接口）")
     @GetMapping("/my")
     public Result<List<AiImageVO>> listMy() {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         var list = aiImageService.listByUser(userId).stream().map(aiImageService::toVO).toList();
         return Result.success(list);
     }
@@ -142,7 +142,7 @@ public class ImageController {
     @Operation(summary = "文生图（通义万象 wanx，异步）")
     @PostMapping("/draw")
     public Result<Long> draw(@RequestBody @Valid DrawRequest request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         Long id =
                 aiImageService.draw(
                         userId,

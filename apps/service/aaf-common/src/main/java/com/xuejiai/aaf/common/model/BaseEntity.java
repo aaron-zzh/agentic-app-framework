@@ -66,6 +66,10 @@ public abstract class BaseEntity implements Serializable {
     @Column(name = "create_by")
     private Long createBy;
 
+    /** 创建者类型 */
+    @Column(name = "create_by_type", length = 16)
+    private String createByType;
+
     @CreatedDate
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
@@ -74,9 +78,17 @@ public abstract class BaseEntity implements Serializable {
     @Column(name = "update_by")
     private Long updateBy;
 
+    /** 更新者类型 */
+    @Column(name = "update_by_type", length = 16)
+    private String updateByType;
+
     @LastModifiedDate
     @Column(name = "update_time")
     private LocalDateTime updateTime;
+
+    /** 数据归属者（始终为 user.id，AI 操作时填委托者） */
+    @Column(name = "owner_id")
+    private Long ownerId;
 
     @Column(name = "delete_time")
     private LocalDateTime deleteTime;

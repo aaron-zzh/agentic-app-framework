@@ -63,7 +63,7 @@ changelog:
 8. ✅ #30 框架基础能力脚手架 — developer-service (依赖: #27, #28)
    - **aaf-common**：`Result<T>` / 错误码体系 / `BaseEntity` / 分页封装
    - **aaf-api/config**：全局异常处理 / Jackson 配置 / CORS
-   - **aaf-framework**：Spring Security JWT 骨架 + `ActorContext` 占位
+   - **aaf-framework**：Spring Security JWT 骨架 + `OperatorContext` 占位
    - verify: `GET /api/hello` 返回 `Result<String>`；JWT 认证通过；无 Token 返回 401
 
 9. ✅ #20 Flyway 数据库迁移初始化 + 环境配置分离 — developer-service (依赖: #30)

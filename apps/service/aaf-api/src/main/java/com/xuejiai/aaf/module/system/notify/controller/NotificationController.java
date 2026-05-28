@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import com.xuejiai.aaf.module.system.notify.vo.NotificationPageDTO;
 import com.xuejiai.aaf.module.system.notify.vo.NotificationVO;
@@ -35,27 +35,27 @@ import lombok.RequiredArgsConstructor;
 public class NotificationController {
 
     private final NotificationService notificationService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "分页查询通知")
     @GetMapping
     public Result<PageResult<NotificationVO>> page(
             @Validated @ParameterObject NotificationPageDTO request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(notificationService.page(userId, request));
     }
 
     @Operation(summary = "获取未读数量")
     @GetMapping("/unread-count")
     public Result<Long> unreadCount() {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(notificationService.unreadCount(userId));
     }
 
     @Operation(summary = "标记已读")
     @PutMapping("/read")
     public Result<Void> markAsRead(@RequestBody List<Long> ids) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         notificationService.markAsRead(userId, ids);
         return Result.success();
     }
@@ -63,7 +63,7 @@ public class NotificationController {
     @Operation(summary = "删除通知")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         notificationService.delete(userId, id);
         return Result.success();
     }

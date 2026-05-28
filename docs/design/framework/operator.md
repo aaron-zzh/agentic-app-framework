@@ -131,7 +131,7 @@ UPDATE xxx SET owner_id = create_by WHERE owner_id IS NULL;
 
 ## OperatorContext 接口
 
-当前 `ActorContext` 的演进方向，统一提供操作者和数据归属者信息：
+当前 `OperatorContext` 的演进方向，统一提供操作者和数据归属者信息：
 
 ```java
 // com.xuejiai.aaf.framework.security.OperatorContext
@@ -263,7 +263,7 @@ export function operatorRef(op: Operator): string {
 - ✅ 设计文档（本文档）
 - ✅ 领域建模规范中的 Polymorphic Operator 约定
 - ⏳ BaseEntity 加 `create_by_type` / `update_by_type` / `owner_id` 字段
-- ⏳ `ActorContext` → `OperatorContext` 重构（扩展接口，保持向后兼容）
+- ⏳ `OperatorContext` → `OperatorContext` 重构（扩展接口，保持向后兼容）
 - ⏳ `com.xuejiai.aaf.common.operator.Operator` 类
 - ⏳ `packages/types/operator.ts`（packages/ 落地后）
 - ⏳ ArchUnit 约束（`createdBy` 必须为 Operator 类型）

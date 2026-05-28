@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.org.service.OrganizationService;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberAddDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberRoleUpdateDTO;
@@ -40,12 +40,12 @@ import lombok.RequiredArgsConstructor;
 public class OrganizationController {
 
     private final OrganizationService organizationService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "获取当前用户的组织列表")
     @GetMapping
     public Result<List<OrganizationVO>> list() {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(organizationService.listByUser(userId));
     }
 
@@ -59,7 +59,7 @@ public class OrganizationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<OrganizationVO> create(@Validated @RequestBody OrganizationCreateDTO request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(organizationService.create(request, userId));
     }
 

@@ -610,7 +610,7 @@ AI 的核心价值是**将模糊意图转化为系统可执行的方案**，优�
 ✅ 05-09 — developer-service
 
 - common：Result<T> / 错误码 / BaseEntity / 分页
-- framework：Security JWT 骨架 + ActorContext
+- framework：Security JWT 骨架 + OperatorContext
 - 决策：common 依赖用 provided scope，避免污染下游
 
 > **沉淀**：provided scope 不传递——common 用 provided 引 Spring Web，下游不引 starter-web 则无此类

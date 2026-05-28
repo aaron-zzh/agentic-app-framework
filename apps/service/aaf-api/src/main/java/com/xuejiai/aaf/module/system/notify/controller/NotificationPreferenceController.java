@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.notify.domain.NotificationPreference;
 import com.xuejiai.aaf.module.system.notify.service.NotificationPreferenceService;
 
@@ -29,19 +29,19 @@ import lombok.RequiredArgsConstructor;
 public class NotificationPreferenceController {
 
     private final NotificationPreferenceService preferenceService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "获取当前用户通知偏好")
     @GetMapping
     public Result<NotificationPreference> get() {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(preferenceService.getByUserId(userId));
     }
 
     @Operation(summary = "更新通知偏好")
     @PutMapping
     public Result<NotificationPreference> update(@RequestBody UpdateRequest request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(
                 preferenceService.upsert(
                         userId, request.preferences(), request.quietStart(), request.quietEnd()));

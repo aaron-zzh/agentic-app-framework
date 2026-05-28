@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.ServletUtils;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.log.domain.AuditLog;
 import com.xuejiai.aaf.module.system.log.repository.AuditLogRepository;
 import com.xuejiai.aaf.module.system.log.vo.AuditLogPageDTO;
@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     /** 记录审计日志（含链式哈希校验）。 */
     @Transactional
@@ -42,7 +42,7 @@ public class AuditLogService {
         log.setEntityId(entityId);
         log.setAction(action);
         log.setChanges(changes);
-        log.setUserId(actorContext.currentUserId().orElse(null));
+        log.setUserId(operatorContext.currentUserId().orElse(null));
         log.setIp(ServletUtils.getClientIp());
         log.setCreatedAt(LocalDateTime.now());
         log.setPreviousHash(previousHash);

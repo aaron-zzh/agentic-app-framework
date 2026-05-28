@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.framework.security.oauth.OAuthClient;
 import com.xuejiai.aaf.framework.security.oauth.OAuthUserInfo;
@@ -51,7 +51,7 @@ public class AuthService {
     private final UserOauthRepository userOauthRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
     private final StringRedisTemplate redisTemplate;
     private final JwtDecoder jwtDecoder;
     private final List<OAuthClient> oauthClients;
@@ -63,7 +63,7 @@ public class AuthService {
 
     /** 获取当前登录用户 ID */
     public Long currentUserId() {
-        return actorContext.currentUserId().orElseThrow(() -> exception(AUTH_TOKEN_EXPIRED));
+        return operatorContext.currentUserId().orElseThrow(() -> exception(AUTH_TOKEN_EXPIRED));
     }
 
     // ==================== 账号密码登录 ====================
@@ -219,7 +219,7 @@ public class AuthService {
         // 删除 refreshToken
         jwtUtils.revokeRefreshToken(refreshToken);
         // 删除设备会话
-        Long userId = actorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentUserId().orElse(null);
         if (userId != null) {
             jwtUtils.removeSession(userId, deviceId);
         }

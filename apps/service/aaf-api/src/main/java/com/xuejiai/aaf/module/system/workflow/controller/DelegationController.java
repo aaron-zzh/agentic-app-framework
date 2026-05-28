@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.workflow.service.DelegationService;
 import com.xuejiai.aaf.module.system.workflow.vo.DelegationCreateDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.DelegationPageDTO;
@@ -34,12 +34,12 @@ import lombok.RequiredArgsConstructor;
 public class DelegationController {
 
     private final DelegationService delegationService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "创建委托")
     @PostMapping
     public Result<DelegationVO> create(@Validated @RequestBody DelegationCreateDTO dto) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(delegationService.create(userId, dto));
     }
 
@@ -47,14 +47,14 @@ public class DelegationController {
     @GetMapping
     public Result<PageResult<DelegationVO>> page(
             @Validated @ParameterObject DelegationPageDTO request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(delegationService.page(userId, request));
     }
 
     @Operation(summary = "取消委托")
     @DeleteMapping("/{id}")
     public Result<Void> cancel(@PathVariable Long id) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         delegationService.cancel(userId, id);
         return Result.success();
     }

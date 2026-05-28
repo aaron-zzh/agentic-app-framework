@@ -23,7 +23,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.module.system.auth.vo.SendCodeDTO;
 import com.xuejiai.aaf.module.system.user.repository.UserOauthRepository;
@@ -36,7 +36,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     @Mock private UserOauthRepository userOauthRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtUtils jwtUtils;
-    @Mock private ActorContext actorContext;
+    @Mock private OperatorContext operatorContext;
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ValueOperations<String, String> valueOps;
     @Mock private JwtDecoder jwtDecoder;

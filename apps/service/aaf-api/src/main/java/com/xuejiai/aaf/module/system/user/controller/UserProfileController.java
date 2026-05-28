@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.user.service.UserService;
 import com.xuejiai.aaf.module.system.user.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserProfileUpdateDTO;
@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class UserProfileController {
 
     private final UserService userService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "获取个人信息")
     @GetMapping
@@ -50,7 +50,7 @@ public class UserProfileController {
     }
 
     private Long currentUserId() {
-        return actorContext
+        return operatorContext
                 .currentUserId()
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
     }

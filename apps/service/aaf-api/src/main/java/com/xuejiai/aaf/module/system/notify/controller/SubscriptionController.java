@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.notify.domain.Subscription;
 import com.xuejiai.aaf.module.system.notify.service.SubscriptionService;
 
@@ -32,12 +32,12 @@ import lombok.RequiredArgsConstructor;
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "创建订阅")
     @PostMapping
     public Result<Subscription> create(@RequestBody CreateRequest request) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         var sub =
                 subscriptionService.create(
                         userId,
@@ -51,7 +51,7 @@ public class SubscriptionController {
     @Operation(summary = "取消订阅")
     @DeleteMapping("/{id}")
     public Result<Void> cancel(@PathVariable Long id) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         subscriptionService.cancel(userId, id);
         return Result.success(null);
     }
@@ -60,7 +60,7 @@ public class SubscriptionController {
     @GetMapping
     public Result<List<Subscription>> list(
             @RequestParam String entityType, @RequestParam Long entityId) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(
                 subscriptionService.listByUserAndEntity(userId, entityType, entityId));
     }

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.dashboard.service.DashboardService;
 import com.xuejiai.aaf.module.system.dashboard.vo.DashboardCreateDTO;
 import com.xuejiai.aaf.module.system.dashboard.vo.DashboardUpdateDTO;
@@ -36,12 +36,12 @@ import lombok.RequiredArgsConstructor;
 public class DashboardController {
 
     private final DashboardService dashboardService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "查询当前用户仪表盘列表")
     @GetMapping
     public Result<List<DashboardVO>> list() {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(dashboardService.listByOwner(userId));
     }
 
@@ -54,7 +54,7 @@ public class DashboardController {
     @Operation(summary = "创建仪表盘")
     @PostMapping
     public Result<DashboardVO> create(@Validated @RequestBody DashboardCreateDTO dto) {
-        Long userId = actorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return Result.success(dashboardService.create(userId, dto));
     }
 

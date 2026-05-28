@@ -17,7 +17,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiStreamHandler;
 import com.xuejiai.aaf.module.ai.chat.agui.ToolRegistry;
@@ -51,7 +51,7 @@ public class AgUiChatController {
     private final ResilientChatService resilientChatService;
     private final AgUiStreamHandler streamHandler;
     private final ToolRegistry toolRegistry;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
     private final AiProperties aiProperties;
 
     // ========== 请求/响应 DTO ==========
@@ -85,7 +85,7 @@ public class AgUiChatController {
     @Operation(summary = "AG-UI 协议主端点 — 启动 Agent 运行")
     @PostMapping("/run")
     public SseEmitter run(@RequestBody @Valid AgUiRunRequest request) {
-        var userId = actorContext.currentUserId().orElse(0L);
+        var userId = operatorContext.currentUserId().orElse(0L);
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();
 

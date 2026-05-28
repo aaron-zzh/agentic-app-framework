@@ -90,7 +90,7 @@
 
 - common：Result<T> / 错误码 / BaseEntity / 分页
 - api/config：全局异常 / Jackson / CORS
-- framework：Security JWT 骨架 + ActorContext
+- framework：Security JWT 骨架 + OperatorContext
 - 验证：GET /api/hello 通过，无 Token 返回 401
 
 ## #20 Flyway 迁移 + 环境分离

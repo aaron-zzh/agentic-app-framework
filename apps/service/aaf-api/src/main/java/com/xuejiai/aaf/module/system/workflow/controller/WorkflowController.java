@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.workflow.service.DelegationService;
 import com.xuejiai.aaf.module.system.workflow.service.WorkflowService;
 import com.xuejiai.aaf.module.system.workflow.vo.ProcessDefinitionVO;
@@ -40,12 +40,12 @@ public class WorkflowController {
 
     private final WorkflowService workflowService;
     private final DelegationService delegationService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "启动审批流程")
     @PostMapping("/start")
     public Result<String> start(@Validated @RequestBody WorkflowStartDTO dto) {
-        String initiator = actorContext.currentUserId().orElseThrow().toString();
+        String initiator = operatorContext.currentUserId().orElseThrow().toString();
         String processInstanceId =
                 workflowService.startProcess(
                         dto.entityType(), dto.entityId(), initiator, dto.assignee());
@@ -91,7 +91,7 @@ public class WorkflowController {
     @Operation(summary = "我的待审批列表")
     @GetMapping("/tasks/my-pending")
     public Result<List<WorkflowTaskVO>> myPendingTasks() {
-        String assignee = actorContext.currentUserId().orElseThrow().toString();
+        String assignee = operatorContext.currentUserId().orElseThrow().toString();
         return Result.success(workflowService.listPendingTasks(assignee));
     }
 

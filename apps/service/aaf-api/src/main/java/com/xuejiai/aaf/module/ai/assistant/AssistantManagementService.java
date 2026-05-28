@@ -15,7 +15,7 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class AssistantManagementService {
 
     private final AssistantDefinitionRepository repository;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     /**
      * 创建 Assistant
@@ -34,7 +34,7 @@ public class AssistantManagementService {
      */
     @Transactional
     public AssistantVO create(AssistantCreateDTO dto) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         var entity = new AssistantDefinition();
         entity.setAssistantId(dto.assistantId());
         entity.setUserId(userId);
@@ -53,7 +53,7 @@ public class AssistantManagementService {
      * @return 分页结果
      */
     public PageResult<AssistantVO> list(Pageable pageable) {
-        var userId = actorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentUserId().orElseThrow();
         var page = repository.findByUserId(userId, pageable);
         return new PageResult<>(page.map(this::toVO).toList(), page.getTotalElements());
     }

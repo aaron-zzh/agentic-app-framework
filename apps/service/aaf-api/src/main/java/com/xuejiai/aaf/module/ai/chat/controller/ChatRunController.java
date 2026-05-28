@@ -9,7 +9,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.ErrorCode;
-import com.xuejiai.aaf.framework.security.ActorContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.chat.handler.AiChatHandler;
 import com.xuejiai.aaf.module.ai.chat.handler.UserChatHandler;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
@@ -38,12 +38,12 @@ public class ChatRunController {
     private final AiChatHandler aiChatHandler;
     private final UserChatHandler userChatHandler;
     private final ChatService chatService;
-    private final ActorContext actorContext;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "统一聊天运行端点（ai / user，kiro 请走 /api/autodev/kiro/run）")
     @PostMapping("/run")
     public SseEmitter run(@RequestBody @Valid ChatRunRequest request) {
-        var userId = actorContext.currentUserId().orElse(0L);
+        var userId = operatorContext.currentUserId().orElse(0L);
 
         // 解析 sessionId
         String sessionIdStr = request.state() != null ? request.state().sessionId() : null;
