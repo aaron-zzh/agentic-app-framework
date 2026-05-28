@@ -13,6 +13,13 @@
  *   onChange={setFlowDef}
  * />
  * ```
+ *
+ * @example 竖向审批设计器
+ * ```tsx
+ * import { VerticalDesigner } from "@/features/flow-editor"
+ *
+ * <VerticalDesigner value={flowData} onChange={setFlowData} formFields={fields} />
+ * ```
  */
 
 // 主组件
@@ -21,6 +28,15 @@ export { TemplateDialog } from "./components/template-dialog"
 export { WorkflowChat } from "./components/workflow-chat"
 export { ExecutionPanel } from "./components/execution-panel"
 export { PublishDialog } from "./components/publish-dialog"
+
+// 竖向审批设计器
+export {
+  VerticalDesigner,
+  ConditionEditor,
+  FormTemplateEditor,
+  CcNodeConfig,
+  ApproverNodeConfig
+} from "./components/vertical-designer"
 
 // 节点注册表
 export { approvalNodeRegistry } from "./nodes/approval"
@@ -43,6 +59,12 @@ export {
   useCreateFromTemplate,
   useSaveAsTemplate
 } from "./hooks/use-flow-query"
+export {
+  useFormTemplates,
+  useFormTemplate,
+  useCreateFormTemplate,
+  useUpdateFormTemplate
+} from "./hooks/use-form-template"
 
 // 工具
 export { flowToBpmn, bpmnToFlow } from "./lib/bpmn-converter"
@@ -65,3 +87,15 @@ export type {
   InspectorProps,
   PortDef
 } from "./types"
+
+export type {
+  ApprovalFlowNode,
+  ApprovalFlowBranch,
+  ApprovalNodeType,
+  ConditionGroup,
+  ConditionExpression,
+  CcTiming,
+  FormFieldDef,
+  FormFieldType,
+  FormTemplate
+} from "./components/vertical-designer"
