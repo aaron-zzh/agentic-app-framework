@@ -10,6 +10,8 @@ import java.util.Map;
  */
 public interface WorkflowEngine {
 
+    // ==================== 基础 Record ====================
+
     /** 流程实例信息 */
     record ProcessInfo(String processInstanceId, String processKey, String status) {}
 
@@ -19,6 +21,20 @@ public interface WorkflowEngine {
     /** 历史记录 */
     record HistoryRecord(
             String taskName, String assignee, String outcome, String comment, long completedAtMs) {}
+
+    /** 流程定义信息 */
+    record DefinitionInfo(String processKey, String name, int version, String id, boolean suspended) {}
+
+    /** 流程实例详情 */
+    record InstanceInfo(
+            String processInstanceId,
+            String processKey,
+            String businessKey,
+            String status,
+            long startTimeMs,
+            Long endTimeMs) {}
+
+    // ==================== 原有方法 ====================
 
     /**
      * 启动流程实例。
@@ -69,10 +85,7 @@ public interface WorkflowEngine {
      * @param processInstanceId 流程实例 ID
      * @return 流程变量（可能为空 Map）
      */
-    java.util.Map<String, Object> getProcessVariables(String processInstanceId);
-
-    /** 流程定义信息 */
-    record DefinitionInfo(String processKey, String name, int version) {}
+    Map<String, Object> getProcessVariables(String processInstanceId);
 
     /**
      * 查询指定审批人的待办任务列表。
@@ -83,7 +96,7 @@ public interface WorkflowEngine {
     List<TaskInfo> listPendingTasks(String assignee);
 
     /**
-     * 查询所有流程定义。
+     * 查询所有流程定义（最新版本）。
      *
      * @return 流程定义列表
      */
@@ -97,4 +110,229 @@ public interface WorkflowEngine {
      * @return 部署 ID
      */
     String deploy(String name, String bpmnXml);
+
+    // ==================== #5802 流程定义管理 ====================
+
+    /**
+     * 按条件分页查询流程定义。
+     *
+     * @param key 流程 key（可为 null）
+     * @param name 流程名称模糊匹配（可为 null）
+     * @param pageNo 页码，从 1 开始
+     * @param pageSize 每页条数
+     * @return 流程定义列表
+     */
+    List<DefinitionInfo> queryDefinitions(String key, String name, int pageNo, int pageSize);
+
+    /**
+     * 查询流程定义总数（配合分页）。
+     *
+     * @param key 流程 key（可为 null）
+     * @param name 流程名称模糊匹配（可为 null）
+     * @return 总数
+     */
+    long countDefinitions(String key, String name);
+
+    /**
+     * 查询指定 key 的所有版本。
+     *
+     * @param processKey 流程定义 key
+     * @return 所有版本列表
+     */
+    List<DefinitionInfo> listDefinitionVersions(String processKey);
+
+    /**
+     * 挂起流程定义。
+     *
+     * @param processDefinitionId 流程定义 ID
+     */
+    void suspendDefinition(String processDefinitionId);
+
+    /**
+     * 激活流程定义。
+     *
+     * @param processDefinitionId 流程定义 ID
+     */
+    void activateDefinition(String processDefinitionId);
+
+    /**
+     * 删除流程定义。
+     *
+     * @param deploymentId 部署 ID
+     * @param cascade 是否级联删除实例
+     */
+    void deleteDeployment(String deploymentId, boolean cascade);
+
+    /**
+     * 导出流程定义 XML。
+     *
+     * @param processDefinitionId 流程定义 ID
+     * @return BPMN XML 字符串
+     */
+    String exportDefinitionXml(String processDefinitionId);
+
+    // ==================== #5803 流程实例管理 ====================
+
+    /**
+     * 分页查询运行中的流程实例。
+     *
+     * @param processKey 流程 key（可为 null）
+     * @param pageNo 页码，从 1 开始
+     * @param pageSize 每页条数
+     * @return 实例列表
+     */
+    List<InstanceInfo> listRunningInstances(String processKey, int pageNo, int pageSize);
+
+    /**
+     * 查询运行中实例总数。
+     *
+     * @param processKey 流程 key（可为 null）
+     * @return 总数
+     */
+    long countRunningInstances(String processKey);
+
+    /**
+     * 分页查询历史流程实例（已完成/已终止）。
+     *
+     * @param processKey 流程 key（可为 null）
+     * @param finished 是否已完成（true=已完成，false=全部历史）
+     * @param pageNo 页码
+     * @param pageSize 每页条数
+     * @return 实例列表
+     */
+    List<InstanceInfo> listHistoricInstances(
+            String processKey, boolean finished, int pageNo, int pageSize);
+
+    /**
+     * 查询历史实例总数。
+     *
+     * @param processKey 流程 key（可为 null）
+     * @param finished 是否已完成
+     * @return 总数
+     */
+    long countHistoricInstances(String processKey, boolean finished);
+
+    /**
+     * 挂起流程实例。
+     *
+     * @param processInstanceId 流程实例 ID
+     */
+    void suspendInstance(String processInstanceId);
+
+    /**
+     * 激活流程实例。
+     *
+     * @param processInstanceId 流程实例 ID
+     */
+    void activateInstance(String processInstanceId);
+
+    /**
+     * 终止流程实例。
+     *
+     * @param processInstanceId 流程实例 ID
+     * @param reason 终止原因
+     */
+    void terminateInstance(String processInstanceId, String reason);
+
+    /**
+     * 删除流程实例。
+     *
+     * @param processInstanceId 流程实例 ID
+     * @param reason 删除原因
+     */
+    void deleteInstance(String processInstanceId, String reason);
+
+    /**
+     * 设置流程变量。
+     *
+     * @param processInstanceId 流程实例 ID
+     * @param variables 变量 Map
+     */
+    void setProcessVariables(String processInstanceId, Map<String, Object> variables);
+
+    // ==================== #5804 任务分配与流转 ====================
+
+    /**
+     * 查询候选人待签收任务。
+     *
+     * @param candidateUser 候选人
+     * @return 任务列表
+     */
+    List<TaskInfo> listCandidateTasks(String candidateUser);
+
+    /**
+     * 查询候选组待签收任务。
+     *
+     * @param candidateGroup 候选组
+     * @return 任务列表
+     */
+    List<TaskInfo> listCandidateGroupTasks(String candidateGroup);
+
+    /**
+     * 查询我发起的流程实例。
+     *
+     * @param initiator 发起人
+     * @param pageNo 页码
+     * @param pageSize 每页条数
+     * @return 实例列表
+     */
+    List<InstanceInfo> listMyInitiatedInstances(String initiator, int pageNo, int pageSize);
+
+    /**
+     * 签收任务（候选人认领）。
+     *
+     * @param taskId 任务 ID
+     * @param userId 签收人
+     */
+    void claimTask(String taskId, String userId);
+
+    /**
+     * 委派任务（保留原处理人，委派给他人处理后自动回到原处理人）。
+     *
+     * @param taskId 任务 ID
+     * @param delegateUserId 被委派人
+     */
+    void delegateTask(String taskId, String delegateUserId);
+
+    /**
+     * 退回任务（将任务退回到上一个已完成的用户任务节点）。
+     *
+     * @param taskId 任务 ID
+     * @param reason 退回原因
+     */
+    void returnTask(String taskId, String reason);
+
+    /**
+     * 催办（记录催办时间，不实现定时器）。
+     *
+     * @param taskId 任务 ID
+     * @param urgerId 催办人
+     */
+    void urgeTask(String taskId, String urgerId);
+
+    // ==================== #5805 信号与消息事件 ====================
+
+    /**
+     * 发送信号事件。
+     *
+     * @param signalName 信号名称
+     */
+    void sendSignal(String signalName);
+
+    /**
+     * 发送信号事件（带变量）。
+     *
+     * @param signalName 信号名称
+     * @param variables 变量
+     */
+    void sendSignal(String signalName, Map<String, Object> variables);
+
+    /**
+     * 发送消息事件。
+     *
+     * @param messageName 消息名称
+     * @param processInstanceId 目标流程实例 ID
+     * @param variables 变量
+     */
+    void sendMessage(String messageName, String processInstanceId, Map<String, Object> variables);
 }
