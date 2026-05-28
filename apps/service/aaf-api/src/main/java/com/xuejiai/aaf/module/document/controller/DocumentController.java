@@ -13,7 +13,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-/** 文档管理接口（业务文档基础 CRUD）。 */
+/**
+ * 文档管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "文档管理")
 @RestController
 @RequestMapping("/api/docs")

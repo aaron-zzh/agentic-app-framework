@@ -25,7 +25,8 @@ public interface AiModelRepository extends JpaRepository<AiModel, Long> {
 
     List<AiModel> findByProviderAndEnabledTrue(String provider);
 
-    @Query("""
+    @Query(
+            """
             SELECT m FROM AiModel m
             WHERE (:provider IS NULL OR m.provider = :provider)
               AND (:enabled IS NULL OR m.enabled = :enabled)

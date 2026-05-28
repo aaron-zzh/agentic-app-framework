@@ -57,7 +57,8 @@ public class ExecutionTraceListener {
 
         // 解析 parentRunId
         if (event.parentExecutionId() != null) {
-            runRepository.findByExecutionId(event.parentExecutionId())
+            runRepository
+                    .findByExecutionId(event.parentExecutionId())
                     .ifPresent(parent -> run.setParentRunId(parent.getId()));
         }
 
@@ -81,13 +82,16 @@ public class ExecutionTraceListener {
                 step.setFinishedAt(stepRecord.finishedAt());
                 if (stepRecord.finishedAt() != null && stepRecord.startedAt() != null) {
                     step.setDurationMs(
-                            Duration.between(stepRecord.startedAt(), stepRecord.finishedAt()).toMillis());
+                            Duration.between(stepRecord.startedAt(), stepRecord.finishedAt())
+                                    .toMillis());
                 }
                 stepRepository.save(step);
             }
         }
 
-        log.debug("执行追踪已持久化 [{}] steps={}", event.executionId(),
+        log.debug(
+                "执行追踪已持久化 [{}] steps={}",
+                event.executionId(),
                 event.steps() != null ? event.steps().size() : 0);
     }
 }

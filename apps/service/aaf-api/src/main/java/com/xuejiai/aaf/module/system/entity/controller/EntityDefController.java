@@ -22,7 +22,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 实体定义接口。 */
+/**
+ * 实体定义接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "实体定义")
 @RestController
 @RequestMapping("/api/entity-defs")

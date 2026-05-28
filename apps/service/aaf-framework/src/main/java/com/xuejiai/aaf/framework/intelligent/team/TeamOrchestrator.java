@@ -15,13 +15,15 @@ import lombok.extern.slf4j.Slf4j;
  * 团队协作规范层——定义协作规则，不直接执行。
  *
  * <p>设计定位：
+ *
  * <ul>
- *   <li>Team 是协作规范的容器（谁参与、什么模式、什么规则）</li>
- *   <li>实际执行由 coordinator（协调者 Assistant）通过 A2A 协议驱动</li>
- *   <li>Team 不直接调用 Agent，而是通过 coordinator Assistant 分发任务</li>
+ *   <li>Team 是协作规范的容器（谁参与、什么模式、什么规则）
+ *   <li>实际执行由 coordinator（协调者 Assistant）通过 A2A 协议驱动
+ *   <li>Team 不直接调用 Agent，而是通过 coordinator Assistant 分发任务
  * </ul>
  *
  * <p>协作流程：
+ *
  * <pre>
  * 用户请求 → AssistantService（coordinator）→ TeamOrchestrator（查规则）
  *   → coordinator 通过 A2A 分发给成员 Assistant → 汇总结果
@@ -37,8 +39,11 @@ public class TeamOrchestrator {
     /** 注册团队协作规范。 */
     public void registerTeam(TeamDefinition team) {
         teams.put(team.getTeamId(), team);
-        log.info("注册团队: {} mode={} coordinator={}",
-                team.getTeamId(), team.getMode(), team.getCoordinatorAssistantId());
+        log.info(
+                "注册团队: {} mode={} coordinator={}",
+                team.getTeamId(),
+                team.getMode(),
+                team.getCoordinatorAssistantId());
     }
 
     /** 获取团队定义。 */
@@ -74,8 +79,10 @@ public class TeamOrchestrator {
         private String teamId;
         private String name;
         private CollaborationMode mode;
+
         /** 协调者 Assistant ID（由此 Assistant 驱动协作流程） */
         private String coordinatorAssistantId;
+
         private List<TeamMember> members;
     }
 

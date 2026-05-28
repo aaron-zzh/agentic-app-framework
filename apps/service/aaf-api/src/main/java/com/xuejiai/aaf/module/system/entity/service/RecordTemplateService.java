@@ -14,7 +14,11 @@ import com.xuejiai.aaf.module.system.entity.vo.RecordTemplateVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 记录模板业务逻辑。 */
+/**
+ * 记录模板业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

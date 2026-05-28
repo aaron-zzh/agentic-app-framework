@@ -6,7 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.task.domain.ScheduledTask;
 
-/** 计划任务仓储。 */
+/**
+ * 计划任务仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface ScheduledTaskRepository extends JpaRepository<ScheduledTask, Long> {
 
     /** 查询所有活跃任务 */

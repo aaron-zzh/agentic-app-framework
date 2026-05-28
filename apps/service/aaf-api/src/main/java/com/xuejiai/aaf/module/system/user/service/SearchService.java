@@ -14,7 +14,11 @@ import com.xuejiai.aaf.module.system.user.vo.SearchResultVO.SearchItem;
 
 import lombok.RequiredArgsConstructor;
 
-/** 全局搜索服务。当前支持 User 实体，后续新增实体注册搜索提供者即可扩展。 */
+/**
+ * 全局搜索服务。当前支持 User 实体，后续新增实体注册搜索提供者即可扩展。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class SearchService {

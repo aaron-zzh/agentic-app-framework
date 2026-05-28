@@ -14,7 +14,11 @@ import com.xuejiai.aaf.module.system.workflow.vo.WorkflowStatusVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 工作流服务，委托给 WorkflowEngine 引擎层接口。 */
+/**
+ * 工作流服务，委托给 WorkflowEngine 引擎层接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class WorkflowService {
@@ -27,11 +31,12 @@ public class WorkflowService {
     @Transactional
     public String startProcess(
             String entityType, Long entityId, String initiator, String assignee) {
-        var variables = Map.<String, Object>of(
-                "entityType", entityType,
-                "entityId", entityId,
-                "initiator", initiator,
-                "assignee", assignee);
+        var variables =
+                Map.<String, Object>of(
+                        "entityType", entityType,
+                        "entityId", entityId,
+                        "initiator", initiator,
+                        "assignee", assignee);
         return workflowEngine.startProcess(PROCESS_KEY, entityType + ":" + entityId, variables);
     }
 
@@ -69,13 +74,16 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public List<WorkflowStatusVO.HistoryItem> getHistory(String processInstanceId) {
         return workflowEngine.getHistory(processInstanceId).stream()
-                .map(r -> new WorkflowStatusVO.HistoryItem(
-                        r.taskName(),
-                        r.assignee(),
-                        r.outcome(),
-                        r.comment(),
-                        LocalDateTime.ofInstant(Instant.ofEpochMilli(r.completedAtMs()), ZoneId.systemDefault())))
+                .map(
+                        r ->
+                                new WorkflowStatusVO.HistoryItem(
+                                        r.taskName(),
+                                        r.assignee(),
+                                        r.outcome(),
+                                        r.comment(),
+                                        LocalDateTime.ofInstant(
+                                                Instant.ofEpochMilli(r.completedAtMs()),
+                                                ZoneId.systemDefault())))
                 .toList();
     }
-
 }

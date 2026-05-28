@@ -3,7 +3,6 @@ package com.xuejiai.aaf.module.system.sms.controller;
 import java.util.List;
 import java.util.Map;
 
-import com.xuejiai.aaf.module.system.sms.service.SmsService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +20,7 @@ import com.xuejiai.aaf.module.system.sms.domain.SmsLog;
 import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
 import com.xuejiai.aaf.module.system.sms.repository.SmsLogRepository;
 import com.xuejiai.aaf.module.system.sms.repository.SmsTemplateRepository;
+import com.xuejiai.aaf.module.system.sms.service.SmsService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +29,11 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 短信管理接口（模板管理 + 日志查询 + 测试发送 + 厂商回调）。 */
+/**
+ * 短信管理接口（模板管理 + 日志查询 + 测试发送 + 厂商回调）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Tag(name = "短信管理")
 @RestController

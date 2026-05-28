@@ -23,7 +23,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 消息通知接口。 */
+/**
+ * 消息通知接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "消息通知")
 @RestController
 @RequestMapping("/api/notifications")

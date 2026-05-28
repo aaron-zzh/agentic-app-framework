@@ -22,13 +22,17 @@ import reactor.core.publisher.Sinks;
  * ASR 双向流式 WebSocket 处理器。
  *
  * <p>协议：
+ *
  * <ul>
  *   <li>客户端 → 服务端：binary frame，每帧为一段 PCM/WAV 音频字节
  *   <li>服务端 → 客户端：text frame，JSON {"text":"识别结果","final":true}
  * </ul>
  *
  * <p>连接参数（query string）：{@code lang}，默认 zh-CN
+ *
  * <p>端点：{@code /ws/asr}
+ *
+ * @author AaronZZH & Kiro
  */
 @Slf4j
 @Component
@@ -46,7 +50,8 @@ public class AsrWebSocketHandler extends BinaryWebSocketHandler {
         Sinks.Many<byte[]> sink = Sinks.many().unicast().onBackpressureBuffer();
         sinkMap.put(session.getId(), sink);
 
-        speechService.transcribeStream(sink.asFlux(), lang)
+        speechService
+                .transcribeStream(sink.asFlux(), lang)
                 .subscribe(
                         text -> sendText(session, text),
                         err -> {
@@ -85,7 +90,10 @@ public class AsrWebSocketHandler extends BinaryWebSocketHandler {
     }
 
     private void closeQuietly(WebSocketSession session) {
-        try { if (session.isOpen()) session.close(); } catch (Exception ignored) {}
+        try {
+            if (session.isOpen()) session.close();
+        } catch (Exception ignored) {
+        }
     }
 
     private String extractParam(WebSocketSession session, String param, String defaultValue) {

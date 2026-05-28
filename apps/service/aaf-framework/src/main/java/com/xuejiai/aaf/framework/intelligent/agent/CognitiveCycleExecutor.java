@@ -67,8 +67,12 @@ public class CognitiveCycleExecutor {
      * @return Agent 响应
      */
     public CycleResult execute(
-            AgentDefinition definition, String input, Long userId,
-            String conversationId, MemoryStrategy memoryStrategy, Long knowledgeBaseId) {
+            AgentDefinition definition,
+            String input,
+            Long userId,
+            String conversationId,
+            MemoryStrategy memoryStrategy,
+            Long knowledgeBaseId) {
         var agentId = definition.getAgentId() + ":" + Thread.currentThread().threadId();
         var executionId = agentId + ":" + System.nanoTime();
         var startTime = Instant.now();
@@ -76,12 +80,14 @@ public class CognitiveCycleExecutor {
         try {
             // 1. 感知（Perceive）：通过 MemoryPipeline 拉取完整上下文
             var pipeline = memoryPipelineFactory.create(memoryStrategy);
-            var memoryContext = pipeline.execute(new PipelineInput(
-                    input, userId, conversationId, knowledgeBaseId));
+            var memoryContext =
+                    pipeline.execute(
+                            new PipelineInput(input, userId, conversationId, knowledgeBaseId));
             var contextPrompt = memoryContext.toPromptSection();
 
             workingMemory.focus(agentId, input, 5);
-            log.debug("[{}] 感知完成，记忆上下文 {} tokens", definition.getName(), memoryContext.totalTokens());
+            log.debug(
+                    "[{}] 感知完成，记忆上下文 {} tokens", definition.getName(), memoryContext.totalTokens());
 
             checkpointService.saveCheckpoint(
                     executionId, 1, buildState(executionId, agentId, "perceive"));
@@ -93,9 +99,12 @@ public class CognitiveCycleExecutor {
                             attempt -> {
                                 // 注入记忆上下文
                                 if (!contextPrompt.isBlank()) {
-                                    var enrichedPrompt = definition.getSystemPrompt() != null
-                                            ? definition.getSystemPrompt() + "\n\n## 上下文记忆\n" + contextPrompt
-                                            : "## 上下文记忆\n" + contextPrompt;
+                                    var enrichedPrompt =
+                                            definition.getSystemPrompt() != null
+                                                    ? definition.getSystemPrompt()
+                                                            + "\n\n## 上下文记忆\n"
+                                                            + contextPrompt
+                                                    : "## 上下文记忆\n" + contextPrompt;
                                     definition.setSystemPrompt(enrichedPrompt);
                                 }
                                 var agent = agentFactory.create(definition);
@@ -129,8 +138,14 @@ public class CognitiveCycleExecutor {
             return new CycleResult(responseText, success, duration, memoryContext.totalTokens());
         } catch (Exception e) {
             log.error("[{}] 认知循环失败: {}", definition.getName(), e.getMessage());
-            collectTrajectory(executionId, agentId, userId, input,
-                    e.getMessage(), false, Duration.between(startTime, Instant.now()));
+            collectTrajectory(
+                    executionId,
+                    agentId,
+                    userId,
+                    input,
+                    e.getMessage(),
+                    false,
+                    Duration.between(startTime, Instant.now()));
             return new CycleResult(
                     "执行失败: " + e.getMessage(),
                     false,
@@ -155,11 +170,24 @@ public class CognitiveCycleExecutor {
             String response, boolean success, Duration duration, int memoryItemsUsed) {}
 
     private void collectTrajectory(
-            String executionId, String agentId, Long userId,
-            String input, String output, boolean success, Duration duration) {
+            String executionId,
+            String agentId,
+            Long userId,
+            String input,
+            String output,
+            boolean success,
+            Duration duration) {
         try {
-            var trajectory = new TrajectoryCollector.Trajectory(
-                    executionId, agentId, userId, input, output, List.of(), success, duration.toMillis());
+            var trajectory =
+                    new TrajectoryCollector.Trajectory(
+                            executionId,
+                            agentId,
+                            userId,
+                            input,
+                            output,
+                            List.of(),
+                            success,
+                            duration.toMillis());
             trajectoryCollector.collect(trajectory);
         } catch (Exception e) {
             log.warn("轨迹采集失败 [{}]: {}", executionId, e.getMessage());

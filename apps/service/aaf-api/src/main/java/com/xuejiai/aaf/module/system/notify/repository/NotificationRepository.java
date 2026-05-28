@@ -9,7 +9,11 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.system.notify.domain.Notification;
 
-/** 通知数据访问层。 */
+/**
+ * 通知数据访问层。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface NotificationRepository
         extends JpaRepository<Notification, Long>, JpaSpecificationExecutor<Notification> {
 

@@ -4,4 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.sms.domain.SmsLog;
 
+/**
+ * @author AaronZZH & Kiro
+ */
 public interface SmsLogRepository extends JpaRepository<SmsLog, Long> {}

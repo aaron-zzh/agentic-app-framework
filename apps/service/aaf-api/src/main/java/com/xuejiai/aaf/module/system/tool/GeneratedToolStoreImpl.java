@@ -13,7 +13,11 @@ import com.xuejiai.aaf.framework.engine.tool.generator.ToolBlueprint;
 
 import lombok.RequiredArgsConstructor;
 
-/** GeneratedToolStore 实现。 */
+/**
+ * GeneratedToolStore 实现——持久化 AI 生成的工具
+ *
+ * @author AaronZZH & Kiro
+ */
 @Component
 @RequiredArgsConstructor
 public class GeneratedToolStoreImpl implements GeneratedToolStore {
@@ -21,10 +25,14 @@ public class GeneratedToolStoreImpl implements GeneratedToolStore {
     private final GeneratedToolRepository repository;
 
     @Override
-    public void save(GeneratedTool tool) { repository.save(tool); }
+    public void save(GeneratedTool tool) {
+        repository.save(tool);
+    }
 
     @Override
-    public Optional<GeneratedTool> findByName(String name) { return repository.findByName(name); }
+    public Optional<GeneratedTool> findByName(String name) {
+        return repository.findByName(name);
+    }
 
     @Override
     public List<GeneratedTool> findByCreator(Long userId) {
@@ -43,17 +51,25 @@ public class GeneratedToolStoreImpl implements GeneratedToolStore {
 
     @Override
     public void updateVisibility(String name, ToolBlueprint.Visibility visibility) {
-        repository.findByName(name).ifPresent(t -> {
-            t.setVisibility(visibility);
-            repository.save(t);
-        });
+        repository
+                .findByName(name)
+                .ifPresent(
+                        t -> {
+                            t.setVisibility(visibility);
+                            repository.save(t);
+                        });
     }
 }
 
 @Repository
 interface GeneratedToolRepository extends JpaRepository<GeneratedTool, Long> {
     Optional<GeneratedTool> findByName(String name);
+
     List<GeneratedTool> findByCreatorUserIdAndStatus(Long userId, String status);
-    List<GeneratedTool> findByVisibilityAndStatus(ToolBlueprint.Visibility visibility, String status);
-    List<GeneratedTool> findByCreatorUserIdOrVisibility(Long userId, ToolBlueprint.Visibility visibility);
+
+    List<GeneratedTool> findByVisibilityAndStatus(
+            ToolBlueprint.Visibility visibility, String status);
+
+    List<GeneratedTool> findByCreatorUserIdOrVisibility(
+            Long userId, ToolBlueprint.Visibility visibility);
 }

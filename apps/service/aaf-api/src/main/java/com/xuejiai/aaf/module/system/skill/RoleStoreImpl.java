@@ -12,7 +12,11 @@ import com.xuejiai.aaf.framework.intelligent.assistant.role.RoleStore;
 
 import lombok.RequiredArgsConstructor;
 
-/** RoleStore 实现——从数据库获取 Role 的技能和工具配置。 */
+/**
+ * RoleStore 实现——从数据库获取 Role 的技能和工具配置。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Component
 @RequiredArgsConstructor
 public class RoleStoreImpl implements RoleStore {
@@ -21,14 +25,16 @@ public class RoleStoreImpl implements RoleStore {
 
     @Override
     public List<String> getSkillIds(String roleId) {
-        return roleRepository.findByRoleId(roleId)
+        return roleRepository
+                .findByRoleId(roleId)
                 .map(role -> parseJsonArray(role.getSkillIds()))
                 .orElse(List.of());
     }
 
     @Override
     public List<String> getToolWhitelist(String roleId) {
-        return roleRepository.findByRoleId(roleId)
+        return roleRepository
+                .findByRoleId(roleId)
                 .map(role -> parseJsonArray(role.getToolWhitelist()))
                 .orElse(List.of());
     }

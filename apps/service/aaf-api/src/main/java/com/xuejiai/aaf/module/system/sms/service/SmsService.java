@@ -19,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
  * 短信发送服务。
  *
  * <p>直接使用厂商模板 ID 发送，不经过 FreeMarker 渲染。 签名和模板 ID 从 sys_sms_template 表读取，支持按模板指定厂商。
+ *
+ * @author AaronZZH & Kiro
  */
 @Slf4j
 @Service

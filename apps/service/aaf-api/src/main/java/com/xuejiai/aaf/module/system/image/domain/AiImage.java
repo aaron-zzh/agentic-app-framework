@@ -12,7 +12,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** AI 图像生成记录。 */
+/**
+ * AI 图像生成记录。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

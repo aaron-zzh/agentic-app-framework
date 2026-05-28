@@ -24,7 +24,8 @@ public class AutodevDocController {
     private final AutodevDocService docService;
     private final AutodevDocImportService importService;
 
-    public AutodevDocController(AutodevDocService docService, AutodevDocImportService importService) {
+    public AutodevDocController(
+            AutodevDocService docService, AutodevDocImportService importService) {
         this.docService = docService;
         this.importService = importService;
     }

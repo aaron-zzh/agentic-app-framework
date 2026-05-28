@@ -7,9 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 动态数据表 REST API——通用 CRUD 接口。
- */
+/** 动态数据表 REST API——通用 CRUD 接口。 */
 @RestController
 @RequestMapping("/api/v1/data-tables")
 @RequiredArgsConstructor
@@ -21,16 +19,20 @@ public class DataTableController {
 
     @PostMapping
     public DataTableDefinition createTable(@RequestBody CreateTableRequest req) {
-        var columns = req.columns().stream().map(c -> {
-            var col = new DataColumnDefinition();
-            col.setName(c.name());
-            col.setDisplayName(c.displayName());
-            col.setColumnType(c.type());
-            col.setNullable(c.nullable() == null || c.nullable());
-            col.setUniqueCol(c.unique() != null && c.unique());
-            col.setDefaultValue(c.defaultValue());
-            return col;
-        }).toList();
+        var columns =
+                req.columns().stream()
+                        .map(
+                                c -> {
+                                    var col = new DataColumnDefinition();
+                                    col.setName(c.name());
+                                    col.setDisplayName(c.displayName());
+                                    col.setColumnType(c.type());
+                                    col.setNullable(c.nullable() == null || c.nullable());
+                                    col.setUniqueCol(c.unique() != null && c.unique());
+                                    col.setDefaultValue(c.defaultValue());
+                                    return col;
+                                })
+                        .toList();
         return tableService.createTable(req.slug(), req.displayName(), req.description(), columns);
     }
 
@@ -74,8 +76,10 @@ public class DataTableController {
     }
 
     @PutMapping("/{slug}/rows/{id}")
-    public void updateRow(@PathVariable String slug, @PathVariable Long id,
-                          @RequestBody Map<String, Object> fields) {
+    public void updateRow(
+            @PathVariable String slug,
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> fields) {
         tableService.updateRow(slug, id, fields);
     }
 
@@ -87,10 +91,7 @@ public class DataTableController {
     // ========== DTO ==========
 
     record CreateTableRequest(
-            String slug,
-            String displayName,
-            String description,
-            List<ColumnDef> columns) {}
+            String slug, String displayName, String description, List<ColumnDef> columns) {}
 
     record ColumnDef(
             String name,

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.aigc.domain.BatchGenerationTask;
@@ -21,7 +22,11 @@ import com.xuejiai.aaf.module.aigc.vo.BatchGenerationTaskVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 批量生成服务：提交批量任务、查询进度、取消任务。 */
+/**
+ * 批量生成服务：提交批量任务、查询进度、取消任务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,7 +41,13 @@ public class BatchGenerationService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
-    /** 提交批量生成任务。 */
+    /**
+     * 提交批量生成任务。
+     *
+     * @param userId 用户 ID
+     * @param dto 提交请求
+     * @return 任务信息
+     */
     @Transactional
     public BatchGenerationTaskVO submit(Long userId, BatchGenerationSubmitDTO dto) {
         var task = new BatchGenerationTask();
@@ -62,20 +73,34 @@ public class BatchGenerationService {
         return toVO(task);
     }
 
-    /** 查询任务进度。 */
+    /**
+     * 查询任务进度。
+     *
+     * @param taskId 任务 ID
+     * @return 任务进度信息
+     */
     @Transactional(readOnly = true)
     public BatchGenerationTaskVO getProgress(Long taskId) {
         var task = findById(taskId);
         return toVO(task);
     }
 
-    /** 查询用户所有批量任务。 */
+    /**
+     * 查询用户所有批量任务。
+     *
+     * @param userId 用户 ID
+     * @return 任务列表
+     */
     @Transactional(readOnly = true)
     public List<BatchGenerationTaskVO> listByUser(Long userId) {
         return taskRepository.findByUserId(userId).stream().map(this::toVO).toList();
     }
 
-    /** 取消任务。 */
+    /**
+     * 取消任务。
+     *
+     * @param taskId 任务 ID
+     */
     @Transactional
     public void cancel(Long taskId) {
         var task = findById(taskId);
@@ -175,8 +200,7 @@ public class BatchGenerationService {
     private BatchGenerationTask findById(Long id) {
         return taskRepository
                 .findById(id)
-                .orElseThrow(
-                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "批量任务不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "批量任务不存在"));
     }
 
     private BatchGenerationTaskVO toVO(BatchGenerationTask task) {

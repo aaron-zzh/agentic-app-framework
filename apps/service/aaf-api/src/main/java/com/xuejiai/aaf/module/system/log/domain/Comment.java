@@ -12,7 +12,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 评论。 */
+/**
+ * 评论。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

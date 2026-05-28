@@ -11,7 +11,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 任务执行记录。 */
+/**
+ * 任务执行记录。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

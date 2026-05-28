@@ -15,7 +15,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 素材库管理接口。 */
+/**
+ * AIGC 素材库管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "AIGC 素材库")
 @RestController
 @RequestMapping("/api/aigc/assets")

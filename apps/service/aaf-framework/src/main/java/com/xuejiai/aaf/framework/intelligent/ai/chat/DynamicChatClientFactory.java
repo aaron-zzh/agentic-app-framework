@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
@@ -54,39 +55,63 @@ public class DynamicChatClientFactory {
     }
 
     private ChatClient build(String modelId) {
-        var model = modelRepository
-                .findByModelIdAndEnabledTrue(modelId)
-                .orElseThrow(() -> exception(GlobalErrorCode.NOT_FOUND));
-        log.debug("构建 ChatClient: modelId={}, provider={}, type={}", modelId, model.getProvider(), model.getProviderType());
-        var chatModel = switch (model.getProviderType()) {
-            case AiModel.PROVIDER_TYPE_OPENAI_COMPAT -> buildOpenAiCompat(model);
-            case AiModel.PROVIDER_TYPE_ANTHROPIC, AiModel.PROVIDER_TYPE_OLLAMA -> buildFromContainer(model);
-            default -> throw exception(GlobalErrorCode.BAD_REQUEST);
-        };
+        var model =
+                modelRepository
+                        .findByModelIdAndEnabledTrue(modelId)
+                        .orElseThrow(() -> exception(GlobalErrorCode.NOT_FOUND));
+        log.debug(
+                "构建 ChatClient: modelId={}, provider={}, type={}",
+                modelId,
+                model.getProvider(),
+                model.getProviderType());
+        var chatModel =
+                switch (model.getProviderType()) {
+                    case AiModel.PROVIDER_TYPE_OPENAI_COMPAT -> buildOpenAiCompat(model);
+                    case AiModel.PROVIDER_TYPE_ANTHROPIC, AiModel.PROVIDER_TYPE_OLLAMA ->
+                            buildFromContainer(model);
+                    default -> throw exception(GlobalErrorCode.BAD_REQUEST);
+                };
         return ChatClient.builder(chatModel).build();
     }
 
     private OpenAiChatModel buildOpenAiCompat(AiModel model) {
         // Spring AI 2.0.0-M6 使用官方 OpenAI Java SDK，通过 OpenAiSetup 构建 client
-        var syncClient = OpenAiSetup.setupSyncClient(
-                model.getBaseUrl(),
-                model.getApiKey() != null ? model.getApiKey() : "",
-                null, null, null, null,
-                false, false,
-                model.getModelName(),
-                Duration.ofSeconds(60), 2, null, null);
-        var asyncClient = OpenAiSetup.setupAsyncClient(
-                model.getBaseUrl(),
-                model.getApiKey() != null ? model.getApiKey() : "",
-                null, null, null, null,
-                false, false,
-                model.getModelName(),
-                Duration.ofSeconds(60), 2, null, null);
-        var options = OpenAiChatOptions.builder()
-                .model(model.getModelName())
-                .temperature(model.getTemperature())
-                .maxTokens(model.getMaxTokens())
-                .build();
+        var syncClient =
+                OpenAiSetup.setupSyncClient(
+                        model.getBaseUrl(),
+                        model.getApiKey() != null ? model.getApiKey() : "",
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        false,
+                        model.getModelName(),
+                        Duration.ofSeconds(60),
+                        2,
+                        null,
+                        null);
+        var asyncClient =
+                OpenAiSetup.setupAsyncClient(
+                        model.getBaseUrl(),
+                        model.getApiKey() != null ? model.getApiKey() : "",
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        false,
+                        model.getModelName(),
+                        Duration.ofSeconds(60),
+                        2,
+                        null,
+                        null);
+        var options =
+                OpenAiChatOptions.builder()
+                        .model(model.getModelName())
+                        .temperature(model.getTemperature())
+                        .maxTokens(model.getMaxTokens())
+                        .build();
         return OpenAiChatModel.builder()
                 .openAiClient(syncClient)
                 .openAiClientAsync(asyncClient)
@@ -95,16 +120,19 @@ public class DynamicChatClientFactory {
     }
 
     /**
-     * ANTHROPIC / OLLAMA：从 Spring 容器取已自动配置的 ChatModel Bean。
-     * 需在 aaf-api 引入对应 starter 并配置 application.yaml。
+     * ANTHROPIC / OLLAMA：从 Spring 容器取已自动配置的 ChatModel Bean。 需在 aaf-api 引入对应 starter 并配置
+     * application.yaml。
      */
     @SuppressWarnings("unchecked")
     private ChatModel buildFromContainer(AiModel model) {
-        var className = switch (model.getProviderType()) {
-            case AiModel.PROVIDER_TYPE_ANTHROPIC -> "org.springframework.ai.anthropic.AnthropicChatModel";
-            case AiModel.PROVIDER_TYPE_OLLAMA -> "org.springframework.ai.ollama.OllamaChatModel";
-            default -> throw exception(GlobalErrorCode.BAD_REQUEST);
-        };
+        var className =
+                switch (model.getProviderType()) {
+                    case AiModel.PROVIDER_TYPE_ANTHROPIC ->
+                            "org.springframework.ai.anthropic.AnthropicChatModel";
+                    case AiModel.PROVIDER_TYPE_OLLAMA ->
+                            "org.springframework.ai.ollama.OllamaChatModel";
+                    default -> throw exception(GlobalErrorCode.BAD_REQUEST);
+                };
         try {
             var clazz = (Class<ChatModel>) Class.forName(className);
             return applicationContext.getBean(clazz);

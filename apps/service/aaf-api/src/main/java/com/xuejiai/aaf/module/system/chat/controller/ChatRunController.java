@@ -21,9 +21,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 统一聊天运行端点（AI + 用户聊天）。
+ * 统一聊天运行端点（AI + 用户聊天）
  *
  * <p>Kiro Agent 走独立端点 {@code POST /api/autodev/kiro/run}（aaf-auto-dev 模块）。
+ *
+ * @author AaronZZH & Kiro
  */
 @Tag(name = "统一聊天")
 @Slf4j
@@ -50,21 +52,27 @@ public class ChatRunController {
         if (shouldPersist(request)) {
             try {
                 sessionId = Long.valueOf(sessionIdStr);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
             if (sessionId == null) {
-                var session = chatService.createSession(userId,
-                        new com.xuejiai.aaf.module.system.chat.vo.ChatSessionCreateDTO(
-                                "新对话", request.target().type().toUpperCase()));
+                var session =
+                        chatService.createSession(
+                                userId,
+                                new com.xuejiai.aaf.module.system.chat.vo.ChatSessionCreateDTO(
+                                        "新对话", request.target().type().toUpperCase()));
                 sessionId = session.id();
             }
-            String content = request.messages().stream()
-                    .filter(m -> "user".equals(m.role()))
-                    .reduce((first, second) -> second)
-                    .map(ChatRunRequest.AgUiMessage::content)
-                    .orElse(null);
+            String content =
+                    request.messages().stream()
+                            .filter(m -> "user".equals(m.role()))
+                            .reduce((first, second) -> second)
+                            .map(ChatRunRequest.AgUiMessage::content)
+                            .orElse(null);
             if (content != null) {
-                String awareness = request.state() != null ? request.state().awarenessContext() : null;
-                chatService.saveMessage(userId, "HUMAN", sessionId, "user", content, "human", awareness);
+                String awareness =
+                        request.state() != null ? request.state().awarenessContext() : null;
+                chatService.saveMessage(
+                        userId, "HUMAN", sessionId, "user", content, "human", awareness);
             }
         }
 
@@ -72,24 +80,30 @@ public class ChatRunController {
         final Long finalSessionId = sessionId;
 
         return switch (request.target().type()) {
-            case "ai"   -> aiChatHandler.handle(enrichedRequest, userId, finalSessionId);
+            case "ai" -> aiChatHandler.handle(enrichedRequest, userId, finalSessionId);
             case "user" -> userChatHandler.handle(enrichedRequest, userId);
-            default     -> throw new BusinessException(
-                    ErrorCode.of(1_003_001, "不支持的 target.type: " + request.target().type()
-                            + "（kiro 请走 /api/autodev/kiro/run）"));
+            default ->
+                    throw new BusinessException(
+                            ErrorCode.of(
+                                    1_003_001,
+                                    "不支持的 target.type: "
+                                            + request.target().type()
+                                            + "（kiro 请走 /api/autodev/kiro/run）"));
         };
     }
 
     private ChatRunRequest enrichWithHistory(ChatRunRequest request, Long sessionId) {
         if (sessionId == null) return request;
         try {
-            var history = chatService.listMessages(sessionId).stream()
-                    .limit(20)
-                    .map(m -> new ChatRunRequest.AgUiMessage(m.role(), m.content()))
-                    .toList();
+            var history =
+                    chatService.listMessages(sessionId).stream()
+                            .limit(20)
+                            .map(m -> new ChatRunRequest.AgUiMessage(m.role(), m.content()))
+                            .toList();
             var merged = new java.util.ArrayList<>(history);
             merged.addAll(request.messages());
-            return new ChatRunRequest(request.threadId(), merged, request.target(), request.state());
+            return new ChatRunRequest(
+                    request.threadId(), merged, request.target(), request.state());
         } catch (Exception e) {
             log.warn("加载历史消息失败，使用前端传来的消息: sessionId={}", sessionId, e);
             return request;

@@ -20,7 +20,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 自定义字段管理接口。 */
+/**
+ * 自定义字段管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "自定义字段")
 @RestController
 @RequestMapping("/api/entity-defs/{slug}/fields")

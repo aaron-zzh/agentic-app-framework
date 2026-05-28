@@ -6,7 +6,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 用户分页查询请求。 */
+/**
+ * 用户分页查询请求。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "用户分页查询")
 @Data
 @EqualsAndHashCode(callSuper = true)

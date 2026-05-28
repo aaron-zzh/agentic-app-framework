@@ -4,6 +4,7 @@ package com.xuejiai.aaf.framework.intelligent.core.model;
  * 通用 AI 能力路由接口，根据上下文决策链解析最终 modelId。
  *
  * <p>决策链（从高到低）：
+ *
  * <ol>
  *   <li>显式指定 — 调用方直接传 modelId
  *   <li>用户偏好 — 用户为该能力设置的默认模型（DB：ai_model_preference）

@@ -12,7 +12,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** OAuth 第三方账号绑定。 */
+/**
+ * OAuth 第三方账号绑定。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

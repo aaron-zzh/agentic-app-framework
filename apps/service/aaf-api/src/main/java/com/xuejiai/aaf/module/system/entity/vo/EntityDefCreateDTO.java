@@ -5,7 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** 创建实体定义请求。 */
+/**
+ * 创建实体定义请求。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "创建实体定义")
 public record EntityDefCreateDTO(
         @NotBlank

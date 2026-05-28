@@ -1,6 +1,13 @@
 package com.xuejiai.aaf.module.system.auth.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
-/** OAuth 回调请求体。 */
-public record OAuthCallbackDTO(@NotBlank String code, String deviceId) {}
+/**
+ * OAuth 回调请求体。
+ *
+ * @author AaronZZH & Kiro
+ */
+public record OAuthCallbackDTO(
+        @Schema(description = "OAuth 授权码") @NotBlank String code,
+        @Schema(description = "设备 ID") String deviceId) {}

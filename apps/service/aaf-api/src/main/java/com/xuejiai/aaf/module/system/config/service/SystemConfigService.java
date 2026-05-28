@@ -15,11 +15,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 系统配置服务。
+ * 系统配置服务
  *
  * <p>读取优先级：Redis 缓存 → 数据库 → defaultValue
  *
  * <p>写入时自动清除缓存。
+ *
+ * @author AaronZZH & Kiro
  */
 @Slf4j
 @Service

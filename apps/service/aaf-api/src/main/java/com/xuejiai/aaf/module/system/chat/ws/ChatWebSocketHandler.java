@@ -20,7 +20,11 @@ import com.xuejiai.aaf.module.system.chat.vo.ChatMessageVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 聊天 WebSocket 处理器，处理实时消息收发。 */
+/**
+ * 聊天 WebSocket 处理器，处理实时消息收发
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -103,7 +107,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /** 向指定会话广播消息 */
+    /**
+     * 向指定会话广播消息
+     *
+     * @param sessionId 会话 ID
+     * @param json 消息 JSON 字符串
+     */
     public void broadcast(Long sessionId, String json) {
         var connections = sessionConnections.get(sessionId);
         if (connections == null) {

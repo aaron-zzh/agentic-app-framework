@@ -13,9 +13,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 动态数据表服务——创建表/DDL 执行/通用 CRUD。
- */
+/** 动态数据表服务——创建表/DDL 执行/通用 CRUD。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,12 +28,13 @@ public class DynamicTableService {
 
     private static final String TABLE_PREFIX = "data_";
 
-    /**
-     * 创建自定义表（元数据 + 实际 DDL）。
-     */
+    /** 创建自定义表（元数据 + 实际 DDL）。 */
     @Transactional
-    public DataTableDefinition createTable(String slug, String displayName, String description,
-                                           List<DataColumnDefinition> columns) {
+    public DataTableDefinition createTable(
+            String slug,
+            String displayName,
+            String description,
+            List<DataColumnDefinition> columns) {
         if (tableRepository.existsBySlug(slug)) {
             throw new IllegalArgumentException("表 slug 已存在: " + slug);
         }
@@ -62,18 +61,20 @@ public class DynamicTableService {
         return saved;
     }
 
-    /**
-     * 插入数据（单条）。
-     */
+    /** 插入数据（单条）。 */
     @Transactional
     public Map<String, Object> insertRow(String slug, Map<String, Object> row) {
         var table = getTable(slug);
         var columns = new ArrayList<>(row.keySet());
         var placeholders = columns.stream().map(c -> ":" + c).toList();
 
-        var sql = "INSERT INTO %s (id, %s) VALUES (nextval('%s_id_seq'), %s) RETURNING id"
-                .formatted(table.getTableName(), String.join(", ", columns),
-                        table.getTableName(), String.join(", ", placeholders));
+        var sql =
+                "INSERT INTO %s (id, %s) VALUES (nextval('%s_id_seq'), %s) RETURNING id"
+                        .formatted(
+                                table.getTableName(),
+                                String.join(", ", columns),
+                                table.getTableName(),
+                                String.join(", ", placeholders));
 
         var query = entityManager.createNativeQuery(sql);
         for (var col : columns) {
@@ -84,9 +85,7 @@ public class DynamicTableService {
         return row;
     }
 
-    /**
-     * 批量插入。
-     */
+    /** 批量插入。 */
     @Transactional
     public int insertBatch(String slug, List<Map<String, Object>> rows) {
         int count = 0;
@@ -97,12 +96,10 @@ public class DynamicTableService {
         return count;
     }
 
-    /**
-     * 分页查询。
-     */
+    /** 分页查询。 */
     @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> queryRows(String slug, int page, int size,
-                                               Map<String, Object> filters) {
+    public List<Map<String, Object>> queryRows(
+            String slug, int page, int size, Map<String, Object> filters) {
         var table = getTable(slug);
         var sb = new StringBuilder("SELECT * FROM " + table.getTableName());
 
@@ -139,18 +136,15 @@ public class DynamicTableService {
         return results;
     }
 
-    /**
-     * 更新单条。
-     */
+    /** 更新单条。 */
     @Transactional
     public void updateRow(String slug, Long id, Map<String, Object> fields) {
         var table = getTable(slug);
-        var sets = fields.keySet().stream()
-                .map(k -> k + " = :" + k)
-                .toList();
+        var sets = fields.keySet().stream().map(k -> k + " = :" + k).toList();
 
-        var sql = "UPDATE %s SET %s WHERE id = :id"
-                .formatted(table.getTableName(), String.join(", ", sets));
+        var sql =
+                "UPDATE %s SET %s WHERE id = :id"
+                        .formatted(table.getTableName(), String.join(", ", sets));
         var query = entityManager.createNativeQuery(sql);
         for (var entry : fields.entrySet()) {
             query.setParameter(entry.getKey(), entry.getValue());
@@ -159,22 +153,20 @@ public class DynamicTableService {
         query.executeUpdate();
     }
 
-    /**
-     * 删除单条。
-     */
+    /** 删除单条。 */
     @Transactional
     public void deleteRow(String slug, Long id) {
         var table = getTable(slug);
-        entityManager.createNativeQuery("DELETE FROM %s WHERE id = :id".formatted(table.getTableName()))
+        entityManager
+                .createNativeQuery("DELETE FROM %s WHERE id = :id".formatted(table.getTableName()))
                 .setParameter("id", id)
                 .executeUpdate();
     }
 
-    /**
-     * 获取表定义。
-     */
+    /** 获取表定义。 */
     public DataTableDefinition getTable(String slug) {
-        return tableRepository.findBySlug(slug)
+        return tableRepository
+                .findBySlug(slug)
                 .orElseThrow(() -> new IllegalArgumentException("表不存在: " + slug));
     }
 
@@ -186,7 +178,10 @@ public class DynamicTableService {
 
         for (int i = 0; i < columns.size(); i++) {
             var col = columns.get(i);
-            sb.append("    ").append(col.getName()).append(" ").append(mapType(col.getColumnType()));
+            sb.append("    ")
+                    .append(col.getName())
+                    .append(" ")
+                    .append(mapType(col.getColumnType()));
             if (!col.isNullable()) sb.append(" NOT NULL");
             if (col.isUniqueCol()) sb.append(" UNIQUE");
             if (col.getDefaultValue() != null) sb.append(" DEFAULT ").append(col.getDefaultValue());

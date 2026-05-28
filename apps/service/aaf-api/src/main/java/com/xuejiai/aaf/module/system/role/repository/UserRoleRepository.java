@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.role.domain.UserRole;
 
+/**
+ * @author AaronZZH & Kiro
+ */
 public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
 
     List<UserRole> findByUserIdAndDeletedFalse(Long userId);

@@ -16,7 +16,8 @@ public class DefaultServicePermissionChecker implements ServicePermissionChecker
             return true;
         }
         // TODO: 查询资源归属关系，判断 userId 是否有权操作
-        log.debug("Layer3 权限检查（占位放行）: userId={}, {}:{}:{}", userId, resourceType, resourceId, action);
+        log.debug(
+                "Layer3 权限检查（占位放行）: userId={}, {}:{}:{}", userId, resourceType, resourceId, action);
         return true;
     }
 }

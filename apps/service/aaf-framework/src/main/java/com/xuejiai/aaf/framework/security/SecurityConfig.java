@@ -81,7 +81,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, ApiKeyAuthFilter apiKeyAuthFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http, ApiKeyAuthFilter apiKeyAuthFilter) throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -92,8 +93,10 @@ public class SecurityConfig {
                                         .anyRequest()
                                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}))
-                .addFilterBefore(apiKeyAuthFilter,
-                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(
+                        apiKeyAuthFilter,
+                        org.springframework.security.web.authentication
+                                .UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

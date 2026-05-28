@@ -34,8 +34,7 @@ public class DataIngestController {
      */
     @PostMapping("/{tableSlug}")
     public Map<String, Object> ingest(
-            @PathVariable String tableSlug,
-            @RequestBody List<Map<String, Object>> items) {
+            @PathVariable String tableSlug, @RequestBody List<Map<String, Object>> items) {
 
         // scope 检查
         var apiKey = getApiKeyFromContext();
@@ -50,13 +49,15 @@ public class DataIngestController {
         tableService.getTable(tableSlug);
 
         // 执行 Pipeline
-        var config = PipelineConfig.builder()
-                .pipelineId("ingest:" + tableSlug + ":" + System.currentTimeMillis())
-                .routeTarget(PipelineConfig.RouteTarget.builder()
-                        .type("custom_table")
-                        .target(tableSlug)
-                        .build())
-                .build();
+        var config =
+                PipelineConfig.builder()
+                        .pipelineId("ingest:" + tableSlug + ":" + System.currentTimeMillis())
+                        .routeTarget(
+                                PipelineConfig.RouteTarget.builder()
+                                        .type("custom_table")
+                                        .target(tableSlug)
+                                        .build())
+                        .build();
 
         var context = pipeline.execute(items, config);
         var inserted = context.getMetadata().getOrDefault("inserted_count", 0);
@@ -64,10 +65,14 @@ public class DataIngestController {
         log.info("数据摄入完成 [{}] items={} inserted={}", tableSlug, items.size(), inserted);
 
         return Map.of(
-                "status", context.isAborted() ? "partial" : "completed",
-                "input_count", items.size(),
-                "inserted_count", inserted,
-                "logs", context.getLogs());
+                "status",
+                context.isAborted() ? "partial" : "completed",
+                "input_count",
+                items.size(),
+                "inserted_count",
+                inserted,
+                "logs",
+                context.getLogs());
     }
 
     private ApiKey getApiKeyFromContext() {

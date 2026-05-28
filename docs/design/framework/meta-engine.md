@@ -14,16 +14,48 @@ author: AaronZZH
 
 ## 定位
 
-元引擎是 Layer 2 引擎层中的**编排引擎**，不替代工作流引擎、智能体引擎、知识库引擎，而是协调它们协同工作：
+元引擎是 Layer 2 引擎层的**核心调度中枢**，不替代工作流引擎、智能体引擎、知识库引擎，而是协调它们协同工作：
 
 ```text
-元引擎 = DSL 解释器（意图 → 执行）
-       + 引擎编排层（工作流 / 智能体 / 知识库 / 记忆）
-       + 调度机制（执行调度器 / 状态管理器 / 置信度门控器 / 元数据管理器）
-       + 自进化机制（行为 → 评估 → 规范更新 → 重生成）
+元引擎 = 执行调度器（意图/DSL → 路由 → 引擎选择 → 生命周期管理）
+       + 编排运行时（图遍历 + 节点执行 + 变量池 + 暂停/恢复）
+       + 编排状态（执行记录 + Checkpoint + 渐进提交）
 ```
 
+元引擎只管"调度 + 运行 + 状态"——类似操作系统内核只管进程调度、内存管理、I/O，不管应用逻辑。以下能力由独立组件承担：
+
+| 能力 | 归属 | 理由 |
+|------|------|------|
+| 置信度门控 | `intelligent/core/confidence/` | 认知决策能力，Agent 和 Assistant 都用 |
+| DSL 解析与转化 | `engine/dsl/`（独立引擎） | 独立语言能力，前后端都用，v2.0 核心 |
+| 元数据注册 | `engine/metadata/`（独立引擎） | 横切注册表，工具/Agent/组件/插件都注册 |
+| 自进化 | `engine/evolution/`（独立引擎） | 独立闭环，元引擎只触发不执行 |
+
 元引擎支持两种共存模式：**传统架构模式**（v1.0，结构化视图 + REST）和**文档驱动模式**（v2.0，DSL + 对话式交互 + 一切皆文档）。详见 [实现计划](#实现计划)。
+
+## 与编排服务的关系
+
+编排服务（服务层）和元引擎（引擎层）是"定义"与"执行"的关系：
+
+```text
+Layer 4 服务层：编排服务（aaf-api/module/orchestration）
+  → 面向用户：编排定义的 CRUD、可视化配置、执行记录查看
+  → 产出：编排定义（DSL 描述）
+
+Layer 2 引擎层：元引擎（engine/meta）
+  → 面向系统：接收编排定义 → DSL 路由 → 调度专项引擎执行
+  → 职责：执行路径决策、状态管理、置信度门控、生命周期管理
+```
+
+| 维度 | 编排服务 | 元引擎 |
+|------|---------|--------|
+| 层级 | Layer 4 服务层 | Layer 2 引擎层 |
+| 面向 | 用户/管理员 | 系统内部 |
+| 职责 | 定义"做什么" | 执行"怎么跑" |
+| 类比 | Flowable Modeler | Flowable Engine |
+| 详细设计 | [编排服务设计](engine/orchestration.md) | 本文档 |
+
+元引擎不仅服务于编排服务定义的编排，也直接响应对话意图、DSL 指令、API 调用和事件触发——编排服务只是元引擎的输入来源之一。
 
 ## 整体架构
 
@@ -66,13 +98,23 @@ DSL 是元引擎的核心语言，贯穿开发时和运行时。具备三重身�
 
 ## 执行机制
 
+### 核心组件（engine/meta/）
+
 | 子模块 | 职责 | 详细设计 |
 |---|---|---|
-| 执行调度器 | DSL 域路由、Agent 启用判断、生命周期管理、内部处理步骤（filter/transform/route/parallel/reduce）、并发控制 | [execution-dispatcher.md](core/execution-dispatcher.md) |
-| 状态管理器 | 四层状态（Session/Workspace/System/Metadata）隔离与渐进提交 | [state-manager.md](core/state-manager.md) |
-| 文档引擎 | 文档全生命周期、版本、协同、七类文档统一管理 | [document-engine.md](engine/document-engine.md) |
-| 元数据管理器 | 四类元数据统一管理、规范变更触发链、语义漂移检测 | [metadata-manager.md](core/metadata-manager.md) |
-| 置信度门控器 | 置信度 × 可验证性二维门控、不可逆操作强制人工确认 | [confidence-gate.md](core/confidence-gate.md) |
+| 执行调度器 `dispatcher` | DSL 域路由、Agent 启用判断、生命周期管理、内部处理步骤（filter/transform/route/parallel/reduce）、并发控制、降级策略 | [execution-dispatcher.md](core/execution-dispatcher.md) |
+| 编排运行时 `runtime` | 编排图遍历（DAG）、节点执行环境（输入注入/输出收集）、变量池、暂停/恢复/超时、执行记录持久化 | [runtime-capability.md](core/runtime-capability.md) |
+| 编排状态 `state` | 执行记录、Checkpoint（断点快照）、渐进提交（暂存→确认→持久化） | [state-manager.md](core/state-manager.md) |
+
+### 协作组件（独立于元引擎，被元引擎调用）
+
+| 组件 | 位置 | 与元引擎的关系 |
+|---|---|---|
+| 置信度门控器 | `intelligent/core/confidence/` | 元引擎在路由前调用，决定自动执行/等待确认/转人工 |
+| DSL 引擎 | `engine/dsl/` | 元引擎调用其解析 DSL，获得结构化执行指令 |
+| 元数据引擎 | `engine/metadata/` | 元引擎查询可用能力（工具/Agent/组件注册表） |
+| 自进化引擎 | `engine/evolution/` | 元引擎将执行结果事件发送给自进化引擎评估 |
+| 文档引擎 | `engine/document/` | 文档全生命周期、版本、协同、七类文档统一管理 |
 
 ## 核心特性
 
@@ -169,11 +211,17 @@ DSL 域与上下文的对应关系：
 
 | 模块 | v1.0 范围 |
 |---|---|
-| 执行调度器 | 基础路由（dev/runtime 域）、生命周期管理 |
-| 状态管理器 | Session + Workspace 两层 |
-| 置信度门控器 | 基础三档（自动/确认/人工） |
-| 文档引擎 | 初步开放文档管理（CRUD + 版本 + 权限） |
-| 元数据管理器 | 工具/组件元数据注册 |
+| 执行调度器 `dispatcher` | 基础路由（dev/runtime 域）、生命周期管理、降级策略 |
+| 编排运行时 `runtime` | 基础图遍历（串行/并行）、节点执行环境 |
+| 编排状态 `state` | 执行记录持久化、基础 Checkpoint |
+
+**协作组件 v1.0 范围**：
+
+| 模块 | v1.0 范围 |
+|---|---|
+| 置信度门控（core/confidence） | 基础三档（自动/确认/人工） |
+| 元数据引擎（engine/metadata） | 工具/组件元数据注册 |
+| 文档引擎（engine/document） | 初步开放文档管理（CRUD + 版本 + 权限） |
 
 **v1.0 暂不实现**（v2.0 叠加）：
 
@@ -190,9 +238,10 @@ DSL 域与上下文的对应关系：
 
 **后端元引擎**（补全核心基础设施 + 完整引擎）：
 
+- 编排运行时补全：条件分支、循环、子编排嵌套、超时策略
+- 编排状态补全：Workspace/System 层状态、渐进提交完整实现
 - DSL 引擎完整实现（三层转化、分域路由）
-- 状态管理器补全 System/Metadata 层
-- 置信度门控器补全可验证性维度
+- 置信度门控补全可验证性维度
 - 文档引擎补全协同编辑（OT/CRDT）
 - 自进化机制闭环（引擎自进化 + 业务系统自进化）
 - 预算感知、空间引擎、人类计算支撑按需引入

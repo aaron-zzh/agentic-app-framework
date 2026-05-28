@@ -11,6 +11,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.engine.budget.TokenQuotaService;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.TokenUsageEvent;
 
 import lombok.RequiredArgsConstructor;

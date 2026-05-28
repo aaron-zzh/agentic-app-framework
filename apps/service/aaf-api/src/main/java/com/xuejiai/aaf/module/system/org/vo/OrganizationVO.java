@@ -2,6 +2,17 @@ package com.xuejiai.aaf.module.system.org.vo;
 
 import java.time.LocalDateTime;
 
-/** 组织响应。 */
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * 组织响应。
+ *
+ * @author AaronZZH & Kiro
+ */
 public record OrganizationVO(
-        Long id, String name, String slug, String type, Long ownerId, LocalDateTime createTime) {}
+        @Schema(description = "主键 ID") Long id,
+        String name,
+        String slug,
+        String type,
+        Long ownerId,
+        LocalDateTime createTime) {}

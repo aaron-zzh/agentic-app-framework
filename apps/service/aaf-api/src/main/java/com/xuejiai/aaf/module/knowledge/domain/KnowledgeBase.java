@@ -11,7 +11,13 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 知识库。 */
+/**
+ * 知识库实体。
+ *
+ * <p>一个知识库包含多个 {@link KnowledgeDocument}，通过向量化和图谱构建支持语义检索。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity
@@ -46,7 +52,11 @@ public class KnowledgeBase extends BaseEntity {
     @Column(name = "chunk_overlap")
     private Integer chunkOverlap;
 
-    /** 状态 */
+    /**
+     * 状态
+     *
+     * <p>枚举 {@link com.xuejiai.aaf.common.enums.CommonStatusEnum}
+     */
     @Column(name = "status", nullable = false)
     private Integer status = CommonStatusEnum.ENABLE.getCode();
 }

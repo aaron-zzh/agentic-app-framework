@@ -19,7 +19,11 @@ import com.xuejiai.aaf.module.system.chat.vo.ChatSessionVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 聊天服务，管理会话和消息。 */
+/**
+ * 聊天服务，管理会话和消息
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -27,7 +31,13 @@ public class ChatService {
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageRepository messageRepository;
 
-    /** 创建会话 */
+    /**
+     * 创建会话
+     *
+     * @param userId 用户 ID
+     * @param dto 创建会话请求
+     * @return 会话信息
+     */
     @Transactional
     public ChatSessionVO createSession(Long userId, ChatSessionCreateDTO dto) {
         var session = new ChatSession();
@@ -39,7 +49,12 @@ public class ChatService {
         return toSessionVO(session);
     }
 
-    /** 获取用户的会话列表 */
+    /**
+     * 获取用户的会话列表
+     *
+     * @param userId 用户 ID
+     * @return 会话列表
+     */
     @Transactional(readOnly = true)
     public List<ChatSessionVO> listSessions(Long userId) {
         return sessionRepository.findByCreatorIdOrderByUpdateTimeDesc(userId).stream()
@@ -47,7 +62,12 @@ public class ChatService {
                 .toList();
     }
 
-    /** 获取会话的消息历史 */
+    /**
+     * 获取会话的消息历史
+     *
+     * @param sessionId 会话 ID
+     * @return 消息列表（按时间正序）
+     */
     @Transactional(readOnly = true)
     public List<ChatMessageVO> listMessages(Long sessionId) {
         return messageRepository.findBySessionIdOrderByCreateTimeAsc(sessionId).stream()
@@ -55,7 +75,14 @@ public class ChatService {
                 .toList();
     }
 
-    /** 分页获取会话消息（按时间倒序） */
+    /**
+     * 分页获取会话消息（按时间倒序）
+     *
+     * @param sessionId 会话 ID
+     * @param page 页码（从 0 开始）
+     * @param size 每页大小
+     * @return 分页消息
+     */
     @Transactional(readOnly = true)
     public Page<ChatMessageVO> getMessagesPaged(Long sessionId, int page, int size) {
         return messageRepository
@@ -63,7 +90,11 @@ public class ChatService {
                 .map(this::toMessageVO);
     }
 
-    /** 归档会话（设置状态为 ARCHIVED） */
+    /**
+     * 归档会话（设置状态为 ARCHIVED）
+     *
+     * @param sessionId 会话 ID
+     */
     @Transactional
     public void archiveSession(Long sessionId) {
         var session =
@@ -77,7 +108,16 @@ public class ChatService {
         sessionRepository.save(session);
     }
 
-    /** 保存消息 */
+    /**
+     * 保存消息
+     *
+     * @param senderId 发送者 ID
+     * @param senderType 发送者类型（HUMAN / AI）
+     * @param sessionId 会话 ID
+     * @param role 消息角色（user / assistant / system）
+     * @param content 消息内容
+     * @return 消息信息
+     */
     @Transactional
     public ChatMessageVO saveMessage(
             Long senderId, String senderType, Long sessionId, String role, String content) {
@@ -96,7 +136,18 @@ public class ChatService {
         return toMessageVO(message);
     }
 
-    /** 保存消息（含 actorType 和用户感知上下文） */
+    /**
+     * 保存消息（含 actorType 和用户感知上下文）
+     *
+     * @param senderId 发送者 ID
+     * @param senderType 发送者类型（HUMAN / AI）
+     * @param sessionId 会话 ID
+     * @param role 消息角色（user / assistant / system）
+     * @param content 消息内容
+     * @param actorType 行动者类型（human / ai / bot / system）
+     * @param awarenessContext 用户感知上下文（JSON）
+     * @return 消息信息
+     */
     @Transactional
     public ChatMessageVO saveMessage(
             Long senderId,
@@ -123,7 +174,18 @@ public class ChatService {
         return toMessageVO(message);
     }
 
-    /** 保存消息（含 Token 计数和元数据） */
+    /**
+     * 保存消息（含 Token 计数和元数据）
+     *
+     * @param senderId 发送者 ID
+     * @param senderType 发送者类型（HUMAN / AI）
+     * @param sessionId 会话 ID
+     * @param role 消息角色（user / assistant / system）
+     * @param content 消息内容
+     * @param tokenCount Token 消耗数
+     * @param metadata 元数据（JSON 格式）
+     * @return 消息信息
+     */
     @Transactional
     public ChatMessageVO saveMessage(
             Long senderId,
@@ -150,7 +212,69 @@ public class ChatService {
         return toMessageVO(message);
     }
 
-    /** 累加会话 Token 用量 */
+    /**
+     * 删除会话（软删除）
+     *
+     * @param sessionId 会话 ID
+     */
+    @Transactional
+    public void deleteSession(Long sessionId) {
+        sessionRepository
+                .findById(sessionId)
+                .orElseThrow(
+                        () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+        sessionRepository.deleteById(sessionId);
+    }
+
+    /**
+     * 重命名会话
+     *
+     * @param sessionId 会话 ID
+     * @param title 新标题
+     * @return 更新后的会话信息
+     */
+    @Transactional
+    public ChatSessionVO renameSession(Long sessionId, String title) {
+        var session =
+                sessionRepository
+                        .findById(sessionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+        session.setTitle(title);
+        sessionRepository.save(session);
+        return toSessionVO(session);
+    }
+
+    /**
+     * 消息反馈（点赞/点踩）
+     *
+     * @param messageId 消息 ID
+     * @param feedbackType 反馈类型（LIKE/DISLIKE）
+     * @param comment 反馈备注
+     */
+    @Transactional
+    public void messageFeedback(Long messageId, String feedbackType, String comment) {
+        var message =
+                messageRepository
+                        .findById(messageId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCodeConstants.CHAT_MESSAGE_NOT_FOUND));
+        // 将反馈信息存入 metadata（JSON 格式追加）
+        var feedback = "{\"feedback\":\"%s\",\"comment\":\"%s\"}".formatted(feedbackType, comment != null ? comment : "");
+        message.setMetadata(feedback);
+        messageRepository.save(message);
+    }
+
+    /**
+     * 累加会话 Token 用量
+     *
+     * @param sessionId 会话 ID
+     * @param tokens 本次消耗的 Token 数
+     */
     @Transactional
     public void addSessionTokens(Long sessionId, long tokens) {
         var session =

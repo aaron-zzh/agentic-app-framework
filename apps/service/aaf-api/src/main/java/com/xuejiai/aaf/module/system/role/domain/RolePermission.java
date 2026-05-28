@@ -11,7 +11,11 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 角色-权限关联。 */
+/**
+ * 角色-权限关联。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

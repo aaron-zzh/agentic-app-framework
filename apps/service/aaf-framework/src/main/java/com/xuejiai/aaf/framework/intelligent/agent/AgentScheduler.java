@@ -1,9 +1,10 @@
 package com.xuejiai.aaf.framework.intelligent.agent;
 
-import com.xuejiai.aaf.framework.security.license.License;
+import java.util.Random;
+
 import org.springframework.stereotype.Component;
 
-import java.util.Random;
+import com.xuejiai.aaf.framework.security.license.License;
 
 /** Agent 调度器，使用 License.userId 派生随机 seed，提高破解成本。 */
 @Component

@@ -9,14 +9,7 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Date;
-
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.RSASSASigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -24,6 +17,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 
 class LicenseLoaderTest {
 
@@ -84,8 +83,12 @@ class LicenseLoaderTest {
         var otherGen = KeyPairGenerator.getInstance("RSA");
         otherGen.initialize(2048);
         var otherKeyPair = otherGen.generateKeyPair();
-        var jwt = signJwtWithKey("user-456", "pro", Instant.now().plusSeconds(3600),
-                (RSAPrivateKey) otherKeyPair.getPrivate());
+        var jwt =
+                signJwtWithKey(
+                        "user-456",
+                        "pro",
+                        Instant.now().plusSeconds(3600),
+                        (RSAPrivateKey) otherKeyPair.getPrivate());
 
         var configDir = tempDir.resolve("config");
         Files.createDirectories(configDir);
@@ -125,12 +128,13 @@ class LicenseLoaderTest {
 
     private String signJwtWithKey(String sub, String tier, Instant exp, RSAPrivateKey privateKey)
             throws Exception {
-        var claims = new JWTClaimsSet.Builder()
-                .subject(sub)
-                .claim("tier", tier)
-                .expirationTime(Date.from(exp))
-                .issueTime(new Date())
-                .build();
+        var claims =
+                new JWTClaimsSet.Builder()
+                        .subject(sub)
+                        .claim("tier", tier)
+                        .expirationTime(Date.from(exp))
+                        .issueTime(new Date())
+                        .build();
         var signedJWT = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
         signedJWT.sign(new RSASSASigner(privateKey));
         return signedJWT.serialize();
@@ -140,10 +144,7 @@ class LicenseLoaderTest {
         return new LicenseLoader();
     }
 
-    /**
-     * 直接解析指定路径的 JWT 文件并验签激活，绕过文件扫描逻辑以便测试。
-     * 使用测试密钥对的公钥验签。
-     */
+    /** 直接解析指定路径的 JWT 文件并验签激活，绕过文件扫描逻辑以便测试。 使用测试密钥对的公钥验签。 */
     private void loadFromPath(LicenseLoader loader, Path jwtPath) throws Exception {
         var jwt = Files.readString(jwtPath).trim();
         var signedJWT = SignedJWT.parse(jwt);

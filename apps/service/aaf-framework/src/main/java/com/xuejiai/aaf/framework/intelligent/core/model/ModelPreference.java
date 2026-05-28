@@ -10,6 +10,7 @@ import lombok.Setter;
  * 模型偏好配置。
  *
  * <p>支持两种 scope：
+ *
  * <ul>
  *   <li>USER — 用户级别，优先于系统默认
  *   <li>SYSTEM — 系统级别，管理员配置的全局默认

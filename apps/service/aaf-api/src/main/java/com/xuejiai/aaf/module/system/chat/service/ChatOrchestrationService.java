@@ -10,7 +10,6 @@ import com.xuejiai.aaf.framework.security.access.AccessContext;
 import com.xuejiai.aaf.framework.security.access.AccessLayer;
 import com.xuejiai.aaf.framework.security.access.ServicePermissionChecker;
 import com.xuejiai.aaf.module.system.chat.agui.AgUiEvent;
-import com.xuejiai.aaf.module.system.chat.agui.AgUiStreamHandler;
 import com.xuejiai.aaf.module.system.chat.vo.ChatRunRequest;
 import com.xuejiai.aaf.module.system.chat.vo.ChatSessionCreateDTO;
 
@@ -18,18 +17,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 统一对话编排服务——所有对话接口的唯一入口。
+ * 统一对话编排服务——所有对话接口的唯一入口
  *
  * <p>职责：
+ *
  * <ul>
- *   <li>会话管理（创建/加载历史）</li>
- *   <li>消息持久化</li>
- *   <li>委托给 AssistantService 执行完整智能链路</li>
- *   <li>统一 SSE 流输出</li>
+ *   <li>会话管理（创建/加载历史）
+ *   <li>消息持久化
+ *   <li>委托给 AssistantService 执行完整智能链路
+ *   <li>统一 SSE 流输出
  * </ul>
  *
- * <p>所有接口（REST/WebSocket/AG-UI/A2A/MCP）统一调用本服务，
- * 不再直接调用 ResilientChatService。
+ * <p>所有接口（REST/WebSocket/AG-UI/A2A/MCP）统一调用本服务， 不再直接调用 ResilientChatService。
+ *
+ * @author AaronZZH & Kiro
  */
 @Slf4j
 @Service
@@ -64,7 +65,8 @@ public class ChatOrchestrationService {
         var userContent = extractLastUserMessage(request.messages());
         if (userContent != null && sessionId != null) {
             var awareness = request.state() != null ? request.state().awarenessContext() : null;
-            chatService.saveMessage(userId, "HUMAN", sessionId, "user", userContent, "human", awareness);
+            chatService.saveMessage(
+                    userId, "HUMAN", sessionId, "user", userContent, "human", awareness);
         }
 
         // 构建 SSE 流
@@ -72,43 +74,60 @@ public class ChatOrchestrationService {
         var runId = java.util.UUID.randomUUID().toString();
 
         // 异步执行智能链路
-        Thread.startVirtualThread(() -> {
-            try {
-                sendEvent(emitter, AgUiEvent.runStarted(runId));
-                var messageId = java.util.UUID.randomUUID().toString();
-                sendEvent(emitter, AgUiEvent.textMessageStart(runId, messageId));
+        Thread.startVirtualThread(
+                () -> {
+                    try {
+                        sendEvent(emitter, AgUiEvent.runStarted(runId));
+                        var messageId = java.util.UUID.randomUUID().toString();
+                        sendEvent(emitter, AgUiEvent.textMessageStart(runId, messageId));
 
-                // 委托给 AssistantService 完整链路
-                var assistantId = resolveAssistantId(request);
-                var response = assistantService.handle(
-                        sessionId != null ? sessionId.toString() : runId,
-                        userId,
-                        assistantId,
-                        userContent != null ? userContent : "");
+                        // 委托给 AssistantService 完整链路
+                        var assistantId = resolveAssistantId(request);
+                        var response =
+                                assistantService.handle(
+                                        sessionId != null ? sessionId.toString() : runId,
+                                        userId,
+                                        assistantId,
+                                        userContent != null ? userContent : "");
 
-                sendEvent(emitter, AgUiEvent.textMessageContent(runId, messageId, response.content()));
-                sendEvent(emitter, AgUiEvent.textMessageEnd(runId, messageId));
-                sendEvent(emitter, AgUiEvent.runFinished(runId));
-                emitter.complete();
+                        sendEvent(
+                                emitter,
+                                AgUiEvent.textMessageContent(runId, messageId, response.content()));
+                        sendEvent(emitter, AgUiEvent.textMessageEnd(runId, messageId));
+                        sendEvent(emitter, AgUiEvent.runFinished(runId));
+                        emitter.complete();
 
-                // 持久化助理响应
-                if (sessionId != null) {
-                    chatService.saveMessage(userId, "AI", sessionId, "assistant", response.content(), "ai", null);
-                }
-            } catch (Exception e) {
-                log.error("对话执行失败: {}", e.getMessage(), e);
-                try {
-                    sendEvent(emitter, AgUiEvent.runError(runId, e.getMessage()));
-                    emitter.complete();
-                } catch (Exception ignored) {}
-            }
-        });
+                        // 持久化助理响应
+                        if (sessionId != null) {
+                            chatService.saveMessage(
+                                    userId,
+                                    "AI",
+                                    sessionId,
+                                    "assistant",
+                                    response.content(),
+                                    "ai",
+                                    null);
+                        }
+                    } catch (Exception e) {
+                        log.error("对话执行失败: {}", e.getMessage(), e);
+                        try {
+                            sendEvent(emitter, AgUiEvent.runError(runId, e.getMessage()));
+                            emitter.complete();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                });
 
         return emitter;
     }
 
     /**
-     * WebSocket 消息处理入口（同步返回文本）。
+     * WebSocket 消息处理入口（同步返回文本）
+     *
+     * @param sessionId 会话 ID
+     * @param userId 用户 ID
+     * @param userInput 用户输入文本
+     * @return AI 回复文本
      */
     public String executeSync(String sessionId, Long userId, String userInput) {
         permissionChecker.require(userId, "session", sessionId, "write");
@@ -124,8 +143,10 @@ public class ChatOrchestrationService {
             return Long.valueOf(sessionIdStr);
         } catch (NumberFormatException e) {
             // 创建新会话
-            var session = chatService.createSession(userId,
-                    new ChatSessionCreateDTO("新对话", request.target().type().toUpperCase()));
+            var session =
+                    chatService.createSession(
+                            userId,
+                            new ChatSessionCreateDTO("新对话", request.target().type().toUpperCase()));
             return session.id();
         }
     }
@@ -146,9 +167,7 @@ public class ChatOrchestrationService {
 
     private void sendEvent(SseEmitter emitter, AgUiEvent event) {
         try {
-            emitter.send(SseEmitter.event()
-                    .name("message")
-                    .data(event));
+            emitter.send(SseEmitter.event().name("message").data(event));
         } catch (Exception e) {
             log.debug("SSE 发送失败: {}", e.getMessage());
         }

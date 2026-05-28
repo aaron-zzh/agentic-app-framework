@@ -268,8 +268,8 @@ public class AgentScopeExampleService {
     /**
      * 通过 MCP 协议调用外部工具服务器。
      *
-     * <p>与 ② 工具调用的区别：工具由外部 MCP Server 动态提供，无需修改代码即可扩展工具集。
-     * 需配置 {@code aaf.examples.agentscope.mcp.server-url} 指向 MCP Server。
+     * <p>与 ② 工具调用的区别：工具由外部 MCP Server 动态提供，无需修改代码即可扩展工具集。 需配置 {@code
+     * aaf.examples.agentscope.mcp.server-url} 指向 MCP Server。
      *
      * @param userInput 用户输入
      * @return Agent 回复
@@ -299,8 +299,7 @@ public class AgentScopeExampleService {
     /**
      * 带任务规划的聊天：Agent 将复杂任务分解为子任务，逐步执行并追踪进度。
      *
-     * <p>[Plan能力点] PlanNotebook 自动注入进度提示，Agent 按计划执行。
-     * 适合需要多步骤的复杂任务（如"帮我写一个 Spring Boot 项目"）。
+     * <p>[Plan能力点] PlanNotebook 自动注入进度提示，Agent 按计划执行。 适合需要多步骤的复杂任务（如"帮我写一个 Spring Boot 项目"）。
      *
      * @param userInput 用户输入（建议是复杂任务）
      * @return Agent 回复（含规划过程）
@@ -315,8 +314,8 @@ public class AgentScopeExampleService {
     /**
      * 实时语音合成：将文本转为音频字节数组（WAV 格式）。
      *
-     * <p>[Realtime能力点] 使用 WebSocket 流式传输，synthesizeStream() 推送文本并收集所有音频块。
-     * 生产场景可改为 SSE 流式返回音频块，实现边生成边播放。
+     * <p>[Realtime能力点] 使用 WebSocket 流式传输，synthesizeStream() 推送文本并收集所有音频块。 生产场景可改为 SSE
+     * 流式返回音频块，实现边生成边播放。
      *
      * <p>需要外部服务：DashScope API（DASHSCOPE_API_KEY）
      *
@@ -342,7 +341,9 @@ public class AgentScopeExampleService {
             }
         }
         try {
-            var dir = java.nio.file.Paths.get(System.getProperty("user.home"), ".aaf", "examples", "tts");
+            var dir =
+                    java.nio.file.Paths.get(
+                            System.getProperty("user.home"), ".aaf", "examples", "tts");
             java.nio.file.Files.createDirectories(dir);
             var file = dir.resolve("output-" + System.currentTimeMillis() + ".wav");
             java.nio.file.Files.write(file, out.toByteArray());

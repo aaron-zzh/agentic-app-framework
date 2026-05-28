@@ -14,7 +14,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 用户通知偏好设置。 */
+/**
+ * 用户通知偏好设置。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

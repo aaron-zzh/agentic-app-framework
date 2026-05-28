@@ -97,8 +97,7 @@ gains:
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │  知识库引擎   记忆引擎   工具引擎   技能引擎   工作流引擎   文档引擎           │
-│  编排引擎     调度引擎   消息引擎   监控引擎   权限引擎     预算控制           │
-│  积分引擎     结算引擎   外部数据源  自进化引擎  Prompt引擎                   │
+│  监控引擎     预算控制   积分引擎   结算引擎   外部数据源  自进化引擎           │
 └──────────────────────────────────────────────────────────────────────────────┘
          │                    │                    │
          ▼                    ▼                    ▼
@@ -142,7 +141,7 @@ com.xuejiai.aaf.framework/
 │   │   ├── llm/                    LlmClient（Spring AI ChatClient 封装）
 │   │   ├── model/                  AiModel、ModelManagementService
 │   │   ├── token/                  TokenMeteringService、TokenMeteringHook
-│   │   ├── prompt/                 PromptTemplateService
+│   │   ├── prompt/                 PromptTemplateService（调用门面，委托 engine/prompt）
 │   │   ├── memory/                 MemoryPipeline、MemoryStrategy（接口）
 │   │   ├── skill/                  SkillDef、SkillProvider（接口）
 │   │   ├── agent/                  AgentExecutor（接口）
@@ -229,20 +228,16 @@ com.xuejiai.aaf.framework/
 │   │   ├── WorkflowDefinition      流程定义管理
 │   │   └── TaskHandler             任务节点处理器
 │   │
+│   ├── prompt/                     Prompt 引擎（提示词库管理）
+│   │   ├── PromptEngine            引擎接口（存储/版本/渲染/评估）
+│   │   ├── DefaultPromptEngine     默认实现
+│   │   ├── PromptTemplate          模板实体（ai_prompt_template 表）
+│   │   └── PromptTemplateRepository 数据访问
+│   │
 │   ├── document/                   文档引擎
 │   │   ├── DocumentService         文档全生命周期
 │   │   ├── DocumentVersion         版本管理
 │   │   └── DocumentCollaboration   协同编辑
-│   │
-│   ├── orchestration/              编排引擎
-│   │   ├── OrchestrationEngine     执行路径决策
-│   │   ├── EngineCoordinator       引擎协同
-│   │   └── ConfidenceGate          置信度门控（复用 core/gate）
-│   │
-│   ├── scheduler/                  调度引擎
-│   │   ├── TaskScheduler           异步任务队列
-│   │   ├── CronTrigger             定时触发
-│   │   └── RetryStrategy           重试/补偿策略
 │   │
 │   ├── message/                    消息引擎
 │   │   ├── MessageService          多渠道消息发送
@@ -648,45 +643,34 @@ A2A（Agent-to-Agent）是 AAF 跨系统 Agent 互联协议，基于 Google A2A 
 
 `A2AProtocolService` 实现协议适配，Team 层通过它与外部 Agent 系统（其他 AAF 实例或第三方 Agent）协作。
 
-### 编排服务的实现基础
+### 编排服务与元引擎的关系
 
-**编排服务与元引擎运行时的关系：**
-
-元引擎不是五层中的某一层，而是跨层的编排基础设施。编排服务和运行时能力都是元引擎的子能力：
+编排服务（服务层）和元引擎（引擎层）是"定义"与"执行"的关系：
 
 ```text
-元引擎
-  ├── 编排服务（大脑：决定怎么跑）
+Layer 4 编排服务（aaf-api/module/orchestration）
+  → 面向用户：编排定义 CRUD、可视化配置、执行记录查看
+  → 产出：编排定义（DSL）
+        ↓ 触发执行
+Layer 2 元引擎（engine/meta）
+  ├── 调度机制（大脑：决定怎么跑）
   │     执行调度器 → DSL 路由、引擎选择、生命周期管理
   │     置信度门控器 → 自动/确认/人工三档
   │     状态管理器 → 四层状态持久化
   │
-  └── 运行时能力（手脚：负责执行）
-        工作流执行、智能体编排、知识记忆集成、降级、沙箱
+  └── 驱动专项引擎执行（手脚）
+        ├── 智能体编排（AgentScope Pipeline/Supervisor）← Layer 3
+        ├── 工作流引擎（Flowable，固定流程骨架）← Layer 2
+        └── 其他专项引擎（知识/记忆/工具/...）← Layer 2
 ```
 
-编排服务发出指令（路由到哪个引擎、并发还是串行、置信度够不够），运行时能力负责执行（工作流节点运行、Agent 认知循环、知识检索注入）。两者是指挥与执行的关系，不是并列关系。
+元引擎不仅服务于编排服务，也直接响应对话意图、DSL 指令、API 调用和事件触发。编排服务只是元引擎的输入来源之一。
 
-编排服务不是单一组件，而是分层协作：
-
-```text
-元引擎编排引擎（执行路径决策、置信度门控）
-    │
-    ├── 智能体编排（AgentScope Pipeline/Supervisor/Subagent）← Layer 3
-    │     AssistantService → AgentDispatcher → AgentPool → AgentScopeExecutor
-    │
-    ├── 工作流引擎（Flowable，固定流程骨架）← Layer 2
-    │     业务流程节点，可嵌入 Agent 任务
-    │
-    └── 调度引擎（异步任务队列，定时触发）← Layer 2
-          后台任务，不直接调度 Agent
-```
-
-**编排服务最终如何调度 Agent：**
+**元引擎最终如何调度 Agent：**
 
 ```text
 请求进入
-  → 编排引擎（路由决策：走工作流 or 直接 Agent）
+  → 元引擎执行调度器（路由决策：走工作流 or 直接 Agent）
   → AssistantService（会话管理 + 用户画像）
   → AgentDispatcher（选择哪个 Agent）
   → AgentPool.borrow()（借出 Agent 实例）
@@ -695,7 +679,7 @@ A2A（Agent-to-Agent）是 AAF 跨系统 Agent 互联协议，基于 Google A2A 
   → AgentPool.release()（归还，reset 清空历史）
 ```
 
-工作流引擎和调度引擎是被编排引擎驱动的专项引擎，不直接调度 Agent。
+工作流引擎和其他专项引擎都是被元引擎驱动的，不直接调度 Agent。
 
 ### Agent 池化 vs LLM 池化
 

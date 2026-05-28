@@ -2,6 +2,7 @@ package com.xuejiai.aaf.common.util;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+
 import lombok.experimental.UtilityClass;
 
 /**
@@ -47,7 +48,7 @@ public class MoneyUtils {
      *
      * <p>示例：{@code calcRate(1000, 8.5)} → {@code 85}（1000分 × 8.5% = 85分）
      *
-     * @param fen  原始金额（分）
+     * @param fen 原始金额（分）
      * @param rate 百分比，如 8.5 表示 8.5%
      * @return 计算后金额（分）
      */

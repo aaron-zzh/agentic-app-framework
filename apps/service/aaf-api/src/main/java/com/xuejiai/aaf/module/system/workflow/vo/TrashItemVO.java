@@ -4,7 +4,11 @@ import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 回收站列表项。 */
+/**
+ * 回收站列表项。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "回收站列表项")
 public record TrashItemVO(
         @Schema(description = "记录 ID") Long id,

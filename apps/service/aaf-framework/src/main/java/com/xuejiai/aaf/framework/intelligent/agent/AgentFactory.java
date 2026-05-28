@@ -17,8 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Agent 工厂——通过 {@link AgentRuntime} 接口创建 Agent 实例。
  *
- * <p>不直接依赖任何底层 Agent 框架（AgentScope/LangChain4j），
- * 具体实现由 AgentRuntime 决定。切换框架只需替换 AgentRuntime Bean。
+ * <p>不直接依赖任何底层 Agent 框架（AgentScope/LangChain4j）， 具体实现由 AgentRuntime 决定。切换框架只需替换 AgentRuntime Bean。
  */
 @Slf4j
 @Component
@@ -35,9 +34,10 @@ public class AgentFactory {
      * @return 可执行的 Agent 实例
      */
     public AgentExecutor create(AgentDefinition definition) {
-        var tools = definition.getTools() != null
-                ? List.of(definition.getTools().replaceAll("[\\[\\]\"]", "").split(","))
-                : List.<String>of();
+        var tools =
+                definition.getTools() != null
+                        ? List.of(definition.getTools().replaceAll("[\\[\\]\"]", "").split(","))
+                        : List.<String>of();
         return runtime.create(definition, tools);
     }
 }

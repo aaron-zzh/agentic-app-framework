@@ -21,7 +21,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
-/** A2A 协议端点——对外暴露 Agent-to-Agent 通信接口（Layer 5 交互层）。 */
+/**
+ * A2A 协议端点——对外暴露 Agent-to-Agent 通信接口（Layer 5 交互层）
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "A2A 协议")
 @RestController
 @RequestMapping("/api/a2a")
@@ -33,10 +37,13 @@ public class A2AController {
     @Operation(summary = "接收 A2A 消息", description = "外部 Assistant 发送消息到本地 Assistant")
     @PostMapping("/receive/{assistantId}")
     public Result<A2AResponse> receive(
-            @PathVariable String assistantId,
-            @RequestBody @Valid A2AMessageRequest request) {
-        var response = a2aService.receive(
-                assistantId, request.conversationId(), request.fromUserId(), request.content());
+            @PathVariable String assistantId, @RequestBody @Valid A2AMessageRequest request) {
+        var response =
+                a2aService.receive(
+                        assistantId,
+                        request.conversationId(),
+                        request.fromUserId(),
+                        request.content());
         return Result.success(response);
     }
 
@@ -49,7 +56,11 @@ public class A2AController {
     @Operation(summary = "暴露 Assistant", description = "注册本地 Assistant 为 A2A 可达")
     @PostMapping("/expose")
     public Result<Void> expose(@RequestBody @Valid ExposeRequest request) {
-        a2aService.expose(request.assistantId(), request.name(), request.description(), request.capabilities());
+        a2aService.expose(
+                request.assistantId(),
+                request.name(),
+                request.description(),
+                request.capabilities());
         return Result.success();
     }
 

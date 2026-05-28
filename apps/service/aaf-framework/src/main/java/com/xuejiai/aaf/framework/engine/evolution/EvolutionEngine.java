@@ -5,9 +5,7 @@ import java.util.List;
 /**
  * 自进化引擎——驱动系统自我优化和能力生长。
  *
- * <p>职责：技能自动生成、Prompt 优化、策略进化。
- * 与 Learning 反哺通道配合：Learning 产出知识 → Evolution 将知识转化为能力提升。
- * v0.3+ 实现。
+ * <p>职责：技能自动生成、Prompt 优化、策略进化。 与 Learning 反哺通道配合：Learning 产出知识 → Evolution 将知识转化为能力提升。 v0.3+ 实现。
  */
 public interface EvolutionEngine {
 

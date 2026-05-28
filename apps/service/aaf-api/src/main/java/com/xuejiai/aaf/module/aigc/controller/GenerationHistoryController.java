@@ -14,7 +14,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 生成历史接口。 */
+/**
+ * AIGC 生成历史接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "AIGC 生成历史")
 @RestController
 @RequestMapping("/api/aigc/history")

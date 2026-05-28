@@ -37,11 +37,7 @@ public class TokenMeteringHook implements Hook {
                 var userId = actorContext.currentUserId().orElse(null);
                 var modelName = "agentscope";
                 meteringService.record(
-                        userId,
-                        modelName,
-                        null,
-                        usage.getInputTokens(),
-                        usage.getOutputTokens());
+                        userId, modelName, null, usage.getInputTokens(), usage.getOutputTokens());
             }
         }
         return Mono.just(event);

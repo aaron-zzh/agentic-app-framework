@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.role.domain.Role;
 
+/**
+ * @author AaronZZH & Kiro
+ */
 public interface RoleRepository extends JpaRepository<Role, Long> {
 
     Optional<Role> findByCodeAndDeletedFalse(String code);

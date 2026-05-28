@@ -7,10 +7,11 @@ import java.util.Optional;
  * 工具数据存储契约——引擎层通过此接口获取工具元数据。
  *
  * <p>工具来源：
+ *
  * <ul>
- *   <li>LOCAL — Spring Bean 自动发现（@Tool 注解）</li>
- *   <li>MCP — MCP Server 提供的远程工具</li>
- *   <li>CUSTOM — 用户自定义（脚本/HTTP 回调）</li>
+ *   <li>LOCAL — Spring Bean 自动发现（@Tool 注解）
+ *   <li>MCP — MCP Server 提供的远程工具
+ *   <li>CUSTOM — 用户自定义（脚本/HTTP 回调）
  * </ul>
  */
 public interface ToolStore {

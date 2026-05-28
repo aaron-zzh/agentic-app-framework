@@ -19,7 +19,11 @@ import com.xuejiai.aaf.module.system.org.vo.OrganizationVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 组织管理服务。 */
+/**
+ * 组织管理服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.role.domain.RolePermission;
 
+/**
+ * @author AaronZZH & Kiro
+ */
 public interface RolePermissionRepository extends JpaRepository<RolePermission, Long> {
 
     List<RolePermission> findByRoleIdAndDeletedFalse(Long roleId);

@@ -12,7 +12,11 @@ import com.xuejiai.aaf.module.system.notify.repository.SubscriptionRepository;
 
 import lombok.RequiredArgsConstructor;
 
-/** 字段变更订阅业务逻辑。 */
+/**
+ * 字段变更订阅业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class SubscriptionService {

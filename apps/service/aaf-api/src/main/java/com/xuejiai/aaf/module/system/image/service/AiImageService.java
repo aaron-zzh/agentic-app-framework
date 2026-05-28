@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.image.AsyncImageGenerationService.AsyncImageRequest;
@@ -25,7 +26,11 @@ import com.xuejiai.aaf.module.system.image.vo.AiImageVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** AI 图像生成业务逻辑。 */
+/**
+ * AI 图像生成业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -63,7 +68,8 @@ public class AiImageService {
             if (msg != null && msg.contains("quota_not_enough")) {
                 throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "账户余额不足");
             }
-            throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "图像生成任务提交失败: " + msg);
+            throw new BusinessException(
+                    GlobalErrorCode.INTERNAL_SERVER_ERROR, "图像生成任务提交失败: " + msg);
         }
 
         image.setTaskId(taskId);
@@ -74,8 +80,11 @@ public class AiImageService {
     /** 执行后续操作（放大/变体） */
     @Transactional
     public Long action(Long userId, Long imageId, String customId) {
-        var image = imageRepository.findById(imageId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "图像记录不存在"));
+        var image =
+                imageRepository
+                        .findById(imageId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "图像记录不存在"));
         if (!image.getUserId().equals(userId)) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "图像记录不存在");
         }
@@ -106,12 +115,14 @@ public class AiImageService {
 
     /** 定时同步进行中的 Midjourney 任务 */
     public void syncMidjourneyTasks() {
-        var images = imageRepository.findByStatusAndPlatform(STATUS_IN_PROGRESS, PLATFORM_MIDJOURNEY);
+        var images =
+                imageRepository.findByStatusAndPlatform(STATUS_IN_PROGRESS, PLATFORM_MIDJOURNEY);
         if (images.isEmpty()) return;
 
         var taskIds = images.stream().map(AiImage::getTaskId).collect(Collectors.toList());
         List<TaskStatus> taskList = midjourneyImageService.queryTasks(taskIds);
-        var taskMap = taskList.stream().collect(Collectors.toMap(TaskStatus::id, t -> t, (a, b) -> a));
+        var taskMap =
+                taskList.stream().collect(Collectors.toMap(TaskStatus::id, t -> t, (a, b) -> a));
 
         int count = 0;
         for (var image : images) {
@@ -127,7 +138,8 @@ public class AiImageService {
     }
 
     /** Webhook 回调处理 */
-    public void handleNotify(String taskId, String status, String imageUrl, String failReason, String buttonsJson) {
+    public void handleNotify(
+            String taskId, String status, String imageUrl, String failReason, String buttonsJson) {
         var imageOpt = imageRepository.findByTaskId(taskId);
         if (imageOpt.isEmpty()) {
             log.warn("[handleNotify] 回调任务 {} 不存在", taskId);
@@ -158,7 +170,8 @@ public class AiImageService {
      */
     @Transactional
     public Long draw(Long userId, String prompt, Integer width, Integer height, String model) {
-        var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
+        var ctx =
+                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
         String modelId = capabilityRouter.resolve(ctx);
 
         var image = new AiImage();
@@ -172,20 +185,25 @@ public class AiImageService {
 
         var asyncService = imageServiceFactory.getAsyncService(modelId);
         var request = new AsyncImageRequest(prompt, modelId, image.getWidth(), image.getHeight());
-        Thread.startVirtualThread(() -> {
-            try {
-                String taskId = asyncService.submitTask(request);
-                image.setTaskId(taskId);
-                imageRepository.save(image);
-                log.info("[draw] 任务提交成功: imageId={}, modelId={}, taskId={}", image.getId(), modelId, taskId);
-            } catch (Exception e) {
-                log.error("[draw] 任务提交失败: imageId={}", image.getId(), e);
-                image.setStatus(STATUS_FAIL);
-                image.setErrorMessage(e.getMessage());
-                image.setFinishTime(LocalDateTime.now());
-                imageRepository.save(image);
-            }
-        });
+        Thread.startVirtualThread(
+                () -> {
+                    try {
+                        String taskId = asyncService.submitTask(request);
+                        image.setTaskId(taskId);
+                        imageRepository.save(image);
+                        log.info(
+                                "[draw] 任务提交成功: imageId={}, modelId={}, taskId={}",
+                                image.getId(),
+                                modelId,
+                                taskId);
+                    } catch (Exception e) {
+                        log.error("[draw] 任务提交失败: imageId={}", image.getId(), e);
+                        image.setStatus(STATUS_FAIL);
+                        image.setErrorMessage(e.getMessage());
+                        image.setFinishTime(LocalDateTime.now());
+                        imageRepository.save(image);
+                    }
+                });
         return image.getId();
     }
 
@@ -212,7 +230,9 @@ public class AiImageService {
                         image.setFinishTime(LocalDateTime.now());
                         imageRepository.save(image);
                     }
-                    default -> { /* PENDING/RUNNING，继续等待 */ }
+                    default -> {
+                        /* PENDING/RUNNING，继续等待 */
+                    }
                 }
             } catch (Exception e) {
                 log.warn("[syncWanxTasks] 查询失败: imageId={}", image.getId(), e);
@@ -223,7 +243,8 @@ public class AiImageService {
     // ========== 查询 ==========
 
     public AiImage getById(Long id) {
-        return imageRepository.findById(id)
+        return imageRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "图像记录不存在"));
     }
 
@@ -275,7 +296,8 @@ public class AiImageService {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "该图像无可用操作");
         }
         try {
-            List<Map<String, Object>> buttons = objectMapper.readValue(buttonsJson, new TypeReference<>() {});
+            List<Map<String, Object>> buttons =
+                    objectMapper.readValue(buttonsJson, new TypeReference<>() {});
             boolean found = buttons.stream().anyMatch(b -> customId.equals(b.get("customId")));
             if (!found) {
                 throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "操作按钮不存在: " + customId);

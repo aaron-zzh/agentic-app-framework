@@ -2,8 +2,8 @@ package com.xuejiai.aaf.autodev.agent;
 
 import java.io.*;
 import java.nio.file.*;
-import java.util.ArrayList;
 import java.util.*;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.model.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,20 +76,22 @@ public class KiroAgentController {
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();
 
-        String role = agentRole != null ? agentRole
-                : request.agentRole() != null ? request.agentRole()
-                : "kiro_default";
+        String role =
+                agentRole != null
+                        ? agentRole
+                        : request.agentRole() != null ? request.agentRole() : "kiro_default";
         var session = new AutodevSession();
         session.setSessionId(request.threadId());
         session.setAgentRole(role);
         session.setStatus("active");
         sessionRepository.save(session);
 
-        String userMessage = request.messages().stream()
-                .filter(m -> "user".equals(m.role()))
-                .reduce((first, second) -> second)
-                .map(KiroMessage::content)
-                .orElse("");
+        String userMessage =
+                request.messages().stream()
+                        .filter(m -> "user".equals(m.role()))
+                        .reduce((first, second) -> second)
+                        .map(KiroMessage::content)
+                        .orElse("");
 
         // 保存用户消息
         messageRepository.save(AutodevMessage.of(session.getId(), "user", "human", userMessage));
@@ -105,14 +108,18 @@ public class KiroAgentController {
             return Result.success(DEFAULT_AGENTS);
         }
         try (var stream = Files.list(agentsDir)) {
-            var agents = stream
-                    .filter(p -> p.toString().endsWith(".yaml") || p.toString().endsWith(".yml"))
-                    .map(p -> {
-                        String name = p.getFileName().toString();
-                        int dot = name.lastIndexOf('.');
-                        return dot > 0 ? name.substring(0, dot) : name;
-                    })
-                    .collect(Collectors.toList());
+            var agents =
+                    stream.filter(
+                                    p ->
+                                            p.toString().endsWith(".yaml")
+                                                    || p.toString().endsWith(".yml"))
+                            .map(
+                                    p -> {
+                                        String name = p.getFileName().toString();
+                                        int dot = name.lastIndexOf('.');
+                                        return dot > 0 ? name.substring(0, dot) : name;
+                                    })
+                            .collect(Collectors.toList());
             return Result.success(agents.isEmpty() ? DEFAULT_AGENTS : agents);
         } catch (IOException e) {
             log.warn("扫描 .kiro/agents/ 目录失败：{}", e.getMessage());
@@ -123,11 +130,17 @@ public class KiroAgentController {
     @Operation(summary = "获取历史会话列表")
     @GetMapping("/sessions")
     public Result<List<AutodevSessionVO>> listSessions() {
-        var sessions = sessionRepository.findTop20ByOrderByCreateTimeDesc().stream()
-                .map(s -> new AutodevSessionVO(
-                        s.getId(), s.getSessionId(), s.getAgentRole(),
-                        s.getStatus(), s.getCreateTime()))
-                .collect(Collectors.toList());
+        var sessions =
+                sessionRepository.findTop20ByOrderByCreateTimeDesc().stream()
+                        .map(
+                                s ->
+                                        new AutodevSessionVO(
+                                                s.getId(),
+                                                s.getSessionId(),
+                                                s.getAgentRole(),
+                                                s.getStatus(),
+                                                s.getCreateTime()))
+                        .collect(Collectors.toList());
         return Result.success(sessions);
     }
 
@@ -138,7 +151,9 @@ public class KiroAgentController {
         try {
             Path workPath = resolveWorkDir();
             // 消息通过位置参数传入，--no-interactive 禁止交互式等待用户输入
-            var cmd = new ArrayList<>(List.of("kiro-cli", "chat", "--no-interactive", "--trust-all-tools"));
+            var cmd =
+                    new ArrayList<>(
+                            List.of("kiro-cli", "chat", "--no-interactive", "--trust-all-tools"));
             if (!"kiro_default".equals(session.getAgentRole()) && session.getAgentRole() != null) {
                 cmd.add("--agent");
                 cmd.add(session.getAgentRole());
@@ -177,7 +192,8 @@ public class KiroAgentController {
                 // 保存 AI 回复消息
                 if (!fullOutput.isEmpty()) {
                     messageRepository.save(
-                            AutodevMessage.of(session.getId(), "assistant", "kiro", fullOutput.toString()));
+                            AutodevMessage.of(
+                                    session.getId(), "assistant", "kiro", fullOutput.toString()));
                 }
             }
 
@@ -211,8 +227,7 @@ public class KiroAgentController {
         }
     }
 
-    private void sendTextContent(
-            SseEmitter emitter, String runId, String messageId, String delta) {
+    private void sendTextContent(SseEmitter emitter, String runId, String messageId, String delta) {
         try {
             var map = new LinkedHashMap<String, Object>();
             map.put("type", "TEXT_MESSAGE_CONTENT");

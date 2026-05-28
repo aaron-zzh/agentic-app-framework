@@ -5,8 +5,7 @@ import java.math.BigDecimal;
 /**
  * 结算引擎——Token 消耗的费用计算与账单生成。
  *
- * <p>职责：按模型单价计算费用、生成账单、对账。
- * v0.2+ 实现。
+ * <p>职责：按模型单价计算费用、生成账单、对账。 v0.2+ 实现。
  */
 public interface SettlementEngine {
 

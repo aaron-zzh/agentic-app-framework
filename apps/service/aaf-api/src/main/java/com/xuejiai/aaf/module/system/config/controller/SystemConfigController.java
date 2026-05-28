@@ -18,7 +18,11 @@ import com.xuejiai.aaf.module.system.config.vo.SystemConfigVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 系统配置管理接口。 */
+/**
+ * 系统配置管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @RestController
 @RequestMapping("/api/system/configs")
 @RequiredArgsConstructor

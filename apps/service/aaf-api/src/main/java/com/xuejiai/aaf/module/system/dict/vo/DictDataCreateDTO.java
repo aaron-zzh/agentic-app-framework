@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "创建字典数据")
+/**
+ * @author AaronZZH & Kiro
+ */
 public record DictDataCreateDTO(
         @NotBlank @Size(max = 100) String dictType,
         @NotBlank @Size(max = 100) String label,

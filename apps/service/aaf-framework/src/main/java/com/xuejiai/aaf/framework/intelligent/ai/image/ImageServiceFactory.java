@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
  * 图像生成服务工厂，根据 modelId 前缀路由到对应实现。
  *
  * <p>路由规则（modelId 前缀）：
+ *
  * <ul>
  *   <li>{@code qwen-image*} / {@code wanx*} → {@link WanxImageGenerationService}（异步）
  *   <li>{@code dall-e*} / 其他 → {@link SpringAiImageGenerationService}（同步）

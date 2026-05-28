@@ -12,8 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AAF 自研 A2A 引擎——内存直调，零网络开销。
  *
- * <p>适用场景：单体部署、同一 JVM 内 Assistant 间通信。
- * 收到请求后直接调用 AssistantService.handle()，不走 HTTP。
+ * <p>适用场景：单体部署、同一 JVM 内 Assistant 间通信。 收到请求后直接调用 AssistantService.handle()，不走 HTTP。
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -35,11 +34,12 @@ public class LocalA2AEngine implements A2AEngine {
             return A2AResponse.error("目标 Assistant 未注册: " + targetAssistantId);
         }
         try {
-            var response = assistantService.handle(
-                    "a2a:" + request.conversationId(),
-                    request.fromUserId(),
-                    targetAssistantId,
-                    request.content());
+            var response =
+                    assistantService.handle(
+                            "a2a:" + request.conversationId(),
+                            request.fromUserId(),
+                            targetAssistantId,
+                            request.content());
             return A2AResponse.success(response.content());
         } catch (Exception e) {
             log.error("A2A[Local] 调用失败: target={}, error={}", targetAssistantId, e.getMessage());

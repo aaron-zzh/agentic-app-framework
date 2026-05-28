@@ -11,5 +11,6 @@ public interface GenerationHistoryRepository extends JpaRepository<GenerationHis
 
     Page<GenerationHistory> findByUserId(Long userId, Pageable pageable);
 
-    Page<GenerationHistory> findByUserIdAndType(Long userId, MediaAssetType type, Pageable pageable);
+    Page<GenerationHistory> findByUserIdAndType(
+            Long userId, MediaAssetType type, Pageable pageable);
 }

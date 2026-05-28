@@ -10,7 +10,6 @@ import com.aliyun.imageenhan20190930.models.EnhanceImageColorAdvanceRequest;
 import com.aliyun.imageenhan20190930.models.GenerateCartoonizedImageAdvanceRequest;
 import com.aliyun.imageenhan20190930.models.GetAsyncJobResultRequest;
 import com.aliyun.teautil.models.RuntimeOptions;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageProcessService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
  * 基于阿里云 imageenhan SDK 的图像处理实现。
  *
  * <p>支持的处理方式：
+ *
  * <ul>
  *   <li>COLOR_ENHANCE — 色彩增强（同步，20元/千次）
  *   <li>CARTOONIZE — 卡通化（异步，60元/千次），需调用 {@link #queryTask} 轮询结果
@@ -42,19 +42,22 @@ public class AliyunImageProcessService implements ImageProcessService {
 
             return switch (request.method()) {
                 case "COLOR_ENHANCE" -> {
-                    var req = new EnhanceImageColorAdvanceRequest()
-                            .setImageURLObject(inputStream)
-                            .setMode(request.options().getOrDefault("mode", "normal"))
-                            .setOutputFormat(request.options().getOrDefault("format", "jpg"));
+                    var req =
+                            new EnhanceImageColorAdvanceRequest()
+                                    .setImageURLObject(inputStream)
+                                    .setMode(request.options().getOrDefault("mode", "normal"))
+                                    .setOutputFormat(
+                                            request.options().getOrDefault("format", "jpg"));
                     var resp = client.enhanceImageColorAdvance(req, runtime);
                     var url = resp.getBody().getData().getImageURL();
                     log.info("色彩增强完成: url={}", url);
                     yield ProcessResult.success(url);
                 }
                 case "CARTOONIZE" -> {
-                    var req = new GenerateCartoonizedImageAdvanceRequest()
-                            .setImageUrlObject(inputStream)
-                            .setIndex(request.options().getOrDefault("effect", "7"));
+                    var req =
+                            new GenerateCartoonizedImageAdvanceRequest()
+                                    .setImageUrlObject(inputStream)
+                                    .setIndex(request.options().getOrDefault("effect", "7"));
                     var resp = client.generateCartoonizedImageAdvance(req, runtime);
                     var taskId = resp.getBody().getRequestId();
                     log.info("卡通化任务提交: taskId={}", taskId);
@@ -71,13 +74,15 @@ public class AliyunImageProcessService implements ImageProcessService {
     @Override
     public ProcessResult queryTask(String taskId) {
         try {
-            var resp = client.getAsyncJobResultWithOptions(
-                    new GetAsyncJobResultRequest().setJobId(taskId), new RuntimeOptions());
+            var resp =
+                    client.getAsyncJobResultWithOptions(
+                            new GetAsyncJobResultRequest().setJobId(taskId), new RuntimeOptions());
             var data = resp.getBody().getData();
             return switch (data.getStatus()) {
                 case "PROCESS_SUCCESS" -> {
-                    var node = new com.fasterxml.jackson.databind.ObjectMapper()
-                            .readTree(data.getResult());
+                    var node =
+                            new com.fasterxml.jackson.databind.ObjectMapper()
+                                    .readTree(data.getResult());
                     yield ProcessResult.success(node.path("resultUrl").asText());
                 }
                 case "PROCESS_FAILED", "TIMEOUT_FAILED" ->

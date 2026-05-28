@@ -22,15 +22,15 @@ author: AaronZZH
 - **用户可自调权限**：在自己权限范围内调整资源可见性，降低管理员负担
 - **Agent 作为权限主体**：AI 智能体与用户受同一套规则约束，支持实时交互授权
 
-### Actor 统一抽象
+### Operator 统一抽象
 
-权限系统的"主体（Who）"不是 User，而是 **Actor**——Human 和 AI 的多态抽象：
+权限系统的"主体（Who）"不是 User，而是 **Operator**——Human 和 AI 的多态抽象：
 
-- `UserPrincipal`（Human）和 `AgentPrincipal`（AI）都实现 `ActorAware` 接口
-- 业务代码通过 `ActorContext.current()` 获取当前 Actor，不关心底层认证方式
-- 权限规则对 Actor 统一生效，不为 Agent 单独建一套权限体系
+- `UserPrincipal`（Human）和 `AgentPrincipal`（AI）都实现 `OperatorAware` 接口
+- 业务代码通过 `OperatorContext.current()` 获取当前 Operator，不关心底层认证方式
+- 权限规则对 Operator 统一生效，不为 Agent 单独建一套权限体系
 
-详见 [Actor 模型设计](../intelligent/actor.md)。
+详见 [Operator 模型设计](../operator.md)。
 
 ## 2. 核心公式
 

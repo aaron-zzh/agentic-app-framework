@@ -4,7 +4,11 @@ import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 记录模板响应。 */
+/**
+ * 记录模板响应。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "记录模板信息")
 public record RecordTemplateVO(
         Long id,

@@ -22,8 +22,10 @@ import reactor.core.publisher.Flux;
 /**
  * 语音接口（STT + TTS）。
  *
- * <p>依赖 {@link SpeechService}，当前实现为 DashScopeSpeechService（需配置 DASHSCOPE_API_KEY）。
- * 未配置时 Bean 不存在，接口返回 503。
+ * <p>依赖 {@link SpeechService}，当前实现为 DashScopeSpeechService（需配置 DASHSCOPE_API_KEY）。 未配置时 Bean
+ * 不存在，接口返回 503。
+ *
+ * @author AaronZZH & Kiro
  */
 @Slf4j
 @Tag(name = "语音服务")
@@ -72,7 +74,8 @@ public class VoiceController {
     @Operation(summary = "文字转语音流式（TTS Stream，chunked audio/mpeg）")
     @PostMapping(value = "/tts/stream", produces = "audio/mpeg")
     public Flux<byte[]> ttsStream(@RequestBody TtsRequest request) {
-        return speechService.synthesizeStream(request.text(), request.voice())
+        return speechService
+                .synthesizeStream(request.text(), request.voice())
                 .doOnError(e -> log.error("TTS 流式失败", e));
     }
 }

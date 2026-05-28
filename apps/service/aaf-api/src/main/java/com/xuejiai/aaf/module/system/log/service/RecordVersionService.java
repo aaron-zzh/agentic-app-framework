@@ -13,7 +13,11 @@ import com.xuejiai.aaf.module.system.log.repository.RecordVersionRepository;
 
 import lombok.RequiredArgsConstructor;
 
-/** 版本快照业务逻辑。 */
+/**
+ * 版本快照业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class RecordVersionService {

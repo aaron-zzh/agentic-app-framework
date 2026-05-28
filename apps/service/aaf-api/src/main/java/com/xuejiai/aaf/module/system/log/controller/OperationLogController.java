@@ -12,7 +12,11 @@ import com.xuejiai.aaf.module.system.log.vo.OperationLogVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 操作日志查询接口。 */
+/**
+ * 操作日志查询接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @RestController
 @RequestMapping("/api/operation-logs")
 @RequiredArgsConstructor

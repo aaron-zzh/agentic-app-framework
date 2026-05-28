@@ -24,6 +24,7 @@ import com.xuejiai.aaf.module.system.chat.agui.ToolRegistry;
 import com.xuejiai.aaf.module.system.chat.agui.ToolRegistry.ToolDefinition;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -32,7 +33,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * AG-UI 协议端点。
+ * AG-UI 协议端点
  *
  * <p>实现 assistant-ui 前端组件库的标准 SSE 事件流协议。
  *
@@ -57,20 +58,27 @@ public class AgUiChatController {
 
     /** AG-UI 运行请求 */
     public record AgUiRunRequest(
-            @NotBlank String threadId,
-            @NotNull List<AgUiMessage> messages,
-            Object state,
-            List<AgUiTool> tools) {}
+            @Schema(description = "线程 ID", example = "thread-abc123") @NotBlank String threadId,
+            @Schema(description = "消息列表") @NotNull List<AgUiMessage> messages,
+            @Schema(description = "状态对象") Object state,
+            @Schema(description = "工具定义列表") List<AgUiTool> tools) {}
 
     /** AG-UI 消息 */
-    public record AgUiMessage(String role, String content) {}
+    public record AgUiMessage(
+            @Schema(description = "消息角色", example = "user") String role,
+            @Schema(description = "消息内容", example = "你好") String content) {}
 
     /** AG-UI 工具定义（前端传入） */
-    public record AgUiTool(String name, String description, String parameters) {}
+    public record AgUiTool(
+            @Schema(description = "工具名称", example = "search_entities") String name,
+            @Schema(description = "工具描述", example = "搜索系统中的实体记录") String description,
+            @Schema(description = "参数 JSON Schema") String parameters) {}
 
     /** 工具调用结果提交 */
     public record ToolResultRequest(
-            @NotBlank String runId, @NotBlank String toolCallId, @NotBlank String result) {}
+            @Schema(description = "运行 ID", example = "run-abc123") @NotBlank String runId,
+            @Schema(description = "工具调用 ID", example = "call-xyz") @NotBlank String toolCallId,
+            @Schema(description = "工具执行结果", example = "{\"data\":[]}") @NotBlank String result) {}
 
     // ========== 端点 ==========
 

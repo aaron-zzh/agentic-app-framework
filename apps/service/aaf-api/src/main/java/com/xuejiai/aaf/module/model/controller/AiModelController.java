@@ -17,7 +17,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** AI 模型管理接口。 */
+/**
+ * AI 模型管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "AI 模型管理")
 @RestController
 @RequestMapping("/api/ai/models")
@@ -55,8 +59,7 @@ public class AiModelController {
 
     @Operation(summary = "更新模型")
     @PutMapping("/{id}")
-    public Result<AiModelVO> update(
-            @PathVariable Long id, @RequestBody AiModelUpdateDTO dto) {
+    public Result<AiModelVO> update(@PathVariable Long id, @RequestBody AiModelUpdateDTO dto) {
         return Result.success(aiModelService.update(id, dto));
     }
 

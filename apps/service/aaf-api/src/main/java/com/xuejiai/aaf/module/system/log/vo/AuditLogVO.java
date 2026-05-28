@@ -4,7 +4,11 @@ import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 审计日志响应。 */
+/**
+ * 审计日志响应。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "审计日志")
 public record AuditLogVO(
         @Schema(description = "ID") Long id,

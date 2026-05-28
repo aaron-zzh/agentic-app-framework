@@ -27,7 +27,11 @@ import com.xuejiai.aaf.module.system.workflow.vo.AutomationRuleVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 自动化规则服务：规则 CRUD + 触发执行 + 日志记录。 */
+/**
+ * 自动化规则服务：规则 CRUD + 触发执行 + 日志记录。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -1,8 +1,6 @@
 package com.xuejiai.aaf.framework.engine.tool;
 
-/**
- * 工具风险等级——决定权限申请策略。
- */
+/** 工具风险等级——决定权限申请策略。 */
 public enum ToolRiskLevel {
     /** 无风险（纯查询/计算）→ 无需权限检查 */
     NONE,

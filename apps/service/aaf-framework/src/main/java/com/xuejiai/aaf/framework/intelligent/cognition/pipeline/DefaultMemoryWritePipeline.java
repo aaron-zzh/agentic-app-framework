@@ -72,11 +72,15 @@ public class DefaultMemoryWritePipeline implements MemoryWritePipeline {
     private void applyDecay(Long userId) {
         var now = Instant.now();
         var atoms = atomMemoryEngine.searchByVector(userId, null, 100);
-        var expired = atoms.stream()
-                .filter(a -> a.getCreatedAt() != null)
-                .filter(a -> timeDecayStrategy.decay(a.getCreatedAt(), now) < DECAY_THRESHOLD)
-                .map(a -> a.getId())
-                .toList();
+        var expired =
+                atoms.stream()
+                        .filter(a -> a.getCreatedAt() != null)
+                        .filter(
+                                a ->
+                                        timeDecayStrategy.decay(a.getCreatedAt(), now)
+                                                < DECAY_THRESHOLD)
+                        .map(a -> a.getId())
+                        .toList();
         if (!expired.isEmpty()) {
             atomMemoryEngine.invalidate(expired);
             log.debug("写管道遗忘：userId={} 失效 {} 条低权重记忆", userId, expired.size());

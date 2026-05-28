@@ -10,7 +10,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 聊天会话。 */
+/**
+ * 聊天会话实体
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

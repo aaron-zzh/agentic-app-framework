@@ -22,7 +22,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 回收站接口。 */
+/**
+ * 回收站接口
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "回收站")
 @RestController
 @RequestMapping("/api/trash")

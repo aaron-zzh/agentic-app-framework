@@ -36,7 +36,8 @@ public interface ImageGenerationService {
      * @param height 高度（像素）
      * @param responseFormat 返回格式：url / b64_json
      */
-    record ImageRequest(String prompt, String modelId, Integer width, Integer height, String responseFormat) {
+    record ImageRequest(
+            String prompt, String modelId, Integer width, Integer height, String responseFormat) {
         public ImageRequest(String prompt, String modelId) {
             this(prompt, modelId, 1024, 1024, "url");
         }

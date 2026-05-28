@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 内置技能初始化器：应用启动时将 BuiltinSkills 枚举 upsert 到数据库。 - 不存在 → INSERT - 存在且版本相同 → 跳过 - 存在但版本升级 →
  * UPDATE（仅更新内置记录，不影响用户覆盖版本）
+ *
+ * @author AaronZZH & Kiro
  */
 @Slf4j
 @Component

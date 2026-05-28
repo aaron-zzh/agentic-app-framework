@@ -3,7 +3,6 @@ package com.xuejiai.aaf.module.knowledge.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
-import com.xuejiai.aaf.enums.knowledge.DocumentStatusEnum;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,7 +10,13 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 知识库文档。 */
+/**
+ * 知识库文档实体。
+ *
+ * <p>关联 {@link KnowledgeBase}，上传后经分块、向量化入库。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity
@@ -22,7 +27,11 @@ import lombok.Setter;
                         + " id = ?")
 public class KnowledgeDocument extends BaseEntity {
 
-    /** 所属知识库 ID */
+    /**
+     * 所属知识库 ID
+     *
+     * <p>关联 {@link KnowledgeBase#getId()}
+     */
     @Column(name = "knowledge_base_id", nullable = false)
     private Long knowledgeBaseId;
 
@@ -46,9 +55,11 @@ public class KnowledgeDocument extends BaseEntity {
     @Column(name = "content_hash", length = 64)
     private String contentHash;
 
-    /** 状态 */
-    @Column(name = "status", nullable = false)
-    private Integer status = DocumentStatusEnum.PENDING.getCode();
+    /**
+     * 状态
+     *
+     * <p>枚举 {@link DocumentStatusEnum}
+     */
 
     /** 错误信息 */
     @Column(name = "error_message", length = 2000)

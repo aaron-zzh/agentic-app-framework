@@ -12,7 +12,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 通知 WebSocket 处理器，处理连接/断开/心跳。 */
+/**
+ * 通知 WebSocket 处理器，处理连接/断开/心跳。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

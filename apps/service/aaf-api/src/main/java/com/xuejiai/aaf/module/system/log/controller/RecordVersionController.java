@@ -16,7 +16,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 版本快照接口。 */
+/**
+ * 版本快照接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "版本快照")
 @RestController
 @RequestMapping("/api/{entity}/{id}/versions")

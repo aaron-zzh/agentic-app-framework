@@ -14,7 +14,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 页面定义（PageEngine 配置驱动的营销页/落地页）。 */
+/**
+ * 页面定义（PageEngine 配置驱动的营销页/落地页）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

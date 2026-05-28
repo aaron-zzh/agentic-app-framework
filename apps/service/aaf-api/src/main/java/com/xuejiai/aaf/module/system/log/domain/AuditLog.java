@@ -16,7 +16,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** 审计日志（不可变记录，不继承 BaseEntity）。 */
+/**
+ * 审计日志（不可变记录，不继承 BaseEntity）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @NoArgsConstructor

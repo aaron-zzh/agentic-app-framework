@@ -10,7 +10,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 短信模板配置，管理签名和厂商模板 ID。 */
+/**
+ * 短信模板配置，管理签名和厂商模板 ID。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

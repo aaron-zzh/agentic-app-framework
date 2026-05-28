@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.org.domain.Organization;
 
-/** 组织仓储。 */
+/**
+ * 组织仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface OrganizationRepository extends JpaRepository<Organization, Long> {
 
     Optional<Organization> findBySlugAndDeletedFalse(String slug);

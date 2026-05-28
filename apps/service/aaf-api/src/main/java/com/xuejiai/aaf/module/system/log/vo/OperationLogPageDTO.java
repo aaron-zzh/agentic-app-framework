@@ -4,7 +4,11 @@ import java.time.LocalDateTime;
 
 import com.xuejiai.aaf.common.model.PageParam;
 
-/** 操作日志分页查询参数。 */
+/**
+ * 操作日志分页查询参数。
+ *
+ * @author AaronZZH & Kiro
+ */
 public class OperationLogPageDTO extends PageParam {
 
     private String module;

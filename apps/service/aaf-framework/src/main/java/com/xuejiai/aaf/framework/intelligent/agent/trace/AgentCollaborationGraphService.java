@@ -10,9 +10,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Agent 协作拓扑写入——仅多 Agent 场景（parentExecutionId 非空时）异步写入 Neo4j。
- */
+/** Agent 协作拓扑写入——仅多 Agent 场景（parentExecutionId 非空时）异步写入 Neo4j。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -51,27 +49,33 @@ public class AgentCollaborationGraphService {
     }
 
     private AgentGraphNode getOrCreateNode(String agentId, String name) {
-        return graphRepository.findByAgentId(agentId).orElseGet(() -> {
-            var node = new AgentGraphNode();
-            node.setAgentId(agentId);
-            node.setName(name);
-            node.setCreatedAt(Instant.now());
-            return graphRepository.save(node);
-        });
+        return graphRepository
+                .findByAgentId(agentId)
+                .orElseGet(
+                        () -> {
+                            var node = new AgentGraphNode();
+                            node.setAgentId(agentId);
+                            node.setName(name);
+                            node.setCreatedAt(Instant.now());
+                            return graphRepository.save(node);
+                        });
     }
 
     private void updateInvocationRelation(
             AgentGraphNode caller, AgentGraphNode callee, ExecutionCompletedEvent event) {
-        var existing = caller.getInvocations().stream()
-                .filter(r -> r.getTarget().getAgentId().equals(callee.getAgentId()))
-                .findFirst();
+        var existing =
+                caller.getInvocations().stream()
+                        .filter(r -> r.getTarget().getAgentId().equals(callee.getAgentId()))
+                        .findFirst();
 
         if (existing.isPresent()) {
             var rel = existing.get();
             var newCount = rel.getCount() + 1;
-            var duration = event.finishedAt() != null && event.startedAt() != null
-                    ? java.time.Duration.between(event.startedAt(), event.finishedAt()).toMillis()
-                    : 0L;
+            var duration =
+                    event.finishedAt() != null && event.startedAt() != null
+                            ? java.time.Duration.between(event.startedAt(), event.finishedAt())
+                                    .toMillis()
+                            : 0L;
             rel.setAvgDurationMs((rel.getAvgDurationMs() * rel.getCount() + duration) / newCount);
             rel.setCount(newCount);
             rel.setLastAt(Instant.now());
@@ -80,9 +84,11 @@ public class AgentCollaborationGraphService {
             rel.setTarget(callee);
             rel.setCount(1);
             rel.setLastAt(Instant.now());
-            rel.setAvgDurationMs(event.finishedAt() != null && event.startedAt() != null
-                    ? java.time.Duration.between(event.startedAt(), event.finishedAt()).toMillis()
-                    : 0L);
+            rel.setAvgDurationMs(
+                    event.finishedAt() != null && event.startedAt() != null
+                            ? java.time.Duration.between(event.startedAt(), event.finishedAt())
+                                    .toMillis()
+                            : 0L);
             caller.getInvocations().add(rel);
         }
         graphRepository.save(caller);

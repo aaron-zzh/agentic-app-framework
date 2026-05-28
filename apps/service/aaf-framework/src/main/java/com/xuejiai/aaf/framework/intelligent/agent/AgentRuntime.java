@@ -7,13 +7,13 @@ import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
 /**
  * Agent 运行时接口——屏蔽底层 Agent 框架实现细节。
  *
- * <p>AgentFactory 只依赖此接口，不直接依赖 AgentScope/LangChain4j 等具体框架。
- * 切换底层框架只需替换实现类。
+ * <p>AgentFactory 只依赖此接口，不直接依赖 AgentScope/LangChain4j 等具体框架。 切换底层框架只需替换实现类。
  *
  * <p>实现：
+ *
  * <ul>
- *   <li>{@code AgentScopeRuntime} — 基于 AgentScope ReActAgent（当前默认）</li>
- *   <li>未来可扩展：LangChain4j / 自研 ReAct 引擎</li>
+ *   <li>{@code AgentScopeRuntime} — 基于 AgentScope ReActAgent（当前默认）
+ *   <li>未来可扩展：LangChain4j / 自研 ReAct 引擎
  * </ul>
  */
 public interface AgentRuntime {

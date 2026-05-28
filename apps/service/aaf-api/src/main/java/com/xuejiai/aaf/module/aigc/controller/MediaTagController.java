@@ -14,7 +14,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 素材标签管理接口。 */
+/**
+ * AIGC 素材标签管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "AIGC 素材标签")
 @RestController
 @RequestMapping("/api/aigc/tags")
@@ -37,7 +41,8 @@ public class MediaTagController {
 
     @Operation(summary = "更新标签")
     @PutMapping("/{id}")
-    public Result<MediaTagVO> update(@PathVariable Long id, @Valid @RequestBody MediaTagCreateDTO dto) {
+    public Result<MediaTagVO> update(
+            @PathVariable Long id, @Valid @RequestBody MediaTagCreateDTO dto) {
         return Result.success(tagService.update(id, dto));
     }
 

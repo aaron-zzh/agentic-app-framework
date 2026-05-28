@@ -11,7 +11,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 短信发送日志（不可变，只追加）。 */
+/**
+ * 短信发送日志（不可变，只追加）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

@@ -23,7 +23,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 任务管理接口（定时任务 + 异步任务统一管理）。 */
+/**
+ * 任务管理接口（定时任务 + 异步任务统一管理）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "任务管理")
 @RestController
 @RequestMapping("/api/tasks")

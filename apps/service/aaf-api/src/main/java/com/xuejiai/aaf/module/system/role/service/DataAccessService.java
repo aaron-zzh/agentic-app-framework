@@ -24,7 +24,11 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 行级数据权限服务。 */
+/**
+ * 行级数据权限服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

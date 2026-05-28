@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.intelligent.agent.AgentCheckpointService;
 
 import lombok.RequiredArgsConstructor;
@@ -47,11 +48,12 @@ public class ExecutionRecoveryService {
         var checkpoint = checkpointService.restoreCheckpoint(executionId);
         if (checkpoint != null) {
             log.debug("从 Redis 恢复执行状态 [{}] step={}", executionId, checkpoint.getCurrentStep());
-            return Optional.of(new RecoverableState(
-                    executionId,
-                    checkpoint.getCurrentStep(),
-                    checkpoint.getCompletedSteps(),
-                    checkpoint.getIntermediateResults()));
+            return Optional.of(
+                    new RecoverableState(
+                            executionId,
+                            checkpoint.getCurrentStep(),
+                            checkpoint.getCompletedSteps(),
+                            checkpoint.getIntermediateResults()));
         }
 
         // 2. PG 冷恢复
@@ -62,18 +64,18 @@ public class ExecutionRecoveryService {
 
         var run = runOpt.get();
         var steps = stepRepository.findByRunIdOrderByStepIndex(run.getId());
-        var completedStepNames = steps.stream()
-                .filter(s -> s.getStatus() == ExecutionStatus.SUCCESS)
-                .map(s -> s.getStepType().name())
-                .toList();
+        var completedStepNames =
+                steps.stream()
+                        .filter(s -> s.getStatus() == ExecutionStatus.SUCCESS)
+                        .map(s -> s.getStepType().name())
+                        .toList();
 
         // 从最后一个成功步骤之后继续
-        int resumeFrom = (int) steps.stream()
-                .filter(s -> s.getStatus() == ExecutionStatus.SUCCESS)
-                .count();
+        int resumeFrom =
+                (int) steps.stream().filter(s -> s.getStatus() == ExecutionStatus.SUCCESS).count();
 
         log.debug("从 PG 冷恢复执行状态 [{}] resumeFrom={}", executionId, resumeFrom);
-        return Optional.of(new RecoverableState(
-                executionId, resumeFrom, completedStepNames, Map.of()));
+        return Optional.of(
+                new RecoverableState(executionId, resumeFrom, completedStepNames, Map.of()));
     }
 }

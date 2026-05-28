@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.log.domain.RecordVersion;
 
-/** 版本快照数据访问层。 */
+/**
+ * 版本快照数据访问层。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface RecordVersionRepository extends JpaRepository<RecordVersion, Long> {
 
     /** 按实体查询版本列表（版本号降序） */

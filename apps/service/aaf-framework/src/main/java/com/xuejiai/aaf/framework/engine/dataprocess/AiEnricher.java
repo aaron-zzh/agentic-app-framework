@@ -16,11 +16,12 @@ import lombok.extern.slf4j.Slf4j;
  * AI 增强步骤——调用 LLM 对数据进行摘要/分类/情感分析/标签提取。
  *
  * <p>支持的增强类型：
+ *
  * <ul>
- *   <li>summary — 生成摘要</li>
- *   <li>classification — 分类（需在 params 中指定 categories）</li>
- *   <li>sentiment — 情感分析（正面/中性/负面）</li>
- *   <li>tags — 标签提取</li>
+ *   <li>summary — 生成摘要
+ *   <li>classification — 分类（需在 params 中指定 categories）
+ *   <li>sentiment — 情感分析（正面/中性/负面）
+ *   <li>tags — 标签提取
  * </ul>
  */
 @Slf4j
@@ -62,7 +63,8 @@ public class AiEnricher implements ProcessingStep {
         }
         var text = inputValue.toString();
         var prompt = buildPrompt(config.getType(), text, config.getParams());
-        var messages = List.of((org.springframework.ai.chat.messages.Message) new UserMessage(prompt));
+        var messages =
+                List.of((org.springframework.ai.chat.messages.Message) new UserMessage(prompt));
         var response = chatService.call(messages, null, null);
         var result = response.getResult().getOutput().getText();
         item.put(config.getOutputField(), result != null ? result.trim() : "");

@@ -1,5 +1,13 @@
 package com.xuejiai.aaf.module.system.dict.service;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.dict.domain.DictData;
@@ -8,15 +16,14 @@ import com.xuejiai.aaf.module.system.dict.repository.DictTypeRepository;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataCreateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataUpdateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataVO;
-import java.util.List;
-import java.util.Optional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-/** 字典数据服务。 */
+import lombok.RequiredArgsConstructor;
+
+/**
+ * 字典数据服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

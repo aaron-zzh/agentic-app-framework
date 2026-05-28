@@ -1,10 +1,12 @@
 package com.xuejiai.aaf.common.util;
 
+import org.lionsoul.ip2region.xdb.Searcher;
+
 import com.xuejiai.aaf.common.util.area.Area;
 import com.xuejiai.aaf.common.util.area.AreaUtils;
+
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-import org.lionsoul.ip2region.xdb.Searcher;
 
 /**
  * IP 归属地工具类。

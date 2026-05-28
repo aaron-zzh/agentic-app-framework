@@ -24,14 +24,15 @@ public class DataCollectorToolConfiguration {
 
     @PostConstruct
     void registerMeta() {
-        var collectMeta = new ToolRegistry.ToolMeta(
-                "collect",
-                "从外部数据源采集社交媒体数据",
-                ToolRegistry.SOURCE_LOCAL,
-                ToolType.HTTP,
-                ToolRiskLevel.HIGH,
-                false,
-                """
+        var collectMeta =
+                new ToolRegistry.ToolMeta(
+                        "collect",
+                        "从外部数据源采集社交媒体数据",
+                        ToolRegistry.SOURCE_LOCAL,
+                        ToolType.HTTP,
+                        ToolRiskLevel.HIGH,
+                        false,
+                        """
                 {"type":"object","properties":{
                   "platform":{"type":"string","enum":["douyin","xiaohongshu","bilibili","weibo"]},
                   "taskType":{"type":"string","enum":["search","user_posts","comments","video_detail"]},
@@ -39,14 +40,15 @@ public class DataCollectorToolConfiguration {
                   "limit":{"type":"integer","default":20}
                 },"required":["platform","taskType","query"]}""");
 
-        var statusMeta = new ToolRegistry.ToolMeta(
-                "collectStatus",
-                "查询数据采集任务状态",
-                ToolRegistry.SOURCE_LOCAL,
-                ToolType.HTTP,
-                ToolRiskLevel.LOW,
-                true,
-                """
+        var statusMeta =
+                new ToolRegistry.ToolMeta(
+                        "collectStatus",
+                        "查询数据采集任务状态",
+                        ToolRegistry.SOURCE_LOCAL,
+                        ToolType.HTTP,
+                        ToolRiskLevel.LOW,
+                        true,
+                        """
                 {"type":"object","properties":{
                   "taskId":{"type":"string"}
                 },"required":["taskId"]}""");

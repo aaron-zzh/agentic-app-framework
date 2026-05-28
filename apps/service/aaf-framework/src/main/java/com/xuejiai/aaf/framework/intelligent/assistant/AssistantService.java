@@ -11,6 +11,8 @@ import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.CognitiveCycleExecutor;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryMessage;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.ShortTermMemoryService;
+import com.xuejiai.aaf.framework.intelligent.cognition.personalization.EmotionPerceptionService;
+import com.xuejiai.aaf.framework.intelligent.cognition.personalization.IntentUnderstandingService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,16 +83,24 @@ public class AssistantService {
                                 definition.setSystemPrompt(s.getSystemPrompt());
                         });
                 // 注入情感感知的回复风格到 system prompt
-                var styleHint = "[回复风格: tone=%s, density=%s, approach=%s]"
-                        .formatted(responseStyle.tone(), responseStyle.density(), responseStyle.approach());
+                var styleHint =
+                        "[回复风格: tone=%s, density=%s, approach=%s]"
+                                .formatted(
+                                        responseStyle.tone(),
+                                        responseStyle.density(),
+                                        responseStyle.approach());
                 definition.setSystemPrompt(
                         definition.getSystemPrompt() != null
                                 ? definition.getSystemPrompt() + "\n" + styleHint
                                 : styleHint);
-                var result = cycleExecutor.execute(
-                        definition, userInput, userId, sessionId,
-                        assistantDef != null ? assistantDef.getMemoryStrategy() : null,
-                        assistantDef != null ? assistantDef.getKnowledgeBaseId() : null);
+                var result =
+                        cycleExecutor.execute(
+                                definition,
+                                userInput,
+                                userId,
+                                sessionId,
+                                assistantDef != null ? assistantDef.getMemoryStrategy() : null,
+                                assistantDef != null ? assistantDef.getKnowledgeBaseId() : null);
                 response = result.response();
                 success = result.success();
             } else {

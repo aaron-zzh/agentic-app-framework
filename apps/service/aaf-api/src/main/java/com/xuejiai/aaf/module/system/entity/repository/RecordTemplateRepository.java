@@ -8,7 +8,11 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.system.entity.domain.RecordTemplate;
 
-/** 记录模板仓储。 */
+/**
+ * 记录模板仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface RecordTemplateRepository extends JpaRepository<RecordTemplate, Long> {
 
     /** 查询某实体下当前用户或共享的模板 */

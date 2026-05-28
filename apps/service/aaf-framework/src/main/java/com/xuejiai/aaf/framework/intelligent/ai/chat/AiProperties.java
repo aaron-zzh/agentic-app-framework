@@ -26,10 +26,12 @@ public class AiProperties {
     private String fallbackModel;
 
     /**
-     * 各能力兜底 modelId，key=capability（CHAT/IMAGE_GEN/VIDEO_GEN/SPEECH_ASR/SPEECH_TTS/RERANK/EMBEDDING）。
+     * 各能力兜底
+     * modelId，key=capability（CHAT/IMAGE_GEN/VIDEO_GEN/SPEECH_ASR/SPEECH_TTS/RERANK/EMBEDDING）。
      * 优先级低于 DB（ai_model_preference），高于代码内置默认值。
      *
      * <p>yaml 示例：
+     *
      * <pre>
      * aaf:
      *   ai:

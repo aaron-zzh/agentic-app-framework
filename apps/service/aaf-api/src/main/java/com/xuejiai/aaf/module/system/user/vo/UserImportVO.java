@@ -6,7 +6,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** 用户导入 VO。 */
+/**
+ * 用户导入 VO。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Data
 public class UserImportVO {
 

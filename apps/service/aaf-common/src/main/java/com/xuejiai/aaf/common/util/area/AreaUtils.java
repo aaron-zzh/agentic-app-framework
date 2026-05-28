@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -37,23 +38,28 @@ public class AreaUtils {
             if (is == null) throw new IllegalStateException("area.csv 未找到");
 
             List<String[]> rows = new ArrayList<>();
-            try (var reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            try (var reader =
+                    new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 String line;
                 boolean header = true;
                 while ((line = reader.readLine()) != null) {
-                    if (header) { header = false; continue; } // 跳过 header
+                    if (header) {
+                        header = false;
+                        continue;
+                    } // 跳过 header
                     rows.add(line.split(",", -1));
                 }
             }
 
             // 第一遍：建节点
             for (var row : rows) {
-                var area = new Area(
-                        Integer.parseInt(row[0].trim()),
-                        row[1].trim(),
-                        Integer.parseInt(row[2].trim()),
-                        null,
-                        new ArrayList<>());
+                var area =
+                        new Area(
+                                Integer.parseInt(row[0].trim()),
+                                row[1].trim(),
+                                Integer.parseInt(row[2].trim()),
+                                null,
+                                new ArrayList<>());
                 AREAS.put(area.getId(), area);
             }
             // 第二遍：建父子关系
@@ -65,7 +71,10 @@ public class AreaUtils {
                     parent.getChildren().add(area);
                 }
             }
-            log.info("AreaUtils 初始化完成，共 {} 条，耗时 {} ms", AREAS.size(), System.currentTimeMillis() - start);
+            log.info(
+                    "AreaUtils 初始化完成，共 {} 条，耗时 {} ms",
+                    AREAS.size(),
+                    System.currentTimeMillis() - start);
         } catch (Exception e) {
             throw new RuntimeException("AreaUtils 初始化失败", e);
         }

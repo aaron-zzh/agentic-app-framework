@@ -19,7 +19,11 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 数据归档服务：手动归档/恢复 + 定时自动归档。 */
+/**
+ * 数据归档服务：手动归档/恢复 + 定时自动归档。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

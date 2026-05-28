@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.org.domain.OrgMember;
 
-/** 组织成员仓储。 */
+/**
+ * 组织成员仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface OrgMemberRepository extends JpaRepository<OrgMember, Long> {
 
     List<OrgMember> findByUserIdAndDeletedFalse(Long userId);

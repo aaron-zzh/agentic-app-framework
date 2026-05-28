@@ -16,17 +16,20 @@ import lombok.extern.slf4j.Slf4j;
  * 工具权限检查器——参考 Kiro CLI 权限模型。
  *
  * <p>决策优先级：
+ *
  * <ol>
- *   <li>deny 黑名单 → DENIED</li>
- *   <li>grantAll → GRANTED</li>
- *   <li>trust 白名单（会话级，含 pattern 匹配） → GRANTED</li>
- *   <li>allowedTools（Agent 级） → GRANTED</li>
- *   <li>readOnly 工具 → AUTO_GRANTED</li>
- *   <li>风险等级评估 → 按等级决策</li>
+ *   <li>deny 黑名单 → DENIED
+ *   <li>grantAll → GRANTED
+ *   <li>trust 白名单（会话级，含 pattern 匹配） → GRANTED
+ *   <li>allowedTools（Agent 级） → GRANTED
+ *   <li>readOnly 工具 → AUTO_GRANTED
+ *   <li>风险等级评估 → 按等级决策
  * </ol>
  *
  * <p>防重复：用户确认后按 GrantScope 记忆，后续调用（含失败重试）自动通过。
+ *
  * <p>持久化：授权状态通过 {@link ToolPermissionStateChanged} 事件通知 SessionManager 持久化到 Redis。
+ *
  * <p>审计：每次权限决策发布 {@link ToolPermissionDecisionEvent} 记录到执行追踪。
  */
 @Slf4j
@@ -39,8 +42,10 @@ public class ToolPermissionChecker {
 
     /** 会话级授权记录：sessionId → 授权列表 */
     private final Map<String, List<TrustGrant>> grants = new ConcurrentHashMap<>();
+
     /** 会话级黑名单：sessionId → 被禁工具名 */
     private final Map<String, Set<String>> denied = new ConcurrentHashMap<>();
+
     /** 会话级全部信任标记 */
     private final Set<String> trustAllSessions = ConcurrentHashMap.newKeySet();
 
@@ -68,8 +73,7 @@ public class ToolPermissionChecker {
             GrantScope scope,
             String pattern,
             Instant grantedAt,
-            boolean consumed
-    ) {
+            boolean consumed) {
         public static TrustGrant session(String toolName) {
             return new TrustGrant(toolName, GrantScope.SESSION, null, Instant.now(), false);
         }
@@ -89,10 +93,7 @@ public class ToolPermissionChecker {
 
     /** 权限状态变更事件——通知 SessionManager 持久化。 */
     public record ToolPermissionStateChanged(
-            String sessionId,
-            List<TrustGrant> grants,
-            Set<String> denied,
-            boolean trustAll) {}
+            String sessionId, List<TrustGrant> grants, Set<String> denied, boolean trustAll) {}
 
     /** 权限决策日志事件——记录到执行追踪。 */
     public record ToolPermissionDecisionEvent(
@@ -102,13 +103,15 @@ public class ToolPermissionChecker {
             String reason,
             Instant decidedAt) {}
 
-    /**
-     * 检查工具调用权限（含参数，用于 pattern 匹配）。
-     */
+    /** 检查工具调用权限（含参数，用于 pattern 匹配）。 */
     public PermissionResult check(
-            String sessionId, Long userId, String toolName,
-            ToolRiskLevel riskLevel, boolean readOnly,
-            List<String> agentAllowedTools, String arguments) {
+            String sessionId,
+            Long userId,
+            String toolName,
+            ToolRiskLevel riskLevel,
+            boolean readOnly,
+            List<String> agentAllowedTools,
+            String arguments) {
 
         PermissionResult result;
         String reason;
@@ -151,15 +154,22 @@ public class ToolPermissionChecker {
 
     /** 无参数版本。 */
     public PermissionResult check(
-            String sessionId, Long userId, String toolName,
-            ToolRiskLevel riskLevel, boolean readOnly, List<String> agentAllowedTools) {
+            String sessionId,
+            Long userId,
+            String toolName,
+            ToolRiskLevel riskLevel,
+            boolean readOnly,
+            List<String> agentAllowedTools) {
         return check(sessionId, userId, toolName, riskLevel, readOnly, agentAllowedTools, null);
     }
 
     /** 兼容旧接口。 */
     public PermissionResult check(
-            String sessionId, Long userId, String toolName,
-            ToolRiskLevel riskLevel, boolean hasRolePermission) {
+            String sessionId,
+            Long userId,
+            String toolName,
+            ToolRiskLevel riskLevel,
+            boolean hasRolePermission) {
         if (hasRolePermission) return PermissionResult.GRANTED;
         return check(sessionId, userId, toolName, riskLevel, false, null, null);
     }
@@ -172,7 +182,9 @@ public class ToolPermissionChecker {
                 yield PermissionResult.AUTO_GRANTED;
             }
             case MEDIUM -> {
-                approvalService.request(sessionId, userId,
+                approvalService.request(
+                        sessionId,
+                        userId,
                         HumanApprovalService.ApprovalType.TOOL_PERMISSION,
                         "工具调用确认",
                         "Agent 请求调用工具 [%s]（风险等级: %s）".formatted(toolName, riskLevel),
@@ -180,7 +192,9 @@ public class ToolPermissionChecker {
                 yield PermissionResult.PENDING_APPROVAL;
             }
             case HIGH -> {
-                approvalService.request(sessionId, userId,
+                approvalService.request(
+                        sessionId,
+                        userId,
                         HumanApprovalService.ApprovalType.TOOL_PERMISSION,
                         "高风险工具确认",
                         "Agent 请求调用高风险工具 [%s]，每次调用需确认".formatted(toolName),
@@ -202,7 +216,9 @@ public class ToolPermissionChecker {
 
     /** 批量信任指定工具（会话级）。 */
     public void grantBatch(String sessionId, List<String> toolNames) {
-        var list = grants.computeIfAbsent(sessionId, k -> Collections.synchronizedList(new ArrayList<>()));
+        var list =
+                grants.computeIfAbsent(
+                        sessionId, k -> Collections.synchronizedList(new ArrayList<>()));
         toolNames.forEach(name -> list.add(TrustGrant.session(name)));
         publishStateChanged(sessionId);
         log.info("批量信任: session={}, tools={}", sessionId, toolNames);
@@ -214,16 +230,25 @@ public class ToolPermissionChecker {
     }
 
     /** 带范围的授权。 */
-    public void grantWithScope(String sessionId, String toolName, GrantScope scope, String pattern) {
-        var list = grants.computeIfAbsent(sessionId, k -> Collections.synchronizedList(new ArrayList<>()));
-        var grant = switch (scope) {
-            case ONCE -> TrustGrant.once(toolName);
-            case SESSION -> TrustGrant.session(toolName);
-            case PATTERN -> TrustGrant.pattern(toolName, pattern);
-        };
+    public void grantWithScope(
+            String sessionId, String toolName, GrantScope scope, String pattern) {
+        var list =
+                grants.computeIfAbsent(
+                        sessionId, k -> Collections.synchronizedList(new ArrayList<>()));
+        var grant =
+                switch (scope) {
+                    case ONCE -> TrustGrant.once(toolName);
+                    case SESSION -> TrustGrant.session(toolName);
+                    case PATTERN -> TrustGrant.pattern(toolName, pattern);
+                };
         list.add(grant);
         publishStateChanged(sessionId);
-        log.info("授权工具: session={}, tool={}, scope={}, pattern={}", sessionId, toolName, scope, pattern);
+        log.info(
+                "授权工具: session={}, tool={}, scope={}, pattern={}",
+                sessionId,
+                toolName,
+                scope,
+                pattern);
     }
 
     /** 撤回信任。 */
@@ -261,8 +286,11 @@ public class ToolPermissionChecker {
     // ========== 状态恢复（从 SessionManager 加载） ==========
 
     /** 从持久化状态恢复授权记录（会话恢复时调用）。 */
-    public void restoreState(String sessionId, List<TrustGrant> restoredGrants,
-                             Set<String> restoredDenied, boolean restoredTrustAll) {
+    public void restoreState(
+            String sessionId,
+            List<TrustGrant> restoredGrants,
+            Set<String> restoredDenied,
+            boolean restoredTrustAll) {
         if (restoredGrants != null && !restoredGrants.isEmpty()) {
             grants.put(sessionId, Collections.synchronizedList(new ArrayList<>(restoredGrants)));
         }
@@ -273,7 +301,8 @@ public class ToolPermissionChecker {
         if (restoredTrustAll) {
             trustAllSessions.add(sessionId);
         }
-        log.info("权限状态已恢复: session={}, grants={}, denied={}, trustAll={}",
+        log.info(
+                "权限状态已恢复: session={}, grants={}, denied={}, trustAll={}",
                 sessionId,
                 restoredGrants != null ? restoredGrants.size() : 0,
                 restoredDenied != null ? restoredDenied.size() : 0,
@@ -291,7 +320,9 @@ public class ToolPermissionChecker {
             if (!g.toolName().equals(toolName)) continue;
 
             switch (g.scope()) {
-                case SESSION -> { return true; }
+                case SESSION -> {
+                    return true;
+                }
                 case ONCE -> {
                     if (!g.consumed()) {
                         list.set(i, g.markConsumed());
@@ -321,12 +352,12 @@ public class ToolPermissionChecker {
 
         if (!arguments.contains(key)) return false;
 
-        var regex = glob
-                .replace(".", "\\.")
-                .replace("**", "§§")
-                .replace("*", "[^/]*")
-                .replace("§§", ".*")
-                .replace("?", ".");
+        var regex =
+                glob.replace(".", "\\.")
+                        .replace("**", "§§")
+                        .replace("*", "[^/]*")
+                        .replace("§§", ".*")
+                        .replace("?", ".");
 
         return arguments.matches(".*" + regex + ".*");
     }
@@ -341,15 +372,23 @@ public class ToolPermissionChecker {
         var sessionDenied = denied.getOrDefault(sessionId, Set.of());
         var trustAll = trustAllSessions.contains(sessionId);
         eventPublisher.publishEvent(
-                new ToolPermissionStateChanged(sessionId, List.copyOf(sessionGrants), Set.copyOf(sessionDenied), trustAll));
+                new ToolPermissionStateChanged(
+                        sessionId,
+                        List.copyOf(sessionGrants),
+                        Set.copyOf(sessionDenied),
+                        trustAll));
     }
 
-    private void publishDecision(String sessionId, String toolName, PermissionResult result, String reason) {
+    private void publishDecision(
+            String sessionId, String toolName, PermissionResult result, String reason) {
         eventPublisher.publishEvent(
-                new ToolPermissionDecisionEvent(sessionId, toolName, result, reason, Instant.now()));
+                new ToolPermissionDecisionEvent(
+                        sessionId, toolName, result, reason, Instant.now()));
     }
 
-    /** @deprecated 使用 grant 替代 */
+    /**
+     * @deprecated 使用 grant 替代
+     */
     @Deprecated
     public void grantTemporary(String sessionId, String toolName) {
         grant(sessionId, toolName);

@@ -135,6 +135,16 @@
 				<version>${agentscope.version}</version>
 			</dependency>
 			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-autocontext-memory</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-session-redis</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
 				<groupId>org.springaicommunity</groupId>
 				<artifactId>spring-ai-a2a-server-autoconfigure</artifactId>
 				<version>${spring-ai-a2a.version}</version>

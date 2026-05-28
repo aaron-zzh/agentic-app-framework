@@ -19,10 +19,14 @@ public class ToolBlueprint {
     private Map<String, String> parameters;
     private String code;
     private Long creatorUserId;
+
     /** 可见性：PRIVATE（仅创建者）/ SHARED（所有人可用） */
     private Visibility visibility = Visibility.PRIVATE;
 
-    public enum Visibility { PRIVATE, SHARED }
+    public enum Visibility {
+        PRIVATE,
+        SHARED
+    }
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

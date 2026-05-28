@@ -8,7 +8,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.chat.domain.ChatMessage;
 
-/** 聊天消息仓储。 */
+/**
+ * 聊天消息仓储
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
     List<ChatMessage> findBySessionIdOrderByCreateTimeAsc(Long sessionId);

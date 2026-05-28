@@ -26,7 +26,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 自动化规则接口。 */
+/**
+ * 自动化规则接口
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "自动化规则")
 @RestController
 @RequestMapping("/api/automation")

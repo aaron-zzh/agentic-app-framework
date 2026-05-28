@@ -14,7 +14,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-/** 认证接口。 */
+/**
+ * 认证接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "认证")
 @RestController
 @RequestMapping("/api/auth")

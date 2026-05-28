@@ -7,6 +7,7 @@ import java.util.Optional;
  * 技能数据存储契约——引擎层通过此接口获取技能数据，不直接依赖 Repository。
  *
  * <p>标准分层模式：
+ *
  * <pre>
  * engine/skill/
  *   ├── SkillMatchEngine.java   ← 领域逻辑（匹配算法）

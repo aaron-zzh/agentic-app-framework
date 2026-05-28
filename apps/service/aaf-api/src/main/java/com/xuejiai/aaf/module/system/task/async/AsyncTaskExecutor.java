@@ -5,7 +5,11 @@ import java.util.function.Consumer;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-/** 异步任务执行器。独立 Bean 确保 @Async 代理生效。 */
+/**
+ * 异步任务执行器。独立 Bean 确保 @Async 代理生效。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Component
 public class AsyncTaskExecutor {
 

@@ -6,7 +6,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-/** 添加自定义字段请求。 */
+/**
+ * 添加自定义字段请求。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "添加自定义字段")
 public record CustomFieldAddDTO(
         @NotBlank

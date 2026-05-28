@@ -14,7 +14,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** 操作日志实体（不可变记录）。 */
+/**
+ * 操作日志实体（不可变记录）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @NoArgsConstructor

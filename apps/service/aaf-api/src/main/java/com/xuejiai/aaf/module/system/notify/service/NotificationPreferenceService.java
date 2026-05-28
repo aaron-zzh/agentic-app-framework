@@ -10,7 +10,11 @@ import com.xuejiai.aaf.module.system.notify.repository.NotificationPreferenceRep
 
 import lombok.RequiredArgsConstructor;
 
-/** 通知偏好业务逻辑。 */
+/**
+ * 通知偏好业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class NotificationPreferenceService {

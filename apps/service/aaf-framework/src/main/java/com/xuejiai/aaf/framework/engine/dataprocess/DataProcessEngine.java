@@ -5,8 +5,7 @@ import java.util.Map;
 /**
  * 数据处理引擎——ETL、数据清洗、格式转换。
  *
- * <p>职责：结构化/非结构化数据的抽取、转换、加载。
- * v0.2+ 实现。
+ * <p>职责：结构化/非结构化数据的抽取、转换、加载。 v0.2+ 实现。
  */
 public interface DataProcessEngine {
 

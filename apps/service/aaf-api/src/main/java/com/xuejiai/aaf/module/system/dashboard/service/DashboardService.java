@@ -25,7 +25,11 @@ import com.xuejiai.aaf.module.system.dashboard.vo.WidgetDataVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 仪表盘业务逻辑。 */
+/**
+ * 仪表盘业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

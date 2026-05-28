@@ -8,9 +8,7 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 数据处理上下文——在 Pipeline 各步骤间传递数据和状态。
- */
+/** 数据处理上下文——在 Pipeline 各步骤间传递数据和状态。 */
 @Getter
 @Setter
 public class ProcessingContext {

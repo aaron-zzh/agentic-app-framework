@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 /**
- * 将 Spring AI 的 Flux&lt;ChatResponse&gt; 转换为 AG-UI 协议事件流。
+ * 将 Spring AI 的 Flux&lt;ChatResponse&gt; 转换为 AG-UI 协议事件流
  *
  * @author AaronZZH & Kiro
  */
@@ -26,7 +26,7 @@ public class AgUiStreamHandler {
     private final ObjectMapper objectMapper;
 
     /**
-     * 订阅 LLM 流式响应，按 AG-UI 协议向 SseEmitter 发送事件。
+     * 订阅 LLM 流式响应，按 AG-UI 协议向 SseEmitter 发送事件
      *
      * @param flux LLM 流式响应
      * @param emitter SSE 发射器
@@ -37,7 +37,7 @@ public class AgUiStreamHandler {
     }
 
     /**
-     * 订阅 LLM 流式响应，流结束后回调完整内容（用于持久化）。
+     * 订阅 LLM 流式响应，流结束后回调完整内容（用于持久化）
      *
      * @param flux LLM 流式响应
      * @param emitter SSE 发射器

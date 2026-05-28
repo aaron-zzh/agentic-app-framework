@@ -5,8 +5,7 @@ import java.util.Map;
 /**
  * 图像处理服务接口，支持多厂商策略（阿里云百炼 imageenhan 等）。
  *
- * <p>与文生图（{@link ImageGenerationService}）的区别：
- * 文生图是 AI 生成能力（LLM ImageModel），图像处理是云服务工具能力（SDK 调用）。
+ * <p>与文生图（{@link ImageGenerationService}）的区别： 文生图是 AI 生成能力（LLM ImageModel），图像处理是云服务工具能力（SDK 调用）。
  * 两者都归入 {@code ai/image/} 包，但接口分离。
  */
 public interface ImageProcessService {
@@ -52,9 +51,11 @@ public interface ImageProcessService {
         public static ProcessResult success(String url) {
             return new ProcessResult(url, null, "SUCCESS", null);
         }
+
         public static ProcessResult pending(String taskId) {
             return new ProcessResult(null, taskId, "PENDING", null);
         }
+
         public static ProcessResult failed(String error) {
             return new ProcessResult(null, null, "FAILED", error);
         }

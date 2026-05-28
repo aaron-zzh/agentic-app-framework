@@ -13,14 +13,11 @@ import lombok.Setter;
 @Node("AutodevDoc")
 public class AutodevDocNode {
 
-    @Id
-    private Long docId;
+    @Id private Long docId;
 
-    @Property
-    private String title;
+    @Property private String title;
 
-    @Property
-    private String filePath;
+    @Property private String filePath;
 
     public AutodevDocNode(Long docId, String title, String filePath) {
         this.docId = docId;

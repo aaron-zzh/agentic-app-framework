@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.xuejiai.aaf.module.system.log.domain.AuditLog;
 
-/** 审计日志仓储。 */
+/**
+ * 审计日志仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface AuditLogRepository
         extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {
 

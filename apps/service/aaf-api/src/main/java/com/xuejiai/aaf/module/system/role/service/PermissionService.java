@@ -17,7 +17,11 @@ import com.xuejiai.aaf.module.system.role.repository.PermissionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 权限计算服务。 */
+/**
+ * 权限计算服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

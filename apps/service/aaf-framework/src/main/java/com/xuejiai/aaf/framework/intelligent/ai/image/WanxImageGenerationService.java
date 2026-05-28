@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
  * 基于 DashScope SDK 的通义万象文生图实现（异步任务模式）。
  *
  * <p>支持模型：qwen-image-plus、qwen-image、wanx-v1 等。
+ *
  * <p>启用条件：配置 {@code spring.ai.dashscope.api-key}
  */
 @Slf4j
@@ -27,25 +28,27 @@ public class WanxImageGenerationService implements AsyncImageGenerationService {
     private final String apiKey;
     private final ImageSynthesis imageSynthesis = new ImageSynthesis();
 
-    public WanxImageGenerationService(
-            @Value("${spring.ai.dashscope.api-key:}") String apiKey) {
+    public WanxImageGenerationService(@Value("${spring.ai.dashscope.api-key:}") String apiKey) {
         this.apiKey = apiKey;
     }
 
     @Override
     public String submitTask(AsyncImageRequest request) {
         try {
-            String model = (request.modelId() != null && !request.modelId().isBlank())
-                    ? request.modelId() : DEFAULT_MODEL;
+            String model =
+                    (request.modelId() != null && !request.modelId().isBlank())
+                            ? request.modelId()
+                            : DEFAULT_MODEL;
             String size = request.width() + "*" + request.height();
 
-            var param = ImageSynthesisParam.builder()
-                    .apiKey(apiKey)
-                    .model(model)
-                    .prompt(request.prompt())
-                    .n(1)
-                    .size(size)
-                    .build();
+            var param =
+                    ImageSynthesisParam.builder()
+                            .apiKey(apiKey)
+                            .model(model)
+                            .prompt(request.prompt())
+                            .n(1)
+                            .size(size)
+                            .build();
 
             var result = imageSynthesis.asyncCall(param);
             String taskId = result.getOutput().getTaskId();
@@ -65,8 +68,10 @@ public class WanxImageGenerationService implements AsyncImageGenerationService {
             return switch (status) {
                 case "SUCCEEDED" -> {
                     var results = result.getOutput().getResults();
-                    String url = (results != null && !results.isEmpty())
-                            ? results.get(0).get("url") : null;
+                    String url =
+                            (results != null && !results.isEmpty())
+                                    ? results.get(0).get("url")
+                                    : null;
                     log.info("[WanxImage] 任务完成: taskId={}, url={}", taskId, url);
                     yield AsyncImageResult.succeeded(taskId, url);
                 }

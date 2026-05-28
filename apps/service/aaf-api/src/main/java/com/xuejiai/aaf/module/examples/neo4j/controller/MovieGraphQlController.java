@@ -1,13 +1,16 @@
 package com.xuejiai.aaf.module.examples.neo4j.controller;
 
-import com.xuejiai.aaf.module.examples.neo4j.domain.Movie;
-import com.xuejiai.aaf.module.examples.neo4j.service.MovieService;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
+
+import com.xuejiai.aaf.module.examples.neo4j.domain.Movie;
+import com.xuejiai.aaf.module.examples.neo4j.service.MovieService;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 电影 GraphQL API 示例。
@@ -16,7 +19,8 @@ import org.springframework.stereotype.Controller;
  *
  * <p>GraphQL Schema 定义见 {@code resources/graphql/movie.graphqls}。
  *
- * <p>GraphiQL 调试界面（dev 环境）：<a href="http://localhost:8080/graphiql">http://localhost:8080/graphiql</a>
+ * <p>GraphiQL 调试界面（dev 环境）：<a
+ * href="http://localhost:8080/graphiql">http://localhost:8080/graphiql</a>
  *
  * <h3>示例查询</h3>
  *

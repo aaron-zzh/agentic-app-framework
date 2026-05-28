@@ -22,7 +22,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 记录模板接口。 */
+/**
+ * 记录模板接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "记录模板")
 @RestController
 @RequestMapping("/api/system/record-templates")

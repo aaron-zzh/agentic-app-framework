@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.xuejiai.aaf.module.system.workflow.domain.AutomationRule;
 
-/** 自动化规则仓储。 */
+/**
+ * 自动化规则仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface AutomationRuleRepository
         extends JpaRepository<AutomationRule, Long>, JpaSpecificationExecutor<AutomationRule> {
 

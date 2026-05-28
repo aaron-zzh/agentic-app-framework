@@ -12,7 +12,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** 用户导出 VO。Fesod 需要 JavaBean 风格（getter/setter），record 不兼容。 */
+/**
+ * 用户导出 VO。Fesod 需要 JavaBean 风格（getter/setter），record 不兼容。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -15,7 +15,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 全局搜索接口。 */
+/**
+ * 全局搜索接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "全局搜索")
 @RestController
 @RequestMapping("/api/search")

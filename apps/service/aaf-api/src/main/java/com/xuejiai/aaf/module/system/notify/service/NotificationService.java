@@ -16,7 +16,11 @@ import com.xuejiai.aaf.module.system.notify.vo.NotificationVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 通知业务逻辑。 */
+/**
+ * 通知业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class NotificationService {

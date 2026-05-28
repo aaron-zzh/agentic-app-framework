@@ -4,9 +4,15 @@ import java.util.Map;
 
 import com.xuejiai.aaf.module.system.auth.vo.FieldAccessVO;
 
-/** 实体级权限访问结果。 */
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * 实体级权限访问结果。
+ *
+ * @author AaronZZH & Kiro
+ */
 public record EntityAccessVO(
-        boolean read,
+        @Schema(description = "是否已读") boolean read,
         boolean create,
         boolean update,
         boolean delete,

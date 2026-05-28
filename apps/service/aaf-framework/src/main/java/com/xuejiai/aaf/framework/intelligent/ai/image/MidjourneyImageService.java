@@ -45,7 +45,7 @@ public class MidjourneyImageService {
 
     public record TaskStatus(
             String id,
-            String status,   // NOT_START / SUBMITTED / IN_PROGRESS / FAILURE / SUCCESS
+            String status, // NOT_START / SUBMITTED / IN_PROGRESS / FAILURE / SUCCESS
             String imageUrl,
             String progress,
             String failReason,
@@ -71,15 +71,21 @@ public class MidjourneyImageService {
         if (props.getNotifyUrl() != null) body.put("notifyHook", props.getNotifyUrl());
 
         var result = post("/submit/imagine", body, SubmitResult.class);
-        if (!result.isSuccess()) throw new RuntimeException("Midjourney 任务提交失败: " + result.description());
+        if (!result.isSuccess())
+            throw new RuntimeException("Midjourney 任务提交失败: " + result.description());
         log.info("Midjourney imagine 提交成功: taskId={}", result.result());
         return result.result();
     }
 
     /** 执行后续操作（放大/变体/重绘），返回新 taskId */
     public String action(String taskId, String customId) {
-        var result = post("/submit/action", Map.of("taskId", taskId, "customId", customId), SubmitResult.class);
-        if (!result.isSuccess()) throw new RuntimeException("Midjourney action 失败: " + result.description());
+        var result =
+                post(
+                        "/submit/action",
+                        Map.of("taskId", taskId, "customId", customId),
+                        SubmitResult.class);
+        if (!result.isSuccess())
+            throw new RuntimeException("Midjourney action 失败: " + result.description());
         return result.result();
     }
 
@@ -90,7 +96,9 @@ public class MidjourneyImageService {
 
     /** 批量查询任务状态 */
     public List<TaskStatus> queryTasks(List<String> taskIds) {
-        return post("/task/list-by-condition", Map.of("ids", taskIds),
+        return post(
+                "/task/list-by-condition",
+                Map.of("ids", taskIds),
                 new TypeReference<List<TaskStatus>>() {});
     }
 
@@ -99,7 +107,8 @@ public class MidjourneyImageService {
     private <T> T post(String path, Object body, Class<T> type) {
         try {
             var json = objectMapper.writeValueAsString(body);
-            var request = buildRequest(path).POST(HttpRequest.BodyPublishers.ofString(json)).build();
+            var request =
+                    buildRequest(path).POST(HttpRequest.BodyPublishers.ofString(json)).build();
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             checkStatus(response);
             return objectMapper.readValue(response.body(), type);
@@ -111,7 +120,8 @@ public class MidjourneyImageService {
     private <T> T post(String path, Object body, TypeReference<T> type) {
         try {
             var json = objectMapper.writeValueAsString(body);
-            var request = buildRequest(path).POST(HttpRequest.BodyPublishers.ofString(json)).build();
+            var request =
+                    buildRequest(path).POST(HttpRequest.BodyPublishers.ofString(json)).build();
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             checkStatus(response);
             return objectMapper.readValue(response.body(), type);
@@ -140,7 +150,8 @@ public class MidjourneyImageService {
 
     private void checkStatus(HttpResponse<String> response) {
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new RuntimeException("Midjourney API HTTP " + response.statusCode() + ": " + response.body());
+            throw new RuntimeException(
+                    "Midjourney API HTTP " + response.statusCode() + ": " + response.body());
         }
     }
 }

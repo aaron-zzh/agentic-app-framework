@@ -6,8 +6,7 @@ import java.util.Map;
 /**
  * 工作流引擎——流程编排与任务调度的统一抽象。
  *
- * <p>当前实现基于 Flowable，后续可替换为自研轻量引擎。
- * 业务层通过此接口交互，不直接依赖 Flowable API。
+ * <p>当前实现基于 Flowable，后续可替换为自研轻量引擎。 业务层通过此接口交互，不直接依赖 Flowable API。
  */
 public interface WorkflowEngine {
 
@@ -18,7 +17,8 @@ public interface WorkflowEngine {
     record TaskInfo(String taskId, String processInstanceId, String assignee, String name) {}
 
     /** 历史记录 */
-    record HistoryRecord(String taskName, String assignee, String outcome, String comment, long completedAtMs) {}
+    record HistoryRecord(
+            String taskName, String assignee, String outcome, String comment, long completedAtMs) {}
 
     /**
      * 启动流程实例。

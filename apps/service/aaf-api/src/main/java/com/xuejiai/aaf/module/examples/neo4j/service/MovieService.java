@@ -1,15 +1,18 @@
 package com.xuejiai.aaf.module.examples.neo4j.service;
 
-import com.xuejiai.aaf.module.examples.neo4j.domain.Movie;
-import com.xuejiai.aaf.module.examples.neo4j.repository.MovieRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.xuejiai.aaf.module.examples.neo4j.domain.Movie;
+import com.xuejiai.aaf.module.examples.neo4j.repository.MovieRepository;
+
+import lombok.RequiredArgsConstructor;
 
 /** 电影服务，演示 Spring Data Neo4j + 原生 Driver 两种查询方式。 */
 @Service
@@ -47,29 +50,44 @@ public class MovieService {
         var links = new ArrayList<>();
 
         try (var session = driver.session()) {
-            var records = session.executeRead(tx -> tx.run("""
+            var records =
+                    session.executeRead(
+                            tx ->
+                                    tx.run(
+                                                    """
                     MATCH (m:Movie)<-[:ACTED_IN]-(p:Person)
                     WITH m, p ORDER BY m.title, p.name
                     RETURN m.title AS movie, collect(p.name) AS actors
-                    """).list());
+                    """)
+                                            .list());
 
-            records.forEach(record -> {
-                var movie = Map.of("label", "movie", "title", record.get("movie").asString());
-                var targetIndex = nodes.size();
-                nodes.add(movie);
+            records.forEach(
+                    record -> {
+                        var movie =
+                                Map.of("label", "movie", "title", record.get("movie").asString());
+                        var targetIndex = nodes.size();
+                        nodes.add(movie);
 
-                record.get("actors").asList(Value::asString).forEach(name -> {
-                    var actor = Map.of("label", "actor", "title", name);
-                    int sourceIndex;
-                    if (nodes.contains(actor)) {
-                        sourceIndex = nodes.indexOf(actor);
-                    } else {
-                        nodes.add(actor);
-                        sourceIndex = nodes.size() - 1;
-                    }
-                    links.add(Map.of("source", sourceIndex, "target", targetIndex));
-                });
-            });
+                        record.get("actors")
+                                .asList(Value::asString)
+                                .forEach(
+                                        name -> {
+                                            var actor = Map.of("label", "actor", "title", name);
+                                            int sourceIndex;
+                                            if (nodes.contains(actor)) {
+                                                sourceIndex = nodes.indexOf(actor);
+                                            } else {
+                                                nodes.add(actor);
+                                                sourceIndex = nodes.size() - 1;
+                                            }
+                                            links.add(
+                                                    Map.of(
+                                                            "source",
+                                                            sourceIndex,
+                                                            "target",
+                                                            targetIndex));
+                                        });
+                    });
         }
         return Map.of("nodes", nodes, "links", links);
     }
@@ -78,10 +96,15 @@ public class MovieService {
     @Transactional
     public void vote(String title) {
         try (var session = driver.session()) {
-            session.executeWrite(tx -> tx.run("""
+            session.executeWrite(
+                    tx ->
+                            tx.run(
+                                            """
                     MATCH (m:Movie {title: $title})
                     SET m.votes = coalesce(m.votes, 0) + 1
-                    """, Map.of("title", title)).consume());
+                    """,
+                                            Map.of("title", title))
+                                    .consume());
         }
     }
 }

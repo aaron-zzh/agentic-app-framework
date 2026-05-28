@@ -6,7 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.log.domain.ActivityLog;
 
-/** 活动日志数据访问层。 */
+/**
+ * 活动日志数据访问层。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
 
     Page<ActivityLog> findByEntityTypeAndEntityId(

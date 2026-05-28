@@ -17,7 +17,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 计划任务管理接口。 */
+/**
+ * 计划任务管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "计划任务管理")
 @RestController
 @RequestMapping("/api/admin/scheduled-tasks")

@@ -10,7 +10,8 @@ public interface ExecutionRunRepository extends JpaRepository<ExecutionRun, Long
 
     Optional<ExecutionRun> findByExecutionId(String executionId);
 
-    List<ExecutionRun> findByUserIdOrderByStartedAtDesc(Long userId, org.springframework.data.domain.Pageable pageable);
+    List<ExecutionRun> findByUserIdOrderByStartedAtDesc(
+            Long userId, org.springframework.data.domain.Pageable pageable);
 
     List<ExecutionRun> findByStatusAndAgentId(ExecutionStatus status, String agentId);
 }

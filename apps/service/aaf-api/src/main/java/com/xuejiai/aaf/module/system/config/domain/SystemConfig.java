@@ -10,7 +10,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 系统配置。 */
+/**
+ * 系统配置
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

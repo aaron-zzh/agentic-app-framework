@@ -8,10 +8,10 @@ import java.lang.annotation.Target;
 /**
  * Layer 1 声明式权限注解。
  *
- * <p>标注在 Controller 方法或类上，由 AOP 切面统一处理。
- * 适用于所有接口类型（REST/WebSocket/A2A/MCP/IoT）。
+ * <p>标注在 Controller 方法或类上，由 AOP 切面统一处理。 适用于所有接口类型（REST/WebSocket/A2A/MCP/IoT）。
  *
  * <p>示例：
+ *
  * <pre>
  * {@code @AccessControl(roles = "admin", feature = "chat")}
  * public SseEmitter run(...) { ... }
@@ -34,8 +34,21 @@ public @interface AccessControl {
     Channel[] channels() default {};
 
     /** 限流等级 */
-    enum RateLimit { NONE, LOW, NORMAL, HIGH, CRITICAL }
+    enum RateLimit {
+        NONE,
+        LOW,
+        NORMAL,
+        HIGH,
+        CRITICAL
+    }
 
     /** 接入渠道 */
-    enum Channel { REST, WEBSOCKET, AG_UI, A2A, MCP, IOT }
+    enum Channel {
+        REST,
+        WEBSOCKET,
+        AG_UI,
+        A2A,
+        MCP,
+        IOT
+    }
 }

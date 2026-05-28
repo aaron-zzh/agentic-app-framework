@@ -5,7 +5,11 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 流程状态响应。 */
+/**
+ * 流程状态响应。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "流程状态")
 public record WorkflowStatusVO(
         @Schema(description = "流程实例ID") String processInstanceId,

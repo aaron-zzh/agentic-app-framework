@@ -12,7 +12,11 @@ import com.xuejiai.aaf.module.system.notify.ws.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 站内信发送器实现，创建 Notification 记录并通过 WebSocket 实时推送。 */
+/**
+ * 站内信发送器实现，创建 Notification 记录并通过 WebSocket 实时推送。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

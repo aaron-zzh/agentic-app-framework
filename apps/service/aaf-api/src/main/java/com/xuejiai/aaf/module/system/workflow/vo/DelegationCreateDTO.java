@@ -5,7 +5,11 @@ import java.time.LocalDateTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
-/** 创建委托请求。 */
+/**
+ * 创建委托请求。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "创建审批委托")
 public record DelegationCreateDTO(
         @NotNull @Schema(description = "代理人 ID") Long delegateId,

@@ -32,15 +32,19 @@ public class AiAutoConfiguration {
             ModelPreferenceRepository preferenceRepository,
             AiModelSelector aiModelSelector) {
         // 代码内置兜底（最低优先级），可被 yaml aaf.ai.default-models 覆盖
-        var builtIn = new java.util.HashMap<>(Map.of(
-                CapabilityRoutingContext.CAP_CHAT,       properties.getDefaultModel() != null ? properties.getDefaultModel() : "openai:gpt-4o",
-                CapabilityRoutingContext.CAP_IMAGE_GEN,  "qwen-image-plus",
-                CapabilityRoutingContext.CAP_VIDEO_GEN,  "wan2.6-i2v-flash",
-                CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen3-asr-flash",
-                CapabilityRoutingContext.CAP_SPEECH_TTS, "cosyvoice-v3-flash",
-                CapabilityRoutingContext.CAP_RERANK,     "gte-rerank-v2",
-                CapabilityRoutingContext.CAP_EMBEDDING,  "text-embedding-v3"
-        ));
+        var builtIn =
+                new java.util.HashMap<>(
+                        Map.of(
+                                CapabilityRoutingContext.CAP_CHAT,
+                                        properties.getDefaultModel() != null
+                                                ? properties.getDefaultModel()
+                                                : "openai:gpt-4o",
+                                CapabilityRoutingContext.CAP_IMAGE_GEN, "qwen-image-plus",
+                                CapabilityRoutingContext.CAP_VIDEO_GEN, "wan2.6-i2v-flash",
+                                CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen3-asr-flash",
+                                CapabilityRoutingContext.CAP_SPEECH_TTS, "cosyvoice-v3-flash",
+                                CapabilityRoutingContext.CAP_RERANK, "gte-rerank-v2",
+                                CapabilityRoutingContext.CAP_EMBEDDING, "text-embedding-v3"));
         // yaml 配置覆盖内置默认值
         if (properties.getDefaultModels() != null) {
             builtIn.putAll(properties.getDefaultModels());

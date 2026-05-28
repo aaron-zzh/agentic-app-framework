@@ -12,7 +12,11 @@ import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 
 import lombok.RequiredArgsConstructor;
 
-/** SkillStore 实现——桥接 JPA Repository，供引擎层使用。 */
+/**
+ * SkillStore 实现——桥接 JPA Repository，供引擎层使用。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Component
 @RequiredArgsConstructor
 public class SkillStoreImpl implements SkillStore {
@@ -40,15 +44,24 @@ public class SkillStoreImpl implements SkillStore {
 
     private SkillRecord toRecord(SkillDefinition e) {
         return new SkillRecord(
-                e.getSkillId(), e.getAssistantId(), e.getName(), e.getDescription(),
-                e.getAgentId(), e.getTriggerIntent(), e.getSystemPrompt(),
-                e.getTools(), e.getPriority(), Boolean.TRUE.equals(e.getBuiltIn()));
+                e.getSkillId(),
+                e.getAssistantId(),
+                e.getName(),
+                e.getDescription(),
+                e.getAgentId(),
+                e.getTriggerIntent(),
+                e.getSystemPrompt(),
+                e.getTools(),
+                e.getPriority(),
+                Boolean.TRUE.equals(e.getBuiltIn()));
     }
 }
 
 @Repository
 interface SkillDefinitionRepository extends JpaRepository<SkillDefinition, Long> {
     List<SkillDefinition> findByAssistantIdAndStatus(String assistantId, String status);
+
     List<SkillDefinition> findByBuiltInTrueAndStatus(String status);
+
     Optional<SkillDefinition> findBySkillId(String skillId);
 }

@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
  * AI 辅助模型选择器，根据任务特征自动选择最合适的模型。
  *
  * <p>选择规则（按优先级）：
+ *
  * <ol>
  *   <li>含图片/视频 → 选 capabilities 含 VISION 的模型
  *   <li>需要推理 → 选推理模型（deepseek-reasoner / o1 / r1）
@@ -33,7 +34,8 @@ public class AiModelSelector {
         if (ctx.taskFeatures() == null || ctx.taskFeatures().isEmpty()) return null;
 
         var features = ctx.taskFeatures();
-        var capability = ctx.capability() != null ? ctx.capability() : CapabilityRoutingContext.CAP_CHAT;
+        var capability =
+                ctx.capability() != null ? ctx.capability() : CapabilityRoutingContext.CAP_CHAT;
 
         // 含图片/视频 → 需要 VISION 能力
         if (Boolean.TRUE.equals(features.get(CapabilityRoutingContext.FEATURE_HAS_IMAGE))
@@ -46,12 +48,15 @@ public class AiModelSelector {
         }
 
         // 需要推理 → 选推理模型
-        if (Boolean.TRUE.equals(features.get(CapabilityRoutingContext.FEATURE_REASONING_REQUIRED))) {
+        if (Boolean.TRUE.equals(
+                features.get(CapabilityRoutingContext.FEATURE_REASONING_REQUIRED))) {
             return modelRepository.findByEnabledTrueOrderBySortOrder().stream()
                     .filter(m -> m.hasCapability(capability))
-                    .filter(m -> m.getModelName().contains("reasoner")
-                            || m.getModelName().contains("o1")
-                            || m.getModelName().contains("r1"))
+                    .filter(
+                            m ->
+                                    m.getModelName().contains("reasoner")
+                                            || m.getModelName().contains("o1")
+                                            || m.getModelName().contains("r1"))
                     .map(AiModel::getModelId)
                     .findFirst()
                     .orElse(null);

@@ -1,18 +1,27 @@
 package com.xuejiai.aaf.module.aigc.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
-/** 素材变体关联（记录原始素材与变体之间的关系）。 */
+/**
+ * 素材变体关联（记录原始素材与变体之间的关系）。
+ *
+ * <p>关联 {@link MediaAsset}。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "media_asset_variant")
-@SQLDelete(sql = "UPDATE media_asset_variant SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE media_asset_variant SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class MediaAssetVariant extends BaseEntity {
 
     /** 原始素材 ID */

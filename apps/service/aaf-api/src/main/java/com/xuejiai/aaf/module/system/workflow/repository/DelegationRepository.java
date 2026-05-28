@@ -8,7 +8,11 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.xuejiai.aaf.module.system.workflow.domain.Delegation;
 
-/** 审批委托仓储。 */
+/**
+ * 审批委托仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface DelegationRepository
         extends JpaRepository<Delegation, Long>, JpaSpecificationExecutor<Delegation> {
 

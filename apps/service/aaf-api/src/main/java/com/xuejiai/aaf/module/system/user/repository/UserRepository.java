@@ -10,7 +10,11 @@ import org.springframework.data.jpa.repository.Query;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.vo.UserSimpleVO;
 
-/** 用户数据访问层。Hibernate @SoftDelete 自动过滤已删除记录。 */
+/**
+ * 用户数据访问层。Hibernate @SoftDelete 自动过滤已删除记录。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
 
     Optional<User> findByUsername(String username);

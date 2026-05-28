@@ -16,7 +16,11 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 回收站服务：查询已删除记录、恢复、彻底删除、定时清理。 */
+/**
+ * 回收站服务：查询已删除记录、恢复、彻底删除、定时清理。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

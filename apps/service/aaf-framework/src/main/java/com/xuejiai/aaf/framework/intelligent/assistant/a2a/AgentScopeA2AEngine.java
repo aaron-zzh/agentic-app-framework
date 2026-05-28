@@ -12,11 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AgentScope A2A 引擎——封装 agentscope-a2a-spring-boot-starter。
  *
- * <p>适用场景：分布式部署、跨系统 Agent 互通。
- * 对外暴露标准 A2A 协议端点，对内委托 AssistantService 处理。
+ * <p>适用场景：分布式部署、跨系统 Agent 互通。 对外暴露标准 A2A 协议端点，对内委托 AssistantService 处理。
  *
- * <p>当前实现：本地请求走直调（同 LocalA2AEngine），远程请求通过 AgentScope A2A Client 发送。
- * AgentScope A2A Server 由 starter 自动配置，入站请求通过 TaskHandler 回调到此处。
+ * <p>当前实现：本地请求走直调（同 LocalA2AEngine），远程请求通过 AgentScope A2A Client 发送。 AgentScope A2A Server 由
+ * starter 自动配置，入站请求通过 TaskHandler 回调到此处。
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -26,6 +25,7 @@ public class AgentScopeA2AEngine implements A2AEngine {
 
     /** 本地已暴露的 Assistant */
     private final Map<String, AgentCard> localRegistry = new ConcurrentHashMap<>();
+
     /** 远程发现的 Assistant */
     private final Map<String, AgentCard> remoteRegistry = new ConcurrentHashMap<>();
 
@@ -41,11 +41,12 @@ public class AgentScopeA2AEngine implements A2AEngine {
         // 本地 Assistant：直调
         if (localRegistry.containsKey(targetAssistantId)) {
             try {
-                var response = assistantService.handle(
-                        "a2a:" + request.conversationId(),
-                        request.fromUserId(),
-                        targetAssistantId,
-                        request.content());
+                var response =
+                        assistantService.handle(
+                                "a2a:" + request.conversationId(),
+                                request.fromUserId(),
+                                targetAssistantId,
+                                request.content());
                 return A2AResponse.success(response.content());
             } catch (Exception e) {
                 return A2AResponse.error(e.getMessage());
@@ -68,9 +69,7 @@ public class AgentScopeA2AEngine implements A2AEngine {
     public List<AgentCard> discover(String capability) {
         var all = new java.util.ArrayList<>(localRegistry.values());
         all.addAll(remoteRegistry.values());
-        return all.stream()
-                .filter(c -> c.capabilities().contains(capability))
-                .toList();
+        return all.stream().filter(c -> c.capabilities().contains(capability)).toList();
     }
 
     /** 注册远程 Assistant（由服务发现回调）。 */

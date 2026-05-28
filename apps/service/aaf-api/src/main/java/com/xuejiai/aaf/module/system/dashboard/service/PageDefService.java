@@ -15,7 +15,11 @@ import com.xuejiai.aaf.module.system.dashboard.vo.PageDefVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 页面定义业务逻辑（CRUD + 发布/回滚）。 */
+/**
+ * 页面定义业务逻辑（CRUD + 发布/回滚）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

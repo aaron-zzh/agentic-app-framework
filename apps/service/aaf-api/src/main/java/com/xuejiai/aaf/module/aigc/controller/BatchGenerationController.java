@@ -14,7 +14,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 批量生成接口。 */
+/**
+ * AIGC 批量生成接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "AIGC 批量生成")
 @RestController
 @RequestMapping("/api/aigc/batch")

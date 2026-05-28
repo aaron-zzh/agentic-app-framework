@@ -1,10 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.assistant;
 
 import java.time.Duration;
-import java.util.Optional;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.engine.skill.SkillMatchEngine;
@@ -107,9 +103,4 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
                 ? AssistantResponse.success(response, sessionId)
                 : AssistantResponse.error(sessionId, response);
     }
-}
-
-@Repository
-interface AssistantDefinitionRepository extends JpaRepository<AssistantDefinition, Long> {
-    Optional<AssistantDefinition> findByAssistantId(String assistantId);
 }

@@ -21,8 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AgentScope 运行时——所有 AgentScope 依赖收敛于此。
  *
- * <p>上层（AgentFactory）只依赖 {@link AgentRuntime} 接口，
- * 本类负责将 AAF 的 AgentDefinition 转为 AgentScope ReActAgent。
+ * <p>上层（AgentFactory）只依赖 {@link AgentRuntime} 接口， 本类负责将 AAF 的 AgentDefinition 转为 AgentScope
+ * ReActAgent。
  */
 @Slf4j
 @Component
@@ -36,10 +36,11 @@ public class AgentScopeRuntime implements AgentRuntime {
 
     @Override
     public AgentExecutor create(AgentDefinition definition, List<String> tools) {
-        var builder = ReActAgent.builder()
-                .name(definition.getName())
-                .sysPrompt(definition.getSystemPrompt())
-                .hook(tokenMeteringHook);
+        var builder =
+                ReActAgent.builder()
+                        .name(definition.getName())
+                        .sysPrompt(definition.getSystemPrompt())
+                        .hook(tokenMeteringHook);
 
         configureModel(builder, definition);
         builder.toolkit(mcpToolService.buildToolkit(definition));
@@ -49,9 +50,10 @@ public class AgentScopeRuntime implements AgentRuntime {
 
     private void configureModel(ReActAgent.Builder builder, AgentDefinition definition) {
         var modelId = definition.getModelId();
-        var dbModel = modelId != null
-                ? modelRepository.findByModelIdAndEnabledTrue(modelId).orElse(null)
-                : null;
+        var dbModel =
+                modelId != null
+                        ? modelRepository.findByModelIdAndEnabledTrue(modelId).orElse(null)
+                        : null;
 
         OpenAIChatModel chatModel;
         if (dbModel != null) {

@@ -34,7 +34,11 @@ import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 认证业务逻辑。 */
+/**
+ * 认证业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -138,13 +142,17 @@ public class AuthService {
         log.info("【验证码】邮箱={}, 类型={}, 验证码={}", dto.email(), dto.type(), code);
         // 发送验证码邮件
         var templateCode = "auth.verify_code." + dto.type();
-        messageService.send(new MessageRequest(
-                MessageChannel.EMAIL,
-                templateCode,
-                List.of(dto.email()),
-                Map.of("code", code, "expireMinutes",
-                        systemConfigService.getInteger("security.verify_code_expire", 5)),
-                null));
+        messageService.send(
+                new MessageRequest(
+                        MessageChannel.EMAIL,
+                        templateCode,
+                        List.of(dto.email()),
+                        Map.of(
+                                "code",
+                                code,
+                                "expireMinutes",
+                                systemConfigService.getInteger("security.verify_code_expire", 5)),
+                        null));
     }
 
     // ==================== 验证码登录 ====================

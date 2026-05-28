@@ -28,6 +28,8 @@ import lombok.RequiredArgsConstructor;
  * 图像生成接口（Midjourney）。
  *
  * <p>依赖 {@link MidjourneyImageService}，需配置 {@code aaf.ai.midjourney.enabled=true}。
+ *
+ * @author AaronZZH & Kiro
  */
 @Tag(name = "图像生成")
 @RestController
@@ -46,13 +48,9 @@ public class ImageController {
             /** 垫图 Base64 列表（可选） */
             List<String> base64Images) {}
 
-    public record ActionRequest(
-            @NotBlank String taskId,
-            @NotBlank String customId) {}
+    public record ActionRequest(@NotBlank String taskId, @NotBlank String customId) {}
 
-    public record ImageActionRequest(
-            Long imageId,
-            @NotBlank String customId) {}
+    public record ImageActionRequest(Long imageId, @NotBlank String customId) {}
 
     public record BatchQueryRequest(@NotEmpty List<String> taskIds) {}
 
@@ -87,7 +85,9 @@ public class ImageController {
         String buttonsJson = null;
         if (buttons != null) {
             try {
-                buttonsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(buttons);
+                buttonsJson =
+                        new com.fasterxml.jackson.databind.ObjectMapper()
+                                .writeValueAsString(buttons);
             } catch (Exception ignored) {
                 // 忽略序列化失败
             }
@@ -100,9 +100,7 @@ public class ImageController {
     @GetMapping("/my")
     public Result<List<AiImageVO>> listMy() {
         Long userId = actorContext.currentUserId().orElseThrow();
-        var list = aiImageService.listByUser(userId).stream()
-                .map(aiImageService::toVO)
-                .toList();
+        var list = aiImageService.listByUser(userId).stream().map(aiImageService::toVO).toList();
         return Result.success(list);
     }
 
@@ -125,7 +123,13 @@ public class ImageController {
     @PostMapping("/draw")
     public Result<Long> draw(@RequestBody @Valid DrawRequest request) {
         Long userId = actorContext.currentUserId().orElseThrow();
-        Long id = aiImageService.draw(userId, request.prompt(), request.width(), request.height(), request.model());
+        Long id =
+                aiImageService.draw(
+                        userId,
+                        request.prompt(),
+                        request.width(),
+                        request.height(),
+                        request.model());
         return Result.success(id);
     }
 

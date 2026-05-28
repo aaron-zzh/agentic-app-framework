@@ -1,9 +1,10 @@
 package com.xuejiai.aaf.common.util;
 
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.experimental.UtilityClass;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.experimental.UtilityClass;
 
 /**
  * Servlet 工具类。
@@ -33,9 +34,11 @@ public class ServletUtils {
     }
 
     public static String getClientIp(HttpServletRequest request) {
-        for (var header : new String[]{
-                "X-Forwarded-For", "X-Real-IP", "Proxy-Client-IP",
-                "WL-Proxy-Client-IP", "HTTP_CLIENT_IP", "HTTP_X_FORWARDED_FOR"}) {
+        for (var header :
+                new String[] {
+                    "X-Forwarded-For", "X-Real-IP", "Proxy-Client-IP",
+                    "WL-Proxy-Client-IP", "HTTP_CLIENT_IP", "HTTP_X_FORWARDED_FOR"
+                }) {
             var ip = request.getHeader(header);
             if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
                 return ip.split(",")[0].trim();

@@ -21,6 +21,7 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
 
     private final ModelPreferenceRepository preferenceRepository;
     private final AiModelSelector aiModelSelector;
+
     /** 各能力的 yaml 兜底 modelId，key=capability，value=modelId */
     private final java.util.Map<String, String> fallbackModels;
 
@@ -28,13 +29,17 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
     public String resolve(CapabilityRoutingContext ctx) {
         // 1. 显式指定
         if (ctx.explicitModelId() != null) {
-            log.debug("能力路由[显式]: capability={}, modelId={}", ctx.capability(), ctx.explicitModelId());
+            log.debug(
+                    "能力路由[显式]: capability={}, modelId={}", ctx.capability(), ctx.explicitModelId());
             return ctx.explicitModelId();
         }
 
         // 2. 编排引擎配置
         if (ctx.orchestrationModelId() != null) {
-            log.debug("能力路由[编排]: capability={}, modelId={}", ctx.capability(), ctx.orchestrationModelId());
+            log.debug(
+                    "能力路由[编排]: capability={}, modelId={}",
+                    ctx.capability(),
+                    ctx.orchestrationModelId());
             return ctx.orchestrationModelId();
         }
 
@@ -47,24 +52,30 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
 
         // 4. 用户偏好
         if (ctx.userId() != null && ctx.capability() != null) {
-            var userPref = preferenceRepository
-                    .findByScopeAndScopeIdAndCapability(
-                            ModelPreference.SCOPE_USER, ctx.userId(), ctx.capability())
-                    .map(ModelPreference::getModelId);
+            var userPref =
+                    preferenceRepository
+                            .findByScopeAndScopeIdAndCapability(
+                                    ModelPreference.SCOPE_USER, ctx.userId(), ctx.capability())
+                            .map(ModelPreference::getModelId);
             if (userPref.isPresent()) {
-                log.debug("能力路由[用户偏好]: capability={}, modelId={}", ctx.capability(), userPref.get());
+                log.debug(
+                        "能力路由[用户偏好]: capability={}, modelId={}", ctx.capability(), userPref.get());
                 return userPref.get();
             }
         }
 
         // 5. 系统默认
         if (ctx.capability() != null) {
-            var systemDefault = preferenceRepository
-                    .findByScopeAndScopeIdIsNullAndCapability(
-                            ModelPreference.SCOPE_SYSTEM, ctx.capability())
-                    .map(ModelPreference::getModelId);
+            var systemDefault =
+                    preferenceRepository
+                            .findByScopeAndScopeIdIsNullAndCapability(
+                                    ModelPreference.SCOPE_SYSTEM, ctx.capability())
+                            .map(ModelPreference::getModelId);
             if (systemDefault.isPresent()) {
-                log.debug("能力路由[系统默认]: capability={}, modelId={}", ctx.capability(), systemDefault.get());
+                log.debug(
+                        "能力路由[系统默认]: capability={}, modelId={}",
+                        ctx.capability(),
+                        systemDefault.get());
                 return systemDefault.get();
             }
         }

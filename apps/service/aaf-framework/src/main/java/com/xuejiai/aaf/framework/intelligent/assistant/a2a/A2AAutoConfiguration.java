@@ -10,8 +10,8 @@ import com.xuejiai.aaf.framework.intelligent.assistant.AssistantService;
  * A2A 引擎自动配置——按 {@code aaf.a2a.engine} 属性切换实现。
  *
  * <ul>
- *   <li>{@code aaf.a2a.engine=local}（默认）→ LocalA2AEngine</li>
- *   <li>{@code aaf.a2a.engine=agentscope} → AgentScopeA2AEngine</li>
+ *   <li>{@code aaf.a2a.engine=local}（默认）→ LocalA2AEngine
+ *   <li>{@code aaf.a2a.engine=agentscope} → AgentScopeA2AEngine
  * </ul>
  */
 @Configuration

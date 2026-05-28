@@ -17,7 +17,6 @@ import io.agentscope.core.hook.PostReasoningEvent;
 import io.agentscope.core.hook.PreActingEvent;
 import io.agentscope.core.hook.PreCallEvent;
 import io.agentscope.core.hook.PreReasoningEvent;
-import io.agentscope.core.message.ContentBlock;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
@@ -40,9 +39,9 @@ import reactor.core.publisher.Mono;
  * ErrorEvent         → 任意阶段异常
  * </pre>
  *
- * <p>典型用途：链路追踪、审计日志、Token 计量、工具调用拦截（HITL）、性能监控。
- * AAF 的 {@link com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook} 即基于
- * {@code PostCallEvent} 实现 Token 计量。
+ * <p>典型用途：链路追踪、审计日志、Token 计量、工具调用拦截（HITL）、性能监控。 AAF 的 {@link
+ * com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook} 即基于 {@code PostCallEvent} 实现
+ * Token 计量。
  */
 @Slf4j
 @Component
@@ -65,15 +64,21 @@ public class ObservationHook implements Hook {
             log.info("[Hook:PreCall] 输入消息数={}", e.getInputMessages().size());
         } else if (event instanceof PreReasoningEvent e) {
             // [Hook能力点] 可在此修改发送给 LLM 的消息（注入上下文、过滤敏感信息等）
-            log.info("[Hook:PreReasoning] model={}, messages={}", e.getModelName(), e.getInputMessages().size());
+            log.info(
+                    "[Hook:PreReasoning] model={}, messages={}",
+                    e.getModelName(),
+                    e.getInputMessages().size());
         } else if (event instanceof PostReasoningEvent e) {
             // [Hook能力点] 可在此调用 e.stopAgent() 中断执行（HITL 工具确认场景）
             Msg msg = e.getReasoningMessage();
             if (msg != null) {
                 List<ToolUseBlock> tools = msg.getContentBlocks(ToolUseBlock.class);
                 if (!tools.isEmpty()) {
-                    log.info("[Hook:PostReasoning] LLM 决定调用工具: {}", tools.stream()
-                            .map(ToolUseBlock::getName).collect(Collectors.joining(", ")));
+                    log.info(
+                            "[Hook:PostReasoning] LLM 决定调用工具: {}",
+                            tools.stream()
+                                    .map(ToolUseBlock::getName)
+                                    .collect(Collectors.joining(", ")));
                 } else {
                     log.info("[Hook:PostReasoning] LLM 直接回复（无工具调用）");
                 }
@@ -81,25 +86,35 @@ public class ObservationHook implements Hook {
         } else if (event instanceof PreActingEvent e) {
             // [Hook能力点] 工具执行前拦截点，可修改参数或拒绝执行
             ToolUseBlock tool = e.getToolUse();
-            log.info("[Hook:PreActing] 即将执行工具: {}，参数: {}", tool.getName(), formatMap(tool.getInput()));
+            log.info(
+                    "[Hook:PreActing] 即将执行工具: {}，参数: {}",
+                    tool.getName(),
+                    formatMap(tool.getInput()));
         } else if (event instanceof PostActingEvent e) {
             // [Hook能力点] 工具执行后，可记录结果或触发副作用
             ToolResultBlock result = e.getToolResult();
-            log.info("[Hook:PostActing] 工具 {} 执行完成，结果: {}", result.getName(),
+            log.info(
+                    "[Hook:PostActing] 工具 {} 执行完成，结果: {}",
+                    result.getName(),
                     truncate(extractText(result), 100));
         } else if (event instanceof PostCallEvent e) {
             // [Hook能力点] Agent 调用完成，TokenMeteringHook 在此读取 getChatUsage()
             Msg msg = e.getFinalMessage();
             if (msg != null && msg.getChatUsage() != null) {
                 var usage = msg.getChatUsage();
-                log.info("[Hook:PostCall] Token 用量 — 输入:{}, 输出:{}, 合计:{}",
-                        usage.getInputTokens(), usage.getOutputTokens(),
+                log.info(
+                        "[Hook:PostCall] Token 用量 — 输入:{}, 输出:{}, 合计:{}",
+                        usage.getInputTokens(),
+                        usage.getOutputTokens(),
                         usage.getInputTokens() + usage.getOutputTokens());
             } else {
                 log.info("[Hook:PostCall] Agent 调用完成");
             }
         } else if (event instanceof ErrorEvent e) {
-            log.error("[Hook:Error] {}: {}", e.getError().getClass().getSimpleName(), e.getError().getMessage());
+            log.error(
+                    "[Hook:Error] {}: {}",
+                    e.getError().getClass().getSimpleName(),
+                    e.getError().getMessage());
         }
         return Mono.just(event);
     }

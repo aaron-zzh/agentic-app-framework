@@ -1,5 +1,10 @@
 package com.xuejiai.aaf.module.system.dict.service;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.dict.domain.DictType;
@@ -8,12 +13,14 @@ import com.xuejiai.aaf.module.system.dict.repository.DictTypeRepository;
 import com.xuejiai.aaf.module.system.dict.vo.DictTypeCreateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictTypeUpdateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictTypeVO;
-import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-/** 字典类型服务。 */
+import lombok.RequiredArgsConstructor;
+
+/**
+ * 字典类型服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -77,6 +84,11 @@ public class DictTypeService {
 
     private DictTypeVO toVO(DictType t) {
         return new DictTypeVO(
-                t.getId(), t.getName(), t.getType(), t.getStatus(), t.getRemark(), t.getCreateTime());
+                t.getId(),
+                t.getName(),
+                t.getType(),
+                t.getStatus(),
+                t.getRemark(),
+                t.getCreateTime());
     }
 }

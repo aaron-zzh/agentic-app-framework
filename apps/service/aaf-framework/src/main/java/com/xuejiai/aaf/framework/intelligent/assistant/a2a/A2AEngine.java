@@ -7,9 +7,10 @@ import java.util.Map;
  * A2A 协议引擎接口——Assistant 对外通信的统一抽象。
  *
  * <p>两种实现可按需切换：
+ *
  * <ul>
- *   <li>{@code LocalA2AEngine} — AAF 自研（内存直调，适合单体部署）</li>
- *   <li>{@code AgentScopeA2AEngine} — 封装 AgentScope A2A（标准协议，适合分布式）</li>
+ *   <li>{@code LocalA2AEngine} — AAF 自研（内存直调，适合单体部署）
+ *   <li>{@code AgentScopeA2AEngine} — 封装 AgentScope A2A（标准协议，适合分布式）
  * </ul>
  *
  * <p>切换方式：通过 Spring Profile 或配置 {@code aaf.a2a.engine=local|agentscope}。
@@ -35,14 +36,16 @@ public interface A2AEngine {
 
     /** A2A 请求 */
     record A2ARequest(
-            String conversationId,
-            Long fromUserId,
-            String content,
-            Map<String, Object> metadata) {}
+            String conversationId, Long fromUserId, String content, Map<String, Object> metadata) {}
 
     /** A2A 响应 */
     record A2AResponse(boolean success, String content, String error) {
-        public static A2AResponse success(String content) { return new A2AResponse(true, content, null); }
-        public static A2AResponse error(String error) { return new A2AResponse(false, null, error); }
+        public static A2AResponse success(String content) {
+            return new A2AResponse(true, content, null);
+        }
+
+        public static A2AResponse error(String error) {
+            return new A2AResponse(false, null, error);
+        }
     }
 }

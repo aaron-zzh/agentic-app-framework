@@ -14,7 +14,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 审批委托。 */
+/**
+ * 审批委托
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

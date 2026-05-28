@@ -10,7 +10,11 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
-/** 异步任务服务。提交任务 → 后台执行 → 进度可查询。 */
+/**
+ * 异步任务服务。提交任务 → 后台执行 → 进度可查询。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class AsyncTaskService {

@@ -28,7 +28,12 @@ public class IntentService {
                     "NAVIGATE", "navigate_to",
                     "CHAT", "chat_reply");
 
-    /** 对用户输入进行意图分类。 */
+    /**
+     * 对用户输入进行意图分类
+     *
+     * @param userInput 用户输入文本
+     * @return 意图识别结果
+     */
     public IntentResult classify(String userInput) {
         if (userInput == null || userInput.isBlank()) {
             return new IntentResult("CHAT", 1.0, INTENT_ACTION_MAP.get("CHAT"));

@@ -27,9 +27,7 @@ public class FieldMapper implements ProcessingStep {
             return context;
         }
 
-        var mapped = context.getItems().stream()
-                .map(item -> mapItem(item, mappings))
-                .toList();
+        var mapped = context.getItems().stream().map(item -> mapItem(item, mappings)).toList();
         context.setItems(new java.util.ArrayList<>(mapped));
         return context;
     }

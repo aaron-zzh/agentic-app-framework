@@ -50,7 +50,8 @@ public class AutodevDocService {
     }
 
     public AutodevDoc getById(Long id) {
-        return docRepository.findById(id)
+        return docRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
     }
 
@@ -91,8 +92,13 @@ public class AutodevDocService {
 
     public List<AutodevDocSearchResultVO> search(String query) {
         return docRepository.fullTextSearch(query).stream()
-                .map(d -> new AutodevDocSearchResultVO(d.getId(), d.getTitle(), d.getFilePath(),
-                        extractSnippet(d.getContent(), query)))
+                .map(
+                        d ->
+                                new AutodevDocSearchResultVO(
+                                        d.getId(),
+                                        d.getTitle(),
+                                        d.getFilePath(),
+                                        extractSnippet(d.getContent(), query)))
                 .collect(Collectors.toList());
     }
 
@@ -108,12 +114,27 @@ public class AutodevDocService {
 
         List<AutodevDoc> nodes = docRepository.findAllById(nodeIds);
         List<AutodevDocRelationGraphVO.Edge> edges = new ArrayList<>();
-        outgoing.forEach(l -> edges.add(new AutodevDocRelationGraphVO.Edge(l.getSourceId(), l.getTargetId(), l.getLinkType())));
-        incoming.forEach(l -> edges.add(new AutodevDocRelationGraphVO.Edge(l.getSourceId(), l.getTargetId(), l.getLinkType())));
+        outgoing.forEach(
+                l ->
+                        edges.add(
+                                new AutodevDocRelationGraphVO.Edge(
+                                        l.getSourceId(), l.getTargetId(), l.getLinkType())));
+        incoming.forEach(
+                l ->
+                        edges.add(
+                                new AutodevDocRelationGraphVO.Edge(
+                                        l.getSourceId(), l.getTargetId(), l.getLinkType())));
 
-        List<AutodevDocRelationGraphVO.Node> graphNodes = nodes.stream()
-                .map(d -> new AutodevDocRelationGraphVO.Node(d.getId(), d.getTitle(), d.getFilePath(), d.getId().equals(id)))
-                .collect(Collectors.toList());
+        List<AutodevDocRelationGraphVO.Node> graphNodes =
+                nodes.stream()
+                        .map(
+                                d ->
+                                        new AutodevDocRelationGraphVO.Node(
+                                                d.getId(),
+                                                d.getTitle(),
+                                                d.getFilePath(),
+                                                d.getId().equals(id)))
+                        .collect(Collectors.toList());
 
         return new AutodevDocRelationGraphVO(graphNodes, edges);
     }
@@ -123,10 +144,11 @@ public class AutodevDocService {
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var list = subscribers.computeIfAbsent(docId, k -> new CopyOnWriteArrayList<>());
         list.add(emitter);
-        Runnable remove = () -> {
-            list.remove(emitter);
-            if (list.isEmpty()) subscribers.remove(docId, list);
-        };
+        Runnable remove =
+                () -> {
+                    list.remove(emitter);
+                    if (list.isEmpty()) subscribers.remove(docId, list);
+                };
         emitter.onCompletion(remove);
         emitter.onTimeout(remove);
         emitter.onError(e -> remove.run());
@@ -134,8 +156,9 @@ public class AutodevDocService {
     }
 
     private void broadcastChange(Long docId, String title) {
-        String json = "{\"type\":\"doc_updated\",\"docId\":%d,\"title\":\"%s\"}"
-                .formatted(docId, title.replace("\"", "\\\""));
+        String json =
+                "{\"type\":\"doc_updated\",\"docId\":%d,\"title\":\"%s\"}"
+                        .formatted(docId, title.replace("\"", "\\\""));
         // 精确订阅者 + 全局订阅者
         for (Long key : List.of(docId, 0L)) {
             var list = subscribers.get(key);
@@ -185,16 +208,22 @@ public class AutodevDocService {
                 String dirPath = currentPath.toString();
                 final int idx = i;
                 final AutodevDocTreeNodeVO parentRef = parent;
-                AutodevDocTreeNodeVO dir = dirMap.computeIfAbsent(dirPath, k -> {
-                    var node = new AutodevDocTreeNodeVO(null, parts[idx], k, true, new ArrayList<>());
-                    if (parentRef == null) roots.add(node);
-                    else parentRef.children().add(node);
-                    return node;
-                });
+                AutodevDocTreeNodeVO dir =
+                        dirMap.computeIfAbsent(
+                                dirPath,
+                                k -> {
+                                    var node =
+                                            new AutodevDocTreeNodeVO(
+                                                    null, parts[idx], k, true, new ArrayList<>());
+                                    if (parentRef == null) roots.add(node);
+                                    else parentRef.children().add(node);
+                                    return node;
+                                });
                 parent = dir;
             }
 
-            var leaf = new AutodevDocTreeNodeVO(doc.getId(), doc.getTitle(), path, false, List.of());
+            var leaf =
+                    new AutodevDocTreeNodeVO(doc.getId(), doc.getTitle(), path, false, List.of());
             if (parent != null) parent.children().add(leaf);
             else roots.add(leaf);
         }

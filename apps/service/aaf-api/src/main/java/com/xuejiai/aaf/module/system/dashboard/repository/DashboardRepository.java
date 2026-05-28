@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.dashboard.domain.Dashboard;
 
-/** 仪表盘仓储。 */
+/**
+ * 仪表盘仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface DashboardRepository extends JpaRepository<Dashboard, Long> {
 
     List<Dashboard> findByOwnerIdOrderByIsDefaultDescCreateTimeDesc(Long ownerId);

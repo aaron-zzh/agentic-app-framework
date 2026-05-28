@@ -5,7 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** 创建/更新页面定义请求。 */
+/**
+ * 创建/更新页面定义请求。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "创建/更新页面定义")
 public record PageDefCreateDTO(
         @NotBlank

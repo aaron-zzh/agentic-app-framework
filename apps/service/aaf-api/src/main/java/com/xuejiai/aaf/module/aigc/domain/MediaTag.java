@@ -8,14 +8,21 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 素材标签。 */
+/**
+ * 素材标签。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "media_tag")
-@SQLDelete(sql = "UPDATE media_tag SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE media_tag SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class MediaTag extends BaseEntity {
 
+    /** 标签名称 */
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 

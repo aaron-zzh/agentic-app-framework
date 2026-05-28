@@ -3,8 +3,7 @@ package com.xuejiai.aaf.framework.engine.dsl;
 /**
  * DSL 引擎——解析和执行领域特定语言指令。
  *
- * <p>职责：交互指令解析、声明式工作流定义、组件及知识定义。
- * v0.2+ 实现。
+ * <p>职责：交互指令解析、声明式工作流定义、组件及知识定义。 v0.2+ 实现。
  */
 public interface DslEngine {
 

@@ -22,7 +22,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
-/** 工具管理与调用接口。 */
+/**
+ * 工具管理与调用接口
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "工具管理")
 @RestController
 @RequestMapping("/api/system/tools")
@@ -48,16 +52,13 @@ public class ToolController {
     @Operation(summary = "调用工具", description = "统一工具调用入口，Agent/用户/外部系统均可调用")
     @PostMapping("/{toolName}/invoke")
     public Result<ToolCallResult> invoke(
-            @PathVariable String toolName,
-            @RequestBody @Valid ToolInvokeRequest request) {
+            @PathVariable String toolName, @RequestBody @Valid ToolInvokeRequest request) {
         return Result.success(toolService.invoke(toolName, request.arguments()));
     }
 
     @Operation(summary = "授权工具调用", description = "用户确认后授予临时权限（本次会话有效）")
     @PostMapping("/{toolName}/approve")
-    public Result<Void> approve(
-            @PathVariable String toolName,
-            @RequestParam String sessionId) {
+    public Result<Void> approve(@PathVariable String toolName, @RequestParam String sessionId) {
         toolService.approve(sessionId, toolName);
         return Result.success();
     }

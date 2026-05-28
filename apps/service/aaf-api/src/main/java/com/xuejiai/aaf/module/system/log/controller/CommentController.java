@@ -16,7 +16,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 评论接口。 */
+/**
+ * 评论接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "评论")
 @RestController
 @RequestMapping("/api/{entity}/{id}/comments")

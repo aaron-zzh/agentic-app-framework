@@ -5,9 +5,7 @@ import java.util.List;
 /**
  * 程序化记忆蒸馏器——从执行轨迹中提取可复用的模式/教训。
  *
- * <p>对齐设计图"Learning 横切反哺通道"中的 ProceduralDistiller 节点。
- * 蒸馏产出三类：成功模式、失败教训、对比分析。
- * P2 占位：后续由 LLM 驱动蒸馏。
+ * <p>对齐设计图"Learning 横切反哺通道"中的 ProceduralDistiller 节点。 蒸馏产出三类：成功模式、失败教训、对比分析。 P2 占位：后续由 LLM 驱动蒸馏。
  */
 public interface ProceduralDistiller {
 

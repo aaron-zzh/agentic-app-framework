@@ -16,7 +16,11 @@ import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.document.vo.*;
 
-/** 文档管理服务（业务文档基础 CRUD）。 */
+/**
+ * 文档管理 Service。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 public class DocumentService {
 
@@ -28,15 +32,33 @@ public class DocumentService {
         this.documentRepository = documentRepository;
     }
 
+    /**
+     * 获取文档树结构
+     *
+     * @return 文档树节点列表
+     */
     public List<DocTreeNodeVO> getTree() {
         return buildTree(documentRepository.findByStatusOrderByFilePath("active"));
     }
 
+    /**
+     * 获取文档详情
+     *
+     * @param id 文档编号
+     * @return 文档实体
+     */
     public Document getById(Long id) {
-        return documentRepository.findById(id)
+        return documentRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
     }
 
+    /**
+     * 创建文档
+     *
+     * @param dto 创建请求
+     * @return 文档实体
+     */
     @Transactional
     public Document create(DocCreateDTO dto) {
         String filePath = dto.filePath();
@@ -55,6 +77,13 @@ public class DocumentService {
         return documentRepository.save(doc);
     }
 
+    /**
+     * 更新文档内容
+     *
+     * @param id 文档编号
+     * @param content 新内容
+     * @return 更新后的文档实体
+     */
     @Transactional
     public Document update(Long id, String content) {
         Document doc = getById(id);
@@ -64,10 +93,21 @@ public class DocumentService {
         return doc;
     }
 
+    /**
+     * 全文检索文档
+     *
+     * @param query 搜索关键词
+     * @return 搜索结果列表
+     */
     public List<DocSearchResultVO> search(String query) {
         return documentRepository.fullTextSearch(query).stream()
-                .map(d -> new DocSearchResultVO(d.getId(), d.getTitle(), d.getFilePath(),
-                        extractSnippet(d.getContent(), query)))
+                .map(
+                        d ->
+                                new DocSearchResultVO(
+                                        d.getId(),
+                                        d.getTitle(),
+                                        d.getFilePath(),
+                                        extractSnippet(d.getContent(), query)))
                 .collect(Collectors.toList());
     }
 
@@ -106,12 +146,17 @@ public class DocumentService {
                 String dirPath = currentPath.toString();
                 final int idx = i;
                 final DocTreeNodeVO parentRef = parent;
-                DocTreeNodeVO dir = dirMap.computeIfAbsent(dirPath, k -> {
-                    var node = new DocTreeNodeVO(null, parts[idx], k, true, new ArrayList<>());
-                    if (parentRef == null) roots.add(node);
-                    else parentRef.children().add(node);
-                    return node;
-                });
+                DocTreeNodeVO dir =
+                        dirMap.computeIfAbsent(
+                                dirPath,
+                                k -> {
+                                    var node =
+                                            new DocTreeNodeVO(
+                                                    null, parts[idx], k, true, new ArrayList<>());
+                                    if (parentRef == null) roots.add(node);
+                                    else parentRef.children().add(node);
+                                    return node;
+                                });
                 parent = dir;
             }
 

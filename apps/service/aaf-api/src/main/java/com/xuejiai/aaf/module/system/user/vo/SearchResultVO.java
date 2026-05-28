@@ -4,7 +4,11 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 全局搜索结果（按实体分组）。 */
+/**
+ * 全局搜索结果（按实体分组）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "搜索结果分组")
 public record SearchResultVO(
         @Schema(description = "实体标识", example = "user") String entity,

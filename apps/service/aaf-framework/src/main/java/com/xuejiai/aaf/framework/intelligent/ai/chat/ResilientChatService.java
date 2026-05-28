@@ -35,7 +35,7 @@ public class ResilientChatService {
      * 同步调用，使用完整路由上下文。
      *
      * @param messages 消息列表
-     * @param ctx      路由上下文（含 userId、capability、显式 modelId、编排配置、任务特征）
+     * @param ctx 路由上下文（含 userId、capability、显式 modelId、编排配置、任务特征）
      */
     public ChatResponse call(List<Message> messages, CapabilityRoutingContext ctx) {
         var modelId = capabilityRouter.resolve(ctx);
@@ -53,16 +53,16 @@ public class ResilientChatService {
      * 同步调用，简化入口（显式指定 modelId）。
      *
      * @param messages 消息列表
-     * @param modelId  显式 modelId（null 时走路由决策）
-     * @param userId   用户 ID
+     * @param modelId 显式 modelId（null 时走路由决策）
+     * @param userId 用户 ID
      */
     public ChatResponse call(List<Message> messages, String modelId, Long userId) {
-        return call(messages, CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
+        return call(
+                messages,
+                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
     }
 
-    /**
-     * 流式调用，使用完整路由上下文。
-     */
+    /** 流式调用，使用完整路由上下文。 */
     public Flux<ChatResponse> stream(List<Message> messages, CapabilityRoutingContext ctx) {
         var modelId = capabilityRouter.resolve(ctx);
         try {
@@ -73,11 +73,11 @@ public class ResilientChatService {
         }
     }
 
-    /**
-     * 流式调用，简化入口。
-     */
+    /** 流式调用，简化入口。 */
     public Flux<ChatResponse> stream(List<Message> messages, String modelId, Long userId) {
-        return stream(messages, CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
+        return stream(
+                messages,
+                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
     }
 
     private ChatResponse callFallback(List<Message> messages, String modelId, Long userId) {
@@ -96,7 +96,8 @@ public class ResilientChatService {
     }
 
     private String resolveFallback(String modelId) {
-        return modelRepository.findByModelId(modelId)
+        return modelRepository
+                .findByModelId(modelId)
                 .filter(m -> m.getFallbackModelId() != null)
                 .map(m -> m.getFallbackModelId())
                 .orElse(modelId);

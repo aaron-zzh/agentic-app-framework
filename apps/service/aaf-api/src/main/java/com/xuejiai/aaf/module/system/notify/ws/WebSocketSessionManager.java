@@ -9,7 +9,11 @@ import org.springframework.web.socket.WebSocketSession;
 
 import lombok.extern.slf4j.Slf4j;
 
-/** 管理在线用户 WebSocket 会话，提供按用户推送能力。 */
+/**
+ * 管理在线用户 WebSocket 会话，提供按用户推送能力。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 public class WebSocketSessionManager {

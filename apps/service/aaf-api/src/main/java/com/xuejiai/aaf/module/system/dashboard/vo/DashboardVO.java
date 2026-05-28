@@ -5,7 +5,11 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 仪表盘响应。 */
+/**
+ * 仪表盘响应。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "仪表盘信息")
 public record DashboardVO(
         Long id,

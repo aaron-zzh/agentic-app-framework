@@ -3,7 +3,7 @@ package com.xuejiai.aaf.module.system.chat.agui;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * AG-UI 协议事件。
+ * AG-UI 协议事件
  *
  * <p>每个事件通过 SSE data: 行发送给前端，前端 assistant-ui 组件库按 type 分发处理。
  *

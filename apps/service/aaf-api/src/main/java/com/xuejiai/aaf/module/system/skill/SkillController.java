@@ -2,7 +2,6 @@ package com.xuejiai.aaf.module.system.skill;
 
 import java.util.List;
 
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,7 +19,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 技能管理接口。 */
+/**
+ * 技能管理接口
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "技能管理")
 @RestController
 @RequestMapping("/api/system/skills")

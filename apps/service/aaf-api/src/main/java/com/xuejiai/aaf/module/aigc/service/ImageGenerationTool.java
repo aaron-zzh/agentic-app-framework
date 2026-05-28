@@ -7,14 +7,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 图像生成工具 — 注册为 Spring AI Function，可被对话中的 AI 调用。 */
+/**
+ * 图像生成工具 — 注册为 Spring AI Function，可被对话中的 AI 调用。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
@@ -44,7 +47,9 @@ public class ImageGenerationTool {
 
                 var model = request.model() != null ? request.model() : "dall-e-3";
                 var service = imageServiceFactory.getSyncService(model);
-                var result = service.generate(new ImageRequest(request.prompt(), model, width, height, "url"));
+                var result =
+                        service.generate(
+                                new ImageRequest(request.prompt(), model, width, height, "url"));
 
                 return new Response(result.url(), "图片已生成");
             } catch (Exception e) {

@@ -19,7 +19,11 @@ import com.xuejiai.aaf.module.system.log.vo.OperationLogVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 操作日志业务逻辑。 */
+/**
+ * 操作日志业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

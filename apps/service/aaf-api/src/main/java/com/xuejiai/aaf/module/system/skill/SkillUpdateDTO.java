@@ -1,11 +1,17 @@
 package com.xuejiai.aaf.module.system.skill;
 
-/** 更新技能请求（所有字段可选，null 表示不更新）。 */
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * 更新技能请求（所有字段可选，null 表示不更新）
+ *
+ * @author AaronZZH & Kiro
+ */
 public record SkillUpdateDTO(
-        String name,
-        String description,
-        String agentId,
-        String triggerIntent,
-        String systemPrompt,
-        String tools,
-        Integer priority) {}
+        @Schema(description = "技能名称") String name,
+        @Schema(description = "技能描述") String description,
+        @Schema(description = "关联 Agent ID") String agentId,
+        @Schema(description = "触发意图") String triggerIntent,
+        @Schema(description = "系统提示词") String systemPrompt,
+        @Schema(description = "可用工具列表（JSON）") String tools,
+        @Schema(description = "优先级") Integer priority) {}

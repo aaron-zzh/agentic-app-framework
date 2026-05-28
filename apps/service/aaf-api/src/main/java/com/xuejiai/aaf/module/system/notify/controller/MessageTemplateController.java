@@ -14,7 +14,11 @@ import com.xuejiai.aaf.module.system.notify.vo.MessageTemplateVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 消息模板管理接口。 */
+/**
+ * 消息模板管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @RestController
 @RequestMapping("/api/message-templates")
 @RequiredArgsConstructor

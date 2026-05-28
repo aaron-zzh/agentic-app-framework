@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.image.domain.AiImage;
 
-/** AI 图像生成记录仓储。 */
+/**
+ * AI 图像生成记录仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface AiImageRepository extends JpaRepository<AiImage, Long> {
 
     List<AiImage> findByStatusAndPlatform(String status, String platform);

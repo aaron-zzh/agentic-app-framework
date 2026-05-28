@@ -36,7 +36,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 聊天接口。
+ * 聊天管理接口
+ *
+ * <p>提供会话管理、消息收发、AI 流式对话等功能。
  *
  * @author AaronZZH & Kiro
  */

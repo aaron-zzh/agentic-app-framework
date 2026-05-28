@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.knowledge.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -9,11 +11,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.knowledge.service.KnowledgeBaseService;
+import com.xuejiai.aaf.module.knowledge.vo.BatchImportProgressVO;
 import com.xuejiai.aaf.module.knowledge.vo.CreateKnowledgeBaseRequest;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseStatsVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseVO;
@@ -23,7 +28,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 知识库管理接口。 */
+/**
+ * 知识库管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "知识库管理")
 @RestController
 @RequestMapping("/api/knowledge-bases")
@@ -75,5 +84,18 @@ public class KnowledgeBaseController {
     public Result<PageResult<KnowledgeDocumentVO>> documents(
             @PathVariable Long id, Pageable pageable) {
         return Result.success(knowledgeBaseService.listDocuments(id, pageable));
+    }
+
+    @Operation(summary = "批量上传文档")
+    @PostMapping("/{id}/documents/batch")
+    public Result<List<KnowledgeDocumentVO>> batchImport(
+            @PathVariable Long id, @RequestParam("files") MultipartFile[] files) {
+        return Result.success(knowledgeBaseService.batchImportDocuments(id, files));
+    }
+
+    @Operation(summary = "查询文档处理进度")
+    @GetMapping("/{id}/documents/progress")
+    public Result<BatchImportProgressVO> importProgress(@PathVariable Long id) {
+        return Result.success(knowledgeBaseService.getImportProgress(id));
     }
 }

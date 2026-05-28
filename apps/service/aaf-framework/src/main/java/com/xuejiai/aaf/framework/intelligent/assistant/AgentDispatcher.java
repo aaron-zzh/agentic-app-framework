@@ -10,11 +10,11 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentFactory;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
-import com.xuejiai.aaf.framework.intelligent.core.token.CreditService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -150,6 +150,14 @@
 			<artifactId>agentscope-extensions-reme</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-autocontext-memory</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-session-redis</artifactId>
+		</dependency>
 
 		<!-- 图数据库 -->
 		<dependency>

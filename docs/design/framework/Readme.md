@@ -41,7 +41,7 @@ framework/
 |------|------|
 | [agent.md](intelligent/agent.md) | 智能体系统设计（五层智能架构总览） |
 | [cognition.md](intelligent/cognition.md) | 认知层设计（Layer 1 Cognition，Memory/Knowledge/Value/Retrieval） |
-| [actor.md](intelligent/actor.md) | Actor 模型设计 |
+| [operator.md](operator.md) | Operator 操作者模型设计 |
 
 ### 专项引擎 `engine/`
 

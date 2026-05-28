@@ -1,10 +1,12 @@
 package com.xuejiai.aaf.module.examples.neo4j.domain;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
+
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Relationship;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * 电影节点（Neo4j）。
@@ -44,9 +46,23 @@ public class Movie {
         this.tagline = tagline;
     }
 
-    public String getTitle() { return title; }
-    public String getTagline() { return tagline; }
-    public Integer getReleased() { return released; }
-    public List<Person> getActors() { return actors; }
-    public void setReleased(Integer released) { this.released = released; }
+    public String getTitle() {
+        return title;
+    }
+
+    public String getTagline() {
+        return tagline;
+    }
+
+    public Integer getReleased() {
+        return released;
+    }
+
+    public List<Person> getActors() {
+        return actors;
+    }
+
+    public void setReleased(Integer released) {
+        this.released = released;
+    }
 }

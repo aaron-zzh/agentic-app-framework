@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.module.system.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.system.chat.service.ChatService;
 import com.xuejiai.aaf.module.system.chat.vo.ChatRunRequest;
@@ -14,7 +15,13 @@ import com.xuejiai.aaf.module.system.chat.ws.ChatWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 用户间聊天处理器：保存消息并通过 WebSocket 推送给目标用户。 */
+/**
+ * 用户间聊天处理器
+ *
+ * <p>保存消息并通过 WebSocket 推送给目标用户。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -26,6 +33,13 @@ public class UserChatHandler {
     private final ChatWebSocketHandler webSocketHandler;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 处理用户间聊天请求
+     *
+     * @param request 聊天运行请求
+     * @param senderId 发送者用户 ID
+     * @return SSE 流
+     */
     public SseEmitter handle(ChatRunRequest request, Long senderId) {
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();

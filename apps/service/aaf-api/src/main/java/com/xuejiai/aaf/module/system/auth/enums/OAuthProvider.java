@@ -3,7 +3,11 @@ package com.xuejiai.aaf.module.system.auth.enums;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-/** OAuth 第三方登录提供商。 */
+/**
+ * OAuth 第三方登录提供商。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @RequiredArgsConstructor
 public enum OAuthProvider {

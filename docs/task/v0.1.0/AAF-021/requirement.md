@@ -129,7 +129,7 @@ Feature: Auto Dev 在线开发监控
 ## 相关设计
 
 - 迭代架构设计：[后端技术选型](../../../design/apps/service/tech-stack.md)（kiro-cli 协作接口、Auto Dev 模块结构）
-- Actor 模型设计：[actor.md](../../../design/framework/intelligent/actor.md)
+- Operator 模型设计：[operator.md](../../../design/framework/operator.md)
 
 ---
 

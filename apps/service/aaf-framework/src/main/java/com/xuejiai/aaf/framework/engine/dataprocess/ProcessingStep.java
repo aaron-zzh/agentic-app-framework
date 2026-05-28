@@ -1,8 +1,6 @@
 package com.xuejiai.aaf.framework.engine.dataprocess;
 
-/**
- * 数据处理步骤——Pipeline 中的单个处理环节。
- */
+/** 数据处理步骤——Pipeline 中的单个处理环节。 */
 public interface ProcessingStep {
 
     /** 步骤名称。 */

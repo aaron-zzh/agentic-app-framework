@@ -14,8 +14,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 技能匹配引擎——纯领域逻辑。
  *
- * <p>职责：根据用户输入匹配最合适的技能（意图关键词匹配 + 优先级排序）。
- * 数据获取通过 {@link SkillStore} 接口，不直接依赖 Repository/Entity。
+ * <p>职责：根据用户输入匹配最合适的技能（意图关键词匹配 + 优先级排序）。 数据获取通过 {@link SkillStore} 接口，不直接依赖 Repository/Entity。
  */
 @Service
 @RequiredArgsConstructor
@@ -58,14 +57,23 @@ public class SkillMatchEngine implements SkillProvider {
     }
 
     private SkillDef toSkillDef(SkillStore.SkillRecord r) {
-        var tools = r.tools() != null
-                ? List.of(r.tools().replaceAll("[\\[\\]\"]", "").split(","))
-                : List.<String>of();
-        var keywords = r.triggerIntent() != null
-                ? List.of(r.triggerIntent().replaceAll("[\\[\\]\"]", "").split(","))
-                : List.<String>of();
+        var tools =
+                r.tools() != null
+                        ? List.of(r.tools().replaceAll("[\\[\\]\"]", "").split(","))
+                        : List.<String>of();
+        var keywords =
+                r.triggerIntent() != null
+                        ? List.of(r.triggerIntent().replaceAll("[\\[\\]\"]", "").split(","))
+                        : List.<String>of();
         return new SkillDef(
-                r.skillId(), r.name(), r.description(), r.agentId(),
-                keywords, r.systemPrompt(), tools, r.priority(), r.builtIn());
+                r.skillId(),
+                r.name(),
+                r.description(),
+                r.agentId(),
+                keywords,
+                r.systemPrompt(),
+                tools,
+                r.priority(),
+                r.builtIn());
     }
 }

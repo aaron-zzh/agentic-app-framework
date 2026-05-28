@@ -6,6 +6,7 @@ import java.util.Map;
  * 通用 AI 能力路由上下文。
  *
  * <p>决策链优先级（从高到低）：
+ *
  * <ol>
  *   <li>显式指定 — 调用方直接传 modelId
  *   <li>编排引擎配置 — 工作流节点 / AgentDefinition 绑定的模型
@@ -15,11 +16,12 @@ import java.util.Map;
  *   <li>yaml 兜底 — 各能力内置默认 modelId
  * </ol>
  *
- * @param userId               当前用户 ID（用于查用户偏好，可为 null）
- * @param capability           能力类型：CHAT / IMAGE_GEN / VIDEO_GEN / SPEECH_ASR / SPEECH_TTS / RERANK / EMBEDDING
- * @param explicitModelId      调用方显式指定的 modelId（最高优先级，可为 null）
+ * @param userId 当前用户 ID（用于查用户偏好，可为 null）
+ * @param capability 能力类型：CHAT / IMAGE_GEN / VIDEO_GEN / SPEECH_ASR / SPEECH_TTS / RERANK /
+ *     EMBEDDING
+ * @param explicitModelId 调用方显式指定的 modelId（最高优先级，可为 null）
  * @param orchestrationModelId 编排引擎（工作流节点/Agent）绑定的 modelId（可为 null）
- * @param taskFeatures         任务特征，用于 AI 辅助决策（可为 null）
+ * @param taskFeatures 任务特征，用于 AI 辅助决策（可为 null）
  */
 public record CapabilityRoutingContext(
         Long userId,
@@ -30,6 +32,7 @@ public record CapabilityRoutingContext(
 
     /** 能力常量 */
     public static final String CAP_CHAT = "CHAT";
+
     public static final String CAP_IMAGE_GEN = "IMAGE_GEN";
     public static final String CAP_VIDEO_GEN = "VIDEO_GEN";
     public static final String CAP_SPEECH_ASR = "SPEECH_ASR";
@@ -39,13 +42,15 @@ public record CapabilityRoutingContext(
 
     /** 任务特征 key 常量 */
     public static final String FEATURE_INPUT_LENGTH = "inputLength";
+
     public static final String FEATURE_HAS_IMAGE = "hasImage";
     public static final String FEATURE_HAS_VIDEO = "hasVideo";
     public static final String FEATURE_COST_SENSITIVE = "costSensitive";
     public static final String FEATURE_REASONING_REQUIRED = "reasoningRequired";
 
     /** 简化构造：只有显式 modelId */
-    public static CapabilityRoutingContext of(Long userId, String capability, String explicitModelId) {
+    public static CapabilityRoutingContext of(
+            Long userId, String capability, String explicitModelId) {
         return new CapabilityRoutingContext(userId, capability, explicitModelId, null, null);
     }
 

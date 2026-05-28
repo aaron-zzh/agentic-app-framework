@@ -1,7 +1,5 @@
 package com.xuejiai.aaf.framework.engine.dataprocess;
 
-import java.util.Map;
-
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -13,9 +11,10 @@ import lombok.extern.slf4j.Slf4j;
  * 数据路由步骤——按配置将处理后的数据写入目标存储。
  *
  * <p>支持的目标类型：
+ *
  * <ul>
- *   <li>custom_table — 写入自定义 PostgreSQL 表（动态 INSERT）</li>
- *   <li>knowledge_base — 写入知识库（调用知识库 API）</li>
+ *   <li>custom_table — 写入自定义 PostgreSQL 表（动态 INSERT）
+ *   <li>knowledge_base — 写入知识库（调用知识库 API）
  * </ul>
  */
 @Slf4j
@@ -56,10 +55,11 @@ public class DataRouter implements ProcessingStep {
             if (item.isEmpty()) continue;
 
             var columns = String.join(", ", item.keySet());
-            var placeholders = item.keySet().stream()
-                    .map(k -> ":" + k)
-                    .reduce((a, b) -> a + ", " + b)
-                    .orElse("");
+            var placeholders =
+                    item.keySet().stream()
+                            .map(k -> ":" + k)
+                            .reduce((a, b) -> a + ", " + b)
+                            .orElse("");
 
             var sql = "INSERT INTO %s (%s) VALUES (%s)".formatted(tableName, columns, placeholders);
             var query = entityManager.createNativeQuery(sql);
@@ -78,11 +78,12 @@ public class DataRouter implements ProcessingStep {
         int count = 0;
         for (var item : context.getItems()) {
             item.remove("_raw_");
-            var text = item.values().stream()
-                    .filter(v -> v instanceof String)
-                    .map(Object::toString)
-                    .reduce((a, b) -> a + "\n" + b)
-                    .orElse("");
+            var text =
+                    item.values().stream()
+                            .filter(v -> v instanceof String)
+                            .map(Object::toString)
+                            .reduce((a, b) -> a + "\n" + b)
+                            .orElse("");
             if (!text.isBlank()) {
                 // TODO: 调用知识库 API 写入向量库
                 count++;

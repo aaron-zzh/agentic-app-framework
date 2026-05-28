@@ -4,7 +4,11 @@ import java.time.LocalDateTime;
 
 import lombok.Data;
 
-/** 异步任务模型。内存存储，轻量级进度追踪。 */
+/**
+ * 异步任务模型。内存存储，轻量级进度追踪。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Data
 public class AsyncTask {
 

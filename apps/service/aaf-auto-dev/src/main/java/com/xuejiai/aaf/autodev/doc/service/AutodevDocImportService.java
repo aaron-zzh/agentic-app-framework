@@ -125,9 +125,11 @@ public class AutodevDocImportService {
             allDocs.stream()
                     .filter(d -> d.getTitle().equalsIgnoreCase(name))
                     .findFirst()
-                    .ifPresent(target -> {
-                        if (linked.add(target.getId())) saveLink(source.getId(), target.getId(), "wikilink");
-                    });
+                    .ifPresent(
+                            target -> {
+                                if (linked.add(target.getId()))
+                                    saveLink(source.getId(), target.getId(), "wikilink");
+                            });
         }
 
         Matcher mm = MDLINK.matcher(content);
@@ -136,9 +138,11 @@ public class AutodevDocImportService {
             allDocs.stream()
                     .filter(d -> d.getFilePath() != null && d.getFilePath().endsWith(resolved))
                     .findFirst()
-                    .ifPresent(target -> {
-                        if (linked.add(target.getId())) saveLink(source.getId(), target.getId(), "mdlink");
-                    });
+                    .ifPresent(
+                            target -> {
+                                if (linked.add(target.getId()))
+                                    saveLink(source.getId(), target.getId(), "mdlink");
+                            });
         }
     }
 
@@ -158,13 +162,15 @@ public class AutodevDocImportService {
     private List<Path> collectMarkdownFiles(Path root) {
         List<Path> files = new ArrayList<>();
         try {
-            Files.walkFileTree(root, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (file.toString().endsWith(".md")) files.add(file);
-                    return FileVisitResult.CONTINUE;
-                }
-            });
+            Files.walkFileTree(
+                    root,
+                    new SimpleFileVisitor<>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                            if (file.toString().endsWith(".md")) files.add(file);
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
         } catch (IOException e) {
             log.error("扫描目录失败：{}", e.getMessage());
         }

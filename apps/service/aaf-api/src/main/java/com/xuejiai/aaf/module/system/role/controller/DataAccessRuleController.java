@@ -24,7 +24,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 行级数据权限规则管理接口。 */
+/**
+ * 行级数据权限规则管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "数据权限规则管理")
 @RestController
 @RequestMapping("/api/admin/data-access-rules")

@@ -1,18 +1,26 @@
 package com.xuejiai.aaf.module.system.dict.controller;
 
+import java.util.List;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.system.dict.service.DictDataService;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataCreateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataUpdateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictDataVO;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
 
+/**
+ * 字典数据管理接口
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "字典数据管理")
 @RestController
 @RequestMapping("/api/system/dict-data")
@@ -49,7 +57,8 @@ public class DictDataController {
     @Operation(summary = "更新字典数据")
     @PutMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public Result<DictDataVO> update(@PathVariable Long id, @Valid @RequestBody DictDataUpdateDTO dto) {
+    public Result<DictDataVO> update(
+            @PathVariable Long id, @Valid @RequestBody DictDataUpdateDTO dto) {
         return Result.success(dictDataService.update(id, dto));
     }
 

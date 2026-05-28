@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.xuejiai.aaf.module.system.notify.domain.MessageTemplate;
 
-/** 消息模板数据访问层。 */
+/**
+ * 消息模板数据访问层。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface MessageTemplateRepository
         extends JpaRepository<MessageTemplate, Long>, JpaSpecificationExecutor<MessageTemplate> {
 

@@ -21,7 +21,13 @@ import com.xuejiai.aaf.module.system.chat.vo.ChatRunRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** AI 对话处理器：通过 ResilientChatService 流式调用 LLM，流结束后持久化 AI 回复。 */
+/**
+ * AI 对话处理器
+ *
+ * <p>通过 ResilientChatService 流式调用 LLM，流结束后持久化 AI 回复。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -35,11 +41,12 @@ public class AiChatHandler {
     private final ChatService chatService;
 
     /**
-     * 处理 AI 对话请求。
+     * 处理 AI 对话请求
      *
      * @param request 请求体（messages 已由 ChatRunController 合并历史）
      * @param userId 当前用户 ID
      * @param sessionId 会话 ID（非 null 时流结束后持久化 AI 回复）
+     * @return SSE 流
      */
     public SseEmitter handle(ChatRunRequest request, Long userId, Long sessionId) {
         var emitter = new SseEmitter(SSE_TIMEOUT);
@@ -50,24 +57,32 @@ public class AiChatHandler {
 
         var messages = buildMessages(request);
 
-        Thread.startVirtualThread(() -> {
-            try {
-                var flux = resilientChatService.stream(messages, "chat", userId);
-                // 流结束后持久化 AI 回复
-                streamHandler.handleStream(flux, emitter, runId, fullContent -> {
-                    if (sessionId != null && fullContent != null && !fullContent.isBlank()) {
-                        try {
-                            chatService.saveMessage(0L, "AI", sessionId, "assistant", fullContent);
-                        } catch (Exception e) {
-                            log.warn("持久化 AI 回复失败: sessionId={}", sessionId, e);
-                        }
+        Thread.startVirtualThread(
+                () -> {
+                    try {
+                        var flux = resilientChatService.stream(messages, "chat", userId);
+                        // 流结束后持久化 AI 回复
+                        streamHandler.handleStream(
+                                flux,
+                                emitter,
+                                runId,
+                                fullContent -> {
+                                    if (sessionId != null
+                                            && fullContent != null
+                                            && !fullContent.isBlank()) {
+                                        try {
+                                            chatService.saveMessage(
+                                                    0L, "AI", sessionId, "assistant", fullContent);
+                                        } catch (Exception e) {
+                                            log.warn("持久化 AI 回复失败: sessionId={}", sessionId, e);
+                                        }
+                                    }
+                                });
+                    } catch (Exception e) {
+                        log.error("AI 流式调用失败: runId={}", runId, e);
+                        sendErrorAndComplete(emitter, runId, e);
                     }
                 });
-            } catch (Exception e) {
-                log.error("AI 流式调用失败: runId={}", runId, e);
-                sendErrorAndComplete(emitter, runId, e);
-            }
-        });
 
         return emitter;
     }
@@ -77,23 +92,27 @@ public class AiChatHandler {
         var messages = new ArrayList<Message>();
         messages.add(new SystemMessage(systemPrompt));
         for (var msg : request.messages()) {
-            messages.add(switch (msg.role()) {
-                case "assistant" -> new AssistantMessage(msg.content());
-                case "system" -> new SystemMessage(msg.content());
-                default -> new UserMessage(msg.content());
-            });
+            messages.add(
+                    switch (msg.role()) {
+                        case "assistant" -> new AssistantMessage(msg.content());
+                        case "system" -> new SystemMessage(msg.content());
+                        default -> new UserMessage(msg.content());
+                    });
         }
         return messages;
     }
 
     private void sendErrorAndComplete(SseEmitter emitter, String runId, Exception e) {
         try {
-            var json = new com.fasterxml.jackson.databind.ObjectMapper()
-                    .writeValueAsString(AgUiEvent.runError(runId, e.getMessage()));
+            var json =
+                    new com.fasterxml.jackson.databind.ObjectMapper()
+                            .writeValueAsString(AgUiEvent.runError(runId, e.getMessage()));
             emitter.send(SseEmitter.event().data(json));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             emitter.completeWithError(e);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 }

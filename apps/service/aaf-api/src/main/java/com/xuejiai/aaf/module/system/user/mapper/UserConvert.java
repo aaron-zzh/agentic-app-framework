@@ -13,6 +13,9 @@ import com.xuejiai.aaf.module.system.user.vo.UserVO;
 
 /** 用户对象转换器。 */
 @Mapper
+/**
+ * @author AaronZZH & Kiro
+ */
 public interface UserConvert {
 
     UserConvert INSTANCE = Mappers.getMapper(UserConvert.class);

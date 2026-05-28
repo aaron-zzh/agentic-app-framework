@@ -12,7 +12,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 数据归档规则。 */
+/**
+ * 数据归档规则
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

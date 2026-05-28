@@ -35,8 +35,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     private final ApiKeyRepository apiKeyRepository;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         var rawKey = extractKey(request);
         if (rawKey == null) {
             filterChain.doFilter(request, response);
@@ -56,8 +57,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         // 设置 SecurityContext（principal = userId 字符串，与 JWT 一致）
         var authorities = List.of(new SimpleGrantedAuthority("ROLE_API_KEY"));
-        var auth = new UsernamePasswordAuthenticationToken(
-                apiKey.getUserId().toString(), null, authorities);
+        var auth =
+                new UsernamePasswordAuthenticationToken(
+                        apiKey.getUserId().toString(), null, authorities);
         auth.setDetails(apiKey); // 可通过 details 获取 ApiKey 对象
         SecurityContextHolder.getContext().setAuthentication(auth);
 

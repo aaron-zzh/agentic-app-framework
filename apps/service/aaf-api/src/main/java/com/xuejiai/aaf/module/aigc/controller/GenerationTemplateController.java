@@ -13,7 +13,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 参数模板接口。 */
+/**
+ * AIGC 参数模板接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "AIGC 参数模板")
 @RestController
 @RequestMapping("/api/aigc/templates")

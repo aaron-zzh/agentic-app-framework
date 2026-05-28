@@ -23,7 +23,8 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ol>
  *   <li>基础聊天 — {@code POST /basic-chat}
- *   <li>工具调用 + Hook/Tracing — {@code POST /tool-calling}（含 ObservationHook + TokenMeteringHook + 可选 Langfuse）
+ *   <li>工具调用 + Hook/Tracing — {@code POST /tool-calling}（含 ObservationHook + TokenMeteringHook + 可选
+ *       Langfuse）
  *   <li>Supervisor 多智能体 — {@code POST /supervisor}
  *   <li>Pipeline 顺序管道 — {@code POST /pipeline}
  *   <li>MsgHub 辩论 — {@code POST /debate}
@@ -102,17 +103,13 @@ public class AgentScopeExampleController {
         return Result.success(exampleService.mcpToolCall(req.input()));
     }
 
-    @Operation(
-            summary = "⑧ RAG 知识库聊天",
-            description = "Generic RAG 模式：每次推理前自动检索知识库注入上下文，减少幻觉")
+    @Operation(summary = "⑧ RAG 知识库聊天", description = "Generic RAG 模式：每次推理前自动检索知识库注入上下文，减少幻觉")
     @PostMapping("/rag-chat")
     public Result<String> ragChat(@RequestBody ChatRequest req) {
         return Result.success(exampleService.ragChat(req.input()));
     }
 
-    @Operation(
-            summary = "⑨ Plan 任务规划",
-            description = "PlanNotebook：Agent 将复杂任务分解为子任务，逐步执行并追踪进度")
+    @Operation(summary = "⑨ Plan 任务规划", description = "PlanNotebook：Agent 将复杂任务分解为子任务，逐步执行并追踪进度")
     @PostMapping("/plan-chat")
     public Result<String> planChat(@RequestBody ChatRequest req) {
         return Result.success(exampleService.planChat(req.input()));
@@ -120,7 +117,8 @@ public class AgentScopeExampleController {
 
     @Operation(
             summary = "⑩ Realtime TTS 语音合成",
-            description = "WebSocket 流式 TTS，保存 WAV 到服务端 ~/.aaf/examples/tts/，返回文件路径。需配置 DASHSCOPE_API_KEY")
+            description =
+                    "WebSocket 流式 TTS，保存 WAV 到服务端 ~/.aaf/examples/tts/，返回文件路径。需配置 DASHSCOPE_API_KEY")
     @PostMapping("/tts")
     public Result<String> tts(@RequestBody ChatRequest req) {
         return Result.success(exampleService.textToSpeech(req.input()));

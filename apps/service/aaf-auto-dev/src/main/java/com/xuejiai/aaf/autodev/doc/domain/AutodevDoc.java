@@ -8,6 +8,7 @@ import org.hibernate.annotations.SQLRestriction;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
@@ -42,8 +43,7 @@ public class AutodevDoc extends BaseEntity {
     @Column(name = "front_matter", columnDefinition = "JSONB")
     private String frontMatterJson;
 
-    @Transient
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    @Transient private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public Map<String, Object> getFrontMatter() {
         if (frontMatterJson == null || frontMatterJson.isBlank()) return Map.of();

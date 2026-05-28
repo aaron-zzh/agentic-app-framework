@@ -24,7 +24,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 仪表盘接口。 */
+/**
+ * 仪表盘接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "仪表盘")
 @RestController
 @RequestMapping("/api/system/dashboards")

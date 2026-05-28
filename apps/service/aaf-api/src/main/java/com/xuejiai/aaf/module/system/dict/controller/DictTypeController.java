@@ -1,18 +1,26 @@
 package com.xuejiai.aaf.module.system.dict.controller;
 
+import java.util.List;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.system.dict.service.DictTypeService;
 import com.xuejiai.aaf.module.system.dict.vo.DictTypeCreateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictTypeUpdateDTO;
 import com.xuejiai.aaf.module.system.dict.vo.DictTypeVO;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
 
+/**
+ * 字典类型管理接口
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "字典类型管理")
 @RestController
 @RequestMapping("/api/system/dict-types")
@@ -43,7 +51,8 @@ public class DictTypeController {
     @Operation(summary = "更新字典类型")
     @PutMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public Result<DictTypeVO> update(@PathVariable Long id, @Valid @RequestBody DictTypeUpdateDTO dto) {
+    public Result<DictTypeVO> update(
+            @PathVariable Long id, @Valid @RequestBody DictTypeUpdateDTO dto) {
         return Result.success(dictTypeService.update(id, dto));
     }
 

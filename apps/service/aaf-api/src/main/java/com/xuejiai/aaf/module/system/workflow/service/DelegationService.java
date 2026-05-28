@@ -23,7 +23,11 @@ import com.xuejiai.aaf.module.system.workflow.vo.WorkflowTransferDTO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 审批委托业务逻辑。 */
+/**
+ * 审批委托业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class DelegationService {

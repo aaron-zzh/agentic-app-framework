@@ -22,8 +22,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * Skill 匹配服务。
  *
- * <p>通过 Assistant → Role → Role.skillIds 获取该 Assistant 可用的技能列表，
- * 再按用户输入匹配最合适的技能。
+ * <p>通过 Assistant → Role → Role.skillIds 获取该 Assistant 可用的技能列表， 再按用户输入匹配最合适的技能。
  */
 @Service
 @RequiredArgsConstructor

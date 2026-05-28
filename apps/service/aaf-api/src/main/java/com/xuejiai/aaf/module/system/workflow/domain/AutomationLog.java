@@ -10,7 +10,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 自动化执行日志。 */
+/**
+ * 自动化执行日志
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

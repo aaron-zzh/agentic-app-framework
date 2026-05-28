@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.aigc.domain.MediaAsset;
-import com.xuejiai.aaf.module.aigc.domain.MediaAssetTag;
 import com.xuejiai.aaf.module.aigc.domain.MediaAssetVariant;
 import com.xuejiai.aaf.module.aigc.enums.MediaAssetType;
 import com.xuejiai.aaf.module.aigc.repository.MediaAssetRepository;
@@ -23,7 +22,11 @@ import com.xuejiai.aaf.module.aigc.vo.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 素材库管理服务。 */
+/**
+ * 素材库管理服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,7 +37,15 @@ public class MediaAssetService {
     private final MediaAssetVariantRepository variantRepository;
     private final MediaCategoryRepository mediaCategoryRepository;
 
-    /** 分页查询素材列表。 */
+    /**
+     * 分页查询素材列表。
+     *
+     * @param userId 用户 ID
+     * @param type 素材类型（可选）
+     * @param page 页码
+     * @param size 每页数量
+     * @return 素材分页结果
+     */
     @Transactional(readOnly = true)
     public Page<MediaAssetVO> list(Long userId, MediaAssetType type, int page, int size) {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
@@ -45,7 +56,12 @@ public class MediaAssetService {
         return assets.map(this::toVO);
     }
 
-    /** 按标签筛选素材。 */
+    /**
+     * 按标签筛选素材。
+     *
+     * @param tagIds 标签 ID 列表
+     * @return 匹配的素材列表
+     */
     @Transactional(readOnly = true)
     public List<MediaAssetVO> listByTags(List<Long> tagIds) {
         var assetIds = assetTagRepository.findAssetIdsByTagIds(tagIds);
@@ -53,19 +69,35 @@ public class MediaAssetService {
         return mediaAssetRepository.findAllById(assetIds).stream().map(this::toVO).toList();
     }
 
-    /** 按分类筛选素材。 */
+    /**
+     * 按分类筛选素材。
+     *
+     * @param categoryId 分类 ID
+     * @return 该分类下的素材列表
+     */
     @Transactional(readOnly = true)
     public List<MediaAssetVO> listByCategory(Long categoryId) {
         return mediaAssetRepository.findByCategoryId(categoryId).stream().map(this::toVO).toList();
     }
 
-    /** 获取素材详情。 */
+    /**
+     * 获取素材详情。
+     *
+     * @param id 素材 ID
+     * @return 素材详情
+     */
     @Transactional(readOnly = true)
     public MediaAssetVO getById(Long id) {
         return toVO(findById(id));
     }
 
-    /** 创建素材记录。 */
+    /**
+     * 创建素材记录。
+     *
+     * @param userId 用户 ID
+     * @param dto 创建请求
+     * @return 新建的素材
+     */
     @Transactional
     public MediaAssetVO create(Long userId, MediaAssetCreateDTO dto) {
         var asset = new MediaAsset();
@@ -84,7 +116,13 @@ public class MediaAssetService {
         return toVO(mediaAssetRepository.save(asset));
     }
 
-    /** 更新素材信息。 */
+    /**
+     * 更新素材信息。
+     *
+     * @param id 素材 ID
+     * @param dto 更新请求
+     * @return 更新后的素材
+     */
     @Transactional
     public MediaAssetVO update(Long id, MediaAssetUpdateDTO dto) {
         var asset = findById(id);
@@ -94,7 +132,11 @@ public class MediaAssetService {
         return toVO(mediaAssetRepository.save(asset));
     }
 
-    /** 删除素材（逻辑删除）。 */
+    /**
+     * 删除素材（逻辑删除）。
+     *
+     * @param id 素材 ID
+     */
     @Transactional
     public void delete(Long id) {
         var asset = findById(id);
@@ -111,12 +153,13 @@ public class MediaAssetService {
         var asset = findById(assetId);
         // TODO: 接入 LLM 多模态能力分析图片内容，生成标签建议
         // 当前返回基于类型的默认标签
-        var suggestedTags = switch (asset.getType()) {
-            case IMAGE -> List.of("图片", "AI生成");
-            case VIDEO -> List.of("视频", "AI生成");
-            case AUDIO -> List.of("音频", "AI生成");
-            case MODEL_3D -> List.of("3D模型", "AI生成");
-        };
+        var suggestedTags =
+                switch (asset.getType()) {
+                    case IMAGE -> List.of("图片", "AI生成");
+                    case VIDEO -> List.of("视频", "AI生成");
+                    case AUDIO -> List.of("音频", "AI生成");
+                    case MODEL_3D -> List.of("3D模型", "AI生成");
+                };
         log.info("AI 自动打标: assetId={}, tags={}", assetId, suggestedTags);
         return suggestedTags;
     }
@@ -156,35 +199,44 @@ public class MediaAssetService {
      * 批量生成变体（同一 Prompt 不同种子）。
      *
      * @param assetId 原始素材 ID
-     * @param count   变体数量
+     * @param count 变体数量
      * @return 变体素材列表
      */
     @Transactional
     public List<MediaAssetVO> batchVariants(Long userId, Long assetId, int count) {
         var original = findById(assetId);
-        return java.util.stream.IntStream.range(0, count).mapToObj(i -> {
-            var variant = new MediaAsset();
-            variant.setName(original.getName() + " - 变体" + (i + 1));
-            variant.setType(original.getType());
-            variant.setUrl(original.getUrl()); // 占位
-            variant.setWidth(original.getWidth());
-            variant.setHeight(original.getHeight());
-            variant.setGenerationParams("{\"seed\":" + (System.nanoTime() + i) + "}");
-            variant.setUserId(userId);
-            variant.setCategoryId(original.getCategoryId());
-            variant = mediaAssetRepository.save(variant);
+        return java.util.stream.IntStream.range(0, count)
+                .mapToObj(
+                        i -> {
+                            var variant = new MediaAsset();
+                            variant.setName(original.getName() + " - 变体" + (i + 1));
+                            variant.setType(original.getType());
+                            variant.setUrl(original.getUrl()); // 占位
+                            variant.setWidth(original.getWidth());
+                            variant.setHeight(original.getHeight());
+                            variant.setGenerationParams(
+                                    "{\"seed\":" + (System.nanoTime() + i) + "}");
+                            variant.setUserId(userId);
+                            variant.setCategoryId(original.getCategoryId());
+                            variant = mediaAssetRepository.save(variant);
 
-            var relation = new MediaAssetVariant();
-            relation.setOriginalAssetId(original.getId());
-            relation.setVariantAssetId(variant.getId());
-            relation.setParamsDiff("{\"seed\":" + (System.nanoTime() + i) + "}");
-            variantRepository.save(relation);
+                            var relation = new MediaAssetVariant();
+                            relation.setOriginalAssetId(original.getId());
+                            relation.setVariantAssetId(variant.getId());
+                            relation.setParamsDiff("{\"seed\":" + (System.nanoTime() + i) + "}");
+                            variantRepository.save(relation);
 
-            return toVO(variant);
-        }).toList();
+                            return toVO(variant);
+                        })
+                .toList();
     }
 
-    /** 查询素材的变体列表。 */
+    /**
+     * 查询素材的变体列表。
+     *
+     * @param assetId 原始素材 ID
+     * @return 变体素材列表
+     */
     @Transactional(readOnly = true)
     public List<MediaAssetVO> listVariants(Long assetId) {
         var variants = variantRepository.findByOriginalAssetId(assetId);
@@ -193,7 +245,13 @@ public class MediaAssetService {
         return mediaAssetRepository.findAllById(variantIds).stream().map(this::toVO).toList();
     }
 
-    /** 从生成结果一键保存到素材库（自动分类+自动打标）。 */
+    /**
+     * 从生成结果一键保存到素材库（自动分类+自动打标）。
+     *
+     * @param userId 用户 ID
+     * @param dto 保存请求
+     * @return 保存后的素材
+     */
     @Transactional
     public MediaAssetVO saveFromGeneration(Long userId, SaveFromGenerationDTO dto) {
         var asset = new MediaAsset();
@@ -224,15 +282,17 @@ public class MediaAssetService {
     }
 
     private MediaAsset findById(Long id) {
-        return mediaAssetRepository.findById(id)
+        return mediaAssetRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "素材不存在"));
     }
 
     private String buildVariantParams(RegenerateRequest request) {
-        return "{\"prompt\":\"%s\",\"seed\":\"%s\",\"style\":\"%s\"}".formatted(
-                request.newPrompt() != null ? request.newPrompt() : "",
-                request.newSeed() != null ? request.newSeed() : "",
-                request.newStyle() != null ? request.newStyle() : "");
+        return "{\"prompt\":\"%s\",\"seed\":\"%s\",\"style\":\"%s\"}"
+                .formatted(
+                        request.newPrompt() != null ? request.newPrompt() : "",
+                        request.newSeed() != null ? request.newSeed() : "",
+                        request.newStyle() != null ? request.newStyle() : "");
     }
 
     private MediaAssetVO toVO(MediaAsset asset) {

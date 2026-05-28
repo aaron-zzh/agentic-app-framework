@@ -11,7 +11,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 自动化规则。 */
+/**
+ * 自动化规则
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

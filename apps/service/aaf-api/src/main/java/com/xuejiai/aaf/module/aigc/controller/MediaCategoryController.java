@@ -14,7 +14,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 素材分类管理接口。 */
+/**
+ * AIGC 素材分类管理接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "AIGC 素材分类")
 @RestController
 @RequestMapping("/api/aigc/categories")
@@ -37,7 +41,8 @@ public class MediaCategoryController {
 
     @Operation(summary = "更新分类")
     @PutMapping("/{id}")
-    public Result<MediaCategoryVO> update(@PathVariable Long id, @Valid @RequestBody MediaCategoryCreateDTO dto) {
+    public Result<MediaCategoryVO> update(
+            @PathVariable Long id, @Valid @RequestBody MediaCategoryCreateDTO dto) {
         return Result.success(categoryService.update(id, dto));
     }
 

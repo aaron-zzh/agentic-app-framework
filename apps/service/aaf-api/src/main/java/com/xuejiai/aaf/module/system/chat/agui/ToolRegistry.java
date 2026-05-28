@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 
 /**
- * AG-UI 工具注册表。
+ * AG-UI 工具注册表
  *
  * <p>管理可供 Agent 调用的工具定义，前端通过 AG-UI 协议获取工具列表。
  *
@@ -47,14 +47,30 @@ public class ToolRegistry {
                 {"type":"object","properties":{"city":{"type":"string","description":"城市名称"}},"required":["city"]}"""));
     }
 
+    /**
+     * 注册工具定义
+     *
+     * @param tool 工具定义
+     */
     public void register(ToolDefinition tool) {
         tools.put(tool.name(), tool);
     }
 
+    /**
+     * 根据名称获取工具定义
+     *
+     * @param name 工具名称
+     * @return 工具定义（可能为空）
+     */
     public Optional<ToolDefinition> get(String name) {
         return Optional.ofNullable(tools.get(name));
     }
 
+    /**
+     * 获取所有已注册的工具定义
+     *
+     * @return 工具定义集合
+     */
     public Collection<ToolDefinition> getAll() {
         return tools.values();
     }

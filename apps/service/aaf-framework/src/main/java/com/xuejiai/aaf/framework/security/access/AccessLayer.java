@@ -3,8 +3,7 @@ package com.xuejiai.aaf.framework.security.access;
 /**
  * 权限处理层级——三层分层模型。
  *
- * <p>设计原则：前一层处理了，后续层不再重复校验。
- * 所有对外接口（REST/WebSocket/AG-UI/A2A/MCP/IoT）统一适用。
+ * <p>设计原则：前一层处理了，后续层不再重复校验。 所有对外接口（REST/WebSocket/AG-UI/A2A/MCP/IoT）统一适用。
  *
  * <pre>
  * Layer 1: 注解层（@AccessControl）

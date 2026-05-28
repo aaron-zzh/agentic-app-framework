@@ -1,10 +1,16 @@
 package com.xuejiai.aaf.module.system.notify.vo;
 
-/** 消息模板更新 DTO。 */
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * 消息模板更新 DTO。
+ *
+ * @author AaronZZH & Kiro
+ */
 public record MessageTemplateUpdateDTO(
-        String name,
+        @Schema(description = "名称") String name,
         String channel,
-        String subject,
-        String content,
+        @Schema(description = "主题") String subject,
+        @Schema(description = "内容") String content,
         String variables,
-        Short status) {}
+        @Schema(description = "状态") Short status) {}

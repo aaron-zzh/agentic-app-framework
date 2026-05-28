@@ -27,7 +27,11 @@ import com.xuejiai.aaf.module.system.entity.vo.EntityDefVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 实体定义业务逻辑。 */
+/**
+ * 实体定义业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

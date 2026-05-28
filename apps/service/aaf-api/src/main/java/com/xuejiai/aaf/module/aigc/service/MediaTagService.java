@@ -16,7 +16,11 @@ import com.xuejiai.aaf.module.aigc.vo.MediaTagVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 素材标签服务。 */
+/**
+ * 素材标签服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class MediaTagService {
@@ -24,13 +28,22 @@ public class MediaTagService {
     private final MediaTagRepository tagRepository;
     private final MediaAssetTagRepository assetTagRepository;
 
-    /** 查询所有标签。 */
+    /**
+     * 查询所有标签。
+     *
+     * @return 标签列表
+     */
     @Transactional(readOnly = true)
     public List<MediaTagVO> list() {
         return tagRepository.findAll().stream().map(this::toVO).toList();
     }
 
-    /** 创建标签。 */
+    /**
+     * 创建标签。
+     *
+     * @param dto 创建请求
+     * @return 新建的标签
+     */
     @Transactional
     public MediaTagVO create(MediaTagCreateDTO dto) {
         var tag = new MediaTag();
@@ -39,7 +52,13 @@ public class MediaTagService {
         return toVO(tagRepository.save(tag));
     }
 
-    /** 更新标签。 */
+    /**
+     * 更新标签。
+     *
+     * @param id 标签 ID
+     * @param dto 更新请求
+     * @return 更新后的标签
+     */
     @Transactional
     public MediaTagVO update(Long id, MediaTagCreateDTO dto) {
         var tag = findById(id);
@@ -48,27 +67,45 @@ public class MediaTagService {
         return toVO(tagRepository.save(tag));
     }
 
-    /** 删除标签。 */
+    /**
+     * 删除标签。
+     *
+     * @param id 标签 ID
+     */
     @Transactional
     public void delete(Long id) {
         var tag = findById(id);
         tagRepository.delete(tag);
     }
 
-    /** 为素材绑定标签。 */
+    /**
+     * 为素材绑定标签。
+     *
+     * @param assetId 素材 ID
+     * @param tagIds 标签 ID 列表
+     */
     @Transactional
     public void bindTags(Long assetId, List<Long> tagIds) {
         assetTagRepository.deleteByAssetId(assetId);
-        var relations = tagIds.stream().map(tagId -> {
-            var rel = new MediaAssetTag();
-            rel.setAssetId(assetId);
-            rel.setTagId(tagId);
-            return rel;
-        }).toList();
+        var relations =
+                tagIds.stream()
+                        .map(
+                                tagId -> {
+                                    var rel = new MediaAssetTag();
+                                    rel.setAssetId(assetId);
+                                    rel.setTagId(tagId);
+                                    return rel;
+                                })
+                        .toList();
         assetTagRepository.saveAll(relations);
     }
 
-    /** 获取素材的标签列表。 */
+    /**
+     * 获取素材的标签列表。
+     *
+     * @param assetId 素材 ID
+     * @return 标签列表
+     */
     @Transactional(readOnly = true)
     public List<MediaTagVO> getTagsByAssetId(Long assetId) {
         var assetTags = assetTagRepository.findByAssetId(assetId);
@@ -78,7 +115,8 @@ public class MediaTagService {
     }
 
     private MediaTag findById(Long id) {
-        return tagRepository.findById(id)
+        return tagRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "标签不存在"));
     }
 

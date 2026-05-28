@@ -3,7 +3,6 @@ package com.xuejiai.aaf.framework.intelligent.ai.speech;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
-import java.util.Base64;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,11 +22,13 @@ import reactor.core.publisher.FluxSink;
  * 基于阿里云 DashScope 官方 SDK 的语音服务实现。
  *
  * <p>ASR：Recognition SDK（paraformer-realtime-v2），WebSocket 流式
+ *
  * <p>TTS：SpeechSynthesizer SDK（cosyvoice-v3-flash），WebSocket 流式
  *
  * <p>启用条件：配置 {@code spring.ai.dashscope.api-key}
  *
  * <p>推荐音色（cosyvoice-v3-flash）：
+ *
  * <pre>
  * 场景          voice 参数              特质
  * ─────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ public class DashScopeSpeechService implements SpeechService {
 
     private static final String DEFAULT_ASR_MODEL = "paraformer-realtime-v2";
     private static final String DEFAULT_TTS_MODEL = "cosyvoice-v3-flash";
+
     /** 默认音色：语音助手场景，知性积极女 */
     private static final String DEFAULT_VOICE = "longxiaochun_v3";
 
@@ -61,17 +63,13 @@ public class DashScopeSpeechService implements SpeechService {
     @Value("${aaf.speech.asr.model:" + DEFAULT_ASR_MODEL + "}")
     private String asrModel;
 
-    public DashScopeSpeechService(
-            @Value("${spring.ai.dashscope.api-key:}") String apiKey) {
+    public DashScopeSpeechService(@Value("${spring.ai.dashscope.api-key:}") String apiKey) {
         this.apiKey = apiKey;
     }
 
     // ========== ASR ==========
 
-    /**
-     * ASR 非流式：将音频字节写入临时文件，调用 Recognition.call(param, File) 阻塞识别。
-     * 适合短音频（≤5min）。
-     */
+    /** ASR 非流式：将音频字节写入临时文件，调用 Recognition.call(param, File) 阻塞识别。 适合短音频（≤5min）。 */
     @Override
     public String transcribe(byte[] audioBytes, String language) {
         File tmpFile = null;
@@ -94,48 +92,51 @@ public class DashScopeSpeechService implements SpeechService {
         }
     }
 
-    /**
-     * ASR 流式：音频字节流 → 实时句子流。
-     * 使用 Recognition.streamCall(param, Flowable<ByteBuffer>)，每个完整句子推送一次。
-     */
+    /** ASR 流式：音频字节流 → 实时句子流。 使用 Recognition.streamCall(param, Flowable<ByteBuffer>)，每个完整句子推送一次。 */
     @Override
     public Flux<String> transcribeStream(Flux<byte[]> audioStream, String language) {
-        return Flux.create(sink -> {
-            Recognition recognizer = new Recognition();
-            try {
-                var param = buildAsrParam(language);
-                // 将 Reactor Flux<byte[]> 转为 RxJava Flowable<ByteBuffer>
-                io.reactivex.Flowable<ByteBuffer> audioFlowable = io.reactivex.Flowable.create(
-                        (io.reactivex.FlowableEmitter<ByteBuffer> emitter) ->
-                                audioStream.subscribe(
-                                        chunk -> emitter.onNext(ByteBuffer.wrap(chunk)),
-                                        emitter::onError,
-                                        emitter::onComplete),
-                        io.reactivex.BackpressureStrategy.BUFFER);
+        return Flux.create(
+                sink -> {
+                    Recognition recognizer = new Recognition();
+                    try {
+                        var param = buildAsrParam(language);
+                        // 将 Reactor Flux<byte[]> 转为 RxJava Flowable<ByteBuffer>
+                        io.reactivex.Flowable<ByteBuffer> audioFlowable =
+                                io.reactivex.Flowable.create(
+                                        (io.reactivex.FlowableEmitter<ByteBuffer> emitter) ->
+                                                audioStream.subscribe(
+                                                        chunk ->
+                                                                emitter.onNext(
+                                                                        ByteBuffer.wrap(chunk)),
+                                                        emitter::onError,
+                                                        emitter::onComplete),
+                                        io.reactivex.BackpressureStrategy.BUFFER);
 
-                recognizer.streamCall(param, audioFlowable).blockingForEach(result -> {
-                    if (result.isSentenceEnd()) {
-                        String text = result.getSentence().getText();
-                        if (text != null && !text.isBlank()) {
-                            sink.next(text);
-                        }
+                        recognizer
+                                .streamCall(param, audioFlowable)
+                                .blockingForEach(
+                                        result -> {
+                                            if (result.isSentenceEnd()) {
+                                                String text = result.getSentence().getText();
+                                                if (text != null && !text.isBlank()) {
+                                                    sink.next(text);
+                                                }
+                                            }
+                                        });
+                        sink.complete();
+                    } catch (Exception e) {
+                        log.error("ASR 流式识别失败", e);
+                        sink.error(e);
+                    } finally {
+                        recognizer.getDuplexApi().close(1000, "done");
                     }
-                });
-                sink.complete();
-            } catch (Exception e) {
-                log.error("ASR 流式识别失败", e);
-                sink.error(e);
-            } finally {
-                recognizer.getDuplexApi().close(1000, "done");
-            }
-        }, FluxSink.OverflowStrategy.BUFFER);
+                },
+                FluxSink.OverflowStrategy.BUFFER);
     }
 
     // ========== TTS ==========
 
-    /**
-     * TTS 非流式：阻塞等待完整音频返回。
-     */
+    /** TTS 非流式：阻塞等待完整音频返回。 */
     @Override
     public byte[] synthesize(String text, String voice) {
         var param = buildTtsParam(voice);
@@ -151,66 +152,77 @@ public class DashScopeSpeechService implements SpeechService {
         }
     }
 
-    /**
-     * TTS 单向流式：callAsFlowable，文本一次性传入，音频分帧推送。
-     */
+    /** TTS 单向流式：callAsFlowable，文本一次性传入，音频分帧推送。 */
     @Override
     public Flux<byte[]> synthesizeStream(String text, String voice) {
-        return Flux.create(sink -> {
-            var synthesizer = new SpeechSynthesizer(buildTtsParam(voice), null);
-            try {
-                synthesizer.callAsFlowable(text).blockingForEach(result -> {
-                    var frame = result.getAudioFrame();
-                    if (frame != null) sink.next(frame.array());
-                });
-                sink.complete();
-            } catch (Exception e) {
-                log.error("TTS 流式合成失败: voice={}", voice, e);
-                sink.error(e);
-            } finally {
-                synthesizer.getDuplexApi().close(1000, "done");
-            }
-        }, FluxSink.OverflowStrategy.BUFFER);
+        return Flux.create(
+                sink -> {
+                    var synthesizer = new SpeechSynthesizer(buildTtsParam(voice), null);
+                    try {
+                        synthesizer
+                                .callAsFlowable(text)
+                                .blockingForEach(
+                                        result -> {
+                                            var frame = result.getAudioFrame();
+                                            if (frame != null) sink.next(frame.array());
+                                        });
+                        sink.complete();
+                    } catch (Exception e) {
+                        log.error("TTS 流式合成失败: voice={}", voice, e);
+                        sink.error(e);
+                    } finally {
+                        synthesizer.getDuplexApi().close(1000, "done");
+                    }
+                },
+                FluxSink.OverflowStrategy.BUFFER);
     }
 
-    /**
-     * TTS 双向流式：streamingCallAsFlowable，文本来自上游 Flux（如 LLM 输出）。
-     */
+    /** TTS 双向流式：streamingCallAsFlowable，文本来自上游 Flux（如 LLM 输出）。 */
     @Override
     public Flux<byte[]> synthesizeStream(Flux<String> textStream, String voice) {
-        return Flux.create(sink -> {
-            var synthesizer = new SpeechSynthesizer(buildTtsParam(voice), null);
-            try {
-                io.reactivex.Flowable<String> textFlowable = io.reactivex.Flowable.create(
-                        (io.reactivex.FlowableEmitter<String> emitter) ->
-                                textStream.subscribe(emitter::onNext, emitter::onError, emitter::onComplete),
-                        io.reactivex.BackpressureStrategy.BUFFER);
+        return Flux.create(
+                sink -> {
+                    var synthesizer = new SpeechSynthesizer(buildTtsParam(voice), null);
+                    try {
+                        io.reactivex.Flowable<String> textFlowable =
+                                io.reactivex.Flowable.create(
+                                        (io.reactivex.FlowableEmitter<String> emitter) ->
+                                                textStream.subscribe(
+                                                        emitter::onNext,
+                                                        emitter::onError,
+                                                        emitter::onComplete),
+                                        io.reactivex.BackpressureStrategy.BUFFER);
 
-                synthesizer.streamingCallAsFlowable(textFlowable).blockingForEach(result -> {
-                    var frame = result.getAudioFrame();
-                    if (frame != null) sink.next(frame.array());
-                });
-                sink.complete();
-            } catch (Exception e) {
-                log.error("TTS 双向流式合成失败: voice={}", voice, e);
-                sink.error(e);
-            } finally {
-                synthesizer.getDuplexApi().close(1000, "done");
-            }
-        }, FluxSink.OverflowStrategy.BUFFER);
+                        synthesizer
+                                .streamingCallAsFlowable(textFlowable)
+                                .blockingForEach(
+                                        result -> {
+                                            var frame = result.getAudioFrame();
+                                            if (frame != null) sink.next(frame.array());
+                                        });
+                        sink.complete();
+                    } catch (Exception e) {
+                        log.error("TTS 双向流式合成失败: voice={}", voice, e);
+                        sink.error(e);
+                    } finally {
+                        synthesizer.getDuplexApi().close(1000, "done");
+                    }
+                },
+                FluxSink.OverflowStrategy.BUFFER);
     }
 
     // ========== 内部方法 ==========
 
     private RecognitionParam buildAsrParam(String language) {
-        var builder = RecognitionParam.builder()
-                .apiKey(apiKey)
-                .model(asrModel)
-                .format("wav")
-                .sampleRate(16000);
+        var builder =
+                RecognitionParam.builder()
+                        .apiKey(apiKey)
+                        .model(asrModel)
+                        .format("wav")
+                        .sampleRate(16000);
         // language_hints 仅 paraformer-realtime-v2 支持
         if (StringUtils.hasText(language) && asrModel.contains("v2")) {
-            builder.parameter("language_hints", new String[]{language});
+            builder.parameter("language_hints", new String[] {language});
         }
         return builder.build();
     }

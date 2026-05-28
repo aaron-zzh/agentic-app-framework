@@ -8,7 +8,11 @@ import com.xuejiai.aaf.module.system.image.service.AiImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** AI 图像任务状态定时同步（Midjourney + 通义万象 wanx）。 */
+/**
+ * AI 图像任务状态定时同步（Midjourney + 通义万象 wanx）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

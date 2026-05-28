@@ -19,6 +19,7 @@ import jakarta.validation.constraints.NotBlank;
  * 页面上下文接口（AI 感知预留）。
  *
  * <p>当前为骨架实现，返回空数据。v0.2.0 随 AI 感知能力落地时补充完整逻辑：
+ *
  * <ul>
  *   <li>page-enter：记录用户当前所在页面及可用组件，供 AI 感知上下文使用
  *   <li>chatter-config：持久化用户每个页面的 Chatter 配置（preset/agentRole/open）
@@ -41,11 +42,7 @@ public class ContextController {
             java.util.List<String> availableComponents) {}
 
     /** Chatter 配置 */
-    public record ChatterConfigVO(
-            String preset,
-            String agentRole,
-            boolean open,
-            String layout) {}
+    public record ChatterConfigVO(String preset, String agentRole, boolean open, String layout) {}
 
     /** Chatter 配置更新请求 */
     public record ChatterConfigUpdateRequest(

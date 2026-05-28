@@ -6,7 +6,12 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-/** 素材-标签关联复合主键。 */
+/**
+ * 素材-标签关联复合主键。
+ *
+ * @author AaronZZH & Kiro
+ * @see MediaAssetTag
+ */
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode

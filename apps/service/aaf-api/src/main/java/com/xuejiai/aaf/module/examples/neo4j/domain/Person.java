@@ -1,8 +1,9 @@
 package com.xuejiai.aaf.module.examples.neo4j.domain;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /** 人物节点（Neo4j）。name 作为节点主键。 */
 @Schema(description = "人物节点")
@@ -22,7 +23,15 @@ public class Person {
         this.name = name;
     }
 
-    public String getName() { return name; }
-    public Integer getBorn() { return born; }
-    public void setBorn(Integer born) { this.born = born; }
+    public String getName() {
+        return name;
+    }
+
+    public Integer getBorn() {
+        return born;
+    }
+
+    public void setBorn(Integer born) {
+        this.born = born;
+    }
 }

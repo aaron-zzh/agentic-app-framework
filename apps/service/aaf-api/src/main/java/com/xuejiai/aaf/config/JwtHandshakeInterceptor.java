@@ -19,8 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Layer 2 WebSocket 握手认证拦截器。
  *
- * <p>从 URL 参数 {@code ?token=xxx} 或 Header {@code Authorization: Bearer xxx} 提取 JWT，
- * 校验通过后将 userId 存入 WebSocket attributes。
+ * <p>从 URL 参数 {@code ?token=xxx} 或 Header {@code Authorization: Bearer xxx} 提取 JWT， 校验通过后将 userId
+ * 存入 WebSocket attributes。
  */
 @Slf4j
 @Component

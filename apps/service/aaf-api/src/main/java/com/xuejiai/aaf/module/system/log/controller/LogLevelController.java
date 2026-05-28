@@ -16,7 +16,11 @@ import com.xuejiai.aaf.common.model.Result;
 
 import lombok.RequiredArgsConstructor;
 
-/** 日志级别动态管理接口（仅 admin 可访问）。 */
+/**
+ * 日志级别动态管理接口（仅 admin 可访问）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @RestController
 @RequestMapping("/api/admin/log-levels")
 @RequiredArgsConstructor

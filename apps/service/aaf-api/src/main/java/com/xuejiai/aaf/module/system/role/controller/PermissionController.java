@@ -16,7 +16,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 权限查询接口。 */
+/**
+ * 权限查询接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "权限管理")
 @RestController
 @RequestMapping("/api/permissions")

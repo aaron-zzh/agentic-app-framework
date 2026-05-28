@@ -7,9 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-/**
- * 数据清洗步骤——去重、过滤缺失字段、基础格式化。
- */
+/** 数据清洗步骤——去重、过滤缺失字段、基础格式化。 */
 @Component
 @Order(20)
 public class DataCleaner implements ProcessingStep {
@@ -31,28 +29,39 @@ public class DataCleaner implements ProcessingStep {
         // 1. 去重
         if (rules.getDeduplicateBy() != null) {
             var seen = new HashSet<>();
-            items = items.stream()
-                    .filter(item -> {
-                        var key = item.get(rules.getDeduplicateBy());
-                        return key != null && seen.add(key);
-                    })
-                    .collect(Collectors.toList());
+            items =
+                    items.stream()
+                            .filter(
+                                    item -> {
+                                        var key = item.get(rules.getDeduplicateBy());
+                                        return key != null && seen.add(key);
+                                    })
+                            .collect(Collectors.toList());
         }
 
         // 2. 必填字段过滤
         if (rules.getRequiredFields() != null) {
-            items = items.stream()
-                    .filter(item -> rules.getRequiredFields().stream()
-                            .allMatch(f -> item.get(f) != null && !item.get(f).toString().isBlank()))
-                    .collect(Collectors.toList());
+            items =
+                    items.stream()
+                            .filter(
+                                    item ->
+                                            rules.getRequiredFields().stream()
+                                                    .allMatch(
+                                                            f ->
+                                                                    item.get(f) != null
+                                                                            && !item.get(f)
+                                                                                    .toString()
+                                                                                    .isBlank()))
+                            .collect(Collectors.toList());
         }
 
         // 3. 条件过滤（简单数值比较）
         if (rules.getFilters() != null) {
             for (var filter : rules.getFilters()) {
-                items = items.stream()
-                        .filter(item -> evaluateFilter(item, filter))
-                        .collect(Collectors.toList());
+                items =
+                        items.stream()
+                                .filter(item -> evaluateFilter(item, filter))
+                                .collect(Collectors.toList());
             }
         }
 
@@ -60,9 +69,7 @@ public class DataCleaner implements ProcessingStep {
         return context;
     }
 
-    /**
-     * 简单过滤表达式：field > value / field < value / field = value
-     */
+    /** 简单过滤表达式：field > value / field < value / field = value */
     private boolean evaluateFilter(Map<String, Object> item, String filter) {
         try {
             if (filter.contains(">")) {

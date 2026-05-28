@@ -19,7 +19,11 @@ import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 import lombok.RequiredArgsConstructor;
 
-/** AI 模型后台管理服务。 */
+/**
+ * AI 模型管理 Service。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class AiModelService {
@@ -27,6 +31,12 @@ public class AiModelService {
     private final AiModelRepository repository;
     private final DynamicChatClientFactory chatClientFactory;
 
+    /**
+     * 创建模型
+     *
+     * @param dto 创建请求
+     * @return 模型信息
+     */
     @Transactional
     public AiModelVO create(AiModelCreateDTO dto) {
         if (repository.findByModelId(dto.modelId()).isPresent()) {
@@ -52,6 +62,13 @@ public class AiModelService {
         return toVO(repository.save(model));
     }
 
+    /**
+     * 更新模型
+     *
+     * @param id 模型编号
+     * @param dto 更新请求
+     * @return 更新后的模型信息
+     */
     @Transactional
     public AiModelVO update(Long id, AiModelUpdateDTO dto) {
         var model = getEntity(id);
@@ -73,6 +90,11 @@ public class AiModelService {
         return toVO(saved);
     }
 
+    /**
+     * 删除模型（软删除）
+     *
+     * @param id 模型编号
+     */
     @Transactional
     public void delete(Long id) {
         var model = getEntity(id);
@@ -81,6 +103,13 @@ public class AiModelService {
         chatClientFactory.evict(model.getModelId());
     }
 
+    /**
+     * 切换模型启用状态
+     *
+     * @param id 模型编号
+     * @param enabled 是否启用
+     * @return 更新后的模型信息
+     */
     @Transactional
     public AiModelVO toggleEnabled(Long id, boolean enabled) {
         var model = getEntity(id);
@@ -90,33 +119,65 @@ public class AiModelService {
         return toVO(saved);
     }
 
+    /**
+     * 获取模型详情
+     *
+     * @param id 模型编号
+     * @return 模型信息
+     */
     public AiModelVO getById(Long id) {
         return toVO(getEntity(id));
     }
 
+    /**
+     * 分页查询模型列表
+     *
+     * @param provider 厂商筛选（可选）
+     * @param enabled 启用状态筛选（可选）
+     * @param pageable 分页参数
+     * @return 模型分页结果
+     */
     public PageResult<AiModelVO> list(String provider, Boolean enabled, Pageable pageable) {
         var page = repository.findByFilter(provider, enabled, pageable);
         return new PageResult<>(page.map(this::toVO).toList(), page.getTotalElements());
     }
 
+    /**
+     * 获取所有已启用模型列表（下拉选择用）
+     *
+     * @return 已启用模型列表
+     */
     public List<AiModelVO> listEnabled() {
         return repository.findByEnabledTrueOrderBySortOrder().stream().map(this::toVO).toList();
     }
 
     private AiModel getEntity(Long id) {
-        return repository.findById(id)
+        return repository
+                .findById(id)
                 .orElseThrow(() -> exception(ErrorCodeConstants.AI_MODEL_NOT_FOUND));
     }
 
     private AiModelVO toVO(AiModel m) {
         return new AiModelVO(
-                m.getId(), m.getModelId(), m.getDisplayName(),
-                m.getProvider(), m.getProviderType(), m.getModelName(),
+                m.getId(),
+                m.getModelId(),
+                m.getDisplayName(),
+                m.getProvider(),
+                m.getProviderType(),
+                m.getModelName(),
                 m.getBaseUrl(),
                 m.getApiKey() != null && !m.getApiKey().isBlank(),
-                m.getCapabilities(), m.getTemperature(), m.getMaxTokens(),
-                m.getContextWindow(), m.getInputPricePerK(), m.getOutputPricePerK(),
-                m.getEnabled(), m.getFallbackModelId(), m.getSortOrder(),
-                m.getRemark(), m.getCreateTime(), m.getUpdateTime());
+                m.getCapabilities(),
+                m.getTemperature(),
+                m.getMaxTokens(),
+                m.getContextWindow(),
+                m.getInputPricePerK(),
+                m.getOutputPricePerK(),
+                m.getEnabled(),
+                m.getFallbackModelId(),
+                m.getSortOrder(),
+                m.getRemark(),
+                m.getCreateTime(),
+                m.getUpdateTime());
     }
 }

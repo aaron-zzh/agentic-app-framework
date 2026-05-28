@@ -2,14 +2,20 @@ package com.xuejiai.aaf.module.system.notify.vo;
 
 import java.time.LocalDateTime;
 
-/** 通知响应。 */
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * 通知响应。
+ *
+ * @author AaronZZH & Kiro
+ */
 public record NotificationVO(
-        Long id,
-        Long userId,
-        String type,
-        String title,
+        @Schema(description = "主键 ID") Long id,
+        @Schema(description = "用户 ID") Long userId,
+        @Schema(description = "类型") String type,
+        @Schema(description = "标题") String title,
         String body,
-        String entityType,
-        Long entityId,
+        @Schema(description = "实体类型") String entityType,
+        @Schema(description = "实体 ID") Long entityId,
         Boolean isRead,
-        LocalDateTime createTime) {}
+        @Schema(description = "创建时间") LocalDateTime createTime) {}

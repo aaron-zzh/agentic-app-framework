@@ -15,21 +15,39 @@ import com.xuejiai.aaf.module.aigc.vo.GenerationTemplateVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 参数模板服务。 */
+/**
+ * 参数模板服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class GenerationTemplateService {
 
     private final GenerationTemplateRepository templateRepository;
 
-    /** 分页查询用户模板。 */
+    /**
+     * 分页查询用户模板。
+     *
+     * @param userId 用户 ID
+     * @param page 页码
+     * @param size 每页数量
+     * @return 模板分页结果
+     */
     @Transactional(readOnly = true)
     public Page<GenerationTemplateVO> listByUser(Long userId, int page, int size) {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
         return templateRepository.findByUserId(userId, pageable).map(this::toVO);
     }
 
-    /** 按分类查询公开模板。 */
+    /**
+     * 按分类查询公开模板。
+     *
+     * @param category 分类名称（可选）
+     * @param page 页码
+     * @param size 每页数量
+     * @return 公开模板分页结果
+     */
     @Transactional(readOnly = true)
     public Page<GenerationTemplateVO> listPublic(String category, int page, int size) {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "usageCount"));
@@ -39,7 +57,13 @@ public class GenerationTemplateService {
         return templateRepository.findByIsPublicTrue(pageable).map(this::toVO);
     }
 
-    /** 创建模板。 */
+    /**
+     * 创建模板。
+     *
+     * @param userId 用户 ID
+     * @param dto 创建请求
+     * @return 新建的模板
+     */
     @Transactional
     public GenerationTemplateVO create(Long userId, GenerationTemplateCreateDTO dto) {
         var template = new GenerationTemplate();
@@ -57,7 +81,12 @@ public class GenerationTemplateService {
         return toVO(templateRepository.save(template));
     }
 
-    /** 使用模板（增加使用计数并返回参数）。 */
+    /**
+     * 使用模板（增加使用计数并返回参数）。
+     *
+     * @param templateId 模板 ID
+     * @return 模板详情
+     */
     @Transactional
     public GenerationTemplateVO use(Long templateId) {
         var template = findById(templateId);
@@ -65,21 +94,35 @@ public class GenerationTemplateService {
         return toVO(templateRepository.save(template));
     }
 
-    /** 删除模板。 */
+    /**
+     * 删除模板。
+     *
+     * @param templateId 模板 ID
+     */
     @Transactional
     public void delete(Long templateId) {
         templateRepository.deleteById(templateId);
     }
 
     private GenerationTemplate findById(Long id) {
-        return templateRepository.findById(id)
+        return templateRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "模板不存在"));
     }
 
     private GenerationTemplateVO toVO(GenerationTemplate t) {
         return new GenerationTemplateVO(
-                t.getId(), t.getName(), t.getCategory(), t.getPrompt(), t.getNegativePrompt(),
-                t.getModel(), t.getWidth(), t.getHeight(), t.getSteps(), t.getSeed(),
-                t.getIsPublic(), t.getUsageCount());
+                t.getId(),
+                t.getName(),
+                t.getCategory(),
+                t.getPrompt(),
+                t.getNegativePrompt(),
+                t.getModel(),
+                t.getWidth(),
+                t.getHeight(),
+                t.getSteps(),
+                t.getSeed(),
+                t.getIsPublic(),
+                t.getUsageCount());
     }
 }

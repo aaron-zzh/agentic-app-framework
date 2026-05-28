@@ -6,12 +6,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import com.xuejiai.aaf.common.util.ServletUtils;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.common.util.ServletUtils;
 import com.xuejiai.aaf.framework.security.ActorContext;
 import com.xuejiai.aaf.module.system.log.domain.AuditLog;
 import com.xuejiai.aaf.module.system.log.repository.AuditLogRepository;
@@ -20,7 +18,11 @@ import com.xuejiai.aaf.module.system.log.vo.AuditLogVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 审计日志业务逻辑。 */
+/**
+ * 审计日志业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class AuditLogService {
@@ -81,5 +83,4 @@ public class AuditLogService {
                 log.getIp(),
                 log.getCreatedAt());
     }
-
 }

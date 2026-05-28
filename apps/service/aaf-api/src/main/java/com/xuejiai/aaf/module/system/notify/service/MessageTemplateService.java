@@ -20,7 +20,11 @@ import com.xuejiai.aaf.module.system.notify.vo.MessageTemplateVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 消息模板业务逻辑。 */
+/**
+ * 消息模板业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class MessageTemplateService implements MessageTemplateProvider {

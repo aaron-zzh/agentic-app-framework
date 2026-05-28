@@ -28,6 +28,8 @@ import com.xuejiai.aaf.module.system.user.vo.UserCreateDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserExportVO;
 import com.xuejiai.aaf.module.system.user.vo.UserImportVO;
 import com.xuejiai.aaf.module.system.user.vo.UserPageDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserProfileUpdateDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserProfileVO;
 import com.xuejiai.aaf.module.system.user.vo.UserSimpleVO;
 import com.xuejiai.aaf.module.system.user.vo.UserUpdateDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserVO;
@@ -35,7 +37,11 @@ import com.xuejiai.aaf.util.ImportExecutor;
 
 import lombok.RequiredArgsConstructor;
 
-/** 用户管理业务逻辑。 */
+/**
+ * 用户管理业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -45,7 +51,12 @@ public class UserService {
     private final jakarta.validation.Validator validator;
     private final SystemConfigService systemConfigService;
 
-    /** 创建用户 */
+    /**
+     * 创建用户
+     *
+     * @param request 创建用户请求
+     * @return 用户视图对象
+     */
     @Transactional
     public UserVO create(UserCreateDTO request) {
         validateUsernameUnique(null, request.username());
@@ -58,12 +69,22 @@ public class UserService {
         return toVO(user);
     }
 
-    /** 查询用户详情 */
+    /**
+     * 查询用户详情
+     *
+     * @param id 用户 ID
+     * @return 用户视图对象
+     */
     public UserVO getById(Long id) {
         return toVO(requireUser(id));
     }
 
-    /** 分页查询 */
+    /**
+     * 分页查询用户
+     *
+     * @param req 分页查询参数
+     * @return 分页结果
+     */
     public PageResult<UserVO> page(UserPageDTO req) {
         var pageable = req.toPageable(Sort.by("id").descending());
         Specification<User> spec = buildSpec(req);
@@ -80,7 +101,13 @@ public class UserService {
                 .build();
     }
 
-    /** 更新用户 */
+    /**
+     * 更新用户
+     *
+     * @param id 用户 ID
+     * @param request 更新请求
+     * @return 更新后的用户视图对象
+     */
     @Transactional
     public UserVO update(Long id, UserUpdateDTO request) {
         var user = requireUser(id);
@@ -94,12 +121,20 @@ public class UserService {
         return toVO(user);
     }
 
-    /** 查询简要列表（下拉选择场景） */
+    /**
+     * 查询简要列表（下拉选择场景）
+     *
+     * @return 用户简要列表
+     */
     public List<UserSimpleVO> getSimpleList() {
         return userRepository.findSimpleList();
     }
 
-    /** 删除用户 */
+    /**
+     * 删除用户
+     *
+     * @param id 用户 ID
+     */
     @Transactional
     public void delete(Long id) {
         validateNotAdmin(id);
@@ -109,14 +144,23 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    /** 批量删除用户 */
+    /**
+     * 批量删除用户
+     *
+     * @param ids 用户 ID 列表
+     */
     @Transactional
     public void deleteBatch(List<Long> ids) {
         ids.forEach(this::validateNotAdmin);
         userRepository.deleteAllById(ids);
     }
 
-    /** 修改用户状态 */
+    /**
+     * 修改用户状态
+     *
+     * @param id 用户 ID
+     * @param status 目标状态
+     */
     @Transactional
     public void updateStatus(Long id, Integer status) {
         var user = requireUser(id);
@@ -124,7 +168,12 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /** 修改密码（用户自己操作，需验证旧密码） */
+    /**
+     * 修改密码（用户自己操作，需验证旧密码）
+     *
+     * @param id 用户 ID
+     * @param request 修改密码请求
+     */
     @Transactional
     public void changePassword(Long id, UserChangePasswordDTO request) {
         var user = requireUser(id);
@@ -135,7 +184,12 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /** 重置密码（管理员操作） */
+    /**
+     * 重置密码（管理员操作）
+     *
+     * @param id 用户 ID
+     * @param newPassword 新密码
+     */
     @Transactional
     public void resetPassword(Long id, String newPassword) {
         var user = requireUser(id);
@@ -145,7 +199,13 @@ public class UserService {
 
     // ==================== 导入 ====================
 
-    /** 批量导入用户。先全部校验，通过后分批入库。 */
+    /**
+     * 批量导入用户。先全部校验，通过后分批入库
+     *
+     * @param list 导入数据列表
+     * @param updateSupport 是否支持更新已存在用户
+     * @return 导入结果
+     */
     @Transactional
     public ImportExecutor.ImportResult importUsers(List<UserImportVO> list, boolean updateSupport) {
         return ImportExecutor.<UserImportVO>builder()
@@ -187,7 +247,12 @@ public class UserService {
 
     // ==================== 查询方法 ====================
 
-    /** 导出用户列表（不分页，应用筛选条件）。 */
+    /**
+     * 导出用户列表（不分页，应用筛选条件）
+     *
+     * @param req 筛选条件
+     * @return 导出数据列表
+     */
     public List<UserExportVO> listForExport(UserPageDTO req) {
         Specification<User> spec = buildSpec(req);
         Sort sort = req.buildSort();
@@ -206,38 +271,74 @@ public class UserService {
                 .toList();
     }
 
-    /** 批量查询用户 */
+    /**
+     * 批量查询用户
+     *
+     * @param ids 用户 ID 集合
+     * @return 用户列表
+     */
     public List<User> getUserList(Collection<Long> ids) {
         return ids.isEmpty() ? List.of() : userRepository.findAllById(ids);
     }
 
-    /** 批量查询用户并转为 Map */
+    /**
+     * 批量查询用户并转为 Map
+     *
+     * @param ids 用户 ID 集合
+     * @return ID → UserVO 映射
+     */
     public Map<Long, UserVO> getUserMap(Collection<Long> ids) {
         return getUserList(ids).stream()
                 .collect(java.util.stream.Collectors.toMap(User::getId, this::toVO));
     }
 
-    /** 查询指定状态的用户列表 */
+    /**
+     * 查询指定状态的用户列表
+     *
+     * @param status 用户状态
+     * @return 用户简要列表
+     */
     public List<UserSimpleVO> getSimpleListByStatus(Integer status) {
         return userRepository.findSimpleListByStatus(status);
     }
 
-    // ==================== P2+ 占位（待对应模块就绪后实现） ====================
+    // ==================== 个人中心 ====================
 
-    // TODO P2: 用户注册（开放注册场景，区别于管理员创建）
-    // public UserVO register(UserRegisterDTO request) { }
+    /**
+     * 获取用户个人信息
+     *
+     * @param userId 用户 ID
+     * @return 个人信息
+     */
+    public UserProfileVO getProfile(Long userId) {
+        var user = requireUser(userId);
+        return new UserProfileVO(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getAvatar(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getCreateTime());
+    }
 
-    // TODO P2: 更新最后登录信息（需扩展 User 实体加 lastLoginIp/lastLoginTime）
-    // public void updateLoginInfo(Long id, String loginIp) { }
-
-    // TODO P2: 修改个人信息（头像、邮箱、手机号等，需扩展字段）
-    // public void updateProfile(Long id, UserProfileUpdateDTO request) { }
-
-    // TODO P2: 校验用户有效性（存在且启用，供其他模块引用时调用）
-    // public void validateUserList(Collection<Long> ids) { }
-
-    // TODO P3: 导入用户（需引入 Excel 库）
-    // public UserImportResultVO importUsers(List<UserImportDTO> users, boolean updateSupport) { }
+    /**
+     * 修改个人信息
+     *
+     * @param userId 用户 ID
+     * @param req 修改请求
+     * @return 更新后的个人信息
+     */
+    @Transactional
+    public UserProfileVO updateProfile(Long userId, UserProfileUpdateDTO req) {
+        var user = requireUser(userId);
+        if (req.nickname() != null) user.setNickname(req.nickname());
+        if (req.avatar() != null) user.setAvatar(req.avatar());
+        if (req.email() != null) user.setEmail(req.email());
+        if (req.phone() != null) user.setPhone(req.phone());
+        userRepository.save(user);
+        return getProfile(userId);
+    }
 
     // ==================== 内部方法 ====================
 

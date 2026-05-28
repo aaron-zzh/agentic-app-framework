@@ -16,8 +16,8 @@ import lombok.RequiredArgsConstructor;
  * API Key 管理接口。
  *
  * <ul>
- *   <li>用户：在个人主页生成/查看/删除自己的 Key</li>
- *   <li>管理员：查看所有 Key、禁用/启用</li>
+ *   <li>用户：在个人主页生成/查看/删除自己的 Key
+ *   <li>管理员：查看所有 Key、禁用/启用
  * </ul>
  */
 @RestController
@@ -77,9 +77,7 @@ public class ApiKeyController {
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
     public List<ApiKeyVO> listAll() {
-        return repository.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::toVO)
-                .toList();
+        return repository.findAllByOrderByCreatedAtDesc().stream().map(this::toVO).toList();
     }
 
     /** 管理员：禁用 Key。 */
@@ -102,13 +100,30 @@ public class ApiKeyController {
 
     // ========== DTO ==========
 
-    record CreateRequest(String name, String permissions, String allowedTables, Integer expiresInDays) {}
+    record CreateRequest(
+            String name, String permissions, String allowedTables, Integer expiresInDays) {}
 
-    record ApiKeyVO(Long id, String prefix, String name, Long userId, String permissions,
-                    Instant createdAt, Instant expiresAt, boolean enabled, Instant lastUsedAt) {}
+    record ApiKeyVO(
+            Long id,
+            String prefix,
+            String name,
+            Long userId,
+            String permissions,
+            Instant createdAt,
+            Instant expiresAt,
+            boolean enabled,
+            Instant lastUsedAt) {}
 
     private ApiKeyVO toVO(ApiKey k) {
-        return new ApiKeyVO(k.getId(), k.getKeyPrefix(), k.getName(), k.getUserId(),
-                k.getPermissions(), k.getCreatedAt(), k.getExpiresAt(), k.isEnabled(), k.getLastUsedAt());
+        return new ApiKeyVO(
+                k.getId(),
+                k.getKeyPrefix(),
+                k.getName(),
+                k.getUserId(),
+                k.getPermissions(),
+                k.getCreatedAt(),
+                k.getExpiresAt(),
+                k.isEnabled(),
+                k.getLastUsedAt());
     }
 }

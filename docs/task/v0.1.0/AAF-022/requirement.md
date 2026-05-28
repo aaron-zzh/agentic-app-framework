@@ -321,4 +321,4 @@ Feature: 审计日志
 
 - 访问控制设计：[access-control.md](../../../design/framework/security/access-control.md)
 - 安全架构设计：[security.md](../../../design/framework/security/security.md)
-- Actor 模型设计：[actor.md](../../../design/framework/intelligent/actor.md)
+- Operator 模型设计：[operator.md](../../../design/framework/operator.md)

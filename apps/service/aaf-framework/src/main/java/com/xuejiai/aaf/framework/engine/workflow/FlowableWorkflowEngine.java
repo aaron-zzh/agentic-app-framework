@@ -8,8 +8,6 @@ import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,7 +22,8 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     private final HistoryService historyService;
 
     @Override
-    public String startProcess(String processKey, String businessKey, Map<String, Object> variables) {
+    public String startProcess(
+            String processKey, String businessKey, Map<String, Object> variables) {
         var instance = runtimeService.startProcessInstanceByKey(processKey, businessKey, variables);
         return instance.getId();
     }
@@ -44,25 +43,33 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
 
     @Override
     public TaskInfo getCurrentTask(String processInstanceId) {
-        var task = taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
+        var task =
+                taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
         if (task == null) return null;
         return new TaskInfo(task.getId(), processInstanceId, task.getAssignee(), task.getName());
     }
 
     @Override
     public List<HistoryRecord> getHistory(String processInstanceId) {
-        return historyService.createHistoricTaskInstanceQuery()
+        return historyService
+                .createHistoricTaskInstanceQuery()
                 .processInstanceId(processInstanceId)
                 .finished()
-                .orderByHistoricTaskInstanceEndTime().asc()
+                .orderByHistoricTaskInstanceEndTime()
+                .asc()
                 .includeProcessVariables()
-                .list().stream()
-                .map(t -> new HistoryRecord(
-                        t.getName(),
-                        t.getAssignee(),
-                        Boolean.TRUE.equals(t.getProcessVariables().get("approved")) ? "通过" : "驳回",
-                        null,
-                        t.getEndTime().getTime()))
+                .list()
+                .stream()
+                .map(
+                        t ->
+                                new HistoryRecord(
+                                        t.getName(),
+                                        t.getAssignee(),
+                                        Boolean.TRUE.equals(t.getProcessVariables().get("approved"))
+                                                ? "通过"
+                                                : "驳回",
+                                        null,
+                                        t.getEndTime().getTime()))
                 .toList();
     }
 
@@ -73,10 +80,12 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
 
     @Override
     public Map<String, Object> getProcessVariables(String processInstanceId) {
-        var historic = historyService.createHistoricProcessInstanceQuery()
-                .processInstanceId(processInstanceId)
-                .includeProcessVariables()
-                .singleResult();
+        var historic =
+                historyService
+                        .createHistoricProcessInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .includeProcessVariables()
+                        .singleResult();
         if (historic == null) return Map.of();
         return historic.getProcessVariables() != null ? historic.getProcessVariables() : Map.of();
     }

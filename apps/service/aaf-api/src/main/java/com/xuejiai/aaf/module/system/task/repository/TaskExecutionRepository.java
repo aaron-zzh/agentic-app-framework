@@ -6,7 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.task.domain.TaskExecution;
 
-/** 任务执行记录仓储。 */
+/**
+ * 任务执行记录仓储。
+ *
+ * @author AaronZZH & Kiro
+ */
 public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Long> {
 
     Page<TaskExecution> findByTaskNameContainingOrTaskTypeContaining(

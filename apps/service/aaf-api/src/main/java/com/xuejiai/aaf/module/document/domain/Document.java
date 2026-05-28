@@ -14,7 +14,13 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 文档实体（对应 doc_document 表）。 */
+/**
+ * 文档实体。
+ *
+ * <p>对应 doc_document 表，支持 Markdown 内容存储和 Front Matter 元数据。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

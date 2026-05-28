@@ -7,6 +7,9 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.system.role.domain.Permission;
 
+/**
+ * @author AaronZZH & Kiro
+ */
 public interface PermissionRepository extends JpaRepository<Permission, Long> {
 
     /** 查询用户通过角色关联拥有的所有权限（按实体过滤） */

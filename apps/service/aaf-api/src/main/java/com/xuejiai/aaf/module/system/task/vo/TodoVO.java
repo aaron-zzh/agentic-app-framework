@@ -4,7 +4,11 @@ import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/** 待办响应。 */
+/**
+ * 待办响应。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Schema(description = "待办信息")
 public record TodoVO(
         Long id,

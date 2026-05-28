@@ -15,7 +15,11 @@ import com.xuejiai.aaf.module.system.sms.repository.SmsLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 监听短信发送事件，异步持久化发送日志。 */
+/**
+ * 监听短信发送事件，异步持久化发送日志。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

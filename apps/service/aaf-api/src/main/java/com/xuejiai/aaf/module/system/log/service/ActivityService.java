@@ -17,7 +17,11 @@ import com.xuejiai.aaf.module.system.log.repository.CommentRepository;
 
 import lombok.RequiredArgsConstructor;
 
-/** 活动流业务逻辑。 */
+/**
+ * 活动流业务逻辑。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 public class ActivityService {

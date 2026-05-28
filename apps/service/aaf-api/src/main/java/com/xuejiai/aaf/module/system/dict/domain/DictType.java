@@ -1,14 +1,20 @@
 package com.xuejiai.aaf.module.system.dict.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
-/** 字典类型。 */
+/**
+ * 字典类型
+ *
+ * @author AaronZZH & Kiro
+ */
 @Getter
 @Setter
 @Entity

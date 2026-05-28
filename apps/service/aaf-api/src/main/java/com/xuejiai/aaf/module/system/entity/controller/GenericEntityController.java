@@ -22,7 +22,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 通用实体数据 CRUD 控制器（动态表）。 */
+/**
+ * 通用实体数据 CRUD 控制器（动态表）。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "通用实体数据")
 @RestController
 @RequestMapping("/api/data/{slug}")

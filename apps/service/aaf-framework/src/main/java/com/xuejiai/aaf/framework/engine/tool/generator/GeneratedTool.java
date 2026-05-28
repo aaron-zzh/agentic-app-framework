@@ -10,11 +10,13 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_generated_tool", indexes = {
-        @Index(columnList = "name", unique = true),
-        @Index(columnList = "creatorUserId"),
-        @Index(columnList = "visibility")
-})
+@Table(
+        name = "ai_generated_tool",
+        indexes = {
+            @Index(columnList = "name", unique = true),
+            @Index(columnList = "creatorUserId"),
+            @Index(columnList = "visibility")
+        })
 public class GeneratedTool extends BaseEntity {
 
     @Column(nullable = false, unique = true, length = 64)

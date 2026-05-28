@@ -17,7 +17,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 活动流接口。 */
+/**
+ * 活动流接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "活动流")
 @RestController
 @RequestMapping("/api/{entity}/{id}/activities")

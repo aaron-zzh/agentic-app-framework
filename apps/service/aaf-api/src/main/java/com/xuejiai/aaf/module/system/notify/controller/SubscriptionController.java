@@ -20,7 +20,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/** 字段变更订阅接口。 */
+/**
+ * 字段变更订阅接口。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Tag(name = "字段变更订阅")
 @RestController
 @RequestMapping("/api/subscriptions")

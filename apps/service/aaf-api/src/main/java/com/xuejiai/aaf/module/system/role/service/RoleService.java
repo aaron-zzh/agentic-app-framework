@@ -15,7 +15,11 @@ import com.xuejiai.aaf.module.system.role.vo.RoleVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 角色管理服务。 */
+/**
+ * 角色管理服务。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
