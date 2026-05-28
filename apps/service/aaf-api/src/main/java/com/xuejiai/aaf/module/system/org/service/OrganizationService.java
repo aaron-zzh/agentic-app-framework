@@ -12,6 +12,7 @@ import com.xuejiai.aaf.module.system.org.domain.Organization;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.OrganizationRepository;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberAddDTO;
+import com.xuejiai.aaf.module.system.org.vo.OrgMemberRoleUpdateDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberVO;
 import com.xuejiai.aaf.module.system.org.vo.OrganizationCreateDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrganizationUpdateDTO;
@@ -124,6 +125,31 @@ public class OrganizationService {
         var member = new OrgMember();
         member.setOrgId(orgId);
         member.setUserId(dto.userId());
+        member.setRole(dto.role());
+        return toMemberVO(memberRepository.save(member));
+    }
+
+    /**
+     * 修改成员角色
+     *
+     * @param orgId 组织 ID
+     * @param memberId 成员记录 ID
+     * @param dto 角色更新请求
+     * @return 更新后的成员信息
+     */
+    @Transactional
+    public OrgMemberVO updateMemberRole(Long orgId, Long memberId, OrgMemberRoleUpdateDTO dto) {
+        var member =
+                memberRepository
+                        .findById(memberId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "成员不存在"));
+        if (!member.getOrgId().equals(orgId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "成员不存在");
+        }
+        if ("owner".equals(member.getRole())) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不能修改所有者角色");
+        }
         member.setRole(dto.role());
         return toMemberVO(memberRepository.save(member));
     }

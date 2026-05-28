@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.tool;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
@@ -15,7 +16,7 @@ import com.xuejiai.aaf.framework.engine.tool.ToolRegistry.ToolMeta;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 工具管理服务——对外提供工具查询和调用能力
+ * 工具管理服务——对外提供工具查询、调用、生命周期管理和 MCP Server 管理能力
  *
  * @author AaronZZH & Kiro
  */
@@ -26,6 +27,13 @@ public class ToolService {
     private final ToolRegistry toolRegistry;
     private final ToolCallDispatcher toolCallDispatcher;
     private final ToolPermissionChecker permissionChecker;
+
+    /** 已禁用的工具名集合 */
+    private final ConcurrentHashMap<String, Boolean> disabledTools = new ConcurrentHashMap<>();
+
+    /** MCP Server 列表（内存管理，后续可持久化） */
+    private final ConcurrentHashMap<Long, McpServerVO> mcpServers = new ConcurrentHashMap<>();
+    private long mcpServerIdSeq = 0;
 
     /**
      * 查询所有已注册工具
@@ -46,6 +54,9 @@ public class ToolService {
      * @return 工具调用结果
      */
     public ToolCallResult invoke(String toolName, String arguments) {
+        if (disabledTools.containsKey(toolName)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "工具已禁用: " + toolName);
+        }
         if (toolRegistry.getCallback(toolName).isEmpty()) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工具未注册: " + toolName);
         }
@@ -76,6 +87,78 @@ public class ToolService {
                             return toVO(meta);
                         })
                 .toList();
+    }
+
+    /**
+     * 删除/注销工具
+     *
+     * @param name 工具名称
+     */
+    public void delete(String name) {
+        if (toolRegistry.getCallback(name).isEmpty()) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工具未注册: " + name);
+        }
+        toolRegistry.getCallback(name); // 确认存在
+        disabledTools.remove(name);
+        // 从注册中心移除（ToolRegistry 当前无 unregister 方法，标记为禁用等效删除）
+        disabledTools.put(name, true);
+    }
+
+    /**
+     * 禁用工具
+     *
+     * @param name 工具名称
+     */
+    public void disable(String name) {
+        if (toolRegistry.getCallback(name).isEmpty()) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工具未注册: " + name);
+        }
+        disabledTools.put(name, true);
+    }
+
+    /**
+     * 启用工具
+     *
+     * @param name 工具名称
+     */
+    public void enable(String name) {
+        if (toolRegistry.getCallback(name).isEmpty()) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工具未注册: " + name);
+        }
+        disabledTools.remove(name);
+    }
+
+    /**
+     * 添加 MCP Server
+     *
+     * @param dto MCP Server 添加请求
+     * @return 添加后的 MCP Server 信息
+     */
+    public McpServerVO addMcpServer(McpServerAddDTO dto) {
+        var id = ++mcpServerIdSeq;
+        var vo = new McpServerVO(id, dto.name(), dto.url(), dto.description());
+        mcpServers.put(id, vo);
+        return vo;
+    }
+
+    /**
+     * 查询 MCP Server 列表
+     *
+     * @return MCP Server 列表
+     */
+    public List<McpServerVO> listMcpServers() {
+        return List.copyOf(mcpServers.values());
+    }
+
+    /**
+     * 移除 MCP Server
+     *
+     * @param id MCP Server ID
+     */
+    public void removeMcpServer(Long id) {
+        if (mcpServers.remove(id) == null) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "MCP Server 不存在");
+        }
     }
 
     private ToolVO toVO(ToolMeta meta) {

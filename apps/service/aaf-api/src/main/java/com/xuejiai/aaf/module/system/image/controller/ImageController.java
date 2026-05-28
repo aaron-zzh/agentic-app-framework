@@ -3,13 +3,16 @@ package com.xuejiai.aaf.module.system.image.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService.TaskStatus;
@@ -33,7 +36,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Tag(name = "图像生成")
 @RestController
-@RequestMapping("/api/image")
+@RequestMapping("/api/system/images")
 @RequiredArgsConstructor
 public class ImageController {
 
@@ -96,7 +99,24 @@ public class ImageController {
         return Result.success();
     }
 
-    @Operation(summary = "查询我的图像列表")
+    @Operation(summary = "分页查询图像列表")
+    @GetMapping
+    public Result<PageResult<AiImageVO>> listImages(
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        Long userId = actorContext.currentUserId().orElseThrow();
+        return Result.success(aiImageService.pageByUser(userId, pageNo, pageSize));
+    }
+
+    @Operation(summary = "删除图像")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        Long userId = actorContext.currentUserId().orElseThrow();
+        aiImageService.delete(userId, id);
+        return Result.success();
+    }
+
+    @Operation(summary = "查询我的图像列表（全量，兼容旧接口）")
     @GetMapping("/my")
     public Result<List<AiImageVO>> listMy() {
         Long userId = actorContext.currentUserId().orElseThrow();

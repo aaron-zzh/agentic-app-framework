@@ -3,6 +3,8 @@ package com.xuejiai.aaf.module.system.image.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.system.image.domain.AiImage;
@@ -19,4 +21,6 @@ public interface AiImageRepository extends JpaRepository<AiImage, Long> {
     Optional<AiImage> findByTaskId(String taskId);
 
     List<AiImage> findByUserIdAndDeletedFalseOrderByCreateTimeDesc(Long userId);
+
+    Page<AiImage> findByUserIdAndDeletedFalse(Long userId, Pageable pageable);
 }

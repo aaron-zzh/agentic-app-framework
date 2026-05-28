@@ -139,7 +139,8 @@ public class AgentManagementService {
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
         var executor = agentFactory.create(entity);
         // TODO: 完善执行上下文（userId、sessionId 等）
-        return executor.execute(input);
+        var result = executor.execute(input);
+        return result.output();
     }
 
     /**

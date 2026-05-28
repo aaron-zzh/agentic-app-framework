@@ -70,4 +70,31 @@ public interface WorkflowEngine {
      * @return 流程变量（可能为空 Map）
      */
     java.util.Map<String, Object> getProcessVariables(String processInstanceId);
+
+    /** 流程定义信息 */
+    record DefinitionInfo(String processKey, String name, int version) {}
+
+    /**
+     * 查询指定审批人的待办任务列表。
+     *
+     * @param assignee 审批人标识
+     * @return 待办任务列表
+     */
+    List<TaskInfo> listPendingTasks(String assignee);
+
+    /**
+     * 查询所有流程定义。
+     *
+     * @return 流程定义列表
+     */
+    List<DefinitionInfo> listDefinitions();
+
+    /**
+     * 部署流程定义。
+     *
+     * @param name 流程名称
+     * @param bpmnXml BPMN XML 内容
+     * @return 部署 ID
+     */
+    String deploy(String name, String bpmnXml);
 }

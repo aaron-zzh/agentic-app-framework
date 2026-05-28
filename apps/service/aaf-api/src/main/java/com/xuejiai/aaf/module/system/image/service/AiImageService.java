@@ -252,6 +252,42 @@ public class AiImageService {
         return imageRepository.findByUserIdAndDeletedFalseOrderByCreateTimeDesc(userId);
     }
 
+    /**
+     * 分页查询用户图像
+     *
+     * @param userId 用户 ID
+     * @param pageNo 页码（从 1 开始）
+     * @param pageSize 每页大小
+     * @return 分页结果
+     */
+    public com.xuejiai.aaf.common.model.PageResult<AiImageVO> pageByUser(
+            Long userId, int pageNo, int pageSize) {
+        var pageable =
+                org.springframework.data.domain.PageRequest.of(
+                        pageNo - 1,
+                        pageSize,
+                        org.springframework.data.domain.Sort.by(
+                                org.springframework.data.domain.Sort.Direction.DESC, "createTime"));
+        var page = imageRepository.findByUserIdAndDeletedFalse(userId, pageable);
+        var list = page.getContent().stream().map(this::toVO).toList();
+        return new com.xuejiai.aaf.common.model.PageResult<>(list, page.getTotalElements());
+    }
+
+    /**
+     * 删除图像记录
+     *
+     * @param userId 当前用户 ID（校验归属）
+     * @param id 图像 ID
+     */
+    @Transactional
+    public void delete(Long userId, Long id) {
+        var image = getById(id);
+        if (!image.getUserId().equals(userId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "图像记录不存在");
+        }
+        imageRepository.deleteById(id);
+    }
+
     public AiImageVO toVO(AiImage image) {
         return new AiImageVO(
                 image.getId(),

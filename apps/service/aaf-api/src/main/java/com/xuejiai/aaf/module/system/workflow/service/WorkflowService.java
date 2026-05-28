@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
+import com.xuejiai.aaf.module.system.workflow.vo.ProcessDefinitionVO;
+import com.xuejiai.aaf.module.system.workflow.vo.WorkflowDeployDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowStatusVO;
+import com.xuejiai.aaf.module.system.workflow.vo.WorkflowTaskVO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +30,15 @@ public class WorkflowService {
 
     private final WorkflowEngine workflowEngine;
 
-    /** 启动审批流程。 */
+    /**
+     * 启动审批流程。
+     *
+     * @param entityType 实体类型
+     * @param entityId 实体 ID
+     * @param initiator 发起人
+     * @param assignee 审批人
+     * @return 流程实例 ID
+     */
     @Transactional
     public String startProcess(
             String entityType, Long entityId, String initiator, String assignee) {
@@ -40,19 +51,34 @@ public class WorkflowService {
         return workflowEngine.startProcess(PROCESS_KEY, entityType + ":" + entityId, variables);
     }
 
-    /** 通过审批。 */
+    /**
+     * 通过审批。
+     *
+     * @param taskId 任务 ID
+     * @param comment 审批意见
+     */
     @Transactional
     public void completeTask(String taskId, String comment) {
         workflowEngine.completeTask(taskId, Map.of("approved", true), comment);
     }
 
-    /** 驳回审批。 */
+    /**
+     * 驳回审批。
+     *
+     * @param taskId 任务 ID
+     * @param comment 驳回原因
+     */
     @Transactional
     public void rejectTask(String taskId, String comment) {
         workflowEngine.completeTask(taskId, Map.of("approved", false), comment);
     }
 
-    /** 查询流程状态。 */
+    /**
+     * 查询流程状态。
+     *
+     * @param processInstanceId 流程实例 ID
+     * @return 流程状态
+     */
     @Transactional(readOnly = true)
     public WorkflowStatusVO getStatus(String processInstanceId) {
         var currentTask = workflowEngine.getCurrentTask(processInstanceId);
@@ -70,7 +96,12 @@ public class WorkflowService {
                 history);
     }
 
-    /** 查询审批历史。 */
+    /**
+     * 查询审批历史。
+     *
+     * @param processInstanceId 流程实例 ID
+     * @return 历史记录列表
+     */
     @Transactional(readOnly = true)
     public List<WorkflowStatusVO.HistoryItem> getHistory(String processInstanceId) {
         return workflowEngine.getHistory(processInstanceId).stream()
@@ -85,5 +116,47 @@ public class WorkflowService {
                                                 Instant.ofEpochMilli(r.completedAtMs()),
                                                 ZoneId.systemDefault())))
                 .toList();
+    }
+
+    /**
+     * 查询指定审批人的待办任务列表。
+     *
+     * @param assignee 审批人标识
+     * @return 待办任务列表
+     */
+    @Transactional(readOnly = true)
+    public List<WorkflowTaskVO> listPendingTasks(String assignee) {
+        return workflowEngine.listPendingTasks(assignee).stream()
+                .map(
+                        t ->
+                                new WorkflowTaskVO(
+                                        t.taskId(),
+                                        t.processInstanceId(),
+                                        t.name(),
+                                        t.assignee()))
+                .toList();
+    }
+
+    /**
+     * 查询所有流程定义。
+     *
+     * @return 流程定义列表
+     */
+    @Transactional(readOnly = true)
+    public List<ProcessDefinitionVO> listDefinitions() {
+        return workflowEngine.listDefinitions().stream()
+                .map(d -> new ProcessDefinitionVO(d.processKey(), d.name(), d.version()))
+                .toList();
+    }
+
+    /**
+     * 部署流程定义。
+     *
+     * @param dto 部署请求（含流程名称和 BPMN XML）
+     * @return 部署 ID
+     */
+    @Transactional
+    public String deployDefinition(WorkflowDeployDTO dto) {
+        return workflowEngine.deploy(dto.name(), dto.bpmnXml());
     }
 }

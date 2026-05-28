@@ -5,9 +5,11 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,10 +27,12 @@ import com.xuejiai.aaf.module.system.chat.service.IntentService;
 import com.xuejiai.aaf.module.system.chat.vo.ChatMessageSendDTO;
 import com.xuejiai.aaf.module.system.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.system.chat.vo.ChatSessionCreateDTO;
+import com.xuejiai.aaf.module.system.chat.vo.ChatSessionRenameDTO;
 import com.xuejiai.aaf.module.system.chat.vo.ChatSessionVO;
 import com.xuejiai.aaf.module.system.chat.vo.ChatStreamDTO;
 import com.xuejiai.aaf.module.system.chat.vo.IntentClassifyDTO;
 import com.xuejiai.aaf.module.system.chat.vo.IntentResult;
+import com.xuejiai.aaf.module.system.chat.vo.MessageFeedbackDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -107,6 +111,28 @@ public class ChatController {
         var message =
                 chatService.saveMessage(userId, "HUMAN", dto.sessionId(), "user", dto.content());
         return Result.success(message);
+    }
+
+    @Operation(summary = "删除会话")
+    @DeleteMapping("/sessions/{sessionId}")
+    public Result<Void> deleteSession(@PathVariable Long sessionId) {
+        chatService.deleteSession(sessionId);
+        return Result.success();
+    }
+
+    @Operation(summary = "重命名会话")
+    @PutMapping("/sessions/{sessionId}/rename")
+    public Result<ChatSessionVO> renameSession(
+            @PathVariable Long sessionId, @RequestBody @Validated ChatSessionRenameDTO dto) {
+        return Result.success(chatService.renameSession(sessionId, dto.title()));
+    }
+
+    @Operation(summary = "消息反馈（点赞/点踩）")
+    @PostMapping("/messages/{messageId}/feedback")
+    public Result<Void> messageFeedback(
+            @PathVariable Long messageId, @RequestBody @Validated MessageFeedbackDTO dto) {
+        chatService.messageFeedback(messageId, dto.type(), dto.comment());
+        return Result.success();
     }
 
     @Operation(summary = "AI 流式对话")

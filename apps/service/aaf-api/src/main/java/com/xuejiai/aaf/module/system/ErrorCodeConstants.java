@@ -39,6 +39,7 @@ public interface ErrorCodeConstants {
 
     // ========== CHAT 模块 1_003_000 ==========
     ErrorCode CHAT_SESSION_NOT_FOUND = ErrorCode.of(1_003_000, "聊天会话不存在");
+    ErrorCode CHAT_MESSAGE_NOT_FOUND = ErrorCode.of(1_003_001, "聊天消息不存在");
 
     // ========== AI MODEL 模块 1_004_000 ==========
     ErrorCode AI_MODEL_NOT_FOUND = ErrorCode.of(1_004_000, "AI 模型不存在");

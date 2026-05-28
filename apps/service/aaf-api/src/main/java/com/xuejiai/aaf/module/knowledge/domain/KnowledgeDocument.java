@@ -56,10 +56,10 @@ public class KnowledgeDocument extends BaseEntity {
     private String contentHash;
 
     /**
-     * 状态
-     *
-     * <p>枚举 {@link DocumentStatusEnum}
+     * 状态（0=待处理 1=处理中 2=已完成 3=失败）
      */
+    @Column(name = "status")
+    private Integer status = 0;
 
     /** 错误信息 */
     @Column(name = "error_message", length = 2000)

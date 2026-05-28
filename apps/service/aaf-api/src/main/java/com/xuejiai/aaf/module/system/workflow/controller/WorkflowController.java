@@ -8,15 +8,19 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.ActorContext;
 import com.xuejiai.aaf.module.system.workflow.service.DelegationService;
 import com.xuejiai.aaf.module.system.workflow.service.WorkflowService;
+import com.xuejiai.aaf.module.system.workflow.vo.ProcessDefinitionVO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowActionDTO;
+import com.xuejiai.aaf.module.system.workflow.vo.WorkflowDeployDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowStartDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowStatusVO;
+import com.xuejiai.aaf.module.system.workflow.vo.WorkflowTaskVO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowTransferDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,7 +34,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Tag(name = "工作流审批")
 @RestController
-@RequestMapping("/api/workflow")
+@RequestMapping("/api/system/workflow")
 @RequiredArgsConstructor
 public class WorkflowController {
 
@@ -80,5 +84,26 @@ public class WorkflowController {
     public Result<Void> transfer(@Validated @RequestBody WorkflowTransferDTO dto) {
         delegationService.transfer(dto);
         return Result.success();
+    }
+
+    // ==================== 待审批与流程定义 ====================
+
+    @Operation(summary = "我的待审批列表")
+    @GetMapping("/tasks/my-pending")
+    public Result<List<WorkflowTaskVO>> myPendingTasks() {
+        String assignee = actorContext.currentUserId().orElseThrow().toString();
+        return Result.success(workflowService.listPendingTasks(assignee));
+    }
+
+    @Operation(summary = "流程定义列表")
+    @GetMapping("/definitions")
+    public Result<List<ProcessDefinitionVO>> listDefinitions() {
+        return Result.success(workflowService.listDefinitions());
+    }
+
+    @Operation(summary = "部署流程定义")
+    @PostMapping("/definitions")
+    public Result<String> deploy(@Validated @RequestBody WorkflowDeployDTO dto) {
+        return Result.success(workflowService.deployDefinition(dto));
     }
 }

@@ -91,6 +91,43 @@ public class SystemConfigService {
         return configRepository.findByConfigKeyAndDeletedFalse(key);
     }
 
+    /**
+     * 创建配置项。
+     *
+     * @param dto 创建请求
+     * @return 新建配置
+     */
+    @Transactional
+    public com.xuejiai.aaf.module.system.config.vo.SystemConfigVO create(
+            com.xuejiai.aaf.module.system.config.vo.SystemConfigCreateDTO dto) {
+        var config = new SystemConfig();
+        config.setCategory(dto.category());
+        config.setConfigKey(dto.configKey());
+        config.setValue(dto.value());
+        config.setDefaultValue(dto.defaultValue());
+        config.setValueType(dto.valueType() != null ? dto.valueType() : "string");
+        config.setName(dto.name());
+        config.setDescription(dto.description());
+        config.setVisible(dto.visible() != null ? dto.visible() : true);
+        config.setEditable(dto.editable() != null ? dto.editable() : true);
+        return toVO(configRepository.save(config));
+    }
+
+    /**
+     * 删除配置项。
+     *
+     * @param id 配置 ID
+     */
+    @Transactional
+    public void delete(Long id) {
+        var config =
+                configRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("配置项不存在"));
+        evictCache(config.getConfigKey());
+        configRepository.deleteById(id);
+    }
+
     public com.xuejiai.aaf.module.system.config.vo.SystemConfigVO toVO(SystemConfig c) {
         // 敏感配置不返回 value
         var value = Boolean.TRUE.equals(c.getVisible()) ? c.getValue() : null;

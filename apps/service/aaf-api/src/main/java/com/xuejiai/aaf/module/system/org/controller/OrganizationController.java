@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.ActorContext;
 import com.xuejiai.aaf.module.system.org.service.OrganizationService;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberAddDTO;
+import com.xuejiai.aaf.module.system.org.vo.OrgMemberRoleUpdateDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberVO;
 import com.xuejiai.aaf.module.system.org.vo.OrganizationCreateDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrganizationUpdateDTO;
@@ -33,17 +35,18 @@ import lombok.RequiredArgsConstructor;
  */
 @Tag(name = "组织管理")
 @RestController
-@RequestMapping("/api/system/organizations")
+@RequestMapping("/api/system/orgs")
 @RequiredArgsConstructor
 public class OrganizationController {
 
     private final OrganizationService organizationService;
+    private final ActorContext actorContext;
 
     @Operation(summary = "获取当前用户的组织列表")
     @GetMapping
     public Result<List<OrganizationVO>> list() {
-        // TODO: 从 SecurityContext 获取当前用户 ID，暂用 1L
-        return Result.success(organizationService.listByUser(1L));
+        Long userId = actorContext.currentUserId().orElseThrow();
+        return Result.success(organizationService.listByUser(userId));
     }
 
     @Operation(summary = "获取组织详情")
@@ -56,8 +59,8 @@ public class OrganizationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<OrganizationVO> create(@Validated @RequestBody OrganizationCreateDTO request) {
-        // TODO: 从 SecurityContext 获取当前用户 ID，暂用 1L
-        return Result.success(organizationService.create(request, 1L));
+        Long userId = actorContext.currentUserId().orElseThrow();
+        return Result.success(organizationService.create(request, userId));
     }
 
     @Operation(summary = "更新组织")
@@ -88,6 +91,15 @@ public class OrganizationController {
     public Result<OrgMemberVO> addMember(
             @PathVariable Long orgId, @Validated @RequestBody OrgMemberAddDTO request) {
         return Result.success(organizationService.addMember(orgId, request));
+    }
+
+    @Operation(summary = "修改成员角色")
+    @PutMapping("/{orgId}/members/{memberId}/role")
+    public Result<OrgMemberVO> updateMemberRole(
+            @PathVariable Long orgId,
+            @PathVariable Long memberId,
+            @Validated @RequestBody OrgMemberRoleUpdateDTO request) {
+        return Result.success(organizationService.updateMemberRole(orgId, memberId, request));
     }
 
     @Operation(summary = "移除组织成员")

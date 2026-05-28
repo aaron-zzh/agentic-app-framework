@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -78,6 +79,21 @@ public class SmsController {
         if (dto.provider() != null) entity.setProvider(dto.provider());
         if (dto.status() != null) entity.setStatus(dto.status());
         return Result.success(templateRepository.save(entity));
+    }
+
+    @GetMapping("/templates/{id}")
+    public Result<SmsTemplate> getTemplate(@PathVariable Long id) {
+        var entity =
+                templateRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("模板不存在"));
+        return Result.success(entity);
+    }
+
+    @DeleteMapping("/templates/{id}")
+    public Result<Void> deleteTemplate(@PathVariable Long id) {
+        templateRepository.deleteById(id);
+        return Result.success(null);
     }
 
     // ── 日志查询 ──────────────────────────────────────────────

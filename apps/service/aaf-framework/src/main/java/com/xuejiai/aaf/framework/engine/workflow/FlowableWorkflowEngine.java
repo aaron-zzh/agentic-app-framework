@@ -1,9 +1,12 @@
 package com.xuejiai.aaf.framework.engine.workflow;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
 import org.flowable.engine.HistoryService;
+import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.springframework.stereotype.Component;
@@ -20,6 +23,7 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     private final RuntimeService runtimeService;
     private final TaskService taskService;
     private final HistoryService historyService;
+    private final RepositoryService repositoryService;
 
     @Override
     public String startProcess(
@@ -88,5 +92,44 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
                         .singleResult();
         if (historic == null) return Map.of();
         return historic.getProcessVariables() != null ? historic.getProcessVariables() : Map.of();
+    }
+
+    @Override
+    public List<TaskInfo> listPendingTasks(String assignee) {
+        return taskService.createTaskQuery().taskAssignee(assignee).orderByTaskCreateTime().desc()
+                .list().stream()
+                .map(
+                        t ->
+                                new TaskInfo(
+                                        t.getId(),
+                                        t.getProcessInstanceId(),
+                                        t.getAssignee(),
+                                        t.getName()))
+                .toList();
+    }
+
+    @Override
+    public List<DefinitionInfo> listDefinitions() {
+        return repositoryService.createProcessDefinitionQuery().latestVersion()
+                .orderByProcessDefinitionName().asc().list().stream()
+                .map(
+                        d ->
+                                new DefinitionInfo(
+                                        d.getKey(), d.getName(), d.getVersion()))
+                .toList();
+    }
+
+    @Override
+    public String deploy(String name, String bpmnXml) {
+        var deployment =
+                repositoryService
+                        .createDeployment()
+                        .name(name)
+                        .addInputStream(
+                                name + ".bpmn20.xml",
+                                new ByteArrayInputStream(
+                                        bpmnXml.getBytes(StandardCharsets.UTF_8)))
+                        .deploy();
+        return deployment.getId();
     }
 }
