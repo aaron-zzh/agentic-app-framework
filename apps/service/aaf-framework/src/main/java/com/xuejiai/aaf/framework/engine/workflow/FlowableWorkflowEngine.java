@@ -134,6 +134,20 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
         return deployment.getId();
     }
 
+    @Override
+    public String findInstanceByBusinessKey(String businessKey) {
+        var instance = runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(businessKey)
+                .singleResult();
+        if (instance != null) return instance.getId();
+        // 查历史（已完成的流程）
+        var historic = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceBusinessKey(businessKey)
+                .orderByProcessInstanceStartTime().desc()
+                .list();
+        return historic.isEmpty() ? null : historic.getFirst().getId();
+    }
+
     // ==================== #5802 流程定义管理 ====================
 
     @Override

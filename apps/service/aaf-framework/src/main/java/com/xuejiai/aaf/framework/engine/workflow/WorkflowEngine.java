@@ -111,6 +111,14 @@ public interface WorkflowEngine {
      */
     String deploy(String name, String bpmnXml);
 
+    /**
+     * 按 businessKey 查找运行中的流程实例 ID。
+     *
+     * @param businessKey 业务关联 key
+     * @return 流程实例 ID（无匹配返回 null）
+     */
+    String findInstanceByBusinessKey(String businessKey);
+
     // ==================== #5802 流程定义管理 ====================
 
     /**

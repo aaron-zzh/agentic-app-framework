@@ -89,6 +89,25 @@ public class WorkflowService {
                 history);
     }
 
+    /**
+     * 按实体类型和 ID 查询关联流程状态。
+     *
+     * @param entityType 实体类型
+     * @param entityId 实体 ID
+     * @return 流程状态（无关联流程时返回 status=none 的空对象）
+     */
+    @Transactional(readOnly = true)
+    public WorkflowStatusVO getStatusByEntity(String entityType, String entityId) {
+        String businessKey = entityType + ":" + entityId;
+        var instances = workflowEngine.listRunningInstances(0, 1);
+        // 通过 businessKey 查找（遍历运行中实例匹配）
+        var processInstanceId = workflowEngine.findInstanceByBusinessKey(businessKey);
+        if (processInstanceId == null) {
+            return new WorkflowStatusVO(null, entityType, Long.valueOf(entityId), null, false, null, null, List.of());
+        }
+        return getStatus(processInstanceId);
+    }
+
     /** 查询审批历史。 */
     @Transactional(readOnly = true)
     public List<WorkflowStatusVO.HistoryItem> getHistory(String processInstanceId) {

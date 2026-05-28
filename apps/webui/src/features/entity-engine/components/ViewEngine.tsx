@@ -19,6 +19,7 @@ import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
+import { EntityApproval } from "./EntityApproval"
 import { FormView } from "./form"
 import { KanbanView } from "./kanban"
 import type { ViewSettings } from "./list"
@@ -123,7 +124,18 @@ function ConnectedListView({
 /** 表单视图——连接数据层 */
 function ConnectedFormView({ entity, recordId }: { entity: EntityDef; recordId?: string }) {
   const { data, isLoading } = useEntityDetail(entity, recordId)
-  return <FormView key={recordId} entity={entity} data={data ?? undefined} loading={isLoading} />
+  return (
+    <div className="space-y-4">
+      <FormView key={recordId} entity={entity} data={data ?? undefined} loading={isLoading} />
+      {entity.workflow && recordId && (
+        <EntityApproval
+          config={entity.workflow}
+          entityId={recordId}
+          currentUserId="current-user"
+        />
+      )}
+    </div>
+  )
 }
 
 /** 视图占位组件（后续被 ListView/KanbanView/FormView 替换） */

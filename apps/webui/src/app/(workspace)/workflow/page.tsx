@@ -6,6 +6,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -131,8 +132,10 @@ function TaskList({ tasks, loading, emptyText }: { tasks: WorkflowTaskVO[]; load
                 流程：{task.processInstanceId}
               </p>
             </div>
-            <Button size="sm" variant="outline">
-              处理
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/module/${task.entityType ?? "workflow"}/${task.entityId ?? task.processInstanceId}`}>
+                处理
+              </Link>
             </Button>
           </li>
         ))}

@@ -83,6 +83,14 @@ public class WorkflowController {
         return Result.success(workflowService.getStatus(processInstanceId));
     }
 
+    @Operation(summary = "按实体查询关联流程状态")
+    @GetMapping("/status")
+    public Result<WorkflowStatusVO> getStatusByEntity(
+            @RequestParam String entityType,
+            @RequestParam String entityId) {
+        return Result.success(workflowService.getStatusByEntity(entityType, entityId));
+    }
+
     @Operation(summary = "查询审批历史")
     @GetMapping("/{processInstanceId}/history")
     public Result<List<WorkflowStatusVO.HistoryItem>> getHistory(

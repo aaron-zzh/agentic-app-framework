@@ -67,6 +67,10 @@ export interface WorkflowTaskVO {
   processInstanceId: string
   name: string
   assignee: string
+  /** 关联实体类型（用于跳转到实体详情页） */
+  entityType?: string
+  /** 关联实体 ID */
+  entityId?: string
 }
 
 /** 流程实例 */

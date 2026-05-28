@@ -55,6 +55,9 @@ export interface EntityDef {
   /** 生命周期钩子 */
   hooks?: EntityHooks
 
+  /** 审批工作流配置（启用后实体详情页展示审批面板+流程图） */
+  workflow?: EntityWorkflowConfig
+
   /** 自定义视图覆盖 */
   overrides?: {
     listView?: ComponentType
@@ -123,4 +126,17 @@ export interface SmartButton {
   icon?: string
   countField: string // 后端返回的计数字段名
   linkTo: string // 支持 {id} 占位符
+}
+
+
+/** 实体审批工作流配置 */
+export interface EntityWorkflowConfig {
+  /** 关联的流程定义 key */
+  processKey: string
+  /** 实体类型标识（用于启动流程时的 entityType 参数） */
+  entityType: string
+  /** 是否在详情页展示流程图 */
+  showFlowChart?: boolean
+  /** 审批面板位置 */
+  panelPosition?: "bottom" | "side"
 }
