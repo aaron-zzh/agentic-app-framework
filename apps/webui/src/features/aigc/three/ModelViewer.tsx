@@ -1,24 +1,54 @@
 /**
- * 3D 模型查看器
- * 注意：需要安装 @react-three/fiber @react-three/drei three 后替换为真实实现
+ * 3D 模型查看器——加载 GLB/glTF 模型并自动居中
+ * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { Skeleton } from "@/components/ui/skeleton"
+import { Center, Html, useGLTF, useProgress } from "@react-three/drei"
+import { Suspense, useEffect } from "react"
+import { ThreeScene } from "./ThreeScene"
 
 interface ModelViewerProps {
   modelUrl: string
   className?: string
+  onLoaded?: () => void
 }
 
-export function ModelViewer({ modelUrl, className }: ModelViewerProps) {
+/** 加载进度指示器 */
+function LoadingIndicator() {
+  const { progress } = useProgress()
   return (
-    <div className={className ?? "flex size-full items-center justify-center bg-muted/20"}>
-      <div className="flex flex-col items-center gap-3 text-center">
-        <Skeleton className="size-20 rounded-xl" />
-        <p className="text-xs text-muted-foreground">3D 模型: {modelUrl.split("/").pop()}</p>
+    <Html center>
+      <div className="flex flex-col items-center gap-2 rounded-lg bg-background/80 px-4 py-3 shadow-lg backdrop-blur-sm">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <span className="text-muted-foreground text-xs">{progress.toFixed(0)}%</span>
       </div>
-    </div>
+    </Html>
+  )
+}
+
+/** 模型加载组件 */
+function Model({ modelUrl, onLoaded }: { modelUrl: string; onLoaded?: () => void }) {
+  const { scene } = useGLTF(modelUrl)
+
+  useEffect(() => {
+    onLoaded?.()
+  }, [onLoaded])
+
+  return (
+    <Center>
+      <primitive object={scene} />
+    </Center>
+  )
+}
+
+export function ModelViewer({ modelUrl, className, onLoaded }: ModelViewerProps) {
+  return (
+    <ThreeScene className={className}>
+      <Suspense fallback={<LoadingIndicator />}>
+        <Model modelUrl={modelUrl} onLoaded={onLoaded} />
+      </Suspense>
+    </ThreeScene>
   )
 }

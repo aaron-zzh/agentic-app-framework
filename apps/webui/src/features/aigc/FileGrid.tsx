@@ -1,33 +1,26 @@
 /**
- * 文件区素材网格——支持 dnd-kit 拖拽到生成面板
+ * 文件区素材网格——支持 dnd-kit 拖拽到生成面板，接入真实 API
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
 import { useDraggable } from "@dnd-kit/core"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useMediaAssets } from "@/lib/queries/use-media-assets"
 import { cn } from "@/lib/utils/index"
-import type { MediaAsset } from "./types"
 import { useAigcStore } from "./store"
-
-/** 示例素材数据 */
-const MOCK_ASSETS: MediaAsset[] = [
-  { id: "a1", name: "森林场景_v1", url: "", thumbnail: "/placeholder.svg", width: 1152, height: 2048, model: "GPT Image 2" },
-  { id: "a2", name: "角色立绘_01", url: "", thumbnail: "/placeholder.svg", width: 1024, height: 1024, model: "GPT Image 2" },
-  { id: "a3", name: "水晶龙_概念", url: "", thumbnail: "/placeholder.svg", width: 2048, height: 1152, model: "GPT Image 2" },
-  { id: "a4", name: "魔法阵_特效", url: "", thumbnail: "/placeholder.svg", width: 1024, height: 1024, model: "DALL·E 3" },
-  { id: "a5", name: "背景_星空", url: "", thumbnail: "/placeholder.svg", width: 1920, height: 1080, model: "GPT Image 2" },
-  { id: "a6", name: "道具_法杖", url: "", thumbnail: "/placeholder.svg", width: 512, height: 512, model: "GPT Image 2" },
-]
+import type { MediaAsset } from "./types"
 
 function DraggableAssetCard({ asset }: { asset: MediaAsset }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: asset.id,
-    data: asset,
+    data: asset
   })
   const setPreviewAsset = useAigcStore((s) => s.setPreviewAsset)
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit 通过 attributes 注入 role
     <div
       ref={setNodeRef}
       {...listeners}
@@ -37,23 +30,57 @@ function DraggableAssetCard({ asset }: { asset: MediaAsset }) {
         isDragging && "opacity-50 ring-2 ring-primary"
       )}
       onClick={() => setPreviewAsset(asset)}
-      onKeyDown={(e) => { if (e.key === "Enter") setPreviewAsset(asset) }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") setPreviewAsset(asset)
+      }}
     >
       <div className="aspect-square bg-muted">
         {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
         <img src={asset.thumbnail} alt={asset.name} className="size-full object-cover" />
       </div>
       <div className="px-2 py-1.5">
-        <span className="block truncate text-xs text-foreground">{asset.name}</span>
+        <span className="block truncate text-foreground text-xs">{asset.name}</span>
       </div>
     </div>
   )
 }
 
-export function FileGrid() {
+/** 加载骨架屏 */
+function FileGridSkeleton() {
   return (
     <div className="grid grid-cols-3 gap-2 p-3">
-      {MOCK_ASSETS.map((asset) => (
+      {Array.from({ length: 6 }).map((_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表不会重排
+        <div key={`skeleton-${i}`} className="overflow-hidden rounded-lg border border-border/50">
+          <Skeleton className="aspect-square w-full" />
+          <div className="px-2 py-1.5">
+            <Skeleton className="h-3 w-3/4" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function FileGrid() {
+  const { data, isLoading } = useMediaAssets({ page: 0, pageSize: 20 })
+
+  if (isLoading) {
+    return <FileGridSkeleton />
+  }
+
+  if (!data?.list || data.list.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 p-8 text-center">
+        <p className="text-muted-foreground text-sm">暂无素材</p>
+        <p className="text-muted-foreground text-xs">生成或上传素材后将在此展示</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-2 p-3">
+      {data.list.map((asset) => (
         <DraggableAssetCard key={asset.id} asset={asset} />
       ))}
     </div>

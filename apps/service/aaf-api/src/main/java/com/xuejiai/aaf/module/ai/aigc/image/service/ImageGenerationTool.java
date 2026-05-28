@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Description;
 
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
+import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
+import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ImageGenerationTool {
 
     private final ImageServiceFactory imageServiceFactory;
+    private final MediaAssetService mediaAssetService;
 
     /** 工具输入参数。 */
     public record Request(String prompt, String model, String size, List<Long> referenceAssetIds) {}
@@ -50,6 +53,27 @@ public class ImageGenerationTool {
                 var result =
                         service.generate(
                                 new ImageRequest(request.prompt(), model, width, height, "url"));
+
+                // 自动保存到素材库
+                try {
+                    var saveDto =
+                            new SaveFromGenerationDTO(
+                                    null,
+                                    null,
+                                    result.url(),
+                                    null,
+                                    "{\"prompt\":\"%s\",\"model\":\"%s\"}"
+                                            .formatted(
+                                                    request.prompt().replace("\"", "\\\""),
+                                                    model),
+                                    width,
+                                    height,
+                                    null);
+                    // 工具调用场景无用户上下文，使用系统用户 ID 0
+                    mediaAssetService.saveFromGeneration(0L, saveDto);
+                } catch (Exception e) {
+                    log.warn("自动保存素材库失败: {}", e.getMessage());
+                }
 
                 return new Response(result.url(), "图片已生成");
             } catch (Exception e) {

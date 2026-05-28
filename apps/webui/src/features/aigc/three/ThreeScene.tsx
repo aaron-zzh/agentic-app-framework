@@ -1,27 +1,70 @@
 /**
- * 3D 基础场景容器
- * 注意：需要安装 @react-three/fiber @react-three/drei three 后替换为真实实现
- * 安装命令：pnpm add @react-three/fiber @react-three/drei three --filter @aaf/webui
+ * 3D 基础场景容器——Canvas + 灯光 + OrbitControls + Grid
+ * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { Skeleton } from "@/components/ui/skeleton"
+import { AdaptiveDpr, GizmoHelper, GizmoViewport, Grid, OrbitControls } from "@react-three/drei"
+import { Canvas } from "@react-three/fiber"
+import { cn } from "@/lib/utils/index"
 
 interface ThreeSceneProps {
   className?: string
   children?: React.ReactNode
 }
 
-export function ThreeScene({ className }: ThreeSceneProps) {
+/** 场景内容（灯光 + 辅助线 + 子节点） */
+function SceneContent({ children }: { children?: React.ReactNode }) {
   return (
-    <div className={className ?? "flex size-full items-center justify-center bg-muted/20"}>
-      <div className="flex flex-col items-center gap-3 text-center">
-        <Skeleton className="size-20 rounded-xl" />
-        <p className="text-xs text-muted-foreground">
-          3D 场景（安装 @react-three/fiber 后启用）
-        </p>
-      </div>
+    <>
+      {/* 环境光 + 方向光 */}
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+
+      {/* 网格地面 */}
+      <Grid
+        args={[20, 20]}
+        cellSize={1}
+        cellThickness={0.5}
+        cellColor="#6b7280"
+        sectionSize={5}
+        sectionThickness={1}
+        sectionColor="#374151"
+        fadeDistance={30}
+        infiniteGrid
+      />
+
+      {/* 坐标轴辅助线 */}
+      <axesHelper args={[5]} />
+
+      {/* 视角辅助器 */}
+      <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
+        <GizmoViewport />
+      </GizmoHelper>
+
+      {/* 轨道控制器 */}
+      <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
+
+      {/* 自适应分辨率 */}
+      <AdaptiveDpr pixelated />
+
+      {/* 用户放置的模型 */}
+      {children}
+    </>
+  )
+}
+
+export function ThreeScene({ className, children }: ThreeSceneProps) {
+  return (
+    <div className={cn("size-full", className)}>
+      <Canvas
+        frameloop="demand"
+        camera={{ position: [5, 5, 5], fov: 50 }}
+        gl={{ preserveDrawingBuffer: true }}
+      >
+        <SceneContent>{children}</SceneContent>
+      </Canvas>
     </div>
   )
 }

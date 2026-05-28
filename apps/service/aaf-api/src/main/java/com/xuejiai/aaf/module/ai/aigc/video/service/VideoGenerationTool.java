@@ -8,6 +8,9 @@ import org.springframework.context.annotation.Description;
 
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.TextToVideoRequest;
+import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
+import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
+import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class VideoGenerationTool {
 
     private final VideoGenerationService videoGenerationService;
+    private final MediaAssetService mediaAssetService;
 
     public record Request(
             String prompt, Integer durationSeconds, String resolution, String ratio) {}
@@ -45,6 +49,27 @@ public class VideoGenerationTool {
                                 request.durationSeconds(),
                                 null);
                 var taskId = videoGenerationService.submitTextToVideo(videoRequest);
+
+                // 自动保存到素材库（视频为异步任务，先记录 taskId）
+                try {
+                    var saveDto =
+                            new SaveFromGenerationDTO(
+                                    null,
+                                    MediaAssetType.VIDEO,
+                                    "pending://" + taskId,
+                                    null,
+                                    "{\"prompt\":\"%s\",\"taskId\":\"%s\"}"
+                                            .formatted(
+                                                    request.prompt().replace("\"", "\\\""),
+                                                    taskId),
+                                    null,
+                                    null,
+                                    null);
+                    mediaAssetService.saveFromGeneration(0L, saveDto);
+                } catch (Exception e) {
+                    log.warn("自动保存素材库失败: {}", e.getMessage());
+                }
+
                 return new Response(taskId, "PENDING", "视频生成任务已提交，预计1-5分钟完成");
             } catch (Exception e) {
                 log.error("对话生成视频失败: {}", e.getMessage(), e);

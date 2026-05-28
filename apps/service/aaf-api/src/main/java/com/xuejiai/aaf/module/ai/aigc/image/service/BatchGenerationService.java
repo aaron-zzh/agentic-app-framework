@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.BatchGenerationTask;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchTaskStatus;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.BatchGenerationTaskRepository;
@@ -40,6 +42,7 @@ public class BatchGenerationService {
     private final BatchGenerationTaskRepository taskRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final ImageServiceFactory imageServiceFactory;
 
     /**
      * 提交批量生成任务。
@@ -185,9 +188,16 @@ public class BatchGenerationService {
     private boolean executeWithRetry(String prompt, String model, Integer width, Integer height) {
         for (int attempt = 1; attempt <= MAX_RETRY; attempt++) {
             try {
-                // TODO: 接入 ImageServiceFactory 执行实际生成
-                // 当前为骨架实现，后续接入图像生成服务
-                log.debug("执行生成: prompt={}, attempt={}", prompt, attempt);
+                var service = imageServiceFactory.getSyncService(model);
+                var request =
+                        new ImageRequest(
+                                prompt,
+                                model,
+                                width != null ? width : 1024,
+                                height != null ? height : 1024,
+                                "url");
+                service.generate(request);
+                log.debug("批量生成成功: prompt={}, attempt={}", prompt, attempt);
                 return true;
             } catch (Exception e) {
                 log.warn("生成失败 (attempt {}/{}): {}", attempt, MAX_RETRY, e.getMessage());

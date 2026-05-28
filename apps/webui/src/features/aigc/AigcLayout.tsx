@@ -9,14 +9,11 @@
 import { DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable"
-import { StoryboardPanel } from "./StoryboardPanel"
-import { PreviewPanel } from "./PreviewPanel"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { GenerationHistory } from "./GenerationHistory"
 import { GenerationPanel } from "./GenerationPanel"
+import { PreviewPanel } from "./PreviewPanel"
+import { StoryboardPanel } from "./StoryboardPanel"
 import { useAigcStore } from "./store"
 import type { MediaAsset } from "./types"
 
@@ -24,24 +21,29 @@ import type { MediaAsset } from "./types"
 function ChatPanel() {
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/50 px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">AI 对话</h2>
+      <div className="border-border/50 border-b px-4 py-3">
+        <h2 className="font-semibold text-foreground text-sm">AI 对话</h2>
       </div>
       <div className="flex flex-1 flex-col justify-end p-4">
-        <p className="mb-4 text-center text-xs text-muted-foreground">
+        <p className="mb-4 text-center text-muted-foreground text-xs">
           描述你想生成的内容，AI 将为你创作
         </p>
         <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-2">
           <input
             type="text"
             placeholder="描述你想生成的图片或视频..."
-            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
           />
-          <Button size="sm" className="h-7 bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 text-xs text-white">
+          <Button
+            size="sm"
+            className="h-7 bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 text-white text-xs"
+          >
             发送
           </Button>
         </div>
       </div>
+      {/* 折叠的生成历史面板 */}
+      <GenerationHistory />
     </div>
   )
 }

@@ -4,18 +4,20 @@
  */
 
 export { AigcLayout } from "./AigcLayout"
-export { useAigcStore } from "./store"
-export type { StoryElement, MediaAsset, GenerationParams } from "./types"
-
-// 视频生成
-export { VideoStoryboard } from "./VideoStoryboard"
-export { VideoTimeline } from "./VideoTimeline"
-export type { VideoScene, SceneStatus } from "./VideoTimeline"
-export { VideoPlayer } from "./VideoPlayer"
-export { VideoGenerationChat } from "./VideoGenerationChat"
-
+// 生成历史
+export { GenerationHistory } from "./GenerationHistory"
 // 对话内联预览
 export { MediaPreviewCard } from "./MediaPreviewCard"
-
+export { StyleAdjustDialog } from "./StyleAdjustDialog"
+export { useAigcStore } from "./store"
+export { threeViewConfig } from "./three"
 // 3D（动态导入使用，此处仅导出类型和容器）
 export { ThreeView } from "./three/ThreeView"
+export type { GenerationParams, MediaAsset, StoryElement } from "./types"
+export { VideoEditPanel } from "./VideoEditPanel"
+export { VideoGenerationChat } from "./VideoGenerationChat"
+export { VideoPlayer } from "./VideoPlayer"
+// 视频生成
+export { VideoStoryboard } from "./VideoStoryboard"
+export type { SceneStatus, VideoScene } from "./VideoTimeline"
+export { VideoTimeline } from "./VideoTimeline"

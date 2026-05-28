@@ -1,24 +1,40 @@
 /**
- * AIGC 视频生成页面
+ * AIGC 视频页面——支持「生成」和「编辑」模式切换
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable"
+import { useState } from "react"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { VideoEditPanel } from "@/features/aigc/VideoEditPanel"
+import { VideoGenerationChat } from "@/features/aigc/VideoGenerationChat"
+import { VideoPlayer } from "@/features/aigc/VideoPlayer"
 import { VideoStoryboard } from "@/features/aigc/VideoStoryboard"
 import { VideoTimeline } from "@/features/aigc/VideoTimeline"
-import { VideoPlayer } from "@/features/aigc/VideoPlayer"
-import { VideoGenerationChat } from "@/features/aigc/VideoGenerationChat"
 
 export default function AigcVideoPage() {
+  const [mode, setMode] = useState<"generate" | "edit">("generate")
+
   return (
-    <div className="h-[calc(100vh-var(--layout-header-height))]">
-      <ResizablePanelGroup direction="horizontal" className="size-full">
+    <div className="flex h-[calc(100vh-var(--layout-header-height))] flex-col">
+      {/* 模式切换 Tab */}
+      <div className="flex items-center border-border/50 border-b px-4 py-2">
+        <Tabs value={mode} onValueChange={(v) => setMode(v as "generate" | "edit")}>
+          <TabsList className="h-8">
+            <TabsTrigger value="generate" className="text-xs">
+              生成
+            </TabsTrigger>
+            <TabsTrigger value="edit" className="text-xs">
+              编辑
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* 主内容区 */}
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
         {/* 左栏：故事板 + 时间线 */}
         <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
           <ResizablePanelGroup direction="vertical">
@@ -45,9 +61,9 @@ export default function AigcVideoPage() {
 
         <ResizableHandle withHandle />
 
-        {/* 右栏：对话驱动生成 */}
+        {/* 右栏：根据模式切换 */}
         <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
-          <VideoGenerationChat />
+          {mode === "generate" ? <VideoGenerationChat /> : <VideoEditPanel />}
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
