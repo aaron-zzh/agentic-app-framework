@@ -38,4 +38,12 @@ public class CreditAccount extends BaseEntity {
     /** 累计消费 */
     @Column(name = "total_spent", nullable = false)
     private Long totalSpent = 0L;
+
+    /** 成长经验值（wallet 复用，AAF-074） */
+    @Column(name = "exp", nullable = false)
+    private Integer exp = 0;
+
+    /** 当前等级 ID（wallet 复用，AAF-074） */
+    @Column(name = "level_id")
+    private Long levelId;
 }
