@@ -18,6 +18,8 @@ import com.xuejiai.aaf.module.ai.chat.domain.TaskExecution;
 import com.xuejiai.aaf.module.ai.chat.repository.TaskCheckpointRepository;
 import com.xuejiai.aaf.module.ai.chat.repository.TaskEventRepository;
 import com.xuejiai.aaf.module.ai.chat.repository.TaskExecutionRepository;
+import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
+import com.xuejiai.aaf.module.ai.output.service.AiOutputService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +47,7 @@ public class DurableTaskExecutor {
     private final CognitiveCycleExecutor cognitiveCycleExecutor;
     private final AgentRegistryService agentRegistry;
     private final ChatService chatService;
+    private final AiOutputService aiOutputService;
 
     private static final int ORPHAN_TIMEOUT_MINUTES = 10;
 
@@ -121,6 +124,9 @@ public class DurableTaskExecutor {
             chatService.saveMessage(
                     task.getCreatorId(), "AI", task.getSessionId(),
                     "assistant", "[任务完成: %s]\n%s".formatted(task.getTitle(), result.response()));
+
+            // 记录 AI 产出
+            recordOutput(task, execution.getId(), result.response());
 
         } catch (Exception e) {
             failExecution(execution.getId(), e.getMessage());
@@ -256,6 +262,44 @@ public class DurableTaskExecutor {
 
     public List<TaskEvent> getEvents(Long taskId) {
         return eventRepository.findByTaskIdOrderByCreateTimeAsc(taskId);
+    }
+
+    // === 产出记录 ===
+
+    private void recordOutput(ChatTask task, Long executionId, String result) {
+        try {
+            var output = new AiOutput();
+            output.setSessionId(task.getSessionId());
+            output.setTaskId(task.getId());
+            output.setExecutionId(executionId);
+            output.setCreatorId(task.getCreatorId());
+            output.setSourceType("task");
+            output.setCategory(detectCategory(result));
+            output.setRiskLevel(detectRiskLevel(task, result));
+            output.setTitle(task.getTitle());
+            output.setDescription(truncate(result, 500));
+            output.setContentSnapshot("{\"type\":\"task_result\",\"content\":\"%s\"}".formatted(escapeJson(truncate(result, 5000))));
+            aiOutputService.record(output);
+        } catch (Exception e) {
+            log.warn("记录 AI 产出失败: taskId={}", task.getId(), e);
+        }
+    }
+
+    private String detectCategory(String result) {
+        if (result == null) return "document";
+        if (result.contains("```") || result.contains("class ") || result.contains("function ")) return "code";
+        if (result.contains("CREATE") || result.contains("UPDATE") || result.contains("DELETE")) return "entity_change";
+        return "document";
+    }
+
+    private String detectRiskLevel(ChatTask task, String result) {
+        if (result == null) return "low";
+        // 高风险关键词
+        if (result.contains("DELETE") || result.contains("删除") || result.contains("权限")
+                || result.contains("DROP") || result.contains("TRUNCATE")) return "high";
+        // 中风险
+        if (result.contains("UPDATE") || result.contains("修改") || result.contains("CREATE")) return "medium";
+        return "low";
     }
 
     // === 内部方法 ===

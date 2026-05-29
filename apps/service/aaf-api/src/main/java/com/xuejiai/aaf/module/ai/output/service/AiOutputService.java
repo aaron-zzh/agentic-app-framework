@@ -9,22 +9,31 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
 import com.xuejiai.aaf.module.ai.output.repository.AiOutputRepository;
+import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * AI 产出服务——记录、查询、调整、回退。
+ * AI 产出服务——记录、查询、调整、回退。高风险产出自动推送通知。
  */
 @Service
 @RequiredArgsConstructor
 public class AiOutputService {
 
     private final AiOutputRepository repository;
+    private final NotificationService notificationService;
 
-    /** 记录产出 */
+    /** 记录产出（高风险自动推送通知） */
     @Transactional
     public AiOutput record(AiOutput output) {
-        return repository.save(output);
+        repository.save(output);
+        if ("high".equals(output.getRiskLevel())) {
+            notificationService.sendSystemNotification(
+                    output.getCreatorId(),
+                    "🔴 高风险 AI 产出",
+                    output.getTitle());
+        }
+        return output;
     }
 
     /** 分页查询（支持筛选） */
