@@ -2,7 +2,7 @@
 level: Practice
 layer: Product
 purpose: AAF-072 3D 可视化的技术任务清单
-status: pending
+status: done
 version: 1.0.0
 date: 2026-05-19
 author: AaronZZH
@@ -16,7 +16,7 @@ author: AaronZZH
 
 ### 3D 基础
 
-1. [ ] #7201 react-three-fiber 集成
+1. [x] #7201 react-three-fiber 集成
    - R3F 基础场景搭建（Canvas、Scene、Camera）
    - 相机控制（OrbitControls 旋转/缩放/平移）
    - 光照系统（环境光 + 方向光 + 点光源，可配置）
@@ -24,7 +24,7 @@ author: AaronZZH
    - 响应式容器（自适应父容器尺寸、全屏切换）
    - verify: 3D 场景正确渲染，交互流畅 ≥ 30fps
 
-2. [ ] #7202 AI 生成 3D 模型
+2. [x] #7202 AI 生成 3D 模型
    - 文本→3D 模型 API 集成（Meshy/Tripo3D/OpenAI）
    - 图片→3D 模型（单图/多图重建）
    - 模型格式转换（glTF/GLB/OBJ/FBX 互转）
@@ -33,14 +33,14 @@ author: AaronZZH
 
 ### 3D 交互
 
-3. [ ] #7203 3D 交互编辑
+3. [x] #7203 3D 交互编辑
    - 模型变换（旋转/缩放/平移 Gizmo 控件）
    - 材质编辑（颜色/纹理/金属度/粗糙度调节面板）
    - 场景组合（多模型摆放、对齐吸附、分组）
    - 快照导出（当前视角截图为 PNG、场景导出为 glTF）
    - verify: 模型变换实时生效，导出文件可被其他 3D 软件打开
 
-4. [ ] #7204 3D 教学模型
+4. [x] #7204 3D 教学模型
    - 教学场景模板（分子结构/地理地形/机械零件/人体解剖）
    - 标注系统（3D 空间中添加文字标注、引线、热点）
    - 动画演示（旋转展示、拆解动画、组装动画、步骤播放）
@@ -49,7 +49,7 @@ author: AaronZZH
 
 ### 视图集成
 
-5. [ ] #7205 3D 视图嵌入
+5. [x] #7205 3D 视图嵌入
    - 3D 视图作为实体视图类型（ViewEngine 注册 3d 视图类型）
    - 与 EntityDef 联动（实体字段→3D 属性映射）
    - 响应式布局适配（嵌入卡片/全屏/分栏模式）
