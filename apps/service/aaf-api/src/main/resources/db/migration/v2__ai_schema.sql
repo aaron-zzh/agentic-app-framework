@@ -825,3 +825,63 @@ COMMENT ON COLUMN ai_chat_task.priority IS '优先级（数值越小越优先）
 COMMENT ON COLUMN ai_chat_task.sort_order IS '同优先级内排序序号';
 COMMENT ON COLUMN ai_chat_task.scheduled_at IS '定时执行时间，NULL 表示立即可执行';
 COMMENT ON COLUMN ai_chat_task.result IS '助理处理结果摘要';
+
+-- ============================================================
+-- AI 长任务持久执行（Durable Task Execution）
+-- ============================================================
+
+CREATE TABLE ai_task_execution (
+    id                    BIGSERIAL       PRIMARY KEY,
+    task_id               BIGINT          NOT NULL REFERENCES ai_chat_task(id),
+    parent_execution_id   BIGINT          REFERENCES ai_task_execution(id),
+    subtask_key           VARCHAR(100),
+    attempt_no            INTEGER         NOT NULL DEFAULT 1,
+    status                VARCHAR(20)     NOT NULL DEFAULT 'pending',
+    role                  VARCHAR(100),
+    checkpoint_id         BIGINT,
+    started_at            TIMESTAMP,
+    ended_at              TIMESTAMP,
+    error_message         TEXT,
+    create_time           TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time           TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_task_execution_task ON ai_task_execution(task_id, attempt_no);
+CREATE INDEX idx_task_execution_parent ON ai_task_execution(parent_execution_id) WHERE parent_execution_id IS NOT NULL;
+CREATE INDEX idx_task_execution_status ON ai_task_execution(status, update_time) WHERE status = 'running';
+
+COMMENT ON TABLE ai_task_execution IS '任务执行实例——一个任务可多次执行（重试），支持主/子关系';
+COMMENT ON COLUMN ai_task_execution.parent_execution_id IS '子任务指向主执行实例（NULL=主执行）';
+COMMENT ON COLUMN ai_task_execution.subtask_key IS '子任务标识（如 backend/frontend）';
+COMMENT ON COLUMN ai_task_execution.checkpoint_id IS '最新检查点 ID';
+
+CREATE TABLE ai_task_checkpoint (
+    id                BIGSERIAL       PRIMARY KEY,
+    execution_id      BIGINT          NOT NULL REFERENCES ai_task_execution(id),
+    scope             VARCHAR(20)     NOT NULL,
+    step_index        INTEGER         NOT NULL DEFAULT 0,
+    state_json        JSONB           NOT NULL,
+    create_time       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_task_checkpoint_exec ON ai_task_checkpoint(execution_id, step_index DESC);
+
+COMMENT ON TABLE ai_task_checkpoint IS '任务检查点快照——支持从最近检查点恢复';
+COMMENT ON COLUMN ai_task_checkpoint.scope IS 'coordinator/subtask/agent_step';
+COMMENT ON COLUMN ai_task_checkpoint.state_json IS '状态快照（taskBoard/workingMemory/completedSteps 等）';
+
+CREATE TABLE ai_task_event (
+    id                BIGSERIAL       PRIMARY KEY,
+    task_id           BIGINT          NOT NULL,
+    execution_id      BIGINT,
+    subtask_key       VARCHAR(100),
+    type              VARCHAR(50)     NOT NULL,
+    payload_json      JSONB,
+    create_time       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_task_event_task ON ai_task_event(task_id, create_time);
+CREATE INDEX idx_task_event_exec ON ai_task_event(execution_id, create_time) WHERE execution_id IS NOT NULL;
+
+COMMENT ON TABLE ai_task_event IS '任务事件日志（append-only）——完整审计轨迹';
+COMMENT ON COLUMN ai_task_event.type IS '事件类型：task_started/step_completed/tool_called/checkpoint_saved/error 等';
