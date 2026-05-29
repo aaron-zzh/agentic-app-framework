@@ -22,11 +22,23 @@ export interface ChatterTarget {
 
 /** 拖放数据项 */
 export interface ChatterDropItem {
-  type: "doc" | "file" | "image" | "text"
-  id?: number
+  type: "doc" | "file" | "image" | "video" | "text" | "view-context" | "field" | "record"
+  id?: string | number
   title?: string
+  /** 摘要（≤100 字符，用于 ContextChip 展示） */
+  summary?: string
   content?: string
   url?: string
+  /** 缩略图（图片/视频预览） */
+  thumbnailUrl?: string
+  /** 语义元数据快照 */
+  semantics?: {
+    componentName: string
+    entity?: string
+    view?: string
+    selectedIds?: string[]
+    fieldData?: Record<string, unknown>
+  }
 }
 
 /** Chatter 组件 Props */

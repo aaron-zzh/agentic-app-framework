@@ -8,11 +8,12 @@
 "use client"
 
 import { ComposerPrimitive, useAui } from "@assistant-ui/react"
-import { Mic, X } from "lucide-react"
+import { Mic } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { SpeechInput } from "@/features/livechat/voice/SpeechInput"
 import { serverStt, useVoiceConfig } from "@/stores/voice-config"
+import { ContextChip } from "./dnd/ContextChip"
 import type { ChatterDropItem } from "./types"
 
 interface ChatterComposerProps {
@@ -59,21 +60,11 @@ export function ChatterComposer({ attachments, onAttachmentRemove }: ChatterComp
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1 px-3 pt-2">
           {attachments.map((item, i) => (
-            <span
+            <ContextChip
               key={`${item.type}-${item.id ?? i}`}
-              className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs"
-            >
-              {item.title ?? item.type}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-4"
-                onClick={() => onAttachmentRemove(i)}
-                aria-label="移除附件"
-              >
-                <X className="size-3" />
-              </Button>
-            </span>
+              item={item}
+              onRemove={() => onAttachmentRemove(i)}
+            />
           ))}
         </div>
       )}

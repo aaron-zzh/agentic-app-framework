@@ -9,7 +9,9 @@
  */
 
 export { Chatter } from "./Chatter"
+export { ContextChip } from "./dnd/ContextChip"
 export { DraggableItem } from "./dnd/DraggableItem"
+export { useSemanticDraggable } from "./dnd/useSemanticDraggable"
 export { useTaskBoard } from "./hooks/use-task-board"
 export { RecoveryNotification } from "./RecoveryNotification"
 export { TaskBoardPanel } from "./TaskBoardPanel"

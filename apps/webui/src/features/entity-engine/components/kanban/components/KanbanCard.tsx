@@ -9,6 +9,7 @@ import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useMemo } from "react"
 
+import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import type { EntityDef } from "@/lib/types/entity/entity"
 import { cn } from "@/lib/utils/cn"
 import { KanbanCardTemplate } from "./KanbanCardTemplate"
@@ -83,7 +84,7 @@ export function KanbanCard({
       onClick={handleClick}
       onKeyDown={undefined}
       className={cn(
-        "cursor-grab rounded-md border bg-background p-3 shadow-sm transition-shadow hover:shadow-md",
+        "relative cursor-grab rounded-md border bg-background p-3 shadow-sm transition-shadow hover:shadow-md",
         isDragging && "opacity-50",
         overlay && "rotate-2 shadow-lg",
         selected && "ring-2 ring-primary"
@@ -100,6 +101,40 @@ export function KanbanCard({
           )}
         </>
       )}
+      {/* 拖放到对话 handle */}
+      <CardChatHandle id={id} title={title} entity={entity} />
     </div>
+  )
+}
+
+/** 卡片内的"拖到对话"handle */
+function CardChatHandle({
+  id,
+  title,
+  entity
+}: { id: string; title: string; entity?: EntityDef }) {
+  const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
+    id: `kanban-card-${id}`,
+    item: {
+      type: "record",
+      id,
+      title: entity ? `${entity.label}: ${title}` : title,
+      semantics: { componentName: "KanbanCard", entity: entity?.slug }
+    }
+  })
+
+  return (
+    <span
+      ref={ref}
+      {...listeners}
+      {...attributes}
+      className="absolute top-1 right-1 hidden cursor-grab rounded p-0.5 text-muted-foreground text-xs opacity-60 hover:opacity-100 group-hover:inline-block"
+      style={{ opacity: isDragging ? 0.3 : undefined }}
+      title="拖放到对话"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      💬
+    </span>
   )
 }

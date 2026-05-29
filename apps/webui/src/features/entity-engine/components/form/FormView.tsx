@@ -15,6 +15,7 @@ import type { ReactNode } from "react"
 import { FormProvider, useForm, useFormContext } from "react-hook-form"
 
 import { FieldErrorBoundary } from "@/components/common/FieldErrorBoundary"
+import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { useConditionalFields } from "../../hooks/use-conditional-fields"
 import { buildZodSchema } from "../../lib/build-zod-schema"
 import { getFieldComponent } from "../../lib/component-registry"
@@ -242,6 +243,17 @@ function FieldRenderer({
   const value = watch(field.name)
   const error = errors[field.name]?.message as string | undefined
 
+  const displayValue = value != null ? String(value) : ""
+  const { ref: dragRef, listeners, attributes, isDragging } = useSemanticDraggable({
+    id: `field-${field.name}`,
+    item: {
+      type: "field",
+      title: `${field.label ?? field.name}=${displayValue}`,
+      semantics: { componentName: "FormField", fieldData: { [field.name]: value } }
+    },
+    disabled: !value
+  })
+
   if (!Component) {
     return (
       <div className="text-muted-foreground text-xs">
@@ -251,16 +263,30 @@ function FieldRenderer({
   }
 
   const fieldEl = (
-    <FieldErrorBoundary fieldName={field.label ?? field.name}>
-      <Component
-        name={field.name}
-        value={value ?? ""}
-        onChange={(v: unknown) => setValue(field.name, v, { shouldValidate: true })}
-        error={error}
-        disabled={readOnly ?? field.readOnly}
-        field={field}
-      />
-    </FieldErrorBoundary>
+    <div className="group relative" style={{ opacity: isDragging ? 0.5 : 1 }}>
+      <FieldErrorBoundary fieldName={field.label ?? field.name}>
+        <Component
+          name={field.name}
+          value={value ?? ""}
+          onChange={(v: unknown) => setValue(field.name, v, { shouldValidate: true })}
+          error={error}
+          disabled={readOnly ?? field.readOnly}
+          field={field}
+        />
+      </FieldErrorBoundary>
+      {/* 拖放到对话 handle */}
+      {value != null && value !== "" && (
+        <span
+          ref={dragRef}
+          {...listeners}
+          {...attributes}
+          className="absolute top-0 right-0 hidden cursor-grab rounded p-0.5 text-muted-foreground text-xs opacity-60 hover:opacity-100 group-hover:inline-block"
+          title="拖放到对话"
+        >
+          💬
+        </span>
+      )}
+    </div>
   )
 
   if (labelLayout === "left" && field.label) {

@@ -7,7 +7,7 @@
 
 import { FileText, Folder, FolderOpen } from "lucide-react"
 import { useState } from "react"
-import { DraggableItem } from "@/features/chatter"
+import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import type { DocTreeNode } from "@/lib/types/document"
 
 interface DocTreeProps {
@@ -89,21 +89,26 @@ function FileNode({
   onSelect: (id: number) => void
   draggable?: boolean
 }) {
-  const btn = (
+  const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
+    id: `doc-tree-${node.id ?? node.path}`,
+    item: { type: "doc", id: node.id ?? undefined, title: node.name },
+    disabled: !draggable || node.id == null
+  })
+
+  return (
     <button
+      ref={ref}
       type="button"
       className={`flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-sm hover:bg-accent ${
         selected ? "bg-accent font-medium" : ""
       }`}
-      style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      style={{ paddingLeft: `${depth * 12 + 8}px`, opacity: isDragging ? 0.5 : 1 }}
       onClick={() => node.id != null && onSelect(node.id)}
+      {...listeners}
+      {...attributes}
     >
       <FileText className="size-4 shrink-0 text-blue-500" />
       <span className="truncate">{node.name}</span>
     </button>
   )
-
-  if (!draggable || node.id == null) return btn
-
-  return <DraggableItem item={{ type: "doc", id: node.id, title: node.name }}>{btn}</DraggableItem>
 }

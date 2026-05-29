@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useDraggable } from "@dnd-kit/core"
+import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
 import { cn } from "@/lib/utils/index"
@@ -13,16 +13,22 @@ import { useAigcStore } from "./store"
 import type { MediaAsset } from "./types"
 
 function DraggableAssetCard({ asset }: { asset: MediaAsset }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: asset.id,
-    data: asset
+  const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
+    id: `asset-${asset.id}`,
+    item: {
+      type: "image",
+      id: asset.id,
+      title: asset.name,
+      url: asset.url,
+      thumbnailUrl: asset.thumbnail
+    }
   })
   const setPreviewAsset = useAigcStore((s) => s.setPreviewAsset)
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit 通过 attributes 注入 role
     <div
-      ref={setNodeRef}
+      ref={ref}
       {...listeners}
       {...attributes}
       className={cn(

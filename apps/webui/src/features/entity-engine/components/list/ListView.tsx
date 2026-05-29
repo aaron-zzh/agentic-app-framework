@@ -8,6 +8,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { paths } from "@/lib/constants/paths"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { useUIStore } from "@/lib/store/ui-store"
@@ -152,31 +153,69 @@ export function ListView({
         else if (action === "detail") router.push(paths.workspace.record(entity.slug, id))
       }}
       renderRowActions={(row) => (
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="rounded px-2 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation()
-              const id = row.id as string
-              if (id) router.push(paths.workspace.record(entity.slug, id))
-            }}
-          >
-            编辑
-          </button>
-          <span className="text-border">|</span>
-          <button
-            type="button"
-            className="rounded px-2 py-0.5 text-destructive text-xs hover:bg-destructive/10"
-            onClick={(e) => {
-              e.stopPropagation()
-            }}
-          >
-            删除
-          </button>
-        </div>
+        <RowActions row={row} entitySlug={entity.slug} entityLabel={entity.label} />
       )}
     />
+  )
+}
+
+/** 行操作（含拖放到对话） */
+function RowActions({
+  row,
+  entitySlug,
+  entityLabel
+}: {
+  row: Record<string, unknown>
+  entitySlug: string
+  entityLabel: string
+}) {
+  const router = useRouter()
+  const id = row.id as string
+  const title = (row.name ?? row.title ?? id) as string
+
+  const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
+    id: `row-${entitySlug}-${id}`,
+    item: {
+      type: "record",
+      id,
+      title: `${entityLabel}: ${title}`,
+      semantics: { componentName: "ListView", entity: entitySlug }
+    }
+  })
+
+  return (
+    <div className="flex items-center gap-1">
+      <span
+        ref={ref}
+        {...listeners}
+        {...attributes}
+        className="cursor-grab rounded px-1 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
+        style={{ opacity: isDragging ? 0.5 : 1 }}
+        title="拖放到对话"
+      >
+        ⋮⋮
+      </span>
+      <button
+        type="button"
+        className="rounded px-2 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (id) router.push(paths.workspace.record(entitySlug, id))
+        }}
+      >
+        编辑
+      </button>
+      <span className="text-border">|</span>
+      <button
+        type="button"
+        className="rounded px-2 py-0.5 text-destructive text-xs hover:bg-destructive/10"
+        onClick={(e) => {
+          e.stopPropagation()
+        }}
+      >
+        删除
+      </button>
+    </div>
   )
 }
 
