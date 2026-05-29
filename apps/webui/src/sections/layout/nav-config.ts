@@ -47,6 +47,19 @@ const STATIC_NAV: NavGroup[] = [
   }
 ]
 
+/** 开发工具菜单 */
+const DEV_NAV: NavGroup[] = [
+  {
+    subheader: "开发工具",
+    items: [
+      { title: "文档管理", path: "/dev/docs", icon: "file-text" },
+      { title: "开发日志", path: "/dev/log", icon: "scroll-text" },
+      { title: "代码审查", path: "/dev/review", icon: "git-pull-request" },
+      { title: "迭代统计", path: "/dev/stats", icon: "bar-chart-3" }
+    ]
+  }
+]
+
 /** 固定底部菜单 */
 const BOTTOM_NAV: NavGroup[] = [
   {
@@ -98,5 +111,5 @@ function buildEntityNav(): NavGroup[] {
  * TODO: 后续替换为 GET /api/menus，后端根据用户角色返回可见菜单
  */
 export function buildNavConfig(): NavGroup[] {
-  return [...STATIC_NAV, ...buildEntityNav(), ...BOTTOM_NAV]
+  return [...STATIC_NAV, ...buildEntityNav(), ...DEV_NAV, ...BOTTOM_NAV]
 }
