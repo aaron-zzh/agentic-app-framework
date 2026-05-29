@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  *
  * 支持：展开态（完整菜单） + 折叠态（仅图标）
- * 菜单数据来自 nav-config（本地 + entityRegistry 合并）
+ * 菜单数据优先从后端 API 获取，失败时 fallback 到本地静态配置
  */
 
 "use client"
@@ -22,10 +22,13 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useUserMenus } from "@/lib/queries/use-menus"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
-import { buildNavConfig, type NavGroup, type NavItem } from "./nav-config"
+import { buildNavConfig, buildNavFromApi, type NavGroup, type NavItem } from "./nav-config"
 
 /** 图标名 → lucide 组件映射 */
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -47,7 +50,13 @@ function NavIcon({ name, className }: { name?: string; className?: string }) {
 export function AppSidebar() {
   const pathname = usePathname()
   const { sidebarOpen, toggleSidebar } = useUIStore()
-  const navConfig = buildNavConfig()
+  const { data: menus, isLoading, isError } = useUserMenus()
+
+  const navConfig = useMemo(() => {
+    if (menus && menus.length > 0) return buildNavFromApi(menus)
+    if (isError) return buildNavConfig()
+    return null
+  }, [menus, isError])
 
   return (
     <aside
@@ -77,16 +86,36 @@ export function AppSidebar() {
 
       {/* 导航 */}
       <nav className="flex-1 overflow-y-auto px-2 py-2">
-        {navConfig.map((group) => (
-          <NavGroupSection
-            key={group.subheader}
-            group={group}
-            pathname={pathname}
-            collapsed={!sidebarOpen}
-          />
-        ))}
+        {isLoading && !navConfig ? (
+          <NavSkeleton collapsed={!sidebarOpen} />
+        ) : (
+          (navConfig ?? buildNavConfig()).map((group) => (
+            <NavGroupSection
+              key={group.subheader}
+              group={group}
+              pathname={pathname}
+              collapsed={!sidebarOpen}
+            />
+          ))
+        )}
       </nav>
     </aside>
+  )
+}
+
+/** 菜单加载骨架屏 */
+function NavSkeleton({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div className="space-y-4 p-2">
+      {["g1", "g2", "g3", "g4"].map((gKey) => (
+        <div key={gKey} className="space-y-2">
+          {!collapsed && <Skeleton className="h-3 w-16" />}
+          {["a", "b", "c"].map((iKey) => (
+            <Skeleton key={`${gKey}-${iKey}`} className={cn("h-7", collapsed ? "w-8" : "w-full")} />
+          ))}
+        </div>
+      ))}
+    </div>
   )
 }
 

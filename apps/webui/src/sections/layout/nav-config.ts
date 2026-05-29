@@ -1,12 +1,13 @@
 /**
- * 导航配置——本地菜单数据 + entityRegistry 自动生成
+ * 导航配置——本地静态 fallback + 后端动态菜单转换
  * @author AaronZZH & Kiro
  *
- * 当前：本地静态数据 + entityRegistry 合并
- * 后续：改为 GET /api/menus 从后端获取（RBAC 动态过滤）
+ * 优先使用 buildNavFromApi() 将后端 MenuVO[] 转为 NavGroup[]
+ * API 失败时 fallback 到 buildNavConfig()（本地静态 + entityRegistry）
  */
 
 import { entityRegistry } from "@/features/entity-engine"
+import type { MenuVO } from "@/lib/api/menu"
 import { paths } from "@/lib/constants/paths"
 
 export interface NavItem {
@@ -42,7 +43,7 @@ const STATIC_NAV: NavGroup[] = [
       { title: "图像生成", path: paths.aigc.root, icon: "sparkles" },
       { title: "视频生成", path: paths.aigc.video, icon: "video" },
       { title: "3D 展示", path: "/aigc/3d", icon: "box" },
-      { title: "素材库", path: paths.aigc.assets, icon: "image" },
+      { title: "素材库", path: paths.aigc.assets, icon: "image" }
     ]
   }
 ]
@@ -107,9 +108,56 @@ function buildEntityNav(): NavGroup[] {
 }
 
 /**
- * 构建完整导航配置
- * TODO: 后续替换为 GET /api/menus，后端根据用户角色返回可见菜单
+ * 构建完整导航配置（静态 fallback，API 失败时使用）
  */
 export function buildNavConfig(): NavGroup[] {
   return [...STATIC_NAV, ...buildEntityNav(), ...DEV_NAV, ...BOTTOM_NAV]
+}
+
+/** 将 MenuVO 子节点递归转为 NavItem[] */
+function menuChildrenToItems(children: MenuVO[]): NavItem[] {
+  return children
+    .filter((m) => m.visible && m.menuType === "MENU")
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((m) => ({
+      title: m.title,
+      path: m.path ?? "#",
+      icon: m.icon ?? undefined,
+      deepMatch: true,
+      children: m.children.length > 0 ? menuChildrenToItems(m.children) : undefined
+    }))
+}
+
+/**
+ * 将后端 MenuVO[] 树转换为 NavGroup[] 格式
+ * - menuType='GROUP' → NavGroup（subheader = title）
+ * - menuType='MENU' → NavItem（title/path/icon）
+ * - menuType='BUTTON' → 忽略（按钮权限不渲染为菜单）
+ */
+export function buildNavFromApi(menus: MenuVO[]): NavGroup[] {
+  return menus
+    .filter((m) => m.visible)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((m) => {
+      if (m.menuType === "GROUP") {
+        return {
+          subheader: m.title,
+          items: menuChildrenToItems(m.children)
+        }
+      }
+      // 顶层 MENU 项包裹为匿名分组
+      return {
+        subheader: "",
+        items: [
+          {
+            title: m.title,
+            path: m.path ?? "#",
+            icon: m.icon ?? undefined,
+            deepMatch: true,
+            children: m.children.length > 0 ? menuChildrenToItems(m.children) : undefined
+          }
+        ]
+      }
+    })
+    .filter((g) => g.items.length > 0)
 }
