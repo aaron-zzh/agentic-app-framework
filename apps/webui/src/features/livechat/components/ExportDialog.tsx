@@ -9,7 +9,7 @@
 
 import { useThread } from "@assistant-ui/react"
 import { Download } from "lucide-react"
-import { useCallback, useState } from "react"
+import { useCallback, useId, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,8 +21,8 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 type ExportFormat = "markdown" | "json"
 
@@ -44,6 +44,7 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 
 export function ExportDialog({ selectedMessageIds = [] }: ExportDialogProps) {
   const { messages } = useThread()
+  const formId = useId()
   const [format, setFormat] = useState<ExportFormat>("markdown")
   const [open, setOpen] = useState(false)
 
@@ -116,21 +117,18 @@ export function ExportDialog({ selectedMessageIds = [] }: ExportDialogProps) {
           {/* 格式选择 */}
           <div className="space-y-2">
             <p className="font-medium text-sm">导出格式</p>
-            <RadioGroup
-              value={format}
-              onValueChange={(v) => setFormat(v as ExportFormat)}
-            >
+            <RadioGroup value={format} onValueChange={(v) => setFormat(v as ExportFormat)}>
               <div className="flex items-center gap-2">
-                <RadioGroupItem value="markdown" id="fmt-md" />
-                <Label htmlFor="fmt-md">Markdown (.md)</Label>
+                <RadioGroupItem value="markdown" id={`${formId}-fmt-md`} />
+                <Label htmlFor={`${formId}-fmt-md`}>Markdown (.md)</Label>
               </div>
               <div className="flex items-center gap-2">
-                <RadioGroupItem value="json" id="fmt-json" />
-                <Label htmlFor="fmt-json">JSON (.json)</Label>
+                <RadioGroupItem value="json" id={`${formId}-fmt-json`} />
+                <Label htmlFor={`${formId}-fmt-json`}>JSON (.json)</Label>
               </div>
               <div className="flex items-center gap-2 opacity-50">
-                <RadioGroupItem value="pdf" id="fmt-pdf" disabled />
-                <Label htmlFor="fmt-pdf">
+                <RadioGroupItem value="pdf" id={`${formId}-fmt-pdf`} disabled />
+                <Label htmlFor={`${formId}-fmt-pdf`}>
                   PDF (.pdf) <Badge variant="outline">Coming Soon</Badge>
                 </Label>
               </div>

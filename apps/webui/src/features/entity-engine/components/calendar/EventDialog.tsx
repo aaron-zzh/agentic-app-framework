@@ -85,11 +85,11 @@ export function EventDialog({
     ? String(record[config.startField] ?? "")
     : (defaultRange?.start ?? "")
   const defaultEnd = record
-    ? (config.endField ? String(record[config.endField] ?? "") : "")
+    ? config.endField
+      ? String(record[config.endField] ?? "")
+      : ""
     : (defaultRange?.end ?? "")
-  const defaultRrule = record && config.rruleField
-    ? String(record[config.rruleField] ?? "")
-    : ""
+  const defaultRrule = record && config.rruleField ? String(record[config.rruleField] ?? "") : ""
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,13 +101,7 @@ export function EventDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="event-title">标题</Label>
-            <Input
-              id="event-title"
-              name="title"
-              defaultValue={defaultTitle}
-              required
-              autoFocus
-            />
+            <Input id="event-title" name="title" defaultValue={defaultTitle} required autoFocus />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

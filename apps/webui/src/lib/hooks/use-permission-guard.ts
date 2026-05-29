@@ -25,7 +25,7 @@ export function usePermissionGuard(access: EntityAccess | undefined) {
 
     /** 字段是否可编辑（无配置时跟随实体 update 权限） */
     function isFieldEditable(field: string): boolean {
-      return (access?.fieldAccess[field]?.editable ?? canUpdate)
+      return access?.fieldAccess[field]?.editable ?? canUpdate
     }
 
     return { canCreate, canUpdate, canDelete, isFieldVisible, isFieldEditable }

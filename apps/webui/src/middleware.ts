@@ -8,11 +8,19 @@
  * @author AaronZZH & Kiro
  */
 
-import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
 
 /** 需要登录才能访问的路径前缀 */
-const PROTECTED_PATHS = ["/dashboard", "/module", "/settings", "/notifications", "/todos", "/trash", "/admin"]
+const PROTECTED_PATHS = [
+  "/dashboard",
+  "/module",
+  "/settings",
+  "/notifications",
+  "/todos",
+  "/trash",
+  "/admin"
+]
 
 /** 已登录后不应访问的路径前缀 */
 const AUTH_PATHS = ["/auth/login", "/auth/register", "/auth/forgot-password"]

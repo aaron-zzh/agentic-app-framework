@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,10 +28,7 @@ import {
   useVoteProgress,
   useWithdraw
 } from "@/lib/queries/use-approval"
-import {
-  useWorkflowComplete,
-  useWorkflowReject
-} from "@/lib/queries/use-workflow"
+import { useWorkflowComplete, useWorkflowReject } from "@/lib/queries/use-workflow"
 
 interface ApprovalPanelProps {
   processInstanceId: string
@@ -55,7 +52,14 @@ const OP_LABELS: Record<ApprovalOperationType, { label: string; color: string }>
   WITHDRAW: { label: "撤回", color: "text-gray-600" }
 }
 
-type DialogAction = "complete" | "reject" | "addSignBefore" | "addSignAfter" | "transfer" | "withdraw" | null
+type DialogAction =
+  | "complete"
+  | "reject"
+  | "addSignBefore"
+  | "addSignAfter"
+  | "transfer"
+  | "withdraw"
+  | null
 
 export function ApprovalPanel({
   processInstanceId,
@@ -75,6 +79,7 @@ export function ApprovalPanel({
   const transferMutation = useTransferSign()
   const withdrawMutation = useWithdraw()
 
+  const formId = useId()
   const [dialogAction, setDialogAction] = useState<DialogAction>(null)
   const [comment, setComment] = useState("")
   const [targetUser, setTargetUser] = useState("")
@@ -105,7 +110,11 @@ export function ApprovalPanel({
         if (taskId) addSignAfterMutation.mutate({ taskId, assignee: targetUser }, { onSuccess })
         break
       case "transfer":
-        if (taskId) transferMutation.mutate({ taskId, targetAssignee: targetUser, reason: comment }, { onSuccess })
+        if (taskId)
+          transferMutation.mutate(
+            { taskId, targetAssignee: targetUser, reason: comment },
+            { onSuccess }
+          )
         break
       case "withdraw":
         withdrawMutation.mutate({ processInstanceId, initiator: currentUserId }, { onSuccess })
@@ -130,7 +139,10 @@ export function ApprovalPanel({
   }
 
   /** 是否需要目标用户输入 */
-  const needsTargetUser = dialogAction === "addSignBefore" || dialogAction === "addSignAfter" || dialogAction === "transfer"
+  const needsTargetUser =
+    dialogAction === "addSignBefore" ||
+    dialogAction === "addSignAfter" ||
+    dialogAction === "transfer"
 
   return (
     <div className="space-y-4">
@@ -138,15 +150,27 @@ export function ApprovalPanel({
       <div className="flex flex-wrap gap-2">
         {isAssignee && taskId && (
           <>
-            <Button size="sm" onClick={() => setDialogAction("complete")}>同意</Button>
-            <Button size="sm" variant="destructive" onClick={() => setDialogAction("reject")}>拒绝</Button>
-            <Button size="sm" variant="outline" onClick={() => setDialogAction("addSignBefore")}>前加签</Button>
-            <Button size="sm" variant="outline" onClick={() => setDialogAction("addSignAfter")}>后加签</Button>
-            <Button size="sm" variant="outline" onClick={() => setDialogAction("transfer")}>转签</Button>
+            <Button size="sm" onClick={() => setDialogAction("complete")}>
+              同意
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setDialogAction("reject")}>
+              拒绝
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setDialogAction("addSignBefore")}>
+              前加签
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setDialogAction("addSignAfter")}>
+              后加签
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setDialogAction("transfer")}>
+              转签
+            </Button>
           </>
         )}
         {isInitiator && (
-          <Button size="sm" variant="ghost" onClick={() => setDialogAction("withdraw")}>撤回</Button>
+          <Button size="sm" variant="ghost" onClick={() => setDialogAction("withdraw")}>
+            撤回
+          </Button>
         )}
       </div>
 
@@ -155,9 +179,9 @@ export function ApprovalPanel({
         <>
           <Separator />
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">投票进度</h4>
+            <h4 className="font-medium text-sm">投票进度</h4>
             <Progress value={(voteProgress.approved / voteProgress.total) * 100} className="h-2" />
-            <div className="flex gap-3 text-xs text-muted-foreground">
+            <div className="flex gap-3 text-muted-foreground text-xs">
               <span>已通过：{voteProgress.approved}</span>
               <span>已拒绝：{voteProgress.rejected}</span>
               <span>待审批：{voteProgress.pending}</span>
@@ -172,11 +196,11 @@ export function ApprovalPanel({
         <>
           <Separator />
           <div className="space-y-3">
-            <h4 className="text-sm font-medium">审批记录</h4>
-            <div className="relative ml-3 border-l border-border pl-6">
+            <h4 className="font-medium text-sm">审批记录</h4>
+            <div className="relative ml-3 border-border border-l pl-6">
               {timeline.map((record) => (
                 <div key={record.id} className="relative pb-4 last:pb-0">
-                  <div className="absolute -left-[calc(0.75rem+1px)] top-0.5">
+                  <div className="absolute top-0.5 -left-[calc(0.75rem+1px)]">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-[10px]">
                         {record.assignee?.slice(0, 1)?.toUpperCase() ?? "?"}
@@ -193,7 +217,7 @@ export function ApprovalPanel({
                     {record.comment && (
                       <p className="mt-0.5 text-muted-foreground">{record.comment}</p>
                     )}
-                    <p className="mt-0.5 text-xs text-muted-foreground">{record.operationTime}</p>
+                    <p className="mt-0.5 text-muted-foreground text-xs">{record.operationTime}</p>
                   </div>
                 </div>
               ))}
@@ -203,7 +227,12 @@ export function ApprovalPanel({
       )}
 
       {/* 操作确认对话框 */}
-      <Dialog open={dialogAction !== null} onOpenChange={(open) => { if (!open) closeDialog() }}>
+      <Dialog
+        open={dialogAction !== null}
+        onOpenChange={(open) => {
+          if (!open) closeDialog()
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{dialogAction ? dialogTitles[dialogAction] : ""}</DialogTitle>
@@ -211,10 +240,12 @@ export function ApprovalPanel({
           <div className="space-y-3">
             {needsTargetUser && (
               <div>
-                <label htmlFor="target-user" className="text-sm font-medium">目标用户</label>
+                <label htmlFor={`${formId}-target-user`} className="font-medium text-sm">
+                  目标用户
+                </label>
                 <input
-                  id="target-user"
-                  className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+                  id={`${formId}-target-user`}
+                  className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
                   value={targetUser}
                   onChange={(e) => setTargetUser(e.target.value)}
                   placeholder="输入用户名"
@@ -230,8 +261,12 @@ export function ApprovalPanel({
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>取消</Button>
-            <Button onClick={handleConfirm} disabled={isPending}>确认</Button>
+            <Button variant="outline" onClick={closeDialog}>
+              取消
+            </Button>
+            <Button onClick={handleConfirm} disabled={isPending}>
+              确认
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

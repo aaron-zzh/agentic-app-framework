@@ -31,8 +31,10 @@ interface AuthState {
 function syncTokenCookie(token: string | null) {
   if (typeof document === "undefined") return
   if (token) {
+    // biome-ignore lint/suspicious/noDocumentCookie: 需要直接操作 cookie 同步认证状态
     document.cookie = `aaf-token=${token}; path=/; max-age=604800; SameSite=Lax`
   } else {
+    // biome-ignore lint/suspicious/noDocumentCookie: 需要直接操作 cookie 清除认证
     document.cookie = "aaf-token=; path=/; max-age=0"
   }
 }

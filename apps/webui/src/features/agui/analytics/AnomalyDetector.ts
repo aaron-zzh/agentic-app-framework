@@ -91,8 +91,9 @@ class AnomalyDetectorImpl {
 
     // 检测异常路径（非常规导航序列）
     if (action.type === "navigate") {
-      const recentNavigations = this.actions
-        .filter((a) => a.type === "navigate" && now - a.timestamp < 10000)
+      const recentNavigations = this.actions.filter(
+        (a) => a.type === "navigate" && now - a.timestamp < 10000
+      )
       if (recentNavigations.length >= 5) {
         this.addAnomaly({
           type: "unusual_path",

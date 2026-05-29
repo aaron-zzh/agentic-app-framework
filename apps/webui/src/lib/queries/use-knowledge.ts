@@ -13,7 +13,8 @@ const KEYS = {
   list: (params: ListParams) => ["knowledge-bases", "list", params] as const,
   detail: (id: string) => ["knowledge-bases", id] as const,
   stats: (id: string) => ["knowledge-bases", id, "stats"] as const,
-  documents: (id: string, params: ListParams) => ["knowledge-bases", id, "documents", params] as const,
+  documents: (id: string, params: ListParams) =>
+    ["knowledge-bases", id, "documents", params] as const,
   graph: (id: string) => ["knowledge-bases", id, "graph"] as const
 }
 

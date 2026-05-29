@@ -3,9 +3,9 @@
  * @author AaronZZH & Kiro
  */
 
+import type { Connection, Edge, EdgeChange, Node, NodeChange } from "@xyflow/react"
+import { addEdge, applyEdgeChanges, applyNodeChanges } from "@xyflow/react"
 import { create } from "zustand"
-import type { Node, Edge, Connection, NodeChange, EdgeChange } from "@xyflow/react"
-import { applyNodeChanges, applyEdgeChanges, addEdge } from "@xyflow/react"
 import type { FlowDefinition, HistoryEntry, NodeTypeRegistry } from "../types"
 
 /** 历史栈最大长度 */
@@ -127,7 +127,13 @@ export const useFlowState = create<FlowState>((set, get) => ({
     const prev = past[past.length - 1]
     set({
       past: past.slice(0, -1),
-      future: [{ nodes: nodes as unknown as HistoryEntry["nodes"], edges: edges as unknown as HistoryEntry["edges"] }, ...get().future],
+      future: [
+        {
+          nodes: nodes as unknown as HistoryEntry["nodes"],
+          edges: edges as unknown as HistoryEntry["edges"]
+        },
+        ...get().future
+      ],
       nodes: prev.nodes as unknown as Node[],
       edges: prev.edges as unknown as Edge[]
     })
@@ -139,7 +145,13 @@ export const useFlowState = create<FlowState>((set, get) => ({
     const next = future[0]
     set({
       future: future.slice(1),
-      past: [...get().past, { nodes: nodes as unknown as HistoryEntry["nodes"], edges: edges as unknown as HistoryEntry["edges"] }],
+      past: [
+        ...get().past,
+        {
+          nodes: nodes as unknown as HistoryEntry["nodes"],
+          edges: edges as unknown as HistoryEntry["edges"]
+        }
+      ],
       nodes: next.nodes as unknown as Node[],
       edges: next.edges as unknown as Edge[]
     })

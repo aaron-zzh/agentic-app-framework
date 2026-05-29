@@ -5,13 +5,13 @@
 
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
+import { useState } from "react"
+import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
-import { PageContainer } from "@/components/common/PageContainer"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -74,10 +74,18 @@ export default function WorkflowPage() {
           <TaskList tasks={pendingTasks ?? []} loading={pendingLoading} emptyText="暂无待办审批" />
         )}
         {activeTab === "done" && (
-          <InstanceList instances={historyData?.list ?? []} loading={historyLoading} emptyText="暂无已办记录" />
+          <InstanceList
+            instances={historyData?.list ?? []}
+            loading={historyLoading}
+            emptyText="暂无已办记录"
+          />
         )}
         {activeTab === "initiated" && (
-          <InstanceList instances={initiatedData?.list ?? []} loading={initiatedLoading} emptyText="暂无发起的流程" />
+          <InstanceList
+            instances={initiatedData?.list ?? []}
+            loading={initiatedLoading}
+            emptyText="暂无发起的流程"
+          />
         )}
       </div>
     </PageContainer>
@@ -89,17 +97,25 @@ function StatCard({ title, value }: { title: string; value: string | number }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="font-medium text-muted-foreground text-sm">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-bold">{value}</p>
+        <p className="font-bold text-2xl">{value}</p>
       </CardContent>
     </Card>
   )
 }
 
 /** 待办任务列表 */
-function TaskList({ tasks, loading, emptyText }: { tasks: WorkflowTaskVO[]; loading: boolean; emptyText: string }) {
+function TaskList({
+  tasks,
+  loading,
+  emptyText
+}: {
+  tasks: WorkflowTaskVO[]
+  loading: boolean
+  emptyText: string
+}) {
   if (loading) {
     return (
       <div className="space-y-3 p-4">
@@ -125,15 +141,18 @@ function TaskList({ tasks, loading, emptyText }: { tasks: WorkflowTaskVO[]; load
     <ScrollArea className="max-h-[500px]">
       <ul>
         {tasks.map((task) => (
-          <li key={task.taskId} className="flex items-center justify-between border-b border-dashed px-4 py-3 last:border-0">
+          <li
+            key={task.taskId}
+            className="flex items-center justify-between border-b border-dashed px-4 py-3 last:border-0"
+          >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{task.name || "审批任务"}</p>
-              <p className="text-xs text-muted-foreground">
-                流程：{task.processInstanceId}
-              </p>
+              <p className="truncate font-medium text-sm">{task.name || "审批任务"}</p>
+              <p className="text-muted-foreground text-xs">流程：{task.processInstanceId}</p>
             </div>
             <Button size="sm" variant="outline" asChild>
-              <Link href={`/module/${task.entityType ?? "workflow"}/${task.entityId ?? task.processInstanceId}`}>
+              <Link
+                href={`/module/${task.entityType ?? "workflow"}/${task.entityId ?? task.processInstanceId}`}
+              >
                 处理
               </Link>
             </Button>
@@ -145,7 +164,15 @@ function TaskList({ tasks, loading, emptyText }: { tasks: WorkflowTaskVO[]; load
 }
 
 /** 流程实例列表 */
-function InstanceList({ instances, loading, emptyText }: { instances: ProcessInstanceVO[]; loading: boolean; emptyText: string }) {
+function InstanceList({
+  instances,
+  loading,
+  emptyText
+}: {
+  instances: ProcessInstanceVO[]
+  loading: boolean
+  emptyText: string
+}) {
   if (loading) {
     return (
       <div className="space-y-3 p-4">
@@ -178,19 +205,20 @@ function InstanceList({ instances, loading, emptyText }: { instances: ProcessIns
     <ScrollArea className="max-h-[500px]">
       <ul>
         {instances.map((inst) => (
-          <li key={inst.processInstanceId} className="flex items-center justify-between border-b border-dashed px-4 py-3 last:border-0">
+          <li
+            key={inst.processInstanceId}
+            className="flex items-center justify-between border-b border-dashed px-4 py-3 last:border-0"
+          >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-medium">
+                <p className="truncate font-medium text-sm">
                   {inst.processDefinitionName || inst.processDefinitionKey}
                 </p>
                 <Badge variant={statusVariant(inst.status)} className="text-[10px]">
                   {inst.status}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
-                发起时间：{inst.startTime}
-              </p>
+              <p className="text-muted-foreground text-xs">发起时间：{inst.startTime}</p>
             </div>
           </li>
         ))}

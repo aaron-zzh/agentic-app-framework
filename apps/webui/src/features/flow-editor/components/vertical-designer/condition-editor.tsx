@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import type { ConditionGroup, ConditionExpression, FormFieldDef } from "./types"
+import type { ConditionExpression, ConditionGroup, FormFieldDef } from "./types"
 
 /** 运算符选项 */
 const OPERATORS: { value: ConditionExpression["operator"]; label: string }[] = [
@@ -49,9 +49,7 @@ export function ConditionEditor({ value, onChange, fields }: ConditionEditorProp
 
   /** 更新条件行 */
   function updateCondition(index: number, patch: Partial<ConditionExpression>) {
-    const conditions = value.conditions.map((c, i) =>
-      i === index ? { ...c, ...patch } : c
-    )
+    const conditions = value.conditions.map((c, i) => (i === index ? { ...c, ...patch } : c))
     onChange({ ...value, conditions })
   }
 
@@ -83,11 +81,11 @@ export function ConditionEditor({ value, onChange, fields }: ConditionEditorProp
     <div className="space-y-3 rounded-md border p-3">
       {/* 逻辑切换 */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">满足以下</span>
+        <span className="text-muted-foreground text-xs">满足以下</span>
         <Button variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={toggleLogic}>
           {value.logic === "AND" ? "所有" : "任一"}
         </Button>
-        <span className="text-xs text-muted-foreground">条件</span>
+        <span className="text-muted-foreground text-xs">条件</span>
       </div>
 
       {/* 条件行列表 */}
@@ -100,26 +98,35 @@ export function ConditionEditor({ value, onChange, fields }: ConditionEditorProp
             </SelectTrigger>
             <SelectContent>
               {fields.map((f) => (
-                <SelectItem key={f.name} value={f.name}>{f.label}</SelectItem>
+                <SelectItem key={f.name} value={f.name}>
+                  {f.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           {/* 运算符 */}
-          <Select value={cond.operator} onValueChange={(v) => updateCondition(idx, { operator: v as ConditionExpression["operator"] })}>
+          <Select
+            value={cond.operator}
+            onValueChange={(v) =>
+              updateCondition(idx, { operator: v as ConditionExpression["operator"] })
+            }
+          >
             <SelectTrigger className="h-8 w-24 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {OPERATORS.map((op) => (
-                <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                <SelectItem key={op.value} value={op.value}>
+                  {op.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           {/* 值输入 */}
           <input
-            className="border-input h-8 flex-1 rounded-md border px-2 text-xs"
+            className="h-8 flex-1 rounded-md border border-input px-2 text-xs"
             value={cond.value}
             onChange={(e) => updateCondition(idx, { value: e.target.value })}
             placeholder="值"
@@ -143,7 +150,7 @@ export function ConditionEditor({ value, onChange, fields }: ConditionEditorProp
           <Button
             variant="ghost"
             size="sm"
-            className="absolute -right-1 -top-1 h-5 w-5 p-0 text-xs text-muted-foreground hover:text-destructive"
+            className="absolute -top-1 -right-1 h-5 w-5 p-0 text-muted-foreground text-xs hover:text-destructive"
             onClick={() => removeGroup(idx)}
           >
             ×

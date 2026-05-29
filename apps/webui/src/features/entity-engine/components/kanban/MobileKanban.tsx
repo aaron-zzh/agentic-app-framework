@@ -23,7 +23,12 @@ interface MobileKanbanProps {
 }
 
 /** 手机端看板（单列滚动） */
-export function MobileKanban({ entity, data, onRecordClick, onStatusChange }: MobileKanbanProps) {
+export function MobileKanban({
+  entity,
+  data,
+  onRecordClick,
+  onStatusChange: _onStatusChange
+}: MobileKanbanProps) {
   const { kanbanView, fields } = entity
   const statusField = kanbanView?.statusField ?? ""
   const cardTitle = kanbanView?.cardTitle ?? ""
@@ -76,9 +81,7 @@ export function MobileKanban({ entity, data, onRecordClick, onStatusChange }: Mo
                 onClick={() => onRecordClick?.(id)}
               >
                 <CardContent className="p-3">
-                  <p className="truncate font-medium text-sm">
-                    {String(record[cardTitle] ?? "")}
-                  </p>
+                  <p className="truncate font-medium text-sm">{String(record[cardTitle] ?? "")}</p>
                   {cardDescription && Boolean(record[cardDescription]) && (
                     <p className="mt-1 line-clamp-2 text-muted-foreground text-xs">
                       {String(record[cardDescription])}

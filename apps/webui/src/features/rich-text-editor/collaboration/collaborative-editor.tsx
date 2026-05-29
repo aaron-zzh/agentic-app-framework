@@ -26,9 +26,9 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary"
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin"
 import { ListPlugin } from "@lexical/react/LexicalListPlugin"
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin"
-import { type Provider } from "@lexical/yjs"
+import type { Provider } from "@lexical/yjs"
 import { useCallback, useRef, useState } from "react"
-import * as Y from "yjs"
+import type * as Y from "yjs"
 
 import { cn } from "@/lib/utils/cn"
 import { allNodes } from "../lib/nodes"
@@ -61,7 +61,7 @@ export function CollaborativeEditor({
   preset: presetName = "document",
   placeholder = "输入内容...",
   uploadEndpoint,
-  onMentionSearch,
+  onMentionSearch
 }: CollaborativeEditorProps) {
   const preset = presets[presetName]
   const [anchorElem, setAnchorElem] = useState<HTMLElement | null>(null)
@@ -73,7 +73,7 @@ export function CollaborativeEditor({
     editable: true,
     // CollaborationPlugin 管理编辑器状态，不需要 editorState 初始化
     editorState: null,
-    onError: (_err: Error) => {},
+    onError: (_err: Error) => {}
   }
 
   // 缓存 provider 实例，避免重复创建
@@ -93,7 +93,7 @@ export function CollaborativeEditor({
 
       return instance.provider as unknown as Provider
     },
-    [userId, userName],
+    [userId, userName]
   )
 
   return (
@@ -112,7 +112,7 @@ export function CollaborativeEditor({
                 className={cn(
                   "w-full rounded-b-md py-2 text-sm outline-none",
                   !preset.showToolbar && "rounded-md",
-                  preset.draggable ? "px-7" : "px-3",
+                  preset.draggable ? "px-7" : "px-3"
                 )}
                 style={{ minHeight: 200 }}
               />
@@ -127,11 +127,7 @@ export function CollaborativeEditor({
         </div>
 
         {/* 协同插件（替代 HistoryPlugin） */}
-        <CollaborationPlugin
-          id={docId}
-          providerFactory={providerFactory}
-          shouldBootstrap={false}
-        />
+        <CollaborationPlugin id={docId} providerFactory={providerFactory} shouldBootstrap={false} />
 
         {/* 其他插件 */}
         <ListPlugin />

@@ -119,9 +119,7 @@ class SemanticRegistryImpl {
         description: `${entity.label}表单视图`,
         category: "form",
         capabilities: ["edit", "validate", "save", "autosave"],
-        inputs: [
-          { name: "recordId", type: "string", description: "记录 ID", required: true }
-        ],
+        inputs: [{ name: "recordId", type: "string", description: "记录 ID", required: true }],
         outputs: [
           { name: "onSave", type: "Record", description: "保存成功", trigger: "用户提交表单" }
         ],
@@ -146,9 +144,7 @@ class SemanticRegistryImpl {
         description: `${entity.label}看板视图`,
         category: "view",
         capabilities: ["browse", "drag-drop", "status-change"],
-        inputs: [
-          { name: "statusField", type: "string", description: "状态字段", required: true }
-        ],
+        inputs: [{ name: "statusField", type: "string", description: "状态字段", required: true }],
         outputs: [
           {
             name: "onMove",
@@ -173,9 +169,7 @@ class SemanticRegistryImpl {
         description: `${entity.label}日历视图`,
         category: "view",
         capabilities: ["browse", "date-navigate", "create-event"],
-        inputs: [
-          { name: "dateField", type: "string", description: "日期字段", required: true }
-        ],
+        inputs: [{ name: "dateField", type: "string", description: "日期字段", required: true }],
         outputs: [
           {
             name: "onDateSelect",

@@ -34,7 +34,7 @@ export function useApprovalHistory(pageNo = 1, pageSize = 20) {
 export function useApprovalTimeline(processInstanceId?: string) {
   return useQuery({
     queryKey: ["approval", "timeline", processInstanceId],
-    queryFn: () => approvalApi.getTimeline(processInstanceId!),
+    queryFn: () => approvalApi.getTimeline(processInstanceId ?? ""),
     enabled: !!processInstanceId
   })
 }
@@ -43,7 +43,7 @@ export function useApprovalTimeline(processInstanceId?: string) {
 export function useVoteProgress(processInstanceId?: string) {
   return useQuery({
     queryKey: ["approval", "vote-progress", processInstanceId],
-    queryFn: () => approvalApi.getVoteProgress(processInstanceId!),
+    queryFn: () => approvalApi.getVoteProgress(processInstanceId ?? ""),
     enabled: !!processInstanceId
   })
 }
@@ -52,7 +52,7 @@ export function useVoteProgress(processInstanceId?: string) {
 export function useApprovalStats(assignee?: string) {
   return useQuery({
     queryKey: ["approval", "stats", assignee],
-    queryFn: () => approvalApi.getStats(assignee!),
+    queryFn: () => approvalApi.getStats(assignee ?? ""),
     enabled: !!assignee
   })
 }
@@ -85,8 +85,15 @@ export function useAddSignAfter() {
 export function useTransferSign() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ taskId, targetAssignee, reason }: { taskId: string; targetAssignee: string; reason: string }) =>
-      approvalApi.transfer(taskId, targetAssignee, reason),
+    mutationFn: ({
+      taskId,
+      targetAssignee,
+      reason
+    }: {
+      taskId: string
+      targetAssignee: string
+      reason: string
+    }) => approvalApi.transfer(taskId, targetAssignee, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["approval"] })
     }
@@ -97,8 +104,13 @@ export function useTransferSign() {
 export function useWithdraw() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ processInstanceId, initiator }: { processInstanceId: string; initiator: string }) =>
-      approvalApi.withdraw(processInstanceId, initiator),
+    mutationFn: ({
+      processInstanceId,
+      initiator
+    }: {
+      processInstanceId: string
+      initiator: string
+    }) => approvalApi.withdraw(processInstanceId, initiator),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["approval"] })
     }

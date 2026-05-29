@@ -25,14 +25,26 @@ const operationsPreset: DashboardPreset = {
       type: "echarts",
       title: "DAU 趋势",
       position: { x: 0, y: 0, w: 6, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "line", metric: "dau", period: "day" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "line",
+        metric: "dau",
+        period: "day"
+      }
     },
     {
       id: "ops-mau-trend",
       type: "echarts",
       title: "MAU 趋势",
       position: { x: 6, y: 0, w: 6, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "bar", metric: "mau", period: "month" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "bar",
+        metric: "mau",
+        period: "month"
+      }
     },
     {
       id: "ops-funnel",
@@ -63,28 +75,52 @@ const techPreset: DashboardPreset = {
       type: "echarts",
       title: "API 调用量",
       position: { x: 0, y: 0, w: 8, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "line", metric: "api_calls", period: "hour" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "line",
+        metric: "api_calls",
+        period: "hour"
+      }
     },
     {
       id: "tech-error-rate",
       type: "echarts",
       title: "错误率",
       position: { x: 8, y: 0, w: 4, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "bar", metric: "error_rate", period: "hour" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "bar",
+        metric: "error_rate",
+        period: "hour"
+      }
     },
     {
       id: "tech-latency",
       type: "echarts",
       title: "平均响应时间",
       position: { x: 0, y: 4, w: 6, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "line", metric: "avg_latency", period: "hour" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "line",
+        metric: "avg_latency",
+        period: "hour"
+      }
     },
     {
       id: "tech-active-users",
       type: "counter",
       title: "在线用户",
       position: { x: 6, y: 4, w: 3, h: 2 },
-      config: { type: "counter", entity: "user", aggregation: "count", icon: "users", color: "blue" }
+      config: {
+        type: "counter",
+        entity: "user",
+        aggregation: "count",
+        icon: "users",
+        color: "blue"
+      }
     },
     {
       id: "tech-uptime",
@@ -108,7 +144,13 @@ const financePreset: DashboardPreset = {
       type: "echarts",
       title: "收入趋势",
       position: { x: 0, y: 0, w: 8, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "bar", metric: "revenue", period: "day" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "bar",
+        metric: "revenue",
+        period: "day"
+      }
     },
     {
       id: "fin-conversion",
@@ -122,21 +164,29 @@ const financePreset: DashboardPreset = {
       type: "echarts",
       title: "Token 消耗趋势",
       position: { x: 0, y: 4, w: 6, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "line", metric: "token_usage", period: "day" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "line",
+        metric: "token_usage",
+        period: "day"
+      }
     },
     {
       id: "fin-arpu",
       type: "echarts",
       title: "ARPU 趋势",
       position: { x: 6, y: 4, w: 6, h: 4 },
-      config: { type: "echarts", statsType: "trend", chartType: "line", metric: "arpu", period: "month" }
+      config: {
+        type: "echarts",
+        statsType: "trend",
+        chartType: "line",
+        metric: "arpu",
+        period: "month"
+      }
     }
   ]
 }
 
 /** 所有预设模板 */
-export const dashboardPresets: DashboardPreset[] = [
-  operationsPreset,
-  techPreset,
-  financePreset
-]
+export const dashboardPresets: DashboardPreset[] = [operationsPreset, techPreset, financePreset]

@@ -62,6 +62,5 @@ export const dataAccessApi = {
     req<DataAccessRule>(`${PATH}/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
   /** 删除规则 */
-  delete: (id: string) =>
-    req<void>(`${PATH}/${id}`, { method: "DELETE" })
+  delete: (id: string) => req<void>(`${PATH}/${id}`, { method: "DELETE" })
 }

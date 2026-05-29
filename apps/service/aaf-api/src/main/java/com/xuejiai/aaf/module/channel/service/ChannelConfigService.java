@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.channel.domain.ChannelConfig;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.repository.ChannelConfigRepository;
@@ -42,7 +43,7 @@ public class ChannelConfigService {
     @Transactional
     public ChannelConfig update(Long id, ChannelConfig updated) {
         var config = configRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("渠道配置不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在"));
         config.setName(updated.getName());
         config.setAppId(updated.getAppId());
         config.setAppSecret(updated.getAppSecret());
@@ -60,7 +61,7 @@ public class ChannelConfigService {
 
     public ChannelConfig getById(Long id) {
         return configRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("渠道配置不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在"));
     }
 
     public List<ChannelConfig> listEnabled() {
@@ -82,7 +83,7 @@ public class ChannelConfigService {
             var channelType = config.getChannelType();
             var stats = messageRepository.countByChannelType(channelType);
             var errorCount = messageRepository.countErrorsByChannelType(channelType);
-            var totalCount = stats != null ? stats : 0L;
+            var totalCount = stats;
             var errorRate = totalCount > 0 ? (double) errorCount / totalCount : 0.0;
 
             // 检查适配器是否可用

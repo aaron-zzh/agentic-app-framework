@@ -5,18 +5,17 @@
 
 "use client"
 
-import { useState } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-
-import { Button } from "@/components/ui/button"
-import { Form } from "@/components/form/form"
 import { FieldText } from "@/components/form/field-text"
-import { paths } from "@/lib/constants/paths"
+import { Form } from "@/components/form/form"
+import { Button } from "@/components/ui/button"
 import { authApi } from "@/lib/api/auth"
+import { paths } from "@/lib/constants/paths"
 
 const emailSchema = z.object({
   email: z.string().min(1, "请输入邮箱").email("邮箱格式不正确")
@@ -67,30 +66,19 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm space-y-6">
         <div>
           <h2 className="font-bold text-2xl">重置密码</h2>
-          <p className="mt-1 text-muted-foreground text-sm">
-            验证码已发送至 {email}
-          </p>
+          <p className="mt-1 text-muted-foreground text-sm">验证码已发送至 {email}</p>
         </div>
 
         <Form methods={resetMethods} onSubmit={onReset}>
           <FieldText name="code" label="验证码" placeholder="输入 6 位验证码" />
-          <FieldText
-            name="newPassword"
-            label="新密码"
-            type="password"
-            placeholder="至少 6 位"
-          />
+          <FieldText name="newPassword" label="新密码" type="password" placeholder="至少 6 位" />
           <FieldText
             name="confirmPassword"
             label="确认密码"
             type="password"
             placeholder="再次输入密码"
           />
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={resetMethods.formState.isSubmitting}
-          >
+          <Button type="submit" className="w-full" disabled={resetMethods.formState.isSubmitting}>
             {resetMethods.formState.isSubmitting ? "重置中..." : "重置密码"}
           </Button>
         </Form>
@@ -113,11 +101,7 @@ export default function ForgotPasswordPage() {
 
       <Form methods={emailMethods} onSubmit={onSendCode}>
         <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={emailMethods.formState.isSubmitting}
-        >
+        <Button type="submit" className="w-full" disabled={emailMethods.formState.isSubmitting}>
           {emailMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
         </Button>
       </Form>

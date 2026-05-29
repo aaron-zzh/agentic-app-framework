@@ -41,21 +41,35 @@ function SceneStatusIcon({ status }: { status: SceneStatus }) {
 
 /** 示例数据 */
 const MOCK_SCENES: VideoScene[] = [
-  { id: "s1", index: 1, startTime: 0, endTime: 4, description: "写实胶片 POV 城市街道", status: "completed" },
-  { id: "s2", index: 2, startTime: 4, endTime: 8, description: "主角登场逆光剪影", status: "generating" },
+  {
+    id: "s1",
+    index: 1,
+    startTime: 0,
+    endTime: 4,
+    description: "写实胶片 POV 城市街道",
+    status: "completed"
+  },
+  {
+    id: "s2",
+    index: 2,
+    startTime: 4,
+    endTime: 8,
+    description: "主角登场逆光剪影",
+    status: "generating"
+  },
   { id: "s3", index: 3, startTime: 8, endTime: 12, description: "粒子消散转场", status: "pending" },
-  { id: "s4", index: 4, startTime: 12, endTime: 16, description: "抽象空间漫游", status: "pending" },
+  { id: "s4", index: 4, startTime: 12, endTime: 16, description: "抽象空间漫游", status: "pending" }
 ]
 
 export function VideoTimeline({
   scenes = MOCK_SCENES,
   activeSceneId,
-  onSceneClick,
+  onSceneClick
 }: VideoTimelineProps) {
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/50 px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">分幕时间线</h2>
+      <div className="border-border/50 border-b px-4 py-3">
+        <h2 className="font-semibold text-foreground text-sm">分幕时间线</h2>
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-1 p-3">
@@ -71,12 +85,10 @@ export function VideoTimeline({
             >
               <SceneStatusIcon status={scene.status} />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-xs font-medium text-foreground">
+                <span className="font-medium text-foreground text-xs">
                   第{scene.index}幕 ({scene.startTime}-{scene.endTime}s)
                 </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {scene.description}
-                </span>
+                <span className="truncate text-muted-foreground text-xs">{scene.description}</span>
               </div>
             </button>
           ))}

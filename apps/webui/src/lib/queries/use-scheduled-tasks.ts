@@ -24,7 +24,9 @@ export function useScheduledTaskPause() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => scheduledTaskApi.pause(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.all }) }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all })
+    }
   })
 }
 
@@ -33,7 +35,9 @@ export function useScheduledTaskResume() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => scheduledTaskApi.resume(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.all }) }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all })
+    }
   })
 }
 
@@ -42,6 +46,8 @@ export function useScheduledTaskRun() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => scheduledTaskApi.run(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.all }) }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all })
+    }
   })
 }

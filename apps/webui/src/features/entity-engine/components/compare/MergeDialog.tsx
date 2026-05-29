@@ -14,7 +14,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
+  DialogTitle
 } from "@/components/ui/dialog"
 
 import type { FieldDef } from "../../types"
@@ -44,7 +44,7 @@ export function MergeDialog({
   rightRecord,
   selections,
   onConfirm,
-  loading = false,
+  loading = false
 }: MergeDialogProps) {
   /** 根据选择构建合并后的数据预览 */
   const mergedData = fields
@@ -71,12 +71,13 @@ export function MergeDialog({
 
         <div className="max-h-64 overflow-y-auto rounded-md border">
           {mergedData.map((item) => (
-            <div key={item.name} className="flex items-center justify-between border-b px-3 py-2 text-sm last:border-b-0">
+            <div
+              key={item.name}
+              className="flex items-center justify-between border-b px-3 py-2 text-sm last:border-b-0"
+            >
               <span className="text-muted-foreground">{item.label}</span>
               <span className="max-w-[200px] truncate font-medium">
-                {item.value === null || item.value === undefined
-                  ? "—"
-                  : String(item.value)}
+                {item.value === null || item.value === undefined ? "—" : String(item.value)}
               </span>
             </div>
           ))}

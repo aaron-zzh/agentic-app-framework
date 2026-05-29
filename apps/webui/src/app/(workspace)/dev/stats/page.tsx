@@ -59,7 +59,8 @@ function BurndownChart({
   /** 理想线：从 totalTasks 线性降到 0 */
   const idealPoints = Array.from({ length: totalDays }, (_, i) => {
     const x = padding.left + (i / (totalDays - 1)) * chartW
-    const y = padding.top + (1 - (totalTasks - (totalTasks / (totalDays - 1)) * i) / totalTasks) * chartH
+    const y =
+      padding.top + (1 - (totalTasks - (totalTasks / (totalDays - 1)) * i) / totalTasks) * chartH
     return `${x},${y}`
   }).join(" ")
 
@@ -73,7 +74,7 @@ function BurndownChart({
     .join(" ")
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full" aria-label="统计图表">
       {/* 网格线 */}
       {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
         <line
@@ -99,14 +100,39 @@ function BurndownChart({
         </text>
       ))}
       {/* 理想线 */}
-      <polyline fill="none" stroke="currentColor" strokeOpacity={0.3} strokeDasharray="4 4" points={idealPoints} />
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeOpacity={0.3}
+        strokeDasharray="4 4"
+        points={idealPoints}
+      />
       {/* 实际线 */}
       <polyline fill="none" stroke="hsl(var(--primary))" strokeWidth={2} points={actualPoints} />
       {/* 图例 */}
-      <line x1={padding.left} y1={height - 8} x2={padding.left + 20} y2={height - 8} stroke="currentColor" strokeOpacity={0.3} strokeDasharray="4 4" />
-      <text x={padding.left + 24} y={height - 4} className="fill-muted-foreground text-[10px]">理想</text>
-      <line x1={padding.left + 60} y1={height - 8} x2={padding.left + 80} y2={height - 8} stroke="hsl(var(--primary))" strokeWidth={2} />
-      <text x={padding.left + 84} y={height - 4} className="fill-muted-foreground text-[10px]">实际</text>
+      <line
+        x1={padding.left}
+        y1={height - 8}
+        x2={padding.left + 20}
+        y2={height - 8}
+        stroke="currentColor"
+        strokeOpacity={0.3}
+        strokeDasharray="4 4"
+      />
+      <text x={padding.left + 24} y={height - 4} className="fill-muted-foreground text-[10px]">
+        理想
+      </text>
+      <line
+        x1={padding.left + 60}
+        y1={height - 8}
+        x2={padding.left + 80}
+        y2={height - 8}
+        stroke="hsl(var(--primary))"
+        strokeWidth={2}
+      />
+      <text x={padding.left + 84} y={height - 4} className="fill-muted-foreground text-[10px]">
+        实际
+      </text>
     </svg>
   )
 }
@@ -156,10 +182,10 @@ export default function DevStatsPage() {
             </CardHeader>
             <CardContent>
               <Progress value={completionRate}>
-                <ProgressLabel>{MOCK_STATS.completed}/{MOCK_STATS.total}</ProgressLabel>
-                <ProgressValue>
-                  {(formattedValue) => `${formattedValue}%`}
-                </ProgressValue>
+                <ProgressLabel>
+                  {MOCK_STATS.completed}/{MOCK_STATS.total}
+                </ProgressLabel>
+                <ProgressValue>{(formattedValue) => `${formattedValue}%`}</ProgressValue>
               </Progress>
             </CardContent>
           </Card>
@@ -190,9 +216,7 @@ export default function DevStatsPage() {
                   </Badge>
                 </div>
               </div>
-              <p className="mt-2 text-muted-foreground text-xs">
-                门控条件：blocker=0 且 major≤2
-              </p>
+              <p className="mt-2 text-muted-foreground text-xs">门控条件：blocker=0 且 major≤2</p>
             </CardContent>
           </Card>
         </div>

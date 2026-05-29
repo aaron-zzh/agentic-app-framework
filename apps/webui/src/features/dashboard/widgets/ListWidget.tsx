@@ -41,7 +41,7 @@ export function ListWidget({ widgetId, title, config, refreshInterval }: ListWid
   return (
     <Card className="h-full overflow-hidden">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+        <CardTitle className="flex items-center gap-2 font-medium text-sm">
           <List className="h-4 w-4 text-muted-foreground" />
           {title}
         </CardTitle>
@@ -53,7 +53,7 @@ export function ListWidget({ widgetId, title, config, refreshInterval }: ListWid
           <ul className="space-y-2">
             {items.map((item, idx) => (
               <li
-                key={String(item["id"] ?? idx)}
+                key={String(item.id ?? idx)}
                 className="truncate rounded-md border px-3 py-2 text-sm"
               >
                 {config.columns.map((col) => String(item[col] ?? "")).join(" · ")}

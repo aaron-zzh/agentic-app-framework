@@ -33,13 +33,13 @@ CREATE (keanu)-[:ACTED_IN {role: 'Neo'}]->(matrix2)
 
 基础路径：`/examples/neo4j/movies`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/examples/neo4j/movies` | 查询所有电影 |
-| GET | `/examples/neo4j/movies/search?q=Matrix` | 按标题模糊搜索 |
-| GET | `/examples/neo4j/movies/{title}` | 查询电影详情（含演员） |
-| POST | `/examples/neo4j/movies/{title}/vote` | 为电影投票 |
-| GET | `/examples/neo4j/movies/graph` | 图数据（D3.js 格式） |
+| 方法 | 路径                                     | 说明                   |
+| ---- | ---------------------------------------- | ---------------------- |
+| GET  | `/examples/neo4j/movies`                 | 查询所有电影           |
+| GET  | `/examples/neo4j/movies/search?q=Matrix` | 按标题模糊搜索         |
+| GET  | `/examples/neo4j/movies/{title}`         | 查询电影详情（含演员） |
+| POST | `/examples/neo4j/movies/{title}/vote`    | 为电影投票             |
+| GET  | `/examples/neo4j/movies/graph`           | 图数据（D3.js 格式）   |
 
 示例：
 
@@ -91,7 +91,9 @@ query {
     title
     tagline
     released
-    actors { name }
+    actors {
+      name
+    }
   }
 }
 
@@ -105,13 +107,13 @@ mutation {
 
 ### REST vs GraphQL 对比
 
-| 维度 | REST | GraphQL |
-|------|------|---------|
-| 接口数量 | 5 个端点 | 1 个端点（/graphql） |
-| 字段控制 | 固定返回结构 | 客户端按需选择字段 |
-| 关联数据 | 需要多次请求或 join | 单次查询获取嵌套数据 |
-| 调试工具 | Swagger UI | GraphiQL |
-| 适用场景 | 简单 CRUD、移动端 | 复杂关联查询、前端灵活性要求高 |
+| 维度     | REST                | GraphQL                        |
+| -------- | ------------------- | ------------------------------ |
+| 接口数量 | 5 个端点            | 1 个端点（/graphql）           |
+| 字段控制 | 固定返回结构        | 客户端按需选择字段             |
+| 关联数据 | 需要多次请求或 join | 单次查询获取嵌套数据           |
+| 调试工具 | Swagger UI          | GraphiQL                       |
+| 适用场景 | 简单 CRUD、移动端   | 复杂关联查询、前端灵活性要求高 |
 
 ### Spring Data Neo4j 两种查询方式
 
@@ -138,8 +140,8 @@ try (var session = driver.session()) {
 spring:
   graphql:
     graphiql:
-      enabled: true   # 开发环境启用 GraphiQL
+      enabled: true # 开发环境启用 GraphiQL
   data:
     neo4j:
-      schema-generate: create  # 自动创建 Neo4j 约束/索引
+      schema-generate: create # 自动创建 Neo4j 约束/索引
 ```

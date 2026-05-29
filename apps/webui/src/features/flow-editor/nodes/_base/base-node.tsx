@@ -5,10 +5,10 @@
 
 "use client"
 
+import { Handle, type NodeProps, Position } from "@xyflow/react"
 import { memo } from "react"
-import { Handle, Position, type NodeProps } from "@xyflow/react"
 import { cn } from "@/lib/utils/cn"
-import type { PortDef, ExecutionState } from "../../types"
+import type { ExecutionState, PortDef } from "../../types"
 
 export interface BaseNodeData {
   label?: string
@@ -65,7 +65,7 @@ function BaseNodeComponent({ data, selected, compact, color }: BaseNodeProps) {
       {/* 节点内容 */}
       <div className="flex items-center gap-2">
         {data.icon && <span className="text-base">{data.icon}</span>}
-        <span className="text-sm font-medium">{data.label ?? "未命名"}</span>
+        <span className="font-medium text-sm">{data.label ?? "未命名"}</span>
       </div>
 
       {/* 输出端口 */}

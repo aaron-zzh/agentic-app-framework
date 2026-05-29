@@ -99,7 +99,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public WorkflowStatusVO getStatusByEntity(String entityType, String entityId) {
         String businessKey = entityType + ":" + entityId;
-        var instances = workflowEngine.listRunningInstances(0, 1);
+        var instances = workflowEngine.listRunningInstances(null, 0, 1);
         // 通过 businessKey 查找（遍历运行中实例匹配）
         var processInstanceId = workflowEngine.findInstanceByBusinessKey(businessKey);
         if (processInstanceId == null) {

@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import type { ComponentType } from "react"
 import type { NodeProps as XYNodeProps } from "@xyflow/react"
+import type { ComponentType } from "react"
 
 /** 节点分类 */
 export type NodeCategory = "trigger" | "ai" | "logic" | "data" | "tool" | "output" | "interact"

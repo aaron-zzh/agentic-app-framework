@@ -5,8 +5,15 @@
 
 "use client"
 
+import {
+  Background,
+  Controls,
+  type Edge,
+  type Node,
+  type NodeMouseHandler,
+  ReactFlow
+} from "@xyflow/react"
 import { useCallback, useMemo, useState } from "react"
-import { ReactFlow, Background, Controls, type Node, type Edge, type NodeMouseHandler } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -51,7 +58,7 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
   }
 
   if (!data || data.nodes.length === 0) {
-    return <p className="text-muted-foreground py-8 text-center text-sm">暂无图谱数据</p>
+    return <p className="py-8 text-center text-muted-foreground text-sm">暂无图谱数据</p>
   }
 
   return (

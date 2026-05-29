@@ -5,24 +5,24 @@
 
 "use client"
 
-import { useEffect, useRef } from "react"
 import { ReactFlowProvider } from "@xyflow/react"
-import type { FlowEditorProps } from "../types"
+import { useEffect, useRef } from "react"
 import { useFlowState } from "../hooks/use-flow-state"
-import { FlowCanvas } from "./flow-canvas"
-import { NodePanel } from "./node-panel"
-import { InspectorPanel } from "./inspector-panel"
 import { injectExecutionStatus } from "../nodes/_base/base-node"
+import type { FlowEditorProps } from "../types"
+import { FlowCanvas } from "./flow-canvas"
+import { InspectorPanel } from "./inspector-panel"
+import { NodePanel } from "./node-panel"
 
 export function FlowEditor({
-  mode,
+  mode: _mode,
   nodeRegistry,
   initialData,
   onChange,
   readonly,
   executionState
 }: FlowEditorProps) {
-  const { init, nodes, edges, toDefinition } = useFlowState()
+  const { init, toDefinition } = useFlowState()
   const initialized = useRef(false)
 
   /** 初始化画布数据 */
@@ -38,7 +38,7 @@ export function FlowEditor({
     if (initialized.current) {
       onChange(toDefinition())
     }
-  }, [nodes, edges, onChange, toDefinition])
+  }, [onChange, toDefinition])
 
   /** 注入执行状态 */
   useEffect(() => {
@@ -50,7 +50,9 @@ export function FlowEditor({
       )
       // 仅更新 data 中的 executionStatus
       for (const u of updated) {
-        useFlowState.getState().updateNodeData(u.id, { executionStatus: (u.data as Record<string, unknown>).executionStatus })
+        useFlowState.getState().updateNodeData(u.id, {
+          executionStatus: (u.data as Record<string, unknown>).executionStatus
+        })
       }
     }
   }, [executionState])

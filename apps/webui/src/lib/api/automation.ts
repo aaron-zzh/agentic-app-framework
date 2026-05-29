@@ -6,12 +6,7 @@
 import { ApiError } from "./client"
 
 /** 触发器类型 */
-export type TriggerType =
-  | "on_create"
-  | "on_update"
-  | "field_change"
-  | "schedule"
-  | "delay"
+export type TriggerType = "on_create" | "on_update" | "field_change" | "schedule" | "delay"
 
 /** 触发器配置 */
 export interface AutomationTrigger {
@@ -92,9 +87,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const automationApi = {
   /** 获取规则列表 */
   list: (entitySlug?: string) =>
-    req<AutomationRule[]>(
-      `/automation/rules${entitySlug ? `?entitySlug=${entitySlug}` : ""}`
-    ),
+    req<AutomationRule[]>(`/automation/rules${entitySlug ? `?entitySlug=${entitySlug}` : ""}`),
 
   /** 创建规则 */
   create: (data: AutomationRuleInput) =>
@@ -111,8 +104,7 @@ export const automationApi = {
     }),
 
   /** 删除规则 */
-  delete: (id: string) =>
-    req<void>(`/automation/rules/${id}`, { method: "DELETE" }),
+  delete: (id: string) => req<void>(`/automation/rules/${id}`, { method: "DELETE" }),
 
   /** 启用/禁用 */
   toggle: (id: string, enabled: boolean) =>
@@ -121,12 +113,9 @@ export const automationApi = {
     }),
 
   /** 测试运行 */
-  testRun: (id: string) =>
-    req<AutomationLog>(`/automation/rules/${id}/test`, { method: "POST" }),
+  testRun: (id: string) => req<AutomationLog>(`/automation/rules/${id}/test`, { method: "POST" }),
 
   /** 获取执行日志 */
   logs: (ruleId?: string) =>
-    req<AutomationLog[]>(
-      `/automation/logs${ruleId ? `?ruleId=${ruleId}` : ""}`
-    )
+    req<AutomationLog[]>(`/automation/logs${ruleId ? `?ruleId=${ruleId}` : ""}`)
 }

@@ -34,31 +34,36 @@ interface UsageRecord {
 }
 
 /** 常见组合模式 */
-const combinationPatterns: { name: string; views: string[]; features: string[]; scenario: string }[] = [
+const combinationPatterns: {
+  name: string
+  views: string[]
+  features: string[]
+  scenario: string
+}[] = [
   {
     name: "CRUD 标准套件",
     views: ["list", "form"],
     features: ["search", "paginate", "filter", "batch-action"],
-    scenario: "标准数据管理场景",
+    scenario: "标准数据管理场景"
   },
   {
     name: "状态流转套件",
     views: ["list", "kanban", "form"],
     features: ["search", "filter", "drag"],
-    scenario: "有状态流转的业务（工单、审批）",
+    scenario: "有状态流转的业务（工单、审批）"
   },
   {
     name: "时间线套件",
     views: ["list", "calendar"],
     features: ["search", "filter", "sort"],
-    scenario: "时间维度管理（日程、计划）",
+    scenario: "时间维度管理（日程、计划）"
   },
   {
     name: "数据分析套件",
     views: ["list", "pivot"],
     features: ["filter", "sort", "paginate"],
-    scenario: "需要聚合统计的数据",
-  },
+    scenario: "需要聚合统计的数据"
+  }
 ]
 
 /** 使用历史存储 */
@@ -89,7 +94,7 @@ class ComponentRecommenderImpl {
         reason: `「${entity.label}」包含状态字段，适合用看板管理流转`,
         confidence: 0.8,
         features: ["drag", "filter"],
-        entity: entity.slug,
+        entity: entity.slug
       })
     }
 
@@ -101,7 +106,7 @@ class ComponentRecommenderImpl {
         reason: `「${entity.label}」包含日期字段，可按时间维度浏览`,
         confidence: 0.7,
         features: ["filter"],
-        entity: entity.slug,
+        entity: entity.slug
       })
     }
 
@@ -113,7 +118,7 @@ class ComponentRecommenderImpl {
         reason: `「${entity.label}」包含数值字段，可进行聚合统计`,
         confidence: 0.6,
         features: ["filter", "sort"],
-        entity: entity.slug,
+        entity: entity.slug
       })
     }
 
@@ -126,7 +131,7 @@ class ComponentRecommenderImpl {
         reason: "当前正在创建记录，推荐使用表单视图",
         confidence: 0.9,
         features: [],
-        entity: entity.slug,
+        entity: entity.slug
       })
     }
 
@@ -157,15 +162,17 @@ class ComponentRecommenderImpl {
 
     if (!topView) return []
 
-    return [{
-      id: `rec_history_${entity}`,
-      type: topView[0] as Recommendation["type"],
-      title: `常用配置：${topView[0]}视图`,
-      reason: `基于历史使用 ${topView[1]} 次，推荐此配置`,
-      confidence: Math.min(0.5 + topView[1] * 0.1, 0.95),
-      features: topFeatures,
-      entity,
-    }]
+    return [
+      {
+        id: `rec_history_${entity}`,
+        type: topView[0] as Recommendation["type"],
+        title: `常用配置：${topView[0]}视图`,
+        reason: `基于历史使用 ${topView[1]} 次，推荐此配置`,
+        confidence: Math.min(0.5 + topView[1] * 0.1, 0.95),
+        features: topFeatures,
+        entity
+      }
+    ]
   }
 
   /** 组合模式推荐 */
@@ -183,7 +190,7 @@ class ComponentRecommenderImpl {
         reason: pattern.scenario,
         confidence: 0.7,
         features: pattern.features,
-        entity: entity.slug,
+        entity: entity.slug
       }))
   }
 

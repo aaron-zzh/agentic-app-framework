@@ -66,13 +66,11 @@ export function ConflictDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>数据冲突</DialogTitle>
-          <DialogDescription>
-            该记录已被其他人修改，请选择如何处理。
-          </DialogDescription>
+          <DialogDescription>该记录已被其他人修改，请选择如何处理。</DialogDescription>
         </DialogHeader>
 
         {/* 对比表头 */}
-        <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 text-xs font-semibold text-muted-foreground">
+        <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 font-semibold text-muted-foreground text-xs">
           <span>字段</span>
           <span>我的修改</span>
           <span>服务端最新</span>
@@ -81,12 +79,7 @@ export function ConflictDialog({
         {/* 对比内容 */}
         <ScrollArea className="max-h-60">
           {allKeys.map((key) => (
-            <DiffRow
-              key={key}
-              field={key}
-              mine={myData?.[key]}
-              server={serverData?.[key]}
-            />
+            <DiffRow key={key} field={key} mine={myData?.[key]} server={serverData?.[key]} />
           ))}
         </ScrollArea>
 

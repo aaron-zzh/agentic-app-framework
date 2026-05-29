@@ -48,9 +48,11 @@ export function UploadCell({ value }: CellProps<unknown>) {
   if (Array.isArray(value)) {
     return <span className="truncate">{value.length} 个文件</span>
   }
-  const name = typeof value === "object" && value !== null
-    ? ((value as Record<string, unknown>).name as string) ?? ((value as Record<string, unknown>).filename as string)
-    : String(value)
+  const name =
+    typeof value === "object" && value !== null
+      ? (((value as Record<string, unknown>).name as string) ??
+        ((value as Record<string, unknown>).filename as string))
+      : String(value)
   return <span className="truncate">{name ?? "—"}</span>
 }
 
@@ -69,11 +71,7 @@ export function JsonCell({ value }: CellProps<unknown>) {
 export function CodeCell({ value }: CellProps<string>) {
   if (!value) return <span className="text-muted-foreground">—</span>
   const preview = value.split("\n")[0]?.slice(0, 60) ?? ""
-  return (
-    <code className="truncate rounded bg-muted px-1 py-0.5 font-mono text-xs">
-      {preview}
-    </code>
-  )
+  return <code className="truncate rounded bg-muted px-1 py-0.5 font-mono text-xs">{preview}</code>
 }
 
 /** 开关单元格——复用 CheckCell 逻辑 */

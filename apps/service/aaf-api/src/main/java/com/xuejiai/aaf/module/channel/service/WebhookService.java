@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.domain.WebhookConfig;
 import com.xuejiai.aaf.module.channel.domain.WebhookLog;
@@ -51,7 +52,7 @@ public class WebhookService {
     @Transactional
     public WebhookConfig update(Long id, WebhookConfig updated) {
         var config = configRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Webhook 配置不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Webhook 配置不存在"));
         config.setName(updated.getName());
         config.setUrl(updated.getUrl());
         config.setEventTypes(updated.getEventTypes());

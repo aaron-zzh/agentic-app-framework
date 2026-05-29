@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -80,6 +80,7 @@ export default function AutomationsPage() {
   const { mutate: toggle } = useToggleAutomationRule()
   const { mutate: testRun, isPending: testing } = useTestAutomationRule()
 
+  const formId = useId()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<AutomationRuleInput>(EMPTY_FORM)
@@ -155,17 +156,13 @@ export default function AutomationsPage() {
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={rule.enabled}
-                        onCheckedChange={(checked) =>
-                          toggle({ id: rule.id, enabled: !!checked })
-                        }
+                        onCheckedChange={(checked) => toggle({ id: rule.id, enabled: !!checked })}
                       />
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{rule.name}</span>
                           <Badge variant="outline">{rule.entitySlug}</Badge>
-                          <Badge variant="secondary">
-                            {TRIGGER_LABELS[rule.trigger.type]}
-                          </Badge>
+                          <Badge variant="secondary">{TRIGGER_LABELS[rule.trigger.type]}</Badge>
                         </div>
                         <p className="text-muted-foreground text-sm">
                           操作：{actionSummary(rule.actions) || "无"}
@@ -181,18 +178,10 @@ export default function AutomationsPage() {
                       >
                         测试运行
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(rule)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(rule)}>
                         编辑
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(rule.id)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => remove(rule.id)}>
                         删除
                       </Button>
                     </div>
@@ -229,22 +218,14 @@ export default function AutomationsPage() {
                       >
                         {log.status}
                       </Badge>
-                      <span className="text-sm">
-                        {log.ruleName ?? log.ruleId}
-                      </span>
-                      <Badge variant="outline">
-                        {TRIGGER_LABELS[log.triggerType]}
-                      </Badge>
+                      <span className="text-sm">{log.ruleName ?? log.ruleId}</span>
+                      <Badge variant="outline">{TRIGGER_LABELS[log.triggerType]}</Badge>
                     </div>
                     <div className="flex items-center gap-2">
                       {log.errorMessage && (
-                        <span className="text-destructive text-xs">
-                          {log.errorMessage}
-                        </span>
+                        <span className="text-destructive text-xs">{log.errorMessage}</span>
                       )}
-                      <span className="text-muted-foreground text-xs">
-                        {log.executedAt}
-                      </span>
+                      <span className="text-muted-foreground text-xs">{log.executedAt}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -263,9 +244,9 @@ export default function AutomationsPage() {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="auto-name">规则名称</Label>
+              <Label htmlFor={`${formId}-name`}>规则名称</Label>
               <Input
-                id="auto-name"
+                id={`${formId}-name`}
                 placeholder="如：逾期未处理自动提醒"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -273,14 +254,12 @@ export default function AutomationsPage() {
             </div>
 
             <div>
-              <Label htmlFor="auto-entity">实体</Label>
+              <Label htmlFor={`${formId}-entity`}>实体</Label>
               <Input
-                id="auto-entity"
+                id={`${formId}-entity`}
                 placeholder="如 document、order"
                 value={form.entitySlug}
-                onChange={(e) =>
-                  setForm({ ...form, entitySlug: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, entitySlug: e.target.value })}
               />
             </div>
 
@@ -312,9 +291,9 @@ export default function AutomationsPage() {
             {/* 触发器额外参数 */}
             {form.trigger.type === "field_change" && (
               <div>
-                <Label htmlFor="auto-field">监听字段</Label>
+                <Label htmlFor={`${formId}-field`}>监听字段</Label>
                 <Input
-                  id="auto-field"
+                  id={`${formId}-field`}
                   placeholder="如 status"
                   value={form.trigger.field ?? ""}
                   onChange={(e) =>
@@ -328,9 +307,9 @@ export default function AutomationsPage() {
             )}
             {form.trigger.type === "schedule" && (
               <div>
-                <Label htmlFor="auto-cron">Cron 表达式</Label>
+                <Label htmlFor={`${formId}-cron`}>Cron 表达式</Label>
                 <Input
-                  id="auto-cron"
+                  id={`${formId}-cron`}
                   placeholder="如 0 9 * * 1（每周一 9:00）"
                   value={form.trigger.cron ?? ""}
                   onChange={(e) =>
@@ -344,9 +323,9 @@ export default function AutomationsPage() {
             )}
             {form.trigger.type === "delay" && (
               <div>
-                <Label htmlFor="auto-delay">延迟天数</Label>
+                <Label htmlFor={`${formId}-delay`}>延迟天数</Label>
                 <Input
-                  id="auto-delay"
+                  id={`${formId}-delay`}
                   type="number"
                   value={form.trigger.delayDays ?? 0}
                   onChange={(e) =>
@@ -364,9 +343,9 @@ export default function AutomationsPage() {
 
             {/* 条件 JSON */}
             <div>
-              <Label htmlFor="auto-conditions">条件（JSON）</Label>
+              <Label htmlFor={`${formId}-conditions`}>条件（JSON）</Label>
               <Textarea
-                id="auto-conditions"
+                id={`${formId}-conditions`}
                 className="font-mono text-xs"
                 rows={4}
                 placeholder='[{"field":"status","operator":"eq","value":"pending"}]'
@@ -377,9 +356,9 @@ export default function AutomationsPage() {
 
             {/* 操作 JSON */}
             <div>
-              <Label htmlFor="auto-actions">操作链（JSON）</Label>
+              <Label htmlFor={`${formId}-actions`}>操作链（JSON）</Label>
               <Textarea
-                id="auto-actions"
+                id={`${formId}-actions`}
                 className="font-mono text-xs"
                 rows={4}
                 placeholder='[{"type":"send_notification","config":{"message":"逾期提醒"}}]'

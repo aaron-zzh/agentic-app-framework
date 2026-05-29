@@ -85,7 +85,8 @@ export const aafLandingPageDef: PageDef = {
           {
             icon: "puzzle",
             title: "插件生态",
-            description: "registerFieldType / registerViewType / registerSectionType，第三方可扩展一切。"
+            description:
+              "registerFieldType / registerViewType / registerSectionType，第三方可扩展一切。"
           }
         ]
       },

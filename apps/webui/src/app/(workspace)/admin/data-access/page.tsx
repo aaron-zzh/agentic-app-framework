@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,13 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { TypographyH1 } from "@/components/ui/typography"
 import type {
   ConditionOperator,
@@ -64,6 +70,7 @@ export default function DataAccessPage() {
   const { mutate: update, isPending: updating } = useUpdateDataAccessRule()
   const { mutate: remove } = useDeleteDataAccessRule()
 
+  const formId = useId()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<DataAccessRuleInput>(EMPTY_FORM)
@@ -99,7 +106,10 @@ export default function DataAccessPage() {
   function handleSubmit() {
     const data: DataAccessRuleInput = {
       ...form,
-      roles: rolesInput.split(",").map((r) => r.trim()).filter(Boolean)
+      roles: rolesInput
+        .split(",")
+        .map((r) => r.trim())
+        .filter(Boolean)
     }
     if (editingId) {
       update({ id: editingId, data }, { onSuccess: () => setDialogOpen(false) })
@@ -118,7 +128,7 @@ export default function DataAccessPage() {
       {/* 管理员预览占位 */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-sm font-medium">角色预览（开发中）</CardTitle>
+          <CardTitle className="font-medium text-sm">角色预览（开发中）</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
@@ -187,9 +197,9 @@ export default function DataAccessPage() {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="da-entity">实体</Label>
+              <Label htmlFor={`${formId}-entity`}>实体</Label>
               <Input
-                id="da-entity"
+                id={`${formId}-entity`}
                 placeholder="如 document、order"
                 value={form.entitySlug}
                 onChange={(e) => setForm({ ...form, entitySlug: e.target.value })}
@@ -197,9 +207,9 @@ export default function DataAccessPage() {
             </div>
 
             <div>
-              <Label htmlFor="da-field">字段</Label>
+              <Label htmlFor={`${formId}-field`}>字段</Label>
               <Input
-                id="da-field"
+                id={`${formId}-field`}
                 placeholder="如 created_by、department_id"
                 value={form.condition.field}
                 onChange={(e) =>
@@ -233,9 +243,9 @@ export default function DataAccessPage() {
             </div>
 
             <div>
-              <Label htmlFor="da-value">值</Label>
+              <Label htmlFor={`${formId}-value`}>值</Label>
               <Input
-                id="da-value"
+                id={`${formId}-value`}
                 placeholder="如 $user.id、$user.departments"
                 value={form.condition.value}
                 onChange={(e) =>
@@ -245,9 +255,9 @@ export default function DataAccessPage() {
             </div>
 
             <div>
-              <Label htmlFor="da-roles">角色（逗号分隔）</Label>
+              <Label htmlFor={`${formId}-roles`}>角色（逗号分隔）</Label>
               <Input
-                id="da-roles"
+                id={`${formId}-roles`}
                 placeholder="如 member, manager"
                 value={rolesInput}
                 onChange={(e) => setRolesInput(e.target.value)}

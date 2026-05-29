@@ -71,9 +71,7 @@ class LayoutOptimizerImpl {
       proposals.push(this.buildTwoColumnLayout(fields, weights))
     }
 
-    return proposals
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxProposals)
+    return proposals.sort((a, b) => b.score - a.score).slice(0, maxProposals)
   }
 
   /** 优化列表视图列配置 */
@@ -96,7 +94,7 @@ class LayoutOptimizerImpl {
       fieldVisibility[w.name] = {
         desktop: true,
         tablet: w.weight > 0.3,
-        mobile: w.weight > 0.6,
+        mobile: w.weight > 0.6
       }
     }
 
@@ -104,7 +102,7 @@ class LayoutOptimizerImpl {
       desktopColumns: fields.length > 8 ? 3 : 2,
       tabletColumns: 2,
       mobileColumns: 1,
-      fieldVisibility,
+      fieldVisibility
     }
   }
 
@@ -141,7 +139,11 @@ class LayoutOptimizerImpl {
         reasons.push("只读")
       }
 
-      return { name: field.name, weight: Math.max(0, Math.min(1, weight)), reason: reasons.join("、") }
+      return {
+        name: field.name,
+        weight: Math.max(0, Math.min(1, weight)),
+        reason: reasons.join("、")
+      }
     })
   }
 
@@ -153,16 +155,17 @@ class LayoutOptimizerImpl {
       name: "紧凑单列",
       description: "所有字段线性排列，适合字段较少的简单表单",
       layout: { type: "linear" },
-      listColumns: weights.sort((a, b) => b.weight - a.weight).slice(0, 5).map((w) => w.name),
+      listColumns: weights
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 5)
+        .map((w) => w.name),
       responsive: {
         desktopColumns: 1,
         tabletColumns: 1,
-        mobileColumns: 1,
+        mobileColumns: 1
       },
       score,
-      scoreReasons: fields.length <= 6
-        ? ["字段数量适中，单列布局清晰"]
-        : ["字段较多，单列可能过长"],
+      scoreReasons: fields.length <= 6 ? ["字段数量适中，单列布局清晰"] : ["字段较多，单列可能过长"]
     }
   }
 
@@ -182,19 +185,18 @@ class LayoutOptimizerImpl {
         type: "tabs",
         tabs: [
           { label: "基本信息", fieldNames: primaryFields },
-          { label: "详细信息", fieldNames: secondaryFields },
-        ],
+          { label: "详细信息", fieldNames: secondaryFields }
+        ]
       },
       listColumns: primaryFields.slice(0, 5),
       responsive: {
         desktopColumns: 2,
         tabletColumns: 1,
-        mobileColumns: 1,
+        mobileColumns: 1
       },
       score: fields.length > 5 ? 80 : 50,
-      scoreReasons: fields.length > 5
-        ? ["字段较多，Tab 分组降低认知负担"]
-        : ["字段较少，Tab 分组不必要"],
+      scoreReasons:
+        fields.length > 5 ? ["字段较多，Tab 分组降低认知负担"] : ["字段较少，Tab 分组不必要"]
     }
   }
 
@@ -214,19 +216,20 @@ class LayoutOptimizerImpl {
         type: "row",
         columns: [
           { label: "主要信息", fieldNames: leftFields, width: "60%" },
-          { label: "附加信息", fieldNames: rightFields, width: "40%" },
-        ],
+          { label: "附加信息", fieldNames: rightFields, width: "40%" }
+        ]
       },
       listColumns: sorted.slice(0, 6).map((w) => w.name),
       responsive: {
         desktopColumns: 2,
         tabletColumns: 2,
-        mobileColumns: 1,
+        mobileColumns: 1
       },
       score: fields.length >= 4 && fields.length <= 12 ? 75 : 55,
-      scoreReasons: fields.length >= 4 && fields.length <= 12
-        ? ["字段数量适合双列展示"]
-        : ["字段数量不太适合双列"],
+      scoreReasons:
+        fields.length >= 4 && fields.length <= 12
+          ? ["字段数量适合双列展示"]
+          : ["字段数量不太适合双列"]
     }
   }
 }

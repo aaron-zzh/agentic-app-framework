@@ -37,13 +37,13 @@ export function CounterWidget({ widgetId, title, config, refreshInterval }: Coun
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+        <CardTitle className="flex items-center gap-2 font-medium text-sm">
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
           {title}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-bold">{data?.value ?? 0}</p>
+        <p className="font-bold text-2xl">{data?.value ?? 0}</p>
       </CardContent>
     </Card>
   )

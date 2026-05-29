@@ -4,11 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import {
-  dashboardApi,
-  type DashboardWidgetVO,
-  type WidgetConfig
-} from "@/lib/api/dashboard"
+import { type DashboardWidgetVO, dashboardApi, type WidgetConfig } from "@/lib/api/dashboard"
 
 const KEYS = {
   all: ["dashboard"] as const,
@@ -36,11 +32,7 @@ export function useDashboardById(id: string) {
 }
 
 /** 获取 Widget 数据（支持自动刷新） */
-export function useWidgetData(
-  widgetId: string,
-  config: WidgetConfig,
-  refreshInterval?: number
-) {
+export function useWidgetData(widgetId: string, config: WidgetConfig, refreshInterval?: number) {
   return useQuery({
     queryKey: KEYS.widgetData(widgetId, config),
     queryFn: () => dashboardApi.getWidgetData(widgetId, config),

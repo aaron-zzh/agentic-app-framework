@@ -5,10 +5,10 @@
 
 "use client"
 
-import { useState } from "react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { StoryElement } from "./types"
 
@@ -19,22 +19,22 @@ const MOCK_VIDEO_ELEMENTS: StoryElement[] = [
     name: "开场镜头",
     description: "写实胶片 POV 视角，城市街道清晨，阳光透过建筑缝隙洒落",
     thumbnail: "/placeholder.svg",
-    tags: ["图片", "Element"],
+    tags: ["图片", "Element"]
   },
   {
     id: "v2",
     name: "主角登场",
     description: "人物从远处走来，逆光剪影，背景虚化",
     thumbnail: "/placeholder.svg",
-    tags: ["图片", "Character"],
+    tags: ["图片", "Character"]
   },
   {
     id: "v3",
     name: "转场特效",
     description: "粒子消散过渡，从实景到抽象空间",
     thumbnail: "/placeholder.svg",
-    tags: ["视频", "Transition"],
-  },
+    tags: ["视频", "Transition"]
+  }
 ]
 
 function VideoElementCard({ element }: { element: StoryElement }) {
@@ -46,18 +46,12 @@ function VideoElementCard({ element }: { element: StoryElement }) {
         {/* 缩略图 */}
         <div className="size-12 shrink-0 overflow-hidden rounded-md bg-muted">
           {/* biome-ignore lint/performance/noImgElement: 动态缩略图 */}
-          <img
-            src={element.thumbnail}
-            alt={element.name}
-            className="size-full object-cover"
-          />
+          <img src={element.thumbnail} alt={element.name} className="size-full object-cover" />
         </div>
 
         {/* 名称 + 标签 */}
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="truncate text-sm font-medium text-foreground">
-            {element.name}
-          </span>
+          <span className="truncate font-medium text-foreground text-sm">{element.name}</span>
           <div className="flex items-center gap-1">
             {element.tags.map((tag) => (
               <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px]">
@@ -75,9 +69,17 @@ function VideoElementCard({ element }: { element: StoryElement }) {
             className="size-6 p-0 text-muted-foreground"
             onClick={() => setExpanded(!expanded)}
           >
-            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+            {expanded ? (
+              <ChevronDown className="size-3.5" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
           </Button>
-          <Button variant="ghost" size="sm" className="size-6 p-0 text-muted-foreground hover:text-primary">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-6 p-0 text-muted-foreground hover:text-primary"
+          >
             <Plus className="size-3.5" />
           </Button>
         </div>
@@ -85,8 +87,8 @@ function VideoElementCard({ element }: { element: StoryElement }) {
 
       {/* 展开的描述 */}
       {expanded && (
-        <div className="border-t border-border/30 px-3 py-2">
-          <p className="text-xs text-muted-foreground">{element.description}</p>
+        <div className="border-border/30 border-t px-3 py-2">
+          <p className="text-muted-foreground text-xs">{element.description}</p>
         </div>
       )}
     </div>
@@ -96,9 +98,13 @@ function VideoElementCard({ element }: { element: StoryElement }) {
 export function VideoStoryboard() {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">关键元素</h2>
-        <Button variant="ghost" size="sm" className="size-7 p-0 text-muted-foreground hover:text-primary">
+      <div className="flex items-center justify-between border-border/50 border-b px-4 py-3">
+        <h2 className="font-semibold text-foreground text-sm">关键元素</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="size-7 p-0 text-muted-foreground hover:text-primary"
+        >
           <Plus className="size-4" />
         </Button>
       </div>

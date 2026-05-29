@@ -50,7 +50,6 @@ function FileGridSkeleton() {
   return (
     <div className="grid grid-cols-3 gap-2 p-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表不会重排
         <div key={`skeleton-${i}`} className="overflow-hidden rounded-lg border border-border/50">
           <Skeleton className="aspect-square w-full" />
           <div className="px-2 py-1.5">

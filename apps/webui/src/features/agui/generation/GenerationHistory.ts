@@ -73,7 +73,7 @@ class GenerationHistoryImpl {
       id: `hist_${Date.now()}`,
       input,
       output,
-      timestamp: Date.now(),
+      timestamp: Date.now()
     }
     this.history.push(entry)
     // 保留最近 200 条
@@ -89,15 +89,19 @@ class GenerationHistoryImpl {
 
   /** 按实体筛选历史 */
   getHistoryByEntity(entity: string): HistoryEntry[] {
-    return this.history
-      .filter((h) => h.output.intent.entity === entity)
-      .reverse()
+    return this.history.filter((h) => h.output.intent.entity === entity).reverse()
   }
 
   /** 保存为模板 */
   saveAsTemplate(
     historyId: string,
-    meta: { name: string; description: string; tags: string[]; isPublic: boolean; createdBy: string }
+    meta: {
+      name: string
+      description: string
+      tags: string[]
+      isPublic: boolean
+      createdBy: string
+    }
   ): GenerationTemplate | null {
     const entry = this.history.find((h) => h.id === historyId)
     if (!entry) return null
@@ -114,12 +118,14 @@ class GenerationHistoryImpl {
       usageCount: 0,
       tags: meta.tags,
       version: 1,
-      versions: [{
-        version: 1,
-        config: entry.output.config,
-        timestamp: Date.now(),
-        changelog: "初始版本",
-      }],
+      versions: [
+        {
+          version: 1,
+          config: entry.output.config,
+          timestamp: Date.now(),
+          changelog: "初始版本"
+        }
+      ]
     }
 
     this.templates.set(template.id, template)
@@ -136,7 +142,11 @@ class GenerationHistoryImpl {
   }
 
   /** 更新模板（生成新版本） */
-  updateTemplate(templateId: string, config: Partial<EntityDef>, changelog: string): GenerationTemplate | null {
+  updateTemplate(
+    templateId: string,
+    config: Partial<EntityDef>,
+    changelog: string
+  ): GenerationTemplate | null {
     const template = this.templates.get(templateId)
     if (!template) return null
 
@@ -147,7 +157,7 @@ class GenerationHistoryImpl {
       version: template.version,
       config,
       timestamp: Date.now(),
-      changelog,
+      changelog
     })
 
     return template
@@ -168,7 +178,7 @@ class GenerationHistoryImpl {
       version: template.version,
       config: targetVersion.config,
       timestamp: Date.now(),
-      changelog: `回退到 v${version}`,
+      changelog: `回退到 v${version}`
     })
 
     return template
@@ -179,7 +189,7 @@ class GenerationHistoryImpl {
     let results = [...this.templates.values()].filter((t) => t.isPublic)
 
     if (filter?.tags?.length) {
-      results = results.filter((t) => filter.tags!.some((tag) => t.tags.includes(tag)))
+      results = results.filter((t) => filter.tags?.some((tag) => t.tags.includes(tag)))
     }
 
     if (filter?.search) {

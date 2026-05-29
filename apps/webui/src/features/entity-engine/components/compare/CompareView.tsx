@@ -15,8 +15,8 @@
 
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
 import { GitMerge, X } from "lucide-react"
+import { useCallback, useId, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -78,6 +78,7 @@ function getDataFields(fields: FieldDef[]): FieldDef[] {
 
 /** 数据对比视图主组件 */
 export function CompareView({ entity, leftRecord, rightRecord, onClose }: CompareViewProps) {
+  const formId = useId()
   const [showDiffOnly, setShowDiffOnly] = useState(false)
   const [merging, setMerging] = useState(false)
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false)
@@ -146,18 +147,18 @@ export function CompareView({ entity, leftRecord, rightRecord, onClose }: Compar
     <div className="flex flex-col gap-4">
       {/* 顶部工具栏 */}
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-lg">
-          数据对比
-        </h2>
+        <h2 className="font-semibold text-lg">数据对比</h2>
         <div className="flex items-center gap-4">
           {/* 仅显示差异开关 */}
           <div className="flex items-center gap-2">
             <Switch
-              id="diff-only"
+              id={`${formId}-diff-only`}
               checked={showDiffOnly}
               onCheckedChange={setShowDiffOnly}
             />
-            <Label htmlFor="diff-only" className="text-sm">仅显示差异</Label>
+            <Label htmlFor={`${formId}-diff-only`} className="text-sm">
+              仅显示差异
+            </Label>
           </div>
 
           {/* 合并按钮 */}
@@ -189,7 +190,7 @@ export function CompareView({ entity, leftRecord, rightRecord, onClose }: Compar
       {/* 对比表格 */}
       <div className="rounded-lg border">
         {/* 表头 */}
-        <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-3 border-b bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground">
+        <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-3 border-b bg-muted/50 px-4 py-2 font-medium text-muted-foreground text-sm">
           <span>记录 A（ID: {String(leftRecord.id ?? "—")}）</span>
           <span>差异</span>
           <span>记录 B（ID: {String(rightRecord.id ?? "—")}）</span>
@@ -198,9 +199,7 @@ export function CompareView({ entity, leftRecord, rightRecord, onClose }: Compar
 
         {/* 字段行 */}
         {visibleFields.length === 0 ? (
-          <div className="px-4 py-8 text-center text-muted-foreground">
-            两条记录完全相同
-          </div>
+          <div className="px-4 py-8 text-center text-muted-foreground">两条记录完全相同</div>
         ) : (
           visibleFields.map((field) => {
             const name = (field as { name: string }).name

@@ -9,15 +9,39 @@ import { useId, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table"
 import type { DelegationCreateReq, DelegationScope, DelegationStatus } from "@/lib/api/delegation"
 import { notify } from "@/lib/notification"
-import { useCancelDelegation, useCreateDelegation, useDelegations } from "@/lib/queries/use-delegations"
+import {
+  useCancelDelegation,
+  useCreateDelegation,
+  useDelegations
+} from "@/lib/queries/use-delegations"
 
 /** 状态标签颜色映射 */
 const STATUS_VARIANT: Record<DelegationStatus, "default" | "secondary" | "destructive"> = {
@@ -145,7 +169,9 @@ export default function DelegationSettingsPage() {
                 <Label>委托范围</Label>
                 <Select
                   value={form.scope}
-                  onValueChange={(v) => setForm((prev) => ({ ...prev, scope: v as DelegationScope }))}
+                  onValueChange={(v) =>
+                    setForm((prev) => ({ ...prev, scope: v as DelegationScope }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -176,7 +202,9 @@ export default function DelegationSettingsPage() {
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>取消</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                取消
+              </Button>
               <Button onClick={handleCreate} disabled={creating}>
                 {creating ? "创建中..." : "确认"}
               </Button>
@@ -212,7 +240,7 @@ export default function DelegationSettingsPage() {
                       {d.startTime} ~ {d.endTime}
                     </TableCell>
                     <TableCell>
-                      {d.scope === "all" ? "所有审批" : d.processKeys?.join("、") ?? "指定流程"}
+                      {d.scope === "all" ? "所有审批" : (d.processKeys?.join("、") ?? "指定流程")}
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[d.status]}>{STATUS_LABEL[d.status]}</Badge>

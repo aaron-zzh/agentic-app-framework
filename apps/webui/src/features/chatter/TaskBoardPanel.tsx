@@ -7,8 +7,8 @@
 
 "use client"
 
-import { useState } from "react"
 import { ChevronDown, ChevronRight } from "lucide-react"
+import { useState } from "react"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
 import type { SubTask } from "@/lib/api/task-board"
 
@@ -70,7 +70,11 @@ function TaskItem({ task, taskMap }: { task: SubTask; taskMap: Map<string, strin
             className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted"
             aria-label={expanded ? "收起结果" : "展开结果"}
           >
-            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+            {expanded ? (
+              <ChevronDown className="size-3.5" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
           </button>
         )}
       </div>

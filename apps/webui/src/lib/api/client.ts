@@ -38,9 +38,9 @@ export class ApiError extends Error {
   }
 }
 
-import { useUIStore } from "@/lib/store/ui-store"
-import { useOrgStore } from "@/lib/store/org-store"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { useOrgStore } from "@/lib/store/org-store"
+import { useUIStore } from "@/lib/store/ui-store"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 

@@ -5,15 +5,21 @@
 
 "use client"
 
-import { useState } from "react"
-import { Search, SlidersHorizontal } from "lucide-react"
 import { useMutation } from "@tanstack/react-query"
+import { Search, SlidersHorizontal } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { knowledgeApi } from "@/lib/api/knowledge"
 import type { SearchResponse } from "@/lib/types/knowledge"
 
@@ -28,7 +34,11 @@ export function SearchTestPanel({ knowledgeBaseId }: SearchTestPanelProps) {
   const [mode, setMode] = useState("hybrid")
   const [showParams, setShowParams] = useState(false)
 
-  const { mutate: search, data, isPending } = useMutation({
+  const {
+    mutate: search,
+    data,
+    isPending
+  } = useMutation({
     mutationFn: () => knowledgeApi.search(knowledgeBaseId, { query, topK, threshold, mode })
   })
 
@@ -124,7 +134,7 @@ function SearchResults({ data }: { data: SearchResponse }) {
 
       {/* 检索结果列表 */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium">检索结果（{data.results.length} 条）</h3>
+        <h3 className="font-medium text-sm">检索结果（{data.results.length} 条）</h3>
         {data.results.map((item) => (
           <Card key={item.id}>
             <CardContent className="pt-4">

@@ -49,7 +49,11 @@ export function useRecordPresence({ entityType, entityId, currentUser }: UseReco
         setViewers(msg.viewers.filter((u) => u.id !== currentUser.id))
       } else if (msg.type === "join" && msg.user) {
         if (msg.user.id === currentUser.id) return
-        setViewers((prev) => (prev.some((u) => u.id === msg.user!.id) ? prev : [...prev, msg.user!]))
+        setViewers((prev) =>
+          prev.some((u) => u.id === msg.user?.id)
+            ? prev
+            : [...prev, msg.user as NonNullable<typeof msg.user>]
+        )
       } else if (msg.type === "leave" && msg.userId) {
         setViewers((prev) => prev.filter((u) => u.id !== msg.userId))
       }

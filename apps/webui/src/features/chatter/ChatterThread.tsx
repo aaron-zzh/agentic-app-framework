@@ -65,7 +65,7 @@ function AssistantMessage() {
 function UserMessage() {
   return (
     <div className="mb-3 flex justify-end">
-      <div className="max-w-[80%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+      <div className="max-w-[80%] rounded-lg bg-primary px-3 py-2 text-primary-foreground text-sm">
         <MessagePrimitive.Content />
       </div>
     </div>
@@ -77,20 +77,23 @@ export function ChatterThread() {
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
         <ThreadPrimitive.Messages>
-          {({ message }) =>
-            message.role === "assistant" ? <AssistantMessage /> : <UserMessage />
-          }
+          {({ message }) => (message.role === "assistant" ? <AssistantMessage /> : <UserMessage />)}
         </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   )
 }
 
-
 /** server 模式 TTS 播放按钮 */
 function ServerTtsButton({ onPlay }: { onPlay: () => void }) {
   return (
-    <Button type="button" variant="ghost" size="icon" onClick={onPlay} aria-label="播放语音（后端 TTS）">
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={onPlay}
+      aria-label="播放语音（后端 TTS）"
+    >
       <Play className="size-4" />
     </Button>
   )

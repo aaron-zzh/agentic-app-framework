@@ -4,8 +4,8 @@
  */
 
 import { useMemo } from "react"
-import { useFlowState } from "./use-flow-state"
 import type { NodeTypeRegistry } from "../types"
+import { useFlowState } from "./use-flow-state"
 
 export interface ValidationError {
   nodeId?: string
@@ -40,7 +40,10 @@ export function useFlowValidation(registry: NodeTypeRegistry) {
       const hasIncoming = edges.some((e) => e.target === node.id)
       const hasOutgoing = edges.some((e) => e.source === node.id)
       if (!hasIncoming && !hasOutgoing) {
-        result.push({ nodeId: node.id, message: `节点"${(node.data as Record<string, unknown>).label ?? node.id}"未连接` })
+        result.push({
+          nodeId: node.id,
+          message: `节点"${(node.data as Record<string, unknown>).label ?? node.id}"未连接`
+        })
       }
     }
 

@@ -9,11 +9,7 @@
 
 import { FileIcon } from "lucide-react"
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 export interface FileItem {
   id: string
@@ -55,11 +51,7 @@ export function FileAttachment({ files }: FileAttachmentProps) {
                 onClick={() => setPreviewUrl(file.url)}
               >
                 {/* biome-ignore lint/performance/noImgElement: 缩略图为动态 URL */}
-                <img
-                  src={file.url}
-                  alt={file.name}
-                  className="size-10 rounded object-cover"
-                />
+                <img src={file.url} alt={file.name} className="size-10 rounded object-cover" />
               </button>
             ) : (
               <FileIcon className="size-5 shrink-0 text-muted-foreground" />
@@ -78,11 +70,7 @@ export function FileAttachment({ files }: FileAttachmentProps) {
           <DialogTitle className="sr-only">图片预览</DialogTitle>
           {previewUrl && (
             // biome-ignore lint/performance/noImgElement: lightbox 预览为动态 URL
-            <img
-              src={previewUrl}
-              alt="预览"
-              className="max-h-[80vh] w-full object-contain"
-            />
+            <img src={previewUrl} alt="预览" className="max-h-[80vh] w-full object-contain" />
           )}
         </DialogContent>
       </Dialog>

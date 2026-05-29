@@ -9,9 +9,8 @@ import { useDroppable } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { ReactNode } from "react"
-
-import { cn } from "@/lib/utils/cn"
 import type { WipLimitMode } from "@/lib/types/entity/views"
+import { cn } from "@/lib/utils/cn"
 
 interface KanbanColumnProps {
   id: string

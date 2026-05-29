@@ -177,10 +177,10 @@
 
 /* 知识紫主题（design-system secondary） */
 .theme-purple {
-  --primary: oklch(0.50 0.15 290);
+  --primary: oklch(0.5 0.15 290);
   --primary-foreground: oklch(0.985 0 0);
-  --ring: oklch(0.50 0.15 290);
-  --sidebar-primary: oklch(0.50 0.15 290);
+  --ring: oklch(0.5 0.15 290);
+  --sidebar-primary: oklch(0.5 0.15 290);
   --sidebar-primary-foreground: oklch(0.985 0 0);
 }
 .dark.theme-purple {

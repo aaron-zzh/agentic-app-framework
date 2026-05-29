@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { fetchList, request, type ListParams, type PageResult } from "./client"
 import type { MediaAsset, MediaAssetVO, MediaCategoryVO, MediaTagVO } from "@/features/aigc/types"
+import { fetchList, type ListParams, type PageResult, request } from "./client"
 
 /** 旧路径——生成面板内的素材引用（保留兼容） */
 const LEGACY_PATH = "/media-assets"
@@ -36,18 +36,16 @@ export const mediaAssetApi = {
     request<MediaAssetVO[]>(`${API_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
 
   /** 获取单条素材详情 */
-  getById: (id: number): Promise<MediaAssetVO> =>
-    request<MediaAssetVO>(`${API_PATH}/${id}`),
+  getById: (id: number): Promise<MediaAssetVO> => request<MediaAssetVO>(`${API_PATH}/${id}`),
 
   /** 删除素材 */
-  delete: (id: number): Promise<void> =>
-    request<void>(`${API_PATH}/${id}`, { method: "DELETE" }),
+  delete: (id: number): Promise<void> => request<void>(`${API_PATH}/${id}`, { method: "DELETE" }),
 
   /** 重新生成素材 */
   regenerate: (params: RegenerateParams): Promise<MediaAssetVO> =>
     request<MediaAssetVO>(`${API_PATH}/regenerate`, {
       method: "POST",
-      body: JSON.stringify(params),
+      body: JSON.stringify(params)
     }),
 
   /** 获取素材变体列表 */
@@ -55,10 +53,8 @@ export const mediaAssetApi = {
     request<MediaAssetVO[]>(`${API_PATH}/${id}/variants`),
 
   /** 获取分类树 */
-  getCategories: (): Promise<MediaCategoryVO[]> =>
-    request<MediaCategoryVO[]>("/aigc/categories"),
+  getCategories: (): Promise<MediaCategoryVO[]> => request<MediaCategoryVO[]>("/aigc/categories"),
 
   /** 获取标签列表 */
-  getTags: (): Promise<MediaTagVO[]> =>
-    request<MediaTagVO[]>("/aigc/tags"),
+  getTags: (): Promise<MediaTagVO[]> => request<MediaTagVO[]>("/aigc/tags")
 }

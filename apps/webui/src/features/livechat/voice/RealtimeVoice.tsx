@@ -12,8 +12,8 @@
  */
 "use client"
 
+import { Circle, Loader2, Mic, Volume2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Mic, Loader2, Volume2, Circle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 type VoiceState = "idle" | "listening" | "processing" | "speaking"
@@ -38,7 +38,7 @@ export function RealtimeVoice({
   silenceTimeout = 1500,
   onAISpeaking,
   onTranscript,
-  className,
+  className
 }: RealtimeVoiceProps) {
   const [state, setState] = useState<VoiceState>("idle")
   const wsRef = useRef<WebSocket | null>(null)
@@ -78,7 +78,13 @@ export function RealtimeVoice({
     if (state === "listening") {
       animFrameRef.current = requestAnimationFrame(checkSilence)
     }
-  }, [silenceThreshold, silenceTimeout, state])
+  }, [
+    silenceThreshold,
+    silenceTimeout,
+    state, // 静音超时，自动断句
+    // biome-ignore lint/correctness/noInvalidUseBeforeDeclaration: useCallback 互相引用
+    stopRecording
+  ])
 
   /** 连接 WebSocket */
   const connectWs = useCallback(() => {
@@ -155,7 +161,9 @@ export function RealtimeVoice({
       silenceTimerRef.current = null
     }
     recorderRef.current?.stop()
-    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current?.getTracks().forEach((t) => {
+      t.stop()
+    })
     streamRef.current = null
     analyserRef.current = null
   }, [])
@@ -183,7 +191,7 @@ export function RealtimeVoice({
     idle: <Mic className="size-5" />,
     listening: <Mic className="size-5 text-red-500" />,
     processing: <Loader2 className="size-5 animate-spin" />,
-    speaking: <Volume2 className="size-5 text-green-500" />,
+    speaking: <Volume2 className="size-5 text-green-500" />
   }
 
   /** 状态文案 */
@@ -191,19 +199,19 @@ export function RealtimeVoice({
     idle: "点击开始对话",
     listening: "正在聆听...",
     processing: "处理中...",
-    speaking: "AI 正在回复...",
+    speaking: "AI 正在回复..."
   }
 
   return (
     <div className={`flex flex-col items-center gap-3 ${className ?? ""}`}>
       {/* 状态动画指示器 */}
-      <div className="relative flex items-center justify-center size-20">
+      <div className="relative flex size-20 items-center justify-center">
         {/* 外圈脉冲动画 */}
         {state === "listening" && (
-          <span className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" />
+          <span className="absolute inset-0 animate-ping rounded-full bg-red-500/20" />
         )}
         {state === "speaking" && (
-          <span className="absolute inset-0 rounded-full bg-green-500/20 animate-pulse" />
+          <span className="absolute inset-0 animate-pulse rounded-full bg-green-500/20" />
         )}
 
         <Button
@@ -220,11 +228,11 @@ export function RealtimeVoice({
       </div>
 
       {/* 状态文案 */}
-      <span className="text-sm text-muted-foreground">{stateLabel[state]}</span>
+      <span className="text-muted-foreground text-sm">{stateLabel[state]}</span>
 
       {/* 录音指示点 */}
       {state === "listening" && (
-        <Circle className="size-3 fill-red-500 text-red-500 animate-pulse" />
+        <Circle className="size-3 animate-pulse fill-red-500 text-red-500" />
       )}
     </div>
   )

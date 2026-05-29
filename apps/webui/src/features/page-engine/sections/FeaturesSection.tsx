@@ -65,7 +65,11 @@ export function FeaturesSection({ data }: SectionComponentProps) {
               transition={{ delay: i * 0.08, duration: 0.4 }}
               className="rounded-xl border bg-card p-6 transition-shadow hover:shadow-md"
             >
-              {item.icon && <div className="mb-3"><LucideIcon name={item.icon} /></div>}
+              {item.icon && (
+                <div className="mb-3">
+                  <LucideIcon name={item.icon} />
+                </div>
+              )}
               <h3 className="font-semibold">{item.title}</h3>
               {item.description && (
                 <p className="mt-2 text-muted-foreground text-sm">{item.description}</p>

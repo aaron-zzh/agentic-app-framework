@@ -29,8 +29,5 @@
 
 ## 2026-5-24 AIGC
 
-- [ ] 调整语音识别默认模型 fun-asr-realtime https://bailian.console.aliyun.com/cn-beijing?spm=5176.cap.0.0.4d7b4faeIQNrOP&tab=api#/api/?type=model&url=2983777
-- [ ] 音乐生成能力 https://bailian.console.aliyun.com/cn-beijing?spm=5176.cap.0.0.4d7b4faeIQNrOP&tab=api#/api/?type=model&url=3030449
 - [ ] deepseek  V4 测试
-- [ ] 实时多模态能力 https://bailian.console.aliyun.com/cn-beijing?spm=5176.cap.0.0.4d7b4faeIQNrOP&tab=api#/api/?type=model&url=2950053
 - [ ] 文生视频 https://bailian.console.aliyun.com/cn-beijing?spm=5176.cap.0.0.4d7b4faeIQNrOP&tab=api#/api/?type=model&url=3029820

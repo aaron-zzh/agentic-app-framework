@@ -12,7 +12,11 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import type { ChannelConfig, NotificationChannel, NotificationPreference } from "@/lib/api/notification-preference"
+import type {
+  ChannelConfig,
+  NotificationChannel,
+  NotificationPreference
+} from "@/lib/api/notification-preference"
 import { notify } from "@/lib/notification"
 import {
   useNotificationPreference,

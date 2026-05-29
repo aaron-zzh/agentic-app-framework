@@ -4,8 +4,8 @@
  */
 
 import { useQuery } from "@tanstack/react-query"
-import type { EntityDef } from "@/lib/types/entity"
 import { _mockEntityData } from "@/lib/_mock/entities"
+import type { EntityDef } from "@/lib/types/entity"
 
 export function useEntityDetail(entity: EntityDef, id: string | undefined) {
   return useQuery<Record<string, unknown> | null>({

@@ -5,19 +5,19 @@
 
 "use client"
 
-import { useEffect, useRef } from "react"
-import * as echarts from "echarts/core"
-import { BarChart, LineChart, PieChart, FunnelChart, GaugeChart } from "echarts/charts"
+import type { EChartsOption } from "echarts"
+import { BarChart, FunnelChart, GaugeChart, LineChart, PieChart } from "echarts/charts"
 import {
-  TitleComponent,
-  TooltipComponent,
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
-  DataZoomComponent,
-  ToolboxComponent
+  TitleComponent,
+  ToolboxComponent,
+  TooltipComponent
 } from "echarts/components"
+import * as echarts from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
-import type { EChartsOption } from "echarts"
+import { useEffect, useRef } from "react"
 
 /** 注册 ECharts 模块（按需引入，减小 bundle） */
 echarts.use([
@@ -77,5 +77,5 @@ export function BaseChart({ option, className, theme }: BaseChartProps) {
     }
   }, [option])
 
-  return <div ref={containerRef} className={className ?? "h-full w-full min-h-[200px]"} />
+  return <div ref={containerRef} className={className ?? "h-full min-h-[200px] w-full"} />
 }

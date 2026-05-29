@@ -31,8 +31,10 @@ export function KanbanCardTemplate({ record, entity, template }: KanbanCardTempl
   }
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: 卡片容器需要 div 布局
     <div
       className="relative"
+      role="group"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -52,10 +54,7 @@ export function KanbanCardTemplate({ record, entity, template }: KanbanCardTempl
       {/* 自定义字段展示 */}
       {displayFields && displayFields.length > 0 && (
         <div
-          className={cn(
-            "mt-2 gap-1",
-            layout === "compact" ? "flex flex-wrap" : "flex flex-col"
-          )}
+          className={cn("mt-2 gap-1", layout === "compact" ? "flex flex-wrap" : "flex flex-col")}
         >
           {displayFields.map((fieldName) => {
             const value = record[fieldName]

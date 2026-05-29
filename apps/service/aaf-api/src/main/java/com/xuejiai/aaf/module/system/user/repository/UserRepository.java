@@ -23,6 +23,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByPhone(String phone);
+
     /** 查询简要列表（仅 id/username/nickname），用于下拉选择等场景。 */
     @Query(
             "SELECT new com.xuejiai.aaf.module.system.user.vo.UserSimpleVO(u.id, u.username, u.nickname) FROM User u")

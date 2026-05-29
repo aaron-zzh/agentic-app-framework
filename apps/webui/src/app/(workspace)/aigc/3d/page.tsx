@@ -7,14 +7,19 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { Suspense, useMemo, useState } from "react"
+import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card } from "@/components/ui/card"
 
 /** 动态导入 3D 场景避免 SSR */
-const BirdsScene = dynamic(() => import("./BirdsScene"), { ssr: false, loading: () => <SceneLoading /> })
-const ModelViewerScene = dynamic(() => import("./ModelViewerScene"), { ssr: false, loading: () => <SceneLoading /> })
+const BirdsScene = dynamic(() => import("./BirdsScene"), {
+  ssr: false,
+  loading: () => <SceneLoading />
+})
+const ModelViewerScene = dynamic(() => import("./ModelViewerScene"), {
+  ssr: false,
+  loading: () => <SceneLoading />
+})
 
 function SceneLoading() {
   return (
@@ -29,7 +34,9 @@ export default function ThreeDemoPage() {
     <div className="flex h-[calc(100vh-var(--layout-header-height))] flex-col gap-4 p-6">
       <div>
         <h1 className="font-bold text-2xl">3D 展示</h1>
-        <p className="text-muted-foreground text-sm">react-three-fiber 示例 + AI 生成 3D 模型预览</p>
+        <p className="text-muted-foreground text-sm">
+          react-three-fiber 示例 + AI 生成 3D 模型预览
+        </p>
       </div>
 
       <Tabs defaultValue="birds" className="flex-1">

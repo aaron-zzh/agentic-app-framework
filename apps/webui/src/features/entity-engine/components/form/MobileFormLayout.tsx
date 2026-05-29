@@ -27,7 +27,6 @@ export function MobileFormLayout({ layout, renderField }: MobileFormLayoutProps)
   return (
     <div className="flex flex-col gap-4 p-4">
       {layout.map((item, idx) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 布局项无稳定 key
         <MobileLayoutItem key={idx} item={item} renderField={renderField} />
       ))}
     </div>
@@ -67,7 +66,6 @@ function MobileTabs({
   return (
     <div className="flex flex-col gap-1 rounded-lg border">
       {tabs.tabs.map((tab, idx) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: tab 项无稳定 key
         <div key={idx}>
           <button
             type="button"
@@ -127,9 +125,5 @@ function MobileRow({
   row: RowField
   renderField: (field: FieldDef) => React.ReactNode
 }) {
-  return (
-    <div className="flex flex-col gap-3">
-      {row.fields.map((field) => renderField(field))}
-    </div>
-  )
+  return <div className="flex flex-col gap-3">{row.fields.map((field) => renderField(field))}</div>
 }

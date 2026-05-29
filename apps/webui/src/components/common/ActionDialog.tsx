@@ -12,7 +12,7 @@ import {
   DialogContent,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
+  DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -65,15 +65,19 @@ export function ActionDialog({ open, onOpenChange, config, onSuccess }: ActionDi
             <DialogTitle>Key 已生成</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              请立即复制保存，关闭后将无法再次查看。
-            </p>
-            <code className="block rounded bg-muted p-3 text-sm break-all">
+            <p className="text-muted-foreground text-sm">请立即复制保存，关闭后将无法再次查看。</p>
+            <code className="block break-all rounded bg-muted p-3 text-sm">
               {result.data.key as string}
             </code>
           </div>
           <DialogFooter>
-            <Button onClick={() => { onOpenChange(false) }}>关闭</Button>
+            <Button
+              onClick={() => {
+                onOpenChange(false)
+              }}
+            >
+              关闭
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -99,7 +103,9 @@ export function ActionDialog({ open, onOpenChange, config, onSuccess }: ActionDi
                 >
                   <option value="">请选择</option>
                   {field.options?.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
                   ))}
                 </select>
               ) : (
@@ -113,12 +119,12 @@ export function ActionDialog({ open, onOpenChange, config, onSuccess }: ActionDi
               )}
             </div>
           ))}
-          {result?.error && (
-            <p className="text-sm text-destructive">{result.error}</p>
-          )}
+          {result?.error && <p className="text-destructive text-sm">{result.error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? "处理中..." : "确认"}
           </Button>

@@ -8,7 +8,7 @@
 "use client"
 
 import { Upload, X } from "lucide-react"
-import { type DragEvent, type ClipboardEvent, useCallback, useRef, useState } from "react"
+import { type ClipboardEvent, type DragEvent, useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -79,13 +79,9 @@ export function FileUploadArea({
 
         try {
           // 模拟进度（实际应由 onUpload 内部回调）
-          setUploading((prev) =>
-            prev.map((u) => (u.id === id ? { ...u, progress: 50 } : u))
-          )
+          setUploading((prev) => prev.map((u) => (u.id === id ? { ...u, progress: 50 } : u)))
           const url = await onUpload(file)
-          setUploading((prev) =>
-            prev.map((u) => (u.id === id ? { ...u, progress: 100 } : u))
-          )
+          setUploading((prev) => prev.map((u) => (u.id === id ? { ...u, progress: 100 } : u)))
           onComplete?.({ name: file.name, url, size: file.size, type: file.type })
           // 完成后移除进度条
           setTimeout(() => {
@@ -137,7 +133,7 @@ export function FileUploadArea({
 
   return (
     <div onPaste={handlePaste}>
-      {/* 拖拽区域 */}
+      {/* biome-ignore lint/a11y/useSemanticElements: 需要 div 支持拖拽布局 */}
       <div
         role="button"
         tabIndex={0}

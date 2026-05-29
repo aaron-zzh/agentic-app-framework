@@ -29,7 +29,13 @@ const RECONNECT_MAX = 30000
 /** 心跳间隔（ms） */
 const HEARTBEAT_INTERVAL = 30000
 
-export function useWebSocket({ url, onMessage, onOpen, onClose, enabled = true }: UseWebSocketOptions) {
+export function useWebSocket({
+  url,
+  onMessage,
+  onOpen,
+  onClose,
+  enabled = true
+}: UseWebSocketOptions) {
   const [status, setStatus] = useState<WebSocketStatus>("disconnected")
   const wsRef = useRef<WebSocket | null>(null)
   const retryCountRef = useRef(0)

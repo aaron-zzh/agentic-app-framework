@@ -74,10 +74,7 @@ export default function AuditLogPage() {
           value={params.userId ?? ""}
           onChange={(e) => updateFilter("userId", e.target.value)}
         />
-        <Select
-          value={params.action ?? ""}
-          onValueChange={(v) => updateFilter("action", v ?? "")}
-        >
+        <Select value={params.action ?? ""} onValueChange={(v) => updateFilter("action", v ?? "")}>
           <SelectTrigger className="w-32">
             <SelectValue placeholder="操作类型" />
           </SelectTrigger>
@@ -99,10 +96,7 @@ export default function AuditLogPage() {
           value={params.endTime ?? ""}
           onChange={(e) => updateFilter("endTime", e.target.value)}
         />
-        <Button
-          variant="outline"
-          onClick={() => setParams({ page: 1, pageSize: 20 })}
-        >
+        <Button variant="outline" onClick={() => setParams({ page: 1, pageSize: 20 })}>
           重置
         </Button>
       </div>
@@ -153,14 +147,12 @@ export default function AuditLogPage() {
                         <div className="space-y-1">
                           {log.changes.map((c) => (
                             <div key={c.field} className="flex items-center gap-2 text-sm">
-                              <span className="font-medium w-32">{c.field}</span>
+                              <span className="w-32 font-medium">{c.field}</span>
                               <span className="text-red-600 line-through">
                                 {c.oldValue || "(空)"}
                               </span>
                               <span className="text-muted-foreground">→</span>
-                              <span className="text-green-600">
-                                {c.newValue || "(空)"}
-                              </span>
+                              <span className="text-green-600">{c.newValue || "(空)"}</span>
                             </div>
                           ))}
                         </div>
@@ -192,7 +184,7 @@ export default function AuditLogPage() {
           >
             上一页
           </Button>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             第 {params.page ?? 1} 页 / 共 {Math.ceil(data.total / (params.pageSize ?? 20))} 页
           </span>
           <Button

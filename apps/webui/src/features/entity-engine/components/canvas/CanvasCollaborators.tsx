@@ -20,7 +20,7 @@ export function CanvasCollaborators({ collaborators }: CanvasCollaboratorsProps)
       {collaborators.map((user) => (
         <div
           key={user.id}
-          className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-medium text-white"
+          className="flex h-7 w-7 items-center justify-center rounded-full border-2 font-medium text-white text-xs"
           style={{ backgroundColor: user.color, borderColor: user.color }}
           title={user.name}
         >
@@ -32,9 +32,7 @@ export function CanvasCollaborators({ collaborators }: CanvasCollaboratorsProps)
           )}
         </div>
       ))}
-      <span className="ml-1 text-xs text-muted-foreground">
-        {collaborators.length} 人在线
-      </span>
+      <span className="ml-1 text-muted-foreground text-xs">{collaborators.length} 人在线</span>
     </div>
   )
 }

@@ -17,7 +17,11 @@ interface GenerateImageResult {
 export function useGenerateImage() {
   return useMutation({
     mutationFn: (params: GenerateImageParams) =>
-      request<GenerateImageResult>("/api/aigc/generate-image", { method: "POST", body: JSON.stringify(params), headers: { "Content-Type": "application/json" } }),
+      request<GenerateImageResult>("/api/aigc/generate-image", {
+        method: "POST",
+        body: JSON.stringify(params),
+        headers: { "Content-Type": "application/json" }
+      })
   })
 }
 
@@ -35,6 +39,10 @@ interface SaveFromGenerationParams {
 export function useSaveToAssetLibrary() {
   return useMutation({
     mutationFn: (params: SaveFromGenerationParams) =>
-      request("/api/aigc/assets/save-from-generation?userId=1", { method: "POST", body: JSON.stringify(params), headers: { "Content-Type": "application/json" } }),
+      request("/api/aigc/assets/save-from-generation?userId=1", {
+        method: "POST",
+        body: JSON.stringify(params),
+        headers: { "Content-Type": "application/json" }
+      })
   })
 }

@@ -6,11 +6,11 @@
 "use client"
 
 import { $generateHtmlFromNodes } from "@lexical/html"
+import { $convertToMarkdownString } from "@lexical/markdown"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
 import { OnChangePlugin as LexicalOnChangePlugin } from "@lexical/react/LexicalOnChangePlugin"
 import { $getRoot, type EditorState } from "lexical"
 import { MARKDOWN_TRANSFORMERS } from "../converters/markdown"
-import { $convertToMarkdownString } from "@lexical/markdown"
 import type { EditorMode } from "../types"
 
 interface OnChangePluginProps {

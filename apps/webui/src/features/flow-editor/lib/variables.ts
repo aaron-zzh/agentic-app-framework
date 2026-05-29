@@ -12,7 +12,7 @@ const VAR_PATTERN = /\$\{(\w+)\}/g
 export function extractVariableRefs(text: string): string[] {
   const refs: string[] = []
   let match: RegExpExecArray | null
-  while ((match = VAR_PATTERN.exec(text)) !== null) {
+  for (match = VAR_PATTERN.exec(text); match !== null; match = VAR_PATTERN.exec(text)) {
     refs.push(match[1])
   }
   return refs

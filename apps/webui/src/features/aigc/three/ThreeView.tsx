@@ -5,24 +5,21 @@
 
 "use client"
 
+import { Camera, Maximize2, RotateCcw } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useCallback, useRef, useState } from "react"
-import { Camera, Maximize2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 /** 动态导入避免 SSR 问题 */
-const ThreeScene = dynamic(
-  () => import("./ThreeScene").then((m) => ({ default: m.ThreeScene })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex size-full items-center justify-center bg-muted/30">
-        <Skeleton className="size-16 rounded-lg" />
-      </div>
-    ),
-  }
-)
+const ThreeScene = dynamic(() => import("./ThreeScene").then((m) => ({ default: m.ThreeScene })), {
+  ssr: false,
+  loading: () => (
+    <div className="flex size-full items-center justify-center bg-muted/30">
+      <Skeleton className="size-16 rounded-lg" />
+    </div>
+  )
+})
 
 interface ThreeViewProps {
   className?: string
@@ -57,7 +54,7 @@ export function ThreeView({ className }: ThreeViewProps) {
       <ThreeScene key={key} className="size-full" />
 
       {/* 工具栏 */}
-      <div className="absolute right-3 top-3 flex gap-1">
+      <div className="absolute top-3 right-3 flex gap-1">
         <Button
           variant="ghost"
           size="sm"

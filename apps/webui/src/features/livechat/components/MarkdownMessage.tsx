@@ -13,7 +13,10 @@ import type { ComponentPropsWithoutRef } from "react"
 import { CodeBlockCopyButton } from "./CodeBlockCopyButton"
 
 /** 代码块包装器：添加复制按钮 */
-function CodeBlockWrapper({ children, ...props }: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
+function CodeBlockWrapper({
+  children,
+  ...props
+}: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
   // 从 children 中提取代码文本
   const codeText = extractTextFromChildren(children)
 

@@ -29,7 +29,7 @@ export const useAISettingsStore = create<AISettingsState>()(
       sensitivity: "medium",
       toggleEnabled: () => set((s) => ({ enabled: !s.enabled })),
       setEnabled: (enabled) => set({ enabled }),
-      setSensitivity: (sensitivity) => set({ sensitivity }),
+      setSensitivity: (sensitivity) => set({ sensitivity })
     }),
     { name: "aaf-ai-settings" }
   )

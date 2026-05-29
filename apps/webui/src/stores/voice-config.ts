@@ -26,7 +26,7 @@ export const useVoiceConfig = create<VoiceConfigStore>()(
       ttsVoice: "Cherry",
       setSttMode: (sttMode) => set({ sttMode }),
       setTtsMode: (ttsMode) => set({ ttsMode }),
-      setTtsVoice: (ttsVoice) => set({ ttsVoice }),
+      setTtsVoice: (ttsVoice) => set({ ttsVoice })
     }),
     { name: "aaf-voice-config" }
   )
@@ -54,7 +54,7 @@ export async function serverTtsStream(
   const res = await fetch(`${BASE_URL}/api/voice/tts/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, voice }),
+    body: JSON.stringify({ text, voice })
   })
   if (!res.ok || !res.body) throw new Error(`TTS 失败: ${res.status}`)
   const reader = res.body.getReader()

@@ -5,18 +5,22 @@
 
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
-import { Responsive, WidthProvider, type Layout } from "react-grid-layout"
 import { GripVertical, Pencil, Save, X } from "lucide-react"
+import { useCallback, useMemo, useState } from "react"
+import { type Layout, Responsive, WidthProvider } from "react-grid-layout"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type {
-  DashboardWidgetVO,
-  WidgetType
-} from "@/lib/api/dashboard"
+import type { DashboardWidgetVO, WidgetType } from "@/lib/api/dashboard"
 import { useDashboard, useSaveDashboardLayout } from "@/lib/queries/use-dashboard"
 import { AddWidgetDialog } from "./AddWidgetDialog"
-import { ChartWidget, CounterWidget, EChartsWidget, ListWidget, ProgressWidget, ShortcutWidget } from "./widgets"
+import {
+  ChartWidget,
+  CounterWidget,
+  EChartsWidget,
+  ListWidget,
+  ProgressWidget,
+  ShortcutWidget
+} from "./widgets"
 
 import "react-grid-layout/css/styles.css"
 
@@ -27,19 +31,53 @@ function renderWidget(widget: DashboardWidgetVO, refreshInterval?: number) {
   const { id, title, config } = widget
   switch (config.type) {
     case "counter":
-      return <CounterWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
+      return (
+        <CounterWidget
+          widgetId={id}
+          title={title}
+          config={config}
+          refreshInterval={refreshInterval}
+        />
+      )
     case "chart":
-      return <ChartWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
+      return (
+        <ChartWidget
+          widgetId={id}
+          title={title}
+          config={config}
+          refreshInterval={refreshInterval}
+        />
+      )
     case "echarts":
-      return <EChartsWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
+      return (
+        <EChartsWidget
+          widgetId={id}
+          title={title}
+          config={config}
+          refreshInterval={refreshInterval}
+        />
+      )
     case "list":
-      return <ListWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
+      return (
+        <ListWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
+      )
     case "progress":
-      return <ProgressWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
+      return (
+        <ProgressWidget
+          widgetId={id}
+          title={title}
+          config={config}
+          refreshInterval={refreshInterval}
+        />
+      )
     case "shortcut":
       return <ShortcutWidget title={title} config={config} />
     default:
-      return <div className="flex h-full items-center justify-center text-muted-foreground text-sm">未知组件</div>
+      return (
+        <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+          未知组件
+        </div>
+      )
   }
 }
 
@@ -50,15 +88,37 @@ function createDefaultWidget(type: WidgetType): DashboardWidgetVO {
 
   switch (type) {
     case "counter":
-      return { ...base, title: "统计", config: { type: "counter", entity: "", aggregation: "count" } }
+      return {
+        ...base,
+        title: "统计",
+        config: { type: "counter", entity: "", aggregation: "count" }
+      }
     case "chart":
-      return { ...base, title: "图表", config: { type: "chart", entity: "", chartType: "bar", xField: "", yField: "" } }
+      return {
+        ...base,
+        title: "图表",
+        config: { type: "chart", entity: "", chartType: "bar", xField: "", yField: "" }
+      }
     case "echarts":
-      return { ...base, title: "ECharts 图表", config: { type: "echarts", statsType: "trend", chartType: "line", metric: "dau", period: "day" } }
+      return {
+        ...base,
+        title: "ECharts 图表",
+        config: {
+          type: "echarts",
+          statsType: "trend",
+          chartType: "line",
+          metric: "dau",
+          period: "day"
+        }
+      }
     case "list":
       return { ...base, title: "列表", config: { type: "list", entity: "", columns: [], limit: 5 } }
     case "progress":
-      return { ...base, title: "进度", config: { type: "progress", label: "目标", current: 0, target: 100 } }
+      return {
+        ...base,
+        title: "进度",
+        config: { type: "progress", label: "目标", current: 0, target: 100 }
+      }
     case "shortcut":
       return { ...base, title: "快捷入口", config: { type: "shortcut", items: [] } }
     default:
@@ -104,7 +164,12 @@ export function DashboardView() {
     if (!dashboard || !localWidgets) return
     saveMutation.mutate(
       { id: dashboard.id, layout: localWidgets },
-      { onSuccess: () => { setLocalWidgets(null); setEditing(false) } }
+      {
+        onSuccess: () => {
+          setLocalWidgets(null)
+          setEditing(false)
+        }
+      }
     )
   }, [dashboard, localWidgets, saveMutation])
 
@@ -123,21 +188,15 @@ export function DashboardView() {
   )
 
   /** 添加 Widget */
-  const handleAddWidget = useCallback(
-    (type: WidgetType) => {
-      const newWidget = createDefaultWidget(type)
-      setLocalWidgets((prev) => [...(prev ?? []), newWidget])
-    },
-    []
-  )
+  const handleAddWidget = useCallback((type: WidgetType) => {
+    const newWidget = createDefaultWidget(type)
+    setLocalWidgets((prev) => [...(prev ?? []), newWidget])
+  }, [])
 
   /** 删除 Widget */
-  const handleRemoveWidget = useCallback(
-    (widgetId: string) => {
-      setLocalWidgets((prev) => (prev ?? []).filter((w) => w.id !== widgetId))
-    },
-    []
-  )
+  const handleRemoveWidget = useCallback((widgetId: string) => {
+    setLocalWidgets((prev) => (prev ?? []).filter((w) => w.id !== widgetId))
+  }, [])
 
   if (isLoading) {
     return (

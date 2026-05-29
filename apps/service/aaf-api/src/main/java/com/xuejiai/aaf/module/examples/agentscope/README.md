@@ -11,34 +11,34 @@ aaf:
     agentscope:
       enabled: true
       mcp:
-        server-url: ${MCP_SERVER_URL:}          # 可选，⑦ MCP 示例
+        server-url: ${MCP_SERVER_URL:} # 可选，⑦ MCP 示例
       langfuse:
-        public-key: ${LANGFUSE_PUBLIC_KEY:}     # 可选，② Tracing 示例
+        public-key: ${LANGFUSE_PUBLIC_KEY:} # 可选，② Tracing 示例
         secret-key: ${LANGFUSE_SECRET_KEY:}
         endpoint: https://cloud.langfuse.com/api/public/otel/v1/traces
 
 spring:
   ai:
     dashscope:
-      api-key: ${DASHSCOPE_API_KEY}             # 必填
+      api-key: ${DASHSCOPE_API_KEY} # 必填
 ```
 
 ## 示例总览
 
 共 10 个示例，覆盖 AgentScope Java SDK 的全部核心能力。
 
-| # | AgentScope 能力 | REST 接口 | AG-UI 接口 | 外部依赖 |
-|---|----------------|-----------|-----------|---------|
-| ① | `ReActAgent` 基础对话 | `POST /basic-chat` | `/agui/run/basicChatAgent` | — |
-| ② | `@Tool` 工具调用<br>**+ Hook/Tracing** | `POST /tool-calling` | `/agui/run/toolCallingAgent` | 可选 Langfuse |
-| ③ | `subAgent` Supervisor 委托 | `POST /supervisor` | `/agui/run/supervisorAgent` | — |
-| ④ | 多 Agent 串联 Pipeline | `POST /pipeline` | `/agui/run/sqlGeneratorAgent` | — |
-| ⑤ | `MsgHub` 广播协作 | `POST /debate` | — | — |
-| ⑥ | `JsonSession` 持久化记忆 | `POST /session-chat` | — | — |
-| ⑦ | `McpClientBuilder` MCP 工具 | `POST /mcp-tool` | `/agui/run/mcpToolAgent` | MCP Server |
-| ⑧ | `Knowledge` + `RAGMode` RAG | `POST /rag-chat` | `/agui/run/ragChatAgent` | DashScope Embedding |
-| ⑨ | `PlanNotebook` 任务规划 | `POST /plan-chat` | `/agui/run/planAgent` | — |
-| ⑩ | `RealtimeTTSModel` 语音合成 | `POST /tts` | — | DashScope TTS |
+| #   | AgentScope 能力                        | REST 接口            | AG-UI 接口                    | 外部依赖            |
+| --- | -------------------------------------- | -------------------- | ----------------------------- | ------------------- |
+| ①   | `ReActAgent` 基础对话                  | `POST /basic-chat`   | `/agui/run/basicChatAgent`    | —                   |
+| ②   | `@Tool` 工具调用<br>**+ Hook/Tracing** | `POST /tool-calling` | `/agui/run/toolCallingAgent`  | 可选 Langfuse       |
+| ③   | `subAgent` Supervisor 委托             | `POST /supervisor`   | `/agui/run/supervisorAgent`   | —                   |
+| ④   | 多 Agent 串联 Pipeline                 | `POST /pipeline`     | `/agui/run/sqlGeneratorAgent` | —                   |
+| ⑤   | `MsgHub` 广播协作                      | `POST /debate`       | —                             | —                   |
+| ⑥   | `JsonSession` 持久化记忆               | `POST /session-chat` | —                             | —                   |
+| ⑦   | `McpClientBuilder` MCP 工具            | `POST /mcp-tool`     | `/agui/run/mcpToolAgent`      | MCP Server          |
+| ⑧   | `Knowledge` + `RAGMode` RAG            | `POST /rag-chat`     | `/agui/run/ragChatAgent`      | DashScope Embedding |
+| ⑨   | `PlanNotebook` 任务规划                | `POST /plan-chat`    | `/agui/run/planAgent`         | —                   |
+| ⑩   | `RealtimeTTSModel` 语音合成            | `POST /tts`          | —                             | DashScope TTS       |
 
 所有 REST 接口前缀：`/api/examples/agentscope`
 
@@ -62,12 +62,14 @@ POST /api/examples/agentscope/basic-chat
 **融合三个能力：工具调用 + Hook 机制 + Langfuse Tracing。**
 
 执行工具调用时，`ObservationHook` 在日志中打印完整链路（即 Tracing）：
+
 ```
 [Hook:PreCall] → [Hook:PreReasoning] → [Hook:PostReasoning] LLM决定调用工具
 → [Hook:PreActing] 执行工具 → [Hook:PostActing] 工具完成 → [Hook:PostCall] Token用量
 ```
 
 配置 Langfuse 后，所有链路数据自动上报（无需修改 Agent 代码）：
+
 ```yaml
 aaf.examples.agentscope.langfuse.public-key: lf-xxx
 aaf.examples.agentscope.langfuse.secret-key: sk-xxx
@@ -80,15 +82,15 @@ POST /api/examples/agentscope/tool-calling
 
 Hook 事件表：
 
-| 事件 | 时机 | 典型用途 |
-|------|------|---------|
-| `PreCallEvent` | Agent.call() 入口 | 输入审计、限流 |
-| `PreReasoningEvent` | LLM 推理前 | 注入上下文、过滤敏感信息 |
-| `PostReasoningEvent` | LLM 推理后 | HITL 工具确认（`stopAgent()`） |
-| `PreActingEvent` | 工具执行前 | 参数校验、权限检查 |
-| `PostActingEvent` | 工具执行后 | 结果审计 |
-| `PostCallEvent` | Agent.call() 出口 | **Token 计量**（`getChatUsage()`） |
-| `ErrorEvent` | 任意阶段异常 | 错误监控 |
+| 事件                 | 时机              | 典型用途                           |
+| -------------------- | ----------------- | ---------------------------------- |
+| `PreCallEvent`       | Agent.call() 入口 | 输入审计、限流                     |
+| `PreReasoningEvent`  | LLM 推理前        | 注入上下文、过滤敏感信息           |
+| `PostReasoningEvent` | LLM 推理后        | HITL 工具确认（`stopAgent()`）     |
+| `PreActingEvent`     | 工具执行前        | 参数校验、权限检查                 |
+| `PostActingEvent`    | 工具执行后        | 结果审计                           |
+| `PostCallEvent`      | Agent.call() 出口 | **Token 计量**（`getChatUsage()`） |
+| `ErrorEvent`         | 任意阶段异常      | 错误监控                           |
 
 代码：`AgentScopeExampleConfig#toolCallingAgent` + `ObservationHook` + `TokenMeteringHook` + `initTracing()`
 
@@ -175,6 +177,7 @@ POST /api/examples/agentscope/rag-chat
 与基础聊天的区别：回答基于知识库内容，减少幻觉。
 
 RAG 两种模式：
+
 - `RAGMode.GENERIC`：自动注入，无需 Agent 主动调用（本示例）
 - `RAGMode.AGENTIC`：Agent 通过 `retrieve_knowledge` 工具主动检索
 
@@ -192,6 +195,7 @@ POST /api/examples/agentscope/plan-chat
 ```
 
 PlanNotebook 工作流：
+
 1. Agent 调用 `create_plan` 创建计划（含子任务列表）
 2. 每次推理前自动注入 `<system-hint>` 提示当前进度
 3. Agent 按子任务执行，调用 `finish_subtask` 标记完成
@@ -217,6 +221,7 @@ curl -X POST /api/examples/agentscope/tts \
 ```
 
 与普通 TTS 的区别：
+
 - 普通 TTS：一次性输入，HTTP + SSE 返回
 - Realtime TTS：WebSocket 流式输入输出，支持 `push(text)` 增量推送，适合"边生成边播放"
 

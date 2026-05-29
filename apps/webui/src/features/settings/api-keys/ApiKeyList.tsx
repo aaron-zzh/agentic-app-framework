@@ -6,10 +6,10 @@
 "use client"
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { request } from "@/lib/api/client"
 import { ActionButton } from "@/components/common/ActionButton"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { request } from "@/lib/api/client"
 import type { ActionConfig } from "@/lib/hooks/use-action"
 
 interface ApiKeyVO {
@@ -28,12 +28,12 @@ interface ApiKeyListProps {
   userId?: number
 }
 
-export function ApiKeyList({ userId }: ApiKeyListProps) {
+export function ApiKeyList({ userId: _userId }: ApiKeyListProps) {
   const queryClient = useQueryClient()
 
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ["api-keys"],
-    queryFn: () => request<ApiKeyVO[]>("/v1/api-keys"),
+    queryFn: () => request<ApiKeyVO[]>("/v1/api-keys")
   })
 
   async function handleDelete(id: number) {
@@ -56,16 +56,16 @@ export function ApiKeyList({ userId }: ApiKeyListProps) {
         type: "select",
         label: "权限范围",
         options: ["ingest,read", "ingest,read,write", "read"],
-        defaultValue: "ingest,read",
+        defaultValue: "ingest,read"
       },
-      expiresInDays: { type: "number", label: "有效期(天)", placeholder: "留空永不过期" },
-    },
+      expiresInDays: { type: "number", label: "有效期(天)", placeholder: "留空永不过期" }
+    }
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">API Key</h3>
+        <h3 className="font-medium text-lg">API Key</h3>
         <ActionButton
           config={generateKeyAction}
           size="sm"
@@ -74,9 +74,9 @@ export function ApiKeyList({ userId }: ApiKeyListProps) {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">加载中...</p>
+        <p className="text-muted-foreground text-sm">加载中...</p>
       ) : keys.length === 0 ? (
-        <p className="text-sm text-muted-foreground">暂无 API Key，点击上方按钮生成。</p>
+        <p className="text-muted-foreground text-sm">暂无 API Key，点击上方按钮生成。</p>
       ) : (
         <div className="space-y-2">
           {keys.map((key) => (
@@ -88,11 +88,15 @@ export function ApiKeyList({ userId }: ApiKeyListProps) {
                     {key.enabled ? "启用" : "已禁用"}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-3 text-muted-foreground text-xs">
                   <code>{key.prefix}</code>
                   <span>权限: {key.permissions}</span>
-                  {key.expiresAt && <span>过期: {new Date(key.expiresAt).toLocaleDateString()}</span>}
-                  {key.lastUsedAt && <span>最后使用: {new Date(key.lastUsedAt).toLocaleDateString()}</span>}
+                  {key.expiresAt && (
+                    <span>过期: {new Date(key.expiresAt).toLocaleDateString()}</span>
+                  )}
+                  {key.lastUsedAt && (
+                    <span>最后使用: {new Date(key.lastUsedAt).toLocaleDateString()}</span>
+                  )}
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => handleDelete(key.id)}>

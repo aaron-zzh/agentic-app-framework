@@ -29,7 +29,15 @@ import { ListView } from "./list"
 import { PivotView } from "./pivot"
 
 /** 支持的视图类型 */
-export type ViewType = "list" | "form" | "kanban" | "pivot" | "graph" | "chart" | "calendar" | "canvas"
+export type ViewType =
+  | "list"
+  | "form"
+  | "kanban"
+  | "pivot"
+  | "graph"
+  | "chart"
+  | "calendar"
+  | "canvas"
 
 interface ViewEngineProps {
   entity: EntityDef
@@ -134,11 +142,7 @@ function ConnectedFormView({ entity, recordId }: { entity: EntityDef; recordId?:
     <div className="space-y-4">
       <FormView key={recordId} entity={entity} data={data ?? undefined} loading={isLoading} />
       {entity.workflow && recordId && (
-        <EntityApproval
-          config={entity.workflow}
-          entityId={recordId}
-          currentUserId="current-user"
-        />
+        <EntityApproval config={entity.workflow} entityId={recordId} currentUserId="current-user" />
       )}
     </div>
   )

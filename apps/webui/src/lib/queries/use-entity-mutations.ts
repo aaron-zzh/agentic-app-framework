@@ -4,9 +4,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-
-import type { EntityDef } from "@/lib/types/entity"
 import { createRecord, deleteRecord, fetchRecord, updateRecord } from "@/lib/api/client"
+import type { EntityDef } from "@/lib/types/entity"
 
 /** 单条记录查询 */
 export function useEntityRecord(entity: EntityDef, id: string | undefined) {

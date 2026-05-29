@@ -4,7 +4,10 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type NotificationPreference, notificationPreferenceApi } from "@/lib/api/notification-preference"
+import {
+  type NotificationPreference,
+  notificationPreferenceApi
+} from "@/lib/api/notification-preference"
 
 const KEY = ["notification-preferences"] as const
 

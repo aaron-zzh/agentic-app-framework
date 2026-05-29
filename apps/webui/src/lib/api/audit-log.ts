@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { type ListParams, fetchList } from "./client"
+import { fetchList, type ListParams } from "./client"
 
 /** 字段变更记录 */
 export interface FieldChange {
@@ -35,6 +35,5 @@ export interface AuditLogListParams extends ListParams {
 
 export const auditLogApi = {
   /** 审计日志分页列表 */
-  list: (params: AuditLogListParams = {}) =>
-    fetchList<AuditLogVO>("/admin/audit-log", params)
+  list: (params: AuditLogListParams = {}) => fetchList<AuditLogVO>("/admin/audit-log", params)
 }

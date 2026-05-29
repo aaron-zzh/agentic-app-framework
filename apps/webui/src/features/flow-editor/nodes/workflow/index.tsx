@@ -5,9 +5,9 @@
 
 "use client"
 
-import type { NodeTypeDef, NodeTypeRegistry, InspectorProps, PortDef } from "../../types"
-import { BaseNode } from "../_base/base-node"
 import { createNodeRegistry, registerNodeType, setWorkflowRegistry } from "../../lib/registry"
+import type { InspectorProps, NodeTypeDef, NodeTypeRegistry, PortDef } from "../../types"
+import { BaseNode } from "../_base/base-node"
 
 /** 通用端口 */
 const inputOutput: PortDef[] = [
@@ -20,20 +20,24 @@ function AgentInspector({ data, onChange }: InspectorProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor="agentId" className="text-sm font-medium">Agent ID</label>
+        <label htmlFor="agentId" className="font-medium text-sm">
+          Agent ID
+        </label>
         <input
           id="agentId"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.agentId as string) ?? ""}
           onChange={(e) => onChange({ ...data, agentId: e.target.value })}
           placeholder="智能体标识"
         />
       </div>
       <div>
-        <label htmlFor="promptOverride" className="text-sm font-medium">Prompt 覆盖</label>
+        <label htmlFor="promptOverride" className="font-medium text-sm">
+          Prompt 覆盖
+        </label>
         <textarea
           id="promptOverride"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           rows={3}
           value={(data.promptOverride as string) ?? ""}
           onChange={(e) => onChange({ ...data, promptOverride: e.target.value })}
@@ -41,10 +45,12 @@ function AgentInspector({ data, onChange }: InspectorProps) {
         />
       </div>
       <div>
-        <label htmlFor="agent-modelId" className="text-sm font-medium">模型</label>
+        <label htmlFor="agent-modelId" className="font-medium text-sm">
+          模型
+        </label>
         <select
           id="agent-modelId"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.modelId as string) ?? ""}
           onChange={(e) => onChange({ ...data, modelId: e.target.value })}
         >
@@ -56,7 +62,7 @@ function AgentInspector({ data, onChange }: InspectorProps) {
         </select>
       </div>
       <div>
-        <label htmlFor="agent-temperature" className="text-sm font-medium">
+        <label htmlFor="agent-temperature" className="font-medium text-sm">
           温度: {(data.temperature as number) ?? 0.7}
         </label>
         <input
@@ -71,20 +77,24 @@ function AgentInspector({ data, onChange }: InspectorProps) {
         />
       </div>
       <div>
-        <label htmlFor="agent-tools" className="text-sm font-medium">工具绑定</label>
+        <label htmlFor="agent-tools" className="font-medium text-sm">
+          工具绑定
+        </label>
         <input
           id="agent-tools"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.tools as string) ?? ""}
           onChange={(e) => onChange({ ...data, tools: e.target.value })}
           placeholder="工具名，逗号分隔"
         />
       </div>
       <div>
-        <label htmlFor="agent-inputMapping" className="text-sm font-medium">输入映射 (JSON)</label>
+        <label htmlFor="agent-inputMapping" className="font-medium text-sm">
+          输入映射 (JSON)
+        </label>
         <textarea
           id="agent-inputMapping"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm font-mono"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 font-mono text-sm"
           rows={2}
           value={(data.inputMapping as string) ?? ""}
           onChange={(e) => onChange({ ...data, inputMapping: e.target.value })}
@@ -92,10 +102,12 @@ function AgentInspector({ data, onChange }: InspectorProps) {
         />
       </div>
       <div>
-        <label htmlFor="agent-outputMapping" className="text-sm font-medium">输出映射 (JSON)</label>
+        <label htmlFor="agent-outputMapping" className="font-medium text-sm">
+          输出映射 (JSON)
+        </label>
         <textarea
           id="agent-outputMapping"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm font-mono"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 font-mono text-sm"
           rows={2}
           value={(data.outputMapping as string) ?? ""}
           onChange={(e) => onChange({ ...data, outputMapping: e.target.value })}
@@ -111,10 +123,12 @@ function LLMInspector({ data, onChange }: InspectorProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor="llm-modelId" className="text-sm font-medium">模型</label>
+        <label htmlFor="llm-modelId" className="font-medium text-sm">
+          模型
+        </label>
         <select
           id="llm-modelId"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.modelId as string) ?? ""}
           onChange={(e) => onChange({ ...data, modelId: e.target.value })}
         >
@@ -126,10 +140,12 @@ function LLMInspector({ data, onChange }: InspectorProps) {
         </select>
       </div>
       <div>
-        <label htmlFor="prompt" className="text-sm font-medium">提示词</label>
+        <label htmlFor="prompt" className="font-medium text-sm">
+          提示词
+        </label>
         <textarea
           id="prompt"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           rows={3}
           value={(data.prompt as string) ?? ""}
           onChange={(e) => onChange({ ...data, prompt: e.target.value })}
@@ -137,7 +153,7 @@ function LLMInspector({ data, onChange }: InspectorProps) {
         />
       </div>
       <div>
-        <label htmlFor="llm-temperature" className="text-sm font-medium">
+        <label htmlFor="llm-temperature" className="font-medium text-sm">
           温度: {(data.temperature as number) ?? 0.7}
         </label>
         <input
@@ -152,11 +168,13 @@ function LLMInspector({ data, onChange }: InspectorProps) {
         />
       </div>
       <div>
-        <label htmlFor="llm-maxTokens" className="text-sm font-medium">最大 Tokens</label>
+        <label htmlFor="llm-maxTokens" className="font-medium text-sm">
+          最大 Tokens
+        </label>
         <input
           id="llm-maxTokens"
           type="number"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.maxTokens as number) ?? 2048}
           onChange={(e) => onChange({ ...data, maxTokens: Number(e.target.value) })}
           min={1}
@@ -164,10 +182,12 @@ function LLMInspector({ data, onChange }: InspectorProps) {
         />
       </div>
       <div>
-        <label htmlFor="llm-outputSchema" className="text-sm font-medium">输出 Schema (JSON Schema)</label>
+        <label htmlFor="llm-outputSchema" className="font-medium text-sm">
+          输出 Schema (JSON Schema)
+        </label>
         <textarea
           id="llm-outputSchema"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm font-mono"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 font-mono text-sm"
           rows={4}
           value={(data.outputSchema as string) ?? ""}
           onChange={(e) => onChange({ ...data, outputSchema: e.target.value })}
@@ -183,27 +203,31 @@ function KnowledgeInspector({ data, onChange }: InspectorProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor="kbId" className="text-sm font-medium">知识库 ID</label>
+        <label htmlFor="kbId" className="font-medium text-sm">
+          知识库 ID
+        </label>
         <input
           id="kbId"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.knowledgeBaseId as string) ?? ""}
           onChange={(e) => onChange({ ...data, knowledgeBaseId: e.target.value })}
           placeholder="知识库标识"
         />
       </div>
       <div>
-        <label htmlFor="topK" className="text-sm font-medium">Top K</label>
+        <label htmlFor="topK" className="font-medium text-sm">
+          Top K
+        </label>
         <input
           id="topK"
           type="number"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.topK as number) ?? 5}
           onChange={(e) => onChange({ ...data, topK: Number(e.target.value) })}
         />
       </div>
       <div>
-        <label htmlFor="similarityThreshold" className="text-sm font-medium">
+        <label htmlFor="similarityThreshold" className="font-medium text-sm">
           相似度阈值: {(data.similarityThreshold as number) ?? 0.7}
         </label>
         <input
@@ -226,10 +250,12 @@ function CodeInspector({ data, onChange }: InspectorProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor="code-language" className="text-sm font-medium">语言</label>
+        <label htmlFor="code-language" className="font-medium text-sm">
+          语言
+        </label>
         <select
           id="code-language"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.language as string) ?? "js"}
           onChange={(e) => onChange({ ...data, language: e.target.value })}
         >
@@ -238,10 +264,12 @@ function CodeInspector({ data, onChange }: InspectorProps) {
         </select>
       </div>
       <div>
-        <label htmlFor="code-content" className="text-sm font-medium">代码</label>
+        <label htmlFor="code-content" className="font-medium text-sm">
+          代码
+        </label>
         <textarea
           id="code-content"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm font-mono"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 font-mono text-sm"
           rows={6}
           value={(data.code as string) ?? ""}
           onChange={(e) => onChange({ ...data, code: e.target.value })}
@@ -257,21 +285,25 @@ function IterationInspector({ data, onChange }: InspectorProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor="iter-items" className="text-sm font-medium">列表变量</label>
+        <label htmlFor="iter-items" className="font-medium text-sm">
+          列表变量
+        </label>
         <input
           id="iter-items"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.items as string) ?? ""}
           onChange={(e) => onChange({ ...data, items: e.target.value })}
           placeholder="变量名（如 ${itemList}）"
         />
       </div>
       <div>
-        <label htmlFor="iter-max" className="text-sm font-medium">最大迭代数</label>
+        <label htmlFor="iter-max" className="font-medium text-sm">
+          最大迭代数
+        </label>
         <input
           id="iter-max"
           type="number"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.maxIterations as number) ?? 100}
           onChange={(e) => onChange({ ...data, maxIterations: Number(e.target.value) })}
           min={1}
@@ -287,10 +319,12 @@ function WaitInspector({ data, onChange }: InspectorProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor="wait-type" className="text-sm font-medium">等待类型</label>
+        <label htmlFor="wait-type" className="font-medium text-sm">
+          等待类型
+        </label>
         <select
           id="wait-type"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.waitType as string) ?? "signal"}
           onChange={(e) => onChange({ ...data, waitType: e.target.value })}
         >
@@ -300,10 +334,12 @@ function WaitInspector({ data, onChange }: InspectorProps) {
         </select>
       </div>
       <div>
-        <label htmlFor="wait-key" className="text-sm font-medium">等待标识</label>
+        <label htmlFor="wait-key" className="font-medium text-sm">
+          等待标识
+        </label>
         <input
           id="wait-key"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(data.waitKey as string) ?? ""}
           onChange={(e) => onChange({ ...data, waitKey: e.target.value })}
           placeholder="唯一标识（用于恢复信号匹配）"
@@ -350,8 +386,14 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
     category: "ai",
     ports: inputOutput,
     defaultData: {
-      label: "LLM", icon: "🤖", ports: inputOutput,
-      modelId: "", prompt: "", temperature: 0.7, maxTokens: 2048, outputSchema: ""
+      label: "LLM",
+      icon: "🤖",
+      ports: inputOutput,
+      modelId: "",
+      prompt: "",
+      temperature: 0.7,
+      maxTokens: 2048,
+      outputSchema: ""
     }
   })
 
@@ -363,9 +405,16 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
     category: "ai",
     ports: inputOutput,
     defaultData: {
-      label: "Agent", icon: "🧠", ports: inputOutput,
-      agentId: "", promptOverride: "", modelId: "", temperature: 0.7,
-      tools: "", inputMapping: "", outputMapping: ""
+      label: "Agent",
+      icon: "🧠",
+      ports: inputOutput,
+      agentId: "",
+      promptOverride: "",
+      modelId: "",
+      temperature: 0.7,
+      tools: "",
+      inputMapping: "",
+      outputMapping: ""
     }
   })
 
@@ -377,8 +426,12 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
     category: "data",
     ports: inputOutput,
     defaultData: {
-      label: "知识检索", icon: "📚", ports: inputOutput,
-      knowledgeBaseId: "", topK: 5, similarityThreshold: 0.7
+      label: "知识检索",
+      icon: "📚",
+      ports: inputOutput,
+      knowledgeBaseId: "",
+      topK: 5,
+      similarityThreshold: 0.7
     }
   })
 
@@ -390,8 +443,11 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
     category: "tool",
     ports: inputOutput,
     defaultData: {
-      label: "代码执行", icon: "💻", ports: inputOutput,
-      language: "js", code: ""
+      label: "代码执行",
+      icon: "💻",
+      ports: inputOutput,
+      language: "js",
+      code: ""
     }
   })
 
@@ -407,7 +463,8 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
       { id: "out-false", direction: "output" }
     ],
     defaultData: {
-      label: "条件分支", icon: "🔀",
+      label: "条件分支",
+      icon: "🔀",
       ports: [
         { id: "in", direction: "input" },
         { id: "out-true", direction: "output" },
@@ -428,13 +485,15 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
       { id: "out", direction: "output", label: "完成" }
     ],
     defaultData: {
-      label: "循环", icon: "🔁",
+      label: "循环",
+      icon: "🔁",
       ports: [
         { id: "in", direction: "input" },
         { id: "loop-out", direction: "output", label: "循环体" },
         { id: "out", direction: "output", label: "完成" }
       ],
-      items: "", maxIterations: 100
+      items: "",
+      maxIterations: 100
     }
   })
 
@@ -446,8 +505,11 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
     category: "logic",
     ports: inputOutput,
     defaultData: {
-      label: "等待", icon: "⏸", ports: inputOutput,
-      waitType: "signal", waitKey: ""
+      label: "等待",
+      icon: "⏸",
+      ports: inputOutput,
+      waitType: "signal",
+      waitKey: ""
     }
   })
 
@@ -464,7 +526,8 @@ function buildWorkflowRegistry(): NodeTypeRegistry {
       { id: "out-3", direction: "output", label: "分支 3" }
     ],
     defaultData: {
-      label: "并行", icon: "⚡",
+      label: "并行",
+      icon: "⚡",
       ports: [
         { id: "in", direction: "input" },
         { id: "out-1", direction: "output", label: "分支 1" },

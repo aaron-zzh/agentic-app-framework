@@ -3,9 +3,9 @@
  * @author AaronZZH & Kiro
  */
 
+export type { CollaborativeEditorProps } from "./collaboration"
+export { CollaborativeEditor } from "./collaboration"
 export { ReadOnlyRenderer } from "./components/ReadOnlyRenderer"
 export { RichTextEditor } from "./components/RichTextEditor"
-export { CollaborativeEditor } from "./collaboration"
-export type { CollaborativeEditorProps } from "./collaboration"
 export type { PresetName } from "./presets"
-export type { MentionUser, RichTextEditorProps, EditorMode } from "./types"
+export type { EditorMode, MentionUser, RichTextEditorProps } from "./types"

@@ -3,8 +3,8 @@
  * @author Kiro
  */
 
-import { request } from "./client"
 import type { PageResult } from "./client"
+import { request } from "./client"
 
 /** 审批人策略 */
 export type AssigneeStrategy =
@@ -126,8 +126,7 @@ export const approvalApi = {
     request<ApprovalStats>(`/system/workflow/approval/stats?assignee=${assignee}`),
 
   /** 我的待办 */
-  myPendingTasks: () =>
-    request<WorkflowTaskVO[]>("/system/workflow/tasks/my-pending"),
+  myPendingTasks: () => request<WorkflowTaskVO[]>("/system/workflow/tasks/my-pending"),
 
   /** 我发起的流程 */
   myInitiated: (pageNo = 1, pageSize = 20) =>

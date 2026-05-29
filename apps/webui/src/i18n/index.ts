@@ -3,5 +3,5 @@
  * @author AaronZZH & Kiro
  */
 
-export { defaultLocale, LOCALE_COOKIE, locales, type Locale } from "./config"
+export { defaultLocale, LOCALE_COOKIE, type Locale, locales } from "./config"
 export { initZodErrorMap } from "./zod-error-map"

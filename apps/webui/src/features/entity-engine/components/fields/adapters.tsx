@@ -5,18 +5,21 @@
 
 "use client"
 
+import {
+  FieldCascader,
+  FieldMoney,
+  FieldQuantity,
+  FieldSignature,
+  FieldUpload,
+  RelationshipPicker,
+  RichTextEditor,
+  Subtable
+} from "@/components/form"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { FieldCascader } from "@/components/form"
-import { FieldMoney, FieldQuantity } from "@/components/form"
-import { FieldSignature } from "@/components/form"
-import { FieldUpload } from "@/components/form"
-import { RelationshipPicker } from "@/components/form"
-import { RichTextEditor } from "@/components/form"
-import { Subtable } from "@/components/form"
-import type { FieldProps } from "../../types"
 import type {
   CascaderField,
+  FieldProps,
   MoneyField,
   QuantityField,
   RelationshipField,
@@ -58,7 +61,13 @@ export function RichTextInput({ name, value, onChange, disabled, field }: FieldP
 }
 
 /** 文件上传适配器 */
-export function UploadInput({ name, value: _value, onChange: _onChange, disabled, field }: FieldProps) {
+export function UploadInput({
+  name,
+  value: _value,
+  onChange: _onChange,
+  disabled,
+  field
+}: FieldProps) {
   const uploadField = field as UploadField
   return (
     <FieldUpload
@@ -157,7 +166,8 @@ export function CascaderInput({ name, value, onChange, error, disabled, field }:
 }
 
 /** 子表适配器 */
-export function SubtableInput({ name, value, onChange, disabled, field }: FieldProps) {
+// biome-ignore lint/correctness/noUnusedFunctionParameters: onChange 在 JSX 中使用
+export function SubtableInput({ name, value, onChange, field }: FieldProps) {
   const subField = field as SubtableField
   // 从 columns 构造简化的 DataFieldDef 列表
   const childFields = subField.columns.map((col) => ({

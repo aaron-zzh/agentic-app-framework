@@ -59,6 +59,5 @@ export const entityDefApi = {
     }),
 
   /** 删除实体定义 */
-  delete: (id: string) =>
-    req<void>(`/entity-defs/${id}`, { method: "DELETE" })
+  delete: (id: string) => req<void>(`/entity-defs/${id}`, { method: "DELETE" })
 }

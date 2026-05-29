@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 import { motion, useInView } from "framer-motion"
+import { useEffect, useRef, useState } from "react"
 
 import type { SectionComponentProps } from "../types"
 
@@ -23,7 +23,15 @@ interface StatsProps {
 }
 
 /** 数字动画计数器 */
-function AnimatedNumber({ value, prefix, suffix }: { value: number; prefix?: string; suffix?: string }) {
+function AnimatedNumber({
+  value,
+  prefix,
+  suffix
+}: {
+  value: number
+  prefix?: string
+  suffix?: string
+}) {
   const ref = useRef<HTMLSpanElement>(null)
   const inView = useInView(ref, { once: true })
   const [display, setDisplay] = useState(0)

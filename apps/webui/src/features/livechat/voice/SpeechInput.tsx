@@ -12,8 +12,8 @@
  */
 "use client"
 
+import { AlertCircle, Mic, MicOff } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Mic, MicOff, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 /** Web Speech API 类型声明 */
@@ -132,7 +132,9 @@ export function SpeechInput({ onResult, lang = "zh-CN", className }: SpeechInput
   /** 停止音频可视化 */
   const stopVisualizer = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current)
-    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current?.getTracks().forEach((t) => {
+      t.stop()
+    })
     streamRef.current = null
     analyserRef.current = null
   }, [])
@@ -190,7 +192,7 @@ export function SpeechInput({ onResult, lang = "zh-CN", className }: SpeechInput
 
   if (!supported) {
     return (
-      <div className={`flex items-center gap-2 text-sm text-destructive ${className ?? ""}`}>
+      <div className={`flex items-center gap-2 text-destructive text-sm ${className ?? ""}`}>
         <AlertCircle className="size-4" />
         <span>当前浏览器不支持语音识别，请使用 Chrome 或 Edge</span>
       </div>
@@ -211,23 +213,18 @@ export function SpeechInput({ onResult, lang = "zh-CN", className }: SpeechInput
           {listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
         </Button>
         {listening && (
-          <span className="text-sm text-muted-foreground animate-pulse">正在聆听...</span>
+          <span className="animate-pulse text-muted-foreground text-sm">正在聆听...</span>
         )}
       </div>
 
       {/* 波形可视化 */}
       {listening && (
-        <canvas
-          ref={canvasRef}
-          width={300}
-          height={40}
-          className="w-full h-10 rounded border"
-        />
+        <canvas ref={canvasRef} width={300} height={40} className="h-10 w-full rounded border" />
       )}
 
       {/* 转写结果 */}
       {(final || interim) && (
-        <div className="text-sm p-2 rounded bg-muted">
+        <div className="rounded bg-muted p-2 text-sm">
           <span>{final}</span>
           {interim && <span className="text-muted-foreground">{interim}</span>}
         </div>

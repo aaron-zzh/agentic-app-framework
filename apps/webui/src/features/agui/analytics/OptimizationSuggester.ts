@@ -66,8 +66,8 @@ class OptimizationSuggesterImpl {
     for (const anomaly of failureAnomalies) {
       suggestions.push({
         type: "simplify",
-        target: String(anomaly.context["target"] ?? "unknown"),
-        description: `操作 "${anomaly.context["target"]}" 频繁失败，建议简化交互流程或增加引导`,
+        target: String(anomaly.context.target ?? "unknown"),
+        description: `操作 "${anomaly.context.target}" 频繁失败，建议简化交互流程或增加引导`,
         confidence: 0.8,
         evidence: [anomaly.description]
       })

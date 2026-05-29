@@ -6,9 +6,9 @@
 
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { createTLStore, defaultShapeUtils } from "@tldraw/tldraw"
 import type { TLStore } from "@tldraw/tldraw"
+import { createTLStore, defaultShapeUtils } from "@tldraw/tldraw"
+import { useEffect, useMemo, useState } from "react"
 
 /** 协作者信息 */
 export interface Collaborator {
@@ -47,10 +47,10 @@ interface UseCanvasCollaborationReturn {
  */
 export function useCanvasCollaboration({
   enabled,
-  roomId,
+  roomId
 }: UseCanvasCollaborationOptions): UseCanvasCollaborationReturn {
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
-  const [history, setHistory] = useState<CollaborationHistoryEntry[]>([])
+  const [collaborators, _setCollaborators] = useState<Collaborator[]>([])
+  const [history, _setHistory] = useState<CollaborationHistoryEntry[]>([])
   const [isConnected, setIsConnected] = useState(false)
 
   // 创建 tldraw store（协作模式下由 Yjs 驱动）

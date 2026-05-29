@@ -5,18 +5,10 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import {
-  CalendarDays,
-  CaseSensitive,
-  CheckSquare,
-  Hash,
-  List,
-  Plus,
-  X
-} from "lucide-react"
-
+import { CalendarDays, CaseSensitive, CheckSquare, Hash, List, Plus, X } from "lucide-react"
+import { useCallback, useId, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -28,11 +20,10 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import {
-  customFieldApi,
   type CustomFieldInput,
   type CustomFieldType,
+  customFieldApi,
   type FieldOption
 } from "@/lib/api/custom-field"
 
@@ -57,6 +48,7 @@ interface AddCustomFieldDialogProps {
 export function AddCustomFieldDialog({ slug, open, onOpenChange }: AddCustomFieldDialogProps) {
   const queryClient = useQueryClient()
 
+  const formId = useId()
   const [selectedType, setSelectedType] = useState<CustomFieldType | null>(null)
   const [name, setName] = useState("")
   const [label, setLabel] = useState("")
@@ -144,18 +136,18 @@ export function AddCustomFieldDialog({ slug, open, onOpenChange }: AddCustomFiel
           {selectedType && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="field-name">字段标识</Label>
+                <Label htmlFor={`${formId}-field-name`}>字段标识</Label>
                 <Input
-                  id="field-name"
+                  id={`${formId}-field-name`}
                   placeholder="英文标识，如 custom_phone"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="field-label">显示名称</Label>
+                <Label htmlFor={`${formId}-field-label`}>显示名称</Label>
                 <Input
-                  id="field-label"
+                  id={`${formId}-field-label`}
                   placeholder="如：联系电话"
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
@@ -173,7 +165,12 @@ export function AddCustomFieldDialog({ slug, open, onOpenChange }: AddCustomFiel
                   placeholder="输入选项名称"
                   value={optionInput}
                   onChange={(e) => setOptionInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addOption())}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addOption()
+                    }
+                  }}
                 />
                 <Button type="button" size="sm" variant="outline" onClick={addOption}>
                   <Plus className="size-4" />
@@ -196,10 +193,7 @@ export function AddCustomFieldDialog({ slug, open, onOpenChange }: AddCustomFiel
         </div>
 
         <DialogFooter>
-          <Button
-            onClick={handleSubmit}
-            disabled={!canSubmit || mutation.isPending}
-          >
+          <Button onClick={handleSubmit} disabled={!canSubmit || mutation.isPending}>
             {mutation.isPending ? "添加中..." : "确认添加"}
           </Button>
         </DialogFooter>

@@ -14,14 +14,14 @@ const KEYS = {
   detail: (id: number) => ["media-assets", "detail", id] as const,
   variants: (id: number) => ["media-assets", "variants", id] as const,
   categories: ["media-assets", "categories"] as const,
-  tags: ["media-assets", "tags"] as const,
+  tags: ["media-assets", "tags"] as const
 }
 
 /** 素材列表——生成面板用（旧 MediaAsset 类型） */
 export function useMediaAssets(params: ListParams = {}) {
   return useQuery({
     queryKey: KEYS.list(params),
-    queryFn: () => mediaAssetApi.legacyList(params),
+    queryFn: () => mediaAssetApi.legacyList(params)
   })
 }
 
@@ -30,7 +30,7 @@ export function useMediaAssetSearch(keyword: string) {
   return useQuery({
     queryKey: KEYS.search(keyword),
     queryFn: () => mediaAssetApi.legacySearch(keyword),
-    enabled: keyword.length > 0,
+    enabled: keyword.length > 0
   })
 }
 
@@ -38,16 +38,16 @@ export function useMediaAssetSearch(keyword: string) {
 export function useMediaAssetList(params: ListParams = {}) {
   return useQuery({
     queryKey: ["media-asset-library", "list", params] as const,
-    queryFn: () => mediaAssetApi.list(params),
+    queryFn: () => mediaAssetApi.list(params)
   })
 }
 
 /** 素材详情 */
 export function useMediaAssetDetail(id: number | null) {
   return useQuery({
-    queryKey: KEYS.detail(id!),
-    queryFn: () => mediaAssetApi.getById(id!),
-    enabled: id !== null,
+    queryKey: KEYS.detail(id as NonNullable<typeof id>),
+    queryFn: () => mediaAssetApi.getById(id as NonNullable<typeof id>),
+    enabled: id !== null
   })
 }
 
@@ -59,7 +59,7 @@ export function useDeleteMediaAsset() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.all })
       queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-    },
+    }
   })
 }
 
@@ -71,16 +71,16 @@ export function useRegenerateAsset() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.all })
       queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-    },
+    }
   })
 }
 
 /** 素材变体列表 */
 export function useMediaAssetVariants(id: number | null) {
   return useQuery({
-    queryKey: KEYS.variants(id!),
-    queryFn: () => mediaAssetApi.getVariants(id!),
-    enabled: id !== null,
+    queryKey: KEYS.variants(id as NonNullable<typeof id>),
+    queryFn: () => mediaAssetApi.getVariants(id as NonNullable<typeof id>),
+    enabled: id !== null
   })
 }
 
@@ -89,7 +89,7 @@ export function useMediaCategories() {
   return useQuery({
     queryKey: KEYS.categories,
     queryFn: () => mediaAssetApi.getCategories(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000
   })
 }
 
@@ -98,6 +98,6 @@ export function useMediaTags() {
   return useQuery({
     queryKey: KEYS.tags,
     queryFn: () => mediaAssetApi.getTags(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000
   })
 }

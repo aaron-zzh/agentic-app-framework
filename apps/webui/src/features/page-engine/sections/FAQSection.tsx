@@ -5,9 +5,9 @@
 
 import {
   Accordion,
-  AccordionItem,
-  AccordionTrigger,
   AccordionContent,
+  AccordionItem,
+  AccordionTrigger
 } from "@/components/ui/accordion"
 
 import type { SectionComponentProps } from "../types"

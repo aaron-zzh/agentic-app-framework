@@ -28,7 +28,7 @@ spring:
       port: ${REDIS_PORT:6379}
   graphql:
     graphiql:
-      enabled: true   # 开发环境启用 GraphiQL 调试界面（访问 /graphiql）
+      enabled: true # 开发环境启用 GraphiQL 调试界面（访问 /graphiql）
     schema:
       printer:
         enabled: true
@@ -124,7 +124,6 @@ aaf:
         # 留空则 mcpToolAgent 以无工具模式运行
         server-url: ${MCP_SERVER_URL:https://nws.caseyjhand.co}
         transport: ${MCP_TRANSPORT:streamable-http}
-
 
 agentscope:
   a2a:

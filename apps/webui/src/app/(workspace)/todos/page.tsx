@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
+import { useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -101,11 +101,11 @@ function TodoRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {sourceHref ? (
-            <Link href={sourceHref} className="truncate text-sm font-medium hover:underline">
+            <Link href={sourceHref} className="truncate font-medium text-sm hover:underline">
               {item.title}
             </Link>
           ) : (
-            <span className="truncate text-sm font-medium">{item.title}</span>
+            <span className="truncate font-medium text-sm">{item.title}</span>
           )}
           <Badge variant="outline" className="shrink-0 text-[10px]">
             {SOURCE_LABELS[item.sourceType] ?? item.sourceType}

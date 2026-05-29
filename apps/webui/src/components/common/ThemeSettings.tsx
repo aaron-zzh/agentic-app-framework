@@ -6,23 +6,13 @@
 
 "use client"
 
-import {
-  Contrast,
-  Info,
-  Languages,
-  Monitor,
-  Moon,
-  RotateCcw,
-  Shrink,
-  Sun
-} from "lucide-react"
+import { Contrast, Info, Languages, Monitor, Moon, RotateCcw, Shrink, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect } from "react"
-
-import { type ThemeColor, useUIStore } from "@/lib/store/ui-store"
-import { cn } from "@/lib/utils/cn"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { type ThemeColor, useUIStore } from "@/lib/store/ui-store"
+import { cn } from "@/lib/utils/cn"
 
 /* ─── 主题色预设 ─────────────────────────────────────────── */
 
@@ -143,12 +133,7 @@ export function ThemeSettings() {
           onChange={() => {}}
           tooltip="即将推出"
         />
-        <ToggleCard
-          icon={Languages}
-          label="RTL"
-          checked={false}
-          onChange={() => {}}
-        />
+        <ToggleCard icon={Languages} label="RTL" checked={false} onChange={() => {}} />
         <ToggleCard
           icon={Shrink}
           label="紧凑"
@@ -169,7 +154,9 @@ export function ThemeSettings() {
             <div className="flex gap-2">
               <NavLayoutOption
                 active={!compactLayout}
-                onClick={() => { if (compactLayout) toggleCompactLayout() }}
+                onClick={() => {
+                  if (compactLayout) toggleCompactLayout()
+                }}
               >
                 {/* 宽侧边栏示意 */}
                 <div className="flex h-10 w-14 items-center gap-0.5 rounded border p-1">
@@ -183,7 +170,9 @@ export function ThemeSettings() {
               </NavLayoutOption>
               <NavLayoutOption
                 active={compactLayout}
-                onClick={() => { if (!compactLayout) toggleCompactLayout() }}
+                onClick={() => {
+                  if (!compactLayout) toggleCompactLayout()
+                }}
               >
                 {/* 窄侧边栏示意 */}
                 <div className="flex h-10 w-14 items-center gap-0.5 rounded border p-1">

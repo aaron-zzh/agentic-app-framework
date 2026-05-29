@@ -2,8 +2,9 @@
  * 开发文档 API 客户端（对接 /api/autodev/docs）
  * @author AaronZZH & Kiro
  */
+
+import type { DocRelationGraph, DocSearchResult, DocTreeNode, Document } from "@/lib/types/document"
 import { request } from "./client"
-import type { DocTreeNode, Document, DocSearchResult, DocRelationGraph } from "@/lib/types/document"
 
 const BASE = "/autodev/docs"
 
@@ -16,5 +17,5 @@ export const autodevDocApi = {
     request<Document>(`${BASE}/${id}`, { method: "PUT", body: content }),
   import: () => request<number>(`${BASE}/import`, { method: "POST" }),
   relations: (id: number) => request<DocRelationGraph>(`${BASE}/${id}/relations`),
-  search: (q: string) => request<DocSearchResult[]>(`${BASE}/search?q=${encodeURIComponent(q)}`),
+  search: (q: string) => request<DocSearchResult[]>(`${BASE}/search?q=${encodeURIComponent(q)}`)
 }

@@ -10,7 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { useUpdateKnowledgeBase } from "@/lib/queries/use-knowledge"
 import type { KnowledgeBase } from "@/lib/types/knowledge"
 
@@ -55,13 +61,18 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
         {/* 分块策略 */}
         <div className="space-y-1">
           <Label>分块策略</Label>
-          <Select value={strategy} onValueChange={(v) => v && setStrategy(v as KnowledgeBase["chunkStrategy"])}>
+          <Select
+            value={strategy}
+            onValueChange={(v) => v && setStrategy(v as KnowledgeBase["chunkStrategy"])}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {CHUNK_STRATEGIES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -102,7 +113,9 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
             </SelectTrigger>
             <SelectContent>
               {EMBEDDING_MODELS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

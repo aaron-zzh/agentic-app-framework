@@ -6,7 +6,14 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from "@/components/ui/command"
 import { useMediaAssetSearch } from "@/lib/queries/use-media-assets"
 import { useAigcStore } from "./store"
 
@@ -91,7 +98,7 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
           className="h-8 text-xs"
         />
         <CommandList>
-          <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+          <CommandEmpty className="py-2 text-center text-muted-foreground text-xs">
             未找到素材
           </CommandEmpty>
           <CommandGroup>

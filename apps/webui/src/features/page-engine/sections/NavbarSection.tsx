@@ -5,9 +5,9 @@
 
 "use client"
 
-import { useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import { Menu, X } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils/cn"
@@ -42,6 +42,7 @@ export function NavbarSection({ data }: SectionComponentProps) {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         {/* Logo */}
         <a href="/" className="flex items-center gap-2 font-bold text-lg">
+          {/* biome-ignore lint/performance/noImgElement: 动态用户 URL */}
           {logo && <img src={logo} alt={logoText} className="h-8 w-8" />}
           <span>{logoText}</span>
         </a>

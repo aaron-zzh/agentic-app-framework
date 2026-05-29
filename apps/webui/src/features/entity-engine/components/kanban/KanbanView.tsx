@@ -147,9 +147,7 @@ export function KanbanView({
       // 跨列移动：乐观更新（含批量选中的卡片）
       const idsToMove = selectedIds.size > 1 ? selectedIds : new Set([activeRecordId])
       setLocalData((prev) =>
-        prev.map((r) =>
-          idsToMove.has(String(r.id)) ? { ...r, [statusField]: targetColumn } : r
-        )
+        prev.map((r) => (idsToMove.has(String(r.id)) ? { ...r, [statusField]: targetColumn } : r))
       )
     }
   }
@@ -304,7 +302,7 @@ export function KanbanView({
         ) : null}
         {/* 批量拖拽指示 */}
         {activeRecord && selectedIds.size > 1 && (
-          <div className="-top-2 -right-2 absolute flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
+          <div className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
             {selectedIds.size}
           </div>
         )}
@@ -318,7 +316,6 @@ function KanbanSkeleton({ columns }: { columns: number }) {
   return (
     <div className="flex gap-4 p-4">
       {Array.from({ length: columns }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
         <div key={i} className="flex w-64 shrink-0 flex-col gap-2">
           <div className="h-6 w-20 animate-pulse rounded bg-muted" />
           <div className="h-24 animate-pulse rounded bg-muted" />

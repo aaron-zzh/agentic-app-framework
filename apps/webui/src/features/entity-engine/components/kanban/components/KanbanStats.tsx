@@ -6,7 +6,17 @@
 "use client"
 
 import { useMemo } from "react"
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts"
 
 interface KanbanStatsProps {
   /** 历史快照数据：每个时间点各状态的数量 */
@@ -20,7 +30,12 @@ interface KanbanStatsProps {
 }
 
 /** 看板统计面板 */
-export function KanbanStats({ snapshots, cycleTimes, columnCounts, blockedItems }: KanbanStatsProps) {
+export function KanbanStats({
+  snapshots,
+  cycleTimes,
+  columnCounts,
+  blockedItems
+}: KanbanStatsProps) {
   // 吞吐量：最后一列的数量变化
   const throughputData = useMemo(() => {
     if (!snapshots || snapshots.length < 2) return []
@@ -28,8 +43,7 @@ export function KanbanStats({ snapshots, cycleTimes, columnCounts, blockedItems 
     if (!lastStatus) return []
     return snapshots.slice(1).map((snap, i) => ({
       date: snap.date,
-      throughput:
-        (Number(snap[lastStatus]) || 0) - (Number(snapshots[i][lastStatus]) || 0)
+      throughput: (Number(snap[lastStatus]) || 0) - (Number(snapshots[i][lastStatus]) || 0)
     }))
   }, [snapshots, columnCounts])
 

@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.github.binarywang.wxpay.bean.notify.SignatureHeader;
-import com.github.binarywang.wxpay.bean.notify.WxPayOrderNotifyV3Result;
+import com.github.binarywang.wxpay.bean.notify.WxPayNotifyV3Result;
 import com.github.binarywang.wxpay.bean.notify.WxPayRefundNotifyV3Result;
 import com.github.binarywang.wxpay.bean.request.WxPayRefundV3Request;
 import com.github.binarywang.wxpay.bean.request.WxPayUnifiedOrderV3Request;
@@ -135,7 +135,7 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
     }
 
     /** 验证微信回调签名并解析通知 */
-    public WxPayOrderNotifyV3Result parseOrderNotify(String body, SignatureHeader header)
+    public WxPayNotifyV3Result parseOrderNotify(String body, SignatureHeader header)
             throws WxPayException {
         return wxPayService.parseOrderNotifyV3Result(body, header);
     }
@@ -155,7 +155,7 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
             var result = wxPayService.downloadBill(request);
             // 简化：解析账单内容为 BillItem 列表
             // 实际生产中需解析 CSV 格式
-            log.info("微信账单下载成功: date={}, size={}", date, result.length());
+            log.info("微信账单下载成功: date={}", date);
             return List.of();
         } catch (WxPayException e) {
             log.error("微信账单下载失败: date={}", date, e);

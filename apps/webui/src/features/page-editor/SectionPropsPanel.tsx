@@ -8,14 +8,20 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useId, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import type { SectionDef, SectionStyle } from "../page-engine/types"
 
@@ -28,6 +34,7 @@ interface SectionPropsPanelProps {
 
 /** Section 属性编辑面板 */
 export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps) {
+  const formId = useId()
   const [propsJson, setPropsJson] = useState(() => JSON.stringify(section.props, null, 2))
   const [jsonError, setJsonError] = useState<string | null>(null)
 
@@ -61,9 +68,11 @@ export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps)
 
       {/* ID 编辑 */}
       <div>
-        <Label htmlFor="section-id" className="text-xs">ID（锚点）</Label>
+        <Label htmlFor={`${formId}-section-id`} className="text-xs">
+          ID（锚点）
+        </Label>
         <Input
-          id="section-id"
+          id={`${formId}-section-id`}
           value={section.id}
           onChange={(e) => onChange({ ...section, id: e.target.value })}
           className="mt-1 h-8 text-xs"
@@ -75,12 +84,14 @@ export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps)
         <h4 className="font-medium text-xs">样式</h4>
 
         <div>
-          <Label htmlFor="section-padding" className="text-xs">内边距</Label>
+          <Label htmlFor={`${formId}-section-padding`} className="text-xs">
+            内边距
+          </Label>
           <Select
             value={section.style?.padding ?? ""}
             onValueChange={(v) => updateStyle("padding", v ?? "")}
           >
-            <SelectTrigger id="section-padding" className="mt-1 h-8 text-xs">
+            <SelectTrigger id={`${formId}-section-padding`} className="mt-1 h-8 text-xs">
               <SelectValue placeholder="默认" />
             </SelectTrigger>
             <SelectContent>
@@ -93,12 +104,14 @@ export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps)
         </div>
 
         <div>
-          <Label htmlFor="section-animation" className="text-xs">动效</Label>
+          <Label htmlFor={`${formId}-section-animation`} className="text-xs">
+            动效
+          </Label>
           <Select
             value={section.style?.animation ?? "none"}
             onValueChange={(v) => updateStyle("animation", v ?? "none")}
           >
-            <SelectTrigger id="section-animation" className="mt-1 h-8 text-xs">
+            <SelectTrigger id={`${formId}-section-animation`} className="mt-1 h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -112,9 +125,11 @@ export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps)
         </div>
 
         <div>
-          <Label htmlFor="section-bg" className="text-xs">背景色</Label>
+          <Label htmlFor={`${formId}-section-bg`} className="text-xs">
+            背景色
+          </Label>
           <Input
-            id="section-bg"
+            id={`${formId}-section-bg`}
             value={section.style?.backgroundColor ?? ""}
             onChange={(e) => updateStyle("backgroundColor", e.target.value)}
             placeholder="如 #f5f5f5"
@@ -125,9 +140,11 @@ export function SectionPropsPanel({ section, onChange }: SectionPropsPanelProps)
 
       {/* Props JSON 编辑 */}
       <div className="border-t pt-3">
-        <Label htmlFor="section-props" className="text-xs">属性（JSON）</Label>
+        <Label htmlFor={`${formId}-section-props`} className="text-xs">
+          属性（JSON）
+        </Label>
         <Textarea
-          id="section-props"
+          id={`${formId}-section-props`}
           value={propsJson}
           onChange={(e) => {
             setPropsJson(e.target.value)

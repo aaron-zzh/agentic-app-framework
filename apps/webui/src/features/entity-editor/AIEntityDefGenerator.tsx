@@ -6,14 +6,13 @@
 
 "use client"
 
+import { Bot, Check, Copy, Loader2, Send, Sparkles } from "lucide-react"
 import { useCallback, useState } from "react"
-import { Bot, Loader2, Send, Sparkles, Check, Copy } from "lucide-react"
-
+import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
 import { ViewEngine } from "@/features/entity-engine/components/ViewEngine"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { useCreateEntityDef } from "@/lib/queries/use-entity-defs"
@@ -208,7 +207,7 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
       {/* 标题栏 */}
       <div className="flex items-center gap-2 border-b px-4 py-2">
         <Sparkles className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium">AI 生成 EntityDef</span>
+        <span className="font-medium text-sm">AI 生成 EntityDef</span>
         {previewEntity && <Badge variant="secondary">{previewEntity.label}</Badge>}
       </div>
 
@@ -231,7 +230,7 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                    className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${
                       msg.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground"
@@ -243,7 +242,7 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-muted-foreground text-sm">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     生成中...
                   </div>
@@ -284,20 +283,12 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
                 <Copy className="mr-1 h-3 w-3" />
                 应用到编辑器
               </Button>
-              <Button
-                size="sm"
-                onClick={handleSaveAndCreate}
-                disabled={createMutation.isPending}
-              >
+              <Button size="sm" onClick={handleSaveAndCreate} disabled={createMutation.isPending}>
                 <Check className="mr-1 h-3 w-3" />
                 {createMutation.isPending ? "保存中..." : "保存并创建"}
               </Button>
-              {createMutation.isSuccess && (
-                <Badge variant="secondary">✓ 已创建</Badge>
-              )}
-              {createMutation.isError && (
-                <Badge variant="destructive">创建失败</Badge>
-              )}
+              {createMutation.isSuccess && <Badge variant="secondary">✓ 已创建</Badge>}
+              {createMutation.isError && <Badge variant="destructive">创建失败</Badge>}
             </div>
           )}
 
@@ -305,12 +296,12 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
           <ScrollArea className="flex-1 p-4">
             {previewEntity ? (
               <div className="space-y-4">
-                <p className="text-xs font-medium text-muted-foreground">视图预览</p>
+                <p className="font-medium text-muted-foreground text-xs">视图预览</p>
                 <ViewErrorBoundary>
                   <ViewEngine entity={previewEntity} view="list" />
                 </ViewErrorBoundary>
                 <details className="mt-4">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">
+                  <summary className="cursor-pointer text-muted-foreground text-xs">
                     查看 JSON 配置
                   </summary>
                   <pre className="mt-2 overflow-auto rounded-md bg-muted p-3 text-xs">
@@ -319,7 +310,7 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
                 </details>
               </div>
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
                 AI 生成的配置将在此处预览
               </div>
             )}

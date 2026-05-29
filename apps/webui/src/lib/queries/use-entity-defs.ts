@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { entityDefApi, type EntityDefInput } from "@/lib/api/entity-def"
+import { type EntityDefInput, entityDefApi } from "@/lib/api/entity-def"
 
 const ENTITY_DEFS_KEY = ["entity-defs"]
 
@@ -21,7 +21,7 @@ export function useEntityDefs() {
 export function useEntityDef(id: string | undefined) {
   return useQuery({
     queryKey: [...ENTITY_DEFS_KEY, id],
-    queryFn: () => entityDefApi.get(id!),
+    queryFn: () => entityDefApi.get(id as NonNullable<typeof id>),
     enabled: !!id
   })
 }

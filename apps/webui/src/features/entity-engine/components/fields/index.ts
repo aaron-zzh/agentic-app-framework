@@ -1,9 +1,3 @@
-export { CheckboxInput } from "./CheckboxInput"
-export { DateInput } from "./DateInput"
-export { NumberInput } from "./NumberInput"
-export { SelectInput } from "./SelectInput"
-export { TextareaInput } from "./TextareaInput"
-export { TextInput } from "./TextInput"
 export {
   CascaderInput,
   MoneyInput,
@@ -15,3 +9,9 @@ export {
   SwitchInput,
   UploadInput
 } from "./adapters"
+export { CheckboxInput } from "./CheckboxInput"
+export { DateInput } from "./DateInput"
+export { NumberInput } from "./NumberInput"
+export { SelectInput } from "./SelectInput"
+export { TextareaInput } from "./TextareaInput"
+export { TextInput } from "./TextInput"

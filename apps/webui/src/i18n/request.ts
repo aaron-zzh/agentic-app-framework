@@ -12,8 +12,8 @@
  * 3. 在 layout.tsx 中用 NextIntlClientProvider 包裹 children
  */
 
-import { getRequestConfig } from "next-intl/server"
 import { cookies } from "next/headers"
+import { getRequestConfig } from "next-intl/server"
 
 import { defaultLocale, LOCALE_COOKIE, type Locale, locales } from "./config"
 

@@ -8,7 +8,7 @@
 "use client"
 
 import { m } from "framer-motion"
-import { Calendar, Menu, Moon, Search, Sun, Users, MessageSquare } from "lucide-react"
+import { Calendar, Menu, MessageSquare, Moon, Search, Sun, Users } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useState } from "react"
@@ -256,7 +256,6 @@ function SettingsIcon() {
     </svg>
   )
 }
-
 
 /** Chatter 全局触发按钮（读取 chatter store，直接控制 open 状态） */
 function ChatterToggle() {

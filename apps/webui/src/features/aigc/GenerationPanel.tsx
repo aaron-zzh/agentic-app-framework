@@ -5,18 +5,24 @@
 
 "use client"
 
-import { useRef } from "react"
+import { useDroppable } from "@dnd-kit/core"
 import { AnimatePresence, motion } from "framer-motion"
 import { ChevronDown, Upload, X } from "lucide-react"
-import { useDroppable } from "@dnd-kit/core"
+import { useRef } from "react"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useGenerateImage } from "@/lib/queries/use-image-generation"
 import { cn } from "@/lib/utils/index"
-import { useAigcStore } from "./store"
-import { ReferenceRow } from "./ReferenceRow"
 import { AtMention } from "./AtMention"
+import { ReferenceRow } from "./ReferenceRow"
+import { useAigcStore } from "./store"
 
 function ReferenceDropZone() {
   const { isOver, setNodeRef } = useDroppable({ id: "generation-drop-zone" })
@@ -27,7 +33,7 @@ function ReferenceDropZone() {
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-h-[72px] flex-wrap items-center gap-2 rounded-lg border border-dashed border-border/50 p-2 transition-colors",
+        "flex min-h-[72px] flex-wrap items-center gap-2 rounded-lg border border-border/50 border-dashed p-2 transition-colors",
         isOver && "border-primary bg-primary/5"
       )}
     >
@@ -38,13 +44,13 @@ function ReferenceDropZone() {
           <button
             type="button"
             onClick={() => removeReferenceAsset(asset.id)}
-            className="absolute -right-1 -top-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
+            className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
           >
             <X className="size-3" />
           </button>
         </div>
       ))}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-muted-foreground text-xs">
         <Upload className="size-4" />
         <span>{referenceAssets.length}/16</span>
       </div>
@@ -79,7 +85,7 @@ export function GenerationPanel() {
           animate={{ y: 0 }}
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="absolute inset-x-0 bottom-0 z-50 rounded-t-xl border-t border-border bg-card shadow-2xl"
+          className="absolute inset-x-0 bottom-0 z-50 rounded-t-xl border-border border-t bg-card shadow-2xl"
         >
           <div className="flex flex-col gap-3 p-4">
             {/* 参考素材拖入区 */}

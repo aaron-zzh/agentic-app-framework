@@ -8,20 +8,17 @@
 
 "use client"
 
-import { ThreadListPrimitive, ThreadPrimitive, ComposerPrimitive, MessagePrimitive } from "@assistant-ui/react"
+import {
+  ComposerPrimitive,
+  MessagePrimitive,
+  ThreadListPrimitive,
+  ThreadPrimitive
+} from "@assistant-ui/react"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup
-} from "@/components/ui/resizable"
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger
-} from "@/components/ui/sheet"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useResponsive } from "@/lib/hooks/use-responsive"
 
 interface ChatLayoutProps {
@@ -54,7 +51,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
               <div className="h-full overflow-y-auto pt-8">
                 <ThreadListPrimitive.Root>
                   <ThreadListPrimitive.Items>
-                    {() => <div className="px-3 py-2 text-sm hover:bg-accent cursor-pointer" />}
+                    {() => <div className="cursor-pointer px-3 py-2 text-sm hover:bg-accent" />}
                   </ThreadListPrimitive.Items>
                 </ThreadListPrimitive.Root>
               </div>
@@ -66,8 +63,12 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
             <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
               <ThreadPrimitive.Messages>
                 {({ message }) => (
-                  <div className={`mb-3 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  <div
+                    className={`mb-3 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    >
                       <MessagePrimitive.Content />
                     </div>
                   </div>
@@ -75,7 +76,10 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
               </ThreadPrimitive.Messages>
             </ThreadPrimitive.Viewport>
             <ComposerPrimitive.Root className="border-t p-3">
-              <ComposerPrimitive.Input className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring" placeholder="输入消息..." />
+              <ComposerPrimitive.Input
+                className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+                placeholder="输入消息..."
+              />
               <ComposerPrimitive.Send />
             </ComposerPrimitive.Root>
           </ThreadPrimitive.Root>
@@ -101,7 +105,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                 <div className="min-h-0 flex-1 overflow-y-auto">
                   <ThreadListPrimitive.Root>
                     <ThreadListPrimitive.Items>
-                      {() => <div className="px-3 py-2 text-sm hover:bg-accent cursor-pointer" />}
+                      {() => <div className="cursor-pointer px-3 py-2 text-sm hover:bg-accent" />}
                     </ThreadListPrimitive.Items>
                   </ThreadListPrimitive.Root>
                 </div>
@@ -125,8 +129,12 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                 <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
                   <ThreadPrimitive.Messages>
                     {({ message }) => (
-                      <div className={`mb-3 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <div
+                        className={`mb-3 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                        >
                           <MessagePrimitive.Content />
                         </div>
                       </div>
@@ -134,7 +142,10 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                   </ThreadPrimitive.Messages>
                 </ThreadPrimitive.Viewport>
                 <ComposerPrimitive.Root className="border-t p-3">
-                  <ComposerPrimitive.Input className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring" placeholder="输入消息..." />
+                  <ComposerPrimitive.Input
+                    className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+                    placeholder="输入消息..."
+                  />
                   <ComposerPrimitive.Send />
                 </ComposerPrimitive.Root>
               </ThreadPrimitive.Root>

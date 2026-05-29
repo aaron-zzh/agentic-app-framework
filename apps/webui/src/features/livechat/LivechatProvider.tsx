@@ -7,17 +7,17 @@
 
 "use client"
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import {
+  type AppendMessage,
   AssistantRuntimeProvider,
-  useExternalStoreRuntime,
-  type ThreadMessage,
   type ExternalStoreThreadListAdapter,
-  type AppendMessage
+  type ThreadMessage,
+  useExternalStoreRuntime
 } from "@assistant-ui/react"
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import type { ChatMessageVO } from "@/lib/api/chat"
 import { useWebSocket } from "@/lib/hooks/use-websocket"
 import { useChatMessages } from "@/lib/queries/use-chat"
-import type { ChatMessageVO } from "@/lib/api/chat"
 import type { LivechatRuntimeConfig } from "./runtime"
 
 /** 后端 ChatMessageVO → assistant-ui ThreadMessage */
@@ -80,7 +80,7 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
     }
   }, [])
 
-  const { } = useWebSocket({
+  useWebSocket({
     url: wsUrl,
     onMessage: handleWsMessage,
     enabled: !!sessionId
@@ -131,9 +131,5 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
     }
   })
 
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
-  )
+  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
 }

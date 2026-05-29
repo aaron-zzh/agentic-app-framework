@@ -23,23 +23,23 @@ export function VariableSelector({ variables, onSelect }: VariableSelectorProps)
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="text-muted-foreground hover:text-foreground text-xs underline"
+        className="text-muted-foreground text-xs underline hover:text-foreground"
       >
         插入变量
       </button>
       {open && (
-        <div className="bg-popover border-border absolute top-6 z-10 w-48 rounded-md border p-1 shadow-md">
+        <div className="absolute top-6 z-10 w-48 rounded-md border border-border bg-popover p-1 shadow-md">
           {variables.map((v) => (
             <button
               key={v.name}
               type="button"
-              className="hover:bg-accent flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm"
+              className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-accent"
               onClick={() => {
                 onSelect(`\${${v.name}}`)
                 setOpen(false)
               }}
             >
-              <span className="text-muted-foreground font-mono text-xs">{v.type}</span>
+              <span className="font-mono text-muted-foreground text-xs">{v.type}</span>
               <span>{v.name}</span>
             </button>
           ))}

@@ -31,7 +31,7 @@ export function LanguageSwitcher() {
 
   function switchLocale(locale: Locale) {
     if (locale === currentLocale) return
-    // 设置 cookie 持久化语言偏好
+    // biome-ignore lint/suspicious/noDocumentCookie: 持久化语言偏好需要直接操作 cookie
     document.cookie = `${LOCALE_COOKIE}=${locale};path=/;max-age=${60 * 60 * 24 * 365}`
     // 刷新页面加载新语言
     window.location.reload()

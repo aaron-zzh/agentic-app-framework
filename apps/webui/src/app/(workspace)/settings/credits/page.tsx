@@ -5,13 +5,20 @@
 
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table"
 import type { CreditTransactionType } from "@/lib/api/credits"
 import { useCreditBalance, useCreditTransactions } from "@/lib/queries/use-credits"
 
@@ -134,7 +141,9 @@ export default function CreditsPage() {
                       </TableCell>
                       <TableCell>{tx.balanceAfter}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{tx.source}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{tx.createTime}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {tx.createTime}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

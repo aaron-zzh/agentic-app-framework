@@ -81,7 +81,8 @@ export function useWorkflowRuntime() {
         case "STATE_DELTA": {
           const delta = event.state ?? {}
           const currentNodeId = delta.currentNodeId as string | undefined
-          const completedNodes = (delta.completedNodes as string[]) ?? prev.executionState.completedNodes
+          const completedNodes =
+            (delta.completedNodes as string[]) ?? prev.executionState.completedNodes
           const failedNodes = (delta.failedNodes as string[]) ?? prev.executionState.failedNodes
           const nodeTimings = delta.nodeTimings as Record<string, number> | undefined
           return {

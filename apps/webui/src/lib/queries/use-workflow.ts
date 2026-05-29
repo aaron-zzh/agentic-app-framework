@@ -10,7 +10,8 @@ import { workflowApi } from "@/lib/api/workflow"
 export function useWorkflowStatus(processInstanceId?: string) {
   return useQuery({
     queryKey: ["workflow", processInstanceId, "status"],
-    queryFn: () => workflowApi.getStatus(processInstanceId!),
+    queryFn: () =>
+      workflowApi.getStatus(processInstanceId as NonNullable<typeof processInstanceId>),
     enabled: !!processInstanceId
   })
 }
@@ -19,7 +20,8 @@ export function useWorkflowStatus(processInstanceId?: string) {
 export function useWorkflowHistory(processInstanceId?: string) {
   return useQuery({
     queryKey: ["workflow", processInstanceId, "history"],
-    queryFn: () => workflowApi.getHistory(processInstanceId!),
+    queryFn: () =>
+      workflowApi.getHistory(processInstanceId as NonNullable<typeof processInstanceId>),
     enabled: !!processInstanceId
   })
 }

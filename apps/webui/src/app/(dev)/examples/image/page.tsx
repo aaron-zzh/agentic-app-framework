@@ -8,19 +8,19 @@
 
 import { useCallback, useRef, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
-import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -46,9 +46,7 @@ export default function ImageExamplePage() {
     <PageContainer maxWidth="md">
       <div className="mb-6 space-y-2">
         <TypographyH1>图像生成与处理</TypographyH1>
-        <TypographyMuted>
-          需要后端启用 aaf.examples.image.enabled=true
-        </TypographyMuted>
+        <TypographyMuted>需要后端启用 aaf.examples.image.enabled=true</TypographyMuted>
       </div>
 
       <Tabs defaultValue="generate">
@@ -85,7 +83,7 @@ function GenerateTab() {
       const res = await fetch(`${API_URL}/api/examples/image/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt })
       })
       const json = (await res.json()) as ApiResponse<ImageResult>
       if (json.code !== 0) throw new Error(json.message || "生成失败")
@@ -150,27 +148,25 @@ function ProcessTab() {
   const pollTask = useCallback((taskId: string) => {
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(
-          `${API_URL}/api/examples/image/process/${taskId}`
-        )
+        const res = await fetch(`${API_URL}/api/examples/image/process/${taskId}`)
         const json = (await res.json()) as ApiResponse<ProcessResult>
         if (json.code !== 0) {
-          clearInterval(pollingRef.current!)
+          if (pollingRef.current) clearInterval(pollingRef.current)
           setError(json.message || "查询失败")
           setLoading(false)
           return
         }
         if (json.data.status === "completed" || json.data.imageUrl) {
-          clearInterval(pollingRef.current!)
+          if (pollingRef.current) clearInterval(pollingRef.current)
           setResult(json.data)
           setLoading(false)
         } else if (json.data.status === "failed") {
-          clearInterval(pollingRef.current!)
+          if (pollingRef.current) clearInterval(pollingRef.current)
           setError("处理失败")
           setLoading(false)
         }
       } catch {
-        clearInterval(pollingRef.current!)
+        if (pollingRef.current) clearInterval(pollingRef.current)
         setError("轮询请求失败")
         setLoading(false)
       }
@@ -187,7 +183,7 @@ function ProcessTab() {
       const res = await fetch(`${API_URL}/api/examples/image/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl, method }),
+        body: JSON.stringify({ imageUrl, method })
       })
       const json = (await res.json()) as ApiResponse<ProcessResult>
       if (json.code !== 0) throw new Error(json.message || "处理失败")

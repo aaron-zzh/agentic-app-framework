@@ -3,16 +3,16 @@
  * @author AaronZZH & Kiro
  */
 
-import type { ListParams } from "./client"
-import { request, fetchList } from "./client"
 import type {
-  KnowledgeBase,
-  KnowledgeDocument,
-  KnowledgeBaseStats,
   CreateKnowledgeBaseInput,
   GraphData,
+  KnowledgeBase,
+  KnowledgeBaseStats,
+  KnowledgeDocument,
   SearchResponse
 } from "@/lib/types/knowledge"
+import type { ListParams } from "./client"
+import { fetchList, request } from "./client"
 
 const API_PATH = "/knowledge-bases"
 
@@ -32,8 +32,7 @@ export const knowledgeApi = {
     request<KnowledgeBase>(`${API_PATH}/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
   /** 删除知识库 */
-  delete: (id: string) =>
-    request<void>(`${API_PATH}/${id}`, { method: "DELETE" }),
+  delete: (id: string) => request<void>(`${API_PATH}/${id}`, { method: "DELETE" }),
 
   /** 知识库统计 */
   stats: (id: string) => request<KnowledgeBaseStats>(`${API_PATH}/${id}/stats`),
@@ -46,7 +45,10 @@ export const knowledgeApi = {
   graph: (id: string) => request<GraphData>(`${API_PATH}/${id}/graph`),
 
   /** 检索 */
-  search: (id: string, params: { query: string; topK?: number; threshold?: number; mode?: string }) =>
+  search: (
+    id: string,
+    params: { query: string; topK?: number; threshold?: number; mode?: string }
+  ) =>
     request<SearchResponse>(`${API_PATH}/${id}/search`, {
       method: "POST",
       body: JSON.stringify(params)

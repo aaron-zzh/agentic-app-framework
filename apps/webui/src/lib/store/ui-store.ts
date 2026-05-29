@@ -1,13 +1,6 @@
 import { create } from "zustand"
 
-export type ThemeColor =
-  | "default"
-  | "blue"
-  | "purple"
-  | "orange"
-  | "green"
-  | "rose"
-  | "cyan"
+export type ThemeColor = "default" | "blue" | "purple" | "orange" | "green" | "rose" | "cyan"
 
 export interface WorkspaceItem {
   id: string

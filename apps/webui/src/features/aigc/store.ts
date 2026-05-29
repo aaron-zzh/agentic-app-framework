@@ -51,10 +51,10 @@ export const useAigcStore = create<AigcStore>((set) => ({
     }),
   removeReferenceAsset: (id) =>
     set((state) => ({
-      referenceAssets: state.referenceAssets.filter((a) => a.id !== id),
+      referenceAssets: state.referenceAssets.filter((a) => a.id !== id)
     })),
   setPrompt: (prompt) => set({ prompt }),
   setModel: (model) => set({ model }),
   setResolution: (resolution) => set({ resolution }),
-  setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
+  setAspectRatio: (ratio) => set({ aspectRatio: ratio })
 }))

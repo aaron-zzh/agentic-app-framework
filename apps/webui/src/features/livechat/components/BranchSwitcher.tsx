@@ -57,11 +57,7 @@ export function MessageEditTrigger() {
 
   return (
     <MessagePrimitive.If user>
-      <Button
-        variant="ghost"
-        size="xs"
-        onClick={() => messageRuntime.composer.beginEdit()}
-      >
+      <Button variant="ghost" size="xs" onClick={() => messageRuntime.composer.beginEdit()}>
         <Pencil className="size-3" />
         <span className="sr-only">编辑消息</span>
       </Button>
@@ -84,11 +80,7 @@ export function MessageEditComposer() {
     <div className="flex flex-col gap-2">
       <ComposerPrimitive.Input className="min-h-[60px] w-full resize-none rounded-md border bg-background p-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
       <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => messageRuntime.composer.cancel()}
-        >
+        <Button variant="outline" size="sm" onClick={() => messageRuntime.composer.cancel()}>
           取消
         </Button>
         <ComposerPrimitive.Send asChild>

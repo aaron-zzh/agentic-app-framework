@@ -4,11 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import {
-  organizationApi,
-  type OrgAddMemberReq,
-  type OrgUpdateReq
-} from "@/lib/api/organization"
+import { type OrgAddMemberReq, type OrgUpdateReq, organizationApi } from "@/lib/api/organization"
 
 const KEYS = {
   orgs: ["organizations"] as const,

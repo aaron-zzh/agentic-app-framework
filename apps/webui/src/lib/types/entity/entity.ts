@@ -139,7 +139,6 @@ export interface SmartButton {
   linkTo: string // 支持 {id} 占位符
 }
 
-
 /** 实体审批工作流配置 */
 export interface EntityWorkflowConfig {
   /** 关联的流程定义 key */

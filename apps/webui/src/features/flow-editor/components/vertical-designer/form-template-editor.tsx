@@ -43,13 +43,16 @@ export function FormTemplateEditor({ fields, onChange }: FormTemplateEditorProps
 
   /** 添加字段 */
   function addField() {
-    onChange([...fields, {
-      id: genFieldId(),
-      name: "",
-      label: "",
-      type: "text",
-      required: false
-    }])
+    onChange([
+      ...fields,
+      {
+        id: genFieldId(),
+        name: "",
+        label: "",
+        type: "text",
+        required: false
+      }
+    ])
   }
 
   /** 更新字段 */
@@ -81,35 +84,35 @@ export function FormTemplateEditor({ fields, onChange }: FormTemplateEditorProps
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">表单字段</h3>
+        <h3 className="font-medium text-sm">表单字段</h3>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
             {showPreview ? "编辑" : "预览"}
           </Button>
-          <Button size="sm" onClick={addField}>+ 添加字段</Button>
+          <Button size="sm" onClick={addField}>
+            + 添加字段
+          </Button>
         </div>
       </div>
 
       {showPreview ? (
         /* 表单预览 */
         <div className="space-y-3 rounded-md border p-4">
-          {fields.length === 0 && (
-            <p className="text-sm text-muted-foreground">暂无字段</p>
-          )}
+          {fields.length === 0 && <p className="text-muted-foreground text-sm">暂无字段</p>}
           {fields.map((field) => (
             <div key={field.id}>
-              <label className="text-sm font-medium">
+              <span className="font-medium text-sm">
                 {field.label || field.name || "未命名"}
                 {field.required && <span className="ml-1 text-destructive">*</span>}
-              </label>
+              </span>
               {field.type === "textarea" ? (
-                <div className="border-input mt-1 h-16 rounded-md border bg-muted/30" />
+                <div className="mt-1 h-16 rounded-md border border-input bg-muted/30" />
               ) : field.type === "select" ? (
-                <div className="border-input mt-1 h-9 rounded-md border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+                <div className="mt-1 h-9 rounded-md border border-input bg-muted/30 px-3 py-1.5 text-muted-foreground text-xs">
                   请选择...
                 </div>
               ) : (
-                <div className="border-input mt-1 h-9 rounded-md border bg-muted/30" />
+                <div className="mt-1 h-9 rounded-md border border-input bg-muted/30" />
               )}
             </div>
           ))}
@@ -145,36 +148,44 @@ export function FormTemplateEditor({ fields, onChange }: FormTemplateEditorProps
               <div className="flex-1 space-y-2">
                 <div className="flex gap-2">
                   <input
-                    className="border-input h-8 flex-1 rounded-md border px-2 text-xs"
+                    className="h-8 flex-1 rounded-md border border-input px-2 text-xs"
                     value={field.name}
                     onChange={(e) => updateField(idx, { name: e.target.value })}
                     placeholder="字段名（英文）"
                   />
                   <input
-                    className="border-input h-8 flex-1 rounded-md border px-2 text-xs"
+                    className="h-8 flex-1 rounded-md border border-input px-2 text-xs"
                     value={field.label}
                     onChange={(e) => updateField(idx, { label: e.target.value })}
                     placeholder="显示标签"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Select value={field.type} onValueChange={(v) => updateField(idx, { type: v as FormFieldType })}>
+                  <Select
+                    value={field.type}
+                    onValueChange={(v) => updateField(idx, { type: v as FormFieldType })}
+                  >
                     <SelectTrigger className="h-7 w-24 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {FIELD_TYPES.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <label className="flex items-center gap-1 text-xs">
+                  <span className="flex items-center gap-1 text-xs">
                     <Checkbox
                       checked={field.required}
-                      onCheckedChange={(checked) => updateField(idx, { required: checked === true })}
+                      aria-label="必填"
+                      onCheckedChange={(checked) =>
+                        updateField(idx, { required: checked === true })
+                      }
                     />
                     必填
-                  </label>
+                  </span>
                 </div>
               </div>
 
@@ -190,7 +201,7 @@ export function FormTemplateEditor({ fields, onChange }: FormTemplateEditorProps
             </div>
           ))}
           {fields.length === 0 && (
-            <p className="py-4 text-center text-sm text-muted-foreground">
+            <p className="py-4 text-center text-muted-foreground text-sm">
               点击"添加字段"开始构建表单
             </p>
           )}
@@ -198,7 +209,7 @@ export function FormTemplateEditor({ fields, onChange }: FormTemplateEditorProps
       )}
 
       <Separator />
-      <p className="text-xs text-muted-foreground">
+      <p className="text-muted-foreground text-xs">
         共 {fields.length} 个字段，{fields.filter((f) => f.required).length} 个必填
       </p>
     </div>

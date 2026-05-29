@@ -17,11 +17,10 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-
-import type { EntityDef } from "@/lib/types/entity"
+import { useCallback, useState } from "react"
 import { ApiError, fetchRecord, updateRecord } from "@/lib/api/client"
+import type { EntityDef } from "@/lib/types/entity"
 
 interface ConflictState {
   open: boolean
@@ -47,8 +46,7 @@ export function useOptimisticLock(
   })
 
   const mutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) =>
-      updateRecord(entity.apiPath, id, data),
+    mutationFn: (data: Record<string, unknown>) => updateRecord(entity.apiPath, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
       queryClient.invalidateQueries({ queryKey: [entity.slug, "record", id] })

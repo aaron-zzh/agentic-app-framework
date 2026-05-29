@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
 import { Eye, Pencil, Plus } from "lucide-react"
+import { useCallback, useState } from "react"
 import { toast } from "sonner"
 
 import { PageContainer } from "@/components/common/PageContainer"
@@ -22,7 +22,13 @@ import { aafLandingPageDef } from "@/features/page-engine/presets/aaf-landing"
 import type { PageDef } from "@/features/page-engine/types"
 
 /** 模拟页面列表（v0.1 使用本地数据，后续接 API） */
-const MOCK_PAGES: Array<{ id: string; title: string; slug: string; status: "draft" | "published"; updatedAt: string }> = [
+const MOCK_PAGES: Array<{
+  id: string
+  title: string
+  slug: string
+  status: "draft" | "published"
+  updatedAt: string
+}> = [
   { id: "1", title: "AAF 产品首页", slug: "home", status: "published", updatedAt: "2026-05-19" },
   { id: "2", title: "定价页", slug: "pricing", status: "draft", updatedAt: "2026-05-18" }
 ]
@@ -88,7 +94,11 @@ export default function PagesAdminPage() {
                     <Pencil className="size-4" />
                   </Button>
                   <Button variant="ghost" size="sm" asChild aria-label="预览">
-                    <a href={`/${page.slug === "home" ? "" : page.slug}`} target="_blank" rel="noreferrer">
+                    <a
+                      href={`/${page.slug === "home" ? "" : page.slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       <Eye className="size-4" />
                     </a>
                   </Button>

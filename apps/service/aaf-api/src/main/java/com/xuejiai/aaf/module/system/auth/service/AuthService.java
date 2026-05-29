@@ -120,6 +120,24 @@ public class AuthService {
         return generateTokensWithSession(user, deviceId);
     }
 
+    /** 邮箱验证码注册（无需密码，验证通过直接登录） */
+    @Transactional
+    public AuthLoginVO registerByCode(RegisterByCodeDTO dto, String deviceId) {
+        validateCode(dto.email(), "register", dto.code());
+        if (userRepository.findByEmail(dto.email()).isPresent()) {
+            throw exception(AUTH_EMAIL_ALREADY_REGISTERED);
+        }
+        var user = new User();
+        user.setEmail(dto.email());
+        user.setUsername(generateUsername(dto.email()));
+        user.setPassword(
+                passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
+        user.setNickname(dto.nickname() != null ? dto.nickname() : dto.email().split("@")[0]);
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        return generateTokensWithSession(user, deviceId);
+    }
+
     // ==================== 验证码 ====================
 
     /** 发送验证码 */

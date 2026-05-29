@@ -7,8 +7,8 @@
 
 "use client"
 
-import { useEffect } from "react"
 import { X } from "lucide-react"
+import { useEffect } from "react"
 
 interface RecoveryNotificationProps {
   taskCount: number
@@ -23,11 +23,9 @@ export function RecoveryNotification({ taskCount, onDismiss }: RecoveryNotificat
   }, [onDismiss])
 
   return (
-    <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
+    <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800 text-sm dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
       <span className="shrink-0">🔄</span>
-      <span className="flex-1">
-        之前的任务已恢复，继续执行中...（{taskCount} 个任务）
-      </span>
+      <span className="flex-1">之前的任务已恢复，继续执行中...（{taskCount} 个任务）</span>
       <button
         type="button"
         onClick={onDismiss}

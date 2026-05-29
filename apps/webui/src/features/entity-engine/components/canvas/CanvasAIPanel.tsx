@@ -5,9 +5,9 @@
 
 "use client"
 
-import { useState } from "react"
 import type { Editor } from "@tldraw/tldraw"
-import { Sparkles, LayoutGrid, Lightbulb, PenTool } from "lucide-react"
+import { LayoutGrid, Lightbulb, PenTool, Sparkles } from "lucide-react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -23,10 +23,11 @@ interface CanvasAIPanelProps {
 type AIAction = "generate" | "layout" | "suggest" | "convert"
 
 /** 画板 AI 辅助面板 */
+// biome-ignore lint/correctness/noUnusedFunctionParameters: entity 在函数体中使用
 export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
   const [prompt, setPrompt] = useState("")
   const [loading, setLoading] = useState(false)
-  const [activeAction, setActiveAction] = useState<AIAction | null>(null)
+  const [_activeAction, _setActiveAction] = useState<AIAction | null>(null)
 
   /** AI 生成图表（描述→流程图/思维导图） */
   const handleGenerate = async () => {
@@ -59,7 +60,7 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
 
   /** AI 内容建议（根据画板内容建议补充节点） */
   const handleSuggest = async () => {
-    const allShapes = editor.getCurrentPageShapes()
+    const _allShapes = editor.getCurrentPageShapes()
     setLoading(true)
     try {
       // TODO: 调用后端 AI 接口获取建议
@@ -92,18 +93,13 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
         {/* AI 生成图表 */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              title="AI 生成图表"
-              disabled={loading}
-            >
+            <Button variant="ghost" size="sm" title="AI 生成图表" disabled={loading}>
               <Sparkles className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72" side="top">
             <div className="space-y-2">
-              <p className="text-sm font-medium">AI 生成图表</p>
+              <p className="font-medium text-sm">AI 生成图表</p>
               <Textarea
                 placeholder="描述你想生成的图表，如：用户注册流程图..."
                 value={prompt}

@@ -17,12 +17,7 @@
 
 "use client"
 
-import {
-  Clock,
-  LayoutDashboard,
-  Navigation,
-  Terminal
-} from "lucide-react"
+import { Clock, LayoutDashboard, Navigation, Terminal } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
@@ -35,9 +30,9 @@ import {
   CommandList,
   CommandSeparator
 } from "@/components/ui/command"
-import { entityRegistry } from "@/lib/modules/entity-registry"
 import { paths } from "@/lib/constants/paths"
 import type { CommandItem as CommandDef, RecentItem } from "@/lib/hooks/use-command-palette"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 
 // ─── Props ────────────────────────────────────────────────────────────────
 
@@ -129,18 +124,16 @@ export function CommandPalette({
 
         {/* 命令模式：仅显示命令 */}
         {isCommandMode ? (
-          <>
-            {Object.entries(commandGroups).map(([group, cmds]) => (
-              <CommandGroup key={group} heading={group}>
-                {cmds.map((cmd) => (
-                  <CommandItem key={cmd.id} onSelect={() => executeCommand(cmd)}>
-                    <Terminal className="text-muted-foreground" />
-                    <span>{cmd.label}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ))}
-          </>
+          Object.entries(commandGroups).map(([group, cmds]) => (
+            <CommandGroup key={group} heading={group}>
+              {cmds.map((cmd) => (
+                <CommandItem key={cmd.id} onSelect={() => executeCommand(cmd)}>
+                  <Terminal className="text-muted-foreground" />
+                  <span>{cmd.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ))
         ) : (
           <>
             {/* 最近访问 */}
@@ -175,15 +168,15 @@ export function CommandPalette({
                 <span>工作台</span>
               </CommandItem>
               {navigationItems.map((item) => (
-                  <CommandItem
-                    key={item.slug}
-                    onSelect={() => navigate(item.href, item.label, item.group, item.icon)}
-                  >
-                    <Navigation className="text-muted-foreground" />
-                    <span>{item.label}</span>
-                    <span className="ml-auto text-muted-foreground text-xs">{item.group}</span>
-                  </CommandItem>
-                ))}
+                <CommandItem
+                  key={item.slug}
+                  onSelect={() => navigate(item.href, item.label, item.group, item.icon)}
+                >
+                  <Navigation className="text-muted-foreground" />
+                  <span>{item.label}</span>
+                  <span className="ml-auto text-muted-foreground text-xs">{item.group}</span>
+                </CommandItem>
+              ))}
             </CommandGroup>
 
             {/* 命令 */}

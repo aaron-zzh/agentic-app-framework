@@ -10,8 +10,8 @@
 
 "use client"
 
-import { ChevronsUpDown, Plus } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
+import { ChevronsUpDown, Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -23,8 +23,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { useOrgStore } from "@/lib/store/org-store"
 import { useOrganizations } from "@/lib/queries/use-organizations"
+import { useOrgStore } from "@/lib/store/org-store"
 
 export function WorkspaceSwitcher() {
   const queryClient = useQueryClient()
@@ -62,9 +62,7 @@ export function WorkspaceSwitcher() {
             {active?.name?.slice(0, 1) ?? "O"}
           </AvatarFallback>
         </Avatar>
-        <span className="max-w-28 truncate font-medium text-sm">
-          {active?.name ?? "选择组织"}
-        </span>
+        <span className="max-w-28 truncate font-medium text-sm">{active?.name ?? "选择组织"}</span>
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
 

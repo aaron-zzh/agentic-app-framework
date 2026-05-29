@@ -4,17 +4,17 @@
  */
 "use client"
 
-import { useCallback, useEffect, useMemo } from "react"
 import {
-  ReactFlow,
   Background,
   Controls,
+  type Edge,
   MiniMap,
   type Node,
-  type Edge,
-  useNodesState,
+  ReactFlow,
   useEdgesState,
+  useNodesState
 } from "@xyflow/react"
+import { useCallback, useEffect, useMemo } from "react"
 import "@xyflow/react/dist/style.css"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DocRelationGraph } from "@/lib/types/document"
@@ -34,11 +34,22 @@ export function DocRelationGraphView({ data, isLoading, onSelectDoc }: Props) {
       data: { label: node.title, docId: node.id },
       position: {
         x: node.isCenter ? 300 : 100 + (i % 3) * 200,
-        y: node.isCenter ? 200 : 50 + Math.floor(i / 3) * 150,
+        y: node.isCenter ? 200 : 50 + Math.floor(i / 3) * 150
       },
       style: node.isCenter
-        ? { background: "hsl(var(--primary))", color: "white", border: "none", borderRadius: 8, padding: "8px 12px" }
-        : { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 12px" },
+        ? {
+            background: "hsl(var(--primary))",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            padding: "8px 12px"
+          }
+        : {
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: 8,
+            padding: "8px 12px"
+          }
     }))
 
     const rfEdges: Edge[] = data.edges.map((edge, i) => ({
@@ -46,7 +57,7 @@ export function DocRelationGraphView({ data, isLoading, onSelectDoc }: Props) {
       source: String(edge.source),
       target: String(edge.target),
       label: edge.type === "wikilink" ? "双链" : "引用",
-      animated: edge.type === "wikilink",
+      animated: edge.type === "wikilink"
     }))
 
     return { initialNodes: rfNodes, initialEdges: rfEdges }
@@ -65,12 +76,29 @@ export function DocRelationGraphView({ data, isLoading, onSelectDoc }: Props) {
     [onSelectDoc]
   )
 
-  if (isLoading) return <div className="flex h-full items-center justify-center"><Skeleton className="h-64 w-full" /></div>
-  if (!data || data.nodes.length === 0) return <div className="flex h-full items-center justify-center text-muted-foreground"><p>暂无关系数据</p></div>
+  if (isLoading)
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
+  if (!data || data.nodes.length === 0)
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <p>暂无关系数据</p>
+      </div>
+    )
 
   return (
     <div className="h-full w-full">
-      <ReactFlow nodes={rfNodes} edges={rfEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeClick} fitView>
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        fitView
+      >
         <Background />
         <Controls />
         <MiniMap />

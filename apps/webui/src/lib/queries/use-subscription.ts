@@ -4,13 +4,13 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type UpsertSubscriptionReq, subscriptionApi } from "@/lib/api/subscription"
+import { subscriptionApi, type UpsertSubscriptionReq } from "@/lib/api/subscription"
 
 /** 获取当前用户对某条记录的订阅 */
 export function useSubscription(entityType: string, entityId: string | undefined) {
   return useQuery({
     queryKey: ["subscription", entityType, entityId],
-    queryFn: () => subscriptionApi.get(entityType, entityId!),
+    queryFn: () => subscriptionApi.get(entityType, entityId as NonNullable<typeof entityId>),
     enabled: !!entityId
   })
 }

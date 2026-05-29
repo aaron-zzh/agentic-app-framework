@@ -45,9 +45,7 @@
     },
     {
       "plugin": "@nx/next/plugin",
-      "include": [
-        "apps/*"
-      ],
+      "include": ["apps/*"],
       "options": {
         "startTargetName": "start",
         "buildTargetName": "build",
@@ -59,14 +57,8 @@
     },
     {
       "plugin": "@nx/vitest",
-      "include": [
-        "apps/webui",
-        "packages/hooks",
-        "packages/core"
-      ],
-      "exclude": [
-        "apps/uniapp"
-      ],
+      "include": ["apps/webui", "packages/hooks", "packages/core"],
+      "exclude": ["apps/uniapp"],
       "options": {
         "testTargetName": "vitest:test",
         "ciTargetName": "test-ci",
@@ -77,10 +69,7 @@
   "nxCloudId": "69f20b1c4d6f30222ee77b06",
   "analytics": false,
   "release": {
-    "projects": [
-      "core",
-      "hooks"
-    ],
+    "projects": ["core", "hooks"],
     "version": {
       "conventionalCommits": true
     },

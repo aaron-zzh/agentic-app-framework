@@ -12,8 +12,8 @@
  */
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
 import { Mic, Pause, Play, Send, Square, Trash2 } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 /** 格式化秒数为 mm:ss */
@@ -72,7 +72,9 @@ export function AudioRecorder({ onSend, className }: AudioRecorderProps) {
   /** 停止录制 */
   const stop = useCallback(() => {
     recorderRef.current?.stop()
-    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current?.getTracks().forEach((t) => {
+      t.stop()
+    })
     if (timerRef.current) clearInterval(timerRef.current)
     setRecording(false)
   }, [])
@@ -103,16 +105,16 @@ export function AudioRecorder({ onSend, className }: AudioRecorderProps) {
       {recording && (
         <>
           {/* 波形动画 */}
-          <div className="flex items-end gap-0.5 h-4">
+          <div className="flex h-4 items-end gap-0.5">
             {[0, 100, 200, 300, 200].map((delay, i) => (
               <span
                 key={`bar-${delay}-${i}`}
-                className="w-0.5 bg-red-500 animate-bounce"
+                className="w-0.5 animate-bounce bg-red-500"
                 style={{ animationDelay: `${delay}ms`, height: `${8 + (i % 3) * 4}px` }}
               />
             ))}
           </div>
-          <span className="text-sm text-red-500 font-mono">{formatDuration(duration)}</span>
+          <span className="font-mono text-red-500 text-sm">{formatDuration(duration)}</span>
           <Button type="button" variant="ghost" size="icon" onClick={stop} aria-label="停止录音">
             <Square className="size-3 fill-red-500 text-red-500" />
           </Button>
@@ -121,7 +123,7 @@ export function AudioRecorder({ onSend, className }: AudioRecorderProps) {
 
       {blob && !recording && (
         <>
-          <span className="text-sm text-muted-foreground font-mono">
+          <span className="font-mono text-muted-foreground text-sm">
             {formatDuration(duration)}
           </span>
           <Button type="button" variant="ghost" size="icon" onClick={discard} aria-label="丢弃">
@@ -210,12 +212,18 @@ export function AudioPlayer({ src, duration, showTranscript, className }: AudioP
         {/* biome-ignore lint/a11y/useMediaCaption: 语音消息无字幕 */}
         <audio ref={audioRef} src={src} preload="metadata" />
 
-        <Button type="button" variant="ghost" size="icon" onClick={toggle} aria-label={playing ? "暂停" : "播放"}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={toggle}
+          aria-label={playing ? "暂停" : "播放"}
+        >
           {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
         </Button>
 
         {/* 进度条 */}
-        <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+        <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full bg-primary transition-[width] duration-100"
             style={{ width: `${progress}%` }}
@@ -223,14 +231,14 @@ export function AudioPlayer({ src, duration, showTranscript, className }: AudioP
         </div>
 
         {/* 时长 */}
-        <span className="text-xs text-muted-foreground font-mono min-w-[3ch]">
-          {formatDuration(playing ? currentTime : (totalDuration || 0))}
+        <span className="min-w-[3ch] font-mono text-muted-foreground text-xs">
+          {formatDuration(playing ? currentTime : totalDuration || 0)}
         </span>
       </div>
 
       {/* 转文字占位 */}
       {showTranscript && (
-        <span className="text-xs text-muted-foreground italic pl-10">[语音转文字]</span>
+        <span className="pl-10 text-muted-foreground text-xs italic">[语音转文字]</span>
       )}
     </div>
   )

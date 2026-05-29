@@ -92,7 +92,7 @@ export function ExecutionPanel({
             executionState={executionState}
           />
         ) : (
-          <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+          <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
             无流程定义
           </div>
         )}
@@ -117,7 +117,7 @@ export function ExecutionPanel({
               </div>
             ))}
             {(!trace || trace.length === 0) && (
-              <p className="text-muted-foreground py-4 text-center text-sm">暂无执行数据</p>
+              <p className="py-4 text-center text-muted-foreground text-sm">暂无执行数据</p>
             )}
           </div>
         </ScrollArea>
@@ -129,7 +129,7 @@ export function ExecutionPanel({
           <div className="space-y-2">
             {(timeline ?? []).map((entry, i) => (
               <div key={`${entry.timestamp}-${i}`} className="flex gap-3 text-sm">
-                <span className="text-muted-foreground w-20 shrink-0 text-xs">
+                <span className="w-20 shrink-0 text-muted-foreground text-xs">
                   {formatTime(entry.timestamp)}
                 </span>
                 <div>
@@ -140,13 +140,13 @@ export function ExecutionPanel({
                     </Badge>
                   )}
                   {entry.detail && (
-                    <p className="text-muted-foreground mt-0.5 text-xs">{entry.detail}</p>
+                    <p className="mt-0.5 text-muted-foreground text-xs">{entry.detail}</p>
                   )}
                 </div>
               </div>
             ))}
             {(!timeline || timeline.length === 0) && (
-              <p className="text-muted-foreground py-4 text-center text-sm">暂无时间线数据</p>
+              <p className="py-4 text-center text-muted-foreground text-sm">暂无时间线数据</p>
             )}
           </div>
         </ScrollArea>

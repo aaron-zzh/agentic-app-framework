@@ -26,7 +26,15 @@ interface UsePageSemanticsOptions {
  * 自动设置页面元数据并定期收集语义快照
  */
 export function usePageSemantics(options: UsePageSemanticsOptions): PageSemantics {
-  const { route, title, description = "", entity, recordId, view = "list", refreshInterval = 2000 } = options
+  const {
+    route,
+    title,
+    description = "",
+    entity,
+    recordId,
+    view = "list",
+    refreshInterval = 2000
+  } = options
 
   const [semantics, setSemantics] = useState<PageSemantics>({
     route,

@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { ApiError } from "./client"
 import { useUIStore } from "@/lib/store/ui-store"
+import { ApiError } from "./client"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 

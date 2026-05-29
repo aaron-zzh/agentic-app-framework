@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { useEffect, useState, useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { ExecutionState } from "../types"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
@@ -64,7 +64,7 @@ export function useExecutionState(processInstanceId?: string) {
         if (data.log.durationMs > 0) {
           setNodeTimings((prev) => ({
             ...prev,
-            [data.log!.nodeId]: data.log!.durationMs
+            [data.log?.nodeId]: data.log?.durationMs
           }))
         }
       }

@@ -6,7 +6,14 @@
 import { ApiError } from "./client"
 
 /** Widget 类型 */
-export type WidgetType = "counter" | "chart" | "echarts" | "list" | "progress" | "shortcut" | "custom"
+export type WidgetType =
+  | "counter"
+  | "chart"
+  | "echarts"
+  | "list"
+  | "progress"
+  | "shortcut"
+  | "custom"
 
 /** Widget 位置（react-grid-layout 格式） */
 export interface WidgetPosition {

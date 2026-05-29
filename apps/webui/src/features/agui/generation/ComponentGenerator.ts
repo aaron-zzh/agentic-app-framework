@@ -4,7 +4,13 @@
  * @author AaronZZH & Kiro
  */
 
-import type { EntityDef, FieldDef, ListViewConfig, FormViewConfig, KanbanViewConfig } from "@/lib/types/entity"
+import type {
+  EntityDef,
+  FieldDef,
+  FormViewConfig,
+  KanbanViewConfig,
+  ListViewConfig
+} from "@/lib/types/entity"
 
 import { IntentMapper } from "../intent"
 import { SemanticRegistry } from "../semantics"
@@ -29,13 +35,27 @@ export interface GenerationResult {
 
 /** 视图特性 → 配置映射 */
 const featureMapping: Record<string, (config: Partial<ListViewConfig>) => void> = {
-  search: (c) => { c.searchableFields = c.searchableFields ?? [] },
-  paginate: (c) => { c.pageSize = c.pageSize ?? 20 },
-  filter: (c) => { c.filterableFields = c.filterableFields ?? [] },
-  sort: (c) => { c.defaultSort = c.defaultSort ?? "createdAt:desc" },
-  "inline-edit": (c) => { c.inlineEdit = true },
-  "batch-action": (c) => { c.batchActions = c.batchActions ?? ["delete"] },
-  drag: (c) => { c.draggable = true },
+  search: (c) => {
+    c.searchableFields = c.searchableFields ?? []
+  },
+  paginate: (c) => {
+    c.pageSize = c.pageSize ?? 20
+  },
+  filter: (c) => {
+    c.filterableFields = c.filterableFields ?? []
+  },
+  sort: (c) => {
+    c.defaultSort = c.defaultSort ?? "createdAt:desc"
+  },
+  "inline-edit": (c) => {
+    c.inlineEdit = true
+  },
+  "batch-action": (c) => {
+    c.batchActions = c.batchActions ?? ["delete"]
+  },
+  drag: (c) => {
+    c.draggable = true
+  }
 }
 
 /** 意图关键词 → 视图类型 */
@@ -50,7 +70,7 @@ const viewKeywords: Record<string, GenerationIntent["type"]> = {
   看板: "generate-kanban",
   kanban: "generate-kanban",
   仪表盘: "generate-dashboard",
-  dashboard: "generate-dashboard",
+  dashboard: "generate-dashboard"
 }
 
 /** 特性关键词 */
@@ -65,7 +85,7 @@ const featureKeywords: Record<string, string> = {
   search: "search",
   paginate: "paginate",
   filter: "filter",
-  sort: "sort",
+  sort: "sort"
 }
 
 class ComponentGeneratorImpl {
@@ -132,7 +152,7 @@ class ComponentGeneratorImpl {
       intent,
       config,
       timestamp: Date.now(),
-      preview: true,
+      preview: true
     }
   }
 
@@ -142,7 +162,7 @@ class ComponentGeneratorImpl {
     const merged: GenerationIntent = {
       ...existing.intent,
       type: newIntent.type !== "generate-view" ? newIntent.type : existing.intent.type,
-      features: [...new Set([...existing.intent.features, ...newIntent.features])],
+      features: [...new Set([...existing.intent.features, ...newIntent.features])]
     }
 
     const config = this.inferParams(merged)
@@ -151,7 +171,7 @@ class ComponentGeneratorImpl {
       intent: merged,
       config: { ...existing.config, ...config },
       timestamp: Date.now(),
-      preview: true,
+      preview: true
     }
   }
 
@@ -163,7 +183,7 @@ class ComponentGeneratorImpl {
     features: string[]
   ): Partial<EntityDef> {
     const listView: ListViewConfig = {
-      columns: fields.slice(0, 6).map((f) => f.name),
+      columns: fields.slice(0, 6).map((f) => f.name)
     }
 
     // 应用特性
@@ -190,14 +210,14 @@ class ComponentGeneratorImpl {
       label,
       apiPath: `/api/${slug}`,
       fields,
-      listView,
+      listView
     }
   }
 
   /** 构建表单视图配置 */
   private buildFormConfig(slug: string, label: string, fields: FieldDef[]): Partial<EntityDef> {
     const formView: FormViewConfig = {
-      autosave: { enabled: true, debounceMs: 2000 },
+      autosave: { enabled: true, debounceMs: 2000 }
     }
 
     return {
@@ -206,7 +226,7 @@ class ComponentGeneratorImpl {
       apiPath: `/api/${slug}`,
       fields,
       listView: { columns: fields.slice(0, 4).map((f) => f.name) },
-      formView,
+      formView
     }
   }
 
@@ -217,7 +237,7 @@ class ComponentGeneratorImpl {
 
     const kanbanView: KanbanViewConfig = {
       statusField: statusField?.name ?? "status",
-      cardTitle: titleField?.name ?? "title",
+      cardTitle: titleField?.name ?? "title"
     }
 
     return {
@@ -226,21 +246,26 @@ class ComponentGeneratorImpl {
       apiPath: `/api/${slug}`,
       fields,
       listView: { columns: fields.slice(0, 4).map((f) => f.name) },
-      kanbanView,
+      kanbanView
     }
   }
 
   /** 生成默认字段（无 EntityDef 时的 fallback） */
-  private generateDefaultFields(entity: string): FieldDef[] {
+  private generateDefaultFields(_entity: string): FieldDef[] {
     return [
       { name: "title", type: "text", label: "标题", required: true },
-      { name: "status", type: "select", label: "状态", options: [
-        { label: "草稿", value: "draft", color: "gray" },
-        { label: "进行中", value: "active", color: "blue" },
-        { label: "已完成", value: "done", color: "green" },
-      ]},
+      {
+        name: "status",
+        type: "select",
+        label: "状态",
+        options: [
+          { label: "草稿", value: "draft", color: "gray" },
+          { label: "进行中", value: "active", color: "blue" },
+          { label: "已完成", value: "done", color: "green" }
+        ]
+      },
       { name: "description", type: "textarea", label: "描述" },
-      { name: "createdAt", type: "date", label: "创建时间", readOnly: true },
+      { name: "createdAt", type: "date", label: "创建时间", readOnly: true }
     ]
   }
 }

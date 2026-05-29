@@ -11,10 +11,10 @@
 import type { ReactNode } from "react"
 import { ChatterComposer } from "./ChatterComposer"
 import { ChatterThread } from "./ChatterThread"
-import { RecoveryNotification } from "./RecoveryNotification"
-import { TaskBoardPanel } from "./TaskBoardPanel"
 import { DroppableComposer } from "./dnd/DroppableComposer"
 import { useTaskBoard } from "./hooks/use-task-board"
+import { RecoveryNotification } from "./RecoveryNotification"
+import { TaskBoardPanel } from "./TaskBoardPanel"
 import type { ChatterDropItem } from "./types"
 
 interface ChatterPanelProps {

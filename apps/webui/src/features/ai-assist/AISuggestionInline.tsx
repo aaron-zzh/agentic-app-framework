@@ -6,9 +6,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef } from "react"
-
-import { cn } from "@/lib/utils"
 import { useAISettingsStore } from "@/lib/store/ai-settings-store"
+import { cn } from "@/lib/utils"
 
 export interface AISuggestionInlineProps {
   /** 建议文本 */
@@ -34,7 +33,7 @@ export function AISuggestionInline({
   suggestion,
   onAccept,
   onDismiss,
-  className,
+  className
 }: AISuggestionInlineProps) {
   const enabled = useAISettingsStore((s) => s.enabled)
   const containerRef = useRef<HTMLDivElement>(null)

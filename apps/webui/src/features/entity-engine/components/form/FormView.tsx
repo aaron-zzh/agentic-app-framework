@@ -364,7 +364,6 @@ function FormSkeleton({ fields }: { fields: number }) {
   return (
     <div className="space-y-4 p-4">
       {Array.from({ length: Math.min(fields, 6) }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
         <div key={i} className="space-y-1">
           <div className="h-4 w-20 animate-pulse rounded bg-muted" />
           <div className="h-9 animate-pulse rounded bg-muted" />

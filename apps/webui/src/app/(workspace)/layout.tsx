@@ -10,8 +10,8 @@ import { Suspense } from "react"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { registerDefaultComponents } from "@/features/entity-engine/components/register"
 import "@/features/entity-engine/entities"
-import { WorkspaceLayoutClient } from "@/sections/layout/WorkspaceLayoutClient"
 import { MotionLazy } from "@/components/animate"
+import { WorkspaceLayoutClient } from "@/sections/layout/WorkspaceLayoutClient"
 
 // 注册默认字段组件（实体注册已在 entities/index.ts side effect 中完成）
 registerDefaultComponents()

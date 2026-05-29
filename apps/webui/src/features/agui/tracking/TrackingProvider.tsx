@@ -7,11 +7,11 @@
 
 import {
   createContext,
+  type PropsWithChildren,
   useCallback,
   useContext,
   useEffect,
-  useRef,
-  type PropsWithChildren
+  useRef
 } from "react"
 
 import type { UserAction } from "../types"
@@ -81,10 +81,10 @@ function buildAction(
     value,
     timestamp: Date.now(),
     semantics: {
-      componentId: attrs["id"] ?? "",
-      semanticRole: attrs["role"] ?? "",
-      entitySlug: attrs["entity"] ?? undefined,
-      fieldName: attrs["field"] ?? undefined
+      componentId: attrs.id ?? "",
+      semanticRole: attrs.role ?? "",
+      entitySlug: attrs.entity ?? undefined,
+      fieldName: attrs.field ?? undefined
     },
     context: getPageContext(),
     sessionId: SESSION_ID
@@ -135,7 +135,7 @@ export function TrackingProvider({ children }: PropsWithChildren) {
       const trackable = findTrackableAncestor(el)
       if (!trackable) return
       const attrs = extractTrackAttrs(trackable)
-      enqueue(buildAction("click", attrs["id"] ?? el.tagName, attrs))
+      enqueue(buildAction("click", attrs.id ?? el.tagName, attrs))
     }
 
     /** 输入事件委托（防抖由消费方处理） */
@@ -144,7 +144,7 @@ export function TrackingProvider({ children }: PropsWithChildren) {
       const trackable = findTrackableAncestor(el)
       if (!trackable) return
       const attrs = extractTrackAttrs(trackable)
-      enqueue(buildAction("input", attrs["id"] ?? el.name, attrs, el.value))
+      enqueue(buildAction("input", attrs.id ?? el.name, attrs, el.value))
     }
 
     /** 表单提交 */
@@ -152,7 +152,7 @@ export function TrackingProvider({ children }: PropsWithChildren) {
       const form = e.target as HTMLFormElement
       const trackable = findTrackableAncestor(form)
       const attrs = trackable ? extractTrackAttrs(trackable) : {}
-      enqueue(buildAction("submit", attrs["id"] ?? form.id || "form", attrs))
+      enqueue(buildAction("submit", attrs.id ?? (form.id || "form"), attrs))
     }
 
     document.addEventListener("click", handleClick, true)

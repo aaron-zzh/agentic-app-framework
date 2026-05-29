@@ -18,7 +18,8 @@ export const paths = {
   auth: {
     login: "/auth/login",
     register: "/auth/register",
-    forgotPassword: "/auth/forgot-password"
+    forgotPassword: "/auth/forgot-password",
+    oauthCallback: "/login/oauth-callback"
   },
   workspace: {
     root: "/dashboard",
@@ -34,6 +35,6 @@ export const paths = {
   aigc: {
     root: "/aigc",
     assets: "/aigc/assets",
-    video: "/aigc/video",
+    video: "/aigc/video"
   }
 }

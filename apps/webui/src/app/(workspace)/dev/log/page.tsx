@@ -16,8 +16,8 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { request } from "@/lib/api/client"
-import { cn } from "@/lib/utils/cn"
 import type { DocTreeNode, Document } from "@/lib/types/document"
+import { cn } from "@/lib/utils/cn"
 
 /** 从文档树中筛选 dev-log 文档 */
 function collectDevLogs(nodes: DocTreeNode[]): DocTreeNode[] {
@@ -36,7 +36,7 @@ function collectDevLogs(nodes: DocTreeNode[]): DocTreeNode[] {
 /** 从文件名提取任务编号（如 AAF-024） */
 function extractTaskId(path: string): string {
   const match = path.match(/AAF-\d+/i)
-  return match ? match[0] : path.split("/").pop()?.replace(".md", "") ?? path
+  return match ? match[0] : (path.split("/").pop()?.replace(".md", "") ?? path)
 }
 
 /** 解析 dev-log 内容中的条目 */
@@ -180,10 +180,10 @@ export default function DevLogPage() {
                     <div className="mb-2 flex items-center gap-2">
                       <Badge variant="secondary">{date}</Badge>
                     </div>
-                    <div className="space-y-2 border-l-2 border-muted pl-4">
+                    <div className="space-y-2 border-muted border-l-2 pl-4">
                       {items.map((entry, idx) => (
                         <div key={idx} className="relative">
-                          <div className="absolute -left-[1.35rem] top-1">
+                          <div className="absolute top-1 -left-[1.35rem]">
                             {entry.done ? (
                               <CheckCircle2 className="size-3.5 text-green-500" />
                             ) : (

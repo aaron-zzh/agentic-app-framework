@@ -41,7 +41,8 @@ export function createYjsProvider(config: YjsProviderConfig): YjsProviderInstanc
   const doc = new Y.Doc()
 
   // 根据当前页面协议决定 ws/wss
-  const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:"
+  const protocol =
+    typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:"
   const host = typeof window !== "undefined" ? window.location.host : "localhost:3000"
   const wsUrl = `${protocol}//${host}/ws/yjs`
 
@@ -52,7 +53,7 @@ export function createYjsProvider(config: YjsProviderConfig): YjsProviderInstanc
   provider.awareness.setLocalStateField("user", {
     name: userName,
     color,
-    colorLight: `${color.slice(0, -1)}, 0.2)`.replace("hsl", "hsla"),
+    colorLight: `${color.slice(0, -1)}, 0.2)`.replace("hsl", "hsla")
   })
 
   return {
@@ -61,6 +62,6 @@ export function createYjsProvider(config: YjsProviderConfig): YjsProviderInstanc
     destroy: () => {
       provider.destroy()
       doc.destroy()
-    },
+    }
   }
 }

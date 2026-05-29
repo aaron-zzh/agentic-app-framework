@@ -12,13 +12,9 @@
 
 import "./calendar.css"
 
-import type {
-  DateSelectArg,
-  EventClickArg,
-  EventDropArg
-} from "@fullcalendar/core"
-import type { EventResizeDoneArg } from "@fullcalendar/interaction"
+import type { DateSelectArg, EventClickArg, EventDropArg } from "@fullcalendar/core"
 import dayGridPlugin from "@fullcalendar/daygrid"
+import type { EventResizeDoneArg } from "@fullcalendar/interaction"
 import interactionPlugin from "@fullcalendar/interaction"
 import listPlugin from "@fullcalendar/list"
 import FullCalendar from "@fullcalendar/react"
@@ -26,10 +22,7 @@ import timeGridPlugin from "@fullcalendar/timegrid"
 import { useCallback, useMemo, useRef, useState } from "react"
 
 import { useResponsive } from "@/lib/hooks/use-responsive"
-import {
-  mapRecordsToEvents,
-  useCalendarEventUpdate
-} from "@/lib/queries/use-calendar-events"
+import { mapRecordsToEvents, useCalendarEventUpdate } from "@/lib/queries/use-calendar-events"
 
 import type { EntityDef } from "../../types"
 import { EventDialog } from "./EventDialog"
@@ -121,9 +114,7 @@ export function CalendarView({ entity, data = [], loading }: CalendarViewProps) 
   }
 
   // 移动端降级为列表视图
-  const defaultView = isMobile
-    ? "listWeek"
-    : (config.defaultView ?? "dayGridMonth")
+  const defaultView = isMobile ? "listWeek" : (config.defaultView ?? "dayGridMonth")
 
   return (
     <div className="p-4">
@@ -134,9 +125,7 @@ export function CalendarView({ entity, data = [], loading }: CalendarViewProps) 
         headerToolbar={{
           left: "prev,next today",
           center: "title",
-          right: isMobile
-            ? "listWeek"
-            : "dayGridMonth,timeGridWeek,timeGridDay,listWeek"
+          right: isMobile ? "listWeek" : "dayGridMonth,timeGridWeek,timeGridDay,listWeek"
         }}
         events={fcEvents}
         editable
@@ -180,7 +169,6 @@ function CalendarSkeleton() {
       </div>
       <div className="grid grid-cols-7 gap-1">
         {Array.from({ length: 35 }).map((_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
           <div key={i} className="h-20 animate-pulse rounded bg-muted" />
         ))}
       </div>

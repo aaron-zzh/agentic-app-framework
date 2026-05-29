@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { NodeTypeRegistry, NodeTypeDef, NodeCategory, FlowMode } from "../types"
+import type { FlowMode, NodeCategory, NodeTypeDef, NodeTypeRegistry } from "../types"
 
 /** 创建空注册表 */
 export function createNodeRegistry(): NodeTypeRegistry {

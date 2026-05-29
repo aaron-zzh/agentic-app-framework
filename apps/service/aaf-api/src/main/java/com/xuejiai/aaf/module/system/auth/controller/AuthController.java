@@ -54,6 +54,14 @@ public class AuthController {
         return Result.success();
     }
 
+    @Operation(summary = "邮箱验证码注册（无需密码）")
+    @PostMapping("/register-by-code")
+    public Result<AuthLoginVO> registerByCode(
+            @Valid @RequestBody RegisterByCodeDTO dto,
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId) {
+        return Result.success(authService.registerByCode(dto, deviceId));
+    }
+
     @Operation(summary = "验证邮箱")
     @PostMapping("/verify-email")
     public Result<AuthLoginVO> verifyEmail(

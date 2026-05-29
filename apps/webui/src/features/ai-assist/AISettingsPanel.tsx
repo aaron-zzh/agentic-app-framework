@@ -8,14 +8,14 @@
 import { Bot } from "lucide-react"
 
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
 import { type AISensitivity, useAISettingsStore } from "@/lib/store/ai-settings-store"
 
 const sensitivityOptions: { value: AISensitivity; label: string; description: string }[] = [
   { value: "low", label: "低", description: "仅在明确需要时提供建议" },
   { value: "medium", label: "中", description: "适度提供建议（推荐）" },
-  { value: "high", label: "高", description: "积极主动提供建议" },
+  { value: "high", label: "高", description: "积极主动提供建议" }
 ]
 
 /**
@@ -50,10 +50,7 @@ export function AISettingsPanel() {
       {enabled && (
         <div className="space-y-3">
           <Label className="font-medium text-sm">建议灵敏度</Label>
-          <RadioGroup
-            value={sensitivity}
-            onValueChange={(v) => setSensitivity(v as AISensitivity)}
-          >
+          <RadioGroup value={sensitivity} onValueChange={(v) => setSensitivity(v as AISensitivity)}>
             {sensitivityOptions.map((opt) => (
               <label
                 key={opt.value}

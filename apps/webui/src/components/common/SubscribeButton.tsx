@@ -6,8 +6,8 @@
 
 "use client"
 
-import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
+import { useId, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -19,13 +19,13 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import type { DataFieldDef, EntityDef, FieldDef } from "@/lib/types/entity"
 import type { SubscriptionChannel } from "@/lib/api/subscription"
 import {
   useRemoveSubscription,
   useSubscription,
   useUpsertSubscription
 } from "@/lib/queries/use-subscription"
+import type { DataFieldDef, EntityDef, FieldDef } from "@/lib/types/entity"
 
 interface SubscribeButtonProps {
   entity: EntityDef
@@ -40,6 +40,7 @@ function getDataFields(fields: FieldDef[]): DataFieldDef[] {
 }
 
 export function SubscribeButton({ entity, recordId }: SubscribeButtonProps) {
+  const formId = useId()
   const [open, setOpen] = useState(false)
   const { data: subscription } = useSubscription(entity.slug, recordId)
   const upsert = useUpsertSubscription()
@@ -92,9 +93,7 @@ export function SubscribeButton({ entity, recordId }: SubscribeButtonProps) {
 
   /** 切换通道 */
   function toggleChannel(ch: SubscriptionChannel) {
-    setChannels((prev) =>
-      prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]
-    )
+    setChannels((prev) => (prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]))
   }
 
   const dataFields = getDataFields(entity.fields)
@@ -117,11 +116,11 @@ export function SubscribeButton({ entity, recordId }: SubscribeButtonProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Checkbox
-                  id="all-fields"
+                  id={`${formId}-all-fields`}
                   checked={allFields}
                   onCheckedChange={(v) => setAllFields(!!v)}
                 />
-                <Label htmlFor="all-fields">所有字段变更</Label>
+                <Label htmlFor={`${formId}-all-fields`}>所有字段变更</Label>
               </div>
 
               {!allFields && (
@@ -133,9 +132,7 @@ export function SubscribeButton({ entity, recordId }: SubscribeButtonProps) {
                         checked={selectedFields.includes(field.name)}
                         onCheckedChange={() => toggleField(field.name)}
                       />
-                      <Label htmlFor={`field-${field.name}`}>
-                        {field.label ?? field.name}
-                      </Label>
+                      <Label htmlFor={`field-${field.name}`}>{field.label ?? field.name}</Label>
                     </div>
                   ))}
                 </div>
@@ -144,23 +141,23 @@ export function SubscribeButton({ entity, recordId }: SubscribeButtonProps) {
 
             {/* 通道选择 */}
             <div className="space-y-2">
-              <span className="text-sm font-medium">通知方式</span>
+              <span className="font-medium text-sm">通知方式</span>
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
                   <Checkbox
-                    id="ch-inApp"
+                    id={`${formId}-ch-inApp`}
                     checked={channels.includes("inApp")}
                     onCheckedChange={() => toggleChannel("inApp")}
                   />
-                  <Label htmlFor="ch-inApp">站内通知</Label>
+                  <Label htmlFor={`${formId}-ch-inApp`}>站内通知</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
-                    id="ch-email"
+                    id={`${formId}-ch-email`}
                     checked={channels.includes("email")}
                     onCheckedChange={() => toggleChannel("email")}
                   />
-                  <Label htmlFor="ch-email">邮件</Label>
+                  <Label htmlFor={`${formId}-ch-email`}>邮件</Label>
                 </div>
               </div>
             </div>

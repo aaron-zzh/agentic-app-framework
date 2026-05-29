@@ -9,16 +9,15 @@
 "use client"
 
 import Editor, { type OnMount } from "@monaco-editor/react"
+import { Save } from "lucide-react"
+import { useTheme } from "next-themes"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ViewEngine } from "@/features/entity-engine/components/ViewEngine"
 import type { EntityDef } from "@/features/entity-engine/types"
-import { useTheme } from "next-themes"
-import { Save } from "lucide-react"
 
 import { entityDefJsonSchema } from "./entity-def-schema"
 
@@ -62,28 +61,31 @@ export function EntityDefEditor({ value, builtin, onSave, saving }: EntityDefEdi
   }, [editorValue])
 
   /** Monaco 挂载时注册 JSON Schema */
-  const handleEditorMount: OnMount = useCallback((editor, monaco) => {
-    editorRef.current = editor
+  const handleEditorMount: OnMount = useCallback(
+    (editor, monaco) => {
+      editorRef.current = editor
 
-    // 注册 EntityDef JSON Schema
-    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-      validate: true,
-      schemas: [
-        {
-          uri: "https://aaf.xuejiai.com/schemas/entity-def.json",
-          fileMatch: ["*"],
-          schema: entityDefJsonSchema
+      // 注册 EntityDef JSON Schema
+      monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+        validate: true,
+        schemas: [
+          {
+            uri: "https://aaf.xuejiai.com/schemas/entity-def.json",
+            fileMatch: ["*"],
+            schema: entityDefJsonSchema
+          }
+        ]
+      })
+
+      // 快捷键保存
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+        if (!builtin) {
+          onSave(editor.getValue())
         }
-      ]
-    })
-
-    // 快捷键保存
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      if (!builtin) {
-        onSave(editor.getValue())
-      }
-    })
-  }, [builtin, onSave])
+      })
+    },
+    [builtin, onSave]
+  )
 
   const handleSave = useCallback(() => {
     onSave(editorValue)
@@ -96,7 +98,7 @@ export function EntityDefEditor({ value, builtin, onSave, saving }: EntityDefEdi
       {/* 工具栏 */}
       <div className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">配置编辑器</span>
+          <span className="font-medium text-sm">配置编辑器</span>
           {builtin && <Badge variant="secondary">内置（只读）</Badge>}
           {isDirty && !builtin && <Badge variant="default">未保存</Badge>}
           {parseError && <Badge variant="destructive">语法错误</Badge>}
@@ -133,13 +135,13 @@ export function EntityDefEditor({ value, builtin, onSave, saving }: EntityDefEdi
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={50} minSize={20}>
           <div className="h-full overflow-auto bg-muted/30 p-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">实时预览</p>
+            <p className="mb-2 font-medium text-muted-foreground text-xs">实时预览</p>
             {previewEntity ? (
               <ViewErrorBoundary>
                 <ViewEngine entity={previewEntity} view="list" />
               </ViewErrorBoundary>
             ) : (
-              <div className="flex items-center justify-center rounded-md border border-dashed p-8 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center rounded-md border border-dashed p-8 text-muted-foreground text-sm">
                 {parseError ?? "等待有效的 EntityDef 配置..."}
               </div>
             )}

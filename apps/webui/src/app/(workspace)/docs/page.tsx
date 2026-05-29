@@ -5,17 +5,17 @@
  */
 "use client"
 
+import { Edit, FileText, Plus } from "lucide-react"
 import { useState } from "react"
-import { FileText, Edit, Plus } from "lucide-react"
+import { toast } from "sonner"
 import { PageContainer } from "@/components/common/PageContainer"
+import { DocTree } from "@/components/docs/DocTree"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DocTree } from "@/components/docs/DocTree"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import { useDocTree, useDocument, useUpdateDocument } from "@/lib/queries/use-documents"
 import { DocCreateDialog } from "./DocCreateDialog"
-import { toast } from "sonner"
 
 export default function DocsPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -38,8 +38,11 @@ export default function DocsPage() {
     update(
       { id: selectedId, content: editContent },
       {
-        onSuccess: () => { setEditOpen(false); toast.success("文档已保存") },
-        onError: () => toast.error("保存失败"),
+        onSuccess: () => {
+          setEditOpen(false)
+          toast.success("文档已保存")
+        },
+        onError: () => toast.error("保存失败")
       }
     )
   }
@@ -50,13 +53,17 @@ export default function DocsPage() {
         {/* 左侧文档树 */}
         <div className="w-64 shrink-0 overflow-y-auto rounded-lg border p-3">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium">文档</span>
+            <span className="font-medium text-sm">文档</span>
             <Button size="sm" variant="ghost" onClick={() => setCreateOpen(true)} title="新建文档">
               <Plus className="size-4" />
             </Button>
           </div>
           {treeLoading ? (
-            <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}</div>
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-6 w-full" />
+              ))}
+            </div>
           ) : (
             <DocTree nodes={tree ?? []} selectedId={selectedId} onSelect={setSelectedId} />
           )}
@@ -74,14 +81,19 @@ export default function DocsPage() {
           ) : (
             <div className="flex h-full flex-col">
               <div className="flex items-center justify-between border-b px-4 py-3">
-                <h2 className="truncate text-base font-semibold">{doc?.title ?? "加载中..."}</h2>
+                <h2 className="truncate font-semibold text-base">{doc?.title ?? "加载中..."}</h2>
                 <Button size="sm" variant="outline" onClick={handleEdit} disabled={!doc}>
-                  <Edit className="mr-1 size-4" />编辑
+                  <Edit className="mr-1 size-4" />
+                  编辑
                 </Button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {docLoading ? (
-                  <div className="space-y-3">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}</div>
+                  <div className="space-y-3">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-4 w-full" />
+                    ))}
+                  </div>
                 ) : (
                   <pre className="whitespace-pre-wrap font-mono text-sm">{doc?.content}</pre>
                 )}
@@ -94,11 +106,23 @@ export default function DocsPage() {
       {/* 编辑弹窗 */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-3xl">
-          <DialogHeader><DialogTitle>编辑：{doc?.title}</DialogTitle></DialogHeader>
-          <RichTextEditor value={editContent} onChange={setEditContent} preset="document" mode="markdown" minHeight={400} />
+          <DialogHeader>
+            <DialogTitle>编辑：{doc?.title}</DialogTitle>
+          </DialogHeader>
+          <RichTextEditor
+            value={editContent}
+            onChange={setEditContent}
+            preset="document"
+            mode="markdown"
+            minHeight={400}
+          />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setEditOpen(false)}>取消</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? "保存中..." : "保存"}</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "保存中..." : "保存"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

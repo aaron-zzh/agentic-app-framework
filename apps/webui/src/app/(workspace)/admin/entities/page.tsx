@@ -26,9 +26,7 @@ const NEW_ENTITY_TEMPLATE = JSON.stringify(
     slug: "new-entity",
     label: "新实体",
     apiPath: "/api/new-entity",
-    fields: [
-      { name: "title", type: "text", label: "标题", required: true }
-    ],
+    fields: [{ name: "title", type: "text", label: "标题", required: true }],
     listView: {
       columns: ["title"]
     }
@@ -108,7 +106,10 @@ export default function EntitiesPage() {
     <PageContainer className="h-[calc(100vh-var(--layout-header-height)-2rem)]">
       <TypographyH1 className="mb-4">实体定义管理</TypographyH1>
 
-      <div className="flex-1 overflow-hidden rounded-md border" style={{ height: "calc(100% - 4rem)" }}>
+      <div
+        className="flex-1 overflow-hidden rounded-md border"
+        style={{ height: "calc(100% - 4rem)" }}
+      >
         <ResizablePanelGroup direction="horizontal">
           {/* 左侧列表 */}
           <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
@@ -119,7 +120,7 @@ export default function EntitiesPage() {
               onCreate={handleCreate}
             />
             {isLoading && (
-              <p className="p-3 text-center text-sm text-muted-foreground">加载中...</p>
+              <p className="p-3 text-center text-muted-foreground text-sm">加载中...</p>
             )}
           </ResizablePanel>
           <ResizableHandle />

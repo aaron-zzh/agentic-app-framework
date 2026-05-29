@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useState } from "react"
 import { Building2, Trash2, UserPlus } from "lucide-react"
+import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,14 +26,14 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
-import { useOrgStore } from "@/lib/store/org-store"
 import {
   useAddOrgMember,
-  useOrgMembers,
   useOrganizations,
+  useOrgMembers,
   useRemoveOrgMember,
   useUpdateOrganization
 } from "@/lib/queries/use-organizations"
+import { useOrgStore } from "@/lib/store/org-store"
 
 export default function OrganizationSettingsPage() {
   const currentOrgId = useOrgStore((s) => s.currentOrgId)
@@ -81,7 +81,7 @@ function OrgInfoSection({
       <div className="flex items-center gap-4">
         <Avatar className="size-14 rounded-lg after:hidden">
           <AvatarImage src={logo} alt={name} className="object-cover" />
-          <AvatarFallback className="rounded-lg bg-primary/10 font-bold text-primary text-lg">
+          <AvatarFallback className="rounded-lg bg-primary/10 font-bold text-lg text-primary">
             {name.slice(0, 1)}
           </AvatarFallback>
         </Avatar>
@@ -175,7 +175,15 @@ function InviteMemberDialog({ orgId }: { orgId: string }) {
 
   function handleInvite() {
     if (!userId.trim()) return
-    addMember.mutate({ userId, role: "member" }, { onSuccess: () => { setOpen(false); setUserId("") } })
+    addMember.mutate(
+      { userId, role: "member" },
+      {
+        onSuccess: () => {
+          setOpen(false)
+          setUserId("")
+        }
+      }
+    )
   }
 
   return (

@@ -5,22 +5,36 @@
 
 "use client"
 
+import { Database, FileText, HardDrive, Layers } from "lucide-react"
 import { use } from "react"
-import { FileText, Database, Layers, HardDrive } from "lucide-react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TypographyH1 } from "@/components/ui/typography"
-import { useKnowledgeBase, useKnowledgeBaseStats, useKnowledgeDocuments } from "@/lib/queries/use-knowledge"
 import { DocumentUpload } from "@/features/knowledge/components/DocumentUpload"
 import { KnowledgeGraph } from "@/features/knowledge/components/KnowledgeGraph"
-import { SearchTestPanel } from "@/features/knowledge/components/SearchTestPanel"
 import { KnowledgeSettings } from "@/features/knowledge/components/KnowledgeSettings"
+import { SearchTestPanel } from "@/features/knowledge/components/SearchTestPanel"
+import {
+  useKnowledgeBase,
+  useKnowledgeBaseStats,
+  useKnowledgeDocuments
+} from "@/lib/queries/use-knowledge"
 
-const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+const STATUS_MAP: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+> = {
   pending: { label: "待处理", variant: "outline" },
   processing: { label: "处理中", variant: "secondary" },
   completed: { label: "已完成", variant: "default" },
@@ -60,18 +74,18 @@ export default function KnowledgeDetailPage({ params }: { params: Promise<{ id: 
   return (
     <PageContainer>
       <TypographyH1 className="mb-2 text-2xl">{kb.name}</TypographyH1>
-      {kb.description && <p className="text-muted-foreground mb-6">{kb.description}</p>}
+      {kb.description && <p className="mb-6 text-muted-foreground">{kb.description}</p>}
 
       {/* 统计卡片 */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((s) => (
           <Card key={s.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-muted-foreground text-sm font-medium">{s.label}</CardTitle>
-              <s.icon className="text-muted-foreground size-4" />
+              <CardTitle className="font-medium text-muted-foreground text-sm">{s.label}</CardTitle>
+              <s.icon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{s.value}</div>
+              <div className="font-bold text-2xl">{s.value}</div>
             </CardContent>
           </Card>
         ))}
@@ -108,7 +122,9 @@ export default function KnowledgeDetailPage({ params }: { params: Promise<{ id: 
                     <TableCell>{doc.type}</TableCell>
                     <TableCell>{formatSize(doc.size)}</TableCell>
                     <TableCell>{doc.chunkCount}</TableCell>
-                    <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                    <TableCell>
+                      <Badge variant={st.variant}>{st.label}</Badge>
+                    </TableCell>
                     <TableCell>{new Date(doc.createdAt).toLocaleDateString()}</TableCell>
                   </TableRow>
                 )

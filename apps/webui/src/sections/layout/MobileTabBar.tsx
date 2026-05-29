@@ -11,9 +11,9 @@
 import { CheckSquare, LayoutDashboard, Menu, Search, Settings } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { paths } from "@/lib/constants/paths"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
-import { paths } from "@/lib/constants/paths"
 
 interface TabItem {
   label: string
@@ -24,7 +24,12 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
-  { label: "工作台", icon: <LayoutDashboard className="size-5" />, path: paths.workspace.dashboard, exact: true },
+  {
+    label: "工作台",
+    icon: <LayoutDashboard className="size-5" />,
+    path: paths.workspace.dashboard,
+    exact: true
+  },
   { label: "待办", icon: <CheckSquare className="size-5" />, path: paths.workspace.todos },
   { label: "搜索", icon: <Search className="size-5" />, path: "#search" },
   { label: "设置", icon: <Settings className="size-5" />, path: paths.workspace.settings }

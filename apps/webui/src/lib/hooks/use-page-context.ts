@@ -22,7 +22,11 @@ interface PageContextOptions {
  * - 设置 chatter store 的 currentPageId
  * - 异步上报到后端（fire-and-forget，v0.2.0 后端实现前为空操作）
  */
-export function usePageContext({ pageId, pageTitle, availableComponents }: PageContextOptions): void {
+export function usePageContext({
+  pageId,
+  pageTitle,
+  availableComponents
+}: PageContextOptions): void {
   const setCurrentPage = useChatterStore((s) => s.setCurrentPage)
 
   useEffect(() => {
@@ -32,7 +36,7 @@ export function usePageContext({ pageId, pageTitle, availableComponents }: PageC
     fetch("/api/context/page-enter", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pageId, pageTitle, availableComponents }),
+      body: JSON.stringify({ pageId, pageTitle, availableComponents })
     }).catch(() => {
       // 静默失败，不影响页面功能
     })

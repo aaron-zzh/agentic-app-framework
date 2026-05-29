@@ -71,10 +71,14 @@ public class CanvasWebSocketHandler extends BinaryWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         // 心跳处理
         if ("ping".equals(message.getPayload())) {
-            session.sendMessage(new TextMessage("pong"));
+            try {
+                session.sendMessage(new TextMessage("pong"));
+            } catch (Exception e) {
+                log.error("发送 pong 失败", e);
+            }
         }
     }
 

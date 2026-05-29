@@ -32,26 +32,30 @@ export function ApproverNodeConfig({ config, onChange }: ApproverNodeConfigProps
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="approver-strategy" className="text-sm font-medium">审批人策略</label>
+        <label htmlFor="approver-strategy" className="font-medium text-sm">
+          审批人策略
+        </label>
         <Select value={strategy} onValueChange={(v) => onChange({ ...config, strategy: v })}>
           <SelectTrigger id="approver-strategy" className="mt-1">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {STRATEGIES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
       <div>
-        <label htmlFor="approver-assignee" className="text-sm font-medium">
+        <label htmlFor="approver-assignee" className="font-medium text-sm">
           {strategy === "ROLE" ? "角色名称" : "审批人"}
         </label>
         <input
           id="approver-assignee"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(config.assignee as string) ?? ""}
           onChange={(e) => onChange({ ...config, assignee: e.target.value })}
           placeholder={strategy === "ROLE" ? "输入角色名称" : "输入用户名"}

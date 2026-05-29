@@ -35,7 +35,7 @@ interface ChatterStore {
 
 const DEFAULT_CONFIG: ChatterPageConfig = {
   preset: "ai",
-  open: false,
+  open: false
 }
 
 export const useChatterStore = create<ChatterStore>()(
@@ -60,8 +60,8 @@ export const useChatterStore = create<ChatterStore>()(
         set((state) => ({
           configs: {
             ...state.configs,
-            [pageId]: { ...DEFAULT_CONFIG, ...state.configs[pageId], ...config },
-          },
+            [pageId]: { ...DEFAULT_CONFIG, ...state.configs[pageId], ...config }
+          }
         }))
         // 异步同步到后端（fire-and-forget）
         syncToRemote(pageId, { ...DEFAULT_CONFIG, ...get().configs[pageId], ...config })
@@ -69,12 +69,12 @@ export const useChatterStore = create<ChatterStore>()(
 
       getConfig: (pageId) => {
         return get().configs[pageId] ?? DEFAULT_CONFIG
-      },
+      }
     }),
     {
       name: "aaf-chatter-config",
       // 只持久化 configs，不持久化 open（每次打开页面默认关闭）
-      partialize: (state) => ({ configs: state.configs }),
+      partialize: (state) => ({ configs: state.configs })
     }
   )
 )
@@ -85,7 +85,7 @@ async function syncToRemote(pageId: string, config: ChatterPageConfig): Promise<
     await fetch("/api/context/chatter-config", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pageId, ...config }),
+      body: JSON.stringify({ pageId, ...config })
     })
   } catch {
     // 静默失败，本地缓存已更新

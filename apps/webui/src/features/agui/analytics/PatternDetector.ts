@@ -79,8 +79,7 @@ class PatternDetectorImpl {
 
       for (const [key, data] of sequences) {
         if (data.count >= MIN_FREQUENCY) {
-          const avgDuration =
-            data.durations.reduce((s, d) => s + d, 0) / data.durations.length
+          const avgDuration = data.durations.reduce((s, d) => s + d, 0) / data.durations.length
           this.patterns.set(key, {
             id: key,
             sequence: key.split(" → "),

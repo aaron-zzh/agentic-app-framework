@@ -5,12 +5,11 @@
  */
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
 import { Lightbulb, X } from "lucide-react"
-
-import { cn } from "@/lib/utils"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAISettingsStore } from "@/lib/store/ai-settings-store"
+import { cn } from "@/lib/utils"
 
 export interface AIActionSuggestion {
   /** 建议唯一标识 */
@@ -73,7 +72,7 @@ export function AIActionBubble({ suggestion, onDismiss, className }: AIActionBub
   return (
     <div
       className={cn(
-        "fixed right-4 bottom-4 z-50 flex max-w-xs items-start gap-2 rounded-lg border border-border bg-popover p-3 shadow-lg animate-in fade-in slide-in-from-bottom-2",
+        "fade-in slide-in-from-bottom-2 fixed right-4 bottom-4 z-50 flex max-w-xs animate-in items-start gap-2 rounded-lg border border-border bg-popover p-3 shadow-lg",
         className
       )}
     >

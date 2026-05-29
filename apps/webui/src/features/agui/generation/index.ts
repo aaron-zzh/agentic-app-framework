@@ -4,14 +4,23 @@
  * @author AaronZZH & Kiro
  */
 
-export { ComponentGenerator, type GenerationIntent, type GenerationResult } from "./ComponentGenerator"
-export { useConversationalBuilder, type BuilderMessage } from "./ConversationalBuilder"
+export {
+  ComponentGenerator,
+  type GenerationIntent,
+  type GenerationResult
+} from "./ComponentGenerator"
 export { ComponentRecommender, type Recommendation } from "./ComponentRecommender"
-export { LayoutOptimizer, type LayoutDescriptor, type LayoutProposal, type ResponsiveConfig } from "./LayoutOptimizer"
+export { type BuilderMessage, useConversationalBuilder } from "./ConversationalBuilder"
 export {
   GenerationHistory,
   type GenerationTemplate,
   type HistoryEntry,
   type MarketplaceFilter,
-  type TemplateVersion,
+  type TemplateVersion
 } from "./GenerationHistory"
+export {
+  type LayoutDescriptor,
+  LayoutOptimizer,
+  type LayoutProposal,
+  type ResponsiveConfig
+} from "./LayoutOptimizer"

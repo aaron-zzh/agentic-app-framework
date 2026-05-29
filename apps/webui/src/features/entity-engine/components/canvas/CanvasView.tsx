@@ -6,15 +6,13 @@
 
 "use client"
 
+import { type Editor, Tldraw } from "@tldraw/tldraw"
 import { useCallback, useState } from "react"
-import { Editor, Tldraw, TldrawUiMenuItem, DefaultToolbar, useIsToolSelected, useTools } from "@tldraw/tldraw"
 import "@tldraw/tldraw/tldraw.css"
 
 import type { EntityDef } from "@/lib/types/entity"
-
-import { CanvasCollaborators } from "./CanvasCollaborators"
 import { CanvasAIPanel } from "./CanvasAIPanel"
-import { CanvasTemplateDialog } from "./CanvasTemplateDialog"
+import { CanvasCollaborators } from "./CanvasCollaborators"
 import { CanvasExportButton } from "./CanvasExportButton"
 import { useCanvasCollaboration } from "./use-canvas-collaboration"
 
@@ -36,7 +34,7 @@ export function CanvasView({ entity, recordId }: CanvasViewProps) {
   // 协作同步（Yjs CRDT）
   const { store, collaborators } = useCanvasCollaboration({
     enabled: !!collaboration,
-    roomId: recordId ? `canvas-${entity.slug}-${recordId}` : undefined,
+    roomId: recordId ? `canvas-${entity.slug}-${recordId}` : undefined
   })
 
   const handleMount = useCallback((editorInstance: Editor) => {
@@ -44,12 +42,8 @@ export function CanvasView({ entity, recordId }: CanvasViewProps) {
   }, [])
 
   return (
-    <div className="relative h-full w-full min-h-[600px]">
-      <Tldraw
-        onMount={handleMount}
-        store={collaboration ? store : undefined}
-        inferDarkMode
-      />
+    <div className="relative h-full min-h-[600px] w-full">
+      <Tldraw onMount={handleMount} store={collaboration ? store : undefined} inferDarkMode />
 
       {/* 协作者头像列表 */}
       {collaboration && <CanvasCollaborators collaborators={collaborators} />}
@@ -59,10 +53,7 @@ export function CanvasView({ entity, recordId }: CanvasViewProps) {
 
       {/* 导出按钮 */}
       {editor && (
-        <CanvasExportButton
-          editor={editor}
-          formats={config?.exportFormats ?? ["png", "svg"]}
-        />
+        <CanvasExportButton editor={editor} formats={config?.exportFormats ?? ["png", "svg"]} />
       )}
     </div>
   )

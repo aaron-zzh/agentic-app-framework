@@ -26,14 +26,13 @@ function getEndpointUrl(target: ChatterTarget, persist?: boolean): string {
   if (target.agentRole) params.set("agentRole", target.agentRole)
   if (target.userId) params.set("targetUserId", target.userId)
   // persist 默认值：kiro=false，其他=true
-  const shouldPersist = persist ?? (target.type !== "kiro")
+  const shouldPersist = persist ?? target.type !== "kiro"
   params.set("persist", String(shouldPersist))
 
   // 后端统一端点上线后改为 /api/chat/run
   // 目前 fallback 到各自端点
-  const base = target.type === "kiro"
-    ? `${BASE_URL}/api/autodev/kiro/run`
-    : `${BASE_URL}/api/chat/run`
+  const base =
+    target.type === "kiro" ? `${BASE_URL}/api/autodev/kiro/run` : `${BASE_URL}/api/chat/run`
 
   return `${base}?${params.toString()}`
 }
@@ -59,12 +58,12 @@ export function ChatterRuntime({ target, persist, children }: ChatterRuntimeProp
     const awarenessContext = JSON.stringify({
       pageId: currentPageId,
       preset: pageConfig?.preset,
-      agentRole: target.agentRole ?? pageConfig?.agentRole,
+      agentRole: target.agentRole ?? pageConfig?.agentRole
     })
     return new HttpAgent({
       url: getEndpointUrl(target, persist),
       // initialState 会被合并到每次 run 请求的 state 字段，后端从 state.awarenessContext 读取
-      initialState: { awarenessContext },
+      initialState: { awarenessContext }
     })
   }, [target, persist, currentPageId, pageConfig])
 
@@ -91,15 +90,17 @@ export function ChatterRuntime({ target, persist, children }: ChatterRuntimeProp
             role: msg.role === "user" ? ("user" as const) : ("assistant" as const),
             content: [{ type: "text" as const, text: msg.content }],
             createdAt: new Date(msg.createdAt),
-            ...(msg.role !== "user" && { status: { type: "complete" as const, reason: "stop" as const } }),
+            ...(msg.role !== "user" && {
+              status: { type: "complete" as const, reason: "stop" as const }
+            }),
             ...(msg.role === "user" && { attachments: [] }),
-            metadata: { custom: {} },
+            metadata: { custom: {} }
           })) as ThreadMessage[]
           return { messages }
         } catch {
           return { messages: [] }
         }
-      },
+      }
     }),
     [target.type]
   )

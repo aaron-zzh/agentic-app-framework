@@ -22,18 +22,25 @@ interface PieChartProps {
 }
 
 export function PieChart({ data, title, className, donut = false }: PieChartProps) {
-  const option = useMemo<EChartsOption>(() => ({
-    title: title ? { text: title, left: "center", textStyle: { fontSize: 14 } } : undefined,
-    tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-    legend: { orient: "vertical", left: "left", top: "middle" },
-    series: [{
-      type: "pie",
-      radius: donut ? ["40%", "70%"] : "70%",
-      center: ["60%", "50%"],
-      data,
-      emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: "rgba(0,0,0,0.2)" } }
-    }]
-  }), [data, title, donut])
+  const option = useMemo<EChartsOption>(
+    () => ({
+      title: title ? { text: title, left: "center", textStyle: { fontSize: 14 } } : undefined,
+      tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
+      legend: { orient: "vertical", left: "left", top: "middle" },
+      series: [
+        {
+          type: "pie",
+          radius: donut ? ["40%", "70%"] : "70%",
+          center: ["60%", "50%"],
+          data,
+          emphasis: {
+            itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: "rgba(0,0,0,0.2)" }
+          }
+        }
+      ]
+    }),
+    [data, title, donut]
+  )
 
   return <BaseChart option={option} className={className} />
 }

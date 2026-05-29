@@ -12,7 +12,7 @@
 
 import { cn } from "@/lib/utils/cn"
 
-import { useScrollAnimation, type AnimationType } from "./hooks/use-scroll-animation"
+import { type AnimationType, useScrollAnimation } from "./hooks/use-scroll-animation"
 import type { SectionStyle } from "./types"
 
 /** 内边距预设映射 */

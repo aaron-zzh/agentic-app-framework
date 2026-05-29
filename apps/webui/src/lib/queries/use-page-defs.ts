@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { pageDefApi, type PageDefCreateInput } from "@/lib/api/page-def"
+import { type PageDefCreateInput, pageDefApi } from "@/lib/api/page-def"
 
 const PAGE_DEFS_KEY = ["page-defs"]
 
@@ -21,7 +21,7 @@ export function usePageDefs() {
 export function usePageDef(id: string | undefined) {
   return useQuery({
     queryKey: [...PAGE_DEFS_KEY, id],
-    queryFn: () => pageDefApi.get(id!),
+    queryFn: () => pageDefApi.get(id as NonNullable<typeof id>),
     enabled: !!id
   })
 }
@@ -30,7 +30,7 @@ export function usePageDef(id: string | undefined) {
 export function usePageDefBySlug(slug: string | undefined) {
   return useQuery({
     queryKey: [...PAGE_DEFS_KEY, "slug", slug],
-    queryFn: () => pageDefApi.getBySlug(slug!),
+    queryFn: () => pageDefApi.getBySlug(slug as NonNullable<typeof slug>),
     enabled: !!slug,
     staleTime: 60_000
   })

@@ -52,8 +52,7 @@ export const workflowApi = {
     req<void>("/workflow/reject", { method: "POST", body: JSON.stringify(body) }),
 
   /** 获取流程状态 */
-  getStatus: (processInstanceId: string) =>
-    req<WorkflowStatusVO>(`/workflow/${processInstanceId}`),
+  getStatus: (processInstanceId: string) => req<WorkflowStatusVO>(`/workflow/${processInstanceId}`),
 
   /** 获取审批历史 */
   getHistory: (processInstanceId: string) =>

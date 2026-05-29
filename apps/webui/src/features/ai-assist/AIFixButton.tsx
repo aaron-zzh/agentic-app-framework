@@ -5,8 +5,8 @@
  */
 "use client"
 
+import { Loader2, Sparkles } from "lucide-react"
 import { useCallback, useState } from "react"
-import { Sparkles, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useAISettingsStore } from "@/lib/store/ai-settings-store"

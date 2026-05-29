@@ -32,6 +32,13 @@
                     <releases><enabled>true</enabled></releases>
                     <snapshots><enabled>false</enabled></snapshots>
                 </repository>
+                <repository>
+                    <id>sonatype-central</id>
+                    <name>Maven Central (Sonatype)</name>
+                    <url>https://repo1.maven.org/maven2/</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                </repository>
             </repositories>
         </profile>
     </profiles>

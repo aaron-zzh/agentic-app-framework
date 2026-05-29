@@ -45,8 +45,7 @@ export const subscriptionApi = {
     req<Subscription | null>(`/subscriptions?entityType=${entityType}&entityId=${entityId}`),
 
   /** 获取当前用户在某实体下所有已订阅的记录 ID 列表 */
-  listIds: (entityType: string) =>
-    req<string[]>(`/subscriptions/ids?entityType=${entityType}`),
+  listIds: (entityType: string) => req<string[]>(`/subscriptions/ids?entityType=${entityType}`),
 
   /** 创建或更新订阅 */
   upsert: (data: UpsertSubscriptionReq) =>

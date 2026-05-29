@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
+import { useId, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,12 +18,13 @@ import { useCreateRecharge, useTokenRules } from "@/lib/queries/use-credits"
 export default function RechargePage() {
   const { data: rules, isLoading } = useTokenRules()
   const { mutate: recharge, isPending } = useCreateRecharge()
+  const formId = useId()
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null)
   const [customAmount, setCustomAmount] = useState("")
 
   /** 当前选中的充值金额 */
   const activeAmount = selectedRuleId
-    ? rules?.find((r) => r.id === selectedRuleId)?.creditAmount ?? 0
+    ? (rules?.find((r) => r.id === selectedRuleId)?.creditAmount ?? 0)
     : Number(customAmount) || 0
 
   const handleSelectRule = (ruleId: string) => {
@@ -89,15 +90,15 @@ export default function RechargePage() {
                     key={rule.id}
                     type="button"
                     className={`rounded-lg border p-4 text-left transition-colors hover:border-primary ${
-                      selectedRuleId === rule.id ? "border-primary bg-primary/5 ring-1 ring-primary" : ""
+                      selectedRuleId === rule.id
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : ""
                     }`}
                     onClick={() => handleSelectRule(rule.id)}
                   >
                     <p className="font-medium">{rule.name}</p>
                     <p className="mt-1 font-bold text-lg">{rule.creditAmount} 积分</p>
-                    <p className="text-muted-foreground text-sm">
-                      可兑换 {rule.tokenAmount} Token
-                    </p>
+                    <p className="text-muted-foreground text-sm">可兑换 {rule.tokenAmount} Token</p>
                   </button>
                 ))}
             </div>
@@ -114,9 +115,9 @@ export default function RechargePage() {
         <CardContent>
           <div className="flex items-end gap-4">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="custom-amount">充值积分数</Label>
+              <Label htmlFor={`${formId}-custom-amount`}>充值积分数</Label>
               <Input
-                id="custom-amount"
+                id={`${formId}-custom-amount`}
                 type="number"
                 min={1}
                 placeholder="输入积分数量"

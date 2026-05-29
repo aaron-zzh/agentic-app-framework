@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { request } from "./client"
 import type { Model3dTaskResult } from "@/features/aigc/types"
+import { request } from "./client"
 
 const API_PATH = "/aigc/model3d"
 
@@ -39,24 +39,24 @@ export const model3dApi = {
   submitTextTo3d: (params: TextTo3dParams): Promise<string> =>
     request<string>(`${API_PATH}/text-to-3d`, {
       method: "POST",
-      body: JSON.stringify(params),
+      body: JSON.stringify(params)
     }),
 
   /** 单图生成 3D 模型 */
   submitImageTo3d: (params: ImageTo3dParams): Promise<string> =>
     request<string>(`${API_PATH}/image-to-3d`, {
       method: "POST",
-      body: JSON.stringify(params),
+      body: JSON.stringify(params)
     }),
 
   /** 多图生成 3D 模型（四视角：前/左/后/右） */
   submitMultiImageTo3d: (params: MultiImageTo3dParams): Promise<string> =>
     request<string>(`${API_PATH}/multi-image-to-3d`, {
       method: "POST",
-      body: JSON.stringify(params),
+      body: JSON.stringify(params)
     }),
 
   /** 查询 3D 生成任务状态 */
   queryTask: (taskId: string): Promise<Model3dTaskResult> =>
-    request<Model3dTaskResult>(`${API_PATH}/task/${taskId}`),
+    request<Model3dTaskResult>(`${API_PATH}/task/${taskId}`)
 }

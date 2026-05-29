@@ -55,10 +55,8 @@ export const todoApi = {
   },
 
   /** 标记完成 */
-  complete: (id: string) =>
-    req<void>(`/todos/${id}/complete`, { method: "PUT" }),
+  complete: (id: string) => req<void>(`/todos/${id}/complete`, { method: "PUT" }),
 
   /** 标记忽略 */
-  dismiss: (id: string) =>
-    req<void>(`/todos/${id}/dismiss`, { method: "PUT" })
+  dismiss: (id: string) => req<void>(`/todos/${id}/dismiss`, { method: "PUT" })
 }

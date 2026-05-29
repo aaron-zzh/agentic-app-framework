@@ -43,7 +43,9 @@ function getState(width: number): ResponsiveState {
 /** 响应式断点 hook */
 export function useResponsive(): ResponsiveState {
   const [state, setState] = useState<ResponsiveState>(() =>
-    typeof window === "undefined" ? { isMobile: false, isTablet: false, isDesktop: true } : getState(window.innerWidth)
+    typeof window === "undefined"
+      ? { isMobile: false, isTablet: false, isDesktop: true }
+      : getState(window.innerWidth)
   )
 
   useEffect(() => {

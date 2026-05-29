@@ -6,15 +6,15 @@
 "use client"
 
 import { useState } from "react"
-import { ModelViewer } from "@/features/aigc/three/ModelViewer"
 import { Button } from "@/components/ui/button"
+import { ModelViewer } from "@/features/aigc/three/ModelViewer"
 
 const MODELS = [
   { name: "鸭子", url: "/glb/duck.glb" },
   { name: "小狗", url: "/glb/dog.glb" },
   { name: "鹳鸟", url: "/glb/stork.glb" },
   { name: "鹦鹉", url: "/glb/parrot.glb" },
-  { name: "火烈鸟", url: "/glb/flamingo.glb" },
+  { name: "火烈鸟", url: "/glb/flamingo.glb" }
 ]
 
 export default function ModelViewerScene() {
@@ -23,7 +23,7 @@ export default function ModelViewerScene() {
   return (
     <div className="flex size-full flex-col">
       {/* 模型选择栏 */}
-      <div className="flex gap-2 border-b border-border/50 p-3">
+      <div className="flex gap-2 border-border/50 border-b p-3">
         {MODELS.map((m) => (
           <Button
             key={m.url}

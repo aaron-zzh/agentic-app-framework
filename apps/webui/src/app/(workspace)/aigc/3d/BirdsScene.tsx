@@ -5,12 +5,34 @@
 
 "use client"
 
-import { Suspense, useEffect, useMemo } from "react"
-import { Canvas, useFrame } from "@react-three/fiber"
 import { OrbitControls, useAnimations, useGLTF } from "@react-three/drei"
+import { Canvas, useFrame } from "@react-three/fiber"
+import { Suspense, useEffect, useMemo } from "react"
 
-function Bird({ speed, factor, url, ...props }: { speed: number; factor: number; url: string; position: [number, number, number]; rotation: [number, number, number] }) {
-  const { nodes, animations } = useGLTF(url) as { nodes: Record<string, { morphTargetDictionary?: object; morphTargetInfluences?: number[]; geometry: object; material: object }>; animations: object[] }
+function Bird({
+  speed,
+  factor,
+  url,
+  ...props
+}: {
+  speed: number
+  factor: number
+  url: string
+  position: [number, number, number]
+  rotation: [number, number, number]
+}) {
+  const { nodes, animations } = useGLTF(url) as {
+    nodes: Record<
+      string,
+      {
+        morphTargetDictionary?: object
+        morphTargetInfluences?: number[]
+        geometry: object
+        material: object
+      }
+    >
+    animations: object[]
+  }
   const { ref, mixer } = useAnimations(animations as never[])
 
   useEffect(() => {
@@ -21,7 +43,7 @@ function Bird({ speed, factor, url, ...props }: { speed: number; factor: number;
 
   useFrame((_state, delta) => {
     if (ref.current) {
-      (ref.current as { rotation: { y: number } }).rotation.y +=
+      ;(ref.current as { rotation: { y: number } }).rotation.y +=
         Math.sin((delta * factor) / 2) * Math.cos((delta * factor) / 2) * 1.5
       mixer.update(delta * speed)
     }
@@ -55,8 +77,20 @@ export default function BirdsScene() {
         const z = -5 + Math.random() * 10
         const type = ["stork", "parrot", "flamingo"][Math.round(Math.random() * 2)]
         const speed = type === "stork" ? 0.5 : type === "flamingo" ? 2 : 5
-        const factor = type === "stork" ? 0.5 + Math.random() : type === "flamingo" ? 0.25 + Math.random() : 1 + Math.random() - 0.5
-        return { key: i, position: [x, y, z] as [number, number, number], rotation: [0, x > 0 ? Math.PI : 0, 0] as [number, number, number], speed, factor, url: `/glb/${type}.glb` }
+        const factor =
+          type === "stork"
+            ? 0.5 + Math.random()
+            : type === "flamingo"
+              ? 0.25 + Math.random()
+              : 1 + Math.random() - 0.5
+        return {
+          key: i,
+          position: [x, y, z] as [number, number, number],
+          rotation: [0, x > 0 ? Math.PI : 0, 0] as [number, number, number],
+          speed,
+          factor,
+          url: `/glb/${type}.glb`
+        }
       }),
     []
   )

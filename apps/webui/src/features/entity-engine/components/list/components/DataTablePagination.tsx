@@ -62,7 +62,6 @@ export function DataTablePagination<TData>({
 
         {pages.map((p, i) =>
           p === "..." ? (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 省略号位置固定
             <span key={`e${i}`} className="px-1 text-muted-foreground text-xs">
               …
             </span>

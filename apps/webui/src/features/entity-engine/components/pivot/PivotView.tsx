@@ -12,7 +12,12 @@
 
 import { useCallback, useState } from "react"
 
-import type { DataFieldDef, EntityDef, PivotConfig, PivotMeasure } from "@/features/entity-engine/types"
+import type {
+  DataFieldDef,
+  EntityDef,
+  PivotConfig,
+  PivotMeasure
+} from "@/features/entity-engine/types"
 import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 interface PivotViewProps {
@@ -234,7 +239,6 @@ function PivotViewInner({ entity }: PivotViewProps) {
               </thead>
               <tbody>
                 {result.map((row, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: 透视结果无稳定 key
                   <tr key={i} className="border-b hover:bg-muted/50">
                     {resultColumns.map((col) => (
                       <td key={col} className="h-9 px-3 align-middle">

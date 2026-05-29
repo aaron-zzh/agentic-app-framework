@@ -2,8 +2,9 @@
  * 文档管理 API 客户端（业务文档，对接 /api/docs）
  * @author AaronZZH & Kiro
  */
+
+import type { DocSearchResult, DocTreeNode, Document } from "@/lib/types/document"
 import { request } from "./client"
-import type { DocTreeNode, Document, DocSearchResult } from "@/lib/types/document"
 
 const BASE = "/docs"
 
@@ -14,5 +15,5 @@ export const docApi = {
     request<Document>(`${BASE}`, { method: "POST", body: JSON.stringify(dto) }),
   update: (id: number, content: string) =>
     request<Document>(`${BASE}/${id}`, { method: "PUT", body: JSON.stringify({ content }) }),
-  search: (q: string) => request<DocSearchResult[]>(`${BASE}/search?q=${encodeURIComponent(q)}`),
+  search: (q: string) => request<DocSearchResult[]>(`${BASE}/search?q=${encodeURIComponent(q)}`)
 }

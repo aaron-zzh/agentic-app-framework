@@ -6,11 +6,17 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import type { FlowTemplate, FlowMode } from "../types"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog"
+import { useCreateFromTemplate, useFlowTemplates } from "../hooks/use-flow-query"
 import { builtinTemplates } from "../lib/templates"
-import { useFlowTemplates, useCreateFromTemplate } from "../hooks/use-flow-query"
+import type { FlowMode, FlowTemplate } from "../types"
 
 interface TemplateDialogProps {
   mode: FlowMode
@@ -20,13 +26,10 @@ interface TemplateDialogProps {
 export function TemplateDialog({ mode, onSelect }: TemplateDialogProps) {
   const [open, setOpen] = useState(false)
   const { data: remoteTemplates } = useFlowTemplates(mode)
-  const createFromTemplate = useCreateFromTemplate()
+  const _createFromTemplate = useCreateFromTemplate()
 
   // 合并内置模板和远程模板
-  const templates = [
-    ...builtinTemplates.filter((t) => t.mode === mode),
-    ...(remoteTemplates ?? [])
-  ]
+  const templates = [...builtinTemplates.filter((t) => t.mode === mode), ...(remoteTemplates ?? [])]
 
   const handleSelect = (template: FlowTemplate) => {
     onSelect(template.definition)
@@ -46,17 +49,17 @@ export function TemplateDialog({ mode, onSelect }: TemplateDialogProps) {
         </DialogHeader>
         <div className="space-y-2">
           {templates.length === 0 && (
-            <p className="text-muted-foreground py-4 text-center text-sm">暂无可用模板</p>
+            <p className="py-4 text-center text-muted-foreground text-sm">暂无可用模板</p>
           )}
           {templates.map((tpl) => (
             <button
               key={tpl.id}
               type="button"
-              className="hover:bg-accent w-full rounded-lg border p-3 text-left transition-colors"
+              className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent"
               onClick={() => handleSelect(tpl)}
             >
-              <p className="text-sm font-medium">{tpl.name}</p>
-              <p className="text-muted-foreground mt-0.5 text-xs">{tpl.description}</p>
+              <p className="font-medium text-sm">{tpl.name}</p>
+              <p className="mt-0.5 text-muted-foreground text-xs">{tpl.description}</p>
             </button>
           ))}
         </div>

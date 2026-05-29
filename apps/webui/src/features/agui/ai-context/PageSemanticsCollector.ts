@@ -57,14 +57,14 @@ export function collectPageSemantics(): PageSemantics {
   // 从组件状态推断可用操作
   const availableActions: string[] = []
   for (const comp of components) {
-    if (comp.state["canCreate"]) availableActions.push("create")
-    if (comp.state["canDelete"]) availableActions.push("delete")
-    if (comp.state["canEdit"]) availableActions.push("edit")
-    if (comp.state["canExport"]) availableActions.push("export")
+    if (comp.state.canCreate) availableActions.push("create")
+    if (comp.state.canDelete) availableActions.push("delete")
+    if (comp.state.canEdit) availableActions.push("edit")
+    if (comp.state.canExport) availableActions.push("export")
   }
 
   // 检测是否有未保存变更
-  const pendingChanges = components.some((c) => c.state["isDirty"] === true)
+  const pendingChanges = components.some((c) => c.state.isDirty === true)
 
   return {
     route: currentPageMeta.route,

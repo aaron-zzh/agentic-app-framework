@@ -83,7 +83,7 @@ function SectionRenderer({ section, darkMode }: { section: SectionDef; darkMode?
   const entry = getSectionComponent(section.type)
   if (!entry) {
     return (
-      <div className="border border-dashed border-muted-foreground/30 px-6 py-8 text-center text-muted-foreground text-sm">
+      <div className="border border-muted-foreground/30 border-dashed px-6 py-8 text-center text-muted-foreground text-sm">
         未注册的 Section 类型：{section.type}
       </div>
     )
@@ -118,7 +118,7 @@ export function PageEngine({ page }: PageEngineProps) {
   const darkMode = page.theme?.darkMode === true
 
   return (
-    <div className={cn("flex scroll-smooth flex-col", page.theme?.className, darkMode && "dark")}>
+    <div className={cn("flex flex-col scroll-smooth", page.theme?.className, darkMode && "dark")}>
       {page.sections.map((section) => (
         <SectionErrorBoundary key={section.id} sectionId={section.id}>
           <SectionRenderer section={section} darkMode={darkMode} />

@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { automationApi, type AutomationRuleInput } from "@/lib/api/automation"
+import { type AutomationRuleInput, automationApi } from "@/lib/api/automation"
 
 const RULES_KEY = ["automation-rules"]
 const LOGS_KEY = ["automation-logs"]

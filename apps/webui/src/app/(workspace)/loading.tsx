@@ -15,7 +15,6 @@ export default function WorkspaceLoading() {
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
             <div key={i} className="flex gap-4">
               <div className="h-8 flex-1 animate-pulse rounded bg-muted" />
               <div className="h-8 flex-1 animate-pulse rounded bg-muted" />

@@ -8,16 +8,13 @@
 "use client"
 
 import { useEffect } from "react"
-import { loadRemoteConfig, useChatterStore, type ChatterPageConfig } from "@/stores/chatter-store"
+import { type ChatterPageConfig, loadRemoteConfig, useChatterStore } from "@/stores/chatter-store"
 
 /**
  * 在页面组件中调用，设置该页面的 Chatter 默认配置
  * 优先级：本地缓存 > 远程配置 > 传入的 defaultConfig
  */
-export function useChatterConfig(
-  pageId: string,
-  defaultConfig: Partial<ChatterPageConfig>
-): void {
+export function useChatterConfig(pageId: string, defaultConfig: Partial<ChatterPageConfig>): void {
   const configs = useChatterStore((s) => s.configs)
   const setConfig = useChatterStore((s) => s.setConfig)
 
@@ -39,6 +36,11 @@ export function useChatterConfig(
       }
       // 后端无配置（null），保持 defaultConfig
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId]) // 只在 pageId 变化时执行，不依赖 configs 避免循环
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    pageId, // 本地无缓存：先用 defaultConfig，再异步从后端加载
+    setConfig,
+    defaultConfig,
+    configs
+  ]) // 只在 pageId 变化时执行，不依赖 configs 避免循环
 }

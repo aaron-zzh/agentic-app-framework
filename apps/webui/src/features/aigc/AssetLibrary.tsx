@@ -5,7 +5,6 @@
 
 "use client"
 
-import { useState } from "react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,27 +13,34 @@ import {
   RefreshCw,
   Search,
   Trash2,
-  X,
+  X
 } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { cn } from "@/lib/utils/index"
 import {
-  useMediaAssetList,
+  useDeleteMediaAsset,
   useMediaAssetDetail,
+  useMediaAssetList,
   useMediaAssetVariants,
   useMediaCategories,
   useMediaTags,
-  useDeleteMediaAsset,
-  useRegenerateAsset,
+  useRegenerateAsset
 } from "@/lib/queries/use-media-assets"
+import { cn } from "@/lib/utils/index"
 import type { MediaAssetType, MediaAssetVO, MediaCategoryVO } from "./types"
 
 /** 素材卡片 */
@@ -42,7 +48,7 @@ function AssetCard({
   asset,
   onClick,
   onDelete,
-  onRegenerate,
+  onRegenerate
 }: {
   asset: MediaAssetVO
   onClick: () => void
@@ -69,7 +75,10 @@ function AssetCard({
             variant="secondary"
             size="icon"
             className="size-7 bg-black/50 text-white hover:bg-black/70"
-            onClick={(e) => { e.stopPropagation(); window.open(asset.url, "_blank") }}
+            onClick={(e) => {
+              e.stopPropagation()
+              window.open(asset.url, "_blank")
+            }}
           >
             <Download className="size-3.5" />
           </Button>
@@ -77,7 +86,10 @@ function AssetCard({
             variant="secondary"
             size="icon"
             className="size-7 bg-black/50 text-white hover:bg-black/70"
-            onClick={(e) => { e.stopPropagation(); onRegenerate() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onRegenerate()
+            }}
           >
             <RefreshCw className="size-3.5" />
           </Button>
@@ -85,7 +97,10 @@ function AssetCard({
             variant="secondary"
             size="icon"
             className="size-7 bg-black/50 text-white hover:bg-black/70"
-            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
           >
             <Trash2 className="size-3.5" />
           </Button>
@@ -101,9 +116,9 @@ function AssetCard({
 
       {/* 底部信息 */}
       <div className="p-2">
-        <p className="truncate text-sm font-medium">{asset.name}</p>
+        <p className="truncate font-medium text-sm">{asset.name}</p>
         <p className="text-[11px] text-muted-foreground">
-          {asset.generationParams ? JSON.parse(asset.generationParams).model ?? "" : ""}
+          {asset.generationParams ? (JSON.parse(asset.generationParams).model ?? "") : ""}
           {asset.generationParams ? " · " : ""}
           {new Date(asset.createTime).toLocaleDateString()}
         </p>
@@ -116,7 +131,7 @@ function AssetCard({
 function AssetDetailDialog({
   assetId,
   open,
-  onOpenChange,
+  onOpenChange
 }: {
   assetId: number | null
   open: boolean
@@ -148,7 +163,9 @@ function AssetDetailDialog({
               {asset.width && asset.height && (
                 <div>
                   <span className="text-muted-foreground">尺寸</span>
-                  <p>{asset.width} × {asset.height}</p>
+                  <p>
+                    {asset.width} × {asset.height}
+                  </p>
                 </div>
               )}
               {params?.model && (
@@ -171,7 +188,7 @@ function AssetDetailDialog({
 
             {params?.prompt && (
               <div>
-                <span className="text-sm text-muted-foreground">Prompt</span>
+                <span className="text-muted-foreground text-sm">Prompt</span>
                 <p className="mt-1 rounded-md bg-muted p-2 text-xs">{params.prompt}</p>
               </div>
             )}
@@ -179,7 +196,9 @@ function AssetDetailDialog({
             {asset.tags && (
               <div className="flex flex-wrap gap-1">
                 {asset.tags.split(",").map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-xs">{tag.trim()}</Badge>
+                  <Badge key={tag} variant="outline" className="text-xs">
+                    {tag.trim()}
+                  </Badge>
                 ))}
               </div>
             )}
@@ -187,12 +206,16 @@ function AssetDetailDialog({
             {/* 变体列表 */}
             {variants && variants.length > 0 && (
               <div>
-                <span className="text-sm text-muted-foreground">变体 ({variants.length})</span>
+                <span className="text-muted-foreground text-sm">变体 ({variants.length})</span>
                 <div className="mt-1 grid grid-cols-4 gap-1">
                   {variants.map((v) => (
                     <div key={v.id} className="overflow-hidden rounded-md bg-muted">
                       {/* biome-ignore lint/performance/noImgElement: 变体缩略图 */}
-                      <img src={v.thumbnailUrl ?? v.url} alt={v.name} className="aspect-square size-full object-cover" />
+                      <img
+                        src={v.thumbnailUrl ?? v.url}
+                        alt={v.name}
+                        className="aspect-square size-full object-cover"
+                      />
                     </div>
                   ))}
                 </div>
@@ -209,7 +232,7 @@ function AssetDetailDialog({
 function CategoryTree({
   categories,
   selectedId,
-  onSelect,
+  onSelect
 }: {
   categories: MediaCategoryVO[]
   selectedId: number | null
@@ -272,7 +295,7 @@ export function AssetLibrary() {
     sort: sort === "newest" ? "createTime:desc" : "createTime:asc",
     search: search || undefined,
     ...(typeFilter !== "ALL" && { type: typeFilter }),
-    ...(categoryId && { categoryId }),
+    ...(categoryId && { categoryId })
   })
 
   function handleDelete(id: number) {
@@ -289,22 +312,25 @@ export function AssetLibrary() {
     <div className="flex h-full flex-col">
       {/* 顶部工具栏 */}
       <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
-        <h1 className="text-lg font-semibold">素材库</h1>
+        <h1 className="font-semibold text-lg">素材库</h1>
 
         {/* 搜索框 */}
         <div className="relative ml-auto w-64">
-          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
           <Input
             placeholder="搜索素材..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0) }}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(0)
+            }}
             className="pl-9"
           />
           {search && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1 size-6"
+              className="absolute top-1 right-1 size-6"
               onClick={() => setSearch("")}
             >
               <X className="size-3" />
@@ -313,12 +339,26 @@ export function AssetLibrary() {
         </div>
 
         {/* 类型筛选 */}
-        <Tabs value={typeFilter} onValueChange={(v) => { setTypeFilter(v as MediaAssetType | "ALL"); setPage(0) }}>
+        <Tabs
+          value={typeFilter}
+          onValueChange={(v) => {
+            setTypeFilter(v as MediaAssetType | "ALL")
+            setPage(0)
+          }}
+        >
           <TabsList className="h-8">
-            <TabsTrigger value="ALL" className="text-xs">全部</TabsTrigger>
-            <TabsTrigger value="IMAGE" className="text-xs">图片</TabsTrigger>
-            <TabsTrigger value="VIDEO" className="text-xs">视频</TabsTrigger>
-            <TabsTrigger value="MODEL_3D" className="text-xs">3D 模型</TabsTrigger>
+            <TabsTrigger value="ALL" className="text-xs">
+              全部
+            </TabsTrigger>
+            <TabsTrigger value="IMAGE" className="text-xs">
+              图片
+            </TabsTrigger>
+            <TabsTrigger value="VIDEO" className="text-xs">
+              视频
+            </TabsTrigger>
+            <TabsTrigger value="MODEL_3D" className="text-xs">
+              3D 模型
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -334,7 +374,12 @@ export function AssetLibrary() {
         </Select>
 
         {/* 侧边栏切换 */}
-        <Button variant="ghost" size="icon" className="size-8" onClick={() => setSidebarOpen(!sidebarOpen)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
           {sidebarOpen ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
         </Button>
       </div>
@@ -344,9 +389,16 @@ export function AssetLibrary() {
         {sidebarOpen && (
           <aside className="w-56 shrink-0 overflow-y-auto border-r p-3">
             {/* 分类树 */}
-            <p className="mb-2 text-xs font-medium text-muted-foreground">分类</p>
+            <p className="mb-2 font-medium text-muted-foreground text-xs">分类</p>
             {categories ? (
-              <CategoryTree categories={categories} selectedId={categoryId} onSelect={(id) => { setCategoryId(id); setPage(0) }} />
+              <CategoryTree
+                categories={categories}
+                selectedId={categoryId}
+                onSelect={(id) => {
+                  setCategoryId(id)
+                  setPage(0)
+                }}
+              />
             ) : (
               <div className="flex flex-col gap-1">
                 <Skeleton className="h-7 w-full" />
@@ -358,17 +410,27 @@ export function AssetLibrary() {
             {/* 标签筛选 */}
             {tags && tags.length > 0 && (
               <div className="mt-4">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">标签</p>
+                <p className="mb-2 font-medium text-muted-foreground text-xs">标签</p>
                 <div className="flex flex-wrap gap-1">
                   {tags.map((tag) => (
                     <Badge
                       key={tag.id}
                       variant={selectedTags.includes(tag.id) ? "default" : "outline"}
                       className="cursor-pointer text-[10px]"
-                      style={tag.color ? { borderColor: tag.color, color: selectedTags.includes(tag.id) ? "#fff" : tag.color, backgroundColor: selectedTags.includes(tag.id) ? tag.color : undefined } : undefined}
+                      style={
+                        tag.color
+                          ? {
+                              borderColor: tag.color,
+                              color: selectedTags.includes(tag.id) ? "#fff" : tag.color,
+                              backgroundColor: selectedTags.includes(tag.id) ? tag.color : undefined
+                            }
+                          : undefined
+                      }
                       onClick={() => {
                         setSelectedTags((prev) =>
-                          prev.includes(tag.id) ? prev.filter((t) => t !== tag.id) : [...prev, tag.id]
+                          prev.includes(tag.id)
+                            ? prev.filter((t) => t !== tag.id)
+                            : [...prev, tag.id]
                         )
                         setPage(0)
                       }}
@@ -416,7 +478,7 @@ export function AssetLibrary() {
                     >
                       上一页
                     </Button>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-muted-foreground text-sm">
                       {page + 1} / {Math.ceil(data.total / 20)}
                     </span>
                     <Button
@@ -444,7 +506,9 @@ export function AssetLibrary() {
       <AssetDetailDialog
         assetId={detailId}
         open={detailId !== null}
-        onOpenChange={(open) => { if (!open) setDetailId(null) }}
+        onOpenChange={(open) => {
+          if (!open) setDetailId(null)
+        }}
       />
     </div>
   )

@@ -118,10 +118,10 @@ var done = imageProcessService.queryTask(pending.taskId());
 
 **支持的处理方式**：
 
-| method | 说明 | 模式 | 费用参考 |
-|--------|------|------|---------|
+| method          | 说明     | 模式 | 费用参考  |
+| --------------- | -------- | ---- | --------- |
 | `COLOR_ENHANCE` | 色彩增强 | 同步 | 20元/千次 |
-| `CARTOONIZE` | 卡通化 | 异步 | 60元/千次 |
+| `CARTOONIZE`    | 卡通化   | 异步 | 60元/千次 |
 
 ---
 
@@ -195,22 +195,22 @@ VideoGenerationService.VideoResult result = videoGenerationService.query(taskId)
 
 所有 AI 能力的模型配置统一存储在 `ai_model` 表，通过后台管理界面维护：
 
-| 字段 | 说明 |
-|------|------|
-| `modelId` | 唯一标识，如 `openai:gpt-4o`、`qwen:embedding` |
-| `provider` | 来源标识，如 `openai`、`deepseek`、`openrouter` |
-| `providerType` | 协议类型：`OPENAI_COMPAT` / `ANTHROPIC` / `OLLAMA` |
-| `apiKey` | 加密存储 |
-| `baseUrl` | API 地址，支持聚合平台自定义 |
-| `capabilities` | 能力标记：`CHAT,VISION,EMBEDDING,IMAGE_GEN` 等 |
-| `inputPricePerK` / `outputPricePerK` | Token 单价，用于积分结算 |
+| 字段                                 | 说明                                               |
+| ------------------------------------ | -------------------------------------------------- |
+| `modelId`                            | 唯一标识，如 `openai:gpt-4o`、`qwen:embedding`     |
+| `provider`                           | 来源标识，如 `openai`、`deepseek`、`openrouter`    |
+| `providerType`                       | 协议类型：`OPENAI_COMPAT` / `ANTHROPIC` / `OLLAMA` |
+| `apiKey`                             | 加密存储                                           |
+| `baseUrl`                            | API 地址，支持聚合平台自定义                       |
+| `capabilities`                       | 能力标记：`CHAT,VISION,EMBEDDING,IMAGE_GEN` 等     |
+| `inputPricePerK` / `outputPricePerK` | Token 单价，用于积分结算                           |
 
 **第一期支持的 12 个 provider**（种子数据见 `V3__ai_model_enhance.sql`）：
 
-| 优先级 | provider | providerType |
-|--------|---------|-------------|
-| P0 | openai / deepseek / qwen / moonshot | OPENAI_COMPAT |
-| P1 | zhipu / anthropic / ollama / openrouter / n1n / linkai / stepfun / volcengine | OPENAI_COMPAT / ANTHROPIC / OLLAMA |
+| 优先级 | provider                                                                      | providerType                       |
+| ------ | ----------------------------------------------------------------------------- | ---------------------------------- |
+| P0     | openai / deepseek / qwen / moonshot                                           | OPENAI_COMPAT                      |
+| P1     | zhipu / anthropic / ollama / openrouter / n1n / linkai / stepfun / volcengine | OPENAI_COMPAT / ANTHROPIC / OLLAMA |
 
 ---
 

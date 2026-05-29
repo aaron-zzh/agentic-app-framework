@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
 import { Maximize2, Pause, Play } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import type { VideoScene } from "./VideoTimeline"
 
@@ -75,9 +75,7 @@ export function VideoPlayer({ src, scenes = [], onSceneChange }: VideoPlayerProp
   /** 检测当前幕变化 */
   useEffect(() => {
     if (!scenes.length) return
-    const active = scenes.find(
-      (s) => currentTime >= s.startTime && currentTime < s.endTime
-    )
+    const active = scenes.find((s) => currentTime >= s.startTime && currentTime < s.endTime)
     if (active) onSceneChange?.(active)
   }, [currentTime, scenes, onSceneChange])
 
@@ -96,7 +94,9 @@ export function VideoPlayer({ src, scenes = [], onSceneChange }: VideoPlayerProp
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={() => setPlaying(false)}
-          />
+          >
+            <track kind="captions" />
+          </video>
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <Play className="size-10 opacity-30" />
@@ -110,8 +110,16 @@ export function VideoPlayer({ src, scenes = [], onSceneChange }: VideoPlayerProp
         {/* 进度条 + 分幕标记 */}
         <div
           className="group relative h-2 cursor-pointer rounded-full bg-muted"
+          role="slider"
+          tabIndex={0}
+          aria-label="播放进度"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
           onClick={handleSeek}
-          onKeyDown={(e) => { if (e.key === "Enter") handleSeek(e as unknown as React.MouseEvent<HTMLDivElement>) }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSeek(e as unknown as React.MouseEvent<HTMLDivElement>)
+          }}
         >
           {/* 已播放进度 */}
           <div
@@ -140,7 +148,7 @@ export function VideoPlayer({ src, scenes = [], onSceneChange }: VideoPlayerProp
             <Button variant="ghost" size="sm" className="size-7 p-0" onClick={togglePlay}>
               {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
             </Button>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {formatTime(currentTime)} / {formatTime(duration || totalDuration)}
             </span>
           </div>

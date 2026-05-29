@@ -5,16 +5,22 @@
 
 "use client"
 
-import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { useId, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -65,6 +71,7 @@ export function PublishDialog({ processKey, flowName }: PublishDialogProps) {
 
 /** 发布表单 */
 function PublishForm({ processKey, onSuccess }: { processKey: string; onSuccess: () => void }) {
+  const formId = useId()
   const [description, setDescription] = useState("")
   const [agentName, setAgentName] = useState("")
   const qc = useQueryClient()
@@ -88,29 +95,25 @@ function PublishForm({ processKey, onSuccess }: { processKey: string; onSuccess:
   return (
     <div className="space-y-4 pt-2">
       <div className="space-y-2">
-        <Label htmlFor="agent-name">Agent 名称（可选）</Label>
+        <Label htmlFor={`${formId}-agent-name`}>Agent 名称（可选）</Label>
         <Input
-          id="agent-name"
+          id={`${formId}-agent-name`}
           value={agentName}
           onChange={(e) => setAgentName(e.target.value)}
           placeholder="留空则使用流程名称"
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="publish-desc">版本说明</Label>
+        <Label htmlFor={`${formId}-publish-desc`}>版本说明</Label>
         <Textarea
-          id="publish-desc"
+          id={`${formId}-publish-desc`}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="描述本次发布的变更..."
           rows={3}
         />
       </div>
-      <Button
-        className="w-full"
-        onClick={() => publish.mutate()}
-        disabled={publish.isPending}
-      >
+      <Button className="w-full" onClick={() => publish.mutate()} disabled={publish.isPending}>
         {publish.isPending ? "发布中..." : "确认发布"}
       </Button>
     </div>
@@ -147,28 +150,25 @@ function VersionList({ processKey }: { processKey: string }) {
   })
 
   if (isLoading) {
-    return <p className="text-muted-foreground py-4 text-center text-sm">加载中...</p>
+    return <p className="py-4 text-center text-muted-foreground text-sm">加载中...</p>
   }
 
   if (!versions || versions.length === 0) {
-    return <p className="text-muted-foreground py-4 text-center text-sm">暂无发布版本</p>
+    return <p className="py-4 text-center text-muted-foreground text-sm">暂无发布版本</p>
   }
 
   return (
     <ScrollArea className="max-h-64">
       <div className="space-y-2 pt-2">
         {versions.map((v) => (
-          <div
-            key={v.version}
-            className="flex items-center justify-between rounded border p-3"
-          >
+          <div key={v.version} className="flex items-center justify-between rounded border p-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">v{v.version}</span>
+                <span className="font-medium text-sm">v{v.version}</span>
                 {v.active && <Badge variant="default">当前</Badge>}
               </div>
               {v.description && (
-                <p className="text-muted-foreground mt-0.5 text-xs">{v.description}</p>
+                <p className="mt-0.5 text-muted-foreground text-xs">{v.description}</p>
               )}
               <p className="text-muted-foreground text-xs">
                 {new Date(v.createdAt).toLocaleString("zh-CN")}

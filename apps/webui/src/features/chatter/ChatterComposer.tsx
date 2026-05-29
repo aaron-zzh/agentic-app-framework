@@ -7,8 +7,7 @@
 
 "use client"
 
-import { ComposerPrimitive } from "@assistant-ui/react"
-import { useAui } from "@assistant-ui/react"
+import { ComposerPrimitive, useAui } from "@assistant-ui/react"
 import { Mic, X } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -34,7 +33,7 @@ export function ChatterComposer({ attachments, onAttachmentRemove }: ChatterComp
       setVoiceOpen(false)
       api.thread().append({
         role: "user",
-        content: [{ type: "text", text }],
+        content: [{ type: "text", text }]
       })
     },
     [api]
@@ -115,7 +114,6 @@ export function ChatterComposer({ attachments, onAttachmentRemove }: ChatterComp
   )
 }
 
-
 /** server 模式录音面板：录音完成后回调 Blob */
 function AudioRecorderPanel({ onRecorded }: { onRecorded: (blob: Blob) => void }) {
   const [recording, setRecording] = useState(false)
@@ -129,7 +127,9 @@ function AudioRecorderPanel({ onRecorded }: { onRecorded: (blob: Blob) => void }
     recorder.ondataavailable = (e) => chunksRef.current.push(e.data)
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: "audio/wav" })
-      stream.getTracks().forEach((t) => t.stop())
+      stream.getTracks().forEach((t) => {
+        t.stop()
+      })
       onRecorded(blob)
     }
     recorder.start()
@@ -153,7 +153,11 @@ function AudioRecorderPanel({ onRecorded }: { onRecorded: (blob: Blob) => void }
       >
         <Mic className="size-4" />
       </Button>
-      {recording && <span className="animate-pulse text-sm text-muted-foreground">录音中，点击停止并识别...</span>}
+      {recording && (
+        <span className="animate-pulse text-muted-foreground text-sm">
+          录音中，点击停止并识别...
+        </span>
+      )}
     </div>
   )
 }

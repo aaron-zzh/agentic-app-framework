@@ -37,7 +37,7 @@ export function ChartWidget({ widgetId, title, config, refreshInterval }: ChartW
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+        <CardTitle className="flex items-center gap-2 font-medium text-sm">
           <BarChart3 className="h-4 w-4 text-muted-foreground" />
           {title}
         </CardTitle>

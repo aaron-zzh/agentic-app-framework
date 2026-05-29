@@ -9,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.channel.domain.ChannelConfig;
 import com.xuejiai.aaf.module.channel.domain.WebhookConfig;
@@ -20,6 +21,7 @@ import com.xuejiai.aaf.module.channel.service.adapter.DingtalkBotChannelAdapter;
 import com.xuejiai.aaf.module.channel.service.adapter.FeishuBotChannelAdapter;
 import com.xuejiai.aaf.module.channel.vo.ChannelStatsVO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppLoginDTO;
+import com.xuejiai.aaf.module.channel.vo.MiniAppPhoneLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppSessionVO;
 
 import lombok.RequiredArgsConstructor;
@@ -75,6 +77,12 @@ public class ChannelController {
         return Result.success(miniAppLoginService.login(dto));
     }
 
+    /** 微信小程序手机号一键登录 */
+    @PostMapping("/wx/mini/phone-login")
+    public Result<MiniAppSessionVO> wxMiniPhoneLogin(@Validated @RequestBody MiniAppPhoneLoginDTO dto) {
+        return Result.success(miniAppLoginService.phoneLogin(dto));
+    }
+
     // ==================== 钉钉机器人回调 ====================
 
     /** 钉钉机器人消息回调 */
@@ -84,12 +92,12 @@ public class ChannelController {
             @RequestHeader(value = "sign", required = false) String sign,
             @RequestBody String jsonPayload) {
         if (dingtalkAdapter == null) {
-            return Result.error("钉钉渠道未启用");
+            return Result.error(GlobalErrorCode.BAD_REQUEST, "钉钉渠道未启用");
         }
         // 加签验证
         if (timestamp != null && sign != null) {
             if (!dingtalkAdapter.verifySign(timestamp, sign)) {
-                return Result.error("签名验证失败");
+                return Result.error(GlobalErrorCode.FORBIDDEN, "签名验证失败");
             }
         }
         router.routeInbound(ChannelTypeEnum.DINGTALK, jsonPayload);
@@ -132,7 +140,7 @@ public class ChannelController {
             @RequestHeader(value = "X-Webhook-Id", required = false) Long webhookId,
             @RequestBody String jsonPayload) {
         if (webhookId != null && !webhookService.verifyInboundSignature(webhookId, signature, jsonPayload)) {
-            return Result.error("签名验证失败");
+            return Result.error(GlobalErrorCode.FORBIDDEN, "签名验证失败");
         }
         webhookService.receiveInbound(jsonPayload);
         return Result.success("ok");

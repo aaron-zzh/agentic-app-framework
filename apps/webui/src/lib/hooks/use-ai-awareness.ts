@@ -8,7 +8,7 @@ import { useCallback } from "react"
 
 import type { FieldDef } from "@/lib/types/entity"
 
-import type { AIPageContext, ActionRecord } from "../store/ai-awareness-store"
+import type { ActionRecord, AIPageContext } from "../store/ai-awareness-store"
 import { useAIAwarenessStore } from "../store/ai-awareness-store"
 
 /**
@@ -74,6 +74,6 @@ export function useAIAwareness(options: UseAIAwarenessOptions = {}) {
     recordAction,
     setPageContext,
     enabled: store.enabled,
-    setEnabled: store.setEnabled,
+    setEnabled: store.setEnabled
   }
 }

@@ -4,8 +4,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { FlowDefinition, FlowTemplate } from "../types"
 import { flowToBpmn } from "../lib/bpmn-converter"
+import type { FlowDefinition, FlowTemplate } from "../types"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 
@@ -120,8 +120,12 @@ export function useCreateFromTemplate() {
 export function useSaveAsTemplate() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { name: string; description: string; mode: string; definition: FlowDefinition }) =>
-      req<FlowTemplate>("/flow-templates", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: {
+      name: string
+      description: string
+      mode: string
+      definition: FlowDefinition
+    }) => req<FlowTemplate>("/flow-templates", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flow-templates"] })
     }

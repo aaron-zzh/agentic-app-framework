@@ -8,18 +8,18 @@
 
 import { useCallback, useRef, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
-import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
 
 type WsStatus = "connecting" | "connected" | "disconnected"
 
@@ -28,7 +28,9 @@ interface AsrMessage {
   final: boolean
 }
 
-const WS_BASE = process.env.NEXT_PUBLIC_WS_URL ?? `ws://${typeof window !== "undefined" ? window.location.host : "localhost:8080"}`
+const WS_BASE =
+  process.env.NEXT_PUBLIC_WS_URL ??
+  `ws://${typeof window !== "undefined" ? window.location.host : "localhost:8080"}`
 
 export default function AsrExamplePage() {
   const [lang, setLang] = useState("zh-CN")
@@ -83,7 +85,11 @@ export default function AsrExamplePage() {
         // 临时结果：更新最后一行（或追加新行）
         setLines((prev) => {
           const next = [...prev]
-          if (next.length > 0 && !prev[prev.length - 1].endsWith("。") && !prev[prev.length - 1].endsWith(".")) {
+          if (
+            next.length > 0 &&
+            !prev[prev.length - 1].endsWith("。") &&
+            !prev[prev.length - 1].endsWith(".")
+          ) {
             next[next.length - 1] = msg.text
           } else {
             next.push(msg.text)
@@ -127,15 +133,14 @@ export default function AsrExamplePage() {
     setRecording(false)
   }, [])
 
-  const statusVariant = status === "connected" ? "default" : status === "connecting" ? "secondary" : "outline"
+  const statusVariant =
+    status === "connected" ? "default" : status === "connecting" ? "secondary" : "outline"
 
   return (
     <PageContainer maxWidth="md">
       <div className="mb-6 space-y-2">
         <TypographyH1>ASR 流式语音识别</TypographyH1>
-        <TypographyMuted>
-          通过 WebSocket 双向流式传输音频，实时获取识别结果
-        </TypographyMuted>
+        <TypographyMuted>通过 WebSocket 双向流式传输音频，实时获取识别结果</TypographyMuted>
       </div>
 
       <Card>
@@ -160,7 +165,9 @@ export default function AsrExamplePage() {
             {!recording ? (
               <Button onClick={handleStart}>开始录音</Button>
             ) : (
-              <Button variant="destructive" onClick={handleStop}>停止</Button>
+              <Button variant="destructive" onClick={handleStop}>
+                停止
+              </Button>
             )}
           </div>
 
@@ -170,7 +177,9 @@ export default function AsrExamplePage() {
             ) : (
               <div className="space-y-1">
                 {lines.map((line, i) => (
-                  <p key={`${i}-${line.slice(0, 8)}`} className="text-sm">{line}</p>
+                  <p key={`${i}-${line.slice(0, 8)}`} className="text-sm">
+                    {line}
+                  </p>
                 ))}
               </div>
             )}

@@ -3,22 +3,21 @@
  * @author AaronZZH & Kiro
  */
 
-export { PageEngine } from "./PageEngine"
-export { SectionWrapper } from "./SectionWrapper"
-export { registerSectionType, getSectionComponent, getAllSectionTypes } from "./registry"
-export { generatePageMetadata, PageJsonLd } from "./PageSEO"
+export type { AnimationType } from "./hooks/use-scroll-animation"
 export { useScrollAnimation } from "./hooks/use-scroll-animation"
+export { PageEngine } from "./PageEngine"
+export { generatePageMetadata, PageJsonLd } from "./PageSEO"
+export { getAllSectionTypes, getSectionComponent, registerSectionType } from "./registry"
+export { SectionWrapper } from "./SectionWrapper"
+// 导入 sections 触发注册
+export * from "./sections"
 export type {
   PageDef,
   PageDefRecord,
   PageMetadata,
   PageTheme,
-  SectionDef,
-  SectionStyle,
   SectionComponentProps,
-  SectionRegistryEntry
+  SectionDef,
+  SectionRegistryEntry,
+  SectionStyle
 } from "./types"
-export type { AnimationType } from "./hooks/use-scroll-animation"
-
-// 导入 sections 触发注册
-export * from "./sections"

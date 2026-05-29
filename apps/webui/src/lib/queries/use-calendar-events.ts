@@ -4,9 +4,8 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-
-import type { EntityDef } from "@/lib/types/entity"
 import { updateRecord } from "@/lib/api/client"
+import type { EntityDef } from "@/lib/types/entity"
 
 export interface CalendarEvent {
   id: string

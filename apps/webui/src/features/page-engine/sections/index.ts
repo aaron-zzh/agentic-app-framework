@@ -31,79 +31,79 @@ import { TestimonialsSection } from "./TestimonialsSection"
 registerSectionType("navbar", {
   component: NavbarSection as ComponentType<SectionComponentProps>,
   label: "顶部导航",
-  icon: "Menu",
+  icon: "Menu"
 })
 
 registerSectionType("footer", {
   component: FooterSection as ComponentType<SectionComponentProps>,
   label: "页脚",
-  icon: "PanelBottom",
+  icon: "PanelBottom"
 })
 
 registerSectionType("hero", {
   component: HeroSection as ComponentType<SectionComponentProps>,
   label: "Hero 横幅",
-  icon: "Sparkles",
+  icon: "Sparkles"
 })
 
 registerSectionType("features", {
   component: FeaturesSection as ComponentType<SectionComponentProps>,
   label: "功能亮点",
-  icon: "LayoutGrid",
+  icon: "LayoutGrid"
 })
 
 registerSectionType("pricing", {
   component: PricingSection as ComponentType<SectionComponentProps>,
   label: "定价方案",
-  icon: "CreditCard",
+  icon: "CreditCard"
 })
 
 registerSectionType("showcase", {
   component: ShowcaseSection as ComponentType<SectionComponentProps>,
   label: "产品展示",
-  icon: "Monitor",
+  icon: "Monitor"
 })
 
 registerSectionType("stats", {
   component: StatsSection as ComponentType<SectionComponentProps>,
   label: "数据统计",
-  icon: "BarChart3",
+  icon: "BarChart3"
 })
 
 registerSectionType("faq", {
   component: FAQSection as ComponentType<SectionComponentProps>,
   label: "常见问题",
-  icon: "HelpCircle",
+  icon: "HelpCircle"
 })
 
 registerSectionType("cta", {
   component: CTASection as ComponentType<SectionComponentProps>,
   label: "行动号召",
-  icon: "Megaphone",
+  icon: "Megaphone"
 })
 
 registerSectionType("testimonials", {
   component: TestimonialsSection as ComponentType<SectionComponentProps>,
   label: "用户评价",
-  icon: "MessageSquareQuote",
+  icon: "MessageSquareQuote"
 })
 
 registerSectionType("logos", {
   component: LogosSection as ComponentType<SectionComponentProps>,
   label: "Logo 墙",
-  icon: "Building2",
+  icon: "Building2"
 })
 
 // ─── 导出组件 ────────────────────────────────────────────────────────────────
 
-export { NavbarSection } from "./NavbarSection"
+export { CTASection } from "./CTASection"
+export { FAQSection } from "./FAQSection"
+export { FeaturesSection } from "./FeaturesSection"
 export { FooterSection } from "./FooterSection"
 export { HeroSection } from "./HeroSection"
-export { FeaturesSection } from "./FeaturesSection"
+export { LogosSection } from "./LogosSection"
+export { NavbarSection } from "./NavbarSection"
 export { PricingSection } from "./PricingSection"
 export { ShowcaseSection } from "./ShowcaseSection"
 export { StatsSection } from "./StatsSection"
-export { FAQSection } from "./FAQSection"
-export { CTASection } from "./CTASection"
 export { TestimonialsSection } from "./TestimonialsSection"
-export { LogosSection } from "./LogosSection"

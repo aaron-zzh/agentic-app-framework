@@ -7,8 +7,8 @@
 
 import { X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import type { MediaAsset } from "./types"
 import { useAigcStore } from "./store"
+import type { MediaAsset } from "./types"
 
 export function ReferenceRow() {
   const referenceAssets = useAigcStore((s) => s.referenceAssets)
@@ -17,7 +17,7 @@ export function ReferenceRow() {
   if (referenceAssets.length === 0) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground text-sm">
       <span>参考</span>
       {referenceAssets.map((asset) => (
         <ReferenceTag key={asset.id} asset={asset} onRemove={removeReferenceAsset} />
@@ -28,13 +28,9 @@ export function ReferenceRow() {
 
 function ReferenceTag({ asset, onRemove }: { asset: MediaAsset; onRemove: (id: string) => void }) {
   return (
-    <Badge variant="secondary" className="gap-1 py-0.5 pl-0.5 pr-1.5">
+    <Badge variant="secondary" className="gap-1 py-0.5 pr-1.5 pl-0.5">
       {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
-      <img
-        src={asset.thumbnail}
-        alt={asset.name}
-        className="size-4 rounded-sm object-cover"
-      />
+      <img src={asset.thumbnail} alt={asset.name} className="size-4 rounded-sm object-cover" />
       <span className="max-w-[80px] truncate text-xs">@{asset.name}</span>
       <button
         type="button"

@@ -5,11 +5,11 @@
 
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
 import type { WorkflowMessage, WorkflowRunStatus } from "../hooks/use-workflow-runtime"
 
 interface WorkflowChatProps {
@@ -27,7 +27,7 @@ export function WorkflowChat({ messages, status, onSubmitInput, approvalMode }: 
   /** 自动滚动到底部 */
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages.length])
+  }, [])
 
   const handleSubmit = () => {
     if (!input.trim()) return
@@ -54,9 +54,7 @@ export function WorkflowChat({ messages, status, onSubmitInput, approvalMode }: 
             >
               <div
                 className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                  msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                 }`}
               >
                 {msg.content}

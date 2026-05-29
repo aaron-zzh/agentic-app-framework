@@ -5,7 +5,6 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   CalendarDays,
@@ -17,9 +16,9 @@ import {
   Plus,
   Settings
 } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
+import { useCallback, useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -27,7 +26,11 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import { customFieldApi, type CustomFieldRecord, type CustomFieldType } from "@/lib/api/custom-field"
+import {
+  type CustomFieldRecord,
+  type CustomFieldType,
+  customFieldApi
+} from "@/lib/api/custom-field"
 import { AddCustomFieldDialog } from "./AddCustomFieldDialog"
 
 /** 类型图标映射 */
@@ -97,11 +100,9 @@ export function CustomFieldManager({ slug }: CustomFieldManagerProps) {
           <div className="space-y-3">
             {/* 字段列表 */}
             {isLoading ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">加载中...</div>
+              <div className="py-8 text-center text-muted-foreground text-sm">加载中...</div>
             ) : fields.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                暂无自定义字段
-              </div>
+              <div className="py-8 text-center text-muted-foreground text-sm">暂无自定义字段</div>
             ) : (
               <div className="max-h-80 space-y-1 overflow-y-auto">
                 {fields.map((field) => (
@@ -116,11 +117,7 @@ export function CustomFieldManager({ slug }: CustomFieldManagerProps) {
             )}
 
             {/* 添加按钮 */}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setAddDialogOpen(true)}
-            >
+            <Button variant="outline" className="w-full" onClick={() => setAddDialogOpen(true)}>
               <Plus className="mr-1 size-4" />
               添加字段
             </Button>
@@ -129,11 +126,7 @@ export function CustomFieldManager({ slug }: CustomFieldManagerProps) {
       </Dialog>
 
       {/* 添加字段弹窗 */}
-      <AddCustomFieldDialog
-        slug={slug}
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-      />
+      <AddCustomFieldDialog slug={slug} open={addDialogOpen} onOpenChange={setAddDialogOpen} />
     </>
   )
 }
@@ -157,26 +150,21 @@ function FieldItem({
       <div className="flex items-center gap-2">
         {TYPE_ICONS[field.type]}
         <div>
-          <span className="text-sm font-medium">{field.label}</span>
-          <span className="ml-2 text-xs text-muted-foreground">{field.name}</span>
+          <span className="font-medium text-sm">{field.label}</span>
+          <span className="ml-2 text-muted-foreground text-xs">{field.name}</span>
         </div>
         <Badge variant="secondary" className="text-xs">
           {TYPE_LABELS[field.type]}
         </Badge>
         {field.hidden && (
-          <Badge variant="outline" className="text-xs text-muted-foreground">
+          <Badge variant="outline" className="text-muted-foreground text-xs">
             已隐藏
           </Badge>
         )}
       </div>
 
       {!field.hidden && (
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onHide(field.name)}
-          disabled={hiding}
-        >
+        <Button variant="ghost" size="icon-xs" onClick={() => onHide(field.name)} disabled={hiding}>
           <EyeOff className="size-3.5" />
           <span className="sr-only">隐藏字段</span>
         </Button>

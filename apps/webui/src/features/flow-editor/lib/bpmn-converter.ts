@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { FlowDefinition, FlowNode, FlowEdge } from "../types"
+import type { FlowDefinition, FlowEdge, FlowNode } from "../types"
 
 /** BPMN 节点类型映射 */
 const NODE_TYPE_TO_BPMN: Record<string, string> = {
@@ -44,16 +44,22 @@ export function flowToBpmn(flow: FlowDefinition, processId = "process_1"): strin
     lines.push(`    <${bpmnType} id="${escapeXml(node.id)}" name="${escapeXml(name)}">`)
     // 用户任务附加属性
     if (node.type === "userTask" && node.data.assignee) {
-      lines.push(`      <humanPerformer><resourceAssignmentExpression><formalExpression>${escapeXml(node.data.assignee as string)}</formalExpression></resourceAssignmentExpression></humanPerformer>`)
+      lines.push(
+        `      <humanPerformer><resourceAssignmentExpression><formalExpression>${escapeXml(node.data.assignee as string)}</formalExpression></resourceAssignmentExpression></humanPerformer>`
+      )
     }
     lines.push(`    </${bpmnType}>`)
   }
 
   // 边（序列流）
   for (const edge of flow.edges) {
-    lines.push(`    <sequenceFlow id="${escapeXml(edge.id)}" sourceRef="${escapeXml(edge.source)}" targetRef="${escapeXml(edge.target)}"${edge.label ? ` name="${escapeXml(edge.label)}"` : ""}>`)
+    lines.push(
+      `    <sequenceFlow id="${escapeXml(edge.id)}" sourceRef="${escapeXml(edge.source)}" targetRef="${escapeXml(edge.target)}"${edge.label ? ` name="${escapeXml(edge.label)}"` : ""}>`
+    )
     if (edge.condition) {
-      lines.push(`      <conditionExpression xsi:type="tFormalExpression">${escapeXml(edge.condition)}</conditionExpression>`)
+      lines.push(
+        `      <conditionExpression xsi:type="tFormalExpression">${escapeXml(edge.condition)}</conditionExpression>`
+      )
     }
     lines.push(`    </sequenceFlow>`)
   }
@@ -75,10 +81,11 @@ export function bpmnToFlow(xml: string): FlowDefinition {
   }
 
   // 匹配所有 BPMN 元素
-  const elementRegex = /<(startEvent|endEvent|userTask|serviceTask|exclusiveGateway|subProcess|task)\s+id="([^"]+)"(?:\s+name="([^"]*)")?/g
+  const elementRegex =
+    /<(startEvent|endEvent|userTask|serviceTask|exclusiveGateway|subProcess|task)\s+id="([^"]+)"(?:\s+name="([^"]*)")?/g
   let match: RegExpExecArray | null
   let index = 0
-  while ((match = elementRegex.exec(xml)) !== null) {
+  for (match = elementRegex.exec(xml); match !== null; match = elementRegex.exec(xml)) {
     const bpmnType = match[1]
     const id = match[2]
     const name = match[3] ?? id
@@ -93,8 +100,9 @@ export function bpmnToFlow(xml: string): FlowDefinition {
   }
 
   // 匹配序列流
-  const flowRegex = /<sequenceFlow\s+id="([^"]+)"\s+sourceRef="([^"]+)"\s+targetRef="([^"]+)"(?:\s+name="([^"]*)")?/g
-  while ((match = flowRegex.exec(xml)) !== null) {
+  const flowRegex =
+    /<sequenceFlow\s+id="([^"]+)"\s+sourceRef="([^"]+)"\s+targetRef="([^"]+)"(?:\s+name="([^"]*)")?/g
+  for (match = flowRegex.exec(xml); match !== null; match = flowRegex.exec(xml)) {
     const edge: FlowEdge = {
       id: match[1],
       source: match[2],
@@ -102,7 +110,9 @@ export function bpmnToFlow(xml: string): FlowDefinition {
       label: match[4] || undefined
     }
     // 检查条件表达式
-    const condRegex = new RegExp(`<sequenceFlow[^>]*id="${match[1]}"[\\s\\S]*?<conditionExpression[^>]*>([\\s\\S]*?)</conditionExpression>`)
+    const condRegex = new RegExp(
+      `<sequenceFlow[^>]*id="${match[1]}"[\\s\\S]*?<conditionExpression[^>]*>([\\s\\S]*?)</conditionExpression>`
+    )
     const condMatch = condRegex.exec(xml)
     if (condMatch) {
       edge.condition = condMatch[1].trim()

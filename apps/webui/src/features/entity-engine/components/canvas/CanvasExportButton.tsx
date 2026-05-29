@@ -14,7 +14,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 
 interface CanvasExportButtonProps {
@@ -26,7 +26,7 @@ interface CanvasExportButtonProps {
 const FORMAT_LABELS: Record<string, string> = {
   png: "导出 PNG",
   svg: "导出 SVG",
-  pdf: "导出 PDF",
+  pdf: "导出 PDF"
 }
 
 /** 画板导出按钮 */
@@ -41,7 +41,7 @@ export function CanvasExportButton({ editor, formats }: CanvasExportButtonProps)
         editor,
         ids: [...shapeIds],
         format: format === "pdf" ? "png" : format,
-        opts: { background: true, padding: 32 },
+        opts: { background: true, padding: 32 }
       })
 
       // 触发下载

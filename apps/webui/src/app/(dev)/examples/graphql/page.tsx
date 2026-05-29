@@ -8,11 +8,11 @@
 
 import { useCallback, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
-import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -39,7 +39,7 @@ async function gqlFetch<T>(query: string, variables?: Record<string, unknown>): 
   const res = await fetch(`${API_URL}/graphql`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, variables }),
+    body: JSON.stringify({ query, variables })
   })
   const json = (await res.json()) as GraphQLResponse<T>
   if (json.errors?.length) throw new Error(json.errors[0].message)
@@ -66,10 +66,7 @@ export default function GraphQLExamplePage() {
         : `query { movies { title tagline released } }`
 
       const variables = keyword.trim() ? { title: keyword } : undefined
-      const data = await gqlFetch<{ movies?: Movie[]; searchMovies?: Movie[] }>(
-        query,
-        variables
-      )
+      const data = await gqlFetch<{ movies?: Movie[]; searchMovies?: Movie[] }>(query, variables)
       setMovies(data.searchMovies ?? data.movies ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : "查询失败")
@@ -92,26 +89,26 @@ export default function GraphQLExamplePage() {
   }, [])
 
   /** 投票 */
-  const handleVote = useCallback(async (title: string) => {
-    try {
-      await gqlFetch<{ vote: boolean }>(
-        `mutation($title: String!) { vote(title: $title) }`,
-        { title }
-      )
-      // 刷新详情
-      await handleDetail(title)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "投票失败")
-    }
-  }, [handleDetail])
+  const handleVote = useCallback(
+    async (title: string) => {
+      try {
+        await gqlFetch<{ vote: boolean }>(`mutation($title: String!) { vote(title: $title) }`, {
+          title
+        })
+        // 刷新详情
+        await handleDetail(title)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "投票失败")
+      }
+    },
+    [handleDetail]
+  )
 
   return (
     <PageContainer maxWidth="md">
       <div className="mb-6 space-y-2">
         <TypographyH1>GraphQL 示例</TypographyH1>
-        <TypographyMuted>
-          需要后端启用 Neo4j 并导入示例数据
-        </TypographyMuted>
+        <TypographyMuted>需要后端启用 Neo4j 并导入示例数据</TypographyMuted>
       </div>
 
       {/* 搜索栏 */}
@@ -150,9 +147,7 @@ export default function GraphQLExamplePage() {
                       <p className="mt-0.5 text-muted-foreground text-xs">{movie.tagline}</p>
                     )}
                   </div>
-                  {movie.released && (
-                    <Badge variant="secondary">{movie.released}</Badge>
-                  )}
+                  {movie.released && <Badge variant="secondary">{movie.released}</Badge>}
                 </div>
               </CardContent>
             </Card>
@@ -172,33 +167,20 @@ export default function GraphQLExamplePage() {
                 </p>
               )}
               <div className="flex gap-2">
-                {selected.released && (
-                  <Badge variant="secondary">上映：{selected.released}</Badge>
-                )}
-                {selected.votes != null && (
-                  <Badge variant="outline">票数：{selected.votes}</Badge>
-                )}
+                {selected.released && <Badge variant="secondary">上映：{selected.released}</Badge>}
+                {selected.votes != null && <Badge variant="outline">票数：{selected.votes}</Badge>}
               </div>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleVote(selected.title)}
-              >
+              <Button size="sm" variant="outline" onClick={() => handleVote(selected.title)}>
                 👍 投票
               </Button>
 
               {selected.actors && selected.actors.length > 0 && (
                 <div>
-                  <p className="mb-1 font-medium text-xs">
-                    演员（{selected.actors.length}）
-                  </p>
+                  <p className="mb-1 font-medium text-xs">演员（{selected.actors.length}）</p>
                   <ul className="space-y-1">
                     {selected.actors.map((actor) => (
-                      <li
-                        key={actor.name}
-                        className="text-muted-foreground text-xs"
-                      >
+                      <li key={actor.name} className="text-muted-foreground text-xs">
                         {actor.name}
                         {actor.born && ` (${actor.born})`}
                       </li>

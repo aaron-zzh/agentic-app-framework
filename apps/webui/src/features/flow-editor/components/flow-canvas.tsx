@@ -5,19 +5,19 @@
 
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, type DragEvent } from "react"
 import {
-  ReactFlow,
   Background,
   Controls,
+  type EdgeTypes,
   MiniMap,
-  type ReactFlowInstance,
   type NodeTypes,
-  type EdgeTypes
+  ReactFlow,
+  type ReactFlowInstance
 } from "@xyflow/react"
+import { type DragEvent, useCallback, useEffect, useMemo, useRef } from "react"
 import "@xyflow/react/dist/style.css"
-import type { NodeTypeRegistry } from "../types"
 import { useFlowState } from "../hooks/use-flow-state"
+import type { NodeTypeRegistry } from "../types"
 import { CustomEdge } from "./custom-edge"
 
 interface FlowCanvasProps {
@@ -102,7 +102,7 @@ export function FlowCanvas({ registry, readonly }: FlowCanvasProps) {
   }, [deleteSelected, undo, redo])
 
   return (
-    <div className="flex-1" onDrop={onDrop} onDragOver={onDragOver}>
+    <div className="flex-1" role="application" onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -113,7 +113,9 @@ export function FlowCanvas({ registry, readonly }: FlowCanvasProps) {
         onConnect={(conn) => onConnect(conn, registry)}
         onNodeClick={(_e, node) => selectNode(node.id)}
         onPaneClick={() => selectNode(null)}
-        onInit={(instance) => { rfInstance.current = instance }}
+        onInit={(instance) => {
+          rfInstance.current = instance
+        }}
         fitView
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: "custom" }}

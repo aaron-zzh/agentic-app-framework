@@ -58,7 +58,7 @@ export function useAction(config: ActionConfig) {
       const data = await request<Record<string, unknown>>(config.api, {
         method: config.method ?? "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       })
       const res: ActionResult = { success: true, data }
       setResult(res)
@@ -66,7 +66,7 @@ export function useAction(config: ActionConfig) {
     } catch (err) {
       const res: ActionResult = {
         success: false,
-        error: err instanceof Error ? err.message : "操作失败",
+        error: err instanceof Error ? err.message : "操作失败"
       }
       setResult(res)
       return res

@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { chatApi, type CreateSessionParams, type SendMessageParams } from "@/lib/api/chat"
+import { type CreateSessionParams, chatApi, type SendMessageParams } from "@/lib/api/chat"
 
 const KEYS = {
   all: ["chat"] as const,
@@ -24,7 +24,7 @@ export function useChatSessions() {
 export function useChatMessages(sessionId: string | undefined) {
   return useQuery({
     queryKey: KEYS.messages(sessionId ?? ""),
-    queryFn: () => chatApi.getMessages(sessionId!),
+    queryFn: () => chatApi.getMessages(sessionId as NonNullable<typeof sessionId>),
     enabled: !!sessionId
   })
 }

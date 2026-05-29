@@ -11,9 +11,15 @@
  */
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useId, useState } from "react"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 
 const STORAGE_KEY = "aaf-voice-settings"
 
@@ -23,7 +29,7 @@ const LANGUAGES = [
   { value: "en-US", label: "English (US)" },
   { value: "en-GB", label: "English (UK)" },
   { value: "ja-JP", label: "日本語" },
-  { value: "ko-KR", label: "한국어" },
+  { value: "ko-KR", label: "한국어" }
 ]
 
 export interface VoiceSettingsValue {
@@ -59,6 +65,7 @@ function saveSettings(settings: VoiceSettingsValue) {
 }
 
 export function VoiceSettings({ onChange, className }: VoiceSettingsProps) {
+  const formId = useId()
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [settings, setSettings] = useState<VoiceSettingsValue>(loadSettings)
 
@@ -83,7 +90,7 @@ export function VoiceSettings({ onChange, className }: VoiceSettingsProps) {
         return next
       })
     },
-    [onChange],
+    [onChange]
   )
 
   /** 按当前语言过滤语音 */
@@ -93,9 +100,12 @@ export function VoiceSettings({ onChange, className }: VoiceSettingsProps) {
     <div className={`flex flex-col gap-4 ${className ?? ""}`}>
       {/* 语言选择 */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="voice-lang">语言</Label>
-        <Select value={settings.lang} onValueChange={(v) => update({ lang: v ?? "zh-CN", voiceURI: "" })}>
-          <SelectTrigger id="voice-lang">
+        <Label htmlFor={`${formId}-voice-lang`}>语言</Label>
+        <Select
+          value={settings.lang}
+          onValueChange={(v) => update({ lang: v ?? "zh-CN", voiceURI: "" })}
+        >
+          <SelectTrigger id={`${formId}-voice-lang`}>
             <SelectValue placeholder="选择语言" />
           </SelectTrigger>
           <SelectContent>
@@ -110,9 +120,9 @@ export function VoiceSettings({ onChange, className }: VoiceSettingsProps) {
 
       {/* 语音选择 */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="voice-name">语音</Label>
+        <Label htmlFor={`${formId}-voice-name`}>语音</Label>
         <Select value={settings.voiceURI} onValueChange={(v) => update({ voiceURI: v ?? "" })}>
-          <SelectTrigger id="voice-name">
+          <SelectTrigger id={`${formId}-voice-name`}>
             <SelectValue placeholder="选择语音" />
           </SelectTrigger>
           <SelectContent>
@@ -132,9 +142,9 @@ export function VoiceSettings({ onChange, className }: VoiceSettingsProps) {
 
       {/* 语速调节 */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="voice-rate">语速：{settings.rate.toFixed(1)}x</Label>
+        <Label htmlFor={`${formId}-voice-rate`}>语速：{settings.rate.toFixed(1)}x</Label>
         <input
-          id="voice-rate"
+          id={`${formId}-voice-rate`}
           type="range"
           min={0.5}
           max={2}
@@ -147,9 +157,9 @@ export function VoiceSettings({ onChange, className }: VoiceSettingsProps) {
 
       {/* 音调调节 */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="voice-pitch">音调：{settings.pitch.toFixed(1)}</Label>
+        <Label htmlFor={`${formId}-voice-pitch`}>音调：{settings.pitch.toFixed(1)}</Label>
         <input
-          id="voice-pitch"
+          id={`${formId}-voice-pitch`}
           type="range"
           min={0.5}
           max={2}

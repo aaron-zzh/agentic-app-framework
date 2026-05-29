@@ -4,7 +4,7 @@
  */
 
 export { BaseChart } from "./BaseChart"
-export { TrendChart } from "./TrendChart"
 export { FunnelChart } from "./FunnelChart"
-export { RetentionChart } from "./RetentionChart"
 export { PieChart } from "./PieChart"
+export { RetentionChart } from "./RetentionChart"
+export { TrendChart } from "./TrendChart"

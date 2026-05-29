@@ -84,7 +84,6 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
             const fieldDef = filterableFields.find((f) => f.name === filter.field)
             const operators = getOperators(fieldDef?.type ?? "text")
             return (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 筛选条件列表
               <div key={i} className="flex items-center gap-2">
                 <select
                   className="h-8 rounded border px-2 text-sm"

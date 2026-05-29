@@ -185,10 +185,8 @@ function ListSkeleton({ columns, rows = 5 }: { columns: number; rows?: number })
   return (
     <div className="w-full space-y-2 p-4">
       {Array.from({ length: rows }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
         <div key={i} className="flex gap-4">
           {Array.from({ length: columns }).map((_, j) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏静态列表
             <div key={j} className="h-8 flex-1 animate-pulse rounded bg-muted" />
           ))}
         </div>

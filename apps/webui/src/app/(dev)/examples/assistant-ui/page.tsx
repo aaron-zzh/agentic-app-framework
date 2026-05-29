@@ -6,17 +6,17 @@
  * @author AaronZZH & Kiro
  */
 
+import type { ChatModelAdapter } from "@assistant-ui/react"
 import {
   AssistantRuntimeProvider,
-  useLocalRuntime,
-  ThreadPrimitive,
-  MessagePrimitive,
   ComposerPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useLocalRuntime
 } from "@assistant-ui/react"
-import type { ChatModelAdapter } from "@assistant-ui/react"
 import { PageContainer } from "@/components/common/PageContainer"
-import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
 import { Button } from "@/components/ui/button"
+import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -31,15 +31,15 @@ const chatModelAdapter: ChatModelAdapter = {
         content: m.content
           .filter((p) => p.type === "text")
           .map((p) => p.text)
-          .join(""),
-      })),
+          .join("")
+      }))
     })
 
     const response = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
-      signal: abortSignal,
+      signal: abortSignal
     })
 
     if (!response.ok) {
@@ -78,7 +78,7 @@ const chatModelAdapter: ChatModelAdapter = {
         }
       }
     }
-  },
+  }
 }
 
 export default function AssistantUIExamplePage() {
@@ -102,9 +102,7 @@ export default function AssistantUIExamplePage() {
                   发送一条消息开始对话
                 </div>
               </ThreadPrimitive.Empty>
-              <ThreadPrimitive.Messages
-                components={{ UserMessage, AssistantMessage }}
-              />
+              <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
             </ThreadPrimitive.Viewport>
             <Composer />
           </ThreadPrimitive.Root>

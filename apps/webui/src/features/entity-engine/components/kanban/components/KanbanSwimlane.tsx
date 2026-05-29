@@ -20,7 +20,12 @@ interface KanbanSwimlaneProps {
 }
 
 /** 看板泳道容器 */
-export function KanbanSwimlane({ data, swimlaneField, fields, renderColumns }: KanbanSwimlaneProps) {
+export function KanbanSwimlane({
+  data,
+  swimlaneField,
+  fields,
+  renderColumns
+}: KanbanSwimlaneProps) {
   // 获取泳道字段定义，用于显示标签
   const swimFieldDef = fields.find((f) => "name" in f && f.name === swimlaneField) as
     | SelectField
@@ -32,7 +37,7 @@ export function KanbanSwimlane({ data, swimlaneField, fields, renderColumns }: K
     for (const record of data) {
       const key = String(record[swimlaneField] ?? "未分组")
       if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(record)
+      map.get(key)?.push(record)
     }
     return map
   }, [data, swimlaneField])
@@ -80,7 +85,7 @@ export function KanbanSwimlane({ data, swimlaneField, fields, renderColumns }: K
               onClick={() => toggleCollapse(key)}
               className={cn(
                 "flex w-full items-center gap-2 px-3 py-2 text-left",
-                "hover:bg-muted/50 transition-colors"
+                "transition-colors hover:bg-muted/50"
               )}
             >
               {isCollapsed ? (
@@ -97,9 +102,7 @@ export function KanbanSwimlane({ data, swimlaneField, fields, renderColumns }: K
 
             {/* 泳道内容 */}
             {!isCollapsed && (
-              <div className="flex gap-4 overflow-x-auto px-3 pb-3">
-                {renderColumns(records)}
-              </div>
+              <div className="flex gap-4 overflow-x-auto px-3 pb-3">{renderColumns(records)}</div>
             )}
           </div>
         )

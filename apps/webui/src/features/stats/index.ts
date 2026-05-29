@@ -3,4 +3,4 @@
  * @author AaronZZH & Kiro
  */
 
-export { BaseChart, TrendChart, FunnelChart, RetentionChart, PieChart } from "./charts"
+export { BaseChart, FunnelChart, PieChart, RetentionChart, TrendChart } from "./charts"

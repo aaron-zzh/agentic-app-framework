@@ -33,6 +33,13 @@ export const authApi = {
     })
   },
 
+  registerByCode(email: string, code: string, nickname?: string) {
+    return request<LoginResult>("/auth/register-by-code", {
+      method: "POST",
+      body: JSON.stringify({ email, code, nickname })
+    })
+  },
+
   sendCode(email: string, type: "register" | "reset" | "login") {
     return request<void>("/auth/send-code", {
       method: "POST",
@@ -80,7 +87,7 @@ export const authApi = {
   },
 
   getOAuthUrl(provider: string, state: string) {
-    return request<{ url: string }>(`/auth/oauth/${provider}/url?state=${state}`)
+    return request<string>(`/auth/oauth/${provider}/url?state=${state}`)
   },
 
   oauthCallback(provider: string, code: string) {

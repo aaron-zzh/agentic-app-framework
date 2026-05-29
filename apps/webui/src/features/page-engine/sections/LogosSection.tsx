@@ -23,9 +23,7 @@ export function LogosSection({ data }: SectionComponentProps) {
   return (
     <section className="w-full px-6 py-12">
       <div className="mx-auto max-w-7xl">
-        {title && (
-          <p className="mb-8 text-center text-muted-foreground text-sm">{title}</p>
-        )}
+        {title && <p className="mb-8 text-center text-muted-foreground text-sm">{title}</p>}
 
         <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
           {(items as LogoItem[]).map((item) => {

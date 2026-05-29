@@ -30,7 +30,9 @@
         "noUnusedImports": "warn",
         "noUnusedVariables": "warn",
         "noUnusedFunctionParameters": "warn",
-        "useExhaustiveDependencies": "warn"
+        "useExhaustiveDependencies": "warn",
+        "useUniqueElementIds": "off",
+        "noNestedComponentDefinitions": "off"
       },
       "style": {
         "noNonNullAssertion": "warn",
@@ -41,13 +43,13 @@
       "suspicious": {
         "noExplicitAny": "error",
         "noConsole": "warn",
-        "noDoubleEquals": "error"
+        "noDoubleEquals": "error",
+        "noArrayIndexKey": "off",
+        "useIterableCallbackReturn": "warn",
+        "noAssignInExpressions": "warn"
       },
       "complexity": {
-        "noExcessiveCognitiveComplexity": {
-          "level": "warn",
-          "options": { "maxAllowedComplexity": 20 }
-        }
+        "noExcessiveCognitiveComplexity": "off"
       },
       "nursery": {
         "useSortedClasses": {
@@ -94,5 +96,17 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/webui/src/features/flow-editor/lib/templates.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noTemplateCurlyInString": "off"
+          }
+        }
+      }
+    }
+  ]
 }

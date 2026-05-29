@@ -5,8 +5,8 @@
 
 "use client"
 
+import { RotateCcwIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
-import { Trash2Icon, RotateCcwIcon } from "lucide-react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -26,9 +27,8 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { TypographyH1 } from "@/components/ui/typography"
-import { useTrashList, useTrashRestore, useTrashPurge } from "@/lib/queries/use-trash"
+import { useTrashList, useTrashPurge, useTrashRestore } from "@/lib/queries/use-trash"
 
 /** 相对时间格式化 */
 function formatRelativeTime(dateStr: string): string {
@@ -90,22 +90,18 @@ export default function TrashPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{item.title}</span>
+                      <span className="truncate font-medium text-sm">{item.title}</span>
                       <Badge variant="outline" className="shrink-0 text-[10px]">
                         {item.entityType}
                       </Badge>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="mt-0.5 text-muted-foreground text-xs">
                       {item.deletedBy} · {formatRelativeTime(item.deletedAt)}
                     </p>
                   </div>
 
                   <div className="flex shrink-0 gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => restore([item.id])}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => restore([item.id])}>
                       <RotateCcwIcon className="mr-1 size-3.5" />
                       恢复
                     </Button>
@@ -131,9 +127,7 @@ export default function TrashPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>确认彻底删除</DialogTitle>
-            <DialogDescription>
-              此操作不可恢复，数据将被永久删除。确定继续？
-            </DialogDescription>
+            <DialogDescription>此操作不可恢复，数据将被永久删除。确定继续？</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPurgeId(null)}>

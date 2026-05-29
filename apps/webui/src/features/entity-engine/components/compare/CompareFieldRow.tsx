@@ -28,10 +28,21 @@ export interface CompareFieldRowProps {
 }
 
 /** 状态对应的样式和标签 */
-const statusConfig: Record<CompareStatus, { label: string; variant: "default" | "destructive" | "outline"; className: string }> = {
-  equal: { label: "=", variant: "outline", className: "text-green-600 border-green-300 bg-green-50" },
+const statusConfig: Record<
+  CompareStatus,
+  { label: string; variant: "default" | "destructive" | "outline"; className: string }
+> = {
+  equal: {
+    label: "=",
+    variant: "outline",
+    className: "text-green-600 border-green-300 bg-green-50"
+  },
   different: { label: "≠", variant: "destructive", className: "" },
-  similar: { label: "≈", variant: "default", className: "bg-yellow-500 text-white hover:bg-yellow-600" },
+  similar: {
+    label: "≈",
+    variant: "default",
+    className: "bg-yellow-500 text-white hover:bg-yellow-600"
+  }
 }
 
 /** 格式化字段值为可展示字符串 */
@@ -51,7 +62,7 @@ export function CompareFieldRow({
   status,
   mergeSelection,
   onMergeSelect,
-  merging = false,
+  merging = false
 }: CompareFieldRowProps) {
   const config = statusConfig[status]
   const label = "name" in field ? (field.label ?? field.name) : ""
@@ -66,7 +77,7 @@ export function CompareFieldRow({
           merging && mergeSelection !== "left" && "opacity-60"
         )}
       >
-        <p className="mb-1 text-xs text-muted-foreground">{label}</p>
+        <p className="mb-1 text-muted-foreground text-xs">{label}</p>
         <p className="break-all">{formatValue(leftValue)}</p>
         {merging && (
           <RadioGroup
@@ -92,7 +103,7 @@ export function CompareFieldRow({
           merging && mergeSelection !== "right" && "opacity-60"
         )}
       >
-        <p className="mb-1 text-xs text-muted-foreground">{label}</p>
+        <p className="mb-1 text-muted-foreground text-xs">{label}</p>
         <p className="break-all">{formatValue(rightValue)}</p>
         {merging && (
           <RadioGroup
@@ -106,7 +117,7 @@ export function CompareFieldRow({
       </div>
 
       {/* 字段名列（窄屏隐藏） */}
-      <span className="hidden text-xs text-muted-foreground lg:block">{label}</span>
+      <span className="hidden text-muted-foreground text-xs lg:block">{label}</span>
     </div>
   )
 }

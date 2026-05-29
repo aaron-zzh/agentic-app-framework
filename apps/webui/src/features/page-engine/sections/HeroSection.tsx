@@ -35,7 +35,7 @@ export function HeroSection({ data }: SectionComponentProps) {
     buttons = [],
     backgroundType = "gradient",
     backgroundImage,
-    align = "center",
+    align = "center"
   } = data as HeroProps
 
   const bgClass = cn(
@@ -51,14 +51,16 @@ export function HeroSection({ data }: SectionComponentProps) {
       className={bgClass}
       style={
         backgroundType === "image" && backgroundImage
-          ? { backgroundImage: `url(${backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+          ? {
+              backgroundImage: `url(${backgroundImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center"
+            }
           : undefined
       }
     >
       {/* 图片背景遮罩 */}
-      {backgroundType === "image" && (
-        <div className="absolute inset-0 bg-background/70" />
-      )}
+      {backgroundType === "image" && <div className="absolute inset-0 bg-background/70" />}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -67,9 +69,7 @@ export function HeroSection({ data }: SectionComponentProps) {
         className={cn("relative z-10 max-w-3xl", align === "center" && "text-center")}
       >
         <h1 className="font-bold text-4xl tracking-tight md:text-6xl">{title}</h1>
-        {subtitle && (
-          <p className="mt-4 text-lg text-muted-foreground md:text-xl">{subtitle}</p>
-        )}
+        {subtitle && <p className="mt-4 text-lg text-muted-foreground md:text-xl">{subtitle}</p>}
 
         {(buttons as CTAButton[]).length > 0 && (
           <div className={cn("mt-8 flex flex-wrap gap-3", align === "center" && "justify-center")}>

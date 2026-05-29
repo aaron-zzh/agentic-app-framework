@@ -1,32 +1,32 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import {
+  type ImageToVideoParams,
   queryVideoTask,
   submitImageToVideo,
   submitTextToVideo,
   submitVideoEdit,
-  type ImageToVideoParams,
   type TextToVideoParams,
-  type VideoEditParams,
+  type VideoEditParams
 } from "@/lib/api/video-generation"
 
 /** 文生视频 mutation */
 export function useTextToVideo() {
   return useMutation({
-    mutationFn: (params: TextToVideoParams) => submitTextToVideo(params),
+    mutationFn: (params: TextToVideoParams) => submitTextToVideo(params)
   })
 }
 
 /** 图生视频 mutation */
 export function useImageToVideo() {
   return useMutation({
-    mutationFn: (params: ImageToVideoParams) => submitImageToVideo(params),
+    mutationFn: (params: ImageToVideoParams) => submitImageToVideo(params)
   })
 }
 
 /** 视频编辑 mutation */
 export function useVideoEdit() {
   return useMutation({
-    mutationFn: (params: VideoEditParams) => submitVideoEdit(params),
+    mutationFn: (params: VideoEditParams) => submitVideoEdit(params)
   })
 }
 
@@ -34,7 +34,7 @@ export function useVideoEdit() {
 export function useVideoTaskStatus(taskId: string | null) {
   return useQuery({
     queryKey: ["video-task", taskId],
-    queryFn: () => queryVideoTask(taskId!),
+    queryFn: () => queryVideoTask(taskId as NonNullable<typeof taskId>),
     enabled: !!taskId,
     refetchInterval: (query) => {
       const status = query.state.data?.status
@@ -42,6 +42,6 @@ export function useVideoTaskStatus(taskId: string | null) {
         return false
       }
       return 15_000
-    },
+    }
   })
 }

@@ -34,13 +34,21 @@ interface WorkflowPanelProps {
 }
 
 /** 状态文本映射 */
-const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+const STATUS_MAP: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "destructive" }
+> = {
   running: { label: "审批中", variant: "default" },
   completed: { label: "已通过", variant: "secondary" },
   rejected: { label: "已驳回", variant: "destructive" }
 }
 
-export function WorkflowPanel({ processInstanceId, entityType, entityId, currentUserId }: WorkflowPanelProps) {
+export function WorkflowPanel({
+  processInstanceId,
+  entityType,
+  entityId,
+  currentUserId
+}: WorkflowPanelProps) {
   const { data: status } = useWorkflowStatus(processInstanceId)
   const { data: history } = useWorkflowHistory(processInstanceId)
   const startMutation = useWorkflowStart()
@@ -109,11 +117,11 @@ export function WorkflowPanel({ processInstanceId, entityType, entityId, current
           <Separator />
           <div className="space-y-3">
             <h4 className="font-medium text-sm">审批记录</h4>
-            <div className="relative ml-3 border-l border-border pl-6">
+            <div className="relative ml-3 border-border border-l pl-6">
               {history.map((item, idx) => (
                 <div key={`${item.endTime}-${idx}`} className="relative pb-4 last:pb-0">
                   {/* 时间线节点 */}
-                  <div className="absolute -left-[calc(0.75rem+1px)] top-0.5">
+                  <div className="absolute top-0.5 -left-[calc(0.75rem+1px)]">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-[10px]">
                         {item.assignee?.slice(0, 1)?.toUpperCase() ?? "?"}
@@ -124,9 +132,7 @@ export function WorkflowPanel({ processInstanceId, entityType, entityId, current
                   <div className="text-sm">
                     <span className="font-medium">{item.assignee}</span>
                     <span className="ml-2 text-muted-foreground">{item.action}</span>
-                    {item.comment && (
-                      <p className="mt-0.5 text-muted-foreground">{item.comment}</p>
-                    )}
+                    {item.comment && <p className="mt-0.5 text-muted-foreground">{item.comment}</p>}
                     <p className="mt-0.5 text-muted-foreground text-xs">{item.endTime}</p>
                   </div>
                 </div>
@@ -137,7 +143,12 @@ export function WorkflowPanel({ processInstanceId, entityType, entityId, current
       )}
 
       {/* 确认对话框 */}
-      <Dialog open={dialogType !== null} onOpenChange={(open) => { if (!open) closeDialog() }}>
+      <Dialog
+        open={dialogType !== null}
+        onOpenChange={(open) => {
+          if (!open) closeDialog()
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{dialogType === "complete" ? "审批通过" : "驳回"}</DialogTitle>
@@ -148,7 +159,9 @@ export function WorkflowPanel({ processInstanceId, entityType, entityId, current
             onChange={(e) => setComment(e.target.value)}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>取消</Button>
+            <Button variant="outline" onClick={closeDialog}>
+              取消
+            </Button>
             <Button
               onClick={handleConfirm}
               disabled={completeMutation.isPending || rejectMutation.isPending}

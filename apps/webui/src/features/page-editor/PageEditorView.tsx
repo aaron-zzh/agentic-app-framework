@@ -8,15 +8,14 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
 import {
-  DndContext,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
-  useSensors,
-  type DragEndEvent
+  useSensors
 } from "@dnd-kit/core"
 import {
   arrayMove,
@@ -27,15 +26,22 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical, Plus, Trash2 } from "lucide-react"
+import { useCallback, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils/cn"
 
-import { PageEngine, getAllSectionTypes } from "../page-engine"
+import { getAllSectionTypes, PageEngine } from "../page-engine"
 import type { PageDef, SectionDef } from "../page-engine/types"
 import { SectionPropsPanel } from "./SectionPropsPanel"
 
@@ -76,11 +82,7 @@ function SortableItem({ section, isSelected, onSelect, onDelete }: SortableItemP
       >
         <GripVertical className="size-4" />
       </button>
-      <button
-        type="button"
-        className="flex-1 text-left"
-        onClick={onSelect}
-      >
+      <button type="button" className="flex-1 text-left" onClick={onSelect}>
         <span className="font-medium">{section.type}</span>
         <span className="ml-2 text-muted-foreground text-xs">#{section.id}</span>
       </button>
@@ -272,10 +274,7 @@ export function PageEditorView({ initialPage, onSave, onPublish }: PageEditorVie
         <ResizablePanel defaultSize={25} minSize={20}>
           <ScrollArea className="h-full">
             {selectedSection ? (
-              <SectionPropsPanel
-                section={selectedSection}
-                onChange={handleSectionChange}
-              />
+              <SectionPropsPanel section={selectedSection} onChange={handleSectionChange} />
             ) : (
               <div className="flex h-full items-center justify-center p-4 text-center text-muted-foreground text-sm">
                 点击左侧区块编辑属性

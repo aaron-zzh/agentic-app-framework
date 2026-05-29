@@ -6,8 +6,8 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { ActionDialog } from "@/components/common/ActionDialog"
+import { Button } from "@/components/ui/button"
 import { type ActionConfig, type ActionResult, useAction } from "@/lib/hooks/use-action"
 
 interface ActionButtonProps {
@@ -18,7 +18,13 @@ interface ActionButtonProps {
   className?: string
 }
 
-export function ActionButton({ config, variant = "default", size = "default", onSuccess, className }: ActionButtonProps) {
+export function ActionButton({
+  config,
+  variant = "default",
+  size = "default",
+  onSuccess,
+  className
+}: ActionButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const { execute, loading } = useAction(config)
 

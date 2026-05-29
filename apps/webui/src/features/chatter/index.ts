@@ -10,7 +10,7 @@
 
 export { Chatter } from "./Chatter"
 export { DraggableItem } from "./dnd/DraggableItem"
-export { TaskBoardPanel } from "./TaskBoardPanel"
-export { RecoveryNotification } from "./RecoveryNotification"
 export { useTaskBoard } from "./hooks/use-task-board"
+export { RecoveryNotification } from "./RecoveryNotification"
+export { TaskBoardPanel } from "./TaskBoardPanel"
 export type { ChatterDropItem, ChatterProps, ChatterTarget } from "./types"

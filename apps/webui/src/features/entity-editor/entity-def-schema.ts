@@ -43,9 +43,21 @@ export const entityDefJsonSchema = {
         type: {
           type: "string",
           enum: [
-            "text", "textarea", "number", "email", "date", "checkbox",
-            "select", "relationship", "richText", "json", "code", "upload",
-            "group", "tabs", "row"
+            "text",
+            "textarea",
+            "number",
+            "email",
+            "date",
+            "checkbox",
+            "select",
+            "relationship",
+            "richText",
+            "json",
+            "code",
+            "upload",
+            "group",
+            "tabs",
+            "row"
           ],
           description: "字段类型"
         },

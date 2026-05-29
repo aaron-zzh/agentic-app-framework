@@ -6,8 +6,8 @@
 "use client"
 
 import { useCallback } from "react"
-import type { NodeTypeRegistry } from "../types"
 import { useFlowState } from "../hooks/use-flow-state"
+import type { NodeTypeRegistry } from "../types"
 
 interface InspectorPanelProps {
   registry: NodeTypeRegistry
@@ -30,7 +30,7 @@ export function InspectorPanel({ registry }: InspectorPanelProps) {
 
   if (!selectedNode || !nodeDef) {
     return (
-      <div className="border-l bg-muted/30 flex w-64 items-center justify-center p-4">
+      <div className="flex w-64 items-center justify-center border-l bg-muted/30 p-4">
         <p className="text-muted-foreground text-sm">选中节点查看属性</p>
       </div>
     )
@@ -39,20 +39,27 @@ export function InspectorPanel({ registry }: InspectorPanelProps) {
   const Inspector = nodeDef.inspector
 
   return (
-    <div className="border-l bg-muted/30 w-64 overflow-y-auto p-4">
+    <div className="w-64 overflow-y-auto border-l bg-muted/30 p-4">
       <div className="mb-4 flex items-center gap-2">
         <span>{nodeDef.icon}</span>
-        <h3 className="text-sm font-semibold">{nodeDef.label}</h3>
+        <h3 className="font-semibold text-sm">{nodeDef.label}</h3>
       </div>
 
       {/* 通用名称编辑 */}
       <div className="mb-4">
-        <label htmlFor="node-label" className="text-sm font-medium">名称</label>
+        <label htmlFor="node-label" className="font-medium text-sm">
+          名称
+        </label>
         <input
           id="node-label"
-          className="border-input mt-1 w-full rounded-md border px-3 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
           value={(selectedNode.data.label as string) ?? ""}
-          onChange={(e) => handleChange({ ...selectedNode.data as Record<string, unknown>, label: e.target.value })}
+          onChange={(e) =>
+            handleChange({
+              ...(selectedNode.data as Record<string, unknown>),
+              label: e.target.value
+            })
+          }
         />
       </div>
 

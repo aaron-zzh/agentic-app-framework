@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { delegationApi, type DelegationCreateReq } from "@/lib/api/delegation"
+import { type DelegationCreateReq, delegationApi } from "@/lib/api/delegation"
 
 const QUERY_KEY = ["delegations"]
 

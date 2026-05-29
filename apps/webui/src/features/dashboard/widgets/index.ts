@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-export { CounterWidget } from "./CounterWidget"
 export { ChartWidget } from "./ChartWidget"
+export { CounterWidget } from "./CounterWidget"
 export { EChartsWidget } from "./EChartsWidget"
 export { ListWidget } from "./ListWidget"
 export { ProgressWidget } from "./ProgressWidget"

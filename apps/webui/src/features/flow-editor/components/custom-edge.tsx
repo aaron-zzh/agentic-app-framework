@@ -5,8 +5,8 @@
 
 "use client"
 
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from "@xyflow/react"
 import { memo } from "react"
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react"
 
 function CustomEdgeComponent({
   id,
@@ -41,7 +41,7 @@ function CustomEdgeComponent({
       {condition && (
         <EdgeLabelRenderer>
           <div
-            className="bg-background border-border absolute rounded border px-1.5 py-0.5 text-xs"
+            className="absolute rounded border border-border bg-background px-1.5 py-0.5 text-xs"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
           >
             {condition}

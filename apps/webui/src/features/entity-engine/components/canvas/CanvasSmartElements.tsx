@@ -29,7 +29,7 @@ const STICKY_COLORS: Record<StickyNoteColor, string> = {
   pink: "#fce7f3",
   blue: "#dbeafe",
   green: "#dcfce7",
-  purple: "#f3e8ff",
+  purple: "#f3e8ff"
 }
 
 /** 便签 Shape 工具 */
@@ -89,9 +89,9 @@ export class EntityCardShapeUtil extends BaseBoxShapeUtil<EntityCardShape> {
           <p className="mb-2 font-medium text-sm">{shape.props.title || "实体卡片"}</p>
           <div className="flex-1 space-y-1 overflow-hidden">
             {entries.map(([key, value]) => (
-              <div key={key} className="flex justify-between text-xs text-muted-foreground">
+              <div key={key} className="flex justify-between text-muted-foreground text-xs">
                 <span>{key}</span>
-                <span className="truncate ml-2">{value}</span>
+                <span className="ml-2 truncate">{value}</span>
               </div>
             ))}
           </div>
@@ -134,9 +134,7 @@ export class MindMapNodeShapeUtil extends BaseBoxShapeUtil<MindMapNodeShape> {
       <HTMLContainer>
         <div className={`flex h-full w-full items-center rounded-full px-4 ${bgClass} border`}>
           <span className="truncate text-sm">{shape.props.text || "节点"}</span>
-          {shape.props.collapsed && (
-            <span className="ml-1 text-xs text-muted-foreground">+</span>
-          )}
+          {shape.props.collapsed && <span className="ml-1 text-muted-foreground text-xs">+</span>}
         </div>
       </HTMLContainer>
     )
@@ -151,5 +149,5 @@ export class MindMapNodeShapeUtil extends BaseBoxShapeUtil<MindMapNodeShape> {
 export const canvasCustomShapeUtils = [
   StickyNoteShapeUtil,
   EntityCardShapeUtil,
-  MindMapNodeShapeUtil,
+  MindMapNodeShapeUtil
 ] as TLShapeUtilConstructor<never>[]

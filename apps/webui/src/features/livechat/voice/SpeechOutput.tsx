@@ -10,8 +10,8 @@
  */
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
 import { Pause, Play, Square, Volume2, VolumeX } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 type PlayState = "idle" | "playing" | "paused"
@@ -39,7 +39,7 @@ export function SpeechOutput({
   rate = 1,
   pitch = 1,
   onEnd,
-  className,
+  className
 }: SpeechOutputProps) {
   const [state, setState] = useState<PlayState>("idle")
   const [autoMode, setAutoMode] = useState(autoPlay)
@@ -135,12 +135,12 @@ export function SpeechOutput({
 
       {/* 播放状态指示器 */}
       {state === "playing" && (
-        <div className="flex items-end gap-0.5 h-4" aria-label="正在播放">
-          <span className="w-0.5 bg-primary animate-bounce [animation-delay:0ms] h-2" />
-          <span className="w-0.5 bg-primary animate-bounce [animation-delay:150ms] h-3" />
-          <span className="w-0.5 bg-primary animate-bounce [animation-delay:300ms] h-4" />
-          <span className="w-0.5 bg-primary animate-bounce [animation-delay:150ms] h-3" />
-          <span className="w-0.5 bg-primary animate-bounce [animation-delay:0ms] h-2" />
+        <div className="flex h-4 items-end gap-0.5" role="img" aria-label="正在播放">
+          <span className="h-2 w-0.5 animate-bounce bg-primary [animation-delay:0ms]" />
+          <span className="h-3 w-0.5 animate-bounce bg-primary [animation-delay:150ms]" />
+          <span className="h-4 w-0.5 animate-bounce bg-primary [animation-delay:300ms]" />
+          <span className="h-3 w-0.5 animate-bounce bg-primary [animation-delay:150ms]" />
+          <span className="h-2 w-0.5 animate-bounce bg-primary [animation-delay:0ms]" />
         </div>
       )}
     </div>

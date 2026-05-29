@@ -5,18 +5,17 @@
 
 "use client"
 
-import { useState } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-
-import { Button } from "@/components/ui/button"
-import { Form } from "@/components/form/form"
 import { FieldText } from "@/components/form/field-text"
-import { paths } from "@/lib/constants/paths"
+import { Form } from "@/components/form/form"
+import { Button } from "@/components/ui/button"
 import { authApi } from "@/lib/api/auth"
+import { paths } from "@/lib/constants/paths"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 const registerSchema = z
@@ -75,18 +74,12 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm space-y-6">
         <div>
           <h2 className="font-bold text-2xl">验证邮箱</h2>
-          <p className="mt-1 text-muted-foreground text-sm">
-            验证码已发送至 {email}
-          </p>
+          <p className="mt-1 text-muted-foreground text-sm">验证码已发送至 {email}</p>
         </div>
 
         <Form methods={verifyMethods} onSubmit={onVerify}>
           <FieldText name="code" label="验证码" placeholder="输入 6 位验证码" />
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={verifyMethods.formState.isSubmitting}
-          >
+          <Button type="submit" className="w-full" disabled={verifyMethods.formState.isSubmitting}>
             {verifyMethods.formState.isSubmitting ? "验证中..." : "验证并登录"}
           </Button>
         </Form>
@@ -111,11 +104,7 @@ export default function RegisterPage() {
           type="password"
           placeholder="再次输入密码"
         />
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={registerMethods.formState.isSubmitting}
-        >
+        <Button type="submit" className="w-full" disabled={registerMethods.formState.isSubmitting}>
           {registerMethods.formState.isSubmitting ? "注册中..." : "注册"}
         </Button>
       </Form>

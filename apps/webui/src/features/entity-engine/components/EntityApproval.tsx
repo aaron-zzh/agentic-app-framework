@@ -7,8 +7,8 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
 import { ChevronDown, ChevronUp, GitBranch } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,7 +17,6 @@ import { ApprovalPanel } from "@/features/flow-editor/components/approval-panel"
 import { ExecutionPanel } from "@/features/flow-editor/components/execution-panel"
 import type { ExecutionState } from "@/features/flow-editor/types"
 import type { EntityWorkflowConfig } from "@/lib/types/entity/entity"
-import { approvalApi } from "@/lib/api/approval"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -41,7 +40,9 @@ function useEntityWorkflowStatus(entityType: string, entityId: string) {
   return useQuery<WorkflowStatus>({
     queryKey: ["workflow-status", entityType, entityId],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/system/workflow/status?entityType=${entityType}&entityId=${entityId}`)
+      const res = await fetch(
+        `${BASE}/api/system/workflow/status?entityType=${entityType}&entityId=${entityId}`
+      )
       if (!res.ok) return { processInstanceId: "", status: "none" as const }
       return res.json()
     }
@@ -63,7 +64,10 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
   const isRunning = status === "running"
 
   /** 状态 Badge */
-  const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+  const statusMap: Record<
+    string,
+    { label: string; variant: "default" | "secondary" | "destructive" }
+  > = {
     running: { label: "审批中", variant: "default" },
     completed: { label: "已通过", variant: "secondary" },
     rejected: { label: "已驳回", variant: "destructive" },
@@ -108,7 +112,11 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="w-full justify-between">
                 流程图
-                {flowChartOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {flowChartOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -131,11 +139,11 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
 function StartApprovalButton({
   config,
   entityId,
-  currentUserId
+  _currentUserId
 }: {
   config: EntityWorkflowConfig
   entityId: string
-  currentUserId: string
+  _currentUserId: string
 }) {
   const [loading, setLoading] = useState(false)
 

@@ -39,7 +39,7 @@ export function DocOutline({ content, onSelect }: DocOutlineProps) {
 
   return (
     <div className="mt-4 border-t pt-3">
-      <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">大纲</p>
+      <p className="mb-2 px-2 font-medium text-muted-foreground text-xs">大纲</p>
       <ul className="space-y-0.5">
         {items.map((item, i) => (
           <li key={`${item.anchor}-${i}`}>

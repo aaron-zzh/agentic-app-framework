@@ -1,7 +1,13 @@
 import { request } from "./client"
 
 /** 视频任务状态 */
-export type VideoTaskStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELED" | "UNKNOWN"
+export type VideoTaskStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "CANCELED"
+  | "UNKNOWN"
 
 export interface VideoTaskResult {
   taskId: string
@@ -43,17 +49,29 @@ export interface VideoEditParams {
 
 /** 文生视频 */
 export function submitTextToVideo(params: TextToVideoParams) {
-  return request<string>("/api/aigc/video/text-to-video", { method: "POST", body: JSON.stringify(params), headers: { "Content-Type": "application/json" } })
+  return request<string>("/api/aigc/video/text-to-video", {
+    method: "POST",
+    body: JSON.stringify(params),
+    headers: { "Content-Type": "application/json" }
+  })
 }
 
 /** 图生视频 */
 export function submitImageToVideo(params: ImageToVideoParams) {
-  return request<string>("/api/aigc/video/image-to-video", { method: "POST", body: JSON.stringify(params), headers: { "Content-Type": "application/json" } })
+  return request<string>("/api/aigc/video/image-to-video", {
+    method: "POST",
+    body: JSON.stringify(params),
+    headers: { "Content-Type": "application/json" }
+  })
 }
 
 /** 视频编辑 */
 export function submitVideoEdit(params: VideoEditParams) {
-  return request<string>("/api/aigc/video/edit", { method: "POST", body: JSON.stringify(params), headers: { "Content-Type": "application/json" } })
+  return request<string>("/api/aigc/video/edit", {
+    method: "POST",
+    body: JSON.stringify(params),
+    headers: { "Content-Type": "application/json" }
+  })
 }
 
 /** 查询视频任务状态 */

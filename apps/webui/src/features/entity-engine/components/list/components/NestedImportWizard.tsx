@@ -417,7 +417,6 @@ export function NestedImportWizard({
                 </p>
               )}
               {preview.errors.map((e, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: 错误列表
                 <p key={i} className="text-destructive text-xs">
                   {e}
                 </p>

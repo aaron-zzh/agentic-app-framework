@@ -29,9 +29,9 @@ export function MobileCardList({ entity, data, onRecordClick }: MobileCardListPr
   const [selectionMode, setSelectionMode] = useState(false)
 
   // 取前 3 个列表列作为卡片展示字段
-  const displayColumns = entity.listView.columns.slice(0, 3).map((col) =>
-    typeof col === "string" ? col : col.name
-  )
+  const displayColumns = entity.listView.columns
+    .slice(0, 3)
+    .map((col) => (typeof col === "string" ? col : col.name))
 
   const titleField = displayColumns[0]
   const subtitleFields = displayColumns.slice(1)
@@ -63,7 +63,10 @@ export function MobileCardList({ entity, data, onRecordClick }: MobileCardListPr
           <button
             type="button"
             className="text-primary text-sm"
-            onClick={() => { setSelectionMode(false); setSelectedIds(new Set()) }}
+            onClick={() => {
+              setSelectionMode(false)
+              setSelectedIds(new Set())
+            }}
           >
             取消
           </button>
@@ -82,7 +85,10 @@ export function MobileCardList({ entity, data, onRecordClick }: MobileCardListPr
             selected={selectedIds.has(id)}
             selectionMode={selectionMode}
             onClick={() => handleCardClick(id)}
-            onLongPress={() => { setSelectionMode(true); toggleSelect(id) }}
+            onLongPress={() => {
+              setSelectionMode(true)
+              toggleSelect(id)
+            }}
           />
         )
       })}
@@ -114,17 +120,16 @@ function MobileCard({
 
   return (
     <Card
-      className={cn("cursor-pointer transition-colors active:bg-accent", selected && "ring-2 ring-primary")}
+      className={cn(
+        "cursor-pointer transition-colors active:bg-accent",
+        selected && "ring-2 ring-primary"
+      )}
     >
       <CardContent className="flex items-center gap-3 p-3" onClick={onClick} {...longPressProps}>
-        {selectionMode && (
-          <Checkbox checked={selected} className="shrink-0" />
-        )}
+        {selectionMode && <Checkbox checked={selected} className="shrink-0" />}
         <div className="min-w-0 flex-1">
           {titleField && (
-            <p className="truncate font-medium text-sm">
-              {String(record[titleField] ?? "")}
-            </p>
+            <p className="truncate font-medium text-sm">{String(record[titleField] ?? "")}</p>
           )}
           <div className="mt-0.5 flex flex-wrap items-center gap-2">
             {subtitleFields.map((fieldName) => {

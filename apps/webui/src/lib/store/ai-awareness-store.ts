@@ -55,23 +55,22 @@ export const useAIAwarenessStore = create<AIAwarenessState>((set, get) => ({
   actions: [],
   enabled: true,
 
-  setPageContext: (ctx) =>
-    set((s) => ({ pageContext: { ...s.pageContext, ...ctx } })),
+  setPageContext: (ctx) => set((s) => ({ pageContext: { ...s.pageContext, ...ctx } })),
 
   recordAction: (action) =>
     set((s) => ({
-      actions: [...s.actions, { ...action, timestamp: Date.now() }].slice(-MAX_ACTIONS),
+      actions: [...s.actions, { ...action, timestamp: Date.now() }].slice(-MAX_ACTIONS)
     })),
 
   collectContext: () => {
     const { pageContext, actions } = get()
     return {
       ...pageContext,
-      recentActions: actions,
+      recentActions: actions
     }
   },
 
   setEnabled: (enabled) => set({ enabled }),
 
-  reset: () => set({ pageContext: {}, actions: [] }),
+  reset: () => set({ pageContext: {}, actions: [] })
 }))

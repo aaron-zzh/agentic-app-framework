@@ -68,6 +68,7 @@ export function KanbanCard({
   }
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: dnd-kit 需要 div 容器
     <div
       ref={setNodeRef}
       style={{
@@ -77,6 +78,8 @@ export function KanbanCard({
       }}
       {...attributes}
       {...listeners}
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
       onKeyDown={undefined}
       className={cn(

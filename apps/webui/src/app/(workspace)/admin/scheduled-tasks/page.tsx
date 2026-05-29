@@ -80,9 +80,7 @@ export default function ScheduledTasksPage() {
                 {task.nextRun ? new Date(task.nextRun).toLocaleString("zh-CN") : "-"}
               </TableCell>
               <TableCell>
-                <Badge variant={STATUS_VARIANT[task.status]}>
-                  {STATUS_LABEL[task.status]}
-                </Badge>
+                <Badge variant={STATUS_VARIANT[task.status]}>{STATUS_LABEL[task.status]}</Badge>
               </TableCell>
               <TableCell>
                 <div className="flex gap-2">

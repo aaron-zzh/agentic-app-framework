@@ -18,7 +18,7 @@ import {
   ORDERED_LIST,
   QUOTE,
   STRIKETHROUGH,
-  UNORDERED_LIST,
+  UNORDERED_LIST
 } from "@lexical/markdown"
 import type { LexicalEditor } from "lexical"
 
@@ -36,7 +36,7 @@ export const MARKDOWN_TRANSFORMERS = [
   ITALIC_STAR,
   ITALIC_UNDERSCORE,
   STRIKETHROUGH,
-  LINK,
+  LINK
 ]
 
 /** Markdown 字符串 → 写入编辑器 */
@@ -48,7 +48,5 @@ export function markdownToEditorState(editor: LexicalEditor, markdown: string): 
 
 /** EditorState → Markdown 字符串 */
 export function editorStateToMarkdown(editor: LexicalEditor): string {
-  return editor.getEditorState().read(() =>
-    $convertToMarkdownString(MARKDOWN_TRANSFORMERS)
-  )
+  return editor.getEditorState().read(() => $convertToMarkdownString(MARKDOWN_TRANSFORMERS))
 }

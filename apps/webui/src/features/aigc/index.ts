@@ -4,6 +4,7 @@
  */
 
 export { AigcLayout } from "./AigcLayout"
+export { AssetLibrary } from "./AssetLibrary"
 // 生成历史
 export { GenerationHistory } from "./GenerationHistory"
 // 对话内联预览
@@ -13,7 +14,6 @@ export { useAigcStore } from "./store"
 export { threeViewConfig } from "./three"
 // 3D（动态导入使用，此处仅导出类型和容器）
 export { ThreeView } from "./three/ThreeView"
-export { AssetLibrary } from "./AssetLibrary"
 export type {
   GenerationParams,
   MediaAsset,
@@ -23,7 +23,7 @@ export type {
   MediaTagVO,
   Model3dTaskResult,
   Model3dTaskStatus,
-  StoryElement,
+  StoryElement
 } from "./types"
 export { VideoEditPanel } from "./VideoEditPanel"
 export { VideoGenerationChat } from "./VideoGenerationChat"

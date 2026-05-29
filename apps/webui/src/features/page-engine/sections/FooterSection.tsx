@@ -37,7 +37,7 @@ export function FooterSection({ data }: SectionComponentProps) {
     groups = [],
     social = [],
     copyright = `© ${new Date().getFullYear()} All rights reserved.`,
-    logoText = "AAF",
+    logoText = "AAF"
   } = data as FooterProps
 
   return (
