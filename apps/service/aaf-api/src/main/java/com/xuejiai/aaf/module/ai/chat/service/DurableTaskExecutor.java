@@ -15,10 +15,14 @@ import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskCheckpoint;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskEvent;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskExecution;
+import com.xuejiai.aaf.module.ai.chat.domain.enums.TaskExecutionStatus;
 import com.xuejiai.aaf.module.ai.chat.repository.TaskCheckpointRepository;
 import com.xuejiai.aaf.module.ai.chat.repository.TaskEventRepository;
 import com.xuejiai.aaf.module.ai.chat.repository.TaskExecutionRepository;
 import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
+import com.xuejiai.aaf.module.ai.output.domain.enums.OutputCategory;
+import com.xuejiai.aaf.module.ai.output.domain.enums.OutputSourceType;
+import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.module.ai.output.service.AiOutputService;
 
 import lombok.RequiredArgsConstructor;
@@ -62,7 +66,7 @@ public class DurableTaskExecutor {
         var execution = new TaskExecution();
         execution.setTaskId(task.getId());
         execution.setAttemptNo(attemptNo);
-        execution.setStatus("pending");
+        execution.setStatus(TaskExecutionStatus.PENDING);
         executionRepository.save(execution);
 
         emitEvent(task.getId(), execution.getId(), null, "execution_created",
@@ -79,7 +83,7 @@ public class DurableTaskExecutor {
         sub.setSubtaskKey(subtaskKey);
         sub.setRole(role);
         sub.setAttemptNo(1);
-        sub.setStatus("pending");
+        sub.setStatus(TaskExecutionStatus.PENDING);
         executionRepository.save(sub);
 
         emitEvent(taskId, parentExecutionId, subtaskKey, "subtask_forked",
@@ -229,7 +233,7 @@ public class DurableTaskExecutor {
     @Transactional
     public void completeExecution(Long executionId) {
         executionRepository.findById(executionId).ifPresent(exec -> {
-            exec.setStatus("done");
+            exec.setStatus(TaskExecutionStatus.DONE);
             exec.setEndedAt(LocalDateTime.now());
             executionRepository.save(exec);
         });
@@ -238,7 +242,7 @@ public class DurableTaskExecutor {
     @Transactional
     public void failExecution(Long executionId, String errorMessage) {
         executionRepository.findById(executionId).ifPresent(exec -> {
-            exec.setStatus("failed");
+            exec.setStatus(TaskExecutionStatus.FAILED);
             exec.setEndedAt(LocalDateTime.now());
             exec.setErrorMessage(errorMessage);
             executionRepository.save(exec);
@@ -273,7 +277,7 @@ public class DurableTaskExecutor {
             output.setTaskId(task.getId());
             output.setExecutionId(executionId);
             output.setCreatorId(task.getCreatorId());
-            output.setSourceType("task");
+            output.setSourceType(OutputSourceType.TASK);
             output.setCategory(detectCategory(result));
             output.setRiskLevel(detectRiskLevel(task, result));
             output.setTitle(task.getTitle());
@@ -285,21 +289,19 @@ public class DurableTaskExecutor {
         }
     }
 
-    private String detectCategory(String result) {
-        if (result == null) return "document";
-        if (result.contains("```") || result.contains("class ") || result.contains("function ")) return "code";
-        if (result.contains("CREATE") || result.contains("UPDATE") || result.contains("DELETE")) return "entity_change";
-        return "document";
+    private OutputCategory detectCategory(String result) {
+        if (result == null) return OutputCategory.DOCUMENT;
+        if (result.contains("```") || result.contains("class ") || result.contains("function ")) return OutputCategory.CODE;
+        if (result.contains("CREATE") || result.contains("UPDATE") || result.contains("DELETE")) return OutputCategory.ENTITY_CHANGE;
+        return OutputCategory.DOCUMENT;
     }
 
-    private String detectRiskLevel(ChatTask task, String result) {
-        if (result == null) return "low";
-        // 高风险关键词
+    private RiskLevel detectRiskLevel(ChatTask task, String result) {
+        if (result == null) return RiskLevel.LOW;
         if (result.contains("DELETE") || result.contains("删除") || result.contains("权限")
-                || result.contains("DROP") || result.contains("TRUNCATE")) return "high";
-        // 中风险
-        if (result.contains("UPDATE") || result.contains("修改") || result.contains("CREATE")) return "medium";
-        return "low";
+                || result.contains("DROP") || result.contains("TRUNCATE")) return RiskLevel.HIGH;
+        if (result.contains("UPDATE") || result.contains("修改") || result.contains("CREATE")) return RiskLevel.MEDIUM;
+        return RiskLevel.LOW;
     }
 
     // === 内部方法 ===

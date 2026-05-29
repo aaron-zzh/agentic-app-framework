@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.common.enums;
 
+import java.util.Arrays;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -10,9 +12,18 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum OperatorType {
-    HUMAN("人类用户"),
-    AI("AI 助理");
+public enum OperatorType implements ArrayValuable<String> {
+    HUMAN("human", "人类用户"),
+    AI("ai", "AI 助理");
 
+    private final String code;
     private final String description;
+
+    public static final String[] ARRAYS =
+            Arrays.stream(values()).map(OperatorType::getCode).toArray(String[]::new);
+
+    @Override
+    public String[] array() {
+        return ARRAYS;
+    }
 }

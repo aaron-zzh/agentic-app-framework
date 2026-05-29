@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
+import com.xuejiai.aaf.module.ai.chat.domain.enums.ChatTaskStatus;
 
 public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
 
@@ -47,5 +48,5 @@ public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
     int recoverOrphans(LocalDateTime cutoff);
 
     /** 统计会话下指定状态的任务数 */
-    long countBySessionIdAndStatusAndDeletedFalse(Long sessionId, String status);
+    long countBySessionIdAndStatusAndDeletedFalse(Long sessionId, ChatTaskStatus status);
 }

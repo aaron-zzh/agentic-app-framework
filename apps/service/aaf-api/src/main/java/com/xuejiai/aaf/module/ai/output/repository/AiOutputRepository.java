@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
+import com.xuejiai.aaf.module.ai.output.domain.enums.AiOutputStatus;
+import com.xuejiai.aaf.common.enums.RiskLevel;
 
 public interface AiOutputRepository extends JpaRepository<AiOutput, Long> {
 
@@ -22,10 +24,6 @@ public interface AiOutputRepository extends JpaRepository<AiOutput, Long> {
             ORDER BY o.createTime DESC""")
     Page<AiOutput> findFiltered(Long creatorId, String category, String riskLevel, String sourceType, Pageable pageable);
 
-    /** 最近 N 条高风险产出 */
-    List<AiOutput> findByCreatorIdAndRiskLevelAndDeletedFalseOrderByCreateTimeDesc(
-            Long creatorId, String riskLevel, Pageable pageable);
-
     /** 统计各风险级别数量 */
-    long countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(Long creatorId, String riskLevel, String status);
+    long countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(Long creatorId, RiskLevel riskLevel, AiOutputStatus status);
 }

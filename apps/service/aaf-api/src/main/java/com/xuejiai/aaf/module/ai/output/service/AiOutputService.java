@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
+import com.xuejiai.aaf.module.ai.output.domain.enums.AiOutputStatus;
+import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.module.ai.output.repository.AiOutputRepository;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 
@@ -27,7 +29,7 @@ public class AiOutputService {
     @Transactional
     public AiOutput record(AiOutput output) {
         repository.save(output);
-        if ("high".equals(output.getRiskLevel())) {
+        if (RiskLevel.HIGH == output.getRiskLevel()) {
             notificationService.sendSystemNotification(
                     output.getCreatorId(),
                     "🔴 高风险 AI 产出",
@@ -52,7 +54,7 @@ public class AiOutputService {
     @Transactional
     public AiOutput adjust(Long id, String note) {
         var output = repository.findById(id).orElseThrow();
-        output.setStatus("adjusted");
+        output.setStatus(AiOutputStatus.ADJUSTED);
         output.setAdjustNote(note);
         return repository.save(output);
     }
@@ -61,7 +63,7 @@ public class AiOutputService {
     @Transactional
     public AiOutput revert(Long id, String reason) {
         var output = repository.findById(id).orElseThrow();
-        output.setStatus("reverted");
+        output.setStatus(AiOutputStatus.REVERTED);
         output.setAdjustNote(reason);
         // 实际回退操作由调用方根据 revertInfo 执行
         return repository.save(output);
@@ -71,8 +73,8 @@ public class AiOutputService {
     @Transactional(readOnly = true)
     public Map<String, Long> stats(Long creatorId) {
         return Map.of(
-                "high", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, "high", "effective"),
-                "medium", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, "medium", "effective"),
-                "low", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, "low", "effective"));
+                "high", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, RiskLevel.HIGH, AiOutputStatus.EFFECTIVE),
+                "medium", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, RiskLevel.MEDIUM, AiOutputStatus.EFFECTIVE),
+                "low", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, RiskLevel.LOW, AiOutputStatus.EFFECTIVE));
     }
 }

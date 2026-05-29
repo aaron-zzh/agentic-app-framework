@@ -1,9 +1,15 @@
 package com.xuejiai.aaf.module.ai.output.domain;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.output.domain.enums.AiOutputStatus;
+import com.xuejiai.aaf.module.ai.output.domain.enums.OutputCategory;
+import com.xuejiai.aaf.module.ai.output.domain.enums.OutputSourceType;
+import com.xuejiai.aaf.common.enums.RiskLevel;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,17 +35,20 @@ public class AiOutput extends BaseEntity {
     @Column(name = "creator_id", nullable = false)
     private Long creatorId;
 
-    /** 来源：autodev / task / chat / tool */
+    /** 来源 */
+    @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false, length = 30)
-    private String sourceType;
+    private OutputSourceType sourceType;
 
-    /** 类别：code / document / entity_change / config / file */
+    /** 类别 */
+    @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 30)
-    private String category;
+    private OutputCategory category;
 
-    /** 风险：high / medium / low */
+    /** 风险等级 */
+    @Enumerated(EnumType.STRING)
     @Column(name = "risk_level", nullable = false, length = 10)
-    private String riskLevel = "low";
+    private RiskLevel riskLevel = RiskLevel.LOW;
 
     @Column(name = "title", nullable = false, length = 500)
     private String title;
@@ -55,9 +64,10 @@ public class AiOutput extends BaseEntity {
     @Column(name = "revert_info", columnDefinition = "JSONB")
     private String revertInfo;
 
-    /** effective / adjusted / reverted */
+    /** 状态 */
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "effective";
+    private AiOutputStatus status = AiOutputStatus.EFFECTIVE;
 
     @Column(name = "adjust_note", columnDefinition = "TEXT")
     private String adjustNote;

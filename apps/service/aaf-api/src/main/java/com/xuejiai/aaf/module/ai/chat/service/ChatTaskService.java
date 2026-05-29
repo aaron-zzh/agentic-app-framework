@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
+import com.xuejiai.aaf.module.ai.chat.domain.enums.ChatTaskStatus;
 import com.xuejiai.aaf.module.ai.chat.repository.ChatTaskRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -77,7 +78,7 @@ public class ChatTaskService {
     @Transactional
     public ChatTask start(Long taskId) {
         var task = taskRepository.findById(taskId).orElseThrow();
-        task.setStatus("running");
+        task.setStatus(ChatTaskStatus.RUNNING);
         return taskRepository.save(task);
     }
 
@@ -85,7 +86,7 @@ public class ChatTaskService {
     @Transactional
     public ChatTask complete(Long taskId, String result) {
         var task = taskRepository.findById(taskId).orElseThrow();
-        task.setStatus("done");
+        task.setStatus(ChatTaskStatus.DONE);
         task.setResult(result);
         return taskRepository.save(task);
     }
@@ -94,7 +95,7 @@ public class ChatTaskService {
     @Transactional
     public ChatTask fail(Long taskId, String reason) {
         var task = taskRepository.findById(taskId).orElseThrow();
-        task.setStatus("failed");
+        task.setStatus(ChatTaskStatus.FAILED);
         task.setResult(reason);
         return taskRepository.save(task);
     }
@@ -103,14 +104,14 @@ public class ChatTaskService {
     @Transactional
     public ChatTask cancel(Long taskId) {
         var task = taskRepository.findById(taskId).orElseThrow();
-        task.setStatus("cancelled");
+        task.setStatus(ChatTaskStatus.CANCELLED);
         return taskRepository.save(task);
     }
 
     /** 统计待处理任务数 */
     @Transactional(readOnly = true)
     public long countPending(Long sessionId) {
-        return taskRepository.countBySessionIdAndStatusAndDeletedFalse(sessionId, "pending");
+        return taskRepository.countBySessionIdAndStatusAndDeletedFalse(sessionId, ChatTaskStatus.PENDING);
     }
 
     /** 回收孤儿任务（running 超时未完成的重置为 pending），返回回收数量 */
