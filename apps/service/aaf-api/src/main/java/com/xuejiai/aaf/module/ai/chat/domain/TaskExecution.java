@@ -3,9 +3,12 @@ package com.xuejiai.aaf.module.ai.chat.domain;
 import java.time.LocalDateTime;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.chat.domain.enums.TaskExecutionStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,8 +37,9 @@ public class TaskExecution extends BaseEntity {
     private Integer attemptNo = 1;
 
     /** pending/running/done/failed/cancelled/waiting_approval */
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "pending";
+    private TaskExecutionStatus status = TaskExecutionStatus.PENDING;
 
     @Column(name = "role", length = 100)
     private String role;

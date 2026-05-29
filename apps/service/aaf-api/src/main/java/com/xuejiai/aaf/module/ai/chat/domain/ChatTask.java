@@ -5,9 +5,12 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.chat.domain.enums.ChatTaskStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,9 +43,10 @@ public class ChatTask extends BaseEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    /** 状态：pending / running / done / failed / cancelled */
+    /** 状态 */
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "pending";
+    private ChatTaskStatus status = ChatTaskStatus.PENDING;
 
     /** 优先级（数值越小越优先） */
     @Column(name = "priority")

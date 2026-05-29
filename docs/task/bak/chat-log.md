@@ -16,18 +16,16 @@
 
 ## 2026-5-22 五层架构+智能体分层架构设计
 
-- [ ] 在 `docs\design\framework\execution-flow-diagram.md` 的每个图表前我加了评论，你进行回复，给出修改建议。
+- [x] 在 `docs\design\framework\execution-flow-diagram.md` 的每个图表前我加了评论，你进行回复，给出修改建议。
 
 ## 2026-5-29 功能补全
 
-- 1. 参考tmp/nextjs/xueji/apps/demo 中的3d展示 添加实例页面，2. 检查v0.7是否已完成功能是否完整，补全并标记任务
+- [x] 参考tmp/nextjs/xueji/apps/demo 中的3d展示 添加实例页面，2. 检查v0.7是否已完成功能是否完整，补全并标记任务
 
 ## 规范类
 
-- [ ] 添加一条开发规范：后续开发都先确认是否有设计文档，且分析是否符合整体设计，根据需要修改或创建设计文档，然后在开始开发，所有源码开头都要记录参考的设计文档
-- [ ] 当前知识库的实现对比芋道
+- [ ] 添加一条开发规范：后续开发都先确认是否有设计文档，且分析是否符合整体设计，根据需要修改或创建设计文档，然后在开始开发，所有源码开头都要记录参考的设计文档（功能设计 + 技术方案）
 
 ## 2026-5-24 AIGC
 
 - [ ] deepseek  V4 测试
-- [ ] 文生视频 https://bailian.console.aliyun.com/cn-beijing?spm=5176.cap.0.0.4d7b4faeIQNrOP&tab=api#/api/?type=model&url=3029820
