@@ -807,6 +807,7 @@ CREATE TABLE ai_chat_task (
     status          VARCHAR(20)     NOT NULL DEFAULT 'pending',
     priority        INTEGER         DEFAULT 0,
     sort_order      INTEGER         DEFAULT 0,
+    scheduled_at    TIMESTAMP,
     result          TEXT,
     deleted         BOOLEAN         NOT NULL DEFAULT FALSE,
     delete_time     TIMESTAMP,
@@ -815,10 +816,12 @@ CREATE TABLE ai_chat_task (
 );
 
 CREATE INDEX idx_chat_task_session ON ai_chat_task(session_id, status, priority, sort_order);
+CREATE INDEX idx_chat_task_scheduled ON ai_chat_task(status, scheduled_at) WHERE deleted = false;
 
 COMMENT ON TABLE ai_chat_task IS 'AI 对话任务队列——与会话关联的持久化任务列表';
 COMMENT ON COLUMN ai_chat_task.session_id IS '所属会话 ID';
 COMMENT ON COLUMN ai_chat_task.status IS '状态：pending/running/done/failed/cancelled';
 COMMENT ON COLUMN ai_chat_task.priority IS '优先级（数值越小越优先）';
 COMMENT ON COLUMN ai_chat_task.sort_order IS '同优先级内排序序号';
+COMMENT ON COLUMN ai_chat_task.scheduled_at IS '定时执行时间，NULL 表示立即可执行';
 COMMENT ON COLUMN ai_chat_task.result IS '助理处理结果摘要';

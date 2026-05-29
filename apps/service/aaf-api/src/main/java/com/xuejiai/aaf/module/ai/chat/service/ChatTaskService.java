@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.chat.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
  * AI 对话任务服务——管理与会话关联的任务队列。
  *
  * <p>用户可在对话中创建任务列表，助理按优先级逐个处理。
+ * 支持定时任务（scheduledAt）和自动执行下一个任务。
  *
  * @author AaronZZH & Kiro
  */
@@ -26,18 +28,25 @@ public class ChatTaskService {
 
     /** 创建任务 */
     @Transactional
-    public ChatTask create(Long sessionId, Long creatorId, String title, String description, Integer priority) {
+    public ChatTask create(Long sessionId, Long creatorId, String title, String description,
+                           Integer priority, LocalDateTime scheduledAt) {
         var task = new ChatTask();
         task.setSessionId(sessionId);
         task.setCreatorId(creatorId);
         task.setTitle(title);
         task.setDescription(description);
         if (priority != null) task.setPriority(priority);
-        // 排序序号：当前会话最大序号 + 1
+        task.setScheduledAt(scheduledAt);
         var tasks = taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
         task.setSortOrder(tasks.size());
         taskRepository.save(task);
         return task;
+    }
+
+    /** 创建任务（无定时） */
+    @Transactional
+    public ChatTask create(Long sessionId, Long creatorId, String title, String description, Integer priority) {
+        return create(sessionId, creatorId, title, description, priority, null);
     }
 
     /** 获取会话的任务列表 */
@@ -46,11 +55,16 @@ public class ChatTaskService {
         return taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
     }
 
-    /** 获取下一个待处理任务 */
+    /** 获取下一个可执行的待处理任务（已到期或无定时） */
     @Transactional(readOnly = true)
     public Optional<ChatTask> nextPending(Long sessionId) {
-        return taskRepository.findFirstBySessionIdAndStatusAndDeletedFalseOrderByPriorityAscSortOrderAsc(
-                sessionId, "pending");
+        return taskRepository.findNextPending(sessionId);
+    }
+
+    /** 查找所有到期的待处理任务（供调度器使用） */
+    @Transactional(readOnly = true)
+    public List<ChatTask> findDueTasks() {
+        return taskRepository.findDueTasks(LocalDateTime.now());
     }
 
     /** 开始处理任务 */

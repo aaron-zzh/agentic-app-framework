@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.chat.domain;
 
+import java.time.LocalDateTime;
+
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -49,6 +51,10 @@ public class ChatTask extends BaseEntity {
     /** 排序序号（同优先级内排序） */
     @Column(name = "sort_order")
     private Integer sortOrder = 0;
+
+    /** 定时执行时间（为 null 表示立即可执行） */
+    @Column(name = "scheduled_at")
+    private LocalDateTime scheduledAt;
 
     /** 助理处理结果摘要 */
     @Column(name = "result", columnDefinition = "TEXT")

@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.chat.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.*;
@@ -7,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
+import com.xuejiai.aaf.module.ai.chat.service.ChatTaskScheduler;
 import com.xuejiai.aaf.module.ai.chat.service.ChatTaskService;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class ChatTaskController {
 
     private final ChatTaskService taskService;
+    private final ChatTaskScheduler taskScheduler;
     private final OperatorContext operatorContext;
 
     /** 创建任务 */
@@ -29,7 +32,8 @@ public class ChatTaskController {
     public Result<ChatTask> create(
             @PathVariable Long sessionId, @RequestBody CreateTaskDTO dto) {
         var userId = operatorContext.currentUserId().orElseThrow();
-        var task = taskService.create(sessionId, userId, dto.title(), dto.description(), dto.priority());
+        var task = taskService.create(
+                sessionId, userId, dto.title(), dto.description(), dto.priority(), dto.scheduledAt());
         return Result.success(task);
     }
 
@@ -43,6 +47,13 @@ public class ChatTaskController {
     @GetMapping("/next")
     public Result<ChatTask> next(@PathVariable Long sessionId) {
         return Result.success(taskService.nextPending(sessionId).orElse(null));
+    }
+
+    /** 手动触发执行下一个任务 */
+    @PostMapping("/execute-next")
+    public Result<Void> executeNext(@PathVariable Long sessionId) {
+        taskScheduler.executeNext(sessionId);
+        return Result.success();
     }
 
     /** 更新任务状态 */
@@ -61,7 +72,7 @@ public class ChatTaskController {
         return Result.success(task);
     }
 
-    record CreateTaskDTO(String title, String description, Integer priority) {}
+    record CreateTaskDTO(String title, String description, Integer priority, LocalDateTime scheduledAt) {}
 
     record UpdateStatusDTO(String status, String result) {}
 }
