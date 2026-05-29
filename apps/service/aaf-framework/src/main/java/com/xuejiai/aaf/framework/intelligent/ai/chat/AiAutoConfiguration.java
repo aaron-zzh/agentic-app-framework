@@ -38,7 +38,7 @@ public class AiAutoConfiguration {
                                 CapabilityRoutingContext.CAP_CHAT,
                                         properties.getDefaultModel() != null
                                                 ? properties.getDefaultModel()
-                                                : "openai:gpt-4o",
+                                                : "deepseek-v4-pro",
                                 CapabilityRoutingContext.CAP_IMAGE_GEN, "qwen-image-plus",
                                 CapabilityRoutingContext.CAP_VIDEO_GEN, "wan2.6-i2v-flash",
                                 CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen3-asr-flash",

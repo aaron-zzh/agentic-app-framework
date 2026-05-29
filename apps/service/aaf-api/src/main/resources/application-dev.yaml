@@ -44,9 +44,9 @@ spring:
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:sk-placeholder}
-      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
       chat:
-        model: ${OPENAI_MODEL:gpt-4o-mini}
+        model: ${OPENAI_MODEL:deepseek-v4-pro}
     dashscope:
       api-key: ${DASHSCOPE_API_KEY:}
     vectorstore:
