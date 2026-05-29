@@ -7,7 +7,14 @@ import type { ComponentType } from "react"
 
 import type { EntityAccess } from "./access"
 import type { FieldDef } from "./field"
-import type { FormViewConfig, KanbanViewConfig, ListViewConfig, PivotViewConfig } from "./views"
+import type {
+  CalendarViewConfig,
+  CanvasViewConfig,
+  FormViewConfig,
+  KanbanViewConfig,
+  ListViewConfig,
+  PivotViewConfig
+} from "./views"
 
 /** 实体完整定义——配置驱动视图引擎的核心契约 */
 export interface EntityDef {
@@ -39,6 +46,10 @@ export interface EntityDef {
   kanbanView?: KanbanViewConfig
   /** 透视视图配置 */
   pivotView?: PivotViewConfig
+  /** 日历视图配置 */
+  calendarView?: CalendarViewConfig
+  /** 画板视图配置 */
+  canvasView?: CanvasViewConfig
 
   /** 权限配置 */
   access?: EntityAccess

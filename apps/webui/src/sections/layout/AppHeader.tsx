@@ -2,13 +2,13 @@
  * AppHeader——工作区顶栏
  * @author AaronZZH & Kiro
  *
- * 结构：[侧边栏切换] [面包屑] --- [搜索] [通知] [用户菜单]
+ * 结构：[侧边栏切换] [日历] [联系人] [搜索] [工作区] [面包屑] --- [主题] [对话] [通知] [设置] [头像]
  */
 
 "use client"
 
 import { m } from "framer-motion"
-import { Menu, Moon, Search, Sun, Users, MessageSquare } from "lucide-react"
+import { Calendar, Menu, Moon, Search, Sun, Users, MessageSquare } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useState } from "react"
@@ -38,14 +38,9 @@ export function AppHeader() {
 
   return (
     <header className="flex h-[var(--layout-header-height)] shrink-0 items-center gap-2 border-b bg-background px-4">
+      {/* 左侧：侧边栏切换 + 功能图标组 */}
       <SidebarToggle />
-      <WorkspaceSwitcher />
-      <Breadcrumb />
-      <div className="flex-1" />
-      <SearchButton onClick={() => setCmdManualOpen(true)} />
-      <ThemeToggle />
-      <ChatterToggle />
-      <NotificationDrawer />
+      <CalendarButton />
       <ContactsPanel>
         <button
           type="button"
@@ -55,6 +50,17 @@ export function AppHeader() {
           <Users className="size-4" />
         </button>
       </ContactsPanel>
+      <SearchButton onClick={() => setCmdManualOpen(true)} />
+
+      {/* 中间：工作区切换 + 面包屑 */}
+      <WorkspaceSwitcher />
+      <Breadcrumb />
+      <div className="flex-1" />
+
+      {/* 右侧：工具图标组 */}
+      <ThemeToggle />
+      <ChatterToggle />
+      <NotificationDrawer />
       <SettingsButton />
       <UserAvatar />
       <CommandPalette
@@ -156,6 +162,19 @@ function SearchButton({ onClick }: { onClick: () => void }) {
       <span>搜索...</span>
       <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
     </button>
+  )
+}
+
+/** 日历快捷入口 */
+function CalendarButton() {
+  return (
+    <a
+      href="/module/calendar"
+      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+      aria-label="日历"
+    >
+      <Calendar className="size-4" />
+    </a>
   )
 }
 

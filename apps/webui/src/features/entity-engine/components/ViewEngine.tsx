@@ -19,6 +19,8 @@ import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
+import { CalendarView } from "./calendar"
+import { CanvasView } from "./canvas"
 import { EntityApproval } from "./EntityApproval"
 import { FormView } from "./form"
 import { KanbanView } from "./kanban"
@@ -27,7 +29,7 @@ import { ListView } from "./list"
 import { PivotView } from "./pivot"
 
 /** 支持的视图类型 */
-export type ViewType = "list" | "form" | "kanban" | "pivot" | "graph" | "chart" | "calendar"
+export type ViewType = "list" | "form" | "kanban" | "pivot" | "graph" | "chart" | "calendar" | "canvas"
 
 interface ViewEngineProps {
   entity: EntityDef
@@ -84,6 +86,10 @@ function ViewEngineInner({ entity, view = "list", recordId, viewSettings }: View
       return <ConnectedFormView entity={entity} recordId={recordId} />
     case "pivot":
       return <PivotView entity={entity} />
+    case "calendar":
+      return <ConnectedCalendarView entity={entity} />
+    case "canvas":
+      return <CanvasView entity={entity} recordId={recordId} />
     default:
       return <ViewPlaceholder entity={entity} view={view} />
   }
@@ -136,6 +142,12 @@ function ConnectedFormView({ entity, recordId }: { entity: EntityDef; recordId?:
       )}
     </div>
   )
+}
+
+/** 日历视图——连接数据层 */
+function ConnectedCalendarView({ entity }: { entity: EntityDef }) {
+  const { data, isLoading } = useEntityList(entity, {})
+  return <CalendarView entity={entity} data={data} loading={isLoading} />
 }
 
 /** 视图占位组件（后续被 ListView/KanbanView/FormView 替换） */

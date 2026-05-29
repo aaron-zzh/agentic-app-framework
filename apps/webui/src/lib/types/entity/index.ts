@@ -8,6 +8,7 @@ export type {
   EntityAction,
   EntityDef,
   EntityHooks,
+  EntityWorkflowConfig,
   ImportConfig,
   NestedImportConfig,
   SmartButton
@@ -41,13 +42,19 @@ export type {
 export type { FilterCondition } from "./filter"
 export type { CellProps, DataFieldDef, FieldProps } from "./props"
 export type {
+  CalendarViewConfig,
+  CanvasTemplate,
+  CanvasViewConfig,
   ColumnDef,
   FormViewConfig,
+  KanbanCardTemplate,
+  KanbanConditionalStyle,
   KanbanViewConfig,
   LayoutField,
   ListViewConfig,
   PivotConfig,
   PivotMeasure,
   PivotViewConfig,
-  QuickFilter
+  QuickFilter,
+  WipLimitMode
 } from "./views"

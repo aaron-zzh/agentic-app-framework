@@ -1,0 +1,66 @@
+/**
+ * FullCalendar 主题覆盖——适配 shadcn/ui 设计系统
+ */
+
+/* 工具栏按钮 */
+.fc .fc-button {
+  @apply rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  @apply bg-primary text-primary-foreground;
+}
+
+/* 标题 */
+.fc .fc-toolbar-title {
+  @apply text-lg font-semibold text-foreground;
+}
+
+/* 表格边框 */
+.fc .fc-scrollgrid {
+  @apply border-border;
+}
+
+.fc td,
+.fc th {
+  @apply border-border;
+}
+
+/* 日期单元格 */
+.fc .fc-daygrid-day-number {
+  @apply text-sm text-foreground p-1;
+}
+
+.fc .fc-day-today {
+  @apply bg-accent/30;
+}
+
+/* 事件 */
+.fc .fc-event {
+  @apply rounded-sm border-0 px-1.5 py-0.5 text-xs font-medium cursor-pointer;
+}
+
+/* 时间网格当前时间线 */
+.fc .fc-timegrid-now-indicator-line {
+  @apply border-destructive;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  @apply border-destructive;
+}
+
+/* 列表视图 */
+.fc .fc-list-event:hover td {
+  @apply bg-accent;
+}
+
+/* "+N 更多"链接 */
+.fc .fc-daygrid-more-link {
+  @apply text-xs text-muted-foreground hover:text-foreground;
+}
+
+/* 暗色模式适配 */
+.dark .fc .fc-button {
+  @apply border-border;
+}
