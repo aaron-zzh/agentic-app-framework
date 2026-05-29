@@ -14,9 +14,14 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
+import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient.LlmMessage;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** Prompt 引擎实现：存储/版本/渲染/链式组装/评估。 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DefaultPromptEngine implements PromptEngine {
@@ -24,6 +29,7 @@ public class DefaultPromptEngine implements PromptEngine {
     private static final Pattern VAR_PATTERN = Pattern.compile("\\$\\{(\\w+)}");
 
     private final PromptTemplateRepository repository;
+    private final LlmClient llmClient;
 
     // ─── 存储与版本 ───
 
@@ -131,8 +137,51 @@ public class DefaultPromptEngine implements PromptEngine {
 
     @Override
     public PromptEvalResult evaluate(String templateName, List<PromptEvalCase> testCases) {
-        // TODO: 对每个测试用例执行 Prompt → 对比期望输出 → 计算准确率/相关度
-        return new PromptEvalResult(templateName, 0.0, "未实现");
+        if (testCases == null || testCases.isEmpty()) {
+            return new PromptEvalResult(templateName, 0.0, "无测试用例");
+        }
+
+        var template = repository.findByNameAndActiveTrue(templateName).orElse(null);
+        if (template == null) {
+            return new PromptEvalResult(templateName, 0.0, "模板不存在: " + templateName);
+        }
+
+        int passed = 0;
+        var details = new StringBuilder();
+
+        for (int i = 0; i < testCases.size(); i++) {
+            var tc = testCases.get(i);
+            var rendered = interpolate(template.getContent(), tc.variables());
+            try {
+                var actual = llmClient.call(
+                        List.of(LlmMessage.user(rendered)), "prompt_eval", null);
+                var similarity = computeSimilarity(actual, tc.expectedOutput());
+                if (similarity >= 0.6) {
+                    passed++;
+                }
+                details.append("#%d: %.2f ".formatted(i + 1, similarity));
+            } catch (Exception e) {
+                log.warn("[PromptEval] 用例 #{} 执行失败: {}", i + 1, e.getMessage());
+                details.append("#%d: ERROR ".formatted(i + 1));
+            }
+        }
+
+        double score = (double) passed / testCases.size();
+        return new PromptEvalResult(templateName, score,
+                "通过 %d/%d | %s".formatted(passed, testCases.size(), details.toString().trim()));
+    }
+
+    /** 简单相似度：基于公共子序列长度占比 */
+    private double computeSimilarity(String actual, String expected) {
+        if (expected == null || expected.isBlank()) return 1.0;
+        if (actual == null || actual.isBlank()) return 0.0;
+        // 关键词命中率
+        var keywords = expected.split("[\\s,;，；。.]+");
+        long hits = 0;
+        for (var kw : keywords) {
+            if (!kw.isBlank() && actual.contains(kw)) hits++;
+        }
+        return keywords.length > 0 ? (double) hits / keywords.length : 0.0;
     }
 
     // ─── 内部方法 ───
