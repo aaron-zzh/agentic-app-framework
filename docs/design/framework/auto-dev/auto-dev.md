@@ -1,254 +1,220 @@
 ---
 level: 2
-version: 0.2.0
+version: 0.3.0
 date: 2026-05-29
-purpose: AI 协作开发——统一对话流驱动的全链路自动化开发 + 协作控制台
+purpose: AI 协作开发功能设计——统一对话流驱动的全链路自动化开发 + 协作控制台
 status: 草案
 author: AaronZZH
 changelog:
-  - 2026-05-29 v0.2.0 | 重构：融合 AI 协作开发为核心主线，去掉冲突，统一两种开发模式
-  - 2026-05-06 v0.1.0 | 初稿：协作控制台设计
+  - 2026-05-29 v0.3.0 | 分离技术实现到 auto-dev-tech.md，功能设计只描述通用能力
+  - 2026-05-29 v0.2.0 | 融合 AI 协作开发为核心主线
+  - 2026-05-06 v0.1.0 | 初稿
 ---
 
-# AI 协作开发设计（Auto-Dev）
+# AI 协作开发功能设计（Auto-Dev）
 
-> **一句话定位**：一个对话入口，AI 根据意图自动切换开发模式——对话式编码或 EntityDef 驱动的流程式开发。人 + AI 在同一个工作台上并肩工作。
+> **一句话定位**：一个对话入口，AI 根据意图自动切换开发模式——对话式编码或实体驱动的流程式开发。人 + AI 在同一个工作台上并肩工作。
 
-## 定位与双重用户
+## 定位与用户
 
 Auto-Dev 同时服务两类用户，共享同一套实现：
 
 | 用户 | 用它做什么 | 版本 |
 |------|----------|------|
-| AAF 作者 | 用 AAF 开发 AAF 自身（自举） | v0.1+ |
-| AAF 框架用户 | 用 AAF 开发自己的业务应用 | v2.0+ |
+| 框架作者 | 用框架开发框架自身（自举） | v0.1+ |
+| 框架用户 | 用框架开发自己的业务应用 | v2.0+ |
 
-核心思想：**AAF 用自己的能力开发自己**。作者的开发工作流就是框架用户未来的使用场景。
+核心思想：**用自己的能力开发自己**。作者的开发工作流就是用户未来的使用场景。
 
-## 两种开发模式（统一入口，自动路由）
+## 两种开发模式
 
-前端始终用同一个组件：
+用户始终通过同一个对话入口交互，系统根据意图自动路由，无需手动切换。
 
-```tsx
-<Chatter preset="kiro" layout="panel" />
-```
-
-**后端 Agent 根据意图自动路由**，用户无需手动切换：
+### 意图路由规则
 
 ```text
-用户消息 → KiroAgent
+用户消息 → AI Agent
   ↓
-前注意分流（SkillMatchEngine，<50ms）
+前注意分流（<50ms）
   │
-  ├─ 匹配到结构化开发意图？
-  │   触发词："创建模块/实体" "添加字段" "修改表结构" "生成代码"
-  │   或：会话 state 中已有 currentEntityDef
-  │   → Pipeline 模式（流程驱动，逐步确认）
+  ├─ 结构化开发意图
+  │   "创建模块/实体" "添加字段" "修改表结构" "生成代码"
+  │   或：当前会话已有实体定义上下文
+  │   → Pipeline 模式
   │
-  └─ 其他意图
-      "这个 bug 怎么修" "支付成功后触发积分入账" "优化性能"
-      → 对话模式（Agent 自主规划+执行）
+  └─ 开放式开发意图
+      "修复 bug" "优化性能" "补充业务逻辑"
+      → 对话模式
 ```
 
 ### 模式一：对话式开发
 
-Agent 自主规划，适合复杂业务逻辑、bug 修复、性能优化：
+Agent 自主规划执行，适合复杂业务逻辑、bug 修复、性能优化：
 
-```text
-用户描述问题/需求
-  → Agent 分析代码上下文
-  → 生成/修改代码
-  → 验证（编译+测试）
-  → Git 提交到分支
-  → 工作区显示 diff
-```
+- 用户描述问题/需求
+- AI 分析代码上下文，制定方案
+- 生成/修改代码
+- 自动验证（编译+测试）
+- 提交到版本控制
+- 工作区显示变更 diff
 
-### 模式二：EntityDef 驱动开发
+### 模式二：实体驱动开发（Pipeline）
 
-Pipeline 自动执行，适合新建模块、CRUD 业务、表结构变更：
+流程自动执行，适合新建模块、CRUD 业务、表结构变更：
 
-```text
-用户描述实体需求
-  → AI 生成 EntityDef JSON → 实时预览 → 确认
-  → 自动生成迁移脚本 → 预览 SQL → 确认
-  → 自动生成骨架代码 + AI 补充业务逻辑 → 预览 diff → 确认
-  → 验证 + 部署
-```
+- 用户描述实体需求
+- AI 生成实体定义 → 实时预览 → 用户确认
+- 自动生成数据库迁移 → 预览 SQL → 用户确认
+- 自动生成代码骨架 + AI 补充业务逻辑 → 预览 diff → 用户确认
+- 验证 + 部署
 
-## EntityDef 三层模型
+每步都有预览和确认环节，用户可随时在对话中修正。
 
-EntityDef 是视图抽象，不是表映射：
+## 实体定义三层模型
 
-```text
-视图层（config）         → "用户看到什么"：字段/表单/列表/子表
-存储层（config.storage） → "数据怎么存"：表名/关联/索引
-实现层（代码）           → "逻辑怎么跑"：校验/状态机/事件
-```
+实体定义是视图抽象，不是数据库表的直接映射：
 
-一个 EntityDef 可以：
+| 层 | 职责 | 说明 |
+|----|------|------|
+| 视图层 | 用户看到什么 | 字段/表单布局/列表列/子表/看板 |
+| 存储层 | 数据怎么存 | 表名/关联关系/索引/存储模式 |
+| 实现层 | 逻辑怎么跑 | 校验/状态机/事件/权限 |
+
+一个实体定义可以：
 - 映射一张表的部分字段（视图裁剪）
 - 映射多张表（主从关联）
 - 不映射任何表（虚拟聚合视图）
-- 映射到通用 JSONB 存储（无代码模式）
+- 映射到通用存储（无代码模式）
 
-### storage 配置
+### 存储模式
 
-```json
-{
-  "storage": {
-    "mode": "typed",
-    "table": "biz_order",
-    "relations": [
-      { "field": "items", "type": "oneToMany", "targetTable": "biz_order_item", "foreignKey": "order_id" }
-    ],
-    "indexes": [
-      { "fields": ["user_id"], "condition": "deleted = FALSE" },
-      { "fields": ["order_no"], "unique": true }
-    ]
-  }
-}
-```
-
-| mode | 含义 | 适用场景 |
+| 模式 | 含义 | 适用场景 |
 |------|------|---------|
-| `typed` | 强类型 JPA 实体（需生成代码） | 复杂业务逻辑 |
-| `generic` | 通用 JSONB（GenericEntityController） | 快速原型、配置类 |
-| `virtual` | 不持久化，聚合多源只读视图 | 仪表盘、统计 |
+| 强类型 | 映射到独立实体类和表 | 有复杂业务逻辑的核心模块 |
+| 通用存储 | 映射到 JSONB 动态存储 | 快速原型、配置类实体 |
+| 虚拟视图 | 不持久化，聚合多源数据 | 仪表盘、统计报表 |
 
 ## 全链路 Pipeline
 
-### 阶段一：EntityDef 生成（AI 辅助）
+### 阶段一：实体定义生成
 
-输入：自然语言 / 已有表结构 / 参考文档
+- 输入：自然语言描述 / 已有表结构 / 参考文档
+- AI 推断：字段（名称/类型/校验/关联）、视图配置、存储映射建议
+- 输出：实体定义 JSON，工作区实时预览表单/列表效果
+- 用户可在对话中持续修正
 
-AI 推断字段（名称/类型/校验/关联）、视图配置（列表列/表单布局/子表）、存储映射建议。PreviewPanel 实时渲染表单效果，用户可在对话中修正。
+### 阶段二：存储映射 & 数据库迁移
 
-### 阶段二：存储映射 & 迁移生成
-
-MigrationGenerator 对比当前 DB schema（information_schema），生成增量 DDL。PreviewPanel 显示 SQL diff，确认后写入 `db/migration/`。
+- 对比当前数据库结构，计算增量变更
+- 生成 DDL（CREATE TABLE / ALTER TABLE / CREATE INDEX）
+- 工作区预览 SQL diff
+- 确认后写入迁移脚本目录
 
 ### 阶段三：代码生成 + AI 补充
 
-CodegenService 模板生成骨架（Entity/Repo/Service/Controller），AI Enricher 分析字段语义补充校验、状态机、事件发布。PreviewPanel 显示代码 diff。
+- 模板生成骨架代码（实体/仓储/服务/接口）
+- AI 分析字段语义，补充：
+  - 校验规则
+  - 状态机转换
+  - 事件发布
+  - 权限控制
+- 工作区预览代码 diff
 
 ### 阶段四：验证 & 部署
 
-编译 + 单测 + Lint。开发环境热加载，测试环境 CI，生产走 PR。失败时 AI 自动分析错误并修复。
+- 编译检查 + 单元测试 + 代码规范检查
+- 部署策略按环境区分：
+  - 开发环境：热加载
+  - 测试环境：CI 自动部署
+  - 生产环境：PR → 人工审核 → CD
+- 失败时 AI 自动分析错误并尝试修复
 
-## DevWorkspace 前端
+## DevWorkspace（开发工作区）
 
-```text
-┌──────────────────┐  ┌──────────────────────────────┐
-│  Chatter         │  │  PreviewPanel                │
-│  (对话面板)       │  │  Tab: Preview | Code | Task  │
-│                  │  │                              │
-│  统一入口        │  │  · EntityDef 表单实时预览     │
-│  AI 自动路由     │  │  · 生成代码 diff              │
-│  + 确认/审批按钮  │  │  · 迁移脚本 SQL              │
-│                  │  │  · Pipeline 进度条            │
-└──────────────────┘  └──────────────────────────────┘
-```
+左右分栏布局：
 
-- Chatter 复用已有组件，无需新 preset
-- PreviewPanel 根据 AG-UI 事件流中的 DevEvent 动态展示
-- 有 EntityDef 预览事件时自动弹出预览面板
-- 确认操作通过 AG-UI 的 CONFIRM_REQUIRED 事件交互
+| 左侧：对话面板 | 右侧：预览面板 |
+|---------------|---------------|
+| 统一对话入口 | 实体定义表单实时预览 |
+| AI 消息流 | 生成代码 diff |
+| 确认/审批按钮 | 迁移脚本 SQL |
+| 工具调用可视化 | Pipeline 进度条 + 日志 |
 
-### AG-UI 事件流扩展
-
-```text
-DevEvent:
-  ENTITY_DEF_PREVIEW   → PreviewPanel 渲染 FormView
-  MIGRATION_PREVIEW    → PreviewPanel 显示 SQL
-  CODE_PREVIEW         → PreviewPanel 显示 diff
-  TASK_STATUS          → 进度条更新
-  DEPLOY_LOG           → 日志流
-  CONFIRM_REQUIRED     → 对话中插入确认按钮
-```
+预览面板根据当前 Pipeline 阶段自动切换 Tab：
+- **Preview**：实体定义驱动的表单/列表渲染
+- **Code**：代码变更 diff 视图
+- **Task**：Pipeline 阶段进度 + 部署日志
 
 ## 协作控制台（观察 + 审核）
 
-DevWorkspace 是创作入口，协作控制台是观察入口。两者共享任务状态和事件流。
+DevWorkspace 是创作入口，协作控制台是观察入口。
 
 ### 核心功能
 
 | 功能 | 说明 |
 |------|------|
 | 仪表板 | Epic 进度、活跃 Agent、任务泳道、审核队列 |
-| 任务时间线 | 单 Task 的 Dispatch/Artifact/Activity 混合时间线 |
-| 审核 Inbox | 🔴 高风险任务审核入口，批准/退回/降级 |
-| Agent 中心 | 11 个角色状态、Run 历史、上下文占用 |
-| 经验沉淀 | dev-log 片段一键晋升为 .kiro/skills/ |
+| 任务时间线 | 单任务的派发/产出物/活动混合时间线 |
+| 审核 Inbox | 高风险任务审核入口，批准/退回/降级 |
+| Agent 中心 | 各角色状态、执行历史、上下文占用 |
+| 经验沉淀 | 开发日志片段一键晋升为可复用技能 |
 | 规范健康 | 规范-代码一致性检查结果 |
 
-### 数据模型（核心实体）
+### 数据模型
 
 | 实体 | 说明 |
 |------|------|
-| `epic` | 用户故事，映射 backlog.md |
-| `task` | 技术任务 `#N` |
-| `agent_run` | Agent 一次执行（状态机：queued→dispatched→running→completed/failed/blocked） |
-| `dispatch_log` | 派发记录（风险等级、agent 链、耗时） |
-| `artifact` | 产出物索引（requirement/design/dev-log/test-report/review/audit） |
-| `inbox_item` | 审核请求/blocker/完工汇报 |
-| `activity_log` | 审计日志（Polymorphic Actor 贯穿） |
+| 用户故事 | 需求单元，映射 backlog |
+| 技术任务 | 可派发的执行单元 |
+| Agent 执行 | 一次 Agent 运行（状态机：排队→派发→执行→完成/失败/阻塞） |
+| 派发记录 | 风险等级、agent 链、耗时 |
+| 产出物 | 需求/设计/开发日志/测试报告/审查/审计 |
+| 审核项 | 审核请求/阻塞/完工汇报 |
+| 活动日志 | 审计日志（贯穿人/AI/系统三方） |
 
 ### 设计范式
 
-- **Polymorphic Actor**：`actor_type ∈ {human, agent, system}` + `actor_id`
-- **Session Resumption**：同一 (agent, task) 复用上次 session
-- **置信度门控**：>0.9 自动执行 / 0.7-0.9 确认 / <0.7 转人工
+- **多态行动者**：人/AI/系统统一抽象，所有"谁做了什么"字段共用
+- **会话复用**：同一 (agent, task) 对复用上次会话上下文
+- **置信度门控**：>0.9 自动执行 / 0.7-0.9 等待确认 / <0.7 转人工
 
 ## 三级决策模型
 
 | 级别 | 条件 | 动作 |
 |------|------|------|
-| Auto | 新增文件、<50 行、补缺依赖 | 直接执行，异步通知 |
-| Prompt | 修改已有文件、改业务逻辑、新增接口 | 展示计划，等待确认 |
-| Block | 删除文件、改权限、≥5 文件跨模块 | 拒绝执行，必须人类审核 |
+| 自动 | 新增文件、小改动、补缺依赖 | 直接执行，异步通知 |
+| 确认 | 修改已有文件、改业务逻辑、新增接口 | 展示计划，等待确认 |
+| 阻断 | 删除文件、改权限、大范围跨模块 | 拒绝执行，必须人类审核 |
 
-## Kiro Skills
+## 开发技能（Pipeline 阶段）
 
-每个 Pipeline 阶段对应一个 Skill，Agent 按意图匹配调用：
+每个 Pipeline 阶段对应一个 AI 技能，Agent 按意图匹配调用：
 
-| Skill | 触发条件 | 输出 |
-|-------|---------|------|
-| `entity-def-generator` | "创建实体/模块" | EntityDef JSON |
-| `migration-generator` | EntityDef 确认后 | SQL 迁移脚本 |
-| `code-generator` | 迁移确认后 | Java 代码文件 |
-| `ai-enricher` | 骨架生成后 | 补充业务逻辑的完整代码 |
-| `sandbox-validator` | 代码确认后 | 编译/测试结果 |
-| `hot-deployer` | 验证通过后 | 部署状态 |
-
-## 与已有系统的集成
-
-| 已有组件 | 集成方式 |
-|---------|---------|
-| Chatter | 统一入口，agentRole 由后端自动路由 |
-| SkillMatchEngine | 前注意分流，匹配开发 Skill |
-| EntityDefService | 扩展 storage 配置段 |
-| GenericEntityController | generic 模式运行时 CRUD |
-| CodegenService | 扩展子表/关联模板 |
-| KiroAgentController | 注册开发 Skills |
-| AG-UI 协议 | 扩展 DevEvent 事件类型 |
-| ViewEngine | PreviewPanel 复用 FormView/ListView |
+| 技能 | 触发条件 | 输出 |
+|------|---------|------|
+| 实体定义生成 | "创建实体/模块" | 实体定义 JSON |
+| 迁移生成 | 实体定义确认后 | SQL 迁移脚本 |
+| 代码生成 | 迁移确认后 | 骨架代码文件 |
+| 业务补充 | 骨架生成后 | 补充业务逻辑的完整代码 |
+| 沙箱验证 | 代码确认后 | 编译/测试结果 |
+| 热部署 | 验证通过后 | 部署状态 |
 
 ## 渐进落地
 
-| 阶段 | 内容 | 版本 | 前置条件 |
-|------|------|------|---------|
-| P0 | EntityDef storage 配置 + MigrationGenerator | v0.2 | EntityDefService 已有 |
-| P1 | CodegenService 子表支持 + AI Enricher | v0.3 | P0 |
-| P2 | DevWorkspace 前端（PreviewPanel + CONFIRM 交互） | v0.4 | P1 + AG-UI 扩展 |
-| P3 | 协作控制台 Phase 1（只读仪表板） | v0.4 | 文件扫描 |
-| P4 | 协作控制台 Phase 2（DB 持久化 + 审核闭环） | v1.0 | 14 张表 + 状态机 |
-| P5 | 热部署 + 自动修复循环 | v1.0 | 沙箱验证 |
-| P6 | Autopilot + 完整 Pipeline 无人值守 | v2.0 | 框架元引擎化 |
+| 阶段 | 内容 | 版本 |
+|------|------|------|
+| P0 | 实体定义存储配置 + 迁移生成器 | v0.2 |
+| P1 | 代码生成子表支持 + AI 业务补充 | v0.3 |
+| P2 | DevWorkspace 前端（预览面板 + 确认交互） | v0.4 |
+| P3 | 协作控制台（只读仪表板） | v0.4 |
+| P4 | 协作控制台（持久化 + 审核闭环） | v1.0 |
+| P5 | 热部署 + 自动修复循环 | v1.0 |
+| P6 | 自动驾驶 + 完整 Pipeline 无人值守 | v2.0 |
 
-## 与协作控制台的关系
+## DevWorkspace 与协作控制台的关系
 
 ```text
-DevWorkspace（/dev）    ← 创作 + 执行（对话 + Pipeline + 预览）
-协作控制台（/console）  ← 观察 + 审核（仪表板 + 时间线 + Inbox）
-共享：任务状态 / AG-UI 事件流 / 置信度门控 / Polymorphic Actor
+DevWorkspace    ← 创作 + 执行（对话 + Pipeline + 预览）
+协作控制台      ← 观察 + 审核（仪表板 + 时间线 + Inbox）
+共享：任务状态 / 事件流 / 置信度门控 / 多态行动者
 ```
