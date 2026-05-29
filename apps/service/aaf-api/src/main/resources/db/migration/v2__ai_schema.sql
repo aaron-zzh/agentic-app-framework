@@ -885,3 +885,39 @@ CREATE INDEX idx_task_event_exec ON ai_task_event(execution_id, create_time) WHE
 
 COMMENT ON TABLE ai_task_event IS '任务事件日志（append-only）——完整审计轨迹';
 COMMENT ON COLUMN ai_task_event.type IS '事件类型：task_started/step_completed/tool_called/checkpoint_saved/error 等';
+
+
+-- ============================================================
+-- AI 产出记录（异步审查 + 可回退）
+-- ============================================================
+
+CREATE TABLE ai_output (
+    id                BIGSERIAL       PRIMARY KEY,
+    session_id        BIGINT,
+    task_id           BIGINT,
+    execution_id      BIGINT,
+    creator_id        BIGINT          NOT NULL,
+    source_type       VARCHAR(30)     NOT NULL,
+    category          VARCHAR(30)     NOT NULL,
+    risk_level        VARCHAR(10)     NOT NULL DEFAULT 'low',
+    title             VARCHAR(500)    NOT NULL,
+    description       TEXT,
+    content_snapshot  JSONB,
+    revert_info       JSONB,
+    status            VARCHAR(20)     NOT NULL DEFAULT 'effective',
+    adjust_note       TEXT,
+    deleted           BOOLEAN         NOT NULL DEFAULT FALSE,
+    delete_time       TIMESTAMP,
+    create_time       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ai_output_creator ON ai_output(creator_id, create_time DESC) WHERE deleted = false;
+CREATE INDEX idx_ai_output_risk ON ai_output(creator_id, risk_level, status) WHERE deleted = false;
+
+COMMENT ON TABLE ai_output IS 'AI 产出记录——所有助理工作成果的统一归档';
+COMMENT ON COLUMN ai_output.source_type IS '来源：autodev/task/chat/tool';
+COMMENT ON COLUMN ai_output.category IS '类别：code/document/entity_change/config/file';
+COMMENT ON COLUMN ai_output.risk_level IS '风险：high/medium/low（仅影响通知优先级）';
+COMMENT ON COLUMN ai_output.status IS 'effective（生效中）/adjusted（已调整）/reverted（已回退）';
+COMMENT ON COLUMN ai_output.revert_info IS '回退信息（变更前状态快照，用于撤销）';
