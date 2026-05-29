@@ -43,6 +43,8 @@ public class AiAutoConfiguration {
                                 CapabilityRoutingContext.CAP_VIDEO_GEN, "wan2.6-i2v-flash",
                                 CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen3-asr-flash",
                                 CapabilityRoutingContext.CAP_SPEECH_TTS, "cosyvoice-v3-flash",
+                                CapabilityRoutingContext.CAP_MUSIC_GEN, "fun-music-v1",
+                                CapabilityRoutingContext.CAP_OMNI_REALTIME, "qwen3-omni-flash-realtime",
                                 CapabilityRoutingContext.CAP_RERANK, "gte-rerank-v2",
                                 CapabilityRoutingContext.CAP_EMBEDDING, "text-embedding-v3"));
         // yaml 配置覆盖内置默认值

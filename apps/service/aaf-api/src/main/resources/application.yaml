@@ -1,7 +1,7 @@
 spring:
   application:
     name: aaf
-    version: '@project.version@'
+    version: "@project.version@"
   threads:
     virtual:
       enabled: true
@@ -31,8 +31,10 @@ aaf:
     default-models:
       IMAGE_GEN: qwen-image-plus
       VIDEO_GEN: wan2.6-i2v-flash
-      SPEECH_ASR: paraformer-realtime-v2
+      SPEECH_ASR: fun-asr-realtime
       SPEECH_TTS: cosyvoice-v3-flash
+      MUSIC_GEN: fun-music-v1
+      OMNI_REALTIME: qwen3-omni-flash-realtime
       RERANK: gte-rerank-v2
       EMBEDDING: text-embedding-v3
     prompts:
@@ -44,9 +46,9 @@ aaf:
       consumer-threads: 2
       poll-timeout: 5s
   script:
-    engine: process  # process（开发默认） | graalvm（生产推荐，JVM 内沙箱）
+    engine: process # process（开发默认） | graalvm（生产推荐，JVM 内沙箱）
   a2a:
-    engine: local    # local（内存直调） | agentscope（标准 A2A 协议）
+    engine: local # local（内存直调） | agentscope（标准 A2A 协议）
 
 management:
   endpoints:

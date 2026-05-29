@@ -21,7 +21,7 @@ import reactor.core.publisher.FluxSink;
 /**
  * 基于阿里云 DashScope 官方 SDK 的语音服务实现。
  *
- * <p>ASR：Recognition SDK（paraformer-realtime-v2），WebSocket 流式
+ * <p>ASR：Recognition SDK（fun-asr-realtime），WebSocket 流式
  *
  * <p>TTS：SpeechSynthesizer SDK（cosyvoice-v3-flash），WebSocket 流式
  *
@@ -49,7 +49,7 @@ import reactor.core.publisher.FluxSink;
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
 public class DashScopeSpeechService implements SpeechService {
 
-    private static final String DEFAULT_ASR_MODEL = "paraformer-realtime-v2";
+    private static final String DEFAULT_ASR_MODEL = "fun-asr-realtime";
     private static final String DEFAULT_TTS_MODEL = "cosyvoice-v3-flash";
 
     /** 默认音色：语音助手场景，知性积极女 */
@@ -220,8 +220,8 @@ public class DashScopeSpeechService implements SpeechService {
                         .model(asrModel)
                         .format("wav")
                         .sampleRate(16000);
-        // language_hints 仅 paraformer-realtime-v2 支持
-        if (StringUtils.hasText(language) && asrModel.contains("v2")) {
+        // language_hints: fun-asr-realtime 支持 zh/en/ja
+        if (StringUtils.hasText(language)) {
             builder.parameter("language_hints", new String[] {language});
         }
         return builder.build();

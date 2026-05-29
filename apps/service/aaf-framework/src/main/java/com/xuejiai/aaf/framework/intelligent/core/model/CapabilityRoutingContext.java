@@ -17,7 +17,7 @@ import java.util.Map;
  * </ol>
  *
  * @param userId 当前用户 ID（用于查用户偏好，可为 null）
- * @param capability 能力类型：CHAT / IMAGE_GEN / VIDEO_GEN / SPEECH_ASR / SPEECH_TTS / RERANK /
+ * @param capability 能力类型：CHAT / IMAGE_GEN / VIDEO_GEN / MUSIC_GEN / SPEECH_ASR / SPEECH_TTS / RERANK /
  *     EMBEDDING
  * @param explicitModelId 调用方显式指定的 modelId（最高优先级，可为 null）
  * @param orchestrationModelId 编排引擎（工作流节点/Agent）绑定的 modelId（可为 null）
@@ -37,6 +37,8 @@ public record CapabilityRoutingContext(
     public static final String CAP_VIDEO_GEN = "VIDEO_GEN";
     public static final String CAP_SPEECH_ASR = "SPEECH_ASR";
     public static final String CAP_SPEECH_TTS = "SPEECH_TTS";
+    public static final String CAP_MUSIC_GEN = "MUSIC_GEN";
+    public static final String CAP_OMNI_REALTIME = "OMNI_REALTIME";
     public static final String CAP_RERANK = "RERANK";
     public static final String CAP_EMBEDDING = "EMBEDDING";
 
