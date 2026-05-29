@@ -10,9 +10,9 @@
 - [x] 普通对话如何持久化存储，区分 AI对话消息（各类用户输入+AI回复）、聊天消息、会话（上下文）
 - [x] 前端 Chatter 接口：当前是统一接口后端路由，是否把 auto-dev 与其他的分开单独走一个接口，我记得后端也是分开实现的吧，其他走默认。
 - [x] chatter 添加实时 AI 语音对话功能，AG-UI协议是否支持，还是当前先实现语音输入完后返回带语音的消息。
-- [ ] 如何审查，前端可加载查看代码；方便快速审查反馈最近产出；风险项目放到单独文档自动提醒
-- [ ] 支持拖放界面中的参考文档/图片/文字到对话框。我记得加了页面及组件的元数据管理吧，当前是否支持？建议如何实现，给主要组件封装一层？
-- [ ] 需要支持异步创建任务，完成后自动领取任务。
+- [x] 如何审查，前端可加载查看代码；方便快速审查反馈最近产出；风险项目放到单独文档自动提醒
+- [x] 支持拖放界面中的参考文档/图片/文字到对话框。我记得加了页面及组件的元数据管理吧，当前是否支持？建议如何实现，给主要组件封装一层？
+- [x] 需要支持异步创建任务，完成后自动领取任务。
 
 ## 2026-5-22 五层架构+智能体分层架构设计
 
@@ -29,3 +29,91 @@
 ## 2026-5-24 AIGC
 
 - [ ] deepseek  V4 测试
+
+## 待补全清单
+
+v0.4 智能体与五层智能架构
+
+AAF-048 Core 内核层
+
+- DB 迁移脚本：ai_model、prompt_template、token_usage_record 三张表
+- SpringAiLlmClient 实现（对接 Spring AI ChatClient）
+- Token 用量告警 + 对话维度统计
+- Prompt A/B 测试机制
+
+AAF-049 Cognition 认知层
+
+- DB 迁移脚本：long_term_memory、procedural_memory 两张表
+- 分层违规修正：LongTermMemory/ProceduralMemory 改调 AtomMemoryEngine
+- GraphMemoryNode JPA → Neo4j @Node 注解修正
+- 记忆压缩/衰减定时任务
+- Neo4j 双时态模型 + 连接池配置
+
+AAF-050 Agent 智能体层
+
+- MCP 服务器实际连接（当前占位）
+- Spring AI ToolCallback 适配器
+- 工具调用审计日志
+- Agent 可视化配置前端页面
+- AgentPool.reset() 实现
+- SpringAiLlmClient / AgentScopeLlmClient 实现
+- DB 迁移脚本（agent 相关表）
+
+AAF-051 Assistant 助理层
+
+- LLM 驱动意图分类（替代当前规则匹配）
+- 多轮意图跟踪 + 消歧 + 槽位填充
+- LLM 情感分析（替代关键词匹配）
+- 情感历史追踪
+- 负载均衡 / 优先级队列
+- 旧 AssistantService 与新 DefaultAssistantExecutor 统一
+
+AAF-052 Team 协作层
+
+- A2A 实际网络通信（当前 sendMessage 只打日志）
+- 团队持久化（当前 ConcurrentHashMap → DB）
+- 团队 CRUD API + Controller
+- 任务依赖图 DAG 执行引擎
+- LLM 任务拆解
+- DB 迁移脚本（team 相关表）
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+v0.7 Auto Dev
+
+AAF-067 CI/CD 集成
+
+- CI pipeline 触发 API（调用 GitHub Actions / GitLab CI）
+- GitHub Webhook 回调处理（构建状态通知）
+- 构建状态查询接口
+- 自动部署触发（环境 + 策略配置）
+- 前端 CI 状态面板
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+v0.11 整合验收与 Beta 发布
+
+AAF-083 全链路联调
+
+- 支付流程端到端集成测试
+- 渠道消息收发集成测试
+- 客服会话集成测试
+- 统计采集集成测试
+- E2E 测试（Playwright 引入 + 核心流程覆盖）
+- 前端验收测试
+
+AAF-084 文档与示例
+
+- 支付接入指南
+- 渠道配置指南
+- AGUI 使用教程
+- 画板/日历视图使用说明
+- API Reference 文档（OpenAPI 导出）
+- 示例项目（quickstart demo）
+
+AAF-085 质量加固
+
+- 后端新模块单元测试（pay/billing/channel/livechat/stats）
+- 前端新组件单测（calendar/canvas/agui）
+- ArchUnit 规则激活
+- 性能/压力测试
