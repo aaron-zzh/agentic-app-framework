@@ -70,10 +70,10 @@
 ### v0.7 — Auto Dev 与 AI 协作开发
 
 - [x] AAF-063 (创建: 05-19, 完成: 05-29) 协调者引擎（基于 Kiro CLI 封装，多角色 Agent 派发、AG-UI SSE 流式输出、置信度门控）
-- [ ] AAF-064 (创建: 05-19) 代码生成（基于 EntityDef 生成后端 CRUD、AI 辅助代码生成、迁移脚本生成）
+- [x] AAF-064 (创建: 05-19, 完成: 05-29) 代码生成（FreeMarker 模板生成 Entity/Repository/Service/Controller、字段类型映射、预览/写入）
 - [x] AAF-065 (创建: 05-19, 完成: 05-29) 开发看板（TaskBoardPanel 子任务可视化、KanbanView 看板、任务状态流转 SSE）
 - [x] AAF-066 (创建: 05-19, 完成: 05-29) 文档协作（AutodevDoc 文档管理、docs/ 全量导入、关系图谱、SSE 变更订阅、规范文档看板）
-- [ ] AAF-067 (创建: 05-19) CI/CD 集成（Git 操作、PR 创建、CI 状态监控、自动化测试触发）
+- [x] AAF-067 (创建: 05-19, 完成: 05-29) CI/CD 集成（JGit 封装 commit/diff/log/branch、GitHub API PR 自动创建）
 
 ### v0.8 — AIGC 与多媒体生成
 
