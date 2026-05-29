@@ -6,7 +6,7 @@
 import { ApiError } from "./client"
 
 /** Widget 类型 */
-export type WidgetType = "counter" | "chart" | "list" | "progress" | "shortcut" | "custom"
+export type WidgetType = "counter" | "chart" | "echarts" | "list" | "progress" | "shortcut" | "custom"
 
 /** Widget 位置（react-grid-layout 格式） */
 export interface WidgetPosition {
@@ -67,6 +67,19 @@ export interface CustomWidgetConfig {
   component: string
 }
 
+/** ECharts Widget 配置——绑定 /api/stats 数据源 */
+export interface EChartsWidgetConfig {
+  type: "echarts"
+  /** 图表子类型 */
+  statsType: "trend" | "funnel" | "retention" | "pie"
+  /** 趋势图表渲染类型 */
+  chartType?: "line" | "bar"
+  /** 指标名称（trend 类型使用） */
+  metric?: string
+  /** 时间粒度（trend 类型使用） */
+  period?: "hour" | "day" | "week" | "month"
+}
+
 export type WidgetConfig =
   | CounterWidgetConfig
   | ChartWidgetConfig
@@ -74,6 +87,7 @@ export type WidgetConfig =
   | ProgressWidgetConfig
   | ShortcutWidgetConfig
   | CustomWidgetConfig
+  | EChartsWidgetConfig
 
 /** 仪表盘 Widget */
 export interface DashboardWidgetVO {
