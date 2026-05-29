@@ -79,4 +79,12 @@ public interface MemoryAtomRepository extends JpaRepository<MemoryAtom, UUID> {
     @Modifying
     @Query("UPDATE MemoryAtom m SET m.validTo = :now WHERE m.id IN :ids")
     void invalidate(List<UUID> ids, Instant now);
+
+    /** 查找长期未访问的有效原子（用于定时衰减清理） */
+    @Query("""
+        SELECT m FROM MemoryAtom m
+        WHERE m.validTo IS NULL
+          AND (m.lastAccessedAt IS NULL OR m.lastAccessedAt < :cutoff)
+        """)
+    List<MemoryAtom> findStaleAtoms(Instant cutoff);
 }
