@@ -301,3 +301,60 @@ kiro-cli → POST /api/monitor/logs（执行日志上报）
 ```
 
 Phase 1 不依赖 kiro-cli hooks，通过文件扫描 + git log 实现只读观察。
+
+
+### CI/CD 集成
+
+Pipeline 阶段四（验证&部署）的技术实现：
+
+```text
+GitService（JGit）→ PullRequestService（GitHub API）→ CiCdService（GitHub Actions）
+     ↓                      ↓                              ↓
+  本地 Git 操作         创建 PR                    触发/查询/Webhook/部署
+```
+
+#### CiCdService 核心能力
+
+| 能力 | API | 说明 |
+|------|-----|------|
+| 触发 CI | `POST /api/autodev/git/ci/trigger` | 调用 GitHub Actions `workflow_dispatch` |
+| 查询状态 | `GET /api/autodev/git/ci/status/{runId}` | 查询 run 状态（缓存+远程刷新） |
+| 最近构建 | `GET /api/autodev/git/ci/recent` | 返回最近 N 次构建状态 |
+| 触发部署 | `POST /api/autodev/git/ci/deploy` | 调用 `deploy.yml` workflow |
+| Webhook | `POST /api/autodev/git/webhook/github` | 接收 `workflow_run` 事件更新状态 |
+
+#### Webhook 处理流程
+
+```text
+GitHub Actions 完成 → POST /webhook/github (X-GitHub-Event: workflow_run)
+  → CiCdService.handleWebhook() → 更新 buildCache
+  → 前端 10s 轮询 /ci/recent 自动刷新
+```
+
+#### 部署策略
+
+```yaml
+# application.yaml
+aaf:
+  autodev:
+    github:
+      token: ${GITHUB_TOKEN}
+      repo: owner/repo
+    deploy:
+      staging-workflow: deploy.yml
+      production-workflow: deploy-prod.yml
+```
+
+| 环境 | 触发方式 | 审核 |
+|------|---------|------|
+| 开发 | 热加载（无 CI） | 无 |
+| Staging | `triggerDeploy("staging", ref)` | 自动 |
+| 生产 | PR merge → CD workflow | 人工审核 |
+
+#### 前端 CI 面板
+
+路径：`/workspace/dev/ci`，功能：
+- 构建列表（状态图标 + 链接到 GitHub）
+- 触发 CI 按钮（指定 workflow + branch）
+- 部署 Staging 按钮
+- 10s 自动刷新
