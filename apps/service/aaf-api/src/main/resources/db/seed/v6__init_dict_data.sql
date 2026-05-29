@@ -260,3 +260,19 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_menu_type', '菜单',   'MENU',   2, 'primary'),
 ('sys_menu_type', '按钮',   'BUTTON', 3, 'info')
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== 产品类型字典 ====================
+
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('产品类型', 'product_type', 0, '订单明细关联的产品/服务类型')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('product_type', '积分套餐', 'CREDIT_PACK',   1, 'primary'),
+('product_type', 'Token 套餐', 'TOKEN_PACK',  2, 'primary'),
+('product_type', '订阅服务', 'SUBSCRIPTION',   3, 'info'),
+('product_type', 'Agent',    'AGENT',          4, 'success'),
+('product_type', '工具',     'TOOL',           5, 'success'),
+('product_type', '知识库',   'KNOWLEDGE',      6, 'success')
+ON CONFLICT DO NOTHING;

@@ -54,5 +54,6 @@ public final class DictType {
         public static final String BIZ_ORDER_TYPE = "biz_order_type"; // 业务订单类型
         public static final String BIZ_ORDER_STATUS = "biz_order_status"; // 业务订单状态
         public static final String CREDIT_RULE_STATUS = "credit_rule_status"; // 积分规则状态
+        public static final String PRODUCT_TYPE = "product_type"; // 订单明细产品类型
     }
 }
