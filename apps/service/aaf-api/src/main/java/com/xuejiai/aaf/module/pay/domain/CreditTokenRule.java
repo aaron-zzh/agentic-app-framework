@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.xuejiai.aaf.common.enums.pay.CreditRuleStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
@@ -32,9 +33,9 @@ public class CreditTokenRule extends BaseEntity {
     @Column(name = "token_amount", nullable = false)
     private Long tokenAmount;
 
-    /** 状态：ENABLED/DISABLED */
+    /** 状态 */
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "ENABLED";
+    private String status = CreditRuleStatusEnum.ENABLED.getCode();
 
     /** 优先级（数值越小优先级越高） */
     @Column(name = "priority", nullable = false)

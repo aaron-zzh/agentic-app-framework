@@ -48,5 +48,9 @@ public final class DictType {
         public static final String REFUND_STATUS = "pay_refund_status"; // 退款订单状态
         public static final String TRANSFER_TYPE = "pay_transfer_type"; // 转账类型
         public static final String TRANSFER_STATUS = "pay_transfer_status"; // 转账订单状态
+        public static final String CREDIT_TRANSACTION_TYPE = "credit_transaction_type"; // 积分流水类型
+        public static final String BIZ_ORDER_TYPE = "biz_order_type"; // 业务订单类型
+        public static final String BIZ_ORDER_STATUS = "biz_order_status"; // 业务订单状态
+        public static final String CREDIT_RULE_STATUS = "credit_rule_status"; // 积分规则状态
     }
 }

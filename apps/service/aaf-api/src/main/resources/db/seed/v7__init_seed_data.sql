@@ -106,3 +106,12 @@ FROM sys_organization o
 WHERE o.type = 'personal' AND o.owner_id = (SELECT id FROM sys_user WHERE username = 'admin')
   AND NOT EXISTS (SELECT 1 FROM sys_org_member m WHERE m.org_id = o.id AND m.user_id = o.owner_id);
 
+
+-- ==================== 积分转Token规则（默认） ====================
+
+INSERT INTO credit_token_rule (name, credit_amount, token_amount, status, priority, remark)
+VALUES
+    ('基础套餐',   1000,  10000,  'ENABLED', 10, '1000积分=10000 Token'),
+    ('标准套餐',   5000,  55000,  'ENABLED', 5,  '5000积分=55000 Token（赠10%）'),
+    ('高级套餐',   10000, 120000, 'ENABLED', 1,  '10000积分=120000 Token（赠20%）')
+ON CONFLICT DO NOTHING;

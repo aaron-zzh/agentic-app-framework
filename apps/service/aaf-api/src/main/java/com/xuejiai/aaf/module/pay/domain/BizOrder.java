@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.pay.domain;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.xuejiai.aaf.common.enums.pay.BizOrderStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
@@ -42,7 +43,7 @@ public class BizOrder extends BaseEntity {
     @Column(name = "pay_order_id")
     private Long payOrderId;
 
-    /** 订单状态：PENDING/PAID/CANCELLED/REFUNDED */
+    /** 订单状态 */
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "PENDING";
+    private String status = BizOrderStatusEnum.PENDING.getCode();
 }

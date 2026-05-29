@@ -24,6 +24,15 @@ public class PayOrderController {
     private final PayOrderService payOrderService;
     private final RechargeService rechargeService;
 
+    @Operation(summary = "发起充值")
+    @PostMapping("/recharge")
+    public Result<PayOrderVO> recharge(
+            @RequestParam Long userId,
+            @RequestParam long amount,
+            @RequestParam(defaultValue = "MOCK") String channelCode) {
+        return Result.success(rechargeService.initiateRecharge(userId, amount, channelCode));
+    }
+
     @Operation(summary = "创建支付单")
     @PostMapping
     public Result<PayOrderVO> create(@Valid @RequestBody PayOrderCreateDTO dto) {
@@ -33,7 +42,10 @@ public class PayOrderController {
     @Operation(summary = "支付回调通知")
     @PostMapping("/notify")
     public Result<Void> notify(@Valid @RequestBody PayNotifyDTO dto) {
-        payOrderService.handleNotify(dto);
+        var payOrderId = payOrderService.handleNotify(dto);
+        if (payOrderId != null) {
+            rechargeService.onPaySuccess(payOrderId, 0);
+        }
         return Result.success();
     }
 

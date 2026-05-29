@@ -196,3 +196,41 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_verify_code_type', '登录',     'login',    2, 'success'),
 ('sys_verify_code_type', '重置密码', 'reset',    3, 'warning')
 ON CONFLICT DO NOTHING;
+
+-- ==================== 积分与订单字典 ====================
+
+-- credit_transaction_type 积分流水类型
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('积分流水类型', 'credit_transaction_type', 0, NULL),
+('业务订单类型', 'biz_order_type',          0, NULL),
+('业务订单状态', 'biz_order_status',        0, NULL),
+('积分规则状态', 'credit_rule_status',      0, NULL)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('credit_transaction_type', '赚取',   'EARN',     1, 'success'),
+('credit_transaction_type', '消费',   'SPEND',    2, 'danger'),
+('credit_transaction_type', '冻结',   'FREEZE',   3, 'warning'),
+('credit_transaction_type', '解冻',   'UNFREEZE', 4, 'info')
+ON CONFLICT DO NOTHING;
+
+-- biz_order_type 业务订单类型
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('biz_order_type', '充值',   'RECHARGE',     1, 'primary'),
+('biz_order_type', '购买',   'PURCHASE',     2, 'success'),
+('biz_order_type', '订阅',   'SUBSCRIPTION', 3, 'info')
+ON CONFLICT DO NOTHING;
+
+-- biz_order_status 业务订单状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('biz_order_status', '待支付', 'PENDING',   1, 'info'),
+('biz_order_status', '已支付', 'PAID',      2, 'success'),
+('biz_order_status', '已取消', 'CANCELLED', 3, 'default'),
+('biz_order_status', '已退款', 'REFUNDED',  4, 'danger')
+ON CONFLICT DO NOTHING;
+
+-- credit_rule_status 积分规则状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('credit_rule_status', '启用', 'ENABLED',  1, 'success'),
+('credit_rule_status', '禁用', 'DISABLED', 2, 'danger')
+ON CONFLICT DO NOTHING;

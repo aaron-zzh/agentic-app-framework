@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.pay.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.BizOrderVO;
@@ -22,13 +23,13 @@ public class RechargeService {
     private final PayOrderService payOrderService;
     private final CreditService creditService;
 
-    /** 发起充值：创建业务订单 + 支付单 */
+    /** 发起充值：创建业务订单 + 支付单，MOCK 渠道同步入账 */
     @Transactional
     public PayOrderVO initiateRecharge(Long userId, long amount, String channelCode) {
         // 创建业务订单
         var bizOrder =
                 bizOrderService.create(
-                        userId, new BizOrderCreateDTO("RECHARGE", "积分充值", amount, channelCode));
+                        userId, new BizOrderCreateDTO(BizOrderTypeEnum.RECHARGE.getCode(), "积分充值", amount, channelCode));
 
         // 创建支付单
         var payOrder =
@@ -38,6 +39,11 @@ public class RechargeService {
 
         // 关联支付单
         bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
+
+        // 如果支付已同步成功（MOCK 渠道），直接触发积分入账
+        if (payOrderService.isSuccess(payOrder.id())) {
+            onPaySuccess(payOrder.id(), amount);
+        }
         return payOrder;
     }
 
@@ -49,7 +55,7 @@ public class RechargeService {
             log.warn("支付成功但未找到关联业务订单: payOrderId={}", payOrderId);
             return;
         }
-        if (!"RECHARGE".equals(bizOrder.getOrderType())) {
+        if (!BizOrderTypeEnum.RECHARGE.getCode().equals(bizOrder.getOrderType())) {
             return;
         }
         // 标记业务订单已支付

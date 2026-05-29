@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
@@ -50,34 +51,45 @@ public class PayOrderService {
                                 null));
 
         if (result.success()) {
+            // 模拟支付等同步成功场景：直接标记支付成功
+            order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
             order.setChannelOrderNo(result.channelOrderNo());
+            order.setSuccessTime(LocalDateTime.now());
         }
         payOrderRepository.save(order);
         return toVO(order);
     }
 
-    /** 支付回调处理 */
+    /** 支付回调处理，返回支付单 ID（供上层触发业务逻辑） */
     @Transactional
-    public void handleNotify(PayNotifyDTO dto) {
+    public Long handleNotify(PayNotifyDTO dto) {
         var order =
                 payOrderRepository
                         .findByMerchantOrderNo(dto.merchantOrderNo())
                         .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "支付单不存在"));
 
-        if (order.getStatus() != 0) {
+        if (!order.getStatus().equals(PayOrderStatusEnum.WAITING.getCode())) {
             log.warn("支付单已处理，忽略回调: merchantOrderNo={}", dto.merchantOrderNo());
-            return;
+            return null;
         }
 
         if (dto.success()) {
-            order.setStatus(10);
+            order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
             order.setChannelOrderNo(dto.channelOrderNo());
             order.setSuccessTime(LocalDateTime.now());
         } else {
-            order.setStatus(30);
+            order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
         }
         payOrderRepository.save(order);
         log.info("支付回调处理完成: merchantOrderNo={}, success={}", dto.merchantOrderNo(), dto.success());
+        return dto.success() ? order.getId() : null;
+    }
+
+    /** 判断支付单是否已成功 */
+    public boolean isSuccess(Long payOrderId) {
+        return payOrderRepository.findById(payOrderId)
+                .map(o -> o.getStatus().equals(PayOrderStatusEnum.SUCCESS.getCode()))
+                .orElse(false);
     }
 
     /** 查询支付单 */

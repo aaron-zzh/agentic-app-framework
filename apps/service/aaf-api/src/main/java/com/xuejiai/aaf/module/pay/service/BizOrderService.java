@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.pay.BizOrderStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.pay.domain.BizOrder;
@@ -54,7 +55,7 @@ public class BizOrderService {
                 bizOrderRepository
                         .findById(bizOrderId)
                         .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "业务订单不存在"));
-        order.setStatus("PAID");
+        order.setStatus(BizOrderStatusEnum.PAID.getCode());
         bizOrderRepository.save(order);
     }
 

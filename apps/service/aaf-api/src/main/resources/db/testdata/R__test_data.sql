@@ -29,3 +29,17 @@ FROM sys_organization o
 JOIN sys_user u ON o.owner_id = u.id
 WHERE u.username IN ('user1', 'user2')
   AND NOT EXISTS (SELECT 1 FROM sys_org_member m WHERE m.org_id = o.id AND m.user_id = o.owner_id);
+
+
+-- ==================== 积分测试数据 ====================
+
+-- 为测试用户创建积分账户
+INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
+SELECT u.id, 5000, 0, 5000, 0
+FROM sys_user u WHERE u.username = 'user1'
+  AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
+
+INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
+SELECT u.id, 2000, 500, 3000, 500
+FROM sys_user u WHERE u.username = 'user2'
+  AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);

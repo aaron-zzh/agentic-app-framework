@@ -1,12 +1,17 @@
 package com.xuejiai.aaf.common.enums.pay;
 
+import java.util.Arrays;
+
+import com.xuejiai.aaf.common.enums.ArrayValuable;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /** 支付渠道枚举，对应字典 pay_channel_code。 */
 @Getter
 @AllArgsConstructor
-public enum PayChannelEnum {
+public enum PayChannelEnum implements ArrayValuable<String> {
+    MOCK("MOCK", "模拟支付"),
     WX_PUB("wx_pub", "微信公众号支付"),
     WX_LITE("wx_lite", "微信小程序支付"),
     WX_APP("wx_app", "微信 App 支付"),
@@ -18,4 +23,12 @@ public enum PayChannelEnum {
 
     private final String code;
     private final String label;
+
+    public static final String[] ARRAYS =
+            Arrays.stream(values()).map(PayChannelEnum::getCode).toArray(String[]::new);
+
+    @Override
+    public String[] array() {
+        return ARRAYS;
+    }
 }

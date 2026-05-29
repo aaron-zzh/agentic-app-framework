@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
@@ -36,9 +37,9 @@ public class PayOrder extends BaseEntity {
     @Column(name = "amount", nullable = false)
     private Long amount;
 
-    /** 订单状态：0-等待支付 10-支付成功 30-已关闭 */
+    /** 订单状态 */
     @Column(name = "status", nullable = false)
-    private Integer status = 0;
+    private Integer status = PayOrderStatusEnum.WAITING.getCode();
 
     /** 支付渠道编码 */
     @Column(name = "channel_code", nullable = false, length = 32)
