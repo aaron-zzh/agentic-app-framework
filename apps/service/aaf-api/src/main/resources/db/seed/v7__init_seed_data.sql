@@ -115,3 +115,24 @@ VALUES
     ('标准套餐',   5000,  55000,  'ENABLED', 5,  '5000积分=55000 Token（赠10%）'),
     ('高级套餐',   10000, 120000, 'ENABLED', 1,  '10000积分=120000 Token（赠20%）')
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== 系统菜单初始数据 ====================
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type) VALUES
+(NULL, '概览', NULL, NULL, 0, 'GROUP'),
+(1, '工作台', '/dashboard', 'layout-dashboard', 0, 'MENU'),
+(NULL, 'AI 创作', NULL, NULL, 10, 'GROUP'),
+(3, '图像生成', '/aigc', 'sparkles', 0, 'MENU'),
+(3, '视频生成', '/aigc/video', 'video', 1, 'MENU'),
+(3, '3D 展示', '/aigc/3d', 'box', 2, 'MENU'),
+(3, '素材库', '/aigc/assets', 'image', 3, 'MENU'),
+(NULL, '开发工具', NULL, NULL, 20, 'GROUP'),
+(8, '文档管理', '/dev/docs', 'file-text', 0, 'MENU'),
+(8, '开发日志', '/dev/log', 'scroll-text', 1, 'MENU'),
+(8, '代码审查', '/dev/review', 'git-pull-request', 2, 'MENU'),
+(8, '迭代统计', '/dev/stats', 'bar-chart-3', 3, 'MENU'),
+(NULL, '系统', NULL, NULL, 99, 'GROUP'),
+(13, '回收站', '/trash', 'trash-2', 0, 'MENU'),
+(13, '设置', '/settings', 'settings', 1, 'MENU')
+ON CONFLICT DO NOTHING;

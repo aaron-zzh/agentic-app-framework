@@ -782,3 +782,13 @@ SET api_key_encrypted = 'PLACEHOLDER_REPLACE_WITH_REAL_KEY',
     max_tokens = 4096
 WHERE model_id = 'deepseek:chat'
   AND api_key_encrypted IS NULL;
+
+
+-- ai_assistant 委托权限字段
+ALTER TABLE ai_assistant ADD COLUMN IF NOT EXISTS delegator_id BIGINT;
+ALTER TABLE ai_assistant ADD COLUMN IF NOT EXISTS permission_scope JSONB;
+
+COMMENT ON COLUMN ai_assistant.delegator_id IS '委托者 ID（权限继承来源，默认等于 user_id）';
+COMMENT ON COLUMN ai_assistant.permission_scope IS '权限边界配置（JSON）';
+
+UPDATE ai_assistant SET delegator_id = user_id WHERE delegator_id IS NULL;

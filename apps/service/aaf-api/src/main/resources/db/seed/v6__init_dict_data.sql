@@ -234,3 +234,29 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('credit_rule_status', '启用', 'ENABLED',  1, 'success'),
 ('credit_rule_status', '禁用', 'DISABLED', 2, 'danger')
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== 审批与菜单字典 ====================
+
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('审批操作类型', 'approval_operation_type', 0, NULL),
+('菜单类型',     'sys_menu_type',           0, NULL)
+ON CONFLICT DO NOTHING;
+
+-- approval_operation_type 审批操作类型
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('approval_operation_type', '通过',   'APPROVE',  1, 'success'),
+('approval_operation_type', '拒绝',   'REJECT',   2, 'danger'),
+('approval_operation_type', '委派',   'DELEGATE', 3, 'info'),
+('approval_operation_type', '加签',   'ADD_SIGN', 4, 'info'),
+('approval_operation_type', '转办',   'TRANSFER', 5, 'warning'),
+('approval_operation_type', '撤回',   'WITHDRAW', 6, 'default'),
+('approval_operation_type', '催办',   'URGE',     7, 'warning')
+ON CONFLICT DO NOTHING;
+
+-- sys_menu_type 菜单类型
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_menu_type', '分组',   'GROUP',  1, 'default'),
+('sys_menu_type', '菜单',   'MENU',   2, 'primary'),
+('sys_menu_type', '按钮',   'BUTTON', 3, 'info')
+ON CONFLICT DO NOTHING;
