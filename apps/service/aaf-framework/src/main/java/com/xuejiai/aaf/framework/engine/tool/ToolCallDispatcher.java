@@ -17,6 +17,7 @@ public class ToolCallDispatcher {
 
     private final ToolRegistry registry;
     private final ToolPermissionChecker permissionChecker;
+    private final ToolCallAuditRepository auditRepository;
 
     /** 执行工具调用（无权限检查，Agent 内部调用）。 */
     public ToolCallResult dispatch(String functionName, String arguments) {
@@ -59,13 +60,35 @@ public class ToolCallDispatcher {
         if (callback == null) {
             return ToolCallResult.error(functionName, "工具未注册: " + functionName);
         }
+        var start = System.currentTimeMillis();
         try {
             var result = callback.call(arguments);
-            log.debug("工具调用成功: {} -> {}", functionName, truncate(result));
+            var duration = System.currentTimeMillis() - start;
+            log.debug("工具调用成功: {} -> {} ({}ms)", functionName, truncate(result), duration);
+            saveAudit(functionName, arguments, true, result, null, duration);
             return ToolCallResult.success(functionName, result);
         } catch (Exception e) {
-            log.warn("工具调用失败: {} - {}", functionName, e.getMessage());
+            var duration = System.currentTimeMillis() - start;
+            log.warn("工具调用失败: {} - {} ({}ms)", functionName, e.getMessage(), duration);
+            saveAudit(functionName, arguments, false, null, e.getMessage(), duration);
             return ToolCallResult.error(functionName, e.getMessage());
+        }
+    }
+
+    private void saveAudit(
+            String functionName, String arguments, boolean success,
+            String output, String error, long durationMs) {
+        try {
+            var audit = new ToolCallAudit();
+            audit.setFunctionName(functionName);
+            audit.setArguments(arguments);
+            audit.setSuccess(success);
+            audit.setOutput(output != null ? truncate(output) : null);
+            audit.setErrorMessage(error);
+            audit.setDurationMs(durationMs);
+            auditRepository.save(audit);
+        } catch (Exception e) {
+            log.warn("审计记录写入失败: {}", e.getMessage());
         }
     }
 
