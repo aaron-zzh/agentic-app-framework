@@ -11,6 +11,18 @@ import java.util.List;
  */
 public interface VideoGenerationService {
 
+    /** 统一提交视频生成任务：有 imageUrl 走 i2v，否则走 t2v。返回 taskId。 */
+    default String submit(VideoRequest request) {
+        if (request.imageUrl() != null) {
+            return submitImageToVideo(new ImageToVideoRequest(
+                    request.prompt(), request.imageUrl(), request.model(),
+                    request.resolution(), request.duration(), request.seed()));
+        }
+        return submitTextToVideo(new TextToVideoRequest(
+                request.prompt(), request.model(), request.resolution(),
+                request.ratio(), request.duration(), request.seed()));
+    }
+
     /** 提交文生视频任务，返回 taskId。 */
     String submitTextToVideo(TextToVideoRequest request);
 
@@ -24,6 +36,18 @@ public interface VideoGenerationService {
     VideoTaskResult query(String taskId);
 
     // === 请求/响应 Records ===
+
+    /** 统一视频生成请求：有 imageUrl 走图生视频，否则走文生视频。 */
+    record VideoRequest(
+            String prompt,
+            /** 首帧图片 URL，传入则走 i2v，不传则走 t2v。 */
+            String imageUrl,
+            String model,
+            String resolution,
+            /** 宽高比，仅 t2v 有效。 */
+            String ratio,
+            Integer duration,
+            Integer seed) {}
 
     /** 文生视频请求。 */
     record TextToVideoRequest(
