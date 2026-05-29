@@ -67,7 +67,13 @@ public class ChatTaskService {
         return taskRepository.findDueTasks(LocalDateTime.now());
     }
 
-    /** 开始处理任务 */
+    /** CAS 抢占启动任务（pending → running），返回是否抢占成功 */
+    @Transactional
+    public boolean tryStart(Long taskId) {
+        return taskRepository.casStartTask(taskId) > 0;
+    }
+
+    /** 开始处理任务（无竞争保护，内部使用） */
     @Transactional
     public ChatTask start(Long taskId) {
         var task = taskRepository.findById(taskId).orElseThrow();
@@ -105,5 +111,11 @@ public class ChatTaskService {
     @Transactional(readOnly = true)
     public long countPending(Long sessionId) {
         return taskRepository.countBySessionIdAndStatusAndDeletedFalse(sessionId, "pending");
+    }
+
+    /** 回收孤儿任务（running 超时未完成的重置为 pending），返回回收数量 */
+    @Transactional
+    public int recoverOrphans(LocalDateTime cutoff) {
+        return taskRepository.recoverOrphans(cutoff);
     }
 }

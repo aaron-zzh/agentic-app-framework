@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
@@ -30,6 +31,20 @@ public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
               AND t.scheduledAt IS NOT NULL AND t.scheduledAt <= :now
             ORDER BY t.scheduledAt ASC, t.priority ASC""")
     List<ChatTask> findDueTasks(LocalDateTime now);
+
+    /** CAS 抢占：pending → running，返回受影响行数（0 表示抢占失败） */
+    @Modifying
+    @Query("""
+            UPDATE ChatTask t SET t.status = 'running', t.updateTime = CURRENT_TIMESTAMP
+            WHERE t.id = :taskId AND t.status = 'pending'""")
+    int casStartTask(Long taskId);
+
+    /** 孤儿回收：running 且 updateTime 早于 cutoff 的任务重置为 pending */
+    @Modifying
+    @Query("""
+            UPDATE ChatTask t SET t.status = 'pending', t.updateTime = CURRENT_TIMESTAMP
+            WHERE t.status = 'running' AND t.updateTime < :cutoff AND t.deleted = false""")
+    int recoverOrphans(LocalDateTime cutoff);
 
     /** 统计会话下指定状态的任务数 */
     long countBySessionIdAndStatusAndDeletedFalse(Long sessionId, String status);
