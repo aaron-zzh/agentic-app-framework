@@ -34,6 +34,8 @@ public final class DictType {
         public static final String FILE_STORAGE = "sys_file_storage"; // 文件存储类型
         public static final String OAUTH_PROVIDER = "sys_oauth_provider"; // OAuth 提供商
         public static final String VERIFY_CODE_TYPE = "sys_verify_code_type"; // 验证码场景
+        public static final String MENU_TYPE = "sys_menu_type"; // 菜单类型
+        public static final String APPROVAL_OPERATION_TYPE = "approval_operation_type"; // 审批操作类型
     }
 
     /** 支付模块 */
