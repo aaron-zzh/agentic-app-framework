@@ -66,6 +66,20 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
     }
 
     @Override
+    public String submitReferenceToVideo(ReferenceToVideoRequest request) {
+        var model = request.model() != null ? request.model() : "happyhorse-1.0-r2v";
+        var mediaList = new ArrayList<Map<String, String>>();
+        for (var imgUrl : request.referenceImageUrls()) {
+            mediaList.add(Map.of("type", "reference_image", "url", imgUrl));
+        }
+        var input = new HashMap<String, Object>();
+        input.put("prompt", request.prompt());
+        input.put("media", mediaList);
+        var parameters = buildR2vParameters(request);
+        return doSubmit(model, input, parameters);
+    }
+
+    @Override
     public String submitVideoEdit(VideoEditApiRequest request) {
         var model = request.model() != null ? request.model() : "happyhorse-1.0-video-edit";
         var mediaList = new ArrayList<Map<String, String>>();
@@ -164,6 +178,16 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
     private Map<String, Object> buildI2vParameters(ImageToVideoRequest request) {
         var params = new HashMap<String, Object>();
         if (request.resolution() != null) params.put("resolution", request.resolution());
+        if (request.duration() != null) params.put("duration", request.duration());
+        if (request.seed() != null) params.put("seed", request.seed());
+        params.put("watermark", false);
+        return params;
+    }
+
+    private Map<String, Object> buildR2vParameters(ReferenceToVideoRequest request) {
+        var params = new HashMap<String, Object>();
+        if (request.resolution() != null) params.put("resolution", request.resolution());
+        if (request.ratio() != null) params.put("ratio", request.ratio());
         if (request.duration() != null) params.put("duration", request.duration());
         if (request.seed() != null) params.put("seed", request.seed());
         params.put("watermark", false);
