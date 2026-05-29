@@ -2,7 +2,7 @@
 level: Practice
 layer: Product
 purpose: AAF v0.1.0 版本迭代计划
-status: active
+status: completed
 version: "0.1.0"
 date: 2026-05-13
 author: AaronZZH
@@ -66,7 +66,7 @@ AAF-033（平台能力） ←────────┘
 搭建前后端开发骨架：后端 Maven 多模块（aaf-dependencies / aaf-common / aaf-framework / aaf-auto-dev / aaf-api）+ Flyway + CI；前端 Next.js 16 + TypeScript + Nx 集成。
 
 - 技术任务：[tasks.md](v0.1.0/AAF-023/tasks.md)
-- 状态：后端 #17~#31 全部完成，前端 #18 设计完成待落地
+- 状态：✅ 已完成
 
 ### AAF-028：视图引擎核心
 
@@ -183,7 +183,7 @@ AAF-033（平台能力） ←────────┘
 
 - 技术任务：[tasks.md](v0.1.0/AAF-036/tasks.md)
 - 设计文档：[tech-stack.md](../design/apps/uniapp/tech-stack.md) | [directory-structure.md](../design/apps/uniapp/directory-structure.md) | [mobile-admin.md](../design/apps/uniapp/mobile-admin.md)
-- 状态：待开始
+- 状态：✅ 已完成
 
 ## 迭代范围决策
 
