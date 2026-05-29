@@ -1,6 +1,10 @@
 package com.xuejiai.aaf.framework.engine.settlement;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.springframework.stereotype.Component;
 
@@ -13,6 +17,9 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
 
     public static final String CHANNEL_CODE = "MOCK";
 
+    /** 记录已支付订单（模拟对账用） */
+    private final ConcurrentMap<String, Long> paidOrders = new ConcurrentHashMap<>();
+
     @Override
     public String channelCode() {
         return CHANNEL_CODE;
@@ -22,6 +29,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     public PayResult charge(ChargeRequest request) {
         log.info("模拟支付: outTradeNo={}, amount={}", request.outTradeNo(), request.amount());
         var channelOrderNo = "MOCK_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        paidOrders.put(request.outTradeNo(), request.amount());
         return new PayResult(true, request.outTradeNo(), channelOrderNo, "模拟支付成功");
     }
 
@@ -40,6 +48,14 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
 
     @Override
     public PayStatus queryStatus(String outTradeNo) {
-        return PayStatus.PAID;
+        return paidOrders.containsKey(outTradeNo) ? PayStatus.PAID : null;
+    }
+
+    @Override
+    public List<BillItem> downloadBill(LocalDate date) {
+        // 返回内存中记录的所有已支付订单作为模拟账单
+        return paidOrders.entrySet().stream()
+                .map(e -> new BillItem(e.getKey(), e.getValue(), PayStatus.PAID))
+                .toList();
     }
 }

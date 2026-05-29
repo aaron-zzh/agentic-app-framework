@@ -1,9 +1,8 @@
 package com.xuejiai.aaf.framework.engine.settlement;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -20,33 +19,32 @@ public class DefaultSettlementEngine implements SettlementEngine {
     private final Map<String, PayChannelAdapter> adapterMap;
 
     public DefaultSettlementEngine(List<PayChannelAdapter> adapters) {
-        this.adapterMap =
-                adapters.stream()
-                        .collect(Collectors.toMap(PayChannelAdapter::channelCode, Function.identity()));
+        this.adapterMap = new HashMap<>();
+        for (var adapter : adapters) {
+            for (var code : adapter.supportedChannelCodes()) {
+                adapterMap.put(code, adapter);
+            }
+        }
         log.info("结算引擎初始化，已注册渠道: {}", adapterMap.keySet());
     }
 
     @Override
     public PayResult charge(ChargeRequest request) {
-        var adapter = getAdapter(request.channelCode());
-        return adapter.charge(request);
+        return getAdapter(request.channelCode()).charge(request);
     }
 
     @Override
     public PayResult withdraw(WithdrawRequest request) {
-        var adapter = getAdapter(request.channelCode());
-        return adapter.withdraw(request);
+        return getAdapter(request.channelCode()).withdraw(request);
     }
 
     @Override
     public RefundResult refund(RefundRequest request) {
-        var adapter = getAdapter(request.channelCode());
-        return adapter.refund(request);
+        return getAdapter(request.channelCode()).refund(request);
     }
 
     @Override
     public PayStatus queryStatus(String outTradeNo) {
-        // 简化实现：遍历所有渠道查询
         for (var adapter : adapterMap.values()) {
             var status = adapter.queryStatus(outTradeNo);
             if (status != null) {

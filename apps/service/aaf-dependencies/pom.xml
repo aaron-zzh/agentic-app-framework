@@ -68,6 +68,11 @@
 		<instancio.version>5.4.0</instancio.version>
 		<!-- 工具 -->
 		<ip2region.version>3.1.1</ip2region.version>
+		<!-- 微信 SDK -->
+		<weixin-java.version>4.7.4.B</weixin-java.version>
+		<!-- 支付 SDK -->
+		<weixin-java-pay.version>4.7.4.B</weixin-java-pay.version>
+		<alipay-sdk-java.version>4.39.218.ALL</alipay-sdk-java.version>
 		<!-- 内部模块 -->
 		<aaf.version>${revision}</aaf.version>
 	</properties>
@@ -316,6 +321,28 @@
 				<groupId>org.lionsoul</groupId>
 				<artifactId>ip2region</artifactId>
 				<version>${ip2region.version}</version>
+			</dependency>
+
+			<!-- ==================== 测试 ==================== -->
+			<dependency>
+				<groupId>com.github.binarywang</groupId>
+				<artifactId>weixin-java-pay</artifactId>
+				<version>${weixin-java-pay.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.binarywang</groupId>
+				<artifactId>weixin-java-mp</artifactId>
+				<version>${weixin-java.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.binarywang</groupId>
+				<artifactId>weixin-java-miniapp</artifactId>
+				<version>${weixin-java.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.alipay.sdk</groupId>
+				<artifactId>alipay-sdk-java</artifactId>
+				<version>${alipay-sdk-java.version}</version>
 			</dependency>
 
 			<!-- ==================== 测试 ==================== -->

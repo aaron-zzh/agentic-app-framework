@@ -212,6 +212,18 @@
 			<artifactId>flowable-spring-boot-starter</artifactId>
 		</dependency>
 
+		<!-- 支付 SDK（可选，配置开关控制） -->
+		<dependency>
+			<groupId>com.github.binarywang</groupId>
+			<artifactId>weixin-java-pay</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.alipay.sdk</groupId>
+			<artifactId>alipay-sdk-java</artifactId>
+			<optional>true</optional>
+		</dependency>
+
 		<!-- 脚本沙箱（GraalVM Polyglot，可选） -->
 		<dependency>
 			<groupId>org.graalvm.polyglot</groupId>

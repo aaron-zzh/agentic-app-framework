@@ -16,7 +16,7 @@ import type {
 } from "@/lib/api/dashboard"
 import { useDashboard, useSaveDashboardLayout } from "@/lib/queries/use-dashboard"
 import { AddWidgetDialog } from "./AddWidgetDialog"
-import { ChartWidget, CounterWidget, ListWidget, ProgressWidget, ShortcutWidget } from "./widgets"
+import { ChartWidget, CounterWidget, EChartsWidget, ListWidget, ProgressWidget, ShortcutWidget } from "./widgets"
 
 import "react-grid-layout/css/styles.css"
 
@@ -30,6 +30,8 @@ function renderWidget(widget: DashboardWidgetVO, refreshInterval?: number) {
       return <CounterWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
     case "chart":
       return <ChartWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
+    case "echarts":
+      return <EChartsWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
     case "list":
       return <ListWidget widgetId={id} title={title} config={config} refreshInterval={refreshInterval} />
     case "progress":
@@ -51,6 +53,8 @@ function createDefaultWidget(type: WidgetType): DashboardWidgetVO {
       return { ...base, title: "统计", config: { type: "counter", entity: "", aggregation: "count" } }
     case "chart":
       return { ...base, title: "图表", config: { type: "chart", entity: "", chartType: "bar", xField: "", yField: "" } }
+    case "echarts":
+      return { ...base, title: "ECharts 图表", config: { type: "echarts", statsType: "trend", chartType: "line", metric: "dau", period: "day" } }
     case "list":
       return { ...base, title: "列表", config: { type: "list", entity: "", columns: [], limit: 5 } }
     case "progress":

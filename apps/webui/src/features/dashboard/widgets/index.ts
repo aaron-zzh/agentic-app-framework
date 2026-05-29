@@ -5,6 +5,7 @@
 
 export { CounterWidget } from "./CounterWidget"
 export { ChartWidget } from "./ChartWidget"
+export { EChartsWidget } from "./EChartsWidget"
 export { ListWidget } from "./ListWidget"
 export { ProgressWidget } from "./ProgressWidget"
 export { ShortcutWidget } from "./ShortcutWidget"
