@@ -1741,3 +1741,403 @@ CREATE TABLE sys_role_menu (
 );
 
 COMMENT ON TABLE sys_role_menu IS '角色-菜单关联';
+
+
+-- ============================================================
+-- channel 子域（渠道集成）
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS channel_config (
+    id              BIGSERIAL PRIMARY KEY,
+    channel_type    VARCHAR(32) NOT NULL,
+    name            VARCHAR(100) NOT NULL,
+    app_id          VARCHAR(200),
+    app_secret      VARCHAR(500),
+    token           VARCHAR(200),
+    encoding_aes_key VARCHAR(200),
+    status          INT NOT NULL DEFAULT 0,
+    ext_config      JSONB,
+    version         INT NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255)
+);
+
+CREATE INDEX idx_channel_config_type ON channel_config(channel_type) WHERE deleted = FALSE;
+COMMENT ON TABLE channel_config IS '渠道配置';
+
+CREATE TABLE IF NOT EXISTS channel_message (
+    id              BIGSERIAL PRIMARY KEY,
+    channel_type    VARCHAR(32) NOT NULL,
+    direction       VARCHAR(16) NOT NULL,
+    message_type    VARCHAR(16) NOT NULL,
+    external_user_id VARCHAR(200) NOT NULL,
+    user_id         BIGINT,
+    content         TEXT,
+    media_url       VARCHAR(500),
+    raw_payload     TEXT,
+    message_time    TIMESTAMP,
+    version         INT NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255)
+);
+
+CREATE INDEX idx_channel_message_user ON channel_message(external_user_id, channel_type) WHERE deleted = FALSE;
+CREATE INDEX idx_channel_message_time ON channel_message(message_time DESC) WHERE deleted = FALSE;
+COMMENT ON TABLE channel_message IS '渠道消息记录';
+
+CREATE TABLE IF NOT EXISTS webhook_config (
+    id              BIGSERIAL PRIMARY KEY,
+    name            VARCHAR(100) NOT NULL,
+    url             VARCHAR(500) NOT NULL,
+    event_types     VARCHAR(500),
+    secret          VARCHAR(200),
+    status          VARCHAR(16) NOT NULL DEFAULT 'active',
+    direction       VARCHAR(16) NOT NULL DEFAULT 'outbound',
+    failure_count   INT DEFAULT 0,
+    max_retries     INT DEFAULT 3,
+    version         INT NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255)
+);
+
+CREATE INDEX idx_webhook_config_status ON webhook_config(status) WHERE deleted = FALSE;
+COMMENT ON TABLE webhook_config IS 'Webhook 配置';
+
+CREATE TABLE IF NOT EXISTS webhook_log (
+    id              BIGSERIAL PRIMARY KEY,
+    webhook_id      BIGINT NOT NULL,
+    event_type      VARCHAR(64) NOT NULL,
+    request_body    TEXT,
+    response_status INT,
+    response_body   VARCHAR(2000),
+    status          VARCHAR(16) NOT NULL DEFAULT 'pending',
+    failure_reason  VARCHAR(500),
+    retry_count     INT DEFAULT 0,
+    next_retry_time TIMESTAMP,
+    push_time       TIMESTAMP,
+    version         INT NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255)
+);
+
+CREATE INDEX idx_webhook_log_webhook ON webhook_log(webhook_id) WHERE deleted = FALSE;
+CREATE INDEX idx_webhook_log_retry ON webhook_log(status, next_retry_time) WHERE deleted = FALSE;
+COMMENT ON TABLE webhook_log IS 'Webhook 推送日志';
+
+-- ============================================================
+-- livechat 子域（客服系统）
+-- ============================================================
+
+CREATE TABLE chat_session (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT,
+    external_user_id VARCHAR(128) NOT NULL,
+    channel_type    VARCHAR(32)  NOT NULL,
+    status          VARCHAR(16)  NOT NULL DEFAULT 'bot',
+    agent_id        BIGINT,
+    staff_id        BIGINT,
+    skill_group     VARCHAR(64),
+    tags            VARCHAR(256),
+    priority        INTEGER      DEFAULT 3,
+    last_active_time TIMESTAMP,
+    closed_time     TIMESTAMP,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255),
+    version         INTEGER      NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_chat_session_external_user ON chat_session(external_user_id, channel_type);
+CREATE INDEX idx_chat_session_status ON chat_session(status);
+COMMENT ON TABLE chat_session IS '客服会话';
+
+CREATE TABLE chat_message (
+    id              BIGSERIAL PRIMARY KEY,
+    session_id      BIGINT       NOT NULL,
+    sender_type     VARCHAR(16)  NOT NULL,
+    sender_id       BIGINT,
+    message_type    VARCHAR(16)  NOT NULL DEFAULT 'TEXT',
+    content         TEXT,
+    internal        BOOLEAN      NOT NULL DEFAULT FALSE,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255),
+    version         INTEGER      NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_chat_message_session ON chat_message(session_id, create_time);
+COMMENT ON TABLE chat_message IS '客服会话消息';
+
+CREATE TABLE livechat_seat (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT       NOT NULL UNIQUE,
+    nickname        VARCHAR(64),
+    skill_group     VARCHAR(128),
+    status          VARCHAR(16)  NOT NULL DEFAULT 'offline',
+    current_sessions INTEGER     NOT NULL DEFAULT 0,
+    max_sessions    INTEGER      NOT NULL DEFAULT 5,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255),
+    version         INTEGER      NOT NULL DEFAULT 0
+);
+
+COMMENT ON TABLE livechat_seat IS '客服坐席';
+
+CREATE TABLE session_transfer (
+    id              BIGSERIAL PRIMARY KEY,
+    session_id      BIGINT       NOT NULL,
+    from_staff_id   BIGINT       NOT NULL,
+    to_staff_id     BIGINT,
+    to_skill_group  VARCHAR(64),
+    reason          VARCHAR(32)  NOT NULL,
+    note            VARCHAR(512),
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255),
+    version         INTEGER      NOT NULL DEFAULT 0
+);
+
+COMMENT ON TABLE session_transfer IS '会话转接记录';
+
+CREATE TABLE session_rating (
+    id              BIGSERIAL PRIMARY KEY,
+    session_id      BIGINT       NOT NULL,
+    user_id         BIGINT,
+    staff_id        BIGINT,
+    score           INTEGER      NOT NULL,
+    comment         VARCHAR(512),
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255),
+    version         INTEGER      NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX idx_session_rating_session ON session_rating(session_id) WHERE deleted = false;
+COMMENT ON TABLE session_rating IS '会话满意度评价';
+
+CREATE TABLE ticket (
+    id              BIGSERIAL PRIMARY KEY,
+    ticket_no       VARCHAR(32)  NOT NULL UNIQUE,
+    title           VARCHAR(128) NOT NULL,
+    description     TEXT,
+    user_id         BIGINT,
+    session_id      BIGINT,
+    type            VARCHAR(32)  NOT NULL,
+    priority        VARCHAR(16)  NOT NULL,
+    status          VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
+    assignee_id     BIGINT,
+    sla_due_time    TIMESTAMP,
+    closed_time     TIMESTAMP,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255),
+    version         INTEGER      NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_ticket_status ON ticket(status);
+COMMENT ON TABLE ticket IS '客服工单';
+
+CREATE TABLE ticket_record (
+    id              BIGSERIAL PRIMARY KEY,
+    ticket_id       BIGINT       NOT NULL,
+    operation       VARCHAR(16)  NOT NULL,
+    operator_id     BIGINT,
+    from_status     VARCHAR(16),
+    to_status       VARCHAR(16),
+    record_remark   VARCHAR(512),
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(255),
+    version         INTEGER      NOT NULL DEFAULT 0
+);
+
+COMMENT ON TABLE ticket_record IS '工单流转记录';
+
+-- ============================================================
+-- stats 子域（运营统计）
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS user_event (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT       NOT NULL,
+    event_type      VARCHAR(32)  NOT NULL,
+    page            VARCHAR(255),
+    target          VARCHAR(255),
+    extra           JSONB,
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_user_event_type_time ON user_event (event_type, create_time);
+CREATE INDEX idx_user_event_user ON user_event (user_id, create_time);
+CREATE INDEX idx_user_event_date ON user_event ((create_time::date));
+COMMENT ON TABLE user_event IS '用户行为事件（追加写入）';
+
+-- ============================================================
+-- 字典 seed：渠道/客服/统计
+-- ============================================================
+
+INSERT INTO sys_dict_type (name, type, status, version, deleted, create_time, update_time) VALUES
+    ('渠道类型', 'channel_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('渠道消息类型', 'channel_message_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('Webhook状态', 'webhook_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('客服会话状态', 'livechat_session_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('坐席状态', 'livechat_seat_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('转接原因', 'livechat_transfer_reason', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('工单状态', 'livechat_ticket_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('工单优先级', 'livechat_ticket_priority', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('工单类型', 'livechat_ticket_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('用户事件类型', 'stats_event_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, status, version, deleted, create_time, update_time) VALUES
+    ('channel_type', '微信公众号', 'wechat_mp', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '微信小程序', 'wechat_mini', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '钉钉', 'dingtalk', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '飞书', 'feishu', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '网页', 'web', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', 'Webhook', 'webhook', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '文本', 'text', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '图片', 'image', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '语音', 'voice', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '事件', 'event', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '模板消息', 'template', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', 'Markdown', 'markdown', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '卡片消息', 'card', 7, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('webhook_status', '启用', 'active', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('webhook_status', '停用', 'inactive', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('webhook_status', '失败', 'failed', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '机器人服务中', 'bot', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '等待人工接入', 'waiting', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '人工服务中', 'active', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '已关闭', 'closed', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_seat_status', '在线', 'online', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_seat_status', '忙碌', 'busy', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_seat_status', '离线', 'offline', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '技能不匹配', 'skill_mismatch', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '工作量过大', 'workload', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '用户要求', 'user_request', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '问题升级', 'escalation', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '换班交接', 'shift_change', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '待处理', 'PENDING', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '处理中', 'PROCESSING', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '待确认', 'CONFIRMING', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '已关闭', 'CLOSED', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '低', 'LOW', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '中', 'MEDIUM', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '高', 'HIGH', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '紧急', 'URGENT', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '咨询', 'consultation', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '投诉', 'complaint', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '故障报告', 'bug_report', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '功能建议', 'feature_request', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '退款', 'refund', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '其他', 'other', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '页面浏览', 'page_view', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '点击', 'click', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '注册', 'register', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '登录', 'login', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '对话', 'chat', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '工具使用', 'tool_use', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
