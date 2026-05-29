@@ -6,8 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.engine.credit.CreditAccountRepository;
-import com.xuejiai.aaf.framework.engine.credit.CreditTransactionRepository;
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.pay.vo.CreditBalanceVO;
 import com.xuejiai.aaf.module.pay.vo.CreditTransactionVO;
 
@@ -22,13 +21,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CreditController {
 
-    private final CreditAccountRepository accountRepository;
-    private final CreditTransactionRepository transactionRepository;
+    private final CreditService creditService;
 
     @Operation(summary = "查询积分余额")
     @GetMapping("/balance")
     public Result<CreditBalanceVO> getBalance(@RequestParam Long userId) {
-        var account = accountRepository.findByUserId(userId).orElse(null);
+        var account = creditService.getAccount(userId);
         if (account == null) {
             return Result.success(new CreditBalanceVO(userId, 0, 0, 0, 0));
         }
@@ -45,13 +43,9 @@ public class CreditController {
     @GetMapping("/transactions")
     public Result<PageResult<CreditTransactionVO>> getTransactions(
             @RequestParam Long userId, @PageableDefault Pageable pageable) {
-        var account = accountRepository.findByUserId(userId).orElse(null);
-        if (account == null) {
-            return Result.success(PageResult.empty());
-        }
-        var page =
-                transactionRepository
-                        .findByAccountId(account.getId(), pageable)
+        var page = creditService.getTransactions(userId, pageable);
+        var list =
+                page.getContent().stream()
                         .map(
                                 t ->
                                         new CreditTransactionVO(
@@ -61,7 +55,8 @@ public class CreditController {
                                                 t.getBalanceAfter(),
                                                 t.getSource(),
                                                 t.getBizId(),
-                                                t.getCreateTime()));
-        return Result.success(new PageResult<>(page.getContent(), page.getTotalElements()));
+                                                t.getCreateTime()))
+                        .toList();
+        return Result.success(new PageResult<>(list, page.getTotalElements()));
     }
 }

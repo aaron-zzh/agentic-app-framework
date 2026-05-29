@@ -24,4 +24,10 @@ public interface CreditService {
 
     /** 解冻积分（释放预扣） */
     void unfreeze(Long userId, long amount, String bizId);
+
+    /** 获取账户详情（余额/冻结/累计） */
+    CreditAccount getAccount(Long userId);
+
+    /** 分页查询流水 */
+    org.springframework.data.domain.Page<CreditTransaction> getTransactions(Long userId, org.springframework.data.domain.Pageable pageable);
 }

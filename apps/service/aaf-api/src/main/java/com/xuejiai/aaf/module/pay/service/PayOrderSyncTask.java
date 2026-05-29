@@ -51,7 +51,7 @@ public class PayOrderSyncTask {
             order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
             order.setSuccessTime(LocalDateTime.now());
             payOrderRepository.save(order);
-            rechargeService.onPaySuccess(order.getId(), order.getAmount());
+            rechargeService.onPaySuccess(order.getId());
             log.info("轮询发现支付成功: merchantOrderNo={}", order.getMerchantOrderNo());
         } else if (status == PayStatus.CLOSED) {
             order.setStatus(PayOrderStatusEnum.CLOSED.getCode());

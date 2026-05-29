@@ -44,7 +44,7 @@ public class PayOrderController {
     public Result<Void> notify(@Valid @RequestBody PayNotifyDTO dto) {
         var payOrderId = payOrderService.handleNotify(dto);
         if (payOrderId != null) {
-            rechargeService.onPaySuccess(payOrderId, 0);
+            rechargeService.onPaySuccess(payOrderId);
         }
         return Result.success();
     }

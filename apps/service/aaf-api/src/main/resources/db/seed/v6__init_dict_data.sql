@@ -131,6 +131,7 @@ ON CONFLICT DO NOTHING;
 
 -- pay_channel_code 支付渠道
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('pay_channel_code', '模拟支付',         'MOCK',      0,  'default'),
 ('pay_channel_code', '微信公众号支付',   'wx_pub',    1,  'success'),
 ('pay_channel_code', '微信小程序支付',   'wx_lite',   2,  'success'),
 ('pay_channel_code', '微信 App 支付',    'wx_app',    3,  'success'),

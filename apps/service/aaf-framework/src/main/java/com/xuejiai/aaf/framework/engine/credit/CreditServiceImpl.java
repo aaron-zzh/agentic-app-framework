@@ -107,6 +107,23 @@ public class CreditServiceImpl implements CreditService {
         log.info("积分解冻: userId={}, amount={}, bizId={}", userId, amount, bizId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public CreditAccount getAccount(Long userId) {
+        return accountRepository.findByUserId(userId).orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<CreditTransaction> getTransactions(
+            Long userId, org.springframework.data.domain.Pageable pageable) {
+        var account = accountRepository.findByUserId(userId).orElse(null);
+        if (account == null) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        return transactionRepository.findByAccountId(account.getId(), pageable);
+    }
+
     /** 获取或创建账户（悲观锁保证并发安全） */
     private CreditAccount getOrCreateAccount(Long userId) {
         return accountRepository

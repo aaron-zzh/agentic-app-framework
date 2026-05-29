@@ -42,14 +42,14 @@ public class RechargeService {
 
         // 如果支付已同步成功（MOCK 渠道），直接触发积分入账
         if (payOrderService.isSuccess(payOrder.id())) {
-            onPaySuccess(payOrder.id(), amount);
+            onPaySuccess(payOrder.id());
         }
         return payOrder;
     }
 
-    /** 充值成功回调：积分入账 */
+    /** 充值成功回调：积分入账（从 PayOrder 获取金额） */
     @Transactional
-    public void onPaySuccess(Long payOrderId, long amount) {
+    public void onPaySuccess(Long payOrderId) {
         var bizOrder = bizOrderService.findByPayOrderId(payOrderId);
         if (bizOrder == null) {
             log.warn("支付成功但未找到关联业务订单: payOrderId={}", payOrderId);
@@ -60,8 +60,8 @@ public class RechargeService {
         }
         // 标记业务订单已支付
         bizOrderService.markPaid(bizOrder.getId());
-        // 积分入账
-        creditService.earn(bizOrder.getUserId(), amount, "RECHARGE", bizOrder.getOrderNo());
-        log.info("充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), amount);
+        // 积分入账（金额从业务订单获取）
+        creditService.earn(bizOrder.getUserId(), bizOrder.getTotalAmount(), "RECHARGE", bizOrder.getOrderNo());
+        log.info("充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), bizOrder.getTotalAmount());
     }
 }

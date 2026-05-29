@@ -26,6 +26,13 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     }
 
     @Override
+    public PayResult withdraw(WithdrawRequest request) {
+        log.info("模拟提现: outTradeNo={}, amount={}", request.outTradeNo(), request.amount());
+        var channelOrderNo = "MOCK_W_" + UUID.randomUUID().toString().replace("-", "").substring(0, 14);
+        return new PayResult(true, request.outTradeNo(), channelOrderNo, "模拟提现成功");
+    }
+
+    @Override
     public RefundResult refund(RefundRequest request) {
         log.info("模拟退款: refundNo={}, amount={}", request.refundNo(), request.amount());
         return new RefundResult(true, request.refundNo(), "模拟退款成功");

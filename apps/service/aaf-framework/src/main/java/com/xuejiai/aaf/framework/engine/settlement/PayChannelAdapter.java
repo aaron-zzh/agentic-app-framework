@@ -9,6 +9,9 @@ public interface PayChannelAdapter {
     /** 发起支付 */
     PayResult charge(ChargeRequest request);
 
+    /** 发起提现打款 */
+    PayResult withdraw(WithdrawRequest request);
+
     /** 发起退款 */
     RefundResult refund(RefundRequest request);
 

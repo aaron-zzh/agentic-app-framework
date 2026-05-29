@@ -33,13 +33,14 @@ public class DefaultSettlementEngine implements SettlementEngine {
     }
 
     @Override
+    public PayResult withdraw(WithdrawRequest request) {
+        var adapter = getAdapter(request.channelCode());
+        return adapter.withdraw(request);
+    }
+
+    @Override
     public RefundResult refund(RefundRequest request) {
-        // 退款时需要根据原订单找到渠道，此处简化为使用 MOCK
-        var adapter =
-                adapterMap.values().stream()
-                        .findFirst()
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "无可用支付渠道"));
+        var adapter = getAdapter(request.channelCode());
         return adapter.refund(request);
     }
 
