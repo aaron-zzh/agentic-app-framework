@@ -19,6 +19,7 @@
     "file://docs/design/adr/ADR-006-agentscope-first-llm-path.md",
     "file://docs/design/apps/service/tech-stack.md",
     "file://docs/design/apps/service/module-structure.md",
+    "file://docs/design/framework/component-overview.md",
     "file://docs/task/_template/dev-log.md",
     "skill://.kiro/skills/coding-standards/SKILL.md",
     "skill://docs/reference/team/skills/guard/SKILL.md"
