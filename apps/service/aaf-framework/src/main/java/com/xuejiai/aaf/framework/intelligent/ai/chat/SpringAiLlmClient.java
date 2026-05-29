@@ -6,6 +6,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Flux;
 
 /** LlmClient 实现——委托 ResilientChatService（Spring AI）。 */
 @Component
+@ConditionalOnProperty(name = "aaf.llm.mock", havingValue = "false", matchIfMissing = true)
 @RequiredArgsConstructor
 public class SpringAiLlmClient implements LlmClient {
 

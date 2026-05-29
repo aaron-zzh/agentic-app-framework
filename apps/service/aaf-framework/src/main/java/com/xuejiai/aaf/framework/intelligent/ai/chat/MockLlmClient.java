@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
@@ -21,10 +21,10 @@ import reactor.core.publisher.Flux;
  *   <li>自定义生成器：通过 {@link #setGenerator(Function)} 注入响应生成逻辑</li>
  * </ul>
  *
- * <p>激活方式：{@code --spring.profiles.active=mock}
+ * <p>激活方式：{@code aaf.llm.mock=true}
  */
 @Component
-@Profile("mock")
+@ConditionalOnProperty(name = "aaf.llm.mock", havingValue = "true")
 public class MockLlmClient implements LlmClient {
 
     private final Map<String, String> presets = new ConcurrentHashMap<>();
