@@ -1,0 +1,61 @@
+package com.xuejiai.aaf.module.pay.service;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
+import com.xuejiai.aaf.module.pay.vo.BizOrderVO;
+import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
+import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/** 充值业务编排：创建业务订单 → 创建支付单 → 支付成功回调 → 积分入账 */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class RechargeService {
+
+    private final BizOrderService bizOrderService;
+    private final PayOrderService payOrderService;
+    private final CreditService creditService;
+
+    /** 发起充值：创建业务订单 + 支付单 */
+    @Transactional
+    public PayOrderVO initiateRecharge(Long userId, long amount, String channelCode) {
+        // 创建业务订单
+        var bizOrder =
+                bizOrderService.create(
+                        userId, new BizOrderCreateDTO("RECHARGE", "积分充值", amount, channelCode));
+
+        // 创建支付单
+        var payOrder =
+                payOrderService.create(
+                        new PayOrderCreateDTO(
+                                bizOrder.orderNo(), "积分充值", null, amount, channelCode, userId));
+
+        // 关联支付单
+        bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
+        return payOrder;
+    }
+
+    /** 充值成功回调：积分入账 */
+    @Transactional
+    public void onPaySuccess(Long payOrderId, long amount) {
+        var bizOrder = bizOrderService.findByPayOrderId(payOrderId);
+        if (bizOrder == null) {
+            log.warn("支付成功但未找到关联业务订单: payOrderId={}", payOrderId);
+            return;
+        }
+        if (!"RECHARGE".equals(bizOrder.getOrderType())) {
+            return;
+        }
+        // 标记业务订单已支付
+        bizOrderService.markPaid(bizOrder.getId());
+        // 积分入账
+        creditService.earn(bizOrder.getUserId(), amount, "RECHARGE", bizOrder.getOrderNo());
+        log.info("充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), amount);
+    }
+}

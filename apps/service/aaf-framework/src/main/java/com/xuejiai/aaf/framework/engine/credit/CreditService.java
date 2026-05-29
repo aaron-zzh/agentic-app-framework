@@ -1,15 +1,27 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
 /**
- * 积分服务——管理用户积分余额和扣减。
+ * 积分服务——管理用户积分余额、赚取、消费、冻结。
  *
- * <p>对齐设计图"Agent 池化 × 模型选择 × 积分预算"中的 CreditService.deduct 节点。 P2 占位：当前默认实现视为无限余额，后续对接会员/充值系统。
+ * <p>积分单位为"分"（最小不可分割单位），所有金额均为 long 类型。
  */
 public interface CreditService {
 
+    /** 获取可用余额（不含冻结） */
     long getBalance(Long userId);
 
+    /** 预算检查：可用余额是否 >= estimatedCost */
     boolean hasBudget(Long userId, long estimatedCost);
 
-    void deduct(Long userId, long amount, String reason);
+    /** 赚取积分 */
+    void earn(Long userId, long amount, String source, String bizId);
+
+    /** 消费积分 */
+    void spend(Long userId, long amount, String source, String bizId);
+
+    /** 冻结积分（预扣） */
+    void freeze(Long userId, long amount, String bizId);
+
+    /** 解冻积分（释放预扣） */
+    void unfreeze(Long userId, long amount, String bizId);
 }

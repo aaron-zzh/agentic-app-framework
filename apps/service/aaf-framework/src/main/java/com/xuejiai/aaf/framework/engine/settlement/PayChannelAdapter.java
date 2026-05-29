@@ -1,11 +1,10 @@
 package com.xuejiai.aaf.framework.engine.settlement;
 
-/**
- * 结算引擎——支付发起、退款、状态查询。
- *
- * <p>通过 PayChannelAdapter 适配不同支付渠道。
- */
-public interface SettlementEngine {
+/** 支付渠道适配器接口 */
+public interface PayChannelAdapter {
+
+    /** 该适配器支持的渠道编码 */
+    String channelCode();
 
     /** 发起支付 */
     PayResult charge(ChargeRequest request);
