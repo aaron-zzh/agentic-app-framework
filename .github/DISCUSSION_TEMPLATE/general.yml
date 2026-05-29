@@ -1,0 +1,26 @@
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎参与 AAF 社区讨论！请在下方描述你想讨论的话题。
+  - type: textarea
+    id: topic
+    attributes:
+      label: 讨论话题
+      description: 描述你想讨论的内容
+      placeholder: 你的想法、建议、经验分享...
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: 分类
+      options:
+        - 使用经验分享
+        - 架构讨论
+        - 最佳实践
+        - 生态集成
+        - 其他
+    validations:
+      required: true
