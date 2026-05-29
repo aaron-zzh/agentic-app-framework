@@ -124,4 +124,4 @@ AAF 存在两条 LLM 调用路径：路径 A（Spring AI：ResilientChatService 
 
 - 前置决策：[ADR-005](ADR-005-agentscope-integration-strategy.md) — AgentScope 整合策略（薄门面 + 委托）
 - 相关设计：[execution-flow.md](../framework/execution-flow.md) — 两条 LLM 调用路径章节
-- 相关设计：[execution-flow-diagram.md](../framework/execution-flow-diagram.md) — 路径可视化
+- 相关设计：[execution-flow.md](../framework/execution-flow.md) — 路径可视化

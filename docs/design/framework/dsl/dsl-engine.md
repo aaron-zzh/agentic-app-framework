@@ -12,7 +12,7 @@ author: AaronZZH
 
 > Magic-DSL 的后端解析与执行引擎。负责 L1→L2→L3 层间转化、置信度门控、执行路由。
 > 语言设计：[magic-dsl.md](./magic-dsl.md) | 前端运行时：[dsl-runtime.md](./dsl-runtime.md)
-> 所属体系：[元引擎](../../framework/meta-engine.md)
+> 所属体系：[元引擎](../engine/meta/meta-engine.md)
 
 ## 一、定位
 

@@ -113,3 +113,22 @@ C2. 是否是"通知"性质（发生了某事，不关心谁处理）？
 - Entity 的 `password`、`secret` 等敏感字段必须标注 `@JsonIgnore`
 - 禁止在日志中输出敏感信息
 - 数据库连接信息禁止硬编码在代码中
+
+
+## ArchUnit 守护规则（待激活）
+
+以下规则在 Maven 拆分完成 + P2.3 阶段激活 `LayeringTest.java`：
+
+```java
+// 智能层不直接访问数据库
+noClasses().that().resideInPackage("..intelligent..")
+    .should().accessClassesThat().resideInPackage("..repository..")
+
+// 引擎层不调用智能层
+noClasses().that().resideInPackage("..engine..")
+    .should().accessClassesThat().resideInPackage("..intelligent..")
+
+// common 无 Spring Bean
+noClasses().that().resideInPackage("..common..")
+    .should().beAnnotatedWith(Component.class)
+```

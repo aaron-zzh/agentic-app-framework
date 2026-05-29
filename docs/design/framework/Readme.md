@@ -31,29 +31,29 @@ framework/
 
 | 文档 | 说明 |
 |------|------|
-| [architecture-detail.md](architecture-detail.md) | 架构细化（组件关系图、代码架构全景、模块边界） |
-| [meta-engine.md](meta-engine.md) | 元引擎核心设计（调度、状态、上下文、置信度门控） |
-| [personalization.md](personalization.md) | 用户感知与个性化（记忆管道、上下文、状态管理协同） |
+| [AgentScope 整合](intelligent/agentscope-integration.md) | AgentScope 整合策略、编排模式映射 |
+| [meta-engine.md](engine/meta/meta-engine.md) | 元引擎核心设计（调度、状态、上下文、置信度门控） |
+| [personalization.md](intelligent/cognition/personalization.md) | 用户感知与个性化（记忆管道、上下文、状态管理协同） |
 
 ### 核心智能 `core/`
 
 | 文档 | 说明 |
 |------|------|
-| [agent.md](intelligent/agent.md) | 智能体系统设计（五层智能架构总览） |
-| [cognition.md](intelligent/cognition.md) | 认知层设计（Layer 1 Cognition，Memory/Knowledge/Value/Retrieval） |
+| [agent.md](intelligent/architecture.md) | 智能体系统设计（五层智能架构总览） |
+| [cognition.md](intelligent/cognition/cognition.md) | 认知层设计（Layer 1 Cognition，Memory/Knowledge/Value/Retrieval） |
 | [operator.md](operator.md) | Operator 操作者模型设计 |
 
 ### 专项引擎 `engine/`
 
 | 文档                                                                | 说明 |
 |-------------------------------------------------------------------|------|
-| [atom-memory.md](engine/atom-memory.md)             | AtomMemory 原子记忆引擎（支撑 Cognition.Memory） |
-| [nexus-knowledge.md](engine/nexus-knowledge.md)                   | NexusKB 连接式知识引擎（支撑 Cognition.Knowledge） |
-| [semantic-compute.md](engine/semantic-compute.md)         | SemanticCalc 语义计算引擎（横切支撑 Cognition/Learning/Agent） |
-| [data-process.md](engine/data-process.md)           | DataProcess 数据处理分析引擎（v2.0 迁移到 actormesh） |
-| [physics-spacetime.md](engine/physics-spacetime.md) | PhysicsSpaceTime 物理时空引擎（世界模型 + 语义引力 + 虚拟空间基础） |
-| [auto-dev.md](./auto-dev.md)                                 | AI 自动开发引擎 |
-| [document-engine.md](engine/document-engine.md)                   | 文档引擎设计 |
+| [atom-memory.md](engine/data-knowledge/atom-memory.md)             | AtomMemory 原子记忆引擎（支撑 Cognition.Memory） |
+| [nexus-knowledge.md](engine/data-knowledge/nexus-knowledge.md)                   | NexusKB 连接式知识引擎（支撑 Cognition.Knowledge） |
+| [semantic-compute.md](engine/data-knowledge/semantic-compute.md)         | SemanticCalc 语义计算引擎（横切支撑 Cognition/Learning/Agent） |
+| [data-process.md](engine/data-knowledge/data-process-engine.md)           | DataProcess 数据处理分析引擎（v2.0 迁移到 actormesh） |
+| [physics-spacetime.md](engine/ecosystem/physics-spacetime.md) | PhysicsSpaceTime 物理时空引擎（世界模型 + 语义引力 + 虚拟空间基础） |
+| [auto-dev.md](auto-dev/auto-dev.md)                                 | AI 自动开发引擎 |
+| [document-engine.md](engine/content/document-engine.md)                   | 文档引擎设计 |
 | [magic-dsl.md](./dsl/magic-dsl.md)                                | DSL 设计（占位） |
 
 ### 安全与权限 `security/`

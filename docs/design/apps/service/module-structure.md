@@ -13,7 +13,7 @@ gains:
 
 # 后端模块结构（service）
 
-> 完整包结构和组件关系见 [architecture-detail.md](../../framework/architecture-detail.md)，本文档聚焦"新代码放哪里"的判断指南。
+> 完整包结构和组件关系见 [项目结构](../../../project-structure.md)，本文档聚焦"新代码放哪里"的判断指南。
 
 ## 设计原则
 

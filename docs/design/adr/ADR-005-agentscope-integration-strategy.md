@@ -92,7 +92,7 @@ AAF 智能层（Layer 3）已自研了 `CognitiveCycleExecutor`、`TeamOrchestra
 
 ## More Information
 
-- 相关设计文档：[architecture-detail.md](../architecture-detail.md) — AgentScope 整合策略章节
+- 相关设计文档：[AgentScope 整合策略](../framework/intelligent/agentscope-integration.md)
 - 后续动作：
   1. 引入 `agentscope-agui-spring-boot-starter`，删除自研 `AgUiStreamHandler`
   2. 引入 `agentscope-a2a-spring-boot-starter`，补全 `A2AProtocolService`

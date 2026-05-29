@@ -15,7 +15,7 @@ changelog:
 
 > Magic-DSL 是 AAF 的核心语言，贯穿开发时和运行时。它是人类的规范文档、AI 的生成目标、系统的执行程序。
 > 前端运行时实现：[dsl-runtime.md](dsl-runtime.md) | 后端引擎实现：[dsl-engine.md](dsl-engine.md)
-> 所属体系：[元引擎](../meta-engine.md) | [对话式交互](../../apps/webui/tmp/conversational-interaction.md)
+> 所属体系：[元引擎](../engine/meta/meta-engine.md) | [对话式交互](../../apps/webui/tmp/conversational-interaction.md)
 
 ## 一、定位
 

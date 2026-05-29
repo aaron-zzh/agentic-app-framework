@@ -23,6 +23,6 @@
 
 ## 相关文档
 
-- [元引擎设计](../meta-engine.md)
+- [元引擎设计](../engine/meta/meta-engine.md)
 - [页面引擎设计](../../apps/webui/page-engine.md)
 - [结构化交互模式](../../apps/webui/interaction-mode-structured-view.md)

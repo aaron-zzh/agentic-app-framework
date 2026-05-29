@@ -136,3 +136,25 @@
 ---
 
 <!-- 后续任务追加到下方 -->
+
+## 智能层代码-文档对齐审查
+
+✅ 05-29 — developer-service
+
+- 对比 6 份技术方案文档与实际代码，更新 4 份文档匹配代码实现
+- 关键差异：AgentRuntime 接口抽象（代码更好）、Team 层规范容器设计（代码更好）、Session 适配器为静态工厂（代码更好）
+- 文档已更新：agent-tech.md / assistant-tech.md / team-tech.md / retrieval-tech.md / agentscope-integration.md
+
+> **待实现清单**（文档设计有但代码未实现）：
+> - `AafLongTermMemory`（实现 AgentScope LongTermMemory 接口，委托 AAF 记忆管道）
+> - `AafKnowledge`（实现 AgentScope Knowledge 接口，委托 HybridSearchService）
+> - `AafConfidenceHook`（PostReasoningEvent 置信度评估）
+> - `AafToolWhitelistHook`（PreActingEvent 工具白名单，当前由 ToolPermissionGuard 实现但未接入 Hook 体系）
+> - `AafTraceHook`（PostCallEvent 输出溯源）
+> - `InputBuffer`（Assistant 输入缓冲区）
+> - `TaskBoard`（Assistant 任务看板）
+> - `GoalTracker`（Team 目标级任务管理，v0.6+）
+> - AgentScope `agentscope-agui-spring-boot-starter` 引入（替换 AguiAdapter 骨架）
+> - AgentScope `agentscope-a2a-spring-boot-starter` 引入（补全远程 A2A 调用）
+
+> **沉淀**：代码引入了 `AgentRuntime` 接口层，比文档原设计（AgentFactory 直接构建 ReActAgent）更好——实现了框架无关抽象，切换底层 Agent 框架只需替换 Bean。文档已同步更新。

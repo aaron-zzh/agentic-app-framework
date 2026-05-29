@@ -100,3 +100,34 @@ agentic-app-framework/                  # Nx monorepo 根目录
 | `reference/` | 参考 | 开发规范、内容规范、团队协作规范 |
 | `prd/` | 需求 | 需求管理、路线图、用户反馈、改进意见 |
 | `task/` | 任务 | backlog（唯一待办来源）、迭代任务、工作日志 |
+
+
+## aaf-api 包结构
+
+```text
+com.xuejiai.aaf/
+├── AafApplication.java             启动入口
+├── config/                         应用级配置（TenantFilter/CORS/WebSocket/OpenAPI）
+├── module/                         业务模块（按功能域隔离）
+│   ├── system/                     系统模块（user/auth/role/org/notify/log/chat/entity/workflow/task/dashboard）
+│   ├── agent/                      Agent 管理
+│   ├── assistant/                  助手管理
+│   ├── knowledge/                  知识库管理
+│   ├── model/                      模型管理
+│   ├── document/                   文档模块
+│   └── [自定义业务模块]/
+├── security/                       应用级安全
+└── util/                           应用级工具
+```
+
+## aaf-common 包结构
+
+```text
+com.xuejiai.aaf.common/
+├── constant/                       全局常量
+├── exception/                      异常体系（AafException、ErrorCode）
+├── util/                           工具类（无 Spring 依赖）
+├── model/                          Result<T>、PageInfo<T>
+├── enums/                          通用枚举
+└── annotation/                     通用注解（@OperationLog、@Trans 等）
+```

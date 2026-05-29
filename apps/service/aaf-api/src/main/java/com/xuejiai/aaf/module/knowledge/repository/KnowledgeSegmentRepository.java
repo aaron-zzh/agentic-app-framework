@@ -14,4 +14,6 @@ import com.xuejiai.aaf.module.knowledge.domain.KnowledgeSegment;
 public interface KnowledgeSegmentRepository extends JpaRepository<KnowledgeSegment, Long> {
 
     Page<KnowledgeSegment> findByDocumentId(Long documentId, Pageable pageable);
+
+    java.util.List<KnowledgeSegment> findByKnowledgeBaseId(Long knowledgeBaseId);
 }

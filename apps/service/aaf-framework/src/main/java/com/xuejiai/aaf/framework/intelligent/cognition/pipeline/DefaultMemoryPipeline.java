@@ -7,6 +7,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.retrieval.UnifiedRetrieva
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryContext;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryPipeline;
 import com.xuejiai.aaf.framework.intelligent.core.memory.PipelineInput;
+import com.xuejiai.aaf.framework.intelligent.core.memory.RetrievalPipeline;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DefaultMemoryPipeline implements MemoryPipeline {
+public class DefaultMemoryPipeline implements MemoryPipeline, RetrievalPipeline {
 
     private final ShortTermMemoryService shortTermMemory;
     private final UnifiedRetrievalService unifiedRetrieval;
