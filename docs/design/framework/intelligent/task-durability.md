@@ -190,13 +190,73 @@ WHERE status='running' AND update_time < now() - interval '10 minutes'
 
 ## 与五层架构对齐
 
+### 各层任务管理完整链路
+
+```text
+Layer 4  Team（v0.6+）
+  GoalTracker：目标级，持久化到 DB
+  目标拆分为子目标 → 分发给多个 Assistant
+
+Layer 3  Assistant 主实例
+  TaskBoard：子任务级，内存 + Checkpoint 持久化
+  子目标拆分为子任务 → fork 多子实例并行 → join 聚合
+  InputBuffer：执行期接收追加输入
+  Checkpoint：TaskBoard + 会话上下文 + InputBuffer
+
+Layer 3  Assistant 子实例
+  SubTaskContext：当前任务，fork→完成→销毁
+  调度 Agent 执行具体任务
+
+Layer 2  Agent
+  WorkingMemory（PlanNotebook）：步骤级，执行期存在
+  CognitiveCycleExecutor：感知→规划→执行→评估→学习
+  AgentCheckpointService：步骤级检查点 + 指数退避重试
+
+Layer 1  Cognition（不变）
+  被动底座：记忆/知识/价值观/检查点存储
+  Agent 执行前拉取（MemoryPipeline），执行后写回
+```
+
+### 组件委托关系
+
+```text
+DurableTaskExecutor (aaf-api，入口 + 事件日志 + DB 持久化)
+  │
+  ├── TaskBoard (framework，子任务管理 + 依赖 + 快照/恢复)
+  │     └── fork 子实例 → 各自独立执行
+  │
+  ├── CognitiveCycleExecutor (framework，Agent 认知循环)
+  │     ├── AgentCheckpointService (步骤级检查点 + 重试)
+  │     ├── WorkingMemory (注意焦点，执行期)
+  │     └── AgentSandbox (虚拟线程隔离 + 超时)
+  │
+  ├── CheckpointStore (framework/engine，通用检查点持久化)
+  │     └── 实现：PostgreSQL JSONB
+  │
+  ├── TaskEvent → ai_task_event (事件日志，append-only)
+  │     └── SSE 推送给前端 TaskBoardPanel
+  │
+  └── SessionRecoveryService (服务重启恢复)
+        └── 扫描活跃会话 → 加载 Checkpoint → 恢复 TaskBoard
+```
+
+### 可视化（前端已有）
+
+| 组件 | 前端展示 | 数据来源 |
+|------|---------|---------|
+| TaskBoardPanel | 子任务列表 + 进度条 + 依赖关系 + 结果摘要 | SSE 订阅 TaskBoard 状态 |
+| RecoveryNotification | 恢复通知 | SessionRecoveredEvent |
+| TaskEvent 日志 | 事件时间线（待实现） | GET /api/chat/tasks/{id}/events |
+
+### 持久化层对应
+
 | 架构概念 | 实现组件 |
 |---------|---------|
-| Agent Checkpoint（步骤级） | ai_task_checkpoint (scope=agent_step) |
-| Assistant TaskBoard | coordinator checkpoint 中的 taskBoard |
-| Assistant Checkpoint（会话级） | ai_task_checkpoint (scope=coordinator) |
-| WorkingMemory | checkpoint.state_json.workingMemory |
-| 决策日志 | ai_task_event |
+| Agent Checkpoint（步骤级） | AgentCheckpointService → CheckpointStore |
+| Assistant TaskBoard（会话级） | TaskBoard.toSnapshot() → CheckpointStore |
+| DurableTaskExecutor 事件日志 | ai_task_event（PostgreSQL） |
+| DurableTaskExecutor 执行实例 | ai_task_execution（PostgreSQL） |
+| DurableTaskExecutor 检查点 | ai_task_checkpoint（PostgreSQL） |
 | 置信度门控 → 转人工 | execution status=waiting_approval |
 | InputBuffer | coordinator checkpoint 中的 pendingInputs |
 
