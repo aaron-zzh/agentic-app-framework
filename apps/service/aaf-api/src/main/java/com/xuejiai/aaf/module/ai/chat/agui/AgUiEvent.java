@@ -7,8 +7,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  *
  * <p>每个事件通过 SSE data: 行发送给前端，前端 assistant-ui 组件库按 type 分发处理。
  *
+ * @deprecated 已由 AgentScope 的 {@code io.agentscope.core.agui.event.AguiEvent} 替代。
+ *     新代码请使用 AgentScope AG-UI 端点。保留此类用于兼容旧接口。
  * @author AaronZZH & Kiro
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AgUiEvent(
         AgUiEventType type,

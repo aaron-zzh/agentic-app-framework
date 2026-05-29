@@ -50,6 +50,19 @@ aaf:
   a2a:
     engine: local # local（内存直调） | agentscope（标准 A2A 协议）
 
+# AgentScope AG-UI 配置
+agentscope:
+  agui:
+    path-prefix: /agui
+    cors-enabled: true
+    cors-allowed-origins: ["*"]
+    emit-state-events: true
+    emit-tool-call-args: true
+    enable-reasoning: true
+    default-agent-id: default
+    server-side-memory: true
+    sse-timeout: 300000
+
 management:
   endpoints:
     web:

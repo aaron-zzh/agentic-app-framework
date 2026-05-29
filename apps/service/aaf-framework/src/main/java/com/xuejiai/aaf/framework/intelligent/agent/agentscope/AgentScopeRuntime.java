@@ -36,6 +36,16 @@ public class AgentScopeRuntime implements AgentRuntime {
 
     @Override
     public AgentExecutor create(AgentDefinition definition, List<String> tools) {
+        var agent = buildReActAgent(definition);
+        return new AgentScopeAgentAdapter(agent);
+    }
+
+    /** 创建原始 AgentScope Agent（供 AG-UI Registry 直接注册）。 */
+    public io.agentscope.core.agent.Agent createRaw(AgentDefinition definition) {
+        return buildReActAgent(definition);
+    }
+
+    private ReActAgent buildReActAgent(AgentDefinition definition) {
         var builder =
                 ReActAgent.builder()
                         .name(definition.getName())
@@ -45,7 +55,7 @@ public class AgentScopeRuntime implements AgentRuntime {
         configureModel(builder, definition);
         builder.toolkit(mcpToolService.buildToolkit(definition));
 
-        return new AgentScopeAgentAdapter(builder.build());
+        return builder.build();
     }
 
     private void configureModel(ReActAgent.Builder builder, AgentDefinition definition) {

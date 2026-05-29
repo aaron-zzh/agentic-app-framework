@@ -16,8 +16,11 @@ import reactor.core.publisher.Flux;
 /**
  * 将 Spring AI 的 Flux&lt;ChatResponse&gt; 转换为 AG-UI 协议事件流
  *
+ * @deprecated 已由 agentscope-agui-spring-boot-starter 替代。
+ *     新代码请使用 AgentScope AG-UI 端点 /agui/runs。保留此类用于兼容旧接口。
  * @author AaronZZH & Kiro
  */
+@Deprecated(since = "0.1.0", forRemoval = false)
 @Slf4j
 @Component
 @RequiredArgsConstructor
