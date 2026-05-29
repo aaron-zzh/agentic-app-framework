@@ -689,3 +689,125 @@ Phase 2+ 结构化存储的 14 张核心表 + 4 张 AAF 特有表。仅列关键
 这是 AAF 元引擎思想的首个具体落地：**"用 AAF 的核心能力开发 AAF 本身"**，工具与产品同源，规范即共识。
 
 当 v2.0 开放给 AAF 框架用户时，他们看到的控制台界面 / 数据模型 / 交互模式，就是 AAF 作者过去一年用过的同一套——经过实战打磨过的工具，不需要从零设计产品。
+
+---
+
+## 10. AI 协作开发（DevWorkspace）
+
+> EntityDef 是视图抽象，不是表映射。AI 参与每个环节：生成定义 → 映射存储 → 生成代码 → 补充业务 → 验证部署。
+
+### 10.1 EntityDef 三层含义
+
+```text
+视图层（EntityDef.config）
+  "用户看到什么"——字段/表单/列表/看板/子表
+  一个 EntityDef 可以：映射部分字段 / 映射多张表 / 不映射任何表 / 映射通用 JSONB
+
+存储层（EntityDef.config.storage）
+  "数据怎么存"——表名/关联/外键/索引
+  mode: typed | generic | virtual
+
+实现层（Java 代码 / GenericEntityController）
+  "逻辑怎么跑"——校验/状态机/事件/权限
+```
+
+### 10.2 storage 配置
+
+```json
+{
+  "storage": {
+    "mode": "typed",
+    "table": "biz_order",
+    "relations": [
+      { "field": "items", "type": "oneToMany", "targetTable": "biz_order_item", "foreignKey": "order_id", "cascade": ["persist", "remove"] }
+    ],
+    "indexes": [
+      { "fields": ["user_id"], "condition": "deleted = FALSE" },
+      { "fields": ["order_no"], "unique": true }
+    ]
+  }
+}
+```
+
+| mode | 含义 | 适用场景 |
+|------|------|---------|
+| `typed` | 映射到强类型 JPA 实体（需生成代码） | 复杂业务逻辑的核心模块 |
+| `generic` | 映射到通用 JSONB 存储（GenericEntityController） | 快速原型、配置类实体 |
+| `virtual` | 不持久化，聚合多源数据的只读视图 | 仪表盘、统计视图 |
+
+### 10.3 统一对话流
+
+两种模式在同一个 AI 对话中自动切换：
+
+```text
+用户发起对话（Chatter preset="kiro", agentRole="auto-dev"）
+  ├─ "帮我创建一个订单模块"          → 流程驱动（Pipeline 自动执行）
+  └─ "订单支付成功后要触发积分入账"   → 对话驱动（Agent 自主规划）
+```
+
+### 10.4 DevWorkspace 前端布局
+
+```text
+┌──────────────────┐  ┌──────────────────────────────┐
+│  DevChatter      │  │  PreviewPanel                │
+│  (对话面板)       │  │  Tab: Preview | Code | Task  │
+│  preset="kiro"   │  │  · EntityDef 表单实时预览     │
+│  agentRole=      │  │  · 生成代码 diff              │
+│    "auto-dev"    │  │  · 迁移脚本预览               │
+│  + 确认/审批按钮  │  │  · Pipeline 任务状态          │
+└──────────────────┘  └──────────────────────────────┘
+```
+
+### 10.5 全链路 Pipeline
+
+```text
+① EntityDef 生成（AI 辅助）
+   输入：自然语言 / 已有表结构 / 参考文档
+   → AI 生成 EntityDef JSON → PreviewPanel 实时渲染 → 用户确认
+
+② 存储映射 & 迁移生成
+   → MigrationGenerator 对比当前 schema → 增量 DDL → 确认后写入 db/migration/
+
+③ 代码生成（模板 + AI 补充）
+   → CodegenService 生成骨架 → AI Enricher 补充业务逻辑 → 确认后写入源码
+
+④ 验证 & 部署
+   → 编译 + 单测 + Lint → 开发环境热加载 / 测试环境 CI / 生产 PR
+```
+
+### 10.6 Kiro Skills
+
+| Skill | 触发条件 | 输出 |
+|-------|---------|------|
+| `entity-def-generator` | "创建实体/模块" | EntityDef JSON |
+| `migration-generator` | EntityDef 确认后 | SQL 迁移脚本 |
+| `code-generator` | 迁移确认后 | Java 代码文件 |
+| `ai-enricher` | 骨架生成后 | 补充业务逻辑的完整代码 |
+| `sandbox-validator` | 代码确认后 | 编译/测试结果 |
+| `hot-deployer` | 验证通过后 | 部署状态 |
+
+### 10.7 AG-UI 事件流扩展
+
+```text
+DevEvent:
+  ENTITY_DEF_PREVIEW | MIGRATION_PREVIEW | CODE_PREVIEW
+  TASK_STATUS | DEPLOY_LOG | CONFIRM_REQUIRED
+```
+
+### 10.8 与协作控制台的关系
+
+```text
+协作控制台（/console）：观察 + 审核（只读为主）
+DevWorkspace（/dev）：创作 + 执行（读写）
+共享：任务状态 / AG-UI 事件流 / 置信度门控
+```
+
+### 10.9 实现优先级
+
+| 阶段 | 内容 | 版本 |
+|------|------|------|
+| P0 | EntityDef storage 配置 + MigrationGenerator | v0.2 |
+| P1 | CodegenService 子表支持 + AI Enricher Skill | v0.3 |
+| P2 | DevWorkspace 前端（Chatter + PreviewPanel） | v0.4 |
+| P3 | 热部署 + 自动修复循环 | v0.5 |
+| P4 | 完整 Pipeline 自动化（无人值守模式） | v0.6 |
