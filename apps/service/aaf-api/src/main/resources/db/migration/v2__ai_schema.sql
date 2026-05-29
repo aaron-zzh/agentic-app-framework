@@ -792,3 +792,33 @@ COMMENT ON COLUMN ai_assistant.delegator_id IS '委托者 ID（权限继承来�
 COMMENT ON COLUMN ai_assistant.permission_scope IS '权限边界配置（JSON）';
 
 UPDATE ai_assistant SET delegator_id = user_id WHERE delegator_id IS NULL;
+
+
+-- ============================================================
+-- AI 对话任务队列
+-- ============================================================
+
+CREATE TABLE ai_chat_task (
+    id              BIGSERIAL       PRIMARY KEY,
+    session_id      BIGINT          NOT NULL,
+    creator_id      BIGINT          NOT NULL,
+    title           VARCHAR(500)    NOT NULL,
+    description     TEXT,
+    status          VARCHAR(20)     NOT NULL DEFAULT 'pending',
+    priority        INTEGER         DEFAULT 0,
+    sort_order      INTEGER         DEFAULT 0,
+    result          TEXT,
+    deleted         BOOLEAN         NOT NULL DEFAULT FALSE,
+    delete_time     TIMESTAMP,
+    create_time     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_chat_task_session ON ai_chat_task(session_id, status, priority, sort_order);
+
+COMMENT ON TABLE ai_chat_task IS 'AI 对话任务队列——与会话关联的持久化任务列表';
+COMMENT ON COLUMN ai_chat_task.session_id IS '所属会话 ID';
+COMMENT ON COLUMN ai_chat_task.status IS '状态：pending/running/done/failed/cancelled';
+COMMENT ON COLUMN ai_chat_task.priority IS '优先级（数值越小越优先）';
+COMMENT ON COLUMN ai_chat_task.sort_order IS '同优先级内排序序号';
+COMMENT ON COLUMN ai_chat_task.result IS '助理处理结果摘要';
