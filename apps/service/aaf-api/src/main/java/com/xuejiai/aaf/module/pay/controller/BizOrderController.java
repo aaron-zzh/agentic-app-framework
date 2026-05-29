@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.pay.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
@@ -8,6 +10,7 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
+import com.xuejiai.aaf.module.pay.vo.BizOrderItemVO;
 import com.xuejiai.aaf.module.pay.vo.BizOrderVO;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,5 +46,11 @@ public class BizOrderController {
     @GetMapping("/{id}")
     public Result<BizOrderVO> getById(@PathVariable Long id) {
         return Result.success(bizOrderService.getById(id));
+    }
+
+    @Operation(summary = "查询订单明细行")
+    @GetMapping("/{id}/items")
+    public Result<List<BizOrderItemVO>> getItems(@PathVariable Long id) {
+        return Result.success(bizOrderService.getItems(id));
     }
 }
