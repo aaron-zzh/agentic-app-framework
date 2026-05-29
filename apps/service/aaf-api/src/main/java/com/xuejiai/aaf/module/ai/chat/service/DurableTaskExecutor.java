@@ -41,6 +41,7 @@ public class DurableTaskExecutor {
     private final TaskExecutionRepository executionRepository;
     private final TaskCheckpointRepository checkpointRepository;
     private final TaskEventRepository eventRepository;
+    private final TaskEventStreamService eventStreamService;
     private final CognitiveCycleExecutor cognitiveCycleExecutor;
     private final AgentRegistryService agentRegistry;
     private final ChatService chatService;
@@ -248,7 +249,9 @@ public class DurableTaskExecutor {
 
     @Transactional
     public void emitEvent(Long taskId, Long executionId, String subtaskKey, String type, String payload) {
-        eventRepository.save(TaskEvent.of(taskId, executionId, subtaskKey, type, payload));
+        var event = TaskEvent.of(taskId, executionId, subtaskKey, type, payload);
+        eventRepository.save(event);
+        eventStreamService.broadcast(event);
     }
 
     public List<TaskEvent> getEvents(Long taskId) {
