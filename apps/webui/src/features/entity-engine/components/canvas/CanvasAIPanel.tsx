@@ -5,7 +5,7 @@
 
 "use client"
 
-import type { Editor } from "@/lib/stubs/tldraw"
+import type { Editor } from "tldraw"
 import { LayoutGrid, Lightbulb, PenTool, Sparkles } from "lucide-react"
 import { useState } from "react"
 

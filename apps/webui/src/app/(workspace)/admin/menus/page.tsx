@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -133,13 +143,13 @@ function MenuTreeRow({
   onEdit: (menu: MenuVO) => void
 }) {
   const [expanded, setExpanded] = useState(true)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const deleteMutation = useDeleteMenu()
   const hasChildren = menu.children.length > 0
 
   const handleDelete = useCallback(() => {
-    if (!confirm(`确定删除菜单「${menu.title}」？`)) return
     deleteMutation.mutate(menu.id, {
-      onSuccess: () => toast.success("删除成功"),
+      onSuccess: () => { toast.success("删除成功"); setDeleteOpen(false) },
       onError: (err) => toast.error(`删除失败: ${err.message}`)
     })
   }, [menu, deleteMutation])
@@ -187,9 +197,23 @@ function MenuTreeRow({
             <Button variant="ghost" size="sm" onClick={() => onEdit(menu)}>
               <Pencil className="size-3.5" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleDelete}>
+            <Button variant="ghost" size="sm" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="size-3.5 text-destructive" />
             </Button>
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确认删除</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    确定删除菜单「{menu.title}」？此操作不可撤销。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setDeleteOpen(false)}>取消</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>删除</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </TableCell>
       </TableRow>

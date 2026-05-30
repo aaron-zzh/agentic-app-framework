@@ -6,7 +6,19 @@
 "use client"
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
+import { toast } from "sonner"
 import { ActionButton } from "@/components/common/ActionButton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { request } from "@/lib/api/client"
@@ -30,6 +42,7 @@ interface ApiKeyListProps {
 
 export function ApiKeyList({ userId: _userId }: ApiKeyListProps) {
   const queryClient = useQueryClient()
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ["api-keys"],
@@ -37,9 +50,14 @@ export function ApiKeyList({ userId: _userId }: ApiKeyListProps) {
   })
 
   async function handleDelete(id: number) {
-    if (!window.confirm("确定删除此 Key？删除后使用该 Key 的服务将无法访问。")) return
-    await request(`/v1/api-keys/${id}`, { method: "DELETE" })
-    queryClient.invalidateQueries({ queryKey: ["api-keys"] })
+    try {
+      await request(`/v1/api-keys/${id}`, { method: "DELETE" })
+      toast.success("API Key 已删除")
+      setDeleteTarget(null)
+      queryClient.invalidateQueries({ queryKey: ["api-keys"] })
+    } catch (err) {
+      toast.error(`删除失败: ${err instanceof Error ? err.message : "未知错误"}`)
+    }
   }
 
   // 生成 Key 的 Action 配置
@@ -99,13 +117,28 @@ export function ApiKeyList({ userId: _userId }: ApiKeyListProps) {
                   )}
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => handleDelete(key.id)}>
+              <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(key.id)}>
                 删除
               </Button>
             </div>
           ))}
         </div>
       )}
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定删除此 Key？删除后使用该 Key 的服务将无法访问。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) handleDelete(deleteTarget) }}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

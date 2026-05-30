@@ -16,7 +16,7 @@ import {
   Tooltip,
   XAxis,
   YAxis
-} from "@/lib/stubs/recharts"
+} from "recharts"
 
 export interface KanbanStatsProps {
   /** 历史快照数据：每个时间点各状态的数量 */

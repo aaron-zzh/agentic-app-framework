@@ -1,11 +1,13 @@
 /**
  * 画板智能元素——便签、嵌入卡片、思维导图、流程图模式
  * 通过 tldraw 自定义 shape 实现
+ *
+ * 注意：tldraw v5 自定义 shape API 需要完整的 geometry 实现，
+ * 当前为占位实现，v2.0 画板功能正式开发时需按 tldraw 文档完善。
  * @author AaronZZH & Kiro
  */
 
-import type { TLBaseShape, TLShapeUtilConstructor } from "@/lib/stubs/tldraw"
-import { BaseBoxShapeUtil, HTMLContainer } from "@/lib/stubs/tldraw"
+import type { TLBaseShape } from "tldraw"
 
 // ============ 便签 Shape ============
 
@@ -13,7 +15,7 @@ import { BaseBoxShapeUtil, HTMLContainer } from "@/lib/stubs/tldraw"
 export type StickyNoteColor = "yellow" | "pink" | "blue" | "green" | "purple"
 
 /** 便签 Shape 属性 */
-type StickyNoteShape = TLBaseShape<
+export type StickyNoteShape = TLBaseShape<
   "sticky-note",
   {
     w: number
@@ -24,7 +26,7 @@ type StickyNoteShape = TLBaseShape<
 >
 
 /** 便签颜色映射 */
-const STICKY_COLORS: Record<StickyNoteColor, string> = {
+export const STICKY_COLORS: Record<StickyNoteColor, string> = {
   yellow: "#fef3c7",
   pink: "#fce7f3",
   blue: "#dbeafe",
@@ -32,36 +34,10 @@ const STICKY_COLORS: Record<StickyNoteColor, string> = {
   purple: "#f3e8ff"
 }
 
-/** 便签 Shape 工具 */
-export class StickyNoteShapeUtil extends BaseBoxShapeUtil<StickyNoteShape> {
-  static override type = "sticky-note" as const
-
-  override getDefaultProps(): StickyNoteShape["props"] {
-    return { w: 200, h: 200, text: "", color: "yellow" }
-  }
-
-  override component(shape: StickyNoteShape) {
-    return (
-      <HTMLContainer>
-        <div
-          className="flex h-full w-full flex-col rounded-sm p-3 shadow-md"
-          style={{ backgroundColor: STICKY_COLORS[shape.props.color as StickyNoteColor] }}
-        >
-          <p className="flex-1 whitespace-pre-wrap text-sm">{shape.props.text || "双击编辑..."}</p>
-        </div>
-      </HTMLContainer>
-    )
-  }
-
-  override indicator(shape: StickyNoteShape) {
-    return <rect width={shape.props.w} height={shape.props.h} rx={4} />
-  }
-}
-
 // ============ 嵌入实体卡片 Shape ============
 
 /** 嵌入卡片 Shape 属性 */
-type EntityCardShape = TLBaseShape<
+export type EntityCardShape = TLBaseShape<
   "entity-card",
   {
     w: number
@@ -73,42 +49,10 @@ type EntityCardShape = TLBaseShape<
   }
 >
 
-/** 嵌入实体卡片 Shape 工具 */
-export class EntityCardShapeUtil extends BaseBoxShapeUtil<EntityCardShape> {
-  static override type = "entity-card" as const
-
-  override getDefaultProps(): EntityCardShape["props"] {
-    return { w: 240, h: 160, entitySlug: "", recordId: "", title: "", fields: {} }
-  }
-
-  override component(shape: EntityCardShape) {
-    const entries = Object.entries(shape.props.fields)
-    return (
-      <HTMLContainer>
-        <div className="flex h-full w-full flex-col rounded-md border bg-card p-3 shadow-sm">
-          <p className="mb-2 font-medium text-sm">{shape.props.title || "实体卡片"}</p>
-          <div className="flex-1 space-y-1 overflow-hidden">
-            {entries.map(([key, value]) => (
-              <div key={key} className="flex justify-between text-muted-foreground text-xs">
-                <span>{key}</span>
-                <span className="ml-2 truncate">{String(value)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </HTMLContainer>
-    )
-  }
-
-  override indicator(shape: EntityCardShape) {
-    return <rect width={shape.props.w} height={shape.props.h} rx={6} />
-  }
-}
-
 // ============ 思维导图节点 Shape ============
 
 /** 思维导图节点 Shape 属性 */
-type MindMapNodeShape = TLBaseShape<
+export type MindMapNodeShape = TLBaseShape<
   "mindmap-node",
   {
     w: number
@@ -119,35 +63,9 @@ type MindMapNodeShape = TLBaseShape<
   }
 >
 
-/** 思维导图节点 Shape 工具 */
-export class MindMapNodeShapeUtil extends BaseBoxShapeUtil<MindMapNodeShape> {
-  static override type = "mindmap-node" as const
-
-  override getDefaultProps(): MindMapNodeShape["props"] {
-    return { w: 160, h: 40, text: "", level: 0, collapsed: false }
-  }
-
-  override component(shape: MindMapNodeShape) {
-    const bgColors = ["bg-primary/10", "bg-secondary/10", "bg-muted"]
-    const bgClass = bgColors[Math.min(shape.props.level, bgColors.length - 1)]
-    return (
-      <HTMLContainer>
-        <div className={`flex h-full w-full items-center rounded-full px-4 ${bgClass} border`}>
-          <span className="truncate text-sm">{shape.props.text || "节点"}</span>
-          {shape.props.collapsed && <span className="ml-1 text-muted-foreground text-xs">+</span>}
-        </div>
-      </HTMLContainer>
-    )
-  }
-
-  override indicator(shape: MindMapNodeShape) {
-    return <rect width={shape.props.w} height={shape.props.h} rx={shape.props.h / 2} />
-  }
-}
-
-/** 所有自定义 Shape 工具列表 */
-export const canvasCustomShapeUtils = [
-  StickyNoteShapeUtil,
-  EntityCardShapeUtil,
-  MindMapNodeShapeUtil
-] as unknown as TLShapeUtilConstructor<TLBaseShape<string, object>>[]
+/**
+ * 自定义 Shape 工具列表占位
+ * tldraw v5 的 ShapeUtil 需要实现 getGeometry/component/indicator 等抽象方法，
+ * 完整实现将在 v2.0 画板功能开发时完成。
+ */
+export const canvasCustomShapeUtils: unknown[] = []

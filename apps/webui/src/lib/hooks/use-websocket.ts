@@ -18,6 +18,8 @@ export interface UseWebSocketOptions {
   onClose?: () => void
   /** 是否启用（默认 true） */
   enabled?: boolean
+  /** 最大重连次数（默认 10，超过后停止重连） */
+  maxRetries?: number
 }
 
 export type WebSocketStatus = "connecting" | "connected" | "disconnected"
@@ -29,12 +31,16 @@ const RECONNECT_MAX = 30000
 /** 心跳间隔（ms） */
 const HEARTBEAT_INTERVAL = 30000
 
+/** 默认最大重连次数 */
+const MAX_RETRIES_DEFAULT = 10
+
 export function useWebSocket({
   url,
   onMessage,
   onOpen,
   onClose,
-  enabled = true
+  enabled = true,
+  maxRetries = MAX_RETRIES_DEFAULT
 }: UseWebSocketOptions) {
   const [status, setStatus] = useState<WebSocketStatus>("disconnected")
   const wsRef = useRef<WebSocket | null>(null)
@@ -93,7 +99,8 @@ export function useWebSocket({
       setStatus("disconnected")
       clearTimers()
       onCloseRef.current?.()
-      // 指数退避重连
+      // 指数退避重连（超过最大次数后停止）
+      if (retryCountRef.current >= maxRetries) return
       const delay = Math.min(RECONNECT_BASE * 2 ** retryCountRef.current, RECONNECT_MAX)
       retryCountRef.current += 1
       retryTimerRef.current = setTimeout(connect, delay)

@@ -6,7 +6,7 @@
 
 "use client"
 
-import { type Editor, Tldraw } from "@/lib/stubs/tldraw"
+import { type Editor, Tldraw } from "tldraw"
 import { useCallback, useState } from "react"
 
 import type { EntityDef } from "@/lib/types/entity"
@@ -42,7 +42,7 @@ export function CanvasView({ entity, recordId }: CanvasViewProps) {
 
   return (
     <div className="relative h-full min-h-[600px] w-full">
-      <Tldraw onMount={handleMount} store={collaboration ? store : undefined} inferDarkMode />
+      <Tldraw onMount={handleMount} store={collaboration ? store : undefined} />
 
       {/* 协作者头像列表 */}
       {collaboration && <CanvasCollaborators collaborators={collaborators} />}

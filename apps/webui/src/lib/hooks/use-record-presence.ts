@@ -62,7 +62,9 @@ export function useRecordPresence({ entityType, entityId, currentUser }: UseReco
   )
 
   useEffect(() => {
-    const ws = new WebSocket(`/ws/presence?userId=${currentUser.id}`)
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    const host = window.location.host
+    const ws = new WebSocket(`${protocol}//${host}/ws/presence?userId=${encodeURIComponent(currentUser.id)}`)
     wsRef.current = ws
 
     ws.onopen = () => {
