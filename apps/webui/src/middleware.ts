@@ -19,7 +19,8 @@ const PROTECTED_PATHS = [
   "/notifications",
   "/todos",
   "/trash",
-  "/admin"
+  "/admin",
+  "/aigc"
 ]
 
 /** 已登录后不应访问的路径前缀 */

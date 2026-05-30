@@ -19,7 +19,7 @@ export const paths = {
     login: "/auth/login",
     register: "/auth/register",
     forgotPassword: "/auth/forgot-password",
-    oauthCallback: "/login/oauth-callback"
+    oauthCallback: "/auth/oauth-callback"
   },
   workspace: {
     root: "/dashboard",

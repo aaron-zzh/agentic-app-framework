@@ -87,7 +87,7 @@ export const authApi = {
   },
 
   getOAuthUrl(provider: string, state: string) {
-    return request<string>(`/auth/oauth/${provider}/url?state=${state}`)
+    return request<string>(`/auth/oauth/${provider}/url?state=${encodeURIComponent(state)}`)
   },
 
   oauthCallback(provider: string, code: string) {

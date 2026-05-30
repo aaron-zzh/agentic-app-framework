@@ -11,6 +11,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { request } from "@/lib/api/client"
 import type { ChatterPreset } from "@/features/chatter/types"
 
 export interface ChatterPageConfig {
@@ -82,9 +83,8 @@ export const useChatterStore = create<ChatterStore>()(
 /** 异步同步配置到后端（失败静默，不影响本地使用） */
 async function syncToRemote(pageId: string, config: ChatterPageConfig): Promise<void> {
   try {
-    await fetch("/api/context/chatter-config", {
+    await request("/context/chatter-config", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pageId, ...config })
     })
   } catch {
@@ -95,10 +95,7 @@ async function syncToRemote(pageId: string, config: ChatterPageConfig): Promise<
 /** 从后端加载配置（本地无缓存时调用） */
 export async function loadRemoteConfig(pageId: string): Promise<ChatterPageConfig | null> {
   try {
-    const res = await fetch(`/api/context/chatter-config?pageId=${encodeURIComponent(pageId)}`)
-    if (!res.ok) return null
-    const data = (await res.json()) as { data: ChatterPageConfig | null }
-    return data.data
+    return await request<ChatterPageConfig | null>(`/context/chatter-config?pageId=${encodeURIComponent(pageId)}`)
   } catch {
     return null
   }

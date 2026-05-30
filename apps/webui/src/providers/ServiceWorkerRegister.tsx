@@ -13,10 +13,13 @@ export function ServiceWorkerRegister() {
       navigator.serviceWorker
         .register("/sw.js")
         .then((_reg) => {
-          // console.info("[SW] 注册成功:", reg.scope)
+          // 注册成功，静默
         })
-        .catch((_err) => {
-          // console.warn("[SW] 注册失败:", err)
+        .catch((err) => {
+          // 开发环境打印警告，便于排查 SW 问题
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[SW] 注册失败:", err)
+          }
         })
     }
   }, [])

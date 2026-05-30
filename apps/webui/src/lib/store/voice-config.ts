@@ -6,6 +6,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 export type VoiceMode = "browser" | "server"
 
@@ -34,12 +35,22 @@ export const useVoiceConfig = create<VoiceConfigStore>()(
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
+/** 获取认证头 */
+function getAuthHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().accessToken
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 /** 调用后端 STT 接口 */
 export async function serverStt(audioBlob: Blob, lang = "zh-CN"): Promise<string> {
   const form = new FormData()
   form.append("audio", audioBlob, "audio.wav")
   form.append("lang", lang)
-  const res = await fetch(`${BASE_URL}/api/voice/stt`, { method: "POST", body: form })
+  const res = await fetch(`${BASE_URL}/api/voice/stt`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: form
+  })
   if (!res.ok) throw new Error(`STT 失败: ${res.status}`)
   const data = (await res.json()) as { data: string }
   return data.data
@@ -53,7 +64,7 @@ export async function serverTtsStream(
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/api/voice/tts/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ text, voice })
   })
   if (!res.ok || !res.body) throw new Error(`TTS 失败: ${res.status}`)
