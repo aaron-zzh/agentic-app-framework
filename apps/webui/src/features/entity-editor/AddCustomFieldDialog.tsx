@@ -178,7 +178,7 @@ export function AddCustomFieldDialog({ slug, open, onOpenChange }: AddCustomFiel
               </div>
               {options.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                  {options.map((opt) => (
+                  {options.map((opt, i) => (
                     <Badge key={opt.value} variant="secondary" className="gap-1">
                       {opt.label}
                       <button type="button" onClick={() => removeOption(i)}>
