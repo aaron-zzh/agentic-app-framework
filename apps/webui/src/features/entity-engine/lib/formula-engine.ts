@@ -70,15 +70,16 @@ function evalExpr(expr: string, ctx: FieldContext): number {
   return Number(val) || 0
 }
 
-/** 在顶层（非括号内）查找操作符 */
+/** 在顶层（非括号内）查找最右侧操作符（左结合：从左向右扫描，取最后一个） */
 function findOperator(expr: string, ops: string[]): number {
   let depth = 0
-  for (let i = expr.length - 1; i >= 0; i--) {
-    if (expr[i] === ")") depth++
-    else if (expr[i] === "(") depth--
-    else if (depth === 0 && ops.includes(expr[i])) return i
+  let lastFound = -1
+  for (let i = 0; i < expr.length; i++) {
+    if (expr[i] === "(") depth++
+    else if (expr[i] === ")") depth--
+    else if (depth === 0 && ops.includes(expr[i]) && i > 0) lastFound = i
   }
-  return -1
+  return lastFound
 }
 
 /** 按逗号分割参数（尊重括号嵌套） */

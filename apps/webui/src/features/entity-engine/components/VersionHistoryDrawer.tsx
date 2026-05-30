@@ -25,7 +25,7 @@ import {
   SheetTrigger
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import type { DataFieldDef } from "@/lib/types/entity"
 import { notify } from "@/lib/notification"
 import { useRecordVersions, useRestoreVersion } from "@/lib/queries/use-versions"
 import { cn } from "@/lib/utils/cn"

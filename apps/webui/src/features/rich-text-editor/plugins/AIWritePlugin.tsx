@@ -18,46 +18,28 @@ import {
   type LexicalEditor
 } from "lexical"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { streamSSE } from "@/lib/utils/sse"
 import { AIWriteDialog } from "./AIWriteDialog"
 
 export const OPEN_AI_WRITE_COMMAND: LexicalCommand<void> = createCommand("OPEN_AI_WRITE")
 
-/** 从 SSE data 行中提取 token */
-function extractToken(line: string): string {
-  if (!line.startsWith("data: ")) return ""
-  const data = line.slice(6).trim()
-  if (data === "[DONE]") return ""
-  try {
-    return JSON.parse(data).choices?.[0]?.delta?.content ?? ""
-  } catch {
-    return data
-  }
-}
-
 /** 流式读取并逐 token 插入编辑器 */
 async function streamInsert(body: ReadableStream<Uint8Array>, editor: LexicalEditor) {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
-
-  let chunk = ""
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    chunk += decoder.decode(value, { stream: true })
-
-    const lines = chunk.split("\n")
-    // 保留最后一行（可能不完整）
-    chunk = lines.pop() ?? ""
-
-    for (const line of lines) {
-      const token = extractToken(line)
-      if (!token) continue
+  await streamSSE(body, {
+    onData: (data) => {
+      let token: string
+      try {
+        token = JSON.parse(data).choices?.[0]?.delta?.content ?? ""
+      } catch {
+        token = data
+      }
+      if (!token) return
       editor.update(() => {
         const sel = $getSelection()
         if ($isRangeSelection(sel)) sel.insertText(token)
       })
     }
-  }
+  })
 }
 
 export function AIWritePlugin() {

@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 
-import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
+import type { EntityAction, EntityDef } from "@/lib/types/entity"
 import { ApiError } from "@/lib/api/client"
 
 interface EntityActionsProps {

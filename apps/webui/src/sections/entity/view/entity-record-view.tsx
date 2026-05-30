@@ -4,7 +4,7 @@
  */
 
 import { ViewEngine } from "@/features/entity-engine/components"
-import type { EntityDef } from "@/features/entity-engine/types"
+import type { EntityDef } from "@/lib/types/entity"
 
 interface Props {
   entity: EntityDef

@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import type { DataFieldDef, EntityDef } from "@/lib/types/entity"
 import { cn } from "@/lib/utils/cn"
 
 const STORAGE_KEY_PREFIX = "aaf:view-settings:"

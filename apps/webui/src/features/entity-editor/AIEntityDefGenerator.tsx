@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { ViewEngine } from "@/features/entity-engine/components/ViewEngine"
-import type { EntityDef } from "@/features/entity-engine/types"
+import type { EntityDef } from "@/lib/types/entity"
 import { useCreateEntityDef } from "@/lib/queries/use-entity-defs"
+import { streamSSE } from "@/lib/utils/sse"
 
 /** 对话消息 */
 interface ChatMessage {
@@ -113,22 +114,12 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
         throw new Error(`请求失败: ${res.statusText}`)
       }
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-
       // 流式读取 SSE
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split("\n")
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ") || line === "data: [DONE]") continue
+      await streamSSE(res.body, {
+        onData: (data) => {
           try {
-            const data = JSON.parse(line.slice(6))
-            const token = data.choices?.[0]?.delta?.content ?? ""
+            const parsed = JSON.parse(data)
+            const token = parsed.choices?.[0]?.delta?.content ?? ""
             fullContent += token
 
             // 实时更新消息
@@ -143,7 +134,7 @@ export function AIEntityDefGenerator({ onApply }: AIEntityDefGeneratorProps) {
             // 忽略解析失败的行
           }
         }
-      }
+      })
 
       // 提取 JSON 并更新预览
       const json = extractJson(fullContent)

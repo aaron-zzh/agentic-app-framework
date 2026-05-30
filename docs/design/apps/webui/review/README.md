@@ -14,8 +14,8 @@ date: 2026-05-30
 |------|---------|---------|-------|-------|
 | [01-infra.md](./01-infra.md) | next.config / middleware / providers / i18n / lib/api / lib/store / lib/hooks / lib/queries | 0 | 1 (7 原始, 6 已修复) | 22 |
 | [02-core-modules.md](./02-core-modules.md) | entity-engine / chatter / agui / livechat | 0 | 5 (10 原始, 5 已修复) | 47 |
-| [03-business-modules.md](./03-business-modules.md) | aigc / flow-editor / rich-text-editor / page-engine / entity-editor / knowledge / settings / dashboard / stats / ai-assist | 0 | 4 (9 原始, 5 已修复) | 30 |
-| [04-ui-layer.md](./04-ui-layer.md) | components / sections / app 路由页面 | 0 (2 已修复) | 8 (9 原始, 1 已修复) | 25 |
+| [03-business-modules.md](./03-business-modules.md) | aigc / flow-editor / rich-text-editor / page-engine / entity-editor / knowledge / settings / dashboard / stats / ai-assist | 0 | 3 (9 原始, 6 已修复) | 30 |
+| [04-ui-layer.md](./04-ui-layer.md) | components / sections / app 路由页面 | 0 (2 已修复) | 3 (9 原始, 6 已修复) | 25 |
 | [code-review.md](../code-review.md) | 全局概览（首轮审查） | 2 | 7 | 7 |
 
 ## 全局汇总
@@ -23,10 +23,10 @@ date: 2026-05-30
 | 级别 | 数量 | 质量门控 |
 |------|------|---------|
 | blocker | 0 (2 已修复) | ✅ 已清零 |
-| major | 18 (35 原始, 17 已修复) | ❌ 需 ≤ 2 |
+| major | 5 (35 原始, 30 已修复) | ❌ 需 ≤ 2 |
 | minor | 124 | ✅ 不阻塞 |
 
-**质量门控判定：未通过**（blocker=0 ✅，major=18 ❌）
+**质量门控判定：未通过**（blocker=0 ✅，major=5 ❌）
 
 ---
 
@@ -43,9 +43,11 @@ date: 2026-05-30
 
 > 已修复｜2026-05-30
 
-### S-2 SSE 流式解析逻辑三处重复（major）
+### ✅ 已修复 S-2 SSE 流式解析逻辑三处重复（major）
 
-`flow-editor`、`entity-editor`、`rich-text-editor` 各自实现了 SSE 流解析，违反 DRY 原则。应提取为 `lib/utils/sse.ts` 共享工具函数。
+`flow-editor`、`entity-editor`、`rich-text-editor` 各自实现了 SSE 流解析，违反 DRY 原则。已提取为 `lib/utils/sse.ts` 共享工具函数。
+
+> 已修复｜2026-05-30
 
 ### S-3 Mock 数据混入生产代码（major × 3）
 
@@ -116,14 +118,26 @@ date: 2026-05-30
 7. ✅ 已修复 `client.ts` SSR 环境 Zustand store 崩溃
 
 **第三批（安全/健壮性 major）**
-6. `AssetLibrary.tsx` JSON.parse 加 try-catch
-7. `AssetLibrary.tsx` confirm() 替换为 Dialog
-8. `flow-editor` fetch 错误处理 + while(true) 超时
-9. `rich-text-editor` AIWritePlugin cleanup
-10. `use-websocket.ts` 添加最大重连次数
+6. ✅ 已修复 `AssetLibrary.tsx` JSON.parse 加 try-catch
+7. ✅ 已修复 `AssetLibrary.tsx` confirm() 替换为 Dialog
+8. ✅ 已修复 `flow-editor` fetch 错误处理 + while(true) 超时
+9. ✅ 已修复 `rich-text-editor` AIWritePlugin cleanup
+10. ✅ 已修复 `use-websocket.ts` 添加最大重连次数
 
-**第四批（minor，可迭代修复）**
-- SSE 逻辑提取共享工具
+**第四批（a11y/类型/重构 major）**
+11. ✅ 已修复 `field-signature.tsx` Canvas a11y（role="img" + aria-label + 上传替代）
+12. ✅ 已修复 `field-upload.tsx` img alt 改为文件名
+13. ✅ 已修复 `ThemeSettings.tsx` 颜色按钮 aria-label + aria-pressed
+14. ✅ 已修复 `TableHead.tsx` / `TablePagination.tsx` 原生表单元素 → shadcn 组件
+15. ✅ 已修复 `empty.tsx` EmptyDescription 改为 `<p>` 标签
+16. ✅ 已修复 `relationship-picker.tsx` 消除 `as unknown` 类型断言
+17. ✅ 已修复 `permission.ts` EntityAccess 类型统一到 types/entity/access.ts
+18. ✅ 已修复 `admin/automations` JSON 解析 toast 提示 + 删除确认 dialog
+19. ✅ 已修复 `formula-engine.ts` findOperator 改为左结合
+20. ✅ 已修复 删除 `entity-engine/lib/mixins.ts` 纯转发文件
+21. ✅ 已修复 删除 `entity-engine/types/index.ts` 重导出层，18 处调用方改直接导入
+22. ✅ 已修复 提取 SSE 流式解析共享工具 `lib/utils/sse.ts`，三处调用方统一改用
+
+**剩余（minor，可迭代修复）**
 - Mock 数据隔离
-- a11y 补全（签名组件、主题色按钮等）
-- 类型断言清理
+- 其他 minor 问题

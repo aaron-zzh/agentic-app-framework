@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 
-import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import type { DataFieldDef, EntityDef } from "@/lib/types/entity"
 import type { FilterCondition } from "./FilterBuilder"
 
 type InputPhase = "idle" | "selectField" | "inputValue"

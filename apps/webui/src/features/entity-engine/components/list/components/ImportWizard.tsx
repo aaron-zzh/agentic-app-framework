@@ -7,7 +7,7 @@
 
 import { useCallback, useState } from "react"
 
-import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import type { DataFieldDef, EntityDef } from "@/lib/types/entity"
 
 type Step = "upload" | "mapping" | "preview" | "result"
 

@@ -13,7 +13,7 @@
 #### 问题
 
 - [minor] `lib/component-registry.ts`:24,26 — 使用 `// biome-ignore lint/suspicious/noExplicitAny` 绕过 any 检查。虽有注释说明理由，但可用泛型约束替代（如 `ComponentType<FieldProps<unknown>>`）
-- [minor] `lib/formula-engine.ts`:72 — `findOperator` 从右向左扫描查找加减运算符，对于 `1-2-3` 这类表达式会错误地先计算 `2-3`，导致结果为 `1-(-1)=2` 而非 `-4`。右结合语义不符合数学惯例
+- [minor] `lib/formula-engine.ts`:72 — ✅ 已修复 `findOperator` 从右向左扫描查找加减运算符，对于 `1-2-3` 这类表达式会错误地先计算 `2-3`，导致结果为 `1-(-1)=2` 而非 `-4`。右结合语义不符合数学惯例
 - [major] `lib/formula-engine.ts`:20 — `IF` 函数签名为 `(...args: number[]) => number`，但 IF 语义需要三个参数且 cond 应为布尔判断。当前实现 `IF(0, t, f)` 返回 f 是正确的，但 `IF(cond, t, f)` 中 cond 只能是数字，无法表达 `$record.status == 'active'` 这类条件
 - [minor] `lib/build-zod-schema.ts`:55 — `select` 分支中 `field.options.length > 0` 后直接 `as [string, ...string[]]` 类型断言，若 options 运行时为空数组（动态加载场景）会导致 `z.enum([])` 运行时错误
 - [minor] `lib/build-columns.tsx`:20 — `Number.parseInt(String(col.width), 10)` 对 width 做了 String 转换再 parseInt，若 width 已是 number 类型则多余；若是 `"100px"` 则 parseInt 会截断为 100，行为隐式
@@ -28,7 +28,7 @@
 
 #### 问题
 
-- [minor] `types/index.ts`:4 — 仅重导出 `@/lib/types/entity`，注释说"保持向后兼容"。项目未发布 v1.0，按 AGENTS.md 规范"禁兼容层"，应直接让消费方 import 真实路径
+- [minor] `types/index.ts`:4 — ✅ 已修复 仅重导出 `@/lib/types/entity`，注释说"保持向后兼容"。项目未发布 v1.0，按 AGENTS.md 规范"禁兼容层"，应直接让消费方 import 真实路径
 
 #### 建议
 

@@ -136,8 +136,10 @@
 
 ### 问题
 
-- [major] `AIEntityDefGenerator.tsx:100-140` — 流式 SSE 解析逻辑与 `flow-editor/use-workflow-runtime.ts` 高度重复（相同的 `while(true)` + `reader.read()` + `data:` 行解析模式）。违反 No-Duplication 规则。
+- [major] `AIEntityDefGenerator.tsx:100-140` — ✅ 已修复 流式 SSE 解析逻辑与 `flow-editor/use-workflow-runtime.ts` 高度重复（相同的 `while(true)` + `reader.read()` + `data:` 行解析模式）。违反 No-Duplication 规则。
   - 修复建议：提取为共享的 `streamSSE` 工具函数到 `@/lib/utils/` 或 `packages/`。
+
+> 已修复｜2026-05-30｜提取 `lib/utils/sse.ts` 共享工具，三处调用方统一改用
 
 - [minor] `AIEntityDefGenerator.tsx:30-50` — `SYSTEM_PROMPT` 常量硬编码在组件文件中（50+ 行），影响可读性。
   - 修复建议：移至独立的 `prompts.ts` 文件。
@@ -283,7 +285,7 @@
 
 | 重复逻辑 | 出现位置 | 建议 |
 |----------|---------|------|
-| SSE 流式读取 + data: 行解析 | `flow-editor/use-workflow-runtime.ts`、`entity-editor/AIEntityDefGenerator.tsx`、`rich-text-editor/plugins/AIWritePlugin.tsx` | 提取为 `@/lib/utils/stream-sse.ts` 共享工具 |
+| SSE 流式读取 + data: 行解析 | `flow-editor/use-workflow-runtime.ts`、`entity-editor/AIEntityDefGenerator.tsx`、`rich-text-editor/plugins/AIWritePlugin.tsx` | ✅ 已修复：提取为 `@/lib/utils/sse.ts` 共享工具 |
 | `DialogTrigger render` 非标准用法 | `aigc/StyleAdjustDialog.tsx`、`page-editor/PageEditorView.tsx`、`entity-editor/CustomFieldManager.tsx` | 统一为 `asChild` 模式 |
 | `window.confirm()` 原生弹窗 | `aigc/AssetLibrary.tsx`、`settings/ApiKeyList.tsx` | 统一使用 AlertDialog 组件 |
 | Mock 数据硬编码在组件中 | `aigc/VideoTimeline.tsx`、`aigc/VideoStoryboard.tsx`、`aigc/StoryboardPanel.tsx`、`aigc/VideoGenerationChat.tsx` | 移至 Storybook 或 `__fixtures__/` |

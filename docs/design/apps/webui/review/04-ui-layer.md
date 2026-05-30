@@ -10,7 +10,7 @@
 
 ### 问题
 
-- [minor] `components/ui/empty.tsx:17` — `EmptyDescription` 使用 `<div>` 但 props 类型声明为 `React.ComponentProps<"p">`，语义不一致。应使用 `<p>` 标签或修正类型声明。
+- [minor] `components/ui/empty.tsx:17` — ✅ 已修复 `EmptyDescription` 使用 `<div>` 但 props 类型声明为 `React.ComponentProps<"p">`，语义不一致。应使用 `<p>` 标签或修正类型声明。
 - [minor] `components/ui/table.tsx` — 标准 shadcn table 组件，无 a11y 问题。但缺少 `aria-sort` 属性支持（排序由外部 TableHead 组件处理，此处可忽略）。
 - [minor] `components/ui/drawer.tsx` — 组件内部无问题，但整个项目中 Sheet 和 Drawer 功能重叠（Sheet 基于 Dialog，Drawer 基于 Vaul），建议统一为一种抽屉方案避免混淆。
 
@@ -25,8 +25,8 @@
 
 ### 问题
 
-- [major] `components/form/field-signature.tsx:全文` — Canvas 签名组件缺少键盘可访问性。`<canvas>` 元素无 `role`、`aria-label`，纯鼠标/触摸交互，键盘用户无法使用。修复建议：添加 `role="img"` + `aria-label="手写签名区域"`，并提供替代输入方式（如文件上传签名图片）。
-- [major] `components/form/field-upload.tsx:143-155` — DropZone 内部的 `<img>` 预览缺少有意义的 `alt` 文本。当前 `alt="preview"` 对屏幕阅读器无帮助。建议使用文件名作为 alt：`alt={value.split('/').pop() || '已上传图片'}`。
+- [major] `components/form/field-signature.tsx:全文` — ✅ 已修复 Canvas 签名组件缺少键盘可访问性。`<canvas>` 元素无 `role`、`aria-label`，纯鼠标/触摸交互，键盘用户无法使用。修复建议：添加 `role="img"` + `aria-label="手写签名区域"`，并提供替代输入方式（如文件上传签名图片）。
+- [major] `components/form/field-upload.tsx:143-155` — ✅ 已修复 DropZone 内部的 `<img>` 预览缺少有意义的 `alt` 文本。当前 `alt="preview"` 对屏幕阅读器无帮助。建议使用文件名作为 alt：`alt={value.split('/').pop() || '已上传图片'}`。
 - [minor] `components/form/field-qrscanner.tsx` — 未读取完整内容，但从文件名推断为二维码扫描组件，需确认是否有 camera permission 错误处理和 a11y fallback。
 - [minor] `components/form/relationship-picker.tsx:72` — `onChange` 类型使用 `as unknown as string | string[]` 强制类型转换，类型安全性差。建议重构 `FieldProps<T>` 泛型使 onChange 签名与 value 类型一致。
 - [minor] `components/form/subtable.tsx:57` — 子表行使用 `(row._key as string) ?? i` 作为 key，当 `_key` 不存在时回退到 index，可能导致列表重排时状态错乱。建议在 `addRow` 时始终生成唯一 key。
@@ -44,7 +44,7 @@
 ### 问题
 
 - [minor] `components/common/CommandPalette.tsx` — 组件设计良好，有 `title` 和 `description` 属性传递给 CommandDialog。无明显问题。
-- [minor] `components/common/ThemeSettings.tsx:全文` — 主题色选择按钮缺少 `aria-label` 或 `aria-pressed` 状态标识。当前用户无法通过屏幕阅读器知道哪个颜色被选中。建议为每个颜色按钮添加 `aria-label={label}` + `aria-pressed={themeColor === value}`。
+- [minor] `components/common/ThemeSettings.tsx:全文` — ✅ 已修复 主题色选择按钮缺少 `aria-label` 或 `aria-pressed` 状态标识。当前用户无法通过屏幕阅读器知道哪个颜色被选中。建议为每个颜色按钮添加 `aria-label={label}` + `aria-pressed={themeColor === value}`。
 - [minor] `components/common/PageContainer.tsx` — 简单容器组件，无问题。
 
 ### 建议
@@ -57,8 +57,8 @@
 
 ### 问题
 
-- [major] `components/table/TablePagination.tsx:42-50` — 使用原生 `<input type="checkbox">` 和 `<select>` 而非项目统一的 shadcn 组件（Checkbox / Select）。与项目其他地方的组件使用不一致，且原生元素缺少统一样式。
-- [major] `components/table/TableHead.tsx:50-57` — 同上，使用原生 `<input type="checkbox">` 而非 `<Checkbox>` 组件。且全选复选框缺少 `aria-label="全选"`。
+- [major] `components/table/TablePagination.tsx:42-50` — ✅ 已修复 使用原生 `<input type="checkbox">` 和 `<select>` 而非项目统一的 shadcn 组件（Checkbox / Select）。与项目其他地方的组件使用不一致，且原生元素缺少统一样式。
+- [major] `components/table/TableHead.tsx:50-57` — ✅ 已修复 同上，使用原生 `<input type="checkbox">` 而非 `<Checkbox>` 组件。且全选复选框缺少 `aria-label="全选"`。
 - [minor] `components/table/TablePagination.tsx:55-62` — 分页按钮 `‹` / `›` 缺少 `aria-label`（如"上一页"/"下一页"），屏幕阅读器只能读到符号。
 
 ### 建议
@@ -169,8 +169,8 @@
 #### 问题
 
 - [major] `app/(workspace)/admin/menus/page.tsx:130` — 删除确认使用 `confirm()` 原生弹窗。与项目 Dialog 组件风格不一致，且无法自定义样式。建议使用 AlertDialog 组件。
-- [major] `app/(workspace)/admin/automations/page.tsx:85-93` — 条件和操作使用原始 JSON 文本框编辑（`<Textarea>` + `JSON.parse`）。JSON 解析失败时仅 `return`，无错误提示给用户。建议添加 JSON 校验错误提示。
-- [major] `app/(workspace)/admin/automations/page.tsx:127` — 删除操作 `remove(rule.id)` 无确认弹窗，直接删除。高风险操作应有确认步骤。
+- [major] `app/(workspace)/admin/automations/page.tsx:85-93` — ✅ 已修复 条件和操作使用原始 JSON 文本框编辑（`<Textarea>` + `JSON.parse`）。JSON 解析失败时仅 `return`，无错误提示给用户。建议添加 JSON 校验错误提示。
+- [major] `app/(workspace)/admin/automations/page.tsx:127` — ✅ 已修复 删除操作 `remove(rule.id)` 无确认弹窗，直接删除。高风险操作应有确认步骤。
 - [minor] `app/(workspace)/workflow/page.tsx:30` — `currentUserId` 硬编码为 `"current-user"`，注释标注 TODO。可接受但需跟踪。
 - [minor] `app/(workspace)/settings/delegation/page.tsx:全文` — 表单使用 `useState` 管理而非 react-hook-form + zod。与项目其他表单（auth 页面）风格不一致。建议统一使用 Form + Field 组件。
 - [minor] `app/(workspace)/admin/data-access/page.tsx:全文` — 同上，表单使用 `useState` 而非 react-hook-form。
@@ -213,7 +213,7 @@
 | app/(workspace) | 0 | 3 | 4 |
 | app/api | 0 | 1 | 2 |
 | global.css | 0 | 0 | 0 |
-| **合计** | **0 (2 已修复)** | **9** | **25** |
+| **合计** | **0 (2 已修复)** | **3** (9 原始, 6 已修复) | **25** |
 
 ---
 

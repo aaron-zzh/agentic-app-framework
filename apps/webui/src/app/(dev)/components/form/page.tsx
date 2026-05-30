@@ -16,7 +16,7 @@ import type { UploadFile } from "@/components/upload"
 import { Upload, UploadAvatar } from "@/components/upload"
 import { FormView } from "@/features/entity-engine/components/form/FormView"
 import { taskEntity, userEntity } from "@/features/entity-engine/entities"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import type { DataFieldDef } from "@/lib/types/entity"
 
 export default function FormPage() {
   const methods = useForm({

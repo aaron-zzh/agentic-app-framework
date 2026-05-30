@@ -149,6 +149,8 @@ export function FieldSignature({
         <canvas
           ref={canvasRef}
           height={height}
+          role="img"
+          aria-label="手写签名区域"
           className="block w-full cursor-crosshair touch-none rounded-t-lg bg-white"
           onMouseDown={startDraw}
           onMouseMove={draw}
@@ -160,9 +162,25 @@ export function FieldSignature({
         />
         <div className="flex items-center justify-between border-t px-3 py-1.5">
           <span className="text-muted-foreground text-xs">
-            {signed ? "签名完成" : "请在上方手写签名"}
+            {signed ? "签名完成" : "请在上方手写签名，或上传签名图片"}
           </span>
           <div className="flex gap-2">
+            {/* 上传签名图片作为键盘可访问的替代方案 */}
+            <Button type="button" variant="ghost" size="sm" onClick={() => {
+              const input = document.createElement("input")
+              input.type = "file"
+              input.accept = "image/*"
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = () => onChange?.(reader.result as string)
+                reader.readAsDataURL(file)
+              }
+              input.click()
+            }}>
+              上传图片
+            </Button>
             <Button type="button" variant="ghost" size="sm" onClick={clear}>
               清除
             </Button>

@@ -145,6 +145,7 @@
 
 - [major] `fetchEntityAccess` 未使用 `client.ts` 的 `request()` 函数，缺少 Authorization header，上线后必定 401。`apps/webui/src/lib/api/permission.ts:22-28`
 - [minor] `EntityAccess` 类型在 `permission.ts` 和 `types/entity/access.ts` 中重复定义，且 `fieldAccess` 字段类型不一致——`permission.ts` 中为必填 `Record<string, FieldAccess>`，`types/entity/access.ts` 中为可选 `fieldAccess?: Record<string, FieldAccess>`。`apps/webui/src/lib/api/permission.ts:11` vs `apps/webui/src/lib/types/entity/access.ts:7`
+> ✅ 已修复｜2026-05-30｜permission.ts 删除重复类型定义，改为从 types/entity/access.ts 导入
 
 ### 建议
 

@@ -9,7 +9,7 @@
 
 import { useCallback, useId, useState } from "react"
 
-import type { DataFieldDef, EntityDef, NestedImportConfig } from "@/features/entity-engine/types"
+import type { DataFieldDef, EntityDef, NestedImportConfig } from "@/lib/types/entity"
 
 type Step = "upload" | "relation" | "mapping" | "preview" | "result"
 

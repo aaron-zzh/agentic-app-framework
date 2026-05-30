@@ -10,7 +10,7 @@
 import { useMemo } from "react"
 import { useWatch } from "react-hook-form"
 
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import type { DataFieldDef } from "@/lib/types/entity"
 import { buildFieldContext, evaluateCondition, type FieldContext } from "../lib/field-context"
 
 /** 字段条件状态 */
