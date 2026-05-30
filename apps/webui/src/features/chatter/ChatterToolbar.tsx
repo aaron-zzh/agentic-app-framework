@@ -30,8 +30,8 @@ interface ChatterToolbarProps {
 
 /** 内置角色列表 */
 const AGENT_ROLES = [
-  { id: "default-generalist", label: "通用助理" },
-  { id: "content-creator-role", label: "内容创作" }
+  { id: "default-generalist", label: "通用助理", avatar: "🤖" },
+  { id: "content-creator-role", label: "内容创作", avatar: "✍️" }
 ] as const
 
 /** preset 决定显示哪些 target 选项 */
@@ -102,12 +102,18 @@ export function ChatterToolbar({
           onValueChange={(role) => onTargetChange({ ...target, agentRole: role ?? undefined })}
         >
           <SelectTrigger className="h-7 w-auto gap-1 border-none bg-muted/50 px-2 text-xs">
-            <SelectValue />
+            <SelectValue>
+              {AGENT_ROLES.find((r) => r.id === (target.agentRole ?? "default-generalist"))?.avatar}{" "}
+              {AGENT_ROLES.find((r) => r.id === (target.agentRole ?? "default-generalist"))?.label}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {AGENT_ROLES.map((r) => (
               <SelectItem key={r.id} value={r.id}>
-                {r.label}
+                <span className="flex items-center gap-1.5">
+                  <span>{r.avatar}</span>
+                  <span>{r.label}</span>
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
