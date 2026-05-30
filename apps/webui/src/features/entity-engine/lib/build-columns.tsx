@@ -25,7 +25,7 @@ export function buildColumns(
       const columnDef: ColumnDef<Record<string, unknown>> = {
         accessorKey: col.name,
         header: field.label ?? col.name,
-        size: col.width ? Number.parseInt(String(col.width), 10) : undefined,
+        size: col.width ? Number.parseInt(col.width, 10) || undefined : undefined,
         cell: ({ row }) => {
           const value = row.original[col.name]
           if (Cell) {

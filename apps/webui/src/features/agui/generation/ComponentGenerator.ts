@@ -104,7 +104,7 @@ class ComponentGeneratorImpl {
     }
 
     // 解析实体名称（取第一个名词性词汇作为实体）
-    const entityPatterns = /(?:一个|个)?(\w+?)(?:列表|表格|表单|看板|页面|管理)/
+    const entityPatterns = /(?:一个|个)?([\u4e00-\u9fa5\w]+?)(?:列表|表格|表单|看板|页面|管理)/
     const entityMatch = text.match(entityPatterns)
     const entity = entityMatch?.[1] ?? "item"
 

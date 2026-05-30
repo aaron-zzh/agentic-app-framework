@@ -5,6 +5,8 @@
 
 "use client"
 
+import { useMemo, useRef } from "react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useSubtable } from "@/lib/hooks/use-subtable"
@@ -21,6 +23,21 @@ interface SubtableProps {
 export function Subtable({ fields, value = [], onChange, disabled, summaryFields }: SubtableProps) {
   const { addRow, removeRow, updateCell, computeSummaries } = useSubtable(fields, value, onChange)
   const summaries = computeSummaries(summaryFields)
+
+  // 为缺少 _key 的行分配稳定 key（避免 index 作为 React key）
+  const keyMapRef = useRef(new WeakMap<Record<string, unknown>, string>())
+  const getRowKey = useMemo(
+    () => (row: Record<string, unknown>): string => {
+      if (typeof row._key === "string") return row._key
+      let key = keyMapRef.current.get(row)
+      if (!key) {
+        key = crypto.randomUUID()
+        keyMapRef.current.set(row, key)
+      }
+      return key
+    },
+    []
+  )
 
   return (
     <div className="flex flex-col gap-2">
@@ -39,7 +56,7 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
           </thead>
           <tbody>
             {value.map((row, i) => (
-              <tr key={(row._key as string) ?? i} className="border-t">
+              <tr key={getRowKey(row)} className="border-t">
                 <td className="px-2 py-1 text-center text-muted-foreground text-xs">{i + 1}</td>
                 {fields.map((f, fi) => (
                   <td key={f.name} className="px-1 py-1">

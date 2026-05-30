@@ -39,7 +39,7 @@ interface BuilderState {
 
 type BuilderAction =
   | { type: "ADD_MESSAGE"; message: BuilderMessage }
-  | { type: "SET_RESULT"; result: GenerationResult }
+  | { type: "SET_RESULT"; result: GenerationResult | null }
   | { type: "SET_PROCESSING"; value: boolean }
   | { type: "SET_QUESTIONS"; questions: ClarificationQuestion[] }
   | { type: "CLEAR_QUESTIONS" }
@@ -174,7 +174,7 @@ export function useConversationalBuilder(entityDef?: EntityDef) {
 
   /** 重置对话 */
   const reset = useCallback(() => {
-    dispatch({ type: "SET_RESULT", result: null as unknown as GenerationResult })
+    dispatch({ type: "SET_RESULT", result: null })
     dispatch({ type: "SET_QUESTIONS", questions: [] })
   }, [])
 

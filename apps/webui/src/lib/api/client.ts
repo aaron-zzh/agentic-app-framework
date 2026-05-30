@@ -19,12 +19,11 @@ export interface ApiResult<T> {
 }
 
 /** 列表查询参数 */
-export interface ListParams {
+export interface ListParams extends Record<string, string | number | boolean | string[] | undefined> {
   page?: number
   pageSize?: number
   sort?: string
   search?: string
-  [key: string]: unknown
 }
 
 /** API 错误 */
@@ -146,7 +145,17 @@ function buildQuery(params: ListParams): string {
     ([, v]) => v !== undefined && v !== null && v !== ""
   )
   if (entries.length === 0) return ""
-  return `?${new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()}`
+  const pairs: [string, string][] = []
+  for (const [k, v] of entries) {
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        pairs.push([k, String(item)])
+      }
+    } else {
+      pairs.push([k, String(v)])
+    }
+  }
+  return `?${new URLSearchParams(pairs).toString()}`
 }
 
 /** 获取分页列表 */

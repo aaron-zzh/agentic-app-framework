@@ -61,7 +61,8 @@ function buildBaseSchema(field: DataFieldDef): z.ZodTypeAny {
       return z.boolean()
     case "select":
       if (field.options.length > 0) {
-        const values = field.options.map((o) => o.value) as [string, ...string[]]
+        const [first, ...rest] = field.options.map((o) => o.value)
+        const values: [string, ...string[]] = [first, ...rest]
         return field.multiple ? z.array(z.enum(values)) : z.enum(values)
       }
       return z.string()
