@@ -68,6 +68,14 @@ public class PayOrderService {
                         .findByMerchantOrderNo(dto.merchantOrderNo())
                         .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "支付单不存在"));
 
+        // M28：无签名的结构化回调仅用于 Mock 渠道（开发/测试）；真实渠道须经渠道验签的原始回调确认，
+        // 防止伪造未签名通知将任意真实订单标记为已付。真实渠道带签名回调端点为后续支付改造项。
+        if (!com.xuejiai.aaf.framework.engine.settlement.MockPayChannelAdapter.CHANNEL_CODE.equals(
+                order.getChannelCode())) {
+            throw new BusinessException(
+                    GlobalErrorCode.FORBIDDEN, "真实渠道回调须经验签，禁止未签名通知");
+        }
+
         if (!order.getStatus().equals(PayOrderStatusEnum.WAITING.getCode())) {
             log.warn("支付单已处理，忽略回调: merchantOrderNo={}", dto.merchantOrderNo());
             return null;

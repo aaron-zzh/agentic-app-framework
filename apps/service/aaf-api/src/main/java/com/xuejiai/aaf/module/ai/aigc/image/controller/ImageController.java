@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageEditRequest;
@@ -82,7 +84,13 @@ public class ImageController {
     @Operation(summary = "Webhook 回调（Midjourney 主动推送）")
     @PostMapping("/midjourney/notify")
     @SuppressWarnings("unchecked")
-    public Result<Void> notify(@RequestBody Map<String, Object> payload) {
+    public Result<Void> notify(
+            @RequestParam(required = false) String secret,
+            @RequestBody Map<String, Object> payload) {
+        // M24：验签防伪造——未配置密钥或不匹配一律拒绝，杜绝任意用户伪造完成事件注入 imageUrl
+        if (!midjourneyService.verifyNotify(secret)) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "回调验签失败");
+        }
         String taskId = (String) payload.get("id");
         String status = (String) payload.get("status");
         String imageUrl = (String) payload.get("imageUrl");

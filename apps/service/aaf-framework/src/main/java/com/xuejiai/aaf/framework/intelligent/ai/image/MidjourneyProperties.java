@@ -22,4 +22,7 @@ public class MidjourneyProperties {
 
     /** Webhook 回调地址（可选，不配置则使用轮询模式） */
     private String notifyUrl;
+
+    /** 回调验签密钥（M24）：配置后回调 URL 自动附带 ?secret=，回调时校验；未配置则拒绝所有回调（fail-closed） */
+    private String notifySecret;
 }

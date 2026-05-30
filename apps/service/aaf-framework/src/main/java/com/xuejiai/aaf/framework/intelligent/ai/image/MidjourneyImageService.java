@@ -68,13 +68,30 @@ public class MidjourneyImageService {
         var body = new java.util.LinkedHashMap<String, Object>();
         body.put("prompt", prompt);
         if (base64Images != null && !base64Images.isEmpty()) body.put("base64Array", base64Images);
-        if (props.getNotifyUrl() != null) body.put("notifyHook", props.getNotifyUrl());
+        if (props.getNotifyUrl() != null) body.put("notifyHook", notifyHookUrl());
 
         var result = post("/submit/imagine", body, SubmitResult.class);
         if (!result.isSuccess())
             throw new RuntimeException("Midjourney 任务提交失败: " + result.description());
         log.info("Midjourney imagine 提交成功: taskId={}", result.result());
         return result.result();
+    }
+
+    /** 构造带验签密钥的回调地址：密钥经 {@code ?secret=} 透传，回调时由 {@link #verifyNotify} 校验。 */
+    private String notifyHookUrl() {
+        var url = props.getNotifyUrl();
+        var secret = props.getNotifySecret();
+        if (secret == null || secret.isBlank()) return url;
+        return url + (url.contains("?") ? "&" : "?") + "secret=" + secret;
+    }
+
+    /** 校验回调密钥（M24 防伪造）：未配置密钥或不匹配一律拒绝（fail-closed），常量时间比较。 */
+    public boolean verifyNotify(String providedSecret) {
+        var secret = props.getNotifySecret();
+        if (secret == null || secret.isBlank() || providedSecret == null) return false;
+        return java.security.MessageDigest.isEqual(
+                secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                providedSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     /** 执行后续操作（放大/变体/重绘），返回新 taskId */
