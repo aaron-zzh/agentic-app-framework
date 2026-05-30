@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
@@ -57,6 +58,7 @@ public class AuthService {
     private final List<OAuthClient> oauthClients;
     private final MessageService messageService;
     private final SystemConfigService systemConfigService;
+    private final CreditService creditService;
 
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
@@ -117,6 +119,7 @@ public class AuthService {
                         .orElseThrow(() -> exception(USER_NOT_FOUND));
         user.setEmailVerified(true);
         userRepository.save(user);
+        grantRegistrationCredits(user.getId());
         return generateTokensWithSession(user, deviceId);
     }
 
@@ -135,6 +138,7 @@ public class AuthService {
         user.setNickname(dto.nickname() != null ? dto.nickname() : dto.email().split("@")[0]);
         user.setEmailVerified(true);
         userRepository.save(user);
+        grantRegistrationCredits(user.getId());
         return generateTokensWithSession(user, deviceId);
     }
 
@@ -466,5 +470,14 @@ public class AuthService {
         jwtUtils.saveSession(user.getId(), deviceId, refreshToken);
         return new AuthLoginVO(
                 user.getId(), accessToken, refreshToken, jwtUtils.getAccessTokenExpiresTime());
+    }
+
+    /** 注册赠积分（赠送数量固定 50，不可配置） */
+    private void grantRegistrationCredits(Long userId) {
+        try {
+            creditService.earn(userId, 50, "register_gift", String.valueOf(userId));
+        } catch (Exception e) {
+            log.warn("注册赠积分失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
+        }
     }
 }

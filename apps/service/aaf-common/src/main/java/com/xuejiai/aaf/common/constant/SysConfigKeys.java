@@ -1,0 +1,67 @@
+package com.xuejiai.aaf.common.constant;
+
+/**
+ * 系统配置键常量。
+ *
+ * <p>每个内部类对应 sys_config.category，常量值与 sys_config.config_key 字段一致。
+ *
+ * <p>使用示例：
+ *
+ * <pre>{@code
+ * configService.getInteger(SysConfigKeys.Ai.CREDIT_WARN_THRESHOLD, 10);
+ * configService.getBoolean(SysConfigKeys.Security.CAPTCHA_ENABLED, true);
+ * }</pre>
+ */
+public final class SysConfigKeys {
+
+    private SysConfigKeys() {}
+
+    /** 用户配置 */
+    public static final class User {
+
+        private User() {}
+
+        public static final String DEFAULT_PASSWORD      = "user.default_password";       // 用户默认密码
+        public static final String REGISTER_ENABLED      = "user.register_enabled";        // 是否开放注册
+        public static final String LOGIN_FAIL_LOCK_COUNT   = "user.login_fail_lock_count";   // 登录失败锁定次数
+        public static final String LOGIN_FAIL_LOCK_MINUTES = "user.login_fail_lock_minutes"; // 账号锁定时长（分钟）
+    }
+
+    /** 安全配置 */
+    public static final class Security {
+
+        private Security() {}
+
+        public static final String CAPTCHA_ENABLED      = "security.captcha_enabled";      // 是否启用验证码
+        public static final String VERIFY_CODE_EXPIRE   = "security.verify_code_expire";   // 验证码有效期（分钟）
+    }
+
+    /** 存储配置 */
+    public static final class Storage {
+
+        private Storage() {}
+
+        public static final String UPLOAD_MAX_SIZE_MB = "storage.upload_max_size_mb"; // 文件上传大小限制（MB）
+        public static final String ALLOWED_TYPES      = "storage.allowed_types";      // 允许上传的文件类型
+    }
+
+    /** AI 配置 */
+    public static final class Ai {
+
+        private Ai() {}
+
+        public static final String DEFAULT_MODEL            = "ai.default_model";             // AI 默认模型
+        public static final String TOKEN_QUOTA_PER_USER     = "ai.token_quota_per_user";      // 用户 Token 配额（每月）
+        public static final String CREDIT_WARN_THRESHOLD    = "ai.credit_warn_threshold";     // 积分预警阈值，低于此值发预警通知
+        public static final String FREE_ASSISTANT_CREDIT_CAP = "ai.free_assistant_credit_cap"; // 免费助理虚拟用户预算上限（积分）
+    }
+
+    /** 品牌配置 */
+    public static final class Brand {
+
+        private Brand() {}
+
+        public static final String COMPANY_NAME = "brand.company_name"; // 公司名称
+        public static final String LOGO_URL     = "brand.logo_url";     // Logo URL
+    }
+}

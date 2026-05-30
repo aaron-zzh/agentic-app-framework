@@ -8,6 +8,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -30,6 +31,7 @@ public class ResilientChatService {
     private final CapabilityRouter capabilityRouter;
     private final AiModelRepository modelRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final AiCreditGuard creditGuard;
 
     /**
      * 同步调用，使用完整路由上下文。
@@ -38,6 +40,7 @@ public class ResilientChatService {
      * @param ctx 路由上下文（含 userId、capability、显式 modelId、编排配置、任务特征）
      */
     public ChatResponse call(List<Message> messages, CapabilityRoutingContext ctx) {
+        creditGuard.precheck(ctx.userId(), ctx.capability());
         var modelId = capabilityRouter.resolve(ctx);
         try {
             var response = doCall(messages, modelId);
