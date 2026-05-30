@@ -2,6 +2,9 @@
  * 页面语义状态 hook
  * 实时返回当前页面的语义描述，供 AI 感知层消费
  * @author AaronZZH & Kiro
+ *
+ * TODO: 当前使用 setInterval 轮询（默认 2s），对大多数场景过于频繁。
+ * 后续应改为事件驱动（组件注册/注销时触发）+ 防抖，减少不必要的收集。
  */
 "use client"
 

@@ -152,12 +152,14 @@ export function useExportProgress(entity: EntityDef) {
   /** 取消导出 */
   const cancel = useCallback(() => {
     closeSSE()
-    const { taskId } = progress
-    if (taskId) {
-      fetch(`/api/tasks/${taskId}/cancel`, { method: "POST" }).catch(() => {})
-    }
-    setProgress((p) => ({ ...p, status: "idle" }))
-  }, [progress, closeSSE])
+    // 通过 setState 回调读取最新 taskId，避免依赖 progress 对象引用
+    setProgress((p) => {
+      if (p.taskId) {
+        fetch(`/api/tasks/${p.taskId}/cancel`, { method: "POST" }).catch(() => {})
+      }
+      return { ...p, status: "idle" }
+    })
+  }, [closeSSE])
 
   /** 重置 */
   const reset = useCallback(() => {

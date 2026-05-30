@@ -72,7 +72,10 @@ const reversePatterns: { sequence: UserAction["type"][]; intent: string }[] = [
   { sequence: ["search", "click"], intent: "find_and_open" }
 ]
 
-/** 历史意图频率（用于消歧和学习） */
+/**
+ * 历史意图频率（用于消歧和学习）
+ * 注意：模块级 Map，无上限控制。实际场景中意图种类有限（<50），不会无限增长。
+ */
 const intentHistory = new Map<string, number>()
 
 class IntentMapperImpl {

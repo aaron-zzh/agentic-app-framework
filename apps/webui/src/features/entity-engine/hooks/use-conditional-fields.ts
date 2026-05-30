@@ -3,6 +3,9 @@
  * @author AaronZZH & Kiro
  *
  * 实时计算 visibleWhen / readOnlyWhen / requiredWhen
+ *
+ * TODO: useWatch() 无参数监听所有字段变化，大表单（>20 字段）可能有性能问题。
+ * 优化方向：提取条件表达式中引用的字段名，只 watch 这些字段。
  */
 
 "use client"

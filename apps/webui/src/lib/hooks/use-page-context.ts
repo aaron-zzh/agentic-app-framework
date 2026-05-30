@@ -7,7 +7,7 @@
 
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface PageContextOptions {
@@ -21,6 +21,9 @@ interface PageContextOptions {
  * 页面加载时调用，注册页面上下文
  * - 设置 chatter store 的 currentPageId
  * - 异步上报到后端（fire-and-forget，v0.2.0 后端实现前为空操作）
+ *
+ * 注意：调用方传入的 availableComponents 数组如未 memoize，
+ * 内部通过 ref 存储避免重复上报。
  */
 export function usePageContext({
   pageId,
@@ -28,6 +31,9 @@ export function usePageContext({
   availableComponents
 }: PageContextOptions): void {
   const setCurrentPage = useChatterStore((s) => s.setCurrentPage)
+  // 用 ref 存储数组引用，避免调用方每次传新数组导致重复上报
+  const componentsRef = useRef(availableComponents)
+  componentsRef.current = availableComponents
 
   useEffect(() => {
     setCurrentPage(pageId)
@@ -36,9 +42,9 @@ export function usePageContext({
     fetch("/api/context/page-enter", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pageId, pageTitle, availableComponents })
+      body: JSON.stringify({ pageId, pageTitle, availableComponents: componentsRef.current })
     }).catch(() => {
       // 静默失败，不影响页面功能
     })
-  }, [pageId, pageTitle, availableComponents, setCurrentPage])
+  }, [pageId, pageTitle, setCurrentPage])
 }

@@ -25,7 +25,9 @@ export function resolveMixins(
   for (const mixinName of def.mixins) {
     const mixin = mixinRegistry[mixinName]
     if (!mixin) {
-      throw new Error(`Mixin "${mixinName}" not found for entity "${def.slug}"`)
+      // Mixin 不存在时警告并跳过，避免运行时崩溃
+      console.warn(`[resolveMixins] Mixin "${mixinName}" 未找到，实体 "${def.slug}" 跳过该 mixin`)
+      continue
     }
     mixinFields.push(...mixin.fields)
   }
@@ -61,7 +63,9 @@ export function resolveExtends(
 
   const parent = getParent(def.extends)
   if (!parent) {
-    throw new Error(`Parent entity "${def.extends}" not found for entity "${def.slug}"`)
+    // 父实体不存在时警告并返回原始定义，避免运行时崩溃
+    console.warn(`[resolveExtends] 父实体 "${def.extends}" 未找到，实体 "${def.slug}" 跳过继承`)
+    return def
   }
 
   // 子字段名集合

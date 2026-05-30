@@ -49,6 +49,9 @@ export function useBatchOperation(entity: EntityDef, options?: BatchOperationOpt
   })
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelledRef = useRef(false)
+  // 用 ref 存储 options，避免 useCallback 依赖对象引用导致不必要重建
+  const optionsRef = useRef(options)
+  optionsRef.current = options
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -78,11 +81,11 @@ export function useBatchOperation(entity: EntityDef, options?: BatchOperationOpt
 
         if (newProgress.status === "completed") {
           stopPolling()
-          options?.onSuccess?.({ success: data.success ?? data.current, failed: data.failed ?? 0 })
+          optionsRef.current?.onSuccess?.({ success: data.success ?? data.current, failed: data.failed ?? 0 })
           toast.success(`操作完成：成功 ${data.success ?? data.current} 条`)
         } else if (newProgress.status === "failed") {
           stopPolling()
-          options?.onError?.(data.errorMessage ?? "操作失败")
+          optionsRef.current?.onError?.(data.errorMessage ?? "操作失败")
           toast.error(data.errorMessage ?? "批量操作失败")
         } else {
           // 继续轮询
@@ -93,7 +96,7 @@ export function useBatchOperation(entity: EntityDef, options?: BatchOperationOpt
         setProgress((p) => ({ ...p, status: "failed", errorMessage: "网络错误" }))
       }
     },
-    [stopPolling, options]
+    [stopPolling]
   )
 
   /** 执行批量操作 */
@@ -132,28 +135,30 @@ export function useBatchOperation(entity: EntityDef, options?: BatchOperationOpt
             total: ids.length,
             percentage: 100
           })
-          options?.onSuccess?.({ success, failed })
+          optionsRef.current?.onSuccess?.({ success, failed })
           toast.success(`操作完成：成功 ${success} 条${failed > 0 ? `，失败 ${failed} 条` : ""}`)
         }
       } catch (_err) {
         setProgress((p) => ({ ...p, status: "failed", errorMessage: "请求失败" }))
-        options?.onError?.("请求失败")
+        optionsRef.current?.onError?.("请求失败")
         toast.error("批量操作失败")
       }
     },
-    [entity, pollProgress, options]
+    [entity.apiPath, pollProgress]
   )
 
   /** 取消异步任务 */
   const cancel = useCallback(async () => {
     cancelledRef.current = true
     stopPolling()
-    const { taskId } = progress
-    if (taskId) {
-      await fetch(`/api/tasks/${taskId}/cancel`, { method: "POST" }).catch(() => {})
-    }
-    setProgress((p) => ({ ...p, status: "cancelled" }))
-  }, [progress, stopPolling])
+    // 从最新 progress 中获取 taskId（通过 setState 回调读取）
+    setProgress((p) => {
+      if (p.taskId) {
+        fetch(`/api/tasks/${p.taskId}/cancel`, { method: "POST" }).catch(() => {})
+      }
+      return { ...p, status: "cancelled" }
+    })
+  }, [stopPolling])
 
   /** 重置状态 */
   const reset = useCallback(() => {

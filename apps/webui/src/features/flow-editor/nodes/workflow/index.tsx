@@ -1,6 +1,8 @@
 /**
  * AI 工作流节点集——LLM/Agent/知识检索/条件/HTTP/代码/控制流
  * @author AaronZZH & Kiro
+ *
+ * TODO: 单文件 550+ 行，待按节点类型拆分为独立文件（llm-node / agent-node / condition-node 等）
  */
 
 "use client"

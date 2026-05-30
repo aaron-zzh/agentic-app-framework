@@ -4,7 +4,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { useCallback } from "react"
+import { useCallback, useRef } from "react"
 
 import type { FieldDef } from "@/lib/types/entity"
 
@@ -45,16 +45,19 @@ interface UseAIAwarenessOptions {
  */
 export function useAIAwareness(options: UseAIAwarenessOptions = {}) {
   const store = useAIAwarenessStore()
+  // 用 ref 存储 options.fields，避免调用方每次传新数组导致 useCallback 重建
+  const fieldsRef = useRef(options.fields)
+  fieldsRef.current = options.fields
 
   const setPageContext = useCallback(
     (ctx: Partial<Omit<AIPageContext, "recentActions">>) => {
       // 如果传入 formValues 且有 fields 定义，自动过滤 aiExclude 字段
-      if (ctx.formValues && options.fields) {
-        ctx = { ...ctx, formValues: filterExcludedFields(ctx.formValues, options.fields) }
+      if (ctx.formValues && fieldsRef.current) {
+        ctx = { ...ctx, formValues: filterExcludedFields(ctx.formValues, fieldsRef.current) }
       }
       store.setPageContext(ctx)
     },
-    [store, options.fields]
+    [store]
   )
 
   const recordAction = useCallback(

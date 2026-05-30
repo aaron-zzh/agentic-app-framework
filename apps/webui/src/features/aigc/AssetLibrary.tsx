@@ -1,6 +1,8 @@
 /**
  * 素材库——瀑布流展示 + 分类筛选 + 详情弹窗
  * @author AaronZZH & Kiro
+ *
+ * TODO: 组件 500+ 行，待拆分为 AssetGrid / AssetDetailDialog / AssetFilters 等子组件
  */
 
 "use client"

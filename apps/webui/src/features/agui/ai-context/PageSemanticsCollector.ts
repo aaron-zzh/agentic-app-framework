@@ -2,6 +2,9 @@
  * 页面语义收集器
  * 收集当前页面的完整语义状态，供 AI 感知层消费
  * @author AaronZZH & Kiro
+ *
+ * 注意：模块级可变状态，仅在客户端使用（"use client" 组件中调用）。
+ * 多个页面组件同时挂载时通过 route 区分，不会跨页面污染。
  */
 
 import type { ComponentInstance, ComponentRelation, PageSemantics } from "../types"

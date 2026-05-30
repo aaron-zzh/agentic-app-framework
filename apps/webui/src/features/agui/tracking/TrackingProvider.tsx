@@ -16,8 +16,8 @@ import {
 
 import type { UserAction } from "../types"
 
-/** 会话 ID（页面生命周期内唯一） */
-const SESSION_ID = crypto.randomUUID()
+/** 会话 ID（页面生命周期内唯一，仅客户端生成） */
+const SESSION_ID = typeof crypto !== "undefined" ? crypto.randomUUID() : "ssr-placeholder"
 
 /** 事件队列刷新间隔（毫秒） */
 const FLUSH_INTERVAL = 5000

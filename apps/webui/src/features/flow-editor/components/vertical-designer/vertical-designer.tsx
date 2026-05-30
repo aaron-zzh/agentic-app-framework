@@ -2,6 +2,8 @@
  * 竖向审批设计器——钉钉/飞书风格卡片式布局
  * @author Kiro
  *
+ * TODO: 文件 450+ 行，待拆分 NodeCard / ConditionBranches / AddButton 为独立文件
+ *
  * @example
  * ```tsx
  * import { VerticalDesigner } from "@/features/flow-editor"

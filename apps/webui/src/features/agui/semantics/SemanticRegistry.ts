@@ -232,5 +232,9 @@ class SemanticRegistryImpl {
   }
 }
 
-/** 全局单例 */
+/**
+ * 全局单例
+ * 注意：仅在客户端使用，不在 SSR/Server Component 中调用。
+ * 模块级状态在 SSR 环境下会跨请求共享，此注册表仅用于客户端 AI 感知。
+ */
 export const SemanticRegistry = new SemanticRegistryImpl()

@@ -67,7 +67,12 @@ class EntityRegistry {
   /** 获取所有已解析的实体 */
   getAll(): EntityDef[] {
     for (const slug of this.raw.keys()) {
-      this.get(slug)
+      try {
+        this.get(slug)
+      } catch (e) {
+        // 单个实体解析失败不中断整个列表，跳过并警告
+        console.warn(`[EntityRegistry] 实体 "${slug}" 解析失败，已跳过:`, e)
+      }
     }
     return Array.from(this.resolved.values())
   }
