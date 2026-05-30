@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.pay.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -24,12 +25,14 @@ public class CreditTokenRuleController {
     private final CreditTokenRuleService ruleService;
 
     @Operation(summary = "创建规则")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Result<CreditTokenRuleVO> create(@Valid @RequestBody CreditTokenRuleDTO dto) {
         return Result.success(ruleService.create(dto));
     }
 
     @Operation(summary = "更新规则")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Result<CreditTokenRuleVO> update(
             @PathVariable Long id, @Valid @RequestBody CreditTokenRuleDTO dto) {
@@ -37,6 +40,7 @@ public class CreditTokenRuleController {
     }
 
     @Operation(summary = "删除规则")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         ruleService.delete(id);

@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.pay.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -22,6 +23,7 @@ public class RefundController {
     private final PayRefundService payRefundService;
 
     @Operation(summary = "申请退款")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping
     public Result<RefundOrderVO> apply(@Valid @RequestBody RefundApplyDTO dto) {
         return Result.success(payRefundService.applyRefund(dto));
@@ -34,6 +36,7 @@ public class RefundController {
     }
 
     @Operation(summary = "退款回调通知")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/notify")
     public Result<Void> notify(@RequestParam String refundNo, @RequestParam boolean success) {
         payRefundService.handleRefundNotify(refundNo, success);

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -25,6 +26,7 @@ public class ReconcileController {
     private final ReconcileService reconcileService;
 
     @Operation(summary = "执行对账")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Result<ReconcileRecordVO> reconcile(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,

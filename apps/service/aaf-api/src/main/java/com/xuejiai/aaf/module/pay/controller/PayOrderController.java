@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.pay.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -25,6 +26,7 @@ public class PayOrderController {
     private final RechargeService rechargeService;
 
     @Operation(summary = "发起充值")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/recharge")
     public Result<PayOrderVO> recharge(
             @RequestParam Long userId,
@@ -34,12 +36,14 @@ public class PayOrderController {
     }
 
     @Operation(summary = "创建支付单")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping
     public Result<PayOrderVO> create(@Valid @RequestBody PayOrderCreateDTO dto) {
         return Result.success(payOrderService.create(dto));
     }
 
     @Operation(summary = "支付回调通知")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/notify")
     public Result<Void> notify(@Valid @RequestBody PayNotifyDTO dto) {
         var payOrderId = payOrderService.handleNotify(dto);
