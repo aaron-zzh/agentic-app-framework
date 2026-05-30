@@ -6,6 +6,7 @@
 
 export {
   ComponentGenerator,
+  ComponentGeneratorImpl,
   type GenerationIntent,
   type GenerationResult
 } from "./ComponentGenerator"

@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import type { SceneStatus, VideoScene } from "./VideoTimeline"
 
 /** 媒体素材状态 */
-interface MediaAssetStatus {
+export interface MediaAssetStatus {
   id: string
   name: string
   thumbnail: string
@@ -25,51 +25,6 @@ interface VideoGenerationChatProps {
   scenes?: VideoScene[]
   assets?: MediaAssetStatus[]
 }
-
-/** 示例数据（TODO: 移至 Storybook stories 或 __fixtures__/，组件 props 改为必填） */
-const MOCK_ASSETS: MediaAssetStatus[] = [
-  {
-    id: "ma1",
-    name: "开场镜头_v1.mp4",
-    thumbnail: "/placeholder.svg",
-    duration: "4s",
-    status: "completed"
-  },
-  {
-    id: "ma2",
-    name: "主角登场_v1.mp4",
-    thumbnail: "/placeholder.svg",
-    duration: "4s",
-    status: "generating"
-  }
-]
-
-const MOCK_SCENES: VideoScene[] = [
-  {
-    id: "s1",
-    index: 1,
-    startTime: 0,
-    endTime: 4,
-    description: "写实胶片 POV 城市街道清晨",
-    status: "completed"
-  },
-  {
-    id: "s2",
-    index: 2,
-    startTime: 4,
-    endTime: 8,
-    description: "主角从远处走来逆光剪影",
-    status: "generating"
-  },
-  {
-    id: "s3",
-    index: 3,
-    startTime: 8,
-    endTime: 12,
-    description: "粒子消散过渡转场",
-    status: "pending"
-  }
-]
 
 function AssetStatusCard({ asset }: { asset: MediaAssetStatus }) {
   return (
@@ -122,8 +77,8 @@ function SceneDescription({ scene }: { scene: VideoScene }) {
 }
 
 export function VideoGenerationChat({
-  scenes = MOCK_SCENES,
-  assets = MOCK_ASSETS
+  scenes = [],
+  assets = []
 }: VideoGenerationChatProps) {
   return (
     <div className="flex h-full flex-col">
@@ -139,11 +94,15 @@ export function VideoGenerationChat({
             <span className="mb-2 block font-medium text-muted-foreground text-xs">
               Media Assets
             </span>
-            <div className="flex flex-col gap-1.5">
-              {assets.map((asset) => (
-                <AssetStatusCard key={asset.id} asset={asset} />
-              ))}
-            </div>
+            {assets.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {assets.map((asset) => (
+                  <AssetStatusCard key={asset.id} asset={asset} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground text-xs py-2">暂无素材</p>
+            )}
           </section>
 
           <Separator />
@@ -151,22 +110,18 @@ export function VideoGenerationChat({
           {/* 分幕描述 */}
           <section>
             <span className="mb-2 block font-medium text-muted-foreground text-xs">分幕描述</span>
-            <div className="flex flex-col gap-1.5">
-              {scenes.map((scene) => (
-                <SceneDescription key={scene.id} scene={scene} />
-              ))}
-            </div>
+            {scenes.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {scenes.map((scene) => (
+                  <SceneDescription key={scene.id} scene={scene} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground text-xs py-2">暂无分幕</p>
+            )}
           </section>
 
           <Separator />
-
-          {/* 状态提示 */}
-          <div className="flex items-center gap-2 rounded-md bg-primary/5 px-3 py-2">
-            <Loader2 className="size-3.5 animate-spin text-primary" />
-            <span className="text-muted-foreground text-xs">
-              媒体变更同步中...正在生成第 2 幕素材
-            </span>
-          </div>
 
           {/* 对话输入 */}
           <div className="flex items-center gap-2 rounded-md border border-border/50 bg-background px-3 py-2">

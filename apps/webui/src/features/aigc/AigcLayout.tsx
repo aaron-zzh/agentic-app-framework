@@ -15,7 +15,7 @@ import { GenerationPanel } from "./GenerationPanel"
 import { PreviewPanel } from "./PreviewPanel"
 import { StoryboardPanel } from "./StoryboardPanel"
 import { useAigcStore } from "./store"
-import type { MediaAsset } from "./types"
+import type { MediaAssetVO } from "./types"
 
 /** 右栏对话面板 */
 function ChatPanel() {
@@ -56,7 +56,7 @@ export function AigcLayout() {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (over?.id === "generation-drop-zone" && active.data.current) {
-      addReferenceAsset(active.data.current as MediaAsset)
+      addReferenceAsset(active.data.current as MediaAssetVO)
     }
   }
 

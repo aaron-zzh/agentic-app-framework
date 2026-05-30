@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { MediaAsset, MediaAssetVO, MediaCategoryVO, MediaTagVO } from "@/features/aigc/types"
+import type { MediaAssetVO, MediaCategoryVO, MediaTagVO } from "@/features/aigc/types"
 import { fetchList, type ListParams, type PageResult, request } from "./client"
 
 /** 旧路径——生成面板内的素材引用（保留兼容） */
@@ -20,12 +20,12 @@ export interface RegenerateParams {
 
 export const mediaAssetApi = {
   /** 素材列表（旧接口，生成面板用） */
-  legacyList: (params: ListParams = {}): Promise<PageResult<MediaAsset>> =>
-    fetchList<MediaAsset>(LEGACY_PATH, params),
+  legacyList: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
+    fetchList<MediaAssetVO>(LEGACY_PATH, params),
 
   /** 素材搜索（旧接口，@提及用） */
-  legacySearch: (keyword: string): Promise<MediaAsset[]> =>
-    request<MediaAsset[]>(`${LEGACY_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
+  legacySearch: (keyword: string): Promise<MediaAssetVO[]> =>
+    request<MediaAssetVO[]>(`${LEGACY_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
 
   /** 素材列表（分页+筛选） */
   list: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>

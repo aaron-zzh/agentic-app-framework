@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { GenerationHistoryItem } from "@/lib/api/generation-history"
 import { useGenerationHistory } from "@/lib/queries/use-generation-history"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "./store"
 
@@ -59,8 +60,10 @@ export function GenerationHistory({ className }: GenerationHistoryProps) {
   const [collapsed, setCollapsed] = useState(true)
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all")
 
+  const userId = useAuthStore((s) => s.user?.id) ?? ""
+
   const { data, isLoading } = useGenerationHistory(
-    "1", // TODO: 从 auth store 获取当前用户 ID
+    userId,
     0,
     20,
     typeFilter === "all" ? undefined : typeFilter

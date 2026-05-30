@@ -16,7 +16,6 @@ export { threeViewConfig } from "./three"
 export { ThreeView } from "./three/ThreeView"
 export type {
   GenerationParams,
-  MediaAsset,
   MediaAssetType,
   MediaAssetVO,
   MediaCategoryVO,

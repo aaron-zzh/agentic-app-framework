@@ -55,7 +55,7 @@ export interface Model3dTaskResult {
   errorMessage: string | null
 }
 
-/** 故事板元素（TODO: 统一为 MediaAssetVO 后删除此旧类型） */
+/** 故事板元素 */
 export interface StoryElement {
   id: string
   name: string
@@ -64,23 +64,11 @@ export interface StoryElement {
   tags: string[]
 }
 
-/** 素材文件（TODO: 统一为 MediaAssetVO 后删除此旧类型） */
-export interface MediaAsset {
-  id: string
-  name: string
-  url: string
-  thumbnail: string
-  width: number
-  height: number
-  model?: string
-  resolution?: string
-}
-
 /** 生成参数 */
 export interface GenerationParams {
   prompt: string
   model: string
   resolution: string
   aspectRatio: string
-  referenceAssets: MediaAsset[]
+  referenceAssets: MediaAssetVO[]
 }

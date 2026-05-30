@@ -11,30 +11,9 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { StoryElement } from "./types"
 
-/** 示例数据（TODO: 移至 Storybook stories 或 __fixtures__/，组件 props 改为必填） */
-const MOCK_ELEMENTS: StoryElement[] = [
-  {
-    id: "1",
-    name: "主角形象",
-    description: "一位身穿深蓝色长袍的年轻法师，手持发光法杖",
-    thumbnail: "/placeholder.svg",
-    tags: ["角色", "主角"]
-  },
-  {
-    id: "2",
-    name: "魔法森林",
-    description: "古老的森林中弥漫着蓝紫色的魔法光芒，巨大的蘑菇散发荧光",
-    thumbnail: "/placeholder.svg",
-    tags: ["场景", "森林"]
-  },
-  {
-    id: "3",
-    name: "水晶龙",
-    description: "通体由透明水晶构成的巨龙，折射出彩虹般的光芒",
-    thumbnail: "/placeholder.svg",
-    tags: ["角色", "龙"]
-  }
-]
+interface StoryboardPanelProps {
+  elements?: StoryElement[]
+}
 
 function ElementCard({ element }: { element: StoryElement }) {
   return (
@@ -58,7 +37,7 @@ function ElementCard({ element }: { element: StoryElement }) {
   )
 }
 
-export function StoryboardPanel() {
+export function StoryboardPanel({ elements = [] }: StoryboardPanelProps) {
   return (
     <div className="flex h-full flex-col">
       {/* 标题栏 */}
@@ -73,11 +52,15 @@ export function StoryboardPanel() {
       <ScrollArea className="flex-1">
         <div className="p-3">
           <span className="mb-2 block font-medium text-muted-foreground text-xs">关键元素</span>
-          <div className="flex flex-col gap-2">
-            {MOCK_ELEMENTS.map((el) => (
-              <ElementCard key={el.id} element={el} />
-            ))}
-          </div>
+          {elements.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {elements.map((el) => (
+                <ElementCard key={el.id} element={el} />
+              ))}
+            </div>
+          ) : (
+            <p className="py-4 text-center text-muted-foreground text-xs">暂无元素</p>
+          )}
         </div>
       </ScrollArea>
     </div>

@@ -39,30 +39,8 @@ function SceneStatusIcon({ status }: { status: SceneStatus }) {
   }
 }
 
-/** 示例数据（TODO: 移至 Storybook stories 或 __fixtures__/，组件 props 改为必填） */
-const MOCK_SCENES: VideoScene[] = [
-  {
-    id: "s1",
-    index: 1,
-    startTime: 0,
-    endTime: 4,
-    description: "写实胶片 POV 城市街道",
-    status: "completed"
-  },
-  {
-    id: "s2",
-    index: 2,
-    startTime: 4,
-    endTime: 8,
-    description: "主角登场逆光剪影",
-    status: "generating"
-  },
-  { id: "s3", index: 3, startTime: 8, endTime: 12, description: "粒子消散转场", status: "pending" },
-  { id: "s4", index: 4, startTime: 12, endTime: 16, description: "抽象空间漫游", status: "pending" }
-]
-
 export function VideoTimeline({
-  scenes = MOCK_SCENES,
+  scenes = [],
   activeSceneId,
   onSceneClick
 }: VideoTimelineProps) {
@@ -73,25 +51,29 @@ export function VideoTimeline({
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-1 p-3">
-          {scenes.map((scene) => (
-            <button
-              key={scene.id}
-              type="button"
-              onClick={() => onSceneClick?.(scene)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent/50",
-                activeSceneId === scene.id && "bg-accent/70"
-              )}
-            >
-              <SceneStatusIcon status={scene.status} />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="font-medium text-foreground text-xs">
-                  第{scene.index}幕 ({scene.startTime}-{scene.endTime}s)
-                </span>
-                <span className="truncate text-muted-foreground text-xs">{scene.description}</span>
-              </div>
-            </button>
-          ))}
+          {scenes.length > 0 ? (
+            scenes.map((scene) => (
+              <button
+                key={scene.id}
+                type="button"
+                onClick={() => onSceneClick?.(scene)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent/50",
+                  activeSceneId === scene.id && "bg-accent/70"
+                )}
+              >
+                <SceneStatusIcon status={scene.status} />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="font-medium text-foreground text-xs">
+                    第{scene.index}幕 ({scene.startTime}-{scene.endTime}s)
+                  </span>
+                  <span className="truncate text-muted-foreground text-xs">{scene.description}</span>
+                </div>
+              </button>
+            ))
+          ) : (
+            <p className="py-4 text-center text-muted-foreground text-xs">暂无分幕</p>
+          )}
         </div>
       </ScrollArea>
     </div>

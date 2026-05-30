@@ -10,17 +10,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "./store"
-import type { MediaAsset } from "./types"
+import type { MediaAssetVO } from "./types"
 
-function DraggableAssetCard({ asset }: { asset: MediaAsset }) {
+function DraggableAssetCard({ asset }: { asset: MediaAssetVO }) {
   const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
     id: `asset-${asset.id}`,
     item: {
       type: "image",
-      id: asset.id,
+      id: String(asset.id),
       title: asset.name,
       url: asset.url,
-      thumbnailUrl: asset.thumbnail
+      thumbnailUrl: asset.thumbnailUrl ?? asset.url
     }
   })
   const setPreviewAsset = useAigcStore((s) => s.setPreviewAsset)
@@ -42,7 +42,7 @@ function DraggableAssetCard({ asset }: { asset: MediaAsset }) {
     >
       <div className="aspect-square bg-muted">
         {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
-        <img src={asset.thumbnail} alt={asset.name} className="size-full object-cover" />
+        <img src={asset.thumbnailUrl ?? asset.url} alt={asset.name} className="size-full object-cover" />
       </div>
       <div className="px-2 py-1.5">
         <span className="block truncate text-foreground text-xs">{asset.name}</span>

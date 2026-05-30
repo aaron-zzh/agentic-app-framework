@@ -17,7 +17,7 @@ const KEYS = {
   tags: ["media-assets", "tags"] as const
 }
 
-/** 素材列表——生成面板用（旧 MediaAsset 类型） */
+/** 素材列表——生成面板用 */
 export function useMediaAssets(params: ListParams = {}) {
   return useQuery({
     queryKey: KEYS.list(params),
@@ -25,7 +25,7 @@ export function useMediaAssets(params: ListParams = {}) {
   })
 }
 
-/** 素材搜索——@提及用（旧 MediaAsset 类型） */
+/** 素材搜索——@提及用 */
 export function useMediaAssetSearch(keyword: string) {
   return useQuery({
     queryKey: KEYS.search(keyword),

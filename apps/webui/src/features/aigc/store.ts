@@ -4,15 +4,15 @@
  */
 
 import { create } from "zustand"
-import type { MediaAsset } from "./types"
+import type { MediaAssetVO } from "./types"
 
 interface AigcStore {
   /** 生成面板是否展开 */
   generationPanelOpen: boolean
   /** 当前预览的素材 */
-  previewAsset: MediaAsset | null
+  previewAsset: MediaAssetVO | null
   /** 拖入生成面板的参考素材 */
-  referenceAssets: MediaAsset[]
+  referenceAssets: MediaAssetVO[]
   /** prompt 文本 */
   prompt: string
   /** 模型选择 */
@@ -23,9 +23,9 @@ interface AigcStore {
   aspectRatio: string
 
   setGenerationPanelOpen: (open: boolean) => void
-  setPreviewAsset: (asset: MediaAsset | null) => void
-  addReferenceAsset: (asset: MediaAsset) => void
-  removeReferenceAsset: (id: string) => void
+  setPreviewAsset: (asset: MediaAssetVO | null) => void
+  addReferenceAsset: (asset: MediaAssetVO) => void
+  removeReferenceAsset: (id: number) => void
   setPrompt: (prompt: string) => void
   setModel: (model: string) => void
   setResolution: (resolution: string) => void

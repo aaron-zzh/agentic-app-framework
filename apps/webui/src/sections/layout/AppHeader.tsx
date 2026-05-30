@@ -3,36 +3,18 @@
  * @author AaronZZH & Kiro
  *
  * 结构：[侧边栏切换] [日历] [联系人] [搜索] [工作区] [面包屑] --- [主题] [对话] [通知] [设置] [头像]
- *
- * TODO: 文件 270+ 行含 10+ 子组件，待拆分为 header-actions/ 目录
  */
 
 "use client"
 
-import { m } from "framer-motion"
-import { Calendar, Menu, MessageSquare, Moon, Search, Sun, Users } from "lucide-react"
-import { usePathname } from "next/navigation"
-import { useTheme } from "next-themes"
+import { Calendar, Search, Users } from "lucide-react"
 import { useState } from "react"
-import { AnimateBorder, transitionTap, varHover, varTap } from "@/components/animate"
-import { Brand } from "@/components/brand/Brand"
 import { CommandPalette } from "@/components/common/CommandPalette"
-import { ThemeSettings } from "@/components/common/ThemeSettings"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger
-} from "@/components/ui/sheet"
 import { useCommandPalette } from "@/lib/hooks/use-command-palette"
-import { useChatterStore } from "@/lib/store/chatter-store"
 import { cn } from "@/lib/utils/cn"
-import { buildNavConfig } from "@/sections/layout/nav-config"
 import { ContactsPanel } from "./ContactsPanel"
-import { NotificationDrawer } from "./notifications"
+import { HeaderActions } from "./HeaderActions"
+import { MobileNav } from "./MobileNav"
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
 
 export function AppHeader() {
@@ -43,7 +25,7 @@ export function AppHeader() {
   return (
     <header className="flex h-[var(--layout-header-height)] shrink-0 items-center gap-2 border-b bg-background px-4">
       {/* 左侧：侧边栏切换 + 功能图标组 */}
-      <SidebarToggle />
+      <MobileNav />
       <CalendarButton />
       <ContactsPanel>
         <button
@@ -62,11 +44,7 @@ export function AppHeader() {
       <div className="flex-1" />
 
       {/* 右侧：工具图标组 */}
-      <ThemeToggle />
-      <ChatterToggle />
-      <NotificationDrawer />
-      <SettingsButton />
-      <UserAvatar />
+      <HeaderActions />
       <CommandPalette
         open={isCommandOpen}
         onClose={() => {
@@ -78,66 +56,6 @@ export function AppHeader() {
         addRecent={addRecent}
       />
     </header>
-  )
-}
-
-/** 侧边栏切换（移动端弹出Sheet） */
-function SidebarToggle() {
-  return (
-    <Sheet>
-      <SheetTrigger
-        className="inline-flex rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"
-        aria-label="打开菜单"
-        render={<button type="button" />}
-      >
-        <Menu className="size-5" />
-      </SheetTrigger>
-      <SheetContent
-        side="left"
-        showCloseButton={false}
-        className="w-[var(--layout-sidebar-width)] p-0"
-      >
-        <MobileSidebar />
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-/** 移动端侧边栏内容（复用 AppSidebar 的导航数据） */
-function MobileSidebar() {
-  const pathname = usePathname()
-  const navConfig = buildNavConfig()
-
-  return (
-    <nav className="flex h-full flex-col overflow-y-auto py-4">
-      <div className="mb-4 px-4">
-        <Brand href="/dashboard" />
-      </div>
-      {navConfig.map(
-        (group: {
-          subheader: string
-          items: Array<{ path: string; title: string; icon?: string }>
-        }) => (
-          <div key={group.subheader} className="mb-3 px-2">
-            <p className="mb-1 px-2 font-medium text-muted-foreground text-xs uppercase">
-              {group.subheader}
-            </p>
-            {group.items.map((item: { path: string; title: string; icon?: string }) => (
-              <a
-                key={item.path}
-                href={item.path}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
-                  pathname.startsWith(item.path) && "bg-primary/10 font-medium text-primary"
-                )}
-              >
-                {item.title}
-              </a>
-            ))}
-          </div>
-        )
-      )}
-    </nav>
   )
 }
 
@@ -177,101 +95,5 @@ function CalendarButton() {
     >
       <Calendar className="size-4" />
     </a>
-  )
-}
-
-/** 明暗主题快捷切换 */
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-
-  return (
-    <button
-      type="button"
-      className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
-      aria-label="切换主题"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-    >
-      <Sun className="size-5 dark:hidden" />
-      <Moon className="hidden size-5 dark:block" />
-    </button>
-  )
-}
-
-/** 用户头像菜单（参考 next-ts AccountButton） */
-function UserAvatar({ src, displayName }: { src?: string; displayName?: string }) {
-  return (
-    <m.button
-      type="button"
-      whileTap={varTap(0.96)}
-      whileHover={varHover(1.04)}
-      transition={transitionTap()}
-      className="inline-flex items-center justify-center border-none bg-transparent p-0"
-      aria-label="用户菜单"
-    >
-      <AnimateBorder rounded="full" borderWidth={1.5} size={40} glowSize={60} duration={8}>
-        <Avatar className="!size-[36px] after:hidden">
-          <AvatarImage src={src || "/assets/avatar/avatar.png"} alt={displayName || "用户头像"} />
-          <AvatarFallback>{displayName?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
-        </Avatar>
-      </AnimateBorder>
-    </m.button>
-  )
-}
-
-/** 设置按钮（弹出主题设置面板） */
-function SettingsButton() {
-  return (
-    <Sheet>
-      <SheetTrigger
-        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
-        aria-label="主题设置"
-        render={<button type="button" />}
-      >
-        <SettingsIcon />
-      </SheetTrigger>
-      <SheetContent side="right">
-        <SheetHeader>
-          <SheetTitle>设置</SheetTitle>
-          <SheetDescription>自定义主题色、外观模式和布局</SheetDescription>
-        </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <ThemeSettings />
-        </div>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-/** 齿轮图标（外圈缓慢旋转） */
-function SettingsIcon() {
-  return (
-    <svg className="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        className="origin-center animate-[spin_8s_linear_infinite]"
-        fill="currentColor"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        opacity="0.5"
-        d="M14.279 2.152C13.909 2 13.439 2 12.5 2s-1.408 0-1.779.152a2.008 2.008 0 0 0-1.09 1.083c-.094.223-.13.484-.145.863a1.615 1.615 0 0 1-.796 1.353a1.64 1.64 0 0 1-1.579.008c-.338-.178-.583-.276-.825-.308a2.026 2.026 0 0 0-1.49.396c-.318.242-.553.646-1.022 1.453c-.47.807-.704 1.21-.757 1.605c-.07.526.074 1.058.4 1.479c.148.192.357.353.68.555c.477.297.783.803.783 1.361c0 .558-.306 1.064-.782 1.36c-.324.203-.533.364-.682.556a1.99 1.99 0 0 0-.399 1.479c.053.394.287.798.757 1.605c.47.807.704 1.21 1.022 1.453c.424.323.96.465 1.49.396c.242-.032.487-.13.825-.308a1.64 1.64 0 0 1 1.58.008c.486.28.774.795.795 1.353c.015.38.051.64.145.863c.204.49.596.88 1.09 1.083c.37.152.84.152 1.779.152s1.409 0 1.779-.152a2.008 2.008 0 0 0 1.09-1.083c.094-.223.13-.483.145-.863c.02-.558.309-1.074.796-1.353a1.64 1.64 0 0 1 1.579-.008c.338.178.583.276.825.308c.53.07 1.066-.073 1.49-.396c.318-.242.553-.646 1.022-1.453c.47-.807.704-1.21.757-1.605a1.99 1.99 0 0 0-.4-1.479c-.148-.192-.357-.353-.68-.555c-.477-.297-.783-.803-.783-1.361c0-.558.306-1.064.782-1.36c.324-.203.533-.364.682-.556a1.99 1.99 0 0 0 .399-1.479c-.053-.394-.287-.798-.757-1.605c-.47-.807-.704-1.21-1.022-1.453a2.026 2.026 0 0 0-1.49-.396c-.242.032-.487.13-.825.308a1.64 1.64 0 0 1-1.58-.008a1.615 1.615 0 0 1-.795-1.353c-.015-.38-.051-.64-.145-.863a2.007 2.007 0 0 0-1.09-1.083"
-      />
-      <circle cx="12.5" cy="12" r="3" fill="currentColor" />
-    </svg>
-  )
-}
-
-/** Chatter 全局触发按钮（读取 chatter store，直接控制 open 状态） */
-function ChatterToggle() {
-  const open = useChatterStore((s) => s.open)
-  const setOpen = useChatterStore((s) => s.setOpen)
-
-  return (
-    <button
-      type="button"
-      className={`flex size-8 items-center justify-center rounded-md hover:bg-accent ${open ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
-      aria-label="打开对话"
-      onClick={() => setOpen(!open)}
-    >
-      <MessageSquare className="size-4" />
-    </button>
   )
 }

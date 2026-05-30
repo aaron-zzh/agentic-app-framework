@@ -8,7 +8,7 @@ import type { DataFieldDef, EntityDef } from "@/lib/types/entity"
 
 import type { ComponentSemantics } from "../types"
 
-class SemanticRegistryImpl {
+export class SemanticRegistryImpl {
   private registry = new Map<string, ComponentSemantics>()
 
   /** 注册组件语义 */

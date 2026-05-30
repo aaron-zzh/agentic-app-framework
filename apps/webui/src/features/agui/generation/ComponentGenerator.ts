@@ -89,7 +89,7 @@ const featureKeywords: Record<string, string> = {
   sort: "sort"
 }
 
-class ComponentGeneratorImpl {
+export class ComponentGeneratorImpl {
   /** 从自然语言解析生成意图 */
   parseIntent(text: string): GenerationIntent {
     const normalized = text.toLowerCase()
