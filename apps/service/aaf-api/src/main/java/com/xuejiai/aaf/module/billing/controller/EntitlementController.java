@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.billing.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -41,6 +42,7 @@ public class EntitlementController {
     }
 
     /** 手动触发周期重置（供定时任务或管理后台调用） */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/reset-expired")
     public Result<Integer> resetExpired() {
         return Result.success(entitlementService.resetExpiredQuotas());

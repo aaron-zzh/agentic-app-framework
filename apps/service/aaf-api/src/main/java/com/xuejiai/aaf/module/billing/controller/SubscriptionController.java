@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.billing.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -30,6 +31,7 @@ public class SubscriptionController {
     }
 
     /** 购买/升级订阅 */
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/subscribe")
     public Result<Long> subscribe(@RequestParam Long userId, @Valid @RequestBody SubscribeDTO dto) {
         var recordId = subscriptionService.subscribe(userId, dto.planCode(), dto.channelCode());
