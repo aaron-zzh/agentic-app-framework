@@ -159,12 +159,13 @@ function DropZone({
       {!multiple && hasValue && typeof value === "string" ? (
         <div className="relative inline-block">
           {/* biome-ignore lint/performance/noImgElement: 远程 URL 预览 */}
-          <img src={value} alt="preview" className="h-32 w-32 rounded-lg border object-cover" />
+          <img src={value} alt={value.split("/").pop() || "已上传图片"} className="h-32 w-32 rounded-lg border object-cover" />
           <button
             type="button"
             className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white text-xs"
             onClick={onDelete}
             disabled={disabled}
+            aria-label="删除文件"
           >
             ✕
           </button>
@@ -229,6 +230,7 @@ function DropZone({
                   className="text-muted-foreground text-xs hover:text-destructive"
                   onClick={() => onRemove(url)}
                   disabled={disabled}
+                  aria-label="移除文件"
                 >
                   ✕
                 </button>

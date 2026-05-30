@@ -39,6 +39,7 @@ export function TablePagination({
               className="h-3.5 w-3.5 rounded border"
               checked={dense}
               onChange={onChangeDense}
+              aria-label="紧凑模式"
             />
             紧凑
           </label>
@@ -52,6 +53,7 @@ export function TablePagination({
             className="h-7 rounded border px-1 text-xs"
             value={pageSize}
             onChange={(e) => onChangePageSize(Number(e.target.value))}
+            aria-label="每页条数"
           >
             {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>
@@ -71,6 +73,7 @@ export function TablePagination({
             className="h-7 w-7 rounded border text-xs disabled:opacity-30"
             disabled={page <= 1}
             onClick={() => onChangePage(page - 1)}
+            aria-label="上一页"
           >
             ‹
           </button>
@@ -79,6 +82,7 @@ export function TablePagination({
             className="h-7 w-7 rounded border text-xs disabled:opacity-30"
             disabled={page >= totalPages}
             onClick={() => onChangePage(page + 1)}
+            aria-label="下一页"
           >
             ›
           </button>

@@ -46,6 +46,7 @@ export function TableHead({
                 if (el) el.indeterminate = numSelected > 0 && numSelected < rowCount
               }}
               onChange={(e) => onSelectAllRows(e.target.checked)}
+              aria-label="全选"
             />
           </th>
         )}

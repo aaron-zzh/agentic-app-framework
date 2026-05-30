@@ -150,6 +150,8 @@ export function FieldSignature({
           ref={canvasRef}
           height={height}
           className="block w-full cursor-crosshair touch-none rounded-t-lg bg-white"
+          role="img"
+          aria-label="手写签名区域"
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}

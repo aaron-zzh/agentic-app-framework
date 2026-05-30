@@ -112,6 +112,7 @@ export function ThemeSettings() {
           onClick={handleReset}
           className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title="重置为默认"
+          aria-label="重置为默认"
         >
           <RotateCcw className="size-4" />
         </button>
@@ -199,6 +200,8 @@ export function ThemeSettings() {
                 key={preset.value}
                 type="button"
                 title={preset.label}
+                aria-label={`主题色: ${preset.label}`}
+                aria-pressed={themeColor === preset.value}
                 onClick={() => setThemeColor(preset.value)}
                 className={cn(
                   "group relative flex size-10 items-center justify-center rounded-xl border-2 transition-all",
@@ -286,6 +289,7 @@ function NavLayoutOption({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "rounded-lg border-2 p-1.5 transition-all",
         active ? "border-primary bg-primary/5" : "border-transparent hover:border-border"
@@ -311,6 +315,7 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs transition-colors",
         active ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"

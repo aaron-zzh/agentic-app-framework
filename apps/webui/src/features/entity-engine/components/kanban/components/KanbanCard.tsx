@@ -82,7 +82,13 @@ export function KanbanCard({
       role="button"
       tabIndex={0}
       onClick={handleClick}
-      onKeyDown={undefined}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          handleClick(e as unknown as React.MouseEvent)
+        }
+      }}
+      aria-label={`卡片: ${title}`}
       className={cn(
         "relative cursor-grab rounded-md border bg-background p-3 shadow-sm transition-shadow hover:shadow-md",
         isDragging && "opacity-50",
@@ -131,6 +137,7 @@ function CardChatHandle({
       className="absolute top-1 right-1 hidden cursor-grab rounded p-0.5 text-muted-foreground text-xs opacity-60 hover:opacity-100 group-hover:inline-block"
       style={{ opacity: isDragging ? 0.3 : undefined }}
       title="拖放到对话"
+      aria-label="拖放到对话"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
