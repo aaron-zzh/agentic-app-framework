@@ -34,7 +34,7 @@ export function ContextChip({ item, onRemove }: ContextChipProps) {
   if ((item.type === "image" || item.type === "video") && item.thumbnailUrl) {
     return (
       <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs">
-        <img src={item.thumbnailUrl} alt="" className="size-6 rounded object-cover" />
+        <img src={item.thumbnailUrl} alt={label} className="size-6 rounded object-cover" />
         <span className="max-w-[150px] truncate">{label}</span>
         <button
           type="button"
