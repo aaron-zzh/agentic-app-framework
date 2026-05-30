@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.permission.domain.Permission;
-import com.xuejiai.aaf.module.system.permission.repository.PermissionRepository;
+import com.xuejiai.aaf.module.system.permission.repository.MenuPermissionRepository;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionCreateDTO;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionTreeVO;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionUpdateDTO;
@@ -35,7 +35,7 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class PermissionService {
 
-    private final PermissionRepository permissionRepository;
+    private final MenuPermissionRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;

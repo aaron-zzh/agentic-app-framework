@@ -12,7 +12,7 @@ import org.hibernate.type.SqlTypes;
 /** AI 自动化规则 */
 @Getter
 @Setter
-@Entity
+@Entity(name = "CompanyAutomationRule")
 @Table(name = "company_automation_rule")
 @SQLDelete(sql = "UPDATE company_automation_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class AutomationRule extends BaseEntity {

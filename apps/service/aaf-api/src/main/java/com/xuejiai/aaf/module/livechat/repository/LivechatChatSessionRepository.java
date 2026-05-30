@@ -10,7 +10,7 @@ import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.enums.livechat.SessionStatusEnum;
 import com.xuejiai.aaf.module.livechat.domain.ChatSession;
 
-public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
+public interface LivechatChatSessionRepository extends JpaRepository<ChatSession, Long> {
 
     /** 查找用户当前活跃会话（未关闭） */
     Optional<ChatSession> findByExternalUserIdAndChannelTypeAndStatusNot(

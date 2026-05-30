@@ -18,7 +18,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "SysTaskExecution")
 @Table(name = "sys_task_execution")
 public class TaskExecution {
 

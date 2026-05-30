@@ -16,6 +16,7 @@ spring:
   flyway:
     enabled: true
     placeholder-replacement: false
+    sql-migration-prefix: v
 
 server:
   servlet:

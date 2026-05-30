@@ -24,7 +24,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "LivechatChatSession")
 @Table(name = "chat_session")
 @SQLDelete(sql = "UPDATE chat_session SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class ChatSession extends BaseEntity {

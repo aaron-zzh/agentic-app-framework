@@ -19,7 +19,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "MenuPermission")
 @Table(name = "sys_menu_permission")
 @SQLDelete(
         sql =

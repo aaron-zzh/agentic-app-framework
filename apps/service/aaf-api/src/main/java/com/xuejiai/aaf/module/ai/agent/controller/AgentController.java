@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.agent.controller;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,6 +56,14 @@ public class AgentController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         agentService.delete(id);
+        return Result.success();
+    }
+
+    @Operation(summary = "启用/禁用 Agent")
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Void> updateStatus(@PathVariable Long id, @RequestParam String status) {
+        agentService.updateStatus(id, status);
         return Result.success();
     }
 

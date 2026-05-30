@@ -11,7 +11,7 @@ import com.xuejiai.aaf.module.system.task.domain.TaskExecution;
  *
  * @author AaronZZH & Kiro
  */
-public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Long> {
+public interface SysTaskExecutionRepository extends JpaRepository<TaskExecution, Long> {
 
     Page<TaskExecution> findByTaskNameContainingOrTaskTypeContaining(
             String taskName, String taskType, Pageable pageable);

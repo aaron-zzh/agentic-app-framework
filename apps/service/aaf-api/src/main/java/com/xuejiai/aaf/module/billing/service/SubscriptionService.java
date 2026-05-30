@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  * 支付成功后创建 subscription + 实例化 entitlement_quota。
  */
 @Slf4j
-@Service
+@Service("billingSubscriptionService")
 @RequiredArgsConstructor
 public class SubscriptionService {
 

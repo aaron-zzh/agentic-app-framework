@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.livechat.domain.ChatMessage;
 
-public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
+public interface LivechatChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
     /** 查询会话消息（排除内部消息） */
     List<ChatMessage> findBySessionIdAndInternalFalseOrderByCreateTimeAsc(Long sessionId);

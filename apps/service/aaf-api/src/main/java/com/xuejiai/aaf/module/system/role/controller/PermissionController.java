@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
  * @author AaronZZH & Kiro
  */
 @Tag(name = "权限管理")
-@RestController
+@RestController("rolePermissionController")
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor
 public class PermissionController {

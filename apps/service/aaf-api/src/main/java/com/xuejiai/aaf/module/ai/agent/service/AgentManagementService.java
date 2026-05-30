@@ -125,6 +125,20 @@ public class AgentManagementService {
     }
 
     /**
+     * 更新 Agent 状态（启用/禁用）。
+     *
+     * @param id 数据库 ID
+     * @param status 新状态
+     */
+    @Transactional
+    public void updateStatus(Long id, String status) {
+        var entity = agentRepo.findById(id)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
+        entity.setStatus(status);
+        agentRepo.save(entity);
+    }
+
+    /**
      * 启动 Agent 执行。
      *
      * @param id 数据库 ID

@@ -11,7 +11,7 @@ import com.xuejiai.aaf.module.system.notify.domain.Subscription;
  *
  * @author AaronZZH & Kiro
  */
-public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
+public interface NotifySubscriptionRepository extends JpaRepository<Subscription, Long> {
 
     /** 查询当前用户对指定实体的订阅 */
     List<Subscription> findByUserIdAndEntityTypeAndEntityId(

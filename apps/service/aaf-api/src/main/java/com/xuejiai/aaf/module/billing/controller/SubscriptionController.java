@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 
 /** 订阅管理接口 */
-@RestController
+@RestController("billingSubscriptionController")
 @RequestMapping("/api/billing/subscription")
 @RequiredArgsConstructor
 public class SubscriptionController {

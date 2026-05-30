@@ -17,7 +17,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "LivechatChatMessage")
 @Table(name = "chat_message")
 public class ChatMessage extends BaseEntity {
 

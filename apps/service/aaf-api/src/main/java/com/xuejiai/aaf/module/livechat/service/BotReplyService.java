@@ -9,7 +9,7 @@ import com.xuejiai.aaf.module.knowledge.service.KnowledgeSegmentService;
 import com.xuejiai.aaf.module.knowledge.service.ProblemService;
 import com.xuejiai.aaf.module.livechat.domain.ChatMessage;
 import com.xuejiai.aaf.module.livechat.domain.ChatSession;
-import com.xuejiai.aaf.module.livechat.repository.ChatMessageRepository;
+import com.xuejiai.aaf.module.livechat.repository.LivechatChatMessageRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ public class BotReplyService {
 
     private final ProblemService problemService;
     private final KnowledgeSegmentService segmentService;
-    private final ChatMessageRepository messageRepository;
+    private final LivechatChatMessageRepository messageRepository;
 
     /** 默认知识库 ID（可配置化，此处简化） */
     private static final Long DEFAULT_KNOWLEDGE_BASE_ID = 1L;

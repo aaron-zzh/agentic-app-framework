@@ -12,7 +12,7 @@ import com.xuejiai.aaf.module.system.permission.domain.Permission;
  *
  * @author AaronZZH & Kiro
  */
-public interface PermissionRepository extends JpaRepository<Permission, Long> {
+public interface MenuPermissionRepository extends JpaRepository<Permission, Long> {
 
     List<Permission> findByDeletedFalseOrderBySortOrder();
 

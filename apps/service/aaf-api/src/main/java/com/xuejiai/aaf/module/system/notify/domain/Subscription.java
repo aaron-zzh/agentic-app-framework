@@ -19,7 +19,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "NotifySubscription")
 @Table(name = "sys_subscription")
 @SQLDelete(
         sql =

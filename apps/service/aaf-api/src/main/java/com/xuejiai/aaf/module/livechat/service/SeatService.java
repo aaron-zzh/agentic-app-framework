@@ -10,7 +10,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.livechat.domain.ChatSession;
 import com.xuejiai.aaf.module.livechat.domain.LivechatSeat;
-import com.xuejiai.aaf.module.livechat.repository.ChatSessionRepository;
+import com.xuejiai.aaf.module.livechat.repository.LivechatChatSessionRepository;
 import com.xuejiai.aaf.module.livechat.repository.LivechatSeatRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SeatService {
 
     private final LivechatSeatRepository seatRepository;
-    private final ChatSessionRepository sessionRepository;
+    private final LivechatChatSessionRepository sessionRepository;
 
     /**
      * 分配坐席——按技能组/空闲度分配。

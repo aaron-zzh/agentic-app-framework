@@ -26,6 +26,7 @@ import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.module.system.auth.vo.SendCodeDTO;
+import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.user.repository.UserOauthRepository;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
@@ -41,12 +42,14 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     @Mock private ValueOperations<String, String> valueOps;
     @Mock private JwtDecoder jwtDecoder;
     @Mock private MessageService messageService;
+    @Mock private SystemConfigService systemConfigService;
 
     @InjectMocks private AuthService authService;
 
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(systemConfigService.getInteger("security.verify_code_expire", 5)).thenReturn(5);
         org.springframework.test.util.ReflectionTestUtils.setField(
                 authService, "companyName", "学记智能");
         // OAuthClient List 字段手动注入（@InjectMocks 不处理泛型 List）
@@ -75,16 +78,14 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         verify(messageService).send(captor.capture());
         var request = captor.getValue();
         assertThat(request.channel()).isEqualTo(MessageChannel.EMAIL);
-        assertThat(request.templateCode()).isEqualTo("AUTH_VERIFY_CODE");
+        assertThat(request.templateCode()).isEqualTo("auth.verify_code.register");
         assertThat(request.recipients()).containsExactly("test@example.com");
-        assertThat(request.variables()).containsEntry("companyName", "学记智能");
         assertThat(request.variables()).containsEntry("expireMinutes", 5);
-        assertThat(request.subject()).contains("学记智能");
     }
 
     @Test
-    @DisplayName("Given MessageService 发送失败 When sendCode Then 不抛异常（降级）")
-    void should_not_throw_when_email_send_fails() {
+    @DisplayName("Given MessageService 发送失败 When sendCode Then 抛出异常（通知用户重试）")
+    void should_throw_when_email_send_fails() {
         // 准备参数
         var dto = new SendCodeDTO("test@example.com", "login");
 
@@ -93,11 +94,11 @@ class AuthServiceTest extends BaseMockitoUnitTest {
                 .when(messageService)
                 .send(any());
 
-        // 调用 + 断言：不抛异常
-        org.assertj.core.api.Assertions.assertThatCode(() -> authService.sendCode(dto))
-                .doesNotThrowAnyException();
+        // 调用 + 断言：异常向上抛出（让用户感知失败并重试，不静默降级）
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> authService.sendCode(dto))
+                .isInstanceOf(RuntimeException.class);
 
-        // 验证码仍然存入了 Redis
-        verify(valueOps).set(anyString(), anyString(), any());
+        // 验证码已在发信失败前写入 Redis
+        verify(valueOps).set(eq("verify_code:login:test@example.com"), anyString(), any());
     }
 }

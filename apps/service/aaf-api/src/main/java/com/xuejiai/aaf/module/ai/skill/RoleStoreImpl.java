@@ -1,12 +1,10 @@
 package com.xuejiai.aaf.module.ai.skill;
 
 import java.util.List;
-import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Repository;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.RoleStore;
 
@@ -21,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RoleStoreImpl implements RoleStore {
 
-    private final RoleRepository roleRepository;
+    private final AiRoleRepository roleRepository;
 
     @Override
     public List<String> getSkillIds(String roleId) {
@@ -46,9 +44,4 @@ public class RoleStoreImpl implements RoleStore {
                 .filter(s -> !s.isEmpty())
                 .toList();
     }
-}
-
-@Repository
-interface RoleRepository extends JpaRepository<Role, Long> {
-    Optional<Role> findByRoleId(String roleId);
 }

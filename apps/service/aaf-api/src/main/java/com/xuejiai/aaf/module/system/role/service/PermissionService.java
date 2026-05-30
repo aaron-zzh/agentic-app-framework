@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  * @author AaronZZH & Kiro
  */
 @Slf4j
-@Service
+@Service("rolePermissionService")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PermissionService {

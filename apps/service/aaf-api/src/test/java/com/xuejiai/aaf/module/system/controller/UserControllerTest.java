@@ -15,7 +15,10 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -24,6 +27,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.config.StorageWebConfig;
+import com.xuejiai.aaf.framework.logging.RequestMetricsFilter;
+import com.xuejiai.aaf.framework.security.SecurityConfig;
+import com.xuejiai.aaf.framework.security.apikey.ApiKeyAuthFilter;
 import com.xuejiai.aaf.module.system.task.async.AsyncTaskService;
 import com.xuejiai.aaf.module.system.user.controller.UserController;
 import com.xuejiai.aaf.module.system.user.service.UserService;
@@ -33,7 +40,18 @@ import com.xuejiai.aaf.module.system.user.vo.UserUpdateDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserVO;
 
 /** 用户接口单元测试（@WebMvcTest 切片测试，不加载完整上下文）。 */
-@WebMvcTest(UserController.class)
+@WebMvcTest(
+        controllers = UserController.class,
+        excludeFilters =
+                @ComponentScan.Filter(
+                        type = FilterType.ASSIGNABLE_TYPE,
+                        classes = {
+                            StorageWebConfig.class,
+                            RequestMetricsFilter.class,
+                            SecurityConfig.class,
+                            ApiKeyAuthFilter.class
+                        }))
+@AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {
 
     @Autowired private MockMvc mockMvc;

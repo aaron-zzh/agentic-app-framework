@@ -16,8 +16,8 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.livechat.domain.ChatMessage;
 import com.xuejiai.aaf.module.livechat.domain.ChatSession;
 import com.xuejiai.aaf.module.livechat.domain.SessionTransfer;
-import com.xuejiai.aaf.module.livechat.repository.ChatMessageRepository;
-import com.xuejiai.aaf.module.livechat.repository.ChatSessionRepository;
+import com.xuejiai.aaf.module.livechat.repository.LivechatChatMessageRepository;
+import com.xuejiai.aaf.module.livechat.repository.LivechatChatSessionRepository;
 import com.xuejiai.aaf.module.livechat.repository.SessionTransferRepository;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,8 +35,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ChatSessionService {
 
-    private final ChatSessionRepository sessionRepository;
-    private final ChatMessageRepository messageRepository;
+    private final LivechatChatSessionRepository sessionRepository;
+    private final LivechatChatMessageRepository messageRepository;
     private final SessionTransferRepository transferRepository;
     private final SeatService seatService;
     private final ApplicationEventPublisher eventPublisher;
