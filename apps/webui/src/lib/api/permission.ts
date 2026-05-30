@@ -3,6 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
+import { request } from "./client"
+
 /** 字段级权限 */
 export interface FieldAccess {
   visible: boolean
@@ -18,14 +20,7 @@ export interface EntityAccess {
   fieldAccess: Record<string, FieldAccess>
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api"
-
 /** 获取指定实体的权限配置 */
 export async function fetchEntityAccess(slug: string): Promise<EntityAccess> {
-  const res = await fetch(`${BASE_URL}/permissions/entity/${slug}`)
-  if (!res.ok) {
-    throw new Error(`获取权限失败: ${res.statusText}`)
-  }
-  const json = await res.json()
-  return json.data ?? json
+  return request<EntityAccess>(`/permissions/entity/${slug}`)
 }

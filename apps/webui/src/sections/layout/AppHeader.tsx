@@ -26,7 +26,9 @@ import {
   SheetTrigger
 } from "@/components/ui/sheet"
 import { useCommandPalette } from "@/lib/hooks/use-command-palette"
+import { useChatterStore } from "@/lib/store/chatter-store"
 import { cn } from "@/lib/utils/cn"
+import { buildNavConfig } from "@/sections/layout/nav-config"
 import { ContactsPanel } from "./ContactsPanel"
 import { NotificationDrawer } from "./notifications"
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
@@ -101,8 +103,6 @@ function SidebarToggle() {
 
 /** 移动端侧边栏内容（复用 AppSidebar 的导航数据） */
 function MobileSidebar() {
-  // 延迟导入避免循环依赖，直接内联渲染导航
-  const { buildNavConfig } = require("@/sections/layout/nav-config")
   const pathname = usePathname()
   const navConfig = buildNavConfig()
 
@@ -259,10 +259,8 @@ function SettingsIcon() {
 
 /** Chatter 全局触发按钮（读取 chatter store，直接控制 open 状态） */
 function ChatterToggle() {
-  // 动态导入避免 store 在 SSR 阶段执行
-  const { useChatterStore } = require("@/stores/chatter-store")
-  const open = useChatterStore((s: { open: boolean }) => s.open)
-  const setOpen = useChatterStore((s: { setOpen: (v: boolean) => void }) => s.setOpen)
+  const open = useChatterStore((s) => s.open)
+  const setOpen = useChatterStore((s) => s.setOpen)
 
   return (
     <button

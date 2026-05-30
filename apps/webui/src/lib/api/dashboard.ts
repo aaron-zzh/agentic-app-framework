@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { ApiError } from "./client"
+import { request } from "./client"
 
 /** Widget 类型 */
 export type WidgetType =
@@ -122,43 +122,30 @@ export interface WidgetDataVO {
   chartData?: Record<string, unknown>[]
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
-
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    ...init
-  })
-  if (!res.ok) throw new ApiError(res.status, `请求失败: ${res.statusText}`)
-  const json = await res.json()
-  if (json.code !== 0) throw new ApiError(json.code, json.message ?? "未知错误")
-  return json.data as T
-}
-
 export const dashboardApi = {
   /** 获取仪表盘列表 */
-  list: () => req<DashboardVO[]>("/dashboards"),
+  list: () => request<DashboardVO[]>("/dashboards"),
 
   /** 获取单个仪表盘 */
-  get: (id: string) => req<DashboardVO>(`/dashboards/${id}`),
+  get: (id: string) => request<DashboardVO>(`/dashboards/${id}`),
 
   /** 获取默认仪表盘 */
-  getDefault: () => req<DashboardVO>("/dashboards/default"),
+  getDefault: () => request<DashboardVO>("/dashboards/default"),
 
   /** 保存仪表盘布局 */
   saveLayout: (id: string, layout: DashboardWidgetVO[]) =>
-    req<void>(`/dashboards/${id}/layout`, {
+    request<void>(`/dashboards/${id}/layout`, {
       method: "PUT",
       body: JSON.stringify({ layout })
     }),
 
   /** 创建仪表盘 */
   create: (data: { name: string; shared?: boolean }) =>
-    req<DashboardVO>("/dashboards", { method: "POST", body: JSON.stringify(data) }),
+    request<DashboardVO>("/dashboards", { method: "POST", body: JSON.stringify(data) }),
 
   /** 获取 Widget 数据 */
   getWidgetData: (widgetId: string, config: WidgetConfig) =>
-    req<WidgetDataVO>(`/dashboards/widgets/${widgetId}/data`, {
+    request<WidgetDataVO>(`/dashboards/widgets/${widgetId}/data`, {
       method: "POST",
       body: JSON.stringify(config)
     })

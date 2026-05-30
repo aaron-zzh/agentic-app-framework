@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { ApiError } from "./client"
+import { request } from "./client"
 
 /** 趋势数据点 */
 export interface TrendPoint {
@@ -47,19 +47,6 @@ export interface OverviewMetrics {
   avgSessionDurationChange: number
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
-
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    ...init
-  })
-  if (!res.ok) throw new ApiError(res.status, `请求失败: ${res.statusText}`)
-  const json = await res.json()
-  if (json.code !== 0) throw new ApiError(json.code, json.message ?? "未知错误")
-  return json.data as T
-}
-
 export const statsApi = {
   /** 获取趋势数据 */
   getTrend: (params: TrendParams) => {
@@ -69,15 +56,15 @@ export const statsApi = {
       ...(params.startDate && { startDate: params.startDate }),
       ...(params.endDate && { endDate: params.endDate })
     })
-    return req<TrendPoint[]>(`/stats/trend?${qs.toString()}`)
+    return request<TrendPoint[]>(`/stats/trend?${qs.toString()}`)
   },
 
   /** 获取漏斗数据 */
-  getFunnel: () => req<FunnelStage[]>("/stats/funnel"),
+  getFunnel: () => request<FunnelStage[]>("/stats/funnel"),
 
   /** 获取留存率 */
-  getRetention: () => req<RetentionData[]>("/stats/retention"),
+  getRetention: () => request<RetentionData[]>("/stats/retention"),
 
   /** 获取概览指标 */
-  getOverview: () => req<OverviewMetrics>("/stats/overview")
+  getOverview: () => request<OverviewMetrics>("/stats/overview")
 }
