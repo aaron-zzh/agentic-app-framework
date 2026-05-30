@@ -13,6 +13,7 @@ import lombok.Getter;
 public enum ChannelTypeEnum implements ArrayValuable<String> {
     WECHAT_MP("wechat_mp", "微信公众号"),
     WECHAT_MINI("wechat_mini", "微信小程序"),
+    WECOM_KF("wecom_kf", "企微客服"),
     DINGTALK("dingtalk", "钉钉"),
     FEISHU("feishu", "飞书"),
     WEBHOOK("webhook", "Webhook"),

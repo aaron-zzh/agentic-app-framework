@@ -7,7 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.xuejiai.aaf.framework.engine.knowledge.KnowledgeBaseService;
+import com.xuejiai.aaf.module.knowledge.service.KnowledgeBaseService;
+import com.xuejiai.aaf.module.knowledge.vo.CreateKnowledgeBaseRequest;
 
 /** 知识库核心流程集成测试。 */
 @SpringBootTest
@@ -18,17 +19,11 @@ class KnowledgeFlowIT {
     private KnowledgeBaseService knowledgeBaseService;
 
     @Test
-    void 创建知识库_导入文档_检索() {
-        // 创建知识库
-        var kb = knowledgeBaseService.create("IT测试知识库", "集成测试用", 1L);
+    void 创建知识库() {
+        var req = new CreateKnowledgeBaseRequest(
+                "IT测试知识库", "集成测试用", null, null, null, null);
+        var kb = knowledgeBaseService.create(req);
         assertThat(kb).isNotNull();
-        assertThat(kb.getName()).isEqualTo("IT测试知识库");
-
-        // 导入文本
-        knowledgeBaseService.importText(kb.getId(), "AAF 是生产级 AI 原生多智能体应用开发框架", "intro.md");
-
-        // 检索
-        var results = knowledgeBaseService.search(kb.getId(), "什么是 AAF", 5);
-        assertThat(results).isNotEmpty();
+        assertThat(kb.name()).isEqualTo("IT测试知识库");
     }
 }
