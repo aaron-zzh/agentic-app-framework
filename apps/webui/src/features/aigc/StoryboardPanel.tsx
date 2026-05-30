@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { StoryElement } from "./types"
 
-/** 示例数据 */
+/** 示例数据（TODO: 移至 Storybook stories 或 __fixtures__/，组件 props 改为必填） */
 const MOCK_ELEMENTS: StoryElement[] = [
   {
     id: "1",

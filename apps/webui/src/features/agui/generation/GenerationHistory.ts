@@ -2,6 +2,9 @@
  * 生成历史与模板管理
  * 记录生成历史、保存为模板、模板市场、版本管理
  * @author AaronZZH & Kiro
+ *
+ * 注意：当前为纯内存存储，页面刷新后数据丢失。
+ * TODO: 后续接入 localStorage 或后端持久化
  */
 
 import type { EntityDef } from "@/lib/types/entity"

@@ -28,7 +28,7 @@ interface Contact {
   lastMessageAt?: string
 }
 
-/** mock 数据——后端就绪后替换为 useQuery */
+/** mock 数据（TODO: 后端就绪后替换为 useQuery + GET /api/contacts） */
 const mockContacts: Contact[] = [
   {
     id: "1",

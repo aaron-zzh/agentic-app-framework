@@ -105,7 +105,7 @@ export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTime
           setItems(res.data.map(parseEvent))
         }
       })
-      .catch(() => {})
+      .catch(() => {}) // TODO: 区分"无事件"和"加载失败"，失败时展示错误状态
   }, [taskId])
 
   // SSE 实时订阅

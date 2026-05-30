@@ -189,8 +189,8 @@ export const CreateEntityToolUI = makeAssistantToolUI<
       <CreateEntityCard
         entityType={args.entityType}
         entityName={args.entityName}
-        onConfirm={() => {}}
-        onCancel={() => {}}
+        onConfirm={() => {}} // TODO: 连接实际 mutation 逻辑
+        onCancel={() => {}} // TODO: 连接实际取消逻辑
       />
     )
   }
@@ -231,8 +231,8 @@ export const EditEntityToolUI = makeAssistantToolUI<
         fieldName={args.fieldName}
         oldValue={args.oldValue}
         newValue={args.newValue}
-        onConfirm={() => {}}
-        onCancel={() => {}}
+        onConfirm={() => {}} // TODO: 连接实际 mutation 逻辑
+        onCancel={() => {}} // TODO: 连接实际取消逻辑
       />
     )
   }

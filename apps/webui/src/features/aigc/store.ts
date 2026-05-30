@@ -37,6 +37,7 @@ export const useAigcStore = create<AigcStore>((set) => ({
   previewAsset: null,
   referenceAssets: [],
   prompt: "",
+  // TODO: 提取为常量（DEFAULT_MODEL / DEFAULT_RESOLUTION / DEFAULT_ASPECT_RATIO）
   model: "GPT Image 2",
   resolution: "2K",
   aspectRatio: "9:16",

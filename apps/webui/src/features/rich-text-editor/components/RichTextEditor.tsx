@@ -62,7 +62,7 @@ export function RichTextEditor({
     theme: editorTheme,
     nodes: allNodes,
     editable: !disabled,
-    onError: (_err: Error) => {}
+    onError: (_err: Error) => {} // TODO: 接入错误上报（Sentry）或至少 console.error
   }
 
   const isInitialized = useRef(false)

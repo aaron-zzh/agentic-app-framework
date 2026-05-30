@@ -9,6 +9,7 @@
 import { Suspense } from "react"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { registerDefaultComponents } from "@/features/entity-engine/components/register"
+// side-effect import：导入即触发 entityRegistry.registerAll()，确保视图引擎渲染前所有实体已注册
 import "@/features/entity-engine/entities"
 import { MotionLazy } from "@/components/animate"
 import { WorkspaceLayoutClient } from "@/sections/layout/WorkspaceLayoutClient"

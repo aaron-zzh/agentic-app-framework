@@ -49,6 +49,7 @@ export function ChatterComposer({ attachments, onAttachmentRemove }: ChatterComp
       } catch (e) {
         // biome-ignore lint/suspicious/noConsole: 错误日志
         console.error("[STT] 后端识别失败", e)
+        // TODO: toast 提示用户语音识别失败
       }
     },
     [handleVoiceResult]

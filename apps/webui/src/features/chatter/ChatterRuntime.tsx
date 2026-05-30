@@ -98,6 +98,7 @@ export function ChatterRuntime({ target, persist, children }: ChatterRuntimeProp
           })) as ThreadMessage[]
           return { messages }
         } catch {
+          // TODO: toast 提示用户历史消息加载失败
           return { messages: [] }
         }
       }

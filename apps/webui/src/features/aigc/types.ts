@@ -55,7 +55,7 @@ export interface Model3dTaskResult {
   errorMessage: string | null
 }
 
-/** 故事板元素（保留兼容） */
+/** 故事板元素（TODO: 统一为 MediaAssetVO 后删除此旧类型） */
 export interface StoryElement {
   id: string
   name: string
@@ -64,7 +64,7 @@ export interface StoryElement {
   tags: string[]
 }
 
-/** 素材文件（旧类型，保留兼容） */
+/** 素材文件（TODO: 统一为 MediaAssetVO 后删除此旧类型） */
 export interface MediaAsset {
   id: string
   name: string

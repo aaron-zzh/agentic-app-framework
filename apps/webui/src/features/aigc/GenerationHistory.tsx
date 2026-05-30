@@ -60,7 +60,7 @@ export function GenerationHistory({ className }: GenerationHistoryProps) {
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all")
 
   const { data, isLoading } = useGenerationHistory(
-    "1",
+    "1", // TODO: 从 auth store 获取当前用户 ID
     0,
     20,
     typeFilter === "all" ? undefined : typeFilter

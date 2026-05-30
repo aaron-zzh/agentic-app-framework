@@ -5,6 +5,8 @@
  * 将 Zod 校验错误消息映射为 next-intl 翻译 key。
  * 在应用初始化时调用 initZodErrorMap(t) 注入翻译函数。
  *
+ * TODO: 尚未在任何 Provider 中调用 initZodErrorMap，需在 QueryProvider 或专用 ZodProvider 中集成
+ *
  * 用法：
  * ```tsx
  * "use client"

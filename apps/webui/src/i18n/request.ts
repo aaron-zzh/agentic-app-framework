@@ -28,6 +28,8 @@ export default getRequestConfig(async () => {
 
   return {
     locale,
+    // 动态 import：Turbopack 会将 ./messages/ 目录下所有 JSON 打包为 chunk，
+    // 当前仅 zh/en 两个文件影响可忽略；语言增多时考虑改为按需加载或 CDN 托管
     messages: (await import(`./messages/${locale}.json`)).default
   }
 })

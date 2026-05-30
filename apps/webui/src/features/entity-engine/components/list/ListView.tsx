@@ -18,6 +18,7 @@ import { registerDefaultComponents } from "../register"
 import type { ViewSettings } from "./components"
 import { ColumnConfigPanel, DataTable, GroupedListView } from "./components"
 
+// 确保字段组件已注册（幂等，重复调用无副作用）
 registerDefaultComponents()
 
 interface ListViewProps {
