@@ -43,6 +43,15 @@ import {
 import { cn } from "@/lib/utils/index"
 import type { MediaAssetType, MediaAssetVO, MediaCategoryVO } from "./types"
 
+/** 安全 JSON 解析，失败返回 null */
+function safeJsonParse<T>(str: string): T | null {
+  try {
+    return JSON.parse(str) as T
+  } catch {
+    return null
+  }
+}
+
 /** 素材卡片 */
 function AssetCard({
   asset,
@@ -118,7 +127,7 @@ function AssetCard({
       <div className="p-2">
         <p className="truncate font-medium text-sm">{asset.name}</p>
         <p className="text-[11px] text-muted-foreground">
-          {asset.generationParams ? (JSON.parse(asset.generationParams).model ?? "") : ""}
+          {asset.generationParams ? (safeJsonParse<{ model?: string }>(asset.generationParams)?.model ?? "") : ""}
           {asset.generationParams ? " · " : ""}
           {new Date(asset.createTime).toLocaleDateString()}
         </p>
@@ -142,7 +151,7 @@ function AssetDetailDialog({
 
   if (!asset) return null
 
-  const params = asset.generationParams ? JSON.parse(asset.generationParams) : null
+  const params = asset.generationParams ? safeJsonParse<{ model?: string; prompt?: string }>(asset.generationParams) : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -298,10 +307,10 @@ export function AssetLibrary() {
     ...(categoryId && { categoryId })
   })
 
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+
   function handleDelete(id: number) {
-    if (confirm("确定删除该素材？")) {
-      deleteMutation.mutate(id)
-    }
+    setDeleteTarget(id)
   }
 
   function handleRegenerate(id: number) {
@@ -510,6 +519,20 @@ export function AssetLibrary() {
           if (!open) setDetailId(null)
         }}
       />
+
+      {/* 删除确认弹窗 */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">确定删除该素材？此操作不可撤销。</p>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>取消</Button>
+            <Button variant="destructive" onClick={() => { if (deleteTarget !== null) { deleteMutation.mutate(deleteTarget); setDeleteTarget(null) } }}>删除</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

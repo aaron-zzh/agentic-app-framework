@@ -170,13 +170,16 @@ export function useWorkflowRuntime() {
         pendingToolCallId: null
       })
 
-      // 使用 POST + fetch 获取 SSE 流
+      // 使用 POST + fetch 获取 SSE 流（5 分钟超时）
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000)
       const body = JSON.stringify({ processKey, variables: variables ?? {} })
 
       fetch(`${BASE}/api/workflow/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body
+        body,
+        signal: controller.signal
       }).then(async (res) => {
         if (!res.ok || !res.body) {
           setState((prev) => ({ ...prev, status: "failed" }))
@@ -208,6 +211,10 @@ export function useWorkflowRuntime() {
             }
           }
         }
+      }).catch(() => {
+        setState((prev) => ({ ...prev, status: "failed" }))
+      }).finally(() => {
+        clearTimeout(timeout)
       })
     },
     [handleEvent]

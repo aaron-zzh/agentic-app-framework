@@ -5,8 +5,8 @@
 
 "use client"
 
-import type { Editor } from "@/lib/stubs/tldraw"
-import { exportToBlob } from "@/lib/stubs/tldraw"
+import type { Editor } from "tldraw"
+import { exportAs } from "tldraw"
 import { Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -37,20 +37,7 @@ export function CanvasExportButton({ editor, formats }: CanvasExportButtonProps)
     if (shapeIds.size === 0) return
 
     try {
-      const blob = await exportToBlob({
-        editor,
-        ids: [...shapeIds],
-        format: format === "pdf" ? "png" : format,
-        opts: { background: true, padding: 32 }
-      })
-
-      // 触发下载
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `canvas-export.${format}`
-      a.click()
-      URL.revokeObjectURL(url)
+      await exportAs(editor, [...shapeIds], { format: format as "png" | "svg", background: true, padding: 32 })
     } catch {
       // 导出失败静默处理（tldraw 内部可能抛出）
     }

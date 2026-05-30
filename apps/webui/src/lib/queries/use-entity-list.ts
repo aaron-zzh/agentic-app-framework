@@ -27,10 +27,12 @@ export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEn
   const { data, isLoading, isFetching, error } = useQuery<PageResult<Record<string, unknown>>>({
     queryKey,
     queryFn: async () => {
-      // TODO: 后端就绪后移除 mock，直接用 fetchList
-      const mock = _mockEntityData[entity.slug]
-      if (mock) {
-        return { list: mock, total: mock.length, page, pageSize }
+      // mock 仅在开发环境且后端未就绪时使用
+      if (process.env.NODE_ENV === "development") {
+        const mock = _mockEntityData[entity.slug]
+        if (mock) {
+          return { list: mock, total: mock.length, page, pageSize }
+        }
       }
       return fetchList(entity.apiPath, { page, pageSize, sort, search, ...filters })
     },

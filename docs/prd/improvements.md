@@ -53,3 +53,22 @@ AI 智能体和人类用户协作中发现的改进点，协调者定期审阅�
 - 2026-05-05 | **packages/ 首个共享包 + 包边界 ArchUnit P2.3**：v0.1 末期或 v0.2 启动时，出现第一个可提取共享模块（如 types/common-utils）时建立首包；配套 ArchUnit（Java）+ ESLint `no-restricted-imports` / `import/no-restricted-paths`（TS）。参考 multica `packages/core` 零 react-dom、`packages/ui` 零业务包导入 | 已采纳（待首个跨 app 共享需求出现时触发）
 - 2026-05-05 | **ESLint 配置 + webui lint target**：`apps/webui/project.json` 的 `check` 缺 lint（Next.js 16 linter 被 off）。引入 ESLint + eslint-config-next 最小配置，`webui:lint` 加入 `webui:check` 的 `dependsOn` | 待评估
 - 2026-05-05 | **首次全仓 prettier 对齐**：`pnpm format:check` 发现 80+ 文件不合规（历史遗留）。启用 CI format-check 前先跑一次 `pnpm format`，在 AAF-023 收尾单独提交 | 待评估
+
+
+## developer agent 跨任务越界提交问题
+
+**发现时间**：2026-05-30，webui 代码审查分批修复过程中
+
+**现象**：
+developer-webui agent 在执行本任务期间多次带进后端代码：
+- 批次 1 commit 多带 `apps/service/aaf-api/src/main/resources/db/migration/v1__system_schema.sql`。
+- 批次 2 执行期间误提交 `9c1db9e feat(profile)` 后端用户画像模块（14 个文件 +714 行）。
+
+**原因**：
+- agent 未限制 `git add` 路径，误将工作区中其他未提交文件一并提交。
+- 任务 prompt 有说明仅递 webui + docs 路径，但未被严格遵守。
+
+**建议**：
+1. 所有 developer agent 提交前必须运行 `git status` 检查，只 `git add <任务明确指定的路径>`，严禁 `git add .` 或 `git add -A`。
+2. 可考虑在 commit hook 中加路径过滤，跨项目提交强制警告。
+3. 在 `.kiro/agents/developer-webui` 的提示词中补充：跨路径提交视为 blocker。

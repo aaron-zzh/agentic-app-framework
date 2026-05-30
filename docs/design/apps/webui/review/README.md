@@ -23,10 +23,10 @@ date: 2026-05-30
 | 级别 | 数量 | 质量门控 |
 |------|------|---------|
 | blocker | 0 (2 已修复) | ✅ 已清零 |
-| major | 5 (35 原始, 30 已修复) | ❌ 需 ≤ 2 |
+| major | 0 (35 原始, 35 已修复) | ✅ 通过 |
 | minor | 124 | ✅ 不阻塞 |
 
-**质量门控判定：未通过**（blocker=0 ✅，major=5 ❌）
+**质量门控判定：通过** ✅（blocker=0，major=0）
 
 ---
 
@@ -49,9 +49,11 @@ date: 2026-05-30
 
 > 已修复｜2026-05-30
 
-### S-3 Mock 数据混入生产代码（major × 3）
+### ✅ 已修复 S-3 Mock 数据混入生产代码（major × 3）
 
-`use-entity-list.ts`、`use-entity-detail.ts`、`aigc/VideoGenerationChat.tsx` 等多处硬编码 mock 数据，生产构建时会打包进 bundle 并屏蔽真实 API。
+~~`use-entity-list.ts`、`use-entity-detail.ts`、`aigc/VideoGenerationChat.tsx` 等多处硬编码 mock 数据，生产构建时会打包进 bundle 并屏蔽真实 API。~~
+
+> 已修复｜2026-05-30｜mock 数据改为仅 development 环境生效
 
 ### ✅ 已修复 S-4 WebSocket 无最大重连限制（major）
 

@@ -121,6 +121,6 @@ export interface FlowTemplate {
 
 /** 历史操作记录 */
 export interface HistoryEntry {
-  nodes: FlowNode[]
-  edges: FlowEdge[]
+  nodes: import("@xyflow/react").Node[]
+  edges: import("@xyflow/react").Edge[]
 }
