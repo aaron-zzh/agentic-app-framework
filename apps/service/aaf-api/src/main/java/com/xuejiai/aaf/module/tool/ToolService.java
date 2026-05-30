@@ -12,6 +12,7 @@ import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolPermissionChecker;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry.ToolMeta;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +28,7 @@ public class ToolService {
     private final ToolRegistry toolRegistry;
     private final ToolCallDispatcher toolCallDispatcher;
     private final ToolPermissionChecker permissionChecker;
+    private final OperatorContext operatorContext;
 
     /** 已禁用的工具名集合 */
     private final ConcurrentHashMap<String, Boolean> disabledTools = new ConcurrentHashMap<>();
@@ -60,7 +62,8 @@ public class ToolService {
         if (toolRegistry.getCallback(toolName).isEmpty()) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工具未注册: " + toolName);
         }
-        return toolCallDispatcher.dispatch(toolName, arguments);
+        var userId = operatorContext.currentUserId().orElse(null);
+        return toolCallDispatcher.dispatchWithPermission(null, userId, null, toolName, arguments);
     }
 
     /**

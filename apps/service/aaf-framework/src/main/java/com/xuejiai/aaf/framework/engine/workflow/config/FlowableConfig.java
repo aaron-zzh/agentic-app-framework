@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.framework.engine.workflow.config;
 
+import java.util.List;
+
 import org.flowable.common.engine.impl.cfg.IdGenerator;
 import org.flowable.spring.SpringProcessEngineConfiguration;
 import org.flowable.spring.boot.EngineConfigurationConfigurer;
@@ -13,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
  *   <li>自定义 ID 生成器（UUID 去横线）
  *   <li>历史记录级别 FULL
  *   <li>异步执行器配置（支持定时器边界事件）
+ *   <li>安全加固：禁用 scriptTask + 安全 BPMN XML 解析
  * </ul>
  */
 @Configuration
@@ -34,6 +37,11 @@ public class FlowableConfig {
             config.setAsyncExecutorCorePoolSize(4);
             config.setAsyncExecutorMaxPoolSize(16);
             config.setAsyncExecutorMaxAsyncJobsDuePerAcquisition(10);
+
+            // 安全加固：防 XXE
+            config.setEnableSafeBpmnXml(true);
+            // 安全加固：部署期拒绝 scriptTask（防 RCE）
+            config.setPreBpmnParseHandlers(List.of(new RejectScriptTaskParseHandler()));
         };
     }
 

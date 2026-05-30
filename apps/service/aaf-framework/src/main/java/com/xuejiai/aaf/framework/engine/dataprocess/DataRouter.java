@@ -3,7 +3,8 @@ package com.xuejiai.aaf.framework.engine.dataprocess;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import jakarta.persistence.EntityManager;
+import com.xuejiai.aaf.framework.engine.dataprocess.table.DynamicTableService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>支持的目标类型：
  *
  * <ul>
- *   <li>custom_table — 写入自定义 PostgreSQL 表（动态 INSERT）
+ *   <li>custom_table — 写入自定义 PostgreSQL 表（委托 DynamicTableService）
  *   <li>knowledge_base — 写入知识库（调用知识库 API）
  * </ul>
  */
@@ -23,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class DataRouter implements ProcessingStep {
 
-    private final EntityManager entityManager;
+    private final DynamicTableService dynamicTableService;
 
     @Override
     public String name() {
@@ -46,30 +47,17 @@ public class DataRouter implements ProcessingStep {
         return context;
     }
 
-    private void insertToTable(ProcessingContext context, String tableName) {
+    private void insertToTable(ProcessingContext context, String slug) {
+        var table = dynamicTableService.getTable(slug);
         var items = context.getItems();
         int count = 0;
         for (var item : items) {
-            // 移除内部字段
             item.remove("_raw_");
             if (item.isEmpty()) continue;
-
-            var columns = String.join(", ", item.keySet());
-            var placeholders =
-                    item.keySet().stream()
-                            .map(k -> ":" + k)
-                            .reduce((a, b) -> a + ", " + b)
-                            .orElse("");
-
-            var sql = "INSERT INTO %s (%s) VALUES (%s)".formatted(tableName, columns, placeholders);
-            var query = entityManager.createNativeQuery(sql);
-            for (var entry : item.entrySet()) {
-                query.setParameter(entry.getKey(), entry.getValue());
-            }
-            query.executeUpdate();
+            dynamicTableService.insertRow(slug, item);
             count++;
         }
-        context.log(name(), "写入 %s 表 %d 条".formatted(tableName, count));
+        context.log(name(), "写入 %s 表 %d 条".formatted(table.getTableName(), count));
         context.getMetadata().put("inserted_count", count);
     }
 

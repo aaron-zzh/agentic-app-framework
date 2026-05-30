@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.workflow.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -133,6 +134,7 @@ public class WorkflowController {
 
     @Operation(summary = "部署流程定义")
     @PostMapping("/definitions")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> deploy(@Validated @RequestBody WorkflowDeployDTO dto) {
         return Result.success(workflowService.deployDefinition(dto));
     }

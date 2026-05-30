@@ -2,12 +2,18 @@ package com.xuejiai.aaf.framework.engine.dataprocess.table;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +28,33 @@ public class DynamicTableService {
     private final DataTableRepository tableRepository;
     private final EntityManager entityManager;
 
+    /** SQL 标识符白名单：小写字母/下划线开头，最长 63 字符 */
+    private static final Pattern IDENT = Pattern.compile("^[a-z_][a-z0-9_]{0,62}$");
+
+    private static final String TABLE_PREFIX = "data_";
+
     public DataTableRepository getTableRepository() {
         return tableRepository;
     }
 
-    private static final String TABLE_PREFIX = "data_";
+    /** 校验 SQL 标识符合法性 */
+    private void requireIdent(String s) {
+        if (s == null || !IDENT.matcher(s).matches()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "非法标识符: " + s);
+        }
+    }
+
+    /** 校验列名必须属于表定义已知列（id 例外） */
+    private void requireKnownColumns(DataTableDefinition table, Collection<String> cols) {
+        var known = table.getColumns().stream()
+                .map(DataColumnDefinition::getName)
+                .collect(Collectors.toSet());
+        for (var c : cols) {
+            if (!"id".equals(c) && !known.contains(c)) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "未知列: " + c);
+            }
+        }
+    }
 
     /** 创建自定义表（元数据 + 实际 DDL）。 */
     @Transactional
@@ -35,6 +63,11 @@ public class DynamicTableService {
             String displayName,
             String description,
             List<DataColumnDefinition> columns) {
+        requireIdent(slug);
+        for (var col : columns) {
+            requireIdent(col.getName());
+        }
+
         if (tableRepository.existsBySlug(slug)) {
             throw new IllegalArgumentException("表 slug 已存在: " + slug);
         }
@@ -65,6 +98,7 @@ public class DynamicTableService {
     @Transactional
     public Map<String, Object> insertRow(String slug, Map<String, Object> row) {
         var table = getTable(slug);
+        requireKnownColumns(table, row.keySet());
         var columns = new ArrayList<>(row.keySet());
         var placeholders = columns.stream().map(c -> ":" + c).toList();
 
@@ -101,6 +135,9 @@ public class DynamicTableService {
     public List<Map<String, Object>> queryRows(
             String slug, int page, int size, Map<String, Object> filters) {
         var table = getTable(slug);
+        if (filters != null && !filters.isEmpty()) {
+            requireKnownColumns(table, filters.keySet());
+        }
         var sb = new StringBuilder("SELECT * FROM " + table.getTableName());
 
         var params = new HashMap<String, Object>();
@@ -140,6 +177,7 @@ public class DynamicTableService {
     @Transactional
     public void updateRow(String slug, Long id, Map<String, Object> fields) {
         var table = getTable(slug);
+        requireKnownColumns(table, fields.keySet());
         var sets = fields.keySet().stream().map(k -> k + " = :" + k).toList();
 
         var sql =

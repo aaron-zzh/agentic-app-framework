@@ -125,10 +125,23 @@ public class ConditionEvaluator {
         return List.of(expected.toString().split(",")).contains(actual.toString());
     }
 
+    /** 字段名白名单：字母/下划线开头，允许点号分隔 */
+    private static final java.util.regex.Pattern FIELD =
+            java.util.regex.Pattern.compile("^[A-Za-z_][A-Za-z0-9_.]*$");
+
     private String toUel(ConditionExpression expr) {
         var field = expr.field();
+        if (field == null || !FIELD.matcher(field).matches()) {
+            throw new IllegalArgumentException("非法条件字段名: " + field);
+        }
         var value = expr.value();
-        var quotedValue = value instanceof String ? "'" + value + "'" : String.valueOf(value);
+        String quotedValue;
+        if (value instanceof String sv) {
+            // 转义单引号防止 UEL 注入
+            quotedValue = "'" + sv.replace("'", "''") + "'";
+        } else {
+            quotedValue = String.valueOf(value);
+        }
 
         return switch (expr.operator()) {
             case EQ -> field + " == " + quotedValue;

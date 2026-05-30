@@ -18,9 +18,21 @@ public class FileService {
 
     private final StorageService storageService;
     private final ImageProcessor imageProcessor;
+    private final StorageProperties.UploadLimits uploadLimits;
+
+    /** 校验上传文件大小和类型 */
+    private void validateUpload(MultipartFile file) {
+        if (file.getSize() > uploadLimits.maxSizeBytes()) {
+            throw new StorageException("文件超过大小限制", null);
+        }
+        if (!uploadLimits.allowedContentTypes().contains(file.getContentType())) {
+            throw new StorageException("不允许的文件类型: " + file.getContentType(), null);
+        }
+    }
 
     /** 上传文件。 */
     public FileVO upload(MultipartFile file) {
+        validateUpload(file);
         try {
             var key =
                     storageService.upload(

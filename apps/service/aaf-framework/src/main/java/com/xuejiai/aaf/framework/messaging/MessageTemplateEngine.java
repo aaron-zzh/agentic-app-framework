@@ -19,6 +19,10 @@ public class MessageTemplateEngine {
     public MessageTemplateEngine() {
         this.freemarkerConfig = new Configuration(Configuration.VERSION_2_3_34);
         this.freemarkerConfig.setDefaultEncoding("UTF-8");
+        // 安全加固：禁止模板实例化任意类（防 SSTI）
+        this.freemarkerConfig.setNewBuiltinClassResolver(
+                freemarker.core.TemplateClassResolver.SAFER_RESOLVER);
+        this.freemarkerConfig.setAPIBuiltinEnabled(false);
     }
 
     /** 渲染模板内容 */

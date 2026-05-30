@@ -19,8 +19,8 @@ public class ToolCallDispatcher {
     private final ToolPermissionChecker permissionChecker;
     private final ToolCallAuditRepository auditRepository;
 
-    /** 执行工具调用（无权限检查，Agent 内部调用）。 */
-    public ToolCallResult dispatch(String functionName, String arguments) {
+    /** 执行工具调用（无权限检查，Agent 内部同包调用）。 */
+    ToolCallResult dispatch(String functionName, String arguments) {
         return doDispatch(functionName, arguments);
     }
 

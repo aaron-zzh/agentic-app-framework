@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 /** 模拟支付渠道适配器——直接返回成功，用于开发和测试。 */
 @Slf4j
 @Component
+@ConditionalOnProperty(prefix = "aaf.pay.mock", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class MockPayChannelAdapter implements PayChannelAdapter {
 
     public static final String CHANNEL_CODE = "MOCK";

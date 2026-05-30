@@ -31,7 +31,7 @@ public class LocalStorageService implements StorageService {
     public String upload(InputStream input, String filename, String contentType) {
         var ext = extractExtension(filename);
         var key = LocalDate.now().format(DATE_PATH) + "/" + UUID.randomUUID() + ext;
-        var target = Path.of(config.basePath(), key);
+        var target = resolveSafe(key);
         try {
             Files.createDirectories(target.getParent());
             Files.copy(input, target);
@@ -45,7 +45,7 @@ public class LocalStorageService implements StorageService {
     @Override
     public InputStream download(String key) {
         try {
-            return Files.newInputStream(Path.of(config.basePath(), key));
+            return Files.newInputStream(resolveSafe(key));
         } catch (IOException e) {
             throw new StorageException("本地文件下载失败: " + key, e);
         }
@@ -54,10 +54,20 @@ public class LocalStorageService implements StorageService {
     @Override
     public void delete(String key) {
         try {
-            Files.deleteIfExists(Path.of(config.basePath(), key));
+            Files.deleteIfExists(resolveSafe(key));
         } catch (IOException e) {
             throw new StorageException("本地文件删除失败: " + key, e);
         }
+    }
+
+    /** 安全路径解析——防止路径穿越 */
+    private Path resolveSafe(String key) {
+        var base = Path.of(config.basePath()).toAbsolutePath().normalize();
+        var target = base.resolve(key).normalize();
+        if (!target.startsWith(base)) {
+            throw new StorageException("非法路径: " + key, null);
+        }
+        return target;
     }
 
     @Override
