@@ -7,6 +7,7 @@ package com.xuejiai.aaf.module.system.role.relation;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +26,7 @@ public class ResourceRelationController {
     private final ResourceRelationService service;
 
     @Operation(summary = "授予资源关系")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/grant")
     public Result<Void> grant(@Validated @RequestBody GrantRelationDTO dto) {
         service.grant(dto);
@@ -32,6 +34,7 @@ public class ResourceRelationController {
     }
 
     @Operation(summary = "撤销资源关系")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/revoke")
     public Result<Void> revoke(@Validated @RequestBody GrantRelationDTO dto) {
         service.revoke(dto);

@@ -1,9 +1,5 @@
 A2AController.expose() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 A2AController.receive() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-AccessPolicyController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-AccessPolicyController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-AccessPolicyController.test() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-AccessPolicyController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ActorController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ActorController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ActorController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
@@ -101,9 +97,6 @@ CustomFieldController.hide() 写接口缺少授权注解（@PreAuthorize/@Access
 DashboardController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 DashboardController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 DashboardController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-DataAccessRuleController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-DataAccessRuleController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-DataAccessRuleController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 DataIngestController.ingest() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 DataTableController.createTable() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 DataTableController.deleteRow() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
@@ -193,12 +186,6 @@ NoticeController.publish() 写接口缺少授权注解（@PreAuthorize/@AccessCo
 NotificationController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 NotificationController.markAsRead() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 NotificationPreferenceController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-OrganizationController.addMember() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-OrganizationController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-OrganizationController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-OrganizationController.removeMember() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-OrganizationController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-OrganizationController.updateMemberRole() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 PageDefController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 PageDefController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 PageDefController.publish() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
@@ -207,12 +194,6 @@ PageDefController.update() 写接口缺少授权注解（@PreAuthorize/@AccessCo
 PayOrderController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 PayOrderController.notify() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 PayOrderController.recharge() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-PermissionController.assignPermissionsToRole() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-PermissionController.assignRolesToUser() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-PermissionController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-PermissionController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-PermissionController.removeRoleFromUser() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-PermissionController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ProblemController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ProblemController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ProblemController.linkSegment() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
@@ -225,11 +206,6 @@ RecordTemplateController.update() 写接口缺少授权注解（@PreAuthorize/@A
 RecordVersionController.restore() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 RefundController.apply() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 RefundController.notify() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-ResourceRelationController.grant() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-ResourceRelationController.revoke() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-RoleController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-RoleController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-RoleController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ScheduledTaskController.pause() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ScheduledTaskController.resume() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ScheduledTaskController.run() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）

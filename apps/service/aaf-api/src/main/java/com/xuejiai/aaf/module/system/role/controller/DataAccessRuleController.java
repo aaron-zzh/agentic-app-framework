@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.role.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,6 +51,7 @@ public class DataAccessRuleController {
     }
 
     @Operation(summary = "创建规则")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<DataAccessRuleVO> create(@Validated @RequestBody DataAccessRuleCreateDTO dto) {
@@ -62,6 +64,7 @@ public class DataAccessRuleController {
     }
 
     @Operation(summary = "更新规则")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Result<DataAccessRuleVO> update(
             @PathVariable Long id, @Validated @RequestBody DataAccessRuleCreateDTO dto) {
@@ -74,6 +77,7 @@ public class DataAccessRuleController {
     }
 
     @Operation(summary = "删除规则")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         dataAccessService.delete(id);

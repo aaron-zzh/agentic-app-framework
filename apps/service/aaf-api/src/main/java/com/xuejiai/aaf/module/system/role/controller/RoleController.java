@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.role.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,6 +51,7 @@ public class RoleController {
     }
 
     @Operation(summary = "创建角色")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<RoleVO> create(@Validated @RequestBody RoleCreateDTO request) {
@@ -57,6 +59,7 @@ public class RoleController {
     }
 
     @Operation(summary = "更新角色")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Result<RoleVO> update(
             @PathVariable Long id, @Validated @RequestBody RoleUpdateDTO request) {
@@ -64,6 +67,7 @@ public class RoleController {
     }
 
     @Operation(summary = "删除角色")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         roleService.delete(id);

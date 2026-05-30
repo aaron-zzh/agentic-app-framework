@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.permission.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,6 +47,7 @@ public class PermissionController {
     }
 
     @Operation(summary = "创建权限点")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/permissions")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<PermissionVO> create(@Validated @RequestBody PermissionCreateDTO request) {
@@ -53,6 +55,7 @@ public class PermissionController {
     }
 
     @Operation(summary = "更新权限点")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/permissions/{id}")
     public Result<PermissionVO> update(
             @PathVariable Long id, @Validated @RequestBody PermissionUpdateDTO request) {
@@ -60,6 +63,7 @@ public class PermissionController {
     }
 
     @Operation(summary = "删除权限点")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/permissions/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         permissionService.delete(id);
@@ -67,6 +71,7 @@ public class PermissionController {
     }
 
     @Operation(summary = "为角色分配权限点")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/roles/{roleId}/permissions")
     public Result<Void> assignPermissionsToRole(
             @PathVariable Long roleId, @RequestBody List<Long> permissionIds) {
@@ -81,6 +86,7 @@ public class PermissionController {
     }
 
     @Operation(summary = "为用户分配角色")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/users/{userId}/roles")
     public Result<Void> assignRolesToUser(
             @PathVariable Long userId, @RequestBody List<Long> roleIds) {
@@ -95,6 +101,7 @@ public class PermissionController {
     }
 
     @Operation(summary = "移除用户的某个角色")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/users/{userId}/roles/{roleId}")
     public Result<Void> removeRoleFromUser(@PathVariable Long userId, @PathVariable Long roleId) {
         permissionService.removeRoleFromUser(userId, roleId);
