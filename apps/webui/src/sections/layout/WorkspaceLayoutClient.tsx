@@ -23,7 +23,7 @@ export function WorkspaceLayoutClient({ children }: WorkspaceLayoutClientProps) 
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const getConfig = useChatterStore((s) => s.getConfig)
 
-  const config = currentPageId ? getConfig(currentPageId) : { preset: "ai" as const, open: false }
+  const config = currentPageId ? getConfig(currentPageId) : { preset: "ai" as const, open: false, agentRole: "default-generalist" }
 
   return (
     <div className="flex h-screen overflow-hidden">

@@ -1,6 +1,6 @@
 /**
  * ChatterToolbar——顶部工具栏
- * TargetSwitcher（切换 AI/Kiro/用户）+ SessionManager + 外部 toolbar slot
+ * TargetSwitcher（切换 AI/Kiro/用户）+ RoleSelector + SessionManager + 外部 toolbar slot
  *
  * @author AaronZZH & Kiro
  */
@@ -10,6 +10,13 @@
 import { Bot, Plus, Sparkles, User } from "lucide-react"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ChatterPreset, ChatterTarget } from "./types"
 
@@ -20,6 +27,12 @@ interface ChatterToolbarProps {
   onNewSession?: () => void
   toolbar?: ReactNode
 }
+
+/** 内置角色列表 */
+const AGENT_ROLES = [
+  { id: "default-generalist", label: "通用助理" },
+  { id: "content-creator-role", label: "内容创作" }
+] as const
 
 /** preset 决定显示哪些 target 选项 */
 function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
@@ -47,7 +60,7 @@ const TARGET_LABELS: Record<ChatterTarget["type"], string> = {
 
 /**
  * 对话工具栏
- * 包含 target 切换按钮组 + 新建会话按钮 + 外部注入 toolbar
+ * 包含 target 切换按钮组 + 角色选择 + 新建会话按钮 + 外部注入 toolbar
  */
 export function ChatterToolbar({
   preset,
@@ -58,6 +71,7 @@ export function ChatterToolbar({
 }: ChatterToolbarProps) {
   const targets = getAvailableTargets(preset)
   const showNewSession = preset === "ai" || preset === "livechat"
+  const showRoleSelector = target.type === "ai"
 
   return (
     <div className="flex items-center gap-2 border-b px-3 py-2">
@@ -80,6 +94,25 @@ export function ChatterToolbar({
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
+
+      {/* 角色选择下拉（仅 AI target 时显示） */}
+      {showRoleSelector && (
+        <Select
+          value={target.agentRole ?? "default-generalist"}
+          onValueChange={(role) => onTargetChange({ ...target, agentRole: role ?? undefined })}
+        >
+          <SelectTrigger className="h-7 w-auto gap-1 border-none bg-muted/50 px-2 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {AGENT_ROLES.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {showNewSession && (
         <Button variant="ghost" size="icon-sm" onClick={onNewSession} aria-label="新建会话">
