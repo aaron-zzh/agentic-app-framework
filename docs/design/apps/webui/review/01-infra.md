@@ -95,7 +95,8 @@
 
 ### 问题
 
-- [major] `request()` 函数在服务端（SSR）调用时会崩溃——`useAuthStore.getState()` / `useUIStore.getState()` / `useOrgStore.getState()` 依赖 Zustand 客户端 store，SSR 环境下 store 为空或未初始化。`apps/webui/src/lib/api/client.ts:49-51`
+- ✅ 已修复 [major] `request()` 函数在服务端（SSR）调用时会崩溃——`useAuthStore.getState()` / `useUIStore.getState()` / `useOrgStore.getState()` 依赖 Zustand 客户端 store，SSR 环境下 store 为空或未初始化。`apps/webui/src/lib/api/client.ts:49-51`
+> 已修复｜2026-05-30｜提交：apps/webui/src/lib/api/client.ts
 - [major] Token 刷新竞态：`refreshPromise` 是模块级变量，在并发请求场景下正确（锁机制），但刷新失败后调用 `redirectToLogin()` 使用 `window.location.href` 硬跳转，会中断所有并发请求且无法被 React 错误边界捕获。`apps/webui/src/lib/api/client.ts:72-74`
 - [minor] `ListParams` 使用 `[key: string]: unknown` 索引签名，削弱了类型安全。`apps/webui/src/lib/api/client.ts:27`
 - [minor] `buildQuery` 中 `String(v)` 对对象/数组会产生 `[object Object]`，缺少深层参数序列化。`apps/webui/src/lib/api/client.ts:119`
@@ -180,7 +181,8 @@
 
 - [major] `use-websocket.ts` 无最大重连次数限制，网络永久断开时会无限重连（指数退避到 30s 后持续每 30s 一次），浪费资源。`apps/webui/src/lib/hooks/use-websocket.ts:79-82`
 - [major] `use-record-presence.ts` 直接构造 WebSocket 连接 `new WebSocket(\`/ws/presence?userId=${currentUser.id}\`)`，userId 未做 URL 编码，且 WebSocket URL 缺少协议前缀（依赖浏览器相对路径解析，部分环境不支持）。`apps/webui/src/lib/hooks/use-record-presence.ts:52`
-- [major] `use-chatter-config.ts` 的 `useEffect` 依赖数组包含 `configs`（整个对象引用），但 `setConfig` 会修改 `configs`，导致**无限循环**。注释说"只在 pageId 变化时执行"但实际依赖了 `configs`。`apps/webui/src/lib/hooks/use-chatter-config.ts:24-35`
+- ✅ 已修复 [major] `use-chatter-config.ts` 的 `useEffect` 依赖数组包含 `configs`（整个对象引用），但 `setConfig` 会修改 `configs`，导致**无限循环**。注释说"只在 pageId 变化时执行"但实际依赖了 `configs`。`apps/webui/src/lib/hooks/use-chatter-config.ts:24-35`
+> 已修复｜2026-05-30｜提交：apps/webui/src/lib/hooks/use-chatter-config.ts
 - [minor] `use-ai-awareness.ts` 的 `useCallback` 依赖 `store` 对象引用（Zustand store 每次渲染引用不变，实际无害），但 `options.fields` 作为依赖可能导致不必要的重建（如果调用方每次传新数组）。`apps/webui/src/lib/hooks/use-ai-awareness.ts:42`
 - [minor] `use-batch-operation.ts` 的 `options` 参数在 `useCallback` 依赖中，如果调用方每次传新对象会导致 `execute` 和 `pollProgress` 不断重建。`apps/webui/src/lib/hooks/use-batch-operation.ts:62`、`apps/webui/src/lib/hooks/use-batch-operation.ts:95`
 - [minor] `use-export-progress.ts` 的 `cancel` 函数依赖 `progress` state，每次 progress 变化都会重建 cancel 函数。`apps/webui/src/lib/hooks/use-export-progress.ts:120`
@@ -294,20 +296,20 @@
 | 级别 | 数量 |
 |------|------|
 | blocker | 0 |
-| major | 5 (7 原始, 2 已修复) |
+| major | 3 (7 原始, 4 已修复) |
 | minor | 22 |
 
 ### Major 问题清单
 
 | # | 文件 | 问题 |
 |---|------|------|
-| 1 | `lib/api/client.ts:49-51` | SSR 环境下 Zustand store 未初始化导致崩溃 |
+| ~~1~~ | ~~`lib/api/client.ts:49-51`~~ | ~~SSR 环境下 Zustand store 未初始化导致崩溃~~ ✅ 已修复 |
 | 2 | `lib/api/client.ts:72-74` | Token 刷新失败后硬跳转中断并发请求 |
 | ~~3~~ | ~~`lib/api/dashboard.ts` 等 4 文件~~ | ~~私有 `req()` 函数重复且缺少认证头~~ ✅ 已修复 |
 | ~~4~~ | ~~`lib/api/permission.ts:22-28`~~ | ~~`fetchEntityAccess` 未注入认证头~~ ✅ 已修复 |
 | 5 | `lib/hooks/use-websocket.ts:79-82` | 无限重连无上限 |
 | 6 | `lib/hooks/use-record-presence.ts:52` | WebSocket URL 构造不安全 |
-| 7 | `lib/hooks/use-chatter-config.ts:24-35` | useEffect 依赖 configs 导致潜在无限循环 |
+| ~~7~~ | ~~`lib/hooks/use-chatter-config.ts:24-35`~~ | ~~useEffect 依赖 configs 导致潜在无限循环~~ ✅ 已修复 |
 
 ### 优先修复建议
 

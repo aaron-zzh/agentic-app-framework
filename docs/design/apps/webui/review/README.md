@@ -12,8 +12,8 @@ date: 2026-05-30
 
 | 文档 | 审查范围 | blocker | major | minor |
 |------|---------|---------|-------|-------|
-| [01-infra.md](./01-infra.md) | next.config / middleware / providers / i18n / lib/api / lib/store / lib/hooks / lib/queries | 0 | 5 (7 原始, 2 已修复) | 22 |
-| [02-core-modules.md](./02-core-modules.md) | entity-engine / chatter / agui / livechat | 0 | 10 | 47 |
+| [01-infra.md](./01-infra.md) | next.config / middleware / providers / i18n / lib/api / lib/store / lib/hooks / lib/queries | 0 | 3 (7 原始, 4 已修复) | 22 |
+| [02-core-modules.md](./02-core-modules.md) | entity-engine / chatter / agui / livechat | 0 | 7 (10 原始, 3 已修复) | 47 |
 | [03-business-modules.md](./03-business-modules.md) | aigc / flow-editor / rich-text-editor / page-engine / entity-editor / knowledge / settings / dashboard / stats / ai-assist | 0 | 9 | 30 |
 | [04-ui-layer.md](./04-ui-layer.md) | components / sections / app 路由页面 | 0 (2 已修复) | 9 | 25 |
 | [code-review.md](../code-review.md) | 全局概览（首轮审查） | 2 | 7 | 7 |
@@ -23,10 +23,10 @@ date: 2026-05-30
 | 级别 | 数量 | 质量门控 |
 |------|------|---------|
 | blocker | 0 (2 已修复) | ✅ 已清零 |
-| major | 33 (35 原始, 2 已修复) | ❌ 需 ≤ 2 |
+| major | 28 (35 原始, 7 已修复) | ❌ 需 ≤ 2 |
 | minor | 124 | ✅ 不阻塞 |
 
-**质量门控判定：未通过**（blocker=0 ✅，major=33 ❌）
+**质量门控判定：未通过**（blocker=0 ✅，major=28 ❌）
 
 ---
 
@@ -63,18 +63,18 @@ date: 2026-05-30
 
 | 优先级 | 文件 | 问题 |
 |--------|------|------|
-| major | `lib/api/client.ts:49-51` | SSR 环境下 Zustand store 未初始化崩溃 |
+| ~~major~~ | ~~`lib/api/client.ts:49-51`~~ | ~~SSR 环境下 Zustand store 未初始化崩溃~~ ✅ 已修复 |
 | major | `lib/api/dashboard.ts` 等 | 私有 req() 缺少认证头 |
-| major | `lib/hooks/use-chatter-config.ts:24-35` | useEffect 依赖 configs 导致无限循环 |
+| ~~major~~ | ~~`lib/hooks/use-chatter-config.ts:24-35`~~ | ~~useEffect 依赖 configs 导致无限循环~~ ✅ 已修复 |
 | major | `lib/hooks/use-websocket.ts:79-82` | 无限重连无上限 |
 
 ### 核心功能模块（02-core-modules）
 
 | 优先级 | 文件 | 问题 |
 |--------|------|------|
-| major | `entity-engine/components/KanbanView.tsx:95` | 渲染期 setState 导致无限循环 |
-| major | `entity-engine/components/EntityActions.tsx:72` | 空 catch 块无错误通知 |
-| major | `entity-engine/components/EntityApproval.tsx:143` | window.location.reload 应改为 queryClient invalidation |
+| ~~major~~ | ~~`entity-engine/components/KanbanView.tsx:95`~~ | ~~渲染期 setState 导致无限循环~~ ✅ 已修复 |
+| ~~major~~ | ~~`entity-engine/components/EntityActions.tsx:72`~~ | ~~空 catch 块无错误通知~~ ✅ 已修复 |
+| ~~major~~ | ~~`entity-engine/components/EntityApproval.tsx:143`~~ | ~~window.location.reload 应改为 queryClient invalidation~~ ✅ 已修复 |
 | major | `livechat/LivechatProvider.tsx:75` | WebSocket 消息无 schema 校验 |
 | major | `chatter/TaskExecutionTimeline.tsx:95` | SSE 无重连机制 |
 
@@ -107,9 +107,11 @@ date: 2026-05-30
 
 **第二批（系统性 major，影响面广）**
 2. ✅ 已修复 统一 API 调用层：dashboard/notification/stats/chat/permission 改用 `request()`
-3. 修复 `use-chatter-config.ts` 无限循环
-4. `KanbanView.tsx` 渲染期 setState 移到 useEffect
-5. `EntityApproval.tsx` window.location.reload → queryClient.invalidateQueries
+3. ✅ 已修复 修复 `use-chatter-config.ts` 无限循环
+4. ✅ 已修复 `KanbanView.tsx` 渲染期 setState 移到 useEffect
+5. ✅ 已修复 `EntityApproval.tsx` window.location.reload → queryClient.invalidateQueries
+6. ✅ 已修复 `EntityActions.tsx` 空 catch 块添加 toast.error
+7. ✅ 已修复 `client.ts` SSR 环境 Zustand store 崩溃
 
 **第三批（安全/健壮性 major）**
 6. `AssetLibrary.tsx` JSON.parse 加 try-catch

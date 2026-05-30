@@ -6,7 +6,7 @@
 
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ChevronDown, ChevronUp, GitBranch } from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -146,6 +146,7 @@ function StartApprovalButton({
   _currentUserId: string
 }) {
   const [loading, setLoading] = useState(false)
+  const queryClient = useQueryClient()
 
   async function handleStart() {
     setLoading(true)
@@ -159,8 +160,9 @@ function StartApprovalButton({
           assignee: ""
         })
       })
-      // 刷新页面状态
-      window.location.reload()
+      // 局部刷新审批状态
+      queryClient.invalidateQueries({ queryKey: ["workflow-status", config.entityType, entityId] })
+      queryClient.invalidateQueries({ queryKey: ["approval"] })
     } finally {
       setLoading(false)
     }

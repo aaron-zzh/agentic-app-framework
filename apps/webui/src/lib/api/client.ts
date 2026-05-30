@@ -93,9 +93,12 @@ function redirectToLogin() {
 /** 通用 fetch 封装 */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`
-  const workspaceId = useUIStore.getState().currentWorkspace?.id
-  const orgId = useOrgStore.getState().currentOrgId
-  const accessToken = useAuthStore.getState().accessToken
+
+  // SSR 环境下 Zustand store 未初始化，跳过 store 读取
+  const isServer = typeof window === "undefined"
+  const workspaceId = isServer ? undefined : useUIStore.getState().currentWorkspace?.id
+  const orgId = isServer ? undefined : useOrgStore.getState().currentOrgId
+  const accessToken = isServer ? undefined : useAuthStore.getState().accessToken
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
