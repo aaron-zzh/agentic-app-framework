@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.tool;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,6 +53,7 @@ public class ToolController {
     }
 
     @Operation(summary = "调用工具", description = "统一工具调用入口，Agent/用户/外部系统均可调用")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/{toolName}/invoke")
     public Result<ToolCallResult> invoke(
             @PathVariable String toolName, @RequestBody @Valid ToolInvokeRequest request) {
@@ -59,6 +61,7 @@ public class ToolController {
     }
 
     @Operation(summary = "授权工具调用", description = "用户确认后授予临时权限（本次会话有效）")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/{toolName}/approve")
     public Result<Void> approve(@PathVariable String toolName, @RequestParam String sessionId) {
         toolService.approve(sessionId, toolName);
@@ -69,6 +72,7 @@ public class ToolController {
     public record ToolInvokeRequest(@NotBlank String arguments) {}
 
     @Operation(summary = "AI 生成工具", description = "根据自然语言描述生成工具蓝图（需确认后注册）")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/generate")
     public Result<String> generate(@RequestBody @Valid ToolGenerateRequest request) {
         var result = toolGenerator.generateTool(request.description());
@@ -76,6 +80,7 @@ public class ToolController {
     }
 
     @Operation(summary = "确认并注册生成的工具")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/generate/confirm")
     public Result<Void> confirmGenerate(@RequestBody @Valid ToolBlueprint blueprint) {
         toolGenerator.confirmAndRegister(blueprint);
@@ -89,6 +94,7 @@ public class ToolController {
     }
 
     @Operation(summary = "标记工具为共享", description = "创建者或管理员可将私有工具共享，共享后所有人可见源码和使用")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{toolName}/share")
     public Result<Void> share(@PathVariable String toolName) {
         toolGenerator.share(toolName);
@@ -100,6 +106,7 @@ public class ToolController {
     // ==================== 工具生命周期管理 ====================
 
     @Operation(summary = "删除/注销工具")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{name}")
     public Result<Void> delete(@PathVariable String name) {
         toolService.delete(name);
@@ -107,6 +114,7 @@ public class ToolController {
     }
 
     @Operation(summary = "禁用工具")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{name}/disable")
     public Result<Void> disable(@PathVariable String name) {
         toolService.disable(name);
@@ -114,6 +122,7 @@ public class ToolController {
     }
 
     @Operation(summary = "启用工具")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{name}/enable")
     public Result<Void> enable(@PathVariable String name) {
         toolService.enable(name);
@@ -123,6 +132,7 @@ public class ToolController {
     // ==================== MCP Server 管理 ====================
 
     @Operation(summary = "添加 MCP Server")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/mcp-servers")
     public Result<McpServerVO> addMcpServer(@RequestBody @Valid McpServerAddDTO request) {
         return Result.success(toolService.addMcpServer(request));
@@ -135,6 +145,7 @@ public class ToolController {
     }
 
     @Operation(summary = "移除 MCP Server")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/mcp-servers/{id}")
     public Result<Void> removeMcpServer(@PathVariable Long id) {
         toolService.removeMcpServer(id);

@@ -8,6 +8,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -59,18 +60,21 @@ public class FileController {
     }
 
     @Operation(summary = "上传文件")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/upload")
     public Result<FileVO> upload(@RequestParam("file") MultipartFile file) {
         return Result.success(fileService.upload(file));
     }
 
     @Operation(summary = "上传图片（自动生成缩略图）")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/upload-image")
     public Result<FileVO> uploadImage(@RequestParam("file") MultipartFile file) {
         return Result.success(fileService.uploadImage(file));
     }
 
     @Operation(summary = "删除文件")
+    @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/{key}")
     public Result<Void> delete(@PathVariable String key) {
         fileService.delete(key);
