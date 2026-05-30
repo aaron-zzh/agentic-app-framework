@@ -9,6 +9,7 @@
 
 import { Bot, Plus, Sparkles, User } from "lucide-react"
 import type { ReactNode } from "react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -18,6 +19,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useAssistants } from "@/lib/queries/use-assistants"
 import type { ChatterPreset, ChatterTarget } from "./types"
 
 interface ChatterToolbarProps {
@@ -28,11 +30,11 @@ interface ChatterToolbarProps {
   toolbar?: ReactNode
 }
 
-/** 内置角色列表 */
-const AGENT_ROLES = [
-  { id: "default-generalist", label: "通用助理", avatar: "🤖" },
-  { id: "content-creator-role", label: "内容创作", avatar: "✍️" }
-] as const
+/** 静态 fallback（后端未返回时使用） */
+const FALLBACK_ROLES = [
+  { roleId: "default-generalist", name: "通用助理", avatar: undefined },
+  { roleId: "content-creator-role", name: "内容创作", avatar: undefined }
+]
 
 /** preset 决定显示哪些 target 选项 */
 function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
@@ -73,12 +75,15 @@ export function ChatterToolbar({
   const showNewSession = preset === "ai" || preset === "livechat"
   const showRoleSelector = target.type === "ai"
 
+  const { data: assistants } = useAssistants()
+  const roles = assistants?.map((a) => ({ roleId: a.roleId, name: a.name, avatar: a.avatar })) ?? FALLBACK_ROLES
+  const currentRole = roles.find((r) => r.roleId === (target.agentRole ?? "default-generalist")) ?? roles[0]
+
   return (
     <div className="flex items-center gap-2 border-b px-3 py-2">
       <ToggleGroup
         value={[target.type]}
         onValueChange={(value: string[]) => {
-          // 防止全部取消选中（至少保留一个）
           const newType = value.find((v) => v !== target.type) ?? target.type
           if (newType !== target.type) {
             onTargetChange({ ...target, type: newType as ChatterTarget["type"] })
@@ -101,18 +106,22 @@ export function ChatterToolbar({
           value={target.agentRole ?? "default-generalist"}
           onValueChange={(role) => onTargetChange({ ...target, agentRole: role ?? undefined })}
         >
-          <SelectTrigger className="h-7 w-auto gap-1 border-none bg-muted/50 px-2 text-xs">
-            <SelectValue>
-              {AGENT_ROLES.find((r) => r.id === (target.agentRole ?? "default-generalist"))?.avatar}{" "}
-              {AGENT_ROLES.find((r) => r.id === (target.agentRole ?? "default-generalist"))?.label}
-            </SelectValue>
+          <SelectTrigger className="h-7 w-auto gap-1.5 border-none bg-muted/50 px-2 text-xs">
+            <Avatar className="size-4">
+              <AvatarImage src={currentRole?.avatar} />
+              <AvatarFallback className="text-[8px]">{currentRole?.name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <SelectValue>{currentRole?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {AGENT_ROLES.map((r) => (
-              <SelectItem key={r.id} value={r.id}>
-                <span className="flex items-center gap-1.5">
-                  <span>{r.avatar}</span>
-                  <span>{r.label}</span>
+            {roles.map((r) => (
+              <SelectItem key={r.roleId} value={r.roleId}>
+                <span className="flex items-center gap-2">
+                  <Avatar className="size-5">
+                    <AvatarImage src={r.avatar} />
+                    <AvatarFallback className="text-[9px]">{r.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span>{r.name}</span>
                 </span>
               </SelectItem>
             ))}

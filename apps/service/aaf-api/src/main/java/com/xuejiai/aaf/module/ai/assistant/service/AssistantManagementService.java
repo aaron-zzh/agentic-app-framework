@@ -13,6 +13,7 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.SkillMatchService;
+import com.xuejiai.aaf.framework.intelligent.assistant.actor.ActorRepository;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
 import com.xuejiai.aaf.module.ai.assistant.vo.*;
 
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class AssistantManagementService {
 
     private final AssistantDefinitionRepository assistantRepo;
+    private final ActorRepository actorRepo;
     private final SkillMatchService skillMatchService;
 
     /**
@@ -145,6 +147,26 @@ public class AssistantManagementService {
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
         // TODO: 通过 Role → Agent 链路更新 allowedTools
         throw new UnsupportedOperationException("配置工具白名单功能待完善");
+    }
+
+    /**
+     * 获取当前可用助理列表（含 Actor 头像名称，供前端角色切换）。
+     * 返回所有 active 状态的公共助理（userId=0）。
+     */
+    public List<AssistantAvailableVO> listAvailable() {
+        var assistants = assistantRepo.findByUserIdAndStatus(0L, "active");
+        return assistants.stream()
+                .map(
+                        a -> {
+                            var actor = actorRepo.findByActorId(a.getActorId()).orElse(null);
+                            return new AssistantAvailableVO(
+                                    a.getAssistantId(),
+                                    a.getRoleId(),
+                                    a.getActorId(),
+                                    actor != null ? actor.getName() : a.getAssistantId(),
+                                    actor != null ? actor.getAvatarUrl() : null);
+                        })
+                .toList();
     }
 
     private AssistantVO toVO(AssistantDefinition e) {

@@ -60,6 +60,12 @@ public class AssistantController {
         return Result.success();
     }
 
+    @Operation(summary = "当前用户可用的助理列表（含头像名称，供前端角色切换）")
+    @GetMapping("/available")
+    public Result<List<AssistantAvailableVO>> listAvailable() {
+        return Result.success(assistantService.listAvailable());
+    }
+
     @Operation(summary = "绑定技能")
     @PutMapping("/{id}/skills")
     public Result<Void> bindSkills(@PathVariable Long id, @RequestBody List<String> skillIds) {

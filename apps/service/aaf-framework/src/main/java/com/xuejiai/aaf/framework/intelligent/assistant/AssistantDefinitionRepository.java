@@ -5,6 +5,7 @@
  */
 package com.xuejiai.aaf.framework.intelligent.assistant;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -16,4 +17,6 @@ public interface AssistantDefinitionRepository extends JpaRepository<AssistantDe
     Optional<AssistantDefinition> findByAssistantId(String assistantId);
 
     Page<AssistantDefinition> findByUserId(Long userId, Pageable pageable);
+
+    List<AssistantDefinition> findByUserIdAndStatus(Long userId, String status);
 }
