@@ -179,8 +179,8 @@
 
 ### 问题
 
-- [major] `use-websocket.ts` 无最大重连次数限制，网络永久断开时会无限重连（指数退避到 30s 后持续每 30s 一次），浪费资源。`apps/webui/src/lib/hooks/use-websocket.ts:79-82`
-- [major] `use-record-presence.ts` 直接构造 WebSocket 连接 `new WebSocket(\`/ws/presence?userId=${currentUser.id}\`)`，userId 未做 URL 编码，且 WebSocket URL 缺少协议前缀（依赖浏览器相对路径解析，部分环境不支持）。`apps/webui/src/lib/hooks/use-record-presence.ts:52`
+- [major] ~~`use-websocket.ts` 无最大重连次数限制，网络永久断开时会无限重连（指数退避到 30s 后持续每 30s 一次），浪费资源。~~ ✅ 已修复（添加 maxRetries 选项，默认 10 次） `apps/webui/src/lib/hooks/use-websocket.ts:79-82`
+- [major] ~~`use-record-presence.ts` 直接构造 WebSocket 连接 `new WebSocket(\`/ws/presence?userId=${currentUser.id}\`)`，userId 未做 URL 编码，且 WebSocket URL 缺少协议前缀（依赖浏览器相对路径解析，部分环境不支持）。~~ ✅ 已修复（使用 getWsBaseUrl 模式 + encodeURIComponent） `apps/webui/src/lib/hooks/use-record-presence.ts:52`
 - ✅ 已修复 [major] `use-chatter-config.ts` 的 `useEffect` 依赖数组包含 `configs`（整个对象引用），但 `setConfig` 会修改 `configs`，导致**无限循环**。注释说"只在 pageId 变化时执行"但实际依赖了 `configs`。`apps/webui/src/lib/hooks/use-chatter-config.ts:24-35`
 > 已修复｜2026-05-30｜提交：apps/webui/src/lib/hooks/use-chatter-config.ts
 - [minor] `use-ai-awareness.ts` 的 `useCallback` 依赖 `store` 对象引用（Zustand store 每次渲染引用不变，实际无害），但 `options.fields` 作为依赖可能导致不必要的重建（如果调用方每次传新数组）。`apps/webui/src/lib/hooks/use-ai-awareness.ts:42`

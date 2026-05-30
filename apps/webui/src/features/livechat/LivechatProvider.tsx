@@ -68,11 +68,16 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
   // WebSocket 实时消息
   const handleWsMessage = useCallback((raw: string) => {
     try {
-      const msg: ChatMessageVO = JSON.parse(raw)
+      const msg: unknown = JSON.parse(raw)
+      // 校验必要字段
+      if (!msg || typeof msg !== "object") return
+      const obj = msg as Record<string, unknown>
+      if (typeof obj.id !== "string" || typeof obj.role !== "string" || typeof obj.content !== "string") return
+      const validated = obj as unknown as ChatMessageVO
       setMessages((prev) => {
         // 去重：避免历史加载和 WS 推送重复
-        if (prev.some((m) => m.id === msg.id)) return prev
-        return [...prev, toThreadMessage(msg)]
+        if (prev.some((m) => m.id === validated.id)) return prev
+        return [...prev, toThreadMessage(validated)]
       })
       setIsRunning(false)
     } catch {

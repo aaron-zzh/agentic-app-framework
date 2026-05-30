@@ -181,7 +181,7 @@
 
 #### 问题
 
-- [major] `app/api/upload/route.ts:全文` — 文件上传接口将整个文件转为 base64 返回。对于大文件（如 10MB）会导致响应体极大、内存占用高。虽然注释标注为 Mock，但应添加文件大小上限校验（当前无校验）。
+- [major] ~~`app/api/upload/route.ts:全文` — 文件上传接口将整个文件转为 base64 返回。对于大文件（如 10MB）会导致响应体极大、内存占用高。虽然注释标注为 Mock，但应添加文件大小上限校验（当前无校验）。~~ ✅ 已修复（添加 50MB 上限，超出返回 413）
 - [minor] `app/api/chat/route.ts:全文` — Mock SSE 实现，无安全问题。生产替换时需注意输入校验。
 - [minor] `app/api/upload/presign/route.ts:全文` — Mock 实现，无问题。
 - [minor] `app/api/hello/route.ts` — 健康检查端点，无问题。

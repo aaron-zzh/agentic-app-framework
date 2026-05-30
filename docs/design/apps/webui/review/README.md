@@ -12,10 +12,10 @@ date: 2026-05-30
 
 | 文档 | 审查范围 | blocker | major | minor |
 |------|---------|---------|-------|-------|
-| [01-infra.md](./01-infra.md) | next.config / middleware / providers / i18n / lib/api / lib/store / lib/hooks / lib/queries | 0 | 3 (7 原始, 4 已修复) | 22 |
-| [02-core-modules.md](./02-core-modules.md) | entity-engine / chatter / agui / livechat | 0 | 7 (10 原始, 3 已修复) | 47 |
-| [03-business-modules.md](./03-business-modules.md) | aigc / flow-editor / rich-text-editor / page-engine / entity-editor / knowledge / settings / dashboard / stats / ai-assist | 0 | 9 | 30 |
-| [04-ui-layer.md](./04-ui-layer.md) | components / sections / app 路由页面 | 0 (2 已修复) | 9 | 25 |
+| [01-infra.md](./01-infra.md) | next.config / middleware / providers / i18n / lib/api / lib/store / lib/hooks / lib/queries | 0 | 1 (7 原始, 6 已修复) | 22 |
+| [02-core-modules.md](./02-core-modules.md) | entity-engine / chatter / agui / livechat | 0 | 5 (10 原始, 5 已修复) | 47 |
+| [03-business-modules.md](./03-business-modules.md) | aigc / flow-editor / rich-text-editor / page-engine / entity-editor / knowledge / settings / dashboard / stats / ai-assist | 0 | 4 (9 原始, 5 已修复) | 30 |
+| [04-ui-layer.md](./04-ui-layer.md) | components / sections / app 路由页面 | 0 (2 已修复) | 8 (9 原始, 1 已修复) | 25 |
 | [code-review.md](../code-review.md) | 全局概览（首轮审查） | 2 | 7 | 7 |
 
 ## 全局汇总
@@ -23,10 +23,10 @@ date: 2026-05-30
 | 级别 | 数量 | 质量门控 |
 |------|------|---------|
 | blocker | 0 (2 已修复) | ✅ 已清零 |
-| major | 28 (35 原始, 7 已修复) | ❌ 需 ≤ 2 |
+| major | 18 (35 原始, 17 已修复) | ❌ 需 ≤ 2 |
 | minor | 124 | ✅ 不阻塞 |
 
-**质量门控判定：未通过**（blocker=0 ✅，major=28 ❌）
+**质量门控判定：未通过**（blocker=0 ✅，major=18 ❌）
 
 ---
 
@@ -51,9 +51,11 @@ date: 2026-05-30
 
 `use-entity-list.ts`、`use-entity-detail.ts`、`aigc/VideoGenerationChat.tsx` 等多处硬编码 mock 数据，生产构建时会打包进 bundle 并屏蔽真实 API。
 
-### S-4 WebSocket 无最大重连限制（major）
+### ✅ 已修复 S-4 WebSocket 无最大重连限制（major）
 
-`use-websocket.ts` 无限重连，网络永久断开时持续消耗资源。
+~~`use-websocket.ts` 无限重连，网络永久断开时持续消耗资源。~~
+
+> 已修复｜2026-05-30｜添加 maxRetries 选项（默认 10 次）
 
 ---
 
@@ -66,7 +68,7 @@ date: 2026-05-30
 | ~~major~~ | ~~`lib/api/client.ts:49-51`~~ | ~~SSR 环境下 Zustand store 未初始化崩溃~~ ✅ 已修复 |
 | major | `lib/api/dashboard.ts` 等 | 私有 req() 缺少认证头 |
 | ~~major~~ | ~~`lib/hooks/use-chatter-config.ts:24-35`~~ | ~~useEffect 依赖 configs 导致无限循环~~ ✅ 已修复 |
-| major | `lib/hooks/use-websocket.ts:79-82` | 无限重连无上限 |
+| major | `lib/hooks/use-websocket.ts:79-82` | 无限重连无上限 ✅ 已修复 |
 
 ### 核心功能模块（02-core-modules）
 
@@ -75,8 +77,8 @@ date: 2026-05-30
 | ~~major~~ | ~~`entity-engine/components/KanbanView.tsx:95`~~ | ~~渲染期 setState 导致无限循环~~ ✅ 已修复 |
 | ~~major~~ | ~~`entity-engine/components/EntityActions.tsx:72`~~ | ~~空 catch 块无错误通知~~ ✅ 已修复 |
 | ~~major~~ | ~~`entity-engine/components/EntityApproval.tsx:143`~~ | ~~window.location.reload 应改为 queryClient invalidation~~ ✅ 已修复 |
-| major | `livechat/LivechatProvider.tsx:75` | WebSocket 消息无 schema 校验 |
-| major | `chatter/TaskExecutionTimeline.tsx:95` | SSE 无重连机制 |
+| major | `livechat/LivechatProvider.tsx:75` | WebSocket 消息无 schema 校验 ✅ 已修复 |
+| major | `chatter/TaskExecutionTimeline.tsx:95` | SSE 无重连机制 ✅ 已修复 |
 
 ### 业务功能模块（03-business-modules）
 

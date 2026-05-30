@@ -17,7 +17,7 @@ import {
   type LexicalCommand,
   type LexicalEditor
 } from "lexical"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { AIWriteDialog } from "./AIWriteDialog"
 
 export const OPEN_AI_WRITE_COMMAND: LexicalCommand<void> = createCommand("OPEN_AI_WRITE")
@@ -66,18 +66,21 @@ export function AIWritePlugin() {
   const [selectedText, setSelectedText] = useState("")
   const abortRef = useRef<AbortController | null>(null)
 
-  editor.registerCommand(
-    OPEN_AI_WRITE_COMMAND,
-    () => {
-      editor.getEditorState().read(() => {
-        const sel = $getSelection()
-        setSelectedText($isRangeSelection(sel) ? sel.getTextContent() : "")
-      })
-      setOpen(true)
-      return true
-    },
-    COMMAND_PRIORITY_LOW
-  )
+  useEffect(() => {
+    const unregister = editor.registerCommand(
+      OPEN_AI_WRITE_COMMAND,
+      () => {
+        editor.getEditorState().read(() => {
+          const sel = $getSelection()
+          setSelectedText($isRangeSelection(sel) ? sel.getTextContent() : "")
+        })
+        setOpen(true)
+        return true
+      },
+      COMMAND_PRIORITY_LOW
+    )
+    return unregister
+  }, [editor])
 
   const handleSubmit = useCallback(
     async (prompt: string) => {

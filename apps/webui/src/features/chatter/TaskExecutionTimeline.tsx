@@ -108,25 +108,47 @@ export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTime
       .catch(() => {})
   }, [taskId])
 
-  // SSE 实时订阅
+  // SSE 实时订阅（指数退避重连）
   useEffect(() => {
     if (!live) return
 
-    const source = new EventSource(`${API_BASE}/api/chat/tasks/${taskId}/events/stream`)
+    let retries = 0
+    const MAX_SSE_RETRIES = 5
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let source: EventSource | null = null
 
-    const handleEvent = (e: MessageEvent) => {
-      const event: TaskEventData = JSON.parse(e.data)
-      setItems((prev) => [...prev, parseEvent(event)])
+    function createSource() {
+      source = new EventSource(`${API_BASE}/api/chat/tasks/${taskId}/events/stream`)
+
+      const handleEvent = (e: MessageEvent) => {
+        const event: TaskEventData = JSON.parse(e.data)
+        setItems((prev) => [...prev, parseEvent(event)])
+      }
+
+      for (const type of Object.keys(EVENT_META)) {
+        source.addEventListener(type, handleEvent)
+      }
+
+      source.onopen = () => {
+        retries = 0
+      }
+
+      source.onerror = () => {
+        source?.close()
+        source = null
+        if (retries >= MAX_SSE_RETRIES) return
+        const delay = Math.min(1000 * 2 ** retries, 30000)
+        retries += 1
+        timer = setTimeout(createSource, delay)
+      }
     }
 
-    // 监听所有事件类型
-    for (const type of Object.keys(EVENT_META)) {
-      source.addEventListener(type, handleEvent)
+    createSource()
+
+    return () => {
+      source?.close()
+      if (timer) clearTimeout(timer)
     }
-
-    source.onerror = () => source.close()
-
-    return () => source.close()
   }, [taskId, live])
 
   // 自动滚动到底部

@@ -95,7 +95,7 @@
 - [minor] `ChatterRuntime.tsx`:89-90 — `threadList.onSwitchToThread` 中 catch 块返回 `{ messages: [] }`，静默吞掉了加载历史消息的错误，用户无法感知历史加载失败
 - [minor] `ChatterComposer.tsx`:42 — `handleServerStt` 中 catch 只 console.error，未向用户反馈 STT 失败
 - [minor] `ChatterThread.tsx`:17 — `useMessageText` 中 `message.content.filter((p) => p.type === "text")` 假设 content 始终是数组，若 runtime 返回非数组 content 会崩溃
-- [major] `TaskExecutionTimeline.tsx`:95 — SSE EventSource 的 `onerror` 只调用 `source.close()`，不尝试重连。网络抖动会导致实时更新永久中断，用户需手动刷新
+- [major] ~~`TaskExecutionTimeline.tsx`:95 — SSE EventSource 的 `onerror` 只调用 `source.close()`，不尝试重连。网络抖动会导致实时更新永久中断，用户需手动刷新~~ ✅ 已修复（指数退避重连，初 1s 最大 30s，最多 5 次）
 - [minor] `TaskExecutionTimeline.tsx`:80 — 历史事件加载的 fetch 无错误处理（`.catch(() => {})`），加载失败时 items 保持空数组，用户无法区分"无事件"和"加载失败"
 - [minor] `ChatterToolbar.tsx`:52 — `onValueChange` 中 `value.find((v) => v !== target.type)` 逻辑：当用户点击已选中的 toggle 时 value 为空数组，`find` 返回 undefined，fallback 到 `target.type`，行为正确但逻辑不直观
 
@@ -218,7 +218,7 @@
 #### 问题
 
 - [minor] `LivechatProvider.tsx`:30 — `toThreadMessage` 中使用 `as ThreadMessage` 类型断言，绕过了 assistant-ui 的完整类型检查。若 ThreadMessage 接口变更，编译不会报错
-- [major] `LivechatProvider.tsx`:75 — `handleWsMessage` 中 `JSON.parse(raw)` 无 schema 校验，恶意或格式错误的 WebSocket 消息会导致 `toThreadMessage` 内部崩溃（如 `msg.role` 为 undefined）
+- [major] ~~`LivechatProvider.tsx`:75 — `handleWsMessage` 中 `JSON.parse(raw)` 无 schema 校验，恶意或格式错误的 WebSocket 消息会导致 `toThreadMessage` 内部崩溃（如 `msg.role` 为 undefined）~~ ✅ 已修复（手写守卫函数校验 id/role/content 字段）
 - [minor] `LivechatProvider.tsx`:62 — `historyLoaded` ref 防止重复加载，但若 `useChatMessages` 返回新数据（如后端数据变更），不会更新本地 messages
 - [minor] `ChatLayout.tsx` — 桌面端和移动端分支中大量重复的 ThreadPrimitive + ComposerPrimitive 渲染代码（约 40 行重复），应提取为共享组件
 - [minor] `index.ts` — 导出清晰，barrel file 组织合理
