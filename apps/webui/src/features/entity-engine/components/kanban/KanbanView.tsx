@@ -22,7 +22,7 @@ import {
   useSensors
 } from "@dnd-kit/core"
 import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 
 import type { EntityDef, SelectField, SelectOption } from "../../types"
 import { KanbanCard, KanbanColumn } from "./components"
@@ -80,12 +80,10 @@ export function KanbanView({
   const [localData, setLocalData] = useState(data)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  // 当外部 data 变化时同步（移到 useEffect 避免渲染期 setState）
-  useEffect(() => {
-    if (!activeId) {
-      setLocalData(data)
-    }
-  }, [data, activeId])
+  // 当外部 data 变化时同步
+  if (data !== localData && !activeId) {
+    setLocalData(data)
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 

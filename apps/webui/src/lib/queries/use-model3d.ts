@@ -44,7 +44,7 @@ export function useModel3dTaskStatus(taskId: string | null) {
     enabled: taskId !== null,
     refetchInterval: (query) => {
       const status = query.state.data?.status
-      if (status === "SUCCEEDED" || status === "FAILED") return false
+      if (status === "COMPLETED" || status === "FAILED") return false
       return 15_000
     }
   })

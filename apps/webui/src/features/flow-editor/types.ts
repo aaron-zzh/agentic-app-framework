@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { Edge, Node, NodeProps as XYNodeProps } from "@xyflow/react"
+import type { NodeProps as XYNodeProps } from "@xyflow/react"
 import type { ComponentType } from "react"
 
 /** 节点分类 */
@@ -121,6 +121,6 @@ export interface FlowTemplate {
 
 /** 历史操作记录 */
 export interface HistoryEntry {
-  nodes: Node[]
-  edges: Edge[]
+  nodes: FlowNode[]
+  edges: FlowEdge[]
 }

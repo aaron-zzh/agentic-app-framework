@@ -6,8 +6,8 @@
 
 "use client"
 
-import type { TLStore } from "@tldraw/tldraw"
-import { createTLStore, defaultShapeUtils } from "@tldraw/tldraw"
+import type { TLStore } from "@/lib/stubs/tldraw"
+import { createTLStore, defaultShapeUtils } from "@/lib/stubs/tldraw"
 import { useEffect, useMemo, useState } from "react"
 
 /** 协作者信息 */

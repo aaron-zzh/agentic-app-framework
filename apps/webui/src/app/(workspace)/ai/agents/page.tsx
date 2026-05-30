@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import { apiClient } from "@/lib/api/client"
+import { request } from "@/lib/api/client"
 
 interface AgentVO {
   id: number
@@ -33,7 +33,7 @@ interface AgentVO {
 function useAgents() {
   return useQuery<AgentVO[]>({
     queryKey: ["agents"],
-    queryFn: () => apiClient.get("/api/ai/agents").then((r) => r.data)
+    queryFn: () => request<AgentVO[]>("/ai/agents")
   })
 }
 
@@ -51,12 +51,7 @@ export default function AgentManagementPage() {
       <div className="flex items-center justify-between">
         <h1 className="font-semibold text-xl">Agent 管理</h1>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="mr-1 size-4" />
-              新建 Agent
-            </Button>
-          </DialogTrigger>
+          <DialogTrigger render={<Button size="sm"><Plus className="mr-1 size-4" />新建 Agent</Button>} />
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>新建 Agent</DialogTitle>
@@ -139,8 +134,8 @@ function AgentForm({ agent, onSuccess }: { agent?: AgentVO; onSuccess: () => voi
   const mutation = useMutation({
     mutationFn: (data: typeof form) =>
       agent
-        ? apiClient.put(`/api/ai/agents/${agent.id}`, data)
-        : apiClient.post("/api/ai/agents", data),
+        ? request(`/ai/agents/${agent.id}`, { method: "PUT", body: JSON.stringify(data) })
+        : request("/ai/agents", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["agents"] })
       onSuccess()

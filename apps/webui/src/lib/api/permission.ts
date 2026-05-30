@@ -3,10 +3,22 @@
  * @author AaronZZH & Kiro
  */
 
-import type { EntityAccess } from "@/lib/types/entity/access"
 import { request } from "./client"
 
-export type { EntityAccess, FieldAccess } from "@/lib/types/entity/access"
+/** 字段级权限 */
+export interface FieldAccess {
+  visible: boolean
+  editable: boolean
+}
+
+/** 实体级权限（后端根据当前用户计算后返回） */
+export interface EntityAccess {
+  read: boolean
+  create: boolean
+  update: boolean
+  delete: boolean
+  fieldAccess: Record<string, FieldAccess>
+}
 
 /** 获取指定实体的权限配置 */
 export async function fetchEntityAccess(slug: string): Promise<EntityAccess> {

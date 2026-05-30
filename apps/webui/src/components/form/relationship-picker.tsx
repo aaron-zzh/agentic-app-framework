@@ -59,10 +59,10 @@ export function RelationshipPicker({
       if (multiple) {
         const current = Array.isArray(value) ? value : []
         if (!current.includes(id)) {
-          onChange([...current, id])
+          onChange([...current, id] as unknown as string | string[])
         }
       } else {
-        onChange(id)
+        onChange(id as unknown as string | string[])
         setOpen(false)
       }
       setQuery("")
@@ -73,9 +73,9 @@ export function RelationshipPicker({
   const handleRemove = useCallback(
     (id: string) => {
       if (multiple && Array.isArray(value)) {
-        onChange(value.filter((v) => v !== id))
+        onChange(value.filter((v) => v !== id) as unknown as string | string[])
       } else {
-        onChange("")
+        onChange("" as unknown as string | string[])
       }
     },
     [multiple, value, onChange]

@@ -16,16 +16,6 @@ import {
   X
 } from "lucide-react"
 import { useState } from "react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -51,7 +41,6 @@ import {
   useRegenerateAsset
 } from "@/lib/queries/use-media-assets"
 import { cn } from "@/lib/utils/index"
-import { safeJsonParse } from "@/lib/utils/json"
 import type { MediaAssetType, MediaAssetVO, MediaCategoryVO } from "./types"
 
 /** 素材卡片 */
@@ -129,7 +118,7 @@ function AssetCard({
       <div className="p-2">
         <p className="truncate font-medium text-sm">{asset.name}</p>
         <p className="text-[11px] text-muted-foreground">
-          {asset.generationParams ? (safeJsonParse<Record<string, unknown>>(asset.generationParams, {}).model ?? "") : ""}
+          {asset.generationParams ? (JSON.parse(asset.generationParams).model ?? "") : ""}
           {asset.generationParams ? " · " : ""}
           {new Date(asset.createTime).toLocaleDateString()}
         </p>
@@ -153,7 +142,7 @@ function AssetDetailDialog({
 
   if (!asset) return null
 
-  const params = asset.generationParams ? safeJsonParse<Record<string, unknown>>(asset.generationParams, null) : null
+  const params = asset.generationParams ? JSON.parse(asset.generationParams) : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -294,7 +283,6 @@ export function AssetLibrary() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [page, setPage] = useState(0)
   const [detailId, setDetailId] = useState<number | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
   const deleteMutation = useDeleteMediaAsset()
   const regenerateMutation = useRegenerateAsset()
@@ -311,13 +299,8 @@ export function AssetLibrary() {
   })
 
   function handleDelete(id: number) {
-    setDeleteTarget(id)
-  }
-
-  function confirmDelete() {
-    if (deleteTarget !== null) {
-      deleteMutation.mutate(deleteTarget)
-      setDeleteTarget(null)
+    if (confirm("确定删除该素材？")) {
+      deleteMutation.mutate(id)
     }
   }
 
@@ -527,20 +510,6 @@ export function AssetLibrary() {
           if (!open) setDetailId(null)
         }}
       />
-
-      {/* 删除确认弹窗 */}
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确定删除该素材？此操作不可撤销。</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>删除</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

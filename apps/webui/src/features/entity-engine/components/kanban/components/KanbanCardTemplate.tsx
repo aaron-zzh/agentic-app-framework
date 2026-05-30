@@ -39,7 +39,7 @@ export function KanbanCardTemplate({ record, entity, template }: KanbanCardTempl
       onMouseLeave={() => setShowActions(false)}
     >
       {/* 封面图片 */}
-      {coverField && record[coverField] && (
+      {coverField && !!record[coverField] && (
         // biome-ignore lint/performance/noImgElement: 动态 URL，next/image 不适用
         <img
           src={String(record[coverField])}

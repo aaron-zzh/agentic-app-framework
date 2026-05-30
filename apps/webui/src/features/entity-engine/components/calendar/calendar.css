@@ -2,6 +2,8 @@
  * FullCalendar 主题覆盖——适配 shadcn/ui 设计系统
  */
 
+@reference "../../../../app/global.css";
+
 /* 工具栏按钮 */
 .fc .fc-button {
   @apply rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground;

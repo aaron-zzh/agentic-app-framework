@@ -10,10 +10,10 @@ import { useAuthStore } from "@/lib/store/auth-store"
 
 export default function ApiKeysPage() {
   // 当前登录用户 ID 作为上下文自动传递
-  const userId = useAuthStore((s) => s.userId)
+  const userId = useAuthStore((s) => s.user?.id ? Number(s.user.id) : undefined)
 
   return (
-    <PageContainer title="API Key 管理">
+    <PageContainer>
       <ApiKeyList userId={userId ?? undefined} />
     </PageContainer>
   )

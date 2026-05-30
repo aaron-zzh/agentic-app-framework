@@ -5,7 +5,6 @@
  */
 
 import { useCallback, useRef, useState } from "react"
-import { streamSSE } from "@/lib/utils/sse"
 import type { ExecutionState } from "../types"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
@@ -173,35 +172,42 @@ export function useWorkflowRuntime() {
 
       // 使用 POST + fetch 获取 SSE 流
       const body = JSON.stringify({ processKey, variables: variables ?? {} })
-      const controller = new AbortController()
-      // 5 分钟超时
-      const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000)
 
       fetch(`${BASE}/api/workflow/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body,
-        signal: controller.signal
+        body
       }).then(async (res) => {
         if (!res.ok || !res.body) {
           setState((prev) => ({ ...prev, status: "failed" }))
           return
         }
 
-        await streamSSE(res.body, {
-          onData: (data) => {
-            try {
-              handleEvent(JSON.parse(data) as AgUiEvent)
-            } catch {
-              // 忽略解析错误
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? ""
+
+          for (const line of lines) {
+            if (line.startsWith("data:")) {
+              const data = line.slice(5).trim()
+              if (data) {
+                try {
+                  handleEvent(JSON.parse(data) as AgUiEvent)
+                } catch {
+                  // 忽略解析错误
+                }
+              }
             }
           }
-        })
-      }).catch(() => {
-        // 网络错误或超时
-        setState((prev) => ({ ...prev, status: "failed" }))
-      }).finally(() => {
-        clearTimeout(timeout)
+        }
       })
     },
     [handleEvent]

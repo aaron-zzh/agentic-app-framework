@@ -6,9 +6,8 @@
 
 "use client"
 
-import { type Editor, Tldraw } from "@tldraw/tldraw"
+import { type Editor, Tldraw } from "@/lib/stubs/tldraw"
 import { useCallback, useState } from "react"
-import "@tldraw/tldraw/tldraw.css"
 
 import type { EntityDef } from "@/lib/types/entity"
 import { CanvasAIPanel } from "./CanvasAIPanel"
@@ -16,7 +15,7 @@ import { CanvasCollaborators } from "./CanvasCollaborators"
 import { CanvasExportButton } from "./CanvasExportButton"
 import { useCanvasCollaboration } from "./use-canvas-collaboration"
 
-interface CanvasViewProps {
+export interface CanvasViewProps {
   entity: EntityDef
   /** 画板记录 ID（用于协作同步） */
   recordId?: string

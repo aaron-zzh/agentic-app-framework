@@ -160,15 +160,17 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
           {/* 竖线 */}
           <div className="absolute top-0 left-1/2 h-full w-px -translate-x-1/2 bg-border" />
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="relative z-10 h-7 w-7 rounded-full p-0 text-lg leading-none"
-              >
-                +
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="relative z-10 h-7 w-7 rounded-full p-0 text-lg leading-none"
+                >
+                  +
+                </Button>
+              }
+            />
             <DropdownMenuContent>
               <DropdownMenuItem
                 onClick={() =>
@@ -315,15 +317,17 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
                 {!branch.child && (
                   <div className="flex justify-center py-1">
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 rounded-full p-0 text-xs"
-                        >
-                          +
-                        </Button>
-                      </DropdownMenuTrigger>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 w-6 rounded-full p-0 text-xs"
+                          >
+                            +
+                          </Button>
+                        }
+                      />
                       <DropdownMenuContent>
                         <DropdownMenuItem
                           onClick={() => {

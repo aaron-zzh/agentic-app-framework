@@ -4,7 +4,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { FieldDef } from "@/lib/types/entity"
+import type { DataFieldDef, FieldDef } from "@/lib/types/entity"
 
 /** 布局方案描述（字段名引用，实际渲染时由 ViewEngine 解析为 FieldDef） */
 export interface LayoutDescriptor {
@@ -108,7 +108,7 @@ class LayoutOptimizerImpl {
 
   /** 计算字段重要性权重 */
   private calculateFieldWeights(fields: FieldDef[]): FieldWeight[] {
-    return fields.map((field, index) => {
+    return fields.filter((f): f is DataFieldDef => "name" in f).map((field, index) => {
       let weight = 0
       const reasons: string[] = []
 

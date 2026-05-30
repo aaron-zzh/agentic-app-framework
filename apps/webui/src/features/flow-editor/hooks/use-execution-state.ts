@@ -61,10 +61,12 @@ export function useExecutionState(processInstanceId?: string) {
 
       if (data.type === "log" && data.log) {
         setNodeLogs((prev) => [...prev, data.log as NodeExecutionLog])
-        if (data.log.durationMs > 0) {
+        const nodeId = data.log.nodeId
+        const durationMs = data.log.durationMs
+        if (durationMs > 0 && nodeId) {
           setNodeTimings((prev) => ({
             ...prev,
-            [data.log?.nodeId]: data.log?.durationMs
+            [nodeId]: durationMs
           }))
         }
       }

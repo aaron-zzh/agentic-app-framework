@@ -16,9 +16,9 @@ import {
   Tooltip,
   XAxis,
   YAxis
-} from "recharts"
+} from "@/lib/stubs/recharts"
 
-interface KanbanStatsProps {
+export interface KanbanStatsProps {
   /** 历史快照数据：每个时间点各状态的数量 */
   snapshots?: { date: string; [status: string]: string | number }[]
   /** 各记录的周期时间（天） */

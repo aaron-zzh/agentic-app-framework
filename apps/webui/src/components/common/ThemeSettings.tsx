@@ -198,8 +198,7 @@ export function ThemeSettings() {
               <button
                 key={preset.value}
                 type="button"
-                aria-label={preset.label}
-                aria-pressed={themeColor === preset.value}
+                title={preset.label}
                 onClick={() => setThemeColor(preset.value)}
                 className={cn(
                   "group relative flex size-10 items-center justify-center rounded-xl border-2 transition-all",

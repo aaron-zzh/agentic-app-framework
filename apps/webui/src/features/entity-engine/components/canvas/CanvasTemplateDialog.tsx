@@ -54,11 +54,7 @@ const TEMPLATES: { key: CanvasTemplate; label: string; description: string; icon
 export function CanvasTemplateDialog({ onSelect }: CanvasTemplateDialogProps) {
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          选择模板
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button variant="outline" size="sm">选择模板</Button>} />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>选择画板模板</DialogTitle>

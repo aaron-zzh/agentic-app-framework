@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CheckCircle2, Circle, Loader2, Play, Rocket, XCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { apiClient } from "@/lib/api/client"
+import { request } from "@/lib/api/client"
 
 interface BuildStatus {
   runId: number
@@ -17,7 +17,7 @@ interface BuildStatus {
 function useRecentBuilds() {
   return useQuery<BuildStatus[]>({
     queryKey: ["ci-builds"],
-    queryFn: () => apiClient.get("/api/autodev/git/ci/recent?limit=20").then((r) => r.data),
+    queryFn: () => request<BuildStatus[]>("/autodev/git/ci/recent?limit=20"),
     refetchInterval: 10000
   })
 }
@@ -28,13 +28,13 @@ export default function CiStatusPage() {
 
   const triggerMutation = useMutation({
     mutationFn: (data: { workflow: string; ref: string }) =>
-      apiClient.post("/api/autodev/git/ci/trigger", { ...data, inputs: {} }),
+      request("/autodev/git/ci/trigger", { method: "POST", body: JSON.stringify({ ...data, inputs: {} }) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ci-builds"] })
   })
 
   const deployMutation = useMutation({
     mutationFn: (data: { environment: string; ref: string }) =>
-      apiClient.post("/api/autodev/git/ci/deploy", data),
+      request("/autodev/git/ci/deploy", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ci-builds"] })
   })
 

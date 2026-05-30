@@ -24,7 +24,7 @@ import {
   SearchBar,
   ViewSettingsSheet
 } from "@/features/entity-engine/components/list"
-import type { DataFieldDef, EntityDef } from "@/lib/types/entity"
+import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
 import { useFilterParams } from "@/lib/queries/use-filter-params"
 import { cn } from "@/lib/utils/cn"
 

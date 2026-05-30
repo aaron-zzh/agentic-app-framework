@@ -4,7 +4,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { EntityDef, FieldDef } from "@/lib/types/entity"
+import type { DataFieldDef, EntityDef } from "@/lib/types/entity"
 
 import type { ComponentSemantics } from "../types"
 
@@ -34,7 +34,7 @@ class SemanticRegistryImpl {
   }
 
   /** 从 FieldDef 生成字段语义描述 */
-  generateFieldSemantics(field: FieldDef): ComponentSemantics {
+  generateFieldSemantics(field: DataFieldDef): ComponentSemantics {
     return {
       name: `field:${field.name}`,
       description: field.label ?? field.name,

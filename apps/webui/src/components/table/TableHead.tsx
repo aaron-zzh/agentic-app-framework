@@ -3,7 +3,6 @@
  * @author AaronZZH & Kiro
  */
 
-import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils/cn"
 
 export interface HeadCell {
@@ -39,10 +38,14 @@ export function TableHead({
       <tr>
         {onSelectAllRows && (
           <th className="w-10 px-2">
-            <Checkbox
-              aria-label="全选"
-              checked={rowCount > 0 && numSelected === rowCount ? true : numSelected > 0 ? "indeterminate" : false}
-              onCheckedChange={(checked) => onSelectAllRows(!!checked)}
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border"
+              checked={rowCount > 0 && numSelected === rowCount}
+              ref={(el) => {
+                if (el) el.indeterminate = numSelected > 0 && numSelected < rowCount
+              }}
+              onChange={(e) => onSelectAllRows(e.target.checked)}
             />
           </th>
         )}

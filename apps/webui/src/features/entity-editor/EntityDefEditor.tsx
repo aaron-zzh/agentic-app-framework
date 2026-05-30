@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ViewEngine } from "@/features/entity-engine/components/ViewEngine"
-import type { EntityDef } from "@/lib/types/entity"
+import type { EntityDef } from "@/features/entity-engine/types"
 
 import { entityDefJsonSchema } from "./entity-def-schema"
 

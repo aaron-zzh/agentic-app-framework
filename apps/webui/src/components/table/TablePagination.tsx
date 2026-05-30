@@ -3,15 +3,6 @@
  * @author AaronZZH & Kiro
  */
 
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
-
 interface TablePaginationProps {
   page: number
   pageSize: number
@@ -43,10 +34,11 @@ export function TablePagination({
       <div className="flex items-center gap-3">
         {onChangeDense && (
           <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
-            <Checkbox
-              checked={!!dense}
-              onCheckedChange={() => onChangeDense()}
-              aria-label="紧凑模式"
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border"
+              checked={dense}
+              onChange={onChangeDense}
             />
             紧凑
           </label>
@@ -54,24 +46,20 @@ export function TablePagination({
       </div>
 
       <div className="flex items-center gap-4 text-sm">
-        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+        <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
           每页
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => onChangePageSize(Number(v))}
+          <select
+            className="h-7 rounded border px-1 text-xs"
+            value={pageSize}
+            onChange={(e) => onChangePageSize(Number(e.target.value))}
           >
-            <SelectTrigger className="h-7 w-16 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <span className="text-muted-foreground text-xs">
           {total > 0 ? `${from}–${to} / ${total}` : "0 条"}
@@ -83,7 +71,6 @@ export function TablePagination({
             className="h-7 w-7 rounded border text-xs disabled:opacity-30"
             disabled={page <= 1}
             onClick={() => onChangePage(page - 1)}
-            aria-label="上一页"
           >
             ‹
           </button>
@@ -92,7 +79,6 @@ export function TablePagination({
             className="h-7 w-7 rounded border text-xs disabled:opacity-30"
             disabled={page >= totalPages}
             onClick={() => onChangePage(page + 1)}
-            aria-label="下一页"
           >
             ›
           </button>

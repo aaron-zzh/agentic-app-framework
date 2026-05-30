@@ -7,7 +7,7 @@
 
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { type ChatterPageConfig, loadRemoteConfig, useChatterStore } from "@/lib/store/chatter-store"
 
 /**
@@ -15,12 +15,11 @@ import { type ChatterPageConfig, loadRemoteConfig, useChatterStore } from "@/lib
  * 优先级：本地缓存 > 远程配置 > 传入的 defaultConfig
  */
 export function useChatterConfig(pageId: string, defaultConfig: Partial<ChatterPageConfig>): void {
-  const defaultConfigRef = useRef(defaultConfig)
-  defaultConfigRef.current = defaultConfig
+  const configs = useChatterStore((s) => s.configs)
+  const setConfig = useChatterStore((s) => s.setConfig)
 
   useEffect(() => {
-    // 在 effect 内部读取 store 当前值，避免将 configs 加入依赖导致无限循环
-    const cached = useChatterStore.getState().configs[pageId]
+    const cached = configs[pageId]
 
     if (cached) {
       // 本地有缓存，直接用，不请求后端
@@ -28,15 +27,20 @@ export function useChatterConfig(pageId: string, defaultConfig: Partial<ChatterP
     }
 
     // 本地无缓存：先用 defaultConfig，再异步从后端加载
-    const { setConfig } = useChatterStore.getState()
-    setConfig(pageId, defaultConfigRef.current)
+    setConfig(pageId, defaultConfig)
 
     loadRemoteConfig(pageId).then((remote) => {
       if (remote) {
         // 后端有配置，覆盖 defaultConfig
-        useChatterStore.getState().setConfig(pageId, remote)
+        setConfig(pageId, remote)
       }
       // 后端无配置（null），保持 defaultConfig
     })
-  }, [pageId]) // 只在 pageId 变化时执行
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    pageId, // 本地无缓存：先用 defaultConfig，再异步从后端加载
+    setConfig,
+    defaultConfig,
+    configs
+  ]) // 只在 pageId 变化时执行，不依赖 configs 避免循环
 }

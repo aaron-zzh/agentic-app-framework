@@ -1,37 +1,39 @@
-/**
- * formula-engine 单元测试
- * @author Kiro
- */
-
 import { describe, expect, it } from "vitest"
+import { buildFieldContext } from "./field-context"
 import { evaluateFormula } from "./formula-engine"
-import type { FieldContext } from "./field-context"
 
-const ctx: FieldContext = {
-  $record: { price: 10, quantity: 3, discount: 2 },
-  $user: { id: "u1", role: "admin", permissions: [] },
-  $params: {},
-  $env: { locale: "zh", isMobile: false }
-}
+describe("formulaEngine", () => {
+  const ctx = buildFieldContext({ price: 100, quantity: 3, discount: 10, tax: 0.08 })
 
-describe("evaluateFormula", () => {
-  it("左结合减法：1-2-3 = -4", () => {
-    expect(evaluateFormula("1-2-3", ctx)).toBe(-4)
+  it("简单算术", () => {
+    expect(evaluateFormula("$record.price * $record.quantity", ctx)).toBe(300)
   })
 
-  it("乘法优先于减法：2*3-4 = 2", () => {
-    expect(evaluateFormula("2*3-4", ctx)).toBe(2)
+  it("加减乘除混合", () => {
+    expect(evaluateFormula("$record.price * $record.quantity - $record.discount", ctx)).toBe(290)
   })
 
-  it("IF 函数：IF(1, 10, 20) = 10", () => {
-    expect(evaluateFormula("IF(1, 10, 20)", ctx)).toBe(10)
+  it("括号优先级", () => {
+    expect(evaluateFormula("($record.price - $record.discount) * $record.quantity", ctx)).toBe(270)
   })
 
-  it("IF 函数 falsy：IF(0, 10, 20) = 20", () => {
-    expect(evaluateFormula("IF(0, 10, 20)", ctx)).toBe(20)
+  it("SUM 函数", () => {
+    expect(evaluateFormula("SUM($record.price, $record.quantity, $record.discount)", ctx)).toBe(113)
   })
 
-  it("字段引用：$record.price * $record.quantity", () => {
-    expect(evaluateFormula("$record.price * $record.quantity", ctx)).toBe(30)
+  it("ROUND 函数", () => {
+    expect(evaluateFormula("ROUND($record.price * $record.tax, 2)", ctx)).toBe(8)
+  })
+
+  it("IF 函数", () => {
+    expect(evaluateFormula("IF($record.quantity, $record.price, 0)", ctx)).toBe(100)
+  })
+
+  it("字面量", () => {
+    expect(evaluateFormula("100 * 2", ctx)).toBe(200)
+  })
+
+  it("不存在的字段返回 0", () => {
+    expect(evaluateFormula("$record.nonexist * 5", ctx)).toBe(0)
   })
 })

@@ -6,7 +6,7 @@
 
 "use client"
 
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { ChevronDown, ChevronUp, GitBranch } from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -56,7 +56,7 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
 
   if (isLoading) return null
   if (!workflowStatus || workflowStatus.status === "none") {
-    return <StartApprovalButton config={config} entityId={entityId} currentUserId={currentUserId} />
+    return <StartApprovalButton config={config} entityId={entityId} _currentUserId={currentUserId} />
   }
 
   const { processInstanceId, status, currentTaskId, currentAssignee } = workflowStatus
@@ -109,7 +109,7 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
         {/* 流程图可视化（可折叠） */}
         {config.showFlowChart && (
           <Collapsible open={flowChartOpen} onOpenChange={setFlowChartOpen}>
-            <CollapsibleTrigger asChild>
+            <CollapsibleTrigger render={
               <Button variant="ghost" size="sm" className="w-full justify-between">
                 流程图
                 {flowChartOpen ? (
@@ -118,7 +118,7 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
                   <ChevronDown className="h-4 w-4" />
                 )}
               </Button>
-            </CollapsibleTrigger>
+            } />
             <CollapsibleContent>
               <div className="mt-2 h-[300px] rounded border">
                 <ExecutionPanel
@@ -146,7 +146,6 @@ function StartApprovalButton({
   _currentUserId: string
 }) {
   const [loading, setLoading] = useState(false)
-  const queryClient = useQueryClient()
 
   async function handleStart() {
     setLoading(true)
@@ -160,9 +159,8 @@ function StartApprovalButton({
           assignee: ""
         })
       })
-      // 局部刷新审批状态
-      queryClient.invalidateQueries({ queryKey: ["workflow-status", config.entityType, entityId] })
-      queryClient.invalidateQueries({ queryKey: ["approval"] })
+      // 刷新页面状态
+      window.location.reload()
     } finally {
       setLoading(false)
     }

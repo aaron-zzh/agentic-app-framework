@@ -127,9 +127,15 @@ export const useFlowState = create<FlowState>((set, get) => ({
     const prev = past[past.length - 1]
     set({
       past: past.slice(0, -1),
-      future: [{ nodes, edges }, ...get().future],
-      nodes: prev.nodes,
-      edges: prev.edges
+      future: [
+        {
+          nodes: nodes as unknown as HistoryEntry["nodes"],
+          edges: edges as unknown as HistoryEntry["edges"]
+        },
+        ...get().future
+      ],
+      nodes: prev.nodes as unknown as Node[],
+      edges: prev.edges as unknown as Edge[]
     })
   },
 
@@ -139,15 +145,24 @@ export const useFlowState = create<FlowState>((set, get) => ({
     const next = future[0]
     set({
       future: future.slice(1),
-      past: [...get().past, { nodes, edges }],
-      nodes: next.nodes,
-      edges: next.edges
+      past: [
+        ...get().past,
+        {
+          nodes: nodes as unknown as HistoryEntry["nodes"],
+          edges: edges as unknown as HistoryEntry["edges"]
+        }
+      ],
+      nodes: next.nodes as unknown as Node[],
+      edges: next.edges as unknown as Edge[]
     })
   },
 
   pushHistory: () => {
     const { nodes, edges, past } = get()
-    const entry: HistoryEntry = { nodes, edges }
+    const entry: HistoryEntry = {
+      nodes: nodes as unknown as HistoryEntry["nodes"],
+      edges: edges as unknown as HistoryEntry["edges"]
+    }
     set({
       past: [...past.slice(-MAX_HISTORY + 1), entry],
       future: []
@@ -167,7 +182,7 @@ export const useFlowState = create<FlowState>((set, get) => ({
         id: e.id,
         source: e.source,
         target: e.target,
-        sourceHandle: e.sourceHandle,
+        sourceHandle: e.sourceHandle ?? undefined,
         label: typeof e.label === "string" ? e.label : undefined,
         condition: (e.data as Record<string, unknown>)?.condition as string | undefined
       }))

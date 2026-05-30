@@ -17,7 +17,7 @@ import type {
   EntityDef,
   PivotConfig,
   PivotMeasure
-} from "@/lib/types/entity"
+} from "@/features/entity-engine/types"
 import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
 
 interface PivotViewProps {

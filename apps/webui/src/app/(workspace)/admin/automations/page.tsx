@@ -6,7 +6,6 @@
 "use client"
 
 import { useId, useState } from "react"
-import { toast } from "sonner"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,7 +31,6 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { TypographyH1 } from "@/components/ui/typography"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import type {
   AutomationAction,
   AutomationCondition,
@@ -88,7 +86,6 @@ export default function AutomationsPage() {
   const [form, setForm] = useState<AutomationRuleInput>(EMPTY_FORM)
   const [conditionsJson, setConditionsJson] = useState("[]")
   const [actionsJson, setActionsJson] = useState("[]")
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   function openCreate() {
     setEditingId(null)
@@ -117,14 +114,8 @@ export default function AutomationsPage() {
     let actions: AutomationAction[] = []
     try {
       conditions = JSON.parse(conditionsJson)
-    } catch {
-      toast.error("条件 JSON 格式错误，请检查语法")
-      return
-    }
-    try {
       actions = JSON.parse(actionsJson)
     } catch {
-      toast.error("操作链 JSON 格式错误，请检查语法")
       return
     }
     const data: AutomationRuleInput = { ...form, conditions, actions }
@@ -190,7 +181,7 @@ export default function AutomationsPage() {
                       <Button variant="ghost" size="sm" onClick={() => openEdit(rule)}>
                         编辑
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteConfirmId(rule.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => remove(rule.id)}>
                         删除
                       </Button>
                     </div>
@@ -387,22 +378,6 @@ export default function AutomationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* 删除确认 */}
-      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>删除后不可恢复，确定要删除此自动化规则吗？</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteConfirmId) { remove(deleteConfirmId); setDeleteConfirmId(null) } }}>
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </PageContainer>
   )
 }

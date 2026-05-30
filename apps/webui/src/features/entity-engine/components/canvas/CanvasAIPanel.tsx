@@ -5,7 +5,7 @@
 
 "use client"
 
-import type { Editor } from "@tldraw/tldraw"
+import type { Editor } from "@/lib/stubs/tldraw"
 import { LayoutGrid, Lightbulb, PenTool, Sparkles } from "lucide-react"
 import { useState } from "react"
 
@@ -60,7 +60,7 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
 
   /** AI 内容建议（根据画板内容建议补充节点） */
   const handleSuggest = async () => {
-    const _allShapes = editor.getCurrentPageShapes()
+    editor.getCurrentPageShapes()
     setLoading(true)
     try {
       // TODO: 调用后端 AI 接口获取建议
@@ -92,11 +92,7 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
       <div className="flex items-center gap-1 rounded-lg border bg-background/95 p-1 shadow-lg backdrop-blur">
         {/* AI 生成图表 */}
         <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" title="AI 生成图表" disabled={loading}>
-              <Sparkles className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
+          <PopoverTrigger render={<Button variant="ghost" size="sm" title="AI 生成图表" disabled={loading}><Sparkles className="h-4 w-4" /></Button>} />
           <PopoverContent className="w-72" side="top">
             <div className="space-y-2">
               <p className="font-medium text-sm">AI 生成图表</p>

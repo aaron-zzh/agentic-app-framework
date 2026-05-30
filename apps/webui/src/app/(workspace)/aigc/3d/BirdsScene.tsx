@@ -21,11 +21,11 @@ function Bird({
   position: [number, number, number]
   rotation: [number, number, number]
 }) {
-  const { nodes, animations } = useGLTF(url) as {
+  const { nodes, animations } = useGLTF(url) as unknown as {
     nodes: Record<
       string,
       {
-        morphTargetDictionary?: object
+        morphTargetDictionary?: { [key: string]: number }
         morphTargetInfluences?: number[]
         geometry: object
         material: object

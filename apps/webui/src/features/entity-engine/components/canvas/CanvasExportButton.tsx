@@ -5,8 +5,8 @@
 
 "use client"
 
-import type { Editor } from "@tldraw/tldraw"
-import { exportToBlob } from "@tldraw/tldraw"
+import type { Editor } from "@/lib/stubs/tldraw"
+import { exportToBlob } from "@/lib/stubs/tldraw"
 import { Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -59,12 +59,7 @@ export function CanvasExportButton({ editor, formats }: CanvasExportButtonProps)
   return (
     <div className="absolute top-2 left-2 z-50">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Download className="mr-1 h-3 w-3" />
-            导出
-          </Button>
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger render={<Button variant="outline" size="sm"><Download className="mr-1 h-3 w-3" />导出</Button>} />
         <DropdownMenuContent>
           {formats.map((fmt) => (
             <DropdownMenuItem key={fmt} onClick={() => handleExport(fmt)}>

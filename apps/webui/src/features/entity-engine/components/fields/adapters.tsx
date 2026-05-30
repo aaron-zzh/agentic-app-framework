@@ -167,7 +167,7 @@ export function CascaderInput({ name, value, onChange, error, disabled, field }:
 
 /** 子表适配器 */
 // biome-ignore lint/correctness/noUnusedFunctionParameters: onChange 在 JSX 中使用
-export function SubtableInput({ name, value, onChange, field }: FieldProps) {
+export function SubtableInput({ name, value, onChange, field, disabled }: FieldProps) {
   const subField = field as SubtableField
   // 从 columns 构造简化的 DataFieldDef 列表
   const childFields = subField.columns.map((col) => ({

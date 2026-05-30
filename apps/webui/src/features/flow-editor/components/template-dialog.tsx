@@ -26,7 +26,7 @@ interface TemplateDialogProps {
 export function TemplateDialog({ mode, onSelect }: TemplateDialogProps) {
   const [open, setOpen] = useState(false)
   const { data: remoteTemplates } = useFlowTemplates(mode)
-  const _createFromTemplate = useCreateFromTemplate()
+  useCreateFromTemplate()
 
   // 合并内置模板和远程模板
   const templates = [...builtinTemplates.filter((t) => t.mode === mode), ...(remoteTemplates ?? [])]
@@ -38,11 +38,7 @@ export function TemplateDialog({ mode, onSelect }: TemplateDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          从模板创建
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button variant="outline" size="sm">从模板创建</Button>} />
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>选择流程模板</DialogTitle>

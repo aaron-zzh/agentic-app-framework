@@ -5,7 +5,7 @@
  * 路由：/workspace/dev/review
  */
 
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
@@ -20,7 +20,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { apiClient } from "@/lib/api/client"
+import { request } from "@/lib/api/client"
 
 interface AiOutput {
   id: number
@@ -61,23 +61,23 @@ export default function AiOutputsPage() {
       if (category !== "all") params.set("category", category)
       if (riskLevel !== "all") params.set("riskLevel", riskLevel)
       params.set("size", "50")
-      return apiClient.get<{ content: AiOutput[] }>(`/api/ai-outputs?${params.toString()}`)
+      return request<{ content: AiOutput[] }>(`/ai-outputs?${params.toString()}`)
     }
   })
 
   const revertMutation = useMutation({
-    mutationFn: (id: number) => apiClient.post(`/api/ai-outputs/${id}/revert`, { reason: "用户回退" }),
+    mutationFn: (id: number) => request(`/ai-outputs/${id}/revert`, { method: "POST", body: JSON.stringify({ reason: "用户回退" }) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-outputs"] })
   })
 
-  const outputs = data?.data?.content ?? []
+  const outputs = data?.content ?? []
 
   const { data: stats } = useQuery({
     queryKey: ["ai-outputs-stats"],
-    queryFn: () => apiClient.get<{ high: number; medium: number; low: number }>("/api/ai-outputs/stats")
+    queryFn: () => request<{ high: number; medium: number; low: number }>("/ai-outputs/stats")
   })
 
-  const statData = stats?.data
+  const statData = stats
 
   return (
     <PageContainer maxWidth="lg">
@@ -95,7 +95,7 @@ export default function AiOutputsPage() {
 
       {/* 筛选 */}
       <div className="mb-4 flex gap-3">
-        <Select value={category} onValueChange={setCategory}>
+        <Select value={category} onValueChange={(v) => setCategory(v ?? "all")}>
           <SelectTrigger className="w-32">
             <SelectValue placeholder="类别" />
           </SelectTrigger>
@@ -108,7 +108,7 @@ export default function AiOutputsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={riskLevel} onValueChange={setRiskLevel}>
+        <Select value={riskLevel} onValueChange={(v) => setRiskLevel(v ?? "all")}>
           <SelectTrigger className="w-32">
             <SelectValue placeholder="风险" />
           </SelectTrigger>
@@ -134,7 +134,7 @@ export default function AiOutputsPage() {
               <p className="text-muted-foreground py-8 text-center text-sm">暂无产出记录</p>
             ) : (
               <div className="space-y-3">
-                {outputs.map((output) => (
+                {outputs.map((output: AiOutput) => (
                   <div
                     key={output.id}
                     className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/50"

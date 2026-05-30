@@ -5,6 +5,7 @@
  */
 
 import type {
+  DataFieldDef,
   EntityDef,
   FieldDef,
   FormViewConfig,
@@ -182,8 +183,9 @@ class ComponentGeneratorImpl {
     fields: FieldDef[],
     features: string[]
   ): Partial<EntityDef> {
+    const dataFields = fields.filter((f): f is DataFieldDef => "name" in f)
     const listView: ListViewConfig = {
-      columns: fields.slice(0, 6).map((f) => f.name)
+      columns: dataFields.slice(0, 6).map((f) => f.name)
     }
 
     // 应用特性
@@ -193,14 +195,14 @@ class ComponentGeneratorImpl {
 
     // 自动填充搜索字段
     if (listView.searchableFields?.length === 0) {
-      listView.searchableFields = fields
+      listView.searchableFields = dataFields
         .filter((f) => f.type === "text" || f.type === "textarea")
         .map((f) => f.name)
     }
 
     // 自动填充筛选字段
     if (listView.filterableFields?.length === 0) {
-      listView.filterableFields = fields
+      listView.filterableFields = dataFields
         .filter((f) => f.type === "select" || f.type === "date")
         .map((f) => f.name)
     }
@@ -216,6 +218,7 @@ class ComponentGeneratorImpl {
 
   /** 构建表单视图配置 */
   private buildFormConfig(slug: string, label: string, fields: FieldDef[]): Partial<EntityDef> {
+    const dataFields = fields.filter((f): f is DataFieldDef => "name" in f)
     const formView: FormViewConfig = {
       autosave: { enabled: true, debounceMs: 2000 }
     }
@@ -225,15 +228,16 @@ class ComponentGeneratorImpl {
       label,
       apiPath: `/api/${slug}`,
       fields,
-      listView: { columns: fields.slice(0, 4).map((f) => f.name) },
+      listView: { columns: dataFields.slice(0, 4).map((f) => f.name) },
       formView
     }
   }
 
   /** 构建看板视图配置 */
   private buildKanbanConfig(slug: string, label: string, fields: FieldDef[]): Partial<EntityDef> {
-    const statusField = fields.find((f) => f.type === "select")
-    const titleField = fields.find((f) => f.type === "text")
+    const dataFields = fields.filter((f): f is DataFieldDef => "name" in f)
+    const statusField = dataFields.find((f) => f.type === "select")
+    const titleField = dataFields.find((f) => f.type === "text")
 
     const kanbanView: KanbanViewConfig = {
       statusField: statusField?.name ?? "status",
@@ -245,7 +249,7 @@ class ComponentGeneratorImpl {
       label,
       apiPath: `/api/${slug}`,
       fields,
-      listView: { columns: fields.slice(0, 4).map((f) => f.name) },
+      listView: { columns: dataFields.slice(0, 4).map((f) => f.name) },
       kanbanView
     }
   }

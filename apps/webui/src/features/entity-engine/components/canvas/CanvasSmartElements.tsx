@@ -4,8 +4,8 @@
  * @author AaronZZH & Kiro
  */
 
-import type { TLBaseShape, TLShapeUtilConstructor } from "@tldraw/tldraw"
-import { BaseBoxShapeUtil, HTMLContainer } from "@tldraw/tldraw"
+import type { TLBaseShape, TLShapeUtilConstructor } from "@/lib/stubs/tldraw"
+import { BaseBoxShapeUtil, HTMLContainer } from "@/lib/stubs/tldraw"
 
 // ============ 便签 Shape ============
 
@@ -36,16 +36,16 @@ const STICKY_COLORS: Record<StickyNoteColor, string> = {
 export class StickyNoteShapeUtil extends BaseBoxShapeUtil<StickyNoteShape> {
   static override type = "sticky-note" as const
 
-  getDefaultProps(): StickyNoteShape["props"] {
+  override getDefaultProps(): StickyNoteShape["props"] {
     return { w: 200, h: 200, text: "", color: "yellow" }
   }
 
-  component(shape: StickyNoteShape) {
+  override component(shape: StickyNoteShape) {
     return (
       <HTMLContainer>
         <div
           className="flex h-full w-full flex-col rounded-sm p-3 shadow-md"
-          style={{ backgroundColor: STICKY_COLORS[shape.props.color] }}
+          style={{ backgroundColor: STICKY_COLORS[shape.props.color as StickyNoteColor] }}
         >
           <p className="flex-1 whitespace-pre-wrap text-sm">{shape.props.text || "双击编辑..."}</p>
         </div>
@@ -53,7 +53,7 @@ export class StickyNoteShapeUtil extends BaseBoxShapeUtil<StickyNoteShape> {
     )
   }
 
-  indicator(shape: StickyNoteShape) {
+  override indicator(shape: StickyNoteShape) {
     return <rect width={shape.props.w} height={shape.props.h} rx={4} />
   }
 }
@@ -77,11 +77,11 @@ type EntityCardShape = TLBaseShape<
 export class EntityCardShapeUtil extends BaseBoxShapeUtil<EntityCardShape> {
   static override type = "entity-card" as const
 
-  getDefaultProps(): EntityCardShape["props"] {
+  override getDefaultProps(): EntityCardShape["props"] {
     return { w: 240, h: 160, entitySlug: "", recordId: "", title: "", fields: {} }
   }
 
-  component(shape: EntityCardShape) {
+  override component(shape: EntityCardShape) {
     const entries = Object.entries(shape.props.fields)
     return (
       <HTMLContainer>
@@ -91,7 +91,7 @@ export class EntityCardShapeUtil extends BaseBoxShapeUtil<EntityCardShape> {
             {entries.map(([key, value]) => (
               <div key={key} className="flex justify-between text-muted-foreground text-xs">
                 <span>{key}</span>
-                <span className="ml-2 truncate">{value}</span>
+                <span className="ml-2 truncate">{String(value)}</span>
               </div>
             ))}
           </div>
@@ -100,7 +100,7 @@ export class EntityCardShapeUtil extends BaseBoxShapeUtil<EntityCardShape> {
     )
   }
 
-  indicator(shape: EntityCardShape) {
+  override indicator(shape: EntityCardShape) {
     return <rect width={shape.props.w} height={shape.props.h} rx={6} />
   }
 }
@@ -123,11 +123,11 @@ type MindMapNodeShape = TLBaseShape<
 export class MindMapNodeShapeUtil extends BaseBoxShapeUtil<MindMapNodeShape> {
   static override type = "mindmap-node" as const
 
-  getDefaultProps(): MindMapNodeShape["props"] {
+  override getDefaultProps(): MindMapNodeShape["props"] {
     return { w: 160, h: 40, text: "", level: 0, collapsed: false }
   }
 
-  component(shape: MindMapNodeShape) {
+  override component(shape: MindMapNodeShape) {
     const bgColors = ["bg-primary/10", "bg-secondary/10", "bg-muted"]
     const bgClass = bgColors[Math.min(shape.props.level, bgColors.length - 1)]
     return (
@@ -140,7 +140,7 @@ export class MindMapNodeShapeUtil extends BaseBoxShapeUtil<MindMapNodeShape> {
     )
   }
 
-  indicator(shape: MindMapNodeShape) {
+  override indicator(shape: MindMapNodeShape) {
     return <rect width={shape.props.w} height={shape.props.h} rx={shape.props.h / 2} />
   }
 }
@@ -150,4 +150,4 @@ export const canvasCustomShapeUtils = [
   StickyNoteShapeUtil,
   EntityCardShapeUtil,
   MindMapNodeShapeUtil
-] as TLShapeUtilConstructor<never>[]
+] as unknown as TLShapeUtilConstructor<TLBaseShape<string, object>>[]

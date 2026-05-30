@@ -9,9 +9,8 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
-import { toast } from "sonner"
 
-import type { EntityAction, EntityDef } from "@/lib/types/entity"
+import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
 import { ApiError } from "@/lib/api/client"
 
 interface EntityActionsProps {
@@ -89,8 +88,8 @@ function ActionButton({
       if (record?.id) {
         queryClient.invalidateQueries({ queryKey: [entity.slug, "record", record.id] })
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "操作失败，请重试")
+    } catch {
+      // TODO: Toast 通知
     } finally {
       setLoading(false)
     }

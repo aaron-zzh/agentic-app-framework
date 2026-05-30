@@ -47,6 +47,7 @@ export function RealtimeVoice({
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const animFrameRef = useRef<number>(0)
   const streamRef = useRef<MediaStream | null>(null)
+  const stopRecordingRef = useRef<() => void>(() => {})
 
   /** 检测是否静音 */
   const checkSilence = useCallback(() => {
@@ -63,7 +64,7 @@ export function RealtimeVoice({
       if (!silenceTimerRef.current) {
         silenceTimerRef.current = setTimeout(() => {
           // 静音超时，自动断句
-          stopRecording()
+          stopRecordingRef.current()
           setState("processing")
         }, silenceTimeout)
       }
@@ -81,9 +82,7 @@ export function RealtimeVoice({
   }, [
     silenceThreshold,
     silenceTimeout,
-    state, // 静音超时，自动断句
-    // biome-ignore lint/correctness/noInvalidUseBeforeDeclaration: useCallback 互相引用
-    stopRecording
+    state
   ])
 
   /** 连接 WebSocket */
@@ -167,6 +166,7 @@ export function RealtimeVoice({
     streamRef.current = null
     analyserRef.current = null
   }, [])
+  stopRecordingRef.current = stopRecording
 
   /** 切换录音状态 */
   const toggle = useCallback(() => {

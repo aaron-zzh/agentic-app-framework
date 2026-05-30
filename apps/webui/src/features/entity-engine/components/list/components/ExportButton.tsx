@@ -8,7 +8,7 @@
 import { useCallback, useState } from "react"
 
 import { BatchProgressBar } from "@/components/common/BatchProgressBar"
-import type { DataFieldDef, EntityDef } from "@/lib/types/entity"
+import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
 import { useExportProgress } from "@/lib/hooks/use-export-progress"
 
 interface ExportButtonProps {
