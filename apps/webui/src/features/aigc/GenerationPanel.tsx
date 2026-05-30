@@ -40,7 +40,7 @@ function ReferenceDropZone() {
       {referenceAssets.map((asset) => (
         <div key={asset.id} className="group relative size-14 overflow-hidden rounded-md bg-muted">
           {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
-          <img src={asset.thumbnail} alt={asset.name} className="size-full object-cover" />
+          <img src={asset.thumbnailUrl ?? undefined} alt={asset.name} className="size-full object-cover" />
           <button
             type="button"
             onClick={() => removeReferenceAsset(asset.id)}

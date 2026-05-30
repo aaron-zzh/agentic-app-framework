@@ -23,7 +23,7 @@ export function PreviewPanel() {
           <>
             {/* biome-ignore lint/performance/noImgElement: 动态预览大图 */}
             <img
-              src={previewAsset.thumbnail}
+              src={previewAsset.thumbnailUrl ?? undefined}
               alt={previewAsset.name}
               className="max-h-full max-w-full rounded-lg object-contain"
             />
@@ -60,7 +60,7 @@ export function PreviewPanel() {
             </div>
             {/* 模型信息 */}
             <div className="absolute bottom-4 left-4 rounded-md bg-background/80 px-2 py-1 text-muted-foreground text-xs backdrop-blur-sm">
-              {previewAsset.model}, {previewAsset.resolution ?? "2K"} ({previewAsset.width}×
+              {previewAsset.generationParams ? (JSON.parse(previewAsset.generationParams).model ?? "") : ""}, {previewAsset.generationParams ? (JSON.parse(previewAsset.generationParams).resolution ?? "2K") : "2K"} ({previewAsset.width}×
               {previewAsset.height})
             </div>
           </>

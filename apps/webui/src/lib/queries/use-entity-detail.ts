@@ -20,8 +20,7 @@ export function useEntityDetail(entity: EntityDef, id: string | undefined) {
           return mock.find((r) => r.id === id) ?? null
         }
       }
-      const json = await request<{ data?: Record<string, unknown> }>(`${entity.apiPath}/${id}`)
-      return (json as Record<string, unknown>).data ?? json
+      return request<Record<string, unknown>>(`${entity.apiPath}/${id}`)
     },
     enabled: !!id
   })

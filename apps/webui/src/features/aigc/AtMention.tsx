@@ -111,7 +111,7 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
               >
                 {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
                 <img
-                  src={asset.thumbnail}
+                  src={asset.thumbnailUrl ?? undefined}
                   alt={asset.name}
                   className="size-6 rounded-sm object-cover"
                 />
