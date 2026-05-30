@@ -2141,3 +2141,98 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, status, version, delet
     ('stats_event_type', '登录', 'login', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('stats_event_type', '对话', 'chat', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('stats_event_type', '工具使用', 'tool_use', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+
+-- ============================================================
+-- 用户画像模块
+-- ============================================================
+
+-- 画像维度定义
+CREATE TABLE profile_dimension (
+    id              BIGSERIAL PRIMARY KEY,
+    code            VARCHAR(64)  NOT NULL UNIQUE,
+    name            VARCHAR(100) NOT NULL,
+    group_code      VARCHAR(32)  NOT NULL,
+    value_type      VARCHAR(32)  NOT NULL DEFAULT 'text',
+    enum_options    JSONB,
+    unit            VARCHAR(32),
+    source          VARCHAR(32)  NOT NULL DEFAULT 'manual',
+    sort_order      INT          NOT NULL DEFAULT 0,
+    required        BOOLEAN      NOT NULL DEFAULT FALSE,
+    searchable      BOOLEAN      NOT NULL DEFAULT FALSE,
+    ai_visible      BOOLEAN      NOT NULL DEFAULT TRUE,
+    status          INT          NOT NULL DEFAULT 0,
+    version         INT          NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(500)
+);
+
+COMMENT ON TABLE profile_dimension IS '画像维度定义';
+COMMENT ON COLUMN profile_dimension.code IS '维度编码（如 health.blood_pressure）';
+COMMENT ON COLUMN profile_dimension.group_code IS '分组：basic/preference/behavior/health/living/shopping/social/personality';
+COMMENT ON COLUMN profile_dimension.value_type IS '值类型：text/number/boolean/enum/tags/json';
+COMMENT ON COLUMN profile_dimension.ai_visible IS '是否注入 AI 上下文';
+
+-- 用户维度值
+CREATE TABLE profile_dimension_value (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT       NOT NULL,
+    dimension_id    BIGINT       NOT NULL,
+    value_text      TEXT,
+    value_number    DECIMAL(18,4),
+    value_tags      JSONB,
+    confidence      DECIMAL(3,2) DEFAULT 1.0,
+    source          VARCHAR(32)  NOT NULL DEFAULT 'manual',
+    expires_at      TIMESTAMP,
+    version         INT          NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(500)
+);
+
+COMMENT ON TABLE profile_dimension_value IS '用户画像维度值';
+CREATE UNIQUE INDEX uk_profile_dim_value_user_dim ON profile_dimension_value (user_id, dimension_id) WHERE deleted = FALSE;
+CREATE INDEX idx_profile_dim_value_user ON profile_dimension_value (user_id) WHERE deleted = FALSE;
+
+-- 用户画像主表（聚合摘要）
+CREATE TABLE user_profile (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT       NOT NULL UNIQUE,
+    lifecycle_stage VARCHAR(32)  NOT NULL DEFAULT 'new',
+    ai_summary      TEXT,
+    last_analyzed_at TIMESTAMP,
+    version         INT          NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
+    delete_time     TIMESTAMP,
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          VARCHAR(500)
+);
+
+COMMENT ON TABLE user_profile IS '用户画像主表';
