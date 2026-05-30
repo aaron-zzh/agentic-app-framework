@@ -8,7 +8,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { type ChatterPageConfig, loadRemoteConfig, useChatterStore } from "@/stores/chatter-store"
+import { type ChatterPageConfig, loadRemoteConfig, useChatterStore } from "@/lib/store/chatter-store"
 
 /**
  * 在页面组件中调用，设置该页面的 Chatter 默认配置

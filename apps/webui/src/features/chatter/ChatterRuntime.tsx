@@ -14,7 +14,7 @@ import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/rea
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
 import { chatApi } from "@/lib/api/chat"
-import { useChatterStore } from "@/stores/chatter-store"
+import { useChatterStore } from "@/lib/store/chatter-store"
 import type { ChatterTarget } from "./types"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""

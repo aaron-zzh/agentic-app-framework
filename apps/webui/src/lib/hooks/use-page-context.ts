@@ -8,7 +8,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { useChatterStore } from "@/stores/chatter-store"
+import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface PageContextOptions {
   pageId: string

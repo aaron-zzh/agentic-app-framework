@@ -11,7 +11,7 @@ import type { ReactNode } from "react"
 import { Chatter } from "@/features/chatter"
 import { AppHeader } from "@/sections/layout/AppHeader"
 import { AppSidebar } from "@/sections/layout/AppSidebar"
-import { useChatterStore } from "@/stores/chatter-store"
+import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface WorkspaceLayoutClientProps {
   children: ReactNode

@@ -12,7 +12,7 @@ import { Play } from "lucide-react"
 import { useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
-import { serverTtsStream, useVoiceConfig } from "@/stores/voice-config"
+import { serverTtsStream, useVoiceConfig } from "@/lib/store/voice-config"
 
 /** AI 消息内容提取（用于 TTS） */
 function useMessageText(): string {

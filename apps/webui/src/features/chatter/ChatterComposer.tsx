@@ -12,7 +12,7 @@ import { Mic } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { SpeechInput } from "@/features/livechat/voice/SpeechInput"
-import { serverStt, useVoiceConfig } from "@/stores/voice-config"
+import { serverStt, useVoiceConfig } from "@/lib/store/voice-config"
 import { ContextChip } from "./dnd/ContextChip"
 import type { ChatterDropItem } from "./types"
 
