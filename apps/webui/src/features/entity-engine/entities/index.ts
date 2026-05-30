@@ -189,10 +189,14 @@ export const taskEntity: EntityDef = {
 /** 所有示例实体 */
 export const sampleEntities: EntityDef[] = [documentEntity, userEntity, taskEntity]
 
-// ─── 模块 side effect：自动注册示例实体 ─────────────────────────────────────
-// 无论服务端还是客户端 import 本模块都会执行注册
+// ─── 模块 side effect：自动注册示例实体（幂等，重复 import 不会重复注册） ───
 import { entityRegistry } from "../lib/registry"
 import { billingEntities } from "./billing-entities"
 
-entityRegistry.registerAll(sampleEntities)
-entityRegistry.registerAll(billingEntities)
+/** 幂等守卫：防止多次 import 导致重复注册 */
+let _registered = false
+if (!_registered) {
+  _registered = true
+  entityRegistry.registerAll(sampleEntities)
+  entityRegistry.registerAll(billingEntities)
+}

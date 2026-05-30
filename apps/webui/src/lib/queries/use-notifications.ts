@@ -13,26 +13,25 @@ const KEYS = {
   unreadCount: ["notifications", "unread-count"] as const
 }
 
-/** 通知列表（后端就绪前使用 mock） */
+/** 通知列表 */
 export function useNotifications(params: NotificationListParams = {}) {
-  const mockList = _notifications.map((n) => ({
-    id: n.id,
-    type: n.type,
-    title: n.title,
-    body: n.description,
-    read: !n.isUnRead,
-    createdAt: n.createdAt
-  }))
-
   return useQuery({
     queryKey: KEYS.list(params),
-    // TODO: 后端就绪后替换为 notificationApi.list(params)
-    queryFn: async () => ({
-      list: mockList,
-      total: mockList.length,
-      page: 1,
-      pageSize: 20
-    })
+    queryFn: async () => {
+      // mock 仅在开发环境使用，生产环境走真实 API
+      if (process.env.NODE_ENV === "development") {
+        const mockList = _notifications.map((n) => ({
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          body: n.description,
+          read: !n.isUnRead,
+          createdAt: n.createdAt
+        }))
+        return { list: mockList, total: mockList.length, page: 1, pageSize: 20 }
+      }
+      return notificationApi.list(params)
+    }
   })
 }
 
@@ -40,8 +39,12 @@ export function useNotifications(params: NotificationListParams = {}) {
 export function useUnreadCount() {
   return useQuery({
     queryKey: KEYS.unreadCount,
-    // TODO: 后端就绪后替换为 notificationApi.unreadCount()
-    queryFn: async () => ({ count: _notifications.filter((n) => n.isUnRead).length }),
+    queryFn: async () => {
+      if (process.env.NODE_ENV === "development") {
+        return { count: _notifications.filter((n) => n.isUnRead).length }
+      }
+      return notificationApi.unreadCount()
+    },
     refetchInterval: 60_000
   })
 }

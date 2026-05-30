@@ -11,14 +11,26 @@
 import { isExternalLink } from "@aaf/core"
 import { useBoolean } from "@aaf/hooks"
 import {
+  BookOpen,
+  Bot,
   CheckSquare,
   ChevronDown,
+  CreditCard,
   FileText,
+  FolderOpen,
+  GitBranch,
+  Globe,
   LayoutDashboard,
   type LucideIcon,
+  Mail,
+  MessageSquare,
+  Package,
   Settings,
+  Shield,
+  ShoppingCart,
   Trash2,
-  Users
+  Users,
+  Workflow
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -30,14 +42,26 @@ import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
 import { buildNavConfig, buildNavFromApi, type NavGroup, type NavItem } from "./nav-config"
 
-/** 图标名 → lucide 组件映射 */
+/** 图标名 → lucide 组件映射（后端返回的 icon 字段对应此表） */
 const ICON_MAP: Record<string, LucideIcon> = {
   "layout-dashboard": LayoutDashboard,
   "file-text": FileText,
   users: Users,
   "check-square": CheckSquare,
   settings: Settings,
-  "trash-2": Trash2
+  "trash-2": Trash2,
+  "book-open": BookOpen,
+  bot: Bot,
+  "credit-card": CreditCard,
+  "folder-open": FolderOpen,
+  "git-branch": GitBranch,
+  globe: Globe,
+  mail: Mail,
+  "message-square": MessageSquare,
+  package: Package,
+  shield: Shield,
+  "shopping-cart": ShoppingCart,
+  workflow: Workflow
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {

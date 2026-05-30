@@ -17,6 +17,9 @@ interface HeatmapPoint {
   page: string
 }
 
+/** 最大热力图条目数（防止长时间运行内存增长） */
+const MAX_HEATMAP_ENTRIES = 500
+
 class HeatmapCollectorImpl {
   private points = new Map<string, HeatmapPoint>()
 
@@ -30,6 +33,15 @@ class HeatmapCollectorImpl {
     if (existing) {
       existing.count++
     } else {
+      // 超出上限时移除最低频次条目
+      if (this.points.size >= MAX_HEATMAP_ENTRIES) {
+        let minKey = ""
+        let minVal = Number.POSITIVE_INFINITY
+        for (const [k, v] of this.points) {
+          if (v.count < minVal) { minKey = k; minVal = v.count }
+        }
+        if (minKey) this.points.delete(minKey)
+      }
       this.points.set(key, {
         target: action.target,
         role: action.semantics.semanticRole,

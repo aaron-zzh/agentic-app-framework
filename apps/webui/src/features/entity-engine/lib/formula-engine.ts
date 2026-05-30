@@ -7,7 +7,11 @@
 
 import { type FieldContext, resolveValue } from "./field-context"
 
-/** 支持的函数 */
+/**
+ * 支持的函数
+ * 注意：IF 函数当前仅支持数字比较（cond 为 0 视为 false，非 0 视为 true）。
+ * 不支持字符串比较（如 $record.status == 'active'），需在上层通过 visibleWhen/条件字段实现。
+ */
 const functions: Record<string, (...args: number[]) => number> = {
   SUM: (...args) => args.reduce((a, b) => a + b, 0),
   AVG: (...args) => (args.length ? args.reduce((a, b) => a + b, 0) / args.length : 0),

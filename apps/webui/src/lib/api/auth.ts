@@ -98,7 +98,11 @@ export const authApi = {
   }
 }
 
-/** 获取或生成设备 ID */
+/**
+ * 获取或生成设备 ID
+ * 注意：存储在 localStorage，清除浏览器数据后会生成新 ID。
+ * 仅用于辅助识别设备（如登录日志），后端不应依赖此 ID 做安全决策。
+ */
 function getDeviceId(): string {
   if (typeof window === "undefined") return ""
   let id = localStorage.getItem("aaf-device-id")

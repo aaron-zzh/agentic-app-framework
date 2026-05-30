@@ -60,12 +60,13 @@ function buildBaseSchema(field: DataFieldDef): z.ZodTypeAny {
     case "checkbox":
       return z.boolean()
     case "select":
+      // 空 options 场景（动态加载尚未返回）回退为 z.string()
       if (field.options.length > 0) {
         const [first, ...rest] = field.options.map((o) => o.value)
         const values: [string, ...string[]] = [first, ...rest]
         return field.multiple ? z.array(z.enum(values)) : z.enum(values)
       }
-      return z.string()
+      return field.multiple ? z.array(z.string()) : z.string()
     case "relationship":
       return field.hasMany ? z.array(z.string()) : z.string()
     case "upload":

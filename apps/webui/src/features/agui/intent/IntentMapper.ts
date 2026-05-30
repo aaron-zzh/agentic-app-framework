@@ -72,13 +72,13 @@ const reversePatterns: { sequence: UserAction["type"][]; intent: string }[] = [
   { sequence: ["search", "click"], intent: "find_and_open" }
 ]
 
-/**
- * 历史意图频率（用于消歧和学习）
- * 注意：模块级 Map，无上限控制。实际场景中意图种类有限（<50），不会无限增长。
- */
+/** 意图历史最大条目数（防止长时间运行内存增长） */
+const MAX_INTENT_HISTORY = 200
+
+/** 历史意图频率（用于消歧和学习） */
 const intentHistory = new Map<string, number>()
 
-class IntentMapperImpl {
+export class IntentMapperImpl {
   /** 正向映射：自然语言 → 操作序列 */
   mapIntentToActions(
     text: string,
@@ -135,6 +135,15 @@ class IntentMapperImpl {
   /** 记录意图使用（用于学习优化） */
   recordIntentUsage(intent: string): void {
     intentHistory.set(intent, (intentHistory.get(intent) ?? 0) + 1)
+    // 超出上限时移除最低频次条目
+    if (intentHistory.size > MAX_INTENT_HISTORY) {
+      let minKey = ""
+      let minVal = Number.POSITIVE_INFINITY
+      for (const [k, v] of intentHistory) {
+        if (v < minVal) { minKey = k; minVal = v }
+      }
+      if (minKey) intentHistory.delete(minKey)
+    }
   }
 
   /** 获取所有已注册意图规则 */

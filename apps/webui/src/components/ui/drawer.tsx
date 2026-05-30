@@ -1,3 +1,13 @@
+/**
+ * Drawer 组件（基于 Vaul）
+ *
+ * 何时用 Drawer vs Sheet：
+ * - Drawer：移动端底部滑出面板，支持手势拖拽关闭，适合移动端交互
+ * - Sheet：桌面端侧边滑出面板（基于 Dialog），适合桌面端表单/详情展示
+ *
+ * 简单规则：移动端用 Drawer，桌面端用 Sheet
+ */
+
 "use client"
 
 import type * as React from "react"

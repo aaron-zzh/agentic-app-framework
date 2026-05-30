@@ -1,3 +1,13 @@
+/**
+ * Sheet 组件（基于 Base UI Dialog）
+ *
+ * 何时用 Sheet vs Drawer：
+ * - Sheet：桌面端侧边滑出面板，适合表单/详情/设置面板
+ * - Drawer：移动端底部滑出面板（基于 Vaul），支持手势拖拽关闭
+ *
+ * 简单规则：桌面端用 Sheet，移动端用 Drawer
+ */
+
 "use client"
 
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
