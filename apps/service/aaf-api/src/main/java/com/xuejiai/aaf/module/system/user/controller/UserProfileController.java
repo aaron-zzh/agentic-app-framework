@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.system.user.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,12 +38,14 @@ public class UserProfileController {
     }
 
     @Operation(summary = "修改个人信息")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping
     public Result<UserProfileVO> updateProfile(@Validated @RequestBody UserProfileUpdateDTO req) {
         return Result.success(userService.updateProfile(currentUserId(), req));
     }
 
     @Operation(summary = "修改密码")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/password")
     public Result<Void> changePassword(@Validated @RequestBody UserChangePasswordDTO req) {
         userService.changePassword(currentUserId(), req);

@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.fesod.sheet.support.ExcelTypeEnum;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -62,6 +63,7 @@ public class UserController {
     }
 
     @Operation(summary = "创建用户")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<UserVO> create(@Validated @RequestBody UserCreateDTO request) {
@@ -81,6 +83,7 @@ public class UserController {
     }
 
     @Operation(summary = "更新用户")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Result<UserVO> update(
             @PathVariable Long id, @Validated @RequestBody UserUpdateDTO request) {
@@ -88,6 +91,7 @@ public class UserController {
     }
 
     @Operation(summary = "删除用户")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         userService.delete(id);
@@ -95,6 +99,7 @@ public class UserController {
     }
 
     @Operation(summary = "批量删除用户", description = "超过 100 条自动转异步，返回 taskId")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping
     public Result<?> deleteBatch(@RequestBody List<Long> ids) {
         if (ids.size() <= 100) {
@@ -118,6 +123,7 @@ public class UserController {
     }
 
     @Operation(summary = "修改用户状态", description = "启用/禁用")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(
             @PathVariable Long id, @RequestBody UserUpdateStatusDTO request) {
@@ -126,6 +132,7 @@ public class UserController {
     }
 
     @Operation(summary = "修改密码", description = "用户自行修改，需提供旧密码")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/password")
     public Result<Void> changePassword(
             @PathVariable Long id, @Validated @RequestBody UserChangePasswordDTO request) {
@@ -134,6 +141,7 @@ public class UserController {
     }
 
     @Operation(summary = "重置密码", description = "管理员操作，强制重置")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{id}/password/reset")
     public Result<Void> resetPassword(
             @PathVariable Long id, @Validated @RequestBody UserResetPasswordDTO request) {
@@ -142,6 +150,7 @@ public class UserController {
     }
 
     @Operation(summary = "导入用户", description = "上传 Excel 文件批量导入用户")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/import")
     public Result<ImportExecutor.ImportResult> importUsers(
             @RequestParam("file") MultipartFile file,
@@ -152,6 +161,7 @@ public class UserController {
     }
 
     @Operation(summary = "导出用户列表", description = "支持 xlsx/csv 格式")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/export")
     public void export(
             @ParameterObject UserPageDTO request,
