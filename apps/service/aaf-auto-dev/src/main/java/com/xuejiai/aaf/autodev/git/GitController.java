@@ -3,6 +3,7 @@ package com.xuejiai.aaf.autodev.git;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,6 +25,7 @@ public class GitController {
     private final CiCdService ciCdService;
 
     @Operation(summary = "提交文件")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/commit")
     public Result<String> commit(@RequestBody CommitRequest request) {
         return Result.success(gitService.commit(request.message(), request.files()));
@@ -42,6 +44,7 @@ public class GitController {
     }
 
     @Operation(summary = "创建分支")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/branch")
     public Result<Void> createBranch(@RequestBody BranchRequest request) {
         gitService.createBranch(request.name());
@@ -49,6 +52,7 @@ public class GitController {
     }
 
     @Operation(summary = "创建 Pull Request")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/pr")
     public Result<String> createPR(@RequestBody PullRequestRequest request) {
         var url =
@@ -69,6 +73,7 @@ public class GitController {
     // ===== CI/CD =====
 
     @Operation(summary = "触发 CI Pipeline")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/ci/trigger")
     public Result<Long> triggerCi(@RequestBody CiTriggerRequest request) {
         var runId = ciCdService.triggerWorkflow(request.workflow(), request.ref(), request.inputs());
@@ -88,6 +93,7 @@ public class GitController {
     }
 
     @Operation(summary = "触发部署")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/ci/deploy")
     public Result<Long> deploy(@RequestBody DeployRequest request) {
         var runId = ciCdService.triggerDeploy(request.environment(), request.ref());

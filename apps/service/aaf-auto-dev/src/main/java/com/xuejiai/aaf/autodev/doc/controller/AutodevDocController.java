@@ -2,6 +2,7 @@ package com.xuejiai.aaf.autodev.doc.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -43,18 +44,21 @@ public class AutodevDocController {
     }
 
     @Operation(summary = "新建文档（写入本地文件 + 数据库）")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Result<AutodevDoc> create(@Valid @RequestBody AutodevDocCreateDTO dto) {
         return Result.success(docService.create(dto));
     }
 
     @Operation(summary = "更新文档内容（同步写回本地文件）")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Result<AutodevDoc> update(@PathVariable Long id, @RequestBody String content) {
         return Result.success(docService.update(id, content));
     }
 
     @Operation(summary = "触发全量文档导入")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/import")
     public Result<Integer> importDocs() {
         return Result.success(importService.importAll());

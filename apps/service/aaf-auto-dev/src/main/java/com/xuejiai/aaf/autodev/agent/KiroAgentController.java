@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -69,6 +70,7 @@ public class KiroAgentController {
     // ========== 端点 ==========
 
     @Operation(summary = "启动 Kiro Agent 运行")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/run")
     public SseEmitter run(
             @RequestBody @Valid KiroRunRequest request,

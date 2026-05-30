@@ -2,6 +2,7 @@ package com.xuejiai.aaf.autodev.codegen;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.autodev.codegen.dto.EntityDefDTO;
@@ -23,6 +24,7 @@ public class CodegenController {
     private final CodegenService codegenService;
 
     @Operation(summary = "生成 CRUD 代码并写入文件")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/generate")
     public Result<List<GeneratedFile>> generate(@Valid @RequestBody EntityDefDTO def) {
         return Result.success(codegenService.generate(def));
@@ -35,6 +37,7 @@ public class CodegenController {
     }
 
     @Operation(summary = "预览生成结果（不写入文件）")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/preview")
     public Result<List<GeneratedFile>> preview(@Valid @RequestBody EntityDefDTO def) {
         return Result.success(codegenService.preview(def));
