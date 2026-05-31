@@ -13,6 +13,7 @@ import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class ResilientChatService {
     private final AiModelRepository modelRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final AiCreditGuard creditGuard;
+    private final OperatorContext operatorContext;
 
     /**
      * 同步调用，使用完整路由上下文。
@@ -41,15 +43,16 @@ public class ResilientChatService {
      * @param ctx 路由上下文（含 userId、capability、显式 modelId、编排配置、任务特征）
      */
     public ChatResponse call(List<Message> messages, CapabilityRoutingContext ctx) {
-        creditGuard.precheck(ctx.userId(), ctx.capability());
+        var ownerId = billingOwnerId(ctx.userId());
+        creditGuard.precheck(ownerId, ctx.capability());
         var modelId = capabilityRouter.resolve(ctx);
         try {
             var response = doCall(messages, modelId);
-            publishUsage(response, ctx.userId(), modelId);
+            publishUsage(response, ownerId, modelId);
             return response;
         } catch (Exception e) {
             log.warn("主模型 [{}] 调用失败，尝试降级: {}", modelId, e.getMessage());
-            return callFallback(messages, modelId, ctx.userId());
+            return callFallback(messages, modelId, ownerId);
         }
     }
 
@@ -68,14 +71,15 @@ public class ResilientChatService {
 
     /** 流式调用，使用完整路由上下文。 */
     public Flux<ChatResponse> stream(List<Message> messages, CapabilityRoutingContext ctx) {
-        creditGuard.precheck(ctx.userId(), ctx.capability());
+        var ownerId = billingOwnerId(ctx.userId());
+        creditGuard.precheck(ownerId, ctx.capability());
         var modelId = capabilityRouter.resolve(ctx);
         try {
-            return withStreamUsage(doStream(messages, modelId), ctx.userId(), modelId);
+            return withStreamUsage(doStream(messages, modelId), ownerId, modelId);
         } catch (Exception e) {
             log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", modelId, e.getMessage());
             var fallbackId = resolveFallback(modelId);
-            return withStreamUsage(doStream(messages, fallbackId), ctx.userId(), fallbackId);
+            return withStreamUsage(doStream(messages, fallbackId), ownerId, fallbackId);
         }
     }
 
@@ -144,5 +148,9 @@ public class ResilientChatService {
                                                 completionTokens.get()));
                             }
                         });
+    }
+
+    private Long billingOwnerId(Long fallbackUserId) {
+        return operatorContext.currentOwnerId().orElse(fallbackUserId);
     }
 }

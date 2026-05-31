@@ -12,8 +12,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react"
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
+import { buildApiUrl } from "@/lib/api/base"
 
 interface KiroAgentProviderProps {
   children: ReactNode
@@ -27,7 +26,7 @@ interface KiroAgentProviderProps {
  */
 export function KiroAgentProvider({ children, agentRole }: KiroAgentProviderProps) {
   const url = useMemo(() => {
-    const base = `${BASE_URL}/api/autodev/kiro/run`
+    const base = buildApiUrl("/autodev/kiro/run")
     return agentRole ? `${base}?agentRole=${encodeURIComponent(agentRole)}` : base
   }, [agentRole])
 

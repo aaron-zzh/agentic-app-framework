@@ -687,7 +687,10 @@ AgentScope 集成点：
 - 包装工具在 `AgentTool.callAsync` 内适配为 Spring AI `ToolCallback`，统一进入 `ToolPermissionGuard`。因此 AgentScope 本地工具、MCP 工具、子 Agent 工具与外部 `ToolCallDispatcher` 使用同一套权限、HITL、内容安全和额度门控。
 - AgentScope 自带 HITL 保留为执行暂停协议：`ToolSuspendException` / `GenerateReason.TOOL_SUSPENDED` 用来暂停 ReAct 循环。AAF 治理链返回 `PENDING_APPROVAL`、`PENDING_CONTENT_REVIEW`、`INSUFFICIENT_CREDITS` 等可恢复 JSON 时，包装工具抛出 `ToolSuspendException`，由 AgentScope 停在 pending tool 状态；审批、复审或额度恢复后使用相同会话继续执行。
 - `AafToolWhitelistHook` 仍保留为模型调用前的轻量白名单/目录 enabled 保护；真正安全边界在 `ToolPermissionGuard`。
+- `ResilientChatService` 和 `TokenMeteringHook` 结算时都优先使用 `OperatorContext.currentOwnerId()`，没有执行上下文时才回退到调用参数中的 userId；因此普通用户、AI 委托、管理员代办的积分归账口径一致。
 - `TokenMeteringHook` 在 `PreReasoningEvent` 做 `AiCreditGuard.precheck`，在 `PostCallEvent` 记录 token 并调用 `AiCreditGuard.settle`。同步 Chat 由 `ResilientChatService.call` 处理；流式 Chat 在 `stream` 入口预检，并在流结束后按收到的最大 usage 发布用量事件。
+- 每次模型调用生成唯一 `usageId`：`ai_token_usage.usage_id` 记录 token 用量，`credit_transaction.biz_id` 记录对应积分扣减流水，二者可按 `usageId` 做审计关联。token 到积分的换算由 `credit_token_rule` 生效规则决定，扣费时按 `CreditTokenRuleService.calculateCredits` 向上取整。
+- 会员订阅与积分充值已经接入计费域：充值通过业务订单和支付单入账积分，订阅支付成功后激活 `subscription` 并实例化权益额度。当前支付通道以 MOCK 同步成功为第一版闭环，真实支付回调接入后复用相同的 `onPaySuccess` 入口。
 
 结合边界：
 

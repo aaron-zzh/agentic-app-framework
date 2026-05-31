@@ -33,4 +33,16 @@ public interface AiCreditGuard {
      * @param actualCost 实际消耗（token 数或次数）
      */
     void settle(Long userId, String capability, long actualCost);
+
+    /**
+     * 调用成功后按实际消耗扣积分，并指定审计关联 ID。
+     *
+     * @param userId     用户 ID
+     * @param capability 能力标识
+     * @param actualCost 实际消耗
+     * @param bizId      业务流水号，如 token usageId
+     */
+    default void settle(Long userId, String capability, long actualCost, String bizId) {
+        settle(userId, capability, actualCost);
+    }
 }

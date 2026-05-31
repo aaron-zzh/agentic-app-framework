@@ -30,8 +30,12 @@ public class TokenMeteringService {
     @Async
     @EventListener
     public void onTokenUsage(TokenUsageEvent event) {
+        if (event.userId() == null) {
+            return;
+        }
         var record = new TokenUsageRecord();
         record.setUserId(event.userId());
+        record.setUsageId(event.usageId());
         record.setModelId(event.model());
         record.setPromptTokens(event.promptTokens());
         record.setCompletionTokens(event.completionTokens());
@@ -61,8 +65,20 @@ public class TokenMeteringService {
             String conversationId,
             long promptTokens,
             long completionTokens) {
+        record(userId, modelId, conversationId, promptTokens, completionTokens, java.util.UUID.randomUUID().toString());
+    }
+
+    /** 记录用量并指定流水号，便于和积分流水关联审计。 */
+    public void record(
+            Long userId,
+            String modelId,
+            String conversationId,
+            long promptTokens,
+            long completionTokens,
+            String usageId) {
         var record = new TokenUsageRecord();
         record.setUserId(userId);
+        record.setUsageId(usageId);
         record.setModelId(modelId);
         record.setConversationId(conversationId);
         record.setPromptTokens(promptTokens);

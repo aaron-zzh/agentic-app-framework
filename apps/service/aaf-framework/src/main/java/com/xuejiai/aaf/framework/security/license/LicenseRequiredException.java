@@ -7,7 +7,11 @@ public class LicenseRequiredException extends RuntimeException {
     private final String upgradeUrl;
 
     public LicenseRequiredException(String featureName, String upgradeUrl) {
-        super("此功能需要 Premium 授权：" + featureName + "，升级请访问：" + upgradeUrl);
+        this(featureName, upgradeUrl, "Premium 授权");
+    }
+
+    public LicenseRequiredException(String featureName, String upgradeUrl, String requirementName) {
+        super("此功能需要" + requirementName + "：" + featureName + "，升级请访问：" + upgradeUrl);
         this.featureName = featureName;
         this.upgradeUrl = upgradeUrl;
     }

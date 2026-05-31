@@ -373,6 +373,11 @@ VALUES
     ('数据权限规则管理', 'system:data-access-rule:manage', 'system', 'data-access-rule', 'manage', 0),
     ('ReBAC 关系管理', 'system:relation:manage', 'system', 'relation', 'manage', 0),
     ('访问策略管理', 'system:access-policy:manage', 'system', 'access-policy', 'manage', 0),
+    ('开发者订阅套餐读取', 'developer:subscription-plan:read', 'developer', 'subscription-plan', 'read', 0),
+    ('开发者订阅套餐创建', 'developer:subscription-plan:create', 'developer', 'subscription-plan', 'create', 0),
+    ('开发者订阅套餐更新', 'developer:subscription-plan:update', 'developer', 'subscription-plan', 'update', 0),
+    ('开发者订阅套餐删除', 'developer:subscription-plan:delete', 'developer', 'subscription-plan', 'delete', 0),
+    ('开发者订阅套餐导出', 'developer:subscription-plan:export', 'developer', 'subscription-plan', 'export', 0),
     ('工具执行', 'tool:default:execute', 'tool', 'default', 'execute', 0),
     ('业务动作工具执行', 'tool:business-action:execute', 'tool', 'business-action', 'execute', 0),
     ('图片生成工具执行', 'tool:image-generate:execute', 'tool', 'image-generate', 'execute', 0),
@@ -569,3 +574,27 @@ VALUES (
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ) ON CONFLICT (assistant_id) DO NOTHING;
+
+-- ============================================================
+-- 开发者商业化套餐 Seed
+-- ============================================================
+
+INSERT INTO developer_subscription_plan (
+    code,
+    name,
+    duration_days,
+    price,
+    included_tokens,
+    allow_managed_gateway,
+    allow_sub_proxy,
+    max_proxy_depth,
+    status,
+    sort_order,
+    create_time,
+    update_time
+) VALUES
+    ('DEV_FREE', '开发者免费版', 0, 0, 0, FALSE, FALSE, 0, 'ENABLED', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('DEV_MANAGED', '托管模型自用版', 30, 9900, 1000000, TRUE, FALSE, 0, 'ENABLED', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('DEV_RESELLER', '托管模型分销版', 30, 29900, 5000000, TRUE, TRUE, 1, 'ENABLED', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('DEV_ENTERPRISE', '企业代理版', 365, 299900, 100000000, TRUE, TRUE, 2, 'ENABLED', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;

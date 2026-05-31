@@ -13,9 +13,10 @@ import { AssistantRuntimeProvider, type ThreadMessage } from "@assistant-ui/reac
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
+import { buildApiUrl } from "@/lib/api/base"
 import { chatApi } from "@/lib/api/chat"
 
-const AGENT_URL = `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/chat/agent/run`
+const AGENT_URL = buildApiUrl("/chat/agent/run")
 
 interface AgUiChatProviderProps {
   children: ReactNode

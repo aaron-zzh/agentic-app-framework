@@ -46,8 +46,7 @@ export class ApiError extends Error {
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useOrgStore } from "@/lib/store/org-store"
 import { useUIStore } from "@/lib/store/ui-store"
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api"
+import { buildApiUrl } from "./base"
 
 /** Token 刷新锁——防止并发刷新 */
 let refreshPromise: Promise<boolean> | null = null
@@ -62,7 +61,7 @@ async function tryRefreshToken(): Promise<boolean> {
       return false
     }
     try {
-      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      const res = await fetch(buildApiUrl("/auth/refresh"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken })
@@ -97,7 +96,7 @@ function redirectToLogin() {
 
 /** 通用 fetch 封装 */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${BASE_URL}${path}`
+  const url = buildApiUrl(path)
   const workspaceId = useUIStore.getState().currentWorkspace?.id
   const orgId = useOrgStore.getState().currentOrgId
   const accessToken = useAuthStore.getState().accessToken

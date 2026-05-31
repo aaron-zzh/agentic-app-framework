@@ -4,6 +4,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.service.RechargeService;
 import com.xuejiai.aaf.module.pay.vo.PayNotifyDTO;
@@ -24,15 +25,16 @@ public class PayOrderController {
 
     private final PayOrderService payOrderService;
     private final RechargeService rechargeService;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "发起充值")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/recharge")
     public Result<PayOrderVO> recharge(
-            @RequestParam Long userId,
+            @RequestParam(required = false) Long userId,
             @RequestParam long amount,
             @RequestParam(defaultValue = "MOCK") String channelCode) {
-        return Result.success(rechargeService.initiateRecharge(userId, amount, channelCode));
+        return Result.success(rechargeService.initiateRecharge(ownerId(userId), amount, channelCode));
     }
 
     @Operation(summary = "创建支付单")
@@ -57,5 +59,9 @@ public class PayOrderController {
     @GetMapping("/{id}")
     public Result<PayOrderVO> getById(@PathVariable Long id) {
         return Result.success(payOrderService.getById(id));
+    }
+
+    private Long ownerId(Long fallbackUserId) {
+        return operatorContext.currentOwnerId().orElse(fallbackUserId);
     }
 }

@@ -9,10 +9,9 @@ import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { buildApiUrl } from "@/lib/api/base"
 import type { ExecutionState, FlowDefinition } from "../types"
 import { FlowEditor } from "./flow-editor"
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 /** 执行轨迹节点 */
 interface TraceNode {
@@ -50,7 +49,7 @@ export function ExecutionPanel({
   const { data: trace } = useQuery({
     queryKey: ["workflow-trace", instanceId],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/workflow/instances/${instanceId}/execution-trace`)
+      const res = await fetch(buildApiUrl(`/workflow/instances/${instanceId}/execution-trace`))
       if (!res.ok) throw new Error("获取执行轨迹失败")
       const json = await res.json()
       return json.data as TraceNode[]
@@ -63,7 +62,7 @@ export function ExecutionPanel({
   const { data: timeline } = useQuery({
     queryKey: ["workflow-timeline", instanceId],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/workflow/instances/${instanceId}/timeline`)
+      const res = await fetch(buildApiUrl(`/workflow/instances/${instanceId}/timeline`))
       if (!res.ok) throw new Error("获取时间线失败")
       const json = await res.json()
       return json.data as TimelineEntry[]

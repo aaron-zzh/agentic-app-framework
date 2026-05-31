@@ -333,6 +333,12 @@ AgentScope 集成采用两层保护：`AafToolWhitelistHook` 负责模型执行�
 
 AgentScope 自带 HITL 只作为底层暂停/恢复协议使用。AAF 治理链返回可恢复阻塞 JSON 时，包装工具会抛出 `ToolSuspendException`，让 ReAct 循环返回 `TOOL_SUSPENDED`；实际审批单、内容复审、额度恢复仍由 `HumanApprovalService`、`ContentSafetyService` 和 `CreditService` 统一处理。
 
+### Token 计费与审计
+
+同步 Chat、流式 Chat 和 AgentScope 主链路都优先按 `OperatorContext.currentOwnerId()` 归账，只有没有执行上下文时才回退到入参 userId。模型调用完成后会记录 `ai_token_usage`，同时按 `credit_token_rule` 把 token 数换算成积分并写入 `credit_transaction`。两张表通过同一个 `usageId` 关联：`ai_token_usage.usage_id = credit_transaction.biz_id`。
+
+充值与订阅已经是可用闭环：充值创建业务订单和支付单，支付成功后写积分入账流水；订阅支付成功后创建有效订阅并实例化权益额度。第一版内置 MOCK 支付通道可同步完成回调，真实支付通道只需要在支付成功通知中调用现有 `onPaySuccess` 编排入口。
+
 ### 生成式工具与内容审查
 
 生图、生视频、音乐、3D 等生成式能力属于 TOOL，不属于业务 ACTION。它们通过工具目录的 `tool_type=GENERATIVE` 和 `category` 分类开放，由工具权限、额度、确认和内容审查共同控制。

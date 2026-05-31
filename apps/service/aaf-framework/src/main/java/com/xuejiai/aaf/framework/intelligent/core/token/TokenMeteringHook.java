@@ -5,6 +5,8 @@
  */
 package com.xuejiai.aaf.framework.intelligent.core.token;
 
+import java.util.UUID;
+
 import org.springframework.stereotype.Component;
 
 import org.springframework.beans.factory.ObjectProvider;
@@ -43,9 +45,15 @@ public class TokenMeteringHook implements Hook {
                 var usage = msg.getChatUsage();
                 var userId = operatorContext.currentOwnerId().orElse(null);
                 var modelName = "agentscope";
+                var usageId = UUID.randomUUID().toString();
                 meteringService.record(
-                        userId, modelName, null, usage.getInputTokens(), usage.getOutputTokens());
-                settle(userId, usage.getInputTokens() + usage.getOutputTokens());
+                        userId,
+                        modelName,
+                        null,
+                        usage.getInputTokens(),
+                        usage.getOutputTokens(),
+                        usageId);
+                settle(userId, usage.getInputTokens() + usage.getOutputTokens(), usageId);
             }
         }
         return Mono.just(event);
@@ -59,12 +67,12 @@ public class TokenMeteringHook implements Hook {
         guard.precheck(operatorContext.currentOwnerId().orElse(null), "agentscope");
     }
 
-    private void settle(Long userId, long totalTokens) {
+    private void settle(Long userId, long totalTokens, String usageId) {
         var guard = creditGuard.getIfAvailable();
         if (guard == null) {
             return;
         }
-        guard.settle(userId, "agentscope", totalTokens);
+        guard.settle(userId, "agentscope", totalTokens, usageId);
     }
 
     @Override

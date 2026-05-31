@@ -13,6 +13,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.license.LicenseRequiredException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -36,6 +37,14 @@ public class GlobalExceptionHandler {
     public Result<?> handleBusinessException(BusinessException e) {
         log.info("业务异常: code={}, message={}", e.getCode(), e.getMessage());
         return Result.error(e.getCode(), e.getMessage());
+    }
+
+    /** 商业授权异常 */
+    @ExceptionHandler(LicenseRequiredException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Result<?> handleLicenseRequired(LicenseRequiredException e) {
+        log.info("商业授权拦截: feature={}, upgradeUrl={}", e.getFeatureName(), e.getUpgradeUrl());
+        return Result.error(GlobalErrorCode.FORBIDDEN, e.getMessage());
     }
 
     /** 参数校验异常（@Valid 注解触发） */

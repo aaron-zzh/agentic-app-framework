@@ -2,8 +2,8 @@ package com.xuejiai.aaf.framework.security.license;
 
 import java.lang.annotation.*;
 
-/** 标记需要 Premium 授权的方法。 */
-@Target(ElementType.METHOD)
+/** 标记需要 Premium 授权的类或方法。 */
+@Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface PremiumRequired {

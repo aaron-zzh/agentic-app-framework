@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { buildApiUrl } from "./base"
 import { ApiError } from "./client"
 
 export type ActivityType = "create" | "update" | "status_change" | "comment" | "schedule"
@@ -36,10 +37,8 @@ export interface ScheduledActivity {
   createdAt: string
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
-
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildApiUrl(path), {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init
   })

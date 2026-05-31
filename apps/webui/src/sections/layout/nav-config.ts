@@ -114,6 +114,16 @@ export function buildNavConfig(): NavGroup[] {
   return [...STATIC_NAV, ...buildEntityNav(), ...DEV_NAV, ...BOTTOM_NAV]
 }
 
+export function buildOfficialNavConfig(): NavGroup {
+  return {
+    subheader: "官方服务",
+    items: [
+      { title: "客户门户", path: "/official/portal", icon: "globe" },
+      { title: "运营管理", path: "/official/admin", icon: "shield" }
+    ]
+  }
+}
+
 /** 将 MenuVO 子节点递归转为 NavItem[] */
 function menuChildrenToItems(children: MenuVO[] | null | undefined): NavItem[] {
   return (children ?? [])

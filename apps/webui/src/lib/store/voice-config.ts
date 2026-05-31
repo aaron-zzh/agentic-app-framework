@@ -6,6 +6,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { buildApiUrl } from "@/lib/api/base"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 export type VoiceMode = "browser" | "server"
@@ -33,8 +34,6 @@ export const useVoiceConfig = create<VoiceConfigStore>()(
   )
 )
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
-
 /** 获取认证头 */
 function getAuthHeaders(): Record<string, string> {
   const token = useAuthStore.getState().accessToken
@@ -46,7 +45,7 @@ export async function serverStt(audioBlob: Blob, lang = "zh-CN"): Promise<string
   const form = new FormData()
   form.append("audio", audioBlob, "audio.wav")
   form.append("lang", lang)
-  const res = await fetch(`${BASE_URL}/api/voice/stt`, {
+  const res = await fetch(buildApiUrl("/voice/stt"), {
     method: "POST",
     headers: getAuthHeaders(),
     body: form
@@ -62,7 +61,7 @@ export async function serverTtsStream(
   voice = "Cherry",
   onChunk: (chunk: ArrayBuffer) => void
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/api/voice/tts/stream`, {
+  const res = await fetch(buildApiUrl("/voice/tts/stream"), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ text, voice })

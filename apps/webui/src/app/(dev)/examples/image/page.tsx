@@ -21,8 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
+import { buildApiUrl } from "@/lib/api/base"
 
 interface ImageResult {
   imageUrl: string
@@ -80,7 +79,7 @@ function GenerateTab() {
     setResult(null)
 
     try {
-      const res = await fetch(`${API_URL}/api/examples/image/generate`, {
+      const res = await fetch(buildApiUrl("/examples/image/generate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt })
@@ -148,7 +147,7 @@ function ProcessTab() {
   const pollTask = useCallback((taskId: string) => {
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/examples/image/process/${taskId}`)
+        const res = await fetch(buildApiUrl(`/examples/image/process/${taskId}`))
         const json = (await res.json()) as ApiResponse<ProcessResult>
         if (json.code !== 0) {
           if (pollingRef.current) clearInterval(pollingRef.current)
@@ -180,7 +179,7 @@ function ProcessTab() {
     setResult(null)
 
     try {
-      const res = await fetch(`${API_URL}/api/examples/image/process`, {
+      const res = await fetch(buildApiUrl("/examples/image/process"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl, method })

@@ -8,6 +8,7 @@ import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.CreditLowEvent;
+import com.xuejiai.aaf.module.pay.service.CreditTokenRuleService;
 import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     private final CreditService creditService;
     private final SystemConfigService configService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CreditTokenRuleService creditTokenRuleService;
 
     @Override
     public void precheck(Long userId, String capability) {
@@ -46,12 +48,25 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
 
     @Override
     public void settle(Long userId, String capability, long actualCost) {
-        if (userId == null || actualCost <= 0) return;
+        settle(userId, capability, actualCost, null);
+    }
+
+    @Override
+    public void settle(Long userId, String capability, long actualCost, String bizId) {
+        var creditCost = creditCost(capability, actualCost);
+        if (userId == null || creditCost <= 0) return;
         try {
-            creditService.spend(userId, actualCost, capability, null);
+            creditService.spend(userId, creditCost, capability, bizId);
         } catch (Exception e) {
             log.warn("AI 积分扣减失败，跳过（不回滚 AI 调用）: userId={}, capability={}, cost={}, err={}",
-                    userId, capability, actualCost, e.getMessage());
+                    userId, capability, creditCost, e.getMessage());
         }
+    }
+
+    private long creditCost(String capability, long actualCost) {
+        if ("chat".equals(capability) || "agentscope".equals(capability)) {
+            return creditTokenRuleService.calculateCredits(actualCost);
+        }
+        return actualCost;
     }
 }

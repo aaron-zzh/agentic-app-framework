@@ -55,6 +55,6 @@ class LicenseAspectTest extends BaseMockitoUnitTest {
                 .isInstanceOf(LicenseRequiredException.class)
                 .hasMessageContaining("知识图谱")
                 .extracting("upgradeUrl")
-                .isEqualTo("https://aaf.xuejiai.com/pricing");
+                .isEqualTo(LicensePortal.UPGRADE_URL);
     }
 }

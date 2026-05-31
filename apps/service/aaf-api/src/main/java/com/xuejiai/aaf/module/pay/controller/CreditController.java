@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.vo.CreditBalanceVO;
 import com.xuejiai.aaf.module.pay.vo.CreditTransactionVO;
 
@@ -22,17 +23,19 @@ import lombok.RequiredArgsConstructor;
 public class CreditController {
 
     private final CreditService creditService;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "查询积分余额")
     @GetMapping("/balance")
-    public Result<CreditBalanceVO> getBalance(@RequestParam Long userId) {
-        var account = creditService.getAccount(userId);
+    public Result<CreditBalanceVO> getBalance(@RequestParam(required = false) Long userId) {
+        var ownerId = ownerId(userId);
+        var account = creditService.getAccount(ownerId);
         if (account == null) {
-            return Result.success(new CreditBalanceVO(userId, 0, 0, 0, 0));
+            return Result.success(new CreditBalanceVO(ownerId, 0, 0, 0, 0));
         }
         return Result.success(
                 new CreditBalanceVO(
-                        userId,
+                        ownerId,
                         account.getBalance(),
                         account.getFrozen(),
                         account.getTotalEarned(),
@@ -42,8 +45,8 @@ public class CreditController {
     @Operation(summary = "查询积分流水")
     @GetMapping("/transactions")
     public Result<PageResult<CreditTransactionVO>> getTransactions(
-            @RequestParam Long userId, @PageableDefault Pageable pageable) {
-        var page = creditService.getTransactions(userId, pageable);
+            @RequestParam(required = false) Long userId, @PageableDefault Pageable pageable) {
+        var page = creditService.getTransactions(ownerId(userId), pageable);
         var list =
                 page.getContent().stream()
                         .map(
@@ -58,5 +61,9 @@ public class CreditController {
                                                 t.getCreateTime()))
                         .toList();
         return Result.success(new PageResult<>(list, page.getTotalElements()));
+    }
+
+    private Long ownerId(Long fallbackUserId) {
+        return operatorContext.currentOwnerId().orElse(fallbackUserId);
     }
 }

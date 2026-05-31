@@ -4,9 +4,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react"
+import { buildApiUrl } from "@/lib/api/base"
 import type { ExecutionState } from "../types"
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 
 /** 节点执行日志条目 */
 export interface NodeExecutionLog {
@@ -47,7 +46,7 @@ export function useExecutionState(processInstanceId?: string) {
     if (!processInstanceId) return
 
     reset()
-    const source = new EventSource(`${BASE}/flows/${processInstanceId}/execution-events`)
+    const source = new EventSource(buildApiUrl(`/flows/${processInstanceId}/execution-events`))
 
     source.onmessage = (event) => {
       const data = JSON.parse(event.data) as ExecutionEvent

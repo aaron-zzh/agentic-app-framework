@@ -21,8 +21,7 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
+import { buildApiUrl } from "@/lib/api/base"
 
 /** 版本信息 */
 interface WorkflowVersion {
@@ -74,7 +73,7 @@ function PublishForm({ processKey, onSuccess }: { processKey: string; onSuccess:
 
   const publish = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${BASE}/api/system/workflow/publish`, {
+      const res = await fetch(buildApiUrl("/system/workflow/publish"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ processKey, description, agentName: agentName || undefined })
@@ -123,7 +122,7 @@ function VersionList({ processKey }: { processKey: string }) {
   const { data: versions, isLoading } = useQuery({
     queryKey: ["workflow-versions", processKey],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/system/workflow/versions/${processKey}`)
+      const res = await fetch(buildApiUrl(`/system/workflow/versions/${processKey}`))
       if (!res.ok) throw new Error("获取版本列表失败")
       const json = await res.json()
       return json.data as WorkflowVersion[]
@@ -134,7 +133,7 @@ function VersionList({ processKey }: { processKey: string }) {
   const activate = useMutation({
     mutationFn: async (version: number) => {
       const res = await fetch(
-        `${BASE}/api/system/workflow/versions/${processKey}/activate/${version}`,
+        buildApiUrl(`/system/workflow/versions/${processKey}/activate/${version}`),
         { method: "POST" }
       )
       if (!res.ok) throw new Error("激活失败")

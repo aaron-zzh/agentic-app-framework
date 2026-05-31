@@ -16,9 +16,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ApprovalPanel } from "@/features/flow-editor/components/approval-panel"
 import { ExecutionPanel } from "@/features/flow-editor/components/execution-panel"
 import type { ExecutionState } from "@/features/flow-editor/types"
+import { buildApiUrl } from "@/lib/api/base"
 import type { EntityWorkflowConfig } from "@/lib/types/entity/entity"
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 /** 流程状态信息 */
 interface WorkflowStatus {
@@ -41,7 +40,7 @@ function useEntityWorkflowStatus(entityType: string, entityId: string) {
     queryKey: ["workflow-status", entityType, entityId],
     queryFn: async () => {
       const res = await fetch(
-        `${BASE}/api/system/workflow/status?entityType=${entityType}&entityId=${entityId}`
+        buildApiUrl(`/system/workflow/status?entityType=${entityType}&entityId=${entityId}`)
       )
       if (!res.ok) return { processInstanceId: "", status: "none" as const }
       return res.json()
@@ -150,7 +149,7 @@ function StartApprovalButton({
   async function handleStart() {
     setLoading(true)
     try {
-      await fetch(`${BASE}/api/system/workflow/start`, {
+      await fetch(buildApiUrl("/system/workflow/start"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

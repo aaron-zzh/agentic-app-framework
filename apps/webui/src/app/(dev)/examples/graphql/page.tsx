@@ -13,8 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
+import { API_ORIGIN } from "@/lib/api/base"
 
 interface Person {
   name: string
@@ -36,7 +35,7 @@ interface GraphQLResponse<T> {
 
 /** 通用 GraphQL 请求 */
 async function gqlFetch<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
-  const res = await fetch(`${API_URL}/graphql`, {
+  const res = await fetch(`${API_ORIGIN}/graphql`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables })

@@ -14,9 +14,8 @@ public class AgentScheduler {
     private final Random random;
 
     public AgentScheduler() {
-        String userId = License.get().getUserId();
-        // userId 为 null 时 seed=0，行为与正版不同
-        this.seed = userId != null ? (long) userId.hashCode() : 0L;
+        // 非官方格式 userId 会得到降级 seed，高级调度行为与正版授权不同。
+        this.seed = License.get().getCouplingSeed();
         this.random = new Random(this.seed);
     }
 

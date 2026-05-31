@@ -4,13 +4,12 @@
  */
 
 import { useUIStore } from "@/lib/store/ui-store"
+import { buildApiUrl } from "./base"
 import { ApiError } from "./client"
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const workspaceId = useUIStore.getState().currentWorkspace?.id
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildApiUrl(path), {
     headers: {
       "Content-Type": "application/json",
       ...(workspaceId && { "X-Workspace-Id": workspaceId }),

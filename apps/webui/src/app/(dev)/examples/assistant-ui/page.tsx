@@ -17,8 +17,7 @@ import {
 import { PageContainer } from "@/components/common/PageContainer"
 import { Button } from "@/components/ui/button"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
+import { buildApiUrl } from "@/lib/api/base"
 
 /**
  * 自定义 ChatModelAdapter，对接 /api/chat SSE 流式接口
@@ -35,7 +34,7 @@ const chatModelAdapter: ChatModelAdapter = {
       }))
     })
 
-    const response = await fetch(`${API_URL}/api/chat`, {
+    const response = await fetch(buildApiUrl("/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,

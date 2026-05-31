@@ -58,4 +58,10 @@ public class CreditTokenRuleController {
     public Result<Long> calculate(@RequestParam long creditAmount) {
         return Result.success(ruleService.calculateTokens(creditAmount));
     }
+
+    @Operation(summary = "计算Token需要消耗的积分")
+    @GetMapping("/calculate-credits")
+    public Result<Long> calculateCredits(@RequestParam long tokenAmount) {
+        return Result.success(ruleService.calculateCredits(tokenAmount));
+    }
 }

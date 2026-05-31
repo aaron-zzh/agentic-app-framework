@@ -5,9 +5,8 @@
  */
 
 import { useCallback, useRef, useState } from "react"
+import { buildApiUrl } from "@/lib/api/base"
 import type { ExecutionState } from "../types"
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 /** 工作流运行消息 */
 export interface WorkflowMessage {
@@ -175,7 +174,7 @@ export function useWorkflowRuntime() {
       const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000)
       const body = JSON.stringify({ processKey, variables: variables ?? {} })
 
-      fetch(`${BASE}/api/workflow/run`, {
+      fetch(buildApiUrl("/workflow/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
@@ -236,7 +235,7 @@ export function useWorkflowRuntime() {
         ]
       }))
 
-      await fetch(`${BASE}/api/workflow/run/${state.runId}/input`, {
+      await fetch(buildApiUrl(`/workflow/run/${state.runId}/input`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input })

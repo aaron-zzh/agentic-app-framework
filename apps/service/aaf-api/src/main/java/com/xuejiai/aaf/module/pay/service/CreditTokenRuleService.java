@@ -63,7 +63,27 @@ public class CreditTokenRuleService {
             return 0;
         }
         var rule = rules.getFirst();
+        if (rule.getCreditAmount() <= 0 || rule.getTokenAmount() <= 0) {
+            return 0;
+        }
         return creditAmount * rule.getTokenAmount() / rule.getCreditAmount();
+    }
+
+    /** 根据 Token 数计算需要消耗的积分（向上取整，使用最高优先级的生效规则）。 */
+    @Transactional(readOnly = true)
+    public long calculateCredits(long tokenAmount) {
+        if (tokenAmount <= 0) {
+            return 0;
+        }
+        var rules = ruleRepository.findEffectiveRules(LocalDateTime.now());
+        if (rules.isEmpty()) {
+            return tokenAmount;
+        }
+        var rule = rules.getFirst();
+        if (rule.getCreditAmount() <= 0 || rule.getTokenAmount() <= 0) {
+            return tokenAmount;
+        }
+        return (tokenAmount * rule.getCreditAmount() + rule.getTokenAmount() - 1) / rule.getTokenAmount();
     }
 
     private void applyDto(CreditTokenRule rule, CreditTokenRuleDTO dto) {

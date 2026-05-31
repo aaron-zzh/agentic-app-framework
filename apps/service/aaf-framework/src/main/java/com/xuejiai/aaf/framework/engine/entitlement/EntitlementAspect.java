@@ -14,6 +14,8 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.security.OperatorContext;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 public class EntitlementAspect {
 
     private final EntitlementChecker entitlementChecker;
+    private final OperatorContext operatorContext;
     private final ExpressionParser parser = new SpelExpressionParser();
     private final ParameterNameDiscoverer paramDiscoverer = new DefaultParameterNameDiscoverer();
 
@@ -69,8 +72,12 @@ public class EntitlementAspect {
         throw new IllegalArgumentException("@Entitlement cost 表达式必须解析为数值: " + costExpression);
     }
 
-    /** 从 SecurityContext 获取当前用户 ID */
+    /** 优先从 OperatorContext 获取 owner；兼容普通 Spring Security principal。 */
     private Long getCurrentUserId() {
+        var ownerId = operatorContext.currentOwnerId().orElse(null);
+        if (ownerId != null) {
+            return ownerId;
+        }
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof Long userId) {
             return userId;

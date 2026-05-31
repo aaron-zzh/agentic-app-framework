@@ -32,6 +32,10 @@ public class TokenUsageRecord {
     @Column(nullable = false)
     private Long userId;
 
+    /** 用量流水号，用于关联积分流水 bizId */
+    @Column(nullable = false, unique = true, length = 64)
+    private String usageId;
+
     /** 会话 ID */
     @Column(length = 64)
     private String conversationId;

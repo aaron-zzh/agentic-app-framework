@@ -38,9 +38,17 @@ import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useUserMenus } from "@/lib/queries/use-menus"
+import { useLicenseStatus } from "@/lib/queries/use-license-status"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
-import { buildNavConfig, buildNavFromApi, type NavGroup, type NavItem } from "./nav-config"
+import { LicensePlanBadge } from "./LicensePlanBadge"
+import {
+  buildNavConfig,
+  buildNavFromApi,
+  buildOfficialNavConfig,
+  type NavGroup,
+  type NavItem
+} from "./nav-config"
 
 /** 图标名 → lucide 组件映射（后端返回的 icon 字段对应此表） */
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -75,12 +83,15 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { sidebarOpen, toggleSidebar } = useUIStore()
   const { data: menus, isLoading, isError } = useUserMenus()
+  const { data: license } = useLicenseStatus()
 
   const navConfig = useMemo(() => {
-    if (menus) return buildNavFromApi(menus)
-    if (isError) return buildNavConfig()
+    const appendOfficial = (groups: NavGroup[]) =>
+      license?.owner ? [...groups, buildOfficialNavConfig()] : groups
+    if (menus) return appendOfficial(buildNavFromApi(menus))
+    if (isError) return appendOfficial(buildNavConfig())
     return null
-  }, [menus, isError])
+  }, [menus, isError, license?.owner])
 
   return (
     <aside
@@ -123,6 +134,8 @@ export function AppSidebar() {
           ))
         )}
       </nav>
+
+      <LicensePlanBadge collapsed={!sidebarOpen} />
     </aside>
   )
 }

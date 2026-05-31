@@ -3,6 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
+import { buildApiUrl } from "./base"
+
 /** 子任务 */
 export interface SubTask {
   id: string
@@ -33,9 +35,7 @@ export interface TaskBoardEvent {
   data: SubTask | SubTask[] | { taskCount: number }
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
-
 /** 获取 TaskBoard SSE 订阅 URL */
 export function getTaskBoardSSEUrl(sessionId: string): string {
-  return `${BASE}/chat/sessions/${sessionId}/tasks`
+  return buildApiUrl(`/chat/sessions/${sessionId}/tasks`)
 }

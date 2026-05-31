@@ -4,13 +4,12 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { buildApiUrl } from "@/lib/api/base"
 import { flowToBpmn } from "../lib/bpmn-converter"
 import type { FlowDefinition, FlowTemplate } from "../types"
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
-
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildApiUrl(path), {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init
   })

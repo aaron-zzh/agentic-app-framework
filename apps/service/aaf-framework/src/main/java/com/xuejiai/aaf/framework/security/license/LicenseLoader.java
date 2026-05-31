@@ -8,9 +8,13 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -24,6 +28,17 @@ import com.nimbusds.jwt.SignedJWT;
 public class LicenseLoader {
 
     private static final Logger log = LoggerFactory.getLogger(LicenseLoader.class);
+
+    private final LicenseIdentityService identityService;
+
+    LicenseLoader() {
+        this(new LicenseIdentityService(new LicenseIdentityProperties()));
+    }
+
+    @Autowired
+    public LicenseLoader(LicenseIdentityService identityService) {
+        this.identityService = identityService;
+    }
 
     // 测试用 RSA 2048 公钥（PEM 格式，生产环境替换）
     static final String PUBLIC_KEY_PEM =
@@ -68,13 +83,32 @@ public class LicenseLoader {
 
             var sub = claims.getSubject();
             var tier = claims.getStringClaim("tier");
+            var owner = Boolean.TRUE.equals(claims.getBooleanClaim("owner"));
+            var features = normalizeFeatures(claims.getStringListClaim("features"));
             var expiresAt = exp != null ? exp.toInstant() : null;
 
-            License.get().activate(sub, tier != null ? tier : "premium", expiresAt);
-            log.info("License loaded: premium [{}]", sub);
+            License.get()
+                    .activate(
+                            sub,
+                            tier != null ? tier : "premium",
+                            expiresAt,
+                            owner,
+                            identityService,
+                            features);
+            log.info("License loaded: premium [{}], owner={}", sub, owner);
         } catch (Exception e) {
             log.warn("Invalid or expired license, falling back to free mode");
         }
+    }
+
+    private Set<String> normalizeFeatures(List<String> features) {
+        if (features == null) {
+            return Set.of();
+        }
+        return features.stream()
+                .filter(v -> v != null && !v.isBlank())
+                .map(String::trim)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private String readFile(Path path) {

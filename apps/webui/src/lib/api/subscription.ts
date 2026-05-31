@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { buildApiUrl } from "./base"
 import { ApiError } from "./client"
 
 /** 通知通道 */
@@ -26,10 +27,8 @@ export interface UpsertSubscriptionReq {
   channels: SubscriptionChannel[]
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"
-
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildApiUrl(path), {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init
   })

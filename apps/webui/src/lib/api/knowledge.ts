@@ -12,6 +12,7 @@ import type {
   SearchResponse
 } from "@/lib/types/knowledge"
 import type { ListParams } from "./client"
+import { buildApiUrl } from "./base"
 import { fetchList, request } from "./client"
 
 const API_PATH = "/knowledge-bases"
@@ -58,7 +59,7 @@ export const knowledgeApi = {
   uploadDocument: (id: string, file: File, onProgress?: (pct: number) => void) => {
     return new Promise<KnowledgeDocument>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      xhr.open("POST", `${process.env.NEXT_PUBLIC_API_URL ?? "/api"}${API_PATH}/${id}/documents`)
+      xhr.open("POST", buildApiUrl(`${API_PATH}/${id}/documents`))
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {

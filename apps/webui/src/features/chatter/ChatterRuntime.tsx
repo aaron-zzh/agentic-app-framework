@@ -13,11 +13,10 @@ import { AssistantRuntimeProvider, type ThreadMessage } from "@assistant-ui/reac
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
+import { buildApiUrl } from "@/lib/api/base"
 import { chatApi } from "@/lib/api/chat"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import type { ChatterTarget } from "./types"
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 /** 根据 target 类型映射到对应端点，通过 query param 传递 target 信息 */
 function getEndpointUrl(target: ChatterTarget, persist?: boolean): string {
@@ -32,7 +31,7 @@ function getEndpointUrl(target: ChatterTarget, persist?: boolean): string {
   // 后端统一端点上线后改为 /api/chat/run
   // 目前 fallback 到各自端点
   const base =
-    target.type === "kiro" ? `${BASE_URL}/api/autodev/kiro/run` : `${BASE_URL}/api/chat/run`
+    target.type === "kiro" ? buildApiUrl("/autodev/kiro/run") : buildApiUrl("/chat/run")
 
   return `${base}?${params.toString()}`
 }

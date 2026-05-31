@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.BizOrderItemVO;
@@ -27,20 +28,21 @@ import lombok.RequiredArgsConstructor;
 public class BizOrderController {
 
     private final BizOrderService bizOrderService;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "创建业务订单")
     @PreAuthorize("isAuthenticated()")
     @PostMapping
     public Result<BizOrderVO> create(
-            @RequestParam Long userId, @Valid @RequestBody BizOrderCreateDTO dto) {
-        return Result.success(bizOrderService.create(userId, dto));
+            @RequestParam(required = false) Long userId, @Valid @RequestBody BizOrderCreateDTO dto) {
+        return Result.success(bizOrderService.create(ownerId(userId), dto));
     }
 
     @Operation(summary = "查询用户订单列表")
     @GetMapping
     public Result<PageResult<BizOrderVO>> list(
-            @RequestParam Long userId, @PageableDefault Pageable pageable) {
-        var page = bizOrderService.listByUser(userId, pageable);
+            @RequestParam(required = false) Long userId, @PageableDefault Pageable pageable) {
+        var page = bizOrderService.listByUser(ownerId(userId), pageable);
         return Result.success(new PageResult<>(page.getContent(), page.getTotalElements()));
     }
 
@@ -54,5 +56,9 @@ public class BizOrderController {
     @GetMapping("/{id}/items")
     public Result<List<BizOrderItemVO>> getItems(@PathVariable Long id) {
         return Result.success(bizOrderService.getItems(id));
+    }
+
+    private Long ownerId(Long fallbackUserId) {
+        return operatorContext.currentOwnerId().orElse(fallbackUserId);
     }
 }

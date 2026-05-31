@@ -433,3 +433,28 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, status, version, delet
     ('stats_event_type', '对话', 'chat', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('stats_event_type', '工具使用', 'tool_use', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT DO NOTHING;
+
+-- ==================== 开发者商业化字典 ====================
+
+INSERT INTO sys_dict_type (name, type, status, version, deleted, create_time, update_time) VALUES
+    ('开发者账户状态', 'developer_account_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('开发者订阅状态', 'developer_subscription_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('开发者Token流水类型', 'developer_token_transaction_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('开发者兑换码状态', 'developer_redeem_code_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('开发者代理状态', 'developer_proxy_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, status, version, deleted, create_time, update_time) VALUES
+    ('developer_account_status', '启用', 'ACTIVE', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_account_status', '停用', 'DISABLED', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_subscription_status', '有效', 'ACTIVE', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_subscription_status', '已过期', 'EXPIRED', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_subscription_status', '已取消', 'CANCELLED', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_token_transaction_type', '入账', 'EARN', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_token_transaction_type', '消费', 'SPEND', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_redeem_code_status', '未使用', 'UNUSED', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_redeem_code_status', '已兑换', 'REDEEMED', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_redeem_code_status', '已过期', 'EXPIRED', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_proxy_status', '启用', 'ACTIVE', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('developer_proxy_status', '停用', 'DISABLED', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;

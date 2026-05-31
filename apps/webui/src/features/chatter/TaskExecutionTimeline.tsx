@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { buildApiUrl } from "@/lib/api/base"
 
 /** 事件类型 */
 interface TaskEventData {
@@ -84,8 +85,6 @@ function parseEvent(event: TaskEventData): TimelineItem {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ""
-
 interface TaskExecutionTimelineProps {
   taskId: number
   /** 是否实时订阅 SSE */
@@ -98,7 +97,7 @@ export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTime
 
   // 加载历史事件
   useEffect(() => {
-    fetch(`${API_BASE}/api/chat/tasks/${taskId}/events`)
+    fetch(buildApiUrl(`/chat/tasks/${taskId}/events`))
       .then((r) => r.json())
       .then((res: { data: TaskEventData[] }) => {
         if (res.data) {
@@ -112,7 +111,7 @@ export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTime
   useEffect(() => {
     if (!live) return
 
-    const source = new EventSource(`${API_BASE}/api/chat/tasks/${taskId}/events/stream`)
+    const source = new EventSource(buildApiUrl(`/chat/tasks/${taskId}/events/stream`))
 
     const handleEvent = (e: MessageEvent) => {
       const event: TaskEventData = JSON.parse(e.data)

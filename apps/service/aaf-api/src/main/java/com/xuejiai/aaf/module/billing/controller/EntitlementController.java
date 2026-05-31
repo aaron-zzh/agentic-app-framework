@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.billing.repository.EntitlementDefRepository;
 import com.xuejiai.aaf.module.billing.service.EntitlementService;
 import com.xuejiai.aaf.module.billing.vo.EntitlementQuotaVO;
@@ -20,11 +21,12 @@ public class EntitlementController {
 
     private final EntitlementService entitlementService;
     private final EntitlementDefRepository defRepository;
+    private final OperatorContext operatorContext;
 
     /** 查询用户所有权益额度 */
     @GetMapping("/quotas")
-    public Result<List<EntitlementQuotaVO>> listQuotas(@RequestParam Long userId) {
-        var quotas = entitlementService.listUserQuotas(userId);
+    public Result<List<EntitlementQuotaVO>> listQuotas(@RequestParam(required = false) Long userId) {
+        var quotas = entitlementService.listUserQuotas(ownerId(userId));
         var vos = quotas.stream().map(q -> {
             var def = defRepository.findById(q.getEntId()).orElse(null);
             return new EntitlementQuotaVO(
@@ -46,5 +48,9 @@ public class EntitlementController {
     @PostMapping("/reset-expired")
     public Result<Integer> resetExpired() {
         return Result.success(entitlementService.resetExpiredQuotas());
+    }
+
+    private Long ownerId(Long fallbackUserId) {
+        return operatorContext.currentOwnerId().orElse(fallbackUserId);
     }
 }

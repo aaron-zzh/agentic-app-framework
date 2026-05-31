@@ -11,10 +11,12 @@ import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useUserMenus } from "@/lib/queries/use-menus"
+import { useLicenseStatus } from "@/lib/queries/use-license-status"
 import { cn } from "@/lib/utils/cn"
 import {
   buildNavConfig,
   buildNavFromApi,
+  buildOfficialNavConfig,
   type NavGroup,
   type NavItem
 } from "@/sections/layout/nav-config"
@@ -45,11 +47,14 @@ export function MobileNav() {
 function MobileSidebarContent() {
   const pathname = usePathname()
   const { data: menus, isError } = useUserMenus()
+  const { data: license } = useLicenseStatus()
   const navConfig = useMemo(() => {
-    if (menus) return buildNavFromApi(menus)
-    if (isError) return buildNavConfig()
-    return buildNavConfig()
-  }, [menus, isError])
+    const appendOfficial = (groups: NavGroup[]) =>
+      license?.owner ? [...groups, buildOfficialNavConfig()] : groups
+    if (menus) return appendOfficial(buildNavFromApi(menus))
+    if (isError) return appendOfficial(buildNavConfig())
+    return appendOfficial(buildNavConfig())
+  }, [menus, isError, license?.owner])
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">
