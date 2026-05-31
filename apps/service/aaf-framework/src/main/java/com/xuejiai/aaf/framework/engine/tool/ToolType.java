@@ -13,5 +13,7 @@ public enum ToolType {
     /** 触发工作流 */
     WORKFLOW,
     /** 委托给另一个 Agent */
-    AGENT
+    AGENT,
+    /** 生成式内容能力，如生图、生视频、音乐、3D */
+    GENERATIVE
 }

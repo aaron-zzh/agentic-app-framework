@@ -103,6 +103,9 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
 
     /** 按 Role 白名单获取可用工具。 */
     public List<ToolCallback> resolveForRole(String roleId) {
+        if (roleId == null || roleId.isBlank()) {
+            return List.of();
+        }
         var allowed = roleStore.getToolWhitelist(roleId);
         if (allowed.isEmpty()) return List.copyOf(callbacks.values());
         return allowed.stream().map(callbacks::get).filter(Objects::nonNull).toList();

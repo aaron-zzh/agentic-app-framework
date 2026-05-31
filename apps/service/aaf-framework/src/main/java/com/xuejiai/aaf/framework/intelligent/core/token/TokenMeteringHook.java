@@ -7,11 +7,15 @@ package com.xuejiai.aaf.framework.intelligent.core.token;
 
 import org.springframework.stereotype.Component;
 
+import org.springframework.beans.factory.ObjectProvider;
+
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import io.agentscope.core.hook.Hook;
 import io.agentscope.core.hook.HookEvent;
 import io.agentscope.core.hook.PostCallEvent;
+import io.agentscope.core.hook.PreReasoningEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -27,20 +31,40 @@ public class TokenMeteringHook implements Hook {
 
     private final TokenMeteringService meteringService;
     private final OperatorContext operatorContext;
+    private final ObjectProvider<AiCreditGuard> creditGuard;
 
     @Override
     public <T extends HookEvent> Mono<T> onEvent(T event) {
-        if (event instanceof PostCallEvent postCall) {
+        if (event instanceof PreReasoningEvent) {
+            precheck();
+        } else if (event instanceof PostCallEvent postCall) {
             var msg = postCall.getFinalMessage();
             if (msg != null && msg.getChatUsage() != null) {
                 var usage = msg.getChatUsage();
-                var userId = operatorContext.currentUserId().orElse(null);
+                var userId = operatorContext.currentOwnerId().orElse(null);
                 var modelName = "agentscope";
                 meteringService.record(
                         userId, modelName, null, usage.getInputTokens(), usage.getOutputTokens());
+                settle(userId, usage.getInputTokens() + usage.getOutputTokens());
             }
         }
         return Mono.just(event);
+    }
+
+    private void precheck() {
+        var guard = creditGuard.getIfAvailable();
+        if (guard == null) {
+            return;
+        }
+        guard.precheck(operatorContext.currentOwnerId().orElse(null), "agentscope");
+    }
+
+    private void settle(Long userId, long totalTokens) {
+        var guard = creditGuard.getIfAvailable();
+        if (guard == null) {
+            return;
+        }
+        guard.settle(userId, "agentscope", totalTokens);
     }
 
     @Override

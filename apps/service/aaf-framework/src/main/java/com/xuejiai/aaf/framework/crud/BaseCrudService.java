@@ -185,6 +185,26 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return new CrudMeta(entitySlug(), entityName(), fieldSets(), operations());
     }
 
+    /** 实体标识。用于 AI 业务动作、前端实体引擎和审计日志。 */
+    public String getEntitySlug() {
+        return entitySlug();
+    }
+
+    /** 实体名称。用于 AI 业务动作结果和错误提示。 */
+    public String getEntityName() {
+        return entityName();
+    }
+
+    /** 可用操作清单。用于 AI 业务动作注册表对外声明能力。 */
+    public List<String> getOperations() {
+        return operations();
+    }
+
+    /** 解析 CRUD 动作对应的权限码。 */
+    public String resolvePermissionCode(String action) {
+        return permissionCode(action);
+    }
+
     /** 导出数据。默认返回过滤后的完整 export 字段集数据，文件生成由子类或上层适配。 */
     public PageResult<V> exportData(P request) {
         request.setPageNo(1);

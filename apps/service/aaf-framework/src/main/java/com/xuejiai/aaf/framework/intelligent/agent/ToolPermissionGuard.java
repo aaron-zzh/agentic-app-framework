@@ -4,14 +4,27 @@ import java.util.List;
 
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.enums.OverLimitAction;
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
+import com.xuejiai.aaf.framework.engine.tool.ToolCatalogEntry;
+import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.engine.tool.ToolPermissionChecker;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.engine.tool.ToolRiskLevel;
+import com.xuejiai.aaf.framework.engine.tool.ToolType;
+import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantPermissionEvaluator;
+import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.access.AccessDecisionService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +43,12 @@ public class ToolPermissionGuard {
     private final ToolRegistry toolRegistry;
     private final OperatorContext operatorContext;
     private final AssistantPermissionEvaluator assistantPermEval;
+    private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
+    private final ObjectMapper objectMapper;
+    private final ObjectProvider<CreditService> creditService;
+    private final ObjectProvider<ContentSafetyService> contentSafetyService;
+    private final ObjectProvider<ConfidenceGate> confidenceGate;
+    private final AccessDecisionService accessDecisionService;
 
     /**
      * 包装工具列表，为每个工具加上权限检查。
@@ -65,34 +84,76 @@ public class ToolPermissionGuard {
                         .findFirst()
                         .orElse(null);
 
-        // 无元数据的工具不包装（默认放行）
         if (meta == null) {
-            return original;
+            return new DeniedToolCallback(original, "TOOL_NOT_REGISTERED", "工具未注册到治理目录: " + toolName);
         }
 
+        var catalog = toolCatalogProvider.getIfAvailable();
+        var entry = catalog == null ? null : catalog.find(toolName).orElse(null);
+        if (catalog != null && (entry == null || !entry.enabled())) {
+            return new DeniedToolCallback(original, "TOOL_DISABLED", "工具未开放或已禁用: " + toolName);
+        }
+        if (!hasToolPermission(toolName, entry)) {
+            return new DeniedToolCallback(original, "FORBIDDEN", "工具 %s 权限不足，需管理员授权".formatted(toolName));
+        }
+        var riskLevel = entry == null || entry.riskLevel() == null ? meta.riskLevel() : entry.riskLevel();
+        var readOnly = entry == null ? meta.readOnly() : entry.readOnly();
+        var requireConfirm = entry != null && entry.requireConfirm();
         return new GuardedToolCallback(
-                original, meta.riskLevel(), meta.readOnly(), sessionId, assistantId, agentAllowedTools);
+                original, entry, riskLevel, readOnly, requireConfirm, sessionId, assistantId, agentAllowedTools);
+    }
+
+    /** 被目录禁用的工具回调。 */
+    private class DeniedToolCallback implements ToolCallback {
+        private final ToolCallback delegate;
+        private final String code;
+        private final String reason;
+
+        DeniedToolCallback(ToolCallback delegate, String code, String reason) {
+            this.delegate = delegate;
+            this.code = code;
+            this.reason = reason;
+        }
+
+        @Override
+        public ToolDefinition getToolDefinition() {
+            return delegate.getToolDefinition();
+        }
+
+        @Override
+        public String call(String arguments) {
+            if ("FORBIDDEN".equals(code)) {
+                return asJson(ToolCallResult.forbidden(delegate.getToolDefinition().name(), reason));
+            }
+            return asJson(ToolCallResult.error(delegate.getToolDefinition().name(), code, reason));
+        }
     }
 
     /** 带权限检查的 ToolCallback 装饰器 */
     private class GuardedToolCallback implements ToolCallback {
         private final ToolCallback delegate;
+        private final ToolCatalogEntry catalogEntry;
         private final ToolRiskLevel riskLevel;
         private final boolean readOnly;
+        private final boolean requireConfirm;
         private final String sessionId;
         private final String assistantId;
         private final List<String> agentAllowedTools;
 
         GuardedToolCallback(
                 ToolCallback delegate,
+                ToolCatalogEntry catalogEntry,
                 ToolRiskLevel riskLevel,
                 boolean readOnly,
+                boolean requireConfirm,
                 String sessionId,
                 String assistantId,
                 List<String> agentAllowedTools) {
             this.delegate = delegate;
+            this.catalogEntry = catalogEntry;
             this.riskLevel = riskLevel;
             this.readOnly = readOnly;
+            this.requireConfirm = requireConfirm;
             this.sessionId = sessionId;
             this.assistantId = assistantId;
             this.agentAllowedTools = agentAllowedTools;
@@ -106,6 +167,7 @@ public class ToolPermissionGuard {
         @Override
         public String call(String arguments) {
             var toolName = delegate.getToolDefinition().name();
+            var userId = operatorContext.currentUserId().orElse(null);
 
             // 先走委托模型判定（如果有 assistantId）
             if (assistantId != null) {
@@ -115,22 +177,48 @@ public class ToolPermissionGuard {
                 }
             }
 
+            var confidenceBlock =
+                    checkConfidence(userId, toolName, arguments, readOnly, riskLevel, sessionId, agentAllowedTools);
+            if (confidenceBlock != null) {
+                return asJson(confidenceBlock);
+            }
+
             // 再走已有的会话级权限检查
-            var userId = operatorContext.currentUserId().orElse(null);
             var result =
-                    permissionChecker.check(
+                    permissionChecker.checkDetailed(
                             sessionId,
                             userId,
                             toolName,
                             riskLevel,
                             readOnly,
+                            requireConfirm,
                             agentAllowedTools,
                             arguments);
 
-            return switch (result) {
-                case GRANTED, AUTO_GRANTED -> delegate.call(arguments);
-                case PENDING_APPROVAL -> "[权限等待] 工具 %s 需要用户确认，请稍后重试".formatted(toolName);
-                case DENIED -> "[权限拒绝] 工具 %s 权限不足".formatted(toolName);
+            return switch (result.result()) {
+                case GRANTED, AUTO_GRANTED -> {
+                    var safetyBlock = checkContentSafety(sessionId, userId, toolName, catalogEntry, arguments);
+                    if (safetyBlock != null) {
+                        yield asJson(safetyBlock);
+                    }
+                    var creditBlock = checkCredit(userId, toolName, catalogEntry);
+                    if (creditBlock != null) {
+                        yield asJson(creditBlock);
+                    }
+                    var output = delegate.call(arguments);
+                    if (isSuccessfulOutput(output)) {
+                        settleCredit(userId, toolName, catalogEntry);
+                    }
+                    yield output;
+                }
+                case PENDING_APPROVAL ->
+                        asJson(
+                                ToolCallResult.pendingApproval(
+                                        toolName,
+                                        "工具 %s 需要用户确认，请等待确认后恢复执行".formatted(toolName),
+                                        result.approvalId()));
+                case DENIED ->
+                        asJson(ToolCallResult.forbidden(toolName, "工具 %s 权限不足，需管理员授权".formatted(toolName)));
             };
         }
 
@@ -139,13 +227,248 @@ public class ToolPermissionGuard {
                 case ASK -> {
                     // 触发 HITL 审批流程
                     var userId = operatorContext.currentUserId().orElse(null);
-                    permissionChecker.check(
-                            sessionId, userId, toolName, riskLevel, readOnly, agentAllowedTools, null);
-                    yield "[权限等待] %s — %s".formatted(toolName, reason);
+                    var decision =
+                            permissionChecker.checkDetailed(
+                                    sessionId,
+                                    userId,
+                                    toolName,
+                                    riskLevel,
+                                    readOnly,
+                                    true,
+                                    agentAllowedTools,
+                                    null);
+                    yield asJson(
+                            ToolCallResult.pendingApproval(
+                                    toolName, "%s — %s".formatted(toolName, reason), decision.approvalId()));
                 }
-                case SKIP -> "[已跳过] %s — %s".formatted(toolName, reason);
-                case PAUSE -> "[任务暂停] %s — %s，等待用户介入".formatted(toolName, reason);
+                case SKIP ->
+                        asJson(ToolCallResult.error(toolName, "SKIPPED", "%s — %s".formatted(toolName, reason)));
+                case PAUSE ->
+                        asJson(ToolCallResult.pendingApproval(
+                                toolName, "%s — %s，等待用户介入".formatted(toolName, reason), null));
             };
         }
+    }
+
+    private String asJson(ToolCallResult result) {
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (JsonProcessingException ex) {
+            return "{\"success\":false,\"code\":\"TOOL_RESULT_SERIALIZE_ERROR\",\"message\":\"工具结果序列化失败\"}";
+        }
+    }
+
+    private boolean hasToolPermission(String toolName, ToolCatalogEntry entry) {
+        var permissionCode = entry == null ? null : entry.permissionCode();
+        if (permissionCode == null || permissionCode.isBlank()) {
+            permissionCode = "tool:%s:execute".formatted(normalizePermissionSegment(toolName));
+        }
+        return accessDecisionService.hasPermission(permissionCode)
+                || accessDecisionService.hasPermission("tool:default:execute");
+    }
+
+    private String normalizePermissionSegment(String value) {
+        return value == null ? "" : value.trim().toLowerCase().replace('_', '-');
+    }
+
+    private ToolCallResult checkContentSafety(
+            String sessionId, Long userId, String toolName, ToolCatalogEntry entry, String arguments) {
+        if (entry == null || entry.type() != ToolType.GENERATIVE) {
+            return null;
+        }
+        var prompt = extractPrompt(arguments);
+        if (prompt == null || prompt.isBlank()) {
+            return ToolCallResult.error(toolName, "CONTENT_REVIEW_INPUT_MISSING", "生成式工具缺少 prompt，无法进行内容审查");
+        }
+        var safety = contentSafetyService.getIfAvailable();
+        if (safety == null) {
+            return null;
+        }
+        var result =
+                safety.reviewBeforeGeneration(
+                        new ContentSafetyRequest(
+                                toolName,
+                                entry.category(),
+                                sessionId,
+                                userId,
+                                prompt,
+                                java.util.Map.of(
+                                        "toolType",
+                                        entry.type().name(),
+                                        "riskLevel",
+                                        entry.riskLevel() == null ? "" : entry.riskLevel().name(),
+                                        "requireHumanReview",
+                                        entry.riskLevel() == ToolRiskLevel.HIGH
+                                                || entry.riskLevel() == ToolRiskLevel.CRITICAL)));
+        if (result.allowed()) {
+            return null;
+        }
+        if (result.reviewRequired()) {
+            return ToolCallResult.pendingContentReview(toolName, result.message(), result.reviewId());
+        }
+        return ToolCallResult.error(toolName, result.code(), result.message());
+    }
+
+    private ToolCallResult checkConfidence(
+            Long userId,
+            String toolName,
+            String arguments,
+            boolean readOnly,
+            ToolRiskLevel riskLevel,
+            String sessionId,
+            List<String> agentAllowedTools) {
+        var gate = confidenceGate.getIfAvailable();
+        if (gate == null) {
+            return null;
+        }
+        var confidence = extractDouble(arguments, "confidence");
+        if (confidence == null) {
+            return null;
+        }
+        var verifiable = extractBoolean(arguments, "verifiable", readOnly);
+        var decision =
+                gate.evaluate(
+                        new ConfidenceGate.GateInput(
+                                confidence, verifiable, "tool:%s".formatted(toolName)));
+        if (decision.action() != ConfidenceGate.Action.PAUSE_FOR_HUMAN) {
+            return null;
+        }
+        var approval =
+                permissionChecker.checkDetailed(
+                        sessionId,
+                        userId,
+                        "confidence:" + toolName,
+                        riskLevel,
+                        readOnly,
+                        true,
+                        agentAllowedTools,
+                        arguments,
+                        com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
+                        "置信度门控确认",
+                        decision.message() == null ? "工具调用置信度不足" : decision.message());
+        return switch (approval.result()) {
+            case GRANTED, AUTO_GRANTED -> null;
+            case PENDING_APPROVAL ->
+                    ToolCallResult.pendingApproval(
+                            toolName,
+                            decision.message() == null ? "工具调用置信度不足，需要用户确认" : decision.message(),
+                            approval.approvalId());
+            case DENIED -> ToolCallResult.forbidden(toolName, "工具调用置信度不足，且当前会话已拒绝该工具");
+        };
+    }
+
+    private ToolCallResult checkCredit(Long userId, String toolName, ToolCatalogEntry entry) {
+        var credit = creditService.getIfAvailable();
+        if (credit == null || userId == null || entry == null || entry.entitlementCode() == null
+                || entry.entitlementCode().isBlank()) {
+            return null;
+        }
+        var cost = estimateCost(entry.costExpression());
+        if (cost <= 0 || credit.hasBudget(userId, cost)) {
+            return null;
+        }
+        return ToolCallResult.insufficientCredits(toolName, entry.entitlementCode(), cost);
+    }
+
+    private void settleCredit(Long userId, String toolName, ToolCatalogEntry entry) {
+        var credit = creditService.getIfAvailable();
+        if (credit == null || userId == null || entry == null || entry.entitlementCode() == null
+                || entry.entitlementCode().isBlank()) {
+            return;
+        }
+        var cost = estimateCost(entry.costExpression());
+        if (cost <= 0) {
+            return;
+        }
+        try {
+            credit.spend(userId, cost, "TOOL:" + toolName, entry.entitlementCode());
+        } catch (Exception ex) {
+            log.warn("工具扣费失败，已完成调用不回滚: tool={}, userId={}, cost={}, err={}",
+                    toolName, userId, cost, ex.getMessage());
+        }
+    }
+
+    private long estimateCost(String expression) {
+        if (expression == null || expression.isBlank()) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(expression.trim());
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
+    }
+
+    private boolean isSuccessfulOutput(String output) {
+        if (output == null || output.isBlank()) {
+            return true;
+        }
+        try {
+            var node = objectMapper.readTree(output);
+            return !node.has("success") || node.get("success").asBoolean();
+        } catch (Exception ignored) {
+            return true;
+        }
+    }
+
+    private String extractPrompt(String arguments) {
+        if (arguments == null || arguments.isBlank()) {
+            return null;
+        }
+        try {
+            var node = objectMapper.readTree(arguments);
+            if (node.hasNonNull("prompt")) {
+                return node.get("prompt").asText();
+            }
+            if (node.hasNonNull("requestJson")) {
+                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                return nested.hasNonNull("prompt") ? nested.get("prompt").asText() : null;
+            }
+        } catch (Exception ignored) {
+            // 非 JSON 参数无法抽取 prompt。
+        }
+        return null;
+    }
+
+    private Double extractDouble(String arguments, String field) {
+        if (arguments == null || arguments.isBlank()) {
+            return null;
+        }
+        try {
+            var node = objectMapper.readTree(arguments);
+            if (node.hasNonNull(field) && node.get(field).isNumber()) {
+                return node.get(field).asDouble();
+            }
+            if (node.hasNonNull("requestJson")) {
+                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                return nested.hasNonNull(field) && nested.get(field).isNumber()
+                        ? nested.get(field).asDouble()
+                        : null;
+            }
+        } catch (Exception ignored) {
+            // 非 JSON 参数无法抽取置信度。
+        }
+        return null;
+    }
+
+    private boolean extractBoolean(String arguments, String field, boolean defaultValue) {
+        if (arguments == null || arguments.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            var node = objectMapper.readTree(arguments);
+            if (node.hasNonNull(field) && node.get(field).isBoolean()) {
+                return node.get(field).asBoolean();
+            }
+            if (node.hasNonNull("requestJson")) {
+                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                return nested.hasNonNull(field) && nested.get(field).isBoolean()
+                        ? nested.get(field).asBoolean()
+                        : defaultValue;
+            }
+        } catch (Exception ignored) {
+            // 非 JSON 参数无法抽取可验证性。
+        }
+        return defaultValue;
     }
 }

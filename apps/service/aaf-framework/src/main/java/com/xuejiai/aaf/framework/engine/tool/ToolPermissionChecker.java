@@ -57,6 +57,22 @@ public class ToolPermissionChecker {
         DENIED
     }
 
+    /** 结构化权限决策，给工具调用方返回可恢复的阻塞信息。 */
+    public record PermissionDecision(
+            PermissionResult result,
+            String reason,
+            String approvalId,
+            boolean userApprovable,
+            boolean adminApprovable) {
+        static PermissionDecision of(PermissionResult result, String reason) {
+            return new PermissionDecision(result, reason, null, false, result == PermissionResult.DENIED);
+        }
+
+        static PermissionDecision pending(String reason, String approvalId) {
+            return new PermissionDecision(PermissionResult.PENDING_APPROVAL, reason, approvalId, true, false);
+        }
+    }
+
     /** 授权范围 */
     public enum GrantScope {
         /** 仅本次调用（一次性，用完即失效） */
@@ -122,7 +138,7 @@ public class ToolPermissionChecker {
             reason = "黑名单";
         }
         // 2. trust-all
-        else if (trustAllSessions.contains(sessionId)) {
+        else if (sessionId != null && trustAllSessions.contains(sessionId)) {
             result = PermissionResult.GRANTED;
             reason = "trust-all";
         }
@@ -152,6 +168,67 @@ public class ToolPermissionChecker {
         return result;
     }
 
+    /** 检查工具调用权限，并保留审批单号等恢复执行所需信息。 */
+    public PermissionDecision checkDetailed(
+            String sessionId,
+            Long userId,
+            String toolName,
+            ToolRiskLevel riskLevel,
+            boolean readOnly,
+            boolean requireConfirm,
+            List<String> agentAllowedTools,
+            String arguments) {
+        return checkDetailed(
+                sessionId,
+                userId,
+                toolName,
+                riskLevel,
+                readOnly,
+                requireConfirm,
+                agentAllowedTools,
+                arguments,
+                HumanApprovalService.ApprovalType.TOOL_PERMISSION,
+                "工具调用确认",
+                "工具调用需要用户确认");
+    }
+
+    /** 检查工具/动作权限，并指定 HITL 触发来源。 */
+    public PermissionDecision checkDetailed(
+            String sessionId,
+            Long userId,
+            String toolName,
+            ToolRiskLevel riskLevel,
+            boolean readOnly,
+            boolean requireConfirm,
+            List<String> agentAllowedTools,
+            String arguments,
+            HumanApprovalService.ApprovalType approvalType,
+            String approvalTitle,
+            String approvalReason) {
+
+        PermissionDecision decision;
+
+        if (isDenied(sessionId, toolName)) {
+            decision = PermissionDecision.of(PermissionResult.DENIED, "黑名单");
+        } else if (sessionId != null && trustAllSessions.contains(sessionId)) {
+            decision = PermissionDecision.of(PermissionResult.GRANTED, "trust-all");
+        } else if (matchesGrant(sessionId, toolName, arguments)) {
+            decision = PermissionDecision.of(PermissionResult.GRANTED, "已授权（防重复）");
+        } else if (agentAllowedTools != null && agentAllowedTools.contains(toolName) && !requireConfirm) {
+            decision = PermissionDecision.of(PermissionResult.GRANTED, "Agent allowedTools");
+        } else if (readOnly && !requireConfirm) {
+            decision = PermissionDecision.of(PermissionResult.AUTO_GRANTED, "只读工具");
+        } else if (requireConfirm) {
+            decision = requestApproval(
+                    sessionId, userId, toolName, riskLevel, approvalType, approvalTitle, approvalReason);
+        } else {
+            decision = evaluateByRiskDetailed(sessionId, userId, toolName, riskLevel);
+        }
+
+        publishDecision(sessionId, toolName, decision.result(), decision.reason());
+        return decision;
+    }
+
     /** 无参数版本。 */
     public PermissionResult check(
             String sessionId,
@@ -176,33 +253,86 @@ public class ToolPermissionChecker {
 
     private PermissionResult evaluateByRisk(
             String sessionId, Long userId, String toolName, ToolRiskLevel riskLevel) {
+        return evaluateByRiskDetailed(sessionId, userId, toolName, riskLevel).result();
+    }
+
+    private PermissionDecision evaluateByRiskDetailed(
+            String sessionId, Long userId, String toolName, ToolRiskLevel riskLevel) {
         return switch (riskLevel) {
             case NONE, LOW -> {
                 log.debug("工具自动授权: {} (risk={})", toolName, riskLevel);
-                yield PermissionResult.AUTO_GRANTED;
+                yield PermissionDecision.of(PermissionResult.AUTO_GRANTED, "风险评估: " + riskLevel);
             }
-            case MEDIUM -> {
-                approvalService.request(
-                        sessionId,
-                        userId,
-                        HumanApprovalService.ApprovalType.TOOL_PERMISSION,
-                        "工具调用确认",
-                        "Agent 请求调用工具 [%s]（风险等级: %s）".formatted(toolName, riskLevel),
-                        Map.of("toolName", toolName, "riskLevel", riskLevel.name()));
-                yield PermissionResult.PENDING_APPROVAL;
-            }
-            case HIGH -> {
-                approvalService.request(
-                        sessionId,
-                        userId,
-                        HumanApprovalService.ApprovalType.TOOL_PERMISSION,
-                        "高风险工具确认",
-                        "Agent 请求调用高风险工具 [%s]，每次调用需确认".formatted(toolName),
-                        Map.of("toolName", toolName, "riskLevel", riskLevel.name()));
-                yield PermissionResult.PENDING_APPROVAL;
-            }
-            case CRITICAL -> PermissionResult.DENIED;
+            case MEDIUM ->
+                    requestApproval(
+                            sessionId,
+                            userId,
+                            toolName,
+                            riskLevel,
+                            HumanApprovalService.ApprovalType.TOOL_PERMISSION,
+                            "工具调用确认",
+                            "中风险工具需用户确认");
+            case HIGH ->
+                    requestApproval(
+                            sessionId,
+                            userId,
+                            toolName,
+                            riskLevel,
+                            HumanApprovalService.ApprovalType.TOOL_PERMISSION,
+                            "高风险工具确认",
+                            "高风险工具每次调用需确认");
+            case CRITICAL -> PermissionDecision.of(PermissionResult.DENIED, "关键风险工具默认拒绝");
         };
+    }
+
+    private PermissionDecision requestApproval(
+            String sessionId,
+            Long userId,
+            String toolName,
+            ToolRiskLevel riskLevel,
+            HumanApprovalService.ApprovalType approvalType,
+            String title,
+            String reason) {
+        var approvalId =
+                approvalService.request(
+                        sessionId,
+                        userId,
+                        approvalType,
+                        title,
+                        "Agent 请求调用工具 [%s]（风险等级: %s）".formatted(displaySubject(toolName), riskLevel),
+                        Map.of(
+                                "toolName",
+                                toolName,
+                                "subjectType",
+                                subjectType(approvalType, toolName),
+                                "subjectKey",
+                                toolName,
+                                "riskLevel",
+                                riskLevel == null ? "" : riskLevel.name(),
+                                "reason",
+                                reason,
+                                "grantScope",
+                                "SESSION"));
+        return PermissionDecision.pending(reason, approvalId);
+    }
+
+    private String subjectType(HumanApprovalService.ApprovalType approvalType, String subjectKey) {
+        if (approvalType == HumanApprovalService.ApprovalType.ACTION_CONFIRM) {
+            return "ACTION";
+        }
+        if (approvalType == HumanApprovalService.ApprovalType.LOW_CONFIDENCE
+                && subjectKey != null
+                && subjectKey.contains(".")) {
+            return "ACTION";
+        }
+        return "TOOL";
+    }
+
+    private String displaySubject(String subjectKey) {
+        if (subjectKey != null && subjectKey.startsWith("confidence:")) {
+            return subjectKey.substring("confidence:".length());
+        }
+        return subjectKey;
     }
 
     // ========== 授权 API ==========
@@ -312,6 +442,7 @@ public class ToolPermissionChecker {
     // ========== 内部方法 ==========
 
     private boolean matchesGrant(String sessionId, String toolName, String arguments) {
+        if (sessionId == null) return false;
         var list = grants.get(sessionId);
         if (list == null) return false;
 
@@ -363,6 +494,7 @@ public class ToolPermissionChecker {
     }
 
     private boolean isDenied(String sessionId, String toolName) {
+        if (sessionId == null) return false;
         var set = denied.get(sessionId);
         return set != null && set.contains(toolName);
     }

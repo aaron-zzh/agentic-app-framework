@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.ai.chat;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -67,12 +68,14 @@ public class ResilientChatService {
 
     /** 流式调用，使用完整路由上下文。 */
     public Flux<ChatResponse> stream(List<Message> messages, CapabilityRoutingContext ctx) {
+        creditGuard.precheck(ctx.userId(), ctx.capability());
         var modelId = capabilityRouter.resolve(ctx);
         try {
-            return doStream(messages, modelId);
+            return withStreamUsage(doStream(messages, modelId), ctx.userId(), modelId);
         } catch (Exception e) {
             log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", modelId, e.getMessage());
-            return doStream(messages, resolveFallback(modelId));
+            var fallbackId = resolveFallback(modelId);
+            return withStreamUsage(doStream(messages, fallbackId), ctx.userId(), fallbackId);
         }
     }
 
@@ -114,5 +117,32 @@ public class ResilientChatService {
         eventPublisher.publishEvent(
                 new TokenUsageEvent(
                         userId, modelId, usage.getPromptTokens(), usage.getCompletionTokens()));
+    }
+
+    private Flux<ChatResponse> withStreamUsage(Flux<ChatResponse> stream, Long userId, String modelId) {
+        var promptTokens = new AtomicLong();
+        var completionTokens = new AtomicLong();
+        return stream.doOnNext(
+                        response -> {
+                            if (response == null
+                                    || response.getMetadata() == null
+                                    || response.getMetadata().getUsage() == null) {
+                                return;
+                            }
+                            var usage = response.getMetadata().getUsage();
+                            promptTokens.updateAndGet(current -> Math.max(current, usage.getPromptTokens()));
+                            completionTokens.updateAndGet(current -> Math.max(current, usage.getCompletionTokens()));
+                        })
+                .doOnComplete(
+                        () -> {
+                            if (promptTokens.get() > 0 || completionTokens.get() > 0) {
+                                eventPublisher.publishEvent(
+                                        new TokenUsageEvent(
+                                                userId,
+                                                modelId,
+                                                promptTokens.get(),
+                                                completionTokens.get()));
+                            }
+                        });
     }
 }

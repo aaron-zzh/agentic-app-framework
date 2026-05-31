@@ -2,8 +2,10 @@ package com.xuejiai.aaf.framework.intelligent.agent.agentscope;
 
 import java.util.List;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.McpToolService;
@@ -33,6 +35,8 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final McpToolService mcpToolService;
     private final AiModelRepository modelRepository;
     private final ModelManagementService modelManagementService;
+    private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
+    private final AgentScopeToolGovernanceService toolGovernanceService;
 
     @Override
     public AgentExecutor create(AgentDefinition definition, List<String> tools) {
@@ -50,10 +54,14 @@ public class AgentScopeRuntime implements AgentRuntime {
                 ReActAgent.builder()
                         .name(definition.getName())
                         .sysPrompt(definition.getSystemPrompt())
-                        .hook(tokenMeteringHook);
+                        .hook(tokenMeteringHook)
+                        .hook(new AafToolWhitelistHook(
+                                parseList(definition.getTools()), toolCatalogProvider.getIfAvailable()));
 
         configureModel(builder, definition);
-        builder.toolkit(mcpToolService.buildToolkit(definition));
+        var toolkit = mcpToolService.buildToolkit(definition);
+        toolGovernanceService.apply(toolkit, definition);
+        builder.toolkit(toolkit);
 
         return builder.build();
     }
@@ -81,6 +89,16 @@ public class AgentScopeRuntime implements AgentRuntime {
             chatModel = OpenAIChatModel.builder().modelName("gpt-4o").build();
         }
         builder.model(chatModel);
+    }
+
+    private List<String> parseList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        return List.of(json.replaceAll("[\\[\\]\"\\ ]", "").split(",")).stream()
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
     }
 
     private OpenAIChatModel buildFromDb(AiModel model) {

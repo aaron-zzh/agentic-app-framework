@@ -474,6 +474,154 @@ evaluateToolCall(assistantId, toolName, riskLevel):
 4. 默认：逐次审批
 ```
 
+### AI 能力目录与工具路由
+
+AI 可调用能力分为两类，底层分表、分执行器，上层统一发现：
+
+```text
+业务动作 ACTION
+  -> ai_action_catalog
+  -> business_action.execute(action, entity, params)
+  -> BaseCrudService / 业务 Service
+  -> 业务权限码：system:role:update / workflow:approve
+
+通用工具 TOOL
+  -> ai_tool_catalog
+  -> tool.execute(toolName, arguments)
+  -> ToolCallback / MCP / GeneratedTool
+  -> 工具权限码：tool:{toolName}:execute / tool:default:execute
+```
+
+不合并 `ai_action_catalog` 与 `ai_tool_catalog`：
+
+- action 面向业务对象，有实体、字段集、行级/字段级数据权限。
+- tool 面向能力调用，有来源、工具类型、分类、MCP/脚本/HTTP/生成式能力、只读标记和工具风险。
+- action 权限必须回到真实业务权限；tool 权限使用工具权限码。
+
+AI 对外可通过统一能力清单发现 action/tool：
+
+```text
+type: ACTION | TOOL
+key: system-role.query | executeBusinessAction | web_search
+displayName
+description
+inputSchema
+riskLevel
+requireConfirm
+category
+```
+
+当前实现已落地：
+
+- `ai_action_catalog`：业务动作目录，存在 SQL Provider 时 fail-closed，未配置/未启用动作不可见且不可执行。
+- `ai_tool_catalog`：工具目录，存在 SQL Provider 时 fail-closed，未配置/未启用工具不可执行。
+- `ToolCallDispatcher`：工具调用统一入口，执行顺序为工具存在 → SQL catalog enabled → 永久工具权限 → 置信度门控 → 会话/风险门控 → 类型专用门控 → 权益/积分预检 → `ToolCallback.call` → 成功后扣费 → `tool_call_audit`。
+- `AssistantPermissionEvaluator`：工具权限码优先读取 `ai_tool_catalog.permission_code`，否则回退 `tool:{toolName}:execute` 和 `tool:default:execute`。
+- `ContentGenerationTool`：生成式内容工具注册点，当前开放 `generateImage`、`generateVideo`，由 `ai_tool_catalog.tool_type=GENERATIVE` 与 `category=IMAGE_GENERATION/VIDEO_GENERATION` 控制展示、权限、确认和额度。
+- `ContentSafetyService`：生成前内容审查 SPI。默认实现普通请求放行；高风险生成式请求进入统一 HITL 内容复审。生产环境应替换为模型审查、策略审查或人工复审组合实现。
+
+通用工具权限建议：
+
+```text
+低风险默认工具：tool:default:execute
+业务动作总入口：tool:business-action:execute
+高风险工具：tool:http-request:execute / tool:file-write:execute / tool:code-execute:execute
+生成式能力：tool:image-generate:execute / tool:video-generate:execute
+```
+
+`tool:default:execute` 只作为低风险兜底，不允许覆盖高风险工具。高风险工具必须在 `ai_tool_catalog` 中显式配置专属 `permission_code`、`risk_level` 和 `require_confirm`。
+
+工具调用返回统一 JSON，AI 根据 `code` 和 `resume.strategy` 判断是否等待并恢复执行：
+
+```json
+{
+  "success": false,
+  "code": "PENDING_APPROVAL",
+  "message": "工具 generateVideo 需要用户确认",
+  "pendingApproval": true,
+  "recoverable": true,
+  "authorization": {
+    "mode": "USER_APPROVAL",
+    "approvalId": "approval-uuid",
+    "requiredBy": "用户即时确认"
+  },
+  "resume": {
+    "strategy": "WAIT_APPROVAL",
+    "token": "approval-uuid",
+    "instruction": "用户确认后使用相同参数重试"
+  }
+}
+```
+
+常见阻塞码：
+
+- `FORBIDDEN`：永久权限不足，不能由会话临时授权绕过，需要管理员给 owner 授予业务/工具权限。
+- `PENDING_APPROVAL`：当前用户可即时确认，确认后同会话同工具可恢复执行。
+- `INSUFFICIENT_CREDITS`：积分或权益不足，需要充值、升级套餐或额度恢复后重试。
+- `PENDING_CONTENT_REVIEW`：内容安全审查等待中，审查通过后使用相同参数恢复执行；拒绝后相同参数返回稳定拒绝。
+- `TOOL_DISABLED` / `TOOL_NOT_REGISTERED`：能力未开放或代码未注册，AI 应停止调用并解释原因。
+
+生成式内容作为 TOOL，不作为 ACTION。原因是图片、视频、音乐、3D 等消耗外部模型成本，核心治理是工具权限、额度、风险确认、内容审查和资产审计，不依赖业务实体行级权限。若生成结果需要发布、入库审批或修改业务数据，则后续步骤再通过 ACTION 或业务 Service 执行。
+
+Action 链和 Tool 链的权限处理方式不同：
+
+- Action 面向业务对象，必须回到业务权限码，并通过 `BaseCrudService` 应用行级/字段级数据权限。
+- Tool 面向能力调用，必须回到工具权限码，并按 `tool_type/category` 应用工具风险、内容安全、额度、沙箱等治理。
+
+Action 链执行顺序：
+
+```text
+AI 身份已认证，owner/delegator 已绑定
+-> executeBusinessAction 工具入口权限
+-> 解析 action/entity/params
+-> ai_action_catalog 已启用
+-> 当前 owner 拥有业务 permissionCode
+-> 置信度门控（低置信且不可验证则等待用户确认）
+-> Action 风险等级与 requireConfirm
+-> Action 权益/积分预检
+-> BaseCrudService 执行业务，自动应用 L2/L3 数据权限和字段权限
+-> 成功后扣费/记录用量
+-> 工具审计；后续补 Action 专用审计
+```
+
+Tool 链执行顺序：
+
+```text
+工具注册存在
+-> ai_tool_catalog 已启用
+-> 当前 owner 拥有 permission_code
+-> 置信度门控（低置信且不可验证则等待用户确认）
+-> Assistant/Role 委托边界、会话授权与工具风险确认
+-> 工具风险等级与 require_confirm
+-> 按 tool_type/category 执行专用门控（如内容安全、沙箱、网络策略）
+-> 权益/积分预检（仅 entitlement_code 有值且 cost_expression > 0 的工具）
+-> 执行 ToolCallback
+-> 成功后扣费/记录用量
+-> 写入审计
+```
+
+工具执行不采用一条固定流程，而是按 `ai_tool_catalog.tool_type/category` 选择门控编排：
+
+| 类型 | 典型 category | 执行顺序 |
+|------|---------------|----------|
+| 业务动作入口 | `BUSINESS_ACTION` | 工具入口权限 → 委托/会话授权 → 置信度门控 → 工具风险确认 → 调 `executeBusinessAction` → 进入 Action 链 |
+| 只读工具 | `RETRIEVAL` / `SEARCH` | 工具权限 → 委托/会话授权 → 置信度门控 → 只读自动通过 → 执行工具 → 审计 |
+| 写入/外部副作用工具 | `FILE_WRITE` / `HTTP_MUTATION` / `WORKFLOW` | 工具权限 → 委托/会话授权 → 置信度门控 → 风险确认 → 权益/积分预检 → 执行工具 → 成功后扣费/记录用量 → 审计 |
+| 生成式工具 | `IMAGE_GENERATION` / `VIDEO_GENERATION` / `MUSIC_GENERATION` / `MODEL3D_GENERATION` | 工具权限 → 委托/会话授权 → 置信度门控 → 风险确认 → 内容安全预检 → 权益/积分预检 → 执行生成 → 成功后扣费/记录用量 → 审计 |
+| 代理/Agent 工具 | `AGENT_DELEGATION` | 工具权限 → 委托边界检查 → 置信度门控 → 会话授权/风险确认 → 子 Agent 执行 → 审计 |
+
+实现约束：
+
+- 风险确认在扣费前执行。用户拒绝或超时不应消耗额度。
+- 置信度门控在风险确认和扣费前执行。低置信且不可验证时直接进入人工确认。
+- 生成式工具的内容安全审查在扣费前执行。被拒绝或等待复审时不扣费。
+- HITL 是统一人工介入层，触发来源包括 `TOOL_PERMISSION`、`ACTION_CONFIRM`、`LOW_CONFIDENCE`、`CONTENT_REVIEW`、`CREDIT_RECOVERY`。前三类审批通过后按 `grantScope` 写入会话授权；低置信授权使用独立 `confidence:{subject}` 键，不会顺带绕过工具或 Action 的风险确认；内容复审通过后按 `sessionId + userId + toolName + prompt` 记住同一请求的审查结果。
+- Tool 链是否走权益/积分由 `ai_tool_catalog.entitlement_code` 与 `cost_expression` 决定；未配置权益的免费工具不扣费。
+- `executeBusinessAction` 工具入口通常不扣费，具体业务动作是否收费由 Action 链的 `ai_action_catalog.entitlement_code` 决定。
+- 收费工具只在工具返回成功后扣费；如果工具返回结构化 `success=false`，不扣费。
+- `FORBIDDEN` 代表永久权限不足，不能通过会话临时授权绕过。
+- `PENDING_APPROVAL`、`PENDING_CONTENT_REVIEW`、`INSUFFICIENT_CREDITS` 都是可恢复状态，AI 应等待外部状态变化后用相同参数重试。
+
 ### 完整请求流程
 
 ```
@@ -483,14 +631,14 @@ AssistantAuthFilter → AssistantContextHolder{assistantId, delegatorId}
   ↓
 SecurityOperatorContext：currentOwnerId = delegatorId
   ↓
-ResilientChatService → AiCreditGuard.precheck(delegatorId)  ← 积分以委托者计费
+ResilientChatService / TokenMeteringHook → AiCreditGuard.precheck(delegatorId)  ← 积分以委托者计费
   ↓
 LLM 决定调用工具
   ↓
-AssistantPermissionEvaluator.evaluateToolCall()
-  → 委托者 L1 权限（PermissionSecurityService）
-  → 会话授权检查（Redis，生成 effectiveScope）
-  → effectiveScope 白名单 / 风险等级
+AgentScopeToolGovernanceService 包装 AgentTool
+  → ToolPermissionGuard
+  → AssistantPermissionEvaluator.evaluateToolCall()
+  → ToolPermissionChecker / ConfidenceGate / ContentSafety / CreditService
   ↓
 通过 → 工具执行
   → 数据查询：DataAccessService.buildSpecification(delegatorId)  ← 行级权限以委托者过滤
@@ -513,6 +661,41 @@ AuthorizationRequest{ requestId, assistantId, delegatorId, sessionId, resource, 
 ```
 
 复用并修复 `HumanApprovalService`：**M35** 已完成（resolve 加授权校验 + requestId 不可预测 UUID）、**M36** 已通过 `HumanApprovalController` + SSE 端到端打通。临时会话授权 Redis：`session_tool_trust:{sessionId}:{toolName}`、`session_delegation:{sessionId}` TTL=会话。
+
+审批完成后发布 `ApprovalResolvedEvent`：
+
+- `TOOL_PERMISSION` / `LOW_CONFIDENCE` / `ACTION_CONFIRM` 通过后，`HitlApprovalGrantListener` 按 `grantScope=ONCE|SESSION|PATTERN` 写入 `ToolPermissionChecker`；其中 `TOOL_PERMISSION` 的工具授权同时写入 `AssistantSessionTrustService`，AI 使用相同参数重试即可恢复。
+- `CONTENT_REVIEW` 通过后，`ContentSafetyService` 记录内容复审 key；相同会话、用户、工具、prompt 的重试不再重复创建复审单。
+- `CREDIT_RECOVERY` 预留给充值、套餐升级、额度恢复等外部状态变化。额度恢复后 AI 使用原参数重试，由权益/积分预检重新判定。
+
+### HITL 与治理链路结合点
+
+HITL 不直接替代权限、内容安全或计费，它只负责把“可由人类/外部状态恢复”的阻塞点统一成审批单、事件和重试语义。各链路的结合点如下：
+
+| 触发场景 | 所在链路 | 触发组件 | 审批类型 | 审批通过后的状态 | 恢复方式 |
+|----------|----------|----------|----------|------------------|----------|
+| 工具风险确认 / `require_confirm` | Tool | `ToolPermissionChecker.checkDetailed` | `TOOL_PERMISSION` | 写入 `ToolPermissionChecker` 会话授权；同步 `AssistantSessionTrustService` 工具信任 | AI 使用相同 `sessionId + toolName + arguments` 重试 |
+| 工具低置信 | Tool | `ToolCallDispatcher` / `ToolPermissionGuard` + `ConfidenceGate` | `LOW_CONFIDENCE` | 写入 `confidence:{toolName}` 会话授权 | 重试后跳过本次低置信阻塞，仍继续执行工具风险、内容安全和计费 |
+| 业务动作风险确认 | Action | `AiBusinessActionExecutor.checkRisk` | `ACTION_CONFIRM` | 写入 `{entitySlug}.{action}` 会话授权 | 重试后继续执行 Action 权益/积分预检和业务服务 |
+| 业务动作低置信 | Action | `AiBusinessActionExecutor.checkConfidence` + `ConfidenceGate` | `LOW_CONFIDENCE` | 写入 `confidence:{entitySlug}.{action}` 会话授权 | 重试后跳过本次低置信阻塞，仍继续执行 Action 风险确认 |
+| 生成式内容复审 | Tool 专用门控 | `ContentSafetyService.reviewBeforeGeneration` | `CONTENT_REVIEW` | 记录 `sessionId + userId + toolName + prompt` 的复审结果 | 审查通过后相同 prompt 重试进入额度预检和生成执行 |
+| 额度不足 / 套餐恢复 | Tool / Action | `CreditService` 预检 | `CREDIT_RECOVERY`（预留） | 不写权限授权，等待额度外部状态变化 | 充值、升级或额度恢复后用原参数重试 |
+
+AgentScope 集成点：
+
+- `AgentScopeRuntime` 构建 `Toolkit` 后调用 `AgentScopeToolGovernanceService.apply`，把每个 `AgentTool` 包装为受治理工具。
+- 包装工具在 `AgentTool.callAsync` 内适配为 Spring AI `ToolCallback`，统一进入 `ToolPermissionGuard`。因此 AgentScope 本地工具、MCP 工具、子 Agent 工具与外部 `ToolCallDispatcher` 使用同一套权限、HITL、内容安全和额度门控。
+- AgentScope 自带 HITL 保留为执行暂停协议：`ToolSuspendException` / `GenerateReason.TOOL_SUSPENDED` 用来暂停 ReAct 循环。AAF 治理链返回 `PENDING_APPROVAL`、`PENDING_CONTENT_REVIEW`、`INSUFFICIENT_CREDITS` 等可恢复 JSON 时，包装工具抛出 `ToolSuspendException`，由 AgentScope 停在 pending tool 状态；审批、复审或额度恢复后使用相同会话继续执行。
+- `AafToolWhitelistHook` 仍保留为模型调用前的轻量白名单/目录 enabled 保护；真正安全边界在 `ToolPermissionGuard`。
+- `TokenMeteringHook` 在 `PreReasoningEvent` 做 `AiCreditGuard.precheck`，在 `PostCallEvent` 记录 token 并调用 `AiCreditGuard.settle`。同步 Chat 由 `ResilientChatService.call` 处理；流式 Chat 在 `stream` 入口预检，并在流结束后按收到的最大 usage 发布用量事件。
+
+结合边界：
+
+- `FORBIDDEN` 是永久权限不足，不进入用户即时确认，必须由管理员补角色权限码或工具权限码。
+- `PENDING_APPROVAL` 只解决当前会话可授权事项，不扩大 owner 的永久业务权限。
+- `PENDING_CONTENT_REVIEW` 只解决内容安全复审，不跳过工具风险确认和额度预检。
+- `INSUFFICIENT_CREDITS` 不应由工具审批直接放行，除非后续实现了明确的赠额、透支或管理员补额流程。
+- 低置信授权键与风险授权键分离，避免“确认模型不确定”被误用为“同意执行高风险动作”。
 
 ## 存储架构
 

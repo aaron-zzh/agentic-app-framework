@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.enums.OverLimitAction;
 import com.xuejiai.aaf.common.enums.RiskLevel;
+import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.engine.tool.ToolRiskLevel;
 import com.xuejiai.aaf.framework.security.access.FunctionPermissionChecker;
 import com.xuejiai.aaf.framework.security.access.RelationPermissionChecker;
@@ -33,6 +34,7 @@ public class AssistantPermissionEvaluator {
     private final AssistantDefinitionRepository assistantRepo;
     private final ObjectProvider<FunctionPermissionChecker> functionPermissionChecker;
     private final ObjectProvider<RelationPermissionChecker> relationPermissionChecker;
+    private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
     private final AssistantSessionTrustService sessionTrustService;
 
     /** 评估结果 */
@@ -76,9 +78,17 @@ public class AssistantPermissionEvaluator {
         var def = defOpt.get();
         var scope = def.getEffectiveScope();
         var delegatorId = def.getEffectiveDelegatorId();
+        var toolCatalog = toolCatalogProvider.getIfAvailable();
+        if (toolCatalog != null
+                && toolCatalog.find(toolName).map(entry -> !entry.enabled()).orElse(true)) {
+            return EvalResult.denied(
+                    scope.overLimitAction(),
+                    "工具 [%s] 未开放或已禁用".formatted(toolName),
+                    delegatorId);
+        }
 
         var functionChecker = functionPermissionChecker.getIfAvailable();
-        var toolPermissionCode = "tool:" + normalizePermissionSegment(toolName) + ":execute";
+        var toolPermissionCode = resolveToolPermissionCode(toolName);
         if (functionChecker == null
                 || (!functionChecker.hasPermission(delegatorId, toolPermissionCode)
                         && !functionChecker.hasPermission(delegatorId, "tool:default:execute"))) {
@@ -185,5 +195,20 @@ public class AssistantPermissionEvaluator {
 
     private String normalizePermissionSegment(String value) {
         return value == null ? "" : value.trim().toLowerCase().replace('_', '-');
+    }
+
+    private String resolveToolPermissionCode(String toolName) {
+        var provider = toolCatalogProvider.getIfAvailable();
+        if (provider != null) {
+            var override =
+                    provider.find(toolName)
+                            .map(entry -> entry.permissionCode())
+                            .filter(code -> code != null && !code.isBlank())
+                            .orElse(null);
+            if (override != null) {
+                return override;
+            }
+        }
+        return "tool:" + normalizePermissionSegment(toolName) + ":execute";
     }
 }

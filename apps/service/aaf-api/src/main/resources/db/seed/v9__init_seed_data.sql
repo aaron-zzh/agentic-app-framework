@@ -238,6 +238,99 @@ VALUES
 ('workflow_count',  '工作流数量',   'COUNTABLE', '个',  '可创建的工作流数量上限')
 ON CONFLICT DO NOTHING;
 
+-- ==================== AI 业务动作目录 ====================
+
+INSERT INTO ai_action_catalog (
+    action_key,
+    entity_slug,
+    display_name,
+    description,
+    enabled,
+    risk_level,
+    require_confirm,
+    input_schema,
+    sort_order,
+    create_time,
+    update_time
+) VALUES
+('query', 'system-role', '查询角色', '按分页和筛选条件查询角色列表，返回查询窗口。', TRUE, 'low', FALSE,
+ '{"type":"object","properties":{"pageNo":{"type":"integer"},"pageSize":{"type":"integer"},"keyword":{"type":"string"},"status":{"type":"integer"},"fieldSet":{"type":"string"}}}',
+ 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('detail', 'system-role', '查看角色详情', '按 ID 查看角色详情。', TRUE, 'low', FALSE,
+ '{"type":"object","required":["id"],"properties":{"id":{"type":"integer"},"queryToken":{"type":"string"},"fieldSet":{"type":"string"}}}',
+ 110, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('options', 'system-role', '角色选项', '查询角色选择器选项。', TRUE, 'low', FALSE,
+ '{"type":"object","properties":{"q":{"type":"string"},"limit":{"type":"integer"}}}',
+ 120, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('meta', 'system-role', '角色元数据', '查询角色实体元数据和可用动作。', TRUE, 'low', FALSE,
+ '{"type":"object","properties":{}}',
+ 130, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('create', 'system-role', '创建角色', '创建系统角色。', TRUE, 'medium', TRUE,
+ '{"type":"object","required":["data"],"properties":{"data":{"type":"object","required":["code","name"],"properties":{"code":{"type":"string"},"name":{"type":"string"},"description":{"type":"string"}}}}}',
+ 200, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('update', 'system-role', '更新角色', '更新系统角色名称、描述或状态。', TRUE, 'medium', TRUE,
+ '{"type":"object","required":["id","data"],"properties":{"id":{"type":"integer"},"data":{"type":"object","properties":{"name":{"type":"string"},"description":{"type":"string"},"status":{"type":"integer"}}}}}',
+ 210, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('delete', 'system-role', '删除角色', '删除单个系统角色。', TRUE, 'high', TRUE,
+ '{"type":"object","required":["id"],"properties":{"id":{"type":"integer"}}}',
+ 300, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('batchDelete', 'system-role', '批量删除角色', '批量删除系统角色。', TRUE, 'high', TRUE,
+ '{"type":"object","required":["ids"],"properties":{"ids":{"type":"array","items":{"type":"integer"}}}}',
+ 310, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (entity_slug, action_key) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    enabled = EXCLUDED.enabled,
+    risk_level = EXCLUDED.risk_level,
+    require_confirm = EXCLUDED.require_confirm,
+    input_schema = EXCLUDED.input_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
+INSERT INTO ai_tool_catalog (
+    tool_name,
+    source,
+    enabled,
+    tool_type,
+    category,
+    risk_level,
+    read_only,
+    require_confirm,
+    permission_code,
+    entitlement_code,
+    cost_expression,
+    input_schema,
+    sort_order,
+    create_time,
+    update_time
+) VALUES
+('listBusinessActions', 'LOCAL', TRUE, 'FUNCTION', 'BUSINESS_ACTION', 'LOW', TRUE, FALSE, 'tool:business-action:execute', NULL, NULL,
+ '{"type":"object","properties":{}}',
+ 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('executeBusinessAction', 'LOCAL', TRUE, 'FUNCTION', 'BUSINESS_ACTION', 'MEDIUM', FALSE, TRUE, 'tool:business-action:execute', NULL, NULL,
+ '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 请求，包含 action、entity、params，可选 sessionId/confidence/verifiable"}}}',
+ 110, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('generateImage', 'LOCAL', TRUE, 'GENERATIVE', 'IMAGE_GENERATION', 'MEDIUM', FALSE, TRUE, 'tool:image-generate:execute', 'aigc_image', '10',
+ '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：prompt 必填，width/height/model 可选"}}}',
+ 200, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('generateVideo', 'LOCAL', TRUE, 'GENERATIVE', 'VIDEO_GENERATION', 'HIGH', FALSE, TRUE, 'tool:video-generate:execute', 'aigc_video', '100',
+ '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：prompt 必填，imageUrl/referenceImageUrls/model/resolution/ratio/duration/seed 可选"}}}',
+ 210, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (tool_name) DO UPDATE SET
+    source = EXCLUDED.source,
+    enabled = EXCLUDED.enabled,
+    tool_type = EXCLUDED.tool_type,
+    category = EXCLUDED.category,
+    risk_level = EXCLUDED.risk_level,
+    read_only = EXCLUDED.read_only,
+    require_confirm = EXCLUDED.require_confirm,
+    permission_code = EXCLUDED.permission_code,
+    entitlement_code = EXCLUDED.entitlement_code,
+    cost_expression = EXCLUDED.cost_expression,
+    input_schema = EXCLUDED.input_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
 -- ==================== FREE 套餐 ====================
 
 INSERT INTO subscription_plan (code, name, duration_days, price, market_price, status, sort)
@@ -280,7 +373,10 @@ VALUES
     ('数据权限规则管理', 'system:data-access-rule:manage', 'system', 'data-access-rule', 'manage', 0),
     ('ReBAC 关系管理', 'system:relation:manage', 'system', 'relation', 'manage', 0),
     ('访问策略管理', 'system:access-policy:manage', 'system', 'access-policy', 'manage', 0),
-    ('工具执行', 'tool:default:execute', 'tool', 'default', 'execute', 0)
+    ('工具执行', 'tool:default:execute', 'tool', 'default', 'execute', 0),
+    ('业务动作工具执行', 'tool:business-action:execute', 'tool', 'business-action', 'execute', 0),
+    ('图片生成工具执行', 'tool:image-generate:execute', 'tool', 'image-generate', 'execute', 0),
+    ('视频生成工具执行', 'tool:video-generate:execute', 'tool', 'video-generate', 'execute', 0)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
@@ -328,7 +424,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id
 FROM sys_role r
-JOIN sys_permission_code p ON p.code IN ('tool:default:execute')
+JOIN sys_permission_code p ON p.code IN ('tool:default:execute', 'tool:image-generate:execute')
 WHERE r.code = 'sales'
 ON CONFLICT DO NOTHING;
 
