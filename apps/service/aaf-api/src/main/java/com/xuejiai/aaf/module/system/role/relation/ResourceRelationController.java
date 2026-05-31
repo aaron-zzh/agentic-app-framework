@@ -26,7 +26,7 @@ public class ResourceRelationController {
     private final ResourceRelationService service;
 
     @Operation(summary = "授予资源关系")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:relation:manage')")
     @PostMapping("/grant")
     public Result<Void> grant(@Validated @RequestBody GrantRelationDTO dto) {
         service.grant(dto);
@@ -34,7 +34,7 @@ public class ResourceRelationController {
     }
 
     @Operation(summary = "撤销资源关系")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:relation:manage')")
     @PostMapping("/revoke")
     public Result<Void> revoke(@Validated @RequestBody GrantRelationDTO dto) {
         service.revoke(dto);
@@ -44,15 +44,15 @@ public class ResourceRelationController {
     @Operation(summary = "检查是否拥有关系")
     @GetMapping("/check")
     public Result<Boolean> check(
-            @RequestParam String resourceType, @RequestParam Long resourceId,
-            @RequestParam String relation, @RequestParam String subjectType, @RequestParam Long subjectId) {
-        return Result.success(service.check(resourceType, resourceId, relation, subjectType, subjectId));
+            @RequestParam String objectType, @RequestParam String objectId,
+            @RequestParam String relation, @RequestParam String subjectType, @RequestParam String subjectId) {
+        return Result.success(service.check(objectType, objectId, relation, subjectType, subjectId));
     }
 
     @Operation(summary = "查询资源的所有关系")
     @GetMapping
-    public Result<List<ResourceRelationVO>> list(
-            @RequestParam String resourceType, @RequestParam Long resourceId) {
-        return Result.success(service.listByResource(resourceType, resourceId));
+    public Result<List<PermissionTupleVO>> list(
+            @RequestParam String objectType, @RequestParam String objectId) {
+        return Result.success(service.listByResource(objectType, objectId));
     }
 }

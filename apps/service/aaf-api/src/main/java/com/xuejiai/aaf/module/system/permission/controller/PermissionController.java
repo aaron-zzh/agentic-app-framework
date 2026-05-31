@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.module.system.menu.service.MenuService;
+import com.xuejiai.aaf.module.system.menu.vo.MenuVO;
 import com.xuejiai.aaf.module.system.permission.service.PermissionService;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionCreateDTO;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionTreeVO;
@@ -28,65 +30,83 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 权限点管理接口。
+ * 权限码管理接口。
  *
  * @author AaronZZH & Kiro
  */
-@Tag(name = "权限点管理")
+@Tag(name = "权限码管理")
 @RestController
 @RequestMapping("/api/system")
 @RequiredArgsConstructor
 public class PermissionController {
 
     private final PermissionService permissionService;
+    private final MenuService menuService;
 
-    @Operation(summary = "获取权限点树形列表")
+    @Operation(summary = "获取权限码树形列表")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @GetMapping("/permissions")
     public Result<List<PermissionTreeVO>> tree() {
         return Result.success(permissionService.tree());
     }
 
-    @Operation(summary = "创建权限点")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "创建权限码")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @PostMapping("/permissions")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<PermissionVO> create(@Validated @RequestBody PermissionCreateDTO request) {
         return Result.success(permissionService.create(request));
     }
 
-    @Operation(summary = "更新权限点")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "更新权限码")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @PutMapping("/permissions/{id}")
     public Result<PermissionVO> update(
             @PathVariable Long id, @Validated @RequestBody PermissionUpdateDTO request) {
         return Result.success(permissionService.update(id, request));
     }
 
-    @Operation(summary = "删除权限点")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "删除权限码")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @DeleteMapping("/permissions/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         permissionService.delete(id);
         return Result.success();
     }
 
-    @Operation(summary = "为角色分配权限点")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "为角色分配权限码")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @PostMapping("/roles/{roleId}/permissions")
     public Result<Void> assignPermissionsToRole(
-            @PathVariable Long roleId, @RequestBody List<Long> permissionIds) {
-        permissionService.assignPermissionsToRole(roleId, permissionIds);
+            @PathVariable Long roleId, @RequestBody List<Long> permissionCodeIds) {
+        permissionService.assignPermissionsToRole(roleId, permissionCodeIds);
         return Result.success();
     }
 
-    @Operation(summary = "查询角色拥有的权限点")
+    @Operation(summary = "查询角色拥有的权限码")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @GetMapping("/roles/{roleId}/permissions")
     public Result<List<PermissionVO>> getPermissionsByRole(@PathVariable Long roleId) {
         return Result.success(permissionService.getPermissionsByRoleId(roleId));
     }
 
+    @Operation(summary = "为角色分配菜单")
+    @PreAuthorize("hasPermission(null, 'system:menu:manage')")
+    @PostMapping("/roles/{roleId}/menus")
+    public Result<Void> assignMenusToRole(@PathVariable Long roleId, @RequestBody List<Long> menuIds) {
+        menuService.assignMenusToRole(roleId, menuIds);
+        return Result.success();
+    }
+
+    @Operation(summary = "查询角色拥有的菜单")
+    @PreAuthorize("hasPermission(null, 'system:menu:manage')")
+    @GetMapping("/roles/{roleId}/menus")
+    public Result<List<MenuVO>> getMenusByRole(@PathVariable Long roleId) {
+        return Result.success(menuService.getMenusByRoleId(roleId));
+    }
+
     @Operation(summary = "为用户分配角色")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @PostMapping("/users/{userId}/roles")
     public Result<Void> assignRolesToUser(
             @PathVariable Long userId, @RequestBody List<Long> roleIds) {
@@ -95,13 +115,14 @@ public class PermissionController {
     }
 
     @Operation(summary = "查询用户拥有的角色")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @GetMapping("/users/{userId}/roles")
     public Result<List<RoleVO>> getRolesByUser(@PathVariable Long userId) {
         return Result.success(permissionService.getRolesByUserId(userId));
     }
 
     @Operation(summary = "移除用户的某个角色")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:permission:manage')")
     @DeleteMapping("/users/{userId}/roles/{roleId}")
     public Result<Void> removeRoleFromUser(@PathVariable Long userId, @PathVariable Long roleId) {
         permissionService.removeRoleFromUser(userId, roleId);

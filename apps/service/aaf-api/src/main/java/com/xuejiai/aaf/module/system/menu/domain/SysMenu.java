@@ -1,8 +1,12 @@
 package com.xuejiai.aaf.module.system.menu.domain;
 
-import java.time.LocalDateTime;
+import org.hibernate.annotations.SQLDelete;
 
-import jakarta.persistence.*;
+import com.xuejiai.aaf.common.model.BaseEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,11 +17,8 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_menu")
-public class SysMenu {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@SQLDelete(sql = "UPDATE sys_menu SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+public class SysMenu extends BaseEntity {
 
     @Column(name = "parent_id")
     private Long parentId;
@@ -40,24 +41,6 @@ public class SysMenu {
     @Column(name = "menu_type", nullable = false, length = 20)
     private String menuType = "MENU";
 
-    @Column(name = "permission", length = 100)
-    private String permission;
-
-    @Column(name = "create_time", nullable = false, updatable = false)
-    private LocalDateTime createTime;
-
-    @Column(name = "update_time", nullable = false)
-    private LocalDateTime updateTime;
-
-    @PrePersist
-    protected void onCreate() {
-        var now = LocalDateTime.now();
-        this.createTime = now;
-        this.updateTime = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updateTime = LocalDateTime.now();
-    }
+    @Column(name = "permission_code", length = 120)
+    private String permissionCode;
 }

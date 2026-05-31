@@ -277,3 +277,159 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('product_type', '工具',     'TOOL',           5, 'success'),
 ('product_type', '知识库',   'KNOWLEDGE',      6, 'success')
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== 权限功能字典 ====================
+
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('系统角色码',       'sys_role_code',              0, '内置角色与演示角色'),
+('权限动作',         'sys_permission_action',      0, '权限码第三段 action'),
+('访问策略效果',     'sys_access_policy_effect',   0, 'ABAC 策略效果'),
+('数据权限规则效果', 'sys_data_rule_effect',       0, 'L3 行级规则效果'),
+('ReBAC 主体类型',   'sys_rebac_subject_type',     0, '关系元组 subject_type'),
+('ReBAC 常用关系',   'sys_rebac_relation',         0, '关系元组 relation'),
+('ReBAC 权限',       'sys_rebac_permission',       0, 'hasPermission 的 relationPermission'),
+('操作者类型',       'sys_operator_type',          0, 'Human/AI 操作者类型'),
+('风险等级',         'sys_risk_level',             0, 'AI 工具与策略风险等级'),
+('越限处理动作',     'sys_over_limit_action',      0, '风险越限后的处理动作')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_role_code', '超级管理员', 'super_admin', 1, 'danger'),
+('sys_role_code', '系统管理员', 'admin',       2, 'warning'),
+('sys_role_code', '组织管理员', 'org_admin',   3, 'warning'),
+('sys_role_code', '普通成员',   'member',      4, 'primary'),
+('sys_role_code', '访客',       'guest',       5, 'info'),
+('sys_role_code', 'AI 智能体',  'agent',       6, 'default'),
+('sys_role_code', '销售',       'sales',       7, 'success')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_permission_action', '读取',     'read',    1, 'info'),
+('sys_permission_action', '创建',     'create',  2, 'primary'),
+('sys_permission_action', '更新',     'update',  3, 'warning'),
+('sys_permission_action', '删除',     'delete',  4, 'danger'),
+('sys_permission_action', '导出',     'export',  5, 'default'),
+('sys_permission_action', '管理',     'manage',  6, 'warning'),
+('sys_permission_action', '执行',     'execute', 7, 'success')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_access_policy_effect', '允许', 'ALLOW', 1, 'success'),
+('sys_access_policy_effect', '拒绝', 'DENY',  2, 'danger')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_data_rule_effect', '允许', 'allow', 1, 'success'),
+('sys_data_rule_effect', '拒绝', 'deny',  2, 'danger')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_rebac_subject_type', '用户',   'USER',  1, 'primary'),
+('sys_rebac_subject_type', '角色',   'ROLE',  2, 'warning'),
+('sys_rebac_subject_type', '组织',   'ORG',   3, 'info'),
+('sys_rebac_subject_type', '团队',   'TEAM',  4, 'info'),
+('sys_rebac_subject_type', '智能体', 'AGENT', 5, 'default')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_rebac_relation', '拥有者', 'OWNER',  1, 'danger'),
+('sys_rebac_relation', '管理员', 'ADMIN',  2, 'warning'),
+('sys_rebac_relation', '编辑者', 'EDITOR', 3, 'primary'),
+('sys_rebac_relation', '查看者', 'VIEWER', 4, 'info'),
+('sys_rebac_relation', '成员',   'MEMBER', 5, 'success')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_rebac_permission', '可读取', 'can_read',   1, 'info'),
+('sys_rebac_permission', '可写入', 'can_write',  2, 'primary'),
+('sys_rebac_permission', '可删除', 'can_delete', 3, 'danger')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_operator_type', '人类用户', 'human', 1, 'primary'),
+('sys_operator_type', 'AI 助理',  'ai',    2, 'success')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_risk_level', '低风险', 'low',    1, 'success'),
+('sys_risk_level', '中风险', 'medium', 2, 'warning'),
+('sys_risk_level', '高风险', 'high',   3, 'danger')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_over_limit_action', '请求确认', 'ask',   1, 'warning'),
+('sys_over_limit_action', '跳过操作', 'skip',  2, 'info'),
+('sys_over_limit_action', '暂停任务', 'pause', 3, 'danger')
+ON CONFLICT DO NOTHING;
+
+
+-- ==================== 渠道 / 客服 / 统计字典 ====================
+
+-- ============================================================
+-- 字典 seed：渠道/客服/统计
+-- ============================================================
+
+INSERT INTO sys_dict_type (name, type, status, version, deleted, create_time, update_time) VALUES
+    ('渠道类型', 'channel_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('渠道消息类型', 'channel_message_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('Webhook状态', 'webhook_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('客服会话状态', 'livechat_session_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('坐席状态', 'livechat_seat_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('转接原因', 'livechat_transfer_reason', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('工单状态', 'livechat_ticket_status', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('工单优先级', 'livechat_ticket_priority', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('工单类型', 'livechat_ticket_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('用户事件类型', 'stats_event_type', 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, status, version, deleted, create_time, update_time) VALUES
+    ('channel_type', '微信公众号', 'wechat_mp', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '微信小程序', 'wechat_mini', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '钉钉', 'dingtalk', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '飞书', 'feishu', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', '网页', 'web', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_type', 'Webhook', 'webhook', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '文本', 'text', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '图片', 'image', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '语音', 'voice', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '事件', 'event', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '模板消息', 'template', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', 'Markdown', 'markdown', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('channel_message_type', '卡片消息', 'card', 7, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('webhook_status', '启用', 'active', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('webhook_status', '停用', 'inactive', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('webhook_status', '失败', 'failed', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '机器人服务中', 'bot', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '等待人工接入', 'waiting', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '人工服务中', 'active', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_session_status', '已关闭', 'closed', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_seat_status', '在线', 'online', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_seat_status', '忙碌', 'busy', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_seat_status', '离线', 'offline', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '技能不匹配', 'skill_mismatch', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '工作量过大', 'workload', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '用户要求', 'user_request', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '问题升级', 'escalation', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_transfer_reason', '换班交接', 'shift_change', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '待处理', 'PENDING', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '处理中', 'PROCESSING', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '待确认', 'CONFIRMING', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_status', '已关闭', 'CLOSED', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '低', 'LOW', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '中', 'MEDIUM', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '高', 'HIGH', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_priority', '紧急', 'URGENT', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '咨询', 'consultation', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '投诉', 'complaint', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '故障报告', 'bug_report', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '功能建议', 'feature_request', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '退款', 'refund', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('livechat_ticket_type', '其他', 'other', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '页面浏览', 'page_view', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '点击', 'click', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '注册', 'register', 3, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '登录', 'login', 4, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '对话', 'chat', 5, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('stats_event_type', '工具使用', 'tool_use', 6, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;

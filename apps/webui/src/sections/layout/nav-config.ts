@@ -115,8 +115,8 @@ export function buildNavConfig(): NavGroup[] {
 }
 
 /** 将 MenuVO 子节点递归转为 NavItem[] */
-function menuChildrenToItems(children: MenuVO[]): NavItem[] {
-  return children
+function menuChildrenToItems(children: MenuVO[] | null | undefined): NavItem[] {
+  return (children ?? [])
     .filter((m) => m.visible && m.menuType === "MENU")
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((m) => ({
@@ -124,7 +124,7 @@ function menuChildrenToItems(children: MenuVO[]): NavItem[] {
       path: m.path ?? "#",
       icon: m.icon ?? undefined,
       deepMatch: true,
-      children: m.children.length > 0 ? menuChildrenToItems(m.children) : undefined
+      children: (m.children ?? []).length > 0 ? menuChildrenToItems(m.children) : undefined
     }))
 }
 
@@ -154,7 +154,7 @@ export function buildNavFromApi(menus: MenuVO[]): NavGroup[] {
             path: m.path ?? "#",
             icon: m.icon ?? undefined,
             deepMatch: true,
-            children: m.children.length > 0 ? menuChildrenToItems(m.children) : undefined
+            children: (m.children ?? []).length > 0 ? menuChildrenToItems(m.children) : undefined
           }
         ]
       }

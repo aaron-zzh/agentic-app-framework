@@ -6,10 +6,10 @@ package com.xuejiai.aaf.framework.security.access;
  * <p>设计原则：前一层处理了，后续层不再重复校验。 所有对外接口（REST/WebSocket/AG-UI/A2A/MCP/IoT）统一适用。
  *
  * <pre>
- * Layer 1: 注解层（@AccessControl）
+ * Layer 1: 注解层（@PreAuthorize / hasPermission）
  *   ├─ 声明式，编译期可见
  *   ├─ 适用：角色要求、功能开关、限流等级
- *   └─ 处理者：Spring Security + AOP
+ *   └─ 处理者：Spring Security Method Security
  *
  * Layer 2: 拦截器层（PermissionInterceptor）
  *   ├─ 运行时动态，基于请求上下文
@@ -24,7 +24,7 @@ package com.xuejiai.aaf.framework.security.access;
  */
 public enum AccessLayer {
 
-    /** 注解层：声明式权限（角色/功能开关/限流） */
+    /** 注解层：声明式权限（角色/权限码） */
     ANNOTATION,
 
     /** 拦截器层：动态权限（数据权限/租户隔离/资源归属） */

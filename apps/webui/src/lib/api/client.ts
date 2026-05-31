@@ -7,8 +7,13 @@
 export interface PageResult<T> {
   list: T[]
   total: number
-  page: number
-  pageSize: number
+  page?: number
+  pageSize?: number
+  pageNo?: number
+  ids?: number[]
+  queryToken?: string
+  fieldSet?: string
+  hasMore?: boolean
 }
 
 /** 后端统一响应结构 */
@@ -21,6 +26,7 @@ export interface ApiResult<T> {
 /** 列表查询参数 */
 export interface ListParams extends Record<string, string | number | boolean | string[] | undefined> {
   page?: number
+  pageNo?: number
   pageSize?: number
   sort?: string
   search?: string
@@ -140,7 +146,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** 构建查询字符串 */
-function buildQuery(params: ListParams): string {
+function buildQuery(params: Record<string, string | number | boolean | string[] | undefined>): string {
   const entries = Object.entries(params).filter(
     ([, v]) => v !== undefined && v !== null && v !== ""
   )
@@ -166,9 +172,21 @@ export function fetchList<T = Record<string, unknown>>(
   return request<PageResult<T>>(`${apiPath}${buildQuery(params)}`)
 }
 
+/** 获取查询窗口 */
+export function fetchQueryWindow<T = Record<string, unknown>>(
+  apiPath: string,
+  params: ListParams & { fieldSet?: string }
+): Promise<PageResult<T>> {
+  return request<PageResult<T>>(`${apiPath}/_query${buildQuery(params)}`)
+}
+
 /** 获取单条记录 */
-export function fetchRecord<T = Record<string, unknown>>(apiPath: string, id: string): Promise<T> {
-  return request<T>(`${apiPath}/${id}`)
+export function fetchRecord<T = Record<string, unknown>>(
+  apiPath: string,
+  id: string,
+  params: { queryToken?: string; fieldSet?: string } = {}
+): Promise<T> {
+  return request<T>(`${apiPath}/${id}${buildQuery(params)}`)
 }
 
 /** 创建记录 */

@@ -4,10 +4,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -33,9 +39,11 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class HumanApprovalService {
 
     private final Map<String, ApprovalRequest> pending = new ConcurrentHashMap<>();
+    private final ObjectProvider<ApprovalRequestPublisher> publishers;
 
     /** 审批类型 */
     public enum ApprovalType {
@@ -92,7 +100,7 @@ public class HumanApprovalService {
             String title,
             String description,
             Map<String, Object> context) {
-        var requestId = sessionId + ":" + System.nanoTime();
+        var requestId = UUID.randomUUID().toString();
         var request =
                 new ApprovalRequest(
                         requestId,
@@ -106,17 +114,21 @@ public class HumanApprovalService {
                         Duration.ofMinutes(5));
         pending.put(requestId, request);
         log.info("HITL 审批请求: id={}, type={}, title={}", requestId, type, title);
-        // TODO: 通过 WebSocket/SSE 推送给用户
+        publishers.orderedStream().forEach(publisher -> publisher.publish(request));
         return requestId;
     }
 
     /** 用户响应审批。 */
-    public void resolve(String requestId, Decision decision, String reason) {
-        var request = pending.remove(requestId);
+    public void resolve(String requestId, Long userId, Decision decision, String reason) {
+        var request = pending.get(requestId);
         if (request == null) {
             log.warn("审批请求不存在或已过期: {}", requestId);
             return;
         }
+        if (!request.userId().equals(userId)) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "无权处理该审批请求");
+        }
+        pending.remove(requestId);
         log.info("HITL 审批响应: id={}, decision={}", requestId, decision);
         // 结果存入缓存供 AI 轮询获取
         results.put(requestId, new ApprovalResult(decision, reason));

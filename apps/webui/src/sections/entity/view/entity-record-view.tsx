@@ -9,8 +9,9 @@ import type { EntityDef } from "@/features/entity-engine/types"
 interface Props {
   entity: EntityDef
   recordId: string
+  queryToken?: string
 }
 
-export function EntityRecordView({ entity, recordId }: Props) {
-  return <ViewEngine entity={entity} view="form" recordId={recordId} />
+export function EntityRecordView({ entity, recordId, queryToken }: Props) {
+  return <ViewEngine entity={entity} view="form" recordId={recordId} queryToken={queryToken} />
 }

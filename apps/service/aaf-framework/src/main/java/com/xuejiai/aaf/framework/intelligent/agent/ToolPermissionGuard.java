@@ -109,7 +109,7 @@ public class ToolPermissionGuard {
 
             // 先走委托模型判定（如果有 assistantId）
             if (assistantId != null) {
-                var evalResult = assistantPermEval.evaluateToolCall(assistantId, toolName, riskLevel);
+                var evalResult = assistantPermEval.evaluateToolCall(sessionId, assistantId, toolName, riskLevel);
                 if (!evalResult.allowed()) {
                     return handleOverLimit(evalResult.action(), toolName, evalResult.reason());
                 }

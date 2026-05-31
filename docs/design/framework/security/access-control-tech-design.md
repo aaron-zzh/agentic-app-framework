@@ -10,7 +10,7 @@ author: AaronZZH & Kiro
 
 # 访问控制完整技术方案
 
-> 本文是 [access-control.md](access-control.md)（功能/愿景设计）的**完整技术落地方案**：把四层模型（RBAC + ReBAC + 记录规则 + ABAC）连同认证、AI 委托、实时授权、组织隔离，一次性给出可实现的接口签名、数据模型、枚举管线、存储与同步。**不分阶段**——本文是完整技术蓝图；实现先后由任务拆分（tasks）安排，但设计一次定全。
+> 本文是 [access-control.md](access-control.md)（功能设计）的**完整技术落地方案**：把四层模型（RBAC + ReBAC + 记录规则 + ABAC）连同认证、AI 委托、实时授权、组织隔离，一次性给出可实现的接口签名、数据模型、枚举管线、存储与同步。**不分阶段**——本文是完整技术蓝图；实现先后由任务拆分（tasks）安排，但设计一次定全。
 
 ## 范围与原则
 
@@ -23,14 +23,14 @@ author: AaronZZH & Kiro
 |------|---------|----|------|
 | 主体抽象 | `OperatorContext`（`currentOperatorId/currentOwnerId/currentOperatorType/isAuthenticated`） | — | ✅ |
 | 认证 | `SecurityConfig`（JWT OAuth2 RS + `ApiKeyAuthFilter` + `@EnableMethodSecurity`），`MockTokenConfig` | 认证 | ✅ |
-| RBAC 数据模型 | `Role`(sys_role)、`Permission`(sys_menu_permission, `@Entity MenuPermission`，含 code)、`RolePermission`(sys_role_permission)、`UserRole` | L1 | ✅ 模型在，未接 PermissionEvaluator |
-| 记录规则引擎 | `DataAccessService.buildSpecification(entitySlug,userId)` → JPA `Specification`（allow/deny、`$user.xxx`、无匹配→拒绝全部=404），`DataAccessRule`(sys_data_access_rule) | L3 | ✅ 引擎在，未自动注入 |
+| RBAC 数据模型 | `Role`(sys_role)、`Permission`(sys_menu_permission，待拆为 `sys_menu` + `sys_permission_code`)、`RolePermission`(sys_role_permission)、`UserRole` | L1 | ✅ 模型在，未接 PermissionEvaluator |
+| 记录规则引擎 | `DataAccessService.buildSpecification(entitySlug,userId)` → JPA `Specification`（allow/deny、`$user.xxx`；无规则默认放行），`DataAccessRule`(sys_data_access_rule) | L3 | ✅ 引擎在，未自动注入 |
 | 字段级权限 | `Permission`(sys_permission, entitySlug/action/fieldAccess JSONB) | L3 | 🚧 模型在，未强制 |
 | AI 委托 | `PermissionScope`(record) + `AssistantPermissionEvaluator`(evaluateToolCall/evaluateOperation→EvalResult) | 委托 | ✅（M34 fail-open 待修） |
-| 实时授权 | `HumanApprovalService` | 实时 | 🚧（M35/M36 待修） |
+| 实时授权 | `HumanApprovalService` + `HumanApprovalController` + SSE | 实时 | ✅ requestId UUID、resolve 授权校验、SSE 推送 |
 | 默认拒绝门控 | `ControllerAuthorizationTest`（FreezingArchRule） | L1 | ✅（ab62e06） |
 | 未用机制 | `@AccessControl` + `AccessControlAspect` | L1 | ⚠️ 0 使用，本方案退役 |
-| 关系权限 ReBAC | —（无 Neo4j 关系图） | L2 | ❌ 新建 |
+| 关系权限 ReBAC | —（无 `permission_tuple` 与 PG 递归 CTE 查询） | L2 | ❌ 新建 |
 | ABAC 策略引擎 | —（置信度门控散落） | L4 | ❌ 新建 |
 | 功能权限 SpEL 出口 | —（无 `PermissionEvaluator` 实现） | L1 | ❌ 新建 |
 
@@ -65,6 +65,8 @@ public interface AccessDecisionService {
 }
 ```
 
+调用关系：`@PreAuthorize` 场景统一进入 `AafPermissionEvaluator`；Agent 工具调用统一进入 `AssistantPermissionEvaluator`；批处理、内部服务、非注解场景调用 `AccessDecisionService`。`AccessDecisionService` 可以复用 `AafPermissionEvaluator` / `PolicyEngine` / `DataAccessService`，但 `AafPermissionEvaluator` 不反向依赖 `AccessDecisionService`，避免循环。
+
 > **AG-UI 权限控制**：助理通过 AG-UI 接口对话时，工具调用走 `AssistantPermissionEvaluator`，以委托者身份进行完整四层权限检查，详见"AI 委托权限模型"章节。
 
 ## 认证层
@@ -76,13 +78,23 @@ public interface AccessDecisionService {
 | OAuth2 第三方 | Spring Authorization Server | 第三方登录 |
 | 多端 | — | Web/小程序 JWT 2h + Refresh 7d；CLI API Key 长期；Agent 会话级，无独立 token |
 
-**Authority 注入（新建 `JwtAuthenticationConverter`）**：JWT → `ROLE_*`（角色）+ 功能权限 authority（`PERM_模块:资源:动作`，可选，供 `PermissionEvaluator` 快速判定）。Agent 无独立 token——通过请求头 `X-Assistant-Id` 或会话，`SecurityOperatorContext` 解析为 `assistant:{id}`，`currentOwnerId` 回落委托者。
+**Authority 注入（新建 `JwtAuthenticationConverter`）**：JWT → `ROLE_*`（角色）+ `permissionVersion`。功能权限码不默认全量写入 JWT，避免权限变更必须等待 token 过期；`PermissionEvaluator` 优先读 Redis/本地缓存，发现 JWT 中 `permissionVersion` 落后于服务端版本时拒绝旧上下文并要求刷新认证。若内网短生命周期 token 需要极致性能，可选择性注入 `PERM_模块:资源:动作` authority，但必须绑定 `permissionVersion` 校验。Agent 无独立 token——通过请求头 `X-Assistant-Id` 或会话，`SecurityOperatorContext` 解析为 `assistant:{id}`，`currentOwnerId` 回落委托者。
 
 API Key、第三方 OAuth、多端 token 均与用户绑定，`currentOwnerId` 始终回落到 userId。
 
 ## Operator 主体模型
 
 复用 `OperatorContext`：`currentOperatorId`（user 或 assistant）、`currentOwnerId`（始终 user，AI 时为委托者）、`currentOperatorType`。所有层以 `currentOwnerId` 作数据归属、以 `currentOperatorId` 作审计主体。
+
+### 权限执行上下文
+
+内部批处理、AI 工具、管理员代办等场景可通过 `PermissionExecutionService.runAsOwner(userId, reason, ...)` 临时以目标用户的权限边界执行。该机制只覆盖 `OperatorContext.currentOwnerId()`，不改变 `currentOperatorId()` 与 `currentOperatorType()`，因此：
+
+- 权限判定、记录规则、数据归属按目标用户执行。
+- 审计主体仍是真实操作者或助理，不能用于伪造操作者身份。
+- 实现基于 `ThreadLocal`，必须使用服务封装或 try-with-resources 自动清理；异步、WebFlux、消息队列链路需要显式传递上下文。
+
+该上下文优先级高于 AI 委托上下文：如果当前线程已标记代某用户执行，则 `currentOwnerId()` 返回该用户；否则 AI 请求返回委托者，普通请求返回 JWT 用户。
 
 ## Layer 1 — 功能权限（RBAC）
 
@@ -116,14 +128,26 @@ billing:subscription:cancel — 计费模块，订阅，取消
 **菜单 ≠ 权限**，两者独立：
 
 - **菜单**（`sys_menu`）：UI 导航结构，控制用户看到什么入口，角色直接关联菜单
-- **权限**（`sys_menu_permission`，待改名为 `sys_permission`）：安全边界，控制用户能做什么操作，角色关联权限码集合
+- **权限码**（`sys_permission_code`）：安全边界，控制用户能做什么操作，角色关联权限码集合
 
 现有 `sys_menu_permission` 把两者混在一张表，需要拆分（见开放问题 5）。拆分后：
 - 菜单可见性：角色 → 菜单（直接关联，参考 quarkus-starter 的 `system_role_menu_rel`）
 - 操作权限：角色 → 权限码（`@PreAuthorize("hasPermission(null, 'document:publish')")`）
-- 菜单可以引用权限码（可选，用于前端按钮级显隐），但不强制绑定
+- 菜单可以引用 `sys_permission_code.code`（可选，用于前端按钮级显隐），但不强制绑定
 
 > 前端隐藏菜单/按钮不是安全边界，接口层的 `@PreAuthorize` 才是真正的安全边界。
+
+菜单管理实体本身接入通用 CRUD：
+
+```text
+GET /api/system/menus/my-tree   当前用户菜单树，仅要求登录，按 sys_role_menu 过滤
+GET /api/system/menus/tree      管理端完整菜单树，要求 system:menu:manage
+GET /api/system/menus           通用分页查询，要求 system:menu:manage
+GET /api/system/menus/_query    通用查询窗口，要求 system:menu:manage
+POST/PUT/DELETE /api/system/menus... 通用 CRUD，要求 system:menu:manage
+```
+
+因此 `sys_menu.permission_code` 仍只是 UI 辅助字段；菜单入口授权的主关系是 `sys_role_menu`。
 
 **角色体系**：
 
@@ -133,9 +157,10 @@ billing:subscription:cancel — 计费模块，订阅，取消
 | `ADMIN` | `ROLE_ADMIN` | 组织管理员（B9 现用） |
 | `MEMBER` | `ROLE_MEMBER` | 普通成员 |
 | `GUEST` | `ROLE_GUEST` | 只读 |
-| `AGENT` | `ROLE_AGENT` | AI 主体 |
+| `AGENT` | `ROLE_AGENT` | AI 主体（不独立放大权限，仅用于主体类型/审计识别） |
 
 - **`RoleHierarchy` bean**：`SUPER_ADMIN > ADMIN > MEMBER > GUEST` → `hasRole('ADMIN')` 对超管自动放行。
+- 角色命名映射：业务/数据库角色码可使用 `super_admin`、`org_admin`、`member`、`guest`、`agent`；Spring authority 统一映射为 `ROLE_SUPER_ADMIN`、`ROLE_ADMIN`、`ROLE_MEMBER`、`ROLE_GUEST`、`ROLE_AGENT`。
 - **SpEL 出口（新建 `PermissionEvaluator`）**：统一 L1 功能权限和 L2 对象级权限的检查入口：
 
 ```java
@@ -149,9 +174,55 @@ billing:subscription:cancel — 计费模块，订阅，取消
 - **粗→细迁移**：B9 当前 `hasRole('ADMIN')`/`isAuthenticated()` 是合法的 L1 实现；迁移仅把表达式换成 `hasPermission(...)`，注解位置不变。
 - 自定义角色：组织管理员可建，基于权限码组合，不得超 `org_admin`；支持继承内置角色。内置角色是基础骨架，实际系统以动态自定义角色为主。
 
+### 通用 CRUD 动态权限
+
+继承 `BaseCrudController` 的标准实体接口不要求业务 Controller 为每个 CRUD 方法覆写 `@PreAuthorize`。基类统一使用 Spring Security 表达式：
+
+```java
+@PreAuthorize("@crudAuth.can(#root.getThis(), 'read')")
+```
+
+`CrudPermissionAuthorizer` 从 Controller 解析到对应 `BaseCrudService`，再由 Service 生成最终权限码：
+
+```text
+{permissionModule}:{permissionResource}:{action}
+```
+
+默认：
+
+- `permissionModule()` = `system`
+- `permissionResource()` = `entitySlug()`
+- `permissionCode(action)` = `{module}:{resource}:{action}`
+
+标准动作映射：
+
+| 接口类别 | 动作 |
+|------|------|
+| `page` / `_query` / `get` / `_batch-read` / `_options` / `_meta` / `_group` | `read` |
+| `create` / `_import` / `_validate` | `create` |
+| `update` / `_restore` | `update` |
+| `delete` / `_batch-delete` / `_archive` | `delete` |
+| `_export` | `export` |
+
+业务实体只需在 Service 覆写资源段或特殊聚合权限：
+
+```java
+@Override
+protected String permissionResource() {
+    return "role"; // system:role:create
+}
+
+@Override
+protected String permissionCode(String action) {
+    return "system:data-access-rule:manage"; // 管理型资源统一 manage
+}
+```
+
+这样安全出口仍然是 `@PreAuthorize`，底层仍走 `AccessDecisionService` / `PermissionSecurityService`，但减少纯粹为了权限注解产生的 Controller 覆写。特殊业务动作（如 publish/approve/execute）仍由业务 Controller 显式声明 `@PreAuthorize("hasPermission(null, '...')")`。
+
 ## Layer 2 — 关系权限（ReBAC，新建）
 
-借鉴 Zanzibar 关系元组 `<object>#<relation>@<subject>`，PostgreSQL 为写入源、Neo4j 为查询图。
+借鉴 Zanzibar 关系元组 `<object>#<relation>@<subject>`，PostgreSQL 为真理源并通过递归 CTE 完成起步查询。Neo4j 仅作为未来关系复杂度提升后的可替换查询后端，当前实现不引入 Neo4j 同步链路。
 
 **数据模型（新建）**：
 
@@ -175,15 +246,15 @@ public interface RelationTupleService {            // 写入源（PG）+ 发布�
     void grant(String objType,String objId,String relation,String subjType,String subjId,Instant expiresAt);
     void revoke(...);
 }
-public interface RelationGraph {                   // Neo4j 查询
+public interface RelationQueryService {            // PG 递归 CTE 查询
     boolean hasPath(String subjType,String subjId,String objType,String objId,String permission,int maxDepth);
 }
-// Spring 集成：自定义 PermissionEvaluator 调 RelationGraph
+// Spring 集成：自定义 PermissionEvaluator 调 RelationQueryService
 //   @PreAuthorize("hasPermission(#id, 'document', 'can_read')")
 @Component public class AafPermissionEvaluator implements PermissionEvaluator { ... }
 ```
 
-**同步**：`permission_tuple` 写 → 领域事件 → 监听器同步 Neo4j + 失效 Redis 缓存（PG 为真理源）。
+**缓存失效**：`permission_tuple` 写 → 领域事件 → 失效 Redis 权限缓存。后续若引入 Neo4j，再增加 PG → Neo4j 的投影同步监听器。
 
 > 与 `AssistantPermissionEvaluator` 区分：后者是 AI scope 白名单（模式匹配），属「委托收窄」；ReBAC 是人/Agent 统一的对象级关系权限。两者叠加（见 AI 委托节）。
 
@@ -245,9 +316,10 @@ private Predicate buildPredicate(JsonNode node, Root<?> root, CriteriaBuilder cb
 
 **没有配置记录规则的实体不受影响**：
 
+- `entitySlug()` 返回 `null` → 该 Service 明确不接入 L3，直接跳过
 - `buildSpecification` 查不到该 `entitySlug` 的规则 → 返回 `null`
 - `BaseCrudService` 检查 `null` → 直接跳过注入，不生成任何额外 WHERE 条件
-- 查询行为与未接入 L3 完全一致
+- 查询行为与未接入 L3 完全一致，即**无规则默认放行**
 
 ```java
 // BaseCrudService 中的 null 短路
@@ -261,19 +333,25 @@ if (ruleSpec != null) spec = spec.and(ruleSpec);  // null 时跳过，零开销
 
 **Odoo 的解法**：`_compute_domain` 加 `@ormcache(uid, model, mode)`，同一用户同一模型的规则只计算一次，存进进程内缓存，规则变更时 `clear_cache()`。
 
-**我们的对应方案**：两级缓存
+**我们的对应方案**：两级缓存，但缓存对象分层：
 
 ```
 请求进来
   ↓
-L1：ThreadLocal 请求级缓存（同一请求内多次调用 buildSpecification 只查一次）
+L1：ThreadLocal 请求级缓存
+    - key = data_rule:{entitySlug}:{userId}:{ruleVersion}
+    - value = 本请求内可复用的 normalizedDomain / Specification 编译结果
+    - 请求结束必须 clear，避免线程复用污染
   ↓ miss
-L2：Redis 缓存（key = data_rule:{entitySlug}:{userId}，TTL 5min）
+L2：Redis 缓存
+    - key = data_rule:{entitySlug}:{userId}:{ruleVersion}
+    - value = normalizedDomain JSON / 无规则标记
+    - TTL 5min
   ↓ miss
-查 sys_data_access_rule 表，结果写入 Redis
+查 sys_data_access_rule 表，合并 allow/deny 规则，标准化后写入 Redis
 ```
 
-规则变更时（管理员修改规则）：主动删除对应 Redis key，下次请求重新计算。
+Redis **不缓存** JPA `Specification` / `Predicate` 对象；它们和 Criteria 上下文绑定，只能在请求内编译使用。规则变更时（管理员新增/修改/删除规则）：更新 `ruleVersion` 并主动删除相关 Redis key；由于 L3 是无规则默认放行，新增规则也必须清理“无规则标记”缓存。
 
 ### 落地点：BaseCrudService
 
@@ -288,6 +366,8 @@ L2：Redis 缓存（key = data_rule:{entitySlug}:{userId}，TTL 5min）
 | `create()` | 不校验（新建时无记录可校验） |
 
 `entitySlug()` 返回 `null` 的 Service 完全跳过 L3，零额外开销。
+
+绕过 `BaseCrudService` 的自定义查询必须显式调用 `DataAccessService.buildSpecification` 或在技术设计中说明豁免原因；涉及用户数据的 Repository 直查不允许静默绕过 L3。
 
 ### 其他补充
 
@@ -314,7 +394,9 @@ public interface PolicyEngine {
 | HIGH | — | 必须人工确认 |
 | CRITICAL | — | 必须人工执行 |
 
-**实现**：规则存 `sys_data_access_rule`（扩展 `condition_type=ABAC`），用 SpEL 动态求值，规则热加载。与 `ConfidenceGate` 联动：Agent 执行时复用其风险等级判断。
+**实现**：ABAC 策略独立建模为 `sys_access_policy`（或同等策略表），用 SpEL 动态求值，规则热加载。`sys_data_access_rule` 只承载 L3 行级数据规则，避免行级规则和动态策略混层。与 `ConfidenceGate` 联动：Agent 执行时复用其风险等级判断。
+
+ABAC 只缓存策略定义和编译后的 SpEL 表达式，不缓存最终决策结果。最终决策依赖时间、IP、风险等级、置信度、Agent 会话等动态上下文，除非缓存 key 包含完整上下文，否则禁止缓存 allow/deny 结果。
 
 ## AI 委托权限模型
 
@@ -354,10 +436,10 @@ currentOwnerId()     → 有 AssistantContext → delegatorId；无 → JWT user
 evaluateToolCall(assistantId, toolName, riskLevel):
   1. 查 AssistantDefinition → 找不到 → denied（fail-closed）
   2. 取 delegatorId
-  3. 检查会话授权（见下节）→ 全量授权则跳过步骤 4
+  3. 检查会话授权（见下节）→ 解析本次会话的临时 scope 扩展
   4. PermissionSecurityService.hasPermission(delegatorId, 对应权限码)
      → 委托者没有 → denied（不能超越委托者权限边界）
-  5. scope.isToolAllowed(toolName) → 不在白名单 → denied/ASK
+  5. effectiveScope.isToolAllowed(toolName) → 不在白名单 → denied/ASK
   6. 风险等级检查 → 超限 → denied/ASK
   7. 全部通过 → granted
 ```
@@ -372,19 +454,21 @@ evaluateToolCall(assistantId, toolName, riskLevel):
 
 **级别 2：会话级工具信任**
 - 用户对某个工具选择"本次会话信任"，或通过对话指令 `@助理 信任工具 image_search`
-- 存 Redis：`session_tool_trust:{sessionId}:{toolName} = true` TTL=会话时长
+- 存 Redis：`session_tool_trust:{sessionId}:{toolName} = {userId}` TTL=会话时长
 - 同一会话内该工具后续调用自动放行，不再弹审批
 - **批量级联**：用户信任某工具时，当前批次中同一工具的所有待审批调用自动放行（对应 Kiro 的 Allow Always 级联）
 
 **级别 3：会话全量授权**
 - 用户通过对话指令 `@助理 授权全部权限` 或 API `POST /api/chat/sessions/{sessionId}/grant-full-delegation`
-- 存 Redis：`session_delegation:{sessionId} = full` TTL=会话时长
-- 会话内跳过 scope 白名单检查（步骤 5），但委托者实际权限约束（步骤 4）不可绕过
+- 存 Redis：`session_delegation:{sessionId} = {userId}` TTL=会话时长
+- 语义是**用户在当前会话临时扩展助理 scope 到委托者权限上限**，不是绕过委托模型
+- 会话内 `effectiveScope = 委托者实际权限范围`；委托者实际权限约束（步骤 4）不可绕过
+- L4 风险门控仍然生效：HIGH 必须人工确认，CRITICAL 必须人工执行
 - 会话结束自动失效，不持久化
 
 **信任优先级**（高→低）：
 ```
-1. session_delegation:full（会话全量）
+1. session_delegation:full（会话全量临时扩展 scope）
 2. session_tool_trust:{tool}（会话工具级）
 3. AssistantDefinition.permissionScope（助理定义的静态白名单）
 4. 默认：逐次审批
@@ -405,8 +489,8 @@ LLM 决定调用工具
   ↓
 AssistantPermissionEvaluator.evaluateToolCall()
   → 委托者 L1 权限（PermissionSecurityService）
-  → 会话授权检查（Redis）
-  → scope 白名单 / 风险等级
+  → 会话授权检查（Redis，生成 effectiveScope）
+  → effectiveScope 白名单 / 风险等级
   ↓
 通过 → 工具执行
   → 数据查询：DataAccessService.buildSpecification(delegatorId)  ← 行级权限以委托者过滤
@@ -428,19 +512,30 @@ AuthorizationRequest{ requestId, assistantId, delegatorId, sessionId, resource, 
   → WebSocket 推送委托者 → 确认: 授临时权限(once/session, Redis) / 拒绝: 跳过 / 超时: 失效
 ```
 
-复用并修复 `HumanApprovalService`：**修 M35**（resolve 加授权校验 + requestId 不可预测 UUID）、**M36**（推送端到端打通）。临时权限 Redis：`session_perm:{sessionId}:{resource}:{operation}` TTL=会话。
+复用并修复 `HumanApprovalService`：**M35** 已完成（resolve 加授权校验 + requestId 不可预测 UUID）、**M36** 已通过 `HumanApprovalController` + SSE 端到端打通。临时会话授权 Redis：`session_tool_trust:{sessionId}:{toolName}`、`session_delegation:{sessionId}` TTL=会话。
 
 ## 存储架构
 
 ```
-PostgreSQL（真理源）         Neo4j（关系图）        Redis（高速）
- 用户/角色/权限码           permission_tuple 镜像   权限判定缓存(正/负)
- permission_tuple           继承路径遍历            会话临时权限
- sys_data_access_rule       —                       授权请求
+PostgreSQL（真理源）                         Redis（高速）
+ 用户/角色/权限码（sys_permission_code）      权限判定缓存(正/负)
+ permission_tuple（PG 递归 CTE 查询）         会话临时权限
+ sys_data_access_rule / sys_access_policy    授权请求
  审计日志/业务数据
 ```
 
-同步：PG 写 → 领域事件 → ①同步 Neo4j ②失效 Redis。缓存正负结果均存，TTL 5min，super_admin 跳过缓存，变更主动失效。
+同步：PG 写 → 领域事件 → 失效 Redis。L1/L2 权限判定缓存正负结果均存，TTL 5min，super_admin 跳过缓存，变更主动失效。Neo4j 若后续引入，只作为 `permission_tuple` 的查询投影，不改变 PG 真理源。
+
+缓存 key 约定：
+
+| 缓存 | key | value | 失效条件 |
+|------|-----|-------|----------|
+| L1 功能权限 | `perm:{userId}:{permissionCode}:{permissionVersion}` | allow/deny | 角色、权限码、角色权限关系、用户角色关系变更 |
+| L2 关系权限 | `rebac:{subjectType}:{subjectId}:{objectType}:{objectId}:{permission}:{schemaVersion}` | allow/deny | `permission_tuple`、权限 Schema、对象归属关系变更 |
+| L3 记录规则 | `data_rule:{entitySlug}:{userId}:{ruleVersion}` | normalizedDomain JSON / 无规则标记 | `sys_data_access_rule`、用户角色、组织/团队归属变更 |
+| L4 ABAC 策略 | `access_policy:{policyVersion}` | 策略定义 / 编译表达式 | `sys_access_policy` 变更 |
+
+不允许跨层混用缓存 key；版本号进入 key，用于避免变更风暴下误命中旧授权结果。
 
 ## 统一权限检查流程（四阶段，落到组件）
 
@@ -453,11 +548,21 @@ PostgreSQL（真理源）         Neo4j（关系图）        Redis（高速）
 
 性能目标：admin <1ms、缓存命中 <2ms、未命中 5–15ms。
 
+`super_admin` 通过 JWT authority `ROLE_SUPER_ADMIN` 进入快速通道：L1 功能权限、L2 关系权限直接允许，L3 记录规则返回空过滤条件。L4 ABAC/置信度门控保留为风险控制层，除非具体策略明确允许超管跳过。
+
+缓存边界：
+
+- JWT 只作为认证和粗粒度角色上下文，不作为长期权限真理源；权限码缓存以服务端 `permissionVersion` 为准。
+- L1/L2 可缓存 allow/deny，必须有主动失效和短 TTL 双保险。
+- L3 Redis 只缓存规则 JSON / 标准化 domain，不缓存 `Specification` / `Predicate`。
+- L4 只缓存策略定义，不缓存动态最终决策。
+- ThreadLocal 缓存必须在请求结束清理；WebFlux/异步链路优先使用 Reactor Context 或显式上下文对象，避免线程切换导致上下文丢失。
+
 ## 既有重复收敛（禁并行抽象）
 
 | 重复 | 厘清 |
 |------|------|
-| `Permission`(sys_menu_permission, code) vs `Permission`(sys_permission, entitySlug/action/field) | 前者=**L1 功能权限码**来源（`PermissionEvaluator`）；后者=**L3 字段/操作级**数据权限。职责分明，**不合并表**，但命名建议改为 `MenuPermission` / `DataPermission` 消歧 |
+| `Permission`(sys_menu_permission, code) vs `Permission`(sys_permission, entitySlug/action/field) | 前者迁移为 `sys_permission_code`，作为 **L1 功能权限码**来源（`PermissionEvaluator`）；后者保留为 **L3 字段/操作级**数据权限。职责分明，**不合并表**，实体命名建议改为 `PermissionCode` / `DataPermission` 消歧 |
 | 两套 `PermissionService`（role 模块 vs permission 模块） | 归一为单一功能权限出口（`PermissionSecurityService` 后端），删冗余（审查「重复2」） |
 | `@AccessControl` + `AccessControlAspect` | **退役鉴权用途**；feature-toggle/rate-limit 若需保留，拆为独立横切注解 |
 | `Role`(sys_role) vs `AiRole`(ai_role) | 不同语义：系统角色 vs AI 能力集（技能/工具白名单），保留两者 |
@@ -466,22 +571,22 @@ PostgreSQL（真理源）         Neo4j（关系图）        Redis（高速）
 
 | 组件 | 类型 | 职责 |
 |------|------|------|
-| `AccessDecisionService` | 接口 | 四层统一外观（非注解/Agent 调用） |
+| `AccessDecisionService` | 接口 | 四层统一外观（批处理/内部服务等非注解场景调用） |
 | `AafPermissionEvaluator` | `PermissionEvaluator` | L1 `hasPermission(null, code)` + L2 `hasPermission(id, type, rel)` |
-| `AafPermissionEvaluator` | `PermissionEvaluator` | L2 hasPermission(obj) → RelationGraph |
-| `RelationTupleService` / `RelationGraph` | 接口 | ReBAC 写入源（PG）/ 查询（Neo4j） |
-| `RelationTupleSyncListener` | 监听器 | PG→Neo4j + 缓存失效 |
-| `RecordRuleSupport` | JPA 基类/切面 | L3 自动注入 `buildSpecification` |
+| `RelationTupleService` / `RelationQueryService` | 接口 | ReBAC 写入源（PG）/ 查询（PG 递归 CTE） |
+| `RelationTupleEventListener` | 监听器 | `permission_tuple` 变更后失效 Redis 权限缓存 |
+| `RecordRuleSupport` | BaseCrudService 支撑组件 | L3 自动注入 `buildSpecification` |
 | `PolicyEngine` | 接口 | L4 ABAC 动态条件 |
-| `AuthorizationRequestService` | 服务 | 实时授权请求 + WebSocket + Redis 临时权限 |
+| `HumanApprovalService` / `HumanApprovalController` | 服务 + REST/SSE | 实时授权请求、SSE 推送、用户确认处理 |
+| `AssistantSessionTrustService` | 服务 | 会话工具信任 + 会话全量委托 Redis TTL |
 | `JwtAuthenticationConverter` | bean | JWT claims → ROLE_*/PERM_* authorities |
 | `RoleHierarchy` | bean | 角色层级（超管绕过） |
 
 ## 落地与迁移（一次性设计，一次性实现）
 
 - **L1 即 B9**：鉴权矩阵 + FreezingArchRule 为 L1 落地执行体；先 `hasRole`/`isAuthenticated` 清零 blocker，再统一切 `hasPermission(null, code)`（表达式替换，注解不动）。
-- **迁移脚本**：`permission_tuple` 建表；角色层级与内置角色 seed；功能权限码 seed（对齐菜单）；`sys_data_access_rule` 已有。
-- **Neo4j**：引入图 schema + 同步监听；ReBAC `@PreAuthorize("hasPermission(...)")` 接入对象级接口（document/space/file 等）。
+- **迁移脚本**：`permission_tuple` 建表；`sys_permission_code` 建表/迁移；角色层级与内置角色 seed；功能权限码 seed（对齐菜单）；`sys_data_access_rule` 已有。
+- **ReBAC**：先用 PG 递归 CTE 实现 `RelationQueryService`；ReBAC `@PreAuthorize("hasPermission(...)")` 接入对象级接口（document/space/file 等）。Neo4j 留作后续查询后端替换，不纳入本轮。
 - **AI/实时**：增强 `AssistantPermissionEvaluator` 叠加委托者实际权限；修 M34/M35/M36。
 
 ## 开放问题（待评审确认）
@@ -490,7 +595,7 @@ PostgreSQL（真理源）         Neo4j（关系图）        Redis（高速）
 2. ~~ReBAC 是否必须 Neo4j，还是先 PG 递归 CTE 起步。~~ ✅ 先 PG 递归 CTE
 3. ~~L3 自动注入采用「JPA Repository 基类」还是「Hibernate @Filter+拦截器」。~~ ✅ BaseCrudService 统一注入
 4. ~~**功能权限码命名是否统一为 `模块:资源:动作`**。~~ ✅ 确认三段式，模块前缀不可省略
-5. **`sys_menu_permission` 拆分为 `sys_menu`（菜单）+ `sys_permission`（权限码）是否纳入本轮**。
+5. ~~**`sys_menu_permission` 拆分为 `sys_menu`（菜单）+ `sys_permission_code`（权限码）是否纳入本轮**。~~ ✅ 权限码表命名为 `sys_permission_code`
 
 ## 决策记录
 
@@ -501,9 +606,9 @@ PostgreSQL（真理源）         Neo4j（关系图）        Redis（高速）
 | 2026-05-30 | L3 记录规则 | 复用 `DataAccessService`，补自动注入 | 引擎已实现，禁重造 |
 | 2026-05-30 | AI 委托主体 | 双主体：JWT 认证用户，`X-Assistant-Id` 标识助理，`currentOwnerId` 始终是委托者 | 助理无独立 token，权限归属必须回落委托者 |
 | 2026-05-30 | AI 委托权限检查 | 委托者实际权限（L1/L2/L3）∩ scope 白名单，fail-closed | 不能超越委托者自身权限；M34 fail-open 修复 |
-| 2026-05-30 | 会话授权三级模型 | 逐次审批 → 会话工具信任 → 会话全量授权，参考 Kiro 信任机制 | 避免每次弹审批影响体验，同时保留委托者实际权限约束不可绕过 |
+| 2026-05-30 | 会话授权三级模型 | 逐次审批 → 会话工具信任 → 会话全量授权，参考 Kiro 信任机制 | 会话全量授权是用户临时扩展 scope 到委托者权限上限，不绕过委托者实际权限和 L4 风险门控 |
 | 2026-05-30 | L1 权限模型选型 | 权限码（`模块:资源:动作`）而非 Odoo 模型权限（4个布尔） | AAF 是平台框架，业务操作不止 CRUD，需要 publish/approve/export 等任意扩展 |
-| 2026-05-30 | 菜单与权限分离 | `sys_menu`（菜单）和 `sys_permission`（权限码）独立，不强制绑定 | 菜单是 UI 导航，权限是安全边界，两者职责不同；前端隐藏不是安全边界 |
+| 2026-05-30 | 菜单与权限分离 | `sys_menu`（菜单）和 `sys_permission_code`（权限码）独立，不强制绑定 | 菜单是 UI 导航，权限是安全边界，两者职责不同；前端隐藏不是安全边界 |
 | 2026-05-30 | SpEL 出口 | 用 Spring 标准 `PermissionEvaluator` 替代 `@ss` bean | 统一 L1 功能权限和 L2 对象级权限入口，更符合 Spring Security 规范 |
 | 2026-05-30 | ReBAC 存储 | 先 PG 递归 CTE，Neo4j 留待业务复杂后迁移 | 零新增依赖起步，图遍历需求强时再迁 |
 

@@ -17,7 +17,7 @@ public interface OperatorContext {
     /** 操作者类型 */
     OperatorType currentOperatorType();
 
-    /** 数据归属者 ID（始终为 user.id；AI 操作时为委托者） */
+    /** 数据归属者 ID（始终为 user.id；AI 操作时为委托者；权限执行上下文可临时覆盖） */
     Optional<Long> currentOwnerId();
 
     /** 是否已认证 */

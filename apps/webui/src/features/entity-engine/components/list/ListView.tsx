@@ -31,6 +31,7 @@ interface ListViewProps {
   serverPagination?: { page: number; pageSize: number; total: number }
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
+  queryToken?: string
 }
 
 export function ListView({
@@ -40,7 +41,8 @@ export function ListView({
   viewSettings,
   serverPagination,
   onPageChange,
-  onPageSizeChange
+  onPageSizeChange,
+  queryToken
 }: ListViewProps) {
   const router = useRouter()
   const openRecordPanel = useUIStore((s) => s.openRecordPanel)
@@ -151,10 +153,15 @@ export function ListView({
         const action = viewSettings?.rowClickAction ?? "panel"
         if (action === "panel") openRecordPanel(id, "panel")
         else if (action === "drawer") openRecordPanel(id, "drawer")
-        else if (action === "detail") router.push(paths.workspace.record(entity.slug, id))
+        else if (action === "detail") router.push(recordHref(entity.slug, id, queryToken))
       }}
       renderRowActions={(row) => (
-        <RowActions row={row} entitySlug={entity.slug} entityLabel={entity.label} />
+        <RowActions
+          row={row}
+          entitySlug={entity.slug}
+          entityLabel={entity.label}
+          queryToken={queryToken}
+        />
       )}
     />
   )
@@ -164,11 +171,13 @@ export function ListView({
 function RowActions({
   row,
   entitySlug,
-  entityLabel
+  entityLabel,
+  queryToken
 }: {
   row: Record<string, unknown>
   entitySlug: string
   entityLabel: string
+  queryToken?: string
 }) {
   const router = useRouter()
   const id = row.id as string
@@ -201,7 +210,7 @@ function RowActions({
         className="rounded px-2 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
         onClick={(e) => {
           e.stopPropagation()
-          if (id) router.push(paths.workspace.record(entitySlug, id))
+          if (id) router.push(recordHref(entitySlug, id, queryToken))
         }}
       >
         编辑
@@ -218,6 +227,11 @@ function RowActions({
       </button>
     </div>
   )
+}
+
+function recordHref(entitySlug: string, id: string, queryToken?: string) {
+  const base = paths.workspace.record(entitySlug, id)
+  return queryToken ? `${base}?qw=${encodeURIComponent(queryToken)}` : base
 }
 
 /** 列表骨架屏 */

@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.security;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -12,6 +13,8 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+
+import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
 
 /** JWT 签发工具，基于 Spring Security 的 JwtEncoder（nimbus-jose）+ Redis 存储 refreshToken。 */
 public class JwtUtils {
@@ -26,6 +29,7 @@ public class JwtUtils {
     private final long refreshExpireSeconds;
     private final String issuer;
     private final String audience;
+    private final PermissionVersionService permissionVersionService;
 
     public JwtUtils(
             JwtEncoder jwtEncoder,
@@ -33,17 +37,24 @@ public class JwtUtils {
             long accessExpireSeconds,
             long refreshExpireSeconds,
             String issuer,
-            String audience) {
+            String audience,
+            PermissionVersionService permissionVersionService) {
         this.jwtEncoder = jwtEncoder;
         this.redisTemplate = redisTemplate;
         this.accessExpireSeconds = accessExpireSeconds;
         this.refreshExpireSeconds = refreshExpireSeconds;
         this.issuer = issuer;
         this.audience = audience;
+        this.permissionVersionService = permissionVersionService;
     }
 
     /** 签发 accessToken（含 jti） */
     public String generateToken(Long userId) {
+        return generateToken(userId, List.of());
+    }
+
+    /** 签发 accessToken（含角色 claim，用于 hasRole 快速判断）。 */
+    public String generateToken(Long userId, List<String> roles) {
         Instant now = Instant.now();
         JwtClaimsSet claims =
                 JwtClaimsSet.builder()
@@ -51,6 +62,8 @@ public class JwtUtils {
                         .subject(String.valueOf(userId))
                         .issuer(issuer)
                         .audience(java.util.List.of(audience))
+                        .claim("roles", roles == null ? List.of() : roles)
+                        .claim("permissionVersion", permissionVersionService.permissionVersion())
                         .issuedAt(now)
                         .expiresAt(now.plusSeconds(accessExpireSeconds))
                         .build();

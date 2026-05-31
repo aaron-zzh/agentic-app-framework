@@ -77,7 +77,7 @@ export function AppSidebar() {
   const { data: menus, isLoading, isError } = useUserMenus()
 
   const navConfig = useMemo(() => {
-    if (menus && menus.length > 0) return buildNavFromApi(menus)
+    if (menus) return buildNavFromApi(menus)
     if (isError) return buildNavConfig()
     return null
   }, [menus, isError])

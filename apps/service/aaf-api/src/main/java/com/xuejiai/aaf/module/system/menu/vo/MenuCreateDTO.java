@@ -13,4 +13,4 @@ public record MenuCreateDTO(
         Integer sortOrder,
         Boolean visible,
         String menuType,
-        String permission) {}
+        String permissionCode) {}

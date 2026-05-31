@@ -7,10 +7,17 @@
 
 import { Menu } from "lucide-react"
 import { usePathname } from "next/navigation"
+import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useUserMenus } from "@/lib/queries/use-menus"
 import { cn } from "@/lib/utils/cn"
-import { buildNavConfig } from "@/sections/layout/nav-config"
+import {
+  buildNavConfig,
+  buildNavFromApi,
+  type NavGroup,
+  type NavItem
+} from "@/sections/layout/nav-config"
 
 /** 侧边栏切换按钮（移动端弹出 Sheet） */
 export function MobileNav() {
@@ -37,7 +44,12 @@ export function MobileNav() {
 /** 移动端侧边栏内容（复用导航配置） */
 function MobileSidebarContent() {
   const pathname = usePathname()
-  const navConfig = buildNavConfig()
+  const { data: menus, isError } = useUserMenus()
+  const navConfig = useMemo(() => {
+    if (menus) return buildNavFromApi(menus)
+    if (isError) return buildNavConfig()
+    return buildNavConfig()
+  }, [menus, isError])
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">
@@ -45,29 +57,45 @@ function MobileSidebarContent() {
         <Brand href="/dashboard" />
       </div>
       {navConfig.map(
-        (group: {
-          subheader: string
-          items: Array<{ path: string; title: string; icon?: string }>
-        }) => (
+        (group: NavGroup) => (
           <div key={group.subheader} className="mb-3 px-2">
             <p className="mb-1 px-2 font-medium text-muted-foreground text-xs uppercase">
               {group.subheader}
             </p>
-            {group.items.map((item: { path: string; title: string; icon?: string }) => (
-              <a
-                key={item.path}
-                href={item.path}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
-                  pathname.startsWith(item.path) && "bg-primary/10 font-medium text-primary"
-                )}
-              >
-                {item.title}
-              </a>
+            {group.items.map((item: NavItem) => (
+              <MobileNavItem key={item.path} item={item} pathname={pathname} />
             ))}
           </div>
         )
       )}
     </nav>
+  )
+}
+
+function MobileNavItem({
+  item,
+  pathname,
+  depth = 0
+}: {
+  item: NavItem
+  pathname: string
+  depth?: number
+}) {
+  return (
+    <>
+      <a
+        href={item.path}
+        className={cn(
+          "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+          pathname.startsWith(item.path) && "bg-primary/10 font-medium text-primary"
+        )}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      >
+        {item.title}
+      </a>
+      {item.children?.map((child) => (
+        <MobileNavItem key={child.path} item={child} pathname={pathname} depth={depth + 1} />
+      ))}
+    </>
   )
 }

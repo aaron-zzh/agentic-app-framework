@@ -1,8 +1,6 @@
 package com.xuejiai.aaf.module.system.permission.service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -10,8 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.module.system.permission.domain.Permission;
-import com.xuejiai.aaf.module.system.permission.repository.MenuPermissionRepository;
+import com.xuejiai.aaf.framework.security.cache.PermissionCacheService;
+import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.module.system.permission.domain.PermissionCode;
+import com.xuejiai.aaf.module.system.permission.repository.PermissionCodeRepository;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionCreateDTO;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionTreeVO;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionUpdateDTO;
@@ -25,96 +25,115 @@ import com.xuejiai.aaf.module.system.role.vo.RoleVO;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 权限点管理服务。
- *
- * @author AaronZZH & Kiro
- */
-@Service("menuPermissionService")
+/** 权限码管理服务。 */
+@Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PermissionService {
 
-    private final MenuPermissionRepository permissionRepository;
+    private final PermissionCodeRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
+    private final PermissionCacheService permissionCacheService;
+    private final PermissionVersionService versionService;
 
-    /**
-     * 查询权限点树形结构。
-     *
-     * @return 树形权限列表
-     */
+    /** 查询权限码树形结构：module → resource → action。 */
     public List<PermissionTreeVO> tree() {
-        var all = permissionRepository.findByDeletedFalseOrderBySortOrder();
-        return buildTree(all, 0L);
+        var all = permissionRepository.findByDeletedFalseOrderByModuleAscResourceAscActionAsc();
+        return all.stream()
+                .collect(Collectors.groupingBy(PermissionCode::getModule, java.util.TreeMap::new, Collectors.toList()))
+                .entrySet()
+                .stream()
+                .map(
+                        moduleEntry ->
+                                new PermissionTreeVO(
+                                        null,
+                                        moduleEntry.getKey(),
+                                        null,
+                                        moduleEntry.getKey(),
+                                        null,
+                                        null,
+                                        null,
+                                        moduleEntry.getValue().stream()
+                                                .collect(
+                                                        Collectors.groupingBy(
+                                                                PermissionCode::getResource,
+                                                                java.util.TreeMap::new,
+                                                                Collectors.toList()))
+                                                .entrySet()
+                                                .stream()
+                                                .map(
+                                                        resourceEntry ->
+                                                                new PermissionTreeVO(
+                                                                        null,
+                                                                        resourceEntry.getKey(),
+                                                                        null,
+                                                                        moduleEntry.getKey(),
+                                                                        resourceEntry.getKey(),
+                                                                        null,
+                                                                        null,
+                                                                        resourceEntry.getValue().stream()
+                                                                                .map(this::toTreeVO)
+                                                                                .toList()))
+                                                .toList()))
+                .toList();
     }
 
-    /**
-     * 创建权限点。
-     *
-     * @param dto 创建请求
-     * @return 创建后的权限点
-     */
+    /** 创建权限码。 */
     @Transactional
     public PermissionVO create(PermissionCreateDTO dto) {
-        if (permissionRepository.existsByCodeAndDeletedFalse(dto.code())) {
+        var code = normalizeCode(dto.code(), dto.module(), dto.resource(), dto.action());
+        if (permissionRepository.existsByCodeAndDeletedFalse(code)) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "权限编码已存在");
         }
-        var entity = new Permission();
+        var entity = new PermissionCode();
         entity.setName(dto.name());
-        entity.setCode(dto.code());
-        entity.setType(dto.type());
-        entity.setParentId(dto.parentId() != null ? dto.parentId() : 0L);
-        entity.setPath(dto.path());
-        entity.setIcon(dto.icon());
-        entity.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 0);
-        return toVO(permissionRepository.save(entity));
+        entity.setModule(normalizeSegment(dto.module()));
+        entity.setResource(normalizeSegment(dto.resource()));
+        entity.setAction(normalizeSegment(dto.action()));
+        entity.setCode(code);
+        var vo = toVO(permissionRepository.save(entity));
+        versionService.bumpPermissionVersion();
+        permissionCacheService.evictAll();
+        return vo;
     }
 
-    /**
-     * 更新权限点。
-     *
-     * @param id 权限点 ID
-     * @param dto 更新请求
-     * @return 更新后的权限点
-     */
+    /** 更新权限码。 */
     @Transactional
     public PermissionVO update(Long id, PermissionUpdateDTO dto) {
         var entity =
                 permissionRepository
                         .findByIdAndDeletedFalse(id)
                         .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "权限点不存在"));
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "权限码不存在"));
         if (dto.name() != null) entity.setName(dto.name());
-        if (dto.type() != null) entity.setType(dto.type());
-        if (dto.parentId() != null) entity.setParentId(dto.parentId());
-        if (dto.path() != null) entity.setPath(dto.path());
-        if (dto.icon() != null) entity.setIcon(dto.icon());
-        if (dto.sortOrder() != null) entity.setSortOrder(dto.sortOrder());
+        if (dto.module() != null) entity.setModule(normalizeSegment(dto.module()));
+        if (dto.resource() != null) entity.setResource(normalizeSegment(dto.resource()));
+        if (dto.action() != null) entity.setAction(normalizeSegment(dto.action()));
+        if (dto.code() != null) {
+            var code = normalizeCode(dto.code(), entity.getModule(), entity.getResource(), entity.getAction());
+            if (!code.equals(entity.getCode()) && permissionRepository.existsByCodeAndDeletedFalse(code)) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "权限编码已存在");
+            }
+            entity.setCode(code);
+        }
         if (dto.status() != null) entity.setStatus(dto.status());
-        return toVO(permissionRepository.save(entity));
+        var vo = toVO(permissionRepository.save(entity));
+        versionService.bumpPermissionVersion();
+        permissionCacheService.evictAll();
+        return vo;
     }
 
-    /**
-     * 删除权限点（校验子节点）。
-     *
-     * @param id 权限点 ID
-     */
+    /** 删除权限码。 */
     @Transactional
     public void delete(Long id) {
-        if (permissionRepository.existsByParentIdAndDeletedFalse(id)) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "存在子节点，无法删除");
-        }
         permissionRepository.deleteById(id);
+        versionService.bumpPermissionVersion();
+        permissionCacheService.evictAll();
     }
 
-    /**
-     * 为角色分配权限点。
-     *
-     * @param roleId 角色 ID
-     * @param permissionIds 权限点 ID 列表
-     */
+    /** 为角色分配权限码。 */
     @Transactional
     public void assignPermissionsToRole(Long roleId, List<Long> permissionIds) {
         // 先删除旧关联
@@ -131,14 +150,11 @@ public class PermissionService {
                                 })
                         .toList();
         rolePermissionRepository.saveAll(entities);
+        versionService.bumpPermissionVersion();
+        permissionCacheService.evictAll();
     }
 
-    /**
-     * 查询角色拥有的权限点。
-     *
-     * @param roleId 角色 ID
-     * @return 权限点列表
-     */
+    /** 查询角色拥有的权限码。 */
     public List<PermissionVO> getPermissionsByRoleId(Long roleId) {
         var rolePermissions = rolePermissionRepository.findByRoleIdAndDeletedFalse(roleId);
         var ids = rolePermissions.stream().map(RolePermission::getPermissionId).toList();
@@ -171,6 +187,8 @@ public class PermissionService {
                                 })
                         .toList();
         userRoleRepository.saveAll(toAdd);
+        versionService.bumpPermissionVersion();
+        permissionCacheService.evict(userId);
     }
 
     /**
@@ -199,45 +217,45 @@ public class PermissionService {
                 .filter(ur -> ur.getRoleId().equals(roleId))
                 .findFirst()
                 .ifPresent(ur -> userRoleRepository.deleteById(ur.getId()));
+        versionService.bumpPermissionVersion();
+        permissionCacheService.evict(userId);
     }
 
-    private List<PermissionTreeVO> buildTree(List<Permission> all, Long parentId) {
-        Map<Long, List<Permission>> grouped =
-                all.stream().collect(Collectors.groupingBy(Permission::getParentId));
-        return buildChildren(grouped, parentId);
+    private PermissionTreeVO toTreeVO(PermissionCode p) {
+        return new PermissionTreeVO(
+                p.getId(),
+                p.getName(),
+                p.getCode(),
+                p.getModule(),
+                p.getResource(),
+                p.getAction(),
+                p.getStatus(),
+                null);
     }
 
-    private List<PermissionTreeVO> buildChildren(
-            Map<Long, List<Permission>> grouped, Long parentId) {
-        var children = grouped.getOrDefault(parentId, List.of());
-        var result = new ArrayList<PermissionTreeVO>();
-        for (var p : children) {
-            result.add(
-                    new PermissionTreeVO(
-                            p.getId(),
-                            p.getName(),
-                            p.getCode(),
-                            p.getType(),
-                            p.getParentId(),
-                            p.getPath(),
-                            p.getIcon(),
-                            p.getSortOrder(),
-                            p.getStatus(),
-                            buildChildren(grouped, p.getId())));
+    private String normalizeCode(String code, String module, String resource, String action) {
+        if (code != null && !code.isBlank()) {
+            return code.trim();
         }
-        return result;
+        return "%s:%s:%s"
+                .formatted(normalizeSegment(module), normalizeSegment(resource), normalizeSegment(action));
     }
 
-    private PermissionVO toVO(Permission p) {
+    private String normalizeSegment(String value) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "权限码分段不能为空");
+        }
+        return value.trim();
+    }
+
+    private PermissionVO toVO(PermissionCode p) {
         return new PermissionVO(
                 p.getId(),
                 p.getName(),
                 p.getCode(),
-                p.getType(),
-                p.getParentId(),
-                p.getPath(),
-                p.getIcon(),
-                p.getSortOrder(),
+                p.getModule(),
+                p.getResource(),
+                p.getAction(),
                 p.getStatus(),
                 p.getCreateTime());
     }

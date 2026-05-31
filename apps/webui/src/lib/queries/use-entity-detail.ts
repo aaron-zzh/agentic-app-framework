@@ -3,14 +3,27 @@
  * @author AaronZZH & Kiro
  */
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
-import { request } from "@/lib/api/client"
+import { fetchRecord, type PageResult } from "@/lib/api/client"
 import type { EntityDef } from "@/lib/types/entity"
 
-export function useEntityDetail(entity: EntityDef, id: string | undefined) {
+interface UseEntityDetailOptions {
+  queryToken?: string
+  initialData?: Record<string, unknown>
+}
+
+export function useEntityDetail(
+  entity: EntityDef,
+  id: string | undefined,
+  options: UseEntityDetailOptions = {}
+) {
+  const queryClient = useQueryClient()
+  const initialData =
+    options.initialData ?? findListInitialData(queryClient, entity.slug, id, options.queryToken)
+
   return useQuery<Record<string, unknown> | null>({
-    queryKey: [entity.slug, "detail", id],
+    queryKey: [entity.slug, "detail", { id, queryToken: options.queryToken, fieldSet: "detail" }],
     queryFn: async () => {
       if (!id) return null
       // mock 仅在开发环境且后端未就绪时使用
@@ -20,8 +33,31 @@ export function useEntityDetail(entity: EntityDef, id: string | undefined) {
           return mock.find((r) => r.id === id) ?? null
         }
       }
-      return request<Record<string, unknown>>(`${entity.apiPath}/${id}`)
+      return fetchRecord<Record<string, unknown>>(entity.apiPath, id, {
+        queryToken: options.queryToken,
+        fieldSet: "detail"
+      })
     },
-    enabled: !!id
+    enabled: !!id,
+    initialData: initialData ?? undefined
   })
+}
+
+function findListInitialData(
+  queryClient: ReturnType<typeof useQueryClient>,
+  entitySlug: string,
+  id: string | undefined,
+  queryToken?: string
+): Record<string, unknown> | undefined {
+  if (!id) return undefined
+  const windows = queryClient.getQueriesData<PageResult<Record<string, unknown>>>({
+    queryKey: [entitySlug, "queryWindow"]
+  })
+  for (const [, window] of windows) {
+    if (!window) continue
+    if (queryToken && window.queryToken !== queryToken) continue
+    const record = window.list.find((item) => String(item.id) === id)
+    if (record) return record
+  }
+  return undefined
 }

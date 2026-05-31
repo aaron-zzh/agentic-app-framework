@@ -9,13 +9,15 @@ import { EntityRecordView } from "@/sections/entity/view"
 
 interface PageProps {
   params: Promise<{ module: string; id: string }>
+  searchParams: Promise<{ qw?: string }>
 }
 
-export default async function RecordPage({ params }: PageProps) {
+export default async function RecordPage({ params, searchParams }: PageProps) {
   const { module, id } = await params
+  const { qw } = await searchParams
 
   const entity = entityRegistry.get(module)
   if (!entity) return notFound()
 
-  return <EntityRecordView entity={entity} recordId={id} />
+  return <EntityRecordView entity={entity} recordId={id} queryToken={qw} />
 }

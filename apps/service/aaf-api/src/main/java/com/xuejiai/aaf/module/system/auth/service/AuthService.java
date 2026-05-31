@@ -27,6 +27,9 @@ import com.xuejiai.aaf.framework.security.oauth.OAuthClient;
 import com.xuejiai.aaf.framework.security.oauth.OAuthUserInfo;
 import com.xuejiai.aaf.module.system.auth.vo.*;
 import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.system.role.domain.UserRole;
+import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
+import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.domain.UserOauth;
 import com.xuejiai.aaf.module.system.user.repository.UserOauthRepository;
@@ -59,6 +62,8 @@ public class AuthService {
     private final MessageService messageService;
     private final SystemConfigService systemConfigService;
     private final CreditService creditService;
+    private final UserRoleRepository userRoleRepository;
+    private final RoleRepository roleRepository;
 
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
@@ -465,11 +470,22 @@ public class AuthService {
     }
 
     private AuthLoginVO generateTokensWithSession(User user, String deviceId) {
-        String accessToken = jwtUtils.generateToken(user.getId());
+        String accessToken = jwtUtils.generateToken(user.getId(), getRoleCodes(user.getId()));
         String refreshToken = jwtUtils.generateRefreshToken(user.getId());
         jwtUtils.saveSession(user.getId(), deviceId, refreshToken);
         return new AuthLoginVO(
                 user.getId(), accessToken, refreshToken, jwtUtils.getAccessTokenExpiresTime());
+    }
+
+    private List<String> getRoleCodes(Long userId) {
+        var roleIds =
+                userRoleRepository.findByUserIdAndDeletedFalse(userId).stream()
+                        .map(UserRole::getRoleId)
+                        .toList();
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
+        return roleRepository.findAllById(roleIds).stream().map(role -> role.getCode()).toList();
     }
 
     /** 注册赠积分（赠送数量固定 50，不可配置） */

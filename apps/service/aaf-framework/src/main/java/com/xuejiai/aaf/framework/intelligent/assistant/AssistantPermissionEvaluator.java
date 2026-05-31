@@ -2,11 +2,14 @@ package com.xuejiai.aaf.framework.intelligent.assistant;
 
 import java.util.Optional;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.enums.OverLimitAction;
 import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.framework.engine.tool.ToolRiskLevel;
+import com.xuejiai.aaf.framework.security.access.FunctionPermissionChecker;
+import com.xuejiai.aaf.framework.security.access.RelationPermissionChecker;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,9 @@ import lombok.extern.slf4j.Slf4j;
 public class AssistantPermissionEvaluator {
 
     private final AssistantDefinitionRepository assistantRepo;
+    private final ObjectProvider<FunctionPermissionChecker> functionPermissionChecker;
+    private final ObjectProvider<RelationPermissionChecker> relationPermissionChecker;
+    private final AssistantSessionTrustService sessionTrustService;
 
     /** 评估结果 */
     public record EvalResult(
@@ -54,17 +60,39 @@ public class AssistantPermissionEvaluator {
      * @return 评估结果
      */
     public EvalResult evaluateToolCall(String assistantId, String toolName, ToolRiskLevel toolRiskLevel) {
+        return evaluateToolCall(null, assistantId, toolName, toolRiskLevel);
+    }
+
+    /**
+     * 评估助理是否有权执行指定工具调用，带会话级信任状态。
+     */
+    public EvalResult evaluateToolCall(
+            String sessionId, String assistantId, String toolName, ToolRiskLevel toolRiskLevel) {
         var defOpt = assistantRepo.findByAssistantId(assistantId);
         if (defOpt.isEmpty()) {
-            return EvalResult.granted(null); // 未找到定义，降级为不限制
+            return EvalResult.denied(OverLimitAction.ASK, "助理不存在或未授权", null);
         }
 
         var def = defOpt.get();
         var scope = def.getEffectiveScope();
         var delegatorId = def.getEffectiveDelegatorId();
 
-        // 检查工具是否在白名单内
-        if (!scope.isToolAllowed(toolName)) {
+        var functionChecker = functionPermissionChecker.getIfAvailable();
+        var toolPermissionCode = "tool:" + normalizePermissionSegment(toolName) + ":execute";
+        if (functionChecker == null
+                || (!functionChecker.hasPermission(delegatorId, toolPermissionCode)
+                        && !functionChecker.hasPermission(delegatorId, "tool:default:execute"))) {
+            return EvalResult.denied(
+                    scope.overLimitAction(),
+                    "委托者没有工具执行权限 [%s]".formatted(toolPermissionCode),
+                    delegatorId);
+        }
+
+        var fullDelegated = sessionTrustService.isFullDelegated(sessionId, delegatorId);
+        var toolTrusted = sessionTrustService.isToolTrusted(sessionId, delegatorId, toolName);
+
+        // 会话授权可临时扩展助理 scope，但不能绕过委托者实际权限和风险门控。
+        if (!fullDelegated && !toolTrusted && !scope.isToolAllowed(toolName)) {
             return EvalResult.denied(
                     scope.overLimitAction(),
                     "工具 [%s] 不在助理允许列表内".formatted(toolName),
@@ -94,7 +122,7 @@ public class AssistantPermissionEvaluator {
     public EvalResult evaluateOperation(String assistantId, String operation, String resource) {
         var defOpt = assistantRepo.findByAssistantId(assistantId);
         if (defOpt.isEmpty()) {
-            return EvalResult.granted(null);
+            return EvalResult.denied(OverLimitAction.ASK, "助理不存在或未授权", null);
         }
 
         var def = defOpt.get();
@@ -113,6 +141,22 @@ public class AssistantPermissionEvaluator {
                     scope.overLimitAction(),
                     "资源 [%s] 不在助理允许范围内".formatted(resource),
                     delegatorId);
+        }
+
+        if (resource != null) {
+            var parts = resource.split(":", 2);
+            if (parts.length != 2) {
+                return EvalResult.denied(scope.overLimitAction(), "资源标识格式无效", delegatorId);
+            }
+            var relationChecker = relationPermissionChecker.getIfAvailable();
+            if (relationChecker == null
+                    || !relationChecker.hasPermission(
+                            delegatorId, parts[0], parts[1], "can_" + operation)) {
+                return EvalResult.denied(
+                        scope.overLimitAction(),
+                        "委托者没有资源操作权限 [%s]".formatted(resource),
+                        delegatorId);
+            }
         }
 
         return EvalResult.granted(delegatorId);
@@ -137,5 +181,9 @@ public class AssistantPermissionEvaluator {
             case HIGH -> 3;
         };
         return toolLevel <= maxLevel;
+    }
+
+    private String normalizePermissionSegment(String value) {
+        return value == null ? "" : value.trim().toLowerCase().replace('_', '-');
     }
 }

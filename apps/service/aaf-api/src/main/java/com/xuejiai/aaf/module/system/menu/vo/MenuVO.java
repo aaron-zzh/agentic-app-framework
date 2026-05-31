@@ -14,5 +14,5 @@ public record MenuVO(
         Integer sortOrder,
         Boolean visible,
         String menuType,
-        String permission,
+        String permissionCode,
         List<MenuVO> children) {}

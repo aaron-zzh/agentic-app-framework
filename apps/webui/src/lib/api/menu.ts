@@ -14,7 +14,7 @@ export interface MenuVO {
   sortOrder: number
   visible: boolean
   menuType: "GROUP" | "MENU" | "BUTTON"
-  permission: string | null
+  permissionCode: string | null
   children: MenuVO[]
 }
 
@@ -26,7 +26,7 @@ export interface MenuCreateDTO {
   menuType: "GROUP" | "MENU" | "BUTTON"
   sortOrder?: number
   visible?: boolean
-  permission?: string | null
+  permissionCode?: string | null
 }
 
 export interface MenuUpdateDTO extends Partial<MenuCreateDTO> {
@@ -35,9 +35,9 @@ export interface MenuUpdateDTO extends Partial<MenuCreateDTO> {
 
 export const menuApi = {
   /** 获取当前用户可见菜单树 */
-  getUserMenus: () => request<MenuVO[]>("/system/menus"),
+  getUserMenus: () => request<MenuVO[]>("/system/menus/my-tree"),
   /** 获取全部菜单树（管理用） */
-  getAllMenus: () => request<MenuVO[]>("/system/menus/all"),
+  getAllMenus: () => request<MenuVO[]>("/system/menus/tree"),
   /** 创建菜单 */
   create: (data: MenuCreateDTO) =>
     request<MenuVO>("/system/menus", { method: "POST", body: JSON.stringify(data) }),

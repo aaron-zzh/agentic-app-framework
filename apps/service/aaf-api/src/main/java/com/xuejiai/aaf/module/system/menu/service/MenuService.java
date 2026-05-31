@@ -5,15 +5,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.menu.domain.SysMenu;
+import com.xuejiai.aaf.module.system.menu.domain.SysRoleMenu;
 import com.xuejiai.aaf.module.system.menu.repository.SysMenuRepository;
 import com.xuejiai.aaf.module.system.menu.repository.SysRoleMenuRepository;
 import com.xuejiai.aaf.module.system.menu.vo.MenuCreateDTO;
+import com.xuejiai.aaf.module.system.menu.vo.MenuPageParam;
 import com.xuejiai.aaf.module.system.menu.vo.MenuVO;
 import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
@@ -38,7 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class MenuService {
+public class MenuService
+        extends BaseCrudService<SysMenu, MenuVO, MenuCreateDTO, MenuCreateDTO, MenuPageParam> {
 
     private static final String SUPER_ADMIN_CODE = "super_admin";
 
@@ -46,6 +53,83 @@ public class MenuService {
     private final SysRoleMenuRepository roleMenuRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
+
+    @Override
+    protected JpaRepository<SysMenu, Long> getRepository() {
+        return menuRepository;
+    }
+
+    @Override
+    protected JpaSpecificationExecutor<SysMenu> getSpecExecutor() {
+        return menuRepository;
+    }
+
+    @Override
+    protected MenuVO toVO(SysMenu menu) {
+        return new MenuVO(
+                menu.getId(),
+                menu.getParentId(),
+                menu.getTitle(),
+                menu.getPath(),
+                menu.getIcon(),
+                menu.getSortOrder(),
+                menu.getVisible(),
+                menu.getMenuType(),
+                menu.getPermissionCode(),
+                List.of());
+    }
+
+    @Override
+    protected SysMenu toEntity(MenuCreateDTO dto) {
+        var menu = new SysMenu();
+        applyDTO(menu, dto);
+        return menu;
+    }
+
+    @Override
+    protected void updateEntity(SysMenu menu, MenuCreateDTO dto) {
+        applyDTO(menu, dto);
+    }
+
+    @Override
+    protected Specification<SysMenu> buildSpec(MenuPageParam request) {
+        return (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (request.getKeyword() != null && !request.getKeyword().isBlank()) {
+                var pattern = "%" + request.getKeyword().trim() + "%";
+                predicates.add(
+                        cb.or(
+                                cb.like(root.get("title"), pattern),
+                                cb.like(root.get("path"), pattern),
+                                cb.like(root.get("permissionCode"), pattern)));
+            }
+            if (request.getParentId() != null) {
+                predicates.add(cb.equal(root.get("parentId"), request.getParentId()));
+            }
+            if (request.getMenuType() != null && !request.getMenuType().isBlank()) {
+                predicates.add(cb.equal(root.get("menuType"), request.getMenuType().trim()));
+            }
+            if (request.getVisible() != null) {
+                predicates.add(cb.equal(root.get("visible"), request.getVisible()));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    @Override
+    protected String entityName() {
+        return "菜单";
+    }
+
+    @Override
+    protected String entitySlug() {
+        return "menu";
+    }
+
+    @Override
+    protected String permissionCode(String action) {
+        return "system:menu:manage";
+    }
 
     /**
      * 获取当前用户菜单树（RBAC 角色过滤）。
@@ -64,7 +148,8 @@ public class MenuService {
 
         // 判断是否超级管理员
         var roles = roleRepository.findAllById(roleIds);
-        boolean isSuperAdmin = roles.stream().anyMatch(r -> SUPER_ADMIN_CODE.equals(r.getCode()));
+        boolean isSuperAdmin =
+                roles.stream().anyMatch(r -> SUPER_ADMIN_CODE.equalsIgnoreCase(r.getCode()));
 
         if (isSuperAdmin) {
             // 超级管理员返回全部可见菜单
@@ -95,38 +180,49 @@ public class MenuService {
         return buildTree(menus);
     }
 
-    @Transactional
-    public MenuVO create(MenuCreateDTO dto) {
-        var menu = new SysMenu();
-        menu.setTitle(dto.title());
-        menu.setParentId(dto.parentId());
-        menu.setPath(dto.path());
-        menu.setIcon(dto.icon());
-        menu.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 0);
-        menu.setVisible(dto.visible() != null ? dto.visible() : true);
-        menu.setMenuType(dto.menuType() != null ? dto.menuType() : "MENU");
-        menu.setPermission(dto.permission());
-        return toVO(menuRepository.save(menu));
+    /** 查询角色已分配菜单。 */
+    public List<MenuVO> getMenusByRoleId(Long roleId) {
+        ensureRoleExists(roleId);
+        var menuIds =
+                roleMenuRepository.findByRoleId(roleId).stream()
+                        .map(SysRoleMenu::getMenuId)
+                        .collect(Collectors.toSet());
+        if (menuIds.isEmpty()) {
+            return List.of();
+        }
+        return menuRepository.findAllByOrderBySortOrder().stream()
+                .filter(menu -> menuIds.contains(menu.getId()))
+                .map(this::toVO)
+                .toList();
     }
 
+    /** 为角色分配菜单。菜单可见性由 sys_role_menu 控制，permissionCode 仅作为前端显隐辅助。 */
     @Transactional
-    public MenuVO update(Long id, MenuCreateDTO dto) {
-        var menu = requireMenu(id);
-        menu.setTitle(dto.title());
-        menu.setParentId(dto.parentId());
-        menu.setPath(dto.path());
-        menu.setIcon(dto.icon());
-        if (dto.sortOrder() != null) menu.setSortOrder(dto.sortOrder());
-        if (dto.visible() != null) menu.setVisible(dto.visible());
-        if (dto.menuType() != null) menu.setMenuType(dto.menuType());
-        menu.setPermission(dto.permission());
-        return toVO(menuRepository.save(menu));
-    }
+    public void assignMenusToRole(Long roleId, List<Long> menuIds) {
+        ensureRoleExists(roleId);
+        var safeMenuIds = menuIds == null ? List.<Long>of() : menuIds.stream().distinct().toList();
+        if (!safeMenuIds.isEmpty()) {
+            var existingMenuIds =
+                    menuRepository.findAllById(safeMenuIds).stream()
+                            .map(SysMenu::getId)
+                            .collect(Collectors.toSet());
+            if (existingMenuIds.size() != safeMenuIds.size()) {
+                throw new BusinessException(GlobalErrorCode.NOT_FOUND, "菜单不存在");
+            }
+        }
 
-    @Transactional
-    public void delete(Long id) {
-        requireMenu(id);
-        menuRepository.deleteById(id);
+        roleMenuRepository.deleteByRoleId(roleId);
+        var relations =
+                safeMenuIds.stream()
+                        .map(
+                                menuId -> {
+                                    var relation = new SysRoleMenu();
+                                    relation.setRoleId(roleId);
+                                    relation.setMenuId(menuId);
+                                    return relation;
+                                })
+                        .toList();
+        roleMenuRepository.saveAll(relations);
     }
 
     @Transactional
@@ -140,6 +236,12 @@ public class MenuService {
         return menuRepository
                 .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "菜单不存在"));
+    }
+
+    private void ensureRoleExists(Long roleId) {
+        if (!roleRepository.existsById(roleId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "角色不存在");
+        }
     }
 
     /** 构建树形结构 */
@@ -169,8 +271,8 @@ public class MenuService {
                 menu.getSortOrder(),
                 menu.getVisible(),
                 menu.getMenuType(),
-                menu.getPermission(),
-                children.isEmpty() ? null : children);
+                menu.getPermissionCode(),
+                children);
     }
 
     /** 判断菜单是否为被允许菜单的父级（确保树结构完整） */
@@ -191,17 +293,14 @@ public class MenuService {
                 .orElse(false);
     }
 
-    private MenuVO toVO(SysMenu menu) {
-        return new MenuVO(
-                menu.getId(),
-                menu.getParentId(),
-                menu.getTitle(),
-                menu.getPath(),
-                menu.getIcon(),
-                menu.getSortOrder(),
-                menu.getVisible(),
-                menu.getMenuType(),
-                menu.getPermission(),
-                null);
+    private void applyDTO(SysMenu menu, MenuCreateDTO dto) {
+        menu.setTitle(dto.title());
+        menu.setParentId(dto.parentId());
+        menu.setPath(dto.path());
+        menu.setIcon(dto.icon());
+        if (dto.sortOrder() != null) menu.setSortOrder(dto.sortOrder());
+        if (dto.visible() != null) menu.setVisible(dto.visible());
+        if (dto.menuType() != null) menu.setMenuType(dto.menuType());
+        menu.setPermissionCode(dto.permissionCode());
     }
 }

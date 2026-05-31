@@ -66,11 +66,16 @@ public class ApiKey {
     }
 
     public boolean hasScope(String scope) {
-        return permissions != null && java.util.List.of(permissions.split(",")).contains(scope);
+        return permissions != null
+                && java.util.Arrays.stream(permissions.split(","))
+                        .map(String::trim)
+                        .anyMatch(scope::equals);
     }
 
     public boolean canAccessTable(String slug) {
         if (allowedTables == null || allowedTables.isBlank()) return true;
-        return allowedTables.contains(slug);
+        return java.util.Arrays.stream(allowedTables.split(","))
+                .map(String::trim)
+                .anyMatch(slug::equals);
     }
 }

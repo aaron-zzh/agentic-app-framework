@@ -1,5 +1,8 @@
 /**
- * useEntityList——基于 TanStack Query 的通用列表查询 Hook
+ * useEntityList——基础列表查询 Hook。
+ *
+ * 通用实体列表引擎默认使用 useEntityQueryWindow，以获得 queryToken、ids 和字段集。
+ * 本 Hook 保留给简单列表、旧接口兼容和不需要详情快速切换的视图。
  * @author AaronZZH & Kiro
  */
 
@@ -34,7 +37,7 @@ export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEn
           return { list: mock, total: mock.length, page, pageSize }
         }
       }
-      return fetchList(entity.apiPath, { page, pageSize, sort, search, ...filters })
+      return fetchList(entity.apiPath, { pageNo: page, page, pageSize, sort, search, ...filters })
     },
     placeholderData: keepPreviousData
   })
@@ -42,7 +45,7 @@ export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEn
   return {
     data: data?.list ?? [],
     pagination: {
-      page: data?.page ?? page,
+      page: data?.page ?? data?.pageNo ?? page,
       pageSize: data?.pageSize ?? pageSize,
       total: data?.total ?? 0
     },

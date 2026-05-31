@@ -2,24 +2,16 @@ package com.xuejiai.aaf.module.system.permission.vo;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.system.permission.domain.PermissionType;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/**
- * 权限点树形响应。
- *
- * @author AaronZZH & Kiro
- */
-@Schema(description = "权限点树形结构")
+/** 权限码树形响应，按 module/resource 分组。 */
+@Schema(description = "权限码树形结构")
 public record PermissionTreeVO(
         @Schema(description = "主键 ID") Long id,
         @Schema(description = "权限名称") String name,
         @Schema(description = "权限编码") String code,
-        @Schema(description = "权限类型") PermissionType type,
-        @Schema(description = "父级 ID") Long parentId,
-        @Schema(description = "路由路径") String path,
-        @Schema(description = "图标") String icon,
-        @Schema(description = "排序号") Integer sortOrder,
+        @Schema(description = "模块标识") String module,
+        @Schema(description = "资源标识") String resource,
+        @Schema(description = "动作标识") String action,
         @Schema(description = "状态") Integer status,
         @Schema(description = "子节点") List<PermissionTreeVO> children) {}

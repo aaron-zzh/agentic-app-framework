@@ -26,21 +26,21 @@ public class AccessPolicyController {
     private final AccessPolicyService service;
 
     @Operation(summary = "创建策略")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:access-policy:manage')")
     @PostMapping
     public Result<AccessPolicyVO> create(@Validated @RequestBody AccessPolicyCreateDTO dto) {
         return Result.success(service.create(dto));
     }
 
     @Operation(summary = "更新策略")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:access-policy:manage')")
     @PutMapping("/{id}")
     public Result<AccessPolicyVO> update(@PathVariable Long id, @Validated @RequestBody AccessPolicyCreateDTO dto) {
         return Result.success(service.update(id, dto));
     }
 
     @Operation(summary = "删除策略")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:access-policy:manage')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         service.delete(id);
@@ -54,7 +54,7 @@ public class AccessPolicyController {
     }
 
     @Operation(summary = "策略测试")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasPermission(null, 'system:access-policy:manage')")
     @PostMapping("/test")
     public Result<PolicyTestResultVO> test(@Validated @RequestBody PolicyTestDTO dto) {
         return Result.success(service.test(dto));
