@@ -91,7 +91,8 @@ public class AgentScopeRuntime implements AgentRuntime {
      */
     private SkillBox buildSkillBox(io.agentscope.core.tool.Toolkit toolkit, String agentId) {
         if (agentId == null) return null;
-        var skills = skillStore.findByAgentId(agentId);
+        var skills = new java.util.ArrayList<>(skillStore.findByAgentId(agentId));
+        skills.addAll(skillStore.findGlobal());  // 合并全局技能
         if (skills.isEmpty()) return null;
 
         var skillBox = new SkillBox(toolkit);

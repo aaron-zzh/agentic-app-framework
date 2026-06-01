@@ -66,6 +66,10 @@ public class SkillDefinition extends BaseEntity {
     @Column(nullable = false)
     private Boolean builtIn = false;
 
+    /** 是否全局（全局技能注入到所有 Agent 的 SkillBox） */
+    @Column(nullable = false)
+    private Boolean global = false;
+
     /** 版本号（内置技能升级时用于 upsert 判断） */
     @Column(name = "skill_version", length = 16)
     private String skillVersion;

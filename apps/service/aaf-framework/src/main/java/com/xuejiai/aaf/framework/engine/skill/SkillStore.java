@@ -32,6 +32,9 @@ public interface SkillStore {
     /** 查询全局内置技能 */
     List<SkillRecord> findBuiltIn();
 
+    /** 查询全局技能（global=true，注入所有 Agent） */
+    List<SkillRecord> findGlobal();
+
     /** 按 skillId 查询 */
     Optional<SkillRecord> findBySkillId(String skillId);
 
@@ -47,5 +50,6 @@ public interface SkillStore {
             String instructions,
             String tools,
             int priority,
-            boolean builtIn) {}
+            boolean builtIn,
+            boolean global) {}
 }

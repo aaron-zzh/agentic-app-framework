@@ -45,6 +45,13 @@ public class SkillStoreImpl implements SkillStore {
     }
 
     @Override
+    public List<SkillRecord> findGlobal() {
+        return repository.findByGlobalTrueAndStatus("active").stream()
+                .map(this::toRecord)
+                .toList();
+    }
+
+    @Override
     public Optional<SkillRecord> findBySkillId(String skillId) {
         return repository.findBySkillId(skillId).map(this::toRecord);
     }
@@ -61,7 +68,8 @@ public class SkillStoreImpl implements SkillStore {
                 e.getInstructions(),
                 e.getTools(),
                 e.getPriority(),
-                Boolean.TRUE.equals(e.getBuiltIn()));
+                Boolean.TRUE.equals(e.getBuiltIn()),
+                Boolean.TRUE.equals(e.getGlobal()));
     }
 }
 
@@ -72,6 +80,8 @@ interface SkillDefinitionRepository extends JpaRepository<SkillDefinition, Long>
     List<SkillDefinition> findByAgentIdAndStatus(String agentId, String status);
 
     List<SkillDefinition> findByBuiltInTrueAndStatus(String status);
+
+    List<SkillDefinition> findByGlobalTrueAndStatus(String status);
 
     Optional<SkillDefinition> findBySkillId(String skillId);
 }
