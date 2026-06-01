@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 
 @Tag(name = "AI 工作流管理")
 @RestController
-@RequestMapping("/api/ai/flows")
+@RequestMapping("/api/ai/workflows")
 @RequiredArgsConstructor
 public class AiFlowController extends BaseCrudController<
         AiFlowDefinition, AiFlowDefinitionVO,

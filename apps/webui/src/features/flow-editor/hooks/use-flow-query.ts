@@ -36,7 +36,7 @@ interface FlowDefVO {
 export function useFlowList() {
   return useQuery({
     queryKey: ["flows"],
-    queryFn: () => req<FlowDefVO[]>("/flows")
+    queryFn: () => req<FlowDefVO[]>("/api/ai/workflows")
   })
 }
 
@@ -44,7 +44,7 @@ export function useFlowList() {
 export function useFlowDetail(id?: string) {
   return useQuery({
     queryKey: ["flows", id],
-    queryFn: () => req<FlowDefVO>(`/flows/${id}`),
+    queryFn: () => req<FlowDefVO>(`/api/ai/workflows/${id}`),
     enabled: !!id
   })
 }
@@ -55,8 +55,8 @@ export function useFlowSave() {
   return useMutation({
     mutationFn: (body: { id?: string; name: string; mode: string; definition: FlowDefinition }) =>
       body.id
-        ? req<FlowDefVO>(`/flows/${body.id}`, { method: "PUT", body: JSON.stringify(body) })
-        : req<FlowDefVO>("/flows", { method: "POST", body: JSON.stringify(body) }),
+        ? req<FlowDefVO>(`/api/ai/workflows/${body.id}`, { method: "PUT", body: JSON.stringify(body) })
+        : req<FlowDefVO>("/api/ai/workflows", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flows"] })
     }
@@ -67,7 +67,7 @@ export function useFlowSave() {
 export function useFlowDelete() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => req<void>(`/flows/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => req<void>(`/api/ai/workflows/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flows"] })
     }
@@ -82,7 +82,7 @@ export function useFlowDeploy() {
   return useMutation({
     mutationFn: async (params: { id: string; name: string; definition: FlowDefinition }) => {
       const bpmnXml = flowToBpmn(params.definition, params.id)
-      return req<{ deploymentId: string }>(`/flows/${params.id}/deploy`, {
+      return req<{ deploymentId: string }>(`/api/ai/workflows/${params.id}/deploy`, {
         method: "POST",
         body: JSON.stringify({ name: params.name, bpmnXml })
       })
@@ -99,7 +99,7 @@ export function useFlowDeploy() {
 export function useFlowTemplates(mode?: string) {
   return useQuery({
     queryKey: ["flow-templates", mode],
-    queryFn: () => req<FlowTemplate[]>(`/flow-templates${mode ? `?mode=${mode}` : ""}`)
+    queryFn: () => req<FlowTemplate[]>(`/api/ai/workflow-templates${mode ? `?mode=${mode}` : ""}`)
   })
 }
 
@@ -108,7 +108,7 @@ export function useCreateFromTemplate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: { templateId: string; name: string }) =>
-      req<FlowDefVO>("/flows/from-template", { method: "POST", body: JSON.stringify(body) }),
+      req<FlowDefVO>("/api/ai/workflows/from-template", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flows"] })
     }
@@ -124,7 +124,7 @@ export function useSaveAsTemplate() {
       description: string
       mode: string
       definition: FlowDefinition
-    }) => req<FlowTemplate>("/flow-templates", { method: "POST", body: JSON.stringify(body) }),
+    }) => req<FlowTemplate>("/api/ai/workflow-templates", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flow-templates"] })
     }
