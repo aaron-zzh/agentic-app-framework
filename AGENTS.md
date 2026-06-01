@@ -14,12 +14,12 @@ AAF（Agentic App Framework）是生产级 AI 原生多智能体应用开发框�
 
 | 概念 | 含义 | 代码位置 | 不是什么 |
 |------|------|---------|---------|
-| **工作流** | AI 编排流水线——LLM 节点、知识库节点、条件分支等组成的 AI 应用流程，对标 Dify 工作流 | `apps/webui/src/features/flow-editor/`、`engine/workflow/node/LlmNode` 等 | 不是 Flowable 审批流 |
-| **审批流** | Flowable BPMN 驱动的业务流程——请假、报销、采购等有人工节点的企业流程 | `apps/service/aaf-api/src/main/java/.../module/system/workflow/`、`engine/workflow/FlowableWorkflowEngine` | 不是 AI 编排 |
+| **工作流** | AI 编排流水线——LLM 节点、知识库节点、条件分支等组成的 AI 应用流程，对标 Dify 工作流。底层同样基于 Flowable 执行，节点类型为 `LlmNode`/`AgentNode` 等 AI 节点 | `apps/webui/src/features/flow-editor/`、`engine/workflow/node/LlmNode` 等 | 不是审批流（虽然底层引擎相同） |
+| **审批流** | Flowable BPMN 驱动的业务流程——请假、报销、采购等有人工节点的企业流程。节点类型为 `UserTask`（人工审批）、`ServiceTask` 等 | `apps/service/aaf-api/src/main/java/.../module/system/workflow/`、`engine/workflow/FlowableWorkflowEngine` | 不是 AI 编排（虽然底层引擎相同） |
 | **技能（Skill）** | Assistant 层的意图路由规则——匹配用户意图后路由到对应 Agent | `engine/skill/SkillDefinition` | 不是 AgentScope 的 Skill |
 | **工具（Tool）** | Agent 可调用的原子能力——AgentScope `@Tool` 注解方法，LLM 通过 Function Calling 调用 | `engine/workflow/WorkflowTool`、AgentScope `Toolkit` | 不是 Spring AI `ToolCallback`（那是直连链路用的） |
 
-> **注意**：代码包名 `module.system.workflow` 和 `engine.workflow` 当前指的是**审批流**（Flowable），不是 AI 工作流。命名不一致是历史遗留，v0.2.0 重构时统一。
+> **注意**：工作流和审批流**底层都是 Flowable**，区别在于流程节点类型。代码包名 `module.system.workflow` 和 `engine.workflow` 当前指的是**审批流**（Flowable），不是 AI 工作流。命名不一致是历史遗留，v0.2.0 重构时统一。
 
 ## 技术栈（速览）
 
