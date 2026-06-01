@@ -5,10 +5,6 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
-import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService;
-import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalType;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
@@ -34,8 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 public class WorkflowTool {
 
     private final WorkflowEngine workflowEngine;
-    private final HumanApprovalService approvalService;
-    private final AgentRunEventPublisher agentRunEventPublisher;
 
     /**
      * 启动工作流。
@@ -67,33 +61,25 @@ public class WorkflowTool {
             @ToolParam(name = "variables", required = false, description = "流程变量，JSON 格式，如 {\"days\": 3}") String variables) {
 
         var ctx = AgentRunContextHolder.current().orElse(null);
-        var sessionId = ctx != null ? ctx.runId() : "unknown";
         var userId = ctx != null ? ctx.userId() : null;
 
-        // HITL：请求用户确认，非阻塞返回
-        var requestId = approvalService.request(
-                sessionId, userId,
-                ApprovalType.ACTION_CONFIRM,
-                "启动工作流确认",
-                "AI 助理请求启动工作流：" + description,
-                Map.of(
-                        "processKey", processKey,
-                        "description", description,
-                        "riskLevel", "MEDIUM",
-                        "grantScope", "ONCE"));
-
-        // 推送等待确认事件
-        if (ctx != null) {
-            agentRunEventPublisher.publish(ctx,
-                    AgentRunEventType.COORDINATION_STARTED,
-                    "等待用户确认",
-                    "工作流启动需要用户确认：" + description,
-                    Map.of("requestId", requestId, "processKey", processKey));
+        // 解析流程变量
+        var vars = new java.util.HashMap<String, Object>();
+        if (userId != null) vars.put("userId", userId);
+        if (variables != null && !variables.isBlank()) {
+            try {
+                var parsed = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(variables, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                vars.putAll(parsed);
+            } catch (Exception e) {
+                log.warn("流程变量解析失败，忽略: {}", variables);
+            }
         }
 
-        // 非阻塞：返回审批请求 ID，用户确认后由 WorkflowApprovalListener 自动启动工作流
-        return String.format(
-                "已向您发送工作流启动确认请求（ID: %s）。请在通知中确认或拒绝启动「%s」工作流。",
-                requestId, description);
+        // 权限确认已由 AafToolPermissionHook 完成（requireConfirm=true），此处直接启动
+        var sessionId = ctx != null ? ctx.runId() : "system";
+        var instanceId = workflowEngine.startProcess(processKey, sessionId, vars);
+        log.info("工作流已启动: processKey={}, instanceId={}", processKey, instanceId);
+        return String.format("工作流「%s」已成功启动（实例 ID: %s）。", description, instanceId);
     }
 }
