@@ -4,6 +4,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.intelligent.agent.agentscope.UserMessageEvent;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionCompletedEvent;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionStatus;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
@@ -23,6 +24,22 @@ import lombok.extern.slf4j.Slf4j;
 public class ChatPersistenceListener {
 
     private final ChatService chatService;
+
+    @Async
+    @EventListener
+    public void onUserMessage(UserMessageEvent event) {
+        Long sessionId;
+        try {
+            sessionId = Long.valueOf(event.conversationId());
+        } catch (NumberFormatException e) {
+            return;
+        }
+        try {
+            chatService.saveMessage(event.userId(), "HUMAN", sessionId, "user", event.content());
+        } catch (Exception e) {
+            log.warn("用户消息持久化失败 [session={}]: {}", sessionId, e.getMessage());
+        }
+    }
 
     @Async
     @EventListener

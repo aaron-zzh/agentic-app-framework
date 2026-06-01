@@ -16,6 +16,8 @@ import com.xuejiai.aaf.framework.intelligent.agent.trace.StepType;
 import io.agentscope.core.hook.Hook;
 import io.agentscope.core.hook.HookEvent;
 import io.agentscope.core.hook.PostCallEvent;
+import io.agentscope.core.hook.PreCallEvent;
+import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.message.ToolUseBlock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +39,9 @@ public class AafTraceHook implements Hook {
 
     @Override
     public <T extends HookEvent> Mono<T> onEvent(T event) {
-        if (event instanceof PostCallEvent postCall) {
+        if (event instanceof PreCallEvent preCall) {
+            publishUserMessage(preCall);
+        } else if (event instanceof PostCallEvent postCall) {
             collectTrace(postCall);
         }
         return Mono.just(event);
@@ -46,6 +50,24 @@ public class AafTraceHook implements Hook {
     @Override
     public int priority() {
         return 900;
+    }
+
+    private void publishUserMessage(PreCallEvent event) {
+        var ctx = AgentRunContextHolder.current().orElse(null);
+        if (ctx == null || ctx.userId() == null || ctx.runId() == null) {
+            return;
+        }
+        // 只取最后一条 USER 消息（server-side memory 模式下只传了最新一条）
+        var msgs = event.getInputMessages();
+        if (msgs == null || msgs.isEmpty()) return;
+        for (int i = msgs.size() - 1; i >= 0; i--) {
+            var msg = msgs.get(i);
+            if (msg.getRole() == MsgRole.USER && msg.getTextContent() != null) {
+                eventPublisher.publishEvent(
+                        new UserMessageEvent(ctx.userId(), ctx.runId(), msg.getTextContent()));
+                break;
+            }
+        }
     }
 
     private void collectTrace(PostCallEvent event) {
