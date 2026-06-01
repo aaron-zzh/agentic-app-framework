@@ -67,7 +67,7 @@ export function Chatter(props: ChatterProps) {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <ChatterRuntime target={target} persist={persist}>
+      <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId}>
         <ChatterLayout layout={layout} open={open} onOpenChange={onOpenChange}>
           <ChatterPanel
             toolbar={

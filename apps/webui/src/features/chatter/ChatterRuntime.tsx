@@ -32,6 +32,7 @@ function buildAguiUrl(target: ChatterTarget): string {
 interface ChatterRuntimeProps {
   target: ChatterTarget
   persist?: boolean
+  sessionId?: string  // user 类型时必须传入
   children: ReactNode
 }
 
@@ -40,19 +41,19 @@ interface ChatterRuntimeProps {
  * - AI/Kiro → AgUiRuntime（/agui/runs）
  * - user    → IMRuntime（WebSocket）
  */
-export function ChatterRuntime({ target, persist, children }: ChatterRuntimeProps) {
+export function ChatterRuntime({ target, persist, sessionId, children }: ChatterRuntimeProps) {
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const configs = useChatterStore((s) => s.configs)
   const pageConfig = currentPageId ? configs[currentPageId] : undefined
 
   // user 类型走 IM WebSocket
-  if (target.type === "user" && target.userId) {
+  if (target.type === "user" && target.userId && sessionId) {
     return (
       <LivechatProvider
         config={{
           type: "im",
           userId: target.userId,
-          sessionId: target.userId, // 由后端或调用方传入真实 sessionId
+          sessionId,
           sessionType: "im"
         }}
       >
