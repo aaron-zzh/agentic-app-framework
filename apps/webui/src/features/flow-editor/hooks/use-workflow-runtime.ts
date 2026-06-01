@@ -79,16 +79,17 @@ export function useWorkflowRuntime() {
 
         case "STATE_DELTA": {
           const delta = event.state ?? {}
-          const currentNodeId = delta.currentNodeId as string | undefined
-          const completedNodes =
-            (delta.completedNodes as string[]) ?? prev.executionState.completedNodes
+          const activeNodes = (delta.activeNodes as string[]) ?? []
+          const completedNodes = (delta.completedNodes as string[]) ?? prev.executionState.completedNodes
           const failedNodes = (delta.failedNodes as string[]) ?? prev.executionState.failedNodes
           const nodeTimings = delta.nodeTimings as Record<string, number> | undefined
+          // activeNodes 中第一个节点视为当前节点
+          const currentNodeId = activeNodes[0] ?? prev.executionState.currentNodeId
           return {
             ...prev,
             executionState: {
               ...prev.executionState,
-              currentNodeId: currentNodeId ?? prev.executionState.currentNodeId,
+              currentNodeId,
               completedNodes,
               failedNodes,
               nodeTimings: nodeTimings ?? prev.executionState.nodeTimings

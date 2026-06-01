@@ -133,13 +133,15 @@ public class WorkflowAgUiService {
                     .toList();
 
             // 发送 STATE_DELTA：当前活跃节点和已完成节点
-            var stateJson = objectMapper.writeValueAsString(Map.of(
+            var stateMap = Map.of(
                     "activeNodes", activeNodes,
                     "completedNodes", completedNodes,
-                    "processInstanceId", processInstanceId));
-            sendEvent(emitter, new AgUiEvent(
-                    AgUiEvent.AgUiEventType.STATE_DELTA, runId, null, stateJson,
-                    null, null, null, null, null));
+                    "processInstanceId", processInstanceId);
+            var stateDeltaJson = objectMapper.writeValueAsString(Map.of(
+                    "type", "STATE_DELTA",
+                    "runId", runId,
+                    "state", stateMap));
+            emitter.send(SseEmitter.event().data(stateDeltaJson));
 
             // 检查是否有等待用户输入的任务
             var currentTask = workflowEngine.getCurrentTask(processInstanceId);
