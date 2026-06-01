@@ -44,6 +44,21 @@ public class WorkflowTool {
      * @param description 工作流描述（向用户展示，用于确认）
      * @param variables 流程变量（JSON 格式，可为空）
      */
+    @Tool(name = "list_workflows",
+          description = "查询系统中所有可用的工作流列表。在启动工作流前，先调用此工具了解有哪些流程可以启动。")
+    public String listWorkflows() {
+        var definitions = workflowEngine.listDefinitions();
+        if (definitions.isEmpty()) {
+            return "当前没有可用的工作流。";
+        }
+        var sb = new StringBuilder("可用工作流列表：\n");
+        for (var def : definitions) {
+            sb.append(String.format("- %s（key: %s，版本: %d）\n",
+                    def.name(), def.processKey(), def.version()));
+        }
+        return sb.toString();
+    }
+
     @Tool(name = "start_workflow",
           description = "启动一个预定义的工作流流程。适用于需要多步骤审批、自动化处理或复杂业务流程的场景，如请假申请、费用报销、采购审批等。")
     public String startWorkflow(

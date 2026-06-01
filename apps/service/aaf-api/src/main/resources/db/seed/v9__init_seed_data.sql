@@ -318,7 +318,10 @@ INSERT INTO ai_tool_catalog (
  210, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('start_workflow', 'LOCAL', TRUE, 'FUNCTION', 'WORKFLOW', 'MEDIUM', FALSE, TRUE, 'tool:workflow:start', NULL, NULL,
  '{"type":"object","required":["process_key","description"],"properties":{"process_key":{"type":"string","description":"工作流定义 Key"},"description":{"type":"string","description":"工作流描述"},"variables":{"type":"string","description":"流程变量 JSON"}}}',
- 300, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ 300, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('list_workflows', 'LOCAL', TRUE, 'FUNCTION', 'WORKFLOW', 'LOW', TRUE, FALSE, NULL, NULL, NULL,
+ '{"type":"object","properties":{}}',
+ 301, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (tool_name) DO UPDATE SET
     source = EXCLUDED.source,
     enabled = EXCLUDED.enabled,
