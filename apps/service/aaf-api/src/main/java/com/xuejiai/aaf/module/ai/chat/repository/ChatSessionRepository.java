@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.chat.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -14,4 +15,6 @@ import com.xuejiai.aaf.module.ai.chat.domain.ChatSession;
 public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
 
     List<ChatSession> findByCreatorIdOrderByUpdateTimeDesc(Long creatorId);
+
+    Optional<ChatSession> findByThreadId(String threadId);
 }

@@ -53,6 +53,7 @@ public class AafTraceHook implements Hook {
     }
 
     private void publishUserMessage(PreCallEvent event) {
+        // 上下文由 AafAgentResolver 在执行线程上设置（resolveAgent 先于 agent.stream）
         var ctx = AgentRunContextHolder.current().orElse(null);
         if (ctx == null || ctx.userId() == null || ctx.runId() == null) {
             return;

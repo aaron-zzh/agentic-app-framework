@@ -40,9 +40,21 @@ public class ChatSession extends BaseEntity {
     @Column(name = "creator_id", nullable = false)
     private Long creatorId;
 
-    /** 关联的 Agent ID */
-    @Column(name = "agent_id", length = 100)
-    private String agentId;
+    /** AgentScope 路由角色（/agui/runs/{agentRole}） */
+    @Column(name = "agent_role", length = 64)
+    private String agentRole;
+
+    /** 关联的 Assistant ID（创建对话时写入） */
+    @Column(name = "assistant_id", length = 64)
+    private String assistantId;
+
+    /** 关联的知识库 ID */
+    @Column(name = "knowledge_base_id")
+    private Long knowledgeBaseId;
+
+    /** AG-UI 字符串 threadId（用于 /agui/runs 链路按 threadId 关联会话） */
+    @Column(name = "thread_id", length = 64)
+    private String threadId;
 
     /** 使用的模型 ID */
     @Column(name = "model_id", length = 100)
