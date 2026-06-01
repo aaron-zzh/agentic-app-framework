@@ -10,22 +10,30 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionCompletedEvent;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionStatus;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-/** Learning 横切通道的入口：采集执行结果，评估效果，触发记忆/知识更新。 当前为轻量实现，后续可接入完整的程序化记忆蒸馏流水线。 */
+/** Learning 横切通道的入口：异步监听执行完成事件，评估效果，触发记忆/知识更新。 */
 @Slf4j
 @Service
 public class LearningFeedbackService {
 
-    /** 技能执行统计（skillIntent → 成功/失败计数） */
+    /** 技能执行统计（agentId → 成功/失败计数） */
     private final ConcurrentHashMap<String, SkillStats> statsMap = new ConcurrentHashMap<>();
 
-    /** 记录执行结果。 */
-    public void recordExecution(String sessionId, Long userId, String intent, boolean success) {
-        var stats = statsMap.computeIfAbsent(intent, k -> new SkillStats());
+    /** 异步监听 Agent 执行完成事件，更新统计并触发经验沉淀。 */
+    @Async
+    @EventListener
+    public void onExecutionCompleted(ExecutionCompletedEvent event) {
+        var stats = statsMap.computeIfAbsent(event.agentId(), k -> new SkillStats());
+        boolean success = event.status() == ExecutionStatus.SUCCESS;
         if (success) {
             stats.successCount.incrementAndGet();
         } else {
@@ -33,13 +41,15 @@ public class LearningFeedbackService {
         }
         stats.lastExecutedAt = Instant.now();
 
-        log.debug(
-                "学习反馈: intent={}, success={}, 累计成功率={}%", intent, success, stats.getSuccessRate());
+        log.debug("学习反馈: agentId={}, success={}, 累计成功率={}%",
+                event.agentId(), success, stats.getSuccessRate());
+
+        // TODO: 接入程序化记忆蒸馏——正反馈强化 Skill，负反馈触发优化
     }
 
     /** 记录用户反馈（点赞/点踩）。 */
     public void recordUserFeedback(String sessionId, Long userId, boolean positive) {
-        // TODO: 接入程序化记忆蒸馏——正反馈强化 Skill，负反馈触发优化
+        // TODO: 接入程序化记忆蒸馏
         log.debug("用户反馈: session={}, positive={}", sessionId, positive);
     }
 

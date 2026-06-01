@@ -1,12 +1,15 @@
 package com.xuejiai.aaf.framework.intelligent.assistant;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.engine.skill.SkillMatchEngine;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentPool;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
+import com.xuejiai.aaf.framework.intelligent.cognition.learning.TrajectoryCollector;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryMessage;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.ShortTermMemoryService;
 import com.xuejiai.aaf.framework.intelligent.cognition.pipeline.MemoryPipelineFactory;
@@ -30,6 +33,7 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
     private final AgentSandbox agentSandbox;
     private final ShortTermMemoryService shortTermMemory;
     private final MemoryPipelineFactory pipelineFactory;
+    private final TrajectoryCollector trajectoryCollector;
 
     @Override
     public AssistantResponse chat(
@@ -78,6 +82,7 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
                 var input = preamble.isEmpty() ? userMessage : preamble + userMessage;
                 var executor = agentPool.borrow(definition);
                 try {
+                    var startedAt = Instant.now();
                     var result =
                             agentSandbox.execute(
                                     executor,
@@ -85,6 +90,11 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
                                     Duration.ofSeconds(definition.getTimeoutSeconds()));
                     response = result.success() ? result.output() : "执行失败: " + result.error();
                     success = result.success();
+                    // 异步发布执行轨迹（触发学习反馈、记忆写回等下游监听器）
+                    trajectoryCollector.collect(new TrajectoryCollector.Trajectory(
+                            UUID.randomUUID().toString(), agentId, userId,
+                            userMessage, response, java.util.List.of(),
+                            success, Duration.between(startedAt, Instant.now()).toMillis()));
                 } finally {
                     agentPool.release(agentId, executor);
                 }
