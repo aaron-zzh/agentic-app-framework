@@ -11,17 +11,14 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import com.xuejiai.aaf.module.ai.chat.service.ChatService;
-import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 聊天 WebSocket 处理器，处理实时消息收发
+ * 聊天 WebSocket 处理器——服务端推送通道。
+ *
+ * <p>消息发送走 REST 接口（{@code POST /api/system/chat/messages}），
+ * WebSocket 仅用于服务端向客户端推送新消息，不处理客户端发送的消息内容。
  *
  * @author AaronZZH & Kiro
  */
@@ -32,9 +29,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private static final String USER_ID_ATTR = "userId";
     private static final String SESSION_ID_ATTR = "sessionId";
-
-    private final ChatService chatService;
-    private final ObjectMapper objectMapper;
 
     /** 按聊天会话 ID 管理 WebSocket 连接 */
     private final ConcurrentHashMap<Long, ConcurrentHashMap<Long, WebSocketSession>>
@@ -63,32 +57,11 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message)
             throws Exception {
-        var userId = (Long) session.getAttributes().get(USER_ID_ATTR);
-        var sessionId = (Long) session.getAttributes().get(SESSION_ID_ATTR);
-        if (userId == null || sessionId == null) {
-            return;
-        }
-
-        var payload = message.getPayload();
-        // 心跳
-        if ("ping".equals(payload)) {
+        // WebSocket 只用于服务端推送，客户端发送消息走 REST 接口
+        // 仅处理心跳
+        if ("ping".equals(message.getPayload())) {
             session.sendMessage(new TextMessage("pong"));
-            return;
         }
-
-        // 解析消息内容
-        JsonNode node = objectMapper.readTree(payload);
-        var content = node.has("content") ? node.get("content").asText() : "";
-        if (content.isBlank()) {
-            return;
-        }
-
-        // 持久化消息
-        ChatMessageVO saved = chatService.saveMessage(userId, "HUMAN", sessionId, "user", content);
-
-        // 广播给同会话的所有连接
-        var json = objectMapper.writeValueAsString(saved);
-        broadcast(sessionId, json);
     }
 
     @Override
