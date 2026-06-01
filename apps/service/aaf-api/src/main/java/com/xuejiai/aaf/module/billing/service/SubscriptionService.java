@@ -15,6 +15,7 @@ import com.xuejiai.aaf.module.billing.domain.SubscriptionRecord;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRecordRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
@@ -40,6 +41,7 @@ public class SubscriptionService {
     private final BizOrderService bizOrderService;
     private final PayOrderService payOrderService;
     private final EntitlementService entitlementService;
+    private final CreditService creditService;
 
     /** 购买订阅：创建业务订单 + 支付单 */
     @Transactional
@@ -157,6 +159,19 @@ public class SubscriptionService {
 
         // 实例化权益额度
         entitlementService.instantiateQuotas(userId, planId);
+
+        // 发放首月积分（套餐配置了 monthly_credits 时）
+        if (plan.getMonthlyCredits() > 0) {
+            creditService.earnBatch(
+                    userId,
+                    plan.getMonthlyCredits(),
+                    "SUBSCRIPTION",
+                    "SUBSCRIPTION_ACTIVATE",
+                    String.valueOf(subscription.getId()),
+                    LocalDateTime.now().plusDays(30));
+            subscription.setLastCreditIssuedAt(LocalDateTime.now());
+            subscriptionRepository.save(subscription);
+        }
 
         log.info("订阅激活: userId={}, plan={}, endAt={}", userId, plan.getCode(), subscription.getEndAt());
         return subscription.getId();

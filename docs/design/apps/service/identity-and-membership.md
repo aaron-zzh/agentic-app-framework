@@ -214,7 +214,7 @@ entitlement_ledger        额度变更流水（账本，每次扣减/充值/重�
   created_at    TIMESTAMP
 ```
 
-### 成长线 + 钱包
+### 成长线 + 积分账户
 
 ```text
 level                     成长等级（免费，按 exp 自动升降，给小权益）
@@ -226,25 +226,54 @@ level                     成长等级（免费，按 exp 自动升降，给小�
   perks         JSONB           -- 成长小权益（签到加成倍率、基础配额加成等，轻量）
   sort          INT
 
-wallet                    钱包（1:1 挂 user，积分 + 成长值）
+credit_account            积分账户（1:1 挂 user，同时承载成长体系）
   user_id       BIGINT PK FK→user
-  point_balance BIGINT          -- 积分余额（用于额度充值 refill）
-  frozen_point  BIGINT
-  level_id      BIGINT FK→level
+  balance       BIGINT          -- 当前可用积分总余额（= 所有批次 remain 之和）
+  frozen        BIGINT          -- 冻结中的积分
+  total_earned  BIGINT          -- 累计获得
+  total_spent   BIGINT          -- 累计消费
   exp           INT             -- 成长值
+  level_id      BIGINT FK→level -- 当前成长等级
 
-wallet_transaction        积分流水（1:N）
-  id                  BIGINT PK
-  user_id             BIGINT FK→user
-  type                VARCHAR(16)  -- RECHARGE / CONSUME / REFUND / GRANT
-  point_delta         BIGINT
-  ref_type            VARCHAR(24)  -- PAY_ORDER / ENT_REFILL / SIGN_IN ...
-  ref_id              BIGINT
-  balance_after       BIGINT
-  created_at          TIMESTAMP
+credit_transaction        积分流水 + 批次（1:N，每次发放产生一条批次记录）
+  id            BIGINT PK
+  account_id    BIGINT FK→credit_account
+  type          VARCHAR(16)     -- EARN / SPEND / FREEZE / UNFREEZE / EXPIRE
+  amount        BIGINT          -- 本次变化量
+  balance_after BIGINT          -- 操作后账户余额
+  source        VARCHAR(24)     -- 来源标识
+  biz_id        VARCHAR         -- 关联业务 ID
+  -- 批次有效期字段（EARN 类型时有意义）
+  batch_type    VARCHAR(16)     -- SUBSCRIPTION / TOPUP / REWARD / WEEKLY / MANUAL
+  expire_at     TIMESTAMP       -- 过期时间，NULL = 永不过期（充值积分）
+  remain        BIGINT          -- 本批次剩余可用量
+  created_at    TIMESTAMP
 ```
 
-> 注意分工：**token 不在 wallet 里**，token 是 `entitlement_def(code='ai_token')` 的一种计量权益，挂在 entitlement_quota。wallet 只管"积分"这一种通用货币，积分可用于额度充值（refill）。这样区分了"通用货币（积分）"与"专项额度（token/存储/调用次数）"，避免把所有计量都塞进 wallet 导致字段膨胀。
+**积分批次有效期规则**：
+
+| batch_type | 来源 | 有效期 |
+|------------|------|--------|
+| SUBSCRIPTION | 订阅月度发放 | 30 天 |
+| TOPUP | 用户充值购买 | 永久（expire_at = NULL） |
+| REWARD | 运营活动奖励 | 按活动设定 |
+| WEEKLY | 每周免费积分 | 7 天 |
+| MANUAL | 后台手动发放 | 按需设定 |
+
+**消费顺序**：优先扣更快到期的批次（`ORDER BY expire_at ASC NULLS LAST`），永久积分最后消费。
+
+**订阅套餐积分配置**（`subscription_plan` 扩展字段）：
+
+```text
+subscription_plan（扩展）
+  + monthly_credits  BIGINT DEFAULT 0  -- 每月发放积分数，0 = 不发放
+```
+
+订阅激活时发放首月积分（30 天有效期）；此后每月由定时任务自动发放。详见 [订阅积分批次化设计](subscription-credit-batch.md)。
+
+> 暂不引入独立的 wallet 表。`credit_account` 同时承担积分账户和成长体系的职责。后续如需支持余额账户、商城充值提现等多财产类型，再以 wallet 作为聚合根扩展各子账户。
+
+> 注意分工：**token 不在积分账户里**，token 是 `entitlement_def(code='ai_token')` 的一种计量权益，挂在 entitlement_quota。`credit_account` 只管"积分"这一种通用货币，积分可用于额度充值（refill）。这样区分了"通用货币（积分）"与"专项额度（token/存储/调用次数）"，避免字段膨胀。积分本身按批次管理有效期，不同来源（订阅发放/充值购买/奖励）的积分有效期不同，消费时优先扣更快到期的批次。
 
 ### token 计费如何落地（AAF-074 #3）
 
@@ -343,7 +372,7 @@ module/billing            ← 计费域（AAF-074），含三组表：
                               · 套餐权益：subscription_plan / entitlement_def / plan_entitlement
                               · 订阅：subscription / subscription_record
                               · 消费：entitlement_quota / entitlement_ledger
-                              · 钱包成长：wallet / wallet_transaction / level
+                              · 积分成长：credit_account（含 exp/level_id）/ credit_transaction / level
 ```
 
 > billing 通过 `module/system/api` 暴露的接口获取 user 信息，禁止直接访问 user 的 repository/entity。
@@ -359,7 +388,7 @@ module/billing            ← 计费域（AAF-074），含三组表：
 | 权益模型 | 关系化 plan/entitlement/quota/ledger | token 计费是核心变现路径，须可计量/对账/退款 |
 | 获取双轨 | level（成长免费）+ subscription（付费）并存 | 成长线零成本激励活跃，付费线承载变现，职责分离 |
 | 权益与权限 | `@Entitlement` 与四层权限平行解耦 | 商业策略高频变更，不应绑架功能权限系统 |
-| token 归属 | token 是 entitlement 计量权益，不进 wallet | 区分"通用货币（积分）"与"专项额度"，避免 wallet 字段膨胀 |
+| token 归属 | token 是 entitlement 计量权益，不进积分账户 | 区分"通用货币（积分）"与"专项额度"，避免积分账户字段膨胀 |
 | 租户层 | 不引入 | 当前为单用户/工作区模式，按需后置（避免过度设计） |
 
 ## 落地路径（v0.9）
@@ -376,7 +405,7 @@ module/billing            ← 计费域（AAF-074），含三组表：
 - `PayChannelEnum`：微信/支付宝全渠道编码已定义（wx_pub/wx_lite/wx_app/wx_native/alipay_*）
 - 审计字段双轨：`org_id`/`workspace_id`（保留不用）+ `owner_id`/`create_by_type`（Operator 模型）
 
-> 现有 `credit_account` ≈ 本设计 wallet（积分维度），`credit_token_rule` ≈ token 计费雏形。v0.9 在此基础上补关系化权益模型，不推倒重来。
+> 现有 `credit_account` 即本设计的积分账户，`credit_transaction` 在此基础上扩展批次有效期字段（`batch_type / expire_at / remain`），`credit_token_rule` ≈ token 计费雏形。v0.9 在此基础上补关系化权益模型，不推倒重来。
 
 ### 身份层（system 模块）
 

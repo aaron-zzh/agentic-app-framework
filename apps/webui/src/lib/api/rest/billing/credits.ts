@@ -14,7 +14,7 @@ export interface CreditBalanceVO {
 }
 
 /** 积分流水类型（与后端 CreditTransactionType 对齐） */
-export type CreditTransactionType = "EARN" | "SPEND" | "FREEZE" | "UNFREEZE"
+export type CreditTransactionType = "EARN" | "SPEND" | "FREEZE" | "UNFREEZE" | "EXPIRE"
 
 /** 积分流水记录 */
 export interface CreditTransactionVO {
@@ -42,6 +42,18 @@ export interface RechargeOrderVO {
   payOrderId: string
 }
 
+/** 积分分组明细（按 batch_type 汇总） */
+export interface CreditGroupVO {
+  /** 分组标识：SUBSCRIPTION / TOPUP / REWARD / WEEKLY / MANUAL */
+  batchType: string
+  /** 分组显示名 */
+  label: string
+  /** 该分组总余额 */
+  remain: number
+  /** 子项明细（可选，如套餐积分/购买积分） */
+  items?: { label: string; remain: number }[]
+}
+
 export const creditsApi = {
   /** 获取积分余额 */
   getBalance: () => request<CreditBalanceVO>("/credits/balance"),
@@ -49,6 +61,9 @@ export const creditsApi = {
   /** 获取积分流水（分页） */
   getTransactions: (page = 0, size = 20) =>
     request<PageResult<CreditTransactionVO>>(`/credits/transactions?page=${page}&size=${size}`),
+
+  /** 获取积分分组明细（按 batch_type 汇总） */
+  getGroups: () => request<CreditGroupVO[]>("/credits/groups"),
 
   /** 创建充值订单 */
   createRecharge: (amount: number) =>

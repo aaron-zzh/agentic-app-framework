@@ -13,4 +13,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     Optional<Subscription> findByUserIdAndStatus(Long userId, String status);
 
     List<Subscription> findByStatusAndEndAtBefore(String status, LocalDateTime time);
+
+    /** 查询需要发放月度积分的订阅：从未发放过，或上次发放时间早于 threshold */
+    List<Subscription> findByStatusAndLastCreditIssuedAtBeforeOrLastCreditIssuedAtIsNull(
+            String status, LocalDateTime threshold);
 }

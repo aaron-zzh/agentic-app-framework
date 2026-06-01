@@ -132,6 +132,8 @@ product(Epic→Story 拆分 + Spec 细化)
 - **测试放置**：共享逻辑 → `packages/*.test.ts`；平台接线 → `apps/*.test.tsx`；测试需 mock `next/*` 来测共享组件即 blocker（位置错误）
 - **完工前必跑 `pnpm check:affected`**：失败即未完工，不得提交或汇报
 - **上下文使用率 ≤ 50%**：超过必须分析原因 + 记录 + 优化（详见 [上下文管理规范](docs/reference/team/context-management-standard.md)）
+- **strReplace 前必须读取文件最新内容**：禁止凭记忆直接写 `old_str`，必须先用文件读取工具确认当前内容再做替换，否则大概率 `old_str not found`
+- **Windows 环境禁用 Linux shell 参数**：shell 命令运行在 Windows PowerShell，禁用 `-tail` / `-head`（Linux 专属），读取文件末尾用 `Select-Object -Last N`，读取开头用 `Select-Object -First N`；优先用文件读取工具代替 shell 命令
 
 ## AI 验证循环（写代码时的内循环）
 

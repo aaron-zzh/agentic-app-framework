@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
+import java.time.LocalDateTime;
+
 /**
  * 积分服务——管理用户积分余额、赚取、消费、冻结。
  *
@@ -13,10 +15,18 @@ public interface CreditService {
     /** 预算检查：可用余额是否 >= estimatedCost */
     boolean hasBudget(Long userId, long estimatedCost);
 
-    /** 赚取积分 */
+    /** 赚取积分（充值场景，有效期 2 年，batch_type=TOPUP） */
     void earn(Long userId, long amount, String source, String bizId);
 
-    /** 消费积分 */
+    /**
+     * 赚取带有效期的积分批次。
+     *
+     * @param batchType 批次来源：SUBSCRIPTION/TOPUP/REWARD/WEEKLY/MANUAL
+     * @param expireAt  过期时间，null = 永不过期
+     */
+    void earnBatch(Long userId, long amount, String batchType, String source, String bizId, LocalDateTime expireAt);
+
+    /** 消费积分（按批次优先扣减：最快到期的批次优先） */
     void spend(Long userId, long amount, String source, String bizId);
 
     /** 冻结积分（预扣） */
@@ -30,4 +40,10 @@ public interface CreditService {
 
     /** 分页查询流水 */
     org.springframework.data.domain.Page<CreditTransaction> getTransactions(Long userId, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * 按 batch_type 汇总积分余额（供 Header 用户弹窗展示）。
+     * 返回各分组的剩余积分，只包含 remain > 0 的批次。
+     */
+    java.util.Map<String, Long> getGroupedBalance(Long userId);
 }

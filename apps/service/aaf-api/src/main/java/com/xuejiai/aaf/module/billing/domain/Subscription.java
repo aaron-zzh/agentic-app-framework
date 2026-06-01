@@ -40,4 +40,8 @@ public class Subscription extends BaseEntity {
     /** 关联购买流水 ID */
     @Column(name = "source_id")
     private Long sourceId;
+
+    /** 上次月度积分发放时间（防重复发放） */
+    @Column(name = "last_credit_issued_at")
+    private LocalDateTime lastCreditIssuedAt;
 }

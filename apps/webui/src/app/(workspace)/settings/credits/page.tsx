@@ -5,7 +5,6 @@
 
 "use client"
 
-import Link from "next/link"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,13 +20,15 @@ import {
 } from "@/components/ui/table"
 import type { CreditTransactionType } from "@/lib/api/rest/billing/credits"
 import { useCreditBalance, useCreditTransactions } from "@/lib/queries/use-credits"
+import { CreditRechargeDialog } from "@/components/common/CreditRechargeDialog"
 
 /** 流水类型标签 */
 const TYPE_LABEL: Record<CreditTransactionType, string> = {
   EARN: "获得",
   SPEND: "消费",
   FREEZE: "冻结",
-  UNFREEZE: "解冻"
+  UNFREEZE: "解冻",
+  EXPIRE: "过期"
 }
 
 /** 流水类型颜色 */
@@ -35,11 +36,13 @@ const TYPE_VARIANT: Record<CreditTransactionType, "default" | "secondary" | "des
   EARN: "default",
   SPEND: "destructive",
   FREEZE: "secondary",
-  UNFREEZE: "default"
+  UNFREEZE: "default",
+  EXPIRE: "secondary"
 }
 
 export default function CreditsPage() {
   const [page, setPage] = useState(0)
+  const [rechargeOpen, setRechargeOpen] = useState(false)
   const pageSize = 20
   const { data: balance, isLoading: balanceLoading } = useCreditBalance()
   const { data: transactions, isLoading: txLoading } = useCreditTransactions(page, pageSize)
@@ -62,10 +65,10 @@ export default function CreditsPage() {
           <h1 className="font-semibold text-2xl">积分管理</h1>
           <p className="text-muted-foreground text-sm">查看积分余额和消费记录</p>
         </div>
-        <Button asChild>
-          <Link href="/settings/credits/recharge">充值</Link>
-        </Button>
+        <Button onClick={() => setRechargeOpen(true)}>充值</Button>
       </div>
+
+      <CreditRechargeDialog open={rechargeOpen} onOpenChange={setRechargeOpen} />
 
       {/* 余额卡片 */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

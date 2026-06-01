@@ -9,6 +9,7 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.vo.CreditBalanceVO;
+import com.xuejiai.aaf.module.pay.vo.CreditGroupVO;
 import com.xuejiai.aaf.module.pay.vo.CreditTransactionVO;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +41,23 @@ public class CreditController {
                         account.getFrozen(),
                         account.getTotalEarned(),
                         account.getTotalSpent()));
+    }
+
+    @Operation(summary = "查询积分分组明细（按 batch_type 汇总）")
+    @GetMapping("/groups")
+    public Result<java.util.List<CreditGroupVO>> getGroups(@RequestParam(required = false) Long userId) {
+        var grouped = creditService.getGroupedBalance(ownerId(userId));
+        // batch_type → 显示名映射
+        var labelMap = java.util.Map.of(
+                "SUBSCRIPTION", "套餐积分",
+                "TOPUP",        "购买积分",
+                "WEEKLY",       "每周积分",
+                "REWARD",       "奖励积分",
+                "MANUAL",       "额外赠送");
+        var groups = grouped.entrySet().stream()
+                .map(e -> new CreditGroupVO(e.getKey(), labelMap.getOrDefault(e.getKey(), e.getKey()), e.getValue(), null))
+                .toList();
+        return Result.success(groups);
     }
 
     @Operation(summary = "查询积分流水")

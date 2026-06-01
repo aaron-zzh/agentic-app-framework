@@ -79,4 +79,15 @@ public final class SysConfigKeys {
         public static final String COMPANY_NAME = "brand.company_name"; // 公司名称
         public static final String LOGO_URL     = "brand.logo_url";     // Logo URL
     }
+
+    /** 会员与积分配置 */
+    public static final class Member {
+
+        private Member() {}
+
+        public static final String MONTHLY_GRANT_ENABLED = "member.monthly_grant_enabled"; // 订阅月度积分发放开关
+        public static final String WEEKLY_GRANT_ENABLED  = "member.weekly_grant_enabled";  // 每周积分发放开关
+        public static final String CREDIT_EXPIRE_ENABLED = "member.credit_expire_enabled"; // 积分过期清理开关
+        public static final String FAQ                   = "member.faq";                   // 会员与积分常见问题（JSON 数组）
+    }
 }

@@ -11,7 +11,9 @@ public enum CreditTransactionType {
     EARN,
     SPEND,
     FREEZE,
-    UNFREEZE;
+    UNFREEZE,
+    /** 积分批次过期清零 */
+    EXPIRE;
 
     /** 转换为 common 枚举 */
     public CreditTransactionTypeEnum toEnum() {

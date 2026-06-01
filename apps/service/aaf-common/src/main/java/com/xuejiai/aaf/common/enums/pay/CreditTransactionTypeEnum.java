@@ -14,7 +14,8 @@ public enum CreditTransactionTypeEnum implements ArrayValuable<String> {
     EARN("EARN", "赚取"),
     SPEND("SPEND", "消费"),
     FREEZE("FREEZE", "冻结"),
-    UNFREEZE("UNFREEZE", "解冻");
+    UNFREEZE("UNFREEZE", "解冻"),
+    EXPIRE("EXPIRE", "过期清零");
 
     private final String code;
     private final String label;

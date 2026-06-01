@@ -34,6 +34,15 @@ export function useTokenRules() {
   })
 }
 
+/** 查询积分分组明细（按 batch_type 汇总） */
+export function useCreditGroups() {
+  return useQuery({
+    queryKey: ["credits", "groups"],
+    queryFn: creditsApi.getGroups,
+    staleTime: 60 * 1000
+  })
+}
+
 /** 创建充值订单 */
 export function useCreateRecharge() {
   const qc = useQueryClient()

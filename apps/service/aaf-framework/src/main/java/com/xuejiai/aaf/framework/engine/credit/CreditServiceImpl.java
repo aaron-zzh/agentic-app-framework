@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
+import java.time.LocalDateTime;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,9 +32,20 @@ public class CreditServiceImpl implements CreditService {
         return getBalance(userId) >= estimatedCost;
     }
 
+    /** 充值积分有效期（天） */
+    private static final int TOPUP_EXPIRE_DAYS = 365 * 2;
+
     @Override
     @Transactional
     public void earn(Long userId, long amount, String source, String bizId) {
+        // 充值积分有效期 2 年
+        earnBatch(userId, amount, "TOPUP", source, bizId,
+                LocalDateTime.now().plusDays(TOPUP_EXPIRE_DAYS));
+    }
+
+    @Override
+    @Transactional
+    public void earnBatch(Long userId, long amount, String batchType, String source, String bizId, LocalDateTime expireAt) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "赚取金额必须大于 0");
         }
@@ -40,29 +53,63 @@ public class CreditServiceImpl implements CreditService {
         account.setBalance(account.getBalance() + amount);
         account.setTotalEarned(account.getTotalEarned() + amount);
         accountRepository.save(account);
-        recordTransaction(account, CreditTransactionType.EARN, amount, source, bizId);
-        log.info("积分赚取: userId={}, amount={}, source={}, bizId={}", userId, amount, source, bizId);
+
+        var tx = new CreditTransaction();
+        tx.setAccountId(account.getId());
+        tx.setType(CreditTransactionType.EARN);
+        tx.setAmount(amount);
+        tx.setBalanceAfter(account.getBalance());
+        tx.setSource(source);
+        tx.setBizId(bizId);
+        tx.setBatchType(batchType);
+        tx.setExpireAt(expireAt);
+        tx.setRemain(amount);
+        transactionRepository.save(tx);
+
+        log.info("积分赚取: userId={}, amount={}, batchType={}, expireAt={}", userId, amount, batchType, expireAt);
     }
 
+    /**
+     * 消费积分——按批次优先扣减（最快到期的批次优先，永久积分最后）。
+     */
     @Override
     @Transactional
     public void spend(Long userId, long amount, String source, String bizId) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "消费金额必须大于 0");
         }
-        var account =
-                accountRepository
-                        .findByUserIdForUpdate(userId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
+        var account = accountRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
         if (account.getBalance() < amount) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分余额不足");
         }
+
+        // 按批次优先扣减
+        var batches = transactionRepository.findActiveBatchesByAccountId(account.getId());
+        long remaining = amount;
+        for (var batch : batches) {
+            if (remaining <= 0) break;
+            long deduct = Math.min(batch.getRemain(), remaining);
+            batch.setRemain(batch.getRemain() - deduct);
+            transactionRepository.save(batch);
+            remaining -= deduct;
+        }
+
         account.setBalance(account.getBalance() - amount);
         account.setTotalSpent(account.getTotalSpent() + amount);
         accountRepository.save(account);
-        recordTransaction(account, CreditTransactionType.SPEND, amount, source, bizId);
-        log.info("积分消费: userId={}, amount={}, source={}, bizId={}", userId, amount, source, bizId);
+
+        var tx = new CreditTransaction();
+        tx.setAccountId(account.getId());
+        tx.setType(CreditTransactionType.SPEND);
+        tx.setAmount(amount);
+        tx.setBalanceAfter(account.getBalance());
+        tx.setSource(source);
+        tx.setBizId(bizId);
+        tx.setRemain(0L);
+        transactionRepository.save(tx);
+
+        log.info("积分消费: userId={}, amount={}, source={}", userId, amount, source);
     }
 
     @Override
@@ -71,11 +118,8 @@ public class CreditServiceImpl implements CreditService {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "冻结金额必须大于 0");
         }
-        var account =
-                accountRepository
-                        .findByUserIdForUpdate(userId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
+        var account = accountRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
         if (account.getBalance() < amount) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分余额不足，无法冻结");
         }
@@ -92,11 +136,8 @@ public class CreditServiceImpl implements CreditService {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "解冻金额必须大于 0");
         }
-        var account =
-                accountRepository
-                        .findByUserIdForUpdate(userId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
+        var account = accountRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
         if (account.getFrozen() < amount) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "冻结金额不足，无法解冻");
         }
@@ -124,25 +165,28 @@ public class CreditServiceImpl implements CreditService {
         return transactionRepository.findByAccountId(account.getId(), pageable);
     }
 
-    /** 获取或创建账户（悲观锁保证并发安全） */
-    private CreditAccount getOrCreateAccount(Long userId) {
-        return accountRepository
-                .findByUserIdForUpdate(userId)
-                .orElseGet(
-                        () -> {
-                            var account = new CreditAccount();
-                            account.setUserId(userId);
-                            return accountRepository.saveAndFlush(account);
-                        });
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> getGroupedBalance(Long userId) {
+        var account = accountRepository.findByUserId(userId).orElse(null);
+        if (account == null) return java.util.Map.of();
+        var rows = transactionRepository.sumRemainByBatchType(account.getId());
+        var result = new java.util.LinkedHashMap<String, Long>();
+        for (var row : rows) {
+            result.put(row[0] != null ? (String) row[0] : "MANUAL", ((Number) row[1]).longValue());
+        }
+        return result;
     }
 
-    /** 记录流水 */
-    private void recordTransaction(
-            CreditAccount account,
-            CreditTransactionType type,
-            long amount,
-            String source,
-            String bizId) {
+    private CreditAccount getOrCreateAccount(Long userId) {
+        return accountRepository.findByUserIdForUpdate(userId).orElseGet(() -> {
+            var account = new CreditAccount();
+            account.setUserId(userId);
+            return accountRepository.saveAndFlush(account);
+        });
+    }
+
+    private void recordTransaction(CreditAccount account, CreditTransactionType type, long amount, String source, String bizId) {
         var tx = new CreditTransaction();
         tx.setAccountId(account.getId());
         tx.setType(type);
@@ -150,6 +194,7 @@ public class CreditServiceImpl implements CreditService {
         tx.setBalanceAfter(account.getBalance());
         tx.setSource(source);
         tx.setBizId(bizId);
+        tx.setRemain(0L);
         transactionRepository.save(tx);
     }
 }

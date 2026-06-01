@@ -10,6 +10,7 @@ import { MessageSquare, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { AnimateBorder, transitionTap, varHover, varTap } from "@/components/animate"
 import { ThemeSettings } from "@/components/common/ThemeSettings"
+import { UserAvatarPopover } from "@/components/common/UserAvatarPopover"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Sheet,
@@ -126,7 +127,7 @@ export function HeaderActions() {
       <ChatterToggle />
       <NotificationDrawer />
       <SettingsButton />
-      <UserAvatar />
+      <UserAvatarPopover />
     </>
   )
 }

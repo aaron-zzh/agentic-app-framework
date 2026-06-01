@@ -5,7 +5,9 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
 
 /** 订阅套餐定义（货架商品） */
 @Getter
@@ -42,4 +44,17 @@ public class SubscriptionPlan extends BaseEntity {
     /** 排序 */
     @Column(name = "sort", nullable = false)
     private Integer sort;
+
+    /** 每月发放积分数（0 = 不发放） */
+    @Column(name = "monthly_credits", nullable = false)
+    private Long monthlyCredits = 0L;
+
+    /**
+     * 扩展配置（JSONB）。
+     *
+     * <p>示例：{"highlight": true, "badge": "热门", "features": ["无限对话", "优先客服"]}
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ext", columnDefinition = "jsonb")
+    private String ext;
 }
