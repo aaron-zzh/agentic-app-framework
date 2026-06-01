@@ -26,6 +26,9 @@ public interface SkillStore {
     /** 查询指定 Assistant 的活跃技能 */
     List<SkillRecord> findByAssistant(String assistantId);
 
+    /** 查询绑定了指定 Agent 的活跃技能 */
+    List<SkillRecord> findByAgentId(String agentId);
+
     /** 查询全局内置技能 */
     List<SkillRecord> findBuiltIn();
 
@@ -41,6 +44,7 @@ public interface SkillStore {
             String agentId,
             String triggerIntent,
             String systemPrompt,
+            String instructions,
             String tools,
             int priority,
             boolean builtIn) {}

@@ -31,6 +31,13 @@ public class SkillStoreImpl implements SkillStore {
     }
 
     @Override
+    public List<SkillRecord> findByAgentId(String agentId) {
+        return repository.findByAgentIdAndStatus(agentId, "active").stream()
+                .map(this::toRecord)
+                .toList();
+    }
+
+    @Override
     public List<SkillRecord> findBuiltIn() {
         return repository.findByBuiltInTrueAndStatus("active").stream()
                 .map(this::toRecord)
@@ -51,6 +58,7 @@ public class SkillStoreImpl implements SkillStore {
                 e.getAgentId(),
                 e.getTriggerIntent(),
                 e.getSystemPrompt(),
+                e.getInstructions(),
                 e.getTools(),
                 e.getPriority(),
                 Boolean.TRUE.equals(e.getBuiltIn()));
@@ -60,6 +68,8 @@ public class SkillStoreImpl implements SkillStore {
 @Repository
 interface SkillDefinitionRepository extends JpaRepository<SkillDefinition, Long> {
     List<SkillDefinition> findByAssistantIdAndStatus(String assistantId, String status);
+
+    List<SkillDefinition> findByAgentIdAndStatus(String agentId, String status);
 
     List<SkillDefinition> findByBuiltInTrueAndStatus(String status);
 

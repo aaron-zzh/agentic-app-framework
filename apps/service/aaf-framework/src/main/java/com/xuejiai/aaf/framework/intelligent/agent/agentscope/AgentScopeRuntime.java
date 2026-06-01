@@ -6,6 +6,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
+import com.xuejiai.aaf.framework.engine.skill.SkillStore;
+import com.xuejiai.aaf.framework.engine.workflow.WorkflowTool;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.McpToolService;
@@ -19,6 +21,8 @@ import com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.autocontext.AutoContextHook;
 import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.core.skill.AgentSkill;
+import io.agentscope.core.skill.SkillBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,6 +45,8 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final CapabilityRouter capabilityRouter;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
     private final AgentScopeToolGovernanceService toolGovernanceService;
+    private final SkillStore skillStore;
+    private final WorkflowTool workflowTool;
 
     @Override
     public AgentExecutor create(AgentDefinition definition, List<String> tools) {
@@ -70,7 +76,41 @@ public class AgentScopeRuntime implements AgentRuntime {
         toolGovernanceService.apply(toolkit, definition);
         builder.toolkit(toolkit);
 
+        // 集成 SkillBox：从 ai_skill_definition 加载当前 Agent 关联的技能
+        var skillBox = buildSkillBox(toolkit, definition.getAgentId());
+        if (skillBox != null) {
+            builder.skillBox(skillBox);
+        }
+
         return builder.build();
+    }
+
+    /**
+     * 构建 SkillBox：加载 ai_skill_definition 中绑定了当前 Agent 的技能，
+     * 每个技能激活后才暴露绑定的工具，实现渐进式披露。
+     */
+    private SkillBox buildSkillBox(io.agentscope.core.tool.Toolkit toolkit, String agentId) {
+        if (agentId == null) return null;
+        var skills = skillStore.findByAgentId(agentId);
+        if (skills.isEmpty()) return null;
+
+        var skillBox = new SkillBox(toolkit);
+        skillBox.registerSkillLoadTool();
+
+        for (var skill : skills) {
+            var agentSkill = AgentSkill.builder()
+                    .name(skill.skillId())
+                    .description(skill.description() != null ? skill.description() : "")
+                    .skillContent(skill.instructions() != null ? skill.instructions() : "")
+                    .build();
+            var registration = skillBox.registration().skill(agentSkill);
+            // 绑定了 start_workflow 的技能，激活后才暴露 WorkflowTool
+            if (skill.tools() != null && skill.tools().contains("start_workflow")) {
+                registration.tool(workflowTool);
+            }
+            registration.apply();
+        }
+        return skillBox;
     }
 
     private void configureModel(ReActAgent.Builder builder, AgentDefinition definition) {
