@@ -310,7 +310,7 @@ Agent 执行完成
 |---|---|---|
 | AI 助理对话 | 用户与 AI Agent 多轮对话 | `POST /agui/runs`（AgentScope AG-UI） |
 | 用户间聊天 | 用户发消息给另一个用户 | `POST /api/chat/run` target=user |
-| 工作流交互 | 用户触发工作流，实时查看节点执行状态 | `POST /api/system/workflow/agui/run` |
+| 工作流交互 | 用户触发工作流，实时查看节点执行状态 | `POST /api/workflow/run`（AG-UI SSE，独立接口） |
 | Kiro 开发助手 | 用户与 Kiro CLI Agent 对话 | `POST /api/autodev/kiro/run` |
 
 ### 按 AI 对话复杂度
