@@ -35,6 +35,7 @@ public class AgentScopeRuntime implements AgentRuntime {
 
     private final TokenMeteringHook tokenMeteringHook;
     private final AafTraceHook aafTraceHook;
+    private final AafToolPermissionHook aafToolPermissionHook;
     private final McpToolService mcpToolService;
     private final AiModelRepository modelRepository;
     private final CapabilityRouter capabilityRouter;
@@ -59,6 +60,7 @@ public class AgentScopeRuntime implements AgentRuntime {
                         .sysPrompt(definition.getSystemPrompt())
                         .hook(tokenMeteringHook)
                         .hook(aafTraceHook)
+                        .hook(aafToolPermissionHook)
                         .hook(new AutoContextHook())
                         .hook(new AafToolWhitelistHook(
                                 parseList(definition.getTools()), toolCatalogProvider.getIfAvailable()));
