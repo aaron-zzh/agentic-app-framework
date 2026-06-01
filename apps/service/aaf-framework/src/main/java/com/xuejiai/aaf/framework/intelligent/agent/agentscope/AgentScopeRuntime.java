@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AgentScopeRuntime implements AgentRuntime {
 
     private final TokenMeteringHook tokenMeteringHook;
+    private final AafTraceHook aafTraceHook;
     private final McpToolService mcpToolService;
     private final AiModelRepository modelRepository;
     private final CapabilityRouter capabilityRouter;
@@ -57,6 +58,7 @@ public class AgentScopeRuntime implements AgentRuntime {
                         .name(definition.getName())
                         .sysPrompt(definition.getSystemPrompt())
                         .hook(tokenMeteringHook)
+                        .hook(aafTraceHook)
                         .hook(new AutoContextHook())
                         .hook(new AafToolWhitelistHook(
                                 parseList(definition.getTools()), toolCatalogProvider.getIfAvailable()));
