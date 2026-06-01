@@ -12,7 +12,8 @@ import com.xuejiai.aaf.framework.intelligent.agent.McpToolService;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
-import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook;
 
 import io.agentscope.core.ReActAgent;
@@ -35,7 +36,7 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final TokenMeteringHook tokenMeteringHook;
     private final McpToolService mcpToolService;
     private final AiModelRepository modelRepository;
-    private final ModelManagementService modelManagementService;
+    private final CapabilityRouter capabilityRouter;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
     private final AgentScopeToolGovernanceService toolGovernanceService;
 
@@ -69,26 +70,19 @@ public class AgentScopeRuntime implements AgentRuntime {
     }
 
     private void configureModel(ReActAgent.Builder builder, AgentDefinition definition) {
-        var modelId = definition.getModelId();
-        var dbModel =
-                modelId != null
-                        ? modelRepository.findByModelIdAndEnabledTrue(modelId).orElse(null)
-                        : null;
+        // 走六层决策链：definition.modelId 作为编排引擎配置（第2层），userId=null 跳过用户偏好层
+        var ctx = new CapabilityRoutingContext(
+                null, CapabilityRoutingContext.CAP_CHAT,
+                null, definition.getModelId(), null);
+        var resolvedModelId = capabilityRouter.resolve(ctx);
 
+        var dbModel = modelRepository.findByModelIdAndEnabledTrue(resolvedModelId).orElse(null);
         OpenAIChatModel chatModel;
         if (dbModel != null) {
             chatModel = buildFromDb(dbModel);
-        } else if (modelId != null) {
-            var fallback = modelManagementService.getFallback(modelId).orElse(null);
-            if (fallback != null) {
-                log.info("模型 [{}] 不可用，降级到 fallback [{}]", modelId, fallback.getModelId());
-                chatModel = buildFromDb(fallback);
-            } else {
-                log.warn("模型 [{}] 不可用且无 fallback，降级使用模型名直接调用", modelId);
-                chatModel = OpenAIChatModel.builder().modelName(modelId).build();
-            }
         } else {
-            chatModel = OpenAIChatModel.builder().modelName("gpt-4o").build();
+            log.warn("模型 [{}] 不可用，降级使用模型名直接调用", resolvedModelId);
+            chatModel = OpenAIChatModel.builder().modelName(resolvedModelId).build();
         }
         builder.model(chatModel);
         builder.memory(AafAutoContextMemoryAdapter.create(chatModel));
