@@ -14,7 +14,7 @@ import { FieldText } from "@/components/form/field-text"
 import { Form } from "@/components/form/form"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { authApi } from "@/lib/api/auth"
+import { authApi } from "@/lib/api/rest/user/auth"
 import { paths } from "@/lib/constants/paths"
 import { useAuthStore } from "@/lib/store/auth-store"
 

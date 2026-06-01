@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { developerApi } from "@/lib/api/developer"
+import { developerApi } from "@/lib/api/rest/billing/developer"
 
 export const developerBillingKeys = {
   plans: ["developerBilling", "plans"] as const,

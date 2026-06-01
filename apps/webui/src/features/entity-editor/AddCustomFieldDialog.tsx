@@ -25,7 +25,7 @@ import {
   type CustomFieldType,
   customFieldApi,
   type FieldOption
-} from "@/lib/api/custom-field"
+} from "@/lib/api/rest/entity/custom-field"
 
 /** 字段类型元数据 */
 const FIELD_TYPES: { type: CustomFieldType; label: string; icon: React.ReactNode }[] = [

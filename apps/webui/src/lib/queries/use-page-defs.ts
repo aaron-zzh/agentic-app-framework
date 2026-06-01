@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { type PageDefCreateInput, pageDefApi } from "@/lib/api/page-def"
+import { type PageDefCreateInput, pageDefApi } from "@/lib/api/rest/entity/page-def"
 
 const PAGE_DEFS_KEY = ["page-defs"]
 

@@ -4,8 +4,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { ListParams } from "@/lib/api/client"
-import { knowledgeApi } from "@/lib/api/knowledge"
+import type { ListParams } from "@/lib/api/rest/entity/crud"
+import { knowledgeApi } from "@/lib/api/rest/knowledge/knowledge"
 import type { CreateKnowledgeBaseInput } from "@/lib/types/knowledge"
 
 const KEYS = {

@@ -49,7 +49,7 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { MenuCreateDTO, MenuVO } from "@/lib/api/menu"
+import type { MenuCreateDTO, MenuVO } from "@/lib/api/rest/user/menu"
 import { useAllMenus, useCreateMenu, useDeleteMenu, useUpdateMenu } from "@/lib/queries/use-menus"
 import { cn } from "@/lib/utils/cn"
 

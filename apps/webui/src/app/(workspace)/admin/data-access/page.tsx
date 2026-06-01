@@ -33,7 +33,7 @@ import type {
   DataAccessRule,
   DataAccessRuleInput,
   RuleEffect
-} from "@/lib/api/data-access"
+} from "@/lib/api/rest/admin/data-access"
 import {
   useCreateDataAccessRule,
   useDataAccessRules,

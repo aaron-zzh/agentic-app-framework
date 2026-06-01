@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CheckCircle2, Circle, Loader2, Play, Rocket, XCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 
 interface BuildStatus {
   runId: number

@@ -9,6 +9,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { setBackendOrgId } from "@/lib/api/rest/backend-client"
 
 interface OrgState {
   /** 当前选中的组织 ID */
@@ -21,8 +22,18 @@ export const useOrgStore = create<OrgState>()(
   persist(
     (set) => ({
       currentOrgId: null,
-      setCurrentOrgId: (orgId) => set({ currentOrgId: orgId })
+      setCurrentOrgId: (orgId) => {
+        setBackendOrgId(orgId)
+        set({ currentOrgId: orgId })
+      }
     }),
-    { name: "aaf-org" }
+    {
+      name: "aaf-org",
+      onRehydrateStorage: () => (state) => {
+        setBackendOrgId(state?.currentOrgId ?? null)
+      }
+    }
   )
 )
+
+setBackendOrgId(useOrgStore.getState().currentOrgId)

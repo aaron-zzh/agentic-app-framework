@@ -16,7 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ApprovalPanel } from "@/features/flow-editor/components/approval-panel"
 import { ExecutionPanel } from "@/features/flow-editor/components/execution-panel"
 import type { ExecutionState } from "@/features/flow-editor/types"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 import type { EntityWorkflowConfig } from "@/lib/types/entity/entity"
 
 /** 流程状态信息 */

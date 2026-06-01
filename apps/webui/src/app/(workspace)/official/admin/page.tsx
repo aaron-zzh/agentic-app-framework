@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { licenseApi } from "@/lib/api/license"
+import { licenseApi } from "@/lib/api/rest/billing/license"
 import { useDeveloperPlans } from "@/lib/queries/use-developer-billing"
 import { useIssueLicense, useLicenseStatus, useOfficialConsoleSummary } from "@/lib/queries/use-license-status"
 

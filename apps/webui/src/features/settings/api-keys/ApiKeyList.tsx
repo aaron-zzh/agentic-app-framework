@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 import type { ActionConfig } from "@/lib/hooks/use-action"
 
 interface ApiKeyVO {

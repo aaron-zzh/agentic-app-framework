@@ -19,7 +19,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import type { SubscriptionChannel } from "@/lib/api/subscription"
+import type { SubscriptionChannel } from "@/lib/api/rest/billing/subscription"
 import {
   useRemoveSubscription,
   useSubscription,

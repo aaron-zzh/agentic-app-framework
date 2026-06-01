@@ -10,7 +10,7 @@ import { useCallback, useMemo, useState } from "react"
 import { type Layout, Responsive, WidthProvider } from "react-grid-layout"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { DashboardWidgetVO, WidgetType } from "@/lib/api/dashboard"
+import type { DashboardWidgetVO, WidgetType } from "@/lib/api/rest/dashboard/dashboard"
 import { useDashboard, useSaveDashboardLayout } from "@/lib/queries/use-dashboard"
 import { AddWidgetDialog } from "./AddWidgetDialog"
 import {

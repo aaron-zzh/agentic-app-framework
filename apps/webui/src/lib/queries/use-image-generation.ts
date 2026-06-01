@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 
 interface GenerateImageParams {
   prompt: string

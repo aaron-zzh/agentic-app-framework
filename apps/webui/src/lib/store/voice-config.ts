@@ -6,7 +6,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 export type VoiceMode = "browser" | "server"

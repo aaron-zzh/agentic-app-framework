@@ -8,7 +8,7 @@
 import { List } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { ListWidgetConfig } from "@/lib/api/dashboard"
+import type { ListWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import { useWidgetData } from "@/lib/queries/use-dashboard"
 
 interface ListWidgetProps {

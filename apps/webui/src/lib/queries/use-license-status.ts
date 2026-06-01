@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { licenseApi } from "@/lib/api/license"
+import { licenseApi } from "@/lib/api/rest/billing/license"
 
 export const licenseStatusKey = ["license", "current"] as const
 export const officialConsoleSummaryKey = ["official", "console", "summary"] as const

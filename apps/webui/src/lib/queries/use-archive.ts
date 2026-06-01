@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { archiveApi } from "@/lib/api/archive"
+import { archiveApi } from "@/lib/api/rest/entity/archive"
 import { notify } from "@/lib/notification"
 
 /** 归档记录 */

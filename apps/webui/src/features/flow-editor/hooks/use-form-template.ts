@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 import type { FormTemplate } from "../components/vertical-designer/types"
 
 /** 查询表单模板列表 */

@@ -17,7 +17,7 @@ import {
 import { PageContainer } from "@/components/common/PageContainer"
 import { Button } from "@/components/ui/button"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 
 /**
  * 自定义 ChatModelAdapter，对接 /api/chat SSE 流式接口

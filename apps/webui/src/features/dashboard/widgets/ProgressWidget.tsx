@@ -9,7 +9,7 @@ import { Target } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { ProgressWidgetConfig } from "@/lib/api/dashboard"
+import type { ProgressWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import { useWidgetData } from "@/lib/queries/use-dashboard"
 
 interface ProgressWidgetProps {

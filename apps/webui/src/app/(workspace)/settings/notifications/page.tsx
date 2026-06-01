@@ -16,7 +16,7 @@ import type {
   ChannelConfig,
   NotificationChannel,
   NotificationPreference
-} from "@/lib/api/notification-preference"
+} from "@/lib/api/rest/user/notification-preference"
 import { notify } from "@/lib/notification"
 import {
   useNotificationPreference,

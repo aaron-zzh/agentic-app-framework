@@ -30,7 +30,7 @@ import {
   type CustomFieldRecord,
   type CustomFieldType,
   customFieldApi
-} from "@/lib/api/custom-field"
+} from "@/lib/api/rest/entity/custom-field"
 import { AddCustomFieldDialog } from "./AddCustomFieldDialog"
 
 /** 类型图标映射 */

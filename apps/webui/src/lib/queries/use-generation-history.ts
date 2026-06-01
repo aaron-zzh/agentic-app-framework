@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { generationHistoryApi } from "@/lib/api/generation-history"
+import { generationHistoryApi } from "@/lib/api/rest/ai/generation-history"
 
 const KEYS = {
   all: ["generation-history"] as const,

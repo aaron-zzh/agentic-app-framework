@@ -14,7 +14,7 @@ import {
   fetchQueryWindow,
   type ListParams,
   type PageResult
-} from "@/lib/api/client"
+} from "@/lib/api/rest/entity/crud"
 import { useOrgStore } from "@/lib/store/org-store"
 import { useUIStore } from "@/lib/store/ui-store"
 import type { EntityDef } from "@/lib/types/entity"
@@ -29,8 +29,8 @@ export interface UseEntityQueryWindowResult {
   error: Error | null
 }
 
-export function entityQueryWindowKey(entity: EntityDef, params: ListParams = {}) {
-    return [entity.slug, "queryWindow", params] as const
+export function entityQueryWindowKey(entity: EntityDef, params: unknown = {}) {
+  return [entity.slug, "queryWindow", params] as const
 }
 
 export function useEntityQueryWindow(
@@ -42,7 +42,7 @@ export function useEntityQueryWindow(
   const orgId = useOrgStore((s) => s.currentOrgId)
   const queryParams = {
     workspaceId,
-    orgId,
+    orgId: orgId ?? undefined,
     pageNo: page,
     pageSize,
     sort,

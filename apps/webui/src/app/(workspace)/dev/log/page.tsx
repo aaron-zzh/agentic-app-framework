@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 import type { DocTreeNode, Document } from "@/lib/types/document"
 import { cn } from "@/lib/utils/cn"
 

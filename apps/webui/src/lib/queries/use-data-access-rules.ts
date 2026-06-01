@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type DataAccessRuleInput, dataAccessApi } from "@/lib/api/data-access"
+import { type DataAccessRuleInput, dataAccessApi } from "@/lib/api/rest/admin/data-access"
 
 const KEYS = {
   all: ["data-access-rules"] as const

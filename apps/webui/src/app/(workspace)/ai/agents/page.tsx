@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 
 interface AgentVO {
   id: number

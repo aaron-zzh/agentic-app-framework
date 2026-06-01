@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { API_ORIGIN } from "@/lib/api/base"
+import { API_ORIGIN } from "@/lib/api/config"
 
 interface Person {
   name: string

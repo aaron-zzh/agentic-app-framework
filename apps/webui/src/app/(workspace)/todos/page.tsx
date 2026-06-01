@@ -14,7 +14,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { TodoItem, TodoSourceType, TodoStatus } from "@/lib/api/todo"
+import type { TodoItem, TodoSourceType, TodoStatus } from "@/lib/api/rest/workflow/todo"
 import { paths } from "@/lib/constants/paths"
 import { useTodoComplete, useTodoDismiss, useTodos } from "@/lib/queries/use-todos"
 import { cn } from "@/lib/utils/cn"

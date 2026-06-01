@@ -8,7 +8,7 @@
 import { BarChart3 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { ChartWidgetConfig } from "@/lib/api/dashboard"
+import type { ChartWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import { useWidgetData } from "@/lib/queries/use-dashboard"
 
 interface ChartWidgetProps {

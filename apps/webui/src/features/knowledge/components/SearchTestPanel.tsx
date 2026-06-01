@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { knowledgeApi } from "@/lib/api/knowledge"
+import { knowledgeApi } from "@/lib/api/rest/knowledge/knowledge"
 import type { SearchResponse } from "@/lib/types/knowledge"
 
 interface SearchTestPanelProps {

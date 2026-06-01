@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { _notifications } from "@/lib/_mock/notifications"
-import { type NotificationListParams, notificationApi } from "@/lib/api/notification"
+import { type NotificationListParams, notificationApi } from "@/lib/api/rest/user/notification"
 
 const KEYS = {
   all: ["notifications"] as const,

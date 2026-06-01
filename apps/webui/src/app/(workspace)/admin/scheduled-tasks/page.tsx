@@ -17,7 +17,7 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { ScheduledTaskStatus } from "@/lib/api/scheduled-task"
+import type { ScheduledTaskStatus } from "@/lib/api/rest/workflow/scheduled-task"
 import {
   useScheduledTaskPause,
   useScheduledTaskResume,

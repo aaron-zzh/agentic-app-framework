@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 import type { ExecutionState } from "../types"
 
 /** 节点执行日志条目 */

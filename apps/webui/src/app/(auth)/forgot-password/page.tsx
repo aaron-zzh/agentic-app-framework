@@ -14,7 +14,7 @@ import { z } from "zod"
 import { FieldText } from "@/components/form/field-text"
 import { Form } from "@/components/form/form"
 import { Button } from "@/components/ui/button"
-import { authApi } from "@/lib/api/auth"
+import { authApi } from "@/lib/api/rest/user/auth"
 import { paths } from "@/lib/constants/paths"
 
 const emailSchema = z.object({

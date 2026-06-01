@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
 
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
-import { ApiError } from "@/lib/api/client"
+import { ApiError } from "@/lib/api/rest/entity/crud"
 
 interface EntityActionsProps {
   entity: EntityDef

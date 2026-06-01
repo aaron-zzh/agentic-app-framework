@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 
 interface ImageResult {
   imageUrl: string

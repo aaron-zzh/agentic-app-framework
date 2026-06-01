@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { activityApi } from "@/lib/api/activity"
+import { activityApi } from "@/lib/api/rest/entity/activity"
 
 const key = (entityType: string, entityId: string) => [entityType, entityId, "activities"]
 

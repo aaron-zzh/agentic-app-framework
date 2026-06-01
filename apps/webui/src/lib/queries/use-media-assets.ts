@@ -4,8 +4,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { ListParams } from "@/lib/api/client"
-import { mediaAssetApi, type RegenerateParams } from "@/lib/api/media-asset"
+import type { ListParams } from "@/lib/api/rest/entity/crud"
+import { mediaAssetApi, type RegenerateParams } from "@/lib/api/rest/media/media-asset"
 
 const KEYS = {
   all: ["media-assets"] as const,

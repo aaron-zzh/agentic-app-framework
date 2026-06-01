@@ -120,7 +120,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
   )
 }
 
-import type { NotificationItem as NotificationItemType } from "@/lib/api/notification"
+import type { NotificationItem as NotificationItemType } from "@/lib/api/rest/user/notification"
 
 function NotificationList({
   items,

@@ -1,0 +1,60 @@
+/**
+ * 素材资源 API 客户端
+ * @author AaronZZH & Kiro
+ */
+
+import type { MediaAssetVO, MediaCategoryVO, MediaTagVO } from "@/features/aigc/types"
+import { fetchList, type ListParams, type PageResult, request } from "../entity/crud"
+
+/** 旧路径——生成面板内的素材引用（保留兼容） */
+const LEGACY_PATH = "/media-assets"
+/** 新路径——素材库管理 */
+const API_PATH = "/aigc/assets"
+
+export interface RegenerateParams {
+  assetId: number
+  newPrompt?: string
+  newSeed?: number
+  newStyle?: string
+}
+
+export const mediaAssetApi = {
+  /** 素材列表（旧接口，生成面板用） */
+  legacyList: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
+    fetchList<MediaAssetVO>(LEGACY_PATH, params),
+
+  /** 素材搜索（旧接口，@提及用） */
+  legacySearch: (keyword: string): Promise<MediaAssetVO[]> =>
+    request<MediaAssetVO[]>(`${LEGACY_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
+
+  /** 素材列表（分页+筛选） */
+  list: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
+    fetchList<MediaAssetVO>(API_PATH, params),
+
+  /** 素材搜索（关键词匹配名称/标签） */
+  search: (keyword: string): Promise<MediaAssetVO[]> =>
+    request<MediaAssetVO[]>(`${API_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
+
+  /** 获取单条素材详情 */
+  getById: (id: number): Promise<MediaAssetVO> => request<MediaAssetVO>(`${API_PATH}/${id}`),
+
+  /** 删除素材 */
+  delete: (id: number): Promise<void> => request<void>(`${API_PATH}/${id}`, { method: "DELETE" }),
+
+  /** 重新生成素材 */
+  regenerate: (params: RegenerateParams): Promise<MediaAssetVO> =>
+    request<MediaAssetVO>(`${API_PATH}/regenerate`, {
+      method: "POST",
+      body: JSON.stringify(params)
+    }),
+
+  /** 获取素材变体列表 */
+  getVariants: (id: number): Promise<MediaAssetVO[]> =>
+    request<MediaAssetVO[]>(`${API_PATH}/${id}/variants`),
+
+  /** 获取分类树 */
+  getCategories: (): Promise<MediaCategoryVO[]> => request<MediaCategoryVO[]>("/aigc/categories"),
+
+  /** 获取标签列表 */
+  getTags: (): Promise<MediaTagVO[]> => request<MediaTagVO[]>("/aigc/tags")
+}

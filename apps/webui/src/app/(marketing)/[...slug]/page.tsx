@@ -7,7 +7,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { PageEngine } from "@/features/page-engine"
-import { pageDefApi } from "@/lib/api/page-def"
+import { pageDefApi } from "@/lib/api/rest/entity/page-def"
 
 interface Props {
   params: Promise<{ slug: string[] }>

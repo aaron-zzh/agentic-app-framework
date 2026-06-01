@@ -7,7 +7,7 @@ import {
   submitVideoEdit,
   type TextToVideoParams,
   type VideoEditParams
-} from "@/lib/api/video-generation"
+} from "@/lib/api/rest/ai/video-generation"
 
 /** 文生视频 mutation */
 export function useTextToVideo() {

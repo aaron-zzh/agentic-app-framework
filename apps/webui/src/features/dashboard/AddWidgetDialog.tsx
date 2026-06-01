@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import type { WidgetType } from "@/lib/api/dashboard"
+import type { WidgetType } from "@/lib/api/rest/dashboard/dashboard"
 
 /** 可添加的 Widget 类型列表 */
 const WIDGET_OPTIONS: {

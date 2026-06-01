@@ -8,7 +8,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
-import { fetchList, type ListParams, type PageResult } from "@/lib/api/client"
+import { fetchList, type ListParams, type PageResult } from "@/lib/api/rest/entity/crud"
 import { useUIStore } from "@/lib/store/ui-store"
 import type { EntityDef } from "@/lib/types/entity"
 

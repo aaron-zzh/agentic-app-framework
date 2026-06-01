@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type TrashListParams, trashApi } from "@/lib/api/trash"
+import { type TrashListParams, trashApi } from "@/lib/api/rest/entity/trash"
 import { notify } from "@/lib/notification"
 
 const KEYS = {

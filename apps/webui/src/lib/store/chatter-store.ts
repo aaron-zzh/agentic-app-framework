@@ -11,7 +11,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 import type { ChatterPreset } from "@/features/chatter/types"
 
 export interface ChatterPageConfig {

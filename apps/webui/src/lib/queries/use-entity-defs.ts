@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { type EntityDefInput, entityDefApi } from "@/lib/api/entity-def"
+import { type EntityDefInput, entityDefApi } from "@/lib/api/rest/entity/entity-def"
 
 const ENTITY_DEFS_KEY = ["entity-defs"]
 

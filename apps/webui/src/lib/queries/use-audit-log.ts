@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { type AuditLogListParams, auditLogApi } from "@/lib/api/audit-log"
+import { type AuditLogListParams, auditLogApi } from "@/lib/api/rest/admin/audit-log"
 
 const KEYS = {
   list: (params: AuditLogListParams) => ["audit-log", "list", params] as const

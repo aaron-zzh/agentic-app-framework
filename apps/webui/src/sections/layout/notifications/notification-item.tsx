@@ -5,7 +5,7 @@
 
 "use client"
 
-import type { NotificationItem as NotificationItemType } from "@/lib/api/notification"
+import type { NotificationItem as NotificationItemType } from "@/lib/api/rest/user/notification"
 import { cn } from "@/lib/utils/cn"
 import { formatTimeAgo } from "@/lib/utils/time"
 import { NotificationIcon } from "./icons"

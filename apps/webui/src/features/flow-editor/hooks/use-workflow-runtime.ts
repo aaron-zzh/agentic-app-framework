@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useRef, useState } from "react"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 import type { ExecutionState } from "../types"
 
 /** 工作流运行消息 */

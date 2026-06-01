@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { versionApi } from "@/lib/api/version"
+import { versionApi } from "@/lib/api/rest/entity/version"
 
 export function useRecordVersions(entitySlug: string, id: string, enabled = true) {
   return useQuery({

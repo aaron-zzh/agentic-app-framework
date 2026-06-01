@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { subscriptionApi, type UpsertSubscriptionReq } from "@/lib/api/subscription"
+import { subscriptionApi, type UpsertSubscriptionReq } from "@/lib/api/rest/billing/subscription"
 
 /** 获取当前用户对某条记录的订阅 */
 export function useSubscription(entityType: string, entityId: string | undefined) {

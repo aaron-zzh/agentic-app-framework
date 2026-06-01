@@ -31,7 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { notify } from "@/lib/notification"
 import { useChatSessions } from "@/lib/queries/use-chat"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
-import { useChangePassword, useProfile, useUpdateProfile } from "@/lib/queries/use-profile"
+import { useChangePassword, useProfile, useUpdateProfile } from "@/lib/api/rest/user/profile"
 import { useTodos } from "@/lib/queries/use-todos"
 import { useAuthStore } from "@/lib/store/auth-store"
 

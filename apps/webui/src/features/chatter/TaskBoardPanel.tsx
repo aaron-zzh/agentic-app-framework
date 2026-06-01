@@ -10,7 +10,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react"
 import { useState } from "react"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
-import type { SubTask } from "@/lib/api/task-board"
+import type { SubTask } from "@/lib/api/rest/ai/task-board"
 
 /** 状态图标映射 */
 const STATUS_ICON: Record<SubTask["status"], string> = {

@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type TodoListParams, todoApi } from "@/lib/api/todo"
+import { type TodoListParams, todoApi } from "@/lib/api/rest/workflow/todo"
 
 const KEYS = {
   all: ["todos"] as const,

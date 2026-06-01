@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { DashboardWidgetVO } from "@/lib/api/dashboard"
+import type { DashboardWidgetVO } from "@/lib/api/rest/dashboard/dashboard"
 
 export interface DashboardPreset {
   key: string

@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { licenseApi } from "@/lib/api/license"
+import { licenseApi } from "@/lib/api/rest/billing/license"
 import { useLicenseStatus } from "@/lib/queries/use-license-status"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"

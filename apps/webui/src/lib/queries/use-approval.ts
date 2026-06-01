@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { approvalApi } from "@/lib/api/approval"
+import { approvalApi } from "@/lib/api/rest/workflow/approval"
 
 /** 我的待办任务 */
 export function useMyPendingTasks() {

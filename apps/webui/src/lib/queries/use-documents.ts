@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { docApi } from "@/lib/api/document"
+import { docApi } from "@/lib/api/rest/knowledge/document"
 
 export const docKeys = {
   tree: ["docs", "tree"] as const,

@@ -9,6 +9,13 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import axios from "axios"
+import {
+  type ApiResult,
+  registerBackendTokenRefresh,
+  setBackendAccessToken
+} from "@/lib/api/rest/backend-client"
+import { buildApiUrl } from "@/lib/api/config"
 
 export interface AuthUser {
   id: string
@@ -39,6 +46,11 @@ function syncTokenCookie(token: string | null) {
   }
 }
 
+interface TokenPair {
+  accessToken: string
+  refreshToken: string
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -49,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
 
       setTokens: (accessToken, refreshToken) => {
         syncTokenCookie(accessToken)
+        setBackendAccessToken(accessToken)
         set({ accessToken, refreshToken, isAuthenticated: true })
       },
 
@@ -56,6 +69,7 @@ export const useAuthStore = create<AuthState>()(
 
       clearAuth: () => {
         syncTokenCookie(null)
+        setBackendAccessToken(null)
         set({
           accessToken: null,
           refreshToken: null,
@@ -67,3 +81,31 @@ export const useAuthStore = create<AuthState>()(
     { name: "aaf-auth" }
   )
 )
+
+registerBackendTokenRefresh(async () => {
+  const { refreshToken, setTokens, clearAuth } = useAuthStore.getState()
+  if (!refreshToken) {
+    clearAuth()
+    return null
+  }
+
+  try {
+    const response = await axios.post<ApiResult<TokenPair>>(
+      buildApiUrl("/auth/refresh"),
+      { refreshToken },
+      { timeout: 10_000 }
+    )
+    if (response.data.code !== 0) {
+      clearAuth()
+      return null
+    }
+    setTokens(response.data.data.accessToken, response.data.data.refreshToken)
+    return response.data.data.accessToken
+  } catch {
+    clearAuth()
+    return null
+  }
+})
+
+const initialToken = useAuthStore.getState().accessToken
+if (initialToken) setBackendAccessToken(initialToken)

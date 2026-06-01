@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { statsApi, type TrendParams } from "@/lib/api/stats"
+import { statsApi, type TrendParams } from "@/lib/api/rest/dashboard/stats"
 
 const KEYS = {
   all: ["stats"] as const,

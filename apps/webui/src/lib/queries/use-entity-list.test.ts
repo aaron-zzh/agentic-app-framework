@@ -8,11 +8,12 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { createElement, type ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useEntityList } from "@/lib/queries/use-entity-list"
+import {
+  installMockBackendClient,
+  mockBackendResponse,
+  resetMockBackendClient
+} from "@/test/mock-backend-client"
 import type { EntityDef } from "@/lib/types/entity"
-
-// mock fetch
-const mockFetch = vi.fn()
-global.fetch = mockFetch
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -30,15 +31,14 @@ const mockEntity: Pick<EntityDef, "slug" | "apiPath" | "fields" | "listView"> = 
 }
 
 function mockApiResponse(list: Record<string, unknown>[], total = list.length) {
-  mockFetch.mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({ code: 0, data: { list, total, page: 1, pageSize: 20 } })
-  })
+  mockBackendResponse({ code: 0, data: { list, total, page: 1, pageSize: 20 } })
 }
 
 describe("useEntityList", () => {
   beforeEach(() => {
-    mockFetch.mockReset()
+    vi.clearAllMocks()
+    installMockBackendClient()
+    resetMockBackendClient()
   })
 
   it("获取列表数据", async () => {

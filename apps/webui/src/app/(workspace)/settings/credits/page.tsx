@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
-import type { CreditTransactionType } from "@/lib/api/credits"
+import type { CreditTransactionType } from "@/lib/api/rest/billing/credits"
 import { useCreditBalance, useCreditTransactions } from "@/lib/queries/use-credits"
 
 /** 流水类型标签 */

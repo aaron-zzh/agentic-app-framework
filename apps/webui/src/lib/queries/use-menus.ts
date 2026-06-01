@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type MenuCreateDTO, type MenuUpdateDTO, menuApi } from "@/lib/api/menu"
+import { type MenuCreateDTO, type MenuUpdateDTO, menuApi } from "@/lib/api/rest/user/menu"
 
 const KEYS = {
   all: ["menus"] as const,

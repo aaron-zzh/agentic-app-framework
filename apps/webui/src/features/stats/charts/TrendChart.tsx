@@ -6,7 +6,7 @@
 "use client"
 
 import { useMemo } from "react"
-import type { TrendPoint } from "@/lib/api/stats"
+import type { TrendPoint } from "@/lib/api/rest/dashboard/stats"
 import { BaseChart, type EChartsOption } from "./BaseChart"
 
 interface TrendChartProps {

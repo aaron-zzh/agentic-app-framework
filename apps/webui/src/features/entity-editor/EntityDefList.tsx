@@ -9,7 +9,7 @@ import { Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { EntityDefRecord } from "@/lib/api/entity-def"
+import type { EntityDefRecord } from "@/lib/api/rest/entity/entity-def"
 import { cn } from "@/lib/utils/cn"
 
 interface EntityDefListProps {

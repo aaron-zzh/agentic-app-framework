@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { workflowApi } from "@/lib/api/workflow"
+import { workflowApi } from "@/lib/api/rest/workflow/workflow"
 
 /** 查询流程状态 */
 export function useWorkflowStatus(processInstanceId?: string) {

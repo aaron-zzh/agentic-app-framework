@@ -12,7 +12,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react"
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 
 interface KiroAgentProviderProps {
   children: ReactNode

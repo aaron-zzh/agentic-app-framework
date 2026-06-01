@@ -9,7 +9,7 @@ import {
   type MultiImageTo3dParams,
   model3dApi,
   type TextTo3dParams
-} from "@/lib/api/model3d-generation"
+} from "@/lib/api/rest/ai/model3d-generation"
 
 const KEYS = {
   task: (taskId: string) => ["model3d", "task", taskId] as const

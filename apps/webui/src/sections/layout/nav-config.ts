@@ -7,7 +7,7 @@
  */
 
 import { entityRegistry } from "@/features/entity-engine"
-import type { MenuVO } from "@/lib/api/menu"
+import type { MenuVO } from "@/lib/api/rest/user/menu"
 import { paths } from "@/lib/constants/paths"
 
 export interface NavItem {

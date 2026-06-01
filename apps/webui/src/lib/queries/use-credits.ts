@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { creditsApi } from "@/lib/api/credits"
+import { creditsApi } from "@/lib/api/rest/billing/credits"
 
 const BALANCE_KEY = ["credits", "balance"]
 const TRANSACTIONS_KEY = ["credits", "transactions"]

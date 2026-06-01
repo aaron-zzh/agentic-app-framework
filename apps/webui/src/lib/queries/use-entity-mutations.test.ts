@@ -12,10 +12,13 @@ import {
   useEntityMutation,
   useEntityRecord
 } from "@/lib/queries/use-entity-mutations"
+import {
+  installMockBackendClient,
+  mockBackendRequest,
+  mockBackendResponse,
+  resetMockBackendClient
+} from "@/test/mock-backend-client"
 import type { EntityDef } from "@/lib/types/entity"
-
-const mockFetch = vi.fn()
-global.fetch = mockFetch
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -33,13 +36,13 @@ const entity = {
 } as unknown as EntityDef
 
 describe("useEntityRecord", () => {
-  beforeEach(() => mockFetch.mockReset())
+  beforeEach(() => {
+    installMockBackendClient()
+    resetMockBackendClient()
+  })
 
   it("根据 id 查询单条记录", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ code: 0, data: { id: "1", title: "任务一" } })
-    })
+    mockBackendResponse({ code: 0, data: { id: "1", title: "任务一" } })
 
     const { result } = renderHook(() => useEntityRecord(entity, "1"), {
       wrapper: createWrapper()
@@ -58,13 +61,13 @@ describe("useEntityRecord", () => {
 })
 
 describe("useEntityMutation", () => {
-  beforeEach(() => mockFetch.mockReset())
+  beforeEach(() => {
+    installMockBackendClient()
+    resetMockBackendClient()
+  })
 
   it("创建记录（无 id）", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ code: 0, data: { id: "new-1", title: "新任务" } })
-    })
+    mockBackendResponse({ code: 0, data: { id: "new-1", title: "新任务" } })
 
     const { result } = renderHook(() => useEntityMutation(entity), {
       wrapper: createWrapper()
@@ -75,14 +78,13 @@ describe("useEntityMutation", () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(mockFetch).toHaveBeenCalledWith("/api/task", expect.objectContaining({ method: "POST" }))
+    expect(mockBackendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "post", url: "/task" })
+    )
   })
 
   it("更新记录（有 id）", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ code: 0, data: { id: "1", title: "已更新" } })
-    })
+    mockBackendResponse({ code: 0, data: { id: "1", title: "已更新" } })
 
     const { result } = renderHook(() => useEntityMutation(entity, "1"), {
       wrapper: createWrapper()
@@ -93,21 +95,20 @@ describe("useEntityMutation", () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/api/task/1",
-      expect.objectContaining({ method: "PUT" })
+    expect(mockBackendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "put", url: "/task/1" })
     )
   })
 })
 
 describe("useEntityDelete", () => {
-  beforeEach(() => mockFetch.mockReset())
+  beforeEach(() => {
+    installMockBackendClient()
+    resetMockBackendClient()
+  })
 
   it("批量删除", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ code: 0, data: null })
-    })
+    mockBackendResponse({ code: 0, data: null })
 
     const { result } = renderHook(() => useEntityDelete(entity), {
       wrapper: createWrapper()
@@ -118,11 +119,11 @@ describe("useEntityDelete", () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/api/task",
+    expect(mockBackendRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        method: "DELETE",
-        body: JSON.stringify({ ids: ["1", "2", "3"] })
+        data: JSON.stringify({ ids: ["1", "2", "3"] }),
+        method: "delete",
+        url: "/task"
       })
     )
   })

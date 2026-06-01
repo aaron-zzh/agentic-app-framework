@@ -8,7 +8,7 @@
 import { TrendingUp } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { CounterWidgetConfig } from "@/lib/api/dashboard"
+import type { CounterWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import { useWidgetData } from "@/lib/queries/use-dashboard"
 
 interface CounterWidgetProps {

@@ -37,7 +37,7 @@ import type {
   AutomationRule,
   AutomationRuleInput,
   TriggerType
-} from "@/lib/api/automation"
+} from "@/lib/api/rest/automation/automation"
 import {
   useAutomationLogs,
   useAutomationRules,

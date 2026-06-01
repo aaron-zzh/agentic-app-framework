@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { scheduledTaskApi } from "@/lib/api/scheduled-task"
+import { scheduledTaskApi } from "@/lib/api/rest/workflow/scheduled-task"
 
 const KEYS = {
   all: ["scheduled-tasks"] as const,

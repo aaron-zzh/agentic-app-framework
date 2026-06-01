@@ -15,7 +15,7 @@ import {
   useExternalStoreRuntime
 } from "@assistant-ui/react"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
-import type { ChatMessageVO } from "@/lib/api/chat"
+import type { ChatMessageVO } from "@/lib/api/rest/ai/chat"
 import { useWebSocket } from "@/lib/hooks/use-websocket"
 import { useChatMessages } from "@/lib/queries/use-chat"
 import type { LivechatRuntimeConfig } from "./runtime"
@@ -106,7 +106,7 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
       setIsRunning(true)
 
       // 通过 REST 发送（后端会通过 WS 推送响应）
-      const { chatApi } = await import("@/lib/api/chat")
+      const { chatApi } = await import("@/lib/api/rest/ai/chat")
       await chatApi.sendMessage({ sessionId, content: text })
     },
     [sessionId]

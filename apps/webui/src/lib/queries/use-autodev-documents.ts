@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { autodevDocApi } from "@/lib/api/autodev-document"
+import { autodevDocApi } from "@/lib/api/rest/knowledge/autodev-document"
 
 export const autodevDocKeys = {
   tree: ["autodev-docs", "tree"] as const,

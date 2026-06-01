@@ -28,7 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Chatter } from "@/features/chatter"
 import { RichTextEditor } from "@/features/rich-text-editor"
-import { request } from "@/lib/api/client"
+import { request } from "@/lib/api/rest/entity/crud"
 import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import {
   autodevDocKeys,

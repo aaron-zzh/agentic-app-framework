@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { type EntityAccess, fetchEntityAccess } from "@/lib/api/permission"
+import { type EntityAccess, fetchEntityAccess } from "@/lib/api/rest/user/permission"
 
 /** 查询实体权限，staleTime 较长（权限不频繁变化） */
 export function useEntityAccess(entitySlug: string) {

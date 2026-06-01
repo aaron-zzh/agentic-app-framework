@@ -19,7 +19,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import type { ApprovalOperationType } from "@/lib/api/approval"
+import type { ApprovalOperationType } from "@/lib/api/rest/workflow/approval"
 import {
   useAddSignAfter,
   useAddSignBefore,

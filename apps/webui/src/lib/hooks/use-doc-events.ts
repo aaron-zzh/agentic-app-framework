@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef } from "react"
 import { toast } from "sonner"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 
 export function useDocEvents(docId: number | null, onUpdate: () => void): void {
   // 用 ref 存储回调，避免 onUpdate 引用变化导致 EventSource 反复重建

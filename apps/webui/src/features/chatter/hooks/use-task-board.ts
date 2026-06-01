@@ -6,7 +6,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { getTaskBoardSSEUrl, type SubTask } from "@/lib/api/task-board"
+import { getTaskBoardSSEUrl, type SubTask } from "@/lib/api/rest/ai/task-board"
 
 interface TaskBoardProgress {
   total: number

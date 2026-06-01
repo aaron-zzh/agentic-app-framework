@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { buildApiUrl } from "@/lib/api/base"
+import { buildApiUrl } from "@/lib/api/config"
 import { flowToBpmn } from "../lib/bpmn-converter"
 import type { FlowDefinition, FlowTemplate } from "../types"
 

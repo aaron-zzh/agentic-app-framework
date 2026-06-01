@@ -13,8 +13,8 @@ import { AssistantRuntimeProvider, type ThreadMessage } from "@assistant-ui/reac
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
-import { buildApiUrl } from "@/lib/api/base"
-import { chatApi } from "@/lib/api/chat"
+import { buildApiUrl } from "@/lib/api/config"
+import { chatApi } from "@/lib/api/rest/ai/chat"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import type { ChatterTarget } from "./types"
 

@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { setBackendWorkspaceId } from "@/lib/api/rest/backend-client"
 
 export type ThemeColor = "default" | "blue" | "purple" | "orange" | "green" | "rose" | "cyan"
 
@@ -43,7 +44,10 @@ export const useUIStore = create<UIState>()(
       closeRecordPanel: () => set({ recordPanelId: null }),
       currentWorkspace: null,
       workspaces: [],
-      setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
+      setCurrentWorkspace: (workspace) => {
+        setBackendWorkspaceId(workspace.id)
+        set({ currentWorkspace: workspace })
+      },
       setWorkspaces: (workspaces) => set({ workspaces })
     }),
     {
@@ -57,3 +61,5 @@ export const useUIStore = create<UIState>()(
     }
   )
 )
+
+setBackendWorkspaceId(useUIStore.getState().currentWorkspace?.id ?? null)

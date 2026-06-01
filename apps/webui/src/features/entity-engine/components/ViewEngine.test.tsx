@@ -2,7 +2,9 @@
  * ViewEngine 单元测试——验证视图路由逻辑
  */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
+import type { ReactElement } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 // mock tldraw（jsdom 不支持 CSS.supports）
@@ -34,21 +36,28 @@ const mockEntity = {
   overrides: {}
 } as any
 
+function renderWithQueryClient(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+  })
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
+
 describe("ViewEngine", () => {
   it("默认应渲染列表视图", () => {
-    render(<ViewEngine entity={mockEntity} />)
+    renderWithQueryClient(<ViewEngine entity={mockEntity} />)
     // ListView 会渲染 DataTable 或空状态
     expect(document.querySelector("[data-testid]") || document.body).toBeTruthy()
   })
 
   it("view=form 应渲染表单视图", () => {
-    render(<ViewEngine entity={mockEntity} view="form" recordId="1" />)
+    renderWithQueryClient(<ViewEngine entity={mockEntity} view="form" recordId="1" />)
     // FormView 渲染 form 元素
     expect(document.querySelector("form")).toBeTruthy()
   })
 
   it("未知视图应渲染占位组件", () => {
-    render(<ViewEngine entity={mockEntity} view="unknown_view" />)
+    renderWithQueryClient(<ViewEngine entity={mockEntity} view="unknown_view" />)
     expect(screen.getByText("（待实现）")).toBeInTheDocument()
   })
 
@@ -56,7 +65,7 @@ describe("ViewEngine", () => {
     const CustomList = () => <div data-testid="custom-list">自定义列表</div>
     const entityWithOverride = { ...mockEntity, overrides: { listView: CustomList } }
 
-    render(<ViewEngine entity={entityWithOverride} view="list" />)
+    renderWithQueryClient(<ViewEngine entity={entityWithOverride} view="list" />)
 
     expect(screen.getByTestId("custom-list")).toBeInTheDocument()
   })

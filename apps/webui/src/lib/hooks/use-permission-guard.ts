@@ -10,7 +10,7 @@
  */
 
 import { useMemo } from "react"
-import type { EntityAccess } from "@/lib/api/permission"
+import type { EntityAccess } from "@/lib/api/rest/user/permission"
 
 export function usePermissionGuard(access: EntityAccess | undefined) {
   return useMemo(() => {

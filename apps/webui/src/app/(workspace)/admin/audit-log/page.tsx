@@ -32,7 +32,7 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { AuditLogListParams } from "@/lib/api/audit-log"
+import type { AuditLogListParams } from "@/lib/api/rest/admin/audit-log"
 import { useAuditLogList } from "@/lib/queries/use-audit-log"
 
 /** 操作类型标签颜色 */
