@@ -113,9 +113,17 @@ public class WorkflowAgUiService {
             String processKey;
 
             if (request.debug()) {
-                // 调试模式：临时部署 BPMN XML，执行后清理
+                // 调试模式：校验创建者，临时部署 BPMN XML，执行后清理
                 if (request.bpmnXml() == null || request.bpmnXml().isBlank()) {
                     throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "调试模式需要传入 bpmnXml");
+                }
+                if (request.flowId() != null) {
+                    var flow = flowRepository.findById(request.flowId())
+                            .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在"));
+                    var currentUserId = operatorContext.currentOwnerId().orElse(null);
+                    if (currentUserId == null || !currentUserId.equals(flow.getCreateBy())) {
+                        throw new BusinessException(GlobalErrorCode.FORBIDDEN, "仅创建者可调试");
+                    }
                 }
                 tempDeploymentId = workflowEngine.deploy("debug-" + runId, request.bpmnXml());
                 processKey = "debug-" + runId;
