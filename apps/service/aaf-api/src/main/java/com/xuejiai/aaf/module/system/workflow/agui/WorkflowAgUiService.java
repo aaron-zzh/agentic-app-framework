@@ -10,10 +10,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLog;
 import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLogger;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
+import com.xuejiai.aaf.module.ai.flow.repository.AiFlowDefinitionRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +37,8 @@ public class WorkflowAgUiService {
     private final WorkflowEngine workflowEngine;
     private final WorkflowExecutionLogger executionLogger;
     private final ObjectMapper objectMapper;
+    private final AiFlowDefinitionRepository flowRepository;
+    private final OperatorContext operatorContext;
 
     /** runId → SseEmitter，用于恢复流程时继续推送 */
     private final Map<String, SseEmitter> activeEmitters = new ConcurrentHashMap<>();
@@ -99,21 +105,51 @@ public class WorkflowAgUiService {
     }
 
     private void executeWorkflow(WorkflowRunRequest request, SseEmitter emitter, String runId) {
+        String tempDeploymentId = null;
         try {
-            // 发送 RUN_STARTED
             sendEvent(emitter, AgUiEvent.runStarted(runId));
 
-            // 启动流程
             var variables = request.variables() != null ? request.variables() : Map.<String, Object>of();
-            var processInstanceId = workflowEngine.startProcess(
-                    request.processKey(), "agui:" + runId, variables);
+            String processKey;
+
+            if (request.debug()) {
+                // 调试模式：临时部署 BPMN XML，执行后清理
+                if (request.bpmnXml() == null || request.bpmnXml().isBlank()) {
+                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "调试模式需要传入 bpmnXml");
+                }
+                tempDeploymentId = workflowEngine.deploy("debug-" + runId, request.bpmnXml());
+                processKey = "debug-" + runId;
+            } else {
+                // 正式运行：查 ai_flow_definition，校验 PUBLISHED
+                if (request.flowId() == null) {
+                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "正式运行需要传入 flowId");
+                }
+                var flow = flowRepository.findById(request.flowId())
+                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在"));
+                if (!"PUBLISHED".equals(flow.getStatus())) {
+                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "工作流未发布，无法运行");
+                }
+                processKey = flow.getId().toString();
+            }
+
+            var processInstanceId = workflowEngine.startProcess(processKey, "agui:" + runId, variables);
             runProcessMap.put(runId, processInstanceId);
 
-            // 推送初始状态
+            // 调试模式记录临时 deploymentId，完成后清理
+            if (tempDeploymentId != null) {
+                final var deployId = tempDeploymentId;
+                emitter.onCompletion(() -> {
+                    try { workflowEngine.deleteDeployment(deployId, true); } catch (Exception ignored) {}
+                });
+            }
+
             pushExecutionState(emitter, runId, processInstanceId);
 
         } catch (Exception e) {
             log.error("工作流 AG-UI 执行失败: runId={}", runId, e);
+            if (tempDeploymentId != null) {
+                try { workflowEngine.deleteDeployment(tempDeploymentId, true); } catch (Exception ignored) {}
+            }
             sendEvent(emitter, AgUiEvent.runError(runId, e.getMessage()));
             completeEmitter(emitter, e);
         }
