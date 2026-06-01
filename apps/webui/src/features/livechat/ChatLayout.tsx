@@ -11,16 +11,66 @@
 import {
   ComposerPrimitive,
   MessagePrimitive,
-  ThreadListPrimitive,
-  ThreadPrimitive
+  ThreadPrimitive,
+  useAssistantRuntime
 } from "@assistant-ui/react"
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { PlusIcon, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useResponsive } from "@/lib/hooks/use-responsive"
+import { useChatSessions, useCreateSession } from "@/lib/queries/use-chat"
 import { AgentRunStatus } from "./components/AgentRunStatus"
+
+interface ChatLayoutProps {
+  drawer?: boolean
+}
+
+/** 会话列表侧边栏 */
+function SessionList() {
+  const { data } = useChatSessions()
+  const { mutateAsync: createSession } = useCreateSession()
+  const runtime = useAssistantRuntime()
+
+  const sessions = data?.items ?? []
+
+  const handleNew = useCallback(async () => {
+    await createSession({ type: "ai" })
+    // 新建会话后 runtime 切换到新线程
+    runtime.switchToNewThread()
+  }, [createSession, runtime])
+
+  const handleSwitch = useCallback(
+    (sessionId: string) => {
+      runtime.switchToThread(sessionId)
+    },
+    [runtime]
+  )
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="p-2">
+        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleNew}>
+          <PlusIcon className="size-4" />
+          新建对话
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {sessions.map((session) => (
+          <button
+            key={session.id}
+            type="button"
+            onClick={() => handleSwitch(session.id)}
+            className="w-full truncate px-3 py-2 text-left text-sm hover:bg-accent"
+          >
+            {session.title || "新对话"}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 interface ChatLayoutProps {
   /** Drawer 模式：嵌入页面右侧面板，隐藏侧边栏 */
@@ -50,11 +100,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] p-0">
               <div className="h-full overflow-y-auto pt-8">
-                <ThreadListPrimitive.Root>
-                  <ThreadListPrimitive.Items>
-                    {() => <div className="cursor-pointer px-3 py-2 text-sm hover:bg-accent" />}
-                  </ThreadListPrimitive.Items>
-                </ThreadListPrimitive.Root>
+                <SessionList />
               </div>
             </SheetContent>
           </Sheet>
@@ -105,11 +151,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                   </Button>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto">
-                  <ThreadListPrimitive.Root>
-                    <ThreadListPrimitive.Items>
-                      {() => <div className="cursor-pointer px-3 py-2 text-sm hover:bg-accent" />}
-                    </ThreadListPrimitive.Items>
-                  </ThreadListPrimitive.Root>
+                  <SessionList />
                 </div>
               </div>
             </ResizablePanel>
