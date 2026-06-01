@@ -5,7 +5,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type CreateSessionParams, chatApi, type SendMessageParams } from "@/lib/api/rest/ai/chat"
-
 const KEYS = {
   all: ["chat"] as const,
   sessions: ["chat", "sessions"] as const,

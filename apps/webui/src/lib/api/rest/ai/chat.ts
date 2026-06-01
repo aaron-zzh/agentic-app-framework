@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { type PageResult, request } from "../entity/crud"
+import { request } from "../entity/crud"
 import { restEndpoints } from "../endpoints"
 
 /** 聊天会话 */
@@ -46,7 +46,7 @@ export const chatApi = {
     }),
 
   /** 获取会话列表 */
-  listSessions: () => request<PageResult<ChatSession>>(restEndpoints.ai.chatSessions),
+  listSessions: () => request<ChatSession[]>(restEndpoints.ai.chatSessions),
 
   /** 获取会话消息历史 */
   getMessages: (sessionId: string) =>

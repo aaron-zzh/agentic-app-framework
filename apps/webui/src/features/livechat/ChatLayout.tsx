@@ -33,7 +33,7 @@ function SessionList() {
   const { mutateAsync: createSession } = useCreateSession()
   const runtime = useAssistantRuntime()
 
-  const sessions = data?.items ?? []
+  const sessions = data ?? []
 
   const handleNew = useCallback(async () => {
     await createSession({ type: "ai" })
