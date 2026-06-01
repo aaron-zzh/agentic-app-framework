@@ -18,7 +18,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import type { ChatMessageVO } from "@/lib/api/rest/ai/chat"
 import { useWebSocket } from "@/lib/hooks/use-websocket"
 import { useChatMessages } from "@/lib/queries/use-chat"
-import type { LivechatRuntimeConfig } from "./runtime"
+import type { IMRuntimeConfig } from "./runtime"
 
 /** 后端 ChatMessageVO → assistant-ui ThreadMessage */
 function toThreadMessage(msg: ChatMessageVO): ThreadMessage {
@@ -44,7 +44,7 @@ function toThreadMessage(msg: ChatMessageVO): ThreadMessage {
 }
 
 interface LivechatProviderProps {
-  config: LivechatRuntimeConfig
+  config: IMRuntimeConfig
   children: ReactNode
 }
 

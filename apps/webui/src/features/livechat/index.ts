@@ -1,10 +1,9 @@
 /**
  * Livechat Feature——在线客服与聊天模块
  *
- * 基于 assistant-ui 统一架构，三种 runtime：
+ * 基于 assistant-ui 统一架构，两种 runtime：
  * - AgUiRuntime：AI 助理（AG-UI SSE 协议）
- * - LivechatRuntime：在线客服（WebSocket）
- * - IMRuntime：内部即时通讯（占位）
+ * - IMRuntime：人与人对话（WebSocket，含客服/IM/用户间聊天）
  *
  * @author AaronZZH & Kiro
  */
@@ -37,7 +36,6 @@ export { LivechatProvider } from "./LivechatProvider"
 export type {
   AgUiRuntimeConfig,
   IMRuntimeConfig,
-  LivechatRuntimeConfig,
   RuntimeConfig,
   RuntimeType
 } from "./runtime"
