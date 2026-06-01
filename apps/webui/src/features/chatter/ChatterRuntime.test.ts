@@ -40,38 +40,23 @@ describe("ChatterRuntime 错误分类", () => {
 })
 
 describe("ChatterRuntime 端点 URL 构建", () => {
-  function getEndpointUrl(target: { type: string; agentRole?: string }, persist?: boolean): string {
-    const params = new URLSearchParams()
-    params.set("targetType", target.type)
-    if (target.agentRole) params.set("agentRole", target.agentRole)
-    const shouldPersist = persist ?? target.type !== "kiro"
-    params.set("persist", String(shouldPersist))
-    const base = target.type === "kiro" ? "/api/autodev/kiro/run" : "/api/chat/run"
-    return `${base}?${params.toString()}`
+  function buildAguiUrl(target: { type: string; agentRole?: string }): string {
+    const agentId = target.agentRole ?? (target.type === "kiro" ? "kiro" : "default")
+    return `/api/agui/runs/${agentId}`
   }
 
-  it("kiro 类型应使用 autodev 端点", () => {
-    const url = getEndpointUrl({ type: "kiro" })
-    expect(url).toContain("/api/autodev/kiro/run")
+  it("kiro 类型应使用 kiro agentId", () => {
+    const url = buildAguiUrl({ type: "kiro" })
+    expect(url).toContain("/kiro")
   })
 
-  it("ai 类型应使用 chat 端点", () => {
-    const url = getEndpointUrl({ type: "ai" })
-    expect(url).toContain("/api/chat/run")
+  it("ai 类型无 agentRole 应使用 default", () => {
+    const url = buildAguiUrl({ type: "ai" })
+    expect(url).toContain("/default")
   })
 
-  it("kiro 默认 persist=false", () => {
-    const url = getEndpointUrl({ type: "kiro" })
-    expect(url).toContain("persist=false")
-  })
-
-  it("非 kiro 默认 persist=true", () => {
-    const url = getEndpointUrl({ type: "ai" })
-    expect(url).toContain("persist=true")
-  })
-
-  it("agentRole 应包含在参数中", () => {
-    const url = getEndpointUrl({ type: "ai", agentRole: "customer-service" })
-    expect(url).toContain("agentRole=customer-service")
+  it("agentRole 应作为 agentId 路径", () => {
+    const url = buildAguiUrl({ type: "ai", agentRole: "customer-service" })
+    expect(url).toContain("/customer-service")
   })
 })
