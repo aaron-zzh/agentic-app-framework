@@ -16,6 +16,8 @@ import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.ToolPermissionGuard;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
 
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
@@ -37,6 +39,7 @@ public class AgentScopeToolGovernanceService {
     private final ToolPermissionGuard toolPermissionGuard;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
+    private final AgentRunEventPublisher agentRunEventPublisher;
 
     public void apply(Toolkit toolkit, AgentDefinition definition) {
         if (toolkit == null || toolkit.getToolNames().isEmpty()) {
@@ -89,6 +92,13 @@ public class AgentScopeToolGovernanceService {
             return Mono.fromCallable(
                     () -> {
                         var context = resolveContext(param);
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.TOOL_CALL_STARTED,
+                                "调用工具",
+                                delegate.getName(),
+                                Map.of(
+                                        "toolName", delegate.getName(),
+                                        "assistantId", context.assistantId() != null ? context.assistantId() : ""));
                         var callback = new AgentToolCallback(delegate, param);
                         var guarded =
                                 toolPermissionGuard
@@ -98,10 +108,29 @@ public class AgentScopeToolGovernanceService {
                                                 context.assistantId(),
                                                 allowedTools)
                                         .getFirst();
-                        var output = guarded.call(arguments(param));
+                        String output;
+                        try {
+                            output = guarded.call(arguments(param));
+                        } catch (RuntimeException ex) {
+                            agentRunEventPublisher.publish(
+                                    AgentRunEventType.TOOL_CALL_FAILED,
+                                    "工具调用失败",
+                                    delegate.getName(),
+                                    Map.of(
+                                            "toolName",
+                                            delegate.getName(),
+                                            "error",
+                                            ex.getMessage() != null ? ex.getMessage() : ""));
+                            throw ex;
+                        }
                         if (shouldSuspend(output)) {
                             throw new ToolSuspendException(output);
                         }
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.TOOL_CALL_COMPLETED,
+                                "工具调用完成",
+                                delegate.getName(),
+                                Map.of("toolName", delegate.getName()));
                         return ToolResultBlock.text(output);
                     });
         }

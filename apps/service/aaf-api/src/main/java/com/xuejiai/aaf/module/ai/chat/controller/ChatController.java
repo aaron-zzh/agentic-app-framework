@@ -21,7 +21,12 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder.HistoryMessage;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.chat.agui.AgentRunEventStreamService;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.service.IntentService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageSendDTO;
@@ -61,6 +66,8 @@ public class ChatController {
     private final ResilientChatService resilientChatService;
     private final ChatContextBuilder chatContextBuilder;
     private final AiProperties aiProperties;
+    private final AgentRunEventStreamService agentRunEventStreamService;
+    private final AgentRunEventPublisher agentRunEventPublisher;
 
     @Operation(summary = "意图识别")
     @PostMapping("/intent")
@@ -142,6 +149,8 @@ public class ChatController {
 
         var userId = operatorContext.currentUserId().orElseThrow();
         var emitter = new SseEmitter(SSE_TIMEOUT);
+        var runId = java.util.UUID.randomUUID().toString();
+        agentRunEventStreamService.attach(runId, emitter, AgentRunEventStreamService.Format.NAMED);
 
         // 注册清理回调
         emitter.onCompletion(() -> log.debug("SSE 完成: sessionId={}", sessionId));
@@ -162,7 +171,12 @@ public class ChatController {
         Thread.startVirtualThread(
                 () -> {
                     var fullContent = new StringBuilder();
-                    try {
+                    try (var ignored = AgentRunContextHolder.open(runId, userId, null)) {
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.RUN_STARTED,
+                                "运行开始",
+                                "聊天流式运行已启动",
+                                java.util.Map.of("sessionId", sessionId));
                         var flux = resilientChatService.stream(messages, "chat", userId);
                         flux.doOnNext(
                                         response -> {
@@ -181,6 +195,12 @@ public class ChatController {
                                         })
                                 .doOnComplete(
                                         () -> {
+                                            agentRunEventPublisher.publish(
+                                                    new AgentRunContext(runId, userId, null),
+                                                    AgentRunEventType.RUN_FINISHED,
+                                                    "运行完成",
+                                                    "聊天流式运行已完成",
+                                                    java.util.Map.of("sessionId", sessionId));
                                             // 保存 AI 回复
                                             chatService.saveMessage(
                                                     0L,
@@ -195,11 +215,22 @@ public class ChatController {
                                         })
                                 .doOnError(
                                         e -> {
+                                            agentRunEventPublisher.publish(
+                                                    new AgentRunContext(runId, userId, null),
+                                                    AgentRunEventType.RUN_ERROR,
+                                                    "运行失败",
+                                                    e.getMessage() != null ? e.getMessage() : "",
+                                                    java.util.Map.of("sessionId", sessionId));
                                             log.error("流式调用异常: sessionId={}", sessionId, e);
                                             completeWithError(emitter, e);
                                         })
                                 .subscribe();
                     } catch (Exception e) {
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.RUN_ERROR,
+                                "运行失败",
+                                e.getMessage(),
+                                java.util.Map.of("sessionId", sessionId));
                         log.error("启动流式调用失败: sessionId={}", sessionId, e);
                         completeWithError(emitter, e);
                     }
@@ -210,7 +241,9 @@ public class ChatController {
 
     private void sendEvent(SseEmitter emitter, String data) {
         try {
-            emitter.send(SseEmitter.event().data(data));
+            synchronized (emitter) {
+                emitter.send(SseEmitter.event().data(data));
+            }
         } catch (IOException e) {
             log.debug("SSE 发送失败（客户端可能已断开）: {}", e.getMessage());
         }

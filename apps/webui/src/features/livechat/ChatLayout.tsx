@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useResponsive } from "@/lib/hooks/use-responsive"
+import { AgentRunStatus } from "./components/AgentRunStatus"
 
 interface ChatLayoutProps {
   /** Drawer 模式：嵌入页面右侧面板，隐藏侧边栏 */
@@ -75,6 +76,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                 )}
               </ThreadPrimitive.Messages>
             </ThreadPrimitive.Viewport>
+            <AgentRunStatus />
             <ComposerPrimitive.Root className="border-t p-3">
               <ComposerPrimitive.Input
                 className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
@@ -141,6 +143,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                     )}
                   </ThreadPrimitive.Messages>
                 </ThreadPrimitive.Viewport>
+                <AgentRunStatus />
                 <ComposerPrimitive.Root className="border-t p-3">
                   <ComposerPrimitive.Input
                     className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"

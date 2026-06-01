@@ -8,7 +8,7 @@ public record ContentSafetyResult(
         boolean reviewRequired,
         String reviewId) {
 
-    public static ContentSafetyResult allowed() {
+    public static ContentSafetyResult pass() {
         return new ContentSafetyResult(true, "OK", "审查通过", false, null);
     }
 

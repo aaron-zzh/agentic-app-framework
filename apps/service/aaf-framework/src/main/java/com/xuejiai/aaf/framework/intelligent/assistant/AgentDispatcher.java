@@ -14,6 +14,10 @@ import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentFactory;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
 
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,7 @@ public class AgentDispatcher {
     private final AgentFactory agentFactory;
     private final AgentSandbox sandbox;
     private final CreditService creditService;
+    private final AgentRunEventPublisher agentRunEventPublisher;
 
     /**
      * 根据意图调度 Agent 执行。
@@ -53,11 +58,54 @@ public class AgentDispatcher {
         var timeout = Duration.ofSeconds(definition.getTimeoutSeconds());
 
         log.info("调度 Agent [{}] 处理意图 [{}]", definition.getName(), intent);
-        return sandbox.execute(agent, input, timeout);
+        agentRunEventPublisher.publish(
+                AgentRunEventType.SUB_AGENT_STARTED,
+                "启动子 Agent",
+                definition.getName(),
+                java.util.Map.of(
+                        "intent", intent,
+                        "agentId", definition.getAgentId() != null ? definition.getAgentId() : "",
+                        "agentName", definition.getName()));
+        var result = sandbox.execute(agent, input, timeout);
+        agentRunEventPublisher.publish(
+                AgentRunEventType.SUB_AGENT_COMPLETED,
+                "子 Agent 完成",
+                definition.getName(),
+                java.util.Map.of(
+                        "intent", intent,
+                        "agentId", definition.getAgentId() != null ? definition.getAgentId() : "",
+                        "success", result.success()));
+        return result;
     }
 
     /** 批量调度（多 Agent 并行） */
     public List<AgentExecutor.AgentResult> dispatchMultiple(List<String> intents, String input) {
-        return intents.stream().map(intent -> dispatch(intent, input)).toList();
+        agentRunEventPublisher.publish(
+                AgentRunEventType.COORDINATION_STARTED,
+                "协调多个 Agent",
+                "正在并行协调子 Agent",
+                java.util.Map.of("intents", intents));
+        var context = AgentRunContextHolder.current().orElse(null);
+        var results =
+                intents.parallelStream()
+                        .map(intent -> dispatchWithContext(context, intent, input))
+                        .toList();
+        agentRunEventPublisher.publish(
+                AgentRunEventType.COORDINATION_DECISION,
+                "协调完成",
+                "多个 Agent 已返回结果",
+                java.util.Map.of("intents", intents, "resultCount", results.size()));
+        return results;
+    }
+
+    private AgentExecutor.AgentResult dispatchWithContext(
+            AgentRunContext context, String intent, String input) {
+        if (context == null) {
+            return dispatch(intent, input);
+        }
+        try (var ignored =
+                AgentRunContextHolder.open(context.runId(), context.userId(), context.agentId())) {
+            return dispatch(intent, input);
+        }
     }
 }

@@ -54,6 +54,21 @@ public final class SysConfigKeys {
         public static final String TOKEN_QUOTA_PER_USER     = "ai.token_quota_per_user";      // 用户 Token 配额（每月）
         public static final String CREDIT_WARN_THRESHOLD    = "ai.credit_warn_threshold";     // 积分预警阈值，低于此值发预警通知
         public static final String FREE_ASSISTANT_CREDIT_CAP = "ai.free_assistant_credit_cap"; // 免费助理虚拟用户预算上限（积分）
+        public static final String CONTEXT_ENABLED = "ai.context.enabled"; // 是否启用输入前上下文压缩
+        public static final String CONTEXT_DEFAULT_POLICY = "ai.context.default_policy"; // 默认上下文策略
+        public static final String CONTEXT_DEFAULT_WINDOW = "ai.context.default_context_window"; // 默认上下文窗口
+        public static final String CONTEXT_RESERVED_OUTPUT_TOKENS = "ai.context.reserved_output_tokens"; // 输出预留 Token
+        public static final String CONTEXT_FIXED_PROMPT_BUDGET = "ai.context.fixed_prompt_budget"; // 固定提示词预算
+        public static final String CONTEXT_TRIGGER_RATIO = "ai.context.compression_trigger_ratio"; // 压缩触发比例
+        public static final String CONTEXT_LAST_KEEP = "ai.context.last_keep"; // 最近保留消息数
+        public static final String CONTEXT_MESSAGE_THRESHOLD = "ai.context.message_threshold"; // 消息数阈值
+        public static final String CONTEXT_LARGE_INPUT_THRESHOLD = "ai.context.large_input_char_threshold"; // 大消息阈值
+        public static final String CONTEXT_RULE_PREVIEW_CHARS = "ai.context.rule_preview_chars"; // 规则裁剪预览长度
+        public static final String CONTEXT_ENABLE_SUMMARY = "ai.context.enable_summary"; // 是否启用摘要压缩
+        public static final String CONTEXT_SUMMARY_MODEL_ID = "ai.context.summary_model_id"; // 摘要模型
+        public static final String CONTEXT_SUMMARY_TIMEOUT_MS = "ai.context.summary_timeout_ms"; // 摘要超时
+        public static final String CONTEXT_SUMMARY_SYSTEM_PROMPT = "ai.context.summary_system_prompt"; // 摘要系统提示词
+        public static final String CONTEXT_SUMMARY_USER_PROMPT = "ai.context.summary_user_prompt"; // 摘要用户提示词模板
     }
 
     /** 品牌配置 */

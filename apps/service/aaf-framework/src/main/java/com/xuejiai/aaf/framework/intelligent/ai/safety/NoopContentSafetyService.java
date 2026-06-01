@@ -31,7 +31,7 @@ public class NoopContentSafetyService implements ContentSafetyService {
             var state = reviewStates.get(reviewKey);
             if (state != null) {
                 return switch (state.decision()) {
-                    case APPROVED -> ContentSafetyResult.allowed();
+                    case APPROVED -> ContentSafetyResult.pass();
                     case REJECTED -> ContentSafetyResult.rejected("CONTENT_REVIEW_REJECTED", "内容安全复审未通过");
                     case PENDING -> ContentSafetyResult.pendingReview(state.approvalId(), "生成内容正在等待人工复审");
                 };
@@ -63,7 +63,7 @@ public class NoopContentSafetyService implements ContentSafetyService {
             reviewStates.put(reviewKey, new ReviewState(ReviewDecision.PENDING, reviewId));
             return ContentSafetyResult.pendingReview(reviewId, "生成内容需要人工复审");
         }
-        return ContentSafetyResult.allowed();
+        return ContentSafetyResult.pass();
     }
 
     /** 内容复审完成后记录结果；AI 用相同参数重试时可继续执行或得到稳定拒绝。 */

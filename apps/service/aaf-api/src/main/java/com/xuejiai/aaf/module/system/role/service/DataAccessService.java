@@ -158,10 +158,11 @@ public class DataAccessService
         }
 
         var userContext = buildUserContext(userId);
+        final String domainJson = cachedDomain;
         return (root, query, cb) -> {
             try {
                 var predicate =
-                        buildPredicate(objectMapper.readTree(cachedDomain), root, cb, userContext);
+                        buildPredicate(objectMapper.readTree(domainJson), root, cb, userContext);
                 return predicate == null ? cb.disjunction() : predicate;
             } catch (Exception e) {
                 log.warn("解析缓存的数据权限规则失败, entitySlug={}: {}", entitySlug, e.getMessage());

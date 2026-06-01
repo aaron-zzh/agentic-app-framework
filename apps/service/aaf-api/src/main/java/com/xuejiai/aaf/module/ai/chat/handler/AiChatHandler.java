@@ -13,6 +13,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
+import com.xuejiai.aaf.module.ai.chat.agui.AgentRunEventStreamService;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiStreamHandler;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
@@ -39,6 +43,8 @@ public class AiChatHandler {
     private final AgUiStreamHandler streamHandler;
     private final AiProperties aiProperties;
     private final ChatService chatService;
+    private final AgentRunEventStreamService agentRunEventStreamService;
+    private final AgentRunEventPublisher agentRunEventPublisher;
 
     /**
      * 处理 AI 对话请求
@@ -51,6 +57,7 @@ public class AiChatHandler {
     public SseEmitter handle(ChatRunRequest request, Long userId, Long sessionId) {
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();
+        agentRunEventStreamService.attach(runId, emitter, AgentRunEventStreamService.Format.AGUI_CUSTOM);
 
         emitter.onCompletion(() -> log.debug("AI SSE 完成: runId={}", runId));
         emitter.onTimeout(() -> log.warn("AI SSE 超时: runId={}", runId));
@@ -59,7 +66,12 @@ public class AiChatHandler {
 
         Thread.startVirtualThread(
                 () -> {
-                    try {
+                    try (var ignored = AgentRunContextHolder.open(runId, userId, null)) {
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.RUN_STARTED,
+                                "运行开始",
+                                "AI 对话运行已启动",
+                                java.util.Map.of("sessionId", sessionId != null ? sessionId : 0L));
                         var flux = resilientChatService.stream(messages, "chat", userId);
                         // 流结束后持久化 AI 回复
                         streamHandler.handleStream(
@@ -79,6 +91,11 @@ public class AiChatHandler {
                                     }
                                 });
                     } catch (Exception e) {
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.RUN_ERROR,
+                                "运行失败",
+                                e.getMessage(),
+                                java.util.Map.of("sessionId", sessionId != null ? sessionId : 0L));
                         log.error("AI 流式调用失败: runId={}", runId, e);
                         sendErrorAndComplete(emitter, runId, e);
                     }

@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,7 @@ import reactor.core.publisher.Flux;
 public class AgUiStreamHandler {
 
     private final ObjectMapper objectMapper;
+    private final AgentRunEventPublisher agentRunEventPublisher;
 
     /**
      * 订阅 LLM 流式响应，按 AG-UI 协议向 SseEmitter 发送事件
@@ -84,10 +88,19 @@ public class AgUiStreamHandler {
                                             toolCall.id() != null
                                                     ? toolCall.id()
                                                     : UUID.randomUUID().toString();
+                                    var toolName = toolCall.name() != null ? toolCall.name() : "";
                                     sendEvent(
                                             emitter,
                                             AgUiEvent.toolCallStart(
-                                                    runId, toolCallId, toolCall.name()));
+                                                    runId, toolCallId, toolName));
+                                    agentRunEventPublisher.publish(
+                                            new AgentRunContext(runId, null, null),
+                                            AgentRunEventType.TOOL_CALL_STARTED,
+                                            "调用工具",
+                                            toolName,
+                                            java.util.Map.of(
+                                                    "toolCallId", toolCallId,
+                                                    "toolName", toolName));
                                     if (toolCall.arguments() != null) {
                                         sendEvent(
                                                 emitter,
@@ -95,6 +108,14 @@ public class AgUiStreamHandler {
                                                         runId, toolCallId, toolCall.arguments()));
                                     }
                                     sendEvent(emitter, AgUiEvent.toolCallEnd(runId, toolCallId));
+                                    agentRunEventPublisher.publish(
+                                            new AgentRunContext(runId, null, null),
+                                            AgentRunEventType.TOOL_CALL_COMPLETED,
+                                            "工具调用完成",
+                                            toolName,
+                                            java.util.Map.of(
+                                                    "toolCallId", toolCallId,
+                                                    "toolName", toolName));
                                 }
                             }
                         })
@@ -106,12 +127,24 @@ public class AgUiStreamHandler {
                             if (onComplete != null) {
                                 onComplete.accept(fullContent.toString());
                             }
+                            agentRunEventPublisher.publish(
+                                    new AgentRunContext(runId, null, null),
+                                    AgentRunEventType.RUN_FINISHED,
+                                    "运行完成",
+                                    "AI 运行已完成",
+                                    java.util.Map.of());
                             emitter.complete();
                         })
                 .doOnError(
                         e -> {
                             log.error("AG-UI 流式调用异常: runId={}", runId, e);
                             sendEvent(emitter, AgUiEvent.runError(runId, e.getMessage()));
+                            agentRunEventPublisher.publish(
+                                    new AgentRunContext(runId, null, null),
+                                    AgentRunEventType.RUN_ERROR,
+                                    "运行失败",
+                                    e.getMessage() != null ? e.getMessage() : "",
+                                    java.util.Map.of());
                             completeWithError(emitter, e);
                         })
                 .subscribe();
@@ -120,7 +153,9 @@ public class AgUiStreamHandler {
     private void sendEvent(SseEmitter emitter, AgUiEvent event) {
         try {
             var json = objectMapper.writeValueAsString(event);
-            emitter.send(SseEmitter.event().data(json));
+            synchronized (emitter) {
+                emitter.send(SseEmitter.event().data(json));
+            }
         } catch (IOException e) {
             log.debug("AG-UI SSE 发送失败（客户端可能已断开）: {}", e.getMessage());
         }

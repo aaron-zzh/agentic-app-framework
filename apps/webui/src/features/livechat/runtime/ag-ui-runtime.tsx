@@ -11,10 +11,11 @@
 import { HttpAgent } from "@ag-ui/client"
 import { AssistantRuntimeProvider, type ThreadMessage } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
-import { type ReactNode, useCallback, useMemo } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
+import { useAgentRunStore } from "./agent-run-store"
 
 const AGENT_URL = buildApiUrl("/chat/agent/run")
 
@@ -28,6 +29,29 @@ interface AgUiChatProviderProps {
  */
 export function AgUiChatProvider({ children }: AgUiChatProviderProps) {
   const agent = useMemo(() => new HttpAgent({ url: AGENT_URL }), [])
+
+  // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
+  useEffect(() => {
+    const run = useAgentRunStore.getState()
+    const sub = agent.subscribe({
+      onRunStartedEvent: () => run.startRun(),
+      onRunFinishedEvent: () => run.finishRun(),
+      onRunErrorEvent: ({ event }) => run.errorRun(event.message),
+      onToolCallStartEvent: ({ event }) => run.startTool(event.toolCallName),
+      onToolCallEndEvent: () => run.endTool(),
+      onCustomEvent: ({ event }) => {
+        if (event.name !== "agent-run") return
+        const value = event.value as { type?: string; title?: string; message?: string } | undefined
+        run.pushEntry({
+          type: value?.type ?? "CUSTOM",
+          title: value?.title,
+          message: value?.message,
+          timestamp: Date.now()
+        })
+      }
+    })
+    return () => sub.unsubscribe()
+  }, [agent])
 
   /** 错误回调：记录日志 + toast 提示用户 */
   const onError = useCallback((error: Error) => {

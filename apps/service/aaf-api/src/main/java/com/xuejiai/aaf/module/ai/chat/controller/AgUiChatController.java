@@ -17,8 +17,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
+import com.xuejiai.aaf.module.ai.chat.agui.AgentRunEventStreamService;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiStreamHandler;
 import com.xuejiai.aaf.module.ai.chat.agui.ToolRegistry;
 import com.xuejiai.aaf.module.ai.chat.agui.ToolRegistry.ToolDefinition;
@@ -53,6 +57,8 @@ public class AgUiChatController {
     private final ToolRegistry toolRegistry;
     private final OperatorContext operatorContext;
     private final AiProperties aiProperties;
+    private final AgentRunEventStreamService agentRunEventStreamService;
+    private final AgentRunEventPublisher agentRunEventPublisher;
 
     // ========== 请求/响应 DTO ==========
 
@@ -88,6 +94,7 @@ public class AgUiChatController {
         var userId = operatorContext.currentUserId().orElse(0L);
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();
+        agentRunEventStreamService.attach(runId, emitter, AgentRunEventStreamService.Format.AGUI_CUSTOM);
 
         emitter.onCompletion(() -> log.debug("AG-UI SSE 完成: runId={}", runId));
         emitter.onTimeout(() -> log.warn("AG-UI SSE 超时: runId={}", runId));
@@ -98,10 +105,20 @@ public class AgUiChatController {
         // 虚拟线程中执行流式调用
         Thread.startVirtualThread(
                 () -> {
-                    try {
+                    try (var ignored = AgentRunContextHolder.open(runId, userId, null)) {
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.RUN_STARTED,
+                                "运行开始",
+                                "AG-UI Agent 运行已启动",
+                                java.util.Map.of("threadId", request.threadId()));
                         var flux = resilientChatService.stream(messages, "chat", userId);
                         streamHandler.handleStream(flux, emitter, runId);
                     } catch (Exception e) {
+                        agentRunEventPublisher.publish(
+                                AgentRunEventType.RUN_ERROR,
+                                "运行失败",
+                                e.getMessage(),
+                                java.util.Map.of("threadId", request.threadId()));
                         log.error("AG-UI 启动流式调用失败: runId={}", runId, e);
                         try {
                             var json =
