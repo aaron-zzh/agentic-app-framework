@@ -10,7 +10,7 @@ author: AaronZZH & Kiro
 
 # Agent 运行状态推送
 
-> 上下文压缩会发出 `CONTEXT_COMPRESSION_*` 事件经本机制推送，压缩本身见 [输入前上下文压缩](../core/context-compression-tech.md)。
+> 上下文压缩由 AgentScope 内置的 AutoContextMemory 处理，不再通过本机制推送事件。
 
 ## 解决的问题
 
@@ -34,11 +34,10 @@ record AgentRunEvent(
     Map<String,Object> payload, Instant timestamp)
 ```
 
-`AgentRunEventType` 覆盖运行全生命周期的 13 种类型：
+`AgentRunEventType` 覆盖运行全生命周期的 11 种类型：
 
 ```text
 RUN_STARTED / RUN_FINISHED / RUN_ERROR
-CONTEXT_COMPRESSION_STARTED / CONTEXT_COMPRESSION_COMPLETED
 TOOL_CALL_STARTED / TOOL_CALL_COMPLETED / TOOL_CALL_FAILED
 ROLE_SWITCHED
 SUB_AGENT_STARTED / SUB_AGENT_COMPLETED
@@ -116,7 +115,6 @@ publish(AgentRunContext, type, title, message, payload)
 | `AgUiStreamHandler` | TOOL_CALL_STARTED/COMPLETED、RUN_FINISHED、RUN_ERROR |
 | `AgentScopeToolGovernanceService` | TOOL_CALL_STARTED/COMPLETED/FAILED |
 | `AgentDispatcher` | SUB_AGENT_STARTED/COMPLETED、COORDINATION_STARTED/DECISION |
-| `ContextPreprocessor` | CONTEXT_COMPRESSION_STARTED/COMPLETED |
 
 ## 前端消费契约
 

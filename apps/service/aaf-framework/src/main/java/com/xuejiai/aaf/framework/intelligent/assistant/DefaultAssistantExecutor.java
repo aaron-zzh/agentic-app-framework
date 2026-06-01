@@ -66,20 +66,22 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
         if (agentId != null) {
             var definition = agentRegistry.findById(agentId);
             if (definition != null) {
-                // 将记忆上下文注入 Agent 系统提示词
+                // 技能指令 + 记忆上下文注入「每轮输入」，避免 mutate 共享/池化的 definition 造成跨用户 system prompt 泄漏
+                var preamble = new StringBuilder();
+                skill.map(s -> s.systemPrompt())
+                        .filter(p -> p != null && !p.isBlank())
+                        .ifPresent(p -> preamble.append(p).append("\n\n"));
                 var contextPrompt = memoryContext.toPromptSection();
                 if (!contextPrompt.isBlank()) {
-                    definition.setSystemPrompt(
-                            skill.map(s -> s.systemPrompt()).orElse(definition.getSystemPrompt())
-                                    + "\n\n## 上下文记忆\n"
-                                    + contextPrompt);
+                    preamble.append("## 上下文记忆\n").append(contextPrompt).append("\n\n");
                 }
+                var input = preamble.isEmpty() ? userMessage : preamble + userMessage;
                 var executor = agentPool.borrow(definition);
                 try {
                     var result =
                             agentSandbox.execute(
                                     executor,
-                                    userMessage,
+                                    input,
                                     Duration.ofSeconds(definition.getTimeoutSeconds()));
                     response = result.success() ? result.output() : "执行失败: " + result.error();
                     success = result.success();

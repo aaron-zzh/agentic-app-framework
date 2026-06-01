@@ -10,7 +10,6 @@ import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.McpToolService;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
-import com.xuejiai.aaf.framework.intelligent.core.context.ContextPolicyService;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
@@ -39,7 +38,6 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final ModelManagementService modelManagementService;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
     private final AgentScopeToolGovernanceService toolGovernanceService;
-    private final ContextPolicyService contextPolicyService;
 
     @Override
     public AgentExecutor create(AgentDefinition definition, List<String> tools) {
@@ -78,7 +76,6 @@ public class AgentScopeRuntime implements AgentRuntime {
                         : null;
 
         OpenAIChatModel chatModel;
-        AiModel resolvedModel = dbModel;
         if (dbModel != null) {
             chatModel = buildFromDb(dbModel);
         } else if (modelId != null) {
@@ -86,7 +83,6 @@ public class AgentScopeRuntime implements AgentRuntime {
             if (fallback != null) {
                 log.info("模型 [{}] 不可用，降级到 fallback [{}]", modelId, fallback.getModelId());
                 chatModel = buildFromDb(fallback);
-                resolvedModel = fallback;
             } else {
                 log.warn("模型 [{}] 不可用且无 fallback，降级使用模型名直接调用", modelId);
                 chatModel = OpenAIChatModel.builder().modelName(modelId).build();
@@ -95,9 +91,7 @@ public class AgentScopeRuntime implements AgentRuntime {
             chatModel = OpenAIChatModel.builder().modelName("gpt-4o").build();
         }
         builder.model(chatModel);
-        builder.memory(
-                AafAutoContextMemoryAdapter.create(
-                        chatModel, contextPolicyService.toAutoContextConfig(resolvedModel, null)));
+        builder.memory(AafAutoContextMemoryAdapter.create(chatModel));
     }
 
     private List<String> parseList(String json) {

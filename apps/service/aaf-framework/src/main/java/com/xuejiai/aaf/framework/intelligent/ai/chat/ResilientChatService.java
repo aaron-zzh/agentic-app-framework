@@ -10,8 +10,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
-import com.xuejiai.aaf.framework.intelligent.core.context.ContextPreparationRequest;
-import com.xuejiai.aaf.framework.intelligent.core.context.ContextPreprocessor;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -37,7 +35,6 @@ public class ResilientChatService {
     private final ApplicationEventPublisher eventPublisher;
     private final AiCreditGuard creditGuard;
     private final OperatorContext operatorContext;
-    private final ContextPreprocessor contextPreprocessor;
 
     /**
      * 同步调用，使用完整路由上下文。
@@ -49,14 +46,13 @@ public class ResilientChatService {
         var ownerId = billingOwnerId(ctx.userId());
         creditGuard.precheck(ownerId, ctx.capability());
         var modelId = capabilityRouter.resolve(ctx);
-        var prepared = prepareContext(messages, modelId, ownerId);
         try {
-            var response = doCall(prepared, modelId);
+            var response = doCall(messages, modelId);
             publishUsage(response, ownerId, modelId);
             return response;
         } catch (Exception e) {
             log.warn("主模型 [{}] 调用失败，尝试降级: {}", modelId, e.getMessage());
-            return callFallback(prepared, modelId, ownerId);
+            return callFallback(messages, modelId, ownerId);
         }
     }
 
@@ -78,13 +74,12 @@ public class ResilientChatService {
         var ownerId = billingOwnerId(ctx.userId());
         creditGuard.precheck(ownerId, ctx.capability());
         var modelId = capabilityRouter.resolve(ctx);
-        var prepared = prepareContext(messages, modelId, ownerId);
         try {
-            return withStreamUsage(doStream(prepared, modelId), ownerId, modelId);
+            return withStreamUsage(doStream(messages, modelId), ownerId, modelId);
         } catch (Exception e) {
             log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", modelId, e.getMessage());
             var fallbackId = resolveFallback(modelId);
-            return withStreamUsage(doStream(prepared, fallbackId), ownerId, fallbackId);
+            return withStreamUsage(doStream(messages, fallbackId), ownerId, fallbackId);
         }
     }
 
@@ -108,12 +103,6 @@ public class ResilientChatService {
 
     private Flux<ChatResponse> doStream(List<Message> messages, String modelId) {
         return clientFactory.get(modelId).prompt(new Prompt(messages)).stream().chatResponse();
-    }
-
-    private List<Message> prepareContext(List<Message> messages, String modelId, Long userId) {
-        return contextPreprocessor
-                .prepare(new ContextPreparationRequest(messages, modelId, userId, null))
-                .messages();
     }
 
     private String resolveFallback(String modelId) {
