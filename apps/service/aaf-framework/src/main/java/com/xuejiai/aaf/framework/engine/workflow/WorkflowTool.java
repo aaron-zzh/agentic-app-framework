@@ -2,8 +2,6 @@ package com.xuejiai.aaf.framework.engine.workflow;
 
 import java.util.Map;
 
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
@@ -11,6 +9,9 @@ import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
 import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService;
 import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalType;
+
+import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,11 +44,12 @@ public class WorkflowTool {
      * @param description 工作流描述（向用户展示，用于确认）
      * @param variables 流程变量（JSON 格式，可为空）
      */
-    @Tool(description = "启动一个预定义的工作流流程。适用于需要多步骤审批、自动化处理或复杂业务流程的场景。")
+    @Tool(name = "start_workflow",
+          description = "启动一个预定义的工作流流程。适用于需要多步骤审批、自动化处理或复杂业务流程的场景，如请假申请、费用报销、采购审批等。")
     public String startWorkflow(
-            @ToolParam(description = "工作流定义 Key，如 leave-approval、expense-report") String processKey,
-            @ToolParam(description = "向用户展示的工作流描述，说明将要执行什么") String description,
-            @ToolParam(required = false, description = "流程变量，JSON 格式") String variables) {
+            @ToolParam(name = "process_key", description = "工作流定义 Key，如 leave-approval、expense-report") String processKey,
+            @ToolParam(name = "description", description = "向用户展示的工作流描述，说明将要执行什么") String description,
+            @ToolParam(name = "variables", required = false, description = "流程变量，JSON 格式，如 {\"days\": 3}") String variables) {
 
         var ctx = AgentRunContextHolder.current().orElse(null);
         var sessionId = ctx != null ? ctx.runId() : "unknown";

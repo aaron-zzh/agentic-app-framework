@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.engine.workflow.WorkflowTool;
 import io.agentscope.core.tool.Toolkit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,9 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class McpToolService {
+
+    /** 内置工具：工作流启动 */
+    private final WorkflowTool workflowTool;
 
     /** 工具白名单（agentId → 允许的工具名列表，null 表示全部允许） */
     private final ConcurrentHashMap<String, List<String>> whitelist = new ConcurrentHashMap<>();
@@ -32,13 +36,14 @@ public class McpToolService {
     public Toolkit buildToolkit(AgentDefinition definition) {
         var toolkit = new Toolkit();
 
+        // 注册内置工具（所有 Agent 默认可用，受 AafToolWhitelistHook 白名单过滤）
+        toolkit.registerTool(workflowTool);
+
         // MCP 服务器连接（通过 AgentScope MCP starter 自动发现）
         if (definition.getMcpServers() != null && !definition.getMcpServers().isBlank()) {
             var servers = parseList(definition.getMcpServers());
             for (var serverUrl : servers) {
                 log.info("注册 MCP 服务器: {}", serverUrl);
-                // AgentScope MCP starter 自动处理连接和工具注册
-                // toolkit 通过 Spring 自动装配获取 MCP 工具
             }
         }
 
