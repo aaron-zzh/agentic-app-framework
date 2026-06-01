@@ -501,7 +501,7 @@ CREATE TABLE ai_skill_definition (
     tools           TEXT,
     priority        INTEGER          NOT NULL DEFAULT 0,
     built_in        BOOLEAN      NOT NULL DEFAULT FALSE,
-    global          BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_global       BOOLEAN      NOT NULL DEFAULT FALSE,
     skill_version   VARCHAR(16),
     status          VARCHAR(16)  NOT NULL DEFAULT 'active',
     create_by       BIGINT,
