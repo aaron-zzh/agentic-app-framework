@@ -3,15 +3,21 @@ package com.xuejiai.aaf.module.ai.chat.agui;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * AG-UI 协议事件
+ * AG-UI 协议事件——Spring AI 直连链路的 SSE 事件序列化模型。
  *
- * <p>每个事件通过 SSE data: 行发送给前端，前端 assistant-ui 组件库按 type 分发处理。
+ * <p>用于 Spring AI {@code ResilientChatService} 流式调用链路（{@code AiChatHandler}、
+ * {@code AgUiChatController}、{@code ChatOrchestrationService} 等）将 LLM 响应转换为
+ * AG-UI 标准事件推送给前端。
  *
- * @deprecated 已由 AgentScope 的 {@code io.agentscope.core.agui.event.AguiEvent} 替代。
- *     新代码请使用 AgentScope AG-UI 端点。保留此类用于兼容旧接口。
+ * <p>与 AgentScope AG-UI 链路（{@code /agui/runs} 端点，由
+ * {@code agentscope-agui-spring-boot-starter} 提供）并行存在，各自服务不同调用路径：
+ * <ul>
+ *   <li>本类：Spring AI 直连链路，适用于简单对话、工作流节点、用户间聊天等场景
+ *   <li>AgentScope AG-UI：Agent 认知循环链路，适用于需要 ReAct 推理和工具调用的复杂任务
+ * </ul>
+ *
  * @author AaronZZH & Kiro
  */
-@Deprecated(since = "0.1.0", forRemoval = false)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AgUiEvent(
         AgUiEventType type,

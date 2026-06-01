@@ -11,18 +11,18 @@ import lombok.extern.slf4j.Slf4j;
  * AgentScope AG-UI → AAF 流式输出适配器。
  *
  * <p>适配策略：委托给 AgentScope 官方 AG-UI 扩展 ({@code agentscope-extensions-agui} + {@code
- * agentscope-agui-spring-boot-starter})， 替换 AAF 自研的 {@code AgUiStreamHandler} 和 {@code AgUiEvent}。
+ * agentscope-agui-spring-boot-starter})。
  *
  * <p>AgentScope AG-UI 扩展提供：
  *
  * <ul>
  *   <li>标准 AG-UI 事件流（RUN_STARTED / TEXT_MESSAGE / TOOL_CALL / RUN_FINISHED）
- *   <li>Spring Boot Starter 自动配置 SSE 端点
+ *   <li>Spring Boot Starter 自动配置 {@code /agui/runs} SSE 端点
  *   <li>与 {@code @assistant-ui/react} 前端框架原生兼容
  * </ul>
  *
- * <p>TODO: 引入 agentscope-agui-spring-boot-starter 后， 删除 AAF 自研的 AgUiStreamHandler / AgUiEvent，直接使用
- * AgentScope 官方实现。 当前骨架保留接口形状，待依赖引入后补全委托逻辑。
+ * <p>注意：{@code AgUiEvent} / {@code AgUiStreamHandler} 服务于 Spring AI 直连链路（简单对话），
+ * 与本适配器所在的 AgentScope 链路（复杂 Agent 任务）并行存在，各有用途，不存在替代关系。
  */
 @Slf4j
 @RequiredArgsConstructor

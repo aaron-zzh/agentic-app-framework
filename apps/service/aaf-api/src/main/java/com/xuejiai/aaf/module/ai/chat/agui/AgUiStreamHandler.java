@@ -17,13 +17,17 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 /**
- * 将 Spring AI 的 Flux&lt;ChatResponse&gt; 转换为 AG-UI 协议事件流
+ * Spring AI 流式响应 → AG-UI 协议事件流适配器。
  *
- * @deprecated 已由 agentscope-agui-spring-boot-starter 替代。
- *     新代码请使用 AgentScope AG-UI 端点 /agui/runs。保留此类用于兼容旧接口。
+ * <p>将 {@code ResilientChatService} 返回的 {@code Flux<ChatResponse>} 转换为
+ * AG-UI 标准 SSE 事件序列，供 {@code AiChatHandler} 和 {@code AgUiChatController} 使用。
+ *
+ * <p>适用于 Spring AI 直连链路（简单对话场景）。
+ * 需要 Agent 认知循环（ReAct 推理 + 工具调用）的复杂任务请使用
+ * AgentScope AG-UI 端点 {@code /agui/runs}。
+ *
  * @author AaronZZH & Kiro
  */
-@Deprecated(since = "0.1.0", forRemoval = false)
 @Slf4j
 @Component
 @RequiredArgsConstructor
