@@ -20,10 +20,12 @@ import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import type { ChatterTarget } from "./types"
 
-/** AI/Kiro 对话：构建 /agui/runs 端点 URL */
+/** 构建对话端点 URL：kiro 走独立端点，AI 走 /agui/runs */
 function buildAguiUrl(target: ChatterTarget): string {
-  const agentId = target.agentRole ?? (target.type === "kiro" ? "kiro" : "default")
-  // agentId 通过 path variable 传递：/agui/runs/{agentId}
+  if (target.type === "kiro") {
+    return buildApiUrl("/autodev/kiro/run")
+  }
+  const agentId = target.agentRole ?? "default"
   return buildApiUrl(`/agui/runs/${agentId}`)
 }
 

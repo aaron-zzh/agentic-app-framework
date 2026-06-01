@@ -41,22 +41,20 @@ describe("ChatterRuntime 错误分类", () => {
 
 describe("ChatterRuntime 端点 URL 构建", () => {
   function buildAguiUrl(target: { type: string; agentRole?: string }): string {
-    const agentId = target.agentRole ?? (target.type === "kiro" ? "kiro" : "default")
+    if (target.type === "kiro") return "/api/autodev/kiro/run"
+    const agentId = target.agentRole ?? "default"
     return `/api/agui/runs/${agentId}`
   }
 
-  it("kiro 类型应使用 kiro agentId", () => {
-    const url = buildAguiUrl({ type: "kiro" })
-    expect(url).toContain("/kiro")
+  it("kiro 类型应使用 autodev 独立端点", () => {
+    expect(buildAguiUrl({ type: "kiro" })).toContain("/autodev/kiro/run")
   })
 
   it("ai 类型无 agentRole 应使用 default", () => {
-    const url = buildAguiUrl({ type: "ai" })
-    expect(url).toContain("/default")
+    expect(buildAguiUrl({ type: "ai" })).toContain("/default")
   })
 
   it("agentRole 应作为 agentId 路径", () => {
-    const url = buildAguiUrl({ type: "ai", agentRole: "customer-service" })
-    expect(url).toContain("/customer-service")
+    expect(buildAguiUrl({ type: "ai", agentRole: "customer-service" })).toContain("/customer-service")
   })
 })
