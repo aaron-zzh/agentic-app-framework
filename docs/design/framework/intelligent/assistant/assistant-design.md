@@ -14,7 +14,7 @@ author: AaronZZH
 
 ## 定位
 
-Assistant 是用户唯一交互入口。持有人格、角色、技能路由，负责意图理解后调度 Agent 执行。支持多实例 fork 并行加速。
+Assistant 是用户唯一交互入口。持有人格、角色、技能、工具路由，负责意图理解后调度 Agent 执行，支持多实例 fork 并行加速。
 
 ## 核心能力
 
@@ -301,3 +301,48 @@ Agent 执行完成
 - [五层智能架构总览](../architecture.md)
 - [Actor 模型](actor.md)
 - [用户感知与个性化](../cognition/personalization.md)
+
+## 对话场景分类
+
+### 按对话目标
+
+| 场景 | 描述 | 当前入口 |
+|---|---|---|
+| AI 助理对话 | 用户与 AI Agent 多轮对话 | `POST /agui/runs`（AgentScope AG-UI） |
+| 用户间聊天 | 用户发消息给另一个用户 | `POST /api/chat/run` target=user |
+| 工作流交互 | 用户触发工作流，实时查看节点执行状态 | `POST /api/system/workflow/agui/run` |
+| Kiro 开发助手 | 用户与 Kiro CLI Agent 对话 | `POST /api/autodev/kiro/run` |
+
+### 按 AI 对话复杂度
+
+| 场景 | 描述 | 特征 |
+|---|---|---|
+| 简单问答 | 直接 LLM 回复，无工具调用 | 单轮或多轮，无 ReAct 循环 |
+| 工具调用 | Agent 调用工具（搜索、计算、DB 查询等）| ReAct 循环，`AafToolWhitelistHook` 过滤 |
+| 多 Agent 协作 | Supervisor 分发给子 Agent | 多跳，`AgentDispatcher` 编排 |
+| 长任务 | 耗时任务，支持中断/恢复 | Checkpoint + InputBuffer |
+| 人工介入（HITL） | 低置信度时暂停等待人工确认 | `AafConfidenceHook` + `HumanApprovalService` |
+
+### 按会话形态
+
+| 场景 | 描述 | 实现 |
+|---|---|---|
+| 单轮无状态 | 每次请求独立，不保留历史 | 新 threadId，Agent Memory 为空 |
+| 多轮有状态 | 同一 threadId 保持上下文 | `ThreadSessionManager` 复用 Agent 实例，`AutoContextMemory` 保存历史 |
+| 流式输出 | SSE 实时推送 token | AgentScope AG-UI 事件流 / `AgUiStreamHandler` |
+| 同步返回 | WebSocket 或 REST 同步响应 | `ChatOrchestrationService.executeSync()` |
+
+### 持久化链路（/agui/runs）
+
+```text
+用户发消息
+  │
+  ├─ PreCallEvent → AafTraceHook → UserMessageEvent → ChatPersistenceListener → 写用户消息到 DB
+  │
+  ├─ Agent 执行（ReAct 循环）
+  │
+  └─ PostCallEvent → AafTraceHook → ExecutionCompletedEvent
+        ├─ ChatPersistenceListener    → 写 AI 回复到 DB（异步）
+        ├─ LearningFeedbackService    → 更新执行统计（异步）
+        └─ MemoryWriteBackListener    → LLM 抽取 → 写长期记忆（异步）
+```
