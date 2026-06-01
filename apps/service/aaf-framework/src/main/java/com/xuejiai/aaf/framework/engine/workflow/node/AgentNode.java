@@ -11,6 +11,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionRequest;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionTarget;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,11 +44,21 @@ public class AgentNode implements JavaDelegate {
 
     private final ExecutionDispatcher dispatcher;
     private final ObjectMapper objectMapper;
+    private final AgentRunEventPublisher agentRunEventPublisher;
 
     @Override
     public void execute(DelegateExecution execution) {
         var agentId = (String) execution.getVariable("agentId");
         var input = resolveInput(execution);
+        var nodeId = execution.getCurrentActivityId();
+
+        // 推送节点开始事件
+        var runCtx = AgentRunContextHolder.current().orElse(null);
+        if (runCtx != null) {
+            agentRunEventPublisher.publish(runCtx, AgentRunEventType.SUB_AGENT_STARTED,
+                    "工作流节点执行", "Agent: " + agentId,
+                    Map.of("nodeId", nodeId, "agentId", agentId));
+        }
 
         // 构建带增强参数的请求
         var promptOverride = (String) execution.getVariable("promptOverride");
@@ -82,6 +95,13 @@ public class AgentNode implements JavaDelegate {
         execution.setVariable("success", result.success());
         if (!result.success()) {
             execution.setVariable("error", result.error());
+        }
+
+        // 推送节点完成事件
+        if (runCtx != null) {
+            agentRunEventPublisher.publish(runCtx, AgentRunEventType.SUB_AGENT_COMPLETED,
+                    "工作流节点完成", result.success() ? "成功" : "失败",
+                    Map.of("nodeId", nodeId, "success", result.success()));
         }
     }
 
