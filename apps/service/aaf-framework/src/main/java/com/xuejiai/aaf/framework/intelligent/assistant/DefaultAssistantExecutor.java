@@ -27,6 +27,7 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
 
     private final AssistantRuntime assistantRuntime;
     private final ShortTermMemoryService shortTermMemory;
+    private final SessionManager sessionManager;
 
     @Override
     public AssistantResponse chat(
@@ -34,6 +35,11 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
         // 设置运行上下文（供 Hook 读取）
         AgentRunContextHolder.set(sessionId, userId, "assistant", assistantId, sessionId, null);
         try {
+            // 会话管理：确保会话存在并更新状态
+            sessionManager.getSession(sessionId)
+                    .orElseGet(() -> sessionManager.createSession(userId, assistantId));
+            sessionManager.updateStatus(sessionId, SessionManager.SessionStatus.PROCESSING);
+
             // 物化协调者 Agent（与 AG-UI 入口共享同一逻辑）
             var ctx = new MaterializeContext(assistantId, userId, sessionId, null);
             var agent = assistantRuntime.materialize(ctx);
@@ -50,10 +56,12 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
 
             // 记录响应到短期记忆
             shortTermMemory.append(sessionId, new MemoryMessage("assistant", content, null));
+            sessionManager.updateStatus(sessionId, SessionManager.SessionStatus.ACTIVE);
 
             return AssistantResponse.success(content, sessionId);
         } catch (Exception e) {
             log.warn("助理执行失败 [assistant={}, session={}]: {}", assistantId, sessionId, e.getMessage());
+            sessionManager.updateStatus(sessionId, SessionManager.SessionStatus.ACTIVE);
             return AssistantResponse.error(sessionId, e.getMessage());
         } finally {
             AgentRunContextHolder.clear();
