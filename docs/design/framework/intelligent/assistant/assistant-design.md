@@ -346,3 +346,124 @@ Agent 执行完成
         ├─ LearningFeedbackService    → 更新执行统计（异步）
         └─ MemoryWriteBackListener    → LLM 抽取 → 写长期记忆（异步）
 ```
+
+
+## 统一对话流程（目标架构）
+
+> 2026-06-02 确定。两条入口（AG-UI + AssistantService）共享同一套协调者逻辑。
+
+### 设计决策
+
+| 问题 | 决策 |
+|------|------|
+| 两条入口怎么统一 | AG-UI 和 AssistantService 底层共享同一个协调者构建逻辑（`AssistantRuntime.materialize(ctx)`） |
+| 前注意/情感/记忆由谁执行 | 协调者 Agent 的 Hook（不是独立 Agent，不是多 Agent 编排） |
+| 委派子任务用什么 | `AgentPool.borrow()`（现有机制），不用 AgentScope SubAgentTool 模式 |
+| TaskBoard 谁触发 | 协调者 Agent 自身作为协调者，LLM 推理判定需拆分时自动触发 |
+| Skill 匹配在哪 | 协调者 Agent 的 SkillBox（AgentScope 渐进披露） |
+| Agent 数量策略 | 1 个默认协调者 + 少量专精 Agent（仅工具集/模型差异大时才独立） |
+| 前端是否感知切换 | 不感知，前端只认一个 assistantId，后端自动路由 |
+
+### 统一流程图
+
+```text
+┌─ AG-UI 入口（前端 SSE）─────────────────────────────────────────────┐
+│  /agui/runs/{assistantId} → AafAgentResolver → 协调者 Agent         │
+├─ AssistantService 入口（渠道/A2A/内部调度）──────────────────────────┤
+│  AssistantService.handle() → 同一个协调者逻辑                       │
+└────────────────────────────────────────────────────────────────────┘
+                              ↓
+              ┌─── 协调者 Agent（助理）────────────────┐
+              │                                        │
+              │  ① 前注意分流（Hook/规则，<50ms）       │
+              │     简单 → 直接回复，结束               │
+              │     复杂 → 继续                        │
+              │                                        │
+              │  ② 情感感知（Hook，轻量分类）           │
+              │     → 调整回复风格参数                  │
+              │                                        │
+              │  ③ 记忆/知识注入（MemoryContextHook）   │
+              │     → 检索 + 注入 system message        │
+              │                                        │
+              │  ④ LLM 推理                            │
+              │     → 判断是否需要工具/委派             │
+              │                                        │
+              │  ⑤ 执行                                │
+              │     ├─ 无工具 → 直接回复                │
+              │     ├─ 调工具 → Toolkit 执行           │
+              │     └─ 复杂任务 → TaskBoard 拆分       │
+              │          → AgentPool.borrow 委派       │
+              │          → ResultAggregator 聚合       │
+              │                                        │
+              │  ⑥ 持久化（AafTraceHook → 事件 → DB）  │
+              └────────────────────────────────────────┘
+```
+
+### 两条入口的差异（仅输出形式不同）
+
+| 维度 | AG-UI 入口 | AssistantService 入口 |
+|------|-----------|---------------------|
+| 输出 | SSE 事件流（流式） | 同步返回 `AssistantResponse` |
+| 调用方 | 前端（ChatterRuntime） | 渠道回调/A2A/元引擎 |
+| 状态管理 | ThreadSessionManager 缓存 | 按 sessionId 管理 |
+| 共享部分 | 协调者构建 + Hook 链 + 工具集 + 记忆 + 持久化 | 同左 |
+
+### 步骤详解
+
+#### ① 前注意分流（PreCallEvent Hook）
+
+- 规则优先：正则/关键词匹配简单问候 → 直接用模板回复，`stopAgent()`
+- 规则未命中 → 可选调小模型做意图分类（<50ms）
+- 不是独立 Agent，不走 ReAct 循环
+
+#### ② 情感感知（PreReasoningEvent Hook）
+
+- 轻量分类：分析用户语气（急躁/友好/困惑）
+- 注入提示词段："用户语气急躁，请简洁回复" 或 "用户困惑，请详细解释"
+- 不调 LLM，用规则或嵌入模型分类
+
+#### ③ 记忆/知识注入（MemoryContextHook，已实现）
+
+- `UnifiedRetrievalService` 融合检索（记忆 + 知识库 RRF）
+- 临时 system message 注入，不写回 Memory
+- 按 `ragMode` 配置可切换为 AgentScope Knowledge 原生模式
+
+#### ④⑤ LLM 推理 + 执行（ReActAgent 内置循环）
+
+- 简单回复：LLM 直接生成文本，无工具调用
+- 工具调用：Toolkit 中的工具（workflow、文档操作等）
+- 复杂委派：协调者通过工具触发 TaskBoard 拆分 + AgentPool 委派
+  - `plan_and_dispatch` 工具：接收任务描述 → 拆为子任务 → 写入 TaskBoard → 逐个 borrow Agent 执行
+  - 结果由 ResultAggregator 聚合后返回给协调者
+
+#### ⑥ 持久化（已实现）
+
+- PreCallEvent → UserMessageEvent → 用户消息入库
+- PostCallEvent → ExecutionCompletedEvent → AI 回复入库 + 学习反馈 + 记忆写回
+
+### Agent 数量策略
+
+| Agent | 用途 | 何时独立 |
+|-------|------|---------|
+| `default` | 通用协调者（闲聊、问答、普通工具调用） | 始终存在 |
+| `workflow-agent` | 工作流执行（绑 start_workflow） | 工具有安全隔离需求 |
+| `code-agent` | 代码执行（绑沙箱工具，需独立模型） | 模型/工具差异大 |
+
+大多数能力差异通过 **Role + Skill 切换 systemPrompt** 解决，不创建独立 Agent。
+独立 Agent 仅用于：工具集有安全隔离需求、需要不同模型、需要不同 maxIters/timeout。
+
+### 与现有代码的映射
+
+| 流程步骤 | 已有代码 | 状态 |
+|---------|---------|------|
+| 协调者构建 | `AgentScopeRuntime.buildReActAgent()` | ✅ 可复用 |
+| 前注意分流 | 无 | 🔲 待实现（Hook） |
+| 情感感知 | `EmotionPerceptionService`（AssistantService 中调用） | 🔲 待迁移为 Hook |
+| 记忆注入 | `MemoryContextHook` | ✅ |
+| Skill 匹配 | `SkillBox` + `SkillStore` | ✅ |
+| 工具执行 | `McpToolService` + `Toolkit` | ✅ |
+| 任务拆分 + 委派 | `TaskBoard` + `AgentPool` + `ResultAggregator` | ✅ 骨架在，待接入协调者 |
+| 持久化 | `AafTraceHook` → 事件 → `ChatPersistenceListener` | ✅ |
+| 状态持久化 | `saveTo(RedisSession)` / `loadIfExists` | ✅ 刚接入 |
+| AG-UI 入口 | `AafAguiRestController` + `AafAgentResolver` | ✅ |
+| AssistantService 入口 | `AssistantService` + `DefaultAssistantExecutor` | ✅ 待统一底层 |
