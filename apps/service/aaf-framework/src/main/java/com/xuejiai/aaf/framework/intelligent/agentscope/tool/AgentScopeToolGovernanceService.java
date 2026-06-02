@@ -16,7 +16,7 @@ import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
-import com.xuejiai.aaf.framework.intelligent.agent.ToolPermissionGuard;
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.ToolPermissionGuard;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
 

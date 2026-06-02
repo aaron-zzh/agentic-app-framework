@@ -62,6 +62,10 @@ public class AgentDefinition extends BaseEntity {
     @Column(nullable = false)
     private Integer timeoutSeconds = 120;
 
+    /** 记忆配置（JSON），覆盖全局默认值。为 null 时使用全局配置。 */
+    @Column(columnDefinition = "jsonb")
+    private String memoryConfig;
+
     /** 状态：active / inactive / archived */
     @Column(nullable = false, length = 16)
     private String status = "active";

@@ -3,7 +3,7 @@
  *
  * @author AaronZZH & Kiro
  */
-package com.xuejiai.aaf.framework.intelligent.agent;
+package com.xuejiai.aaf.framework.intelligent.agent.runtime;
 
 import java.util.List;
 import java.util.Map;

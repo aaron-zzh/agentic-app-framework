@@ -2,14 +2,13 @@ package com.xuejiai.aaf.module.ai.chat.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
-import com.xuejiai.aaf.framework.intelligent.agent.CognitiveCycleExecutor;
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.CognitiveCycleExecutor;
 import com.xuejiai.aaf.framework.intelligent.assistant.TaskBoard;
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskCheckpoint;

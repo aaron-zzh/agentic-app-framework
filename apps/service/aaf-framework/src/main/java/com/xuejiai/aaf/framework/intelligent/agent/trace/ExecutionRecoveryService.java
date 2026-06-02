@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.xuejiai.aaf.framework.intelligent.agent.AgentCheckpointService;
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentCheckpointService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

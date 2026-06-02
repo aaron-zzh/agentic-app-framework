@@ -8,17 +8,27 @@ import io.agentscope.core.model.Model;
 /**
  * AAF 上下文管理适配器——封装 AgentScope AutoContextMemory。
  *
+ * <h3>职责定位</h3>
+ *
+ * <p>本类只负责一件事：<b>对话消息列表的存储与自动压缩</b>。
+ * ReActAgent 内部自动调用 {@code addMessage()} 追加每轮消息，
+ * 调用 {@code getMessages()} 获取 LLM 输入——外部无需手动操作。
+ *
+ * <p>与 {@code MemoryContextHook}（记忆/知识库检索注入）<b>完全独立</b>：
+ * <ul>
+ *   <li>本类：管消息列表的存储和超限压缩（替代裸 InMemoryMemory）
+ *   <li>MemoryContextHook：每轮 LLM 调用前检索长期记忆+知识库，临时注入到 inputMessages
+ *   <li>两者作用时机不同、互不依赖、可任意组合
+ * </ul>
+ *
  * <h3>使用流程</h3>
  *
  * <pre>
- * 1. AAF MemoryPipeline 检索 → 产出 MemoryContext（P0-P5 内容）
- * 2. Hook（PreReasoningEvent）将 MemoryContext 注入到 Agent 对话历史
- * 3. AutoContextMemory 检测总 Token 数 → 超限则渐进式压缩
- * 4. 最终上下文送 LLM（保证不超 Token 窗口）
- *
- * AAF MemoryPipeline 负责"选什么放进来"（P0-P5 优先级检索）
- * AutoContextMemory 负责"放不下时怎么压缩"（渐进式 6 策略）
- * 两者串联配合，不冲突。
+ * 用户消息 → ReActAgent 自动 addMessage(userMsg)
+ *   → AutoContextMemory 检测 Token 是否超限 → 超限则渐进式压缩
+ *   → PreReasoningEvent 触发 → MemoryContextHook 注入检索结果（临时，不写回 Memory）
+ *   → LLM 收到 [检索结果] + [压缩后的对话历史] + [当前消息]
+ *   → LLM 推理 → ReActAgent 自动 addMessage(assistantMsg)
  * </pre>
  *
  * <h3>P0-P5 与压缩策略的映射</h3>
@@ -33,10 +43,11 @@ import io.agentscope.core.model.Model;
  * <h3>集成方式</h3>
  *
  * <pre>
- * // 在 AgentFactory 创建 Agent 时配置 Memory：
+ * // 在 AgentScopeRuntime 创建 Agent 时配置 Memory：
  * var memory = AafAutoContextMemoryAdapter.create(chatModel);
  * var agent = ReActAgent.builder()
- *     .memory(memory)
+ *     .memory(memory)    // 传入后 ReActAgent 自动管理读写
+ *     .hook(new AutoContextHook())  // 配套 Hook，触发压缩检查
  *     .build();
  * </pre>
  */

@@ -7,6 +7,7 @@ package com.xuejiai.aaf.framework.intelligent.agent;
 
 import java.util.List;
 
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.ToolPermissionGuard;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentRuntime;
 import org.springframework.stereotype.Component;
 

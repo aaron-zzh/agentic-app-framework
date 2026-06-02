@@ -5,7 +5,7 @@
  *
  * @author AaronZZH & Kiro
  */
-package com.xuejiai.aaf.framework.intelligent.agent;
+package com.xuejiai.aaf.framework.intelligent.agent.runtime;
 
 /** 注意力资源管理：决定 LLM prompt 中各部分的 Token 预算。 混合检索时实现——检索结果需要在有限窗口内合理分配。 */
 public interface AttentionBudget {

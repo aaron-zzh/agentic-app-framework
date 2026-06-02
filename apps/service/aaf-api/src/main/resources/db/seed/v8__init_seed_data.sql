@@ -525,7 +525,7 @@ VALUES (
 -- 内容创作助理 Agent
 -- ============================================================
 
-INSERT INTO ai_agent_definition (agent_id, name, description, system_prompt, model_id, capabilities, tools, max_iterations, timeout_seconds, status, create_time, update_time)
+INSERT INTO ai_agent_definition (agent_id, name, description, system_prompt, model_id, capabilities, tools, max_iterations, timeout_seconds, memory_config, status, create_time, update_time)
 VALUES (
     'content-creator',
     '内容创作助理',
@@ -534,10 +534,13 @@ VALUES (
     'deepseek:chat',
     'CHAT',
     '["createDocument","updateDocument","publish","publishStatus","collect"]',
-    15, 180, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    15, 180,
+    '{"maxToken": 100000, "msgThreshold": 50, "lastKeep": 10, "largePayloadThreshold": 2000, "minConsecutiveToolMessages": 6}',
+    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (agent_id) DO UPDATE SET
     system_prompt = EXCLUDED.system_prompt,
     tools = EXCLUDED.tools,
+    memory_config = EXCLUDED.memory_config,
     update_time = CURRENT_TIMESTAMP;
 
 -- 内容创作 Actor（人格）

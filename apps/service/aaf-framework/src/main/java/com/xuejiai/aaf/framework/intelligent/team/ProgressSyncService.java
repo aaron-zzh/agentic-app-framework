@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.agent.AgentEventBus;
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentEventBus;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

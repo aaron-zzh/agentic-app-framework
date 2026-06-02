@@ -33,11 +33,10 @@ public class AafAguiRegistryCustomizer implements AguiAgentRegistryCustomizer {
 
     @Override
     public void customize(AguiAgentRegistry registry) {
-        // 注册所有已定义的 Agent（使用 factory 模式，每次请求创建新实例）
+        // 注册所有已定义的 Agent
         var agents = agentRegistryService.listActive();
         for (var def : agents) {
-            registry.registerFactory(def.getAgentId(),
-                    () -> agentScopeRuntime.createRaw(def));
+            registry.registerFactory(def.getAgentId(), () -> agentScopeRuntime.createRaw(def));
             log.info("[AG-UI] 注册 Agent: {} ({})", def.getName(), def.getAgentId());
         }
 
