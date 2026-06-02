@@ -7,6 +7,7 @@ import com.xuejiai.aaf.framework.intelligent.agentscope.hook.AafToolPermissionHo
 import com.xuejiai.aaf.framework.intelligent.agentscope.hook.AafToolWhitelistHook;
 import com.xuejiai.aaf.framework.intelligent.agentscope.hook.AafTraceHook;
 import com.xuejiai.aaf.framework.intelligent.agentscope.hook.MemoryContextHook;
+import com.xuejiai.aaf.framework.intelligent.agentscope.knowledge.AafKnowledge;
 import com.xuejiai.aaf.framework.intelligent.agentscope.memory.AafAutoContextMemoryAdapter;
 import com.xuejiai.aaf.framework.intelligent.agentscope.tool.AgentScopeToolGovernanceService;
 import org.springframework.beans.factory.ObjectProvider;
@@ -29,6 +30,8 @@ import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.autocontext.AutoContextConfig;
 import io.agentscope.core.memory.autocontext.AutoContextHook;
 import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.core.rag.RAGMode;
+import io.agentscope.core.rag.model.RetrieveConfig;
 import io.agentscope.core.skill.AgentSkill;
 import io.agentscope.core.skill.SkillBox;
 import lombok.RequiredArgsConstructor;
@@ -90,6 +93,7 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final AgentScopeToolGovernanceService toolGovernanceService;
     private final SkillStore skillStore;
     private final WorkflowTool workflowTool;
+    private final AafKnowledge aafKnowledge;
 
     /**
      * 创建 AgentExecutor（AAF 接口），供 AgentPool 借出/归还。
@@ -119,6 +123,7 @@ public class AgentScopeRuntime implements AgentRuntime {
                 ReActAgent.builder()
                         .name(definition.getName())
                         .sysPrompt(definition.getSystemPrompt())
+                        .maxIters(definition.getMaxIterations())
                         // Hook 注册顺序决定同优先级时的执行顺序，但各 Hook 已显式声明 priority()
                         .hook(tokenMeteringHook)       // priority=1000，最先执行，记录 Token
                         .hook(aafTraceHook)            // priority=900，采集轨迹发布事件
@@ -135,6 +140,9 @@ public class AgentScopeRuntime implements AgentRuntime {
         var toolkit = mcpToolService.buildToolkit(definition);
         toolGovernanceService.apply(toolkit, definition);
         builder.toolkit(toolkit);
+
+        // 知识库：按 memoryConfig.ragMode 配置接入（默认不接入，由 MemoryContextHook 融合检索覆盖）
+        configureKnowledge(builder, definition);
 
         // 技能：渐进披露，激活后才暴露绑定工具
         var skillBox = buildSkillBox(toolkit, definition.getAgentId());
@@ -198,6 +206,46 @@ public class AgentScopeRuntime implements AgentRuntime {
         }
         builder.model(chatModel);
         builder.memory(AafAutoContextMemoryAdapter.create(chatModel, parseMemoryConfig(definition.getMemoryConfig())));
+    }
+
+    /**
+     * 配置知识库接入。
+     *
+     * <p>通过 memoryConfig.ragMode 控制：
+     * <ul>
+     *   <li>{@code "FUSION"}（默认）：不接入 AgentScope Knowledge，由 MemoryContextHook 做记忆+知识库 RRF 融合检索
+     *   <li>{@code "GENERIC"}：接入 AgentScope Knowledge，每轮 LLM 前自动检索知识库注入（被动）
+     *   <li>{@code "AGENTIC"}：接入 AgentScope Knowledge，暴露为 retrieve_knowledge 工具（Agent 主动查）
+     *   <li>{@code "NONE"}：不做任何知识检索（MemoryContextHook 也跳过知识库部分）
+     * </ul>
+     */
+    private void configureKnowledge(ReActAgent.Builder builder, AgentDefinition definition) {
+        var json = definition.getMemoryConfig();
+        if (json == null || json.isBlank()) return; // 无配置 = FUSION（默认行为，MemoryContextHook 处理）
+        try {
+            var node = new ObjectMapper().readTree(json);
+            if (!node.has("ragMode")) return;
+            var mode = node.get("ragMode").asText().toUpperCase();
+            var limit = node.has("ragLimit") ? node.get("ragLimit").asInt() : 3;
+            var threshold = node.has("ragScoreThreshold") ? node.get("ragScoreThreshold").asDouble() : 0.3;
+            var retrieveConfig = RetrieveConfig.builder()
+                    .limit(limit)
+                    .scoreThreshold(threshold)
+                    .build();
+            switch (mode) {
+                case "FUSION" -> {} // 默认行为，MemoryContextHook 统一处理，不接入 AgentScope Knowledge
+                case "NONE" -> {}   // 不做任何知识检索（MemoryContextHook 通过 knowledgeBaseId=null 自动跳过）
+                case "GENERIC" -> builder.knowledge(aafKnowledge)
+                        .ragMode(RAGMode.GENERIC)
+                        .retrieveConfig(retrieveConfig);
+                case "AGENTIC" -> builder.knowledge(aafKnowledge)
+                        .ragMode(RAGMode.AGENTIC)
+                        .retrieveConfig(retrieveConfig);
+                default -> log.debug("未知 ragMode: {}，使用默认 FUSION 模式", mode);
+            }
+        } catch (Exception e) {
+            log.warn("解析 memoryConfig.ragMode 失败: {}", e.getMessage());
+        }
     }
 
     /**

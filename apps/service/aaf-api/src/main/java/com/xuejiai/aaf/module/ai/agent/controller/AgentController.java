@@ -1,10 +1,10 @@
 package com.xuejiai.aaf.module.ai.agent.controller;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.ai.agent.service.AgentManagementService;
@@ -36,8 +36,8 @@ public class AgentController {
     @Operation(summary = "Agent 列表（分页）")
     @GetMapping
     public Result<PageResult<AgentVO>> list(
-            @RequestParam(required = false) String status, Pageable pageable) {
-        return Result.success(agentService.list(status, pageable));
+            @RequestParam(required = false) String status, @Validated PageParam pageParam) {
+        return Result.success(agentService.list(status, pageParam.toPageable()));
     }
 
     @Operation(summary = "Agent 详情")
