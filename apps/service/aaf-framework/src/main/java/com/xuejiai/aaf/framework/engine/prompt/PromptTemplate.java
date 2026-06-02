@@ -24,9 +24,9 @@ public class PromptTemplate extends BaseEntity {
     @Column(nullable = false, length = 128)
     private String name;
 
-    /** 版本号 */
-    @Column(nullable = false)
-    private Integer version = 1;
+    /** 模板版本号 */
+    @Column(name = "template_version", nullable = false)
+    private Integer templateVersion = 1;
 
     /** 模板内容（支持 ${variable} 占位符） */
     @Column(nullable = false, columnDefinition = "TEXT")

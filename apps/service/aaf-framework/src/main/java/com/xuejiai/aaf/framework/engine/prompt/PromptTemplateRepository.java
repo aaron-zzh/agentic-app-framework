@@ -15,9 +15,9 @@ public interface PromptTemplateRepository extends JpaRepository<PromptTemplate, 
 
     Optional<PromptTemplate> findByNameAndActiveTrue(String name);
 
-    Optional<PromptTemplate> findByNameAndVersion(String name, Integer version);
+    Optional<PromptTemplate> findByNameAndTemplateVersion(String name, Integer templateVersion);
 
-    List<PromptTemplate> findByNameOrderByVersionDesc(String name);
+    List<PromptTemplate> findByNameOrderByTemplateVersionDesc(String name);
 
     List<PromptTemplate> findByCategory(String category);
 }
