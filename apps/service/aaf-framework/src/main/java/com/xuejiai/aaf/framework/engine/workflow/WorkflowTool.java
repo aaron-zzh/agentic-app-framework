@@ -4,7 +4,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;

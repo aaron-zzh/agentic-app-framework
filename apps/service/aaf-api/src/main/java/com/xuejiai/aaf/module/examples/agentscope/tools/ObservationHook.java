@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
+import com.xuejiai.aaf.framework.intelligent.agentscope.hook.TokenMeteringHook;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -40,7 +41,7 @@ import reactor.core.publisher.Mono;
  * </pre>
  *
  * <p>典型用途：链路追踪、审计日志、Token 计量、工具调用拦截（HITL）、性能监控。 AAF 的 {@link
- * com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook} 即基于 {@code PostCallEvent} 实现
+ * TokenMeteringHook} 即基于 {@code PostCallEvent} 实现
  * Token 计量。
  */
 @Slf4j

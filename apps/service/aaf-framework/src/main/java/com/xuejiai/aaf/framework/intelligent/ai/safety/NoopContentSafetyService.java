@@ -10,8 +10,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService;
-import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalResolvedEvent;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService.ApprovalResolvedEvent;
 
 import lombok.RequiredArgsConstructor;
 

@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 统一聊天运行端点（AI + 用户聊天）
  *
- * <p>Kiro Agent 走独立端点 {@code POST /api/autodev/kiro/run}（aaf-auto-dev 模块）。
+ * <p>Kiro Agent 走独立端点 {@code POST /api/autodev/kiro/context}（aaf-auto-dev 模块）。
  *
  * @author AaronZZH & Kiro
  */
@@ -40,7 +40,7 @@ public class ChatRunController {
     private final ChatService chatService;
     private final OperatorContext operatorContext;
 
-    @Operation(summary = "统一聊天运行端点（ai / user，kiro 请走 /api/autodev/kiro/run）")
+    @Operation(summary = "统一聊天运行端点（ai / user，kiro 请走 /api/autodev/kiro/context）")
     @PostMapping("/run")
     public SseEmitter run(@RequestBody @Valid ChatRunRequest request) {
         var userId = operatorContext.currentUserId().orElse(0L);
@@ -89,7 +89,7 @@ public class ChatRunController {
                                     1_003_001,
                                     "不支持的 target.type: "
                                             + request.target().type()
-                                            + "（kiro 请走 /api/autodev/kiro/run）"));
+                                            + "（kiro 请走 /api/autodev/kiro/context）"));
         };
     }
 

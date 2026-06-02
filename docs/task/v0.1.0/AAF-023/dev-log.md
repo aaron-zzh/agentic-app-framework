@@ -148,7 +148,6 @@
 > **待实现清单**（文档设计有但代码未实现）：
 > - `AafLongTermMemory`（实现 AgentScope LongTermMemory 接口，委托 AAF 记忆管道）
 > - `AafKnowledge`（实现 AgentScope Knowledge 接口，委托 HybridSearchService）
-> - `AafConfidenceHook`（PostReasoningEvent 置信度评估）
 > - `AafToolWhitelistHook`（PreActingEvent 工具白名单，当前由 ToolPermissionGuard 实现但未接入 Hook 体系）
 > - `AafTraceHook`（PostCallEvent 输出溯源）
 > - `InputBuffer`（Assistant 输入缓冲区）

@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.action;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -87,7 +88,7 @@ public class AiBusinessActionExecutor {
                         true,
                         null,
                         request.params() == null ? null : request.params().toString(),
-                        com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalType.ACTION_CONFIRM,
+                        HumanApprovalService.ApprovalType.ACTION_CONFIRM,
                         "业务动作确认",
                         "业务动作风险策略要求确认");
         return switch (decision.result()) {
@@ -132,7 +133,7 @@ public class AiBusinessActionExecutor {
                         true,
                         null,
                         request.params() == null ? null : request.params().toString(),
-                        com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
+                        HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
                         "业务动作置信度确认",
                         decision.message() == null ? "业务动作置信度不足" : decision.message());
         return switch (approval.result()) {

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEvent;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,17 +58,17 @@ public class AgentRunEventStreamService {
     private void send(String runId, Target target, AgentRunEvent event) {
         try {
             // AG-UI 流：包成协议内 CUSTOM 事件（走默认 data 通道，@ag-ui/client 的 onCustomEvent 接）；
-            // 非 AG-UI 流：仍走命名事件 agent-run，不污染其自有协议。
+            // 非 AG-UI 流：仍走命名事件 agent-context，不污染其自有协议。
             Object payload =
                     target.format() == Format.AGUI_CUSTOM
-                            ? Map.of("type", "CUSTOM", "name", "agent-run", "value", event)
+                            ? Map.of("type", "CUSTOM", "name", "agent-context", "value", event)
                             : event;
             var json = objectMapper.writeValueAsString(payload);
             synchronized (target.emitter()) {
                 var frame =
                         target.format() == Format.AGUI_CUSTOM
                                 ? SseEmitter.event().data(json)
-                                : SseEmitter.event().name("agent-run").data(json);
+                                : SseEmitter.event().name("agent-context").data(json);
                 target.emitter().send(frame);
             }
         } catch (IOException ex) {

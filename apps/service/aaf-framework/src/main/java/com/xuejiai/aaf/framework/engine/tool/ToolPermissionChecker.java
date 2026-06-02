@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

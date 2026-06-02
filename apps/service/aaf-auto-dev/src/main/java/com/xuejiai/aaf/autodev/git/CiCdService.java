@@ -51,7 +51,7 @@ public class CiCdService {
             var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 204) {
                 log.info("CI 触发成功: workflow={} ref={}", workflowFile, ref);
-                // GitHub 不返回 run ID，需要查询最新 run
+                // GitHub 不返回 context ID，需要查询最新 context
                 return queryLatestRunId(workflowFile, ref);
             }
             log.warn("CI 触发失败: HTTP {} - {}", response.statusCode(), response.body());
@@ -127,7 +127,7 @@ public class CiCdService {
         var request = githubRequest("GET",
                 "/actions/workflows/%s/runs?branch=%s&per_page=1".formatted(workflowFile, ref), null);
         try {
-            Thread.sleep(2000); // 等待 GitHub 创建 run
+            Thread.sleep(2000); // 等待 GitHub 创建 context
             var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 var runs = MAPPER.readTree(response.body()).get("workflow_runs");

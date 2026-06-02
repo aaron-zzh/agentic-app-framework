@@ -235,7 +235,7 @@ Agent 执行中（场景二/三进行中）
 ```text
 Agent 执行完成
   │
-  ├─ 🔲 置信度评估（AafConfidenceHook）：
+  ├─ 🔲 置信度评估（ConfidenceGate）：
   │
   │   ┌─ > 0.9 → 自动执行，结果暂存，异步通知用户
   │   │
@@ -251,7 +251,7 @@ Agent 执行完成
   └─ 继续后续流程（记录响应 → 返回）
 ```
 
-**关键特征**：`HumanApprovalController` + `HitlApprovalGrantListener` 已有骨架，置信度评估通过 `AafConfidenceHook` 集成。
+**关键特征**：`HumanApprovalController` + `HitlApprovalGrantListener` 已有骨架；工具级 HITL 由 `AafToolPermissionHook` 暂停 Agent，置信度评估走 `ConfidenceGate`。
 
 ---
 
@@ -290,7 +290,7 @@ Agent 执行完成
 | 上下文构建 | `MemoryPipelineFactory` + `MemoryContext` | ✅ |
 | Agent 调度 | `AgentPool.borrow` + `AgentSandbox.execute` | ✅ |
 | 感知→规划→执行 | AgentScope `ReActAgent`（内置 ReAct 循环） | ✅ |
-| 评估 | `AafConfidenceHook`（骨架存在） | 🔲 |
+| 评估 | `ConfidenceGate`（已实现，待接入认知循环） | 🔲 |
 | 学习 | `LearningFeedbackService`（骨架存在） | 🔲 |
 | 记忆更新 | `ShortTermMemoryService.append()` | ✅（短期）|
 | 记忆写回 Cognition | 长期记忆写回管道 | 🔲 |
@@ -321,7 +321,7 @@ Agent 执行完成
 | 工具调用 | Agent 调用工具（搜索、计算、DB 查询等）| ReAct 循环，`AafToolWhitelistHook` 过滤 |
 | 多 Agent 协作 | Supervisor 分发给子 Agent | 多跳，`AgentDispatcher` 编排 |
 | 长任务 | 耗时任务，支持中断/恢复 | Checkpoint + InputBuffer |
-| 人工介入（HITL） | 低置信度时暂停等待人工确认 | `AafConfidenceHook` + `HumanApprovalService` |
+| 人工介入（HITL） | 工具需确认时暂停等待人工 | `AafToolPermissionHook` + `HumanApprovalService` |
 
 ### 按会话形态
 

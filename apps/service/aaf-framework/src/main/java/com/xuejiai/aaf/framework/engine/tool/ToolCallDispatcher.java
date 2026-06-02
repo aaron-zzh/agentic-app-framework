@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.engine.tool;
 import java.util.List;
 import java.util.Map;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -193,7 +194,7 @@ public class ToolCallDispatcher {
                         true,
                         null,
                         arguments,
-                        com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
+                        HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
                         "置信度门控确认",
                         decision.message() == null ? "工具调用置信度不足" : decision.message());
         return switch (approval.result()) {

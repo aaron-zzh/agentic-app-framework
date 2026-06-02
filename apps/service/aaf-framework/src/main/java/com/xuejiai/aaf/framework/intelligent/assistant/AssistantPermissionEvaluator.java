@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.assistant;
 
 import java.util.Optional;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.AssistantSessionTrustService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 

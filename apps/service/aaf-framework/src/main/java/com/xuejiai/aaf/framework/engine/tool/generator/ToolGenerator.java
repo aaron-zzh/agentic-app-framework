@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.engine.tool.ScriptExecutor;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
-import com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

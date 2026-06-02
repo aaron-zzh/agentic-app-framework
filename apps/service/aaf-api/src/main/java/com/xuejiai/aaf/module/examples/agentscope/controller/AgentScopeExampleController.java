@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>RAG 知识库聊天 — {@code POST /rag-chat}（需 DashScope Embedding）
  *   <li>Plan 任务规划 — {@code POST /plan-chat}
  *   <li>Realtime TTS — {@code POST /tts}（需 DashScope API，返回 WAV 音频）
- *   <li>AG-UI 流式 — {@code POST /agui/run/{agentId}}（由 agentscope-agui-spring-boot-starter 提供）
+ *   <li>AG-UI 流式 — {@code POST /agui/context/{agentId}}（由 agentscope-agui-spring-boot-starter 提供）
  * </ol>
  *
  * <p>启用条件：{@code aaf.examples.agentscope.enabled=true}

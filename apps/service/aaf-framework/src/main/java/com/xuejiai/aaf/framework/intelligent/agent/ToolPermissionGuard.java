@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.agent;
 
 import java.util.List;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.beans.factory.ObjectProvider;
@@ -343,7 +344,7 @@ public class ToolPermissionGuard {
                         true,
                         agentAllowedTools,
                         arguments,
-                        com.xuejiai.aaf.framework.intelligent.assistant.HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
+                        HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
                         "置信度门控确认",
                         decision.message() == null ? "工具调用置信度不足" : decision.message());
         return switch (approval.result()) {

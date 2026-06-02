@@ -90,7 +90,7 @@ AssistantService → CognitiveCycleExecutor → AgentFactory → AgentRuntime
 AgentScopeRuntime 构建时注入全部 Hook：
   → TokenMeteringHook（已实现）
   → AafToolWhitelistHook（待实现）
-  → AafConfidenceHook（待实现）
+  → AafToolPermissionHook（已实现，工具级权限门控）
   → AafTraceHook（待实现）
   → StaticLongTermMemoryHook + AafLongTermMemory（待实现）
   → GenericRAGHook + AafKnowledge（待实现）
@@ -119,6 +119,8 @@ public class AafLongTermMemory implements LongTermMemory {
 
 AgentScope `STATIC_CONTROL` 模式自动在推理前调用 `retrieve()`、回复后调用 `record()`。
 
+> 知识库/记忆如何按领域模型经适配器接入物化后的助理 Agent，及示例出处与单检索路径决策，见 [对话入口统一重构方案 # 知识库与记忆系统接入](assistant-agent-runtime-refactor.md)。
+
 ## 适配器清单
 
 | 适配器 | AgentScope 能力 | 替换 AAF 组件 | 状态 |
@@ -131,6 +133,8 @@ AgentScope `STATIC_CONTROL` 模式自动在推理前调用 `retrieve()`、回复
 | `AgentScopeMemoryAdapter` | `Memory` 委托 | `WorkingMemoryImpl` | ✅ 已实现（薄包装） |
 | `AgentScopeToolAdapter` | `Toolkit` 委托 | `ToolRegistry` 部分替代 | ✅ 已实现（薄包装） |
 | `AgentScopeA2AEngine` | A2A 协议 | `A2AProtocolService` | ✅ 骨架已实现（远程调用待补全） |
+| `AafLongTermMemory` | `LongTermMemory`（record/retrieve） | 记忆管道接入 Agent | ✅ 已实现，**未接线**（builder 未调 `.longTermMemory`） |
+| `AafKnowledge` | `Knowledge`（retrieve/addDocuments） | `HybridSearchService` 暴露给 Agent | ✅ 已实现（`cognition/`），**未接线** |
 
 ## 待引入依赖
 

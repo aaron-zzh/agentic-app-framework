@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.util.StringUtils;
 
-import com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringHook;
+import com.xuejiai.aaf.framework.intelligent.agentscope.hook.TokenMeteringHook;
 import com.xuejiai.aaf.module.examples.agentscope.tools.CalendarTools;
 import com.xuejiai.aaf.module.examples.agentscope.tools.MathTools;
 import com.xuejiai.aaf.module.examples.agentscope.tools.ObservationHook;
@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AgentScope 示例配置。
  *
- * <p>注册示例所需的 Agent Bean，并将 Agent 接入 AG-UI 协议端点 {@code /agui/run}。 仅在
+ * <p>注册示例所需的 Agent Bean，并将 Agent 接入 AG-UI 协议端点 {@code /agui/context}。 仅在
  * aaf.examples.agentscope.enabled=true 时激活。
  *
  * <p>包含以下能力演示：
@@ -254,9 +254,9 @@ public class AgentScopeExampleConfig {
      * <p>注册后可通过以下方式访问：
      *
      * <ul>
-     *   <li>{@code POST /agui/run} — 使用默认 Agent（basic）
-     *   <li>{@code POST /agui/run/basic} — 基础聊天
-     *   <li>{@code POST /agui/run/tool} — 工具调用
+     *   <li>{@code POST /agui/context} — 使用默认 Agent（basic）
+     *   <li>{@code POST /agui/context/basic} — 基础聊天
+     *   <li>{@code POST /agui/context/tool} — 工具调用
      * </ul>
      */
     @Bean

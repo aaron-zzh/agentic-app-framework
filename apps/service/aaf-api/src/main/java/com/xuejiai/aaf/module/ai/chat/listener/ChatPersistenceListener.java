@@ -4,7 +4,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.agent.agentscope.UserMessageEvent;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.UserMessageEvent;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionCompletedEvent;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionStatus;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
