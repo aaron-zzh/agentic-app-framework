@@ -1,12 +1,14 @@
 package com.xuejiai.aaf.module.system.dict.service;
 
-import java.util.List;
-
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.model.PageParam;
+import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.dict.domain.DictType;
 import com.xuejiai.aaf.module.system.dict.repository.DictDataRepository;
 import com.xuejiai.aaf.module.system.dict.repository.DictTypeRepository;
@@ -24,21 +26,35 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class DictTypeService {
+public class DictTypeService
+        extends BaseCrudService<DictType, DictTypeVO, DictTypeCreateDTO, DictTypeUpdateDTO, PageParam> {
 
     private final DictTypeRepository dictTypeRepository;
     private final DictDataRepository dictDataRepository;
 
-    public List<DictTypeVO> list() {
-        return dictTypeRepository.findAll().stream().map(this::toVO).toList();
+    @Override
+    protected JpaRepository<DictType, Long> getRepository() {
+        return dictTypeRepository;
     }
 
-    public DictTypeVO getById(Long id) {
-        return toVO(requireDictType(id));
+    @Override
+    protected JpaSpecificationExecutor<DictType> getSpecExecutor() {
+        return dictTypeRepository;
     }
 
-    @Transactional
-    public DictTypeVO create(DictTypeCreateDTO dto) {
+    @Override
+    protected DictTypeVO toVO(DictType t) {
+        return new DictTypeVO(
+                t.getId(),
+                t.getName(),
+                t.getType(),
+                t.getStatus(),
+                t.getRemark(),
+                t.getCreateTime());
+    }
+
+    @Override
+    protected DictType toEntity(DictTypeCreateDTO dto) {
         if (dictTypeRepository.existsByTypeAndDeletedFalse(dto.type())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "字典类型编码已存在");
         }
@@ -49,12 +65,11 @@ public class DictTypeService {
         dictType.setName(dto.name());
         dictType.setType(dto.type());
         dictType.setRemark(dto.remark());
-        return toVO(dictTypeRepository.save(dictType));
+        return dictType;
     }
 
-    @Transactional
-    public DictTypeVO update(Long id, DictTypeUpdateDTO dto) {
-        var dictType = requireDictType(id);
+    @Override
+    protected void updateEntity(DictType dictType, DictTypeUpdateDTO dto) {
         if (dto.name() != null) {
             if (dictTypeRepository.existsByNameAndDeletedFalse(dto.name())
                     && !dictType.getName().equals(dto.name())) {
@@ -64,31 +79,21 @@ public class DictTypeService {
         }
         if (dto.status() != null) dictType.setStatus(dto.status());
         if (dto.remark() != null) dictType.setRemark(dto.remark());
-        return toVO(dictTypeRepository.save(dictType));
     }
 
+    @Override
     @Transactional
     public void delete(Long id) {
-        var dictType = requireDictType(id);
+        var dictType = dictTypeRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "字典类型不存在"));
         if (dictDataRepository.countByDictTypeAndDeletedFalse(dictType.getType()) > 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "该字典类型下存在字典数据，请先删除");
         }
         dictTypeRepository.deleteById(id);
     }
 
-    private DictType requireDictType(Long id) {
-        return dictTypeRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "字典类型不存在"));
-    }
-
-    private DictTypeVO toVO(DictType t) {
-        return new DictTypeVO(
-                t.getId(),
-                t.getName(),
-                t.getType(),
-                t.getStatus(),
-                t.getRemark(),
-                t.getCreateTime());
+    @Override
+    protected String entityName() {
+        return "字典类型";
     }
 }

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 
@@ -74,7 +75,8 @@ public class SkillStoreImpl implements SkillStore {
 }
 
 @Repository
-interface SkillDefinitionRepository extends JpaRepository<SkillDefinition, Long> {
+interface SkillDefinitionRepository
+        extends JpaRepository<SkillDefinition, Long>, JpaSpecificationExecutor<SkillDefinition> {
     List<SkillDefinition> findByAssistantIdAndStatus(String assistantId, String status);
 
     List<SkillDefinition> findByAgentIdAndStatus(String agentId, String status);
