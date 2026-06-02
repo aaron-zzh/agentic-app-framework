@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.enums.knowledge;
+package com.xuejiai.aaf.common.enums.knowledge;
 
 import java.util.Arrays;
 

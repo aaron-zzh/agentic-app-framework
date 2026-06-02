@@ -125,5 +125,5 @@ Feature: 分散式权限耦合
 ## 相关设计
 
 - 迭代架构设计：[后端技术选型](../../../design/apps/service/tech-stack.md)（开源授权控制设计章节）
-- 设计文档：`docs/design/features/license-control.md`（待创建）
+- 设计文档：[开源授权](../../../design/framework/security/license-control.md)
 - 任务：[backlog.md](../../../task/backlog.md) AAF-018

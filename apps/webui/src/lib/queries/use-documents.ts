@@ -1,24 +1,37 @@
 /**
- * 业务文档 TanStack Query hooks（对接 /api/docs）
+ * 文档管理 TanStack Query hooks
  * @author AaronZZH & Kiro
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { docApi } from "@/lib/api/rest/knowledge/document"
+import type { DocCreateParams } from "@/lib/api/rest/system/document"
+import { documentApi } from "@/lib/api/rest/system/document"
 
 export const docKeys = {
   tree: ["docs", "tree"] as const,
   detail: (id: number) => ["docs", id] as const,
+  relations: (id: number) => ["docs", id, "relations"] as const,
   search: (q: string) => ["docs", "search", q] as const
 }
 
 export function useDocTree() {
-  return useQuery({ queryKey: docKeys.tree, queryFn: docApi.tree })
+  return useQuery({
+    queryKey: docKeys.tree,
+    queryFn: documentApi.tree
+  })
 }
 
 export function useDocument(id: number | null) {
   return useQuery({
-    queryKey: docKeys.detail(id ?? 0),
-    queryFn: () => docApi.get(id ?? 0),
+    queryKey: docKeys.detail(id as number),
+    queryFn: () => documentApi.get(id as number),
+    enabled: id != null
+  })
+}
+
+export function useDocRelations(id: number | null) {
+  return useQuery({
+    queryKey: docKeys.relations(id as number),
+    queryFn: () => documentApi.relations(id as number),
     enabled: id != null
   })
 }
@@ -26,7 +39,7 @@ export function useDocument(id: number | null) {
 export function useDocSearch(q: string) {
   return useQuery({
     queryKey: docKeys.search(q),
-    queryFn: () => docApi.search(q),
+    queryFn: () => documentApi.search(q),
     enabled: q.length > 0
   })
 }
@@ -34,7 +47,8 @@ export function useDocSearch(q: string) {
 export function useUpdateDocument() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, content }: { id: number; content: string }) => docApi.update(id, content),
+    mutationFn: ({ id, content }: { id: number; content: string }) =>
+      documentApi.update(id, content),
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: docKeys.detail(id) })
       qc.invalidateQueries({ queryKey: docKeys.tree })
@@ -42,10 +56,20 @@ export function useUpdateDocument() {
   })
 }
 
+export function useImportDocs() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: documentApi.import,
+    onSuccess: () => qc.invalidateQueries({ queryKey: docKeys.tree })
+  })
+}
+
 export function useCreateDocument() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: docApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: docKeys.tree })
+    mutationFn: (params: DocCreateParams) => documentApi.create(params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: docKeys.tree })
+    }
   })
 }

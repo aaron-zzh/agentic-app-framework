@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.document.controller;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.document.domain.Document;
@@ -35,6 +36,12 @@ public class DocumentController {
         return Result.success(documentService.getTree());
     }
 
+    @Operation(summary = "新建文档")
+    @PostMapping
+    public Result<DocTreeNodeVO> create(@Valid @RequestBody DocCreateDTO dto) {
+        return Result.success(documentService.create(dto));
+    }
+
     @Operation(summary = "获取文档详情")
     @GetMapping("/{id}")
     public Result<Document> getById(@PathVariable Long id) {
@@ -57,5 +64,11 @@ public class DocumentController {
     @GetMapping("/search")
     public Result<List<DocSearchResultVO>> search(@RequestParam String q) {
         return Result.success(documentService.search(q));
+    }
+
+    @Operation(summary = "订阅文档变更事件（SSE）")
+    @GetMapping("/events")
+    public SseEmitter subscribe(@RequestParam(required = false) Long docId) {
+        return documentService.subscribe(docId != null ? docId : 0L);
     }
 }

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.knowledge.domain;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.xuejiai.aaf.common.enums.knowledge.DocumentStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
