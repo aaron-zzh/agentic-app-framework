@@ -151,6 +151,12 @@ public class AssistantScopeRuntime implements AssistantRuntime {
                 .memory(memory)
                 // 1.1.0 新特性：工具调用中断后自动恢复（HITL stopAgent 恢复更健壮）
                 .enablePendingToolRecovery(true)
+                // 1.1.0 新特性：模型调用重试/超时（网络抖动时自动重试，避免单次失败中断对话）
+                .modelExecutionConfig(io.agentscope.core.agent.ExecutionConfig.builder()
+                        .maxRetries(3)
+                        .retryDelay(java.time.Duration.ofSeconds(1))
+                        .timeout(java.time.Duration.ofSeconds(60))
+                        .build())
                 // 1.1.0 新特性：工具执行上下文——工具方法可声明 AgentRunContext 参数自动注入，无需读 ThreadLocal
                 .toolExecutionContext(io.agentscope.core.tool.ToolExecutionContext.builder()
                         .register(new com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext(

@@ -177,6 +177,93 @@ AAF 采用 Agent 池化，不做 LLM 池化：
 
 两者并存，不互相替代。
 
+## AgentScope 1.1.0 新特性（AAF 升级到 1.1.0-RC2）
+
+### 已启用
+
+| 特性 | API | 说明 | 应用位置 |
+|------|-----|------|---------|
+| 工具中断恢复 | `enablePendingToolRecovery(true)` | HITL stopAgent 后自动恢复挂起的 ToolUseBlock | `AssistantScopeRuntime` / `AgentScopeRuntime` |
+| 工具执行上下文 | `toolExecutionContext(ctx)` | 工具方法声明 `AgentRunContext` 参数自动注入，替代 ThreadLocal | `AssistantScopeRuntime` |
+
+### 待启用
+
+| 特性 | API | 应用场景 | 优先级 |
+|------|-----|---------|--------|
+| 模型重试/超时 | `modelExecutionConfig(ExecutionConfig)` | LLM 调用失败自动重试、超时控制 | 🔴 应立即启用 |
+| 结构化输出 | `structuredOutputReminder(reminder)` | 语义组件生成界面（JSON Schema 强制输出） | 🔴 应立即启用 |
+| 模型请求压缩 | `model-request-compression` 示例模式 | 长对话降低 Token 消耗 | 🟡 已有 AutoContextMemory 覆盖，可选增强 |
+| 长期记忆异步写入 | `longTermMemoryAsyncRecord(true)` | record 不阻塞 Agent 执行，异步写回 | 🟡 Phase 2 接线时启用 |
+| 多知识库 | `knowledges(List<Knowledge>)` | 一个 Agent 接多个知识库 | 🟡 多知识库场景时启用 |
+| 计划笔记本 | `enablePlan()` + `PlanNotebook` | Agent 自主拆分子任务并追踪进度 | 🟡 替代/增强 AAF TaskBoard |
+| 生成选项 | `generateOptions(GenerateOptions)` | 控制 temperature/top_p 等生成参数 | 🟢 按需 |
+
+### 多 Agent 编排模式（multiagent-patterns 示例参考）
+
+AgentScope 1.1.0 提供 6 种编排模式，AAF 可按需选用：
+
+| 模式 | 示例 | 核心机制 | AAF 应用场景 |
+|------|------|---------|-------------|
+| **SubAgent（任务委派）** | `multiagent-patterns/subagent` | `TaskTool` + `TaskOutputTool`：协调者通过工具委派子 Agent 执行，支持同步/后台模式 | 助理协调者委派专精 Agent（代码分析、知识库查询等） |
+| **Supervisor（监督者）** | `multiagent-patterns/supervisor` | 一个 Agent 管理多个子 Agent，每个子 Agent 注册为 SubAgentTool | 简单的多 Agent 分工（日程+邮件） |
+| **Handoffs（交接）** | `multiagent-patterns/handoffs` | Graph 状态机 + TransferTo 工具，Agent 间转接对话上下文 | 客服场景：销售→技术支持→售后交接 |
+| **Routing（路由）** | `multiagent-patterns/routing` | 分类→路由到对应 Agent | AAF 前注意分流 / Skill 匹配 |
+| **Pipeline（流水线）** | `multiagent-patterns/pipeline` | 顺序/并行 Pipeline | 文档处理流水线（分析→改写→校验） |
+| **Skills（技能）** | `multiagent-patterns/skills` | SkillBox 渐进披露 | AAF 已使用 ✅ |
+
+#### SubAgent 模式详解（与 AAF TaskBoard 的关系）
+
+subagent 示例的 `TaskTool` 工作方式：
+
+```text
+协调者 Agent
+  → LLM 决定需要委派 → 调用 Task(description, prompt, subagent_type)
+    → TaskTool 找到对应子 Agent → agent.call(prompt) → 返回结果
+    → 或 run_in_background=true → 异步执行，返回 task_id
+  → 需要结果时 → 调用 TaskOutput(task_id) → 获取执行结果
+  → 综合所有结果 → 给用户最终回复
+```
+
+**与 AAF TaskBoard 的映射**：
+- `TaskTool` ≈ AAF `TaskBoard.addTask()` + `AgentPool.borrow()`
+- `TaskOutputTool` ≈ AAF `TaskBoard.getTask(id).result()`
+- `TaskRepository` ≈ AAF `TaskBoard`（任务状态存储）
+- `AgentSpec` ≈ AAF `AgentDefinition`（子 Agent 蓝图）
+
+**建议**：AAF 可参考此模式实现 `plan_and_dispatch` 工具（暴露给协调者 Agent），内部复用已有的 TaskBoard + AgentPool。
+
+#### Handoffs 模式（客服交接场景）
+
+适用于 AAF 的企业客服功能——用户问题从通用助理交接给专精助理：
+
+```text
+用户 → 默认助理（分类意图）
+  ├─ 销售咨询 → TransferToSales 工具 → 销售助理接管
+  ├─ 技术支持 → TransferToSupport 工具 → 技术助理接管
+  └─ 简单问题 → 直接回复
+```
+
+与 AAF 的 Skill 匹配不同——Handoffs 是**带上下文的 Agent 切换**（整个对话交接），Skill 是**同一 Agent 切换行为**。
+
+### modelExecutionConfig（模型重试/超时）
+
+```java
+builder.modelExecutionConfig(ExecutionConfig.builder()
+        .maxRetries(3)              // 最多重试 3 次
+        .retryDelay(Duration.ofSeconds(1))  // 重试间隔
+        .timeout(Duration.ofSeconds(60))    // 单次调用超时
+        .build());
+```
+
+### structuredOutputReminder（结构化输出）
+
+```java
+// 语义组件生成界面时，强制 LLM 输出 JSON
+builder.structuredOutputReminder(StructuredOutputReminder.json(schema));
+```
+
+适用于 AAF 的语义组件引擎——生成 UI 布局、表单定义、图表配置时需要严格 JSON 格式。
+
 ## 相关文档
 
 - [五层智能架构](architecture.md)

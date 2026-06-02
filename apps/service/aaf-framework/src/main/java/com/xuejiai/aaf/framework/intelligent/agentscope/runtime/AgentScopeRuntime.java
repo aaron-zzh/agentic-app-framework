@@ -126,6 +126,12 @@ public class AgentScopeRuntime implements AgentRuntime {
                         .maxIters(definition.getMaxIterations())
                         // 1.1.0 新特性：工具调用中断后自动恢复
                         .enablePendingToolRecovery(true)
+                        // 1.1.0 新特性：模型调用重试/超时
+                        .modelExecutionConfig(io.agentscope.core.agent.ExecutionConfig.builder()
+                                .maxRetries(3)
+                                .retryDelay(java.time.Duration.ofSeconds(1))
+                                .timeout(java.time.Duration.ofSeconds(60))
+                                .build())
                         // Hook 注册顺序决定同优先级时的执行顺序，但各 Hook 已显式声明 priority()
                         .hook(tokenMeteringHook)       // priority=1000，最先执行，记录 Token
                         .hook(aafTraceHook)            // priority=900，采集轨迹发布事件
