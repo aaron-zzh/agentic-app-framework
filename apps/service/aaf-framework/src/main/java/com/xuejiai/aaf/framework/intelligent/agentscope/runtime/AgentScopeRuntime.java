@@ -134,9 +134,9 @@ public class AgentScopeRuntime implements AgentRuntime {
                         .enablePendingToolRecovery(true)
                         // 1.1.0 新特性：模型调用重试/超时
                         .modelExecutionConfig(
-                                io.agentscope.core.agent.ExecutionConfig.builder()
-                                        .maxRetries(3)
-                                        .retryDelay(java.time.Duration.ofSeconds(1))
+                                io.agentscope.core.model.ExecutionConfig.builder()
+                                        .maxAttempts(3)
+                                        .initialBackoff(java.time.Duration.ofSeconds(1))
                                         .timeout(java.time.Duration.ofSeconds(60))
                                         .build())
                         // Hook 注册顺序决定同优先级时的执行顺序，但各 Hook 已显式声明 priority()

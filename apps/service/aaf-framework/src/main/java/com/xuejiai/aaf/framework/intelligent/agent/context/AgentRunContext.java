@@ -7,4 +7,10 @@ public record AgentRunContext(
         String agentId,
         String assistantId,
         String conversationId,
-        Long knowledgeBaseId) {}
+        Long knowledgeBaseId) {
+
+    /** 仅 runId 的便利构造器（其余字段置 null）。 */
+    public AgentRunContext(String runId, Long userId, String agentId) {
+        this(runId, userId, agentId, null, null, null);
+    }
+}

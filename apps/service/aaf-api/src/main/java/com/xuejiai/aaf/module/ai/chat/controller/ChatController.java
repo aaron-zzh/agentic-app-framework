@@ -17,10 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext;
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder.HistoryMessage;

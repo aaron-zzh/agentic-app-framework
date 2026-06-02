@@ -9,9 +9,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -48,12 +48,6 @@ public class DocumentController {
         return Result.success(documentService.getById(id));
     }
 
-    @Operation(summary = "新建文档")
-    @PostMapping
-    public Result<Document> create(@Valid @RequestBody DocCreateDTO dto) {
-        return Result.success(documentService.create(dto));
-    }
-
     @Operation(summary = "更新文档内容")
     @PutMapping("/{id}")
     public Result<Document> update(@PathVariable Long id, @Valid @RequestBody DocUpdateDTO dto) {

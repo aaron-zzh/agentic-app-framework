@@ -36,7 +36,7 @@ public class DefaultPromptEngine implements PromptEngine {
     @Override
     @Transactional
     public PromptTemplate create(PromptTemplate template) {
-        template.setVersion(1);
+        template.setTemplateVersion(1);
         template.setActive(true);
         return repository.save(template);
     }
@@ -44,8 +44,8 @@ public class DefaultPromptEngine implements PromptEngine {
     @Override
     @Transactional
     public PromptTemplate createNewVersion(String name, String content) {
-        var existing = repository.findByNameOrderByVersionDesc(name);
-        int nextVersion = existing.isEmpty() ? 1 : existing.getFirst().getVersion() + 1;
+        var existing = repository.findByNameOrderByTemplateVersionDesc(name);
+        int nextVersion = existing.isEmpty() ? 1 : existing.getFirst().getTemplateVersion() + 1;
 
         // 失活旧版本
         existing.stream()
@@ -59,7 +59,7 @@ public class DefaultPromptEngine implements PromptEngine {
         var template = new PromptTemplate();
         template.setName(name);
         template.setContent(content);
-        template.setVersion(nextVersion);
+        template.setTemplateVersion(nextVersion);
         template.setActive(true);
         if (!existing.isEmpty()) {
             template.setDescription(existing.getFirst().getDescription());
@@ -76,12 +76,12 @@ public class DefaultPromptEngine implements PromptEngine {
 
     @Override
     public Optional<PromptTemplate> findByVersion(String name, int version) {
-        return repository.findByNameAndVersion(name, version);
+        return repository.findByNameAndTemplateVersion(name, version);
     }
 
     @Override
     public List<PromptTemplate> findAllVersions(String name) {
-        return repository.findByNameOrderByVersionDesc(name);
+        return repository.findByNameOrderByTemplateVersionDesc(name);
     }
 
     @Override
@@ -104,7 +104,7 @@ public class DefaultPromptEngine implements PromptEngine {
     public String render(String templateName, int version, Map<String, String> variables) {
         var template =
                 repository
-                        .findByNameAndVersion(templateName, version)
+                        .findByNameAndTemplateVersion(templateName, version)
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(

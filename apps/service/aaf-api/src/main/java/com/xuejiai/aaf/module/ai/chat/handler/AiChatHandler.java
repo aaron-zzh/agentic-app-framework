@@ -11,9 +11,9 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;

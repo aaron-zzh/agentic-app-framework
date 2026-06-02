@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionRequest;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionTarget;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

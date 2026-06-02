@@ -27,7 +27,7 @@ public class ContentDocTool {
             @ToolParam(description = "文档类型：article(文章)/note(笔记)/script(脚本)") String docType) {
         var doc = documentService.create(new DocCreateDTO(title, null, content, docType));
         return "{\"id\":%d,\"title\":\"%s\",\"docType\":\"%s\"}"
-                .formatted(doc.getId(), doc.getTitle(), doc.getDocType());
+                .formatted(doc.id(), doc.name(), docType);
     }
 
     @Tool(description = "更新已有文档的内容。传入文档 ID 和新的 Markdown 内容。")

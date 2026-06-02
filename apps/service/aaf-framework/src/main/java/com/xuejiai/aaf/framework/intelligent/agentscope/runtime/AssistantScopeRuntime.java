@@ -155,9 +155,9 @@ public class AssistantScopeRuntime implements AssistantRuntime {
                         .enablePendingToolRecovery(true)
                         // 1.1.0 新特性：模型调用重试/超时（网络抖动时自动重试，避免单次失败中断对话）
                         .modelExecutionConfig(
-                                io.agentscope.core.agent.ExecutionConfig.builder()
-                                        .maxRetries(3)
-                                        .retryDelay(java.time.Duration.ofSeconds(1))
+                                io.agentscope.core.model.ExecutionConfig.builder()
+                                        .maxAttempts(3)
+                                        .initialBackoff(java.time.Duration.ofSeconds(1))
                                         .timeout(java.time.Duration.ofSeconds(60))
                                         .build())
                         // 1.1.0 新特性：工具执行上下文——工具方法可声明 AgentRunContext 参数自动注入，无需读 ThreadLocal
@@ -166,12 +166,12 @@ public class AssistantScopeRuntime implements AssistantRuntime {
                                         .register(
                                                 new com.xuejiai.aaf.framework.intelligent.agent
                                                         .context.AgentRunContext(
-                                                        threadId,
-                                                        userId,
+                                                        ctx.threadId(),
+                                                        ctx.userId(),
                                                         "assistant",
-                                                        assistantId,
-                                                        threadId,
-                                                        knowledgeBaseId))
+                                                        ctx.assistantId(),
+                                                        ctx.threadId(),
+                                                        ctx.knowledgeBaseId()))
                                         .build())
                         // --- Hook 链（按 priority 排序执行）---
                         // priority=1000: Token 计量（最先执行，记录输入输出 Token）
