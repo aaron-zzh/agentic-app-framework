@@ -194,6 +194,10 @@ public class AssistantScopeRuntime implements AssistantRuntime {
             }
         }
 
+        // ── Step 8: 启用 PlanNotebook ─────────────────────────────────────────
+        // L2 多步规划：LLM 自主判断是否需要创建计划（complex task 时自动触发，简单任务不触发）
+        builder.enablePlan();
+
         var agent = builder.build();
         log.debug("物化助理 [{}]: actor={}, role={}, userId={}",
                 ctx.assistantId(),
