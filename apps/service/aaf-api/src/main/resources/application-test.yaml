@@ -28,6 +28,9 @@ spring:
 aaf:
   flyway:
     clean-on-start: true
+  pay:
+    mock:
+      enabled: true
   security:
     mock-enable: true
   pay:

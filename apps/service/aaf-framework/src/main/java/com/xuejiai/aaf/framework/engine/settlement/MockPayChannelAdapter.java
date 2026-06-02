@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
-/** 模拟支付渠道适配器——直接返回成功，用于开发和测试。 */
+/** 模拟支付渠道适配器——直接返回成功，用于开发和测试。仅在 aaf.pay.mock.enabled=true 时注册（生产默认关闭）。 */
 @Slf4j
 @Component
 @ConditionalOnProperty(prefix = "aaf.pay.mock", name = "enabled", havingValue = "true", matchIfMissing = false)
