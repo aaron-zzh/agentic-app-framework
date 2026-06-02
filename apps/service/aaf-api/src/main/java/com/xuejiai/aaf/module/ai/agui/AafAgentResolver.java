@@ -13,13 +13,14 @@ import io.agentscope.core.agui.processor.AgentResolver;
 import io.agentscope.core.agui.registry.AguiAgentRegistry;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.session.Session;
 import io.agentscope.spring.boot.agui.common.ThreadSessionManager;
 
 /**
  * AAF 自定义 AgentResolver——在执行线程上解析 Agent 时：
  * <ol>
  *   <li>按 threadId 查会话上下文，设置 {@link AgentRunContextHolder}（供 Hook 读取，解决线程边界）</li>
- *   <li>冷启动（Memory 为空）时从 DB 播种历史进 Agent Memory（Model B）</li>
+ *   <li>冷启动时先尝试从 Redis Session 恢复 Agent 状态，失败则从 DB 播种历史</li>
  * </ol>
  */
 public class AafAgentResolver implements AgentResolver {
@@ -29,14 +30,22 @@ public class AafAgentResolver implements AgentResolver {
     private final AguiAgentRegistry registry;
     private final ThreadSessionManager sessionManager;
     private final ChatSessionResolver chatSessionResolver;
+    private final Session agentSession;
 
     public AafAgentResolver(
             AguiAgentRegistry registry,
             ThreadSessionManager sessionManager,
-            ChatSessionResolver chatSessionResolver) {
+            ChatSessionResolver chatSessionResolver,
+            Session agentSession) {
         this.registry = registry;
         this.sessionManager = sessionManager;
         this.chatSessionResolver = chatSessionResolver;
+        this.agentSession = agentSession;
+    }
+
+    /** 获取 AgentScope Session（供 Controller 在请求完成后 saveTo）。 */
+    public Session getAgentSession() {
+        return agentSession;
     }
 
     @Override
@@ -51,10 +60,21 @@ public class AafAgentResolver implements AgentResolver {
         // 2. 获取/创建 Agent（server-side memory：按 threadId 复用）
         var agent = sessionManager.getOrCreateAgent(
                 threadId, agentId,
-                () -> registry.getAgent(agentId)
-                        .orElseThrow(() -> new AguiException.AgentNotFoundException(agentId)));
+                () -> {
+                    var created = registry.getAgent(agentId)
+                            .orElseThrow(() -> new AguiException.AgentNotFoundException(agentId));
+                    // 新建 Agent 时从 Redis Session 恢复状态
+                    if (created instanceof ReActAgent reactAgent) {
+                        reactAgent.loadIfExists(agentSession, threadId);
+                        if (reactAgent.getMemory() != null && !reactAgent.getMemory().getMessages().isEmpty()) {
+                            log.debug("从 Redis Session 恢复 Agent 状态: threadId={}", threadId);
+                            return created;
+                        }
+                    }
+                    return created;
+                });
 
-        // 3. 冷启动播种历史（Memory 为空且有会话上下文）
+        // 3. 兜底：Redis 无状态时从 DB 播种历史
         if (ctx != null && ctx.sessionId() != null && agent instanceof ReActAgent reactAgent) {
             var memory = reactAgent.getMemory();
             if (memory != null && memory.getMessages().isEmpty()) {
@@ -63,7 +83,7 @@ public class AafAgentResolver implements AgentResolver {
                     memory.addMessage(toMsg(h.role(), h.content()));
                 }
                 if (!history.isEmpty()) {
-                    log.debug("冷启动播种历史: threadId={}, 条数={}", threadId, history.size());
+                    log.debug("从 DB 播种历史: threadId={}, 条数={}", threadId, history.size());
                 }
             }
         }

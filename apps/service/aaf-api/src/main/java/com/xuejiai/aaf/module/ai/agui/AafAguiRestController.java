@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agui.encoder.AguiEventEncoder;
 import io.agentscope.core.agui.event.AguiEvent;
 import io.agentscope.core.agui.model.RunAgentInput;
 import io.agentscope.core.agui.processor.AguiRequestProcessor;
+import io.agentscope.core.session.Session;
 import io.agentscope.spring.boot.agui.common.AguiProperties;
 import io.agentscope.spring.boot.agui.mvc.AguiMvcController;
 import io.agentscope.spring.boot.agui.mvc.AguiRestController;
@@ -26,21 +28,23 @@ import io.agentscope.spring.boot.agui.mvc.AguiRestController;
  * AAF 自定义 AG-UI 入口——覆盖 starter 的 {@link AguiRestController}（同类型 Bean 触发
  * {@code @ConditionalOnMissingBean} 压制默认实现），映射到 {@code /agui/runs}，
  * 内部用注入了 {@link AafAgentResolver} 的 {@link AguiRequestProcessor}，
- * 从而在执行线程上设置上下文 + 冷启动播种历史。
+ * 从而在执行线程上设置上下文 + 冷启动播种历史 + 请求完成后持久化 Agent 状态。
  */
 public class AafAguiRestController extends AguiRestController {
 
     private static final Logger logger = LoggerFactory.getLogger(AafAguiRestController.class);
 
     private final AguiRequestProcessor processor;
+    private final Session agentSession;
     private final AguiEventEncoder encoder = new AguiEventEncoder();
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final long sseTimeout;
 
     public AafAguiRestController(
-            AguiMvcController mvc, AguiProperties props, AguiRequestProcessor processor) {
+            AguiMvcController mvc, AguiProperties props, AguiRequestProcessor processor, Session agentSession) {
         super(mvc, props.getPathPrefix(), props.isEnablePathRouting());
         this.processor = processor;
+        this.agentSession = agentSession;
         this.sseTimeout = props.getSseTimeout() > 0 ? props.getSseTimeout() : 600000L;
     }
 
@@ -76,10 +80,12 @@ public class AafAguiRestController extends AguiRestController {
                 var result = processor.process(input, headerAgentId, pathAgentId);
                 emitter.onTimeout(() -> result.agent().interrupt());
                 emitter.onError(ex -> result.agent().interrupt());
-                result.events().subscribe(
-                        event -> sendEvent(emitter, event),
-                        error -> sendErrorAndComplete(emitter, threadId, runId, error.getMessage()),
-                        emitter::complete);
+                result.events()
+                        .doFinally(signal -> saveAgentState(result.agent(), threadId))
+                        .subscribe(
+                                event -> sendEvent(emitter, event),
+                                error -> sendErrorAndComplete(emitter, threadId, runId, error.getMessage()),
+                                emitter::complete);
             } catch (Exception e) {
                 logger.error("AG-UI 请求处理失败: {}", e.getMessage());
                 sendErrorAndComplete(emitter, threadId, runId, e.getMessage());
@@ -88,6 +94,17 @@ public class AafAguiRestController extends AguiRestController {
             }
         });
         return emitter;
+    }
+
+    /** 请求完成后持久化 Agent 状态到 Redis。 */
+    private void saveAgentState(io.agentscope.core.agent.Agent agent, String threadId) {
+        if (threadId != null && agent instanceof ReActAgent reactAgent) {
+            try {
+                reactAgent.saveTo(agentSession, threadId);
+            } catch (Exception e) {
+                logger.warn("Agent 状态持久化失败 [threadId={}]: {}", threadId, e.getMessage());
+            }
+        }
     }
 
     private void sendEvent(SseEmitter emitter, AguiEvent event) {
