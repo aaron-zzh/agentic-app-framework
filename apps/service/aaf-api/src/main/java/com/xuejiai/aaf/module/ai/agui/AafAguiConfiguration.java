@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantRuntime;
 import com.xuejiai.aaf.framework.intelligent.core.assistant.ChatSessionResolver;
 
 import io.agentscope.core.agui.adapter.AguiAdapterConfig;
@@ -36,12 +37,12 @@ public class AafAguiConfiguration {
 
     @Bean
     public AguiRequestProcessor aafAguiRequestProcessor(
-            AguiAgentRegistry registry,
             ThreadSessionManager sessionManager,
             ChatSessionResolver chatSessionResolver,
+            AssistantRuntime assistantRuntime,
             Session agentScopeSession,
             AguiProperties props) {
-        var resolver = new AafAgentResolver(registry, sessionManager, chatSessionResolver, agentScopeSession);
+        var resolver = new AafAgentResolver(sessionManager, chatSessionResolver, assistantRuntime, agentScopeSession);
         var config = AguiAdapterConfig.builder()
                 .emitStateEvents(props.isEmitStateEvents())
                 .emitToolCallArgs(props.isEmitToolCallArgs())

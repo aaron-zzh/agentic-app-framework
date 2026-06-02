@@ -3,43 +3,47 @@ package com.xuejiai.aaf.module.ai.agui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantRuntime;
+import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantRuntime.MaterializeContext;
 import com.xuejiai.aaf.framework.intelligent.core.assistant.ChatSessionResolver;
 import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.Agent;
-import io.agentscope.core.agui.AguiException;
 import io.agentscope.core.agui.processor.AgentResolver;
-import io.agentscope.core.agui.registry.AguiAgentRegistry;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.session.Session;
 import io.agentscope.spring.boot.agui.common.ThreadSessionManager;
 
 /**
- * AAF 自定义 AgentResolver——在执行线程上解析 Agent 时：
+ * AAF 自定义 AgentResolver——AG-UI 入口的 Agent 解析逻辑。
+ *
+ * <p>核心变更：不再从 Registry 取裸 Agent，改为通过 {@link AssistantRuntime#materialize} 物化协调者。
+ *
  * <ol>
- *   <li>按 threadId 查会话上下文，设置 {@link AgentRunContextHolder}（供 Hook 读取，解决线程边界）</li>
- *   <li>冷启动时先尝试从 Redis Session 恢复 Agent 状态，失败则从 DB 播种历史</li>
+ *   <li>按 threadId 查会话上下文（ChatSession），设置 {@link AgentRunContextHolder}</li>
+ *   <li>通过 AssistantRuntime.materialize() 构建协调者 Agent（含完整 Hook 链）</li>
+ *   <li>ThreadSessionManager 按 threadId 缓存复用，冷启动时从 Redis Session 恢复或 DB 播种历史</li>
  * </ol>
  */
 public class AafAgentResolver implements AgentResolver {
 
     private static final Logger log = LoggerFactory.getLogger(AafAgentResolver.class);
 
-    private final AguiAgentRegistry registry;
     private final ThreadSessionManager sessionManager;
     private final ChatSessionResolver chatSessionResolver;
+    private final AssistantRuntime assistantRuntime;
     private final Session agentSession;
 
     public AafAgentResolver(
-            AguiAgentRegistry registry,
             ThreadSessionManager sessionManager,
             ChatSessionResolver chatSessionResolver,
+            AssistantRuntime assistantRuntime,
             Session agentSession) {
-        this.registry = registry;
         this.sessionManager = sessionManager;
         this.chatSessionResolver = chatSessionResolver;
+        this.assistantRuntime = assistantRuntime;
         this.agentSession = agentSession;
     }
 
@@ -52,24 +56,30 @@ public class AafAgentResolver implements AgentResolver {
     public Agent resolveAgent(String agentId, String threadId) {
         // 1. 解析会话上下文，设置 ThreadLocal（执行线程，先于 agent.stream，Hook 可见）
         var ctx = chatSessionResolver.resolveByThreadId(threadId);
+        var assistantId = ctx != null ? ctx.assistantId() : null;
+        var userId = ctx != null ? ctx.userId() : null;
+        var knowledgeBaseId = ctx != null ? ctx.knowledgeBaseId() : null;
+
         if (ctx != null) {
             AgentRunContextHolder.set(
-                    threadId, ctx.userId(), agentId, ctx.assistantId(), threadId, ctx.knowledgeBaseId());
+                    threadId, userId, agentId, assistantId, threadId, knowledgeBaseId);
         }
 
-        // 2. 获取/创建 Agent（server-side memory：按 threadId 复用）
+        // 2. 获取/创建 Agent（按 threadId 缓存复用）
         var agent = sessionManager.getOrCreateAgent(
                 threadId, agentId,
                 () -> {
-                    var created = registry.getAgent(agentId)
-                            .orElseThrow(() -> new AguiException.AgentNotFoundException(agentId));
-                    // 新建 Agent 时从 Redis Session 恢复状态
-                    if (created instanceof ReActAgent reactAgent) {
-                        reactAgent.loadIfExists(agentSession, threadId);
-                        if (reactAgent.getMemory() != null && !reactAgent.getMemory().getMessages().isEmpty()) {
-                            log.debug("从 Redis Session 恢复 Agent 状态: threadId={}", threadId);
-                            return created;
-                        }
+                    // 通过 AssistantRuntime 物化协调者（统一逻辑）
+                    var materialCtx = new MaterializeContext(
+                            assistantId != null ? assistantId : "default",
+                            userId, threadId, knowledgeBaseId);
+                    var created = assistantRuntime.materialize(materialCtx);
+
+                    // 从 Redis Session 恢复状态
+                    created.loadIfExists(agentSession, threadId);
+                    if (created.getMemory() != null && !created.getMemory().getMessages().isEmpty()) {
+                        log.debug("从 Redis Session 恢复 Agent 状态: threadId={}", threadId);
+                        return created;
                     }
                     return created;
                 });
