@@ -399,14 +399,14 @@ Agent 执行完成
               └────────────────────────────────────────┘
 ```
 
-### 两条入口的差异（仅输出形式不同）
+### 两条入口的差异（仅输出形式不同，逻辑统一）
 
 | 维度 | AG-UI 入口 | AssistantService 入口 |
 |------|-----------|---------------------|
-| 输出 | SSE 事件流（流式） | 同步返回 `AssistantResponse` |
+| 输出 | SSE 事件流（流式，逐 token） | 完整输出（等执行完一次性返回） |
 | 调用方 | 前端（ChatterRuntime） | 渠道回调/A2A/元引擎 |
-| 状态管理 | ThreadSessionManager 缓存 | 按 sessionId 管理 |
-| 共享部分 | 协调者构建 + Hook 链 + 工具集 + 记忆 + 持久化 | 同左 |
+| 状态管理 | ThreadSessionManager 按 threadId 缓存 | 按 sessionId 管理（逻辑等价） |
+| 底层逻辑 | 同一个协调者 Agent 构建 + Hook 链 + 工具集 + 记忆 + 持久化 | 同左 |
 
 ### 步骤详解
 
@@ -467,3 +467,64 @@ Agent 执行完成
 | 状态持久化 | `saveTo(RedisSession)` / `loadIfExists` | ✅ 刚接入 |
 | AG-UI 入口 | `AafAguiRestController` + `AafAgentResolver` | ✅ |
 | AssistantService 入口 | `AssistantService` + `DefaultAssistantExecutor` | ✅ 待统一底层 |
+
+
+### 对外服务方式（用户角度）
+
+#### assistantId 如何确定
+
+| 场景 | 前端传什么 | 后端如何找到助理 |
+|------|-----------|----------------|
+| 已有会话 | threadId | `ChatSession.assistantId` → AssistantDefinition |
+| 新建会话 | 创建会话 API 传入 assistantId（或用默认） | 写入 ChatSession |
+| 页面绑定 | 页面配置 roleId → 创建会话时传入 | 后端按 roleId + userId 查找助理 |
+
+#### 默认助理策略（系统参数控制）
+
+- 新用户注册时：系统参数控制是否自动创建个人助理，或使用全局默认助理（客服角色）
+- 用户可创建的助理数量：系统参数上限 0-100
+- 全局默认助理：所有用户共享，只读不可编辑
+
+#### 路由策略
+
+前端路由统一为 `/agui/runs/assistant`（agentId 固定为 `"assistant"`），具体是哪个助理由会话上下文决定：
+
+```text
+前端：POST /agui/runs/assistant  body: { threadId: "xxx", ... }
+后端：threadId → ChatSession → assistantId → AssistantDefinition → 物化协调者
+```
+
+#### threadId 生成方
+
+| 入口 | 生成方 | 说明 |
+|------|--------|------|
+| AG-UI（前端） | 前端 SDK 自动生成（UUID） | 首次发消息后后端关联到 ChatSession |
+| 第三方渠道（企微/钉钉） | 后端生成 | 渠道会话标识映射为内部 threadId |
+
+#### 多会话隔离与跨会话感知
+
+- **默认隔离**：每个会话独立的 Agent 实例 + Memory（ThreadSessionManager 按 threadId 隔离）
+- **跨会话感知**：用户主动触发时通过长期记忆检索历史对话信息（按 userId 共享）
+- 同一 AssistantDefinition 可物化出多个运行时实例，互不干扰
+- 同一用户同时开多个会话：各自独立实例，消息不冲突
+
+#### 输出适配（统一逻辑，不同输出形式）
+
+所有入口共享同一个协调者逻辑，差异仅在输出适配层：
+
+| 入口 | 输出方式 | 适用场景 |
+|------|---------|---------|
+| AG-UI（前端） | SSE 流式（逐 token 推送） | Web/App 前端对话 |
+| 第三方渠道（企微/钉钉/飞书） | 完整输出（等执行完，一次性回复或卡片推送） | IM 回调 |
+| A2A / 内部调度 | 完整输出（同步返回） | 系统间通信 |
+
+#### HITL 确认（按入口适配）
+
+| 入口 | 确认方式 | 机制 |
+|------|---------|------|
+| AG-UI（前端） | `ToolConfirmOverlay`（前端弹窗 + SSE 暂停/恢复） | `stopAgent()` → `/confirm` 端点 |
+| 企业微信 | 交互式卡片消息（确认/取消按钮，点击回调） | 按钮回调 → `HumanApprovalService.resolve()` |
+| 钉钉 | ActionCard 消息（按钮组 + 回调 URL） | 同上 |
+| 飞书 | 卡片消息（按钮 + 回调 URL） | 同上 |
+
+所有渠道都支持按钮级确认，不限于纯文本对话。渠道适配层负责把 `HumanApprovalService` 的审批请求翻译为平台对应的消息格式。
