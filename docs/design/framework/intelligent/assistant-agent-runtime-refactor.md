@@ -413,3 +413,101 @@ AI 执行中 → HumanApprovalService.request() → 存入 pending Map + 生成 
 - [Agent 技术方案](agent/agent-tech.md)
 - [AgentScope 整合策略](agentscope-integration.md)
 - [ADR-005 AgentScope 整合策略](../../adr/ADR-005-agentscope-integration-strategy.md)
+
+## 架构重构意见：以认知模型驱动，AgentScope 仅为执行层（2026-06-02）
+
+### 问题
+
+当前 `AssistantScopeRuntime.materialize()` 的代码组织方式是**以 AgentScope API 为骨架**——每一步都是在"如何配置 ReActAgent.Builder"。这导致：
+
+1. 认知循环（感知→理解→规划→执行→评估→学习）的语义被 AgentScope 的技术概念（Hook/Toolkit/Memory/SkillBox）掩盖
+2. 如果换掉 AgentScope（用 LangChain4j / Spring AI Agent），整个物化逻辑要重写——认知模型的组织方式没有沉淀在领域层
+3. 五层智能架构（Core→Cognition→Agent→Assistant→Team）的分层在代码中看不到——所有逻辑堆在一个适配器类里
+
+### 目标架构：认知模型 → 领域编排 → 技术适配
+
+```text
+┌─ 领域层（框架无关，五层智能语义）─────────────────────────────────┐
+│                                                                    │
+│  AssistantCognitivePipeline（认知管道，编排顺序）                  │
+│    ├─ PreAttentionFilter      → 前注意分流（规则/小模型）          │
+│    ├─ EmotionPerception       → 情感感知                          │
+│    ├─ ContextRetrieval        → 上下文构建（记忆+知识检索）        │
+│    ├─ IntentRouting           → 意图路由 / Skill 匹配             │
+│    ├─ ExecutionStrategy       → 执行策略选择（直答/工具/规划/委派）│
+│    ├─ ConfidenceGate          → 置信度评估                        │
+│    └─ LearningFeedback        → 学习反馈                          │
+│                                                                    │
+│  每个步骤是领域接口，不依赖任何 AgentScope 类                      │
+└────────────────────────────────────────────────────────────────────┘
+                              ↓ 编译为
+┌─ 适配器层（AgentScope 技术实现）──────────────────────────────────┐
+│                                                                    │
+│  AgentScopeCognitiveCompiler（将认知管道编译为 AgentScope 构件）   │
+│    ├─ PreAttentionFilter   → PreCallEvent Hook                    │
+│    ├─ EmotionPerception    → PreReasoningEvent Hook               │
+│    ├─ ContextRetrieval     → MemoryContextHook                    │
+│    ├─ IntentRouting        → SkillBox                             │
+│    ├─ ExecutionStrategy    → Toolkit + PlanNotebook + TaskTool    │
+│    ├─ ConfidenceGate       → PostReasoningEvent Hook              │
+│    └─ LearningFeedback     → PostCallEvent Hook                   │
+│                                                                    │
+│  最终输出：配置好的 ReActAgent                                     │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### 与当前代码的差距
+
+| 维度 | 当前 | 目标 |
+|------|------|------|
+| 物化入口 | `AssistantScopeRuntime.materialize()` 直接操作 Builder | 领域层 `AssistantCognitivePipeline` 定义认知步骤 → Compiler 翻译为 Builder 调用 |
+| 认知步骤 | 隐式散落在各 Hook 中，看代码看不出认知循环全貌 | 显式定义为 Pipeline 步骤列表，一眼可见 |
+| 可替换性 | 换框架要重写 materialize | 只需重写 Compiler（Hook→其他框架的等价物），Pipeline 不变 |
+| 可配置性 | 写死的 Hook 链 | Pipeline 按 AssistantDefinition 配置动态组装步骤（某些助理不需要情感感知） |
+
+### 建议实现路径
+
+**当前不大改**——先跑通对话流程，验证端到端可用。但在后续迭代中逐步重构为：
+
+1. **Phase A（当前）**：保持现状，`AssistantScopeRuntime.materialize()` 作为唯一物化入口，注释中标注每步对应的认知循环阶段（已做）
+2. **Phase B（v0.2）**：抽取 `AssistantCognitivePipeline` 接口——定义认知步骤列表，`AssistantScopeRuntime` 改为读取 Pipeline 配置再编译为 Builder 调用
+3. **Phase C（v0.3）**：各认知步骤提升为独立接口（`PreAttentionFilter` / `EmotionPerception` / ...），支持按 AssistantDefinition 动态组装——不同助理可有不同认知管道
+
+### 包结构演进（目标态）
+
+```
+intelligent/
+  core/
+    cognitive/                     认知管道接口（框架无关）
+      CognitivePipeline           管道定义（步骤列表）
+      CognitiveStep               步骤接口
+      PreAttentionFilter           前注意分流
+      EmotionPerception            情感感知
+      ContextRetrieval             上下文构建
+      ExecutionStrategy            执行策略
+      ConfidenceGate               置信度评估
+      LearningFeedback             学习反馈
+    assistant/
+      AssistantRuntime             物化接口（不变）
+  assistant/
+    pipeline/                      认知管道默认实现
+      DefaultCognitivePipeline     默认管道（全步骤）
+      SimpleCognitivePipeline      简化管道（跳过情感/规划）
+  agentscope/
+    runtime/
+      AgentScopeCognitiveCompiler  将管道编译为 ReActAgent（Hook 映射）
+      AssistantScopeRuntime        保留为薄包装（调 Compiler）
+```
+
+### 当前代码的过渡注释
+
+`AssistantScopeRuntime.materialize()` 的每个 Step 已标注对应认知阶段：
+- Step 2（systemPrompt）= 人格载体
+- Step 3（model）= 推理引擎
+- Step 4（Memory）= 短期记忆
+- Step 5（Hook 链）= 认知循环各阶段的技术实现
+- Step 6（Toolkit）= 执行能力
+- Step 7（SkillBox）= 意图路由 / 渐进披露
+- Step 8（PlanNotebook）= 多步规划
+
+这些注释是向目标架构过渡的桥梁——后续重构时按注释拆分即可。
