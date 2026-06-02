@@ -151,6 +151,11 @@ public class AssistantScopeRuntime implements AssistantRuntime {
                 .memory(memory)
                 // 1.1.0 新特性：工具调用中断后自动恢复（HITL stopAgent 恢复更健壮）
                 .enablePendingToolRecovery(true)
+                // 1.1.0 新特性：工具执行上下文——工具方法可声明 AgentRunContext 参数自动注入，无需读 ThreadLocal
+                .toolExecutionContext(io.agentscope.core.tool.ToolExecutionContext.builder()
+                        .register(new com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext(
+                                threadId, userId, "assistant", assistantId, threadId, knowledgeBaseId))
+                        .build())
                 // --- Hook 链（按 priority 排序执行）---
                 // priority=1000: Token 计量（最先执行，记录输入输出 Token）
                 .hook(tokenMeteringHook)
