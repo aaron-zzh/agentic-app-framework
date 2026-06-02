@@ -149,6 +149,8 @@ public class AssistantScopeRuntime implements AssistantRuntime {
                 .maxIters(10)
                 .model(chatModel)
                 .memory(memory)
+                // 1.1.0 新特性：工具调用中断后自动恢复（HITL stopAgent 恢复更健壮）
+                .enablePendingToolRecovery(true)
                 // --- Hook 链（按 priority 排序执行）---
                 // priority=1000: Token 计量（最先执行，记录输入输出 Token）
                 .hook(tokenMeteringHook)
