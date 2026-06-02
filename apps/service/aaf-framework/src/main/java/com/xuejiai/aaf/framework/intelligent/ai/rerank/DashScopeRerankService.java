@@ -12,6 +12,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,23 +32,41 @@ public class DashScopeRerankService implements RerankService {
 
     private static final String RERANK_URL =
             "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank";
-    private static final String DEFAULT_MODEL = "gte-rerank-v2";
 
-    private final String apiKey;
+    private final String fallbackApiKey;
+    private final CapabilityRouter capabilityRouter;
+    private final AiModelRepository modelRepository;
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public DashScopeRerankService(@Value("${spring.ai.dashscope.api-key:}") String apiKey) {
-        this.apiKey = apiKey;
+    public DashScopeRerankService(
+            @Value("${spring.ai.dashscope.api-key:}") String fallbackApiKey,
+            CapabilityRouter capabilityRouter,
+            AiModelRepository modelRepository) {
+        this.fallbackApiKey = fallbackApiKey;
+        this.capabilityRouter = capabilityRouter;
+        this.modelRepository = modelRepository;
     }
 
     @Override
     public List<RankedDocument> rerank(String query, List<String> documents, int topN) {
         try {
+            // 经六级链按 RERANK 能力解析 modelId（系统默认 / yaml / 内置兜底 gte-rerank-v2）
+            var modelId =
+                    capabilityRouter.resolve(
+                            CapabilityRoutingContext.ofCapability(
+                                    null, CapabilityRoutingContext.CAP_RERANK));
+            // key 与模型名跟着 modelId 走：优先用对应 ai_model 行的凭证，缺失时回退全局 dashscope key
+            var aiModel = modelRepository.findByModelIdAndEnabledTrue(modelId).orElse(null);
+            var modelName = aiModel != null ? aiModel.getModelName() : modelId;
+            var key =
+                    aiModel != null && aiModel.getApiKey() != null
+                            ? aiModel.getApiKey()
+                            : fallbackApiKey;
             var body =
                     objectMapper.writeValueAsString(
                             java.util.Map.of(
-                                    "model", DEFAULT_MODEL,
+                                    "model", modelName,
                                     "input",
                                             java.util.Map.of(
                                                     "query", query,
@@ -56,7 +77,7 @@ public class DashScopeRerankService implements RerankService {
             var request =
                     HttpRequest.newBuilder()
                             .uri(URI.create(RERANK_URL))
-                            .header("Authorization", "Bearer " + apiKey)
+                            .header("Authorization", "Bearer " + key)
                             .header("Content-Type", "application/json")
                             .POST(HttpRequest.BodyPublishers.ofString(body))
                             .build();

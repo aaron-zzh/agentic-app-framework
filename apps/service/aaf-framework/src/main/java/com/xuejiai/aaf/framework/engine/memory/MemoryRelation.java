@@ -45,6 +45,14 @@ public class MemoryRelation {
     @Column(nullable = false)
     private Double weight = 1.0;
 
+    /** 边的自然语言描述（如"张三 在2024年 入职 学记公司"）——边语义化的载体 */
+    @Column(columnDefinition = "TEXT")
+    private String edgeText;
+
+    /** 边描述的向量表示——检索时与 query 向量比较，让边成为主动语义过滤器 */
+    @Column(columnDefinition = "vector(1536)")
+    private float[] edgeEmbedding;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

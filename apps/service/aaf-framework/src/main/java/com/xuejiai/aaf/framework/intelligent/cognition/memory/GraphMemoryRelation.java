@@ -26,6 +26,12 @@ public class GraphMemoryRelation {
     /** 关系权重 0.0~1.0 */
     private Double weight;
 
+    /** 边的自然语言描述——边语义化载体 */
+    private String edgeText;
+
+    /** 边描述的向量表示——检索时与 query 向量比较 */
+    private float[] edgeEmbedding;
+
     /** 事件时间 */
     private Instant eventTime;
 

@@ -93,7 +93,7 @@ public class MemoryRetrievalService {
             context.setProceduralMemories(proceduralMemory.findByTaskType(query, userId));
         }
 
-        // 5. 重排（对原子记忆做 LLM 重排序）
+        // 5. 轻量重排（纯计算，对原子记忆二次排序；不调 chat LLM）
         if (query != null
                 && context.getAtomicMemories() != null
                 && context.getAtomicMemories().size() > 1) {

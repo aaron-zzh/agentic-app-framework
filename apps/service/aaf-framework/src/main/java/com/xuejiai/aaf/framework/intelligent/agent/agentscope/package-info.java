@@ -10,7 +10,6 @@
  *   <li>{@link AgentScopeSessionAdapter} — Session 管理适配（替换 AAF 自研 SessionManager）
  *   <li>{@link AgentScopeMemoryAdapter} — 工作记忆适配（替换 WorkingMemoryImpl）
  *   <li>{@link AgentScopeToolAdapter} — 工具注册/调用适配（替换 ToolRegistry/ToolCallDispatcher）
- *   <li>{@link AgentScopeAguiAdapter} — AG-UI 流式输出适配（替换 AgUiStreamHandler）
  *   <li>{@link AgentScopeA2aAdapter} — A2A 跨系统协作适配（替换 A2AProtocolService）
  * </ul>
  *

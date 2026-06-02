@@ -1084,6 +1084,8 @@ CREATE TABLE memory_relation (
     target_id     UUID             NOT NULL REFERENCES memory_atom(id) ON DELETE CASCADE,
     relation_type VARCHAR(50)      NOT NULL,
     weight        DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    edge_text     TEXT,
+    edge_embedding vector(1536),
     created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 

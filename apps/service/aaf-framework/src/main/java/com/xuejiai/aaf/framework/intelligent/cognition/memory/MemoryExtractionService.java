@@ -53,7 +53,8 @@ public class MemoryExtractionService {
             {"content": "记忆内容", "tags": ["标签"], "scope": "long_term"}
           ],
           "relations": [
-            {"source_index": 0, "target_index": 1, "type": "associative", "weight": 0.8}
+            {"source_index": 0, "target_index": 1, "type": "associative", "weight": 0.8,
+             "description": "用一句自然语言描述这条关系，如：张三 入职于 学记公司"}
           ]
         }
 
@@ -164,6 +165,11 @@ public class MemoryExtractionService {
                     relation.setTargetId(addedAtoms.get(rel.targetIndex()).atomId());
                     relation.setRelationType(rel.type());
                     relation.setWeight(rel.weight());
+                    // 边语义：描述文本 + 向量，让检索时边参与语义打分
+                    if (rel.description() != null && !rel.description().isBlank()) {
+                        relation.setEdgeText(rel.description());
+                        relation.setEdgeEmbedding(embeddingService.embed(rel.description()));
+                    }
                     atomEngine.addRelation(relation);
                 }
             }
@@ -250,7 +256,8 @@ public class MemoryExtractionService {
                                                             (String) m.get("type"),
                                                             m.get("weight") instanceof Number n
                                                                     ? n.doubleValue()
-                                                                    : 1.0))
+                                                                    : 1.0,
+                                                            (String) m.get("description")))
                                     .toList()
                             : List.<RawRelation>of();
 
@@ -263,7 +270,8 @@ public class MemoryExtractionService {
 
     private record RawAtom(String content, List<String> tags, String scope) {}
 
-    private record RawRelation(int sourceIndex, int targetIndex, String type, double weight) {}
+    private record RawRelation(
+            int sourceIndex, int targetIndex, String type, double weight, String description) {}
 
     private record ExtractionResult(List<RawAtom> atoms, List<RawRelation> relations) {}
 }

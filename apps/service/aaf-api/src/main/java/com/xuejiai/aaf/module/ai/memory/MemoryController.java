@@ -26,6 +26,18 @@ public class MemoryController {
 
     private final MemoryManagementService memoryService;
 
+    @Operation(summary = "记住一条记忆")
+    @PostMapping
+    public Result<MemoryAtomVO> add(@RequestBody MemoryAddDTO dto) {
+        return Result.success(memoryService.add(dto.content(), dto.scope()));
+    }
+
+    @Operation(summary = "语义检索记忆")
+    @PostMapping("/recall")
+    public Result<List<MemoryAtomVO>> recall(@RequestBody MemoryRecallDTO dto) {
+        return Result.success(memoryService.semanticSearch(dto.query(), dto.topK()));
+    }
+
     @Operation(summary = "记忆列表（分页）")
     @GetMapping
     public Result<PageResult<MemoryAtomVO>> list(

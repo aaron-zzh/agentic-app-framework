@@ -130,7 +130,6 @@ AgentScope `STATIC_CONTROL` 模式自动在推理前调用 `retrieve()`、回复
 | `AafAutoContextMemoryAdapter` | `AutoContextMemory` 工厂 | Token 预算截断 | ✅ 已实现（静态工厂） |
 | `AgentScopeMemoryAdapter` | `Memory` 委托 | `WorkingMemoryImpl` | ✅ 已实现（薄包装） |
 | `AgentScopeToolAdapter` | `Toolkit` 委托 | `ToolRegistry` 部分替代 | ✅ 已实现（薄包装） |
-| `AgentScopeAguiAdapter` | AG-UI SSE 流式 | `AgUiStreamHandler` | ✅ 骨架已实现（待 starter 引入） |
 | `AgentScopeA2AEngine` | A2A 协议 | `A2AProtocolService` | ✅ 骨架已实现（远程调用待补全） |
 
 ## 待引入依赖

@@ -30,6 +30,9 @@ public class MemoryContextHook implements Hook {
 
     private static final int TOP_K = 8;
 
+    /** 注入上限：检索可宽（TOP_K），但注入严格限量，避免记忆淹没当前指令、放大噪声。 */
+    private static final int MAX_INJECT = 3;
+
     private final UnifiedRetrievalService retrievalService;
 
     @Override
@@ -71,10 +74,15 @@ public class MemoryContextHook implements Hook {
                             query, ctx.userId(), ctx.knowledgeBaseId(), TOP_K));
             if (result.fused().isEmpty()) return;
 
-            var sb = new StringBuilder("以下是与当前问题相关的记忆和知识，供参考：\n");
-            for (var item : result.fused()) {
+            var top = result.fused().stream().limit(MAX_INJECT).toList();
+            var sb = new StringBuilder("以下是与当前问题相关的记忆/知识，仅供参考：\n");
+            for (var item : top) {
                 sb.append("- [").append(item.source()).append("] ").append(item.content()).append("\n");
             }
+            // 冲突让位声明：历史记忆不得覆盖用户当前指令
+            sb.append(
+                    "（说明：以上为历史记忆，可能已过时；若与用户当前指令或约束冲突，以当前对话为准，"
+                            + "必要时先与用户确认。）\n");
 
             // 临时注入：system 消息放在最前，仅本次 LLM 调用生效（不写回 Memory）
             var enriched = new ArrayList<Msg>(msgs.size() + 1);

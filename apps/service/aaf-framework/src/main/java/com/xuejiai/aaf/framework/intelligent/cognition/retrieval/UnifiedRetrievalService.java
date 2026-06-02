@@ -112,7 +112,7 @@ public class UnifiedRetrievalService {
         // RRF 融合排序
         var fused = fuseResults(memoryResults, knowledgeResults, request.topK());
 
-        // LLM 重排（仅对记忆部分）
+        // 轻量重排（纯计算，仅对记忆部分；不调 chat LLM，保持读路径低延迟）
         if (memoryResults.size() > 1) {
             memoryResults = reranker.rerank(request.query(), memoryResults, route.memoryTopK());
         }

@@ -8,15 +8,20 @@ package com.xuejiai.aaf.module.ai.memory;
 import java.util.List;
 import java.util.UUID;
 
+import java.time.Instant;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtomRepository;
+import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRerankerService;
+import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRetrievalService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +32,9 @@ public class MemoryManagementService {
 
     private final MemoryAtomRepository repository;
     private final AtomMemoryEngine memoryEngine;
+    private final EmbeddingService embeddingService;
+    private final MemoryRetrievalService retrievalService;
+    private final MemoryRerankerService reranker;
     private final OperatorContext operatorContext;
 
     /**
@@ -63,6 +71,46 @@ public class MemoryManagementService {
             results = repository.findByUserIdAndContentContaining(userId, keyword);
         }
         return results.stream().map(this::toVO).toList();
+    }
+
+    /**
+     * 显式记住一条记忆（对齐 m_flow add）。当前用户主动"记住"某事时调用。
+     *
+     * @param content 记忆内容
+     * @param scope 范围（默认 long_term）
+     * @return 写入的记忆
+     */
+    @Transactional
+    public MemoryAtomVO add(String content, String scope) {
+        var userId = operatorContext.currentUserId().orElseThrow();
+        var atom = new MemoryAtom();
+        atom.setUserId(userId);
+        atom.setScope(scope != null ? scope : "long_term");
+        atom.setContent(content);
+        atom.setEmbedding(embeddingService.embed(content));
+        atom.setEventTime(Instant.now());
+        atom.setWeight(0.6);
+        return toVO(memoryEngine.store(atom));
+    }
+
+    /**
+     * 语义检索记忆（对齐 m_flow search）。走认知检索（意图路由 + 轻量重排），返回相关记忆上下文。
+     *
+     * @param query 自然语言查询
+     * @param topK 返回数量（默认 8）
+     * @return 按相关性排序的记忆
+     */
+    public List<MemoryAtomVO> semanticSearch(String query, Integer topK) {
+        var userId = operatorContext.currentUserId().orElseThrow();
+        int limit = topK != null && topK > 0 ? topK : 8;
+        // 显式检索属高价值、非延迟敏感场景：宽召回 + 专用重排模型（带门控 + 失败降级）
+        var candidates =
+                retrievalService.retrieveByVector(
+                        userId, embeddingService.embed(query), Math.max(limit * 3, 20));
+        return reranker.rerank(query, candidates, limit, MemoryRerankerService.Mode.RERANK_MODEL)
+                .stream()
+                .map(this::toVO)
+                .toList();
     }
 
     /**
