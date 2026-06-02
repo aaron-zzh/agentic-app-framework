@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.system.auth.service.CaptchaService;
-import com.xuejiai.aaf.module.system.auth.vo.CaptchaVerifyDTO;
 import com.xuejiai.aaf.module.system.auth.vo.CaptchaVO;
+import com.xuejiai.aaf.module.system.auth.vo.CaptchaVerifyDTO;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

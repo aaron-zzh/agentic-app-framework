@@ -2,19 +2,22 @@ package com.xuejiai.aaf.module.company.erp.domain;
 
 import java.math.BigDecimal;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 企业资源（轻量 ERP） */
 @Getter
 @Setter
 @Entity
 @Table(name = "company_resource")
-@SQLDelete(sql = "UPDATE company_resource SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE company_resource SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class CompanyResource extends BaseEntity {
 
     /** 资源名称 */

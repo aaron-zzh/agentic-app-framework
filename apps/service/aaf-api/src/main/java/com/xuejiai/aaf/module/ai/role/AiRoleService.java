@@ -159,24 +159,40 @@ public class AiRoleService {
     // ─── 内部方法 ───
 
     private Actor getActorEntity(Long id) {
-        return actorRepository.findById(id)
+        return actorRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Actor 不存在"));
     }
 
     private Role getRoleEntity(Long id) {
-        return roleRepository.findById(id)
+        return roleRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Role 不存在"));
     }
 
     private ActorVO toActorVO(Actor e) {
-        return new ActorVO(e.getId(), e.getActorId(), e.getName(), e.getPersona(),
-                e.getSystemPrompt(), e.getAvatarUrl(), e.getStatus(),
-                e.getCreateTime(), e.getUpdateTime());
+        return new ActorVO(
+                e.getId(),
+                e.getActorId(),
+                e.getName(),
+                e.getPersona(),
+                e.getSystemPrompt(),
+                e.getAvatarUrl(),
+                e.getStatus(),
+                e.getCreateTime(),
+                e.getUpdateTime());
     }
 
     private RoleVO toRoleVO(Role e) {
-        return new RoleVO(e.getId(), e.getRoleId(), e.getName(), e.getDescription(),
-                e.getSkillIds(), e.getToolWhitelist(), e.getStatus(),
-                e.getCreateTime(), e.getUpdateTime());
+        return new RoleVO(
+                e.getId(),
+                e.getRoleId(),
+                e.getName(),
+                e.getDescription(),
+                e.getSkillIds(),
+                e.getToolWhitelist(),
+                e.getStatus(),
+                e.getCreateTime(),
+                e.getUpdateTime());
     }
 }

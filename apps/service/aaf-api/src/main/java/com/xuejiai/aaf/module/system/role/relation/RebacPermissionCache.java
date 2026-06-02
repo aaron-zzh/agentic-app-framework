@@ -20,8 +20,7 @@ public class RebacPermissionCache {
     private final StringRedisTemplate redisTemplate;
     private final PermissionVersionService versionService;
 
-    public Boolean get(
-            Long userId, String objectType, String objectId, String permission) {
+    public Boolean get(Long userId, String objectType, String objectId, String permission) {
         var value = redisTemplate.opsForValue().get(key(userId, objectType, objectId, permission));
         return value == null ? null : Boolean.valueOf(value);
     }

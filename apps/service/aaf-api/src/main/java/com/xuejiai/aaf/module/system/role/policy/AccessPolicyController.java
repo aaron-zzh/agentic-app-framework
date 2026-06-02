@@ -35,7 +35,8 @@ public class AccessPolicyController {
     @Operation(summary = "更新策略")
     @PreAuthorize("hasPermission(null, 'system:access-policy:manage')")
     @PutMapping("/{id}")
-    public Result<AccessPolicyVO> update(@PathVariable Long id, @Validated @RequestBody AccessPolicyCreateDTO dto) {
+    public Result<AccessPolicyVO> update(
+            @PathVariable Long id, @Validated @RequestBody AccessPolicyCreateDTO dto) {
         return Result.success(service.update(id, dto));
     }
 

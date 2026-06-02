@@ -13,24 +13,20 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * 通用 CRUD 全链路集成测试
- * 验证：创建实体→查询→更新→删除→回收站恢复
- */
+/** 通用 CRUD 全链路集成测试 验证：创建实体→查询→更新→删除→回收站恢复 */
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestMethodOrder(OrderAnnotation.class)
 @WithMockUser(roles = "ADMIN")
 class EntityCrudIT {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
     private static Long entityId;
 
@@ -38,17 +34,23 @@ class EntityCrudIT {
     @Order(1)
     @DisplayName("Given 有效数据 When 创建实体 Then 返回实体 ID")
     void should_create_entity() throws Exception {
-        var result = mockMvc.perform(post("/api/system/depts")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        var result =
+                mockMvc.perform(
+                                post("/api/system/depts")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                """
                                 {"name":"集成测试部门","sort":99}
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").exists())
-                .andReturn();
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.data.id").exists())
+                        .andReturn();
 
-        entityId = ((Number) com.jayway.jsonpath.JsonPath.read(
-                result.getResponse().getContentAsString(), "$.data.id")).longValue();
+        entityId =
+                ((Number)
+                                com.jayway.jsonpath.JsonPath.read(
+                                        result.getResponse().getContentAsString(), "$.data.id"))
+                        .longValue();
     }
 
     @Test
@@ -64,9 +66,11 @@ class EntityCrudIT {
     @Order(3)
     @DisplayName("Given 实体已创建 When 更新名称 Then 返回更新后数据")
     void should_update_entity() throws Exception {
-        mockMvc.perform(put("/api/system/depts/{id}", entityId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        mockMvc.perform(
+                        put("/api/system/depts/{id}", entityId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
                                 {"name":"更新后部门","sort":88}
                                 """))
                 .andExpect(status().isOk())
@@ -77,8 +81,7 @@ class EntityCrudIT {
     @Order(4)
     @DisplayName("Given 实体已更新 When 删除 Then 返回成功")
     void should_delete_entity() throws Exception {
-        mockMvc.perform(delete("/api/system/depts/{id}", entityId))
-                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/system/depts/{id}", entityId)).andExpect(status().isOk());
     }
 
     @Test

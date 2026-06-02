@@ -39,13 +39,24 @@ public class CreditServiceImpl implements CreditService {
     @Transactional
     public void earn(Long userId, long amount, String source, String bizId) {
         // 充值积分有效期 2 年
-        earnBatch(userId, amount, "TOPUP", source, bizId,
+        earnBatch(
+                userId,
+                amount,
+                "TOPUP",
+                source,
+                bizId,
                 LocalDateTime.now().plusDays(TOPUP_EXPIRE_DAYS));
     }
 
     @Override
     @Transactional
-    public void earnBatch(Long userId, long amount, String batchType, String source, String bizId, LocalDateTime expireAt) {
+    public void earnBatch(
+            Long userId,
+            long amount,
+            String batchType,
+            String source,
+            String bizId,
+            LocalDateTime expireAt) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "赚取金额必须大于 0");
         }
@@ -66,20 +77,26 @@ public class CreditServiceImpl implements CreditService {
         tx.setRemain(amount);
         transactionRepository.save(tx);
 
-        log.info("积分赚取: userId={}, amount={}, batchType={}, expireAt={}", userId, amount, batchType, expireAt);
+        log.info(
+                "积分赚取: userId={}, amount={}, batchType={}, expireAt={}",
+                userId,
+                amount,
+                batchType,
+                expireAt);
     }
 
-    /**
-     * 消费积分——按批次优先扣减（最快到期的批次优先，永久积分最后）。
-     */
+    /** 消费积分——按批次优先扣减（最快到期的批次优先，永久积分最后）。 */
     @Override
     @Transactional
     public void spend(Long userId, long amount, String source, String bizId) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "消费金额必须大于 0");
         }
-        var account = accountRepository.findByUserIdForUpdate(userId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
+        var account =
+                accountRepository
+                        .findByUserIdForUpdate(userId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
         if (account.getBalance() < amount) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分余额不足");
         }
@@ -118,8 +135,11 @@ public class CreditServiceImpl implements CreditService {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "冻结金额必须大于 0");
         }
-        var account = accountRepository.findByUserIdForUpdate(userId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
+        var account =
+                accountRepository
+                        .findByUserIdForUpdate(userId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
         if (account.getBalance() < amount) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分余额不足，无法冻结");
         }
@@ -136,8 +156,11 @@ public class CreditServiceImpl implements CreditService {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "解冻金额必须大于 0");
         }
-        var account = accountRepository.findByUserIdForUpdate(userId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
+        var account =
+                accountRepository
+                        .findByUserIdForUpdate(userId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
         if (account.getFrozen() < amount) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "冻结金额不足，无法解冻");
         }
@@ -179,14 +202,22 @@ public class CreditServiceImpl implements CreditService {
     }
 
     private CreditAccount getOrCreateAccount(Long userId) {
-        return accountRepository.findByUserIdForUpdate(userId).orElseGet(() -> {
-            var account = new CreditAccount();
-            account.setUserId(userId);
-            return accountRepository.saveAndFlush(account);
-        });
+        return accountRepository
+                .findByUserIdForUpdate(userId)
+                .orElseGet(
+                        () -> {
+                            var account = new CreditAccount();
+                            account.setUserId(userId);
+                            return accountRepository.saveAndFlush(account);
+                        });
     }
 
-    private void recordTransaction(CreditAccount account, CreditTransactionType type, long amount, String source, String bizId) {
+    private void recordTransaction(
+            CreditAccount account,
+            CreditTransactionType type,
+            long amount,
+            String source,
+            String bizId) {
         var tx = new CreditTransaction();
         tx.setAccountId(account.getId());
         tx.setType(type);

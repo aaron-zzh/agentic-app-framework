@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
-import com.xuejiai.aaf.framework.intelligent.assistant.role.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.RoleStore;
 
 import lombok.RequiredArgsConstructor;

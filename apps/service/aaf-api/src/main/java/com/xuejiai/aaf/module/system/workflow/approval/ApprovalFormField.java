@@ -22,6 +22,11 @@ public record ApprovalFormField(
 
     /** 表单字段类型 */
     public enum FieldType {
-        TEXT, NUMBER, DATE, SELECT, TEXTAREA, FILE
+        TEXT,
+        NUMBER,
+        DATE,
+        SELECT,
+        TEXTAREA,
+        FILE
     }
 }

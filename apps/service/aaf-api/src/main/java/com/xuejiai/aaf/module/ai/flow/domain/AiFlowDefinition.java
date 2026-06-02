@@ -15,14 +15,15 @@ import lombok.Setter;
 /**
  * AI 工作流定义。
  *
- * <p>存储 flow-editor 编辑态 JSON，发布后部署到 Flowable 引擎执行。
- * 通过 {@code agentCallable} 控制是否允许智能体自动调用。
+ * <p>存储 flow-editor 编辑态 JSON，发布后部署到 Flowable 引擎执行。 通过 {@code agentCallable} 控制是否允许智能体自动调用。
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "ai_flow_definition")
-@SQLDelete(sql = "UPDATE ai_flow_definition SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE ai_flow_definition SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class AiFlowDefinition extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 128)

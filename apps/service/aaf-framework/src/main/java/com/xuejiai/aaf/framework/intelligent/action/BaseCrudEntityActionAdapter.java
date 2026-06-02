@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -16,7 +17,8 @@ import com.xuejiai.aaf.framework.crud.BatchReadRequest;
 import com.xuejiai.aaf.framework.crud.CrudIdsRequest;
 
 /** 基于 BaseCrudService 的 AI 标准实体动作适配器。 */
-public abstract class BaseCrudEntityActionAdapter<E extends BaseEntity, V, C, U, P extends PageParam>
+public abstract class BaseCrudEntityActionAdapter<
+                E extends BaseEntity, V, C, U, P extends PageParam>
         implements EntityActionAdapter {
 
     private final ObjectMapper objectMapper;
@@ -25,7 +27,10 @@ public abstract class BaseCrudEntityActionAdapter<E extends BaseEntity, V, C, U,
     private final Class<P> pageParamType;
 
     protected BaseCrudEntityActionAdapter(
-            ObjectMapper objectMapper, Class<C> createType, Class<U> updateType, Class<P> pageParamType) {
+            ObjectMapper objectMapper,
+            Class<C> createType,
+            Class<U> updateType,
+            Class<P> pageParamType) {
         this.objectMapper = objectMapper;
         this.createType = createType;
         this.updateType = updateType;
@@ -62,15 +67,21 @@ public abstract class BaseCrudEntityActionAdapter<E extends BaseEntity, V, C, U,
     public Object execute(AiBusinessActionType action, Map<String, Object> params) {
         var safeParams = params == null ? Map.<String, Object>of() : params;
         return switch (action) {
-            case QUERY -> getService().queryWindow(toPageParam(safeParams), fieldSet(safeParams, "list"));
+            case QUERY ->
+                    getService().queryWindow(toPageParam(safeParams), fieldSet(safeParams, "list"));
             case DETAIL ->
                     getService()
                             .getById(
                                     id(safeParams),
                                     stringValue(safeParams.get("queryToken")),
                                     fieldSet(safeParams, "detail"));
-            case BATCH_READ -> getService().batchRead(ids(safeParams), fieldSet(safeParams, "detail"));
-            case OPTIONS -> getService().options(stringValue(safeParams.get("q")), intValue(safeParams.get("limit"), 20));
+            case BATCH_READ ->
+                    getService().batchRead(ids(safeParams), fieldSet(safeParams, "detail"));
+            case OPTIONS ->
+                    getService()
+                            .options(
+                                    stringValue(safeParams.get("q")),
+                                    intValue(safeParams.get("limit"), 20));
             case META -> getService().meta();
             case CREATE -> getService().create(toCreate(safeParams));
             case UPDATE -> getService().update(id(safeParams), toUpdate(safeParams));
@@ -191,7 +202,8 @@ public abstract class BaseCrudEntityActionAdapter<E extends BaseEntity, V, C, U,
             case CREATE -> operations.contains("create");
             case UPDATE -> operations.contains("update");
             case DELETE -> operations.contains("delete");
-            case BATCH_DELETE -> operations.contains("batchDelete") || operations.contains("deleteBatch");
+            case BATCH_DELETE ->
+                    operations.contains("batchDelete") || operations.contains("deleteBatch");
             case EXPORT -> operations.contains("export");
             case VALIDATE -> operations.contains("validate");
             case ARCHIVE -> operations.contains("archive");

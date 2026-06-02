@@ -12,9 +12,7 @@ import com.xuejiai.aaf.module.ai.output.service.AiOutputService;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * AI 产出接口——查看所有助理工作成果，支持调整和回退。
- */
+/** AI 产出接口——查看所有助理工作成果，支持调整和回退。 */
 @RestController
 @RequestMapping("/api/ai-outputs")
 @RequiredArgsConstructor
@@ -32,7 +30,8 @@ public class AiOutputController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         var userId = operatorContext.currentUserId().orElseThrow();
-        return Result.success(outputService.list(userId, category, riskLevel, sourceType, page, size));
+        return Result.success(
+                outputService.list(userId, category, riskLevel, sourceType, page, size));
     }
 
     /** 产出详情 */
@@ -61,5 +60,6 @@ public class AiOutputController {
     }
 
     record AdjustDTO(String note) {}
+
     record RevertDTO(String reason) {}
 }

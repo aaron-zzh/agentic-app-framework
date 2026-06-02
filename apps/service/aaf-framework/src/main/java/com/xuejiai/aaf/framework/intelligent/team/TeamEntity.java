@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.team;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

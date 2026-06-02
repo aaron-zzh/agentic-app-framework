@@ -2,12 +2,13 @@ package com.xuejiai.aaf.module.billing.domain;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 用户权益额度实例（订阅生效时按 plan_entitlement 实例化） */
 @Getter
@@ -15,8 +16,13 @@ import org.hibernate.annotations.SQLDelete;
 @Entity
 @Table(
         name = "entitlement_quota",
-        uniqueConstraints = @UniqueConstraint(name = "uk_quota_user_ent", columnNames = {"user_id", "ent_id"}))
-@SQLDelete(sql = "UPDATE entitlement_quota SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_quota_user_ent",
+                        columnNames = {"user_id", "ent_id"}))
+@SQLDelete(
+        sql =
+                "UPDATE entitlement_quota SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class EntitlementQuota extends BaseEntity {
 
     /** 用户 ID */

@@ -33,20 +33,17 @@ public class CarbonCopyNode implements JavaDelegate {
         var entityId = (String) execution.getVariable("entityId");
 
         // 发布抄送事件，由业务层监听处理
-        eventPublisher.publishEvent(new CarbonCopyEvent(
-                execution.getProcessInstanceId(),
-                taskName,
-                ccUsers,
-                entityType,
-                entityId));
+        eventPublisher.publishEvent(
+                new CarbonCopyEvent(
+                        execution.getProcessInstanceId(), taskName, ccUsers, entityType, entityId));
 
-        log.info("抄送节点执行完成: processInstance={}, ccUsers={}",
-                execution.getProcessInstanceId(), ccUsers);
+        log.info(
+                "抄送节点执行完成: processInstance={}, ccUsers={}",
+                execution.getProcessInstanceId(),
+                ccUsers);
     }
 
-    /**
-     * 抄送事件，由业务层监听并持久化。
-     */
+    /** 抄送事件，由业务层监听并持久化。 */
     public record CarbonCopyEvent(
             String processInstanceId,
             String taskName,

@@ -18,6 +18,7 @@ public enum TicketPriorityEnum implements ArrayValuable<String> {
 
     private final String code;
     private final String label;
+
     /** SLA 时效（小时） */
     private final int slaHours;
 

@@ -17,8 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 聊天 WebSocket 处理器——服务端推送通道。
  *
- * <p>消息发送走 REST 接口（{@code POST /api/system/chat/messages}），
- * WebSocket 仅用于服务端向客户端推送新消息，不处理客户端发送的消息内容。
+ * <p>消息发送走 REST 接口（{@code POST /api/system/chat/messages}）， WebSocket
+ * 仅用于服务端向客户端推送新消息，不处理客户端发送的消息内容。
  *
  * @author AaronZZH & Kiro
  */

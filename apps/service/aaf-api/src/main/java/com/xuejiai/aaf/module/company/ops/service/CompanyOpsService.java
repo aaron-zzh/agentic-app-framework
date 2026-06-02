@@ -3,17 +3,17 @@ package com.xuejiai.aaf.module.company.ops.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.xuejiai.aaf.module.company.ops.domain.OpsMetric;
 import com.xuejiai.aaf.module.company.ops.domain.OpsTask;
 import com.xuejiai.aaf.module.company.ops.domain.OpsTaskExecution;
 import com.xuejiai.aaf.module.company.ops.repository.OpsMetricRepository;
 import com.xuejiai.aaf.module.company.ops.repository.OpsTaskExecutionRepository;
 import com.xuejiai.aaf.module.company.ops.repository.OpsTaskRepository;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,7 +38,8 @@ public class CompanyOpsService {
 
     @Transactional
     public OpsTaskExecution executeTask(Long taskId) {
-        taskRepository.findById(taskId)
+        taskRepository
+                .findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + taskId));
 
         var exec = new OpsTaskExecution();

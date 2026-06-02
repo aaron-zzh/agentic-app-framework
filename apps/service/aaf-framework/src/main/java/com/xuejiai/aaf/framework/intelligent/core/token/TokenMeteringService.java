@@ -65,7 +65,13 @@ public class TokenMeteringService {
             String conversationId,
             long promptTokens,
             long completionTokens) {
-        record(userId, modelId, conversationId, promptTokens, completionTokens, java.util.UUID.randomUUID().toString());
+        record(
+                userId,
+                modelId,
+                conversationId,
+                promptTokens,
+                completionTokens,
+                java.util.UUID.randomUUID().toString());
     }
 
     /** 记录用量并指定流水号，便于和积分流水关联审计。 */

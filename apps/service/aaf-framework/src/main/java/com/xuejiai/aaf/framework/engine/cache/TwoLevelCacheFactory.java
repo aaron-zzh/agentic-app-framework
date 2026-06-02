@@ -11,9 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 二级缓存工厂——创建并管理 TwoLevelCache 实例。
- */
+/** 二级缓存工厂——创建并管理 TwoLevelCache 实例。 */
 @Component
 @RequiredArgsConstructor
 public class TwoLevelCacheFactory {
@@ -25,9 +23,11 @@ public class TwoLevelCacheFactory {
     private final Map<String, TwoLevelCache<?, ?>> registry = new ConcurrentHashMap<>();
 
     /** 创建二级缓存实例 */
-    public <V> TwoLevelCache<Long, V> create(String name, Class<V> type,
-                                              int maxSize, Duration localTtl, Duration redisTtl) {
-        var cache = new TwoLevelCache<Long, V>(name, type, maxSize, localTtl, redisTtl, redisTemplate, objectMapper);
+    public <V> TwoLevelCache<Long, V> create(
+            String name, Class<V> type, int maxSize, Duration localTtl, Duration redisTtl) {
+        var cache =
+                new TwoLevelCache<Long, V>(
+                        name, type, maxSize, localTtl, redisTtl, redisTemplate, objectMapper);
         registry.put(name, cache);
         return cache;
     }

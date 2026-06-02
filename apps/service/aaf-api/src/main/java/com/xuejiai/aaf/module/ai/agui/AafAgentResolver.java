@@ -3,10 +3,10 @@ package com.xuejiai.aaf.module.ai.agui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantRuntime;
 import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantRuntime.MaterializeContext;
 import com.xuejiai.aaf.framework.intelligent.core.assistant.ChatSessionResolver;
-import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.Agent;
@@ -22,9 +22,9 @@ import io.agentscope.spring.boot.agui.common.ThreadSessionManager;
  * <p>核心变更：不再从 Registry 取裸 Agent，改为通过 {@link AssistantRuntime#materialize} 物化协调者。
  *
  * <ol>
- *   <li>按 threadId 查会话上下文（ChatSession），设置 {@link AgentRunContextHolder}</li>
- *   <li>通过 AssistantRuntime.materialize() 构建协调者 Agent（含完整 Hook 链）</li>
- *   <li>ThreadSessionManager 按 threadId 缓存复用，冷启动时从 Redis Session 恢复或 DB 播种历史</li>
+ *   <li>按 threadId 查会话上下文（ChatSession），设置 {@link AgentRunContextHolder}
+ *   <li>通过 AssistantRuntime.materialize() 构建协调者 Agent（含完整 Hook 链）
+ *   <li>ThreadSessionManager 按 threadId 缓存复用，冷启动时从 Redis Session 恢复或 DB 播种历史
  * </ol>
  */
 public class AafAgentResolver implements AgentResolver {
@@ -66,23 +66,29 @@ public class AafAgentResolver implements AgentResolver {
         }
 
         // 2. 获取/创建 Agent（按 threadId 缓存复用）
-        var agent = sessionManager.getOrCreateAgent(
-                threadId, agentId,
-                () -> {
-                    // 通过 AssistantRuntime 物化协调者（统一逻辑）
-                    var materialCtx = new MaterializeContext(
-                            assistantId != null ? assistantId : "default",
-                            userId, threadId, knowledgeBaseId);
-                    var created = assistantRuntime.materialize(materialCtx);
+        var agent =
+                sessionManager.getOrCreateAgent(
+                        threadId,
+                        agentId,
+                        () -> {
+                            // 通过 AssistantRuntime 物化协调者（统一逻辑）
+                            var materialCtx =
+                                    new MaterializeContext(
+                                            assistantId != null ? assistantId : "default",
+                                            userId,
+                                            threadId,
+                                            knowledgeBaseId);
+                            var created = assistantRuntime.materialize(materialCtx);
 
-                    // 从 Redis Session 恢复状态
-                    created.loadIfExists(agentSession, threadId);
-                    if (created.getMemory() != null && !created.getMemory().getMessages().isEmpty()) {
-                        log.debug("从 Redis Session 恢复 Agent 状态: threadId={}", threadId);
-                        return created;
-                    }
-                    return created;
-                });
+                            // 从 Redis Session 恢复状态
+                            created.loadIfExists(agentSession, threadId);
+                            if (created.getMemory() != null
+                                    && !created.getMemory().getMessages().isEmpty()) {
+                                log.debug("从 Redis Session 恢复 Agent 状态: threadId={}", threadId);
+                                return created;
+                            }
+                            return created;
+                        });
 
         // 3. 兜底：Redis 无状态时从 DB 播种历史
         if (ctx != null && ctx.sessionId() != null && agent instanceof ReActAgent reactAgent) {
@@ -106,15 +112,13 @@ public class AafAgentResolver implements AgentResolver {
     }
 
     private Msg toMsg(String role, String content) {
-        var msgRole = switch (role == null ? "user" : role.toLowerCase()) {
-            case "assistant" -> MsgRole.ASSISTANT;
-            case "system" -> MsgRole.SYSTEM;
-            case "tool" -> MsgRole.TOOL;
-            default -> MsgRole.USER;
-        };
-        return Msg.builder()
-                .role(msgRole)
-                .textContent(content == null ? "" : content)
-                .build();
+        var msgRole =
+                switch (role == null ? "user" : role.toLowerCase()) {
+                    case "assistant" -> MsgRole.ASSISTANT;
+                    case "system" -> MsgRole.SYSTEM;
+                    case "tool" -> MsgRole.TOOL;
+                    default -> MsgRole.USER;
+                };
+        return Msg.builder().role(msgRole).textContent(content == null ? "" : content).build();
     }
 }

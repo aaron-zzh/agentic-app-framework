@@ -34,7 +34,8 @@ public class PayOrderController {
             @RequestParam(required = false) Long userId,
             @RequestParam long amount,
             @RequestParam(defaultValue = "MOCK") String channelCode) {
-        return Result.success(rechargeService.initiateRecharge(ownerId(userId), amount, channelCode));
+        return Result.success(
+                rechargeService.initiateRecharge(ownerId(userId), amount, channelCode));
     }
 
     @Operation(summary = "创建支付单")

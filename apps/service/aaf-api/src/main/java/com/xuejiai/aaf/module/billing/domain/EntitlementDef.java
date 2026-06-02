@@ -1,18 +1,21 @@
 package com.xuejiai.aaf.module.billing.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 权益定义字典（一个权益一条，code 驱动） */
 @Getter
 @Setter
 @Entity
 @Table(name = "entitlement_def")
-@SQLDelete(sql = "UPDATE entitlement_def SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE entitlement_def SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class EntitlementDef extends BaseEntity {
 
     /** 权益编码（ai_token/model_gpt4/kb_storage 等） */

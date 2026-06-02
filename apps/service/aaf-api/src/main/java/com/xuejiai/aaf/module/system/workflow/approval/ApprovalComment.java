@@ -46,7 +46,9 @@ public class ApprovalComment {
     @Column(name = "attachments", columnDefinition = "TEXT")
     private String attachments;
 
-    /** @提及的用户（JSON 数组） */
+    /**
+     * @提及的用户（JSON 数组）
+     */
     @Column(name = "mentioned_users", columnDefinition = "TEXT")
     private String mentionedUsers;
 

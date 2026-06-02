@@ -14,14 +14,14 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 工单流转记录实体。
- */
+/** 工单流转记录实体。 */
 @Getter
 @Setter
 @Entity
 @Table(name = "ticket_record")
-@SQLDelete(sql = "UPDATE ticket_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE ticket_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class TicketRecord extends BaseEntity {
 
     /** 工单 ID */

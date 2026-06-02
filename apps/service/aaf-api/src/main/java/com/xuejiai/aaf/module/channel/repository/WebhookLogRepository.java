@@ -9,9 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.channel.domain.WebhookLog;
 
-/**
- * Webhook 推送日志数据访问层。
- */
+/** Webhook 推送日志数据访问层。 */
 public interface WebhookLogRepository extends JpaRepository<WebhookLog, Long> {
 
     Page<WebhookLog> findByWebhookIdAndDeletedFalse(Long webhookId, Pageable pageable);

@@ -1,11 +1,12 @@
 package com.xuejiai.aaf.module.billing.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 套餐×权益规则（多对多关联，定价与权益解耦） */
 @Getter
@@ -13,8 +14,13 @@ import org.hibernate.annotations.SQLDelete;
 @Entity
 @Table(
         name = "plan_entitlement",
-        uniqueConstraints = @UniqueConstraint(name = "uk_plan_ent", columnNames = {"plan_id", "ent_id"}))
-@SQLDelete(sql = "UPDATE plan_entitlement SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_plan_ent",
+                        columnNames = {"plan_id", "ent_id"}))
+@SQLDelete(
+        sql =
+                "UPDATE plan_entitlement SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class PlanEntitlement extends BaseEntity {
 
     /** 套餐 ID */

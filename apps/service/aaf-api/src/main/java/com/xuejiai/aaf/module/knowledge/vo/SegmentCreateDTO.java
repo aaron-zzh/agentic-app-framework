@@ -11,8 +11,7 @@ import jakarta.validation.constraints.NotNull;
  */
 @Schema(description = "创建段落请求")
 public record SegmentCreateDTO(
-        @Schema(description = "所属文档编号", requiredMode = Schema.RequiredMode.REQUIRED)
-                @NotNull
+        @Schema(description = "所属文档编号", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull
                 Long documentId,
         @Schema(description = "段落内容", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank
                 String content,

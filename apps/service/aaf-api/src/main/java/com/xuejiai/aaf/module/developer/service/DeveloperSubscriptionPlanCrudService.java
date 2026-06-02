@@ -78,7 +78,8 @@ public class DeveloperSubscriptionPlanCrudService
     }
 
     @Override
-    protected void updateEntity(DeveloperSubscriptionPlan plan, DeveloperSubscriptionPlanUpdateDTO dto) {
+    protected void updateEntity(
+            DeveloperSubscriptionPlan plan, DeveloperSubscriptionPlanUpdateDTO dto) {
         if (dto.name() != null) {
             plan.setName(dto.name());
         }
@@ -116,14 +117,17 @@ public class DeveloperSubscriptionPlanCrudService
             if (request.getKeyword() != null && !request.getKeyword().isBlank()) {
                 var pattern = "%" + request.getKeyword().trim() + "%";
                 predicates.add(
-                        cb.or(cb.like(root.get("code"), pattern), cb.like(root.get("name"), pattern)));
+                        cb.or(
+                                cb.like(root.get("code"), pattern),
+                                cb.like(root.get("name"), pattern)));
             }
             if (request.getStatus() != null && !request.getStatus().isBlank()) {
                 predicates.add(cb.equal(root.get("status"), request.getStatus().trim()));
             }
             if (request.getAllowManagedGateway() != null) {
                 predicates.add(
-                        cb.equal(root.get("allowManagedGateway"), request.getAllowManagedGateway()));
+                        cb.equal(
+                                root.get("allowManagedGateway"), request.getAllowManagedGateway()));
             }
             if (request.getAllowSubProxy() != null) {
                 predicates.add(cb.equal(root.get("allowSubProxy"), request.getAllowSubProxy()));
@@ -173,7 +177,8 @@ public class DeveloperSubscriptionPlanCrudService
         return List.of("list", "detail", "picker", "export");
     }
 
-    private void applyCreateDTO(DeveloperSubscriptionPlan plan, DeveloperSubscriptionPlanCreateDTO dto) {
+    private void applyCreateDTO(
+            DeveloperSubscriptionPlan plan, DeveloperSubscriptionPlanCreateDTO dto) {
         plan.setName(dto.name());
         plan.setDurationDays(dto.durationDays());
         plan.setPrice(dto.price());

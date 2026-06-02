@@ -6,7 +6,7 @@
  * <p>计划内容（仅 AgentScope {@code /agui/runs} 链路）：AafAguiRestController、AafAgentResolver、
  * AafAguiConfirmController、AafAguiRegistryCustomizer、AafAguiConfiguration、ChatSessionResolverImpl。
  *
- * <p>注：AgUiEvent / AgUiStreamHandler / AgentRunEventStreamService 是被 Spring AI 直连链路、
- * 工作流、用户聊天共享的 AG-UI 事件工具，不属本链路，保留原处。
+ * <p>注：AgUiEvent / AgUiStreamHandler / AgentRunEventStreamService 是被 Spring AI 直连链路、 工作流、用户聊天共享的
+ * AG-UI 事件工具，不属本链路，保留原处。
  */
 package com.xuejiai.aaf.module.ai.agui;

@@ -39,8 +39,7 @@ public class ApprovalController {
     public Result<Void> addSignBefore(@RequestBody AddSignDTO dto) {
         approvalOperationService.addSignBefore(dto.taskId(), dto.assignee());
         approvalRecordService.record(
-                null, dto.taskId(), dto.assignee(),
-                ApprovalRecord.OperationType.ADD_SIGN, "前加签");
+                null, dto.taskId(), dto.assignee(), ApprovalRecord.OperationType.ADD_SIGN, "前加签");
         return Result.success();
     }
 
@@ -49,8 +48,7 @@ public class ApprovalController {
     public Result<Void> addSignAfter(@RequestBody AddSignDTO dto) {
         approvalOperationService.addSignAfter(dto.taskId(), dto.assignee());
         approvalRecordService.record(
-                null, dto.taskId(), dto.assignee(),
-                ApprovalRecord.OperationType.ADD_SIGN, "后加签");
+                null, dto.taskId(), dto.assignee(), ApprovalRecord.OperationType.ADD_SIGN, "后加签");
         return Result.success();
     }
 
@@ -59,8 +57,11 @@ public class ApprovalController {
     public Result<Void> transferSign(@RequestBody TransferSignDTO dto) {
         approvalOperationService.transferSign(dto.taskId(), dto.targetAssignee(), dto.reason());
         approvalRecordService.record(
-                null, dto.taskId(), dto.targetAssignee(),
-                ApprovalRecord.OperationType.TRANSFER, dto.reason());
+                null,
+                dto.taskId(),
+                dto.targetAssignee(),
+                ApprovalRecord.OperationType.TRANSFER,
+                dto.reason());
         return Result.success();
     }
 
@@ -69,8 +70,11 @@ public class ApprovalController {
     public Result<Void> withdraw(@RequestBody WithdrawDTO dto) {
         approvalOperationService.withdraw(dto.processInstanceId(), dto.initiator());
         approvalRecordService.record(
-                dto.processInstanceId(), null, dto.initiator(),
-                ApprovalRecord.OperationType.WITHDRAW, "发起人撤回");
+                dto.processInstanceId(),
+                null,
+                dto.initiator(),
+                ApprovalRecord.OperationType.WITHDRAW,
+                "发起人撤回");
         return Result.success();
     }
 
@@ -96,15 +100,13 @@ public class ApprovalController {
 
     @Operation(summary = "审批统计")
     @GetMapping("/stats")
-    public Result<ApprovalPermissionService.ApprovalStats> getStats(
-            @RequestParam String assignee) {
+    public Result<ApprovalPermissionService.ApprovalStats> getStats(@RequestParam String assignee) {
         return Result.success(approvalPermissionService.getStats(assignee));
     }
 
     @Operation(summary = "检查审批权限")
     @GetMapping("/can-approve")
-    public Result<Boolean> canApprove(
-            @RequestParam Long userId, @RequestParam String processKey) {
+    public Result<Boolean> canApprove(@RequestParam Long userId, @RequestParam String processKey) {
         return Result.success(approvalPermissionService.canApprove(userId, processKey));
     }
 

@@ -19,8 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 企微客服渠道适配器——将 customerservice 模块桥接到统一渠道体系。
  *
- * <p>入站消息由 WecomKfCallbackService 解密后调用 receive() 解析；
- * 出站回复通过 WecomKfApiClient 发送。
+ * <p>入站消息由 WecomKfCallbackService 解密后调用 receive() 解析； 出站回复通过 WecomKfApiClient 发送。
  *
  * <p>需配置 aaf.wecom.kf.enabled=true 激活。
  */
@@ -64,9 +63,7 @@ public class WecomKfChannelAdapter implements ChannelAdapter {
             return;
         }
         // 从 extra 中获取 openKfId
-        var openKfId = message.extra() != null
-                ? (String) message.extra().get("openKfId")
-                : null;
+        var openKfId = message.extra() != null ? (String) message.extra().get("openKfId") : null;
         if (openKfId == null) {
             log.warn("企微客服回复缺少 openKfId");
             return;
@@ -75,7 +72,8 @@ public class WecomKfChannelAdapter implements ChannelAdapter {
     }
 
     @Override
-    public void pushTemplate(String externalUserId, String templateId, Map<String, String> variables) {
+    public void pushTemplate(
+            String externalUserId, String templateId, Map<String, String> variables) {
         // 企微客服不支持模板消息，忽略
         log.debug("企微客服不支持模板消息推送");
     }

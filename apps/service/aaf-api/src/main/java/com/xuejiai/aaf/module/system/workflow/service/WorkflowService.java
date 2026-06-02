@@ -103,7 +103,8 @@ public class WorkflowService {
         // 通过 businessKey 查找（遍历运行中实例匹配）
         var processInstanceId = workflowEngine.findInstanceByBusinessKey(businessKey);
         if (processInstanceId == null) {
-            return new WorkflowStatusVO(null, entityType, Long.valueOf(entityId), null, false, null, null, List.of());
+            return new WorkflowStatusVO(
+                    null, entityType, Long.valueOf(entityId), null, false, null, null, List.of());
         }
         return getStatus(processInstanceId);
     }
@@ -128,17 +129,13 @@ public class WorkflowService {
     /** 查询指定审批人的待办任务列表。 */
     @Transactional(readOnly = true)
     public List<WorkflowTaskVO> listPendingTasks(String assignee) {
-        return workflowEngine.listPendingTasks(assignee).stream()
-                .map(this::toTaskVO)
-                .toList();
+        return workflowEngine.listPendingTasks(assignee).stream().map(this::toTaskVO).toList();
     }
 
     /** 查询所有流程定义（最新版本）。 */
     @Transactional(readOnly = true)
     public List<ProcessDefinitionVO> listDefinitions() {
-        return workflowEngine.listDefinitions().stream()
-                .map(this::toDefinitionVO)
-                .toList();
+        return workflowEngine.listDefinitions().stream().map(this::toDefinitionVO).toList();
     }
 
     /** 部署流程定义。 */
@@ -153,9 +150,10 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResult<ProcessDefinitionVO> queryDefinitions(
             String key, String name, int pageNo, int pageSize) {
-        var list = workflowEngine.queryDefinitions(key, name, pageNo, pageSize).stream()
-                .map(this::toDefinitionVO)
-                .toList();
+        var list =
+                workflowEngine.queryDefinitions(key, name, pageNo, pageSize).stream()
+                        .map(this::toDefinitionVO)
+                        .toList();
         long total = workflowEngine.countDefinitions(key, name);
         return new PageResult<>(list, total);
     }
@@ -198,9 +196,10 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResult<ProcessInstanceVO> listRunningInstances(
             String processKey, int pageNo, int pageSize) {
-        var list = workflowEngine.listRunningInstances(processKey, pageNo, pageSize).stream()
-                .map(this::toInstanceVO)
-                .toList();
+        var list =
+                workflowEngine.listRunningInstances(processKey, pageNo, pageSize).stream()
+                        .map(this::toInstanceVO)
+                        .toList();
         long total = workflowEngine.countRunningInstances(processKey);
         return new PageResult<>(list, total);
     }
@@ -209,10 +208,12 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResult<ProcessInstanceVO> listHistoricInstances(
             String processKey, boolean finished, int pageNo, int pageSize) {
-        var list = workflowEngine.listHistoricInstances(processKey, finished, pageNo, pageSize)
-                .stream()
-                .map(this::toInstanceVO)
-                .toList();
+        var list =
+                workflowEngine
+                        .listHistoricInstances(processKey, finished, pageNo, pageSize)
+                        .stream()
+                        .map(this::toInstanceVO)
+                        .toList();
         long total = workflowEngine.countHistoricInstances(processKey, finished);
         return new PageResult<>(list, total);
     }
@@ -275,9 +276,10 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResult<ProcessInstanceVO> listMyInitiatedInstances(
             String initiator, int pageNo, int pageSize) {
-        var list = workflowEngine.listMyInitiatedInstances(initiator, pageNo, pageSize).stream()
-                .map(this::toInstanceVO)
-                .toList();
+        var list =
+                workflowEngine.listMyInitiatedInstances(initiator, pageNo, pageSize).stream()
+                        .map(this::toInstanceVO)
+                        .toList();
         // 简化：不单独 count，返回当前页数据量作为 total 的下界
         return new PageResult<>(list, list.size());
     }
@@ -345,9 +347,15 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public List<WorkflowVersionVO> listVersions(String processKey) {
         return workflowEngine.listDefinitionVersions(processKey).stream()
-                .map(d -> new WorkflowVersionVO(
-                        d.processKey(), d.version(), d.name(),
-                        d.id(), !d.suspended(), null))
+                .map(
+                        d ->
+                                new WorkflowVersionVO(
+                                        d.processKey(),
+                                        d.version(),
+                                        d.name(),
+                                        d.id(),
+                                        !d.suspended(),
+                                        null))
                 .toList();
     }
 

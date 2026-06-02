@@ -11,10 +11,10 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.BeanWrapperImpl;
-import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -29,8 +29,8 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
 import com.xuejiai.aaf.framework.security.access.FieldAccessSupport;
+import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
 
 /**
  * 通用 CRUD Service 基类。提供分页查询、单条查询、创建、更新、删除、批量删除。
@@ -72,8 +72,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /**
      * 构建业务查询条件，默认无条件。
      *
-     * <p>只处理页面筛选、搜索等业务参数；分页和排序由 {@link PageParam#toPageable(Sort)} 处理，
-     * 行级数据权限由 {@link #buildAccessSpec()} 处理。
+     * <p>只处理页面筛选、搜索等业务参数；分页和排序由 {@link PageParam#toPageable(Sort)} 处理， 行级数据权限由 {@link
+     * #buildAccessSpec()} 处理。
      */
     protected Specification<E> buildSpec(P pageDTO) {
         return (root, query, cb) -> null;
@@ -112,7 +112,10 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var pageable = request.toPageable(defaultSort());
         Page<E> page = getSpecExecutor().findAll(buildEffectiveSpec(request), pageable);
         return new PageResult<>(
-                page.getContent().stream().map(this::toVO).map(vo -> applyFieldAccess(vo, "read")).toList(),
+                page.getContent().stream()
+                        .map(this::toVO)
+                        .map(vo -> applyFieldAccess(vo, "read"))
+                        .toList(),
                 page.getTotalElements(),
                 request.getPageNo(),
                 request.getPageSize(),
@@ -173,8 +176,11 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /** 选择器选项。子类可覆写 buildOptionSpec/displayName 以提供更精准搜索和展示。 */
     public List<CrudOption> options(String keyword, Integer limit) {
         var safeLimit = limit == null ? 20 : Math.max(1, Math.min(limit, 100));
-        var page = getSpecExecutor()
-                .findAll(buildOptionSpec(keyword), PageRequest.of(0, safeLimit, defaultSort()));
+        var page =
+                getSpecExecutor()
+                        .findAll(
+                                buildOptionSpec(keyword),
+                                PageRequest.of(0, safeLimit, defaultSort()));
         return page.getContent().stream()
                 .map(entity -> new CrudOption(entity.getId(), displayName(entity)))
                 .toList();
@@ -408,7 +414,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
-        var entities = getSpecExecutor().findAll(Specification.allOf(idInSpec(ids), buildAccessSpec()));
+        var entities =
+                getSpecExecutor().findAll(Specification.allOf(idInSpec(ids), buildAccessSpec()));
         if (entities.size() != ids.stream().distinct().count()) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, entityName() + "不存在");
         }
@@ -450,7 +457,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     private String currentAccessVersion() {
         var support = recordRuleSupport == null ? null : recordRuleSupport.getIfAvailable();
         var userId = currentOwnerId();
-        return support == null || userId == null ? "0" : support.accessVersion(entitySlug(), userId);
+        return support == null || userId == null
+                ? "0"
+                : support.accessVersion(entitySlug(), userId);
     }
 
     private String sha256(String source) {
@@ -465,7 +474,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     }
 
     private <T> T unsupported(String operation) {
-        throw new BusinessException(GlobalErrorCode.BAD_REQUEST, entityName() + operation + "能力未启用");
+        throw new BusinessException(
+                GlobalErrorCode.BAD_REQUEST, entityName() + operation + "能力未启用");
     }
 
     @SuppressWarnings("unchecked")
@@ -488,7 +498,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var visible = new java.util.LinkedHashMap<String, Object>();
         for (var descriptor : BeanUtils.getPropertyDescriptors(vo.getClass())) {
             var name = descriptor.getName();
-            if ("class".equals(name) || hiddenFields.contains(name) || !bean.isReadableProperty(name)) {
+            if ("class".equals(name)
+                    || hiddenFields.contains(name)
+                    || !bean.isReadableProperty(name)) {
                 continue;
             }
             visible.put(name, bean.getPropertyValue(name));

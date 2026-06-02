@@ -15,7 +15,8 @@ public record BizOrderCreateDTO(
         List<BizOrderItemCreateDTO> items) {
 
     /** 无明细行的简化构造（充值等场景） */
-    public BizOrderCreateDTO(String orderType, String subject, Long totalAmount, String channelCode) {
+    public BizOrderCreateDTO(
+            String orderType, String subject, Long totalAmount, String channelCode) {
         this(orderType, subject, totalAmount, channelCode, null);
     }
 }

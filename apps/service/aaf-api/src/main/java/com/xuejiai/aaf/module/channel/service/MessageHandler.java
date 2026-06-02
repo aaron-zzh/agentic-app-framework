@@ -5,8 +5,7 @@ import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 /**
  * 消息处理器接口——业务层处理入站消息的扩展点。
  *
- * <p>AAF-076 客服模块通过实现此接口接入渠道消息。
- * 多个 handler 按 {@link #order()} 排序，第一个返回非 null 结果的 handler 生效。
+ * <p>AAF-076 客服模块通过实现此接口接入渠道消息。 多个 handler 按 {@link #order()} 排序，第一个返回非 null 结果的 handler 生效。
  */
 public interface MessageHandler {
 

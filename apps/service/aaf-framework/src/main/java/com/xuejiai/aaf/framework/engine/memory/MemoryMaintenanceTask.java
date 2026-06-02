@@ -2,7 +2,6 @@ package com.xuejiai.aaf.framework.engine.memory;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -38,13 +37,15 @@ public class MemoryMaintenanceTask {
         var staleAtoms = atomRepository.findStaleAtoms(cutoff);
 
         // 计算衰减，低于阈值的批量失效
-        var toInvalidate = staleAtoms.stream()
-                .filter(atom -> {
-                    double score = decayStrategy.decay(atom.getEventTime(), now);
-                    return score * atom.getWeight() < DECAY_THRESHOLD;
-                })
-                .map(MemoryAtom::getId)
-                .toList();
+        var toInvalidate =
+                staleAtoms.stream()
+                        .filter(
+                                atom -> {
+                                    double score = decayStrategy.decay(atom.getEventTime(), now);
+                                    return score * atom.getWeight() < DECAY_THRESHOLD;
+                                })
+                        .map(MemoryAtom::getId)
+                        .toList();
 
         if (!toInvalidate.isEmpty()) {
             memoryEngine.invalidate(toInvalidate);

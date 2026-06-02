@@ -2,9 +2,9 @@ package com.xuejiai.aaf.module.company.ops.repository;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.company.ops.domain.OpsTask;
-
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.xuejiai.aaf.module.company.ops.domain.OpsTask;
 
 public interface OpsTaskRepository extends JpaRepository<OpsTask, Long> {
 

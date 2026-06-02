@@ -33,7 +33,8 @@ public interface MemoryAtomRepository extends JpaRepository<MemoryAtom, UUID> {
     List<MemoryAtom> findByUserIdAndContentContaining(Long userId, String keyword);
 
     /** 按范围关键词搜索 */
-    List<MemoryAtom> findByUserIdAndScopeAndContentContaining(Long userId, String scope, String keyword);
+    List<MemoryAtom> findByUserIdAndScopeAndContentContaining(
+            Long userId, String scope, String keyword);
 
     /** 按用户和范围查询有效记忆 */
     List<MemoryAtom> findByUserIdAndScopeAndValidToIsNull(Long userId, String scope);
@@ -81,7 +82,8 @@ public interface MemoryAtomRepository extends JpaRepository<MemoryAtom, UUID> {
     void invalidate(List<UUID> ids, Instant now);
 
     /** 查找长期未访问的有效原子（用于定时衰减清理） */
-    @Query("""
+    @Query(
+            """
         SELECT m FROM MemoryAtom m
         WHERE m.validTo IS NULL
           AND (m.lastAccessedAt IS NULL OR m.lastAccessedAt < :cutoff)

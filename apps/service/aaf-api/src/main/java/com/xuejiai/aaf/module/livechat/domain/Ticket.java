@@ -109,7 +109,8 @@ public class Ticket extends BaseEntity {
 
     private void assertStatus(TicketStatusEnum expected) {
         if (this.status != expected) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST,
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST,
                     "工单状态不正确，当前: %s，期望: %s".formatted(this.status.getLabel(), expected.getLabel()));
         }
     }

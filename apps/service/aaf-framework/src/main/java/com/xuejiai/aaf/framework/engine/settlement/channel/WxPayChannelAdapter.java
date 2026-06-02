@@ -18,6 +18,7 @@ import com.github.binarywang.wxpay.config.WxPayConfig;
 import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.WxPayService;
 import com.github.binarywang.wxpay.service.impl.WxPayServiceImpl;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
@@ -69,7 +70,8 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
     public PayResult charge(ChargeRequest request) {
         var tradeType = TRADE_TYPE_MAP.get(request.channelCode());
         if (tradeType == null) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不支持的微信渠道: " + request.channelCode());
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "不支持的微信渠道: " + request.channelCode());
         }
         try {
             var wxRequest = new WxPayUnifiedOrderV3Request();

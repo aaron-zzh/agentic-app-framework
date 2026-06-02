@@ -19,7 +19,9 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "session_rating")
-@SQLDelete(sql = "UPDATE session_rating SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE session_rating SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SessionRating extends BaseEntity {
 
     /** 关联会话 ID */

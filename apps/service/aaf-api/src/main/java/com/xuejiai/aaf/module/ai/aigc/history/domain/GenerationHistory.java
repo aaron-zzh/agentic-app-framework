@@ -1,9 +1,9 @@
 package com.xuejiai.aaf.module.ai.aigc.history.domain;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 
-import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

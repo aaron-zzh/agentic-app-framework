@@ -24,12 +24,16 @@ public class HitlApprovalGrantListener {
             return;
         }
         var request = event.request();
-        if (!shouldGrant(request.type()) || request.grantScope() == HumanApprovalService.GrantScope.NONE) {
+        if (!shouldGrant(request.type())
+                || request.grantScope() == HumanApprovalService.GrantScope.NONE) {
             return;
         }
         var sessionId = request.sessionId();
         var subjectKey = subjectKey(request);
-        if (sessionId == null || sessionId.isBlank() || subjectKey == null || subjectKey.isBlank()) {
+        if (sessionId == null
+                || sessionId.isBlank()
+                || subjectKey == null
+                || subjectKey.isBlank()) {
             return;
         }
         grantToolPermission(sessionId, subjectKey, request.grantScope(), request.context());

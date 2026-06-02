@@ -10,11 +10,11 @@ import io.agentscope.core.model.Model;
  *
  * <h3>职责定位</h3>
  *
- * <p>本类只负责一件事：<b>对话消息列表的存储与自动压缩</b>。
- * ReActAgent 内部自动调用 {@code addMessage()} 追加每轮消息，
- * 调用 {@code getMessages()} 获取 LLM 输入——外部无需手动操作。
+ * <p>本类只负责一件事：<b>对话消息列表的存储与自动压缩</b>。 ReActAgent 内部自动调用 {@code addMessage()} 追加每轮消息， 调用 {@code
+ * getMessages()} 获取 LLM 输入——外部无需手动操作。
  *
  * <p>与 {@code MemoryContextHook}（记忆/知识库检索注入）<b>完全独立</b>：
+ *
  * <ul>
  *   <li>本类：管消息列表的存储和超限压缩（替代裸 InMemoryMemory）
  *   <li>MemoryContextHook：每轮 LLM 调用前检索长期记忆+知识库，临时注入到 inputMessages

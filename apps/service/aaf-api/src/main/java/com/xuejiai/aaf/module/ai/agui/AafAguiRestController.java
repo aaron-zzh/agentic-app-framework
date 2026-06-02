@@ -26,9 +26,8 @@ import io.agentscope.spring.boot.agui.mvc.AguiRestController;
 
 /**
  * AAF 自定义 AG-UI 入口——覆盖 starter 的 {@link AguiRestController}（同类型 Bean 触发
- * {@code @ConditionalOnMissingBean} 压制默认实现），映射到 {@code /agui/runs}，
- * 内部用注入了 {@link AafAgentResolver} 的 {@link AguiRequestProcessor}，
- * 从而在执行线程上设置上下文 + 冷启动播种历史 + 请求完成后持久化 Agent 状态。
+ * {@code @ConditionalOnMissingBean} 压制默认实现），映射到 {@code /agui/runs}， 内部用注入了 {@link AafAgentResolver}
+ * 的 {@link AguiRequestProcessor}， 从而在执行线程上设置上下文 + 冷启动播种历史 + 请求完成后持久化 Agent 状态。
  */
 public class AafAguiRestController extends AguiRestController {
 
@@ -41,7 +40,10 @@ public class AafAguiRestController extends AguiRestController {
     private final long sseTimeout;
 
     public AafAguiRestController(
-            AguiMvcController mvc, AguiProperties props, AguiRequestProcessor processor, Session agentSession) {
+            AguiMvcController mvc,
+            AguiProperties props,
+            AguiRequestProcessor processor,
+            Session agentSession) {
         super(mvc, props.getPathPrefix(), props.isEnablePathRouting());
         this.processor = processor;
         this.agentSession = agentSession;
@@ -75,24 +77,31 @@ public class AafAguiRestController extends AguiRestController {
         var emitter = new SseEmitter(sseTimeout);
         var threadId = input.getThreadId();
         var runId = input.getRunId();
-        executor.submit(() -> {
-            try {
-                var result = processor.process(input, headerAgentId, pathAgentId);
-                emitter.onTimeout(() -> result.agent().interrupt());
-                emitter.onError(ex -> result.agent().interrupt());
-                result.events()
-                        .doFinally(signal -> saveAgentState(result.agent(), threadId))
-                        .subscribe(
-                                event -> sendEvent(emitter, event),
-                                error -> sendErrorAndComplete(emitter, threadId, runId, error.getMessage()),
-                                emitter::complete);
-            } catch (Exception e) {
-                logger.error("AG-UI 请求处理失败: {}", e.getMessage());
-                sendErrorAndComplete(emitter, threadId, runId, e.getMessage());
-            } finally {
-                com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder.clear();
-            }
-        });
+        executor.submit(
+                () -> {
+                    try {
+                        var result = processor.process(input, headerAgentId, pathAgentId);
+                        emitter.onTimeout(() -> result.agent().interrupt());
+                        emitter.onError(ex -> result.agent().interrupt());
+                        result.events()
+                                .doFinally(signal -> saveAgentState(result.agent(), threadId))
+                                .subscribe(
+                                        event -> sendEvent(emitter, event),
+                                        error ->
+                                                sendErrorAndComplete(
+                                                        emitter,
+                                                        threadId,
+                                                        runId,
+                                                        error.getMessage()),
+                                        emitter::complete);
+                    } catch (Exception e) {
+                        logger.error("AG-UI 请求处理失败: {}", e.getMessage());
+                        sendErrorAndComplete(emitter, threadId, runId, e.getMessage());
+                    } finally {
+                        com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder
+                                .clear();
+                    }
+                });
         return emitter;
     }
 
@@ -109,23 +118,38 @@ public class AafAguiRestController extends AguiRestController {
 
     private void sendEvent(SseEmitter emitter, AguiEvent event) {
         try {
-            emitter.send(SseEmitter.event().data(encoder.encodeToJson(event), MediaType.APPLICATION_JSON));
+            emitter.send(
+                    SseEmitter.event()
+                            .data(encoder.encodeToJson(event), MediaType.APPLICATION_JSON));
         } catch (IOException e) {
             logger.debug("SSE 发送失败: {}", e.getMessage());
         }
     }
 
-    private void sendErrorAndComplete(SseEmitter emitter, String threadId, String runId, String msg) {
+    private void sendErrorAndComplete(
+            SseEmitter emitter, String threadId, String runId, String msg) {
         try {
-            emitter.send(SseEmitter.event().data(
-                    encoder.encodeToJson(new AguiEvent.Raw(threadId, runId, Map.of("error", msg == null ? "error" : msg))),
-                    MediaType.APPLICATION_JSON));
-            emitter.send(SseEmitter.event().data(
-                    encoder.encodeToJson(new AguiEvent.RunFinished(threadId, runId)),
-                    MediaType.APPLICATION_JSON));
+            emitter.send(
+                    SseEmitter.event()
+                            .data(
+                                    encoder.encodeToJson(
+                                            new AguiEvent.Raw(
+                                                    threadId,
+                                                    runId,
+                                                    Map.of("error", msg == null ? "error" : msg))),
+                                    MediaType.APPLICATION_JSON));
+            emitter.send(
+                    SseEmitter.event()
+                            .data(
+                                    encoder.encodeToJson(
+                                            new AguiEvent.RunFinished(threadId, runId)),
+                                    MediaType.APPLICATION_JSON));
             emitter.complete();
         } catch (Exception e) {
-            try { emitter.completeWithError(e); } catch (Exception ignored) {}
+            try {
+                emitter.completeWithError(e);
+            } catch (Exception ignored) {
+            }
         }
     }
 }

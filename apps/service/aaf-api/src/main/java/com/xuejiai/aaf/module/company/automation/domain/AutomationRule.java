@@ -1,20 +1,23 @@
 package com.xuejiai.aaf.module.company.automation.domain;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.type.SqlTypes;
 
 /** AI 自动化规则 */
 @Getter
 @Setter
 @Entity(name = "CompanyAutomationRule")
 @Table(name = "company_automation_rule")
-@SQLDelete(sql = "UPDATE company_automation_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE company_automation_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class AutomationRule extends BaseEntity {
 
     /** 规则名称 */

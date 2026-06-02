@@ -19,15 +19,14 @@ import com.tngtech.archunit.library.freeze.FreezingArchRule;
 /**
  * 鉴权默认拒绝基线：{@code @RestController} 中的写接口（POST/PUT/DELETE/PATCH）必须带方法级授权注解。
  *
- * <p>授权注解任一即可：{@code @PreAuthorize} / {@code @AccessControl} / {@code @Secured}。
- * 公开端点与自验签回调通过 {@link #ALLOWLISTED_CONTROLLERS} 显式豁免，新增豁免必须登记并说明理由。
+ * <p>授权注解任一即可：{@code @PreAuthorize} / {@code @AccessControl} / {@code @Secured}。 公开端点与自验签回调通过
+ * {@link #ALLOWLISTED_CONTROLLERS} 显式豁免，新增豁免必须登记并说明理由。
  *
- * <p>用 {@link FreezingArchRule} 冻结当前存量违规为基线：本规则**只拦截新增**未鉴权写接口，
- * 不会因历史欠债（见 B9，约 112 个控制器）导致 {@code pnpm check} 立即变红。
- * 存量控制器按 {@code 10-authorization-matrix.md} 逐个加注解后，冻结基线会自动收缩。
+ * <p>用 {@link FreezingArchRule} 冻结当前存量违规为基线：本规则**只拦截新增**未鉴权写接口， 不会因历史欠债（见 B9，约 112 个控制器）导致 {@code
+ * pnpm check} 立即变红。 存量控制器按 {@code 10-authorization-matrix.md} 逐个加注解后，冻结基线会自动收缩。
  *
- * <p>首次运行自动生成基线存储（{@code archunit.properties} 中 allowStoreCreation=true）。
- * 对应规范：{@code docs/design/audit/2026-05-30-service-review/10-authorization-matrix.md}（B9/B10）。
+ * <p>首次运行自动生成基线存储（{@code archunit.properties} 中 allowStoreCreation=true）。 对应规范：{@code
+ * docs/design/audit/2026-05-30-service-review/10-authorization-matrix.md}（B9/B10）。
  *
  * <p>命名 {@code *Test.java} 属 developer 单测范畴，Surefire 执行，归入 {@code pnpm check}。
  */
@@ -96,8 +95,6 @@ class ControllerAuthorizationTest {
                     methods()
                             .that(ARE_WRITE_ENDPOINTS_IN_REST_CONTROLLERS)
                             .should(BE_AUTHORIZED_OR_ALLOWLISTED)
-                            .as(
-                                    "非白名单 @RestController 的写接口(POST/PUT/DELETE/PATCH)必须带方法级授权注解")
-                            .because(
-                                    "默认拒绝基线，阻止新增未鉴权写接口（见 10-authorization-matrix.md, B9/B10）"));
+                            .as("非白名单 @RestController 的写接口(POST/PUT/DELETE/PATCH)必须带方法级授权注解")
+                            .because("默认拒绝基线，阻止新增未鉴权写接口（见 10-authorization-matrix.md, B9/B10）"));
 }

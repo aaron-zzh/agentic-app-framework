@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.module.system.workflow.approval;
 
 import java.util.List;
-import java.util.Map;
 
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
@@ -42,8 +41,11 @@ public class CountersignService {
         if (config.passRatio() != null) {
             runtimeService.setVariable(processInstanceId, "passRatio", config.passRatio());
         }
-        log.info("会签配置完成：processInstanceId={}, mode={}, assignees={}",
-                processInstanceId, config.mode(), config.assignees().size());
+        log.info(
+                "会签配置完成：processInstanceId={}, mode={}, assignees={}",
+                processInstanceId,
+                config.mode(),
+                config.assignees().size());
     }
 
     /**
@@ -106,17 +108,16 @@ public class CountersignService {
         int total = assigneeList.size();
 
         // 查询已完成的任务审批人
-        List<String> votedAssignees = taskService.createTaskQuery()
-                .processInstanceId(processInstanceId)
-                .list().stream()
-                .map(Task::getAssignee)
-                .toList();
+        List<String> votedAssignees =
+                taskService.createTaskQuery().processInstanceId(processInstanceId).list().stream()
+                        .map(Task::getAssignee)
+                        .toList();
 
-        List<String> pendingAssignees = assigneeList.stream()
-                .filter(a -> !votedAssignees.contains(a))
-                .toList();
+        List<String> pendingAssignees =
+                assigneeList.stream().filter(a -> !votedAssignees.contains(a)).toList();
 
-        return new VoteProgress(total, nrOfApproved, nrOfRejected, votedAssignees, pendingAssignees);
+        return new VoteProgress(
+                total, nrOfApproved, nrOfRejected, votedAssignees, pendingAssignees);
     }
 
     /**

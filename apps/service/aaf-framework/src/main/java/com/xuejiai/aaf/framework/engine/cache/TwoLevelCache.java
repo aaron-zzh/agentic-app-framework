@@ -26,18 +26,21 @@ public class TwoLevelCache<K, V> {
     private final Class<V> type;
     private final Duration redisTtl;
 
-    public TwoLevelCache(String name, Class<V> type, int maxSize,
-                         Duration localTtl, Duration redisTtl,
-                         StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public TwoLevelCache(
+            String name,
+            Class<V> type,
+            int maxSize,
+            Duration localTtl,
+            Duration redisTtl,
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper) {
         this.name = name;
         this.type = type;
         this.redisTtl = redisTtl;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
-        this.localCache = Caffeine.newBuilder()
-                .maximumSize(maxSize)
-                .expireAfterWrite(localTtl)
-                .build();
+        this.localCache =
+                Caffeine.newBuilder().maximumSize(maxSize).expireAfterWrite(localTtl).build();
     }
 
     /** 获取缓存值，未命中时调用 loader 加载 */

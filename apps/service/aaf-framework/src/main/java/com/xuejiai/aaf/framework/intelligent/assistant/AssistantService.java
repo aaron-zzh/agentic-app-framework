@@ -18,8 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Assistant 会话处理入口（统一门面）。
  *
- * <p>职责：意图理解 + 情感感知 + 委托 AssistantExecutor 执行。
- * 不再包含 Agent 调度逻辑——那是 DefaultAssistantExecutor 的职责。
+ * <p>职责：意图理解 + 情感感知 + 委托 AssistantExecutor 执行。 不再包含 Agent 调度逻辑——那是 DefaultAssistantExecutor 的职责。
  */
 @Slf4j
 @Service
@@ -30,9 +29,7 @@ public class AssistantService {
     private final IntentUnderstandingService intentService;
     private final EmotionPerceptionService emotionService;
 
-    /**
-     * 处理用户消息（完整链路）。
-     */
+    /** 处理用户消息（完整链路）。 */
     public AssistantResponse handle(
             String sessionId, Long userId, String assistantId, String userInput) {
         // 情感感知 + 历史追踪

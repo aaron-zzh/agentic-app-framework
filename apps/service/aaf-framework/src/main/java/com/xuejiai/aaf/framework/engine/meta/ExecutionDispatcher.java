@@ -6,9 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentPool;
-import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor.AgentResult;
 import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantExecutor;
-import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantExecutor.AssistantResponse;
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate.GateInput;
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
@@ -20,8 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 元引擎执行调度器——统一调度入口，路由到 Agent/Assistant/LLM。
  *
- * <p>所有执行请求（Flowable 节点、对话意图、DSL 指令、API 调用）统一经此调度。
- * 职责：路由 + 置信度门控 + 执行记录。不做图遍历（由 Flowable 或未来编排运行时负责）。
+ * <p>所有执行请求（Flowable 节点、对话意图、DSL 指令、API 调用）统一经此调度。 职责：路由 + 置信度门控 + 执行记录。不做图遍历（由 Flowable
+ * 或未来编排运行时负责）。
  */
 @Slf4j
 @Component
@@ -51,18 +49,20 @@ public class ExecutionDispatcher {
     }
 
     /** 执行目标类型 */
-    public enum ExecutionTarget { AGENT, ASSISTANT, LLM }
+    public enum ExecutionTarget {
+        AGENT,
+        ASSISTANT,
+        LLM
+    }
 
     /** 统一执行结果 */
     public record ExecutionResult(boolean success, String output, String error) {}
 
-    /**
-     * 调度执行——统一入口。
-     */
+    /** 调度执行——统一入口。 */
     public ExecutionResult dispatch(ExecutionRequest request) {
         // 置信度门控
-        var decision = confidenceGate.evaluate(
-                new GateInput(request.confidence(), request.verifiable()));
+        var decision =
+                confidenceGate.evaluate(new GateInput(request.confidence(), request.verifiable()));
         if (decision.action() == ConfidenceGate.Action.PAUSE_FOR_HUMAN) {
             log.info("元引擎调度暂停：置信度不足，等待人工确认 target={}", request.target());
             return new ExecutionResult(false, null, decision.message());
@@ -92,16 +92,23 @@ public class ExecutionDispatcher {
     }
 
     private ExecutionResult dispatchAssistant(ExecutionRequest request) {
-        var sessionId = request.sessionId() != null ? request.sessionId() : "dispatch-" + System.currentTimeMillis();
-        var response = assistantExecutor.chat(
-                sessionId, request.targetId(), request.userId(), request.input());
+        var sessionId =
+                request.sessionId() != null
+                        ? request.sessionId()
+                        : "dispatch-" + System.currentTimeMillis();
+        var response =
+                assistantExecutor.chat(
+                        sessionId, request.targetId(), request.userId(), request.input());
         return new ExecutionResult(response.success(), response.content(), response.error());
     }
 
     private ExecutionResult dispatchLlm(ExecutionRequest request) {
-        var messages = request.systemPrompt() != null
-                ? List.of(LlmMessage.system(request.systemPrompt()), LlmMessage.user(request.input()))
-                : List.of(LlmMessage.user(request.input()));
+        var messages =
+                request.systemPrompt() != null
+                        ? List.of(
+                                LlmMessage.system(request.systemPrompt()),
+                                LlmMessage.user(request.input()))
+                        : List.of(LlmMessage.user(request.input()));
         var output = llmClient.call(messages, request.targetId(), request.userId());
         return new ExecutionResult(true, output, null);
     }

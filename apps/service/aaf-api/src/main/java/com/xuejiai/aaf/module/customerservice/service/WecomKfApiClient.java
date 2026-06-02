@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.customerservice.service;
 
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
@@ -59,10 +58,14 @@ public class WecomKfApiClient {
     public SyncMsgResponse syncMsg(String openKfId, String cursor, String token) {
         var body =
                 Map.of(
-                        "open_kfid", openKfId,
-                        "cursor", cursor != null ? cursor : "",
-                        "token", token != null ? token : "",
-                        "limit", 1000);
+                        "open_kfid",
+                        openKfId,
+                        "cursor",
+                        cursor != null ? cursor : "",
+                        "token",
+                        token != null ? token : "",
+                        "limit",
+                        1000);
         return restClient
                 .post()
                 .uri("/cgi-bin/kf/sync_msg?access_token={token}", getAccessToken())
@@ -73,7 +76,8 @@ public class WecomKfApiClient {
 
     /** 发送文本消息 */
     public Map<String, Object> sendTextMsg(String openKfId, String externalUserId, String content) {
-        var request = new SendMsgRequest(externalUserId, openKfId, "text", Map.of("content", content));
+        var request =
+                new SendMsgRequest(externalUserId, openKfId, "text", Map.of("content", content));
         return restClient
                 .post()
                 .uri("/cgi-bin/kf/send_msg?access_token={token}", getAccessToken())

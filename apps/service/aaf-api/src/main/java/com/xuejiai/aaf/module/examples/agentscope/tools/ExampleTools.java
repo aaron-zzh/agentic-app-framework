@@ -15,18 +15,19 @@
  */
 package com.xuejiai.aaf.module.examples.agentscope.tools;
 
-import io.agentscope.core.message.ToolResultBlock;
-import io.agentscope.core.tool.Tool;
-import io.agentscope.core.tool.ToolParam;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Random;
 
+import io.agentscope.core.message.ToolResultBlock;
+import io.agentscope.core.tool.Tool;
+import io.agentscope.core.tool.ToolParam;
+
 /**
  * Example tools for the AG-UI demo.
  *
- * <p>These tools demonstrate how to create tool functions that can be called
- * by the agent during conversation.
+ * <p>These tools demonstrate how to create tool functions that can be called by the agent during
+ * conversation.
  */
 public class ExampleTools {
 
@@ -93,10 +94,7 @@ public class ExampleTools {
         return ToolResultBlock.text("Current time: " + now.format(formatter));
     }
 
-    /**
-     * Simple expression evaluator.
-     * Supports basic arithmetic: +, -, *, /
-     */
+    /** Simple expression evaluator. Supports basic arithmetic: +, -, *, / */
     private double evaluateExpression(String expression) {
         // Remove whitespace
         expression = expression.replaceAll("\\s+", "");

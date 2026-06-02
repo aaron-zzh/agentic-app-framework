@@ -9,16 +9,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * 工作流 AG-UI 运行请求。
  *
  * <p>两种模式：
+ *
  * <ul>
  *   <li>正式运行（debug=false）：传 flowId，流程必须为 PUBLISHED 状态
  *   <li>调试运行（debug=true）：传 bpmnXml，临时部署执行，执行后自动清理，仅创建者可用
  * </ul>
  *
- * @param flowId    正式运行时传，ai_flow_definition.id
- * @param bpmnXml   调试运行时传，前端转换好的 BPMN XML
- * @param debug     是否调试模式
+ * @param flowId 正式运行时传，ai_flow_definition.id
+ * @param bpmnXml 调试运行时传，前端转换好的 BPMN XML
+ * @param debug 是否调试模式
  * @param variables 流程变量
- * @param messages  对话消息（可选，用于对话式流程）
+ * @param messages 对话消息（可选，用于对话式流程）
  */
 @Schema(description = "工作流 AG-UI 运行请求")
 public record WorkflowRunRequest(

@@ -22,7 +22,8 @@ public interface SessionRatingRepository extends JpaRepository<SessionRating, Lo
     @Query("SELECT AVG(r.score) FROM SessionRating r WHERE r.createTime >= :since")
     Double avgScoreSince(LocalDateTime since);
 
-    @Query("SELECT r.score, COUNT(r) FROM SessionRating r WHERE r.createTime >= :since GROUP BY r.score ORDER BY r.score")
+    @Query(
+            "SELECT r.score, COUNT(r) FROM SessionRating r WHERE r.createTime >= :since GROUP BY r.score ORDER BY r.score")
     List<Object[]> scoreDistributionSince(LocalDateTime since);
 
     List<SessionRating> findByScoreLessThanEqualAndCreateTimeAfter(int score, LocalDateTime since);

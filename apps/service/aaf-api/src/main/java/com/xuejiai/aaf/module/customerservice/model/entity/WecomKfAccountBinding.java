@@ -10,7 +10,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "wecom_kf_account_binding", indexes = {@Index(columnList = "openKfId", unique = true)})
+@Table(
+        name = "wecom_kf_account_binding",
+        indexes = {@Index(columnList = "openKfId", unique = true)})
 public class WecomKfAccountBinding extends BaseEntity {
 
     /** 企微客服账号ID */

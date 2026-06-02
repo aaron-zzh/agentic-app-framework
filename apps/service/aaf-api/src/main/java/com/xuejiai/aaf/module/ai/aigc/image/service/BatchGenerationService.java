@@ -16,10 +16,10 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.BatchGenerationTask;
-import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchTaskStatus;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.BatchGenerationTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationSubmitDTO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationTaskVO;
+import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchTaskStatus;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

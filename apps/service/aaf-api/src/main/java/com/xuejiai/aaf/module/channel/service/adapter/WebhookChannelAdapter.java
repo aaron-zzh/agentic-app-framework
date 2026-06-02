@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageDirectionEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
@@ -19,8 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Webhook 渠道适配器——处理入站 Webhook 推送。
  *
- * <p>将外部系统通过 Webhook 推送的事件转换为 UnifiedMessage，走 MessageHandler 链处理。
- * 始终注册（Webhook 是通用能力，不需要条件激活）。
+ * <p>将外部系统通过 Webhook 推送的事件转换为 UnifiedMessage，走 MessageHandler 链处理。 始终注册（Webhook 是通用能力，不需要条件激活）。
  */
 @Slf4j
 @Component

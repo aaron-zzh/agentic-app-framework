@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 
@@ -28,12 +29,10 @@ public class ApprovalFormService {
     private final ApprovalFormTemplateRepository templateRepository;
     private final ObjectMapper objectMapper;
 
-    /**
-     * 创建表单模板。
-     */
+    /** 创建表单模板。 */
     @Transactional
-    public ApprovalFormTemplate createTemplate(String name, String description, String processKey,
-            List<ApprovalFormField> fields) {
+    public ApprovalFormTemplate createTemplate(
+            String name, String description, String processKey, List<ApprovalFormField> fields) {
         var template = new ApprovalFormTemplate();
         template.setName(name);
         template.setDescription(description);
@@ -43,43 +42,38 @@ public class ApprovalFormService {
         return templateRepository.save(template);
     }
 
-    /**
-     * 更新表单模板。
-     */
+    /** 更新表单模板。 */
     @Transactional
-    public ApprovalFormTemplate updateTemplate(Long id, String name, String description,
-            List<ApprovalFormField> fields) {
-        var template = templateRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "表单模板不存在"));
+    public ApprovalFormTemplate updateTemplate(
+            Long id, String name, String description, List<ApprovalFormField> fields) {
+        var template =
+                templateRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "表单模板不存在"));
         template.setName(name);
         template.setDescription(description);
         template.setFieldsJson(toJson(fields));
         return templateRepository.save(template);
     }
 
-    /**
-     * 按流程定义 Key 查询启用的模板。
-     */
+    /** 按流程定义 Key 查询启用的模板。 */
     @Transactional(readOnly = true)
     public Optional<ApprovalFormTemplate> getByProcessKey(String processKey) {
         return templateRepository.findByProcessKeyAndStatus(processKey, 1);
     }
 
-    /**
-     * 查询所有模板。
-     */
+    /** 查询所有模板。 */
     @Transactional(readOnly = true)
     public List<ApprovalFormTemplate> listTemplates() {
         return templateRepository.findAll();
     }
 
-    /**
-     * 解析模板字段定义。
-     */
+    /** 解析模板字段定义。 */
     public List<ApprovalFormField> parseFields(ApprovalFormTemplate template) {
         try {
-            return objectMapper.readValue(template.getFieldsJson(),
-                    new TypeReference<List<ApprovalFormField>>() {});
+            return objectMapper.readValue(
+                    template.getFieldsJson(), new TypeReference<List<ApprovalFormField>>() {});
         } catch (JsonProcessingException e) {
             throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "表单字段解析失败");
         }

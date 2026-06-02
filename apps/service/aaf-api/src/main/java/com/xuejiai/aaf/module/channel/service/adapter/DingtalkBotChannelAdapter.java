@@ -12,8 +12,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageDirectionEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
@@ -27,8 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 钉钉企业内部机器人渠道适配器。
  *
- * <p>接收机器人消息回调、回复文本/Markdown/卡片消息、加签验证。
- * 需配置 aaf.channel.dingtalk.enabled=true 激活。
+ * <p>接收机器人消息回调、回复文本/Markdown/卡片消息、加签验证。 需配置 aaf.channel.dingtalk.enabled=true 激活。
  */
 @Slf4j
 @Component
@@ -50,8 +49,8 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
         try {
             var root = objectMapper.readTree(rawPayload);
             var msgType = root.path("msgtype").asText("text");
-            var senderId = root.path("senderStaffId").asText(
-                    root.path("senderId").asText("unknown"));
+            var senderId =
+                    root.path("senderStaffId").asText(root.path("senderId").asText("unknown"));
             var text = root.path("text").path("content").asText("").strip();
 
             // 解析指令
@@ -60,11 +59,12 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
             extra.put("conversationType", root.path("conversationType").asText(""));
             extra.put("sessionWebhook", root.path("sessionWebhook").asText(""));
 
-            var messageType = switch (msgType) {
-                case "text" -> MessageTypeEnum.TEXT;
-                case "richText", "markdown" -> MessageTypeEnum.MARKDOWN;
-                default -> MessageTypeEnum.TEXT;
-            };
+            var messageType =
+                    switch (msgType) {
+                        case "text" -> MessageTypeEnum.TEXT;
+                        case "richText", "markdown" -> MessageTypeEnum.MARKDOWN;
+                        default -> MessageTypeEnum.TEXT;
+                    };
 
             return new UnifiedMessage(
                     ChannelTypeEnum.DINGTALK,
@@ -89,9 +89,10 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
     public void reply(UnifiedMessage message) {
         try {
             // 优先使用 sessionWebhook（群聊回复），否则用配置的 webhook
-            var webhookUrl = message.extra() != null
-                    ? (String) message.extra().getOrDefault("sessionWebhook", "")
-                    : "";
+            var webhookUrl =
+                    message.extra() != null
+                            ? (String) message.extra().getOrDefault("sessionWebhook", "")
+                            : "";
             if (webhookUrl == null || webhookUrl.isBlank()) {
                 webhookUrl = properties.dingtalk().webhookUrl();
             }
@@ -101,15 +102,15 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
             }
 
             var body = buildReplyBody(message);
-            restClientBuilder.build()
+            restClientBuilder
+                    .build()
                     .post()
                     .uri(webhookUrl)
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception e) {
-            log.error("钉钉回复失败: user={}, error={}",
-                    message.externalUserId(), e.getMessage());
+            log.error("钉钉回复失败: user={}, error={}", message.externalUserId(), e.getMessage());
         }
     }
 
@@ -117,8 +118,7 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
     public void pushTemplate(
             String externalUserId, String templateId, Map<String, String> variables) {
         // 钉钉机器人无模板消息概念，降级为文本推送
-        log.info("钉钉机器人不支持模板消息，降级为文本: user={}, template={}",
-                externalUserId, templateId);
+        log.info("钉钉机器人不支持模板消息，降级为文本: user={}, template={}", externalUserId, templateId);
     }
 
     /**
@@ -151,18 +151,22 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
         return switch (message.messageType()) {
             case MARKDOWN -> {
                 body.put("msgtype", "markdown");
-                body.put("markdown", Map.of(
-                        "title", "回复",
-                        "text", message.content()));
+                body.put("markdown", Map.of("title", "回复", "text", message.content()));
                 yield body;
             }
             case CARD -> {
                 body.put("msgtype", "actionCard");
-                body.put("actionCard", Map.of(
-                        "title", "回复",
-                        "text", message.content(),
-                        "singleTitle", "查看详情",
-                        "singleURL", message.mediaUrl() != null ? message.mediaUrl() : ""));
+                body.put(
+                        "actionCard",
+                        Map.of(
+                                "title",
+                                "回复",
+                                "text",
+                                message.content(),
+                                "singleTitle",
+                                "查看详情",
+                                "singleURL",
+                                message.mediaUrl() != null ? message.mediaUrl() : ""));
                 yield body;
             }
             default -> {

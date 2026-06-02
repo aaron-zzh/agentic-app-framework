@@ -7,17 +7,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
 import com.xuejiai.aaf.module.ai.output.domain.enums.AiOutputStatus;
-import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.module.ai.output.repository.AiOutputRepository;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * AI 产出服务——记录、查询、调整、回退。高风险产出自动推送通知。
- */
+/** AI 产出服务——记录、查询、调整、回退。高风险产出自动推送通知。 */
 @Service
 @RequiredArgsConstructor
 public class AiOutputService {
@@ -31,17 +29,22 @@ public class AiOutputService {
         repository.save(output);
         if (RiskLevel.HIGH == output.getRiskLevel()) {
             notificationService.sendSystemNotification(
-                    output.getCreatorId(),
-                    "🔴 高风险 AI 产出",
-                    output.getTitle());
+                    output.getCreatorId(), "🔴 高风险 AI 产出", output.getTitle());
         }
         return output;
     }
 
     /** 分页查询（支持筛选） */
     @Transactional(readOnly = true)
-    public Page<AiOutput> list(Long creatorId, String category, String riskLevel, String sourceType, int page, int size) {
-        return repository.findFiltered(creatorId, category, riskLevel, sourceType, PageRequest.of(page, size));
+    public Page<AiOutput> list(
+            Long creatorId,
+            String category,
+            String riskLevel,
+            String sourceType,
+            int page,
+            int size) {
+        return repository.findFiltered(
+                creatorId, category, riskLevel, sourceType, PageRequest.of(page, size));
     }
 
     /** 获取详情 */
@@ -73,8 +76,14 @@ public class AiOutputService {
     @Transactional(readOnly = true)
     public Map<String, Long> stats(Long creatorId) {
         return Map.of(
-                "high", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, RiskLevel.HIGH, AiOutputStatus.EFFECTIVE),
-                "medium", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, RiskLevel.MEDIUM, AiOutputStatus.EFFECTIVE),
-                "low", repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(creatorId, RiskLevel.LOW, AiOutputStatus.EFFECTIVE));
+                "high",
+                        repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(
+                                creatorId, RiskLevel.HIGH, AiOutputStatus.EFFECTIVE),
+                "medium",
+                        repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(
+                                creatorId, RiskLevel.MEDIUM, AiOutputStatus.EFFECTIVE),
+                "low",
+                        repository.countByCreatorIdAndRiskLevelAndStatusAndDeletedFalse(
+                                creatorId, RiskLevel.LOW, AiOutputStatus.EFFECTIVE));
     }
 }

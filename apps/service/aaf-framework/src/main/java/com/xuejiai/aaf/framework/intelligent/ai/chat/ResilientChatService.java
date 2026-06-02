@@ -123,7 +123,8 @@ public class ResilientChatService {
                         userId, modelId, usage.getPromptTokens(), usage.getCompletionTokens()));
     }
 
-    private Flux<ChatResponse> withStreamUsage(Flux<ChatResponse> stream, Long userId, String modelId) {
+    private Flux<ChatResponse> withStreamUsage(
+            Flux<ChatResponse> stream, Long userId, String modelId) {
         var promptTokens = new AtomicLong();
         var completionTokens = new AtomicLong();
         return stream.doOnNext(
@@ -134,8 +135,10 @@ public class ResilientChatService {
                                 return;
                             }
                             var usage = response.getMetadata().getUsage();
-                            promptTokens.updateAndGet(current -> Math.max(current, usage.getPromptTokens()));
-                            completionTokens.updateAndGet(current -> Math.max(current, usage.getCompletionTokens()));
+                            promptTokens.updateAndGet(
+                                    current -> Math.max(current, usage.getPromptTokens()));
+                            completionTokens.updateAndGet(
+                                    current -> Math.max(current, usage.getCompletionTokens()));
                         })
                 .doOnComplete(
                         () -> {

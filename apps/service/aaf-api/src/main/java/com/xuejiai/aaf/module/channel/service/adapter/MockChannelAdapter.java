@@ -34,14 +34,16 @@ public class MockChannelAdapter implements ChannelAdapter {
 
     @Override
     public void reply(UnifiedMessage message) {
-        log.info("[Mock] 回复消息: user={}, content={}",
-                message.externalUserId(), message.content());
+        log.info("[Mock] 回复消息: user={}, content={}", message.externalUserId(), message.content());
     }
 
     @Override
     public void pushTemplate(
             String externalUserId, String templateId, Map<String, String> variables) {
-        log.info("[Mock] 推送模板: user={}, template={}, vars={}",
-                externalUserId, templateId, variables);
+        log.info(
+                "[Mock] 推送模板: user={}, template={}, vars={}",
+                externalUserId,
+                templateId,
+                variables);
     }
 }

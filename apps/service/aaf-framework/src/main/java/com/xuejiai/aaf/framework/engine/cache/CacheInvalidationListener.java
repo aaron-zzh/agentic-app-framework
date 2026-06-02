@@ -6,9 +6,7 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 缓存失效事件监听器——根据事件刷新对应缓存实例。
- */
+/** 缓存失效事件监听器——根据事件刷新对应缓存实例。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor

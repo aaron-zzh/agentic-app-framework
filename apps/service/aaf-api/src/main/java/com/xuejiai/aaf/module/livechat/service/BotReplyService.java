@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.module.knowledge.service.KnowledgeSegmentService;
 import com.xuejiai.aaf.module.knowledge.service.ProblemService;
-import com.xuejiai.aaf.module.livechat.domain.ChatMessage;
 import com.xuejiai.aaf.module.livechat.domain.ChatSession;
 import com.xuejiai.aaf.module.livechat.repository.LivechatChatMessageRepository;
 
@@ -17,8 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 智能客服回复服务。
  *
- * <p>复用 ProblemService（FAQ 匹配）和 KnowledgeSegmentService（语义检索 RAG）。
- * 未命中或低置信度时返回 null，触发转人工。
+ * <p>复用 ProblemService（FAQ 匹配）和 KnowledgeSegmentService（语义检索 RAG）。 未命中或低置信度时返回 null，触发转人工。
  */
 @Slf4j
 @Service
@@ -31,8 +29,10 @@ public class BotReplyService {
 
     /** 默认知识库 ID（可配置化，此处简化） */
     private static final Long DEFAULT_KNOWLEDGE_BASE_ID = 1L;
+
     /** 上下文窗口大小 */
     private static final int CONTEXT_WINDOW = 10;
+
     /** FAQ 匹配置信度阈值 */
     private static final double CONFIDENCE_THRESHOLD = 0.6;
 
@@ -107,14 +107,17 @@ public class BotReplyService {
     /** Mock LLM 回复（桩实现，后续接入真实 Assistant） */
     private String generateMockReply(ChatSession session, String userMessage) {
         // 获取上下文（最近消息）
-        var context = messageRepository.findBySessionIdAndInternalFalseOrderByCreateTimeDesc(
-                session.getId(), PageRequest.of(0, CONTEXT_WINDOW));
+        var context =
+                messageRepository.findBySessionIdAndInternalFalseOrderByCreateTimeDesc(
+                        session.getId(), PageRequest.of(0, CONTEXT_WINDOW));
 
         // 简单意图路由
         if (userMessage.contains("咨询") || userMessage.contains("了解")) {
             return "感谢您的咨询，请问您想了解哪方面的信息？我可以为您查询相关资料。";
         }
-        if (userMessage.contains("技术") || userMessage.contains("故障") || userMessage.contains("报错")) {
+        if (userMessage.contains("技术")
+                || userMessage.contains("故障")
+                || userMessage.contains("报错")) {
             return "我理解您遇到了技术问题。请描述具体的错误信息或现象，我会尽力帮您解决。如需更专业的支持，我可以为您转接技术专家。";
         }
 

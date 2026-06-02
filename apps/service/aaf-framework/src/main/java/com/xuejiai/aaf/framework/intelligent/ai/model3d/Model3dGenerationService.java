@@ -30,17 +30,12 @@ public interface Model3dGenerationService {
             Boolean pbr) {}
 
     /** 单图生 3D 请求。 */
-    record ImageTo3dRequest(
-            String imageUrl,
-            String textureQuality,
-            Boolean pbr) {}
+    record ImageTo3dRequest(String imageUrl, String textureQuality, Boolean pbr) {}
 
     /** 多图生 3D 请求（四视角：前/左/后/右）。 */
     record MultiImageTo3dRequest(
             /** 四视角图片 URL 列表（前/左/后/右），不需要的视角传 null */
-            List<ImageInput> images,
-            String textureQuality,
-            Boolean pbr) {}
+            List<ImageInput> images, String textureQuality, Boolean pbr) {}
 
     /** 多图输入项。 */
     record ImageInput(String type, String fileToken) {}

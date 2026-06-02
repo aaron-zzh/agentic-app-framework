@@ -32,6 +32,8 @@ public enum LicenseFeature {
     }
 
     public static Set<String> codes() {
-        return Arrays.stream(values()).map(LicenseFeature::code).collect(Collectors.toUnmodifiableSet());
+        return Arrays.stream(values())
+                .map(LicenseFeature::code)
+                .collect(Collectors.toUnmodifiableSet());
     }
 }

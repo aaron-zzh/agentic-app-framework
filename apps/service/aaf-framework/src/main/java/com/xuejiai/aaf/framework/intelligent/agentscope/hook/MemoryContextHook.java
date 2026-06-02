@@ -17,11 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /**
- * 记忆上下文 Hook——每轮 LLM 推理前（{@link PreReasoningEvent}）按当前 query
- * 检索长期记忆 + 知识库，作为临时 system 消息注入。
+ * 记忆上下文 Hook——每轮 LLM 推理前（{@link PreReasoningEvent}）按当前 query 检索长期记忆 + 知识库，作为临时 system 消息注入。
  *
- * <p>注入仅作用于本次 LLM 调用（修改 inputMessages 副本），不写回 Memory，不累积。
- * userId/knowledgeBaseId 从 {@link AgentRunContextHolder} 取（由 AafAgentResolver 在执行线程设置）。
+ * <p>注入仅作用于本次 LLM 调用（修改 inputMessages 副本），不写回 Memory，不累积。 userId/knowledgeBaseId 从 {@link
+ * AgentRunContextHolder} 取（由 AafAgentResolver 在执行线程设置）。
  */
 @Slf4j
 @Component
@@ -69,20 +68,23 @@ public class MemoryContextHook implements Hook {
         if (query == null || query.isBlank()) return;
 
         try {
-            var result = retrievalService.retrieve(
-                    new UnifiedRetrievalService.RetrievalRequest(
-                            query, ctx.userId(), ctx.knowledgeBaseId(), TOP_K));
+            var result =
+                    retrievalService.retrieve(
+                            new UnifiedRetrievalService.RetrievalRequest(
+                                    query, ctx.userId(), ctx.knowledgeBaseId(), TOP_K));
             if (result.fused().isEmpty()) return;
 
             var top = result.fused().stream().limit(MAX_INJECT).toList();
             var sb = new StringBuilder("以下是与当前问题相关的记忆/知识，仅供参考：\n");
             for (var item : top) {
-                sb.append("- [").append(item.source()).append("] ").append(item.content()).append("\n");
+                sb.append("- [")
+                        .append(item.source())
+                        .append("] ")
+                        .append(item.content())
+                        .append("\n");
             }
             // 冲突让位声明：历史记忆不得覆盖用户当前指令
-            sb.append(
-                    "（说明：以上为历史记忆，可能已过时；若与用户当前指令或约束冲突，以当前对话为准，"
-                            + "必要时先与用户确认。）\n");
+            sb.append("（说明：以上为历史记忆，可能已过时；若与用户当前指令或约束冲突，以当前对话为准，" + "必要时先与用户确认。）\n");
 
             // 临时注入：system 消息放在最前，仅本次 LLM 调用生效（不写回 Memory）
             var enriched = new ArrayList<Msg>(msgs.size() + 1);

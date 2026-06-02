@@ -25,9 +25,7 @@ import com.xuejiai.aaf.module.livechat.vo.TicketVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/**
- * 工单与评价 API。
- */
+/** 工单与评价 API。 */
 @RestController
 @RequestMapping("/api/livechat")
 @RequiredArgsConstructor
@@ -47,8 +45,7 @@ public class TicketController {
 
     /** 评价统计 */
     @GetMapping("/ratings/statistics")
-    public Result<RatingStatVO> ratingStatistics(
-            @RequestParam(defaultValue = "30") int days) {
+    public Result<RatingStatVO> ratingStatistics(@RequestParam(defaultValue = "30") int days) {
         return Result.success(ratingService.getStatistics(LocalDateTime.now().minusDays(days)));
     }
 
@@ -81,7 +78,8 @@ public class TicketController {
     /** 处理人待办工单 */
     @GetMapping("/tickets/assignee/{assigneeId}")
     public Result<List<TicketVO>> assigneeTickets(@PathVariable Long assigneeId) {
-        return Result.success(ticketService.listByAssignee(assigneeId).stream().map(this::toVO).toList());
+        return Result.success(
+                ticketService.listByAssignee(assigneeId).stream().map(this::toVO).toList());
     }
 
     /** 分配工单 */
@@ -143,8 +141,7 @@ public class TicketController {
 
     /** 工单统计 */
     @GetMapping("/tickets/statistics")
-    public Result<TicketStatVO> ticketStatistics(
-            @RequestParam(defaultValue = "30") int days) {
+    public Result<TicketStatVO> ticketStatistics(@RequestParam(defaultValue = "30") int days) {
         return Result.success(ticketService.getStatistics(LocalDateTime.now().minusDays(days)));
     }
 
@@ -156,9 +153,18 @@ public class TicketController {
 
     private TicketVO toVO(Ticket t) {
         return new TicketVO(
-                t.getId(), t.getTicketNo(), t.getTitle(), t.getDescription(),
-                t.getUserId(), t.getSessionId(), t.getType(), t.getPriority(),
-                t.getStatus(), t.getAssigneeId(), t.getSlaDueTime(),
-                t.getClosedTime(), t.getCreateTime());
+                t.getId(),
+                t.getTicketNo(),
+                t.getTitle(),
+                t.getDescription(),
+                t.getUserId(),
+                t.getSessionId(),
+                t.getType(),
+                t.getPriority(),
+                t.getStatus(),
+                t.getAssigneeId(),
+                t.getSlaDueTime(),
+                t.getClosedTime(),
+                t.getCreateTime());
     }
 }

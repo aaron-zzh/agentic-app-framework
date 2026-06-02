@@ -12,10 +12,7 @@ import io.agentscope.core.message.ToolUseBlock;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-/**
- * 工具白名单 Hook——PreActingEvent 时校验工具是否在允许列表中，
- * 不在白名单的工具调用将被拦截并返回拒绝结果。
- */
+/** 工具白名单 Hook——PreActingEvent 时校验工具是否在允许列表中， 不在白名单的工具调用将被拦截并返回拒绝结果。 */
 @Slf4j
 public class AafToolWhitelistHook implements Hook {
 
@@ -38,8 +35,7 @@ public class AafToolWhitelistHook implements Hook {
             if (toolUse != null && !isAllowed(toolUse.getName())) {
                 log.warn("工具白名单拦截：{} 不在允许列表中", toolUse.getName());
                 // 替换为空操作工具调用（返回拒绝提示）
-                var blocked = new ToolUseBlock(
-                        toolUse.getId(), "__blocked__", toolUse.getInput());
+                var blocked = new ToolUseBlock(toolUse.getId(), "__blocked__", toolUse.getInput());
                 preActing.setToolUse(blocked);
             }
         }

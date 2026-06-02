@@ -32,10 +32,11 @@ import lombok.extern.slf4j.Slf4j;
  * 菜单服务——接入四层权限模型 Layer 1（RBAC 角色→菜单过滤）。
  *
  * <p>权限判定流程：
+ *
  * <ol>
- *   <li>查用户角色（sys_user_role）</li>
- *   <li>超级管理员（code=super_admin）→ 返回全部菜单</li>
- *   <li>普通角色 → 查角色关联菜单（sys_role_menu）→ 过滤后构建树</li>
+ *   <li>查用户角色（sys_user_role）
+ *   <li>超级管理员（code=super_admin）→ 返回全部菜单
+ *   <li>普通角色 → 查角色关联菜单（sys_role_menu）→ 过滤后构建树
  * </ol>
  *
  * @author AaronZZH & Kiro
@@ -161,15 +162,18 @@ public class MenuService
         if (roleMenus.isEmpty()) {
             return List.of();
         }
-        Set<Long> allowedMenuIds = roleMenus.stream()
-                .map(rm -> rm.getMenuId())
-                .collect(Collectors.toSet());
+        Set<Long> allowedMenuIds =
+                roleMenus.stream().map(rm -> rm.getMenuId()).collect(Collectors.toSet());
 
         // 过滤：只保留角色关联的可见菜单 + 其父级菜单（确保树结构完整）
         var allMenus = menuRepository.findByVisibleTrueOrderBySortOrder();
-        var filteredMenus = allMenus.stream()
-                .filter(m -> allowedMenuIds.contains(m.getId()) || isParentOfAllowed(m, allMenus, allowedMenuIds))
-                .toList();
+        var filteredMenus =
+                allMenus.stream()
+                        .filter(
+                                m ->
+                                        allowedMenuIds.contains(m.getId())
+                                                || isParentOfAllowed(m, allMenus, allowedMenuIds))
+                        .toList();
 
         return buildTree(filteredMenus);
     }

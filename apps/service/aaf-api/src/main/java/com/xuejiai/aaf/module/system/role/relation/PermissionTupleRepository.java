@@ -27,9 +27,7 @@ public interface PermissionTupleRepository extends JpaRepository<PermissionTuple
             String subjectId,
             String subjectRelation);
 
-    /**
-     * PG 递归 CTE：从对象反向展开 subject_relation，查找是否能到达用户或用户角色。
-     */
+    /** PG 递归 CTE：从对象反向展开 subject_relation，查找是否能到达用户或用户角色。 */
     @Query(
             value =
                     """

@@ -39,21 +39,37 @@ public class ContentGenerationTool {
     public String generateImage(@ToolParam(description = "图片生成 JSON 参数") String requestJson) {
         try {
             var request = objectMapper.readValue(requestJson, ImageGenerateRequest.class);
-            var safety = review(IMAGE_TOOL, "IMAGE_GENERATION", request.prompt(), Map.of("model", value(request.model())));
+            var safety =
+                    review(
+                            IMAGE_TOOL,
+                            "IMAGE_GENERATION",
+                            request.prompt(),
+                            Map.of("model", value(request.model())));
             if (!safety.allowed()) {
-                return blockedBySafety(IMAGE_TOOL, safety.code(), safety.message(), safety.reviewId());
+                return blockedBySafety(
+                        IMAGE_TOOL, safety.code(), safety.message(), safety.reviewId());
             }
             var userId = operatorContext.currentOwnerId().orElseThrow();
-            var imageId = aiImageService.draw(userId, request.prompt(), request.width(), request.height(), request.model());
-            return asJson(ToolCallResult.success(
-                    IMAGE_TOOL,
-                    objectMapper.writeValueAsString(Map.of("imageId", imageId, "status", "PENDING"))));
+            var imageId =
+                    aiImageService.draw(
+                            userId,
+                            request.prompt(),
+                            request.width(),
+                            request.height(),
+                            request.model());
+            return asJson(
+                    ToolCallResult.success(
+                            IMAGE_TOOL,
+                            objectMapper.writeValueAsString(
+                                    Map.of("imageId", imageId, "status", "PENDING"))));
         } catch (Exception ex) {
             return asJson(ToolCallResult.error(IMAGE_TOOL, "GENERATION_ERROR", ex.getMessage()));
         }
     }
 
-    @Tool(description = "生成视频。参数为 JSON：prompt 必填，imageUrl/referenceImageUrls/model/resolution/ratio/duration/seed 可选。")
+    @Tool(
+            description =
+                    "生成视频。参数为 JSON：prompt 必填，imageUrl/referenceImageUrls/model/resolution/ratio/duration/seed 可选。")
     public String generateVideo(@ToolParam(description = "视频生成 JSON 参数") String requestJson) {
         try {
             var service = videoGenerationService.getIfAvailable();
@@ -61,9 +77,15 @@ public class ContentGenerationTool {
                 return asJson(ToolCallResult.error(VIDEO_TOOL, "TOOL_UNAVAILABLE", "视频生成服务未启用"));
             }
             var request = objectMapper.readValue(requestJson, VideoGenerateRequest.class);
-            var safety = review(VIDEO_TOOL, "VIDEO_GENERATION", request.prompt(), Map.of("model", value(request.model())));
+            var safety =
+                    review(
+                            VIDEO_TOOL,
+                            "VIDEO_GENERATION",
+                            request.prompt(),
+                            Map.of("model", value(request.model())));
             if (!safety.allowed()) {
-                return blockedBySafety(VIDEO_TOOL, safety.code(), safety.message(), safety.reviewId());
+                return blockedBySafety(
+                        VIDEO_TOOL, safety.code(), safety.message(), safety.reviewId());
             }
             var taskId =
                     service.submit(
@@ -76,9 +98,11 @@ public class ContentGenerationTool {
                                     request.ratio(),
                                     request.duration(),
                                     request.seed()));
-            return asJson(ToolCallResult.success(
-                    VIDEO_TOOL,
-                    objectMapper.writeValueAsString(Map.of("taskId", taskId, "status", "PENDING"))));
+            return asJson(
+                    ToolCallResult.success(
+                            VIDEO_TOOL,
+                            objectMapper.writeValueAsString(
+                                    Map.of("taskId", taskId, "status", "PENDING"))));
         } catch (Exception ex) {
             return asJson(ToolCallResult.error(VIDEO_TOOL, "GENERATION_ERROR", ex.getMessage()));
         }
@@ -87,7 +111,13 @@ public class ContentGenerationTool {
     private com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult review(
             String toolName, String category, String prompt, Map<String, Object> metadata) {
         return contentSafetyService.reviewBeforeGeneration(
-                new ContentSafetyRequest(toolName, category, null, operatorContext.currentOwnerId().orElse(null), prompt, metadata));
+                new ContentSafetyRequest(
+                        toolName,
+                        category,
+                        null,
+                        operatorContext.currentOwnerId().orElse(null),
+                        prompt,
+                        metadata));
     }
 
     private String blockedBySafety(String toolName, String code, String message, String reviewId) {
@@ -109,7 +139,8 @@ public class ContentGenerationTool {
         return value == null ? "" : value;
     }
 
-    public record ImageGenerateRequest(String prompt, Integer width, Integer height, String model) {}
+    public record ImageGenerateRequest(
+            String prompt, Integer width, Integer height, String model) {}
 
     public record VideoGenerateRequest(
             String prompt,

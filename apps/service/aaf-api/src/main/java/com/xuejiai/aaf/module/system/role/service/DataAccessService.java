@@ -126,8 +126,7 @@ public class DataAccessService
     /**
      * 构建行级数据权限 Specification。
      *
-     * <p>实体完全没有配置规则时返回 null，调用方跳过 L3；实体存在规则但当前用户角色无匹配规则时返回 1=0，
-     * 让列表为空、详情/更新/删除统一表现为 404。
+     * <p>实体完全没有配置规则时返回 null，调用方跳过 L3；实体存在规则但当前用户角色无匹配规则时返回 1=0， 让列表为空、详情/更新/删除统一表现为 404。
      */
     @Override
     public <T> Specification<T> buildAccessSpec(String entitySlug, Long userId) {
@@ -183,10 +182,16 @@ public class DataAccessService
                         .filter(java.util.Objects::nonNull)
                         .max(Integer::compareTo)
                         .orElse(0);
-        return versionService.ruleVersion(entitySlug) + ":" + ruleVersion + ":" + roleCodes.hashCode();
+        return versionService.ruleVersion(entitySlug)
+                + ":"
+                + ruleVersion
+                + ":"
+                + roleCodes.hashCode();
     }
 
-    /** @deprecated 请使用 {@link #buildAccessSpec(String, Long)}，名称更准确地表达行级数据权限语义。 */
+    /**
+     * @deprecated 请使用 {@link #buildAccessSpec(String, Long)}，名称更准确地表达行级数据权限语义。
+     */
     @Deprecated(forRemoval = false)
     public <T> Specification<T> buildSpecification(String entitySlug, Long userId) {
         return buildAccessSpec(entitySlug, userId);
@@ -203,7 +208,8 @@ public class DataAccessService
     private boolean isSuperAdmin(Set<String> roleCodes) {
         return roleCodes.stream()
                 .map(code -> code == null ? "" : code.trim())
-                .anyMatch(code -> "SUPER_ADMIN".equalsIgnoreCase(code) || "super_admin".equals(code));
+                .anyMatch(
+                        code -> "SUPER_ADMIN".equalsIgnoreCase(code) || "super_admin".equals(code));
     }
 
     private boolean matchesRole(DataAccessRule rule, Set<String> userRoleCodes) {
@@ -279,7 +285,8 @@ public class DataAccessService
             CriteriaBuilder cb,
             Map<String, Object> userContext) {
         try {
-            return buildPredicate(objectMapper.readTree(rule.getCondition()), root, cb, userContext);
+            return buildPredicate(
+                    objectMapper.readTree(rule.getCondition()), root, cb, userContext);
         } catch (Exception e) {
             log.warn("解析规则条件失败, ruleId={}: {}", rule.getId(), e.getMessage());
             return null;
@@ -359,7 +366,9 @@ public class DataAccessService
             return null;
         }
         var expression = path.as((Class<? extends Comparable>) value.getClass());
-        return greaterThan ? cb.greaterThan(expression, comparable) : cb.lessThan(expression, comparable);
+        return greaterThan
+                ? cb.greaterThan(expression, comparable)
+                : cb.lessThan(expression, comparable);
     }
 
     private String text(JsonNode node, String fieldName) {
@@ -368,7 +377,8 @@ public class DataAccessService
     }
 
     /** 解析 $user.xxx 表达式为实际值，并按字段类型做基础转换。 */
-    private Object resolveValue(JsonNode valueNode, Map<String, Object> userContext, Class<?> targetType) {
+    private Object resolveValue(
+            JsonNode valueNode, Map<String, Object> userContext, Class<?> targetType) {
         if (valueNode == null || valueNode.isNull()) {
             return null;
         }

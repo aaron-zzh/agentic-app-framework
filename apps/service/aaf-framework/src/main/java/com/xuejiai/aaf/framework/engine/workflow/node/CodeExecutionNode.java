@@ -17,11 +17,12 @@ import lombok.extern.slf4j.Slf4j;
  * <p>BPMN 用法：{@code flowable:delegateExpression="${codeExecutionNode}"}
  *
  * <p>流程变量：
+ *
  * <ul>
- *   <li>code（必填）——待执行代码</li>
- *   <li>language（必填）——语言类型：js/python</li>
- *   <li>timeout（可选，默认30）——超时秒数</li>
- *   <li>output/success/error（节点写入）</li>
+ *   <li>code（必填）——待执行代码
+ *   <li>language（必填）——语言类型：js/python
+ *   <li>timeout（可选，默认30）——超时秒数
+ *   <li>output/success/error（节点写入）
  * </ul>
  */
 @Slf4j
@@ -35,15 +36,19 @@ public class CodeExecutionNode implements JavaDelegate {
     public void execute(DelegateExecution execution) {
         var code = (String) execution.getVariable("code");
         var language = (String) execution.getVariable("language");
-        var timeoutSec = execution.getVariable("timeout") != null
-                ? ((Number) execution.getVariable("timeout")).longValue() : 30L;
+        var timeoutSec =
+                execution.getVariable("timeout") != null
+                        ? ((Number) execution.getVariable("timeout")).longValue()
+                        : 30L;
         var timeout = Duration.ofSeconds(timeoutSec);
 
-        var result = switch (language.toLowerCase()) {
-            case "python" -> sandbox.executePython(code, timeout);
-            case "js", "javascript" -> sandbox.executeShell("node -e " + escapeForShell(code), timeout);
-            default -> ScriptSandbox.ScriptResult.error("不支持的语言: " + language);
-        };
+        var result =
+                switch (language.toLowerCase()) {
+                    case "python" -> sandbox.executePython(code, timeout);
+                    case "js", "javascript" ->
+                            sandbox.executeShell("node -e " + escapeForShell(code), timeout);
+                    default -> ScriptSandbox.ScriptResult.error("不支持的语言: " + language);
+                };
 
         execution.setVariable("output", result.stdout());
         execution.setVariable("success", result.success());

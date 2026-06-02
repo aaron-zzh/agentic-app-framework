@@ -26,7 +26,8 @@ public class DeveloperProxyService {
         var parent =
                 accountRepository
                         .findById(parentDeveloperId)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "上级开发者不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "上级开发者不存在"));
         if (!Boolean.TRUE.equals(parent.getAllowSubProxy())) {
             throw new BusinessException(GlobalErrorCode.FORBIDDEN, "当前开发者未授权子代理能力");
         }

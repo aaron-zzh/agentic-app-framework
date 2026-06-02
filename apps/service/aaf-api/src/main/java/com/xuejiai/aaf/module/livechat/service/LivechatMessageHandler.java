@@ -4,7 +4,6 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
 import com.xuejiai.aaf.common.enums.livechat.SenderTypeEnum;
-import com.xuejiai.aaf.common.enums.livechat.SessionStatusEnum;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.service.MessageHandler;
 
@@ -14,12 +13,12 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 客服消息处理器——接入渠道消息路由。
  *
- * <p>实现 channel 模块的 MessageHandler 接口，order=100（小于 DefaultMessageHandler 的 MAX_VALUE）。
- * 接收入站消息后：
+ * <p>实现 channel 模块的 MessageHandler 接口，order=100（小于 DefaultMessageHandler 的 MAX_VALUE）。 接收入站消息后：
+ *
  * <ol>
- *   <li>获取或创建会话</li>
- *   <li>存储用户消息</li>
- *   <li>根据会话状态路由：BOT→智能客服回复，ACTIVE→转发给坐席（异步通知）</li>
+ *   <li>获取或创建会话
+ *   <li>存储用户消息
+ *   <li>根据会话状态路由：BOT→智能客服回复，ACTIVE→转发给坐席（异步通知）
  * </ol>
  */
 @Slf4j
@@ -38,8 +37,8 @@ public class LivechatMessageHandler implements MessageHandler {
 
     @Override
     public UnifiedMessage handle(UnifiedMessage message) {
-        var session = sessionService.getOrCreateSession(
-                message.externalUserId(), message.channelType());
+        var session =
+                sessionService.getOrCreateSession(message.externalUserId(), message.channelType());
 
         // 存储用户消息
         sessionService.saveMessage(

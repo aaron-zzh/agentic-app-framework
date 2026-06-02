@@ -12,9 +12,7 @@ import com.xuejiai.aaf.module.ai.chat.service.TaskEventStreamService;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 任务执行可观测接口——事件日志查询 + SSE 实时推送。
- */
+/** 任务执行可观测接口——事件日志查询 + SSE 实时推送。 */
 @RestController
 @RequestMapping("/api/chat/tasks")
 @RequiredArgsConstructor

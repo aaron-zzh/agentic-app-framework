@@ -14,10 +14,7 @@ import com.xuejiai.aaf.module.customerservice.repository.WecomKfAccountBindingRe
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 消息处理器：企微客服渠道 → Assistant 实例。
- * 优先从数据库读取绑定关系（前端可配置），降级到 yaml 配置。
- */
+/** 消息处理器：企微客服渠道 → Assistant 实例。 优先从数据库读取绑定关系（前端可配置），降级到 yaml 配置。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor

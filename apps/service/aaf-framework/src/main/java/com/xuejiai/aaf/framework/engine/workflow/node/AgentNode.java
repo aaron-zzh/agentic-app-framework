@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionRequest;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionTarget;
@@ -24,17 +25,18 @@ import lombok.extern.slf4j.Slf4j;
  * <p>BPMN 用法：{@code flowable:delegateExpression="${agentNode}"}
  *
  * <p>流程变量：
+ *
  * <ul>
- *   <li>agentId（必填）——目标 Agent 标识</li>
- *   <li>input（必填）——输入文本</li>
- *   <li>promptOverride（可选）——覆盖 Agent 默认 Prompt</li>
- *   <li>modelId（可选）——指定模型</li>
- *   <li>temperature（可选）——温度参数</li>
- *   <li>maxTokens（可选）——最大 Token 数</li>
- *   <li>tools（可选）——逗号分隔工具名列表</li>
- *   <li>inputMapping（可选）——JSON 格式输入映射</li>
- *   <li>outputMapping（可选）——JSON 格式输出映射</li>
- *   <li>output/success/error（节点写入）</li>
+ *   <li>agentId（必填）——目标 Agent 标识
+ *   <li>input（必填）——输入文本
+ *   <li>promptOverride（可选）——覆盖 Agent 默认 Prompt
+ *   <li>modelId（可选）——指定模型
+ *   <li>temperature（可选）——温度参数
+ *   <li>maxTokens（可选）——最大 Token 数
+ *   <li>tools（可选）——逗号分隔工具名列表
+ *   <li>inputMapping（可选）——JSON 格式输入映射
+ *   <li>outputMapping（可选）——JSON 格式输出映射
+ *   <li>output/success/error（节点写入）
  * </ul>
  */
 @Slf4j
@@ -55,8 +57,11 @@ public class AgentNode implements JavaDelegate {
         // 推送节点开始事件
         var runCtx = AgentRunContextHolder.current().orElse(null);
         if (runCtx != null) {
-            agentRunEventPublisher.publish(runCtx, AgentRunEventType.SUB_AGENT_STARTED,
-                    "工作流节点执行", "Agent: " + agentId,
+            agentRunEventPublisher.publish(
+                    runCtx,
+                    AgentRunEventType.SUB_AGENT_STARTED,
+                    "工作流节点执行",
+                    "Agent: " + agentId,
                     Map.of("nodeId", nodeId, "agentId", agentId));
         }
 
@@ -99,30 +104,32 @@ public class AgentNode implements JavaDelegate {
 
         // 推送节点完成事件
         if (runCtx != null) {
-            agentRunEventPublisher.publish(runCtx, AgentRunEventType.SUB_AGENT_COMPLETED,
-                    "工作流节点完成", result.success() ? "成功" : "失败",
+            agentRunEventPublisher.publish(
+                    runCtx,
+                    AgentRunEventType.SUB_AGENT_COMPLETED,
+                    "工作流节点完成",
+                    result.success() ? "成功" : "失败",
                     Map.of("nodeId", nodeId, "success", result.success()));
         }
     }
 
-    /**
-     * 解析输入——支持 inputMapping 从流程变量组装输入。
-     */
+    /** 解析输入——支持 inputMapping 从流程变量组装输入。 */
     private String resolveInput(DelegateExecution execution) {
         var inputMapping = (String) execution.getVariable("inputMapping");
         if (inputMapping == null) {
             return (String) execution.getVariable("input");
         }
         try {
-            Map<String, String> mapping = objectMapper.readValue(
-                    inputMapping, new TypeReference<>() {});
+            Map<String, String> mapping =
+                    objectMapper.readValue(inputMapping, new TypeReference<>() {});
             var sb = new StringBuilder();
-            mapping.forEach((key, varName) -> {
-                var value = execution.getVariable(varName);
-                if (value != null) {
-                    sb.append(key).append(": ").append(value).append("\n");
-                }
-            });
+            mapping.forEach(
+                    (key, varName) -> {
+                        var value = execution.getVariable(varName);
+                        if (value != null) {
+                            sb.append(key).append(": ").append(value).append("\n");
+                        }
+                    });
             return sb.toString().trim();
         } catch (Exception e) {
             log.warn("Agent 节点 inputMapping 解析失败，使用原始 input", e);
@@ -130,26 +137,25 @@ public class AgentNode implements JavaDelegate {
         }
     }
 
-    /**
-     * 应用输出映射——将 output 按 outputMapping 写入多个流程变量。
-     */
+    /** 应用输出映射——将 output 按 outputMapping 写入多个流程变量。 */
     private void applyOutputMapping(DelegateExecution execution, String output) {
         var outputMapping = (String) execution.getVariable("outputMapping");
         if (outputMapping == null || output == null) {
             return;
         }
         try {
-            Map<String, String> mapping = objectMapper.readValue(
-                    outputMapping, new TypeReference<>() {});
+            Map<String, String> mapping =
+                    objectMapper.readValue(outputMapping, new TypeReference<>() {});
             // 尝试将 output 解析为 JSON 对象
-            Map<String, Object> outputObj = objectMapper.readValue(
-                    output, new TypeReference<>() {});
-            mapping.forEach((outputKey, varName) -> {
-                var value = outputObj.get(outputKey);
-                if (value != null) {
-                    execution.setVariable(varName, value.toString());
-                }
-            });
+            Map<String, Object> outputObj =
+                    objectMapper.readValue(output, new TypeReference<>() {});
+            mapping.forEach(
+                    (outputKey, varName) -> {
+                        var value = outputObj.get(outputKey);
+                        if (value != null) {
+                            execution.setVariable(varName, value.toString());
+                        }
+                    });
         } catch (Exception e) {
             log.warn("Agent 节点 outputMapping 解析失败，跳过映射", e);
         }

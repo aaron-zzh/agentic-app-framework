@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.billing.controller;
 
+import java.util.List;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,8 +15,6 @@ import com.xuejiai.aaf.module.billing.vo.SubscriptionVO;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
-import java.util.List;
 
 /** 订阅管理接口 */
 @RestController("billingSubscriptionController")
@@ -37,7 +37,8 @@ public class SubscriptionController {
     @PostMapping("/subscribe")
     public Result<Long> subscribe(
             @RequestParam(required = false) Long userId, @Valid @RequestBody SubscribeDTO dto) {
-        var recordId = subscriptionService.subscribe(ownerId(userId), dto.planCode(), dto.channelCode());
+        var recordId =
+                subscriptionService.subscribe(ownerId(userId), dto.planCode(), dto.channelCode());
         return Result.success(recordId);
     }
 
@@ -49,13 +50,14 @@ public class SubscriptionController {
             return Result.success(null);
         }
         var plan = planRepository.findById(sub.getPlanId()).orElse(null);
-        return Result.success(new SubscriptionVO(
-                sub.getId(),
-                plan != null ? plan.getCode() : null,
-                plan != null ? plan.getName() : null,
-                sub.getStartAt(),
-                sub.getEndAt(),
-                sub.getStatus()));
+        return Result.success(
+                new SubscriptionVO(
+                        sub.getId(),
+                        plan != null ? plan.getCode() : null,
+                        plan != null ? plan.getName() : null,
+                        sub.getStartAt(),
+                        sub.getEndAt(),
+                        sub.getStatus()));
     }
 
     private Long ownerId(Long fallbackUserId) {

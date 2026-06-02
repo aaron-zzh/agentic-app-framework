@@ -15,7 +15,9 @@ import lombok.Getter;
 public class SubTaskContext {
 
     public enum Status {
-        RUNNING, DONE, FAILED
+        RUNNING,
+        DONE,
+        FAILED
     }
 
     private final String taskId;
@@ -69,11 +71,12 @@ public class SubTaskContext {
 
     /** 从 Checkpoint 状态恢复 */
     public static SubTaskContext fromCheckpointState(Map<String, Object> state) {
-        var ctx = new SubTaskContext(
-                (String) state.get("taskId"),
-                (String) state.get("parentSessionId"),
-                (String) state.get("role"),
-                (String) state.get("input"));
+        var ctx =
+                new SubTaskContext(
+                        (String) state.get("taskId"),
+                        (String) state.get("parentSessionId"),
+                        (String) state.get("role"),
+                        (String) state.get("input"));
         ctx.status = Status.valueOf((String) state.get("status"));
         ctx.result = (String) state.get("result");
         ctx.checkpointId = (String) state.get("checkpointId");

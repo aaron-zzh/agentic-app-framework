@@ -1,20 +1,23 @@
 package com.xuejiai.aaf.module.billing.domain;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.type.SqlTypes;
 
 /** 成长等级（免费线，按 exp 自动升降） */
 @Getter
 @Setter
 @Entity
 @Table(name = "level")
-@SQLDelete(sql = "UPDATE level SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE level SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class Level extends BaseEntity {
 
     /** 等级编码（L0/L1/L2） */

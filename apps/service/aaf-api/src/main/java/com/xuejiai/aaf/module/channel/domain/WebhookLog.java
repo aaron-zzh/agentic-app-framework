@@ -22,8 +22,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "webhook_log")
 @SQLDelete(
-        sql =
-                "UPDATE webhook_log SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+        sql = "UPDATE webhook_log SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class WebhookLog extends BaseEntity {
 
     /** 关联 webhook_config ID */

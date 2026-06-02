@@ -51,7 +51,8 @@ public record AiBusinessActionResult(
                 false,
                 "INSUFFICIENT_CREDITS",
                 message,
-                java.util.Map.of("entitlementCode", entitlementCode, "estimatedCost", estimatedCost),
+                java.util.Map.of(
+                        "entitlementCode", entitlementCode, "estimatedCost", estimatedCost),
                 true,
                 false,
                 new Authorization("BILLING_REQUIRED", null, "用户充值/升级"),

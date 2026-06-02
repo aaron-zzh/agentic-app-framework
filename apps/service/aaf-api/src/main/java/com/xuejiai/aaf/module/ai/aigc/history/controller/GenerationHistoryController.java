@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.ai.aigc.history.domain.GenerationHistory;
-import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.history.repository.GenerationHistoryRepository;
+import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

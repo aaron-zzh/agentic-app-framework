@@ -2,9 +2,9 @@ package com.xuejiai.aaf.module.company.erp.repository;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.company.erp.domain.CompanyResource;
-
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.xuejiai.aaf.module.company.erp.domain.CompanyResource;
 
 public interface CompanyResourceRepository extends JpaRepository<CompanyResource, Long> {
 

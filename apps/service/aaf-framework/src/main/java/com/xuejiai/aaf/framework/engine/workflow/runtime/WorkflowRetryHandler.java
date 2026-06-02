@@ -7,9 +7,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 工作流重试处理器——支持配置最大重试次数和退避策略。
- */
+/** 工作流重试处理器——支持配置最大重试次数和退避策略。 */
 @Slf4j
 @Component
 public class WorkflowRetryHandler {
@@ -18,9 +16,8 @@ public class WorkflowRetryHandler {
     private static final long DEFAULT_BACKOFF_MS = 1000;
 
     /** 可重试的异常类型 */
-    private static final Set<Class<? extends Exception>> RETRYABLE = Set.of(
-            java.io.IOException.class,
-            java.util.concurrent.TimeoutException.class);
+    private static final Set<Class<? extends Exception>> RETRYABLE =
+            Set.of(java.io.IOException.class, java.util.concurrent.TimeoutException.class);
 
     /**
      * 判断是否应该重试。
@@ -37,9 +34,7 @@ public class WorkflowRetryHandler {
         return RETRYABLE.stream().anyMatch(cls -> cls.isInstance(exception));
     }
 
-    /**
-     * 带重试执行——使用默认配置。
-     */
+    /** 带重试执行——使用默认配置。 */
     public <T> T executeWithRetry(Supplier<T> action) {
         return executeWithRetry(action, DEFAULT_MAX_RETRIES, DEFAULT_BACKOFF_MS);
     }

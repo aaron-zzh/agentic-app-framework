@@ -11,9 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 会话转接记录。
- */
+/** 会话转接记录。 */
 @Getter
 @Setter
 @Entity

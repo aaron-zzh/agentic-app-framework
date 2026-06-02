@@ -22,5 +22,4 @@ public record WorkflowExecutionLog(
         long durationMs,
         String status,
         String error,
-        Instant timestamp) {
-}
+        Instant timestamp) {}

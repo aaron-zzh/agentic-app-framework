@@ -9,7 +9,8 @@ import com.xuejiai.aaf.module.ai.action.domain.AiActionCatalog;
 
 public interface AiActionCatalogRepository extends JpaRepository<AiActionCatalog, Long> {
 
-    Optional<AiActionCatalog> findByEntitySlugAndActionKeyAndDeletedFalse(String entitySlug, String actionKey);
+    Optional<AiActionCatalog> findByEntitySlugAndActionKeyAndDeletedFalse(
+            String entitySlug, String actionKey);
 
     List<AiActionCatalog> findByEnabledTrueAndDeletedFalseOrderBySortOrderAscIdAsc();
 }

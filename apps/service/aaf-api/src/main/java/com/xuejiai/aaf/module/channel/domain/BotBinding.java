@@ -11,8 +11,7 @@ import lombok.Setter;
 /**
  * 机器人绑定——将平台上的机器人实例绑定到 Assistant。
  *
- * <p>一个 {@link ChannelPlatform} 下可创建多个 BotBinding，
- * 实现"一个钉钉应用 → 多个机器人 → 各绑定不同 Assistant"。
+ * <p>一个 {@link ChannelPlatform} 下可创建多个 BotBinding， 实现"一个钉钉应用 → 多个机器人 → 各绑定不同 Assistant"。
  */
 @Getter
 @Setter

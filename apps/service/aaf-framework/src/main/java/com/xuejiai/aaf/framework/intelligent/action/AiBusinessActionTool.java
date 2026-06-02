@@ -20,7 +20,9 @@ public class AiBusinessActionTool {
 
     @Tool(description = "代表当前用户执行已开放实体的受控业务动作。")
     public String executeBusinessAction(
-            @ToolParam(description = "JSON 请求，包含 action、entity、params，可选 sessionId/confidence/verifiable")
+            @ToolParam(
+                            description =
+                                    "JSON 请求，包含 action、entity、params，可选 sessionId/confidence/verifiable")
                     String requestJson) {
         try {
             var request = objectMapper.readValue(requestJson, AiBusinessActionRequest.class);

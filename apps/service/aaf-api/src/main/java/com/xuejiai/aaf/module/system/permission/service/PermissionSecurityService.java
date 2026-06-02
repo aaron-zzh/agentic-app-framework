@@ -71,6 +71,7 @@ public class PermissionSecurityService implements FunctionPermissionChecker {
     private boolean hasSuperAdmin(List<Long> roleIds) {
         return roleRepository.findAllById(roleIds).stream()
                 .map(Role::getCode)
-                .anyMatch(code -> "SUPER_ADMIN".equalsIgnoreCase(code) || "super_admin".equals(code));
+                .anyMatch(
+                        code -> "SUPER_ADMIN".equalsIgnoreCase(code) || "super_admin".equals(code));
     }
 }

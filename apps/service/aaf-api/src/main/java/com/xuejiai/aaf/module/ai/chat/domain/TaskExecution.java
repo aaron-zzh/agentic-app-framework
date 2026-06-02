@@ -13,9 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 任务执行实例——一个 ChatTask 可多次执行（重试），支持主/子关系（多实例协调）。
- */
+/** 任务执行实例——一个 ChatTask 可多次执行（重试），支持主/子关系（多实例协调）。 */
 @Getter
 @Setter
 @Entity

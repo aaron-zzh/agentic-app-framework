@@ -1,18 +1,21 @@
 package com.xuejiai.aaf.module.company.planning.domain;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 企业战略规划 */
 @Getter
 @Setter
 @Entity
 @Table(name = "company_plan")
-@SQLDelete(sql = "UPDATE company_plan SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE company_plan SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class CompanyPlan extends BaseEntity {
 
     /** 规划名称 */

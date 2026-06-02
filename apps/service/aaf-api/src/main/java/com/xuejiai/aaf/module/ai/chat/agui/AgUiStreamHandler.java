@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
@@ -19,12 +20,11 @@ import reactor.core.publisher.Flux;
 /**
  * Spring AI 流式响应 → AG-UI 协议事件流适配器。
  *
- * <p>将 {@code ResilientChatService} 返回的 {@code Flux<ChatResponse>} 转换为
- * AG-UI 标准 SSE 事件序列，供 {@code AiChatHandler} 和 {@code AgUiChatController} 使用。
+ * <p>将 {@code ResilientChatService} 返回的 {@code Flux<ChatResponse>} 转换为 AG-UI 标准 SSE 事件序列，供 {@code
+ * AiChatHandler} 和 {@code AgUiChatController} 使用。
  *
- * <p>适用于 Spring AI 直连链路（简单对话场景）。
- * 需要 Agent 认知循环（ReAct 推理 + 工具调用）的复杂任务请使用
- * AgentScope AG-UI 端点 {@code /agui/runs}。
+ * <p>适用于 Spring AI 直连链路（简单对话场景）。 需要 Agent 认知循环（ReAct 推理 + 工具调用）的复杂任务请使用 AgentScope AG-UI 端点 {@code
+ * /agui/runs}。
  *
  * @author AaronZZH & Kiro
  */
@@ -95,8 +95,7 @@ public class AgUiStreamHandler {
                                     var toolName = toolCall.name() != null ? toolCall.name() : "";
                                     sendEvent(
                                             emitter,
-                                            AgUiEvent.toolCallStart(
-                                                    runId, toolCallId, toolName));
+                                            AgUiEvent.toolCallStart(runId, toolCallId, toolName));
                                     agentRunEventPublisher.publish(
                                             new AgentRunContext(runId, null, null),
                                             AgentRunEventType.TOOL_CALL_STARTED,

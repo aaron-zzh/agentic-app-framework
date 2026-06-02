@@ -10,8 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageEditRequest;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
@@ -74,9 +72,7 @@ public class MediaAssetService {
      */
     @Transactional(readOnly = true)
     public List<MediaAssetVO> search(Long userId, String keyword) {
-        return assetRepository.searchByKeyword(userId, keyword).stream()
-                .map(this::toVO)
-                .toList();
+        return assetRepository.searchByKeyword(userId, keyword).stream().map(this::toVO).toList();
     }
 
     /**
@@ -198,8 +194,7 @@ public class MediaAssetService {
         variant.setUrl(result.url());
         variant.setWidth(original.getWidth());
         variant.setHeight(original.getHeight());
-        variant.setGenerationParams(
-                "{\"prompt\":\"%s\"}".formatted(prompt.replace("\"", "\\\"")));
+        variant.setGenerationParams("{\"prompt\":\"%s\"}".formatted(prompt.replace("\"", "\\\"")));
         autoTag(variant);
         variant = assetRepository.save(variant);
 
@@ -207,8 +202,7 @@ public class MediaAssetService {
         var relation = new MediaAssetVariant();
         relation.setOriginalAssetId(original.getId());
         relation.setVariantAssetId(variant.getId());
-        relation.setParamsDiff(
-                "{\"newPrompt\":\"%s\"}".formatted(prompt.replace("\"", "\\\"")));
+        relation.setParamsDiff("{\"newPrompt\":\"%s\"}".formatted(prompt.replace("\"", "\\\"")));
         variantRepository.save(relation);
 
         return toVO(variant);
@@ -241,8 +235,7 @@ public class MediaAssetService {
                 .filter(v -> v.getVariantAssetId().equals(variantId))
                 .findFirst()
                 .map(MediaAssetVariant::getParamsDiff)
-                .orElseThrow(
-                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "变体关联不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "变体关联不存在"));
     }
 
     // ========== 内部方法 ==========

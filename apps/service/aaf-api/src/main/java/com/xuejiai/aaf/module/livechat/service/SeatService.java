@@ -48,9 +48,7 @@ public class SeatService {
         return allAvailable.isEmpty() ? Optional.empty() : Optional.of(allAvailable.getFirst());
     }
 
-    /**
-     * 坐席接入会话。
-     */
+    /** 坐席接入会话。 */
     @Transactional
     public void acceptSession(Long seatId, Long sessionId) {
         var seat = findSeatById(seatId);
@@ -65,46 +63,51 @@ public class SeatService {
         log.info("坐席接入会话: seatId={}, sessionId={}", seatId, sessionId);
     }
 
-    /**
-     * 坐席上线。
-     */
+    /** 坐席上线。 */
     @Transactional
     public void goOnline(Long userId) {
-        var seat = seatRepository.findByUserId(userId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "坐席不存在"));
+        var seat =
+                seatRepository
+                        .findByUserId(userId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "坐席不存在"));
         seat.setStatus(SeatStatusEnum.ONLINE);
         seatRepository.save(seat);
     }
 
-    /**
-     * 坐席离线。
-     */
+    /** 坐席离线。 */
     @Transactional
     public void goOffline(Long userId) {
-        var seat = seatRepository.findByUserId(userId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "坐席不存在"));
+        var seat =
+                seatRepository
+                        .findByUserId(userId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "坐席不存在"));
         seat.setStatus(SeatStatusEnum.OFFLINE);
         seatRepository.save(seat);
     }
 
-    /**
-     * 释放会话（会话关闭时调用）。
-     */
+    /** 释放会话（会话关闭时调用）。 */
     @Transactional
     public void releaseSession(Long staffId) {
-        seatRepository.findByUserId(staffId).ifPresent(seat -> {
-            seat.decrementSessions();
-            seatRepository.save(seat);
-        });
+        seatRepository
+                .findByUserId(staffId)
+                .ifPresent(
+                        seat -> {
+                            seat.decrementSessions();
+                            seatRepository.save(seat);
+                        });
     }
 
     private LivechatSeat findSeatById(Long id) {
-        return seatRepository.findById(id)
+        return seatRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "坐席不存在"));
     }
 
     private ChatSession findSessionById(Long id) {
-        return sessionRepository.findById(id)
+        return sessionRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "会话不存在"));
     }
 }

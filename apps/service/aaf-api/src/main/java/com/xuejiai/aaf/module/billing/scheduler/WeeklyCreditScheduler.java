@@ -17,8 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 每周积分发放定时任务。
  *
- * <p>每周一 00:01 为所有有积分账户的用户发放每周积分（规则 code=WEEKLY）。
- * 可通过系统配置 {@code member.weekly_grant_enabled} 关闭。
+ * <p>每周一 00:01 为所有有积分账户的用户发放每周积分（规则 code=WEEKLY）。 可通过系统配置 {@code member.weekly_grant_enabled} 关闭。
  */
 @Slf4j
 @Component
@@ -37,9 +36,7 @@ public class WeeklyCreditScheduler {
             return;
         }
 
-        List<Long> userIds = accountRepository.findAll().stream()
-                .map(a -> a.getUserId())
-                .toList();
+        List<Long> userIds = accountRepository.findAll().stream().map(a -> a.getUserId()).toList();
 
         int issued = 0;
         for (Long userId : userIds) {

@@ -12,5 +12,4 @@ public record EntitlementQuotaVO(
         long total,
         long used,
         long remain,
-        LocalDateTime nextResetAt) {
-}
+        LocalDateTime nextResetAt) {}

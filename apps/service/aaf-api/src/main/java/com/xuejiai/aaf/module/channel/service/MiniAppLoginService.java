@@ -7,10 +7,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.module.channel.vo.MiniAppLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppPhoneLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppSessionVO;
-import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.domain.UserOauth;
 import com.xuejiai.aaf.module.system.user.repository.UserOauthRepository;
@@ -24,8 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 微信小程序登录服务。
  *
- * <p>jscode2session → openid → 查/建 UserOauth + User → 签发 JWT。
- * 复用现有 UserOauth 表（provider='wechat_mini'）。
+ * <p>jscode2session → openid → 查/建 UserOauth + User → 签发 JWT。 复用现有 UserOauth
+ * 表（provider='wechat_mini'）。
  */
 @Slf4j
 @Service
@@ -68,10 +68,15 @@ public class MiniAppLoginService {
         User user;
         if (oauthOpt.isPresent()) {
             // 已绑定，直接获取用户
-            user = userRepository.findById(oauthOpt.get().getUserId())
-                    .orElseThrow(() -> new com.xuejiai.aaf.common.exception.BusinessException(
-                            com.xuejiai.aaf.common.exception.GlobalErrorCode.NOT_FOUND,
-                            "用户不存在"));
+            user =
+                    userRepository
+                            .findById(oauthOpt.get().getUserId())
+                            .orElseThrow(
+                                    () ->
+                                            new com.xuejiai.aaf.common.exception.BusinessException(
+                                                    com.xuejiai.aaf.common.exception.GlobalErrorCode
+                                                            .NOT_FOUND,
+                                                    "用户不存在"));
         } else {
             // 未绑定，自动创建用户 + 绑定
             user = createMiniAppUser(openid);
@@ -109,8 +114,8 @@ public class MiniAppLoginService {
     /**
      * 微信小程序手机号一键登录。
      *
-     * <p>前端通过 wx.getPhoneNumber 获取 phoneCode，通过 wx.login 获取 loginCode。
-     * 后端用 phoneCode 换取手机号，用 loginCode 换取 openid，然后查/建用户。
+     * <p>前端通过 wx.getPhoneNumber 获取 phoneCode，通过 wx.login 获取 loginCode。 后端用 phoneCode 换取手机号，用
+     * loginCode 换取 openid，然后查/建用户。
      */
     @Transactional
     public MiniAppSessionVO phoneLogin(MiniAppPhoneLoginDTO dto) {
@@ -145,10 +150,15 @@ public class MiniAppLoginService {
 
         User user;
         if (oauthOpt.isPresent()) {
-            user = userRepository.findById(oauthOpt.get().getUserId())
-                    .orElseThrow(() -> new com.xuejiai.aaf.common.exception.BusinessException(
-                            com.xuejiai.aaf.common.exception.GlobalErrorCode.NOT_FOUND,
-                            "用户不存在"));
+            user =
+                    userRepository
+                            .findById(oauthOpt.get().getUserId())
+                            .orElseThrow(
+                                    () ->
+                                            new com.xuejiai.aaf.common.exception.BusinessException(
+                                                    com.xuejiai.aaf.common.exception.GlobalErrorCode
+                                                            .NOT_FOUND,
+                                                    "用户不存在"));
             // 补充手机号
             if (user.getPhone() == null) {
                 user.setPhone(phoneNumber);

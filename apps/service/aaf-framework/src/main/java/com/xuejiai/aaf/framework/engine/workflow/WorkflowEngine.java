@@ -23,7 +23,8 @@ public interface WorkflowEngine {
             String taskName, String assignee, String outcome, String comment, long completedAtMs) {}
 
     /** 流程定义信息 */
-    record DefinitionInfo(String processKey, String name, int version, String id, boolean suspended) {}
+    record DefinitionInfo(
+            String processKey, String name, int version, String id, boolean suspended) {}
 
     /** 流程实例详情 */
     record InstanceInfo(

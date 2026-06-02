@@ -2,11 +2,11 @@ package com.xuejiai.aaf.module.company.planning.service;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.company.planning.domain.CompanyPlan;
-import com.xuejiai.aaf.module.company.planning.repository.CompanyPlanRepository;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.xuejiai.aaf.module.company.planning.domain.CompanyPlan;
+import com.xuejiai.aaf.module.company.planning.repository.CompanyPlanRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,8 +29,10 @@ public class CompanyPlanService {
 
     @Transactional
     public CompanyPlan updateStatus(Long id, String status) {
-        var plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("规划不存在: " + id));
+        var plan =
+                planRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("规划不存在: " + id));
         plan.setStatus(status);
         return planRepository.save(plan);
     }

@@ -50,14 +50,16 @@ public class AssistantSessionTrustService {
         if (sessionId == null || userId == null || toolName == null) {
             return false;
         }
-        return String.valueOf(userId).equals(redisTemplate.opsForValue().get(toolTrustKey(sessionId, toolName)));
+        return String.valueOf(userId)
+                .equals(redisTemplate.opsForValue().get(toolTrustKey(sessionId, toolName)));
     }
 
     public boolean isFullDelegated(String sessionId, Long userId) {
         if (sessionId == null || userId == null) {
             return false;
         }
-        return String.valueOf(userId).equals(redisTemplate.opsForValue().get(FULL_DELEGATION_PREFIX + sessionId));
+        return String.valueOf(userId)
+                .equals(redisTemplate.opsForValue().get(FULL_DELEGATION_PREFIX + sessionId));
     }
 
     private String toolTrustKey(String sessionId, String toolName) {

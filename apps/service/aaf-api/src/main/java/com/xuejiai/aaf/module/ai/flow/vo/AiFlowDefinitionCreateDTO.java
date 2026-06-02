@@ -7,13 +7,11 @@ import lombok.Data;
 @Data
 public class AiFlowDefinitionCreateDTO {
 
-    @NotBlank
-    private String name;
+    @NotBlank private String name;
 
     private String description;
 
-    @NotBlank
-    private String mode;
+    @NotBlank private String mode;
 
     private String definition = "{}";
 

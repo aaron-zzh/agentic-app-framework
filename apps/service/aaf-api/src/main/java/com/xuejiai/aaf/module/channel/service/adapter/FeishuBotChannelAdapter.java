@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageDirectionEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
@@ -26,8 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 飞书自建应用机器人渠道适配器。
  *
- * <p>接收事件订阅回调、消息发送（文本/Markdown/卡片）、签名验证。
- * 需配置 aaf.channel.feishu.enabled=true 激活。
+ * <p>接收事件订阅回调、消息发送（文本/Markdown/卡片）、签名验证。 需配置 aaf.channel.feishu.enabled=true 激活。
  */
 @Slf4j
 @Component
@@ -61,9 +61,13 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
                         MessageDirectionEnum.INBOUND,
                         MessageTypeEnum.EVENT,
                         "system",
-                        null, null,
-                        "url_verification", null,
-                        extra, rawPayload, LocalDateTime.now());
+                        null,
+                        null,
+                        "url_verification",
+                        null,
+                        extra,
+                        rawPayload,
+                        LocalDateTime.now());
             }
 
             // 事件订阅消息
@@ -89,12 +93,13 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
             extra.put("messageId", msgNode.path("message_id").asText(""));
             extra.put("chatType", msgNode.path("chat_type").asText(""));
 
-            var messageType = switch (msgType) {
-                case "text" -> MessageTypeEnum.TEXT;
-                case "post" -> MessageTypeEnum.MARKDOWN;
-                case "interactive" -> MessageTypeEnum.CARD;
-                default -> MessageTypeEnum.TEXT;
-            };
+            var messageType =
+                    switch (msgType) {
+                        case "text" -> MessageTypeEnum.TEXT;
+                        case "post" -> MessageTypeEnum.MARKDOWN;
+                        case "interactive" -> MessageTypeEnum.CARD;
+                        default -> MessageTypeEnum.TEXT;
+                    };
 
             return new UnifiedMessage(
                     ChannelTypeEnum.FEISHU,
@@ -118,9 +123,10 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
     @Override
     public void reply(UnifiedMessage message) {
         try {
-            var chatId = message.extra() != null
-                    ? (String) message.extra().getOrDefault("chatId", "")
-                    : "";
+            var chatId =
+                    message.extra() != null
+                            ? (String) message.extra().getOrDefault("chatId", "")
+                            : "";
             if (chatId == null || chatId.isBlank()) {
                 log.warn("飞书回复失败：无 chatId");
                 return;
@@ -129,7 +135,8 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
             var token = obtainTenantAccessToken();
             var body = buildSendBody(message, chatId);
 
-            restClientBuilder.build()
+            restClientBuilder
+                    .build()
                     .post()
                     .uri(SEND_MSG_URL + "?receive_id_type=chat_id")
                     .header("Authorization", "Bearer " + token)
@@ -137,8 +144,7 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception e) {
-            log.error("飞书回复失败: user={}, error={}",
-                    message.externalUserId(), e.getMessage());
+            log.error("飞书回复失败: user={}, error={}", message.externalUserId(), e.getMessage());
         }
     }
 
@@ -166,8 +172,7 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
         try {
             var content = timestamp + nonce + properties.feishu().encryptKey() + body;
             var mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(
-                    "".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec("".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             var hash = mac.doFinal(content.getBytes(StandardCharsets.UTF_8));
             var computed = bytesToHex(hash);
             return computed.equals(signature);
@@ -179,15 +184,19 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
 
     /** 获取 tenant_access_token */
     private String obtainTenantAccessToken() {
-        var body = Map.of(
-                "app_id", properties.feishu().appId(),
-                "app_secret", properties.feishu().appSecret());
-        var resp = restClientBuilder.build()
-                .post()
-                .uri("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
-                .body(body)
-                .retrieve()
-                .body(Map.class);
+        var body =
+                Map.of(
+                        "app_id", properties.feishu().appId(),
+                        "app_secret", properties.feishu().appSecret());
+        var resp =
+                restClientBuilder
+                        .build()
+                        .post()
+                        .uri(
+                                "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
+                        .body(body)
+                        .retrieve()
+                        .body(Map.class);
         return resp != null ? (String) resp.get("tenant_access_token") : "";
     }
 
@@ -197,9 +206,11 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
         return switch (message.messageType()) {
             case MARKDOWN -> {
                 body.put("msg_type", "post");
-                body.put("content", """
+                body.put(
+                        "content",
+                        """
                         {"zh_cn":{"title":"回复","content":[[{"tag":"text","text":"%s"}]]}}"""
-                        .formatted(message.content()));
+                                .formatted(message.content()));
                 yield body;
             }
             case CARD -> {
@@ -209,8 +220,11 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
             }
             default -> {
                 body.put("msg_type", "text");
-                body.put("content", """
-                        {"text":"%s"}""".formatted(message.content()));
+                body.put(
+                        "content",
+                        """
+                        {"text":"%s"}"""
+                                .formatted(message.content()));
                 yield body;
             }
         };

@@ -45,18 +45,27 @@ public class CreditController {
 
     @Operation(summary = "查询积分分组明细（按 batch_type 汇总）")
     @GetMapping("/groups")
-    public Result<java.util.List<CreditGroupVO>> getGroups(@RequestParam(required = false) Long userId) {
+    public Result<java.util.List<CreditGroupVO>> getGroups(
+            @RequestParam(required = false) Long userId) {
         var grouped = creditService.getGroupedBalance(ownerId(userId));
         // batch_type → 显示名映射
-        var labelMap = java.util.Map.of(
-                "SUBSCRIPTION", "套餐积分",
-                "TOPUP",        "购买积分",
-                "WEEKLY",       "每周积分",
-                "REWARD",       "奖励积分",
-                "MANUAL",       "额外赠送");
-        var groups = grouped.entrySet().stream()
-                .map(e -> new CreditGroupVO(e.getKey(), labelMap.getOrDefault(e.getKey(), e.getKey()), e.getValue(), null))
-                .toList();
+        var labelMap =
+                java.util.Map.of(
+                        "SUBSCRIPTION", "套餐积分",
+                        "TOPUP", "购买积分",
+                        "WEEKLY", "每周积分",
+                        "REWARD", "奖励积分",
+                        "MANUAL", "额外赠送");
+        var groups =
+                grouped.entrySet().stream()
+                        .map(
+                                e ->
+                                        new CreditGroupVO(
+                                                e.getKey(),
+                                                labelMap.getOrDefault(e.getKey(), e.getKey()),
+                                                e.getValue(),
+                                                null))
+                        .toList();
         return Result.success(groups);
     }
 

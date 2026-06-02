@@ -41,8 +41,8 @@ public class LicenseAspect {
 
     @Around(
             "@within(ownerRequired) && !@annotation(com.xuejiai.aaf.framework.security.license.LicenseOwnerRequired)")
-    public Object checkClassOwnerLicense(ProceedingJoinPoint pjp, LicenseOwnerRequired ownerRequired)
-            throws Throwable {
+    public Object checkClassOwnerLicense(
+            ProceedingJoinPoint pjp, LicenseOwnerRequired ownerRequired) throws Throwable {
         if (!License.get().isOwner()) {
             throw new LicenseRequiredException(
                     ownerRequired.value(), LicensePortal.UPGRADE_URL, "官方 owner 授权");

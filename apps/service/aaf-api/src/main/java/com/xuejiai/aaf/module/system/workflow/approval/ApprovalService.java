@@ -6,9 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.module.system.workflow.approval.ApprovalNodeConfig.AssigneeStrategy;
 import com.xuejiai.aaf.module.system.workflow.approval.ApprovalNodeConfig.EmptyAssigneeStrategy;
-import com.xuejiai.aaf.module.system.workflow.approval.ApprovalNodeConfig.TimeoutStrategy;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +32,8 @@ public class ApprovalService {
             ApprovalNodeConfig config, java.util.Map<String, Object> processVariables) {
         var assignees =
                 switch (config.assigneeStrategy()) {
-                    case FIXED_USER -> config.assignees() != null ? config.assignees() : List.<String>of();
+                    case FIXED_USER ->
+                            config.assignees() != null ? config.assignees() : List.<String>of();
                     case ROLE -> resolveByRole(config.roleKey());
                     case DEPARTMENT_HEAD -> resolveDepartmentHead(processVariables);
                     case INITIATOR_SELECT -> resolveInitiatorSelect(processVariables);
@@ -72,7 +71,8 @@ public class ApprovalService {
             case SKIP -> List.of();
             case ADMIN -> List.of("admin");
             case ERROR ->
-                    throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "审批人为空，无法继续流程");
+                    throw new BusinessException(
+                            GlobalErrorCode.INTERNAL_SERVER_ERROR, "审批人为空，无法继续流程");
         };
     }
 

@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  * 权益配额 AOP 切面——与四层权限平行。
  *
  * <p>执行顺序：RBAC(@PreAuthorize) → @Entitlement(本切面) → 方法执行 → 成功后扣减。
+ *
  * <p>方法抛异常时不扣减（保证幂等）。
  */
 @Slf4j
@@ -64,7 +65,9 @@ public class EntitlementAspect {
 
         var signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
-        var context = new MethodBasedEvaluationContext(null, method, joinPoint.getArgs(), paramDiscoverer);
+        var context =
+                new MethodBasedEvaluationContext(
+                        null, method, joinPoint.getArgs(), paramDiscoverer);
         var value = parser.parseExpression(costExpression).getValue(context);
         if (value instanceof Number num) {
             return num.longValue();

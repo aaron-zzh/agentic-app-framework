@@ -18,12 +18,13 @@ import lombok.extern.slf4j.Slf4j;
  * <p>BPMN 用法：{@code flowable:delegateExpression="${iterationNode}"}
  *
  * <p>流程变量：
+ *
  * <ul>
- *   <li>items（必填）——JSON 数组字符串</li>
- *   <li>maxIterations（可选，默认100）——最大迭代数</li>
- *   <li>currentItem（节点写入）——当前迭代项</li>
- *   <li>iterationIndex（节点写入）——当前迭代索引</li>
- *   <li>iterationResults（节点写入）——所有迭代结果的 JSON 数组</li>
+ *   <li>items（必填）——JSON 数组字符串
+ *   <li>maxIterations（可选，默认100）——最大迭代数
+ *   <li>currentItem（节点写入）——当前迭代项
+ *   <li>iterationIndex（节点写入）——当前迭代索引
+ *   <li>iterationResults（节点写入）——所有迭代结果的 JSON 数组
  * </ul>
  */
 @Slf4j
@@ -36,8 +37,10 @@ public class IterationNode implements JavaDelegate {
     @Override
     public void execute(DelegateExecution execution) {
         var itemsJson = (String) execution.getVariable("items");
-        var maxIterations = execution.getVariable("maxIterations") != null
-                ? ((Number) execution.getVariable("maxIterations")).intValue() : 100;
+        var maxIterations =
+                execution.getVariable("maxIterations") != null
+                        ? ((Number) execution.getVariable("maxIterations")).intValue()
+                        : 100;
 
         try {
             List<Object> items = objectMapper.readValue(itemsJson, new TypeReference<>() {});

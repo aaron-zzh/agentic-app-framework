@@ -1,8 +1,6 @@
 package com.xuejiai.aaf.module.system.workflow.approval;
 
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +43,8 @@ public class ApprovalPermissionService {
      * @return true=是代理人
      */
     public boolean isDelegateOf(Long currentUserId, Long delegatorId) {
-        return delegationService.findActiveDelegation(delegatorId)
+        return delegationService
+                .findActiveDelegation(delegatorId)
                 .map(d -> d.getDelegateId().equals(currentUserId))
                 .orElse(false);
     }
@@ -61,19 +60,29 @@ public class ApprovalPermissionService {
         var records = approvalRecordRepository.findByAssigneeOrderByOperationTimeDesc(assignee);
 
         long totalCount = records.size();
-        long approveCount = records.stream()
-                .filter(r -> r.getOperationType() == ApprovalRecord.OperationType.APPROVE)
-                .count();
-        long rejectCount = records.stream()
-                .filter(r -> r.getOperationType() == ApprovalRecord.OperationType.REJECT)
-                .count();
+        long approveCount =
+                records.stream()
+                        .filter(r -> r.getOperationType() == ApprovalRecord.OperationType.APPROVE)
+                        .count();
+        long rejectCount =
+                records.stream()
+                        .filter(r -> r.getOperationType() == ApprovalRecord.OperationType.REJECT)
+                        .count();
 
         // 计算平均处理时长（基于创建时间和操作时间的差值）
-        double avgProcessHours = records.stream()
-                .filter(r -> r.getCreateTime() != null && r.getOperationTime() != null)
-                .mapToLong(r -> ChronoUnit.MINUTES.between(r.getCreateTime(), r.getOperationTime()))
-                .average()
-                .orElse(0.0) / 60.0;
+        double avgProcessHours =
+                records.stream()
+                                .filter(
+                                        r ->
+                                                r.getCreateTime() != null
+                                                        && r.getOperationTime() != null)
+                                .mapToLong(
+                                        r ->
+                                                ChronoUnit.MINUTES.between(
+                                                        r.getCreateTime(), r.getOperationTime()))
+                                .average()
+                                .orElse(0.0)
+                        / 60.0;
 
         return new ApprovalStats(totalCount, approveCount, rejectCount, avgProcessHours);
     }

@@ -6,7 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "aaf.channel.wx")
 public record WechatChannelProperties(MpConfig mp, MiniConfig mini) {
 
-    public record MpConfig(boolean enabled, String appId, String secret, String token, String aesKey) {
+    public record MpConfig(
+            boolean enabled, String appId, String secret, String token, String aesKey) {
         public MpConfig {
             if (appId == null) appId = "";
             if (secret == null) secret = "";

@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.ai.chat.controller;
 
-import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +13,7 @@ import com.xuejiai.aaf.module.ai.chat.handler.AiChatHandler;
 import com.xuejiai.aaf.module.ai.chat.handler.UserChatHandler;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatRunRequest;
+import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

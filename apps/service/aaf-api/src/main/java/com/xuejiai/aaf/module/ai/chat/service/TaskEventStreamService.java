@@ -46,9 +46,7 @@ public class TaskEventStreamService {
 
         for (var emitter : emitters) {
             try {
-                emitter.send(SseEmitter.event()
-                        .name(event.getType())
-                        .data(event));
+                emitter.send(SseEmitter.event().name(event.getType()).data(event));
             } catch (IOException e) {
                 removeEmitter(event.getTaskId(), emitter);
             }

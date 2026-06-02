@@ -79,7 +79,8 @@ public class ChannelController {
 
     /** 微信小程序手机号一键登录 */
     @PostMapping("/wx/mini/phone-login")
-    public Result<MiniAppSessionVO> wxMiniPhoneLogin(@Validated @RequestBody MiniAppPhoneLoginDTO dto) {
+    public Result<MiniAppSessionVO> wxMiniPhoneLogin(
+            @Validated @RequestBody MiniAppPhoneLoginDTO dto) {
         return Result.success(miniAppLoginService.phoneLogin(dto));
     }
 
@@ -139,7 +140,8 @@ public class ChannelController {
             @RequestHeader(value = "X-Webhook-Signature", required = false) String signature,
             @RequestHeader(value = "X-Webhook-Id", required = false) Long webhookId,
             @RequestBody String jsonPayload) {
-        if (webhookId != null && !webhookService.verifyInboundSignature(webhookId, signature, jsonPayload)) {
+        if (webhookId != null
+                && !webhookService.verifyInboundSignature(webhookId, signature, jsonPayload)) {
             return Result.error(GlobalErrorCode.FORBIDDEN, "签名验证失败");
         }
         webhookService.receiveInbound(jsonPayload);
@@ -228,6 +230,7 @@ public class ChannelController {
             @RequestParam String channelType,
             @RequestParam LocalDateTime startTime,
             @RequestParam LocalDateTime endTime) {
-        return Result.success(channelConfigService.getMessageStats(channelType, startTime, endTime));
+        return Result.success(
+                channelConfigService.getMessageStats(channelType, startTime, endTime));
     }
 }

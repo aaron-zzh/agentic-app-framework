@@ -14,7 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 /** 模拟支付渠道适配器——直接返回成功，用于开发和测试。仅在 aaf.pay.mock.enabled=true 时注册（生产默认关闭）。 */
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "aaf.pay.mock", name = "enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(
+        prefix = "aaf.pay.mock",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = false)
 public class MockPayChannelAdapter implements PayChannelAdapter {
 
     public static final String CHANNEL_CODE = "MOCK";
@@ -30,7 +34,8 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     @Override
     public PayResult charge(ChargeRequest request) {
         log.info("模拟支付: outTradeNo={}, amount={}", request.outTradeNo(), request.amount());
-        var channelOrderNo = "MOCK_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        var channelOrderNo =
+                "MOCK_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         paidOrders.put(request.outTradeNo(), request.amount());
         return new PayResult(true, request.outTradeNo(), channelOrderNo, "模拟支付成功");
     }
@@ -38,7 +43,8 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     @Override
     public PayResult withdraw(WithdrawRequest request) {
         log.info("模拟提现: outTradeNo={}, amount={}", request.outTradeNo(), request.amount());
-        var channelOrderNo = "MOCK_W_" + UUID.randomUUID().toString().replace("-", "").substring(0, 14);
+        var channelOrderNo =
+                "MOCK_W_" + UUID.randomUUID().toString().replace("-", "").substring(0, 14);
         return new PayResult(true, request.outTradeNo(), channelOrderNo, "模拟提现成功");
     }
 

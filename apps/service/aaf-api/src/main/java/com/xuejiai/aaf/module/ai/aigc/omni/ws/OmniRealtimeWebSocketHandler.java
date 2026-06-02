@@ -12,8 +12,8 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.intelligent.ai.omni.OmniRealtimeService;
 import com.xuejiai.aaf.framework.intelligent.ai.omni.OmniRealtimeService.OmniSession;
 import com.xuejiai.aaf.framework.intelligent.ai.omni.OmniRealtimeService.SessionConfig;
@@ -66,17 +66,21 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
         var vad = !"false".equals(extractParam(wsSession, "vad", "true"));
         var instructions = extractParam(wsSession, "instructions", null);
 
-        var config = new SessionConfig(
-                model, voice, vad, true, instructions,
-                List.of("text", "audio"));
+        var config =
+                new SessionConfig(model, voice, vad, true, instructions, List.of("text", "audio"));
 
         try {
-            var omniSession = omniRealtimeService.createSession(config, event -> {
-                sendEvent(wsSession, event);
-            });
+            var omniSession =
+                    omniRealtimeService.createSession(
+                            config,
+                            event -> {
+                                sendEvent(wsSession, event);
+                            });
             sessionMap.put(wsSession.getId(), omniSession);
-            log.info("Omni Realtime 连接建立: wsSessionId={}, omniSessionId={}",
-                    wsSession.getId(), omniSession.getSessionId());
+            log.info(
+                    "Omni Realtime 连接建立: wsSessionId={}, omniSessionId={}",
+                    wsSession.getId(),
+                    omniSession.getSessionId());
         } catch (Exception e) {
             log.error("Omni Realtime 会话创建失败", e);
             sendError(wsSession, e.getMessage());

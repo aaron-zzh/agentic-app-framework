@@ -4,9 +4,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.agent.trace.UserMessageEvent;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionCompletedEvent;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionStatus;
+import com.xuejiai.aaf.framework.intelligent.agent.trace.UserMessageEvent;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 
 import lombok.RequiredArgsConstructor;
@@ -15,8 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 聊天记录持久化监听器——AgentScope 链路执行完成后异步写入 DB。
  *
- * <p>conversationId 对应 sessionId（由 AgentRunContextHolder.runId 传入），
- * 仅当 userId 和 conversationId 均非空且为有效数字时写入。
+ * <p>conversationId 对应 sessionId（由 AgentRunContextHolder.runId 传入）， 仅当 userId 和 conversationId
+ * 均非空且为有效数字时写入。
  */
 @Slf4j
 @Component

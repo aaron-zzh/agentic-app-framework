@@ -2,14 +2,15 @@ package com.xuejiai.aaf.module.billing.domain;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.type.SqlTypes;
 
 /**
  * 积分发放规则（运营后台配置）。
@@ -20,7 +21,9 @@ import org.hibernate.type.SqlTypes;
 @Setter
 @Entity
 @Table(name = "credit_grant_rule")
-@SQLDelete(sql = "UPDATE credit_grant_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE credit_grant_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class CreditGrantRule extends BaseEntity {
 
     /** 规则编码（WEEKLY/INVITE/EXPLORE/REGISTER/EVENT_xxx） */

@@ -42,8 +42,11 @@ public class ChannelConfigService {
 
     @Transactional
     public ChannelConfig update(Long id, ChannelConfig updated) {
-        var config = configRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在"));
+        var config =
+                configRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在"));
         config.setName(updated.getName());
         config.setAppId(updated.getAppId());
         config.setAppSecret(updated.getAppSecret());
@@ -60,7 +63,8 @@ public class ChannelConfigService {
     }
 
     public ChannelConfig getById(Long id) {
-        return configRepository.findById(id)
+        return configRepository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在"));
     }
 
@@ -74,37 +78,39 @@ public class ChannelConfigService {
 
     // ==================== 状态监控 ====================
 
-    /**
-     * 获取渠道状态概览（连接状态 + 消息量统计 + 错误率）。
-     */
+    /** 获取渠道状态概览（连接状态 + 消息量统计 + 错误率）。 */
     public List<ChannelStatsVO> getChannelStats() {
         var configs = configRepository.findByStatusAndDeletedFalse(0);
-        return configs.stream().map(config -> {
-            var channelType = config.getChannelType();
-            var stats = messageRepository.countByChannelType(channelType);
-            var errorCount = messageRepository.countErrorsByChannelType(channelType);
-            var totalCount = stats;
-            var errorRate = totalCount > 0 ? (double) errorCount / totalCount : 0.0;
+        return configs.stream()
+                .map(
+                        config -> {
+                            var channelType = config.getChannelType();
+                            var stats = messageRepository.countByChannelType(channelType);
+                            var errorCount =
+                                    messageRepository.countErrorsByChannelType(channelType);
+                            var totalCount = stats;
+                            var errorRate = totalCount > 0 ? (double) errorCount / totalCount : 0.0;
 
-            // 检查适配器是否可用
-            boolean available;
-            try {
-                var type = ChannelTypeEnum.valueOf(channelType.toUpperCase());
-                var adapter = router.getAdapter(type);
-                available = adapter.isAvailable();
-            } catch (Exception e) {
-                available = false;
-            }
+                            // 检查适配器是否可用
+                            boolean available;
+                            try {
+                                var type = ChannelTypeEnum.valueOf(channelType.toUpperCase());
+                                var adapter = router.getAdapter(type);
+                                available = adapter.isAvailable();
+                            } catch (Exception e) {
+                                available = false;
+                            }
 
-            return new ChannelStatsVO(
-                    config.getId(),
-                    config.getName(),
-                    channelType,
-                    available,
-                    totalCount,
-                    errorCount,
-                    errorRate);
-        }).toList();
+                            return new ChannelStatsVO(
+                                    config.getId(),
+                                    config.getName(),
+                                    channelType,
+                                    available,
+                                    totalCount,
+                                    errorCount,
+                                    errorRate);
+                        })
+                .toList();
     }
 
     // ==================== 连通性测试 ====================
@@ -135,17 +141,17 @@ public class ChannelConfigService {
 
     // ==================== 消息统计 ====================
 
-    /**
-     * 按渠道/时间/类型统计消息量。
-     */
+    /** 按渠道/时间/类型统计消息量。 */
     public Map<String, Object> getMessageStats(
             String channelType, LocalDateTime startTime, LocalDateTime endTime) {
-        var total = messageRepository.countByChannelTypeAndTimeBetween(
-                channelType, startTime, endTime);
-        var inbound = messageRepository.countByChannelTypeAndDirectionAndTimeBetween(
-                channelType, "inbound", startTime, endTime);
-        var outbound = messageRepository.countByChannelTypeAndDirectionAndTimeBetween(
-                channelType, "outbound", startTime, endTime);
+        var total =
+                messageRepository.countByChannelTypeAndTimeBetween(channelType, startTime, endTime);
+        var inbound =
+                messageRepository.countByChannelTypeAndDirectionAndTimeBetween(
+                        channelType, "inbound", startTime, endTime);
+        var outbound =
+                messageRepository.countByChannelTypeAndDirectionAndTimeBetween(
+                        channelType, "outbound", startTime, endTime);
         return Map.of(
                 "channelType", channelType,
                 "total", total,

@@ -12,9 +12,9 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeSegment;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeSegmentRepository;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeSegmentVO;
-import com.xuejiai.aaf.module.knowledge.vo.SemanticSearchResultVO;
 import com.xuejiai.aaf.module.knowledge.vo.SegmentCreateDTO;
 import com.xuejiai.aaf.module.knowledge.vo.SegmentUpdateDTO;
+import com.xuejiai.aaf.module.knowledge.vo.SemanticSearchResultVO;
 
 import lombok.RequiredArgsConstructor;
 

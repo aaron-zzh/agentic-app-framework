@@ -11,9 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.module.channel.domain.ChannelMessage;
 
-/**
- * 渠道消息记录数据访问层。
- */
+/** 渠道消息记录数据访问层。 */
 public interface ChannelMessageRepository extends JpaRepository<ChannelMessage, Long> {
 
     Page<ChannelMessage> findByExternalUserIdAndDeletedFalse(
@@ -21,19 +19,23 @@ public interface ChannelMessageRepository extends JpaRepository<ChannelMessage, 
 
     List<ChannelMessage> findByUserIdAndDeletedFalse(Long userId);
 
-    @Query("SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.deleted = false")
+    @Query(
+            "SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.deleted = false")
     long countByChannelType(@Param("channelType") String channelType);
 
-    @Query("SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.deleted = false AND m.content LIKE '%error%'")
+    @Query(
+            "SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.deleted = false AND m.content LIKE '%error%'")
     long countErrorsByChannelType(@Param("channelType") String channelType);
 
-    @Query("SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.deleted = false AND m.messageTime BETWEEN :start AND :end")
+    @Query(
+            "SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.deleted = false AND m.messageTime BETWEEN :start AND :end")
     long countByChannelTypeAndTimeBetween(
             @Param("channelType") String channelType,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 
-    @Query("SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.direction = :direction AND m.deleted = false AND m.messageTime BETWEEN :start AND :end")
+    @Query(
+            "SELECT COUNT(m) FROM ChannelMessage m WHERE m.channelType = :channelType AND m.direction = :direction AND m.deleted = false AND m.messageTime BETWEEN :start AND :end")
     long countByChannelTypeAndDirectionAndTimeBetween(
             @Param("channelType") String channelType,
             @Param("direction") String direction,

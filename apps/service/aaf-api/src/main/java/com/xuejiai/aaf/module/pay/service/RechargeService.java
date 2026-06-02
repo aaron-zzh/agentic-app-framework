@@ -6,7 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
-import com.xuejiai.aaf.module.pay.vo.BizOrderVO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
 
@@ -29,7 +28,9 @@ public class RechargeService {
         // 创建业务订单
         var bizOrder =
                 bizOrderService.create(
-                        userId, new BizOrderCreateDTO(BizOrderTypeEnum.RECHARGE.getCode(), "积分充值", amount, channelCode));
+                        userId,
+                        new BizOrderCreateDTO(
+                                BizOrderTypeEnum.RECHARGE.getCode(), "积分充值", amount, channelCode));
 
         // 创建支付单
         var payOrder =
@@ -61,7 +62,9 @@ public class RechargeService {
         // 标记业务订单已支付
         bizOrderService.markPaid(bizOrder.getId());
         // 积分入账（金额从业务订单获取）
-        creditService.earn(bizOrder.getUserId(), bizOrder.getTotalAmount(), "RECHARGE", bizOrder.getOrderNo());
-        log.info("充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), bizOrder.getTotalAmount());
+        creditService.earn(
+                bizOrder.getUserId(), bizOrder.getTotalAmount(), "RECHARGE", bizOrder.getOrderNo());
+        log.info(
+                "充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), bizOrder.getTotalAmount());
     }
 }

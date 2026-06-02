@@ -153,8 +153,8 @@ public class DefaultPromptEngine implements PromptEngine {
             var tc = testCases.get(i);
             var rendered = interpolate(template.getContent(), tc.variables());
             try {
-                var actual = llmClient.call(
-                        List.of(LlmMessage.user(rendered)), "prompt_eval", null);
+                var actual =
+                        llmClient.call(List.of(LlmMessage.user(rendered)), "prompt_eval", null);
                 var similarity = computeSimilarity(actual, tc.expectedOutput());
                 if (similarity >= 0.6) {
                     passed++;
@@ -167,7 +167,9 @@ public class DefaultPromptEngine implements PromptEngine {
         }
 
         double score = (double) passed / testCases.size();
-        return new PromptEvalResult(templateName, score,
+        return new PromptEvalResult(
+                templateName,
+                score,
                 "通过 %d/%d | %s".formatted(passed, testCases.size(), details.toString().trim()));
     }
 

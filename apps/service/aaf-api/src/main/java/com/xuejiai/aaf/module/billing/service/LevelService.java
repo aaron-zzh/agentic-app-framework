@@ -15,8 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 会员等级服务（成长线，免费）。
  *
- * <p>exp 成长值挂在 credit_account（复用 wallet 的 exp/level_id 列），
- * 根据 exp 区间自动升降级。
+ * <p>exp 成长值挂在 credit_account（复用 wallet 的 exp/level_id 列）， 根据 exp 区间自动升降级。
  */
 @Slf4j
 @Service
@@ -35,21 +34,29 @@ public class LevelService {
     /** 增加经验值并自动升降级，返回当前等级 */
     @Transactional
     public Level addExp(Long userId, int expDelta) {
-        var account = creditAccountRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalStateException("用户积分账户不存在: " + userId));
+        var account =
+                creditAccountRepository
+                        .findByUserId(userId)
+                        .orElseThrow(() -> new IllegalStateException("用户积分账户不存在: " + userId));
 
         var currentExp = account.getExp() + expDelta;
         account.setExp(currentExp);
 
         // 查找匹配等级
-        var level = levelRepository.findByExpMinLessThanEqualAndExpMaxGreaterThanEqual(currentExp, currentExp)
-                .orElse(null);
+        var level =
+                levelRepository
+                        .findByExpMinLessThanEqualAndExpMaxGreaterThanEqual(currentExp, currentExp)
+                        .orElse(null);
         if (level != null) {
             account.setLevelId(level.getId());
         }
         creditAccountRepository.save(account);
 
-        log.info("用户 {} 经验值变更: +{}, 当前={}, 等级={}", userId, expDelta, currentExp,
+        log.info(
+                "用户 {} 经验值变更: +{}, 当前={}, 等级={}",
+                userId,
+                expDelta,
+                currentExp,
                 level != null ? level.getCode() : "未知");
         return level;
     }
@@ -67,8 +74,6 @@ public class LevelService {
     /** 获取用户当前经验值 */
     @Transactional(readOnly = true)
     public int getExp(Long userId) {
-        return creditAccountRepository.findByUserId(userId)
-                .map(a -> a.getExp())
-                .orElse(0);
+        return creditAccountRepository.findByUserId(userId).map(a -> a.getExp()).orElse(0);
     }
 }

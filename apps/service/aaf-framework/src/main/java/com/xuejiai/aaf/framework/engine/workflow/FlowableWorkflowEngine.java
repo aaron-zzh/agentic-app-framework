@@ -16,7 +16,6 @@ import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.repository.ProcessDefinitionQuery;
 import org.flowable.engine.runtime.ProcessInstanceQuery;
 import org.flowable.task.api.Task;
-import org.flowable.task.api.TaskQuery;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
@@ -106,16 +105,26 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
 
     @Override
     public List<TaskInfo> listPendingTasks(String assignee) {
-        return taskService.createTaskQuery().taskAssignee(assignee).orderByTaskCreateTime().desc()
-                .list().stream()
+        return taskService
+                .createTaskQuery()
+                .taskAssignee(assignee)
+                .orderByTaskCreateTime()
+                .desc()
+                .list()
+                .stream()
                 .map(this::toTaskInfo)
                 .toList();
     }
 
     @Override
     public List<DefinitionInfo> listDefinitions() {
-        return repositoryService.createProcessDefinitionQuery().latestVersion()
-                .orderByProcessDefinitionName().asc().list().stream()
+        return repositoryService
+                .createProcessDefinitionQuery()
+                .latestVersion()
+                .orderByProcessDefinitionName()
+                .asc()
+                .list()
+                .stream()
                 .map(this::toDefinitionInfo)
                 .toList();
     }
@@ -128,33 +137,41 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
                         .name(name)
                         .addInputStream(
                                 name + ".bpmn20.xml",
-                                new ByteArrayInputStream(
-                                        bpmnXml.getBytes(StandardCharsets.UTF_8)))
+                                new ByteArrayInputStream(bpmnXml.getBytes(StandardCharsets.UTF_8)))
                         .deploy();
         return deployment.getId();
     }
 
     @Override
     public String findInstanceByBusinessKey(String businessKey) {
-        var instance = runtimeService.createProcessInstanceQuery()
-                .processInstanceBusinessKey(businessKey)
-                .singleResult();
+        var instance =
+                runtimeService
+                        .createProcessInstanceQuery()
+                        .processInstanceBusinessKey(businessKey)
+                        .singleResult();
         if (instance != null) return instance.getId();
         // 查历史（已完成的流程）
-        var historic = historyService.createHistoricProcessInstanceQuery()
-                .processInstanceBusinessKey(businessKey)
-                .orderByProcessInstanceStartTime().desc()
-                .list();
+        var historic =
+                historyService
+                        .createHistoricProcessInstanceQuery()
+                        .processInstanceBusinessKey(businessKey)
+                        .orderByProcessInstanceStartTime()
+                        .desc()
+                        .list();
         return historic.isEmpty() ? null : historic.getFirst().getId();
     }
 
     // ==================== #5802 流程定义管理 ====================
 
     @Override
-    public List<DefinitionInfo> queryDefinitions(String key, String name, int pageNo, int pageSize) {
+    public List<DefinitionInfo> queryDefinitions(
+            String key, String name, int pageNo, int pageSize) {
         var query = buildDefinitionQuery(key, name);
-        return query.orderByProcessDefinitionName().asc()
-                .listPage((pageNo - 1) * pageSize, pageSize).stream()
+        return query
+                .orderByProcessDefinitionName()
+                .asc()
+                .listPage((pageNo - 1) * pageSize, pageSize)
+                .stream()
                 .map(this::toDefinitionInfo)
                 .toList();
     }
@@ -166,10 +183,13 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
 
     @Override
     public List<DefinitionInfo> listDefinitionVersions(String processKey) {
-        return repositoryService.createProcessDefinitionQuery()
+        return repositoryService
+                .createProcessDefinitionQuery()
                 .processDefinitionKey(processKey)
-                .orderByProcessDefinitionVersion().desc()
-                .list().stream()
+                .orderByProcessDefinitionVersion()
+                .desc()
+                .list()
+                .stream()
                 .map(this::toDefinitionInfo)
                 .toList();
     }
@@ -206,8 +226,11 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     @Override
     public List<InstanceInfo> listRunningInstances(String processKey, int pageNo, int pageSize) {
         var query = buildRunningInstanceQuery(processKey);
-        return query.orderByProcessInstanceId().desc()
-                .listPage((pageNo - 1) * pageSize, pageSize).stream()
+        return query
+                .orderByProcessInstanceId()
+                .desc()
+                .listPage((pageNo - 1) * pageSize, pageSize)
+                .stream()
                 .map(
                         pi ->
                                 new InstanceInfo(
@@ -229,8 +252,11 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     public List<InstanceInfo> listHistoricInstances(
             String processKey, boolean finished, int pageNo, int pageSize) {
         var query = buildHistoricInstanceQuery(processKey, finished);
-        return query.orderByProcessInstanceStartTime().desc()
-                .listPage((pageNo - 1) * pageSize, pageSize).stream()
+        return query
+                .orderByProcessInstanceStartTime()
+                .desc()
+                .listPage((pageNo - 1) * pageSize, pageSize)
+                .stream()
                 .map(this::toInstanceInfo)
                 .toList();
     }
@@ -275,30 +301,39 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
 
     @Override
     public List<TaskInfo> listCandidateTasks(String candidateUser) {
-        return taskService.createTaskQuery()
+        return taskService
+                .createTaskQuery()
                 .taskCandidateUser(candidateUser)
-                .orderByTaskCreateTime().desc()
-                .list().stream()
+                .orderByTaskCreateTime()
+                .desc()
+                .list()
+                .stream()
                 .map(this::toTaskInfo)
                 .toList();
     }
 
     @Override
     public List<TaskInfo> listCandidateGroupTasks(String candidateGroup) {
-        return taskService.createTaskQuery()
+        return taskService
+                .createTaskQuery()
                 .taskCandidateGroup(candidateGroup)
-                .orderByTaskCreateTime().desc()
-                .list().stream()
+                .orderByTaskCreateTime()
+                .desc()
+                .list()
+                .stream()
                 .map(this::toTaskInfo)
                 .toList();
     }
 
     @Override
     public List<InstanceInfo> listMyInitiatedInstances(String initiator, int pageNo, int pageSize) {
-        return historyService.createHistoricProcessInstanceQuery()
+        return historyService
+                .createHistoricProcessInstanceQuery()
                 .startedBy(initiator)
-                .orderByProcessInstanceStartTime().desc()
-                .listPage((pageNo - 1) * pageSize, pageSize).stream()
+                .orderByProcessInstanceStartTime()
+                .desc()
+                .listPage((pageNo - 1) * pageSize, pageSize)
+                .stream()
                 .map(this::toInstanceInfo)
                 .toList();
     }
@@ -319,11 +354,14 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
         if (task == null) throw new IllegalArgumentException("任务不存在: " + taskId);
 
         // 查询上一个已完成的用户任务
-        var historicTasks = historyService.createHistoricTaskInstanceQuery()
-                .processInstanceId(task.getProcessInstanceId())
-                .finished()
-                .orderByHistoricTaskInstanceEndTime().desc()
-                .list();
+        var historicTasks =
+                historyService
+                        .createHistoricTaskInstanceQuery()
+                        .processInstanceId(task.getProcessInstanceId())
+                        .finished()
+                        .orderByHistoricTaskInstanceEndTime()
+                        .desc()
+                        .list();
 
         if (historicTasks.isEmpty()) {
             throw new IllegalStateException("无法退回：没有上一步任务");
@@ -331,13 +369,17 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
 
         var previousTask = historicTasks.get(0);
         // 使用 Flowable 的回退能力
-        runtimeService.createChangeActivityStateBuilder()
+        runtimeService
+                .createChangeActivityStateBuilder()
                 .processInstanceId(task.getProcessInstanceId())
                 .moveActivityIdTo(task.getTaskDefinitionKey(), previousTask.getTaskDefinitionKey())
                 .changeState();
 
-        log.info("任务退回：{} -> {}，原因：{}", task.getTaskDefinitionKey(),
-                previousTask.getTaskDefinitionKey(), reason);
+        log.info(
+                "任务退回：{} -> {}，原因：{}",
+                task.getTaskDefinitionKey(),
+                previousTask.getTaskDefinitionKey(),
+                reason);
     }
 
     @Override
@@ -346,8 +388,11 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
         if (task == null) throw new IllegalArgumentException("任务不存在: " + taskId);
 
         // 通过任务评论记录催办信息
-        taskService.addComment(taskId, task.getProcessInstanceId(),
-                "URGE", "催办人: " + urgerId + "，时间: " + java.time.LocalDateTime.now());
+        taskService.addComment(
+                taskId,
+                task.getProcessInstanceId(),
+                "URGE",
+                "催办人: " + urgerId + "，时间: " + java.time.LocalDateTime.now());
         log.info("催办任务：taskId={}，催办人={}", taskId, urgerId);
     }
 
@@ -367,10 +412,12 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     public void sendMessage(
             String messageName, String processInstanceId, Map<String, Object> variables) {
         // 查找等待该消息的执行
-        var execution = runtimeService.createExecutionQuery()
-                .processInstanceId(processInstanceId)
-                .messageEventSubscriptionName(messageName)
-                .singleResult();
+        var execution =
+                runtimeService
+                        .createExecutionQuery()
+                        .processInstanceId(processInstanceId)
+                        .messageEventSubscriptionName(messageName)
+                        .singleResult();
         if (execution == null) {
             throw new IllegalStateException(
                     "未找到等待消息 '%s' 的执行，流程实例: %s".formatted(messageName, processInstanceId));
@@ -385,7 +432,8 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     }
 
     private DefinitionInfo toDefinitionInfo(ProcessDefinition d) {
-        return new DefinitionInfo(d.getKey(), d.getName(), d.getVersion(), d.getId(), d.isSuspended());
+        return new DefinitionInfo(
+                d.getKey(), d.getName(), d.getVersion(), d.getId(), d.isSuspended());
     }
 
     private InstanceInfo toInstanceInfo(HistoricProcessInstance h) {

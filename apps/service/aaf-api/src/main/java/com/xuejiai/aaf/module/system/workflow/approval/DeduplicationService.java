@@ -31,23 +31,25 @@ public class DeduplicationService {
     public List<String> deduplicateAssignees(String processInstanceId, List<String> assignees) {
         if (assignees == null || assignees.isEmpty()) return assignees;
 
-        Set<String> alreadyApproved = approvalRecordRepository
-                .findByProcessInstanceIdOrderByOperationTimeAsc(processInstanceId)
-                .stream()
-                .map(ApprovalRecord::getAssignee)
-                .collect(Collectors.toSet());
+        Set<String> alreadyApproved =
+                approvalRecordRepository
+                        .findByProcessInstanceIdOrderByOperationTimeAsc(processInstanceId)
+                        .stream()
+                        .map(ApprovalRecord::getAssignee)
+                        .collect(Collectors.toSet());
 
-        var deduplicated = assignees.stream()
-                .filter(a -> !alreadyApproved.contains(a))
-                .toList();
+        var deduplicated = assignees.stream().filter(a -> !alreadyApproved.contains(a)).toList();
 
         if (deduplicated.isEmpty()) {
             log.warn("去重后无可用审批人，返回原列表: processInstance={}", processInstanceId);
             return assignees;
         }
 
-        log.info("审批人去重: processInstance={}, 原={}, 去重后={}",
-                processInstanceId, assignees.size(), deduplicated.size());
+        log.info(
+                "审批人去重: processInstance={}, 原={}, 去重后={}",
+                processInstanceId,
+                assignees.size(),
+                deduplicated.size());
         return deduplicated;
     }
 }

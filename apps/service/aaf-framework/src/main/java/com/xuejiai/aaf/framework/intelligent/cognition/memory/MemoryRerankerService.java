@@ -26,12 +26,12 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ul>
  *   <li>{@link Mode#LIGHTWEIGHT}（默认）：纯计算（向量召回序 + 词法重叠 + 价值权重），用于对话热路径，零延迟零成本。
- *   <li>{@link Mode#RERANK_MODEL}：委托专用重排模型（{@link RerankService}，如 gte-rerank-v2 的 cross-encoder rerank API），
- *       仅用于高价值/非延迟敏感场景（显式 /recall、批处理）。即便选模型也先经廉价门控，模型不可用或失败时自动降级回轻量。
+ *   <li>{@link Mode#RERANK_MODEL}：委托专用重排模型（{@link RerankService}，如 gte-rerank-v2 的 cross-encoder
+ *       rerank API）， 仅用于高价值/非延迟敏感场景（显式 /recall、批处理）。即便选模型也先经廉价门控，模型不可用或失败时自动降级回轻量。
  * </ul>
  *
- * <p>判断原则：路径决定"能不能用重排模型"（调用方声明），门控决定"这次值不值得用"。重排是独立能力，
- * 走专用 {@link RerankService}（对齐 CAP_RERANK=gte-rerank-v2），而非为 chat 设计的能力路由链。
+ * <p>判断原则：路径决定"能不能用重排模型"（调用方声明），门控决定"这次值不值得用"。重排是独立能力， 走专用 {@link RerankService}（对齐
+ * CAP_RERANK=gte-rerank-v2），而非为 chat 设计的能力路由链。
  */
 @Slf4j
 @Service

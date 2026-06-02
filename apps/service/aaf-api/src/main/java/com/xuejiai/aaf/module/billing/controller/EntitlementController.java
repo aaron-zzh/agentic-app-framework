@@ -25,21 +25,26 @@ public class EntitlementController {
 
     /** 查询用户所有权益额度 */
     @GetMapping("/quotas")
-    public Result<List<EntitlementQuotaVO>> listQuotas(@RequestParam(required = false) Long userId) {
+    public Result<List<EntitlementQuotaVO>> listQuotas(
+            @RequestParam(required = false) Long userId) {
         var quotas = entitlementService.listUserQuotas(ownerId(userId));
-        var vos = quotas.stream().map(q -> {
-            var def = defRepository.findById(q.getEntId()).orElse(null);
-            return new EntitlementQuotaVO(
-                    q.getId(),
-                    def != null ? def.getCode() : null,
-                    def != null ? def.getName() : null,
-                    def != null ? def.getType() : null,
-                    def != null ? def.getUnit() : null,
-                    q.getTotal(),
-                    q.getUsed(),
-                    q.getRemain(),
-                    q.getNextResetAt());
-        }).toList();
+        var vos =
+                quotas.stream()
+                        .map(
+                                q -> {
+                                    var def = defRepository.findById(q.getEntId()).orElse(null);
+                                    return new EntitlementQuotaVO(
+                                            q.getId(),
+                                            def != null ? def.getCode() : null,
+                                            def != null ? def.getName() : null,
+                                            def != null ? def.getType() : null,
+                                            def != null ? def.getUnit() : null,
+                                            q.getTotal(),
+                                            q.getUsed(),
+                                            q.getRemain(),
+                                            q.getNextResetAt());
+                                })
+                        .toList();
         return Result.success(vos);
     }
 

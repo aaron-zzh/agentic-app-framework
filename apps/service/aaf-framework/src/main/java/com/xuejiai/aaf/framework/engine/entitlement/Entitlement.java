@@ -8,6 +8,7 @@ import java.lang.annotation.*;
  * <p>判定顺序：先 RBAC（@PreAuthorize）→ 再 @Entitlement → 执行方法 → 方法成功后扣减留痕。
  *
  * <p>用法示例：
+ *
  * <pre>{@code
  * @PreAuthorize("hasPermission('ai:chat')")
  * @Entitlement(code = "ai_token", cost = "#tokens")
@@ -24,6 +25,7 @@ public @interface Entitlement {
 
     /**
      * 消耗额度，支持 SpEL 表达式引用方法参数。
+     *
      * <p>BOOLEAN 类型权益此值忽略（仅检查是否拥有）。
      */
     String cost() default "1";

@@ -2,12 +2,13 @@ package com.xuejiai.aaf.framework.engine.credit;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 积分流水记录 */
 @Getter

@@ -18,7 +18,8 @@ public class EntityActionRegistry {
     private final AiActionCatalogProvider catalogProvider;
 
     public EntityActionRegistry(
-            List<EntityActionAdapter> adapters, ObjectProvider<AiActionCatalogProvider> catalogProvider) {
+            List<EntityActionAdapter> adapters,
+            ObjectProvider<AiActionCatalogProvider> catalogProvider) {
         for (var adapter : adapters) {
             this.adapters.put(adapter.entitySlug(), adapter);
         }
@@ -38,10 +39,12 @@ public class EntityActionRegistry {
 
     public List<Map<String, Object>> list() {
         return adapters.values().stream()
-                .map(adapter -> Map.<String, Object>of(
-                        "entitySlug", adapter.entitySlug(),
-                        "entityName", adapter.entityName(),
-                        "actions", visibleActions(adapter)))
+                .map(
+                        adapter ->
+                                Map.<String, Object>of(
+                                        "entitySlug", adapter.entitySlug(),
+                                        "entityName", adapter.entityName(),
+                                        "actions", visibleActions(adapter)))
                 .filter(item -> !((List<?>) item.get("actions")).isEmpty())
                 .toList();
     }
@@ -74,7 +77,8 @@ public class EntityActionRegistry {
         return adapter.permissionCode(action);
     }
 
-    public AiActionCatalogEntry catalogEntry(EntityActionAdapter adapter, AiBusinessActionType action) {
+    public AiActionCatalogEntry catalogEntry(
+            EntityActionAdapter adapter, AiBusinessActionType action) {
         return catalogProvider == null
                 ? null
                 : catalogProvider.find(adapter.entitySlug(), action.action()).orElse(null);
@@ -88,10 +92,12 @@ public class EntityActionRegistry {
                 .toList();
     }
 
-    private Map<String, Object> actionItem(EntityActionAdapter adapter, AiBusinessActionType action) {
-        var entry = catalogProvider == null
-                ? null
-                : catalogProvider.find(adapter.entitySlug(), action.action()).orElse(null);
+    private Map<String, Object> actionItem(
+            EntityActionAdapter adapter, AiBusinessActionType action) {
+        var entry =
+                catalogProvider == null
+                        ? null
+                        : catalogProvider.find(adapter.entitySlug(), action.action()).orElse(null);
         return Map.of(
                 "action", action.action(),
                 "displayName", entry == null ? action.action() : safe(entry.displayName()),

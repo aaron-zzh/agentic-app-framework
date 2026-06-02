@@ -19,6 +19,8 @@ public enum LifecycleStageEnum implements ArrayValuable<String> {
 
     @Override
     public String[] array() {
-        return java.util.Arrays.stream(values()).map(LifecycleStageEnum::getCode).toArray(String[]::new);
+        return java.util.Arrays.stream(values())
+                .map(LifecycleStageEnum::getCode)
+                .toArray(String[]::new);
     }
 }

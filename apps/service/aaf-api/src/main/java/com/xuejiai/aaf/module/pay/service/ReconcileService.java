@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -14,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.common.enums.pay.ReconcileDiffTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.ReconcileStatusEnum;
@@ -22,8 +22,8 @@ import com.xuejiai.aaf.module.pay.domain.PayOrder;
 import com.xuejiai.aaf.module.pay.domain.ReconcileRecord;
 import com.xuejiai.aaf.module.pay.repository.PayOrderRepository;
 import com.xuejiai.aaf.module.pay.repository.ReconcileRecordRepository;
-import com.xuejiai.aaf.module.pay.vo.ReconcileRecordVO;
 import com.xuejiai.aaf.module.pay.vo.FinanceSummaryVO;
+import com.xuejiai.aaf.module.pay.vo.ReconcileRecordVO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +47,8 @@ public class ReconcileService {
                 adapters.stream()
                         .filter(a -> a.supportedChannelCodes().contains(channelCode))
                         .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException("未找到渠道适配器: " + channelCode));
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("未找到渠道适配器: " + channelCode));
 
         // 下载渠道账单
         var billItems = adapter.downloadBill(date);
@@ -63,7 +64,9 @@ public class ReconcileService {
                 localOrders.stream()
                         .filter(o -> o.getChannelCode().equals(channelCode))
                         .filter(o -> !o.getCreateTime().isAfter(endTime))
-                        .collect(Collectors.toMap(PayOrder::getMerchantOrderNo, Function.identity()));
+                        .collect(
+                                Collectors.toMap(
+                                        PayOrder::getMerchantOrderNo, Function.identity()));
 
         // 比对
         var diffs = new ArrayList<DiffItem>();
@@ -72,16 +75,26 @@ public class ReconcileService {
 
         var billMap =
                 billItems.stream()
-                        .collect(Collectors.toMap(PayChannelAdapter.BillItem::outTradeNo, Function.identity()));
+                        .collect(
+                                Collectors.toMap(
+                                        PayChannelAdapter.BillItem::outTradeNo,
+                                        Function.identity()));
 
         // 遍历渠道账单
         for (var bill : billItems) {
             var local = localOrderMap.get(bill.outTradeNo());
             if (local == null) {
-                diffs.add(new DiffItem(bill.outTradeNo(), ReconcileDiffTypeEnum.CHANNEL_ONLY.getCode(), "渠道有本地无"));
+                diffs.add(
+                        new DiffItem(
+                                bill.outTradeNo(),
+                                ReconcileDiffTypeEnum.CHANNEL_ONLY.getCode(),
+                                "渠道有本地无"));
             } else if (local.getAmount() != bill.amount()) {
-                diffs.add(new DiffItem(bill.outTradeNo(), ReconcileDiffTypeEnum.AMOUNT_MISMATCH.getCode(),
-                        "本地=%d 渠道=%d".formatted(local.getAmount(), bill.amount())));
+                diffs.add(
+                        new DiffItem(
+                                bill.outTradeNo(),
+                                ReconcileDiffTypeEnum.AMOUNT_MISMATCH.getCode(),
+                                "本地=%d 渠道=%d".formatted(local.getAmount(), bill.amount())));
             } else {
                 matchedCount++;
                 totalIncome += bill.amount();
@@ -91,7 +104,11 @@ public class ReconcileService {
         // 检查本地有渠道无
         for (var entry : localOrderMap.entrySet()) {
             if (!billMap.containsKey(entry.getKey())) {
-                diffs.add(new DiffItem(entry.getKey(), ReconcileDiffTypeEnum.LOCAL_ONLY.getCode(), "本地有渠道无"));
+                diffs.add(
+                        new DiffItem(
+                                entry.getKey(),
+                                ReconcileDiffTypeEnum.LOCAL_ONLY.getCode(),
+                                "本地有渠道无"));
             }
         }
 

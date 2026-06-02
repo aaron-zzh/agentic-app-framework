@@ -2,19 +2,22 @@ package com.xuejiai.aaf.module.billing.domain;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 用户订阅实例（购买后产生，决定有效期） */
 @Getter
 @Setter
 @Entity
 @Table(name = "subscription")
-@SQLDelete(sql = "UPDATE subscription SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE subscription SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class Subscription extends BaseEntity {
 
     /** 用户 ID */

@@ -1,13 +1,14 @@
 package com.xuejiai.aaf.framework.intelligent.assistant;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /**
  * Assistant 定义：Actor（人格）+ Role（能力）+ MemoryStrategy（记忆管道）的组合。 一个用户可拥有多个 Assistant，每个 Assistant

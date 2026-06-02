@@ -13,6 +13,7 @@ import com.alipay.api.domain.*;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.*;
 import com.alipay.api.response.*;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
@@ -58,14 +59,17 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
     @Override
     public PayResult charge(ChargeRequest request) {
         try {
-            String body = switch (request.channelCode()) {
-                case "alipay_pc" -> chargePagePay(request);
-                case "alipay_wap" -> chargeWapPay(request);
-                case "alipay_app" -> chargeAppPay(request);
-                case "alipay_qr" -> chargePrecreate(request);
-                default -> throw new BusinessException(
-                        GlobalErrorCode.BAD_REQUEST, "不支持的支付宝渠道: " + request.channelCode());
-            };
+            String body =
+                    switch (request.channelCode()) {
+                        case "alipay_pc" -> chargePagePay(request);
+                        case "alipay_wap" -> chargeWapPay(request);
+                        case "alipay_app" -> chargeAppPay(request);
+                        case "alipay_qr" -> chargePrecreate(request);
+                        default ->
+                                throw new BusinessException(
+                                        GlobalErrorCode.BAD_REQUEST,
+                                        "不支持的支付宝渠道: " + request.channelCode());
+                    };
             return new PayResult(true, request.outTradeNo(), null, body);
         } catch (AlipayApiException e) {
             log.error("支付宝下单失败: outTradeNo={}, error={}", request.outTradeNo(), e.getMessage());

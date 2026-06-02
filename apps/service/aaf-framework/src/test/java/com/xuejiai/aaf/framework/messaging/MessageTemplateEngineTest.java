@@ -20,8 +20,7 @@ class MessageTemplateEngineTest {
     /** B19：含 ?new() 实例化任意类的 SSTI 模板必须被拦截（抛异常而非执行）。 */
     @Test
     void render_SSTI模板被拦截() {
-        var ssti =
-                "<#assign ex=\"freemarker.template.utility.Execute\"?new()>${ex(\"calc\")}";
+        var ssti = "<#assign ex=\"freemarker.template.utility.Execute\"?new()>${ex(\"calc\")}";
         assertThatThrownBy(() -> engine.render(ssti, Map.of()))
                 .isInstanceOf(RuntimeException.class);
     }

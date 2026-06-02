@@ -11,9 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 客服坐席实体。
- */
+/** 客服坐席实体。 */
 @Getter
 @Setter
 @Entity

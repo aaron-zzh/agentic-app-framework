@@ -2,13 +2,9 @@ package com.xuejiai.aaf.module.channel.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * 钉钉/飞书机器人渠道配置属性。
- */
+/** 钉钉/飞书机器人渠道配置属性。 */
 @ConfigurationProperties(prefix = "aaf.channel")
-public record BotChannelProperties(
-        DingtalkProperties dingtalk,
-        FeishuProperties feishu) {
+public record BotChannelProperties(DingtalkProperties dingtalk, FeishuProperties feishu) {
 
     public BotChannelProperties {
         if (dingtalk == null) dingtalk = new DingtalkProperties(null, null, null, null);

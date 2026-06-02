@@ -14,7 +14,8 @@ public interface LivechatSeatRepository extends JpaRepository<LivechatSeat, Long
     Optional<LivechatSeat> findByUserId(Long userId);
 
     /** 按技能组查找有空闲容量的坐席，按当前会话数升序（优先分配空闲的） */
-    @Query("""
+    @Query(
+            """
             SELECT s FROM LivechatSeat s
             WHERE s.status = 'ONLINE'
               AND s.currentSessions < s.maxSessions
@@ -24,7 +25,8 @@ public interface LivechatSeatRepository extends JpaRepository<LivechatSeat, Long
     List<LivechatSeat> findAvailableBySkillGroup(String skillGroup);
 
     /** 查找所有有空闲容量的在线坐席 */
-    @Query("""
+    @Query(
+            """
             SELECT s FROM LivechatSeat s
             WHERE s.status = 'ONLINE'
               AND s.currentSessions < s.maxSessions

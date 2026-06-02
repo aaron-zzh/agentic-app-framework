@@ -17,17 +17,31 @@ public final class AgentRunContextHolder {
         return open(runId, userId, agentId, null, null, null);
     }
 
-    public static Scope open(String runId, Long userId, String agentId,
-                              String assistantId, String conversationId, Long knowledgeBaseId) {
+    public static Scope open(
+            String runId,
+            Long userId,
+            String agentId,
+            String assistantId,
+            String conversationId,
+            Long knowledgeBaseId) {
         var previous = CONTEXT.get();
-        CONTEXT.set(new AgentRunContext(runId, userId, agentId, assistantId, conversationId, knowledgeBaseId));
+        CONTEXT.set(
+                new AgentRunContext(
+                        runId, userId, agentId, assistantId, conversationId, knowledgeBaseId));
         return new Scope(previous);
     }
 
     /** 直接设置上下文（无 Scope，适用于 Hook 等无法使用 try-with-resources 的场景）。 */
-    public static void set(String runId, Long userId, String agentId,
-                           String assistantId, String conversationId, Long knowledgeBaseId) {
-        CONTEXT.set(new AgentRunContext(runId, userId, agentId, assistantId, conversationId, knowledgeBaseId));
+    public static void set(
+            String runId,
+            Long userId,
+            String agentId,
+            String assistantId,
+            String conversationId,
+            Long knowledgeBaseId) {
+        CONTEXT.set(
+                new AgentRunContext(
+                        runId, userId, agentId, assistantId, conversationId, knowledgeBaseId));
     }
 
     public static void clear() {

@@ -22,25 +22,36 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class AiFlowService extends BaseCrudService<
-        AiFlowDefinition, AiFlowDefinitionVO,
-        AiFlowDefinitionCreateDTO, AiFlowDefinitionUpdateDTO,
-        AiFlowDefinitionPageDTO> {
+public class AiFlowService
+        extends BaseCrudService<
+                AiFlowDefinition,
+                AiFlowDefinitionVO,
+                AiFlowDefinitionCreateDTO,
+                AiFlowDefinitionUpdateDTO,
+                AiFlowDefinitionPageDTO> {
 
     private final AiFlowDefinitionRepository repository;
     private final WorkflowEngine workflowEngine;
 
     @Override
-    protected JpaRepository<AiFlowDefinition, Long> getRepository() { return repository; }
+    protected JpaRepository<AiFlowDefinition, Long> getRepository() {
+        return repository;
+    }
 
     @Override
-    protected JpaSpecificationExecutor<AiFlowDefinition> getSpecExecutor() { return repository; }
+    protected JpaSpecificationExecutor<AiFlowDefinition> getSpecExecutor() {
+        return repository;
+    }
 
     @Override
-    protected String entityName() { return "AI 工作流"; }
+    protected String entityName() {
+        return "AI 工作流";
+    }
 
     @Override
-    protected String entitySlug() { return "ai-flow"; }
+    protected String entitySlug() {
+        return "ai-flow";
+    }
 
     @Override
     protected AiFlowDefinitionVO toVO(AiFlowDefinition e) {
@@ -92,7 +103,9 @@ public class AiFlowService extends BaseCrudService<
                 predicates.add(cb.equal(root.get("status"), dto.getStatus()));
             if (dto.getAgentCallable() != null)
                 predicates.add(cb.equal(root.get("agentCallable"), dto.getAgentCallable()));
-            return predicates.isEmpty() ? null : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            return predicates.isEmpty()
+                    ? null
+                    : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
     }
 
@@ -110,10 +123,15 @@ public class AiFlowService extends BaseCrudService<
 
     /** 查询智能体可调用的已发布工作流列表（供 WorkflowTool.listWorkflows 使用）。 */
     public List<AiFlowDefinitionVO> listAgentCallable() {
-        return repository.findAll((root, query, cb) -> cb.and(
-                cb.equal(root.get("status"), "PUBLISHED"),
-                cb.equal(root.get("agentCallable"), true),
-                cb.equal(root.get("deleted"), false)
-        )).stream().map(this::toVO).toList();
+        return repository
+                .findAll(
+                        (root, query, cb) ->
+                                cb.and(
+                                        cb.equal(root.get("status"), "PUBLISHED"),
+                                        cb.equal(root.get("agentCallable"), true),
+                                        cb.equal(root.get("deleted"), false)))
+                .stream()
+                .map(this::toVO)
+                .toList();
     }
 }

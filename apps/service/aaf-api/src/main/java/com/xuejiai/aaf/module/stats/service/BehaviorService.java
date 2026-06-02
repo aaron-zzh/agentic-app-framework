@@ -37,48 +37,53 @@ public class BehaviorService {
     private final JdbcTemplate jdbcTemplate;
     private final OperatorContext operatorContext;
 
-    /**
-     * 批量采集行为事件。
-     */
+    /** 批量采集行为事件。 */
     @Transactional
     public void trackEvents(UserEventBatchDTO dto) {
         var userId = operatorContext.currentUserId().orElseThrow();
         var now = LocalDateTime.now();
-        var events = dto.events().stream().map(item -> {
-            var event = new UserEvent();
-            event.setUserId(userId);
-            event.setEventType(item.eventType());
-            event.setPage(item.page());
-            event.setTarget(item.target());
-            event.setExtra(item.extra());
-            event.setCreateTime(now);
-            return event;
-        }).toList();
+        var events =
+                dto.events().stream()
+                        .map(
+                                item -> {
+                                    var event = new UserEvent();
+                                    event.setUserId(userId);
+                                    event.setEventType(item.eventType());
+                                    event.setPage(item.page());
+                                    event.setTarget(item.target());
+                                    event.setExtra(item.extra());
+                                    event.setCreateTime(now);
+                                    return event;
+                                })
+                        .toList();
         userEventRepository.saveAll(events);
     }
 
-    /**
-     * 漏斗分析：注册→激活→付费。
-     */
+    /** 漏斗分析：注册→激活→付费。 */
     public FunnelVO queryFunnel(LocalDate start, LocalDate end) {
         var startTime = start.atStartOfDay();
         var endTime = end.atTime(LocalTime.MAX);
 
         // 各阶段独立统计去重用户数
-        long registered = userEventRepository.countDistinctUserByEventType("register", startTime, endTime);
-        long activated = userEventRepository.countDistinctUserByEventType("activate", startTime, endTime);
-        long purchased = userEventRepository.countDistinctUserByEventType("purchase", startTime, endTime);
+        long registered =
+                userEventRepository.countDistinctUserByEventType("register", startTime, endTime);
+        long activated =
+                userEventRepository.countDistinctUserByEventType("activate", startTime, endTime);
+        long purchased =
+                userEventRepository.countDistinctUserByEventType("purchase", startTime, endTime);
 
         var steps = new ArrayList<FunnelVO.Step>();
         steps.add(new FunnelVO.Step("注册", registered, null));
-        steps.add(new FunnelVO.Step("激活", activated, registered > 0 ? (double) activated / registered : 0.0));
-        steps.add(new FunnelVO.Step("付费", purchased, activated > 0 ? (double) purchased / activated : 0.0));
+        steps.add(
+                new FunnelVO.Step(
+                        "激活", activated, registered > 0 ? (double) activated / registered : 0.0));
+        steps.add(
+                new FunnelVO.Step(
+                        "付费", purchased, activated > 0 ? (double) purchased / activated : 0.0));
         return new FunnelVO(steps);
     }
 
-    /**
-     * 留存分析：次日/7日/30日。
-     */
+    /** 留存分析：次日/7日/30日。 */
     public RetentionVO queryRetention(LocalDate baseDate) {
         var points = new ArrayList<RetentionVO.RetentionPoint>();
         for (int day : List.of(1, 7, 30)) {
@@ -88,15 +93,14 @@ public class BehaviorService {
         return new RetentionVO(points);
     }
 
-    /**
-     * 用户画像聚合。
-     */
+    /** 用户画像聚合。 */
     public UserProfileVO queryUserProfile(LocalDate start, LocalDate end) {
         var startTime = start.atStartOfDay();
         var endTime = end.atTime(LocalTime.MAX);
 
         // 活跃度分布：按事件数分高/中/低
-        var activitySql = """
+        var activitySql =
+                """
                 SELECT CASE
                     WHEN cnt >= 50 THEN '高'
                     WHEN cnt >= 10 THEN '中'
@@ -107,33 +111,47 @@ public class BehaviorService {
                 GROUP BY level
                 """;
         Map<String, Long> activityDist = new LinkedHashMap<>();
-        jdbcTemplate.query(activitySql, (rs, rowNum) -> {
-            activityDist.put(rs.getString("level"), rs.getLong("user_count"));
-            return null;
-        }, startTime, endTime);
+        jdbcTemplate.query(
+                activitySql,
+                (rs, rowNum) -> {
+                    activityDist.put(rs.getString("level"), rs.getLong("user_count"));
+                    return null;
+                },
+                startTime,
+                endTime);
 
         // 偏好功能 TOP 10
-        var featureSql = """
+        var featureSql =
+                """
                 SELECT COALESCE(page, target) AS feature, COUNT(*) AS cnt
                 FROM user_event WHERE create_time BETWEEN ? AND ?
                 GROUP BY feature ORDER BY cnt DESC LIMIT 10
                 """;
-        var topFeatures = jdbcTemplate.query(featureSql, (rs, rowNum) ->
-                new UserProfileVO.FeatureUsage(rs.getString("feature"), rs.getLong("cnt")),
-                startTime, endTime
-        );
+        var topFeatures =
+                jdbcTemplate.query(
+                        featureSql,
+                        (rs, rowNum) ->
+                                new UserProfileVO.FeatureUsage(
+                                        rs.getString("feature"), rs.getLong("cnt")),
+                        startTime,
+                        endTime);
 
         // 使用时段分布
-        var hourlySql = """
+        var hourlySql =
+                """
                 SELECT EXTRACT(HOUR FROM create_time)::int AS hour, COUNT(*) AS cnt
                 FROM user_event WHERE create_time BETWEEN ? AND ?
                 GROUP BY hour ORDER BY hour
                 """;
         Map<Integer, Long> hourlyDist = new LinkedHashMap<>();
-        jdbcTemplate.query(hourlySql, (rs, rowNum) -> {
-            hourlyDist.put(rs.getInt("hour"), rs.getLong("cnt"));
-            return null;
-        }, startTime, endTime);
+        jdbcTemplate.query(
+                hourlySql,
+                (rs, rowNum) -> {
+                    hourlyDist.put(rs.getInt("hour"), rs.getLong("cnt"));
+                    return null;
+                },
+                startTime,
+                endTime);
 
         return new UserProfileVO(activityDist, topFeatures, hourlyDist);
     }
@@ -142,7 +160,8 @@ public class BehaviorService {
 
     private RetentionVO.RetentionPoint calcRetention(LocalDate baseDate, int day) {
         // 基准日新增用户
-        var baseSql = """
+        var baseSql =
+                """
                 SELECT COUNT(DISTINCT user_id) FROM user_event
                 WHERE event_type = 'register' AND create_time::date = ?
                 """;
@@ -151,7 +170,8 @@ public class BehaviorService {
 
         // 第 N 日回访用户
         var retainDate = baseDate.plusDays(day);
-        var retainSql = """
+        var retainSql =
+                """
                 SELECT COUNT(DISTINCT e.user_id) FROM user_event e
                 WHERE e.create_time::date = ?
                 AND e.user_id IN (

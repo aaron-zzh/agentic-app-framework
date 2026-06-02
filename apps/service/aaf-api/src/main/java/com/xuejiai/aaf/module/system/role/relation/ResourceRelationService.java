@@ -8,8 +8,8 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.framework.security.access.RelationPermissionChecker;
 import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.access.RelationPermissionChecker;
 import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
 
@@ -30,13 +30,14 @@ public class ResourceRelationService implements RelationPermissionChecker {
     @Transactional
     public void grant(GrantRelationDTO dto) {
         var subjectRelation = normalizeSubjectRelation(dto.subjectRelation());
-        if (repository.existsByObjectTypeAndObjectIdAndRelationAndSubjectTypeAndSubjectIdAndSubjectRelation(
-                dto.objectType(),
-                dto.objectId(),
-                dto.relation(),
-                dto.subjectType(),
-                dto.subjectId(),
-                subjectRelation)) {
+        if (repository
+                .existsByObjectTypeAndObjectIdAndRelationAndSubjectTypeAndSubjectIdAndSubjectRelation(
+                        dto.objectType(),
+                        dto.objectId(),
+                        dto.relation(),
+                        dto.subjectType(),
+                        dto.subjectId(),
+                        subjectRelation)) {
             return;
         }
         var entity = new PermissionTuple();
@@ -53,13 +54,14 @@ public class ResourceRelationService implements RelationPermissionChecker {
 
     @Transactional
     public void revoke(GrantRelationDTO dto) {
-        repository.deleteByObjectTypeAndObjectIdAndRelationAndSubjectTypeAndSubjectIdAndSubjectRelation(
-                dto.objectType(),
-                dto.objectId(),
-                dto.relation(),
-                dto.subjectType(),
-                dto.subjectId(),
-                normalizeSubjectRelation(dto.subjectRelation()));
+        repository
+                .deleteByObjectTypeAndObjectIdAndRelationAndSubjectTypeAndSubjectIdAndSubjectRelation(
+                        dto.objectType(),
+                        dto.objectId(),
+                        dto.relation(),
+                        dto.subjectType(),
+                        dto.subjectId(),
+                        normalizeSubjectRelation(dto.subjectRelation()));
         evict(dto.objectType(), dto.objectId());
     }
 
@@ -69,12 +71,14 @@ public class ResourceRelationService implements RelationPermissionChecker {
             String relation,
             String subjectType,
             String subjectId) {
-        return repository.existsByObjectTypeAndObjectIdAndRelationAndSubjectTypeAndSubjectIdAndSubjectRelation(
-                objectType, objectId, relation, subjectType, subjectId, "");
+        return repository
+                .existsByObjectTypeAndObjectIdAndRelationAndSubjectTypeAndSubjectIdAndSubjectRelation(
+                        objectType, objectId, relation, subjectType, subjectId, "");
     }
 
     @Override
-    public boolean hasPermission(Long userId, String objectType, String objectId, String permission) {
+    public boolean hasPermission(
+            Long userId, String objectType, String objectId, String permission) {
         if (userId == null || objectType == null || objectId == null || permission == null) {
             return false;
         }
@@ -87,14 +91,15 @@ public class ResourceRelationService implements RelationPermissionChecker {
                         .map(UserRole::getRoleId)
                         .map(String::valueOf)
                         .toList();
-        var allowed = repository.hasPath(
-                objectType,
-                objectId,
-                List.copyOf(acceptedRelations(permission)),
-                String.valueOf(userId),
-                roleIds.isEmpty() ? List.of("-1") : roleIds,
-                MAX_DEPTH,
-                Instant.now());
+        var allowed =
+                repository.hasPath(
+                        objectType,
+                        objectId,
+                        List.copyOf(acceptedRelations(permission)),
+                        String.valueOf(userId),
+                        roleIds.isEmpty() ? List.of("-1") : roleIds,
+                        MAX_DEPTH,
+                        Instant.now());
         rebacPermissionCache.put(userId, objectType, objectId, permission, allowed);
         return allowed;
     }

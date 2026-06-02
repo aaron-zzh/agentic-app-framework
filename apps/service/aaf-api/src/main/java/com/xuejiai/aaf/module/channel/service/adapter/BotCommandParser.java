@@ -6,8 +6,8 @@ import java.util.Map;
 /**
  * 机器人指令解析器。
  *
- * <p>解析 /命令 参数1 参数2 格式，结果填充到 UnifiedMessage.extra 中。
- * extra 中 key：command（指令名）、args（参数列表）、isCommand（是否为指令消息）。
+ * <p>解析 /命令 参数1 参数2 格式，结果填充到 UnifiedMessage.extra 中。 extra 中
+ * key：command（指令名）、args（参数列表）、isCommand（是否为指令消息）。
  */
 public final class BotCommandParser {
 

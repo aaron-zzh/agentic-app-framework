@@ -9,10 +9,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
-import com.xuejiai.aaf.framework.intelligent.agent.AgentFactory;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
+import com.xuejiai.aaf.framework.intelligent.agent.AgentFactory;
 import com.xuejiai.aaf.framework.intelligent.cognition.learning.TrajectoryCollector;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryExtractionService;
 import com.xuejiai.aaf.framework.intelligent.cognition.pipeline.MemoryPipelineFactory;

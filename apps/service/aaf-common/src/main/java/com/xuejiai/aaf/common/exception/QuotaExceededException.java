@@ -20,7 +20,9 @@ public class QuotaExceededException extends RuntimeException {
     private final long remain;
 
     public QuotaExceededException(String entitlementCode, long required, long remain) {
-        super("权益额度不足: code=%s, required=%d, remain=%d".formatted(entitlementCode, required, remain));
+        super(
+                "权益额度不足: code=%s, required=%d, remain=%d"
+                        .formatted(entitlementCode, required, remain));
         this.entitlementCode = entitlementCode;
         this.required = required;
         this.remain = remain;

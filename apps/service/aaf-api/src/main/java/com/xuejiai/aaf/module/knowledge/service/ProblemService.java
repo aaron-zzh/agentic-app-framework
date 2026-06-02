@@ -37,12 +37,13 @@ public class ProblemService {
         problem.setContent(content);
         problemRepo.save(problem);
         if (segmentIds != null) {
-            segmentIds.forEach(sid -> {
-                var pp = new ProblemParagraph();
-                pp.setProblemId(problem.getId());
-                pp.setSegmentId(sid);
-                ppRepo.save(pp);
-            });
+            segmentIds.forEach(
+                    sid -> {
+                        var pp = new ProblemParagraph();
+                        pp.setProblemId(problem.getId());
+                        pp.setSegmentId(sid);
+                        ppRepo.save(pp);
+                    });
         }
         return problem;
     }

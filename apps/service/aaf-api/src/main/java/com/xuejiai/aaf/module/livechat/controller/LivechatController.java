@@ -27,9 +27,7 @@ import com.xuejiai.aaf.module.livechat.vo.StaffSendMessageDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/**
- * 客服工作台 API。
- */
+/** 客服工作台 API。 */
 @RestController
 @RequestMapping("/api/livechat")
 @RequiredArgsConstructor
@@ -65,10 +63,17 @@ public class LivechatController {
     public Result<List<ChatMessageVO>> getMessages(@PathVariable Long sessionId) {
         return Result.success(
                 sessionService.getMessagesForStaff(sessionId).stream()
-                        .map(m -> new ChatMessageVO(
-                                m.getId(), m.getSessionId(), m.getSenderType(), m.getSenderId(),
-                                m.getMessageType(), m.getContent(), m.getInternal(),
-                                m.getCreateTime()))
+                        .map(
+                                m ->
+                                        new ChatMessageVO(
+                                                m.getId(),
+                                                m.getSessionId(),
+                                                m.getSenderType(),
+                                                m.getSenderId(),
+                                                m.getMessageType(),
+                                                m.getContent(),
+                                                m.getInternal(),
+                                                m.getCreateTime()))
                         .toList());
     }
 
@@ -84,11 +89,15 @@ public class LivechatController {
             sessionService.getStaffSessions(staffId).stream()
                     .filter(s -> s.getId().equals(dto.sessionId()))
                     .findFirst()
-                    .ifPresent(s -> {
-                        var reply = UnifiedMessage.outboundText(
-                                s.getChannelType(), s.getExternalUserId(), dto.content());
-                        channelRouter.routeOutbound(reply);
-                    });
+                    .ifPresent(
+                            s -> {
+                                var reply =
+                                        UnifiedMessage.outboundText(
+                                                s.getChannelType(),
+                                                s.getExternalUserId(),
+                                                dto.content());
+                                channelRouter.routeOutbound(reply);
+                            });
         }
         return Result.success(null);
     }
@@ -100,17 +109,19 @@ public class LivechatController {
             @RequestParam Long fromStaffId,
             @RequestBody @Valid SessionTransferDTO dto) {
         sessionService.transfer(
-                sessionId, fromStaffId, dto.toStaffId(),
-                dto.toSkillGroup(), dto.reason(), dto.note());
+                sessionId,
+                fromStaffId,
+                dto.toStaffId(),
+                dto.toSkillGroup(),
+                dto.reason(),
+                dto.note());
         return Result.success(null);
     }
 
     /** 邀请协作 */
     @PostMapping("/sessions/{sessionId}/collaborate")
     public Result<Void> collaborate(
-            @PathVariable Long sessionId,
-            @RequestParam Long staffId,
-            @RequestBody String message) {
+            @PathVariable Long sessionId, @RequestParam Long staffId, @RequestBody String message) {
         sessionService.inviteCollaborate(sessionId, staffId, message);
         return Result.success(null);
     }
@@ -147,8 +158,15 @@ public class LivechatController {
 
     private ChatSessionVO toVO(ChatSession s) {
         return new ChatSessionVO(
-                s.getId(), s.getExternalUserId(), s.getChannelType(), s.getStatus(),
-                s.getStaffId(), s.getSkillGroup(), s.getTags(), s.getPriority(),
-                s.getLastActiveTime(), s.getCreateTime());
+                s.getId(),
+                s.getExternalUserId(),
+                s.getChannelType(),
+                s.getStatus(),
+                s.getStaffId(),
+                s.getSkillGroup(),
+                s.getTags(),
+                s.getPriority(),
+                s.getLastActiveTime(),
+                s.getCreateTime());
     }
 }

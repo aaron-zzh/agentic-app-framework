@@ -3,9 +3,7 @@ package com.xuejiai.aaf.framework.engine.checkpoint;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Checkpoint 存储接口——通用检查点持久化。
- */
+/** Checkpoint 存储接口——通用检查点持久化。 */
 public interface CheckpointStore {
 
     /** 保存检查点 */

@@ -139,9 +139,7 @@ public class BundleSearchService {
 
         for (var rel : bundleRelations) {
             var neighborId =
-                    rel.getSourceId().equals(seed.getId())
-                            ? rel.getTargetId()
-                            : rel.getSourceId();
+                    rel.getSourceId().equals(seed.getId()) ? rel.getTargetId() : rel.getSourceId();
             var neighbor = atomMap.get(neighborId);
             double neighborDist =
                     neighbor != null

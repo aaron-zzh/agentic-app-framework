@@ -40,13 +40,16 @@ public class CiCdService {
     /** 触发 GitHub Actions workflow */
     public Long triggerWorkflow(String workflowFile, String ref, Map<String, String> inputs) {
         var inputsJson = inputs != null ? MAPPER.valueToTree(inputs).toString() : "{}";
-        var payload = """
-                {"ref":"%s","inputs":%s}""".formatted(ref, inputsJson);
+        var payload =
+                """
+                {"ref":"%s","inputs":%s}"""
+                        .formatted(ref, inputsJson);
 
-        var request = githubRequest(
-                "POST",
-                "/actions/workflows/%s/dispatches".formatted(workflowFile),
-                payload);
+        var request =
+                githubRequest(
+                        "POST",
+                        "/actions/workflows/%s/dispatches".formatted(workflowFile),
+                        payload);
         try {
             var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 204) {
@@ -76,8 +79,10 @@ public class CiCdService {
                 var status = new BuildStatus();
                 status.setRunId(runId);
                 status.setStatus(json.get("status").asText());
-                status.setConclusion(json.has("conclusion") && !json.get("conclusion").isNull()
-                        ? json.get("conclusion").asText() : null);
+                status.setConclusion(
+                        json.has("conclusion") && !json.get("conclusion").isNull()
+                                ? json.get("conclusion").asText()
+                                : null);
                 status.setHtmlUrl(json.get("html_url").asText());
                 status.setUpdatedAt(LocalDateTime.now());
                 buildCache.put(runId, status);
@@ -100,14 +105,20 @@ public class CiCdService {
         var status = new BuildStatus();
         status.setRunId(runId);
         status.setStatus(run.get("status").asText());
-        status.setConclusion(run.has("conclusion") && !run.get("conclusion").isNull()
-                ? run.get("conclusion").asText() : null);
+        status.setConclusion(
+                run.has("conclusion") && !run.get("conclusion").isNull()
+                        ? run.get("conclusion").asText()
+                        : null);
         status.setHtmlUrl(run.get("html_url").asText());
         status.setUpdatedAt(LocalDateTime.now());
         buildCache.put(runId, status);
 
-        log.info("Webhook: workflow_run {} runId={} status={} conclusion={}",
-                action, runId, status.getStatus(), status.getConclusion());
+        log.info(
+                "Webhook: workflow_run {} runId={} status={} conclusion={}",
+                action,
+                runId,
+                status.getStatus(),
+                status.getConclusion());
     }
 
     /** 触发部署（调用 deploy workflow） */
@@ -124,8 +135,12 @@ public class CiCdService {
     }
 
     private Long queryLatestRunId(String workflowFile, String ref) {
-        var request = githubRequest("GET",
-                "/actions/workflows/%s/runs?branch=%s&per_page=1".formatted(workflowFile, ref), null);
+        var request =
+                githubRequest(
+                        "GET",
+                        "/actions/workflows/%s/runs?branch=%s&per_page=1"
+                                .formatted(workflowFile, ref),
+                        null);
         try {
             Thread.sleep(2000); // 等待 GitHub 创建 context
             var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -142,10 +157,14 @@ public class CiCdService {
     }
 
     private HttpRequest githubRequest(String method, String path, String body) {
-        var builder = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.github.com/repos/%s%s".formatted(githubRepo, path)))
-                .header("Authorization", "Bearer " + githubToken)
-                .header("Accept", "application/vnd.github+json");
+        var builder =
+                HttpRequest.newBuilder()
+                        .uri(
+                                URI.create(
+                                        "https://api.github.com/repos/%s%s"
+                                                .formatted(githubRepo, path)))
+                        .header("Authorization", "Bearer " + githubToken)
+                        .header("Accept", "application/vnd.github+json");
         if ("POST".equals(method) && body != null) {
             builder.POST(HttpRequest.BodyPublishers.ofString(body));
         } else {

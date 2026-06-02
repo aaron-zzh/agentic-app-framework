@@ -79,17 +79,19 @@ public class WecomKfCallbackService {
         }
 
         // 异步处理消息（快速响应企微服务器）
-        executor.submit(() -> {
-            try {
-                messageHandler.handleCallback(openKfId, token);
-            } catch (Exception e) {
-                log.error("处理客服消息异常: openKfId={}", openKfId, e);
-            }
-        });
+        executor.submit(
+                () -> {
+                    try {
+                        messageHandler.handleCallback(openKfId, token);
+                    } catch (Exception e) {
+                        log.error("处理客服消息异常: openKfId={}", openKfId, e);
+                    }
+                });
     }
 
     /** 验证签名 */
-    private boolean verifySignature(String msgSignature, String timestamp, String nonce, String encrypt) {
+    private boolean verifySignature(
+            String msgSignature, String timestamp, String nonce, String encrypt) {
         try {
             String[] arr = {properties.getToken(), timestamp, nonce, encrypt};
             Arrays.sort(arr);
@@ -111,7 +113,8 @@ public class WecomKfCallbackService {
             var aesKey = Base64.getDecoder().decode(properties.getEncodingAesKey() + "=");
             var iv = Arrays.copyOfRange(aesKey, 0, 16);
             var cipher = Cipher.getInstance("AES/CBC/NoPadding");
-            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(aesKey, "AES"), new IvParameterSpec(iv));
+            cipher.init(
+                    Cipher.DECRYPT_MODE, new SecretKeySpec(aesKey, "AES"), new IvParameterSpec(iv));
             var decrypted = cipher.doFinal(Base64.getDecoder().decode(encrypted));
             // 去除补位：前16字节随机串，4字节消息长度，后面是消息内容+corpId
             int msgLen =

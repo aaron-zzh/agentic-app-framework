@@ -2,19 +2,22 @@ package com.xuejiai.aaf.module.company.okr.domain;
 
 import java.math.BigDecimal;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** OKR 关键结果 */
 @Getter
 @Setter
 @Entity
 @Table(name = "company_key_result")
-@SQLDelete(sql = "UPDATE company_key_result SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE company_key_result SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class KeyResult extends BaseEntity {
 
     /** 所属目标 ID */

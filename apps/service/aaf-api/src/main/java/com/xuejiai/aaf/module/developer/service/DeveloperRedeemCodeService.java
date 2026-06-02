@@ -33,7 +33,8 @@ public class DeveloperRedeemCodeService {
         code.setExpiresAt(dto.expiresAt());
         code.setRemark(dto.remark());
         redeemCodeRepository.save(code);
-        return new DeveloperRedeemCodeCreateVO(code.getId(), rawCode, code.getCodePrefix(), code.getTokenAmount());
+        return new DeveloperRedeemCodeCreateVO(
+                code.getId(), rawCode, code.getCodePrefix(), code.getTokenAmount());
     }
 
     @Transactional
@@ -41,7 +42,8 @@ public class DeveloperRedeemCodeService {
         var code =
                 redeemCodeRepository
                         .findByCodeHashForUpdate(DeveloperSecurityUtil.sha256(rawCode))
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "兑换码不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "兑换码不存在"));
         if (!"UNUSED".equals(code.getStatus())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "兑换码已使用或已失效");
         }

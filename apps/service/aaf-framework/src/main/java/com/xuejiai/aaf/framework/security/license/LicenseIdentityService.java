@@ -31,7 +31,8 @@ public class LicenseIdentityService {
             return false;
         }
         var pattern =
-                Pattern.compile("^" + Pattern.quote(properties.getPrefix()) + "[0-9a-f]{16}_[0-9a-f]{8}$");
+                Pattern.compile(
+                        "^" + Pattern.quote(properties.getPrefix()) + "[0-9a-f]{16}_[0-9a-f]{8}$");
         if (!pattern.matcher(userId).matches()) {
             return false;
         }
@@ -59,7 +60,8 @@ public class LicenseIdentityService {
 
     private byte[] sha256(String value) {
         try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }

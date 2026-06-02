@@ -26,5 +26,6 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, Long> {
             "SELECT a FROM MediaAsset a WHERE a.userId = :userId AND a.deleted = false"
                     + " AND (LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))"
                     + " OR LOWER(a.tags) LIKE LOWER(CONCAT('%', :keyword, '%')))")
-    List<MediaAsset> searchByKeyword(@Param("userId") Long userId, @Param("keyword") String keyword);
+    List<MediaAsset> searchByKeyword(
+            @Param("userId") Long userId, @Param("keyword") String keyword);
 }

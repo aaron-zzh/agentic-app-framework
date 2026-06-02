@@ -17,7 +17,9 @@ import lombok.extern.slf4j.Slf4j;
  * 统一消息路由器。
  *
  * <p>入站：原始报文 → ChannelAdapter.receive() → UnifiedMessage → MessageHandler 链处理 → 回复路由。
+ *
  * <p>出站：内部回复 → 路由到对应 ChannelAdapter.reply()。
+ *
  * <p>降级：首选渠道不可用时尝试备选渠道。
  */
 @Slf4j
@@ -27,15 +29,13 @@ public class ChannelMessageRouter {
     private final Map<ChannelTypeEnum, ChannelAdapter> adapterMap;
     private final List<MessageHandler> handlers;
 
-    public ChannelMessageRouter(
-            List<ChannelAdapter> adapters, List<MessageHandler> handlers) {
+    public ChannelMessageRouter(List<ChannelAdapter> adapters, List<MessageHandler> handlers) {
         this.adapterMap =
                 adapters.stream()
-                        .collect(Collectors.toMap(ChannelAdapter::channelType, Function.identity()));
+                        .collect(
+                                Collectors.toMap(ChannelAdapter::channelType, Function.identity()));
         this.handlers =
-                handlers.stream()
-                        .sorted(Comparator.comparingInt(MessageHandler::order))
-                        .toList();
+                handlers.stream().sorted(Comparator.comparingInt(MessageHandler::order)).toList();
     }
 
     /**
@@ -48,8 +48,11 @@ public class ChannelMessageRouter {
     public String routeInbound(ChannelTypeEnum channelType, String rawPayload) {
         var adapter = getAdapter(channelType);
         var inbound = adapter.receive(rawPayload);
-        log.info("入站消息: channel={}, user={}, type={}",
-                channelType.getCode(), inbound.externalUserId(), inbound.messageType().getCode());
+        log.info(
+                "入站消息: channel={}, user={}, type={}",
+                channelType.getCode(),
+                inbound.externalUserId(),
+                inbound.messageType().getCode());
 
         // 分发给 handler 链
         UnifiedMessage reply = dispatch(inbound);
@@ -61,8 +64,7 @@ public class ChannelMessageRouter {
     }
 
     /**
-     * 出站路由：将内部回复消息路由到对应渠道。
-     * 支持渠道降级——首选不可用时尝试备选。
+     * 出站路由：将内部回复消息路由到对应渠道。 支持渠道降级——首选不可用时尝试备选。
      *
      * @param message 出站消息
      * @param fallbackChannels 备选渠道（按优先级排序）
@@ -78,24 +80,27 @@ public class ChannelMessageRouter {
             var fb = adapterMap.get(fallback);
             if (fb != null && fb.isAvailable()) {
                 log.warn("渠道降级: {} → {}", message.channelType().getCode(), fallback.getCode());
-                var degraded = new UnifiedMessage(
-                        fallback,
-                        message.direction(),
-                        message.messageType(),
-                        message.externalUserId(),
-                        message.content(),
-                        message.mediaUrl(),
-                        message.eventType(),
-                        message.eventKey(),
-                        message.extra(),
-                        message.rawPayload(),
-                        message.timestamp());
+                var degraded =
+                        new UnifiedMessage(
+                                fallback,
+                                message.direction(),
+                                message.messageType(),
+                                message.externalUserId(),
+                                message.content(),
+                                message.mediaUrl(),
+                                message.eventType(),
+                                message.eventKey(),
+                                message.extra(),
+                                message.rawPayload(),
+                                message.timestamp());
                 fb.reply(degraded);
                 return;
             }
         }
-        log.error("所有渠道不可用，消息丢弃: channel={}, user={}",
-                message.channelType().getCode(), message.externalUserId());
+        log.error(
+                "所有渠道不可用，消息丢弃: channel={}, user={}",
+                message.channelType().getCode(),
+                message.externalUserId());
     }
 
     /** 出站路由（无降级） */
@@ -121,8 +126,10 @@ public class ChannelMessageRouter {
                 }
             }
         }
-        log.debug("无 handler 处理消息: channel={}, type={}",
-                inbound.channelType().getCode(), inbound.messageType().getCode());
+        log.debug(
+                "无 handler 处理消息: channel={}, type={}",
+                inbound.channelType().getCode(),
+                inbound.messageType().getCode());
         return null;
     }
 }

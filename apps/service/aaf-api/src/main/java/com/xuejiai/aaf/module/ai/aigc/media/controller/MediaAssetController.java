@@ -43,7 +43,8 @@ public class MediaAssetController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = operatorContext.currentUserId().orElseThrow();
-        return Result.success(assetService.page(userId, type, categoryId, PageRequest.of(page, size)));
+        return Result.success(
+                assetService.page(userId, type, categoryId, PageRequest.of(page, size)));
     }
 
     @Operation(summary = "搜索素材")

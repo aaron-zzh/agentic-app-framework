@@ -1,10 +1,10 @@
 package com.xuejiai.aaf.module.ai.output.domain;
 
+import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.module.ai.output.domain.enums.AiOutputStatus;
 import com.xuejiai.aaf.module.ai.output.domain.enums.OutputCategory;
 import com.xuejiai.aaf.module.ai.output.domain.enums.OutputSourceType;
-import com.xuejiai.aaf.common.enums.RiskLevel;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,9 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * AI 产出记录——所有助理工作成果的统一归档。
- */
+/** AI 产出记录——所有助理工作成果的统一归档。 */
 @Getter
 @Setter
 @Entity

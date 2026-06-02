@@ -3,19 +3,22 @@ package com.xuejiai.aaf.module.company.ops.domain;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 运营指标 */
 @Getter
 @Setter
 @Entity
 @Table(name = "company_ops_metric")
-@SQLDelete(sql = "UPDATE company_ops_metric SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE company_ops_metric SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class OpsMetric extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 128)

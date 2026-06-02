@@ -15,7 +15,10 @@ public class TaskBoard {
 
     /** 任务状态 */
     public enum TaskStatus {
-        PENDING, RUNNING, DONE, FAILED
+        PENDING,
+        RUNNING,
+        DONE,
+        FAILED
     }
 
     /** 子任务 */
@@ -40,7 +43,14 @@ public class TaskBoard {
 
     /** 添加子任务 */
     public void addTask(String id, String description, List<String> dependsOn) {
-        tasks.put(id, new SubTask(id, description, TaskStatus.PENDING, dependsOn != null ? dependsOn : List.of(), null));
+        tasks.put(
+                id,
+                new SubTask(
+                        id,
+                        description,
+                        TaskStatus.PENDING,
+                        dependsOn != null ? dependsOn : List.of(),
+                        null));
         order.add(id);
     }
 
@@ -94,14 +104,17 @@ public class TaskBoard {
     public Map<String, Object> toSnapshot() {
         var snapshot = new java.util.HashMap<String, Object>();
         snapshot.put("order", List.copyOf(order));
-        var taskList = allTasks().stream()
-                .map(t -> Map.of(
-                        "id", t.id(),
-                        "description", t.description(),
-                        "status", t.status().name(),
-                        "dependsOn", t.dependsOn(),
-                        "result", t.result() != null ? t.result() : ""))
-                .toList();
+        var taskList =
+                allTasks().stream()
+                        .map(
+                                t ->
+                                        Map.of(
+                                                "id", t.id(),
+                                                "description", t.description(),
+                                                "status", t.status().name(),
+                                                "dependsOn", t.dependsOn(),
+                                                "result", t.result() != null ? t.result() : ""))
+                        .toList();
         snapshot.put("tasks", taskList);
         return snapshot;
     }
@@ -120,9 +133,14 @@ public class TaskBoard {
             var status = TaskStatus.valueOf((String) taskMap.get("status"));
             var dependsOn = (List<String>) taskMap.get("dependsOn");
             var result = (String) taskMap.get("result");
-            board.tasks.put(id, new SubTask(id, description, status,
-                    dependsOn != null ? dependsOn : List.of(),
-                    result.isEmpty() ? null : result));
+            board.tasks.put(
+                    id,
+                    new SubTask(
+                            id,
+                            description,
+                            status,
+                            dependsOn != null ? dependsOn : List.of(),
+                            result.isEmpty() ? null : result));
             board.order.add(id);
         }
         return board;

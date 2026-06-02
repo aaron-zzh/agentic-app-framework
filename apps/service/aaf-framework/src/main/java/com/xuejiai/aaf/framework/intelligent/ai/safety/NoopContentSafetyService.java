@@ -32,8 +32,10 @@ public class NoopContentSafetyService implements ContentSafetyService {
             if (state != null) {
                 return switch (state.decision()) {
                     case APPROVED -> ContentSafetyResult.pass();
-                    case REJECTED -> ContentSafetyResult.rejected("CONTENT_REVIEW_REJECTED", "内容安全复审未通过");
-                    case PENDING -> ContentSafetyResult.pendingReview(state.approvalId(), "生成内容正在等待人工复审");
+                    case REJECTED ->
+                            ContentSafetyResult.rejected("CONTENT_REVIEW_REJECTED", "内容安全复审未通过");
+                    case PENDING ->
+                            ContentSafetyResult.pendingReview(state.approvalId(), "生成内容正在等待人工复审");
                 };
             }
             var reviewId =
@@ -109,7 +111,9 @@ public class NoopContentSafetyService implements ContentSafetyService {
                                 value(request.prompt()));
         try {
             return HexFormat.of()
-                    .formatHex(MessageDigest.getInstance("SHA-256").digest(raw.getBytes(StandardCharsets.UTF_8)));
+                    .formatHex(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(raw.getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 algorithm is not available", ex);
         }

@@ -27,8 +27,8 @@ public class ProfileDimensionService {
 
     /** 按分组获取维度 */
     public List<ProfileDimension> listByGroup(String groupCode) {
-        return dimensionRepository
-                .findByGroupCodeAndStatusAndDeletedFalseOrderBySortOrder(groupCode, 0);
+        return dimensionRepository.findByGroupCodeAndStatusAndDeletedFalseOrderBySortOrder(
+                groupCode, 0);
     }
 
     /** 获取 AI 可见的维度 */
@@ -39,17 +39,24 @@ public class ProfileDimensionService {
     /** 创建维度 */
     @Transactional
     public ProfileDimension create(ProfileDimension dimension) {
-        dimensionRepository.findByCodeAndDeletedFalse(dimension.getCode()).ifPresent(d -> {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "维度编码已存在: " + d.getCode());
-        });
+        dimensionRepository
+                .findByCodeAndDeletedFalse(dimension.getCode())
+                .ifPresent(
+                        d -> {
+                            throw new BusinessException(
+                                    GlobalErrorCode.BAD_REQUEST, "维度编码已存在: " + d.getCode());
+                        });
         return dimensionRepository.save(dimension);
     }
 
     /** 更新维度 */
     @Transactional
     public ProfileDimension update(Long id, ProfileDimension updated) {
-        var dim = dimensionRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "维度不存在"));
+        var dim =
+                dimensionRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "维度不存在"));
         dim.setName(updated.getName());
         dim.setGroupCode(updated.getGroupCode());
         dim.setValueType(updated.getValueType());

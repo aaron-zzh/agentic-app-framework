@@ -9,6 +9,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.engine.checkpoint.CheckpointStore;
 
 import lombok.RequiredArgsConstructor;
@@ -55,11 +56,12 @@ public class SessionRecoveryService {
                 int recovered = recoverSession(session);
                 if (recovered > 0) {
                     totalRecovered++;
-                    eventPublisher.publishEvent(new SessionRecoveredEvent(
-                            session.getSessionId(),
-                            session.getUserId(),
-                            recovered,
-                            "服务重启后自动恢复"));
+                    eventPublisher.publishEvent(
+                            new SessionRecoveredEvent(
+                                    session.getSessionId(),
+                                    session.getUserId(),
+                                    recovered,
+                                    "服务重启后自动恢复"));
                 }
             } catch (Exception e) {
                 log.warn("会话恢复失败: key={}", key, e);
@@ -76,16 +78,19 @@ public class SessionRecoveryService {
         }
 
         // 从最新 Checkpoint 恢复 TaskBoard
-        var latest = checkpoints.stream()
-                .max((a, b) -> Integer.compare(a.step(), b.step()))
-                .orElse(null);
+        var latest =
+                checkpoints.stream()
+                        .max((a, b) -> Integer.compare(a.step(), b.step()))
+                        .orElse(null);
         if (latest == null) return 0;
 
         var taskBoard = TaskBoard.fromSnapshot(latest.state());
         int recoveredCount = 0;
         for (var task : taskBoard.allTasks()) {
             switch (task.status()) {
-                case DONE, FAILED -> { /* 跳过 */ }
+                case DONE, FAILED -> {
+                    /* 跳过 */
+                }
                 case RUNNING -> {
                     // 有 Checkpoint 则标记待恢复，否则标记失败
                     recoveredCount++;

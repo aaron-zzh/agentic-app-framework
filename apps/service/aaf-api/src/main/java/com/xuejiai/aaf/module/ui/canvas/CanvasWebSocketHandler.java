@@ -2,7 +2,6 @@ package com.xuejiai.aaf.module.ui.canvas;
 
 import java.io.IOException;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -19,10 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 画板 Yjs WebSocket 处理器。
- * 转发 Yjs 二进制消息给同一房间的其他客户端。
- */
+/** 画板 Yjs WebSocket 处理器。 转发 Yjs 二进制消息给同一房间的其他客户端。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -33,7 +29,8 @@ public class CanvasWebSocketHandler extends BinaryWebSocketHandler {
     private final ObjectMapper objectMapper;
 
     /** 房间 → 连接集合 */
-    private final ConcurrentHashMap<String, Set<WebSocketSession>> rooms = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Set<WebSocketSession>> rooms =
+            new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -111,8 +108,9 @@ public class CanvasWebSocketHandler extends BinaryWebSocketHandler {
         if (members == null) return;
 
         try {
-            var json = objectMapper.writeValueAsString(
-                    java.util.Map.of("type", "presence", "count", members.size()));
+            var json =
+                    objectMapper.writeValueAsString(
+                            java.util.Map.of("type", "presence", "count", members.size()));
             var msg = new TextMessage(json);
             for (var peer : members) {
                 if (peer.isOpen()) {

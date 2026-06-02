@@ -10,12 +10,12 @@ import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
 import com.xuejiai.aaf.module.billing.domain.SubscriptionRecord;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRecordRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
-import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
@@ -27,8 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 订阅服务（付费线）。
  *
- * <p>购买订阅复用 BizOrderService/PayOrderService 发起支付，
- * 支付成功后创建 subscription + 实例化 entitlement_quota。
+ * <p>购买订阅复用 BizOrderService/PayOrderService 发起支付， 支付成功后创建 subscription + 实例化 entitlement_quota。
  */
 @Slf4j
 @Service("billingSubscriptionService")
@@ -46,8 +45,13 @@ public class SubscriptionService {
     /** 购买订阅：创建业务订单 + 支付单 */
     @Transactional
     public Long subscribe(Long userId, String planCode, String channelCode) {
-        var plan = planRepository.findByCode(planCode)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "套餐不存在: " + planCode));
+        var plan =
+                planRepository
+                        .findByCode(planCode)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "套餐不存在: " + planCode));
 
         // 免费套餐直接激活
         if (plan.getPrice() == 0) {
@@ -55,20 +59,25 @@ public class SubscriptionService {
         }
 
         // 创建业务订单
-        var bizOrder = bizOrderService.create(userId, new BizOrderCreateDTO(
-                BizOrderTypeEnum.SUBSCRIPTION.getCode(),
-                "订阅 " + plan.getName(),
-                plan.getPrice(),
-                channelCode));
+        var bizOrder =
+                bizOrderService.create(
+                        userId,
+                        new BizOrderCreateDTO(
+                                BizOrderTypeEnum.SUBSCRIPTION.getCode(),
+                                "订阅 " + plan.getName(),
+                                plan.getPrice(),
+                                channelCode));
 
         // 创建支付单
-        var payOrder = payOrderService.create(new PayOrderCreateDTO(
-                bizOrder.orderNo(),
-                "订阅 " + plan.getName(),
-                null,
-                plan.getPrice(),
-                channelCode,
-                userId));
+        var payOrder =
+                payOrderService.create(
+                        new PayOrderCreateDTO(
+                                bizOrder.orderNo(),
+                                "订阅 " + plan.getName(),
+                                null,
+                                plan.getPrice(),
+                                channelCode,
+                                userId));
 
         // 关联支付单
         bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
@@ -95,7 +104,8 @@ public class SubscriptionService {
     @Transactional
     public void onPaySuccess(Long payOrderId) {
         var bizOrder = bizOrderService.findByPayOrderId(payOrderId);
-        if (bizOrder == null || !BizOrderTypeEnum.SUBSCRIPTION.getCode().equals(bizOrder.getOrderType())) {
+        if (bizOrder == null
+                || !BizOrderTypeEnum.SUBSCRIPTION.getCode().equals(bizOrder.getOrderType())) {
             return;
         }
         bizOrderService.markPaid(bizOrder.getId());
@@ -115,8 +125,9 @@ public class SubscriptionService {
     @Transactional
     public int expireSubscriptions() {
         var now = LocalDateTime.now();
-        var expiredSubscriptions = subscriptionRepository.findByStatusAndEndAtBefore(
-                SubscriptionStatusEnum.ACTIVE.getCode(), now);
+        var expiredSubscriptions =
+                subscriptionRepository.findByStatusAndEndAtBefore(
+                        SubscriptionStatusEnum.ACTIVE.getCode(), now);
         for (var sub : expiredSubscriptions) {
             sub.setStatus(SubscriptionStatusEnum.EXPIRED.getCode());
             subscriptionRepository.save(sub);
@@ -128,31 +139,38 @@ public class SubscriptionService {
     /** 获取用户当前有效订阅 */
     @Transactional(readOnly = true)
     public Subscription getActiveSubscription(Long userId) {
-        return subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
+        return subscriptionRepository
+                .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
                 .orElse(null);
     }
 
     // ===== 私有方法 =====
 
     private Long activateSubscription(Long userId, Long planId, Long sourceId) {
-        var plan = planRepository.findById(planId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "套餐不存在"));
+        var plan =
+                planRepository
+                        .findById(planId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "套餐不存在"));
 
         // 取消旧订阅
-        subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                .ifPresent(old -> {
-                    old.setStatus(SubscriptionStatusEnum.CANCELLED.getCode());
-                    subscriptionRepository.save(old);
-                });
+        subscriptionRepository
+                .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
+                .ifPresent(
+                        old -> {
+                            old.setStatus(SubscriptionStatusEnum.CANCELLED.getCode());
+                            subscriptionRepository.save(old);
+                        });
 
         // 创建新订阅
         var subscription = new Subscription();
         subscription.setUserId(userId);
         subscription.setPlanId(planId);
         subscription.setStartAt(LocalDateTime.now());
-        subscription.setEndAt(plan.getDurationDays() > 0
-                ? LocalDateTime.now().plusDays(plan.getDurationDays())
-                : null);
+        subscription.setEndAt(
+                plan.getDurationDays() > 0
+                        ? LocalDateTime.now().plusDays(plan.getDurationDays())
+                        : null);
         subscription.setStatus(SubscriptionStatusEnum.ACTIVE.getCode());
         subscription.setSourceId(sourceId);
         subscriptionRepository.save(subscription);
@@ -173,7 +191,11 @@ public class SubscriptionService {
             subscriptionRepository.save(subscription);
         }
 
-        log.info("订阅激活: userId={}, plan={}, endAt={}", userId, plan.getCode(), subscription.getEndAt());
+        log.info(
+                "订阅激活: userId={}, plan={}, endAt={}",
+                userId,
+                plan.getCode(),
+                subscription.getEndAt());
         return subscription.getId();
     }
 }

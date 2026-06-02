@@ -2,9 +2,9 @@ package com.xuejiai.aaf.module.company.planning.repository;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.company.planning.domain.CompanyPlan;
-
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.xuejiai.aaf.module.company.planning.domain.CompanyPlan;
 
 public interface CompanyPlanRepository extends JpaRepository<CompanyPlan, Long> {
 

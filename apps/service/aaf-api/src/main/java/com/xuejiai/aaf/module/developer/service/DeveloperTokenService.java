@@ -47,7 +47,10 @@ public class DeveloperTokenService {
     @Transactional(readOnly = true)
     public void precheck(Long developerId) {
         var balance =
-                accountRepository.findByDeveloperId(developerId).map(DeveloperTokenAccount::getBalanceTokens).orElse(0L);
+                accountRepository
+                        .findByDeveloperId(developerId)
+                        .map(DeveloperTokenAccount::getBalanceTokens)
+                        .orElse(0L);
         if (balance <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "开发者托管 Token 余额不足");
         }
@@ -73,7 +76,10 @@ public class DeveloperTokenService {
         var account =
                 accountRepository
                         .findByDeveloperIdForUpdate(developerId)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "开发者 Token 账户不存在"));
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "开发者 Token 账户不存在"));
         if (account.getBalanceTokens() < tokens) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "开发者托管 Token 余额不足");
         }
@@ -89,7 +95,11 @@ public class DeveloperTokenService {
     }
 
     private void record(
-            DeveloperTokenAccount account, String type, long amountTokens, String source, String bizId) {
+            DeveloperTokenAccount account,
+            String type,
+            long amountTokens,
+            String source,
+            String bizId) {
         var tx = new DeveloperTokenTransaction();
         tx.setAccountId(account.getId());
         tx.setDeveloperId(account.getDeveloperId());

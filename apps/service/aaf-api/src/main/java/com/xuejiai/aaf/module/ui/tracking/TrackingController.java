@@ -16,9 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/**
- * 行为数据上报与分析接口。
- */
+/** 行为数据上报与分析接口。 */
 @Tag(name = "行为追踪")
 @RestController
 @RequestMapping("/api/ui/tracking")

@@ -41,7 +41,8 @@ public class LearningFeedbackService {
         }
         stats.lastExecutedAt = Instant.now();
 
-        log.debug("学习反馈: agentId={}, success={}, 累计成功率={}%",
+        log.debug(
+                "学习反馈: agentId={}, success={}, 累计成功率={}%",
                 event.agentId(), success, stats.getSuccessRate());
 
         // TODO: 接入程序化记忆蒸馏——正反馈强化 Skill，负反馈触发优化

@@ -43,7 +43,8 @@ public class ApiKeyScopeFilter extends OncePerRequestFilter {
 
         var resourceSlug = extractResourceSlug(request.getRequestURI());
         if (resourceSlug != null && !apiKey.canAccessTable(resourceSlug)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "API Key resource scope insufficient");
+            response.sendError(
+                    HttpServletResponse.SC_FORBIDDEN, "API Key resource scope insufficient");
             return;
         }
         filterChain.doFilter(request, response);
@@ -54,7 +55,9 @@ public class ApiKeyScopeFilter extends OncePerRequestFilter {
             return null;
         }
         for (String segment : requestUri.split("/")) {
-            if (!segment.isBlank() && !SAFE_SEGMENTS.contains(segment) && !segment.startsWith("_")) {
+            if (!segment.isBlank()
+                    && !SAFE_SEGMENTS.contains(segment)
+                    && !segment.startsWith("_")) {
                 return segment;
             }
         }

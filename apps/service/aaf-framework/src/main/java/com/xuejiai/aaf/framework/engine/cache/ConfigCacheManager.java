@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplate;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplateRepository;
+import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinitionRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
@@ -14,7 +15,6 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreference;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreferenceRepository;
-import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -51,12 +51,23 @@ public class ConfigCacheManager {
 
     @PostConstruct
     void init() {
-        aiModelCache = cacheFactory.create("ai_model", AiModel.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        agentDefCache = cacheFactory.create("agent_def", AgentDefinition.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        assistantDefCache = cacheFactory.create("assistant_def", AssistantDefinition.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        promptTemplateCache = cacheFactory.create("prompt_tpl", PromptTemplate.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        modelPreferenceCache = cacheFactory.create("model_pref", ModelPreference.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        skillDefCache = cacheFactory.create("skill_def", SkillDefinition.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
+        aiModelCache =
+                cacheFactory.create("ai_model", AiModel.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
+        agentDefCache =
+                cacheFactory.create(
+                        "agent_def", AgentDefinition.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
+        assistantDefCache =
+                cacheFactory.create(
+                        "assistant_def", AssistantDefinition.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
+        promptTemplateCache =
+                cacheFactory.create(
+                        "prompt_tpl", PromptTemplate.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
+        modelPreferenceCache =
+                cacheFactory.create(
+                        "model_pref", ModelPreference.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
+        skillDefCache =
+                cacheFactory.create(
+                        "skill_def", SkillDefinition.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
         warmUp();
     }
 
@@ -69,7 +80,8 @@ public class ConfigCacheManager {
     }
 
     public AssistantDefinition getAssistantDef(Long id) {
-        return assistantDefCache.get(id, k -> assistantDefinitionRepository.findById(k).orElse(null));
+        return assistantDefCache.get(
+                id, k -> assistantDefinitionRepository.findById(k).orElse(null));
     }
 
     public PromptTemplate getPromptTemplate(Long id) {
@@ -77,7 +89,8 @@ public class ConfigCacheManager {
     }
 
     public ModelPreference getModelPreference(Long id) {
-        return modelPreferenceCache.get(id, k -> modelPreferenceRepository.findById(k).orElse(null));
+        return modelPreferenceCache.get(
+                id, k -> modelPreferenceRepository.findById(k).orElse(null));
     }
 
     public SkillDefinition getSkillDef(Long id) {

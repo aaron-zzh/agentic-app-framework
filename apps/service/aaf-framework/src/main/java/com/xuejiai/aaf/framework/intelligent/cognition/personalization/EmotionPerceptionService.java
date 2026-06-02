@@ -29,9 +29,11 @@ public class EmotionPerceptionService {
 
     /** 用户情感历史（sessionId → 最近 N 条情感记录） */
     private final Map<String, LinkedList<EmotionState>> emotionHistory = new ConcurrentHashMap<>();
+
     private static final int MAX_HISTORY = 10;
 
-    private static final String EMOTION_PROMPT = """
+    private static final String EMOTION_PROMPT =
+            """
             分析用户输入的情感状态，只返回一个词：NEUTRAL/POSITIVE/FRUSTRATED/CONFUSED/URGENT
             用户输入：%s""";
 
@@ -39,7 +41,8 @@ public class EmotionPerceptionService {
     public EmotionState analyze(String userInput) {
         try {
             var prompt = EMOTION_PROMPT.formatted(userInput);
-            var response = llmClient.call(List.of(LlmMessage.user(prompt)), "emotion_classify", null);
+            var response =
+                    llmClient.call(List.of(LlmMessage.user(prompt)), "emotion_classify", null);
             return parseEmotion(response.trim());
         } catch (Exception e) {
             log.debug("LLM 情感分析降级为规则: {}", e.getMessage());
@@ -106,8 +109,10 @@ public class EmotionPerceptionService {
     private EmotionState fallbackAnalyze(String userInput) {
         var input = userInput.toLowerCase();
         if (containsAny(input, "急", "快", "赶紧", "马上", "urgent", "asap")) return EmotionState.URGENT;
-        if (containsAny(input, "谢", "感谢", "太好了", "棒", "thanks", "great")) return EmotionState.POSITIVE;
-        if (containsAny(input, "烦", "不行", "失败", "错误", "bug", "frustrated")) return EmotionState.FRUSTRATED;
+        if (containsAny(input, "谢", "感谢", "太好了", "棒", "thanks", "great"))
+            return EmotionState.POSITIVE;
+        if (containsAny(input, "烦", "不行", "失败", "错误", "bug", "frustrated"))
+            return EmotionState.FRUSTRATED;
         if (containsAny(input, "不懂", "不明白", "什么意思", "confused")) return EmotionState.CONFUSED;
         return EmotionState.NEUTRAL;
     }
@@ -122,7 +127,11 @@ public class EmotionPerceptionService {
     /** 情感状态 */
     @Getter
     public enum EmotionState {
-        NEUTRAL, POSITIVE, FRUSTRATED, CONFUSED, URGENT
+        NEUTRAL,
+        POSITIVE,
+        FRUSTRATED,
+        CONFUSED,
+        URGENT
     }
 
     /** 回复风格建议 */

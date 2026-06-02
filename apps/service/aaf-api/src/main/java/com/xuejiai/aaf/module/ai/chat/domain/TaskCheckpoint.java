@@ -11,9 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 任务检查点快照——支持从最近检查点恢复执行。
- */
+/** 任务检查点快照——支持从最近检查点恢复执行。 */
 @Getter
 @Setter
 @Entity

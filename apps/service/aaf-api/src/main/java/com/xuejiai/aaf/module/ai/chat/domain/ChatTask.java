@@ -24,7 +24,9 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "ai_chat_task")
-@SQLDelete(sql = "UPDATE ai_chat_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE ai_chat_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class ChatTask extends BaseEntity {
 
     /** 所属会话 ID */

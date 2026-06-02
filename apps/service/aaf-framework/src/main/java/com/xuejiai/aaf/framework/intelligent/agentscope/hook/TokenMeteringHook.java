@@ -7,9 +7,8 @@ package com.xuejiai.aaf.framework.intelligent.agentscope.hook;
 
 import java.util.UUID;
 
-import org.springframework.stereotype.Component;
-
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringService;

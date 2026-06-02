@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
@@ -46,21 +47,21 @@ public class WorkflowAgUiService {
     /** runId → processInstanceId 映射 */
     private final Map<String, String> runProcessMap = new ConcurrentHashMap<>();
 
-    /**
-     * 启动工作流并返回 AG-UI SSE 事件流。
-     */
+    /** 启动工作流并返回 AG-UI SSE 事件流。 */
     public SseEmitter startAndStream(WorkflowRunRequest request) {
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();
 
-        emitter.onCompletion(() -> {
-            activeEmitters.remove(runId);
-            log.debug("工作流 AG-UI SSE 完成: runId={}", runId);
-        });
-        emitter.onTimeout(() -> {
-            activeEmitters.remove(runId);
-            log.warn("工作流 AG-UI SSE 超时: runId={}", runId);
-        });
+        emitter.onCompletion(
+                () -> {
+                    activeEmitters.remove(runId);
+                    log.debug("工作流 AG-UI SSE 完成: runId={}", runId);
+                });
+        emitter.onTimeout(
+                () -> {
+                    activeEmitters.remove(runId);
+                    log.warn("工作流 AG-UI SSE 超时: runId={}", runId);
+                });
 
         activeEmitters.put(runId, emitter);
 
@@ -69,9 +70,7 @@ public class WorkflowAgUiService {
         return emitter;
     }
 
-    /**
-     * 提交用户输入，恢复等待中的流程。
-     */
+    /** 提交用户输入，恢复等待中的流程。 */
     public void submitInput(String runId, Map<String, Object> variables) {
         var processInstanceId = runProcessMap.get(runId);
         if (processInstanceId == null) {
@@ -90,16 +89,15 @@ public class WorkflowAgUiService {
             // 推送工具调用结果事件
             var emitter = activeEmitters.get(runId);
             if (emitter != null) {
-                sendEvent(emitter, AgUiEvent.toolCallResult(runId, "user_input_" + runId, "用户已提交输入"));
+                sendEvent(
+                        emitter, AgUiEvent.toolCallResult(runId, "user_input_" + runId, "用户已提交输入"));
                 // 继续推送后续节点状态
                 pushExecutionState(emitter, runId, processInstanceId);
             }
         }
     }
 
-    /**
-     * 获取执行轨迹。
-     */
+    /** 获取执行轨迹。 */
     public List<WorkflowExecutionLog> getExecutionTrace(String processInstanceId) {
         return executionLogger.getExecutionLogs(processInstanceId);
     }
@@ -109,7 +107,8 @@ public class WorkflowAgUiService {
         try {
             sendEvent(emitter, AgUiEvent.runStarted(runId));
 
-            var variables = request.variables() != null ? request.variables() : Map.<String, Object>of();
+            var variables =
+                    request.variables() != null ? request.variables() : Map.<String, Object>of();
             String processKey;
 
             if (request.debug()) {
@@ -118,8 +117,13 @@ public class WorkflowAgUiService {
                     throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "调试模式需要传入 bpmnXml");
                 }
                 if (request.flowId() != null) {
-                    var flow = flowRepository.findById(request.flowId())
-                            .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在"));
+                    var flow =
+                            flowRepository
+                                    .findById(request.flowId())
+                                    .orElseThrow(
+                                            () ->
+                                                    new BusinessException(
+                                                            GlobalErrorCode.NOT_FOUND, "工作流不存在"));
                     var currentUserId = operatorContext.currentOwnerId().orElse(null);
                     if (currentUserId == null || !currentUserId.equals(flow.getCreateBy())) {
                         throw new BusinessException(GlobalErrorCode.FORBIDDEN, "仅创建者可调试");
@@ -132,23 +136,33 @@ public class WorkflowAgUiService {
                 if (request.flowId() == null) {
                     throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "正式运行需要传入 flowId");
                 }
-                var flow = flowRepository.findById(request.flowId())
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在"));
+                var flow =
+                        flowRepository
+                                .findById(request.flowId())
+                                .orElseThrow(
+                                        () ->
+                                                new BusinessException(
+                                                        GlobalErrorCode.NOT_FOUND, "工作流不存在"));
                 if (!"PUBLISHED".equals(flow.getStatus())) {
                     throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "工作流未发布，无法运行");
                 }
                 processKey = flow.getId().toString();
             }
 
-            var processInstanceId = workflowEngine.startProcess(processKey, "agui:" + runId, variables);
+            var processInstanceId =
+                    workflowEngine.startProcess(processKey, "agui:" + runId, variables);
             runProcessMap.put(runId, processInstanceId);
 
             // 调试模式记录临时 deploymentId，完成后清理
             if (tempDeploymentId != null) {
                 final var deployId = tempDeploymentId;
-                emitter.onCompletion(() -> {
-                    try { workflowEngine.deleteDeployment(deployId, true); } catch (Exception ignored) {}
-                });
+                emitter.onCompletion(
+                        () -> {
+                            try {
+                                workflowEngine.deleteDeployment(deployId, true);
+                            } catch (Exception ignored) {
+                            }
+                        });
             }
 
             pushExecutionState(emitter, runId, processInstanceId);
@@ -156,7 +170,10 @@ public class WorkflowAgUiService {
         } catch (Exception e) {
             log.error("工作流 AG-UI 执行失败: runId={}", runId, e);
             if (tempDeploymentId != null) {
-                try { workflowEngine.deleteDeployment(tempDeploymentId, true); } catch (Exception ignored) {}
+                try {
+                    workflowEngine.deleteDeployment(tempDeploymentId, true);
+                } catch (Exception ignored) {
+                }
             }
             sendEvent(emitter, AgUiEvent.runError(runId, e.getMessage()));
             completeEmitter(emitter, e);
@@ -167,24 +184,29 @@ public class WorkflowAgUiService {
         try {
             // 获取执行日志，推送状态
             var logs = executionLogger.getExecutionLogs(processInstanceId);
-            var completedNodes = logs.stream()
-                    .filter(l -> "completed".equals(l.status()))
-                    .map(WorkflowExecutionLog::nodeId)
-                    .toList();
-            var activeNodes = logs.stream()
-                    .filter(l -> "running".equals(l.status()))
-                    .map(WorkflowExecutionLog::nodeId)
-                    .toList();
+            var completedNodes =
+                    logs.stream()
+                            .filter(l -> "completed".equals(l.status()))
+                            .map(WorkflowExecutionLog::nodeId)
+                            .toList();
+            var activeNodes =
+                    logs.stream()
+                            .filter(l -> "running".equals(l.status()))
+                            .map(WorkflowExecutionLog::nodeId)
+                            .toList();
 
             // 发送 STATE_DELTA：当前活跃节点和已完成节点
-            var stateMap = Map.of(
-                    "activeNodes", activeNodes,
-                    "completedNodes", completedNodes,
-                    "processInstanceId", processInstanceId);
-            var stateDeltaJson = objectMapper.writeValueAsString(Map.of(
-                    "type", "STATE_DELTA",
-                    "runId", runId,
-                    "state", stateMap));
+            var stateMap =
+                    Map.of(
+                            "activeNodes", activeNodes,
+                            "completedNodes", completedNodes,
+                            "processInstanceId", processInstanceId);
+            var stateDeltaJson =
+                    objectMapper.writeValueAsString(
+                            Map.of(
+                                    "type", "STATE_DELTA",
+                                    "runId", runId,
+                                    "state", stateMap));
             emitter.send(SseEmitter.event().data(stateDeltaJson));
 
             // 检查是否有等待用户输入的任务
@@ -193,19 +215,28 @@ public class WorkflowAgUiService {
                 // 发送 TOOL_CALL_START 表示等待用户输入
                 var toolCallId = "user_input_" + runId;
                 sendEvent(emitter, AgUiEvent.toolCallStart(runId, toolCallId, "user_input"));
-                sendEvent(emitter, AgUiEvent.toolCallArgs(runId, toolCallId,
-                        objectMapper.writeValueAsString(Map.of(
-                                "taskId", currentTask.taskId(),
-                                "taskName", currentTask.name(),
-                                "assignee", currentTask.assignee() != null ? currentTask.assignee() : ""))));
+                sendEvent(
+                        emitter,
+                        AgUiEvent.toolCallArgs(
+                                runId,
+                                toolCallId,
+                                objectMapper.writeValueAsString(
+                                        Map.of(
+                                                "taskId", currentTask.taskId(),
+                                                "taskName", currentTask.name(),
+                                                "assignee",
+                                                        currentTask.assignee() != null
+                                                                ? currentTask.assignee()
+                                                                : ""))));
             } else {
                 // 流程已结束
                 // 发送最后一条输出作为消息
-                var lastOutput = logs.stream()
-                        .filter(l -> "completed".equals(l.status()) && l.output() != null)
-                        .reduce((a, b) -> b)
-                        .map(WorkflowExecutionLog::output)
-                        .orElse("流程执行完成");
+                var lastOutput =
+                        logs.stream()
+                                .filter(l -> "completed".equals(l.status()) && l.output() != null)
+                                .reduce((a, b) -> b)
+                                .map(WorkflowExecutionLog::output)
+                                .orElse("流程执行完成");
 
                 var messageId = UUID.randomUUID().toString();
                 sendEvent(emitter, AgUiEvent.textMessageStart(runId, messageId));

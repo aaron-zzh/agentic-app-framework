@@ -35,6 +35,7 @@ public class ToolService {
 
     /** MCP Server 列表（内存管理，后续可持久化） */
     private final ConcurrentHashMap<Long, McpServerVO> mcpServers = new ConcurrentHashMap<>();
+
     private long mcpServerIdSeq = 0;
 
     /**

@@ -24,9 +24,7 @@ public class CarbonCopyService {
 
     private final CarbonCopyRepository carbonCopyRepository;
 
-    /**
-     * 监听抄送事件，批量记录抄送。
-     */
+    /** 监听抄送事件，批量记录抄送。 */
     @EventListener
     @Transactional
     public void onCarbonCopy(CarbonCopyEvent event) {
@@ -44,31 +42,31 @@ public class CarbonCopyService {
             record.setEntityId(event.entityId());
             carbonCopyRepository.save(record);
         }
-        log.info("抄送记录已保存: processInstance={}, users={}", event.processInstanceId(), event.ccUsers());
+        log.info(
+                "抄送记录已保存: processInstance={}, users={}",
+                event.processInstanceId(),
+                event.ccUsers());
     }
 
-    /**
-     * 查询用户的抄送列表。
-     */
+    /** 查询用户的抄送列表。 */
     @Transactional(readOnly = true)
     public List<CarbonCopyRecord> listByUser(String userId) {
         return carbonCopyRepository.findByCcUserOrderByCcTimeDesc(userId);
     }
 
-    /**
-     * 标记抄送已读。
-     */
+    /** 标记抄送已读。 */
     @Transactional
     public void markRead(Long recordId) {
-        carbonCopyRepository.findById(recordId).ifPresent(record -> {
-            record.setRead(true);
-            carbonCopyRepository.save(record);
-        });
+        carbonCopyRepository
+                .findById(recordId)
+                .ifPresent(
+                        record -> {
+                            record.setRead(true);
+                            carbonCopyRepository.save(record);
+                        });
     }
 
-    /**
-     * 查询用户未读抄送数。
-     */
+    /** 查询用户未读抄送数。 */
     @Transactional(readOnly = true)
     public long countUnread(String userId) {
         return carbonCopyRepository.countByCcUserAndReadFalse(userId);

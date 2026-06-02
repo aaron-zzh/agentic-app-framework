@@ -29,10 +29,12 @@ public class ParameterExtractionNode implements JavaDelegate {
         var input = (String) execution.getVariable("input");
         var extractionPrompt = (String) execution.getVariable("extractionPrompt");
 
-        var systemPrompt = """
+        var systemPrompt =
+                """
                 你是一个参数提取助手。根据用户的提取指令，从输入文本中提取结构化参数，以 JSON 格式返回。
                 提取指令：%s
-                """.formatted(extractionPrompt);
+                """
+                        .formatted(extractionPrompt);
 
         var messages = List.of(LlmMessage.system(systemPrompt), LlmMessage.user(input));
         var result = llmClient.call(messages, "CHAT", null);

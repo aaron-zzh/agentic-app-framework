@@ -12,9 +12,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 客服会话消息实体。
- */
+/** 客服会话消息实体。 */
 @Getter
 @Setter
 @Entity(name = "LivechatChatMessage")

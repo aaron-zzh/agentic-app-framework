@@ -19,8 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 月度积分发放定时任务。
  *
- * <p>每日凌晨 00:05 扫描所有有效订阅，对距上次发放 ≥ 30 天的订阅发放下一批月度积分。
- * 可通过系统配置 {@code member.monthly_grant_enabled} 关闭。
+ * <p>每日凌晨 00:05 扫描所有有效订阅，对距上次发放 ≥ 30 天的订阅发放下一批月度积分。 可通过系统配置 {@code member.monthly_grant_enabled}
+ * 关闭。
  */
 @Slf4j
 @Component
@@ -43,8 +43,10 @@ public class SubscriptionCreditScheduler {
         var now = LocalDateTime.now();
         var threshold = now.minusDays(30);
 
-        var subscriptions = subscriptionRepository.findByStatusAndLastCreditIssuedAtBeforeOrLastCreditIssuedAtIsNull(
-                SubscriptionStatusEnum.ACTIVE.getCode(), threshold);
+        var subscriptions =
+                subscriptionRepository
+                        .findByStatusAndLastCreditIssuedAtBeforeOrLastCreditIssuedAtIsNull(
+                                SubscriptionStatusEnum.ACTIVE.getCode(), threshold);
 
         int issued = 0;
         for (var sub : subscriptions) {

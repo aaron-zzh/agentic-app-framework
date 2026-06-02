@@ -38,8 +38,7 @@ public class WorkflowAgUiController {
     @Operation(summary = "提交用户输入（恢复等待中的流程）")
     @PostMapping("/run/{runId}/input")
     public Result<Void> submitInput(
-            @PathVariable String runId,
-            @RequestBody Map<String, Object> variables) {
+            @PathVariable String runId, @RequestBody Map<String, Object> variables) {
         workflowAgUiService.submitInput(runId, variables);
         return Result.success();
     }

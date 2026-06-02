@@ -140,7 +140,8 @@ public class MailService {
         var template =
                 templateRepository
                         .findByCodeAndDeletedFalse(templateCode)
-                        .orElseThrow(() -> new IllegalArgumentException("邮件模板不存在: " + templateCode));
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("邮件模板不存在: " + templateCode));
         var account =
                 accountRepository
                         .findByIdAndDeletedFalse(template.getAccountId())

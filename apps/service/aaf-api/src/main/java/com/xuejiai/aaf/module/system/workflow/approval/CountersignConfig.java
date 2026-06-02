@@ -9,8 +9,7 @@ import java.util.List;
  * @param passRatio 通过率阈值（RATIO 模式使用，0-100）
  * @param assignees 审批人列表
  */
-public record CountersignConfig(
-        CountersignMode mode, Integer passRatio, List<String> assignees) {
+public record CountersignConfig(CountersignMode mode, Integer passRatio, List<String> assignees) {
 
     /** 会签模式 */
     public enum CountersignMode {

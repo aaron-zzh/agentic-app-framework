@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.ai.aigc.image.vo;
 
 import java.time.LocalDateTime;
 
-import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchTaskStatus;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /** 批量生成任务 Response VO。 */

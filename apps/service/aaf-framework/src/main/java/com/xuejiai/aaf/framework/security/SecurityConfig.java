@@ -1,9 +1,9 @@
 package com.xuejiai.aaf.framework.security;
 
+import java.util.List;
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-
-import java.util.List;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -23,10 +23,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
@@ -128,11 +128,12 @@ public class SecurityConfig {
         return jwt -> {
             List<String> roles = jwt.getClaimAsStringList("roles");
             var authorities =
-                    (roles == null ? List.<String>of() : roles).stream()
-                            .map(this::toRoleAuthority)
-                            .distinct()
-                            .map(SimpleGrantedAuthority::new)
-                            .toList();
+                    (roles == null ? List.<String>of() : roles)
+                            .stream()
+                                    .map(this::toRoleAuthority)
+                                    .distinct()
+                                    .map(SimpleGrantedAuthority::new)
+                                    .toList();
             return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
         };
     }
@@ -163,7 +164,11 @@ public class SecurityConfig {
                                         .anyRequest()
                                         .authenticated())
                 .oauth2ResourceServer(
-                        oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
+                        oauth2 ->
+                                oauth2.jwt(
+                                        jwt ->
+                                                jwt.jwtAuthenticationConverter(
+                                                        jwtAuthenticationConverter)))
                 .addFilterBefore(
                         apiKeyAuthFilter,
                         org.springframework.security.web.authentication

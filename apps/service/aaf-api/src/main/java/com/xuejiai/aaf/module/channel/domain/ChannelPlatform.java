@@ -14,8 +14,7 @@ import lombok.Setter;
 /**
  * 渠道平台配置——存储各第三方平台的基础凭证。
  *
- * <p>一个平台（如"公司钉钉"）对应一条记录，config 字段按 type 存储不同结构的 JSON。
- * 同一平台下可绑定多个机器人实例（见 {@link BotBinding}）。
+ * <p>一个平台（如"公司钉钉"）对应一条记录，config 字段按 type 存储不同结构的 JSON。 同一平台下可绑定多个机器人实例（见 {@link BotBinding}）。
  */
 @Getter
 @Setter

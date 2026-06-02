@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
  * 内容发布工具——供 AI Agent 调用，将文档发布到各平台。
  *
  * <p>当前为桩实现（返回发布预览），后续对接各平台 API：
+ *
  * <ul>
  *   <li>wechat — 微信公众号（图文消息接口）
  *   <li>xiaohongshu — 小红书（图文/视频笔记）
@@ -35,10 +36,8 @@ public class ContentPublishTool {
                             + "douyin(抖音)、channels(视频号)。返回发布状态和预览链接。")
     public String publish(
             @ToolParam(description = "文档 ID") Long docId,
-            @ToolParam(description = "目标平台：wechat/xiaohongshu/douyin/channels")
-                    String platform,
-            @ToolParam(description = "发布格式：article(图文)/image_text(贴图)/video(视频)")
-                    String format) {
+            @ToolParam(description = "目标平台：wechat/xiaohongshu/douyin/channels") String platform,
+            @ToolParam(description = "发布格式：article(图文)/image_text(贴图)/video(视频)") String format) {
         var doc = documentService.getById(docId);
         log.info("发布文档 [{}] 到平台 [{}]，格式 [{}]", doc.getTitle(), platform, format);
 

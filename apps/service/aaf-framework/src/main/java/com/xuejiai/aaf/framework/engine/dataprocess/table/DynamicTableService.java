@@ -46,9 +46,10 @@ public class DynamicTableService {
 
     /** 校验列名必须属于表定义已知列（id 例外） */
     private void requireKnownColumns(DataTableDefinition table, Collection<String> cols) {
-        var known = table.getColumns().stream()
-                .map(DataColumnDefinition::getName)
-                .collect(Collectors.toSet());
+        var known =
+                table.getColumns().stream()
+                        .map(DataColumnDefinition::getName)
+                        .collect(Collectors.toSet());
         for (var c : cols) {
             if (!"id".equals(c) && !known.contains(c)) {
                 throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "未知列: " + c);

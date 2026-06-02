@@ -9,5 +9,4 @@ public record SubscriptionVO(
         String planName,
         LocalDateTime startAt,
         LocalDateTime endAt,
-        String status) {
-}
+        String status) {}

@@ -93,7 +93,8 @@ public class PermissionController {
     @Operation(summary = "为角色分配菜单")
     @PreAuthorize("hasPermission(null, 'system:menu:manage')")
     @PostMapping("/roles/{roleId}/menus")
-    public Result<Void> assignMenusToRole(@PathVariable Long roleId, @RequestBody List<Long> menuIds) {
+    public Result<Void> assignMenusToRole(
+            @PathVariable Long roleId, @RequestBody List<Long> menuIds) {
         menuService.assignMenusToRole(roleId, menuIds);
         return Result.success();
     }

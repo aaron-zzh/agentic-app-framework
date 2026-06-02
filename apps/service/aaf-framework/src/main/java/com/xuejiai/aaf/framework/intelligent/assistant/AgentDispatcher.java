@@ -13,11 +13,11 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentFactory;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
-import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentSandbox;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
 
 import lombok.RequiredArgsConstructor;
@@ -63,18 +63,24 @@ public class AgentDispatcher {
                 "启动子 Agent",
                 definition.getName(),
                 java.util.Map.of(
-                        "intent", intent,
-                        "agentId", definition.getAgentId() != null ? definition.getAgentId() : "",
-                        "agentName", definition.getName()));
+                        "intent",
+                        intent,
+                        "agentId",
+                        definition.getAgentId() != null ? definition.getAgentId() : "",
+                        "agentName",
+                        definition.getName()));
         var result = sandbox.execute(agent, input, timeout);
         agentRunEventPublisher.publish(
                 AgentRunEventType.SUB_AGENT_COMPLETED,
                 "子 Agent 完成",
                 definition.getName(),
                 java.util.Map.of(
-                        "intent", intent,
-                        "agentId", definition.getAgentId() != null ? definition.getAgentId() : "",
-                        "success", result.success()));
+                        "intent",
+                        intent,
+                        "agentId",
+                        definition.getAgentId() != null ? definition.getAgentId() : "",
+                        "success",
+                        result.success()));
         return result;
     }
 

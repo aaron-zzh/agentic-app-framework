@@ -28,8 +28,11 @@ public class RatingEventListener {
         if (session.getStaffId() == null) {
             return;
         }
-        log.info("评价邀请: sessionId={}, userId={}, staffId={}",
-                session.getId(), session.getExternalUserId(), session.getStaffId());
+        log.info(
+                "评价邀请: sessionId={}, userId={}, staffId={}",
+                session.getId(),
+                session.getExternalUserId(),
+                session.getStaffId());
         // 后续可通过 ChannelMessageRouter 推送评价卡片给用户
     }
 }

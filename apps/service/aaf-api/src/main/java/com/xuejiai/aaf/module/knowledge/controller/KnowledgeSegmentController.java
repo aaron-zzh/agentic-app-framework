@@ -19,10 +19,10 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.knowledge.service.KnowledgeSegmentService;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeSegmentVO;
-import com.xuejiai.aaf.module.knowledge.vo.SemanticSearchDTO;
-import com.xuejiai.aaf.module.knowledge.vo.SemanticSearchResultVO;
 import com.xuejiai.aaf.module.knowledge.vo.SegmentCreateDTO;
 import com.xuejiai.aaf.module.knowledge.vo.SegmentUpdateDTO;
+import com.xuejiai.aaf.module.knowledge.vo.SemanticSearchDTO;
+import com.xuejiai.aaf.module.knowledge.vo.SemanticSearchResultVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -11,11 +11,13 @@ import com.xuejiai.aaf.module.developer.domain.DeveloperTokenAccount;
 
 import jakarta.persistence.LockModeType;
 
-public interface DeveloperTokenAccountRepository extends JpaRepository<DeveloperTokenAccount, Long> {
+public interface DeveloperTokenAccountRepository
+        extends JpaRepository<DeveloperTokenAccount, Long> {
 
     Optional<DeveloperTokenAccount> findByDeveloperId(Long developerId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM DeveloperTokenAccount a WHERE a.developerId = :developerId")
-    Optional<DeveloperTokenAccount> findByDeveloperIdForUpdate(@Param("developerId") Long developerId);
+    Optional<DeveloperTokenAccount> findByDeveloperIdForUpdate(
+            @Param("developerId") Long developerId);
 }

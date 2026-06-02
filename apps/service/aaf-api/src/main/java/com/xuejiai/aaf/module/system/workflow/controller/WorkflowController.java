@@ -87,8 +87,7 @@ public class WorkflowController {
     @Operation(summary = "按实体查询关联流程状态")
     @GetMapping("/status")
     public Result<WorkflowStatusVO> getStatusByEntity(
-            @RequestParam String entityType,
-            @RequestParam String entityId) {
+            @RequestParam String entityType, @RequestParam String entityId) {
         return Result.success(workflowService.getStatusByEntity(entityType, entityId));
     }
 
@@ -207,8 +206,7 @@ public class WorkflowController {
     @Operation(summary = "终止流程实例")
     @PutMapping("/instances/{processInstanceId}/terminate")
     public Result<Void> terminateInstance(
-            @PathVariable String processInstanceId,
-            @RequestParam(required = false) String reason) {
+            @PathVariable String processInstanceId, @RequestParam(required = false) String reason) {
         workflowService.terminateInstance(processInstanceId, reason);
         return Result.success();
     }
@@ -216,8 +214,7 @@ public class WorkflowController {
     @Operation(summary = "删除流程实例")
     @DeleteMapping("/instances/{processInstanceId}")
     public Result<Void> deleteInstance(
-            @PathVariable String processInstanceId,
-            @RequestParam(required = false) String reason) {
+            @PathVariable String processInstanceId, @RequestParam(required = false) String reason) {
         workflowService.deleteInstance(processInstanceId, reason);
         return Result.success();
     }
@@ -225,16 +222,14 @@ public class WorkflowController {
     @Operation(summary = "设置流程变量")
     @PutMapping("/instances/{processInstanceId}/variables")
     public Result<Void> setProcessVariables(
-            @PathVariable String processInstanceId,
-            @RequestBody Map<String, Object> variables) {
+            @PathVariable String processInstanceId, @RequestBody Map<String, Object> variables) {
         workflowService.setProcessVariables(processInstanceId, variables);
         return Result.success();
     }
 
     @Operation(summary = "获取流程变量")
     @GetMapping("/instances/{processInstanceId}/variables")
-    public Result<Map<String, Object>> getProcessVariables(
-            @PathVariable String processInstanceId) {
+    public Result<Map<String, Object>> getProcessVariables(@PathVariable String processInstanceId) {
         return Result.success(workflowService.getProcessVariables(processInstanceId));
     }
 
@@ -283,8 +278,7 @@ public class WorkflowController {
     @Operation(summary = "退回任务")
     @PostMapping("/tasks/{taskId}/return")
     public Result<Void> returnTask(
-            @PathVariable String taskId,
-            @RequestParam(required = false) String reason) {
+            @PathVariable String taskId, @RequestParam(required = false) String reason) {
         workflowService.returnTask(taskId, reason);
         return Result.success();
     }

@@ -38,22 +38,21 @@ public class WorkflowVisualizationController {
     @GetMapping("/{id}/timeline")
     public Result<List<TimelineEntry>> getTimeline(@PathVariable String id) {
         var logs = executionLogger.getExecutionLogs(id);
-        var timeline = logs.stream()
-                .map(l -> new TimelineEntry(
-                        l.nodeId(),
-                        l.nodeName(),
-                        l.status(),
-                        l.durationMs(),
-                        l.timestamp().toEpochMilli()))
-                .toList();
+        var timeline =
+                logs.stream()
+                        .map(
+                                l ->
+                                        new TimelineEntry(
+                                                l.nodeId(),
+                                                l.nodeName(),
+                                                l.status(),
+                                                l.durationMs(),
+                                                l.timestamp().toEpochMilli()))
+                        .toList();
         return Result.success(timeline);
     }
 
     /** 时间线条目 */
     public record TimelineEntry(
-            String nodeId,
-            String nodeName,
-            String status,
-            long durationMs,
-            long timestampMs) {}
+            String nodeId, String nodeName, String status, long durationMs, long timestampMs) {}
 }

@@ -7,11 +7,11 @@ package com.xuejiai.aaf.framework.intelligent.agent;
 
 import java.util.List;
 
-import com.xuejiai.aaf.framework.intelligent.agent.runtime.ToolPermissionGuard;
-import com.xuejiai.aaf.framework.intelligent.core.agent.AgentRuntime;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.ToolPermissionGuard;
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
+import com.xuejiai.aaf.framework.intelligent.core.agent.AgentRuntime;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

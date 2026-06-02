@@ -7,8 +7,7 @@ import java.util.function.Consumer;
 /**
  * Qwen-Omni 实时多模态对话服务接口。
  *
- * <p>封装 DashScope OmniRealtimeConversation，提供音频/视频双向流式交互能力。
- * 支持 VAD 自动检测和手动模式。
+ * <p>封装 DashScope OmniRealtimeConversation，提供音频/视频双向流式交互能力。 支持 VAD 自动检测和手动模式。
  */
 public interface OmniRealtimeService {
 

@@ -23,9 +23,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/**
- * 菜单管理接口
- */
+/** 菜单管理接口 */
 @Tag(name = "菜单管理")
 @RestController
 @RequestMapping("/api/system/menus")

@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
  * 工具权限门控 Hook——PostReasoningEvent 时对每个工具调用做权限检查。
  *
  * <p>决策链（委托 ToolPermissionChecker）：
+ *
  * <ol>
  *   <li>deny 黑名单 → gotoReasoning（拒绝消息）
  *   <li>已授权 / readOnly / allowedTools → 继续执行
@@ -76,22 +77,31 @@ public class AafToolPermissionHook implements Hook {
             var riskLevel = catalogEntry != null ? catalogEntry.riskLevel() : ToolRiskLevel.MEDIUM;
             var readOnly = catalogEntry != null && catalogEntry.readOnly();
 
-            var decision = permissionChecker.checkDetailed(
-                    sessionId, userId, toolName,
-                    riskLevel, readOnly, false,
-                    List.of(), toolUse.getInput() != null ? toolUse.getInput().toString() : null);
+            var decision =
+                    permissionChecker.checkDetailed(
+                            sessionId,
+                            userId,
+                            toolName,
+                            riskLevel,
+                            readOnly,
+                            false,
+                            List.of(),
+                            toolUse.getInput() != null ? toolUse.getInput().toString() : null);
 
             if (decision.result() == PermissionResult.DENIED) {
                 log.info("工具调用被拒绝: {}", toolName);
-                var denyMsg = io.agentscope.core.message.Msg.builder()
-                        .name("system")
-                        .role(io.agentscope.core.message.MsgRole.TOOL)
-                        .content(io.agentscope.core.message.ToolResultBlock.of(
-                                toolUse.getId(), toolName,
-                                io.agentscope.core.message.TextBlock.builder()
-                                        .text("工具调用被拒绝：" + decision.reason())
-                                        .build()))
-                        .build();
+                var denyMsg =
+                        io.agentscope.core.message.Msg.builder()
+                                .name("system")
+                                .role(io.agentscope.core.message.MsgRole.TOOL)
+                                .content(
+                                        io.agentscope.core.message.ToolResultBlock.of(
+                                                toolUse.getId(),
+                                                toolName,
+                                                io.agentscope.core.message.TextBlock.builder()
+                                                        .text("工具调用被拒绝：" + decision.reason())
+                                                        .build()))
+                                .build();
                 event.gotoReasoning(denyMsg);
                 return Mono.just(event);
             }
@@ -100,13 +110,22 @@ public class AafToolPermissionHook implements Hook {
                 log.info("工具调用需要用户确认，暂停 Agent: {}", toolName);
                 // 记录审批请求（通知层：推送 SSE、留审计记录）
                 approvalService.request(
-                        sessionId, userId,
+                        sessionId,
+                        userId,
                         HumanApprovalService.ApprovalType.TOOL_PERMISSION,
                         "工具确认: " + toolName,
                         "Agent 请求调用工具 [" + toolName + "]（风险等级: " + riskLevel + "）",
-                        Map.of("toolName", toolName, "subjectType", "TOOL",
-                                "subjectKey", toolName, "riskLevel", riskLevel.name(),
-                                "grantScope", "SESSION"));
+                        Map.of(
+                                "toolName",
+                                toolName,
+                                "subjectType",
+                                "TOOL",
+                                "subjectKey",
+                                toolName,
+                                "riskLevel",
+                                riskLevel.name(),
+                                "grantScope",
+                                "SESSION"));
                 // stopAgent() 暂停 Agent，等待 /agui/runs/{threadId}/confirm 恢复
                 event.stopAgent();
                 return Mono.just(event);

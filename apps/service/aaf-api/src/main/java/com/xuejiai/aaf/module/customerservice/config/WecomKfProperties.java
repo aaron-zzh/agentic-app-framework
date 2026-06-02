@@ -30,10 +30,7 @@ public class WecomKfProperties {
     /** 默认绑定的 Assistant ID（所有客服账号共用） */
     private String defaultAssistantId;
 
-    /**
-     * 按客服账号绑定不同 Assistant（优先级高于 defaultAssistantId）。
-     * key = open_kf_id, value = assistantId
-     */
+    /** 按客服账号绑定不同 Assistant（优先级高于 defaultAssistantId）。 key = open_kf_id, value = assistantId */
     private Map<String, String> accountAssistantMapping = new HashMap<>();
 
     /** 兜底回复（Assistant 不可用时） */

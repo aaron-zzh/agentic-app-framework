@@ -16,9 +16,10 @@ import reactor.core.publisher.Flux;
  * Mock LLM 客户端——测试/评估时使用，不调用真实 API。
  *
  * <p>支持两种模式：
+ *
  * <ul>
- *   <li>预设响应：通过 {@link #preset(String, String)} 注册关键词→响应映射</li>
- *   <li>自定义生成器：通过 {@link #setGenerator(Function)} 注入响应生成逻辑</li>
+ *   <li>预设响应：通过 {@link #preset(String, String)} 注册关键词→响应映射
+ *   <li>自定义生成器：通过 {@link #setGenerator(Function)} 注入响应生成逻辑
  * </ul>
  *
  * <p>激活方式：{@code aaf.llm.mock=true}
@@ -61,11 +62,12 @@ public class MockLlmClient implements LlmClient {
 
     private String defaultGenerate(List<LlmMessage> messages) {
         // 查找最后一条用户消息
-        var lastUser = messages.stream()
-                .filter(m -> "user".equals(m.role()))
-                .reduce((a, b) -> b)
-                .map(LlmMessage::content)
-                .orElse("");
+        var lastUser =
+                messages.stream()
+                        .filter(m -> "user".equals(m.role()))
+                        .reduce((a, b) -> b)
+                        .map(LlmMessage::content)
+                        .orElse("");
 
         // 匹配预设
         for (var entry : presets.entrySet()) {

@@ -13,5 +13,6 @@ public interface AccessPolicyRepository extends JpaRepository<AccessPolicy, Long
 
     List<AccessPolicy> findByStatusOrderByPriority(Integer status);
 
-    List<AccessPolicy> findByTargetResourceAndStatusOrderByPriority(String targetResource, Integer status);
+    List<AccessPolicy> findByTargetResourceAndStatusOrderByPriority(
+            String targetResource, Integer status);
 }

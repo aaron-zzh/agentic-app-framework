@@ -13,10 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 将 AAF 的 Assistant/Agent 注册到 AgentScope AG-UI Registry。
  *
- * <p>AgentScope AG-UI starter 自动暴露 /agui/runs 端点，
- * 前端通过 X-Agent-Id header 路由到不同 Agent。
+ * <p>AgentScope AG-UI starter 自动暴露 /agui/runs 端点， 前端通过 X-Agent-Id header 路由到不同 Agent。
  *
  * <p>每个注册的 Agent 支持：
+ *
  * <ul>
  *   <li>AG-UI 标准事件流（TEXT_MESSAGE / TOOL_CALL / STATE_DELTA）
  *   <li>通过 emitStateEvents=true 自动推送 Agent 内部状态

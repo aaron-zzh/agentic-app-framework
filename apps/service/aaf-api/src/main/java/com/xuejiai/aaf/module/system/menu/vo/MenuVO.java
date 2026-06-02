@@ -2,9 +2,7 @@ package com.xuejiai.aaf.module.system.menu.vo;
 
 import java.util.List;
 
-/**
- * 菜单树形 VO
- */
+/** 菜单树形 VO */
 public record MenuVO(
         Long id,
         Long parentId,

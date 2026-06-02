@@ -47,6 +47,7 @@ public class DeveloperApiKey extends BaseEntity {
     private Instant lastUsedAt;
 
     public boolean isValid() {
-        return Boolean.TRUE.equals(enabled) && (expiresAt == null || expiresAt.isAfter(Instant.now()));
+        return Boolean.TRUE.equals(enabled)
+                && (expiresAt == null || expiresAt.isAfter(Instant.now()));
     }
 }

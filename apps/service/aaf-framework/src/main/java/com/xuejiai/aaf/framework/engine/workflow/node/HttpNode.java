@@ -25,8 +25,10 @@ public class HttpNode implements JavaDelegate {
     @Override
     public void execute(DelegateExecution execution) {
         var url = (String) execution.getVariable("url");
-        var method = execution.getVariable("method") != null
-                ? (String) execution.getVariable("method") : "GET";
+        var method =
+                execution.getVariable("method") != null
+                        ? (String) execution.getVariable("method")
+                        : "GET";
         var body = (String) execution.getVariable("body");
 
         try {

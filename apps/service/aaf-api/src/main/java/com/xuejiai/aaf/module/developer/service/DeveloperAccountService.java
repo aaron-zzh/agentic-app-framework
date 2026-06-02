@@ -27,7 +27,8 @@ public class DeveloperAccountService {
         var userId =
                 operatorContext
                         .currentOwnerId()
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         return getOrCreateByUserId(userId);
     }
 

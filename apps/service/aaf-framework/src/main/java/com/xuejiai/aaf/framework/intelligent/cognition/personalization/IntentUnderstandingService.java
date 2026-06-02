@@ -27,7 +27,8 @@ public class IntentUnderstandingService {
 
     private final LlmClient llmClient;
 
-    private static final String INTENT_PROMPT = """
+    private static final String INTENT_PROMPT =
+            """
             分析用户输入的意图，返回 JSON 格式（不要其他内容）：
             {"intent":"意图类型","confidence":0.0-1.0,"slots":{},"needsClarification":false,"clarificationQuestion":""}
 
@@ -41,12 +42,17 @@ public class IntentUnderstandingService {
     /** 分析用户意图（LLM 驱动，规则兜底）。 */
     public IntentResult analyze(String userInput, List<String> conversationHistory) {
         try {
-            var historyText = conversationHistory != null && !conversationHistory.isEmpty()
-                    ? String.join("\n", conversationHistory.subList(
-                            Math.max(0, conversationHistory.size() - 5), conversationHistory.size()))
-                    : "无";
+            var historyText =
+                    conversationHistory != null && !conversationHistory.isEmpty()
+                            ? String.join(
+                                    "\n",
+                                    conversationHistory.subList(
+                                            Math.max(0, conversationHistory.size() - 5),
+                                            conversationHistory.size()))
+                            : "无";
             var prompt = INTENT_PROMPT.formatted(historyText, userInput);
-            var response = llmClient.call(List.of(LlmMessage.user(prompt)), "intent_classify", null);
+            var response =
+                    llmClient.call(List.of(LlmMessage.user(prompt)), "intent_classify", null);
             return parseIntentResponse(response, userInput);
         } catch (Exception e) {
             log.warn("LLM 意图分类失败，降级为规则匹配: {}", e.getMessage());
@@ -59,8 +65,12 @@ public class IntentUnderstandingService {
             IntentResult intent, Map<String, String> requiredSlots, List<String> history) {
         if (requiredSlots == null || requiredSlots.isEmpty()) return Map.of();
         try {
-            var prompt = "从以下对话中提取参数，返回 JSON：\n需要的参数：%s\n对话：%s\n用户最新输入：%s"
-                    .formatted(requiredSlots.keySet(), String.join("\n", history), intent.getRawInput());
+            var prompt =
+                    "从以下对话中提取参数，返回 JSON：\n需要的参数：%s\n对话：%s\n用户最新输入：%s"
+                            .formatted(
+                                    requiredSlots.keySet(),
+                                    String.join("\n", history),
+                                    intent.getRawInput());
             var response = llmClient.call(List.of(LlmMessage.user(prompt)), "slot_fill", null);
             return parseSlots(response);
         } catch (Exception e) {
@@ -84,8 +94,10 @@ public class IntentUnderstandingService {
     private IntentResult fallbackAnalyze(String userInput) {
         var result = new IntentResult();
         result.setRawInput(userInput);
-        if (userInput.contains("?") || userInput.contains("？")
-                || userInput.startsWith("什么") || userInput.startsWith("如何")) {
+        if (userInput.contains("?")
+                || userInput.contains("？")
+                || userInput.startsWith("什么")
+                || userInput.startsWith("如何")) {
             result.setIntent("question");
         } else if (userInput.startsWith("/") || userInput.startsWith("@")) {
             result.setIntent("command");

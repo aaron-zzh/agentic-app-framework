@@ -29,11 +29,16 @@ public class ChatTaskController {
 
     /** 创建任务 */
     @PostMapping
-    public Result<ChatTask> create(
-            @PathVariable Long sessionId, @RequestBody CreateTaskDTO dto) {
+    public Result<ChatTask> create(@PathVariable Long sessionId, @RequestBody CreateTaskDTO dto) {
         var userId = operatorContext.currentUserId().orElseThrow();
-        var task = taskService.create(
-                sessionId, userId, dto.title(), dto.description(), dto.priority(), dto.scheduledAt());
+        var task =
+                taskService.create(
+                        sessionId,
+                        userId,
+                        dto.title(),
+                        dto.description(),
+                        dto.priority(),
+                        dto.scheduledAt());
         return Result.success(task);
     }
 
@@ -62,17 +67,19 @@ public class ChatTaskController {
             @PathVariable Long sessionId,
             @PathVariable Long taskId,
             @RequestBody UpdateStatusDTO dto) {
-        var task = switch (dto.status()) {
-            case "running" -> taskService.start(taskId);
-            case "done" -> taskService.complete(taskId, dto.result());
-            case "failed" -> taskService.fail(taskId, dto.result());
-            case "cancelled" -> taskService.cancel(taskId);
-            default -> throw new IllegalArgumentException("无效状态: " + dto.status());
-        };
+        var task =
+                switch (dto.status()) {
+                    case "running" -> taskService.start(taskId);
+                    case "done" -> taskService.complete(taskId, dto.result());
+                    case "failed" -> taskService.fail(taskId, dto.result());
+                    case "cancelled" -> taskService.cancel(taskId);
+                    default -> throw new IllegalArgumentException("无效状态: " + dto.status());
+                };
         return Result.success(task);
     }
 
-    record CreateTaskDTO(String title, String description, Integer priority, LocalDateTime scheduledAt) {}
+    record CreateTaskDTO(
+            String title, String description, Integer priority, LocalDateTime scheduledAt) {}
 
     record UpdateStatusDTO(String status, String result) {}
 }

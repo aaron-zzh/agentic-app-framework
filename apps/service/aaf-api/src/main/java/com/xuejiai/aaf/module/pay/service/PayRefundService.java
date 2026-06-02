@@ -36,7 +36,8 @@ public class PayRefundService {
         var payOrder =
                 payOrderRepository
                         .findById(dto.payOrderId())
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "支付单不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "支付单不存在"));
 
         // 校验可退金额
         long refundable = payOrder.getAmount() - payOrder.getRefundAmount();
@@ -85,7 +86,8 @@ public class PayRefundService {
         var refundOrder =
                 refundOrderRepository
                         .findByRefundNo(refundNo)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "退款单不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "退款单不存在"));
 
         if (!refundOrder.getStatus().equals(PayRefundStatusEnum.WAITING.getCode())) {
             log.warn("退款单已处理，忽略回调: refundNo={}", refundNo);
@@ -98,7 +100,8 @@ public class PayRefundService {
             // 更新支付单已退金额
             var payOrder = payOrderRepository.findById(refundOrder.getPayOrderId()).orElse(null);
             if (payOrder != null) {
-                payOrder.setRefundAmount(payOrder.getRefundAmount() + refundOrder.getRefundAmount());
+                payOrder.setRefundAmount(
+                        payOrder.getRefundAmount() + refundOrder.getRefundAmount());
                 payOrderRepository.save(payOrder);
             }
         } else {
@@ -141,7 +144,8 @@ public class PayRefundService {
         var refund =
                 refundOrderRepository
                         .findByRefundNo(refundNo)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "退款单不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "退款单不存在"));
         return toVO(refund);
     }
 

@@ -13,6 +13,7 @@ public interface VideoGenerationService {
 
     /**
      * 统一提交视频生成任务，返回 taskId。
+     *
      * <ul>
      *   <li>有 referenceImageUrls → r2v（参考生视频）
      *   <li>有 imageUrl → i2v（图生视频）
@@ -21,18 +22,34 @@ public interface VideoGenerationService {
      */
     default String submit(VideoRequest request) {
         if (request.referenceImageUrls() != null && !request.referenceImageUrls().isEmpty()) {
-            return submitReferenceToVideo(new ReferenceToVideoRequest(
-                    request.prompt(), request.referenceImageUrls(), request.model(),
-                    request.resolution(), request.ratio(), request.duration(), request.seed()));
+            return submitReferenceToVideo(
+                    new ReferenceToVideoRequest(
+                            request.prompt(),
+                            request.referenceImageUrls(),
+                            request.model(),
+                            request.resolution(),
+                            request.ratio(),
+                            request.duration(),
+                            request.seed()));
         }
         if (request.imageUrl() != null) {
-            return submitImageToVideo(new ImageToVideoRequest(
-                    request.prompt(), request.imageUrl(), request.model(),
-                    request.resolution(), request.duration(), request.seed()));
+            return submitImageToVideo(
+                    new ImageToVideoRequest(
+                            request.prompt(),
+                            request.imageUrl(),
+                            request.model(),
+                            request.resolution(),
+                            request.duration(),
+                            request.seed()));
         }
-        return submitTextToVideo(new TextToVideoRequest(
-                request.prompt(), request.model(), request.resolution(),
-                request.ratio(), request.duration(), request.seed()));
+        return submitTextToVideo(
+                new TextToVideoRequest(
+                        request.prompt(),
+                        request.model(),
+                        request.resolution(),
+                        request.ratio(),
+                        request.duration(),
+                        request.seed()));
     }
 
     /** 提交文生视频任务，返回 taskId。 */
@@ -54,6 +71,7 @@ public interface VideoGenerationService {
 
     /**
      * 统一视频生成请求。
+     *
      * <ul>
      *   <li>有 referenceImageUrls → 参考生视频（r2v）
      *   <li>有 imageUrl → 图生视频（i2v）

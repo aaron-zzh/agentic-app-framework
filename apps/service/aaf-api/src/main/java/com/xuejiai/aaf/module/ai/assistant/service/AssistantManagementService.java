@@ -68,7 +68,8 @@ public class AssistantManagementService {
         } else {
             page = assistantRepo.findAll(pageable);
         }
-        return new PageResult<>(page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+        return new PageResult<>(
+                page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
 
     /**
@@ -79,8 +80,13 @@ public class AssistantManagementService {
      */
     @Transactional(readOnly = true)
     public AssistantVO getById(Long id) {
-        var entity = assistantRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
+        var entity =
+                assistantRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
         return toVO(entity);
     }
 
@@ -93,8 +99,13 @@ public class AssistantManagementService {
      */
     @Transactional
     public AssistantVO update(Long id, AssistantUpdateDTO dto) {
-        var entity = assistantRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
+        var entity =
+                assistantRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
         if (dto.actorId() != null) entity.setActorId(dto.actorId());
         if (dto.roleId() != null) entity.setRoleId(dto.roleId());
         if (dto.memoryStrategy() != null) {
@@ -112,8 +123,13 @@ public class AssistantManagementService {
      */
     @Transactional
     public void delete(Long id) {
-        var entity = assistantRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
+        var entity =
+                assistantRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
         entity.setStatus("inactive");
         assistantRepo.save(entity);
     }
@@ -128,8 +144,13 @@ public class AssistantManagementService {
     public void bindSkills(Long id, List<String> skillIds) {
         // TODO: 委托 framework 层 RoleStore 更新 Role 的 skillIds
         // 当前 Role 的 skillIds 管理在 RoleStore 中，需通过 roleId 更新
-        var entity = assistantRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
+        var entity =
+                assistantRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
         // TODO: roleStore.updateSkillIds(entity.getRoleId(), skillIds);
         throw new UnsupportedOperationException("绑定技能功能待 RoleStore 接口完善后实现");
     }
@@ -143,16 +164,18 @@ public class AssistantManagementService {
     @Transactional
     public void configureToolWhitelist(Long id, List<String> toolWhitelist) {
         // TODO: 委托 framework 层配置 Assistant 关联 Agent 的 allowedTools
-        var entity = assistantRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
+        var entity =
+                assistantRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
         // TODO: 通过 Role → Agent 链路更新 allowedTools
         throw new UnsupportedOperationException("配置工具白名单功能待完善");
     }
 
-    /**
-     * 获取当前可用助理列表（含 Actor 头像名称，供前端角色切换）。
-     * 返回所有 active 状态的公共助理（userId=0）。
-     */
+    /** 获取当前可用助理列表（含 Actor 头像名称，供前端角色切换）。 返回所有 active 状态的公共助理（userId=0）。 */
     public List<AssistantAvailableVO> listAvailable() {
         var assistants = assistantRepo.findByUserIdAndStatus(0L, "active");
         return assistants.stream()
@@ -171,10 +194,15 @@ public class AssistantManagementService {
 
     private AssistantVO toVO(AssistantDefinition e) {
         return new AssistantVO(
-                e.getId(), e.getAssistantId(), e.getUserId(),
-                e.getActorId(), e.getRoleId(),
+                e.getId(),
+                e.getAssistantId(),
+                e.getUserId(),
+                e.getActorId(),
+                e.getRoleId(),
                 e.getMemoryStrategy() != null ? e.getMemoryStrategy().name() : null,
-                e.getKnowledgeBaseId(), e.getStatus(),
-                e.getCreateTime(), e.getUpdateTime());
+                e.getKnowledgeBaseId(),
+                e.getStatus(),
+                e.getCreateTime(),
+                e.getUpdateTime());
     }
 }

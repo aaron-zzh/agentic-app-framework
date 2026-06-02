@@ -99,7 +99,8 @@ public class CaptchaService {
 
         try (var baos = new ByteArrayOutputStream()) {
             ImageIO.write(image, "PNG", baos);
-            return "data:image/png;base64," + Base64.getEncoder().encodeToString(baos.toByteArray());
+            return "data:image/png;base64,"
+                    + Base64.getEncoder().encodeToString(baos.toByteArray());
         } catch (Exception e) {
             throw new RuntimeException("生成验证码图片失败", e);
         }

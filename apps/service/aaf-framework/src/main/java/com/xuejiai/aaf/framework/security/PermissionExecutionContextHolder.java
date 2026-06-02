@@ -15,7 +15,8 @@ public final class PermissionExecutionContextHolder {
 
     public static Scope useOwner(Long ownerId, String reason) {
         var previous = HOLDER.get();
-        HOLDER.set(new PermissionExecutionContext(Objects.requireNonNull(ownerId, "ownerId"), reason));
+        HOLDER.set(
+                new PermissionExecutionContext(Objects.requireNonNull(ownerId, "ownerId"), reason));
         return new Scope(previous);
     }
 

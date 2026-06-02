@@ -17,8 +17,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * AAF 记忆管道的 AgentScope LongTermMemory 适配。
- * retrieve 委托 RetrievalPipeline，record 委托 MemoryWritePipeline。
+ * AAF 记忆管道的 AgentScope LongTermMemory 适配。 retrieve 委托 RetrievalPipeline，record 委托
+ * MemoryWritePipeline。
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -38,10 +38,11 @@ public class AafLongTermMemory implements LongTermMemory {
         return Mono.fromCallable(() -> retrievalPipeline.execute(input))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(MemoryContext::toPromptSection)
-                .onErrorResume(e -> {
-                    log.warn("记忆检索失败 userId={}: {}", userId, e.getMessage());
-                    return Mono.just("");
-                });
+                .onErrorResume(
+                        e -> {
+                            log.warn("记忆检索失败 userId={}: {}", userId, e.getMessage());
+                            return Mono.just("");
+                        });
     }
 
     @Override
@@ -70,9 +71,10 @@ public class AafLongTermMemory implements LongTermMemory {
         return Mono.fromRunnable(() -> writePipeline.execute(input))
                 .subscribeOn(Schedulers.boundedElastic())
                 .then()
-                .onErrorResume(e -> {
-                    log.warn("记忆写入失败 userId={}: {}", userId, e.getMessage());
-                    return Mono.empty();
-                });
+                .onErrorResume(
+                        e -> {
+                            log.warn("记忆写入失败 userId={}: {}", userId, e.getMessage());
+                            return Mono.empty();
+                        });
     }
 }

@@ -34,8 +34,11 @@ public class AssistantMessageHandler implements MessageHandler {
 
     /** 支持 Assistant 自动回复的渠道类型 */
     private static final Set<ChannelTypeEnum> SUPPORTED_CHANNELS =
-            Set.of(ChannelTypeEnum.DINGTALK, ChannelTypeEnum.FEISHU,
-                    ChannelTypeEnum.WEBHOOK, ChannelTypeEnum.WECOM_KF);
+            Set.of(
+                    ChannelTypeEnum.DINGTALK,
+                    ChannelTypeEnum.FEISHU,
+                    ChannelTypeEnum.WEBHOOK,
+                    ChannelTypeEnum.WECOM_KF);
 
     private final ChannelPlatformRepository platformRepository;
     private final BotBindingRepository bindingRepository;
@@ -59,11 +62,14 @@ public class AssistantMessageHandler implements MessageHandler {
             return null;
         }
 
-        var sessionId = "%s:%s".formatted(
-                message.channelType().getCode(), message.externalUserId());
+        var sessionId =
+                "%s:%s".formatted(message.channelType().getCode(), message.externalUserId());
 
-        log.info("Assistant 处理: channel={}, user={}, assistantId={}",
-                message.channelType().getCode(), message.externalUserId(), binding.getAssistantId());
+        log.info(
+                "Assistant 处理: channel={}, user={}, assistantId={}",
+                message.channelType().getCode(),
+                message.externalUserId(),
+                binding.getAssistantId());
 
         try {
             AssistantResponse response =
@@ -77,8 +83,8 @@ public class AssistantMessageHandler implements MessageHandler {
             log.error("调用 Assistant 异常: assistantId={}", binding.getAssistantId(), e);
         }
 
-        var fallback = binding.getFallbackReply() != null
-                ? binding.getFallbackReply() : DEFAULT_FALLBACK;
+        var fallback =
+                binding.getFallbackReply() != null ? binding.getFallbackReply() : DEFAULT_FALLBACK;
         return UnifiedMessage.outboundText(
                 message.channelType(), message.externalUserId(), fallback);
     }

@@ -50,13 +50,14 @@ public class InputBuffer {
     /** 取出所有补充信息（注入上下文用） */
     public java.util.List<BufferedInput> drainSupplements() {
         var supplements = new java.util.ArrayList<BufferedInput>();
-        buffer.removeIf(i -> {
-            if (i.type() == InputType.SUPPLEMENT) {
-                supplements.add(i);
-                return true;
-            }
-            return false;
-        });
+        buffer.removeIf(
+                i -> {
+                    if (i.type() == InputType.SUPPLEMENT) {
+                        supplements.add(i);
+                        return true;
+                    }
+                    return false;
+                });
         return supplements;
     }
 

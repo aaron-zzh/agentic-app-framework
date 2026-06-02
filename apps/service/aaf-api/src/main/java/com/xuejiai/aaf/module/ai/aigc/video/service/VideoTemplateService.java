@@ -50,8 +50,7 @@ public class VideoTemplateService {
     public VideoTemplate getById(Long id) {
         return templateRepository
                 .findById(id)
-                .orElseThrow(
-                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "视频模板不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "视频模板不存在"));
     }
 
     /**

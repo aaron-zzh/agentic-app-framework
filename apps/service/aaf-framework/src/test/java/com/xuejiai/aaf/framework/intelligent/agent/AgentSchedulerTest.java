@@ -4,12 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 
-import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentScheduler;
 import com.xuejiai.aaf.framework.security.license.LicenseTestSupport;
 
 class AgentSchedulerTest {

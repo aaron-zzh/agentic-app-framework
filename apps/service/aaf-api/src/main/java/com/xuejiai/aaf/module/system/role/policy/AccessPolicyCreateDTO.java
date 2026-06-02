@@ -6,7 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 /** 创建/更新访问策略 Request DTO。 */
 @Schema(description = "创建访问策略请求")
 public record AccessPolicyCreateDTO(
-        @Schema(description = "策略名称", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank String name,
+        @Schema(description = "策略名称", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank
+                String name,
         @Schema(description = "描述") String description,
         @Schema(description = "条件表达式（JSON）") String conditionJson,
         @Schema(description = "效果", example = "ALLOW") @NotBlank String effect,

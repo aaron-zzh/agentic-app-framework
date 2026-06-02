@@ -19,5 +19,6 @@ public final class AssistantContextHolder {
         HOLDER.remove();
     }
 
-    public record AssistantContext(Long assistantDefinitionId, String assistantId, Long delegatorId) {}
+    public record AssistantContext(
+            Long assistantDefinitionId, String assistantId, Long delegatorId) {}
 }

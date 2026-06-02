@@ -50,8 +50,11 @@ public class ApprovalRecordService {
         record.setComment(comment);
         record.setOperationTime(LocalDateTime.now());
         approvalRecordRepository.save(record);
-        log.info("审批记录：processInstanceId={}, assignee={}, type={}",
-                processInstanceId, assignee, operationType);
+        log.info(
+                "审批记录：processInstanceId={}, assignee={}, type={}",
+                processInstanceId,
+                assignee,
+                operationType);
     }
 
     /**
@@ -92,9 +95,7 @@ public class ApprovalRecordService {
                 r.getOperationTime());
     }
 
-    /**
-     * 审批记录 VO。
-     */
+    /** 审批记录 VO。 */
     public record ApprovalRecordVO(
             Long id,
             String processInstanceId,
@@ -115,8 +116,13 @@ public class ApprovalRecordService {
      * @param mentionedUsers @提及的用户列表
      */
     @Transactional
-    public ApprovalComment addComment(String processInstanceId, String taskId, String userId,
-            String content, List<String> attachments, List<String> mentionedUsers) {
+    public ApprovalComment addComment(
+            String processInstanceId,
+            String taskId,
+            String userId,
+            String content,
+            List<String> attachments,
+            List<String> mentionedUsers) {
         var comment = new ApprovalComment();
         comment.setProcessInstanceId(processInstanceId);
         comment.setTaskId(taskId);
@@ -128,12 +134,11 @@ public class ApprovalRecordService {
         return approvalCommentRepository.save(comment);
     }
 
-    /**
-     * 查询流程实例的所有评论。
-     */
+    /** 查询流程实例的所有评论。 */
     @Transactional(readOnly = true)
     public List<ApprovalComment> listComments(String processInstanceId) {
-        return approvalCommentRepository.findByProcessInstanceIdOrderByCreateTimeAsc(processInstanceId);
+        return approvalCommentRepository.findByProcessInstanceIdOrderByCreateTimeAsc(
+                processInstanceId);
     }
 
     private String toJson(List<String> list) {

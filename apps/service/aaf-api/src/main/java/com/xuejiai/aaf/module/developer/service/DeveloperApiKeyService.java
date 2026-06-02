@@ -32,12 +32,14 @@ public class DeveloperApiKeyService {
         apiKey.setName(dto.name());
         apiKey.setKeyHash(DeveloperSecurityUtil.sha256(rawKey));
         apiKey.setKeyPrefix(rawKey.substring(0, 14) + "...");
-        apiKey.setScopes(dto.scopes() == null || dto.scopes().isBlank() ? "gateway:chat" : dto.scopes());
+        apiKey.setScopes(
+                dto.scopes() == null || dto.scopes().isBlank() ? "gateway:chat" : dto.scopes());
         if (dto.expiresInDays() != null && dto.expiresInDays() > 0) {
             apiKey.setExpiresAt(Instant.now().plusSeconds(dto.expiresInDays() * 86400L));
         }
         apiKeyRepository.save(apiKey);
-        return new DeveloperApiKeyCreateVO(apiKey.getId(), apiKey.getName(), rawKey, apiKey.getKeyPrefix());
+        return new DeveloperApiKeyCreateVO(
+                apiKey.getId(), apiKey.getName(), rawKey, apiKey.getKeyPrefix());
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +58,11 @@ public class DeveloperApiKeyService {
                 apiKeyRepository
                         .findByKeyHashAndEnabledTrue(DeveloperSecurityUtil.sha256(rawKey))
                         .filter(DeveloperApiKey::isValid)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "开发者 Gateway Key 不存在或已失效"));
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.UNAUTHORIZED,
+                                                "开发者 Gateway Key 不存在或已失效"));
         if (requiredScope != null
                 && apiKey.getScopes() != null
                 && !apiKey.getScopes().contains(requiredScope)

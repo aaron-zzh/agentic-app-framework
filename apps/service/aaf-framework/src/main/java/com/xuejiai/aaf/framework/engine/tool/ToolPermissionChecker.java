@@ -65,11 +65,13 @@ public class ToolPermissionChecker {
             boolean userApprovable,
             boolean adminApprovable) {
         static PermissionDecision of(PermissionResult result, String reason) {
-            return new PermissionDecision(result, reason, null, false, result == PermissionResult.DENIED);
+            return new PermissionDecision(
+                    result, reason, null, false, result == PermissionResult.DENIED);
         }
 
         static PermissionDecision pending(String reason, String approvalId) {
-            return new PermissionDecision(PermissionResult.PENDING_APPROVAL, reason, approvalId, true, false);
+            return new PermissionDecision(
+                    PermissionResult.PENDING_APPROVAL, reason, approvalId, true, false);
         }
     }
 
@@ -214,13 +216,22 @@ public class ToolPermissionChecker {
             decision = PermissionDecision.of(PermissionResult.GRANTED, "trust-all");
         } else if (matchesGrant(sessionId, toolName, arguments)) {
             decision = PermissionDecision.of(PermissionResult.GRANTED, "已授权（防重复）");
-        } else if (agentAllowedTools != null && agentAllowedTools.contains(toolName) && !requireConfirm) {
+        } else if (agentAllowedTools != null
+                && agentAllowedTools.contains(toolName)
+                && !requireConfirm) {
             decision = PermissionDecision.of(PermissionResult.GRANTED, "Agent allowedTools");
         } else if (readOnly && !requireConfirm) {
             decision = PermissionDecision.of(PermissionResult.AUTO_GRANTED, "只读工具");
         } else if (requireConfirm) {
-            decision = requestApproval(
-                    sessionId, userId, toolName, riskLevel, approvalType, approvalTitle, approvalReason);
+            decision =
+                    requestApproval(
+                            sessionId,
+                            userId,
+                            toolName,
+                            riskLevel,
+                            approvalType,
+                            approvalTitle,
+                            approvalReason);
         } else {
             decision = evaluateByRiskDetailed(sessionId, userId, toolName, riskLevel);
         }
@@ -299,7 +310,8 @@ public class ToolPermissionChecker {
                         userId,
                         approvalType,
                         title,
-                        "Agent 请求调用工具 [%s]（风险等级: %s）".formatted(displaySubject(toolName), riskLevel),
+                        "Agent 请求调用工具 [%s]（风险等级: %s）"
+                                .formatted(displaySubject(toolName), riskLevel),
                         Map.of(
                                 "toolName",
                                 toolName,

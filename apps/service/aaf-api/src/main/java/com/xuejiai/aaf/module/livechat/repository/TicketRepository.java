@@ -22,7 +22,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findByUserId(Long userId);
 
     /** 查询 SLA 即将超时或已超时的工单 */
-    List<Ticket> findByStatusInAndSlaDueTimeBefore(List<TicketStatusEnum> statuses, LocalDateTime time);
+    List<Ticket> findByStatusInAndSlaDueTimeBefore(
+            List<TicketStatusEnum> statuses, LocalDateTime time);
 
     @Query("SELECT t.status, COUNT(t) FROM Ticket t WHERE t.deleted = false GROUP BY t.status")
     List<Object[]> countByStatus();
@@ -30,12 +31,14 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     @Query("SELECT t.type, COUNT(t) FROM Ticket t WHERE t.deleted = false GROUP BY t.type")
     List<Object[]> countByType();
 
-    @Query("SELECT COUNT(t) FROM Ticket t WHERE t.status = 'CLOSED' AND t.closedTime IS NOT NULL AND t.createTime >= :since")
+    @Query(
+            "SELECT COUNT(t) FROM Ticket t WHERE t.status = 'CLOSED' AND t.closedTime IS NOT NULL AND t.createTime >= :since")
     long countClosedSince(LocalDateTime since);
 
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.createTime >= :since")
     long countCreatedSince(LocalDateTime since);
 
-    @Query("SELECT COUNT(t) FROM Ticket t WHERE t.slaDueTime < :now AND t.status IN ('PENDING','PROCESSING','CONFIRMING')")
+    @Query(
+            "SELECT COUNT(t) FROM Ticket t WHERE t.slaDueTime < :now AND t.status IN ('PENDING','PROCESSING','CONFIRMING')")
     long countOverdue(LocalDateTime now);
 }

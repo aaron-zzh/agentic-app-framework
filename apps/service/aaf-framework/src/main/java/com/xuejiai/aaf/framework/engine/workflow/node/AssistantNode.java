@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionRequest;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionTarget;
-import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContext;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
@@ -24,8 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>流程变量：assistantId/userId/input（必填）、sessionId（可选）、output/success/error（节点写入）
  *
- * <p>若节点在对话上下文中执行（AgentRunContextHolder 有 runId），
- * 节点开始/结束状态会通过 AgentRunEventPublisher 推送到对话 SSE 流。
+ * <p>若节点在对话上下文中执行（AgentRunContextHolder 有 runId）， 节点开始/结束状态会通过 AgentRunEventPublisher 推送到对话 SSE 流。
  */
 @Slf4j
 @Component("assistantNode")
@@ -40,9 +38,10 @@ public class AssistantNode implements JavaDelegate {
         var assistantId = (String) execution.getVariable("assistantId");
         var userId = ((Number) execution.getVariable("userId")).longValue();
         var input = (String) execution.getVariable("input");
-        var sessionId = execution.getVariable("sessionId") != null
-                ? (String) execution.getVariable("sessionId")
-                : execution.getProcessInstanceId();
+        var sessionId =
+                execution.getVariable("sessionId") != null
+                        ? (String) execution.getVariable("sessionId")
+                        : execution.getProcessInstanceId();
         var nodeId = execution.getCurrentActivityId();
 
         // 推送节点开始事件（若在对话上下文中）
@@ -56,9 +55,16 @@ public class AssistantNode implements JavaDelegate {
                     Map.of("nodeId", nodeId, "assistantId", assistantId));
         }
 
-        var request = new ExecutionRequest(
-                ExecutionTarget.ASSISTANT, assistantId, input,
-                sessionId, userId, null, 0.9, true);
+        var request =
+                new ExecutionRequest(
+                        ExecutionTarget.ASSISTANT,
+                        assistantId,
+                        input,
+                        sessionId,
+                        userId,
+                        null,
+                        0.9,
+                        true);
         var result = dispatcher.dispatch(request);
 
         execution.setVariable("output", result.output());

@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
 import com.xuejiai.aaf.common.model.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -76,7 +77,8 @@ public class GitController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/ci/trigger")
     public Result<Long> triggerCi(@RequestBody CiTriggerRequest request) {
-        var runId = ciCdService.triggerWorkflow(request.workflow(), request.ref(), request.inputs());
+        var runId =
+                ciCdService.triggerWorkflow(request.workflow(), request.ref(), request.inputs());
         return Result.success(runId);
     }
 
@@ -88,7 +90,8 @@ public class GitController {
 
     @Operation(summary = "最近构建列表")
     @GetMapping("/ci/recent")
-    public Result<List<CiCdService.BuildStatus>> recentBuilds(@RequestParam(defaultValue = "10") int limit) {
+    public Result<List<CiCdService.BuildStatus>> recentBuilds(
+            @RequestParam(defaultValue = "10") int limit) {
         return Result.success(ciCdService.recentBuilds(limit));
     }
 
@@ -103,12 +106,12 @@ public class GitController {
     @Operation(summary = "GitHub Webhook 回调")
     @PostMapping("/webhook/github")
     public Result<Void> githubWebhook(
-            @RequestHeader("X-GitHub-Event") String event,
-            @RequestBody JsonNode payload) {
+            @RequestHeader("X-GitHub-Event") String event, @RequestBody JsonNode payload) {
         ciCdService.handleWebhook(event, payload);
         return Result.success();
     }
 
     record CiTriggerRequest(String workflow, String ref, Map<String, String> inputs) {}
+
     record DeployRequest(String environment, String ref) {}
 }

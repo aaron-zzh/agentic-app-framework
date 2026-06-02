@@ -143,13 +143,22 @@ public class AccessPolicyService implements PolicyEngine {
     }
 
     private AccessPolicy getEntity(Long id) {
-        return repository.findById(id)
+        return repository
+                .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "策略不存在"));
     }
 
     private AccessPolicyVO toVO(AccessPolicy e) {
-        return new AccessPolicyVO(e.getId(), e.getName(), e.getDescription(), e.getConditionJson(),
-                e.getEffect(), e.getPriority(), e.getTargetResource(), e.getTargetAction(), e.getStatus());
+        return new AccessPolicyVO(
+                e.getId(),
+                e.getName(),
+                e.getDescription(),
+                e.getConditionJson(),
+                e.getEffect(),
+                e.getPriority(),
+                e.getTargetResource(),
+                e.getTargetAction(),
+                e.getStatus());
     }
 
     private boolean matchesAction(AccessPolicy policy, String action) {
@@ -188,7 +197,8 @@ public class AccessPolicyService implements PolicyEngine {
             }
             var cacheKey = versionService.policyVersion() + ":" + cacheOwner.getId();
             var compiled =
-                    expressionCache.computeIfAbsent(cacheKey, ignored -> expressionParser.parseExpression(expression));
+                    expressionCache.computeIfAbsent(
+                            cacheKey, ignored -> expressionParser.parseExpression(expression));
             var evaluationContext = new StandardEvaluationContext();
             if (context != null) {
                 context.forEach(evaluationContext::setVariable);
@@ -239,9 +249,14 @@ public class AccessPolicyService implements PolicyEngine {
         return switch (op) {
             case "eq" -> actual != null && actual.toString().equals(expected.asText());
             case "ne" -> actual == null || !actual.toString().equals(expected.asText());
-            case "in" -> expected.isArray()
-                    && java.util.stream.StreamSupport.stream(expected.spliterator(), false)
-                            .anyMatch(value -> actual != null && actual.toString().equals(value.asText()));
+            case "in" ->
+                    expected.isArray()
+                            && java.util.stream.StreamSupport.stream(expected.spliterator(), false)
+                                    .anyMatch(
+                                            value ->
+                                                    actual != null
+                                                            && actual.toString()
+                                                                    .equals(value.asText()));
             default -> false;
         };
     }

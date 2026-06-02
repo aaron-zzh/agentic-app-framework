@@ -11,9 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 任务事件日志（append-only）——完整审计轨迹。
- */
+/** 任务事件日志（append-only）——完整审计轨迹。 */
 @Getter
 @Setter
 @Entity
@@ -53,7 +51,8 @@ public class TaskEvent {
         return e;
     }
 
-    public static TaskEvent of(Long taskId, Long executionId, String subtaskKey, String type, String payload) {
+    public static TaskEvent of(
+            Long taskId, Long executionId, String subtaskKey, String type, String payload) {
         var e = of(taskId, executionId, type, payload);
         e.setSubtaskKey(subtaskKey);
         return e;

@@ -179,8 +179,9 @@ public class DocumentService {
     }
 
     private void broadcastChange(Long docId, String title) {
-        String json = "{\"type\":\"doc_updated\",\"docId\":%d,\"title\":\"%s\"}"
-                .formatted(docId, title != null ? title.replace("\"", "\\\"") : "");
+        String json =
+                "{\"type\":\"doc_updated\",\"docId\":%d,\"title\":\"%s\"}"
+                        .formatted(docId, title != null ? title.replace("\"", "\\\"") : "");
         // 通知特定文档订阅者
         sendToSubscribers(docId, json);
         // 通知全局订阅者

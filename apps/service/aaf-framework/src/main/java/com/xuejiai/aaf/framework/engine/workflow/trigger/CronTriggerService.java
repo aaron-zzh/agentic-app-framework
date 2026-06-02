@@ -35,20 +35,35 @@ public class CronTriggerService {
      * @param processKey 要启动的工作流 key
      * @param variables 工作流启动变量
      */
-    public void register(String triggerId, String cronExpression, String processKey, Map<String, Object> variables) {
+    public void register(
+            String triggerId,
+            String cronExpression,
+            String processKey,
+            Map<String, Object> variables) {
         cancel(triggerId);
-        var future = taskScheduler.schedule(
-                () -> {
-                    try {
-                        var instanceId = workflowEngine.startProcess(processKey, triggerId, variables);
-                        log.info("定时触发器执行: triggerId={} processKey={} instanceId={}", triggerId, processKey, instanceId);
-                    } catch (Exception e) {
-                        log.error("定时触发器执行失败: triggerId={}", triggerId, e);
-                    }
-                },
-                new CronTrigger(cronExpression));
+        var future =
+                taskScheduler.schedule(
+                        () -> {
+                            try {
+                                var instanceId =
+                                        workflowEngine.startProcess(
+                                                processKey, triggerId, variables);
+                                log.info(
+                                        "定时触发器执行: triggerId={} processKey={} instanceId={}",
+                                        triggerId,
+                                        processKey,
+                                        instanceId);
+                            } catch (Exception e) {
+                                log.error("定时触发器执行失败: triggerId={}", triggerId, e);
+                            }
+                        },
+                        new CronTrigger(cronExpression));
         scheduledTasks.put(triggerId, future);
-        log.info("注册定时触发器: triggerId={} cron={} processKey={}", triggerId, cronExpression, processKey);
+        log.info(
+                "注册定时触发器: triggerId={} cron={} processKey={}",
+                triggerId,
+                cronExpression,
+                processKey);
     }
 
     /** 注销定时触发器 */

@@ -36,13 +36,19 @@ public record StorageProperties(
         public static UploadLimits defaults() {
             return new UploadLimits(
                     Set.of(
-                            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+                            "image/jpeg",
+                            "image/png",
+                            "image/gif",
+                            "image/webp",
+                            "image/svg+xml",
                             "application/pdf",
                             "application/msword",
                             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             "application/vnd.ms-excel",
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            "text/plain", "text/csv", "text/markdown"),
+                            "text/plain",
+                            "text/csv",
+                            "text/markdown"),
                     10L * 1024 * 1024);
         }
     }

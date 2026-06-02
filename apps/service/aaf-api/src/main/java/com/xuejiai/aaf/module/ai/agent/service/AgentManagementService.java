@@ -71,7 +71,8 @@ public class AgentManagementService {
         } else {
             page = agentRepo.findAll(pageable);
         }
-        return new PageResult<>(page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+        return new PageResult<>(
+                page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
 
     /**
@@ -82,8 +83,13 @@ public class AgentManagementService {
      */
     @Transactional(readOnly = true)
     public AgentVO getById(Long id) {
-        var entity = agentRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
+        var entity =
+                agentRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
         return toVO(entity);
     }
 
@@ -96,8 +102,13 @@ public class AgentManagementService {
      */
     @Transactional
     public AgentVO update(Long id, AgentUpdateDTO dto) {
-        var entity = agentRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
+        var entity =
+                agentRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
         if (dto.name() != null) entity.setName(dto.name());
         if (dto.description() != null) entity.setDescription(dto.description());
         if (dto.systemPrompt() != null) entity.setSystemPrompt(dto.systemPrompt());
@@ -119,8 +130,13 @@ public class AgentManagementService {
      */
     @Transactional
     public void delete(Long id) {
-        var entity = agentRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
+        var entity =
+                agentRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
         registryService.archive(entity.getAgentId());
     }
 
@@ -132,8 +148,13 @@ public class AgentManagementService {
      */
     @Transactional
     public void updateStatus(Long id, String status) {
-        var entity = agentRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
+        var entity =
+                agentRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
         entity.setStatus(status);
         agentRepo.save(entity);
     }
@@ -146,8 +167,13 @@ public class AgentManagementService {
      * @return 执行结果
      */
     public String execute(Long id, String input) {
-        var entity = agentRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
+        var entity =
+                agentRepo
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
         var executor = agentFactory.create(entity);
         // TODO: 完善执行上下文（userId、sessionId 等）
         var result = executor.execute(input);
@@ -172,8 +198,11 @@ public class AgentManagementService {
      */
     @Transactional(readOnly = true)
     public AgentExecutionVO getExecutionStatus(String executionId) {
-        var run = executionRunRepo.findByExecutionId(executionId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "执行记录不存在"));
+        var run =
+                executionRunRepo
+                        .findByExecutionId(executionId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "执行记录不存在"));
         return toExecutionVO(run);
     }
 
@@ -187,24 +216,46 @@ public class AgentManagementService {
     @Transactional(readOnly = true)
     public PageResult<AgentExecutionVO> listExecutions(String agentId, Pageable pageable) {
         var page = executionRunRepo.findByAgentId(agentId, pageable);
-        return new PageResult<>(page.getContent().stream().map(this::toExecutionVO).toList(), page.getTotalElements());
+        return new PageResult<>(
+                page.getContent().stream().map(this::toExecutionVO).toList(),
+                page.getTotalElements());
     }
 
     private AgentVO toVO(AgentDefinition e) {
         return new AgentVO(
-                e.getId(), e.getAgentId(), e.getName(), e.getDescription(),
-                e.getSystemPrompt(), e.getModelId(), e.getCapabilities(),
-                e.getTools(), e.getAllowedTools(), e.getMcpServers(),
-                e.getMaxIterations(), e.getTimeoutSeconds(), e.getStatus(),
-                e.getCreateTime(), e.getUpdateTime());
+                e.getId(),
+                e.getAgentId(),
+                e.getName(),
+                e.getDescription(),
+                e.getSystemPrompt(),
+                e.getModelId(),
+                e.getCapabilities(),
+                e.getTools(),
+                e.getAllowedTools(),
+                e.getMcpServers(),
+                e.getMaxIterations(),
+                e.getTimeoutSeconds(),
+                e.getStatus(),
+                e.getCreateTime(),
+                e.getUpdateTime());
     }
 
     private AgentExecutionVO toExecutionVO(ExecutionRun r) {
         return new AgentExecutionVO(
-                r.getId(), r.getExecutionId(), r.getAgentId(), r.getAgentName(),
-                r.getUserId(), r.getConversationId(), r.getInput(), r.getOutput(),
-                r.getStatus() != null ? r.getStatus().name() : null, r.getErrorMessage(),
-                r.getTokenInput(), r.getTokenOutput(), r.getStartedAt(),
-                r.getFinishedAt(), r.getDurationMs());
+                r.getId(),
+                r.getExecutionId(),
+                r.getAgentId(),
+                r.getAgentName(),
+                r.getUserId(),
+                r.getConversationId(),
+                r.getInput(),
+                r.getOutput(),
+                r.getStatus() != null ? r.getStatus().name() : null,
+                r.getErrorMessage(),
+                r.getTokenInput(),
+                r.getTokenOutput(),
+                r.getStartedAt(),
+                r.getFinishedAt(),
+                r.getDurationMs());
     }
 }

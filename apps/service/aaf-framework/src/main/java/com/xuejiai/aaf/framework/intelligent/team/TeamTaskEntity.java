@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.team;
 
 import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

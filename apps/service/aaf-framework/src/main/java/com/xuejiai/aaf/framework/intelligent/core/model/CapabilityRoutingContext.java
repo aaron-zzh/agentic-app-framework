@@ -17,8 +17,8 @@ import java.util.Map;
  * </ol>
  *
  * @param userId 当前用户 ID（用于查用户偏好，可为 null）
- * @param capability 能力类型：CHAT / IMAGE_GEN / VIDEO_GEN / MUSIC_GEN / SPEECH_ASR / SPEECH_TTS / RERANK /
- *     EMBEDDING
+ * @param capability 能力类型：CHAT / IMAGE_GEN / VIDEO_GEN / MUSIC_GEN / SPEECH_ASR / SPEECH_TTS /
+ *     RERANK / EMBEDDING
  * @param explicitModelId 调用方显式指定的 modelId（最高优先级，可为 null）
  * @param orchestrationModelId 编排引擎（工作流节点/Agent）绑定的 modelId（可为 null）
  * @param taskFeatures 任务特征，用于 AI 辅助决策（可为 null）

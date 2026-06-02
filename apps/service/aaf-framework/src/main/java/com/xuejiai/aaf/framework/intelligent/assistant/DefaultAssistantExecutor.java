@@ -17,8 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AssistantExecutor 默认实现——渠道/A2A/内部调度入口（完整输出模式）。
  *
- * <p>与 AG-UI 入口共享同一个 {@link AssistantRuntime#materialize} 逻辑，
- * 差异仅在输出方式：本类使用 {@code agent.call(msg)} 同步等待完整结果。
+ * <p>与 AG-UI 入口共享同一个 {@link AssistantRuntime#materialize} 逻辑， 差异仅在输出方式：本类使用 {@code agent.call(msg)}
+ * 同步等待完整结果。
  */
 @Slf4j
 @Service
@@ -36,7 +36,8 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
         AgentRunContextHolder.set(sessionId, userId, "assistant", assistantId, sessionId, null);
         try {
             // 会话管理：确保会话存在并更新状态
-            sessionManager.getSession(sessionId)
+            sessionManager
+                    .getSession(sessionId)
                     .orElseGet(() -> sessionManager.createSession(userId, assistantId));
             sessionManager.updateStatus(sessionId, SessionManager.SessionStatus.PROCESSING);
 
@@ -48,7 +49,8 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
             shortTermMemory.append(sessionId, new MemoryMessage("user", userMessage, null));
 
             // 同步执行（完整输出）
-            var msg = Msg.builder().name("user").role(MsgRole.USER).textContent(userMessage).build();
+            var msg =
+                    Msg.builder().name("user").role(MsgRole.USER).textContent(userMessage).build();
             var response = agent.call(msg).block();
 
             var content = response != null ? response.getTextContent() : "";
@@ -60,7 +62,11 @@ public class DefaultAssistantExecutor implements AssistantExecutor {
 
             return AssistantResponse.success(content, sessionId);
         } catch (Exception e) {
-            log.warn("助理执行失败 [assistant={}, session={}]: {}", assistantId, sessionId, e.getMessage());
+            log.warn(
+                    "助理执行失败 [assistant={}, session={}]: {}",
+                    assistantId,
+                    sessionId,
+                    e.getMessage());
             sessionManager.updateStatus(sessionId, SessionManager.SessionStatus.ACTIVE);
             return AssistantResponse.error(sessionId, e.getMessage());
         } finally {

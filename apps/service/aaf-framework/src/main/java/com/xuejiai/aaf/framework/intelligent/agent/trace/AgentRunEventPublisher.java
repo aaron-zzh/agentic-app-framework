@@ -2,10 +2,11 @@ package com.xuejiai.aaf.framework.intelligent.agent.trace;
 
 import java.util.Map;
 
-import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext;
-import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext;
+import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 
 import lombok.RequiredArgsConstructor;
 
@@ -17,10 +18,7 @@ public class AgentRunEventPublisher {
     private final ApplicationEventPublisher eventPublisher;
 
     public void publish(
-            AgentRunEventType type,
-            String title,
-            String message,
-            Map<String, Object> payload) {
+            AgentRunEventType type, String title, String message, Map<String, Object> payload) {
         AgentRunContextHolder.current()
                 .ifPresent(ctx -> publish(ctx, type, title, message, payload));
     }

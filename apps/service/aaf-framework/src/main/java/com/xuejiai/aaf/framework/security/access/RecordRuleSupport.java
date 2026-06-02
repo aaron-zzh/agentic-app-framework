@@ -18,9 +18,7 @@ public interface RecordRuleSupport {
      */
     <T> Specification<T> buildAccessSpec(String entitySlug, Long userId);
 
-    /**
-     * 当前用户对实体的记录规则版本。用于查询窗口 token 校验；规则或角色变化后应变化。
-     */
+    /** 当前用户对实体的记录规则版本。用于查询窗口 token 校验；规则或角色变化后应变化。 */
     default String accessVersion(String entitySlug, Long userId) {
         return "0";
     }

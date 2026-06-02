@@ -19,7 +19,8 @@ public class TeamController {
 
     @PostMapping
     public Result<TeamEntity> create(@RequestBody TeamCreateDTO dto) {
-        return Result.success(orchestrator.createTeam(dto.teamId(), dto.name(), dto.mode(), dto.coordinatorId()));
+        return Result.success(
+                orchestrator.createTeam(dto.teamId(), dto.name(), dto.mode(), dto.coordinatorId()));
     }
 
     @GetMapping("/{teamId}")
@@ -28,8 +29,10 @@ public class TeamController {
     }
 
     @PostMapping("/{teamId}/members")
-    public Result<TeamMemberEntity> addMember(@PathVariable String teamId, @RequestBody MemberAddDTO dto) {
-        return Result.success(orchestrator.addMember(teamId, dto.assistantId(), dto.role(), dto.capabilities()));
+    public Result<TeamMemberEntity> addMember(
+            @PathVariable String teamId, @RequestBody MemberAddDTO dto) {
+        return Result.success(
+                orchestrator.addMember(teamId, dto.assistantId(), dto.role(), dto.capabilities()));
     }
 
     @GetMapping("/{teamId}/members")
@@ -38,7 +41,8 @@ public class TeamController {
     }
 
     @PostMapping("/{teamId}/decompose")
-    public Result<List<TeamTaskEntity>> decompose(@PathVariable String teamId, @RequestBody GoalDTO dto) {
+    public Result<List<TeamTaskEntity>> decompose(
+            @PathVariable String teamId, @RequestBody GoalDTO dto) {
         return Result.success(orchestrator.decomposeGoal(teamId, dto.goal()));
     }
 
@@ -48,13 +52,17 @@ public class TeamController {
     }
 
     @PutMapping("/{teamId}/tasks/{taskId}/status")
-    public Result<Void> updateStatus(@PathVariable String teamId, @PathVariable String taskId, @RequestBody StatusDTO dto) {
+    public Result<Void> updateStatus(
+            @PathVariable String teamId, @PathVariable String taskId, @RequestBody StatusDTO dto) {
         orchestrator.updateTaskStatus(teamId, taskId, dto.status(), dto.result());
         return Result.success();
     }
 
     record TeamCreateDTO(String teamId, String name, String mode, String coordinatorId) {}
+
     record MemberAddDTO(String assistantId, String role, String capabilities) {}
+
     record GoalDTO(String goal) {}
+
     record StatusDTO(String status, String result) {}
 }

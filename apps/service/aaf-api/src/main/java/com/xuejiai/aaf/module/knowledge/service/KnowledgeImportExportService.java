@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeSegment;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeSegmentRepository;
 
@@ -27,18 +28,22 @@ public class KnowledgeImportExportService {
     /** JSON 批量导出知识库段落 */
     public List<Map<String, Object>> exportAsJson(Long knowledgeBaseId) {
         var segments = segmentRepo.findByKnowledgeBaseId(knowledgeBaseId);
-        return segments.stream().map(s -> Map.<String, Object>of(
-                "content", s.getContent(),
-                "position", s.getPosition()
-        )).toList();
+        return segments.stream()
+                .map(
+                        s ->
+                                Map.<String, Object>of(
+                                        "content", s.getContent(),
+                                        "position", s.getPosition()))
+                .toList();
     }
 
     /** JSON 批量导入段落 */
     @Transactional
     public int importFromJson(Long knowledgeBaseId, Long documentId, InputStream inputStream) {
         try {
-            var items = objectMapper.readValue(inputStream,
-                    new TypeReference<List<Map<String, String>>>() {});
+            var items =
+                    objectMapper.readValue(
+                            inputStream, new TypeReference<List<Map<String, String>>>() {});
             int count = 0;
             for (var item : items) {
                 var content = item.get("content");

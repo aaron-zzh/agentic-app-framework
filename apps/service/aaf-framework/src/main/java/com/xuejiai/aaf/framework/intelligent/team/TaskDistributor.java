@@ -9,9 +9,7 @@ import java.util.*;
 
 import org.springframework.stereotype.Service;
 
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 
 /** 任务拆解、子任务分配、依赖管理。 */
 @Service
@@ -26,16 +24,21 @@ public class TaskDistributor {
         var assignments = new ArrayList<TaskAssignment>();
 
         for (var task : tasks) {
-            var assignee = members.stream()
-                    .filter(m -> m.getCapabilities() != null
-                            && task.getRequiredCapability() != null
-                            && m.getCapabilities().contains(task.getRequiredCapability()))
-                    .findFirst()
-                    .orElse(members.isEmpty() ? null : members.getFirst());
+            var assignee =
+                    members.stream()
+                            .filter(
+                                    m ->
+                                            m.getCapabilities() != null
+                                                    && task.getRequiredCapability() != null
+                                                    && m.getCapabilities()
+                                                            .contains(task.getRequiredCapability()))
+                            .findFirst()
+                            .orElse(members.isEmpty() ? null : members.getFirst());
 
             if (assignee != null) {
                 task.setAssigneeId(assignee.getAssistantId());
-                assignments.add(new TaskAssignment(task.getTaskId(), assignee.getAssistantId(), task));
+                assignments.add(
+                        new TaskAssignment(task.getTaskId(), assignee.getAssistantId(), task));
             }
         }
         return assignments;

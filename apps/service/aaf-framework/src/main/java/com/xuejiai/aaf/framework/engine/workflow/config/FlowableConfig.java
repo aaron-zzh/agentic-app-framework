@@ -26,8 +26,7 @@ public class FlowableConfig {
             processEngineConfigurer() {
         return config -> {
             // 历史记录级别：FULL，记录所有流程变量和表单数据
-            config.setHistoryLevel(
-                    org.flowable.common.engine.impl.history.HistoryLevel.FULL);
+            config.setHistoryLevel(org.flowable.common.engine.impl.history.HistoryLevel.FULL);
 
             // 自定义 ID 生成器
             config.setIdGenerator(uuidIdGenerator());

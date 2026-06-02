@@ -19,14 +19,15 @@ import lombok.Setter;
 /**
  * 客服会话实体。
  *
- * <p>记录一次完整的客服对话，从用户发起到关闭。
- * 状态流转：BOT → WAITING → ACTIVE → CLOSED
+ * <p>记录一次完整的客服对话，从用户发起到关闭。 状态流转：BOT → WAITING → ACTIVE → CLOSED
  */
 @Getter
 @Setter
 @Entity(name = "LivechatChatSession")
 @Table(name = "chat_session")
-@SQLDelete(sql = "UPDATE chat_session SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE chat_session SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class ChatSession extends BaseEntity {
 
     /** 系统用户 ID（已注册用户，可为空） */

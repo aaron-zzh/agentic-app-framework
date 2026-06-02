@@ -14,8 +14,7 @@ import lombok.RequiredArgsConstructor;
 public class JwtPermissionVersionValidator implements OAuth2TokenValidator<Jwt> {
 
     private static final OAuth2Error STALE_PERMISSION_VERSION =
-            new OAuth2Error(
-                    "stale_permission_version", "权限版本已过期，请刷新登录状态", null);
+            new OAuth2Error("stale_permission_version", "权限版本已过期，请刷新登录状态", null);
 
     private final PermissionVersionService permissionVersionService;
 

@@ -16,8 +16,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * AI 对话任务服务——管理与会话关联的任务队列。
  *
- * <p>用户可在对话中创建任务列表，助理按优先级逐个处理。
- * 支持定时任务（scheduledAt）和自动执行下一个任务。
+ * <p>用户可在对话中创建任务列表，助理按优先级逐个处理。 支持定时任务（scheduledAt）和自动执行下一个任务。
  *
  * @author AaronZZH & Kiro
  */
@@ -29,8 +28,13 @@ public class ChatTaskService {
 
     /** 创建任务 */
     @Transactional
-    public ChatTask create(Long sessionId, Long creatorId, String title, String description,
-                           Integer priority, LocalDateTime scheduledAt) {
+    public ChatTask create(
+            Long sessionId,
+            Long creatorId,
+            String title,
+            String description,
+            Integer priority,
+            LocalDateTime scheduledAt) {
         var task = new ChatTask();
         task.setSessionId(sessionId);
         task.setCreatorId(creatorId);
@@ -38,7 +42,9 @@ public class ChatTaskService {
         task.setDescription(description);
         if (priority != null) task.setPriority(priority);
         task.setScheduledAt(scheduledAt);
-        var tasks = taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
+        var tasks =
+                taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(
+                        sessionId);
         task.setSortOrder(tasks.size());
         taskRepository.save(task);
         return task;
@@ -46,14 +52,16 @@ public class ChatTaskService {
 
     /** 创建任务（无定时） */
     @Transactional
-    public ChatTask create(Long sessionId, Long creatorId, String title, String description, Integer priority) {
+    public ChatTask create(
+            Long sessionId, Long creatorId, String title, String description, Integer priority) {
         return create(sessionId, creatorId, title, description, priority, null);
     }
 
     /** 获取会话的任务列表 */
     @Transactional(readOnly = true)
     public List<ChatTask> listBySession(Long sessionId) {
-        return taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
+        return taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(
+                sessionId);
     }
 
     /** 获取下一个可执行的待处理任务（已到期或无定时） */
@@ -111,7 +119,8 @@ public class ChatTaskService {
     /** 统计待处理任务数 */
     @Transactional(readOnly = true)
     public long countPending(Long sessionId) {
-        return taskRepository.countBySessionIdAndStatusAndDeletedFalse(sessionId, ChatTaskStatus.PENDING);
+        return taskRepository.countBySessionIdAndStatusAndDeletedFalse(
+                sessionId, ChatTaskStatus.PENDING);
     }
 
     /** 回收孤儿任务（running 超时未完成的重置为 pending），返回回收数量 */

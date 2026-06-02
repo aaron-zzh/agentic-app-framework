@@ -7,9 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.xuejiai.aaf.module.channel.domain.ChannelConfig;
 
-/**
- * 渠道配置数据访问层。
- */
+/** 渠道配置数据访问层。 */
 public interface ChannelConfigRepository extends JpaRepository<ChannelConfig, Long> {
 
     Optional<ChannelConfig> findByChannelTypeAndDeletedFalse(String channelType);

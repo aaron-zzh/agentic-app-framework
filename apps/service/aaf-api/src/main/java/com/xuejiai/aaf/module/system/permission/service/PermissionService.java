@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.security.cache.PermissionCacheService;
 import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.cache.PermissionCacheService;
 import com.xuejiai.aaf.module.system.permission.domain.PermissionCode;
 import com.xuejiai.aaf.module.system.permission.repository.PermissionCodeRepository;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionCreateDTO;
@@ -42,7 +42,11 @@ public class PermissionService {
     public List<PermissionTreeVO> tree() {
         var all = permissionRepository.findByDeletedFalseOrderByModuleAscResourceAscActionAsc();
         return all.stream()
-                .collect(Collectors.groupingBy(PermissionCode::getModule, java.util.TreeMap::new, Collectors.toList()))
+                .collect(
+                        Collectors.groupingBy(
+                                PermissionCode::getModule,
+                                java.util.TreeMap::new,
+                                Collectors.toList()))
                 .entrySet()
                 .stream()
                 .map(
@@ -73,7 +77,9 @@ public class PermissionService {
                                                                         resourceEntry.getKey(),
                                                                         null,
                                                                         null,
-                                                                        resourceEntry.getValue().stream()
+                                                                        resourceEntry
+                                                                                .getValue()
+                                                                                .stream()
                                                                                 .map(this::toTreeVO)
                                                                                 .toList()))
                                                 .toList()))
@@ -112,8 +118,14 @@ public class PermissionService {
         if (dto.resource() != null) entity.setResource(normalizeSegment(dto.resource()));
         if (dto.action() != null) entity.setAction(normalizeSegment(dto.action()));
         if (dto.code() != null) {
-            var code = normalizeCode(dto.code(), entity.getModule(), entity.getResource(), entity.getAction());
-            if (!code.equals(entity.getCode()) && permissionRepository.existsByCodeAndDeletedFalse(code)) {
+            var code =
+                    normalizeCode(
+                            dto.code(),
+                            entity.getModule(),
+                            entity.getResource(),
+                            entity.getAction());
+            if (!code.equals(entity.getCode())
+                    && permissionRepository.existsByCodeAndDeletedFalse(code)) {
                 throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "权限编码已存在");
             }
             entity.setCode(code);
@@ -238,7 +250,10 @@ public class PermissionService {
             return code.trim();
         }
         return "%s:%s:%s"
-                .formatted(normalizeSegment(module), normalizeSegment(resource), normalizeSegment(action));
+                .formatted(
+                        normalizeSegment(module),
+                        normalizeSegment(resource),
+                        normalizeSegment(action));
     }
 
     private String normalizeSegment(String value) {

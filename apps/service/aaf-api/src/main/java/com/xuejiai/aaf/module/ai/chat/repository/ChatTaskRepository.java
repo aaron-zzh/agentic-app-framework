@@ -17,7 +17,8 @@ public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
     List<ChatTask> findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(Long sessionId);
 
     /** 获取会话下待处理的下一个任务（已到期或无定时） */
-    @Query("""
+    @Query(
+            """
             SELECT t FROM ChatTask t
             WHERE t.sessionId = :sessionId AND t.status = 'pending' AND t.deleted = false
               AND (t.scheduledAt IS NULL OR t.scheduledAt <= CURRENT_TIMESTAMP)
@@ -26,7 +27,8 @@ public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
     Optional<ChatTask> findNextPending(Long sessionId);
 
     /** 查找所有到期的待处理任务（定时调度用） */
-    @Query("""
+    @Query(
+            """
             SELECT t FROM ChatTask t
             WHERE t.status = 'pending' AND t.deleted = false
               AND t.scheduledAt IS NOT NULL AND t.scheduledAt <= :now
@@ -35,14 +37,16 @@ public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
 
     /** CAS 抢占：pending → running，返回受影响行数（0 表示抢占失败） */
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE ChatTask t SET t.status = 'running', t.updateTime = CURRENT_TIMESTAMP
             WHERE t.id = :taskId AND t.status = 'pending'""")
     int casStartTask(Long taskId);
 
     /** 孤儿回收：running 且 updateTime 早于 cutoff 的任务重置为 pending */
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE ChatTask t SET t.status = 'pending', t.updateTime = CURRENT_TIMESTAMP
             WHERE t.status = 'running' AND t.updateTime < :cutoff AND t.deleted = false""")
     int recoverOrphans(LocalDateTime cutoff);

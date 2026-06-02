@@ -34,7 +34,8 @@ public class BizOrderController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping
     public Result<BizOrderVO> create(
-            @RequestParam(required = false) Long userId, @Valid @RequestBody BizOrderCreateDTO dto) {
+            @RequestParam(required = false) Long userId,
+            @Valid @RequestBody BizOrderCreateDTO dto) {
         return Result.success(bizOrderService.create(ownerId(userId), dto));
     }
 

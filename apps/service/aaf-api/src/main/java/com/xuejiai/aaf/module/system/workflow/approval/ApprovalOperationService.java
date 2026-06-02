@@ -5,7 +5,6 @@ import java.util.Map;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
-import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,7 +75,9 @@ public class ApprovalOperationService {
         var originalAssignee = task.getAssignee();
         taskService.setAssignee(taskId, targetAssignee);
         if (reason != null) {
-            taskService.addComment(taskId, task.getProcessInstanceId(),
+            taskService.addComment(
+                    taskId,
+                    task.getProcessInstanceId(),
                     "转签：%s → %s，原因：%s".formatted(originalAssignee, targetAssignee, reason));
         }
         log.info("转签完成：taskId={}, {} → {}", taskId, originalAssignee, targetAssignee);
@@ -98,15 +99,19 @@ public class ApprovalOperationService {
         }
 
         // 检查是否有已完成的后续任务（如果有则不允许撤回）
-        var completedTasks = historyService.createHistoricActivityInstanceQuery()
-                .processInstanceId(processInstanceId)
-                .activityType("userTask")
-                .finished()
-                .list();
+        var completedTasks =
+                historyService
+                        .createHistoricActivityInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .activityType("userTask")
+                        .finished()
+                        .list();
 
         // 排除发起人自己的提交节点，如果有其他人已处理则不允许撤回
-        boolean hasOtherCompleted = completedTasks.stream()
-                .anyMatch(t -> t.getAssignee() != null && !t.getAssignee().equals(initiator));
+        boolean hasOtherCompleted =
+                completedTasks.stream()
+                        .anyMatch(
+                                t -> t.getAssignee() != null && !t.getAssignee().equals(initiator));
         if (hasOtherCompleted) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "后续节点已处理，无法撤回");
         }

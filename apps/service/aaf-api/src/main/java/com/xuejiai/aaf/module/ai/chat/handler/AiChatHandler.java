@@ -11,14 +11,14 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunContextHolder;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.run.AgentRunEventType;
-import com.xuejiai.aaf.module.ai.chat.agui.AgentRunEventStreamService;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiStreamHandler;
+import com.xuejiai.aaf.module.ai.chat.agui.AgentRunEventStreamService;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatRunRequest;
 
@@ -57,7 +57,8 @@ public class AiChatHandler {
     public SseEmitter handle(ChatRunRequest request, Long userId, Long sessionId) {
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();
-        agentRunEventStreamService.attach(runId, emitter, AgentRunEventStreamService.Format.AGUI_CUSTOM);
+        agentRunEventStreamService.attach(
+                runId, emitter, AgentRunEventStreamService.Format.AGUI_CUSTOM);
 
         emitter.onCompletion(() -> log.debug("AI SSE 完成: runId={}", runId));
         emitter.onTimeout(() -> log.warn("AI SSE 超时: runId={}", runId));

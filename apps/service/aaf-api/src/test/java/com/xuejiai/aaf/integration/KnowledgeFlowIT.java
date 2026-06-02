@@ -15,13 +15,11 @@ import com.xuejiai.aaf.module.knowledge.vo.CreateKnowledgeBaseRequest;
 @ActiveProfiles("test")
 class KnowledgeFlowIT {
 
-    @Autowired
-    private KnowledgeBaseService knowledgeBaseService;
+    @Autowired private KnowledgeBaseService knowledgeBaseService;
 
     @Test
     void 创建知识库() {
-        var req = new CreateKnowledgeBaseRequest(
-                "IT测试知识库", "集成测试用", null, null, null, null);
+        var req = new CreateKnowledgeBaseRequest("IT测试知识库", "集成测试用", null, null, null, null);
         var kb = knowledgeBaseService.create(req);
         assertThat(kb).isNotNull();
         assertThat(kb.name()).isEqualTo("IT测试知识库");

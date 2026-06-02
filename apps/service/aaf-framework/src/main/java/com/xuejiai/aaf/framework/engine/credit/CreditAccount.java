@@ -1,11 +1,12 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 积分账户 */
 @Getter
@@ -13,7 +14,8 @@ import org.hibernate.annotations.SQLDelete;
 @Entity
 @Table(
         name = "credit_account",
-        uniqueConstraints = @UniqueConstraint(name = "uk_credit_account_user", columnNames = "user_id"))
+        uniqueConstraints =
+                @UniqueConstraint(name = "uk_credit_account_user", columnNames = "user_id"))
 @SQLDelete(
         sql =
                 "UPDATE credit_account SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")

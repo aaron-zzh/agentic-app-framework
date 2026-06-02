@@ -22,8 +22,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "sys_notice")
 @SQLDelete(
-        sql =
-                "UPDATE sys_notice SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+        sql = "UPDATE sys_notice SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Notice extends BaseEntity {
 
     /** 标题 */

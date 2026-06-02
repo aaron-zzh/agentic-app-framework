@@ -12,10 +12,11 @@ import lombok.extern.slf4j.Slf4j;
  * <p>BPMN 用法：{@code flowable:delegateExpression="${waitNode}"}
  *
  * <p>流程变量：
+ *
  * <ul>
- *   <li>waitType（必填）——等待类型：signal/timer/human</li>
- *   <li>waitKey（必填）——等待标识，用于外部信号匹配</li>
- *   <li>waitStatus（节点写入）——当前等待状态：waiting/resumed</li>
+ *   <li>waitType（必填）——等待类型：signal/timer/human
+ *   <li>waitKey（必填）——等待标识，用于外部信号匹配
+ *   <li>waitStatus（节点写入）——当前等待状态：waiting/resumed
  * </ul>
  *
  * <p>恢复方式：外部通过 RuntimeService.trigger() 或自定义信号机制恢复执行。
@@ -29,8 +30,8 @@ public class WaitNode implements JavaDelegate {
         var waitType = (String) execution.getVariable("waitType");
         var waitKey = (String) execution.getVariable("waitKey");
 
-        log.info("工作流进入等待状态: type={}, key={}, executionId={}",
-                waitType, waitKey, execution.getId());
+        log.info(
+                "工作流进入等待状态: type={}, key={}, executionId={}", waitType, waitKey, execution.getId());
 
         execution.setVariable("waitStatus", "waiting");
         execution.setVariable("_waitType", waitType);

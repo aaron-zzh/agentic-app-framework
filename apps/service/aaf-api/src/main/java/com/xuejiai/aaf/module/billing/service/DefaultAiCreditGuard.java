@@ -17,8 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AI 积分门控默认实现。
  *
- * <p>积分轨 fail-closed：userId=null 或余额 ≤ 0 时拒绝。
- * 余额低于预警阈值（sys_config: ai.credit_warn_threshold，默认 10）时异步发 {@link CreditLowEvent}。
+ * <p>积分轨 fail-closed：userId=null 或余额 ≤ 0 时拒绝。 余额低于预警阈值（sys_config: ai.credit_warn_threshold，默认
+ * 10）时异步发 {@link CreditLowEvent}。
  */
 @Slf4j
 @Service
@@ -58,8 +58,12 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         try {
             creditService.spend(userId, creditCost, capability, bizId);
         } catch (Exception e) {
-            log.warn("AI 积分扣减失败，跳过（不回滚 AI 调用）: userId={}, capability={}, cost={}, err={}",
-                    userId, capability, creditCost, e.getMessage());
+            log.warn(
+                    "AI 积分扣减失败，跳过（不回滚 AI 调用）: userId={}, capability={}, cost={}, err={}",
+                    userId,
+                    capability,
+                    creditCost,
+                    e.getMessage());
         }
     }
 

@@ -23,7 +23,11 @@ public class GoalTracker {
 
     /** 目标状态 */
     public enum GoalStatus {
-        PENDING, IN_PROGRESS, DONE, FAILED, BLOCKED
+        PENDING,
+        IN_PROGRESS,
+        DONE,
+        FAILED,
+        BLOCKED
     }
 
     /** 目标定义 */
@@ -33,20 +37,20 @@ public class GoalTracker {
             GoalStatus status,
             List<String> subGoalIds,
             String assignee,
-            Instant createdAt) {
-    }
+            Instant createdAt) {}
 
     private final Map<String, Goal> goals = new ConcurrentHashMap<>();
 
     /** 添加目标 */
     public Goal addGoal(String description, String assignee) {
-        var goal = new Goal(
-                UUID.randomUUID().toString(),
-                description,
-                GoalStatus.PENDING,
-                new ArrayList<>(),
-                assignee,
-                Instant.now());
+        var goal =
+                new Goal(
+                        UUID.randomUUID().toString(),
+                        description,
+                        GoalStatus.PENDING,
+                        new ArrayList<>(),
+                        assignee,
+                        Instant.now());
         goals.put(goal.id(), goal);
         log.info("添加目标: id={}, desc={}", goal.id(), description);
         return goal;
@@ -54,8 +58,16 @@ public class GoalTracker {
 
     /** 更新目标状态 */
     public void updateStatus(String goalId, GoalStatus status) {
-        goals.computeIfPresent(goalId, (k, g) ->
-                new Goal(g.id(), g.description(), status, g.subGoalIds(), g.assignee(), g.createdAt()));
+        goals.computeIfPresent(
+                goalId,
+                (k, g) ->
+                        new Goal(
+                                g.id(),
+                                g.description(),
+                                status,
+                                g.subGoalIds(),
+                                g.assignee(),
+                                g.createdAt()));
     }
 
     /** 获取目标 */
@@ -65,9 +77,7 @@ public class GoalTracker {
 
     /** 按状态列出目标 */
     public List<Goal> listByStatus(GoalStatus status) {
-        return goals.values().stream()
-                .filter(g -> g.status() == status)
-                .toList();
+        return goals.values().stream().filter(g -> g.status() == status).toList();
     }
 
     /** 分解目标为子目标 */
@@ -75,14 +85,20 @@ public class GoalTracker {
         var parent = goals.get(parentGoalId);
         if (parent == null) return List.of();
 
-        var subGoals = subDescriptions.stream()
-                .map(desc -> addGoal(desc, parent.assignee()))
-                .toList();
+        var subGoals =
+                subDescriptions.stream().map(desc -> addGoal(desc, parent.assignee())).toList();
 
         var subIds = new ArrayList<>(parent.subGoalIds());
         subIds.addAll(subGoals.stream().map(Goal::id).toList());
-        goals.put(parentGoalId, new Goal(parent.id(), parent.description(),
-                GoalStatus.IN_PROGRESS, subIds, parent.assignee(), parent.createdAt()));
+        goals.put(
+                parentGoalId,
+                new Goal(
+                        parent.id(),
+                        parent.description(),
+                        GoalStatus.IN_PROGRESS,
+                        subIds,
+                        parent.assignee(),
+                        parent.createdAt()));
 
         return subGoals;
     }
@@ -94,10 +110,11 @@ public class GoalTracker {
         if (goal.subGoalIds().isEmpty()) {
             return goal.status() == GoalStatus.DONE ? 100.0 : 0.0;
         }
-        long done = goal.subGoalIds().stream()
-                .map(goals::get)
-                .filter(g -> g != null && g.status() == GoalStatus.DONE)
-                .count();
+        long done =
+                goal.subGoalIds().stream()
+                        .map(goals::get)
+                        .filter(g -> g != null && g.status() == GoalStatus.DONE)
+                        .count();
         return (double) done / goal.subGoalIds().size() * 100.0;
     }
 }

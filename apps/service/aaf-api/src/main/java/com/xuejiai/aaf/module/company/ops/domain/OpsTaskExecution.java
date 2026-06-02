@@ -2,19 +2,22 @@ package com.xuejiai.aaf.module.company.ops.domain;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.SQLDelete;
 
 /** 运营任务执行记录 */
 @Getter
 @Setter
 @Entity
 @Table(name = "company_ops_execution")
-@SQLDelete(sql = "UPDATE company_ops_execution SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE company_ops_execution SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class OpsTaskExecution extends BaseEntity {
 
     @Column(name = "task_id", nullable = false)

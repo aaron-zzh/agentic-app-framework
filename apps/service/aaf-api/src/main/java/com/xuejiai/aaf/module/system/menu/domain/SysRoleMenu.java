@@ -5,9 +5,7 @@ import java.io.Serializable;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * 角色-菜单关联
- */
+/** 角色-菜单关联 */
 @Getter
 @Setter
 @Entity

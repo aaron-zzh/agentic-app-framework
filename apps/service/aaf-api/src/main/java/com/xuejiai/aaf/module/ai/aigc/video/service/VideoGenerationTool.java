@@ -60,8 +60,7 @@ public class VideoGenerationTool {
                                     null,
                                     "{\"prompt\":\"%s\",\"taskId\":\"%s\"}"
                                             .formatted(
-                                                    request.prompt().replace("\"", "\\\""),
-                                                    taskId),
+                                                    request.prompt().replace("\"", "\\\""), taskId),
                                     null,
                                     null,
                                     null);

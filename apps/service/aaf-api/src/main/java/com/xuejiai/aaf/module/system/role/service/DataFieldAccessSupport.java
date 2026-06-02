@@ -33,13 +33,15 @@ public class DataFieldAccessSupport implements FieldAccessSupport {
             return Set.of();
         }
         var fields = new HashMap<String, FieldAccessVO>();
-        for (Permission permission : permissionRepository.findByUserIdAndEntitySlug(userId, entitySlug)) {
+        for (Permission permission :
+                permissionRepository.findByUserIdAndEntitySlug(userId, entitySlug)) {
             if (permission.getFieldAccess() == null || permission.getFieldAccess().isBlank()) {
                 continue;
             }
             try {
                 Map<String, FieldAccessVO> parsed =
-                        objectMapper.readValue(permission.getFieldAccess(), new TypeReference<>() {});
+                        objectMapper.readValue(
+                                permission.getFieldAccess(), new TypeReference<>() {});
                 parsed.forEach(
                         (field, access) ->
                                 fields.merge(
@@ -48,7 +50,8 @@ public class DataFieldAccessSupport implements FieldAccessSupport {
                                         (existing, incoming) ->
                                                 new FieldAccessVO(
                                                         existing.visible() || incoming.visible(),
-                                                        existing.editable() || incoming.editable())));
+                                                        existing.editable()
+                                                                || incoming.editable())));
             } catch (Exception ignored) {
                 // 字段权限配置错误时不在响应层泄露异常，保留服务日志由上游配置校验处理。
             }

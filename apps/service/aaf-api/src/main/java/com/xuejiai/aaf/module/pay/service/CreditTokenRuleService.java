@@ -37,7 +37,8 @@ public class CreditTokenRuleService {
         var rule =
                 ruleRepository
                         .findById(id)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "规则不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "规则不存在"));
         applyDto(rule, dto);
         ruleRepository.save(rule);
         return toVO(rule);
@@ -83,7 +84,8 @@ public class CreditTokenRuleService {
         if (rule.getCreditAmount() <= 0 || rule.getTokenAmount() <= 0) {
             return tokenAmount;
         }
-        return (tokenAmount * rule.getCreditAmount() + rule.getTokenAmount() - 1) / rule.getTokenAmount();
+        return (tokenAmount * rule.getCreditAmount() + rule.getTokenAmount() - 1)
+                / rule.getTokenAmount();
     }
 
     private void applyDto(CreditTokenRule rule, CreditTokenRuleDTO dto) {

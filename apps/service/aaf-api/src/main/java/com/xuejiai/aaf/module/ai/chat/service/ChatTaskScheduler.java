@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
  * AI 任务调度器——定时扫描到期任务并触发持久执行。
  *
  * <p>一致性保障：
+ *
  * <ul>
  *   <li>通过 DurableTaskExecutor 的 CAS 抢占防止重复执行
  *   <li>孤儿回收：running 超时的执行实例重置为 pending
@@ -89,7 +90,8 @@ public class ChatTaskScheduler {
 
     /** 自动取下一个待处理任务并执行 */
     public void executeNext(Long sessionId) {
-        taskService.nextPending(sessionId).ifPresent(next ->
-                Thread.startVirtualThread(() -> executeTask(next)));
+        taskService
+                .nextPending(sessionId)
+                .ifPresent(next -> Thread.startVirtualThread(() -> executeTask(next)));
     }
 }

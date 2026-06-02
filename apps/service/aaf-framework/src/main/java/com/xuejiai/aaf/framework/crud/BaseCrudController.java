@@ -42,8 +42,8 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
     /**
      * 基础分页查询。
      *
-     * <p>保留给简单列表、旧接口兼容和不需要详情快速切换的场景。通用实体列表引擎应优先调用
-     * {@link #queryWindow(PageParam, String)}，以获得 ids、queryToken 和 fieldSet。
+     * <p>保留给简单列表、旧接口兼容和不需要详情快速切换的场景。通用实体列表引擎应优先调用 {@link #queryWindow(PageParam, String)}，以获得
+     * ids、queryToken 和 fieldSet。
      */
     @Operation(summary = "基础分页查询", description = "用于简单列表和旧接口兼容；通用实体列表引擎应优先使用 /_query。")
     @PreAuthorize("@crudAuth.can(#root.getThis(), 'read')")
@@ -55,16 +55,13 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
     /**
      * 查询窗口。
      *
-     * <p>用于通用实体列表引擎，返回当前窗口数据、记录 ID 列表、查询上下文 token 和字段集信息，
-     * 支撑列表进入详情、上一条/下一条切换、列表缓存秒开详情以及后续权限版本校验。
+     * <p>用于通用实体列表引擎，返回当前窗口数据、记录 ID 列表、查询上下文 token 和字段集信息， 支撑列表进入详情、上一条/下一条切换、列表缓存秒开详情以及后续权限版本校验。
      *
-     * <p>当 {@code pageSize=-1} 时返回过滤后的完整窗口，由前端进行本地分页；否则按
-     * {@code pageNo/pageSize} 返回服务端分页窗口。
+     * <p>当 {@code pageSize=-1} 时返回过滤后的完整窗口，由前端进行本地分页；否则按 {@code pageNo/pageSize} 返回服务端分页窗口。
      */
     @Operation(
             summary = "查询窗口",
-            description =
-                    "用于通用实体列表引擎，返回列表数据、ids、queryToken 和 fieldSet；pageSize=-1 时返回完整窗口。")
+            description = "用于通用实体列表引擎，返回列表数据、ids、queryToken 和 fieldSet；pageSize=-1 时返回完整窗口。")
     @PreAuthorize("@crudAuth.can(#root.getThis(), 'read')")
     @GetMapping("/_query")
     public Result<PageResult<V>> queryWindow(
@@ -78,8 +75,7 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
     /**
      * 查询详情。
      *
-     * <p>支持查询窗口上下文：{@code queryToken} 用于后续校验窗口与权限版本，{@code fieldSet} 用于区分
-     * list/detail/picker 等字段集。
+     * <p>支持查询窗口上下文：{@code queryToken} 用于后续校验窗口与权限版本，{@code fieldSet} 用于区分 list/detail/picker 等字段集。
      */
     @Operation(summary = "查询详情", description = "支持 queryToken 和 fieldSet，用于列表窗口进入详情后的缓存复用与字段集切换。")
     @PreAuthorize("@crudAuth.can(#root.getThis(), 'read')")
@@ -97,8 +93,7 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
     /**
      * 批量读取。
      *
-     * <p>用于详情页预取上一条/下一条、批量操作前确认等读场景。返回顺序按请求 ids 尽量保持一致，
-     * 不存在或不可见记录由服务层过滤。
+     * <p>用于详情页预取上一条/下一条、批量操作前确认等读场景。返回顺序按请求 ids 尽量保持一致， 不存在或不可见记录由服务层过滤。
      */
     @Operation(summary = "批量读取", description = "按 ID 批量读取记录，用于详情相邻记录预取和批量操作前确认。")
     @PreAuthorize("@crudAuth.can(#root.getThis(), 'read')")
@@ -110,8 +105,7 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
     /**
      * 选择器选项。
      *
-     * <p>用于关系字段、下拉选择器、弹窗选择器。默认返回有限数量的记录选项，子类可覆写 Service
-     * 的搜索条件和显示名。
+     * <p>用于关系字段、下拉选择器、弹窗选择器。默认返回有限数量的记录选项，子类可覆写 Service 的搜索条件和显示名。
      */
     @Operation(summary = "选择器选项", description = "用于关系字段、下拉选择器和弹窗选择器；子类可覆写搜索条件和显示名。")
     @PreAuthorize("@crudAuth.can(#root.getThis(), 'read')")
@@ -155,7 +149,8 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
     @Operation(summary = "导入数据", description = "默认未启用；业务子类确认导入映射、校验和事务语义后覆写 Service 实现。")
     @PreAuthorize("@crudAuth.can(#root.getThis(), 'create')")
     @PostMapping("/_import")
-    public Result<CrudImportResult> importRows(@Validated @RequestBody CrudImportRequest<C> request) {
+    public Result<CrudImportResult> importRows(
+            @Validated @RequestBody CrudImportRequest<C> request) {
         return Result.success(getService().importRows(request));
     }
 

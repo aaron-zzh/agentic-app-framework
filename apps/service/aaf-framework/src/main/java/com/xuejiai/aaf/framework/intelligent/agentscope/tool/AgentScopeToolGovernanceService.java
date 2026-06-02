@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.xuejiai.aaf.framework.intelligent.agentscope.AafAgentScopeContext;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.DefaultToolDefinition;
 import org.springframework.ai.tool.definition.ToolDefinition;
@@ -12,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
@@ -19,10 +19,11 @@ import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.ToolPermissionGuard;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
+import com.xuejiai.aaf.framework.intelligent.agentscope.AafAgentScopeContext;
 
+import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
-import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.tool.AgentTool;
 import io.agentscope.core.tool.ToolCallParam;
 import io.agentscope.core.tool.ToolSuspendException;
@@ -67,7 +68,8 @@ public class AgentScopeToolGovernanceService {
         private final AgentDefinition definition;
         private final List<String> allowedTools;
 
-        private GovernedAgentTool(AgentTool delegate, AgentDefinition definition, List<String> allowedTools) {
+        private GovernedAgentTool(
+                AgentTool delegate, AgentDefinition definition, List<String> allowedTools) {
             this.delegate = delegate;
             this.definition = definition;
             this.allowedTools = allowedTools;
@@ -98,8 +100,12 @@ public class AgentScopeToolGovernanceService {
                                 "调用工具",
                                 delegate.getName(),
                                 Map.of(
-                                        "toolName", delegate.getName(),
-                                        "assistantId", context.assistantId() != null ? context.assistantId() : ""));
+                                        "toolName",
+                                        delegate.getName(),
+                                        "assistantId",
+                                        context.assistantId() != null
+                                                ? context.assistantId()
+                                                : ""));
                         var callback = new AgentToolCallback(delegate, param);
                         var guarded =
                                 toolPermissionGuard
@@ -196,10 +202,12 @@ public class AgentScopeToolGovernanceService {
                 var output = resultText(result);
                 if (output.startsWith("Error:")) {
                     return objectMapper.writeValueAsString(
-                            ToolCallResult.error(delegate.getName(), "AGENTSCOPE_TOOL_ERROR", output));
+                            ToolCallResult.error(
+                                    delegate.getName(), "AGENTSCOPE_TOOL_ERROR", output));
                 }
                 return objectMapper.writeValueAsString(
-                        ToolCallResult.success(delegate.getName(), objectMapper.writeValueAsString(result)));
+                        ToolCallResult.success(
+                                delegate.getName(), objectMapper.writeValueAsString(result)));
             } catch (ToolSuspendException ex) {
                 throw ex;
             } catch (Exception ex) {
@@ -218,11 +226,13 @@ public class AgentScopeToolGovernanceService {
         }
     }
 
-    private String arguments(ToolCallParam param) throws com.fasterxml.jackson.core.JsonProcessingException {
+    private String arguments(ToolCallParam param)
+            throws com.fasterxml.jackson.core.JsonProcessingException {
         return objectMapper.writeValueAsString(param == null ? Map.of() : param.getInput());
     }
 
-    private Map<String, Object> parseArguments(String arguments) throws com.fasterxml.jackson.core.JsonProcessingException {
+    private Map<String, Object> parseArguments(String arguments)
+            throws com.fasterxml.jackson.core.JsonProcessingException {
         if (arguments == null || arguments.isBlank()) {
             return Map.of();
         }

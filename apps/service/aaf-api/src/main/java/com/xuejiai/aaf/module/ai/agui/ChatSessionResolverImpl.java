@@ -10,9 +10,7 @@ import com.xuejiai.aaf.module.ai.chat.repository.ChatSessionRepository;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * {@link ChatSessionResolver} 实现——桥接 ChatSession/ChatMessage。
- */
+/** {@link ChatSessionResolver} 实现——桥接 ChatSession/ChatMessage。 */
 @Component
 @RequiredArgsConstructor
 public class ChatSessionResolverImpl implements ChatSessionResolver {
@@ -23,9 +21,15 @@ public class ChatSessionResolverImpl implements ChatSessionResolver {
     @Override
     public SessionContext resolveByThreadId(String threadId) {
         if (threadId == null || threadId.isBlank()) return null;
-        return sessionRepository.findByThreadId(threadId)
-                .map(s -> new SessionContext(
-                        s.getCreatorId(), s.getAssistantId(), s.getKnowledgeBaseId(), s.getId()))
+        return sessionRepository
+                .findByThreadId(threadId)
+                .map(
+                        s ->
+                                new SessionContext(
+                                        s.getCreatorId(),
+                                        s.getAssistantId(),
+                                        s.getKnowledgeBaseId(),
+                                        s.getId()))
                 .orElse(null);
     }
 

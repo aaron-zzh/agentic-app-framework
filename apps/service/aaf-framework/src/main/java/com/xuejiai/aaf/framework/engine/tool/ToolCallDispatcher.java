@@ -3,14 +3,15 @@ package com.xuejiai.aaf.framework.engine.tool;
 import java.util.List;
 import java.util.Map;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.security.access.AccessDecisionService;
 
@@ -51,21 +52,25 @@ public class ToolCallDispatcher {
                         .findFirst()
                         .orElse(null);
         if (meta == null) {
-            return ToolCallResult.error(functionName, "TOOL_NOT_REGISTERED", "工具未注册: " + functionName);
+            return ToolCallResult.error(
+                    functionName, "TOOL_NOT_REGISTERED", "工具未注册: " + functionName);
         }
         var entry = catalogEntry(functionName);
         var effectiveMeta = applyCatalog(functionName, meta, entry);
         if (effectiveMeta == null) {
-            return ToolCallResult.error(functionName, "TOOL_DISABLED", "工具未启用或未开放: " + functionName);
+            return ToolCallResult.error(
+                    functionName, "TOOL_DISABLED", "工具未启用或未开放: " + functionName);
         }
 
         var hasRolePermission =
                 registry.resolveForRole(roleId).stream()
                         .anyMatch(cb -> cb.getToolDefinition().name().equals(functionName));
         if (!hasToolPermission(effectiveMeta, entry)) {
-            return ToolCallResult.forbidden(functionName, "工具 [%s] 权限不足，需管理员授予工具权限".formatted(functionName));
+            return ToolCallResult.forbidden(
+                    functionName, "工具 [%s] 权限不足，需管理员授予工具权限".formatted(functionName));
         }
-        var confidenceBlock = checkConfidence(sessionId, userId, functionName, effectiveMeta, arguments);
+        var confidenceBlock =
+                checkConfidence(sessionId, userId, functionName, effectiveMeta, arguments);
         if (confidenceBlock != null) {
             return confidenceBlock;
         }
@@ -82,7 +87,8 @@ public class ToolCallDispatcher {
 
         return switch (permission.result()) {
             case GRANTED, AUTO_GRANTED -> {
-                var safetyBlock = checkContentSafety(sessionId, userId, functionName, entry, arguments);
+                var safetyBlock =
+                        checkContentSafety(sessionId, userId, functionName, entry, arguments);
                 if (safetyBlock != null) {
                     yield safetyBlock;
                 }
@@ -95,10 +101,12 @@ public class ToolCallDispatcher {
             case PENDING_APPROVAL ->
                     ToolCallResult.pendingApproval(
                             functionName,
-                            "工具 [%s] 需要用户确认（风险等级: %s）".formatted(functionName, effectiveMeta.riskLevel()),
+                            "工具 [%s] 需要用户确认（风险等级: %s）"
+                                    .formatted(functionName, effectiveMeta.riskLevel()),
                             permission.approvalId());
             case DENIED ->
-                    ToolCallResult.forbidden(functionName, "工具 [%s] 权限不足，需管理员审批".formatted(functionName));
+                    ToolCallResult.forbidden(
+                            functionName, "工具 [%s] 权限不足，需管理员审批".formatted(functionName));
         };
     }
 
@@ -125,13 +133,18 @@ public class ToolCallDispatcher {
     }
 
     private ToolCallResult checkContentSafety(
-            String sessionId, Long userId, String functionName, ToolCatalogEntry entry, String arguments) {
+            String sessionId,
+            Long userId,
+            String functionName,
+            ToolCatalogEntry entry,
+            String arguments) {
         if (entry == null || entry.type() != ToolType.GENERATIVE) {
             return null;
         }
         var prompt = extractPrompt(arguments);
         if (prompt == null || prompt.isBlank()) {
-            return ToolCallResult.error(functionName, "CONTENT_REVIEW_INPUT_MISSING", "生成式工具缺少 prompt，无法进行内容审查");
+            return ToolCallResult.error(
+                    functionName, "CONTENT_REVIEW_INPUT_MISSING", "生成式工具缺少 prompt，无法进行内容审查");
         }
         var safety = contentSafetyService.getIfAvailable();
         if (safety == null) {
@@ -157,7 +170,8 @@ public class ToolCallDispatcher {
             return null;
         }
         if (result.reviewRequired()) {
-            return ToolCallResult.pendingContentReview(functionName, result.message(), result.reviewId());
+            return ToolCallResult.pendingContentReview(
+                    functionName, result.message(), result.reviewId());
         }
         return ToolCallResult.error(functionName, result.code(), result.message());
     }
@@ -225,7 +239,10 @@ public class ToolCallDispatcher {
 
     private void settleCredit(Long userId, String functionName, ToolCatalogEntry entry) {
         var credit = creditService.getIfAvailable();
-        if (credit == null || userId == null || entry == null || entry.entitlementCode() == null
+        if (credit == null
+                || userId == null
+                || entry == null
+                || entry.entitlementCode() == null
                 || entry.entitlementCode().isBlank()) {
             return;
         }
@@ -236,8 +253,12 @@ public class ToolCallDispatcher {
         try {
             credit.spend(userId, cost, "TOOL:" + functionName, entry.entitlementCode());
         } catch (Exception ex) {
-            log.warn("工具扣费失败，已完成调用不回滚: tool={}, userId={}, cost={}, err={}",
-                    functionName, userId, cost, ex.getMessage());
+            log.warn(
+                    "工具扣费失败，已完成调用不回滚: tool={}, userId={}, cost={}, err={}",
+                    functionName,
+                    userId,
+                    cost,
+                    ex.getMessage());
         }
     }
 
@@ -253,10 +274,7 @@ public class ToolCallDispatcher {
     }
 
     private boolean hasToolPermission(ToolRegistry.ToolMeta meta, ToolCatalogEntry entry) {
-        var permissionCode =
-                entry == null
-                        ? null
-                        : entry.permissionCode();
+        var permissionCode = entry == null ? null : entry.permissionCode();
         if (permissionCode == null || permissionCode.isBlank()) {
             permissionCode = "tool:%s:execute".formatted(normalizePermissionSegment(meta.name()));
         }
@@ -272,10 +290,12 @@ public class ToolCallDispatcher {
         return doDispatch(functionName, arguments, null, null);
     }
 
-    private ToolCallResult doDispatch(String functionName, String arguments, Long userId, ToolCatalogEntry entry) {
+    private ToolCallResult doDispatch(
+            String functionName, String arguments, Long userId, ToolCatalogEntry entry) {
         var callback = registry.getCallback(functionName).orElse(null);
         if (callback == null) {
-            return ToolCallResult.error(functionName, "TOOL_NOT_REGISTERED", "工具未注册: " + functionName);
+            return ToolCallResult.error(
+                    functionName, "TOOL_NOT_REGISTERED", "工具未注册: " + functionName);
         }
         var start = System.currentTimeMillis();
         try {
@@ -283,7 +303,13 @@ public class ToolCallDispatcher {
             var duration = System.currentTimeMillis() - start;
             var normalized = normalizeCallbackResult(functionName, result);
             log.debug("工具调用完成: {} -> {} ({}ms)", functionName, truncate(result), duration);
-            saveAudit(functionName, arguments, normalized.success(), result, normalized.error(), duration);
+            saveAudit(
+                    functionName,
+                    arguments,
+                    normalized.success(),
+                    result,
+                    normalized.error(),
+                    duration);
             if (normalized.success()) {
                 settleCredit(userId, functionName, entry);
             }
@@ -297,8 +323,12 @@ public class ToolCallDispatcher {
     }
 
     private void saveAudit(
-            String functionName, String arguments, boolean success,
-            String output, String error, long durationMs) {
+            String functionName,
+            String arguments,
+            boolean success,
+            String output,
+            String error,
+            long durationMs) {
         try {
             var audit = new ToolCallAudit();
             audit.setFunctionName(functionName);
@@ -431,7 +461,8 @@ public class ToolCallDispatcher {
                     Map.of());
         }
 
-        public static ToolCallResult pendingApproval(String name, String message, String approvalId) {
+        public static ToolCallResult pendingApproval(
+                String name, String message, String approvalId) {
             return new ToolCallResult(
                     name,
                     false,
@@ -446,7 +477,8 @@ public class ToolCallDispatcher {
                     Map.of());
         }
 
-        public static ToolCallResult pendingContentReview(String name, String message, String reviewId) {
+        public static ToolCallResult pendingContentReview(
+                String name, String message, String reviewId) {
             return new ToolCallResult(
                     name,
                     false,
@@ -461,7 +493,8 @@ public class ToolCallDispatcher {
                     Map.of());
         }
 
-        public static ToolCallResult insufficientCredits(String name, String entitlementCode, long estimatedCost) {
+        public static ToolCallResult insufficientCredits(
+                String name, String entitlementCode, long estimatedCost) {
             return new ToolCallResult(
                     name,
                     false,

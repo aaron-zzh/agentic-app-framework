@@ -18,12 +18,13 @@ import lombok.extern.slf4j.Slf4j;
  * 助理级工作流编排器——演示 AAF 多种编排能力的统一入口。
  *
  * <p>编排能力覆盖：
+ *
  * <ul>
- *   <li>顺序编排：steps 按依赖顺序执行</li>
- *   <li>fork 多角色并行：无依赖的 steps 并行 fork SubTaskContext</li>
- *   <li>结果聚合：多步结果通过 ResultAggregator 合并</li>
- *   <li>Checkpoint：长任务支持断点恢复</li>
- *   <li>置信度门控：低置信度步骤暂停等待人工确认</li>
+ *   <li>顺序编排：steps 按依赖顺序执行
+ *   <li>fork 多角色并行：无依赖的 steps 并行 fork SubTaskContext
+ *   <li>结果聚合：多步结果通过 ResultAggregator 合并
+ *   <li>Checkpoint：长任务支持断点恢复
+ *   <li>置信度门控：低置信度步骤暂停等待人工确认
  * </ul>
  *
  * <p>工作流定义来自 company_ops_task.config JSON（steps 数组）。
@@ -38,11 +39,7 @@ public class WorkflowExecutor {
 
     /** 工作流步骤定义 */
     public record WorkflowStep(
-            String skill,
-            String name,
-            String input,
-            String output,
-            List<String> dependsOn) {
+            String skill, String name, String input, String output, List<String> dependsOn) {
 
         public WorkflowStep(String skill, String name, String input, String output) {
             this(skill, name, input, output, List.of());
@@ -51,10 +48,7 @@ public class WorkflowExecutor {
 
     /** 工作流执行结果 */
     public record WorkflowResult(
-            boolean success,
-            Map<String, String> stepResults,
-            String finalOutput,
-            String error) {
+            boolean success, Map<String, String> stepResults, String finalOutput, String error) {
 
         public static WorkflowResult success(Map<String, String> stepResults, String finalOutput) {
             return new WorkflowResult(true, stepResults, finalOutput, null);
@@ -69,12 +63,13 @@ public class WorkflowExecutor {
      * 执行工作流——演示助理多角色编排。
      *
      * <p>编排流程：
+     *
      * <ol>
-     *   <li>解析 steps 构建 TaskBoard（DAG 依赖图）</li>
-     *   <li>循环取 ready tasks，fork SubTaskContext 执行</li>
-     *   <li>无依赖的 steps 可并行（dispatchMultiple）</li>
-     *   <li>每步结果写入上下文，供后续步骤使用</li>
-     *   <li>全部完成后聚合最终结果</li>
+     *   <li>解析 steps 构建 TaskBoard（DAG 依赖图）
+     *   <li>循环取 ready tasks，fork SubTaskContext 执行
+     *   <li>无依赖的 steps 可并行（dispatchMultiple）
+     *   <li>每步结果写入上下文，供后续步骤使用
+     *   <li>全部完成后聚合最终结果
      * </ol>
      */
     public WorkflowResult execute(String sessionId, List<WorkflowStep> steps, String initialInput) {
@@ -114,8 +109,7 @@ public class WorkflowExecutor {
                 var stepInput = buildStepInput(step, context, initialInput);
 
                 // fork SubTaskContext 执行
-                var subTask = new SubTaskContext(
-                        step.skill(), sessionId, step.skill(), stepInput);
+                var subTask = new SubTaskContext(step.skill(), sessionId, step.skill(), stepInput);
 
                 try {
                     // 调度 Agent 执行（通过 skill 意图路由）
@@ -128,7 +122,9 @@ public class WorkflowExecutor {
                         if (step.output() != null) {
                             context.put(step.output(), result.output());
                         }
-                        log.info("工作流步骤完成: {} → {}", step.name(),
+                        log.info(
+                                "工作流步骤完成: {} → {}",
+                                step.name(),
                                 result.output().length() > 100
                                         ? result.output().substring(0, 100) + "..."
                                         : result.output());
@@ -147,18 +143,20 @@ public class WorkflowExecutor {
 
         // 4. 检查是否有失败
         if (taskBoard.hasFailure()) {
-            var failed = taskBoard.allTasks().stream()
-                    .filter(t -> t.status() == TaskBoard.TaskStatus.FAILED)
-                    .map(t -> t.id() + ": " + t.result())
-                    .toList();
+            var failed =
+                    taskBoard.allTasks().stream()
+                            .filter(t -> t.status() == TaskBoard.TaskStatus.FAILED)
+                            .map(t -> t.id() + ": " + t.result())
+                            .toList();
             return WorkflowResult.error("部分步骤失败: " + String.join("; ", failed));
         }
 
         // 5. 聚合最终结果（取最后一步的输出）
         var lastStep = steps.getLast();
-        var finalOutput = lastStep.output() != null
-                ? context.getOrDefault(lastStep.output(), "")
-                : taskBoard.allTasks().getLast().result();
+        var finalOutput =
+                lastStep.output() != null
+                        ? context.getOrDefault(lastStep.output(), "")
+                        : taskBoard.allTasks().getLast().result();
 
         return WorkflowResult.success(Map.copyOf(context), finalOutput);
     }
@@ -169,8 +167,18 @@ public class WorkflowExecutor {
         for (var task : board.allTasks()) {
             if (task.status() == TaskBoard.TaskStatus.PENDING) {
                 var deps = task.dependsOn();
-                var allDepsReady = deps.stream().allMatch(dep ->
-                        board.getTask(dep).map(t -> t.status() == TaskBoard.TaskStatus.DONE).orElse(false));
+                var allDepsReady =
+                        deps.stream()
+                                .allMatch(
+                                        dep ->
+                                                board.getTask(dep)
+                                                        .map(
+                                                                t ->
+                                                                        t.status()
+                                                                                == TaskBoard
+                                                                                        .TaskStatus
+                                                                                        .DONE)
+                                                        .orElse(false));
                 if (allDepsReady) {
                     result.add(task);
                 }
@@ -183,7 +191,8 @@ public class WorkflowExecutor {
         return steps.stream().filter(s -> s.skill().equals(skillId)).findFirst().orElse(null);
     }
 
-    private String buildStepInput(WorkflowStep step, Map<String, String> context, String initialInput) {
+    private String buildStepInput(
+            WorkflowStep step, Map<String, String> context, String initialInput) {
         if (step.input() == null || step.input().isBlank()) {
             return initialInput != null ? initialInput : "";
         }

@@ -20,9 +20,7 @@ class FileServiceTest {
     /** B13：超过大小上限（默认 10MB）→ 拒绝。 */
     @Test
     void upload_超大文件拒绝() {
-        var big =
-                new MockMultipartFile(
-                        "file", "big.png", "image/png", new byte[11 * 1024 * 1024]);
+        var big = new MockMultipartFile("file", "big.png", "image/png", new byte[11 * 1024 * 1024]);
         assertThatThrownBy(() -> service.upload(big))
                 .isInstanceOf(StorageException.class)
                 .hasMessageContaining("大小");
@@ -31,8 +29,7 @@ class FileServiceTest {
     /** B13：非白名单类型（可执行脚本）→ 拒绝（防存储型 XSS/滥用）。 */
     @Test
     void upload_非白名单类型拒绝() {
-        var sh =
-                new MockMultipartFile("file", "x.sh", "application/x-sh", "echo hi".getBytes());
+        var sh = new MockMultipartFile("file", "x.sh", "application/x-sh", "echo hi".getBytes());
         assertThatThrownBy(() -> service.upload(sh))
                 .isInstanceOf(StorageException.class)
                 .hasMessageContaining("类型");

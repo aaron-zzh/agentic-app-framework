@@ -10,9 +10,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 系统菜单
- */
+/** 系统菜单 */
 @Getter
 @Setter
 @Entity

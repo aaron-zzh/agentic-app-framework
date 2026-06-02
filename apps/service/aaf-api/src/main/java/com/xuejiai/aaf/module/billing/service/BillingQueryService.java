@@ -1,9 +1,7 @@
 package com.xuejiai.aaf.module.billing.service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,9 +16,7 @@ import com.xuejiai.aaf.module.billing.vo.BillingSummaryVO;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 账单查询服务——复用 credit_transaction + entitlement_ledger。
- */
+/** 账单查询服务——复用 credit_transaction + entitlement_ledger。 */
 @Service
 @RequiredArgsConstructor
 public class BillingQueryService {
@@ -48,15 +44,17 @@ public class BillingQueryService {
 
         var ledgers = ledgerRepository.findByUserIdAndCreatedAtBetween(userId, start, end);
 
-        long totalConsumed = ledgers.stream()
-                .filter(l -> l.getDelta() < 0)
-                .mapToLong(l -> Math.abs(l.getDelta()))
-                .sum();
+        long totalConsumed =
+                ledgers.stream()
+                        .filter(l -> l.getDelta() < 0)
+                        .mapToLong(l -> Math.abs(l.getDelta()))
+                        .sum();
 
-        long totalRefilled = ledgers.stream()
-                .filter(l -> l.getDelta() > 0 && !"RESET".equals(l.getOperation()))
-                .mapToLong(EntitlementLedger::getDelta)
-                .sum();
+        long totalRefilled =
+                ledgers.stream()
+                        .filter(l -> l.getDelta() > 0 && !"RESET".equals(l.getOperation()))
+                        .mapToLong(EntitlementLedger::getDelta)
+                        .sum();
 
         long creditBalance = creditService.getBalance(userId);
 
@@ -72,10 +70,14 @@ public class BillingQueryService {
 
         var sb = new StringBuilder("时间,操作,变化量,业务类型,业务ID\n");
         for (var l : ledgers) {
-            sb.append("%s,%s,%d,%s,%s\n".formatted(
-                    l.getCreatedAt(), l.getOperation(), l.getDelta(),
-                    l.getBizType() != null ? l.getBizType() : "",
-                    l.getBizId() != null ? l.getBizId().toString() : ""));
+            sb.append(
+                    "%s,%s,%d,%s,%s\n"
+                            .formatted(
+                                    l.getCreatedAt(),
+                                    l.getOperation(),
+                                    l.getDelta(),
+                                    l.getBizType() != null ? l.getBizType() : "",
+                                    l.getBizId() != null ? l.getBizId().toString() : ""));
         }
         return sb.toString();
     }

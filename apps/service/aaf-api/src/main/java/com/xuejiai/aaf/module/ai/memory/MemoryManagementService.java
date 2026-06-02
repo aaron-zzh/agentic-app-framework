@@ -5,10 +5,9 @@
  */
 package com.xuejiai.aaf.module.ai.memory;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-
-import java.time.Instant;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -107,7 +106,8 @@ public class MemoryManagementService {
         var candidates =
                 retrievalService.retrieveByVector(
                         userId, embeddingService.embed(query), Math.max(limit * 3, 20));
-        return reranker.rerank(query, candidates, limit, MemoryRerankerService.Mode.RERANK_MODEL)
+        return reranker
+                .rerank(query, candidates, limit, MemoryRerankerService.Mode.RERANK_MODEL)
                 .stream()
                 .map(this::toVO)
                 .toList();
@@ -148,12 +148,26 @@ public class MemoryManagementService {
         long longTerm = repository.countByUserIdAndScope(userId, "long_term");
         long episodic = repository.countByUserIdAndScope(userId, "episodic");
         long procedural = repository.countByUserIdAndScope(userId, "procedural");
-        return new MemoryStatsVO(shortTerm, longTerm, episodic, procedural, shortTerm + longTerm + episodic + procedural);
+        return new MemoryStatsVO(
+                shortTerm,
+                longTerm,
+                episodic,
+                procedural,
+                shortTerm + longTerm + episodic + procedural);
     }
 
     private MemoryAtomVO toVO(MemoryAtom e) {
-        return new MemoryAtomVO(e.getId(), e.getUserId(), e.getScope(), e.getContent(),
-                e.getEventTime(), e.getWeight(), e.getAccessCount(), e.getLastAccessedAt(),
-                e.getTags(), e.getMetadata(), e.getCreatedAt());
+        return new MemoryAtomVO(
+                e.getId(),
+                e.getUserId(),
+                e.getScope(),
+                e.getContent(),
+                e.getEventTime(),
+                e.getWeight(),
+                e.getAccessCount(),
+                e.getLastAccessedAt(),
+                e.getTags(),
+                e.getMetadata(),
+                e.getCreatedAt());
     }
 }

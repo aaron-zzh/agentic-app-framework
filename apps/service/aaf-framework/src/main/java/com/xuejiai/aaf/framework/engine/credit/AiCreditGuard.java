@@ -16,10 +16,10 @@ public interface AiCreditGuard {
      *
      * <p>余额低于预警阈值时异步发 {@link com.xuejiai.aaf.framework.intelligent.ai.chat.CreditLowEvent}，不阻塞调用。
      *
-     * @param userId     用户 ID，null 时拒绝
+     * @param userId 用户 ID，null 时拒绝
      * @param capability 能力标识（如 "chat"/"image"/"video"）
      * @throws InsufficientCreditsException 余额不足时抛出
-     * @throws IllegalStateException        userId=null 或服务不可用时抛出
+     * @throws IllegalStateException userId=null 或服务不可用时抛出
      */
     void precheck(Long userId, String capability);
 
@@ -28,7 +28,7 @@ public interface AiCreditGuard {
      *
      * <p>扣减失败仅 warn，不回滚已完成的 AI 调用。
      *
-     * @param userId     用户 ID
+     * @param userId 用户 ID
      * @param capability 能力标识
      * @param actualCost 实际消耗（token 数或次数）
      */
@@ -37,10 +37,10 @@ public interface AiCreditGuard {
     /**
      * 调用成功后按实际消耗扣积分，并指定审计关联 ID。
      *
-     * @param userId     用户 ID
+     * @param userId 用户 ID
      * @param capability 能力标识
      * @param actualCost 实际消耗
-     * @param bizId      业务流水号，如 token usageId
+     * @param bizId 业务流水号，如 token usageId
      */
     default void settle(Long userId, String capability, long actualCost, String bizId) {
         settle(userId, capability, actualCost);

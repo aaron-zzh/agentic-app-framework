@@ -3,12 +3,10 @@ package com.xuejiai.aaf.framework.engine.workflow.condition;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.workflow.condition.ConditionExpression.Logic;
-import com.xuejiai.aaf.framework.engine.workflow.condition.ConditionExpression.Operator;
 
 /**
  * 条件表达式求值器——支持嵌套条件组的求值和 Flowable UEL 表达式转换。
@@ -105,8 +103,7 @@ public class ConditionEvaluator {
             return a.compareTo(b);
         }
         return Double.compare(
-                Double.parseDouble(actual.toString()),
-                Double.parseDouble(expected.toString()));
+                Double.parseDouble(actual.toString()), Double.parseDouble(expected.toString()));
     }
 
     private boolean equals(Object actual, Object expected) {

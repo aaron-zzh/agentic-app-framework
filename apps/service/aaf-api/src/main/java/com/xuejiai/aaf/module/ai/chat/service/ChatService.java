@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.ai.chat.domain.ChatMessage;
 import com.xuejiai.aaf.module.ai.chat.domain.ChatSession;
 import com.xuejiai.aaf.module.ai.chat.repository.ChatMessageRepository;
@@ -16,6 +15,7 @@ import com.xuejiai.aaf.module.ai.chat.repository.ChatSessionRepository;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 import lombok.RequiredArgsConstructor;
 
@@ -264,7 +264,9 @@ public class ChatService {
                                         new BusinessException(
                                                 ErrorCodeConstants.CHAT_MESSAGE_NOT_FOUND));
         // 将反馈信息存入 metadata（JSON 格式追加）
-        var feedback = "{\"feedback\":\"%s\",\"comment\":\"%s\"}".formatted(feedbackType, comment != null ? comment : "");
+        var feedback =
+                "{\"feedback\":\"%s\",\"comment\":\"%s\"}"
+                        .formatted(feedbackType, comment != null ? comment : "");
         message.setMetadata(feedback);
         messageRepository.save(message);
     }

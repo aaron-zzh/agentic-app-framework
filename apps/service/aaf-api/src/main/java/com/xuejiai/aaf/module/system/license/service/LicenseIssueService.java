@@ -17,13 +17,14 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.framework.security.license.LicenseIdentityService;
-import com.xuejiai.aaf.module.system.log.service.AuditLogService;
 import com.xuejiai.aaf.module.system.license.vo.LicenseIssueDTO;
 import com.xuejiai.aaf.module.system.license.vo.LicenseIssueVO;
+import com.xuejiai.aaf.module.system.log.service.AuditLogService;
 
 /** 官方 license.jwt 签发服务。 */
 @Service
@@ -83,9 +84,7 @@ public class LicenseIssueService {
 
     private String auditChanges(String subject, String tier, boolean owner, Set<String> features) {
         var featureJson =
-                features.stream()
-                        .map(this::jsonString)
-                        .collect(Collectors.joining(",", "[", "]"));
+                features.stream().map(this::jsonString).collect(Collectors.joining(",", "[", "]"));
         return """
                 {"subject":%s,"tier":%s,"owner":%s,"features":%s}
                 """
@@ -114,8 +113,7 @@ public class LicenseIssueService {
                         .collect(Collectors.toUnmodifiableSet());
         if (!unknown.isEmpty()) {
             throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST,
-                    "features 只能包含已登记的高级模块：" + LicenseFeature.codes());
+                    GlobalErrorCode.BAD_REQUEST, "features 只能包含已登记的高级模块：" + LicenseFeature.codes());
         }
         return normalized;
     }
@@ -125,7 +123,8 @@ public class LicenseIssueService {
             return identityService.generate();
         }
         if (!identityService.isValid(subject)) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "license user_id 格式不合法，请留空自动生成");
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "license user_id 格式不合法，请留空自动生成");
         }
         return subject;
     }

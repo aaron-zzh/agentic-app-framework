@@ -24,8 +24,7 @@ public class ContentDocTool {
     public String createDocument(
             @ToolParam(description = "文档标题") String title,
             @ToolParam(description = "文档正文内容（Markdown 格式）") String content,
-            @ToolParam(description = "文档类型：article(文章)/note(笔记)/script(脚本)")
-                    String docType) {
+            @ToolParam(description = "文档类型：article(文章)/note(笔记)/script(脚本)") String docType) {
         var doc = documentService.create(new DocCreateDTO(title, null, content, docType));
         return "{\"id\":%d,\"title\":\"%s\",\"docType\":\"%s\"}"
                 .formatted(doc.getId(), doc.getTitle(), doc.getDocType());
@@ -36,6 +35,7 @@ public class ContentDocTool {
             @ToolParam(description = "文档 ID") Long docId,
             @ToolParam(description = "新的文档内容（Markdown 格式）") String content) {
         var doc = documentService.update(docId, content);
-        return "{\"id\":%d,\"title\":\"%s\",\"updated\":true}".formatted(doc.getId(), doc.getTitle());
+        return "{\"id\":%d,\"title\":\"%s\",\"updated\":true}"
+                .formatted(doc.getId(), doc.getTitle());
     }
 }

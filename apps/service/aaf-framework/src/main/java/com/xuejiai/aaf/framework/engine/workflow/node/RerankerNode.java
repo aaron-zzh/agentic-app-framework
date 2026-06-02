@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.framework.engine.workflow.node;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Collectors;
 
 import org.flowable.engine.delegate.DelegateExecution;
@@ -29,15 +28,15 @@ public class RerankerNode implements JavaDelegate {
     public void execute(DelegateExecution execution) {
         var query = (String) execution.getVariable("query");
         var documentsText = (String) execution.getVariable("documents");
-        var topK = execution.getVariable("topK") != null
-                ? ((Number) execution.getVariable("topK")).intValue() : 3;
+        var topK =
+                execution.getVariable("topK") != null
+                        ? ((Number) execution.getVariable("topK")).intValue()
+                        : 3;
 
         var documents = Arrays.asList(documentsText.split("\n\n"));
         var reranked = rerankService.rerank(query, documents, topK);
 
-        var output = reranked.stream()
-                .map(r -> r.text())
-                .collect(Collectors.joining("\n\n"));
+        var output = reranked.stream().map(r -> r.text()).collect(Collectors.joining("\n\n"));
 
         execution.setVariable("output", output);
         execution.setVariable("success", true);

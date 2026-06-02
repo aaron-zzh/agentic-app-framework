@@ -50,7 +50,9 @@ public class DefaultAccessDecisionService implements AccessDecisionService {
         }
         var userId = operatorContext.currentOwnerId().orElse(null);
         var support = recordRuleSupport.getIfAvailable();
-        return userId == null || support == null ? null : support.buildAccessSpec(entitySlug, userId);
+        return userId == null || support == null
+                ? null
+                : support.buildAccessSpec(entitySlug, userId);
     }
 
     @Override

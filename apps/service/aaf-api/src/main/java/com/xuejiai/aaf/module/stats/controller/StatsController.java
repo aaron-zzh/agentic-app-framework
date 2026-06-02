@@ -99,9 +99,11 @@ public class StatsController {
     public void exportCsv(
             @RequestParam ReportTypeEnum type,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate reportDate,
-            HttpServletResponse response) throws IOException {
+            HttpServletResponse response)
+            throws IOException {
         response.setContentType("text/csv;charset=UTF-8");
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+        response.setHeader(
+                HttpHeaders.CONTENT_DISPOSITION,
                 "attachment; filename=report_%s_%s.csv".formatted(type.getCode(), reportDate));
         reportService.exportCsv(type, reportDate, response.getOutputStream());
     }
@@ -111,9 +113,11 @@ public class StatsController {
     public void exportPdf(
             @RequestParam ReportTypeEnum type,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate reportDate,
-            HttpServletResponse response) throws IOException {
+            HttpServletResponse response)
+            throws IOException {
         response.setContentType(MediaType.APPLICATION_PDF_VALUE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+        response.setHeader(
+                HttpHeaders.CONTENT_DISPOSITION,
                 "attachment; filename=report_%s_%s.pdf".formatted(type.getCode(), reportDate));
         reportService.exportPdf(type, reportDate, response.getOutputStream());
     }

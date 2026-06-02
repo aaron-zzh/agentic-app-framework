@@ -20,14 +20,16 @@ public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Lo
 
     /** CAS 抢占：pending → running */
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE TaskExecution e SET e.status = 'running', e.startedAt = CURRENT_TIMESTAMP, e.updateTime = CURRENT_TIMESTAMP
             WHERE e.id = :id AND e.status = 'pending'""")
     int casStart(Long id);
 
     /** 孤儿回收：running 超时重置为 pending */
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE TaskExecution e SET e.status = 'pending', e.updateTime = CURRENT_TIMESTAMP
             WHERE e.status = 'running' AND e.updateTime < :cutoff""")
     int recoverOrphans(LocalDateTime cutoff);

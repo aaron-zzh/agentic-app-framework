@@ -10,11 +10,9 @@ import jakarta.validation.constraints.NotBlank;
  */
 @Schema(description = "创建 Agent 请求")
 public record AgentCreateDTO(
-        @Schema(description = "Agent 唯一标识", requiredMode = Schema.RequiredMode.REQUIRED)
-                @NotBlank
+        @Schema(description = "Agent 唯一标识", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank
                 String agentId,
-        @Schema(description = "显示名称", requiredMode = Schema.RequiredMode.REQUIRED)
-                @NotBlank
+        @Schema(description = "显示名称", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank
                 String name,
         @Schema(description = "描述") String description,
         @Schema(description = "系统提示词") String systemPrompt,

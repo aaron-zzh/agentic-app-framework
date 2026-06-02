@@ -64,8 +64,7 @@ public class ImageGenerationTool {
                                     null,
                                     "{\"prompt\":\"%s\",\"model\":\"%s\"}"
                                             .formatted(
-                                                    request.prompt().replace("\"", "\\\""),
-                                                    model),
+                                                    request.prompt().replace("\"", "\\\""), model),
                                     width,
                                     height,
                                     null);

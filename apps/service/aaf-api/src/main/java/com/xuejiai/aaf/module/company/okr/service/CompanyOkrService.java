@@ -2,13 +2,13 @@ package com.xuejiai.aaf.module.company.okr.service;
 
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.xuejiai.aaf.module.company.okr.domain.KeyResult;
 import com.xuejiai.aaf.module.company.okr.domain.Objective;
 import com.xuejiai.aaf.module.company.okr.repository.KeyResultRepository;
 import com.xuejiai.aaf.module.company.okr.repository.ObjectiveRepository;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,7 +21,9 @@ public class CompanyOkrService {
     private final KeyResultRepository keyResultRepository;
 
     public List<Objective> listObjectives(String period) {
-        return period != null ? objectiveRepository.findByPeriod(period) : objectiveRepository.findAll();
+        return period != null
+                ? objectiveRepository.findByPeriod(period)
+                : objectiveRepository.findAll();
     }
 
     @Transactional
@@ -42,8 +44,10 @@ public class CompanyOkrService {
 
     @Transactional
     public KeyResult updateProgress(Long krId, java.math.BigDecimal currentValue) {
-        var kr = keyResultRepository.findById(krId)
-                .orElseThrow(() -> new IllegalArgumentException("KR 不存在: " + krId));
+        var kr =
+                keyResultRepository
+                        .findById(krId)
+                        .orElseThrow(() -> new IllegalArgumentException("KR 不存在: " + krId));
         kr.setCurrentValue(currentValue);
         return keyResultRepository.save(kr);
     }

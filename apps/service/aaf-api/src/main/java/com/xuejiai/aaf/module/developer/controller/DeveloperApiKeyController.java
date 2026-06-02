@@ -32,7 +32,8 @@ public class DeveloperApiKeyController {
 
     @Operation(summary = "创建开发者 Gateway Key")
     @PostMapping
-    public Result<DeveloperApiKeyCreateVO> create(@Valid @RequestBody DeveloperApiKeyCreateDTO dto) {
+    public Result<DeveloperApiKeyCreateVO> create(
+            @Valid @RequestBody DeveloperApiKeyCreateDTO dto) {
         var developer = accountService.getOrCreateCurrent();
         return Result.success(apiKeyService.create(developer.getId(), dto));
     }

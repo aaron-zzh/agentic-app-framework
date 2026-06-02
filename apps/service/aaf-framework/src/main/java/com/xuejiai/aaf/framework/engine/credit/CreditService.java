@@ -22,9 +22,15 @@ public interface CreditService {
      * 赚取带有效期的积分批次。
      *
      * @param batchType 批次来源：SUBSCRIPTION/TOPUP/REWARD/WEEKLY/MANUAL
-     * @param expireAt  过期时间，null = 永不过期
+     * @param expireAt 过期时间，null = 永不过期
      */
-    void earnBatch(Long userId, long amount, String batchType, String source, String bizId, LocalDateTime expireAt);
+    void earnBatch(
+            Long userId,
+            long amount,
+            String batchType,
+            String source,
+            String bizId,
+            LocalDateTime expireAt);
 
     /** 消费积分（按批次优先扣减：最快到期的批次优先） */
     void spend(Long userId, long amount, String source, String bizId);
@@ -39,11 +45,9 @@ public interface CreditService {
     CreditAccount getAccount(Long userId);
 
     /** 分页查询流水 */
-    org.springframework.data.domain.Page<CreditTransaction> getTransactions(Long userId, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<CreditTransaction> getTransactions(
+            Long userId, org.springframework.data.domain.Pageable pageable);
 
-    /**
-     * 按 batch_type 汇总积分余额（供 Header 用户弹窗展示）。
-     * 返回各分组的剩余积分，只包含 remain > 0 的批次。
-     */
+    /** 按 batch_type 汇总积分余额（供 Header 用户弹窗展示）。 返回各分组的剩余积分，只包含 remain > 0 的批次。 */
     java.util.Map<String, Long> getGroupedBalance(Long userId);
 }

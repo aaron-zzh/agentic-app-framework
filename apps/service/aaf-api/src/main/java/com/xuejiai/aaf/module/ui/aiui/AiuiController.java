@@ -15,9 +15,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
-/**
- * AI UI 接口：组件生成、布局优化、组件推荐。
- */
+/** AI UI 接口：组件生成、布局优化、组件推荐。 */
 @Tag(name = "AI UI")
 @RestController
 @RequestMapping("/api/ui/aiui")

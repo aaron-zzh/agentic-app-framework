@@ -15,10 +15,13 @@ public interface EntitlementLedgerRepository extends JpaRepository<EntitlementLe
     Page<EntitlementLedger> findByQuotaIdOrderByCreatedAtDesc(Long quotaId, Pageable pageable);
 
     /** 按用户查询（通过 quota 关联） */
-    @Query("SELECT l FROM EntitlementLedger l JOIN EntitlementQuota q ON l.quotaId = q.id WHERE q.userId = :userId ORDER BY l.createdAt DESC")
+    @Query(
+            "SELECT l FROM EntitlementLedger l JOIN EntitlementQuota q ON l.quotaId = q.id WHERE q.userId = :userId ORDER BY l.createdAt DESC")
     Page<EntitlementLedger> findByUserId(Long userId, Pageable pageable);
 
     /** 按用户+时间范围查询 */
-    @Query("SELECT l FROM EntitlementLedger l JOIN EntitlementQuota q ON l.quotaId = q.id WHERE q.userId = :userId AND l.createdAt BETWEEN :start AND :end ORDER BY l.createdAt DESC")
-    List<EntitlementLedger> findByUserIdAndCreatedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
+    @Query(
+            "SELECT l FROM EntitlementLedger l JOIN EntitlementQuota q ON l.quotaId = q.id WHERE q.userId = :userId AND l.createdAt BETWEEN :start AND :end ORDER BY l.createdAt DESC")
+    List<EntitlementLedger> findByUserIdAndCreatedAtBetween(
+            Long userId, LocalDateTime start, LocalDateTime end);
 }

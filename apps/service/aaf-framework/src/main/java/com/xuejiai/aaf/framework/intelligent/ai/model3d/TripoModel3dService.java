@@ -6,7 +6,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -106,7 +105,8 @@ public class TripoModel3dService implements Model3dGenerationService {
                 }
             }
 
-            return new Model3dTaskResult(taskId, status, modelUrl, baseModelUrl, thumbnailUrl, prompt);
+            return new Model3dTaskResult(
+                    taskId, status, modelUrl, baseModelUrl, thumbnailUrl, prompt);
         } catch (Exception e) {
             log.error("[Tripo] 查询任务失败: taskId={}", taskId, e);
             return new Model3dTaskResult(

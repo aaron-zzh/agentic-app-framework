@@ -44,9 +44,13 @@ public class ResourceRelationController {
     @Operation(summary = "检查是否拥有关系")
     @GetMapping("/check")
     public Result<Boolean> check(
-            @RequestParam String objectType, @RequestParam String objectId,
-            @RequestParam String relation, @RequestParam String subjectType, @RequestParam String subjectId) {
-        return Result.success(service.check(objectType, objectId, relation, subjectType, subjectId));
+            @RequestParam String objectType,
+            @RequestParam String objectId,
+            @RequestParam String relation,
+            @RequestParam String subjectType,
+            @RequestParam String subjectId) {
+        return Result.success(
+                service.check(objectType, objectId, relation, subjectType, subjectId));
     }
 
     @Operation(summary = "查询资源的所有关系")

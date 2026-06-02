@@ -33,8 +33,7 @@ public class Model3dGenerationTool {
     public record Response(String taskId, String status, String message) {}
 
     @Bean
-    @Description(
-            "根据用户描述生成 3D 模型。参数：prompt(必填)-模型描述, textureQuality(可选)-贴图质量standard/detailed")
+    @Description("根据用户描述生成 3D 模型。参数：prompt(必填)-模型描述, textureQuality(可选)-贴图质量standard/detailed")
     public Function<Request, Response> generate3dModel() {
         return request -> {
             log.info("对话触发 3D 模型生成: prompt={}", request.prompt());
@@ -53,8 +52,7 @@ public class Model3dGenerationTool {
                                     null,
                                     "{\"prompt\":\"%s\",\"taskId\":\"%s\"}"
                                             .formatted(
-                                                    request.prompt().replace("\"", "\\\""),
-                                                    taskId),
+                                                    request.prompt().replace("\"", "\\\""), taskId),
                                     null,
                                     null,
                                     null);

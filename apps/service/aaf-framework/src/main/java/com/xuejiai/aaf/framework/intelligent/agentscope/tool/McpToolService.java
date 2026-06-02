@@ -8,10 +8,11 @@ package com.xuejiai.aaf.framework.intelligent.agentscope.tool;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.engine.workflow.WorkflowTool;
+import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
+
 import io.agentscope.core.tool.Toolkit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

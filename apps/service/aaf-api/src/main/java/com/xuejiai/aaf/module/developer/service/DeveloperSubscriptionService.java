@@ -36,7 +36,8 @@ public class DeveloperSubscriptionService {
         var plan =
                 planRepository
                         .findByCode(planCode)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "开发者套餐不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "开发者套餐不存在"));
         subscriptionRepository
                 .findByDeveloperIdAndStatus(developerId, "ACTIVE")
                 .ifPresent(
@@ -57,7 +58,8 @@ public class DeveloperSubscriptionService {
         var account =
                 accountRepository
                         .findById(developerId)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "开发者账户不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "开发者账户不存在"));
         account.setLicenseTier(plan.getCode());
         account.setAllowManagedGateway(plan.getAllowManagedGateway());
         account.setAllowSubProxy(plan.getAllowSubProxy());
@@ -65,14 +67,21 @@ public class DeveloperSubscriptionService {
         accountRepository.save(account);
 
         if (plan.getIncludedTokens() > 0) {
-            tokenService.earn(developerId, plan.getIncludedTokens(), "DEVELOPER_SUBSCRIPTION", plan.getCode());
+            tokenService.earn(
+                    developerId,
+                    plan.getIncludedTokens(),
+                    "DEVELOPER_SUBSCRIPTION",
+                    plan.getCode());
         }
         return subscription.getId();
     }
 
     @Transactional(readOnly = true)
     public DeveloperSubscriptionVO current(Long developerId) {
-        var subscription = subscriptionRepository.findByDeveloperIdAndStatus(developerId, "ACTIVE").orElse(null);
+        var subscription =
+                subscriptionRepository
+                        .findByDeveloperIdAndStatus(developerId, "ACTIVE")
+                        .orElse(null);
         if (subscription == null) {
             return null;
         }

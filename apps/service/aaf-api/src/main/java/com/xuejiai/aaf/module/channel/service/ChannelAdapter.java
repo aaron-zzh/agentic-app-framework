@@ -8,10 +8,10 @@ import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 /**
  * 渠道适配器接口——双向 IM 类渠道的核心抽象。
  *
- * <p>与 framework/messaging 的 ChannelSender（出站单向通知）不同，
- * ChannelAdapter 负责入站消息接收解析 + 出站回复 + 模板消息推送。
+ * <p>与 framework/messaging 的 ChannelSender（出站单向通知）不同， ChannelAdapter 负责入站消息接收解析 + 出站回复 + 模板消息推送。
  *
  * <p>分工：
+ *
  * <ul>
  *   <li>ChannelAdapter：双向 IM 渠道（收消息 + 回消息 + 推模板）
  *   <li>ChannelSender：单向通知渠道（短信/邮件/站内信，只发不收）

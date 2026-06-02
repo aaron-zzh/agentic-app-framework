@@ -33,25 +33,24 @@ public class ReportService {
     /** 核心指标列表 */
     private static final List<String> METRICS = List.of("dau", "messages", "tokens", "revenue");
 
-    /**
-     * 生成报表数据（供定时任务调用）。
-     */
-    public Map<String, List<TrendPointVO>> generateReport(ReportTypeEnum type, LocalDate reportDate) {
+    /** 生成报表数据（供定时任务调用）。 */
+    public Map<String, List<TrendPointVO>> generateReport(
+            ReportTypeEnum type, LocalDate reportDate) {
         var range = calcDateRange(type, reportDate);
         var period = type == ReportTypeEnum.DAILY ? StatPeriodEnum.HOUR : StatPeriodEnum.DAY;
 
-        return METRICS.stream().collect(
-                java.util.stream.Collectors.toMap(
-                        metric -> metric,
-                        metric -> statsService.queryTrendPoints(metric, period, range[0], range[1])
-                )
-        );
+        return METRICS.stream()
+                .collect(
+                        java.util.stream.Collectors.toMap(
+                                metric -> metric,
+                                metric ->
+                                        statsService.queryTrendPoints(
+                                                metric, period, range[0], range[1])));
     }
 
-    /**
-     * CSV 导出：写入指定输出流。
-     */
-    public void exportCsv(ReportTypeEnum type, LocalDate reportDate, OutputStream out) throws IOException {
+    /** CSV 导出：写入指定输出流。 */
+    public void exportCsv(ReportTypeEnum type, LocalDate reportDate, OutputStream out)
+            throws IOException {
         var data = generateReport(type, reportDate);
         try (var writer = new PrintWriter(out)) {
             // 表头
@@ -66,10 +65,9 @@ public class ReportService {
         }
     }
 
-    /**
-     * PDF 导出骨架（预留接口，内部待接入 iText）。
-     */
-    public void exportPdf(ReportTypeEnum type, LocalDate reportDate, OutputStream out) throws IOException {
+    /** PDF 导出骨架（预留接口，内部待接入 iText）。 */
+    public void exportPdf(ReportTypeEnum type, LocalDate reportDate, OutputStream out)
+            throws IOException {
         // TODO: 接入 iText 8 生成 PDF 报表
         var data = generateReport(type, reportDate);
         log.info("PDF 导出骨架调用，报表类型={}，日期={}，指标数={}", type, reportDate, data.size());
@@ -80,9 +78,9 @@ public class ReportService {
 
     private LocalDate[] calcDateRange(ReportTypeEnum type, LocalDate reportDate) {
         return switch (type) {
-            case DAILY -> new LocalDate[]{reportDate, reportDate};
-            case WEEKLY -> new LocalDate[]{reportDate.minusDays(6), reportDate};
-            case MONTHLY -> new LocalDate[]{reportDate.withDayOfMonth(1), reportDate};
+            case DAILY -> new LocalDate[] {reportDate, reportDate};
+            case WEEKLY -> new LocalDate[] {reportDate.minusDays(6), reportDate};
+            case MONTHLY -> new LocalDate[] {reportDate.withDayOfMonth(1), reportDate};
         };
     }
 }

@@ -19,8 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 积分过期清理定时任务。
  *
- * <p>每日凌晨 00:10 扫描已过期且仍有剩余量的批次，将 remain 清零并同步扣减账户余额。
- * 可通过系统配置 {@code member.credit_expire_enabled} 关闭。
+ * <p>每日凌晨 00:10 扫描已过期且仍有剩余量的批次，将 remain 清零并同步扣减账户余额。 可通过系统配置 {@code member.credit_expire_enabled}
+ * 关闭。
  */
 @Slf4j
 @Component

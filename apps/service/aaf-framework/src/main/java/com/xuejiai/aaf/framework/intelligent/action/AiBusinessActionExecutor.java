@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.framework.intelligent.action;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -8,6 +7,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.engine.tool.ToolPermissionChecker;
 import com.xuejiai.aaf.framework.engine.tool.ToolRiskLevel;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
@@ -32,7 +32,8 @@ public class AiBusinessActionExecutor {
         return doExecute(request);
     }
 
-    public AiBusinessActionResult executeAsOwner(Long ownerId, String reason, AiBusinessActionRequest request) {
+    public AiBusinessActionResult executeAsOwner(
+            Long ownerId, String reason, AiBusinessActionRequest request) {
         return permissionExecutionService.runAsOwner(ownerId, reason, () -> doExecute(request));
     }
 
@@ -43,7 +44,8 @@ public class AiBusinessActionExecutor {
         var action = AiBusinessActionType.from(request.action());
         var adapter = registry.getRequired(request.entity());
         if (!registry.isActionEnabled(adapter, action)) {
-            return AiBusinessActionResult.failure("UNSUPPORTED_ACTION", "实体不支持动作: " + action.action());
+            return AiBusinessActionResult.failure(
+                    "UNSUPPORTED_ACTION", "实体不支持动作: " + action.action());
         }
         var permissionCode = registry.permissionCode(adapter, action);
         if (permissionCode == null
@@ -99,7 +101,8 @@ public class AiBusinessActionExecutor {
                             decision.approvalId());
             case DENIED ->
                     AiBusinessActionResult.forbidden(
-                            "业务动作 [%s.%s] 权限不足，需管理员授权".formatted(adapter.entitySlug(), action.action()));
+                            "业务动作 [%s.%s] 权限不足，需管理员授权"
+                                    .formatted(adapter.entitySlug(), action.action()));
         };
     }
 
@@ -150,7 +153,10 @@ public class AiBusinessActionExecutor {
             EntityActionAdapter adapter, AiBusinessActionType action, AiActionCatalogEntry entry) {
         var credit = creditService.getIfAvailable();
         var userId = operatorContext.currentOwnerId().orElse(null);
-        if (credit == null || userId == null || entry == null || entry.entitlementCode() == null
+        if (credit == null
+                || userId == null
+                || entry == null
+                || entry.entitlementCode() == null
                 || entry.entitlementCode().isBlank()) {
             return null;
         }
@@ -164,10 +170,14 @@ public class AiBusinessActionExecutor {
                 cost);
     }
 
-    private void settleCredit(EntityActionAdapter adapter, AiBusinessActionType action, AiActionCatalogEntry entry) {
+    private void settleCredit(
+            EntityActionAdapter adapter, AiBusinessActionType action, AiActionCatalogEntry entry) {
         var credit = creditService.getIfAvailable();
         var userId = operatorContext.currentOwnerId().orElse(null);
-        if (credit == null || userId == null || entry == null || entry.entitlementCode() == null
+        if (credit == null
+                || userId == null
+                || entry == null
+                || entry.entitlementCode() == null
                 || entry.entitlementCode().isBlank()) {
             return;
         }
@@ -175,7 +185,11 @@ public class AiBusinessActionExecutor {
         if (cost <= 0) {
             return;
         }
-        credit.spend(userId, cost, "ACTION:%s.%s".formatted(adapter.entitySlug(), action.action()), entry.entitlementCode());
+        credit.spend(
+                userId,
+                cost,
+                "ACTION:%s.%s".formatted(adapter.entitySlug(), action.action()),
+                entry.entitlementCode());
     }
 
     private long estimateCost(String expression) {

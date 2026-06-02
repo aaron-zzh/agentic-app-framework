@@ -1,8 +1,5 @@
 package com.xuejiai.aaf.framework.engine.workflow.config;
 
-import java.util.Collection;
-import java.util.Set;
-
 import org.flowable.bpmn.model.BaseElement;
 import org.flowable.bpmn.model.ScriptTask;
 import org.flowable.common.engine.api.FlowableException;

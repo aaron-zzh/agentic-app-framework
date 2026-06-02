@@ -2,6 +2,10 @@ package com.xuejiai.aaf.module.company.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
+
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.company.okr.domain.KeyResult;
 import com.xuejiai.aaf.module.company.okr.domain.Objective;
@@ -15,10 +19,6 @@ import com.xuejiai.aaf.module.company.planning.service.CompanyPlanService;
 import com.xuejiai.aaf.module.company.workflow.WorkflowExecutor;
 import com.xuejiai.aaf.module.company.workflow.WorkflowExecutor.WorkflowResult;
 import com.xuejiai.aaf.module.company.workflow.WorkflowExecutor.WorkflowStep;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 
@@ -111,17 +111,28 @@ public class CompanyController {
 
     /**
      * 执行工作流——演示助理多角色编排能力。
+     *
      * <p>编排模式：顺序 + fork 并行 + 结果聚合 + 置信度门控
      */
     @PostMapping("/workflow/execute")
     public Result<WorkflowResult> executeWorkflow(@RequestBody WorkflowRequest request) {
-        var steps = request.steps().stream()
-                .map(s -> new WorkflowStep(s.skill(), s.name(), s.input(), s.output(), s.dependsOn()))
-                .toList();
-        return Result.success(workflowExecutor.execute(request.sessionId(), steps, request.input()));
+        var steps =
+                request.steps().stream()
+                        .map(
+                                s ->
+                                        new WorkflowStep(
+                                                s.skill(),
+                                                s.name(),
+                                                s.input(),
+                                                s.output(),
+                                                s.dependsOn()))
+                        .toList();
+        return Result.success(
+                workflowExecutor.execute(request.sessionId(), steps, request.input()));
     }
 
-    record WorkflowStepDTO(String skill, String name, String input, String output, List<String> dependsOn) {
+    record WorkflowStepDTO(
+            String skill, String name, String input, String output, List<String> dependsOn) {
         WorkflowStepDTO(String skill, String name, String input, String output) {
             this(skill, name, input, output, List.of());
         }

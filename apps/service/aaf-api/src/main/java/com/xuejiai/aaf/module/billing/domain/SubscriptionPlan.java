@@ -1,20 +1,23 @@
 package com.xuejiai.aaf.module.billing.domain;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.type.SqlTypes;
 
 /** 订阅套餐定义（货架商品） */
 @Getter
 @Setter
 @Entity
 @Table(name = "subscription_plan")
-@SQLDelete(sql = "UPDATE subscription_plan SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLDelete(
+        sql =
+                "UPDATE subscription_plan SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class SubscriptionPlan extends BaseEntity {
 
     /** 套餐编码（FREE/PRO/TEAM/ENTERPRISE） */

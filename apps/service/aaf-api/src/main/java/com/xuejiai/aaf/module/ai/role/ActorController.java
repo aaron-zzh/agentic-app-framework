@@ -44,7 +44,8 @@ public class ActorController {
 
     @Operation(summary = "更新 Actor")
     @PutMapping("/{id}")
-    public Result<ActorVO> update(@PathVariable Long id, @Validated @RequestBody ActorCreateDTO dto) {
+    public Result<ActorVO> update(
+            @PathVariable Long id, @Validated @RequestBody ActorCreateDTO dto) {
         return Result.success(aiRoleService.updateActor(id, dto));
     }
 

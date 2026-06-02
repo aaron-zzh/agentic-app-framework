@@ -25,25 +25,31 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/ai/workflows")
 @RequiredArgsConstructor
-public class AiFlowController extends BaseCrudController<
-        AiFlowDefinition, AiFlowDefinitionVO,
-        AiFlowDefinitionCreateDTO, AiFlowDefinitionUpdateDTO,
-        AiFlowDefinitionPageDTO> {
+public class AiFlowController
+        extends BaseCrudController<
+                AiFlowDefinition,
+                AiFlowDefinitionVO,
+                AiFlowDefinitionCreateDTO,
+                AiFlowDefinitionUpdateDTO,
+                AiFlowDefinitionPageDTO> {
 
     private final AiFlowService service;
 
     @Override
-    protected BaseCrudService<AiFlowDefinition, AiFlowDefinitionVO,
-            AiFlowDefinitionCreateDTO, AiFlowDefinitionUpdateDTO,
-            AiFlowDefinitionPageDTO> getService() {
+    protected BaseCrudService<
+                    AiFlowDefinition,
+                    AiFlowDefinitionVO,
+                    AiFlowDefinitionCreateDTO,
+                    AiFlowDefinitionUpdateDTO,
+                    AiFlowDefinitionPageDTO>
+            getService() {
         return service;
     }
 
     /** 发布工作流：前端传入转换好的 BPMN XML，部署到 Flowable 引擎。 */
     @PostMapping("/{id}/deploy")
     public Result<AiFlowDefinitionVO> deploy(
-            @PathVariable Long id,
-            @Validated @RequestBody DeployRequest request) {
+            @PathVariable Long id, @Validated @RequestBody DeployRequest request) {
         return Result.success(service.deploy(id, request.bpmnXml()));
     }
 

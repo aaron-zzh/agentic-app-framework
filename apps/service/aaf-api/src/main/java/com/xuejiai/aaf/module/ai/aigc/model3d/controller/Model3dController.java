@@ -46,11 +46,14 @@ public class Model3dController {
     @Operation(summary = "多图生 3D（四视角：前/左/后/右）")
     @PostMapping("/multi-image-to-3d")
     public Result<String> multiImageTo3d(@Valid @RequestBody MultiImageTo3dDTO dto) {
-        var images = dto.images().stream()
-                .map(img -> img == null || img.fileToken() == null
-                        ? null
-                        : new ImageInput(img.type(), img.fileToken()))
-                .toList();
+        var images =
+                dto.images().stream()
+                        .map(
+                                img ->
+                                        img == null || img.fileToken() == null
+                                                ? null
+                                                : new ImageInput(img.type(), img.fileToken()))
+                        .toList();
         var request = new MultiImageTo3dRequest(images, dto.textureQuality(), dto.pbr());
         return Result.success(model3dGenerationService.submitMultiImageTo3d(request));
     }

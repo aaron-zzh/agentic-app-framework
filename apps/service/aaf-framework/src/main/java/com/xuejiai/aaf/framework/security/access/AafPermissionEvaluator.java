@@ -21,11 +21,10 @@ public class AafPermissionEvaluator implements PermissionEvaluator {
     private final ObjectProvider<FunctionPermissionChecker> functionPermissionChecker;
     private final ObjectProvider<RelationPermissionChecker> relationPermissionChecker;
 
-    /**
-     * L1 功能权限：@PreAuthorize("hasPermission(null, 'system:user:create')")。
-     */
+    /** L1 功能权限：@PreAuthorize("hasPermission(null, 'system:user:create')")。 */
     @Override
-    public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission) {
+    public boolean hasPermission(
+            Authentication authentication, Object targetDomainObject, Object permission) {
         if (permission == null) {
             return false;
         }
@@ -40,9 +39,7 @@ public class AafPermissionEvaluator implements PermissionEvaluator {
         return checker != null && checker.hasPermission(userId, permission.toString());
     }
 
-    /**
-     * L2 关系权限：@PreAuthorize("hasPermission(#id, 'document', 'can_read')")。
-     */
+    /** L2 关系权限：@PreAuthorize("hasPermission(#id, 'document', 'can_read')")。 */
     @Override
     public boolean hasPermission(
             Authentication authentication,

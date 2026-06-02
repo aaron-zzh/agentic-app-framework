@@ -6,9 +6,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * 画板 WebSocket 端点注册。
- */
+/** 画板 WebSocket 端点注册。 */
 @Configuration
 @RequiredArgsConstructor
 public class CanvasWebSocketConfig implements WebSocketConfigurer {

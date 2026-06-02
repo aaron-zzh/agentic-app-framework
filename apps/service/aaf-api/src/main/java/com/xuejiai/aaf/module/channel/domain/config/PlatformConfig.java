@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.channel.domain.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 
 /**

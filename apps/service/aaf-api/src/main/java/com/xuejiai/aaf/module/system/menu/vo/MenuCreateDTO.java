@@ -2,9 +2,7 @@ package com.xuejiai.aaf.module.system.menu.vo;
 
 import jakarta.validation.constraints.NotBlank;
 
-/**
- * 菜单创建 DTO
- */
+/** 菜单创建 DTO */
 public record MenuCreateDTO(
         @NotBlank String title,
         Long parentId,

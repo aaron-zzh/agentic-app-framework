@@ -11,8 +11,8 @@ import jakarta.persistence.PreUpdate;
 /**
  * 实体监听器——自动填充 operatorType 和 ownerId。
  *
- * <p>通过 {@code orm.xml} 全局注册，与 Spring Data JPA 的 {@code @CreatedBy/@LastModifiedBy} 互补。
- * JPA 审计填充 createBy/updateBy（Long），本监听器填充 createByType/updateByType/ownerId。
+ * <p>通过 {@code orm.xml} 全局注册，与 Spring Data JPA 的 {@code @CreatedBy/@LastModifiedBy} 互补。 JPA 审计填充
+ * createBy/updateBy（Long），本监听器填充 createByType/updateByType/ownerId。
  */
 public class OperatorEntityListener {
 

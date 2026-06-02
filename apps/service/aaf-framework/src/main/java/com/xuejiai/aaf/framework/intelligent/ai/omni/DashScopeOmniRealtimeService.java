@@ -31,8 +31,7 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
 
     private final String apiKey;
 
-    public DashScopeOmniRealtimeService(
-            @Value("${spring.ai.dashscope.api-key:}") String apiKey) {
+    public DashScopeOmniRealtimeService(@Value("${spring.ai.dashscope.api-key:}") String apiKey) {
         this.apiKey = apiKey;
     }
 
@@ -40,31 +39,30 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
     public OmniSession createSession(SessionConfig config, Consumer<OmniEvent> eventCallback) {
         var model = config.model() != null ? config.model() : DEFAULT_MODEL;
 
-        var param = OmniRealtimeParam.builder()
-                .model(model)
-                .apikey(apiKey)
-                .build();
+        var param = OmniRealtimeParam.builder().model(model).apikey(apiKey).build();
 
-        var callback = new OmniRealtimeCallback() {
-            @Override
-            public void onOpen() {
-                log.debug("[OmniRealtime] 连接已建立");
-            }
+        var callback =
+                new OmniRealtimeCallback() {
+                    @Override
+                    public void onOpen() {
+                        log.debug("[OmniRealtime] 连接已建立");
+                    }
 
-            @Override
-            public void onEvent(JsonObject message) {
-                var event = parseEvent(message);
-                if (event != null) {
-                    eventCallback.accept(event);
-                }
-            }
+                    @Override
+                    public void onEvent(JsonObject message) {
+                        var event = parseEvent(message);
+                        if (event != null) {
+                            eventCallback.accept(event);
+                        }
+                    }
 
-            @Override
-            public void onClose(int code, String reason) {
-                log.debug("[OmniRealtime] 连接关闭: code={}, reason={}", code, reason);
-                eventCallback.accept(new OmniEvent("closed", reason, null, Map.of("code", code)));
-            }
-        };
+                    @Override
+                    public void onClose(int code, String reason) {
+                        log.debug("[OmniRealtime] 连接关闭: code={}, reason={}", code, reason);
+                        eventCallback.accept(
+                                new OmniEvent("closed", reason, null, Map.of("code", code)));
+                    }
+                };
 
         var conversation = new OmniRealtimeConversation(param, callback);
         try {
@@ -74,9 +72,10 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
         }
 
         // 配置会话
-        var configBuilder = OmniRealtimeConfig.builder()
-                .enableTurnDetection(config.enableTurnDetection())
-                .enableInputAudioTranscription(config.enableInputAudioTranscription());
+        var configBuilder =
+                OmniRealtimeConfig.builder()
+                        .enableTurnDetection(config.enableTurnDetection())
+                        .enableInputAudioTranscription(config.enableInputAudioTranscription());
 
         if (config.voice() != null) {
             configBuilder.voice(config.voice());
@@ -84,11 +83,14 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
 
         // 设置输出模态
         if (config.modalities() != null && !config.modalities().isEmpty()) {
-            var modalities = config.modalities().stream()
-                    .map(m -> "audio".equalsIgnoreCase(m)
-                            ? OmniRealtimeModality.AUDIO
-                            : OmniRealtimeModality.TEXT)
-                    .toList();
+            var modalities =
+                    config.modalities().stream()
+                            .map(
+                                    m ->
+                                            "audio".equalsIgnoreCase(m)
+                                                    ? OmniRealtimeModality.AUDIO
+                                                    : OmniRealtimeModality.TEXT)
+                            .toList();
             configBuilder.modalities(modalities);
         } else {
             configBuilder.modalities(
@@ -120,27 +122,29 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
                 yield new OmniEvent("audio_delta", null, data, null);
             }
             case "response.audio_transcript.done" -> {
-                var transcript = message.has("transcript")
-                        ? message.get("transcript").getAsString() : "";
+                var transcript =
+                        message.has("transcript") ? message.get("transcript").getAsString() : "";
                 yield new OmniEvent("transcript_done", transcript, null, null);
             }
-            case "response.audio.done" ->
-                    new OmniEvent("audio_done", null, null, null);
-            case "response.done" ->
-                    new OmniEvent("response_done", null, null, null);
+            case "response.audio.done" -> new OmniEvent("audio_done", null, null, null);
+            case "response.done" -> new OmniEvent("response_done", null, null, null);
             case "input_audio_buffer.speech_started" ->
                     new OmniEvent("speech_started", null, null, null);
             case "input_audio_buffer.speech_stopped" ->
                     new OmniEvent("speech_stopped", null, null, null);
             case "conversation.item.input_audio_transcription.completed" -> {
-                var transcript = message.has("transcript")
-                        ? message.get("transcript").getAsString() : "";
+                var transcript =
+                        message.has("transcript") ? message.get("transcript").getAsString() : "";
                 yield new OmniEvent("input_transcript", transcript, null, null);
             }
             case "error" -> {
-                var errMsg = message.has("error")
-                        ? message.get("error").getAsJsonObject().get("message").getAsString()
-                        : "未知错误";
+                var errMsg =
+                        message.has("error")
+                                ? message.get("error")
+                                        .getAsJsonObject()
+                                        .get("message")
+                                        .getAsString()
+                                : "未知错误";
                 yield new OmniEvent("error", errMsg, null, null);
             }
             default -> null;

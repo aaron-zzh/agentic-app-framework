@@ -23,7 +23,9 @@ public class SqlAiActionCatalogProvider implements AiActionCatalogProvider {
     @Override
     @Transactional(readOnly = true)
     public Optional<AiActionCatalogEntry> find(String entitySlug, String action) {
-        return repository.findByEntitySlugAndActionKeyAndDeletedFalse(entitySlug, action).map(this::toEntry);
+        return repository
+                .findByEntitySlugAndActionKeyAndDeletedFalse(entitySlug, action)
+                .map(this::toEntry);
     }
 
     @Override

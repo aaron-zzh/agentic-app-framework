@@ -2,7 +2,6 @@ package com.xuejiai.aaf.framework.intelligent.assistant;
 
 import java.util.Optional;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.AssistantSessionTrustService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +9,7 @@ import com.xuejiai.aaf.common.enums.OverLimitAction;
 import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.engine.tool.ToolRiskLevel;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.AssistantSessionTrustService;
 import com.xuejiai.aaf.framework.security.access.FunctionPermissionChecker;
 import com.xuejiai.aaf.framework.security.access.RelationPermissionChecker;
 
@@ -20,11 +20,12 @@ import lombok.extern.slf4j.Slf4j;
  * AI 助理权限评估器——实现"委托者权限 ∩ scope 白名单"的交集判定。
  *
  * <p>判定流程：
+ *
  * <ol>
- *   <li>查 AssistantDefinition → 获取 delegatorId + permissionScope</li>
- *   <li>检查操作是否在 scope 白名单内</li>
- *   <li>检查风险等级是否在 maxAutoRiskLevel 内</li>
- *   <li>不在 → 按 overLimitAction 返回处理策略</li>
+ *   <li>查 AssistantDefinition → 获取 delegatorId + permissionScope
+ *   <li>检查操作是否在 scope 白名单内
+ *   <li>检查风险等级是否在 maxAutoRiskLevel 内
+ *   <li>不在 → 按 overLimitAction 返回处理策略
  * </ol>
  */
 @Slf4j
@@ -40,10 +41,7 @@ public class AssistantPermissionEvaluator {
 
     /** 评估结果 */
     public record EvalResult(
-            boolean allowed,
-            OverLimitAction action,
-            String reason,
-            Long delegatorId) {
+            boolean allowed, OverLimitAction action, String reason, Long delegatorId) {
 
         public static EvalResult granted(Long delegatorId) {
             return new EvalResult(true, null, null, delegatorId);
@@ -62,13 +60,12 @@ public class AssistantPermissionEvaluator {
      * @param toolRiskLevel 工具风险等级
      * @return 评估结果
      */
-    public EvalResult evaluateToolCall(String assistantId, String toolName, ToolRiskLevel toolRiskLevel) {
+    public EvalResult evaluateToolCall(
+            String assistantId, String toolName, ToolRiskLevel toolRiskLevel) {
         return evaluateToolCall(null, assistantId, toolName, toolRiskLevel);
     }
 
-    /**
-     * 评估助理是否有权执行指定工具调用，带会话级信任状态。
-     */
+    /** 评估助理是否有权执行指定工具调用，带会话级信任状态。 */
     public EvalResult evaluateToolCall(
             String sessionId, String assistantId, String toolName, ToolRiskLevel toolRiskLevel) {
         var defOpt = assistantRepo.findByAssistantId(assistantId);
@@ -83,9 +80,7 @@ public class AssistantPermissionEvaluator {
         if (toolCatalog != null
                 && toolCatalog.find(toolName).map(entry -> !entry.enabled()).orElse(true)) {
             return EvalResult.denied(
-                    scope.overLimitAction(),
-                    "工具 [%s] 未开放或已禁用".formatted(toolName),
-                    delegatorId);
+                    scope.overLimitAction(), "工具 [%s] 未开放或已禁用".formatted(toolName), delegatorId);
         }
 
         var functionChecker = functionPermissionChecker.getIfAvailable();
@@ -105,17 +100,15 @@ public class AssistantPermissionEvaluator {
         // 会话授权可临时扩展助理 scope，但不能绕过委托者实际权限和风险门控。
         if (!fullDelegated && !toolTrusted && !scope.isToolAllowed(toolName)) {
             return EvalResult.denied(
-                    scope.overLimitAction(),
-                    "工具 [%s] 不在助理允许列表内".formatted(toolName),
-                    delegatorId);
+                    scope.overLimitAction(), "工具 [%s] 不在助理允许列表内".formatted(toolName), delegatorId);
         }
 
         // 检查风险等级
         if (!isRiskWithinLimit(toolRiskLevel, scope.maxAutoRiskLevel())) {
             return EvalResult.denied(
                     scope.overLimitAction(),
-                    "工具 [%s] 风险等级 %s 超出助理自动执行上限 %s".formatted(
-                            toolName, toolRiskLevel, scope.maxAutoRiskLevel()),
+                    "工具 [%s] 风险等级 %s 超出助理自动执行上限 %s"
+                            .formatted(toolName, toolRiskLevel, scope.maxAutoRiskLevel()),
                     delegatorId);
         }
 
@@ -142,16 +135,12 @@ public class AssistantPermissionEvaluator {
 
         if (!scope.isOperationAllowed(operation)) {
             return EvalResult.denied(
-                    scope.overLimitAction(),
-                    "操作 [%s] 不在助理允许列表内".formatted(operation),
-                    delegatorId);
+                    scope.overLimitAction(), "操作 [%s] 不在助理允许列表内".formatted(operation), delegatorId);
         }
 
         if (resource != null && !scope.isResourceAllowed(resource)) {
             return EvalResult.denied(
-                    scope.overLimitAction(),
-                    "资源 [%s] 不在助理允许范围内".formatted(resource),
-                    delegatorId);
+                    scope.overLimitAction(), "资源 [%s] 不在助理允许范围内".formatted(resource), delegatorId);
         }
 
         if (resource != null) {
@@ -175,22 +164,25 @@ public class AssistantPermissionEvaluator {
 
     /** 获取助理的委托者 ID */
     public Optional<Long> getDelegatorId(String assistantId) {
-        return assistantRepo.findByAssistantId(assistantId)
+        return assistantRepo
+                .findByAssistantId(assistantId)
                 .map(AssistantDefinition::getEffectiveDelegatorId);
     }
 
     private boolean isRiskWithinLimit(ToolRiskLevel toolRisk, RiskLevel maxAuto) {
-        int toolLevel = switch (toolRisk) {
-            case NONE, LOW -> 1;
-            case MEDIUM -> 2;
-            case HIGH -> 3;
-            case CRITICAL -> 4;
-        };
-        int maxLevel = switch (maxAuto) {
-            case LOW -> 1;
-            case MEDIUM -> 2;
-            case HIGH -> 3;
-        };
+        int toolLevel =
+                switch (toolRisk) {
+                    case NONE, LOW -> 1;
+                    case MEDIUM -> 2;
+                    case HIGH -> 3;
+                    case CRITICAL -> 4;
+                };
+        int maxLevel =
+                switch (maxAuto) {
+                    case LOW -> 1;
+                    case MEDIUM -> 2;
+                    case HIGH -> 3;
+                };
         return toolLevel <= maxLevel;
     }
 
