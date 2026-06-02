@@ -50,7 +50,7 @@
 		<poi.version>5.4.1</poi.version>
 		<jsoup.version>1.18.3</jsoup.version>
 		<!-- AgentScope -->
-		<agentscope.version>1.0.12</agentscope.version>
+		<agentscope.version>1.1.0-RC2</agentscope.version>
 		<!-- A2A -->
 		<spring-ai-a2a.version>0.2.0</spring-ai-a2a.version>
 		<a2a-java-sdk.version>0.3.3.Final</a2a-java-sdk.version>
