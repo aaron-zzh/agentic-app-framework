@@ -10,6 +10,8 @@ import { useTheme } from "next-themes"
 import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/constants/paths"
+import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
+import { cn } from "@/lib/utils/cn"
 
 const navLinks = [
   { label: "产品", href: "/" },
@@ -21,9 +23,15 @@ const navLinks = [
 /** 营销页顶部导航 */
 export function MarketingHeader() {
   const { theme, setTheme } = useTheme()
+  const isOffset = useScrollOffset()
 
   return (
-    <header className="sticky top-0 z-50 flex h-[var(--layout-marketing-header-height)] items-center border-b bg-background/95 backdrop-blur">
+    <header
+      className={cn(
+        "sticky top-0 z-50 flex h-[var(--layout-marketing-header-height)] items-center transition-all duration-200",
+        isOffset ? "bg-background/80 shadow-sm backdrop-blur-md" : "bg-background/95 backdrop-blur"
+      )}
+    >
       <div className="mx-auto flex w-full max-w-[var(--layout-marketing-max-width)] items-center justify-between px-6">
         <Brand size="lg" />
 

@@ -10,6 +10,7 @@ vi.mock("./request", () => ({
 }))
 
 import { request } from "../entity/crud"
+
 const mockRequest = vi.mocked(request)
 
 describe("dashboardApi", () => {
@@ -58,7 +59,15 @@ describe("dashboardApi", () => {
 
   it("saveLayout 应发送 PUT /dashboards/:id/layout", async () => {
     mockRequest.mockResolvedValueOnce(undefined)
-    const layout = [{ id: "w1", type: "counter" as const, title: "计数", position: { x: 0, y: 0, w: 4, h: 2 }, config: { type: "counter" as const, entity: "user", aggregation: "count" as const } }]
+    const layout = [
+      {
+        id: "w1",
+        type: "counter" as const,
+        title: "计数",
+        position: { x: 0, y: 0, w: 4, h: 2 },
+        config: { type: "counter" as const, entity: "user", aggregation: "count" as const }
+      }
+    ]
 
     await dashboardApi.saveLayout("d1", layout)
 

@@ -87,14 +87,17 @@ describe("useWorkflowRuntime", () => {
         ok: true,
         body: {
           getReader: () => ({
-            read: vi.fn()
+            read: vi
+              .fn()
               .mockResolvedValueOnce({
                 done: false,
                 value: new TextEncoder().encode('data:{"type":"RUN_STARTED","runId":"run-1"}\n')
               })
               .mockResolvedValueOnce({
                 done: false,
-                value: new TextEncoder().encode('data:{"type":"TOOL_CALL_START","toolCallName":"user_input","toolCallId":"tc-1"}\n')
+                value: new TextEncoder().encode(
+                  'data:{"type":"TOOL_CALL_START","toolCallName":"user_input","toolCallId":"tc-1"}\n'
+                )
               })
               .mockResolvedValue({ done: true, value: undefined })
           })

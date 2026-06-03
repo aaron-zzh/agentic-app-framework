@@ -49,7 +49,7 @@ export interface VideoEditParams {
 
 /** 文生视频 */
 export function submitTextToVideo(params: TextToVideoParams) {
-  return request<string>("/api/aigc/video/text-to-video", {
+  return request<string>("/aigc/video/text-to-video", {
     method: "POST",
     body: JSON.stringify(params),
     headers: { "Content-Type": "application/json" }
@@ -58,7 +58,7 @@ export function submitTextToVideo(params: TextToVideoParams) {
 
 /** 图生视频 */
 export function submitImageToVideo(params: ImageToVideoParams) {
-  return request<string>("/api/aigc/video/image-to-video", {
+  return request<string>("/aigc/video/image-to-video", {
     method: "POST",
     body: JSON.stringify(params),
     headers: { "Content-Type": "application/json" }
@@ -67,7 +67,7 @@ export function submitImageToVideo(params: ImageToVideoParams) {
 
 /** 视频编辑 */
 export function submitVideoEdit(params: VideoEditParams) {
-  return request<string>("/api/aigc/video/edit", {
+  return request<string>("/aigc/video/edit", {
     method: "POST",
     body: JSON.stringify(params),
     headers: { "Content-Type": "application/json" }

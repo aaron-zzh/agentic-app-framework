@@ -55,7 +55,10 @@ export function useFlowSave() {
   return useMutation({
     mutationFn: (body: { id?: string; name: string; mode: string; definition: FlowDefinition }) =>
       body.id
-        ? req<FlowDefVO>(`/api/ai/workflows/${body.id}`, { method: "PUT", body: JSON.stringify(body) })
+        ? req<FlowDefVO>(`/api/ai/workflows/${body.id}`, {
+            method: "PUT",
+            body: JSON.stringify(body)
+          })
         : req<FlowDefVO>("/api/ai/workflows", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flows"] })
@@ -108,7 +111,10 @@ export function useCreateFromTemplate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: { templateId: string; name: string }) =>
-      req<FlowDefVO>("/api/ai/workflows/from-template", { method: "POST", body: JSON.stringify(body) }),
+      req<FlowDefVO>("/api/ai/workflows/from-template", {
+        method: "POST",
+        body: JSON.stringify(body)
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flows"] })
     }
@@ -124,7 +130,11 @@ export function useSaveAsTemplate() {
       description: string
       mode: string
       definition: FlowDefinition
-    }) => req<FlowTemplate>("/api/ai/workflow-templates", { method: "POST", body: JSON.stringify(body) }),
+    }) =>
+      req<FlowTemplate>("/api/ai/workflow-templates", {
+        method: "POST",
+        body: JSON.stringify(body)
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flow-templates"] })
     }

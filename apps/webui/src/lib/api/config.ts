@@ -25,9 +25,7 @@ export const API_BASE_URL = normalizeBaseUrl(
   process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_BASE_URL
 )
 
-export const API_ORIGIN = API_BASE_URL.endsWith("/api")
-  ? API_BASE_URL.slice(0, -4)
-  : API_BASE_URL
+export const API_ORIGIN = API_BASE_URL.endsWith("/api") ? API_BASE_URL.slice(0, -4) : API_BASE_URL
 
 export function buildApiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) return path

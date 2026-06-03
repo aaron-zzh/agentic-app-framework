@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { FloatingAssistant } from "@/features/floating-assistant/FloatingAssistant"
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
 import { QueryProvider } from "@/providers/QueryProvider"
 import { ServiceWorkerRegister } from "@/providers/ServiceWorkerRegister"
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <TooltipProvider>
               <NuqsAdapter>{children}</NuqsAdapter>
               <ToastProvider />
+              <FloatingAssistant />
             </TooltipProvider>
           </QueryProvider>
           <ServiceWorkerRegister />

@@ -6,12 +6,20 @@
 
 "use client"
 
+import { ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
+import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
 import { cn } from "@/lib/utils/cn"
 
 const devPages = [
@@ -22,6 +30,15 @@ const devPages = [
   { label: "反馈", href: "/components/feedback" },
   { label: "编辑器", href: "/components/editor" },
   { label: "动画", href: "/components/animate" }
+]
+
+const threejsPages = [
+  { label: "总览", href: "/examples/threejs" },
+  { label: "Demo（Logo + Blob）", href: "/examples/threejs/demo" },
+  { label: "Blob", href: "/examples/threejs/demo/blob" },
+  { label: "Fiber", href: "/examples/threejs/fiber" },
+  { label: "Meshline", href: "/examples/threejs/meshline" },
+  { label: "Test", href: "/examples/threejs/test" }
 ]
 
 /** 主题切换按钮 */
@@ -43,9 +60,15 @@ function ThemeToggle() {
 
 export function DevHeader() {
   const pathname = usePathname()
+  const isOffset = useScrollOffset()
 
   return (
-    <header className="sticky top-0 z-50 flex h-12 items-center border-b bg-background/95 backdrop-blur">
+    <header
+      className={cn(
+        "sticky top-0 z-50 flex h-12 items-center transition-all duration-200",
+        isOffset ? "bg-background/80 shadow-sm backdrop-blur-md" : "bg-background/95 backdrop-blur"
+      )}
+    >
       <div className="flex w-full items-center gap-4 px-4">
         {/* Brand */}
         <Brand size="sm" />
@@ -76,6 +99,30 @@ export function DevHeader() {
               </Link>
             )
           })}
+
+          {/* Three.js 下拉菜单 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-sm transition-colors",
+                pathname.startsWith("/examples/threejs")
+                  ? "font-medium text-foreground underline underline-offset-4"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Three.js
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {threejsPages.map((p) => (
+                <DropdownMenuItem key={p.href}>
+                  <Link href={p.href} className="w-full cursor-pointer">
+                    {p.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         <div className="flex-1" />
@@ -84,9 +131,11 @@ export function DevHeader() {
         <ThemeToggle />
 
         {/* 登录状态占位 */}
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/login">登录</Link>
-        </Button>
+        <Link href="/login">
+          <Button variant="outline" size="sm">
+            登录
+          </Button>
+        </Link>
       </div>
     </header>
   )

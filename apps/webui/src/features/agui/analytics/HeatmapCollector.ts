@@ -38,7 +38,10 @@ class HeatmapCollectorImpl {
         let minKey = ""
         let minVal = Number.POSITIVE_INFINITY
         for (const [k, v] of this.points) {
-          if (v.count < minVal) { minKey = k; minVal = v.count }
+          if (v.count < minVal) {
+            minKey = k
+            minVal = v.count
+          }
         }
         if (minKey) this.points.delete(minKey)
       }

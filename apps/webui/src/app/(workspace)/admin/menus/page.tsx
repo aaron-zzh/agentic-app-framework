@@ -10,15 +10,6 @@ import { useCallback, useId, useState } from "react"
 import { toast } from "sonner"
 
 import { PageContainer } from "@/components/common/PageContainer"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -149,7 +149,10 @@ function MenuTreeRow({
 
   const handleDelete = useCallback(() => {
     deleteMutation.mutate(menu.id, {
-      onSuccess: () => { toast.success("删除成功"); setDeleteOpen(false) },
+      onSuccess: () => {
+        toast.success("删除成功")
+        setDeleteOpen(false)
+      },
       onError: (err) => toast.error(`删除失败: ${err.message}`)
     })
   }, [menu, deleteMutation])

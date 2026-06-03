@@ -42,7 +42,13 @@ export function PublishDialog({ processKey, flowName }: PublishDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm">发布管理</Button>} />
+      <DialogTrigger
+        render={
+          <Button variant="outline" size="sm">
+            发布管理
+          </Button>
+        }
+      />
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>发布管理 - {flowName}</DialogTitle>

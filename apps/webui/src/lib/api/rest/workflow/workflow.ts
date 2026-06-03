@@ -39,7 +39,8 @@ export const workflowApi = {
     backendApi.post<void>("/workflow/reject", body),
 
   /** 获取流程状态 */
-  getStatus: (processInstanceId: string) => backendApi.get<WorkflowStatusVO>(`/workflow/${processInstanceId}`),
+  getStatus: (processInstanceId: string) =>
+    backendApi.get<WorkflowStatusVO>(`/workflow/${processInstanceId}`),
 
   /** 获取审批历史 */
   getHistory: (processInstanceId: string) =>

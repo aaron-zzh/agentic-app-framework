@@ -76,10 +76,7 @@ function SceneDescription({ scene }: { scene: VideoScene }) {
   )
 }
 
-export function VideoGenerationChat({
-  scenes = [],
-  assets = []
-}: VideoGenerationChatProps) {
+export function VideoGenerationChat({ scenes = [], assets = [] }: VideoGenerationChatProps) {
   return (
     <div className="flex h-full flex-col">
       {/* 标题 */}
@@ -101,7 +98,7 @@ export function VideoGenerationChat({
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground text-xs py-2">暂无素材</p>
+              <p className="py-2 text-center text-muted-foreground text-xs">暂无素材</p>
             )}
           </section>
 
@@ -117,7 +114,7 @@ export function VideoGenerationChat({
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground text-xs py-2">暂无分幕</p>
+              <p className="py-2 text-center text-muted-foreground text-xs">暂无分幕</p>
             )}
           </section>
 

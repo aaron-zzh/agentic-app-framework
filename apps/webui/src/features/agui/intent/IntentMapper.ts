@@ -140,7 +140,10 @@ export class IntentMapperImpl {
       let minKey = ""
       let minVal = Number.POSITIVE_INFINITY
       for (const [k, v] of intentHistory) {
-        if (v < minVal) { minKey = k; minVal = v }
+        if (v < minVal) {
+          minKey = k
+          minVal = v
+        }
       }
       if (minKey) intentHistory.delete(minKey)
     }

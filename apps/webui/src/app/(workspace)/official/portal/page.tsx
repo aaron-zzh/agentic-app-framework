@@ -2,8 +2,8 @@
 
 import { Download, ExternalLink, FileKey, Globe, ReceiptText } from "lucide-react"
 import type { ReactNode } from "react"
-import { PageContainer } from "@/components/common/PageContainer"
 import { LicenseOwnerOnly } from "@/components/common/LicenseOwnerOnly"
+import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +29,10 @@ export default function OfficialPortalPage() {
             title="订阅购买"
             description="面向框架开发者的套餐购买、续费和升级入口。"
             action="打开官网"
-            onClick={() => license?.upgradeUrl && window.open(license.upgradeUrl, "_blank", "noopener,noreferrer")}
+            onClick={() =>
+              license?.upgradeUrl &&
+              window.open(license.upgradeUrl, "_blank", "noopener,noreferrer")
+            }
           />
           <ActionCard
             icon={<FileKey className="size-5" />}
@@ -55,7 +58,11 @@ export default function OfficialPortalPage() {
             <StatusItem label="授权主体" value={license?.userId ?? "未安装授权文件"} />
             <StatusItem
               label="到期时间"
-              value={license?.expiresAt ? new Date(license.expiresAt).toLocaleDateString("zh-CN") : "未设置"}
+              value={
+                license?.expiresAt
+                  ? new Date(license.expiresAt).toLocaleDateString("zh-CN")
+                  : "未设置"
+              }
             />
           </CardContent>
         </Card>

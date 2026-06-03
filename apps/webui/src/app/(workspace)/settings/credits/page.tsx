@@ -6,6 +6,7 @@
 "use client"
 
 import { useState } from "react"
+import { CreditRechargeDialog } from "@/components/common/CreditRechargeDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +21,6 @@ import {
 } from "@/components/ui/table"
 import type { CreditTransactionType } from "@/lib/api/rest/billing/credits"
 import { useCreditBalance, useCreditTransactions } from "@/lib/queries/use-credits"
-import { CreditRechargeDialog } from "@/components/common/CreditRechargeDialog"
 
 /** 流水类型标签 */
 const TYPE_LABEL: Record<CreditTransactionType, string> = {

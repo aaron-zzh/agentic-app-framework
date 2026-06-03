@@ -114,11 +114,7 @@ export function KanbanCard({
 }
 
 /** 卡片内的"拖到对话"handle */
-function CardChatHandle({
-  id,
-  title,
-  entity
-}: { id: string; title: string; entity?: EntityDef }) {
+function CardChatHandle({ id, title, entity }: { id: string; title: string; entity?: EntityDef }) {
   const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
     id: `kanban-card-${id}`,
     item: {
@@ -130,18 +126,18 @@ function CardChatHandle({
   })
 
   return (
-    <span
+    <button
+      type="button"
       ref={ref}
       {...listeners}
       {...attributes}
-      className="absolute top-1 right-1 hidden cursor-grab rounded p-0.5 text-muted-foreground text-xs opacity-60 hover:opacity-100 group-hover:inline-block"
+      className="absolute top-1 right-1 hidden cursor-grab rounded border-none bg-transparent p-0.5 text-muted-foreground text-xs opacity-60 hover:opacity-100 group-hover:inline-block"
       style={{ opacity: isDragging ? 0.3 : undefined }}
       title="拖放到对话"
-      aria-label="拖放到对话"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
       💬
-    </span>
+    </button>
   )
 }

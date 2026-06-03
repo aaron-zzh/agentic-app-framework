@@ -25,20 +25,17 @@ export const pageDefApi = {
   getBySlug: (slug: string) => backendApi.get<PageDefRecord>(`/system/page-defs/slug/${slug}`),
 
   /** 创建 PageDef */
-  create: (data: PageDefCreateInput) =>
-    backendApi.post<PageDefRecord>("/system/page-defs", data),
+  create: (data: PageDefCreateInput) => backendApi.post<PageDefRecord>("/system/page-defs", data),
 
   /** 更新 PageDef */
   update: (id: string, data: PageDefCreateInput) =>
     backendApi.put<PageDefRecord>(`/system/page-defs/${id}`, data),
 
   /** 发布 PageDef */
-  publish: (id: string) =>
-    backendApi.post<PageDefRecord>(`/system/page-defs/${id}/publish`),
+  publish: (id: string) => backendApi.post<PageDefRecord>(`/system/page-defs/${id}/publish`),
 
   /** 回滚到上一版本 */
-  rollback: (id: string) =>
-    backendApi.post<PageDefRecord>(`/system/page-defs/${id}/rollback`),
+  rollback: (id: string) => backendApi.post<PageDefRecord>(`/system/page-defs/${id}/rollback`),
 
   /** 删除 PageDef */
   delete: (id: string) => backendApi.delete<void>(`/system/page-defs/${id}`)

@@ -8,12 +8,12 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { createElement, type ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useEntityList } from "@/lib/queries/use-entity-list"
+import type { EntityDef } from "@/lib/types/entity"
 import {
   installMockBackendClient,
   mockBackendResponse,
   resetMockBackendClient
 } from "@/test/mock-backend-client"
-import type { EntityDef } from "@/lib/types/entity"
 
 function createWrapper() {
   const queryClient = new QueryClient({

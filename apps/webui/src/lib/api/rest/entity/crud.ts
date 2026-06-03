@@ -9,8 +9,8 @@ import { ApiError } from "../../errors"
 import type { ApiResult, ListParams, PageResult } from "../../types"
 import { backendApi } from "../backend-client"
 
-export { ApiError }
 export type { ApiResult, ListParams, PageResult }
+export { ApiError }
 
 function headersToRecord(headers: HeadersInit | undefined): Record<string, string> | undefined {
   if (!headers) return undefined
@@ -31,7 +31,9 @@ export function request<T>(path: string, init?: RequestInit): Promise<T> {
   return backendApi.request<T>({ url: path, ...toAxiosConfig(init) })
 }
 
-function buildQuery(params: Record<string, string | number | boolean | string[] | undefined>): string {
+function buildQuery(
+  params: Record<string, string | number | boolean | string[] | undefined>
+): string {
   const entries = Object.entries(params).filter(
     ([, value]) => value !== undefined && value !== null && value !== ""
   )

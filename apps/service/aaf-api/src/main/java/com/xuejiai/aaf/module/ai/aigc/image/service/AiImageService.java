@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +44,8 @@ public class AiImageService {
     private static final String STATUS_FAIL = "FAIL";
 
     private final AiImageRepository imageRepository;
-    private final MidjourneyImageService midjourneyImageService;
+    @Autowired(required = false)
+    private MidjourneyImageService midjourneyImageService;
     private final ObjectMapper objectMapper;
     private final CapabilityRouter capabilityRouter;
     private final ImageServiceFactory imageServiceFactory;
@@ -53,6 +55,9 @@ public class AiImageService {
     /** 提交 imagine 任务 */
     @Transactional
     public Long imagine(Long userId, String prompt, List<String> base64Images) {
+        if (midjourneyImageService == null) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
+        }
         var image = new AiImage();
         image.setUserId(userId);
         image.setPlatform(PLATFORM_MIDJOURNEY);
@@ -80,6 +85,9 @@ public class AiImageService {
     /** 执行后续操作（放大/变体） */
     @Transactional
     public Long action(Long userId, Long imageId, String customId) {
+        if (midjourneyImageService == null) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
+        }
         var image =
                 imageRepository
                         .findById(imageId)
@@ -115,6 +123,9 @@ public class AiImageService {
 
     /** 定时同步进行中的 Midjourney 任务 */
     public void syncMidjourneyTasks() {
+        if (midjourneyImageService == null) {
+            return; // Midjourney 未启用，跳过同步
+        }
         var images =
                 imageRepository.findByStatusAndPlatform(STATUS_IN_PROGRESS, PLATFORM_MIDJOURNEY);
         if (images.isEmpty()) return;

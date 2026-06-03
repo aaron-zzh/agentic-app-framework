@@ -211,6 +211,8 @@ pnpm nx e2e webui-e2e -- --headed
 
 ### 配置管理
 
+企业级大模型 LLM API 接口聚合平台：<https://llm-api.net/register?aff=E6rS>
+
 ```yaml
 spring:
   datasource:

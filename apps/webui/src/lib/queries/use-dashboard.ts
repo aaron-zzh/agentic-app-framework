@@ -4,7 +4,11 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type DashboardWidgetVO, dashboardApi, type WidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
+import {
+  type DashboardWidgetVO,
+  dashboardApi,
+  type WidgetConfig
+} from "@/lib/api/rest/dashboard/dashboard"
 
 const KEYS = {
   all: ["dashboard"] as const,

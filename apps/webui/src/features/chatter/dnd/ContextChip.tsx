@@ -8,6 +8,7 @@
 "use client"
 
 import { X } from "lucide-react"
+import Image from "next/image"
 
 import type { ChatterDropItem } from "../types"
 
@@ -34,7 +35,13 @@ export function ContextChip({ item, onRemove }: ContextChipProps) {
   if ((item.type === "image" || item.type === "video") && item.thumbnailUrl) {
     return (
       <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs">
-        <img src={item.thumbnailUrl} alt={label} className="size-6 rounded object-cover" />
+        <Image
+          src={item.thumbnailUrl}
+          alt={label}
+          width={24}
+          height={24}
+          className="size-6 rounded object-cover"
+        />
         <span className="max-w-[150px] truncate">{label}</span>
         <button
           type="button"

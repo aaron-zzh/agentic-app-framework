@@ -1,21 +1,35 @@
 /**
- * 认证布局——居中卡片（移动端）/ 左右分栏（桌面端）
+ * 认证布局——全屏背景虚化 + 中央亚克力卡片
  * @author AaronZZH & Kiro
  */
 
+"use client"
+
+import { Suspense } from "react"
+import { GuestGuard } from "@/lib/auth/GuestGuard"
+import { AuthHeader } from "@/sections/layout/AuthHeader"
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
-      {/* 左侧品牌区（桌面端可见） */}
-      <div className="hidden flex-1 items-center justify-center bg-muted lg:flex">
-        <div className="text-center">
-          <h1 className="font-bold text-3xl">AAF</h1>
-          <p className="mt-2 text-muted-foreground">AI 原生应用开发框架</p>
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      {/* Header */}
+      <AuthHeader />
+
+      {/* 背景图 */}
+      <div
+        className="absolute inset-0 bg-center bg-cover"
+        style={{ backgroundImage: "url('/assets/images/cover/cover-10.webp')" }}
+      />
+      {/* 背景模糊遮罩 */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+      {/* 卡片 */}
+      <div className="relative z-10 flex flex-1 items-center justify-center">
+        <div className="w-full max-w-[420px] rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
+          <Suspense>
+            <GuestGuard>{children}</GuestGuard>
+          </Suspense>
         </div>
-      </div>
-      {/* 右侧表单区 */}
-      <div className="flex flex-1 items-center justify-center p-6 lg:w-[var(--layout-auth-card-width)] lg:flex-none lg:px-12">
-        {children}
       </div>
     </div>
   )

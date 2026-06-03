@@ -30,7 +30,9 @@
 		<jgit.version>7.2.0.202503040940-r</jgit.version>
 		<!-- 存储 -->
 		<aws-s3.version>2.31.1</aws-s3.version>
-		<aliyun-oss.version>3.18.1</aliyun-oss.version>
+		<aliyun-oss.version>3.18.5</aliyun-oss.version>
+		<aliyun-java-sdk-sts.version>3.1.3</aliyun-java-sdk-sts.version>
+		<aliyun-java-sdk-core.version>4.7.8</aliyun-java-sdk-core.version>
 		<thumbnailator.version>0.4.20</thumbnailator.version>
 		<!-- 安全 / 防护 -->
 		<resilience4j.version>2.4.0</resilience4j.version>
@@ -67,7 +69,6 @@
 		<archunit.version>1.4.2</archunit.version>
 		<instancio.version>5.4.0</instancio.version>
 		<!-- 工具 -->
-		<ip2region.version>3.1.1</ip2region.version>
 		<!-- 微信 SDK -->
 		<weixin-java.version>4.8.3-20260527.210905</weixin-java.version>
 		<!-- 支付 SDK -->
@@ -222,6 +223,16 @@
 				<version>${aliyun-oss.version}</version>
 			</dependency>
 			<dependency>
+				<groupId>com.aliyun</groupId>
+				<artifactId>aliyun-java-sdk-sts</artifactId>
+				<version>${aliyun-java-sdk-sts.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aliyun</groupId>
+				<artifactId>aliyun-java-sdk-core</artifactId>
+				<version>${aliyun-java-sdk-core.version}</version>
+			</dependency>
+			<dependency>
 				<groupId>com.alibaba</groupId>
 				<artifactId>dashscope-sdk-java</artifactId>
 				<version>${dashscope-sdk-java.version}</version>
@@ -355,11 +366,6 @@
 				<groupId>org.instancio</groupId>
 				<artifactId>instancio-junit</artifactId>
 				<version>${instancio.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.lionsoul</groupId>
-				<artifactId>ip2region</artifactId>
-				<version>${ip2region.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

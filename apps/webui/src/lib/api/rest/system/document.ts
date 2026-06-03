@@ -4,7 +4,7 @@
  */
 
 import type { DocRelationGraph, DocSearchResult, DocTreeNode, Document } from "@/lib/types/document"
-import { request } from "./client"
+import { request } from "../entity/crud"
 
 const BASE = "/docs"
 

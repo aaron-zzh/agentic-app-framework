@@ -3,8 +3,8 @@
 import { Copy, KeyRound, Settings2, Ticket, Users } from "lucide-react"
 import type { ReactNode } from "react"
 import { useState } from "react"
-import { PageContainer } from "@/components/common/PageContainer"
 import { LicenseOwnerOnly } from "@/components/common/LicenseOwnerOnly"
+import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +16,11 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { licenseApi } from "@/lib/api/rest/billing/license"
 import { useDeveloperPlans } from "@/lib/queries/use-developer-billing"
-import { useIssueLicense, useLicenseStatus, useOfficialConsoleSummary } from "@/lib/queries/use-license-status"
+import {
+  useIssueLicense,
+  useLicenseStatus,
+  useOfficialConsoleSummary
+} from "@/lib/queries/use-license-status"
 
 const FEATURE_OPTIONS = [
   { code: "developer", label: "开发者商业化模块" },
@@ -86,16 +90,34 @@ export default function OfficialAdminPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-semibold text-2xl">官方运营管理</h1>
-            <p className="text-muted-foreground text-sm">管理开发者订阅、兑换码、授权签发与商业配置。</p>
+            <p className="text-muted-foreground text-sm">
+              管理开发者订阅、兑换码、授权签发与商业配置。
+            </p>
           </div>
           <Badge variant="default">Owner Only</Badge>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
-          <MetricCard icon={<Users className="size-5" />} label="授权主体" value={summary?.ownerUserId ?? "-"} />
-          <MetricCard icon={<Ticket className="size-5" />} label="启用模块" value={`${summary?.enabledModules.length ?? 0}`} />
-          <MetricCard icon={<KeyRound className="size-5" />} label="授权等级" value={summary?.tier ?? "-"} />
-          <MetricCard icon={<Settings2 className="size-5" />} label="套餐数量" value={`${plans.length}`} />
+          <MetricCard
+            icon={<Users className="size-5" />}
+            label="授权主体"
+            value={summary?.ownerUserId ?? "-"}
+          />
+          <MetricCard
+            icon={<Ticket className="size-5" />}
+            label="启用模块"
+            value={`${summary?.enabledModules.length ?? 0}`}
+          />
+          <MetricCard
+            icon={<KeyRound className="size-5" />}
+            label="授权等级"
+            value={summary?.tier ?? "-"}
+          />
+          <MetricCard
+            icon={<Settings2 className="size-5" />}
+            label="套餐数量"
+            value={`${plans.length}`}
+          />
         </div>
 
         <Card>
@@ -126,7 +148,10 @@ export default function OfficialAdminPage() {
                     <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
                       <SmallValue label="价格" value={`¥${(plan.price / 100).toFixed(2)}`} />
                       <SmallValue label="天数" value={`${plan.durationDays}`} />
-                      <SmallValue label="Token" value={new Intl.NumberFormat("zh-CN").format(plan.includedTokens)} />
+                      <SmallValue
+                        label="Token"
+                        value={new Intl.NumberFormat("zh-CN").format(plan.includedTokens)}
+                      />
                     </div>
                   </div>
                 ))}
@@ -168,6 +193,7 @@ export default function OfficialAdminPage() {
               <Field label="高级模块 features">
                 <div className="grid gap-2 rounded-md border p-3">
                   {FEATURE_OPTIONS.map((feature) => (
+                    // biome-ignore lint/a11y/noLabelWithoutControl: Checkbox renders native input internally
                     <label key={feature.code} className="flex items-center gap-3 text-sm">
                       <Checkbox
                         checked={form.features.includes(feature.code)}
@@ -191,7 +217,9 @@ export default function OfficialAdminPage() {
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div>
                   <div className="font-medium text-sm">官方 owner 授权</div>
-                  <div className="text-muted-foreground text-xs">仅给雪稽 AI 官方服务实例开启。</div>
+                  <div className="text-muted-foreground text-xs">
+                    仅给雪稽 AI 官方服务实例开启。
+                  </div>
                 </div>
                 <Switch
                   checked={form.owner}
@@ -214,13 +242,25 @@ export default function OfficialAdminPage() {
               />
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground text-sm">
-                  {issueLicense.error ? issueLicense.error.message : "将内容保存为 license.jwt 后放入授权目录。"}
+                  {issueLicense.error
+                    ? issueLicense.error.message
+                    : "将内容保存为 license.jwt 后放入授权目录。"}
                 </span>
-                <Button type="button" variant="outline" disabled={!issueLicense.data?.token} onClick={copyToken}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!issueLicense.data?.token}
+                  onClick={copyToken}
+                >
                   <Copy className="size-4" />
                   复制
                 </Button>
-                <Button type="button" variant="outline" disabled={!issueLicense.data?.token} onClick={downloadLicense}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!issueLicense.data?.token}
+                  onClick={downloadLicense}
+                >
                   下载密钥
                 </Button>
               </div>

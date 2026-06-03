@@ -25,9 +25,10 @@ vi.mock("@/lib/hooks/use-column-preferences", () => ({
   })
 }))
 
+import type { EntityDef } from "@/lib/types/entity"
 import { ListView } from "./ListView"
 
-const mockEntity = {
+const mockEntity: Partial<EntityDef> = {
   slug: "task",
   label: "任务",
   fields: [
@@ -35,11 +36,14 @@ const mockEntity = {
     { name: "status", label: "状态", type: "select" }
   ],
   listView: {
-    columns: ["name", "status"],
+    columns: [
+      { field: "name", label: "名称" },
+      { field: "status", label: "状态" }
+    ],
     filterableFields: [],
     searchableFields: ["name"]
   }
-} as any
+}
 
 describe("ListView", () => {
   it("有数据时应渲染表格行", () => {
@@ -64,7 +68,11 @@ describe("ListView", () => {
     render(<ListView entity={mockEntity} data={[]} loading={true} />)
 
     // 加载状态通常有 skeleton 或 spinner
-    expect(document.querySelector("[data-loading]") || document.querySelector(".animate-pulse") || document.body).toBeTruthy()
+    expect(
+      document.querySelector("[data-loading]") ||
+        document.querySelector(".animate-pulse") ||
+        document.body
+    ).toBeTruthy()
   })
 
   it("服务端分页时应渲染分页控件", () => {

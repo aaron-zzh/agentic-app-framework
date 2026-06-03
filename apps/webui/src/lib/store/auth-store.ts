@@ -7,18 +7,19 @@
  * @author AaronZZH & Kiro
  */
 
+import axios from "axios"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import axios from "axios"
+import { buildApiUrl } from "@/lib/api/config"
 import {
   type ApiResult,
   registerBackendTokenRefresh,
   setBackendAccessToken
 } from "@/lib/api/rest/backend-client"
-import { buildApiUrl } from "@/lib/api/config"
 
 export interface AuthUser {
   id: string
+  username: string
   email: string
   nickname: string
   avatar?: string
@@ -29,8 +30,10 @@ interface AuthState {
   refreshToken: string | null
   user: AuthUser | null
   isAuthenticated: boolean
+  isChecking: boolean
   setTokens: (accessToken: string, refreshToken: string) => void
   setUser: (user: AuthUser) => void
+  setChecking: (isChecking: boolean) => void
   clearAuth: () => void
 }
 
@@ -58,6 +61,9 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       user: null,
       isAuthenticated: false,
+      isChecking: false,
+
+      setChecking: (isChecking) => set({ isChecking }),
 
       setTokens: (accessToken, refreshToken) => {
         syncTokenCookie(accessToken)

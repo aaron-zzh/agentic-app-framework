@@ -2,16 +2,11 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { CreditPackageVO } from "@/lib/api/rest/billing/plans"
 import { notify } from "@/lib/notification"
 import { useCreditPackages, usePurchaseCredits } from "@/lib/queries/use-billing-plans"
-import type { CreditPackageVO } from "@/lib/api/rest/billing/plans"
 
 interface Props {
   open: boolean
@@ -47,18 +42,16 @@ function PackageCard({
       className={[
         "relative rounded-xl border p-4 text-left transition-all",
         "hover:border-primary/60",
-        selected
-          ? "border-primary ring-2 ring-primary/40 bg-primary/5"
-          : "border-border bg-card"
+        selected ? "border-primary bg-primary/5 ring-2 ring-primary/40" : "border-border bg-card"
       ].join(" ")}
     >
       {bonusPct > 0 && (
-        <span className="absolute -top-2 right-3 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white">
+        <span className="absolute -top-2 right-3 rounded-full bg-amber-500 px-2 py-0.5 font-semibold text-[11px] text-white">
           多 {bonusPct}%
         </span>
       )}
       {pkg.recommended && !bonusPct && (
-        <span className="absolute -top-2 right-3 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+        <span className="absolute -top-2 right-3 rounded-full bg-primary px-2 py-0.5 font-semibold text-[11px] text-primary-foreground">
           推荐
         </span>
       )}
@@ -67,9 +60,7 @@ function PackageCard({
         <CreditIcon />
       </div>
       <p className="mt-0.5 text-muted-foreground text-xs">积分</p>
-      <p className="mt-3 text-right font-medium text-sm">
-        ¥{(pkg.price / 100).toFixed(0)}
-      </p>
+      <p className="mt-3 text-right font-medium text-sm">¥{(pkg.price / 100).toFixed(0)}</p>
     </button>
   )
 }
@@ -80,9 +71,7 @@ export function CreditRechargeDialog({ open, onOpenChange }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // 按 group 分组
-  const groups = packages
-    ? Array.from(new Set(packages.map((p) => p.group ?? "会员积分充值")))
-    : []
+  const groups = packages ? Array.from(new Set(packages.map((p) => p.group ?? "会员积分充值"))) : []
 
   const selectedPkg = packages?.find((p) => p.id === selectedId)
 
@@ -120,7 +109,7 @@ export function CreditRechargeDialog({ open, onOpenChange }: Props) {
             <div className="space-y-6">
               {groups.map((group) => (
                 <div key={group}>
-                  <p className="mb-3 font-medium text-sm text-muted-foreground">{group}</p>
+                  <p className="mb-3 font-medium text-muted-foreground text-sm">{group}</p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {packages
                       .filter((p) => (p.group ?? "会员积分充值") === group)
@@ -141,9 +130,7 @@ export function CreditRechargeDialog({ open, onOpenChange }: Props) {
 
         {/* 底部操作栏 */}
         <div className="flex items-center justify-between border-t px-6 py-4">
-          <p className="text-muted-foreground text-xs">
-            *充值积分有效期 2 年，支付后不退不换
-          </p>
+          <p className="text-muted-foreground text-xs">*充值积分有效期 2 年，支付后不退不换</p>
           <Button
             size="lg"
             className="min-w-32"

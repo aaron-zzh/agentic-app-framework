@@ -28,6 +28,5 @@ export const notificationPreferenceApi = {
   /** 获取当前用户通知偏好 */
   get: () => backendApi.get<NotificationPreference>("/notification-preferences"),
   /** 更新通知偏好 */
-  update: (data: NotificationPreference) =>
-    backendApi.put<void>("/notification-preferences", data)
+  update: (data: NotificationPreference) => backendApi.put<void>("/notification-preferences", data)
 }

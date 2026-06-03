@@ -5,8 +5,8 @@
  * 路由：/workspace/dev/review
  */
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -66,7 +66,11 @@ export default function AiOutputsPage() {
   })
 
   const revertMutation = useMutation({
-    mutationFn: (id: number) => request(`/ai-outputs/${id}/revert`, { method: "POST", body: JSON.stringify({ reason: "用户回退" }) }),
+    mutationFn: (id: number) =>
+      request(`/ai-outputs/${id}/revert`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "用户回退" })
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-outputs"] })
   })
 
@@ -129,9 +133,9 @@ export default function AiOutputsPage() {
         <CardContent>
           <ScrollArea className="h-[600px]">
             {isLoading ? (
-              <p className="text-muted-foreground py-8 text-center text-sm">加载中...</p>
+              <p className="py-8 text-center text-muted-foreground text-sm">加载中...</p>
             ) : outputs.length === 0 ? (
-              <p className="text-muted-foreground py-8 text-center text-sm">暂无产出记录</p>
+              <p className="py-8 text-center text-muted-foreground text-sm">暂无产出记录</p>
             ) : (
               <div className="space-y-3">
                 {outputs.map((output: AiOutput) => (
@@ -142,7 +146,7 @@ export default function AiOutputsPage() {
                     <span className="mt-0.5 text-lg">{RISK_ICON[output.riskLevel] ?? "🟢"}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{output.title}</span>
+                        <span className="font-medium text-sm">{output.title}</span>
                         <Badge variant="outline" className="text-xs">
                           {CATEGORY_LABEL[output.category] ?? output.category}
                         </Badge>
@@ -154,12 +158,12 @@ export default function AiOutputsPage() {
                             {output.status === "reverted" ? "已回退" : "已调整"}
                           </Badge>
                         )}
-                        <span className="text-muted-foreground ml-auto text-xs">
+                        <span className="ml-auto text-muted-foreground text-xs">
                           {new Date(output.createTime).toLocaleString()}
                         </span>
                       </div>
                       {output.description && (
-                        <p className="text-muted-foreground mt-1 text-xs">{output.description}</p>
+                        <p className="mt-1 text-muted-foreground text-xs">{output.description}</p>
                       )}
                     </div>
                     {output.status === "effective" && (

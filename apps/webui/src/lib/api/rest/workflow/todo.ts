@@ -33,8 +33,7 @@ export interface TodoListParams {
 
 export const todoApi = {
   /** 待办列表 */
-  list: (params: TodoListParams = {}) =>
-    backendApi.get<PageResult<TodoItem>>("/todos", { params }),
+  list: (params: TodoListParams = {}) => backendApi.get<PageResult<TodoItem>>("/todos", { params }),
 
   /** 标记完成 */
   complete: (id: string) => backendApi.put<void>(`/todos/${id}/complete`),

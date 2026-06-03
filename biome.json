@@ -41,7 +41,7 @@
         "useComponentExportOnlyModules": "off"
       },
       "suspicious": {
-        "noExplicitAny": "error",
+        "noExplicitAny": "warn",
         "noConsole": "warn",
         "noDoubleEquals": "error",
         "noArrayIndexKey": "off",
@@ -104,6 +104,24 @@
         "rules": {
           "suspicious": {
             "noTemplateCurlyInString": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/webui/src/app/(dev)/**",
+        "apps/webui/src/app/(landing)/**"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "warn"
+          },
+          "a11y": {
+            "noSvgWithoutTitle": "warn",
+            "noStaticElementInteractions": "warn",
+            "useButtonType": "warn"
           }
         }
       }

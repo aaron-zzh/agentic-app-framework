@@ -55,7 +55,9 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
 
   if (isLoading) return null
   if (!workflowStatus || workflowStatus.status === "none") {
-    return <StartApprovalButton config={config} entityId={entityId} _currentUserId={currentUserId} />
+    return (
+      <StartApprovalButton config={config} entityId={entityId} _currentUserId={currentUserId} />
+    )
   }
 
   const { processInstanceId, status, currentTaskId, currentAssignee } = workflowStatus
@@ -108,16 +110,18 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
         {/* 流程图可视化（可折叠） */}
         {config.showFlowChart && (
           <Collapsible open={flowChartOpen} onOpenChange={setFlowChartOpen}>
-            <CollapsibleTrigger render={
-              <Button variant="ghost" size="sm" className="w-full justify-between">
-                流程图
-                {flowChartOpen ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            } />
+            <CollapsibleTrigger
+              render={
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  流程图
+                  {flowChartOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              }
+            />
             <CollapsibleContent>
               <div className="mt-2 h-[300px] rounded border">
                 <ExecutionPanel

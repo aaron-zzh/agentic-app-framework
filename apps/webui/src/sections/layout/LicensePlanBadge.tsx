@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils/cn"
 export function LicensePlanBadge({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(false)
   const { data: license } = useLicenseStatus()
-  const tier = license?.premium ? (license.tier || "Pro") : "免费版"
+  const tier = license?.premium ? license.tier || "Pro" : "免费版"
 
   return (
     <>
@@ -45,7 +45,9 @@ export function LicensePlanBadge({ collapsed }: { collapsed: boolean }) {
         <span
           className={cn(
             "flex size-7 shrink-0 items-center justify-center rounded-md",
-            license?.premium ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            license?.premium
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground"
           )}
         >
           {license?.premium ? <BadgeCheck className="size-4" /> : <Sparkles className="size-4" />}
@@ -74,7 +76,7 @@ function BillingPlanDialog({
 }) {
   const user = useAuthStore((s) => s.user)
   const { data: license } = useLicenseStatus()
-  const planLabel = license?.premium ? (license.tier || "Pro") : "免费版"
+  const planLabel = license?.premium ? license.tier || "Pro" : "免费版"
 
   function handleManagePlan() {
     if (!license?.upgradeUrl) return
@@ -106,7 +108,9 @@ function BillingPlanDialog({
                   {user?.email ?? user?.nickname ?? "AAF Developer"}
                 </DialogTitle>
                 <DialogDescription className="mt-1 flex items-center gap-1">
-                  <span className="truncate">License ID：{license?.userId ?? "未安装授权文件"}</span>
+                  <span className="truncate">
+                    License ID：{license?.userId ?? "未安装授权文件"}
+                  </span>
                   <Copy className="size-3.5 shrink-0" />
                 </DialogDescription>
               </div>
@@ -160,7 +164,12 @@ function BillingPlanDialog({
             <p className="mt-2 text-muted-foreground text-sm">
               购买或续费完成后，使用官方签发的授权文件解锁高级模块。
             </p>
-            <Button type="button" className="mt-4" disabled={!license?.upgradeUrl} onClick={handleManagePlan}>
+            <Button
+              type="button"
+              className="mt-4"
+              disabled={!license?.upgradeUrl}
+              onClick={handleManagePlan}
+            >
               <CreditCard className="size-4" />
               打开升级入口
               <ExternalLink className="size-4" />
@@ -176,7 +185,8 @@ function BillingPlanDialog({
 
         <section className="space-y-3 bg-muted/30 p-5">
           <InfoRow icon={<CircleHelp className="size-4" />} title="授权文件位置">
-            {license?.licenseFileLocations?.join(" 或 ") ?? "~/.aaf/license.jwt 或 ./config/license.jwt"}
+            {license?.licenseFileLocations?.join(" 或 ") ??
+              "~/.aaf/license.jwt 或 ./config/license.jwt"}
           </InfoRow>
           <InfoRow icon={<ChevronDown className="size-4" />} title="Billing Support">
             当前实例只校验本地授权文件；订阅购买、续费和 license 签发统一由官方门户完成。

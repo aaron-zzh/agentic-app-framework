@@ -35,7 +35,7 @@ export const aafLandingPageDef: PageDef = {
         ],
         backgroundType: "gradient"
       },
-      style: { fullWidth: true, animation: "fadeIn" }
+      style: { fullWidth: true, animation: "fadeIn", padding: "none" }
     },
 
     // ─── 核心能力 ────────────────────────────────────────────────────────────

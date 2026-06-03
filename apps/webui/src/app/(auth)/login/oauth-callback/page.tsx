@@ -55,7 +55,7 @@ function OAuthCallbackContent() {
   if (error) {
     return (
       <div className="w-full max-w-sm space-y-4 text-center">
-        <h2 className="font-bold text-xl text-destructive">登录失败</h2>
+        <h2 className="font-bold text-destructive text-xl">登录失败</h2>
         <p className="text-muted-foreground text-sm">{error}</p>
         <a href={paths.auth.login} className="text-primary text-sm hover:underline">
           返回登录

@@ -55,6 +55,8 @@ describe("ChatterRuntime 端点 URL 构建", () => {
   })
 
   it("agentRole 应作为 agentId 路径", () => {
-    expect(buildAguiUrl({ type: "ai", agentRole: "customer-service" })).toContain("/customer-service")
+    expect(buildAguiUrl({ type: "ai", agentRole: "customer-service" })).toContain(
+      "/customer-service"
+    )
   })
 })

@@ -53,7 +53,9 @@ export function AssetDetailDialog({ assetId, open, onOpenChange }: AssetDetailDi
               {asset.width && asset.height && (
                 <div>
                   <span className="text-muted-foreground">尺寸</span>
-                  <p>{asset.width} × {asset.height}</p>
+                  <p>
+                    {asset.width} × {asset.height}
+                  </p>
                 </div>
               )}
               {params?.model && (

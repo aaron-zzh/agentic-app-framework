@@ -59,6 +59,5 @@ export const activityApi = {
     backendApi.post<ScheduledActivity>("/scheduled-activities", data),
 
   /** 完成活动调度 */
-  completeSchedule: (id: string) =>
-    backendApi.post<void>(`/scheduled-activities/${id}/complete`)
+  completeSchedule: (id: string) => backendApi.post<void>(`/scheduled-activities/${id}/complete`)
 }

@@ -10,7 +10,7 @@ describe("SlashCommands 命令注册", () => {
     const cmd: SlashCommand = {
       name: "test-cmd",
       description: "测试命令",
-      icon: {} as any,
+      icon: null as unknown as React.ReactElement,
       action: () => {}
     }
 

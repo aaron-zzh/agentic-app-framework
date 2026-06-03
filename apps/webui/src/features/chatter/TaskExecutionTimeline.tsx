@@ -66,7 +66,8 @@ function parseEvent(event: TaskEventData): TimelineItem {
       if (payload.tool) detail = `工具: ${payload.tool}`
       if (payload.duration_ms) duration = payload.duration_ms
       if (payload.tokens) tokens = payload.tokens
-      if (payload.done !== undefined) detail = `完成: ${payload.done}/${payload.done + (payload.failed ?? 0)}`
+      if (payload.done !== undefined)
+        detail = `完成: ${payload.done}/${payload.done + (payload.failed ?? 0)}`
     } catch {
       // ignore
     }
@@ -131,10 +132,10 @@ export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTime
   // 自动滚动到底部
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
-  }, [items.length])
+  }, [])
 
   if (items.length === 0) {
-    return <p className="text-muted-foreground py-4 text-center text-sm">暂无执行记录</p>
+    return <p className="py-4 text-center text-muted-foreground text-sm">暂无执行记录</p>
   }
 
   return (
@@ -145,19 +146,19 @@ export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTime
             <span className="shrink-0 text-sm">{item.icon}</span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className="font-medium text-sm">{item.label}</span>
                 {item.subtask && (
                   <Badge variant="outline" className="text-xs">
                     {item.subtask}
                   </Badge>
                 )}
-                <span className="text-muted-foreground ml-auto text-xs">{item.time}</span>
+                <span className="ml-auto text-muted-foreground text-xs">{item.time}</span>
               </div>
               {item.detail && (
-                <p className="text-muted-foreground truncate text-xs">{item.detail}</p>
+                <p className="truncate text-muted-foreground text-xs">{item.detail}</p>
               )}
               {(item.duration || item.tokens) && (
-                <div className="mt-0.5 flex gap-3 text-xs text-muted-foreground">
+                <div className="mt-0.5 flex gap-3 text-muted-foreground text-xs">
                   {item.duration && <span>⏱ {(item.duration / 1000).toFixed(1)}s</span>}
                   {item.tokens && <span>🪙 {item.tokens} tokens</span>}
                 </div>

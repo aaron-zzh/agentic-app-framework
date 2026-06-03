@@ -189,7 +189,10 @@ export function Upload({
       {value.length > 0 && (
         <ul className="space-y-1">
           {value.map((item, i) => (
-            <li key={`${item.file.name}-${item.file.size}-${item.file.lastModified}`} className="flex items-center gap-2 rounded border px-3 py-1.5">
+            <li
+              key={`${item.file.name}-${item.file.size}-${item.file.lastModified}`}
+              className="flex items-center gap-2 rounded border px-3 py-1.5"
+            >
               {item.preview ? (
                 // biome-ignore lint/performance/noImgElement: blob URL，next/image 不支持
                 <img src={item.preview} alt="" className="h-8 w-8 rounded object-cover" />

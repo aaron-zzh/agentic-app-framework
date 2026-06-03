@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.image.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,7 +46,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ImageController {
 
-    private final MidjourneyImageService midjourneyService;
+    /** Midjourney 服务（可选，需配置 aaf.ai.midjourney.enabled=true） */
+    @Autowired(required = false)
+    private MidjourneyImageService midjourneyService;
+
     private final AiImageService aiImageService;
     private final ImageServiceFactory imageServiceFactory;
     private final OperatorContext operatorContext;
@@ -88,7 +92,7 @@ public class ImageController {
             @RequestParam(required = false) String secret,
             @RequestBody Map<String, Object> payload) {
         // M24：验签防伪造——未配置密钥或不匹配一律拒绝，杜绝任意用户伪造完成事件注入 imageUrl
-        if (!midjourneyService.verifyNotify(secret)) {
+        if (midjourneyService == null || !midjourneyService.verifyNotify(secret)) {
             throw new BusinessException(GlobalErrorCode.FORBIDDEN, "回调验签失败");
         }
         String taskId = (String) payload.get("id");
@@ -170,12 +174,14 @@ public class ImageController {
     @Operation(summary = "查询单个任务状态（底层）")
     @GetMapping("/midjourney/task/{taskId}")
     public Result<TaskStatus> queryTask(@PathVariable String taskId) {
+        if (midjourneyService == null) throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
         return Result.success(midjourneyService.queryTask(taskId));
     }
 
     @Operation(summary = "批量查询任务状态（底层）")
     @PostMapping("/midjourney/tasks")
     public Result<List<TaskStatus>> queryTasks(@RequestBody @Valid BatchQueryRequest request) {
+        if (midjourneyService == null) throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
         return Result.success(midjourneyService.queryTasks(request.taskIds()));
     }
 

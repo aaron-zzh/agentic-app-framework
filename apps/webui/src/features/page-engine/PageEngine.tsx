@@ -9,6 +9,8 @@ import { Component, type ReactNode } from "react"
 
 import { cn } from "@/lib/utils/cn"
 
+// 在客户端组件内触发注册，确保 Map 在浏览器端初始化
+import "@/features/page-engine/sections"
 import { getSectionComponent } from "./registry"
 import { SectionWrapper } from "./SectionWrapper"
 import type { PageDef, SectionDef, SectionStyle } from "./types"

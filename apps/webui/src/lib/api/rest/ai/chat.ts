@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { request } from "../entity/crud"
 import { restEndpoints } from "../endpoints"
+import { request } from "../entity/crud"
 
 /** 聊天会话 */
 export interface ChatSession {

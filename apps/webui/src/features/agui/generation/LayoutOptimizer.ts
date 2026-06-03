@@ -108,43 +108,45 @@ class LayoutOptimizerImpl {
 
   /** 计算字段重要性权重 */
   private calculateFieldWeights(fields: FieldDef[]): FieldWeight[] {
-    return fields.filter((f): f is DataFieldDef => "name" in f).map((field, index) => {
-      let weight = 0
-      const reasons: string[] = []
+    return fields
+      .filter((f): f is DataFieldDef => "name" in f)
+      .map((field, index) => {
+        let weight = 0
+        const reasons: string[] = []
 
-      // 必填字段权重高
-      if (field.required) {
-        weight += 0.3
-        reasons.push("必填")
-      }
+        // 必填字段权重高
+        if (field.required) {
+          weight += 0.3
+          reasons.push("必填")
+        }
 
-      // 标题/名称类字段权重高
-      if (field.name === "title" || field.name === "name") {
-        weight += 0.3
-        reasons.push("标题字段")
-      }
+        // 标题/名称类字段权重高
+        if (field.name === "title" || field.name === "name") {
+          weight += 0.3
+          reasons.push("标题字段")
+        }
 
-      // 状态字段权重高
-      if (field.type === "select") {
-        weight += 0.2
-        reasons.push("状态/分类字段")
-      }
+        // 状态字段权重高
+        if (field.type === "select") {
+          weight += 0.2
+          reasons.push("状态/分类字段")
+        }
 
-      // 位置靠前权重高
-      weight += Math.max(0, 0.2 - index * 0.02)
+        // 位置靠前权重高
+        weight += Math.max(0, 0.2 - index * 0.02)
 
-      // 只读字段权重低
-      if (field.readOnly) {
-        weight -= 0.2
-        reasons.push("只读")
-      }
+        // 只读字段权重低
+        if (field.readOnly) {
+          weight -= 0.2
+          reasons.push("只读")
+        }
 
-      return {
-        name: field.name,
-        weight: Math.max(0, Math.min(1, weight)),
-        reason: reasons.join("、")
-      }
-    })
+        return {
+          name: field.name,
+          weight: Math.max(0, Math.min(1, weight)),
+          reason: reasons.join("、")
+        }
+      })
   }
 
   /** 紧凑单列布局 */

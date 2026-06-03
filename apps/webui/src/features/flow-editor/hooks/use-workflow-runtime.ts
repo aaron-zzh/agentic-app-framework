@@ -80,7 +80,8 @@ export function useWorkflowRuntime() {
         case "STATE_DELTA": {
           const delta = event.state ?? {}
           const activeNodes = (delta.activeNodes as string[]) ?? []
-          const completedNodes = (delta.completedNodes as string[]) ?? prev.executionState.completedNodes
+          const completedNodes =
+            (delta.completedNodes as string[]) ?? prev.executionState.completedNodes
           const failedNodes = (delta.failedNodes as string[]) ?? prev.executionState.failedNodes
           const nodeTimings = delta.nodeTimings as Record<string, number> | undefined
           // activeNodes 中第一个节点视为当前节点
@@ -180,42 +181,45 @@ export function useWorkflowRuntime() {
         headers: { "Content-Type": "application/json" },
         body,
         signal: controller.signal
-      }).then(async (res) => {
-        if (!res.ok || !res.body) {
-          setState((prev) => ({ ...prev, status: "failed" }))
-          return
-        }
+      })
+        .then(async (res) => {
+          if (!res.ok || !res.body) {
+            setState((prev) => ({ ...prev, status: "failed" }))
+            return
+          }
 
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ""
+          const reader = res.body.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ""
 
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
 
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split("\n")
-          buffer = lines.pop() ?? ""
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split("\n")
+            buffer = lines.pop() ?? ""
 
-          for (const line of lines) {
-            if (line.startsWith("data:")) {
-              const data = line.slice(5).trim()
-              if (data) {
-                try {
-                  handleEvent(JSON.parse(data) as AgUiEvent)
-                } catch {
-                  // 忽略解析错误
+            for (const line of lines) {
+              if (line.startsWith("data:")) {
+                const data = line.slice(5).trim()
+                if (data) {
+                  try {
+                    handleEvent(JSON.parse(data) as AgUiEvent)
+                  } catch {
+                    // 忽略解析错误
+                  }
                 }
               }
             }
           }
-        }
-      }).catch(() => {
-        setState((prev) => ({ ...prev, status: "failed" }))
-      }).finally(() => {
-        clearTimeout(timeout)
-      })
+        })
+        .catch(() => {
+          setState((prev) => ({ ...prev, status: "failed" }))
+        })
+        .finally(() => {
+          clearTimeout(timeout)
+        })
     },
     [handleEvent]
   )

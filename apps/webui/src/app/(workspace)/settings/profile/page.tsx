@@ -19,8 +19,8 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Form } from "@/components/form/form"
 import { Field } from "@/components/form/fields"
+import { Form } from "@/components/form/form"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,10 +28,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useChangePassword, useProfile, useUpdateProfile } from "@/lib/api/rest/user/profile"
 import { notify } from "@/lib/notification"
 import { useChatSessions } from "@/lib/queries/use-chat"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
-import { useChangePassword, useProfile, useUpdateProfile } from "@/lib/api/rest/user/profile"
 import { useTodos } from "@/lib/queries/use-todos"
 import { useAuthStore } from "@/lib/store/auth-store"
 
@@ -127,7 +127,7 @@ function ActivityCards() {
 /** 最近聊天 */
 function RecentChatsCard() {
   const { data, isLoading } = useChatSessions()
-  const sessions = data?.list?.slice(0, 3) ?? []
+  const sessions = (data ?? []).slice(0, 3)
 
   return (
     <Card>
@@ -136,7 +136,10 @@ function RecentChatsCard() {
           <MessageSquare className="size-4 text-primary" />
           <CardTitle className="text-sm">最近聊天</CardTitle>
         </div>
-        <Link href="/ai/agents" className="flex items-center text-muted-foreground text-xs hover:text-primary">
+        <Link
+          href="/ai/agents"
+          className="flex items-center text-muted-foreground text-xs hover:text-primary"
+        >
           查看更多 <ChevronRight className="size-3" />
         </Link>
       </CardHeader>
@@ -177,7 +180,10 @@ function RecentTodosCard() {
           <ListTodo className="size-4 text-primary" />
           <CardTitle className="text-sm">待办任务</CardTitle>
         </div>
-        <Link href="/todos" className="flex items-center text-muted-foreground text-xs hover:text-primary">
+        <Link
+          href="/todos"
+          className="flex items-center text-muted-foreground text-xs hover:text-primary"
+        >
           查看更多 <ChevronRight className="size-3" />
         </Link>
       </CardHeader>
@@ -214,7 +220,9 @@ function MyAgentsCard() {
   // 从会话中提取有 agentId 的去重助理
   const agents = Array.from(
     new Map(
-      (data?.list ?? []).filter((s) => s.agentId).map((s) => [s.agentId, s])
+      (data ?? [])
+        .filter((s): s is typeof s & { agentId: string } => !!s.agentId)
+        .map((s) => [s.agentId, s])
     ).values()
   ).slice(0, 3)
 
@@ -225,7 +233,10 @@ function MyAgentsCard() {
           <Bot className="size-4 text-primary" />
           <CardTitle className="text-sm">我的助理</CardTitle>
         </div>
-        <Link href="/ai/agents" className="flex items-center text-muted-foreground text-xs hover:text-primary">
+        <Link
+          href="/ai/agents"
+          className="flex items-center text-muted-foreground text-xs hover:text-primary"
+        >
           查看更多 <ChevronRight className="size-3" />
         </Link>
       </CardHeader>
@@ -264,7 +275,10 @@ function MyAssetsCard() {
           <ImageIcon className="size-4 text-primary" />
           <CardTitle className="text-sm">素材库</CardTitle>
         </div>
-        <Link href="/aigc/assets" className="flex items-center text-muted-foreground text-xs hover:text-primary">
+        <Link
+          href="/aigc/assets"
+          className="flex items-center text-muted-foreground text-xs hover:text-primary"
+        >
           查看更多 <ChevronRight className="size-3" />
         </Link>
       </CardHeader>
@@ -326,7 +340,13 @@ function ProfileFormSection({ profile }: { profile: ReturnType<typeof useProfile
   const onSubmit = async (data: ProfileFormValues) => {
     try {
       const updated = await updateProfile.mutateAsync(data)
-      setUser({ id: updated.id, email: updated.email, nickname: updated.nickname, avatar: updated.avatar })
+      setUser({
+        id: updated.id,
+        username: "",
+        email: updated.email,
+        nickname: updated.nickname,
+        avatar: updated.avatar
+      })
       notify.success("个人资料已更新")
     } catch {
       notify.error("更新失败，请重试")

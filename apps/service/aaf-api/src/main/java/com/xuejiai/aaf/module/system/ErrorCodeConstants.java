@@ -46,4 +46,5 @@ public interface ErrorCodeConstants {
     ErrorCode AI_MODEL_ID_EXISTS = ErrorCode.of(1_004_001, "模型 ID 已存在");
     ErrorCode AI_MODEL_PROVIDER_NOT_SUPPORTED = ErrorCode.of(1_004_002, "不支持的模型协议类型");
     ErrorCode AI_MODEL_DISABLED = ErrorCode.of(1_004_003, "模型已禁用");
+    ErrorCode AI_MODEL_IMPORT_INVALID = ErrorCode.of(1_004_004, "模型导入文件格式不正确");
 }

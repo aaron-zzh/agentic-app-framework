@@ -92,7 +92,10 @@ export function ConditionEditor({ value, onChange, fields }: ConditionEditorProp
       {value.conditions.map((cond, idx) => (
         <div key={`cond-${idx}`} className="flex items-center gap-2">
           {/* 字段选择 */}
-          <Select value={cond.field} onValueChange={(v) => updateCondition(idx, { field: v ?? undefined })}>
+          <Select
+            value={cond.field}
+            onValueChange={(v) => updateCondition(idx, { field: v ?? undefined })}
+          >
             <SelectTrigger className="h-8 w-28 text-xs">
               <SelectValue placeholder="选择字段" />
             </SelectTrigger>

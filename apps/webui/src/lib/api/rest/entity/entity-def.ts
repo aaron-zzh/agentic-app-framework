@@ -32,8 +32,7 @@ export const entityDefApi = {
   get: (id: string) => backendApi.get<EntityDefRecord>(`/entity-defs/${id}`),
 
   /** 创建实体定义 */
-  create: (data: EntityDefInput) =>
-    backendApi.post<EntityDefRecord>("/entity-defs", data),
+  create: (data: EntityDefInput) => backendApi.post<EntityDefRecord>("/entity-defs", data),
 
   /** 更新实体定义 */
   update: (id: string, data: EntityDefInput) =>

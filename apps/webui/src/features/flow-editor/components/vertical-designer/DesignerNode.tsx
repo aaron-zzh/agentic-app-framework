@@ -55,7 +55,9 @@ export function DesignerNode({ node, onSelect, onDelete }: DesignerNodeProps) {
           colors.bg
         )}
         onClick={() => onSelect(node)}
-        onKeyDown={(e) => { if (e.key === "Enter") onSelect(node) }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSelect(node)
+        }}
         role="button"
         tabIndex={0}
       >
@@ -69,7 +71,10 @@ export function DesignerNode({ node, onSelect, onDelete }: DesignerNodeProps) {
               variant="ghost"
               size="sm"
               className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
-              onClick={(e) => { e.stopPropagation(); onDelete(node.id) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(node.id)
+              }}
             >
               ×
             </Button>

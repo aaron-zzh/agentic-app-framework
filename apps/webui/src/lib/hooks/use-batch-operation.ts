@@ -81,7 +81,10 @@ export function useBatchOperation(entity: EntityDef, options?: BatchOperationOpt
 
         if (newProgress.status === "completed") {
           stopPolling()
-          optionsRef.current?.onSuccess?.({ success: data.success ?? data.current, failed: data.failed ?? 0 })
+          optionsRef.current?.onSuccess?.({
+            success: data.success ?? data.current,
+            failed: data.failed ?? 0
+          })
           toast.success(`操作完成：成功 ${data.success ?? data.current} 条`)
         } else if (newProgress.status === "failed") {
           stopPolling()

@@ -6,9 +6,9 @@
 
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import type { TLStore } from "tldraw"
 import { createTLStore, defaultShapeUtils } from "tldraw"
-import { useEffect, useMemo, useState } from "react"
 
 /** 协作者信息 */
 export interface Collaborator {

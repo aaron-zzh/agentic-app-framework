@@ -5,7 +5,7 @@
 
 "use client"
 
-import * as React from "react"
+import type * as React from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -38,10 +38,7 @@ function AlertDialogDescription({
   return <DialogDescription {...props}>{children}</DialogDescription>
 }
 
-function AlertDialogCancel({
-  children,
-  ...props
-}: React.ComponentProps<typeof Button>) {
+function AlertDialogCancel({ children, ...props }: React.ComponentProps<typeof Button>) {
   return (
     <Button variant="outline" {...props}>
       {children}
@@ -49,10 +46,7 @@ function AlertDialogCancel({
   )
 }
 
-function AlertDialogAction({
-  children,
-  ...props
-}: React.ComponentProps<typeof Button>) {
+function AlertDialogAction({ children, ...props }: React.ComponentProps<typeof Button>) {
   return (
     <Button variant="destructive" {...props}>
       {children}
@@ -62,11 +56,11 @@ function AlertDialogAction({
 
 export {
   AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
+  AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogAction
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
 }

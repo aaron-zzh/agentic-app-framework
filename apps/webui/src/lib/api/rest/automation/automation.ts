@@ -77,8 +77,7 @@ export const automationApi = {
     backendApi.get<AutomationRule[]>("/automation/rules", { params: { entitySlug } }),
 
   /** 创建规则 */
-  create: (data: AutomationRuleInput) =>
-    backendApi.post<AutomationRule>("/automation/rules", data),
+  create: (data: AutomationRuleInput) => backendApi.post<AutomationRule>("/automation/rules", data),
 
   /** 更新规则 */
   update: (id: string, data: AutomationRuleInput) =>

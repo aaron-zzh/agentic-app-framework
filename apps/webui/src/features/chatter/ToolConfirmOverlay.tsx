@@ -48,14 +48,12 @@ export function ToolConfirmPanel({ threadId, toolCalls, onConfirmed }: ToolConfi
 
   return (
     <div className="mx-3 mb-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-      <p className="mb-2 text-sm font-medium text-amber-800">AI 请求执行以下操作，需要您确认：</p>
+      <p className="mb-2 font-medium text-amber-800 text-sm">AI 请求执行以下操作，需要您确认：</p>
       <div className="mb-3 space-y-1">
         {toolCalls.map((tc) => (
-          <div key={tc.id} className="rounded bg-white px-2 py-1 text-xs font-mono text-gray-700">
+          <div key={tc.id} className="rounded bg-white px-2 py-1 font-mono text-gray-700 text-xs">
             <span className="font-semibold text-amber-700">{tc.name}</span>
-            {tc.args && (
-              <span className="ml-2 text-gray-500">{JSON.stringify(tc.args)}</span>
-            )}
+            {tc.args && <span className="ml-2 text-gray-500">{JSON.stringify(tc.args)}</span>}
           </div>
         ))}
       </div>
@@ -93,7 +91,7 @@ export function ToolConfirmOverlay() {
   const [confirmed, setConfirmed] = useState(false)
 
   const thread = runtime.thread.getState()
-  const threadId = thread.id ?? ""
+  const threadId = (runtime.threads.getState() as { threadId?: string }).threadId ?? ""
   const lastMsg = thread.messages.at(-1)
 
   if (confirmed || !lastMsg || lastMsg.role !== "assistant") return null
@@ -101,10 +99,16 @@ export function ToolConfirmOverlay() {
     return null
   }
 
-  const interrupts = (lastMsg.metadata?.custom as { agui?: { interrupts?: unknown[] } })?.agui?.interrupts
+  const interrupts = (lastMsg.metadata?.custom as { agui?: { interrupts?: unknown[] } })?.agui
+    ?.interrupts
   const toolCalls: ToolCall[] = Array.isArray(interrupts)
     ? interrupts.map((i: unknown) => {
-        const interrupt = i as { id?: string; toolCallId?: string; toolCallName?: string; args?: Record<string, unknown> }
+        const interrupt = i as {
+          id?: string
+          toolCallId?: string
+          toolCallName?: string
+          args?: Record<string, unknown>
+        }
         return {
           id: interrupt.id ?? interrupt.toolCallId ?? "",
           name: interrupt.toolCallName ?? "unknown",

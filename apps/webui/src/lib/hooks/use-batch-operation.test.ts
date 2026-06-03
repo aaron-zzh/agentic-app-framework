@@ -2,8 +2,9 @@
  * use-batch-operation.ts 单元测试
  */
 
-import { act, renderHook, waitFor } from "@testing-library/react"
+import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { EntityDef } from "@/lib/types/entity"
 import { useBatchOperation } from "./use-batch-operation"
 
 // mock fetch
@@ -15,7 +16,7 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() }
 }))
 
-const mockEntity = { apiPath: "/api/users" } as any
+const mockEntity: Pick<EntityDef, "apiPath"> = { apiPath: "/api/users" }
 
 describe("useBatchOperation", () => {
   beforeEach(() => {

@@ -5,11 +5,13 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.ai.model.service.AiModelService;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelCreateDTO;
+import com.xuejiai.aaf.module.ai.model.vo.AiModelImportResultVO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelUpdateDTO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelVO;
 
@@ -49,6 +51,16 @@ public class AiModelController {
     @GetMapping("/enabled")
     public Result<List<AiModelVO>> listEnabled() {
         return Result.success(aiModelService.listEnabled());
+    }
+
+    @Operation(summary = "上传 JSON 导入模型")
+    @PostMapping("/import-json")
+    public Result<AiModelImportResultVO> importJson(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(defaultValue = "third_party") String providerCode,
+            @RequestParam(defaultValue = "第三方聚合") String providerName,
+            @RequestParam(required = false) String baseUrl) {
+        return Result.success(aiModelService.importJson(file, providerCode, providerName, baseUrl));
     }
 
     @Operation(summary = "模型详情")

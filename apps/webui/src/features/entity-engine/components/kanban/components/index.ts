@@ -1,6 +1,6 @@
 export { KanbanCard } from "./KanbanCard"
 export { KanbanCardTemplate } from "./KanbanCardTemplate"
 export { KanbanColumn } from "./KanbanColumn"
-export { KanbanStats } from "./KanbanStats"
 export type { KanbanStatsProps } from "./KanbanStats"
+export { KanbanStats } from "./KanbanStats"
 export { KanbanSwimlane } from "./KanbanSwimlane"

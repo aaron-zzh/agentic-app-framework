@@ -38,7 +38,13 @@ export function TemplateDialog({ mode, onSelect }: TemplateDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm">从模板创建</Button>} />
+      <DialogTrigger
+        render={
+          <Button variant="outline" size="sm">
+            从模板创建
+          </Button>
+        }
+      />
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>选择流程模板</DialogTitle>

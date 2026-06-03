@@ -14,9 +14,9 @@ import { AssistantRuntimeProvider, type ThreadMessage } from "@assistant-ui/reac
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { type ReactNode, useCallback, useMemo } from "react"
 import { toast } from "sonner"
+import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
-import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import type { ChatterTarget } from "./types"
 
@@ -32,7 +32,7 @@ function buildAguiUrl(target: ChatterTarget): string {
 interface ChatterRuntimeProps {
   target: ChatterTarget
   persist?: boolean
-  sessionId?: string  // user 类型时必须传入
+  sessionId?: string // user 类型时必须传入
   children: ReactNode
 }
 
@@ -63,12 +63,21 @@ export function ChatterRuntime({ target, persist, sessionId, children }: Chatter
   }
 
   // AI / Kiro 走 AgUiRuntime
-  return <AgUiChatterRuntime target={target} persist={persist} pageConfig={pageConfig} currentPageId={currentPageId}>{children}</AgUiChatterRuntime>
+  return (
+    <AgUiChatterRuntime
+      target={target}
+      persist={persist}
+      pageConfig={pageConfig}
+      currentPageId={currentPageId ?? undefined}
+    >
+      {children}
+    </AgUiChatterRuntime>
+  )
 }
 
 function AgUiChatterRuntime({
   target,
-  persist,
+  persist: _persist,
   pageConfig,
   currentPageId,
   children

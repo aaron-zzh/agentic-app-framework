@@ -1,5 +1,5 @@
 /**
- * Next.js Middleware——路由守卫
+ * Next.js Proxy——路由守卫
  *
  * - 未登录访问 workspace 路由 → 重定向到 /auth/login
  * - 已登录访问 auth 路由 → 重定向到 /dashboard
@@ -26,7 +26,7 @@ const PROTECTED_PATHS = [
 /** 已登录后不应访问的路径前缀 */
 const AUTH_PATHS = ["/auth/login", "/auth/register", "/auth/forgot-password"]
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get("aaf-token")?.value
 
@@ -49,12 +49,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * 匹配所有路径，排除：
-     * - api 路由
-     * - 静态文件（_next/static, _next/image, favicon.ico 等）
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.json).*)"
-  ]
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.json).*)"]
 }

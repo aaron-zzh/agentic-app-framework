@@ -31,7 +31,7 @@ public class ContentGenerationTool {
 
     private final AiImageService aiImageService;
     private final ObjectProvider<VideoGenerationService> videoGenerationService;
-    private final ContentSafetyService contentSafetyService;
+    private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final OperatorContext operatorContext;
     private final ObjectMapper objectMapper;
 
@@ -110,7 +110,13 @@ public class ContentGenerationTool {
 
     private com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult review(
             String toolName, String category, String prompt, Map<String, Object> metadata) {
-        return contentSafetyService.reviewBeforeGeneration(
+        var service = contentSafetyService.getIfAvailable();
+        if (service == null) {
+            // 无安全服务时默认放行
+            return new com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult(
+                    true, null, null, null);
+        }
+        return service.reviewBeforeGeneration(
                 new ContentSafetyRequest(
                         toolName,
                         category,

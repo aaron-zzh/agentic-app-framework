@@ -25,7 +25,7 @@ export function AgentRunStatus() {
   const label = activeTool ? `调用工具：${activeTool}` : (PHASE_LABEL[phase] ?? phase)
 
   return (
-    <div className="flex items-center gap-2 border-t px-3 py-1.5 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 border-t px-3 py-1.5 text-muted-foreground text-xs">
       {phase === "running" && <Loader2 className="size-3 animate-spin" />}
       <span>{label}</span>
       {last?.title && <span className="truncate">· {last.title}</span>}

@@ -11,6 +11,7 @@ vi.mock("./request", () => ({
 }))
 
 import { request } from "../entity/crud"
+
 const mockRequest = vi.mocked(request)
 
 describe("authApi", () => {
@@ -101,8 +102,6 @@ describe("authApi", () => {
 
     await authApi.getOAuthUrl("github", "random-state")
 
-    expect(mockRequest).toHaveBeenCalledWith(
-      "/auth/oauth/github/url?state=random-state"
-    )
+    expect(mockRequest).toHaveBeenCalledWith("/auth/oauth/github/url?state=random-state")
   })
 })

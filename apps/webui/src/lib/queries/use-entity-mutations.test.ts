@@ -6,19 +6,19 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { createElement, type ReactNode } from "react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 import {
   useEntityDelete,
   useEntityMutation,
   useEntityRecord
 } from "@/lib/queries/use-entity-mutations"
+import type { EntityDef } from "@/lib/types/entity"
 import {
   installMockBackendClient,
   mockBackendRequest,
   mockBackendResponse,
   resetMockBackendClient
 } from "@/test/mock-backend-client"
-import type { EntityDef } from "@/lib/types/entity"
 
 function createWrapper() {
   const queryClient = new QueryClient({

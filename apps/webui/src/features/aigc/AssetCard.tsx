@@ -91,7 +91,9 @@ export function AssetCard({ asset, onClick, onDelete, onRegenerate }: AssetCardP
       <div className="p-2">
         <p className="truncate font-medium text-sm">{asset.name}</p>
         <p className="text-[11px] text-muted-foreground">
-          {asset.generationParams ? (safeJsonParse<{ model?: string }>(asset.generationParams)?.model ?? "") : ""}
+          {asset.generationParams
+            ? (safeJsonParse<{ model?: string }>(asset.generationParams)?.model ?? "")
+            : ""}
           {asset.generationParams ? " · " : ""}
           {new Date(asset.createTime).toLocaleDateString()}
         </p>

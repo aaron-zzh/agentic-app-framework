@@ -4,16 +4,17 @@
 
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
+import type { EntityDef } from "@/lib/types/entity"
 import { SearchBar } from "./SearchBar"
 
-const mockEntity = {
+const mockEntity: Partial<EntityDef> = {
   fields: [
     { name: "name", label: "名称", type: "string" },
     { name: "status", label: "状态", type: "select", options: ["active", "inactive"] },
     { name: "createdAt", label: "创建时间", type: "datetime" }
   ],
-  listView: { filterableFields: ["name", "status"] }
-} as any
+  listView: { filterableFields: ["name", "status"], columns: [] }
+}
 
 describe("SearchBar", () => {
   it("应渲染搜索输入框", () => {

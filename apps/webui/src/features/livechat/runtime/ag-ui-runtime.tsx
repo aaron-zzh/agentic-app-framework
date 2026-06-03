@@ -21,13 +21,15 @@ const AGENT_URL = buildApiUrl("/chat/agent/run")
 
 interface AgUiChatProviderProps {
   children: ReactNode
+  /** 初始线程 ID，传入时自动切换到该线程（用于匿名访客恢复历史） */
+  initialThreadId?: string
 }
 
 /**
  * AG-UI 对话 Provider
  * 包裹子组件，提供 AI 助理对话 runtime（SSE 流式通信）
  */
-export function AgUiChatProvider({ children }: AgUiChatProviderProps) {
+export function AgUiChatProvider({ children, initialThreadId }: AgUiChatProviderProps) {
   const agent = useMemo(() => new HttpAgent({ url: AGENT_URL }), [])
 
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
@@ -96,6 +98,15 @@ export function AgUiChatProvider({ children }: AgUiChatProviderProps) {
     onError,
     adapters: { threadList }
   })
+
+  // 初始线程恢复：挂载后切换到指定 threadId（匿名访客历史恢复）
+  useEffect(() => {
+    if (initialThreadId) {
+      runtime.threads.switchToThread(initialThreadId)
+    }
+    // 仅挂载时执行一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runtime.threads.switchToThread, initialThreadId])
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
 }

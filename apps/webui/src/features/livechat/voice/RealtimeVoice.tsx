@@ -79,11 +79,7 @@ export function RealtimeVoice({
     if (state === "listening") {
       animFrameRef.current = requestAnimationFrame(checkSilence)
     }
-  }, [
-    silenceThreshold,
-    silenceTimeout,
-    state
-  ])
+  }, [silenceThreshold, silenceTimeout, state])
 
   /** 连接 WebSocket */
   const connectWs = useCallback(() => {

@@ -1,4 +1,4 @@
-import { AxiosError, type AxiosAdapter, type AxiosResponse } from "axios"
+import { type AxiosAdapter, AxiosError, type AxiosResponse } from "axios"
 import { vi } from "vitest"
 import { backendClient } from "@/lib/api/rest/backend-client"
 
@@ -41,7 +41,8 @@ const mockBackendAdapter: AxiosAdapter = async (config) => {
     request: {}
   }
   const validateStatus =
-    config.validateStatus ?? ((responseStatus: number) => responseStatus >= 200 && responseStatus < 300)
+    config.validateStatus ??
+    ((responseStatus: number) => responseStatus >= 200 && responseStatus < 300)
   if (!validateStatus(status)) {
     throw new AxiosError(
       `Request failed with status code ${status}`,

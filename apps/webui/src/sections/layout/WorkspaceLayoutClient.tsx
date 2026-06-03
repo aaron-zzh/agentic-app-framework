@@ -9,9 +9,9 @@
 
 import type { ReactNode } from "react"
 import { Chatter } from "@/features/chatter"
+import { useChatterStore } from "@/lib/store/chatter-store"
 import { AppHeader } from "@/sections/layout/AppHeader"
 import { AppSidebar } from "@/sections/layout/AppSidebar"
-import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface WorkspaceLayoutClientProps {
   children: ReactNode
@@ -23,7 +23,9 @@ export function WorkspaceLayoutClient({ children }: WorkspaceLayoutClientProps) 
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const getConfig = useChatterStore((s) => s.getConfig)
 
-  const config = currentPageId ? getConfig(currentPageId) : { preset: "ai" as const, open: false, agentRole: "default-generalist" }
+  const config = currentPageId
+    ? getConfig(currentPageId)
+    : { preset: "ai" as const, open: false, agentRole: "default-generalist" }
 
   return (
     <div className="flex h-screen overflow-hidden">

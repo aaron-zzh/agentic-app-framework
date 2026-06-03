@@ -16,7 +16,11 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/"
 }))
 vi.mock("@/lib/queries/use-entity-list", () => ({
-  useEntityList: () => ({ data: [], isLoading: false, pagination: { page: 1, pageSize: 20, total: 0 } })
+  useEntityList: () => ({
+    data: [],
+    isLoading: false,
+    pagination: { page: 1, pageSize: 20, total: 0 }
+  })
 }))
 vi.mock("@/lib/queries/use-entity-detail", () => ({
   useEntityDetail: () => ({ data: null, isLoading: false })
@@ -25,16 +29,17 @@ vi.mock("@/lib/queries/use-entity-search-params", () => ({
   useEntitySearchParams: () => [{ page: 1, pageSize: 20 }, vi.fn()]
 }))
 
+import type { EntityDef } from "@/lib/types/entity"
 import { ViewEngine } from "./ViewEngine"
 
-const mockEntity = {
+const mockEntity: Partial<EntityDef> = {
   slug: "test",
   label: "测试实体",
   fields: [{ name: "name", label: "名称", type: "string" }],
-  listView: { columns: ["name"], filterableFields: [] },
+  listView: { columns: [{ field: "name", label: "名称" }], filterableFields: [] },
   formView: {},
   overrides: {}
-} as any
+}
 
 function renderWithQueryClient(ui: ReactElement) {
   const queryClient = new QueryClient({

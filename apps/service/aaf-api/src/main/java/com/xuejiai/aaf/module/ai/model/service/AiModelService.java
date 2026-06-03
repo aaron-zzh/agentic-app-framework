@@ -2,17 +2,31 @@ package com.xuejiai.aaf.module.ai.model.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProvider;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelCreateDTO;
+import com.xuejiai.aaf.module.ai.model.vo.AiModelImportResultVO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelUpdateDTO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelVO;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
@@ -29,7 +43,9 @@ import lombok.RequiredArgsConstructor;
 public class AiModelService {
 
     private final AiModelRepository repository;
+    private final AiModelProviderRepository providerRepository;
     private final DynamicChatClientFactory chatClientFactory;
+    private final ObjectMapper objectMapper;
 
     /**
      * 创建模型
@@ -151,6 +167,58 @@ public class AiModelService {
         return repository.findByEnabledTrueOrderBySortOrder().stream().map(this::toVO).toList();
     }
 
+    /**
+     * 从第三方模型价格 JSON 导入模型。按 enable_groups 分组，每组取 sort_order 最靠前的 10 个模型后去重入库。
+     *
+     * @param file JSON 文件，支持根节点 data 数组或直接数组
+     * @param providerCode 供应商编码
+     * @param providerName 供应商名称
+     * @param baseUrl 供应商默认 API 地址
+     * @return 导入统计
+     */
+    @Transactional
+    public AiModelImportResultVO importJson(
+            MultipartFile file, String providerCode, String providerName, String baseUrl) {
+        var normalizedProviderCode = normalizeProviderCode(providerCode);
+        var provider = upsertProvider(normalizedProviderCode, providerName, baseUrl);
+        var items = readImportItems(file);
+        var groups = groupItems(items);
+        var selected = selectTopModels(groups);
+        var modelIds = new ArrayList<String>();
+        var createdCount = 0;
+        var updatedCount = 0;
+
+        for (var item : selected) {
+            var modelName = text(item, "model_name");
+            if (modelName == null) {
+                continue;
+            }
+            var modelId = normalizedProviderCode + ":" + modelName;
+            var model = repository.findByModelId(modelId).orElseGet(AiModel::new);
+            var isNew = model.getId() == null;
+            fillImportedModel(model, item, modelId, modelName, normalizedProviderCode, provider);
+            repository.save(model);
+            chatClientFactory.evict(modelId);
+            modelIds.add(modelId);
+            if (isNew) {
+                createdCount++;
+            } else {
+                updatedCount++;
+            }
+        }
+
+        var groupCounts = new LinkedHashMap<String, Integer>();
+        groups.forEach((group, groupItems) -> groupCounts.put(group, Math.min(groupItems.size(), 10)));
+        return new AiModelImportResultVO(
+                items.size(),
+                selected.size(),
+                createdCount,
+                updatedCount,
+                normalizedProviderCode,
+                groupCounts,
+                modelIds);
+    }
+
     private AiModel getEntity(Long id) {
         return repository
                 .findById(id)
@@ -179,5 +247,208 @@ public class AiModelService {
                 m.getRemark(),
                 m.getCreateTime(),
                 m.getUpdateTime());
+    }
+
+    private AiModelProvider upsertProvider(String providerCode, String providerName, String baseUrl) {
+        var provider = providerRepository.findByProviderCode(providerCode).orElseGet(AiModelProvider::new);
+        if (provider.getProviderCode() == null) {
+            provider.setProviderCode(providerCode);
+            provider.setProviderName(providerName != null && !providerName.isBlank() ? providerName : "第三方聚合");
+            provider.setProviderType(AiModel.PROVIDER_TYPE_OPENAI_COMPAT);
+        }
+        if (providerName != null && !providerName.isBlank()) {
+            provider.setProviderName(providerName);
+        }
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            provider.setBaseUrl(baseUrl);
+        }
+        provider.setEnabled(true);
+        return providerRepository.save(provider);
+    }
+
+    private List<JsonNode> readImportItems(MultipartFile file) {
+        try {
+            var root = objectMapper.readTree(file.getInputStream());
+            var data = root.isArray() ? root : root.get("data");
+            if (data == null || !data.isArray()) {
+                throw exception(ErrorCodeConstants.AI_MODEL_IMPORT_INVALID);
+            }
+            var items = new ArrayList<JsonNode>();
+            data.forEach(items::add);
+            return items;
+        } catch (IOException e) {
+            throw exception(ErrorCodeConstants.AI_MODEL_IMPORT_INVALID);
+        }
+    }
+
+    private Map<String, List<JsonNode>> groupItems(List<JsonNode> items) {
+        var groups = new LinkedHashMap<String, List<JsonNode>>();
+        for (var item : items) {
+            var modelName = text(item, "model_name");
+            if (modelName == null) {
+                continue;
+            }
+            var enableGroups = item.get("enable_groups");
+            if (enableGroups == null || !enableGroups.isArray() || enableGroups.isEmpty()) {
+                groups.computeIfAbsent("default", ignored -> new ArrayList<>()).add(item);
+                continue;
+            }
+            for (var group : enableGroups) {
+                var groupName = group.asText();
+                if (!groupName.isBlank()) {
+                    groups.computeIfAbsent(groupName, ignored -> new ArrayList<>()).add(item);
+                }
+            }
+        }
+        return groups;
+    }
+
+    private List<JsonNode> selectTopModels(Map<String, List<JsonNode>> groups) {
+        var selectedModelNames = new LinkedHashSet<String>();
+        var selected = new ArrayList<JsonNode>();
+        for (var groupItems : groups.values()) {
+            groupItems.stream()
+                    .sorted(Comparator.comparingInt(item -> intValue(item, "sort_order", 100)))
+                    .limit(10)
+                    .forEach(item -> {
+                        var modelName = text(item, "model_name");
+                        if (modelName != null && selectedModelNames.add(modelName)) {
+                            selected.add(item);
+                        }
+                    });
+        }
+        return selected;
+    }
+
+    private void fillImportedModel(
+            AiModel model,
+            JsonNode item,
+            String modelId,
+            String modelName,
+            String providerCode,
+            AiModelProvider provider) {
+        model.setModelId(modelId);
+        model.setDisplayName(modelName);
+        model.setProvider(providerCode);
+        model.setProviderConfig(provider);
+        model.setProviderType(resolveProviderType(item));
+        model.setModelName(modelName);
+        model.setBaseUrl(provider.getBaseUrl());
+        model.setCapabilities(resolveCapabilities(item));
+        model.setSortOrder(intValue(item, "sort_order", 100));
+        model.setModelRatio(decimal(item, "model_ratio", BigDecimal.ONE));
+        model.setCompletionRatio(decimal(item, "completion_ratio", BigDecimal.ONE));
+        model.setCacheRatio(decimal(item, "cache_ratio", null));
+        model.setAudioRatio(decimal(item, "audio_ratio", null));
+        model.setAudioCompletionRatio(decimal(item, "audio_completion_ratio", null));
+        model.setStepRatios(copy(item.get("step_ratios")));
+        model.setTags(text(item, "tags"));
+        model.setModelType(text(item, "model_type"));
+        model.setSupportedEndpoints(copy(firstPresent(item, "supported_endpoint_types", "supported_endpoints")));
+        model.setQuotaType((short) intValue(item, "quota_type", 0));
+        model.setModelPrice(decimal(item, "model_price", null));
+        model.setEnableGroups(copy(item.get("enable_groups")));
+        model.setVendorId(longValue(item, "vendor_id"));
+        model.setVendorName(text(item, "vendor_name"));
+        model.setVendorIcon(text(item, "vendor_icon"));
+        model.setIcon(text(item, "icon"));
+        model.setDescription(text(item, "description"));
+        model.setOfficialPrice(copy(item.get("official_price")));
+        model.setEnabled(true);
+        model.setRemark("从模型价格 JSON 导入");
+    }
+
+    private String resolveProviderType(JsonNode item) {
+        var endpoints = firstPresent(item, "supported_endpoint_types", "supported_endpoints");
+        if (endpoints != null && endpoints.isArray()) {
+            for (var endpoint : endpoints) {
+                if ("anthropic".equalsIgnoreCase(endpoint.asText())) {
+                    return AiModel.PROVIDER_TYPE_ANTHROPIC;
+                }
+            }
+        }
+        return AiModel.PROVIDER_TYPE_OPENAI_COMPAT;
+    }
+
+    private String resolveCapabilities(JsonNode item) {
+        var values = new LinkedHashSet<String>();
+        var tags = text(item, "tags");
+        var modelType = text(item, "model_type");
+        var endpoints = firstPresent(item, "supported_endpoint_types", "supported_endpoints");
+        if (contains(tags, "识图")) {
+            values.add("VISION");
+        }
+        if (contains(tags, "绘画") || contains(modelType, "图像")) {
+            values.add("IMAGE_GEN");
+        }
+        if (contains(modelType, "音") || contains(modelType, "语音")) {
+            values.add("AUDIO");
+        }
+        if (endpoints != null && endpoints.isArray()) {
+            for (var endpoint : endpoints) {
+                if (contains(endpoint.asText(), "image")) {
+                    values.add("IMAGE_GEN");
+                }
+                if (contains(endpoint.asText(), "embedding")) {
+                    values.add("EMBEDDING");
+                }
+            }
+        }
+        if (values.isEmpty() || contains(tags, "对话") || contains(modelType, "文本")) {
+            values.add("CHAT");
+        }
+        return String.join(",", values);
+    }
+
+    private boolean contains(String value, String part) {
+        return value != null && value.toLowerCase().contains(part.toLowerCase());
+    }
+
+    private String normalizeProviderCode(String providerCode) {
+        if (providerCode == null || providerCode.isBlank()) {
+            return "third_party";
+        }
+        return providerCode.trim().toLowerCase();
+    }
+
+    private JsonNode firstPresent(JsonNode node, String... fieldNames) {
+        for (var fieldName : fieldNames) {
+            var value = node.get(fieldName);
+            if (value != null && !value.isNull()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private JsonNode copy(JsonNode node) {
+        return node == null || node.isNull() ? null : node.deepCopy();
+    }
+
+    private String text(JsonNode node, String fieldName) {
+        var value = node.get(fieldName);
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        var text = value.asText();
+        return text.isBlank() ? null : text;
+    }
+
+    private int intValue(JsonNode node, String fieldName, int defaultValue) {
+        var value = node.get(fieldName);
+        return value != null && value.isNumber() ? value.asInt() : defaultValue;
+    }
+
+    private Long longValue(JsonNode node, String fieldName) {
+        var value = node.get(fieldName);
+        return value != null && value.isNumber() ? value.asLong() : null;
+    }
+
+    private BigDecimal decimal(JsonNode node, String fieldName, BigDecimal defaultValue) {
+        var value = node.get(fieldName);
+        if (value == null || value.isNull() || !value.isNumber()) {
+            return defaultValue;
+        }
+        return value.decimalValue();
     }
 }

@@ -44,7 +44,10 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
         return {
           ...node,
           next: node.next ? insert(node.next) : undefined,
-          branches: node.branches?.map((b) => ({ ...b, child: b.child ? insert(b.child) : undefined }))
+          branches: node.branches?.map((b) => ({
+            ...b,
+            child: b.child ? insert(b.child) : undefined
+          }))
         }
       }
       onChange(insert(value))
@@ -60,7 +63,10 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
         return {
           ...node,
           next: node.next ? remove(node.next) : undefined,
-          branches: node.branches?.map((b) => ({ ...b, child: b.child ? remove(b.child) : undefined }))
+          branches: node.branches?.map((b) => ({
+            ...b,
+            child: b.child ? remove(b.child) : undefined
+          }))
         } as ApprovalFlowNode
       }
       const result = remove(value)
@@ -77,7 +83,10 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
         return {
           ...node,
           next: node.next ? update(node.next) : undefined,
-          branches: node.branches?.map((b) => ({ ...b, child: b.child ? update(b.child) : undefined }))
+          branches: node.branches?.map((b) => ({
+            ...b,
+            child: b.child ? update(b.child) : undefined
+          }))
         }
       }
       onChange(update(value))
@@ -91,12 +100,18 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
     (nodeId: string, branchId: string, patch: Partial<ApprovalFlowBranch>) => {
       function update(node: ApprovalFlowNode): ApprovalFlowNode {
         if (node.id === nodeId) {
-          return { ...node, branches: node.branches?.map((b) => (b.id === branchId ? { ...b, ...patch } : b)) }
+          return {
+            ...node,
+            branches: node.branches?.map((b) => (b.id === branchId ? { ...b, ...patch } : b))
+          }
         }
         return {
           ...node,
           next: node.next ? update(node.next) : undefined,
-          branches: node.branches?.map((b) => ({ ...b, child: b.child ? update(b.child) : undefined }))
+          branches: node.branches?.map((b) => ({
+            ...b,
+            child: b.child ? update(b.child) : undefined
+          }))
         }
       }
       onChange(update(value))
@@ -114,7 +129,9 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
       return (
         <div className="space-y-4">
           <div>
-            <label htmlFor={`${formId}-branch-name`} className="font-medium text-sm">分支名称</label>
+            <label htmlFor={`${formId}-branch-name`} className="font-medium text-sm">
+              分支名称
+            </label>
             <input
               id={`${formId}-branch-name`}
               className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
@@ -134,11 +151,21 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
     }
 
     if (selectedNode.type === "approver") {
-      return <ApproverNodeConfig config={selectedNode.config} onChange={(config) => updateNode(selectedNode.id, config)} />
+      return (
+        <ApproverNodeConfig
+          config={selectedNode.config}
+          onChange={(config) => updateNode(selectedNode.id, config)}
+        />
+      )
     }
 
     if (selectedNode.type === "cc") {
-      return <CcNodeConfig config={selectedNode.config} onChange={(config) => updateNode(selectedNode.id, config)} />
+      return (
+        <CcNodeConfig
+          config={selectedNode.config}
+          onChange={(config) => updateNode(selectedNode.id, config)}
+        />
+      )
     }
 
     return <p className="text-muted-foreground text-sm">该节点无可配置属性</p>
@@ -156,11 +183,18 @@ export function VerticalDesigner({ value, onChange, formFields = [] }: VerticalD
       />
 
       {/* 右侧配置面板 */}
-      <Sheet open={selectedNode !== null} onOpenChange={(open) => { if (!open) setSelectedNode(null) }}>
+      <Sheet
+        open={selectedNode !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNode(null)
+        }}
+      >
         <SheetContent className="w-[380px] sm:w-[420px]">
           <SheetHeader>
             <SheetTitle>
-              {selectedNode ? `${NODE_ICONS[selectedNode.type] ?? ""} ${selectedNode.name}` : "配置"}
+              {selectedNode
+                ? `${NODE_ICONS[selectedNode.type] ?? ""} ${selectedNode.name}`
+                : "配置"}
             </SheetTitle>
           </SheetHeader>
           <div className="mt-4">

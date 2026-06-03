@@ -33,7 +33,8 @@ export interface DeveloperTokenAccount {
 
 export const developerApi = {
   plans: () => request<DeveloperSubscriptionPlan[]>("/developer/subscription/plans"),
-  currentSubscription: () => request<DeveloperSubscription | null>("/developer/subscription/current"),
+  currentSubscription: () =>
+    request<DeveloperSubscription | null>("/developer/subscription/current"),
   tokenAccount: () => request<DeveloperTokenAccount>("/developer/tokens/account"),
   subscribe: (planCode: string) =>
     request<number>("/developer/subscription/subscribe", {

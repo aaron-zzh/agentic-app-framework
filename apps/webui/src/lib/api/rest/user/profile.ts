@@ -34,8 +34,7 @@ export const profileApi = {
 
   update: (data: ProfileUpdateReq) => backendApi.put<ProfileVO>("/user/profile", data),
 
-  changePassword: (data: ChangePasswordReq) =>
-    backendApi.put<void>("/user/profile/password", data)
+  changePassword: (data: ChangePasswordReq) => backendApi.put<void>("/user/profile/password", data)
 }
 
 export const profileQueries = {
@@ -64,4 +63,3 @@ export function useChangePassword() {
     mutationFn: profileApi.changePassword
   })
 }
-

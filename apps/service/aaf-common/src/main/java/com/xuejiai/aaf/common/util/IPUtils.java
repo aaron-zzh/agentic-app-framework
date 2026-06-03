@@ -26,9 +26,9 @@ public class IpUtils {
     private static void init() {
         try {
             long start = System.currentTimeMillis();
-            var is = IpUtils.class.getClassLoader().getResourceAsStream("ip2region_v4.xdb");
-            if (is == null) throw new IllegalStateException("ip2region_v4.xdb 未找到");
-            var cBuff = new org.lionsoul.ip2region.xdb.LongByteArray(is.readAllBytes());
+            var url = IpUtils.class.getClassLoader().getResource("ip2region_v4.xdb");
+            if (url == null) throw new IllegalStateException("ip2region_v4.xdb 未找到");
+            var cBuff = Searcher.loadContentFromFile(url.getPath());
             SEARCHER = Searcher.newWithBuffer(org.lionsoul.ip2region.xdb.Version.IPv4, cBuff);
             log.info("IpUtils 初始化完成，耗时 {} ms", System.currentTimeMillis() - start);
         } catch (Exception e) {

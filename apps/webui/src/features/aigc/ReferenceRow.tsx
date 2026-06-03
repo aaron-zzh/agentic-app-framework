@@ -26,11 +26,21 @@ export function ReferenceRow() {
   )
 }
 
-function ReferenceTag({ asset, onRemove }: { asset: MediaAssetVO; onRemove: (id: number) => void }) {
+function ReferenceTag({
+  asset,
+  onRemove
+}: {
+  asset: MediaAssetVO
+  onRemove: (id: number) => void
+}) {
   return (
     <Badge variant="secondary" className="gap-1 py-0.5 pr-1.5 pl-0.5">
       {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
-      <img src={asset.thumbnailUrl ?? asset.url} alt={asset.name} className="size-4 rounded-sm object-cover" />
+      <img
+        src={asset.thumbnailUrl ?? asset.url}
+        alt={asset.name}
+        className="size-4 rounded-sm object-cover"
+      />
       <span className="max-w-[80px] truncate text-xs">@{asset.name}</span>
       <button
         type="button"

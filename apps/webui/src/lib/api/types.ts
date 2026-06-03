@@ -21,7 +21,8 @@ export interface PageResult<T> {
 }
 
 /** 列表查询参数 */
-export interface ListParams extends Record<string, string | number | boolean | string[] | undefined> {
+export interface ListParams
+  extends Record<string, string | number | boolean | string[] | undefined> {
   page?: number
   pageNo?: number
   pageSize?: number
@@ -35,4 +36,3 @@ export interface GraphqlResponse<T> {
 }
 
 export type ApiRequestConfig = AxiosRequestConfig
-

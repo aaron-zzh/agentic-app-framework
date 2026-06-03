@@ -3,11 +3,13 @@ package com.xuejiai.aaf.module.system.file;
 import java.time.Duration;
 
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,8 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.storage.FileVO;
+import com.xuejiai.aaf.framework.storage.OssStorageService;
+import com.xuejiai.aaf.framework.storage.StsCredentials;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
@@ -40,6 +44,10 @@ public class FileController {
     private final FileService fileService;
     private final StorageService storageService;
     private final FileRecordService fileRecordService;
+    /** OSS 类型时非空，其他存储类型为 null */
+    @Autowired(required = false)
+    @Nullable
+    private OssStorageService ossStorageService;
 
     @Operation(summary = "分页查询文件列表")
     @GetMapping
@@ -86,5 +94,15 @@ public class FileController {
     public Result<String> getPresignedUrl(@RequestParam String key) {
         var url = storageService.getPresignedUploadUrl(key, Duration.ofMinutes(30));
         return Result.success(url);
+    }
+
+    @Operation(summary = "获取 OSS STS 临时凭证（前端直传分片上传用）")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/sts-token")
+    public Result<StsCredentials> getStsToken() {
+        if (ossStorageService == null) {
+            return Result.error(400, "当前存储类型不支持 STS，请切换为 OSS 存储");
+        }
+        return Result.success(ossStorageService.getStsCredentials());
     }
 }

@@ -11,12 +11,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "aaf.storage")
 public record StorageProperties(
-        StorageType type, LocalProperties local, S3Properties s3, UploadLimits upload) {
+        StorageType type, LocalProperties local, S3Properties s3, OssProperties oss, UploadLimits upload) {
 
     /** 存储类型枚举 */
     public enum StorageType {
         LOCAL,
-        S3
+        S3,
+        OSS
     }
 
     /** 本地存储配置 */
@@ -29,6 +30,34 @@ public record StorageProperties(
             String secretKey,
             String bucketName,
             String region) {}
+
+    /** 阿里云 OSS 原生配置（支持 STS 临时凭证） */
+    public record OssProperties(
+            /** OSS endpoint，如 oss-cn-hangzhou.aliyuncs.com */
+            String endpoint,
+            /** Bucket 名称 */
+            String bucketName,
+            /** RAM 用户 AccessKeyId（用于调用 STS） */
+            String accessKeyId,
+            /** RAM 用户 AccessKeySecret */
+            String accessKeySecret,
+            /** RAM 角色 ARN，如 acs:ram::uid:role/role-name */
+            String roleArn,
+            /** STS endpoint，默认 sts.aliyuncs.com */
+            String stsEndpoint,
+            /** 对象访问 URL 前缀，如 https://bucket.oss-cn-hangzhou.aliyuncs.com */
+            String urlPrefix,
+            /** STS 凭证有效期（秒），最小 900，默认 3600 */
+            Integer durationSeconds) {
+
+        public String stsEndpointOrDefault() {
+            return stsEndpoint != null ? stsEndpoint : "sts.aliyuncs.com";
+        }
+
+        public int durationSecondsOrDefault() {
+            return durationSeconds != null ? durationSeconds : 3600;
+        }
+    }
 
     /** 上传约束配置 */
     public record UploadLimits(Set<String> allowedContentTypes, long maxSizeBytes) {

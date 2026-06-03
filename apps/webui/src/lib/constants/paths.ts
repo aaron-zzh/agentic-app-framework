@@ -16,10 +16,10 @@
 export const paths = {
   root: "/",
   auth: {
-    login: "/auth/login",
-    register: "/auth/register",
-    forgotPassword: "/auth/forgot-password",
-    oauthCallback: "/auth/oauth-callback"
+    login: "/login",
+    register: "/register",
+    forgotPassword: "/forgot-password",
+    oauthCallback: "/login/oauth-callback"
   },
   workspace: {
     root: "/dashboard",

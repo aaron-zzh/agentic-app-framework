@@ -38,7 +38,10 @@ export function LicenseOwnerOnly({ children }: { children: ReactNode }) {
             type="button"
             variant="outline"
             disabled={!license?.upgradeUrl}
-            onClick={() => license?.upgradeUrl && window.open(license.upgradeUrl, "_blank", "noopener,noreferrer")}
+            onClick={() =>
+              license?.upgradeUrl &&
+              window.open(license.upgradeUrl, "_blank", "noopener,noreferrer")
+            }
           >
             打开官方站点
             <ExternalLink className="size-4" />

@@ -27,8 +27,7 @@ export async function streamSSE(
   body: ReadableStream<Uint8Array>,
   options: StreamSSEOptions | ((data: string) => void)
 ): Promise<void> {
-  const opts: StreamSSEOptions =
-    typeof options === "function" ? { onData: options } : options
+  const opts: StreamSSEOptions = typeof options === "function" ? { onData: options } : options
 
   const reader = body.getReader()
   const decoder = new TextDecoder()

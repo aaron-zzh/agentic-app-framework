@@ -12,18 +12,27 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/"
 }))
 
+import type { EntityDef } from "@/lib/types/entity"
 import { FormView } from "./FormView"
 
-const mockEntity = {
+const mockEntity: Partial<EntityDef> = {
   slug: "user",
   label: "用户",
   fields: [
     { name: "age", label: "年龄", type: "number" },
-    { name: "status", label: "状态", type: "select", options: [{ label: "活跃", value: "active" }, { label: "禁用", value: "disabled" }] }
+    {
+      name: "status",
+      label: "状态",
+      type: "select",
+      options: [
+        { label: "活跃", value: "active" },
+        { label: "禁用", value: "disabled" }
+      ]
+    }
   ],
   formView: {},
   listView: { columns: [] }
-} as any
+}
 
 describe("FormView", () => {
   it("应渲染已注册类型的字段", () => {
@@ -47,9 +56,12 @@ describe("FormView", () => {
 
   it("提交时应调用 onSubmit", async () => {
     const onSubmit = vi.fn()
-    render(<FormView entity={mockEntity} data={{ age: 18, status: "active" }} onSubmit={onSubmit} />)
+    render(
+      <FormView entity={mockEntity} data={{ age: 18, status: "active" }} onSubmit={onSubmit} />
+    )
 
-    const form = document.querySelector("form")!
+    const form = document.querySelector("form")
+    if (!form) throw new Error("form not found")
     fireEvent.submit(form)
 
     await waitFor(() => {
@@ -60,7 +72,10 @@ describe("FormView", () => {
   it("hidden 字段不应渲染", () => {
     const entityWithHidden = {
       ...mockEntity,
-      fields: [...mockEntity.fields, { name: "deleted", label: "已删除", type: "number", hidden: true }]
+      fields: [
+        ...mockEntity.fields,
+        { name: "deleted", label: "已删除", type: "number", hidden: true }
+      ]
     }
     render(<FormView entity={entityWithHidden} />)
 

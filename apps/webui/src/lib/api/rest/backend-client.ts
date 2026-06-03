@@ -3,12 +3,20 @@
  */
 
 import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios"
+import { notify } from "@/lib/notification"
+import { RestApiClient } from "../api-client"
 import { API_BASE_URL } from "../config"
 import { ApiError } from "../errors"
-import { RestApiClient } from "../api-client"
 import type { ApiResult } from "../types"
 
 export type { ApiResult } from "../types"
+
+// 扩展 AxiosRequestConfig，支持按请求关闭自动错误提示
+declare module "axios" {
+  interface AxiosRequestConfig {
+    showError?: boolean
+  }
+}
 
 type RetriableConfig = InternalAxiosRequestConfig & {
   _aafRetry?: boolean
@@ -58,6 +66,34 @@ function redirectToLogin() {
   }
 }
 
+function resolveErrorMessage(error: AxiosError<ApiResult<unknown>>): string {
+  if (error.code === "ERR_NETWORK") return "网络连接失败，请检查网络设置"
+  if (error.code === "ECONNABORTED" || error.message?.includes("timeout"))
+    return "请求超时，请稍后重试"
+
+  const { status, data } = error.response ?? {}
+  if (data?.message) return data.message
+
+  switch (status) {
+    case 400:
+      return "请求参数错误"
+    case 403:
+      return "权限不足，请联系管理员"
+    case 404:
+      return "请求的资源不存在"
+    case 500:
+      return "服务器内部错误，请稍后重试"
+    case 502:
+      return "网关错误，请稍后重试"
+    case 503:
+      return "服务暂时不可用，请稍后重试"
+    case 504:
+      return "网关超时，请稍后重试"
+    default:
+      return error.message || "系统开小差了"
+  }
+}
+
 backendClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiResult<unknown>>) => {
@@ -76,13 +112,19 @@ backendClient.interceptors.response.use(
       throw new ApiError(401, "登录已过期，请重新登录")
     }
 
+    // 统一错误提示：非认证接口、showError 未显式关闭时弹 toast
+    if (
+      typeof window !== "undefined" &&
+      !isAuthRequest(config?.url) &&
+      config?.showError !== false
+    ) {
+      notify.error(resolveErrorMessage(error))
+    }
+
     throw backendApi.normalizeError(error)
   }
 )
 
-export function backendRequest<T>(
-  path: string,
-  config: AxiosRequestConfig = {}
-): Promise<T> {
+export function backendRequest<T>(path: string, config: AxiosRequestConfig = {}): Promise<T> {
   return backendApi.request<T>({ url: path, ...config })
 }

@@ -76,8 +76,10 @@ export function ChatterToolbar({
   const showRoleSelector = target.type === "ai"
 
   const { data: assistants } = useAssistants()
-  const roles = assistants?.map((a) => ({ roleId: a.roleId, name: a.name, avatar: a.avatar })) ?? FALLBACK_ROLES
-  const currentRole = roles.find((r) => r.roleId === (target.agentRole ?? "default-generalist")) ?? roles[0]
+  const roles =
+    assistants?.map((a) => ({ roleId: a.roleId, name: a.name, avatar: a.avatar })) ?? FALLBACK_ROLES
+  const currentRole =
+    roles.find((r) => r.roleId === (target.agentRole ?? "default-generalist")) ?? roles[0]
 
   return (
     <div className="flex items-center gap-2 border-b px-3 py-2">

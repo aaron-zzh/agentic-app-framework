@@ -28,6 +28,12 @@ public class StorageAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "aaf.storage", name = "type", havingValue = "oss")
+    public OssStorageService ossStorageService(StorageProperties properties) {
+        return new OssStorageService(properties.oss());
+    }
+
+    @Bean
     public ImageProcessor imageProcessor() {
         return new ImageProcessor();
     }

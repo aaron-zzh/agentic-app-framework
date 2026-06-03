@@ -3,8 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import axios from "axios"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useOrgStore } from "@/lib/store/org-store"
 import { useUIStore } from "@/lib/store/ui-store"

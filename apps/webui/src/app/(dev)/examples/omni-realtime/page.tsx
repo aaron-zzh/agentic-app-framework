@@ -11,9 +11,9 @@ import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
 
 type WsStatus = "connecting" | "connected" | "disconnected"
@@ -41,6 +41,24 @@ export default function OmniRealtimePage() {
   const videoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  const captureAndSendFrame = useCallback((ws: WebSocket) => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || ws.readyState !== WebSocket.OPEN) return
+
+    canvas.width = video.videoWidth || 640
+    canvas.height = video.videoHeight || 480
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.drawImage(video, 0, 0)
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.6)
+    const base64 = dataUrl.split(",")[1]
+    if (base64) {
+      ws.send(JSON.stringify({ type: "video", data: base64 }))
+    }
+  }, [])
 
   const handleStart = useCallback(async () => {
     setMessages([])
@@ -138,7 +156,7 @@ export default function OmniRealtimePage() {
     }
 
     ws.onerror = () => ws.close()
-  }, [enableVideo])
+  }, [enableVideo, captureAndSendFrame])
 
   const handleStop = useCallback(() => {
     // 停止视频采集
@@ -171,24 +189,6 @@ export default function OmniRealtimePage() {
 
     setRecording(false)
   }, [])
-
-  const captureAndSendFrame = (ws: WebSocket) => {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas || ws.readyState !== WebSocket.OPEN) return
-
-    canvas.width = video.videoWidth || 640
-    canvas.height = video.videoHeight || 480
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    ctx.drawImage(video, 0, 0)
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.6)
-    const base64 = dataUrl.split(",")[1]
-    if (base64) {
-      ws.send(JSON.stringify({ type: "video", data: base64 }))
-    }
-  }
 
   const statusVariant =
     status === "connected" ? "default" : status === "connecting" ? "secondary" : "outline"
@@ -267,7 +267,9 @@ export default function OmniRealtimePage() {
                   </div>
                 ))}
                 {currentTranscript && (
-                  <div className="text-muted-foreground text-sm italic">AI: {currentTranscript}</div>
+                  <div className="text-muted-foreground text-sm italic">
+                    AI: {currentTranscript}
+                  </div>
                 )}
               </div>
             )}

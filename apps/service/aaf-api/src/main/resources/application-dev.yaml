@@ -102,9 +102,6 @@ aaf:
       from: ${EMAIL_FROM:noreply@xuejiai.com}
   security:
     mock-enable: true
-  pay:
-    mock:
-      enabled: true
     jwt:
       secret: ${JWT_SECRET:aaf-dev-secret-must-be-at-least-32-bytes-long!!}
       expire-seconds: ${JWT_EXPIRE_SECONDS:7200}

@@ -51,7 +51,14 @@ export default function AgentManagementPage() {
       <div className="flex items-center justify-between">
         <h1 className="font-semibold text-xl">Agent 管理</h1>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button size="sm"><Plus className="mr-1 size-4" />新建 Agent</Button>} />
+          <DialogTrigger
+            render={
+              <Button size="sm">
+                <Plus className="mr-1 size-4" />
+                新建 Agent
+              </Button>
+            }
+          />
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>新建 Agent</DialogTitle>
@@ -76,9 +83,7 @@ export default function AgentManagementPage() {
           <DialogHeader>
             <DialogTitle>编辑 Agent</DialogTitle>
           </DialogHeader>
-          {editAgent && (
-            <AgentForm agent={editAgent} onSuccess={() => setEditAgent(null)} />
-          )}
+          {editAgent && <AgentForm agent={editAgent} onSuccess={() => setEditAgent(null)} />}
         </DialogContent>
       </Dialog>
     </div>
@@ -95,9 +100,7 @@ function AgentCard({ agent, onEdit }: { agent: AgentVO; onEdit: () => void }) {
         </div>
         <span
           className={`rounded-full px-2 py-0.5 text-xs ${
-            agent.status === "active"
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-600"
+            agent.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
           }`}
         >
           {agent.status === "active" ? "活跃" : "停用"}
@@ -150,32 +153,66 @@ function AgentForm({ agent, onSuccess }: { agent?: AgentVO; onSuccess: () => voi
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Agent ID" value={form.agentId} disabled={!!agent}
-          onChange={(v) => setForm((f) => ({ ...f, agentId: v }))} />
-        <Field label="名称" value={form.name}
-          onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
+        <Field
+          label="Agent ID"
+          value={form.agentId}
+          disabled={!!agent}
+          onChange={(v) => setForm((f) => ({ ...f, agentId: v }))}
+        />
+        <Field
+          label="名称"
+          value={form.name}
+          onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+        />
       </div>
-      <Field label="描述" value={form.description}
-        onChange={(v) => setForm((f) => ({ ...f, description: v }))} />
-      <Field label="系统提示词" value={form.systemPrompt} multiline
-        onChange={(v) => setForm((f) => ({ ...f, systemPrompt: v }))} />
+      <Field
+        label="描述"
+        value={form.description}
+        onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+      />
+      <Field
+        label="系统提示词"
+        value={form.systemPrompt}
+        multiline
+        onChange={(v) => setForm((f) => ({ ...f, systemPrompt: v }))}
+      />
       <div className="grid grid-cols-2 gap-3">
-        <Field label="模型 ID" value={form.modelId}
-          onChange={(v) => setForm((f) => ({ ...f, modelId: v }))} />
-        <Field label="能力（JSON 数组）" value={form.capabilities}
-          onChange={(v) => setForm((f) => ({ ...f, capabilities: v }))} />
+        <Field
+          label="模型 ID"
+          value={form.modelId}
+          onChange={(v) => setForm((f) => ({ ...f, modelId: v }))}
+        />
+        <Field
+          label="能力（JSON 数组）"
+          value={form.capabilities}
+          onChange={(v) => setForm((f) => ({ ...f, capabilities: v }))}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="工具列表（JSON 数组）" value={form.tools}
-          onChange={(v) => setForm((f) => ({ ...f, tools: v }))} />
-        <Field label="MCP 服务器（JSON 数组）" value={form.mcpServers}
-          onChange={(v) => setForm((f) => ({ ...f, mcpServers: v }))} />
+        <Field
+          label="工具列表（JSON 数组）"
+          value={form.tools}
+          onChange={(v) => setForm((f) => ({ ...f, tools: v }))}
+        />
+        <Field
+          label="MCP 服务器（JSON 数组）"
+          value={form.mcpServers}
+          onChange={(v) => setForm((f) => ({ ...f, mcpServers: v }))}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="最大迭代" value={String(form.maxIterations)} type="number"
-          onChange={(v) => setForm((f) => ({ ...f, maxIterations: Number(v) }))} />
-        <Field label="超时（秒）" value={String(form.timeoutSeconds)} type="number"
-          onChange={(v) => setForm((f) => ({ ...f, timeoutSeconds: Number(v) }))} />
+        <Field
+          label="最大迭代"
+          value={String(form.maxIterations)}
+          type="number"
+          onChange={(v) => setForm((f) => ({ ...f, maxIterations: Number(v) }))}
+        />
+        <Field
+          label="超时（秒）"
+          value={String(form.timeoutSeconds)}
+          type="number"
+          onChange={(v) => setForm((f) => ({ ...f, timeoutSeconds: Number(v) }))}
+        />
       </div>
       <div className="flex justify-end pt-2">
         <Button type="submit" disabled={mutation.isPending}>
@@ -187,7 +224,12 @@ function AgentForm({ agent, onSuccess }: { agent?: AgentVO; onSuccess: () => voi
 }
 
 function Field({
-  label, value, onChange, multiline, disabled, type = "text"
+  label,
+  value,
+  onChange,
+  multiline,
+  disabled,
+  type = "text"
 }: {
   label: string
   value: string
@@ -196,17 +238,30 @@ function Field({
   disabled?: boolean
   type?: string
 }) {
-  const cls = "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+  const cls =
+    "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
   return (
     <div>
-      <label className="mb-1 block text-muted-foreground text-xs">{label}</label>
-      {multiline ? (
-        <textarea className={`${cls} min-h-[80px] resize-y`} value={value}
-          onChange={(e) => onChange(e.target.value)} disabled={disabled} />
-      ) : (
-        <input className={cls} type={type} value={value}
-          onChange={(e) => onChange(e.target.value)} disabled={disabled} />
-      )}
+      {/* biome-ignore lint/a11y/noLabelWithoutControl: input/textarea inside label via conditional */}
+      <label className="mb-1 block text-muted-foreground text-xs">
+        {label}
+        {multiline ? (
+          <textarea
+            className={`${cls} min-h-[80px] resize-y`}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+          />
+        ) : (
+          <input
+            className={cls}
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+          />
+        )}
+      </label>
     </div>
   )
 }

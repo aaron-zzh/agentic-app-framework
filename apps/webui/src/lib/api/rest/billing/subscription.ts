@@ -36,8 +36,7 @@ export const subscriptionApi = {
     backendApi.get<string[]>("/subscriptions/ids", { params: { entityType } }),
 
   /** 创建或更新订阅 */
-  upsert: (data: UpsertSubscriptionReq) =>
-    backendApi.put<Subscription>("/subscriptions", data),
+  upsert: (data: UpsertSubscriptionReq) => backendApi.put<Subscription>("/subscriptions", data),
 
   /** 取消订阅 */
   remove: (entityType: string, entityId: string) =>

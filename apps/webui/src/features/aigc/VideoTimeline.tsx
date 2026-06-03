@@ -39,11 +39,7 @@ function SceneStatusIcon({ status }: { status: SceneStatus }) {
   }
 }
 
-export function VideoTimeline({
-  scenes = [],
-  activeSceneId,
-  onSceneClick
-}: VideoTimelineProps) {
+export function VideoTimeline({ scenes = [], activeSceneId, onSceneClick }: VideoTimelineProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="border-border/50 border-b px-4 py-3">
@@ -67,7 +63,9 @@ export function VideoTimeline({
                   <span className="font-medium text-foreground text-xs">
                     第{scene.index}幕 ({scene.startTime}-{scene.endTime}s)
                   </span>
-                  <span className="truncate text-muted-foreground text-xs">{scene.description}</span>
+                  <span className="truncate text-muted-foreground text-xs">
+                    {scene.description}
+                  </span>
                 </div>
               </button>
             ))

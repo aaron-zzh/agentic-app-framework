@@ -244,7 +244,12 @@ function FieldRenderer({
   const error = errors[field.name]?.message as string | undefined
 
   const displayValue = value != null ? String(value) : ""
-  const { ref: dragRef, listeners, attributes, isDragging } = useSemanticDraggable({
+  const {
+    ref: dragRef,
+    listeners,
+    attributes,
+    isDragging
+  } = useSemanticDraggable({
     id: `field-${field.name}`,
     item: {
       type: "field",

@@ -19,8 +19,13 @@ export function useCreditPackages() {
 
 export function useSubscribe() {
   return useMutation({
-    mutationFn: ({ planCode, billingCycle }: { planCode: string; billingCycle: "monthly" | "yearly" }) =>
-      billingPlansApi.subscribe(planCode, billingCycle)
+    mutationFn: ({
+      planCode,
+      billingCycle
+    }: {
+      planCode: string
+      billingCycle: "monthly" | "yearly"
+    }) => billingPlansApi.subscribe(planCode, billingCycle)
   })
 }
 

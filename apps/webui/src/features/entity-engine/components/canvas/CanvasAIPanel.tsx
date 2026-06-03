@@ -5,9 +5,9 @@
 
 "use client"
 
-import type { Editor } from "tldraw"
 import { LayoutGrid, Lightbulb, PenTool, Sparkles } from "lucide-react"
 import { useState } from "react"
+import type { Editor } from "tldraw"
 
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -92,7 +92,13 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
       <div className="flex items-center gap-1 rounded-lg border bg-background/95 p-1 shadow-lg backdrop-blur">
         {/* AI 生成图表 */}
         <Popover>
-          <PopoverTrigger render={<Button variant="ghost" size="sm" title="AI 生成图表" disabled={loading}><Sparkles className="h-4 w-4" /></Button>} />
+          <PopoverTrigger
+            render={
+              <Button variant="ghost" size="sm" title="AI 生成图表" disabled={loading}>
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            }
+          />
           <PopoverContent className="w-72" side="top">
             <div className="space-y-2">
               <p className="font-medium text-sm">AI 生成图表</p>

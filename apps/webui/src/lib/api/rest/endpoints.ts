@@ -15,18 +15,18 @@ export const restEndpoints = {
     chatSessionMessages: (sessionId: string) => `/system/chat/sessions/${sessionId}/messages`,
     chatMessages: "/system/chat/messages",
     generationHistory: "/aigc/history",
-    imageGeneration: "/api/aigc/generate-image",
-    saveGeneratedAsset: "/api/aigc/assets/save-from-generation",
+    imageGeneration: "/system/images/draw",
+    saveGeneratedAsset: "/aigc/assets/save-from-generation",
     model3d: "/aigc/model3d",
     model3dTextTo3d: "/aigc/model3d/text-to-3d",
     model3dImageTo3d: "/aigc/model3d/image-to-3d",
     model3dMultiImageTo3d: "/aigc/model3d/multi-image-to-3d",
     model3dTask: (taskId: string) => `/aigc/model3d/task/${taskId}`,
     taskBoard: (sessionId: string) => `/chat/sessions/${sessionId}/tasks`,
-    videoTextToVideo: "/api/aigc/video/text-to-video",
-    videoImageToVideo: "/api/aigc/video/image-to-video",
-    videoEdit: "/api/aigc/video/edit",
-    videoTask: (taskId: string) => `/api/aigc/video/task/${taskId}`
+    videoTextToVideo: "/aigc/video/text-to-video",
+    videoImageToVideo: "/aigc/video/image-to-video",
+    videoEdit: "/aigc/video/edit",
+    videoTask: (taskId: string) => `/aigc/video/task/${taskId}`
   },
   automation: {
     rules: "/automation/rules",
@@ -129,8 +129,8 @@ export const restEndpoints = {
     chatterConfig: "/context/chatter-config"
   },
   settings: {
-    apiKeys: "/v1/api-keys",
-    apiKey: (id: string) => `/v1/api-keys/${id}`
+    apiKeys: "/developer/api-keys",
+    apiKey: (id: string) => `/developer/api-keys/${id}`
   },
   user: {
     authLogin: "/auth/login",
@@ -156,7 +156,8 @@ export const restEndpoints = {
     organizations: "/organizations",
     organization: (id: string) => `/organizations/${id}`,
     organizationMembers: (orgId: string) => `/organizations/${orgId}/members`,
-    organizationMember: (orgId: string, userId: string) => `/organizations/${orgId}/members/${userId}`,
+    organizationMember: (orgId: string, userId: string) =>
+      `/organizations/${orgId}/members/${userId}`,
     profile: "/user/profile",
     profilePassword: "/user/profile/password"
   },

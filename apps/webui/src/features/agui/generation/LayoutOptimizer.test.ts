@@ -7,7 +7,6 @@ import type { FieldDef } from "@/lib/types/entity"
 import { LayoutOptimizer as optimizer } from "./LayoutOptimizer"
 
 describe("LayoutOptimizer", () => {
-
   const mockFields: FieldDef[] = [
     { name: "id", label: "ID", type: "number", required: true },
     { name: "name", label: "名称", type: "string", required: true },

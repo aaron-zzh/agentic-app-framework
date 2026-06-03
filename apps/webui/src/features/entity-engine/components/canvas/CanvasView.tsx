@@ -6,8 +6,8 @@
 
 "use client"
 
-import { type Editor, Tldraw } from "tldraw"
 import { useCallback, useState } from "react"
+import { type Editor, Tldraw } from "tldraw"
 
 import type { EntityDef } from "@/lib/types/entity"
 import { CanvasAIPanel } from "./CanvasAIPanel"

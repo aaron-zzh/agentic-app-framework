@@ -11,8 +11,8 @@ import type {
   KnowledgeDocument,
   SearchResponse
 } from "@/lib/types/knowledge"
-import type { ListParams } from "../entity/crud"
 import { buildApiUrl } from "../../config"
+import type { ListParams } from "../entity/crud"
 import { fetchList, request } from "../entity/crud"
 
 const API_PATH = "/knowledge-bases"

@@ -27,15 +27,16 @@ export function Subtable({ fields, value = [], onChange, disabled, summaryFields
   // 为缺少 _key 的行分配稳定 key（避免 index 作为 React key）
   const keyMapRef = useRef(new WeakMap<Record<string, unknown>, string>())
   const getRowKey = useMemo(
-    () => (row: Record<string, unknown>): string => {
-      if (typeof row._key === "string") return row._key
-      let key = keyMapRef.current.get(row)
-      if (!key) {
-        key = crypto.randomUUID()
-        keyMapRef.current.set(row, key)
-      }
-      return key
-    },
+    () =>
+      (row: Record<string, unknown>): string => {
+        if (typeof row._key === "string") return row._key
+        let key = keyMapRef.current.get(row)
+        if (!key) {
+          key = crypto.randomUUID()
+          keyMapRef.current.set(row, key)
+        }
+        return key
+      },
     []
   )
 

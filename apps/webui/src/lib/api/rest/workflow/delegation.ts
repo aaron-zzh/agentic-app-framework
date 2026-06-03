@@ -38,8 +38,7 @@ export const delegationApi = {
   list: () => backendApi.get<DelegationVO[]>("/delegations"),
 
   /** 创建委托 */
-  create: (data: DelegationCreateReq) =>
-    backendApi.post<DelegationVO>("/delegations", data),
+  create: (data: DelegationCreateReq) => backendApi.post<DelegationVO>("/delegations", data),
 
   /** 取消委托 */
   cancel: (id: string) => backendApi.delete<void>(`/delegations/${id}`)

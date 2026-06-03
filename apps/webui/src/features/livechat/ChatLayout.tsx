@@ -14,7 +14,7 @@ import {
   ThreadPrimitive,
   useAssistantRuntime
 } from "@assistant-ui/react"
-import { PlusIcon, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { PanelLeftClose, PanelLeftOpen, PlusIcon } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
@@ -22,10 +22,6 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useResponsive } from "@/lib/hooks/use-responsive"
 import { useChatSessions, useCreateSession } from "@/lib/queries/use-chat"
 import { AgentRunStatus } from "./components/AgentRunStatus"
-
-interface ChatLayoutProps {
-  drawer?: boolean
-}
 
 /** 会话列表侧边栏 */
 function SessionList() {
@@ -38,12 +34,12 @@ function SessionList() {
   const handleNew = useCallback(async () => {
     await createSession({ type: "ai" })
     // 新建会话后 runtime 切换到新线程
-    runtime.switchToNewThread()
+    runtime.threads.switchToNewThread()
   }, [createSession, runtime])
 
   const handleSwitch = useCallback(
     (sessionId: string) => {
-      runtime.switchToThread(sessionId)
+      runtime.threads.switchToThread(sessionId)
     },
     [runtime]
   )
@@ -51,7 +47,12 @@ function SessionList() {
   return (
     <div className="flex h-full flex-col">
       <div className="p-2">
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleNew}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full justify-start gap-2"
+          onClick={handleNew}
+        >
           <PlusIcon className="size-4" />
           新建对话
         </Button>

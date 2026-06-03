@@ -12,6 +12,22 @@ public final class LicenseTestSupport {
     }
 
     public static void activate(String userId, String tier, Instant expiresAt) {
-        License.get().activate(userId, tier, expiresAt);
+        License.get()
+                .activate(
+                        userId,
+                        tier,
+                        expiresAt,
+                        false,
+                        new LicenseIdentityService(new LicenseIdentityProperties()) {
+                            @Override
+                            public boolean isValid(String uid) {
+                                return true;
+                            }
+
+                            @Override
+                            public long couplingSeed(String uid) {
+                                return uid == null ? 0L : (long) uid.hashCode();
+                            }
+                        });
     }
 }

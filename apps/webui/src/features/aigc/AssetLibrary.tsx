@@ -5,13 +5,7 @@
 
 "use client"
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Layers,
-  Search,
-  X
-} from "lucide-react"
+import { ChevronLeft, ChevronRight, Layers, Search, X } from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -158,10 +152,18 @@ export function AssetLibrary() {
           }}
         >
           <TabsList className="h-8">
-            <TabsTrigger value="ALL" className="text-xs">全部</TabsTrigger>
-            <TabsTrigger value="IMAGE" className="text-xs">图片</TabsTrigger>
-            <TabsTrigger value="VIDEO" className="text-xs">视频</TabsTrigger>
-            <TabsTrigger value="MODEL_3D" className="text-xs">3D 模型</TabsTrigger>
+            <TabsTrigger value="ALL" className="text-xs">
+              全部
+            </TabsTrigger>
+            <TabsTrigger value="IMAGE" className="text-xs">
+              图片
+            </TabsTrigger>
+            <TabsTrigger value="VIDEO" className="text-xs">
+              视频
+            </TabsTrigger>
+            <TabsTrigger value="MODEL_3D" className="text-xs">
+              3D 模型
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -196,7 +198,10 @@ export function AssetLibrary() {
               <CategoryTree
                 categories={categories}
                 selectedId={categoryId}
-                onSelect={(id) => { setCategoryId(id); setPage(0) }}
+                onSelect={(id) => {
+                  setCategoryId(id)
+                  setPage(0)
+                }}
               />
             ) : (
               <div className="flex flex-col gap-1">
@@ -227,7 +232,9 @@ export function AssetLibrary() {
                       }
                       onClick={() => {
                         setSelectedTags((prev) =>
-                          prev.includes(tag.id) ? prev.filter((t) => t !== tag.id) : [...prev, tag.id]
+                          prev.includes(tag.id)
+                            ? prev.filter((t) => t !== tag.id)
+                            : [...prev, tag.id]
                         )
                         setPage(0)
                       }}
@@ -267,13 +274,23 @@ export function AssetLibrary() {
                 {/* 分页 */}
                 {data.total > 20 && (
                   <div className="mt-4 flex items-center justify-center gap-2">
-                    <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 0}
+                      onClick={() => setPage((p) => p - 1)}
+                    >
                       上一页
                     </Button>
                     <span className="text-muted-foreground text-sm">
                       {page + 1} / {Math.ceil(data.total / 20)}
                     </span>
-                    <Button variant="outline" size="sm" disabled={(page + 1) * 20 >= data.total} onClick={() => setPage((p) => p + 1)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={(page + 1) * 20 >= data.total}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
                       下一页
                     </Button>
                   </div>
@@ -293,19 +310,38 @@ export function AssetLibrary() {
       <AssetDetailDialog
         assetId={detailId}
         open={detailId !== null}
-        onOpenChange={(open) => { if (!open) setDetailId(null) }}
+        onOpenChange={(open) => {
+          if (!open) setDetailId(null)
+        }}
       />
 
       {/* 删除确认弹窗 */}
-      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>确认删除</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">确定删除该素材？此操作不可撤销。</p>
+          <p className="text-muted-foreground text-sm">确定删除该素材？此操作不可撤销。</p>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>取消</Button>
-            <Button variant="destructive" onClick={() => { if (deleteTarget !== null) { deleteMutation.mutate(deleteTarget); setDeleteTarget(null) } }}>删除</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteTarget !== null) {
+                  deleteMutation.mutate(deleteTarget)
+                  setDeleteTarget(null)
+                }
+              }}
+            >
+              删除
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

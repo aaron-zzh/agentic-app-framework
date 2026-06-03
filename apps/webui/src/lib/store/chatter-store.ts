@@ -11,8 +11,8 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { request } from "@/lib/api/rest/entity/crud"
 import type { ChatterPreset } from "@/features/chatter/types"
+import { request } from "@/lib/api/rest/entity/crud"
 
 export interface ChatterPageConfig {
   preset: ChatterPreset
@@ -95,7 +95,9 @@ async function syncToRemote(pageId: string, config: ChatterPageConfig): Promise<
 /** 从后端加载配置（本地无缓存时调用） */
 export async function loadRemoteConfig(pageId: string): Promise<ChatterPageConfig | null> {
   try {
-    return await request<ChatterPageConfig | null>(`/context/chatter-config?pageId=${encodeURIComponent(pageId)}`)
+    return await request<ChatterPageConfig | null>(
+      `/context/chatter-config?pageId=${encodeURIComponent(pageId)}`
+    )
   } catch {
     return null
   }

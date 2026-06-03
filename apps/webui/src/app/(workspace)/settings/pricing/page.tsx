@@ -1,14 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { Check } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { notify } from "@/lib/notification"
-import { useSubscriptionPlans, useSubscribe } from "@/lib/queries/use-billing-plans"
-import { useMemberFaq } from "@/lib/queries/use-system-config"
 import type { SubscriptionPlanVO } from "@/lib/api/rest/billing/plans"
+import { notify } from "@/lib/notification"
+import { useSubscribe, useSubscriptionPlans } from "@/lib/queries/use-billing-plans"
+import { useMemberFaq } from "@/lib/queries/use-system-config"
 
 /** 重置周期标签 */
 const CYCLE_LABEL: Record<string, string> = {
@@ -50,9 +50,8 @@ function PlanCard({
 }) {
   const price = billingCycle === "yearly" ? plan.yearlyPrice : plan.price
   const isFree = plan.price === 0
-  const yearlyDiscount = plan.price > 0
-    ? Math.round((1 - plan.yearlyPrice / (plan.price * 12)) * 100)
-    : 0
+  const yearlyDiscount =
+    plan.price > 0 ? Math.round((1 - plan.yearlyPrice / (plan.price * 12)) * 100) : 0
 
   return (
     <div
@@ -63,7 +62,7 @@ function PlanCard({
     >
       {/* 折扣徽标 */}
       {billingCycle === "yearly" && yearlyDiscount > 0 && (
-        <span className="absolute -top-3 right-4 rounded-full bg-amber-500 px-3 py-0.5 text-xs font-semibold text-white">
+        <span className="absolute -top-3 right-4 rounded-full bg-amber-500 px-3 py-0.5 font-semibold text-white text-xs">
           积分 {(1 - yearlyDiscount / 100).toFixed(1)}折
         </span>
       )}
@@ -119,7 +118,7 @@ function PlanCard({
           {plan.entitlements.map((ent) => (
             <div key={ent.code} className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                <Check className="h-3.5 w-3.5 shrink-0 text-green-500" />
                 {ent.name}
               </span>
               <span className="font-medium text-xs">
@@ -168,7 +167,7 @@ export default function PricingPage() {
           <button
             type="button"
             className={[
-              "rounded-full px-5 py-1.5 text-sm font-medium transition-colors",
+              "rounded-full px-5 py-1.5 font-medium text-sm transition-colors",
               billingCycle === "monthly"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground"
@@ -180,7 +179,7 @@ export default function PricingPage() {
           <button
             type="button"
             className={[
-              "relative rounded-full px-5 py-1.5 text-sm font-medium transition-colors",
+              "relative rounded-full px-5 py-1.5 font-medium text-sm transition-colors",
               billingCycle === "yearly"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground"
@@ -226,7 +225,7 @@ export default function PricingPage() {
             <div key={`faq-${i}`} className="rounded-xl border">
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-medium"
+                className="flex w-full items-center justify-between px-5 py-4 text-left font-medium text-sm"
                 onClick={() => setOpenFaq(openFaq === i ? null : i)}
               >
                 <span>

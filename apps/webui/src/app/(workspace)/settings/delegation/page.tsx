@@ -35,7 +35,11 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
-import type { DelegationCreateReq, DelegationScope, DelegationStatus } from "@/lib/api/rest/workflow/delegation"
+import type {
+  DelegationCreateReq,
+  DelegationScope,
+  DelegationStatus
+} from "@/lib/api/rest/workflow/delegation"
 import { notify } from "@/lib/notification"
 import {
   useCancelDelegation,

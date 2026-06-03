@@ -10,8 +10,8 @@ import { usePathname } from "next/navigation"
 import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useUserMenus } from "@/lib/queries/use-menus"
 import { useLicenseStatus } from "@/lib/queries/use-license-status"
+import { useUserMenus } from "@/lib/queries/use-menus"
 import { cn } from "@/lib/utils/cn"
 import {
   buildNavConfig,
@@ -61,18 +61,16 @@ function MobileSidebarContent() {
       <div className="mb-4 px-4">
         <Brand href="/dashboard" />
       </div>
-      {navConfig.map(
-        (group: NavGroup) => (
-          <div key={group.subheader} className="mb-3 px-2">
-            <p className="mb-1 px-2 font-medium text-muted-foreground text-xs uppercase">
-              {group.subheader}
-            </p>
-            {group.items.map((item: NavItem) => (
-              <MobileNavItem key={item.path} item={item} pathname={pathname} />
-            ))}
-          </div>
-        )
-      )}
+      {navConfig.map((group: NavGroup) => (
+        <div key={group.subheader} className="mb-3 px-2">
+          <p className="mb-1 px-2 font-medium text-muted-foreground text-xs uppercase">
+            {group.subheader}
+          </p>
+          {group.items.map((item: NavItem) => (
+            <MobileNavItem key={item.path} item={item} pathname={pathname} />
+          ))}
+        </div>
+      ))}
     </nav>
   )
 }

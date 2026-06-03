@@ -28,7 +28,10 @@ export default function CiStatusPage() {
 
   const triggerMutation = useMutation({
     mutationFn: (data: { workflow: string; ref: string }) =>
-      request("/autodev/git/ci/trigger", { method: "POST", body: JSON.stringify({ ...data, inputs: {} }) }),
+      request("/autodev/git/ci/trigger", {
+        method: "POST",
+        body: JSON.stringify({ ...data, inputs: {} })
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ci-builds"] })
   })
 
@@ -81,7 +84,8 @@ export default function CiStatusPage() {
 
 function BuildCard({ build }: { build: BuildStatus }) {
   const icon = (() => {
-    if (build.status === "in_progress") return <Loader2 className="size-4 animate-spin text-blue-500" />
+    if (build.status === "in_progress")
+      return <Loader2 className="size-4 animate-spin text-blue-500" />
     if (build.conclusion === "success") return <CheckCircle2 className="size-4 text-green-500" />
     if (build.conclusion === "failure") return <XCircle className="size-4 text-red-500" />
     return <Circle className="size-4 text-muted-foreground" />
@@ -98,7 +102,8 @@ function BuildCard({ build }: { build: BuildStatus }) {
       <div className="flex-1">
         <span className="font-medium text-sm">Run #{build.runId}</span>
         <span className="ml-2 text-muted-foreground text-xs">
-          {build.status}{build.conclusion ? ` · ${build.conclusion}` : ""}
+          {build.status}
+          {build.conclusion ? ` · ${build.conclusion}` : ""}
         </span>
       </div>
       <span className="text-muted-foreground text-xs">{build.updatedAt?.slice(0, 16)}</span>

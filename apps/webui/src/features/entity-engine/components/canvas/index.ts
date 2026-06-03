@@ -1,2 +1,2 @@
-export { CanvasView } from "./CanvasView"
 export type { CanvasViewProps } from "./CanvasView"
+export { CanvasView } from "./CanvasView"

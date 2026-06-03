@@ -27,10 +27,8 @@ export const trashApi = {
     backendApi.get<PageResult<TrashItemVO>>("/trash", { params }),
 
   /** 恢复记录 */
-  restore: (ids: string[]) =>
-    backendApi.post<void>("/trash/restore", { ids }),
+  restore: (ids: string[]) => backendApi.post<void>("/trash/restore", { ids }),
 
   /** 彻底删除 */
-  purge: (ids: string[]) =>
-    backendApi.delete<void>("/trash/purge", { data: { ids } })
+  purge: (ids: string[]) => backendApi.delete<void>("/trash/purge", { data: { ids } })
 }

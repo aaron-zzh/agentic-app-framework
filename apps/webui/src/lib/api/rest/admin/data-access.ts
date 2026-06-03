@@ -42,8 +42,7 @@ export const dataAccessApi = {
   list: () => backendApi.get<DataAccessRule[]>(PATH),
 
   /** 创建规则 */
-  create: (data: DataAccessRuleInput) =>
-    backendApi.post<DataAccessRule>(PATH, data),
+  create: (data: DataAccessRuleInput) => backendApi.post<DataAccessRule>(PATH, data),
 
   /** 更新规则 */
   update: (id: string, data: DataAccessRuleInput) =>

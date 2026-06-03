@@ -1,8 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-
-import { ContextChip } from "./ContextChip"
 import type { ChatterDropItem } from "../types"
+import { ContextChip } from "./ContextChip"
 
 describe("ContextChip", () => {
   const baseItem: ChatterDropItem = { type: "doc", title: "测试文档" }

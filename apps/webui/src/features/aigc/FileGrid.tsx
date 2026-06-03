@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "./store"
@@ -42,7 +42,11 @@ function DraggableAssetCard({ asset }: { asset: MediaAssetVO }) {
     >
       <div className="aspect-square bg-muted">
         {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
-        <img src={asset.thumbnailUrl ?? asset.url} alt={asset.name} className="size-full object-cover" />
+        <img
+          src={asset.thumbnailUrl ?? asset.url}
+          alt={asset.name}
+          className="size-full object-cover"
+        />
       </div>
       <div className="px-2 py-1.5">
         <span className="block truncate text-foreground text-xs">{asset.name}</span>

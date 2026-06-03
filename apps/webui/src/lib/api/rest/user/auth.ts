@@ -13,6 +13,7 @@ export interface LoginResult {
 
 export interface UserInfo {
   id: string
+  username: string
   email: string
   nickname: string
   avatar?: string
