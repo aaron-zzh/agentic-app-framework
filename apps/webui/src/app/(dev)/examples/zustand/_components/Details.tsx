@@ -9,16 +9,13 @@ export default function Details() {
       <div>
         <a
           className="absolute right-10 bottom-10"
-          href="https://github.com/pmndrs/zustand/tree/main/examples/demo"
+          href="https://github.com/aaron-zzh/agentic-app-framework/tree/main/"
         >
           {"<Source />"}
         </a>
-        <a className="absolute bottom-10 left-10" href="https://www.instagram.com/tina.henschel/">
-          Illustrations @ Tina Henschel
-        </a>
       </div>
       <span className="absolute top-10 left-10 inline-block font-bold text-5xl text-white uppercase leading-none max-md:text-base">
-        Zustand
+        Agentic App Framework
       </span>
     </>
   )

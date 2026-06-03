@@ -63,9 +63,9 @@ public class DynamicChatClientFactory {
                 "构建 ChatClient: modelId={}, provider={}, type={}",
                 modelId,
                 model.getProvider(),
-                model.getProviderType());
+                model.effectiveProviderType());
         var chatModel =
-                switch (model.getProviderType()) {
+                switch (model.effectiveProviderType()) {
                     case AiModel.PROVIDER_TYPE_OPENAI_COMPAT -> buildOpenAiCompat(model);
                     case AiModel.PROVIDER_TYPE_ANTHROPIC, AiModel.PROVIDER_TYPE_OLLAMA ->
                             buildFromContainer(model);
@@ -78,8 +78,8 @@ public class DynamicChatClientFactory {
         // Spring AI 2.0.0-M6 使用官方 OpenAI Java SDK，通过 OpenAiSetup 构建 client
         var syncClient =
                 OpenAiSetup.setupSyncClient(
-                        model.getBaseUrl(),
-                        model.getApiKey() != null ? model.getApiKey() : "",
+                        model.effectiveBaseUrl(),
+                        model.effectiveApiKey() != null ? model.effectiveApiKey() : "",
                         null,
                         null,
                         null,
@@ -93,8 +93,8 @@ public class DynamicChatClientFactory {
                         null);
         var asyncClient =
                 OpenAiSetup.setupAsyncClient(
-                        model.getBaseUrl(),
-                        model.getApiKey() != null ? model.getApiKey() : "",
+                        model.effectiveBaseUrl(),
+                        model.effectiveApiKey() != null ? model.effectiveApiKey() : "",
                         null,
                         null,
                         null,
@@ -126,7 +126,7 @@ public class DynamicChatClientFactory {
     @SuppressWarnings("unchecked")
     private ChatModel buildFromContainer(AiModel model) {
         var className =
-                switch (model.getProviderType()) {
+                switch (model.effectiveProviderType()) {
                     case AiModel.PROVIDER_TYPE_ANTHROPIC ->
                             "org.springframework.ai.anthropic.AnthropicChatModel";
                     case AiModel.PROVIDER_TYPE_OLLAMA ->

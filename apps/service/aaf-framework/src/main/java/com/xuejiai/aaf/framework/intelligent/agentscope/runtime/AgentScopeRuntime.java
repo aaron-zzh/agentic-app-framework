@@ -314,8 +314,8 @@ public class AgentScopeRuntime implements AgentRuntime {
     private OpenAIChatModel buildFromDb(AiModel model) {
         return OpenAIChatModel.builder()
                 .modelName(model.getModelName())
-                .apiKey(model.getApiKey() != null ? model.getApiKey() : "")
-                .baseUrl(model.getBaseUrl())
+                .apiKey(model.effectiveApiKey() != null ? model.effectiveApiKey() : "")
+                .baseUrl(model.effectiveBaseUrl())
                 .build();
     }
 }

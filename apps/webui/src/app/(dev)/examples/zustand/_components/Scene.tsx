@@ -40,10 +40,9 @@ import "@/lib/materials/layerMaterial"
  * 创建多层视差效果的森林场景，包含背景、星空、地面、熊、树叶等层次
  */
 function Experience() {
-  // 计算不同宽高比的缩放比例
-  // scaleN: 窄屏比例 (1600x1000)，scaleW: 宽屏比例 (2200x1000)
+  // 按资源真实宽高比计算缩放，避免 1600x1000 的图片被拉伸到 2200x1000。
   const scaleN = useAspect(1600, 1000, 1.05)
-  const scaleW = useAspect(2200, 1000, 1.05)
+  const scaleW = useAspect(1600, 1000, 1.05)
 
   // 批量加载所有纹理资源，提高性能
   const textures = useTexture([
@@ -236,6 +235,7 @@ export default function Scene() {
     <ErrorBoundary FallbackComponent={FallbackScene}>
       <Canvas
         orthographic // 使用正交投影，避免透视变形
+        dpr={[1, 2]} // 按设备像素比渲染，限制最高 2 倍以兼顾清晰度和性能
         gl={{
           antialias: false // 关闭抗锯齿以提高性能
         }}

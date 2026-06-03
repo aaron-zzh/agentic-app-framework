@@ -113,8 +113,7 @@ public class ContentGenerationTool {
         var service = contentSafetyService.getIfAvailable();
         if (service == null) {
             // 无安全服务时默认放行
-            return new com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult(
-                    true, null, null, null);
+            return com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult.pass();
         }
         return service.reviewBeforeGeneration(
                 new ContentSafetyRequest(

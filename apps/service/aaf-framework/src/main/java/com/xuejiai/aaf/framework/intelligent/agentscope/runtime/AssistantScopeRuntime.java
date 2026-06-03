@@ -247,8 +247,8 @@ public class AssistantScopeRuntime implements AssistantRuntime {
         if (dbModel != null) {
             return OpenAIChatModel.builder()
                     .modelName(dbModel.getModelName())
-                    .apiKey(dbModel.getApiKey() != null ? dbModel.getApiKey() : "")
-                    .baseUrl(dbModel.getBaseUrl())
+                    .apiKey(dbModel.effectiveApiKey() != null ? dbModel.effectiveApiKey() : "")
+                    .baseUrl(dbModel.effectiveBaseUrl())
                     .build();
         }
         log.warn("模型 [{}] 不可用，降级直接调用", resolvedModelId);

@@ -192,4 +192,32 @@ public class AiModel extends BaseEntity {
     public boolean hasCapability(String capability) {
         return capabilities != null && capabilities.contains(capability);
     }
+
+    /** 实际 API Base URL：模型级覆盖优先，其次使用供应商级配置。 */
+    public String effectiveBaseUrl() {
+        if (hasText(baseUrl)) {
+            return baseUrl;
+        }
+        return providerConfig != null ? providerConfig.getBaseUrl() : null;
+    }
+
+    /** 实际 API Key：模型级覆盖优先，其次使用供应商级配置。 */
+    public String effectiveApiKey() {
+        if (hasText(apiKey)) {
+            return apiKey;
+        }
+        return providerConfig != null ? providerConfig.getApiKey() : null;
+    }
+
+    /** 实际协议类型：模型级覆盖优先，其次使用供应商级配置。 */
+    public String effectiveProviderType() {
+        if (hasText(providerType)) {
+            return providerType;
+        }
+        return providerConfig != null ? providerConfig.getProviderType() : PROVIDER_TYPE_OPENAI_COMPAT;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
 }

@@ -61,8 +61,8 @@ public class DashScopeRerankService implements RerankService {
             var aiModel = modelRepository.findByModelIdAndEnabledTrue(modelId).orElse(null);
             var modelName = aiModel != null ? aiModel.getModelName() : modelId;
             var key =
-                    aiModel != null && aiModel.getApiKey() != null
-                            ? aiModel.getApiKey()
+                    aiModel != null && aiModel.effectiveApiKey() != null
+                            ? aiModel.effectiveApiKey()
                             : fallbackApiKey;
             var body =
                     objectMapper.writeValueAsString(

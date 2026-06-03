@@ -17,9 +17,16 @@ import org.springframework.data.repository.query.Param;
 /** AI 模型数据访问。 */
 public interface AiModelRepository extends JpaRepository<AiModel, Long> {
 
-    Optional<AiModel> findByModelId(String modelId);
+    @Query("SELECT m FROM AiModel m LEFT JOIN FETCH m.providerConfig WHERE m.modelId = :modelId")
+    Optional<AiModel> findByModelId(@Param("modelId") String modelId);
 
-    Optional<AiModel> findByModelIdAndEnabledTrue(String modelId);
+    @Query(
+            """
+            SELECT m FROM AiModel m
+            LEFT JOIN FETCH m.providerConfig
+            WHERE m.modelId = :modelId AND m.enabled = TRUE
+            """)
+    Optional<AiModel> findByModelIdAndEnabledTrue(@Param("modelId") String modelId);
 
     List<AiModel> findByEnabledTrueOrderBySortOrder();
 
