@@ -25,6 +25,7 @@ import { PricingSection } from "./PricingSection"
 import { ShowcaseSection } from "./ShowcaseSection"
 import { StatsSection } from "./StatsSection"
 import { TestimonialsSection } from "./TestimonialsSection"
+import { ZustandThreeSection } from "./ZustandThreeSection/ZustandThreeSection"
 
 // ─── 注册所有预定义 Section ──────────────────────────────────────────────────
 
@@ -62,6 +63,12 @@ registerSectionType("showcase", {
   component: ShowcaseSection as ComponentType<SectionComponentProps>,
   label: "产品展示",
   icon: "Monitor"
+})
+
+registerSectionType("zustand-three", {
+  component: ZustandThreeSection as ComponentType<SectionComponentProps>,
+  label: "Zustand + Three.js",
+  icon: "Boxes"
 })
 
 registerSectionType("stats", {
@@ -107,3 +114,4 @@ export { PricingSection } from "./PricingSection"
 export { ShowcaseSection } from "./ShowcaseSection"
 export { StatsSection } from "./StatsSection"
 export { TestimonialsSection } from "./TestimonialsSection"
+export { ZustandThreeSection } from "./ZustandThreeSection/ZustandThreeSection"

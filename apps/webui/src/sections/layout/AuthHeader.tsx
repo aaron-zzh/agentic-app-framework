@@ -16,13 +16,13 @@ export function AuthHeader() {
   return (
     <header className="absolute top-0 z-20 flex h-16 w-full items-center justify-between px-6">
       <Link href="/">
-        <Brand size="sm" className="text-white" />
+        <Brand size="sm" className="text-foreground" />
       </Link>
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="text-white hover:bg-white/10"
+        className="text-foreground hover:bg-accent"
         aria-label="切换主题"
       >
         <span className="dark:hidden">🌙</span>

@@ -31,9 +31,14 @@ export const aafLandingPageDef: PageDef = {
           "从对话到产品，一句话创建企业级应用。多智能体协作 · 配置驱动视图 · 工作流引擎 · 知识库管理 · 无代码开发。",
         buttons: [
           { label: "快速开始", href: "/docs/getting-started", variant: "default" },
-          { label: "GitHub", href: "https://github.com/xuejiai/aaf", variant: "outline" }
+          {
+            label: "GitHub",
+            href: "https://github.com/aaron-zzh/agentic-app-framework",
+            variant: "outline"
+          }
         ],
-        backgroundType: "gradient"
+        backgroundType: "postprocessing",
+        backgroundVariant: "spheres"
       },
       style: { fullWidth: true, animation: "fadeIn", padding: "none" }
     },
@@ -103,21 +108,29 @@ export const aafLandingPageDef: PageDef = {
           {
             label: "结构化视图",
             description: "配置驱动的列表、表单、看板视图，支持行内编辑、批量操作、多视图切换。",
-            image: "/images/showcase-structured.png"
+            image: "/assets/demos/1.webp"
           },
           {
             label: "对话式交互",
             description: "自然语言驱动 UI 生成，Agent 实时协作，Tool Call 可视化。",
-            image: "/images/showcase-chat.png"
+            image: "/assets/demos/2.webp"
           },
           {
             label: "工作流编排",
             description: "拖拽式流程设计器，支持审批、AI 任务、条件分支、并行网关。",
-            image: "/images/showcase-workflow.png"
+            image: "/assets/demos/3.webp"
           }
         ]
       },
       style: { animation: "fadeIn", backgroundColor: "var(--color-muted)" }
+    },
+
+    // ─── 状态管理 + Three.js ────────────────────────────────────────────────
+    {
+      id: "zustand-three",
+      type: "zustand-three",
+      props: {},
+      style: { fullWidth: true, animation: "fadeIn", padding: "none" }
     },
 
     // ─── 数据统计 ────────────────────────────────────────────────────────────

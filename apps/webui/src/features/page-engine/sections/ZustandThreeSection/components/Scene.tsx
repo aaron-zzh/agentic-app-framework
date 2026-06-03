@@ -182,16 +182,30 @@ function Effects() {
 
   useLayoutEffect(() => {
     if (!ref.current) return
-    // biome-ignore lint/suspicious/noExplicitAny: 访问 drei EffectComposer 内部属性
-    const maskMaterial = (ref.current as any).maskPass?.getFullscreenMaterial()
+    const maskMaterial = (ref.current as unknown as FocusMaskEffect).maskPass?.getFullscreenMaterial?.()
     if (maskMaterial) maskMaterial.maskFunction = MaskFunction.MULTIPLY_RGB_SET_ALPHA
   })
   return (
     <EffectComposer enableNormalPass={false} multisampling={0}>
-      <DepthOfField ref={ref} target={[0, 0, 30]} worldFocusRange={20} bokehScale={8} focalLength={0.1} width={1024} />
+      <DepthOfField
+        ref={ref}
+        target={[0, 0, 30]}
+        worldFocusRange={20}
+        bokehScale={8}
+        focalLength={0.1}
+        width={1024}
+      />
       <Vignette>{null}</Vignette>
     </EffectComposer>
   )
+}
+
+interface FocusMaskEffect {
+  maskPass?: {
+    getFullscreenMaterial?: () => {
+      maskFunction?: MaskFunction
+    }
+  }
 }
 
 /**
@@ -229,7 +243,11 @@ function FallbackScene() {
  * 主场景组件
  * 整合 3D Canvas、错误边界、Suspense 等功能
  */
-export default function Scene() {
+interface SceneProps {
+  eventSourceId: string
+}
+
+export default function Scene({ eventSourceId }: SceneProps) {
   return (
     <ErrorBoundary FallbackComponent={FallbackScene}>
       <Canvas
@@ -246,7 +264,10 @@ export default function Scene() {
         }}
         onCreated={(state) => {
           // 将事件连接到根元素，确保鼠标交互正常工作
-          state.events.connect?.(document.getElementById("root"))
+          const eventSource = document.getElementById(eventSourceId)
+          if (eventSource) {
+            state.events.connect?.(eventSource)
+          }
         }}
         fallback={<FallbackScene />}
       >

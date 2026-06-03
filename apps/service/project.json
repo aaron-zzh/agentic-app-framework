@@ -4,33 +4,33 @@
   "sourceRoot": "apps/service/aaf-api/src",
   "targets": {
     "build": {
-      "command": "mvnw package -DskipTests",
+      "command": "node ../../tools/scripts/mvnw.mjs package -DskipTests",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
       "outputs": ["{projectRoot}/**/target"]
     },
     "serve": {
-      "command": "mvnw install -DskipTests -q && mvnw spring-boot:run -f aaf-api/pom.xml",
+      "command": "node ../../tools/scripts/mvnw.mjs install -DskipTests -q && node ../../tools/scripts/mvnw.mjs spring-boot:run -f aaf-api/pom.xml",
       "options": { "cwd": "apps/service" },
       "continuous": true
     },
     "lint": {
-      "command": "mvnw com.diffplug.spotless:spotless-maven-plugin:check",
+      "command": "node ../../tools/scripts/mvnw.mjs com.diffplug.spotless:spotless-maven-plugin:check",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*.java", "{projectRoot}/**/pom.xml"]
     },
     "format": {
-      "command": "mvnw com.diffplug.spotless:spotless-maven-plugin:apply",
+      "command": "node ../../tools/scripts/mvnw.mjs com.diffplug.spotless:spotless-maven-plugin:apply",
       "options": { "cwd": "apps/service" }
     },
     "test": {
-      "command": "mvnw test",
+      "command": "node ../../tools/scripts/mvnw.mjs test",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
       "outputs": ["{projectRoot}/**/target/surefire-reports"]
     },
     "acceptance": {
-      "command": "mvnw verify -DskipITs=false",
+      "command": "node ../../tools/scripts/mvnw.mjs verify -DskipITs=false",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
       "outputs": ["{projectRoot}/**/target/failsafe-reports"]
@@ -39,7 +39,7 @@
       "executor": "nx:noop"
     },
     "clean": {
-      "command": "mvnw clean",
+      "command": "node ../../tools/scripts/mvnw.mjs clean",
       "options": { "cwd": "apps/service" }
     }
   }

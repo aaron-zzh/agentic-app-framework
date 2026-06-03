@@ -1,7 +1,7 @@
 export default function Details() {
   return (
     <>
-      <nav className="fixed top-20 right-10 left-10 flex items-center justify-end gap-4">
+      <nav className="absolute top-20 right-10 left-10 flex items-center justify-end gap-4">
         <a className="relative flex-none" href="https://github.com/aaron-zzh/agentic-app-framework">
           Github
         </a>

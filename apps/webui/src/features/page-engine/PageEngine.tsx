@@ -61,10 +61,9 @@ class SectionErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
 function buildSectionStyle(style?: SectionStyle): string {
   const parts: string[] = []
-  if (style?.fullWidth) {
-    parts.push("w-full")
-  } else {
-    parts.push("mx-auto w-full")
+  parts.push("w-full")
+  if (style?.maxWidth && !style.fullWidth) {
+    parts.push("mx-auto")
   }
   if (style?.className) {
     parts.push(style.className)

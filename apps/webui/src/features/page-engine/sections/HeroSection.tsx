@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils/cn"
 
 import type { SectionComponentProps } from "../types"
+import {
+  type HeroBackgroundVariant,
+  HeroPostprocessingBackground
+} from "./HeroPostprocessingBackground"
 
 interface CTAButton {
   label: string
@@ -22,7 +26,8 @@ interface HeroProps {
   title?: string
   subtitle?: string
   buttons?: CTAButton[]
-  backgroundType?: "gradient" | "image" | "plain"
+  backgroundType?: "gradient" | "image" | "plain" | "postprocessing"
+  backgroundVariant?: HeroBackgroundVariant
   backgroundImage?: string
   align?: "center" | "left"
 }
@@ -34,12 +39,13 @@ export function HeroSection({ data }: SectionComponentProps) {
     subtitle,
     buttons = [],
     backgroundType = "gradient",
+    backgroundVariant = "streams",
     backgroundImage,
     align = "center"
   } = data as HeroProps
 
   const bgClass = cn(
-    "relative flex w-full flex-col items-center justify-center px-6 py-24 md:py-32",
+    "relative flex min-h-[calc(100svh-var(--layout-marketing-header-height))] w-full flex-col items-center justify-center overflow-hidden px-6 py-24 md:py-32",
     backgroundType === "gradient" &&
       "bg-gradient-to-br from-primary/10 via-background to-secondary/10",
     backgroundType === "plain" && "bg-background",
@@ -61,15 +67,31 @@ export function HeroSection({ data }: SectionComponentProps) {
     >
       {/* 图片背景遮罩 */}
       {backgroundType === "image" && <div className="absolute inset-0 bg-background/70" />}
+      {backgroundType === "postprocessing" && (
+        <HeroPostprocessingBackground variant={backgroundVariant} />
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={cn("relative z-10 max-w-3xl", align === "center" && "text-center")}
+        className={cn(
+          "relative z-10 max-w-3xl",
+          align === "center" && "text-center",
+          backgroundType === "postprocessing" && "text-white"
+        )}
       >
         <h1 className="font-bold text-4xl tracking-tight md:text-6xl">{title}</h1>
-        {subtitle && <p className="mt-4 text-lg text-muted-foreground md:text-xl">{subtitle}</p>}
+        {subtitle && (
+          <p
+            className={cn(
+              "mt-4 text-lg text-muted-foreground md:text-xl",
+              backgroundType === "postprocessing" && "text-white/72"
+            )}
+          >
+            {subtitle}
+          </p>
+        )}
 
         {(buttons as CTAButton[]).length > 0 && (
           <div className={cn("mt-8 flex flex-wrap gap-3", align === "center" && "justify-center")}>

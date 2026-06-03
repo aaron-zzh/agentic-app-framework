@@ -62,7 +62,7 @@ export default function Page() {
         <div className="w-full text-center md:w-3/5">
           <View className="flex h-96 w-full flex-col items-center justify-center">
             <Suspense fallback={null}>
-              <Logo route="/threejs/demo/blob" scale={0.6} position={[0, 0, 0]} />
+              <Logo route="/examples/threejs/demo/blob" scale={0.6} position={[0, 0, 0]} />
               <Common />
             </Suspense>
           </View>

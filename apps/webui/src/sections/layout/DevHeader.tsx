@@ -16,6 +16,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
@@ -41,6 +43,21 @@ const threejsPages = [
   { label: "Test", href: "/examples/threejs/test" }
 ]
 
+const examplePages = [
+  { label: "ASR", href: "/examples/asr" },
+  { label: "Assistant UI", href: "/examples/assistant-ui" },
+  { label: "GraphQL", href: "/examples/graphql" },
+  { label: "Image", href: "/examples/image" },
+  { label: "Omni Realtime", href: "/examples/omni-realtime" }
+]
+
+const zustandPages = [
+  { label: "总览", href: "/examples/zustand" },
+  { label: "Bear", href: "/examples/zustand/bear" },
+  { label: "Clock", href: "/examples/zustand/clock" },
+  { label: "Counter", href: "/examples/zustand/counter" }
+]
+
 /** 主题切换按钮 */
 function ThemeToggle() {
   const { theme, setTheme } = useTheme()
@@ -61,6 +78,8 @@ function ThemeToggle() {
 export function DevHeader() {
   const pathname = usePathname()
   const isOffset = useScrollOffset()
+  const isExamplesActive =
+    pathname.startsWith("/examples") && !pathname.startsWith("/examples/threejs")
 
   return (
     <header
@@ -99,6 +118,40 @@ export function DevHeader() {
               </Link>
             )
           })}
+
+          {/* Examples 下拉菜单 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-sm transition-colors",
+                isExamplesActive
+                  ? "font-medium text-foreground underline underline-offset-4"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Examples
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-44">
+              <DropdownMenuLabel>基础示例</DropdownMenuLabel>
+              {examplePages.map((p) => (
+                <DropdownMenuItem key={p.href}>
+                  <Link href={p.href} className="w-full cursor-pointer">
+                    {p.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Zustand</DropdownMenuLabel>
+              {zustandPages.map((p) => (
+                <DropdownMenuItem key={p.href}>
+                  <Link href={p.href} className="w-full cursor-pointer">
+                    {p.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Three.js 下拉菜单 */}
           <DropdownMenu>

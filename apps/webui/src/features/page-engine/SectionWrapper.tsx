@@ -47,7 +47,8 @@ export function SectionWrapper({ id, style, darkMode, children }: SectionWrapper
       id={id}
       className={cn(
         paddingClass,
-        style?.fullWidth ? "w-full" : "mx-auto w-full max-w-[var(--layout-marketing-max-width)]",
+        "w-full",
+        style?.maxWidth && !style?.fullWidth && "mx-auto",
         darkMode && "dark",
         style?.className
       )}
