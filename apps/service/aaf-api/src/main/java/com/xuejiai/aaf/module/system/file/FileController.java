@@ -20,8 +20,8 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.storage.FileVO;
 import com.xuejiai.aaf.framework.storage.OssStorageService;
-import com.xuejiai.aaf.framework.storage.StsCredentials;
 import com.xuejiai.aaf.framework.storage.StorageService;
+import com.xuejiai.aaf.framework.storage.StsCredentials;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordVO;
@@ -44,6 +44,7 @@ public class FileController {
     private final FileService fileService;
     private final StorageService storageService;
     private final FileRecordService fileRecordService;
+
     /** OSS 类型时非空，其他存储类型为 null */
     @Autowired(required = false)
     @Nullable

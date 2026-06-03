@@ -7,15 +7,16 @@ package com.xuejiai.aaf.framework.intelligent.core.model;
 
 import java.math.BigDecimal;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.databind.JsonNode;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /**
  * LLM 模型注册信息，持久化到数据库，支持动态启用/禁用。
@@ -214,7 +215,9 @@ public class AiModel extends BaseEntity {
         if (hasText(providerType)) {
             return providerType;
         }
-        return providerConfig != null ? providerConfig.getProviderType() : PROVIDER_TYPE_OPENAI_COMPAT;
+        return providerConfig != null
+                ? providerConfig.getProviderType()
+                : PROVIDER_TYPE_OPENAI_COMPAT;
     }
 
     private boolean hasText(String value) {

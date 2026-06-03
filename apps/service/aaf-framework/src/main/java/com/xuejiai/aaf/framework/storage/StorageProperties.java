@@ -11,7 +11,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "aaf.storage")
 public record StorageProperties(
-        StorageType type, LocalProperties local, S3Properties s3, OssProperties oss, UploadLimits upload) {
+        StorageType type,
+        LocalProperties local,
+        S3Properties s3,
+        OssProperties oss,
+        UploadLimits upload) {
 
     /** 存储类型枚举 */
     public enum StorageType {

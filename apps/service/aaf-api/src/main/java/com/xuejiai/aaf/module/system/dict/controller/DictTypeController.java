@@ -24,7 +24,8 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/system/dict-types")
 @RequiredArgsConstructor
 public class DictTypeController
-        extends BaseCrudController<DictType, DictTypeVO, DictTypeCreateDTO, DictTypeUpdateDTO, PageParam> {
+        extends BaseCrudController<
+                DictType, DictTypeVO, DictTypeCreateDTO, DictTypeUpdateDTO, PageParam> {
 
     private final DictTypeService dictTypeService;
 

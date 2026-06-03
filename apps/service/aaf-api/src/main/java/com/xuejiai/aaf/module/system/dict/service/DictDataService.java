@@ -32,7 +32,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DictDataService
-        extends BaseCrudService<DictData, DictDataVO, DictDataCreateDTO, DictDataUpdateDTO, PageParam> {
+        extends BaseCrudService<
+                DictData, DictDataVO, DictDataCreateDTO, DictDataUpdateDTO, PageParam> {
 
     private final DictDataRepository dictDataRepository;
     private final DictTypeRepository dictTypeRepository;

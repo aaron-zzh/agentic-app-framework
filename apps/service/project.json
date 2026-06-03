@@ -4,33 +4,33 @@
   "sourceRoot": "apps/service/aaf-api/src",
   "targets": {
     "build": {
-      "command": "mvnw.cmd package -DskipTests",
+      "command": "mvnw package -DskipTests",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
       "outputs": ["{projectRoot}/**/target"]
     },
     "serve": {
-      "command": "mvnw.cmd install -DskipTests -q && mvnw.cmd spring-boot:run -f aaf-api/pom.xml",
+      "command": "mvnw install -DskipTests -q && mvnw spring-boot:run -f aaf-api/pom.xml",
       "options": { "cwd": "apps/service" },
       "continuous": true
     },
     "lint": {
-      "command": "mvnw.cmd com.diffplug.spotless:spotless-maven-plugin:check",
+      "command": "mvnw com.diffplug.spotless:spotless-maven-plugin:check",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*.java", "{projectRoot}/**/pom.xml"]
     },
     "format": {
-      "command": "mvnw.cmd com.diffplug.spotless:spotless-maven-plugin:apply",
+      "command": "mvnw com.diffplug.spotless:spotless-maven-plugin:apply",
       "options": { "cwd": "apps/service" }
     },
     "test": {
-      "command": "mvnw.cmd test",
+      "command": "mvnw test",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
       "outputs": ["{projectRoot}/**/target/surefire-reports"]
     },
     "acceptance": {
-      "command": "mvnw.cmd verify -DskipITs=false",
+      "command": "mvnw verify -DskipITs=false",
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
       "outputs": ["{projectRoot}/**/target/failsafe-reports"]
@@ -39,7 +39,7 @@
       "executor": "nx:noop"
     },
     "clean": {
-      "command": "mvnw.cmd clean",
+      "command": "mvnw clean",
       "options": { "cwd": "apps/service" }
     }
   }

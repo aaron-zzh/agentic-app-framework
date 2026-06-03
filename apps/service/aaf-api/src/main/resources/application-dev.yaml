@@ -26,6 +26,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   graphql:
     graphiql:
       enabled: true # 开发环境启用 GraphiQL 调试界面（访问 /graphiql）

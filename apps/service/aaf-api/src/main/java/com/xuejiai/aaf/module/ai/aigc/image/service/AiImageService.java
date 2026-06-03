@@ -44,8 +44,10 @@ public class AiImageService {
     private static final String STATUS_FAIL = "FAIL";
 
     private final AiImageRepository imageRepository;
+
     @Autowired(required = false)
     private MidjourneyImageService midjourneyImageService;
+
     private final ObjectMapper objectMapper;
     private final CapabilityRouter capabilityRouter;
     private final ImageServiceFactory imageServiceFactory;

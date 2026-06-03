@@ -27,7 +27,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DictTypeService
-        extends BaseCrudService<DictType, DictTypeVO, DictTypeCreateDTO, DictTypeUpdateDTO, PageParam> {
+        extends BaseCrudService<
+                DictType, DictTypeVO, DictTypeCreateDTO, DictTypeUpdateDTO, PageParam> {
 
     private final DictTypeRepository dictTypeRepository;
     private final DictDataRepository dictDataRepository;
@@ -84,8 +85,11 @@ public class DictTypeService
     @Override
     @Transactional
     public void delete(Long id) {
-        var dictType = dictTypeRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "字典类型不存在"));
+        var dictType =
+                dictTypeRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "字典类型不存在"));
         if (dictDataRepository.countByDictTypeAndDeletedFalse(dictType.getType()) > 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "该字典类型下存在字典数据，请先删除");
         }

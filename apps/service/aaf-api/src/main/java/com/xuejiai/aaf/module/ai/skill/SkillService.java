@@ -24,7 +24,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SkillService
-        extends BaseCrudService<SkillDefinition, SkillVO, SkillCreateDTO, SkillUpdateDTO, PageParam> {
+        extends BaseCrudService<
+                SkillDefinition, SkillVO, SkillCreateDTO, SkillUpdateDTO, PageParam> {
 
     private final SkillDefinitionRepository repository;
 
@@ -86,8 +87,11 @@ public class SkillService
     @Override
     @Transactional
     public void delete(Long id) {
-        var entity = repository.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "技能不存在"));
+        var entity =
+                repository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "技能不存在"));
         if (Boolean.TRUE.equals(entity.getBuiltIn())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "内置技能不可删除");
         }
@@ -102,16 +106,20 @@ public class SkillService
     // ─── 自定义方法 ───
 
     public List<SkillVO> list(String assistantId) {
-        var skills = assistantId != null
-                ? repository.findByAssistantIdAndStatus(assistantId, "active")
-                : repository.findAll();
+        var skills =
+                assistantId != null
+                        ? repository.findByAssistantIdAndStatus(assistantId, "active")
+                        : repository.findAll();
         return skills.stream().map(this::toVO).toList();
     }
 
     @Transactional
     public void updateStatus(Long id, String status) {
-        var entity = repository.findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "技能不存在"));
+        var entity =
+                repository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "技能不存在"));
         entity.setStatus(status);
         repository.save(entity);
     }

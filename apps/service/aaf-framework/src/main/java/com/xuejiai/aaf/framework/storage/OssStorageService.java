@@ -33,12 +33,13 @@ public class OssStorageService implements StorageService {
 
     public OssStorageService(StorageProperties.OssProperties props) {
         this.props = props;
-        this.ossClient = OSSClientBuilder.create()
-                .endpoint(props.endpoint())
-                .credentialsProvider(
-                        new com.aliyun.oss.common.auth.DefaultCredentialProvider(
-                                props.accessKeyId(), props.accessKeySecret()))
-                .build();
+        this.ossClient =
+                OSSClientBuilder.create()
+                        .endpoint(props.endpoint())
+                        .credentialsProvider(
+                                new com.aliyun.oss.common.auth.DefaultCredentialProvider(
+                                        props.accessKeyId(), props.accessKeySecret()))
+                        .build();
         var profile = DefaultProfile.getProfile("", props.accessKeyId(), props.accessKeySecret());
         DefaultProfile.addEndpoint("", "Sts", props.stsEndpointOrDefault());
         this.stsClient = new DefaultAcsClient(profile);
@@ -73,8 +74,9 @@ public class OssStorageService implements StorageService {
 
     @Override
     public String getPresignedUploadUrl(String key, Duration expiry) {
-        var request = new GeneratePresignedUrlRequest(props.bucketName(), key,
-                com.aliyun.oss.HttpMethod.PUT);
+        var request =
+                new GeneratePresignedUrlRequest(
+                        props.bucketName(), key, com.aliyun.oss.HttpMethod.PUT);
         request.setExpiration(new Date(System.currentTimeMillis() + expiry.toMillis()));
         return ossClient.generatePresignedUrl(request).toString();
     }
@@ -82,8 +84,7 @@ public class OssStorageService implements StorageService {
     /**
      * 获取 STS 临时凭证（供前端 OSS SDK 直传分片上传使用）。
      *
-     * <p>官方建议：高并发场景复用凭证直至过期，不要每次请求都调用。
-     * 业务层应在 Expiration 前 5 分钟刷新。
+     * <p>官方建议：高并发场景复用凭证直至过期，不要每次请求都调用。 业务层应在 Expiration 前 5 分钟刷新。
      */
     public StsCredentials getStsCredentials() {
         try {
@@ -97,9 +98,10 @@ public class OssStorageService implements StorageService {
             var cred = response.getCredentials();
 
             // 从 endpoint 提取 region，如 oss-cn-hangzhou.aliyuncs.com → oss-cn-hangzhou
-            var region = props.endpoint().contains(".")
-                    ? props.endpoint().substring(0, props.endpoint().indexOf('.'))
-                    : props.endpoint();
+            var region =
+                    props.endpoint().contains(".")
+                            ? props.endpoint().substring(0, props.endpoint().indexOf('.'))
+                            : props.endpoint();
 
             return new StsCredentials(
                     cred.getAccessKeyId(),
@@ -117,8 +119,8 @@ public class OssStorageService implements StorageService {
     private String buildKey(String filename) {
         var date = LocalDate.now();
         var ext = filename.contains(".") ? filename.substring(filename.lastIndexOf('.')) : "";
-        return String.format("uploads/%d/%02d/%02d/%s%s",
-                date.getYear(), date.getMonthValue(), date.getDayOfMonth(),
-                UUID.randomUUID(), ext);
+        return String.format(
+                "uploads/%d/%02d/%02d/%s%s",
+                date.getYear(), date.getMonthValue(), date.getDayOfMonth(), UUID.randomUUID(), ext);
     }
 }

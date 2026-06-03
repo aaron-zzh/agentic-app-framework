@@ -174,14 +174,16 @@ public class ImageController {
     @Operation(summary = "查询单个任务状态（底层）")
     @GetMapping("/midjourney/task/{taskId}")
     public Result<TaskStatus> queryTask(@PathVariable String taskId) {
-        if (midjourneyService == null) throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
+        if (midjourneyService == null)
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
         return Result.success(midjourneyService.queryTask(taskId));
     }
 
     @Operation(summary = "批量查询任务状态（底层）")
     @PostMapping("/midjourney/tasks")
     public Result<List<TaskStatus>> queryTasks(@RequestBody @Valid BatchQueryRequest request) {
-        if (midjourneyService == null) throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
+        if (midjourneyService == null)
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Midjourney 未启用");
         return Result.success(midjourneyService.queryTasks(request.taskIds()));
     }
 

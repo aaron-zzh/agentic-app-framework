@@ -208,7 +208,8 @@ public class AiModelService {
         }
 
         var groupCounts = new LinkedHashMap<String, Integer>();
-        groups.forEach((group, groupItems) -> groupCounts.put(group, Math.min(groupItems.size(), 10)));
+        groups.forEach(
+                (group, groupItems) -> groupCounts.put(group, Math.min(groupItems.size(), 10)));
         return new AiModelImportResultVO(
                 items.size(),
                 selected.size(),
@@ -249,11 +250,14 @@ public class AiModelService {
                 m.getUpdateTime());
     }
 
-    private AiModelProvider upsertProvider(String providerCode, String providerName, String baseUrl) {
-        var provider = providerRepository.findByProviderCode(providerCode).orElseGet(AiModelProvider::new);
+    private AiModelProvider upsertProvider(
+            String providerCode, String providerName, String baseUrl) {
+        var provider =
+                providerRepository.findByProviderCode(providerCode).orElseGet(AiModelProvider::new);
         if (provider.getProviderCode() == null) {
             provider.setProviderCode(providerCode);
-            provider.setProviderName(providerName != null && !providerName.isBlank() ? providerName : "第三方聚合");
+            provider.setProviderName(
+                    providerName != null && !providerName.isBlank() ? providerName : "第三方聚合");
             provider.setProviderType(AiModel.PROVIDER_TYPE_OPENAI_COMPAT);
         }
         if (providerName != null && !providerName.isBlank()) {
@@ -310,12 +314,13 @@ public class AiModelService {
             groupItems.stream()
                     .sorted(Comparator.comparingInt(item -> intValue(item, "sort_order", 100)))
                     .limit(10)
-                    .forEach(item -> {
-                        var modelName = text(item, "model_name");
-                        if (modelName != null && selectedModelNames.add(modelName)) {
-                            selected.add(item);
-                        }
-                    });
+                    .forEach(
+                            item -> {
+                                var modelName = text(item, "model_name");
+                                if (modelName != null && selectedModelNames.add(modelName)) {
+                                    selected.add(item);
+                                }
+                            });
         }
         return selected;
     }
@@ -344,7 +349,8 @@ public class AiModelService {
         model.setStepRatios(copy(item.get("step_ratios")));
         model.setTags(text(item, "tags"));
         model.setModelType(text(item, "model_type"));
-        model.setSupportedEndpoints(copy(firstPresent(item, "supported_endpoint_types", "supported_endpoints")));
+        model.setSupportedEndpoints(
+                copy(firstPresent(item, "supported_endpoint_types", "supported_endpoints")));
         model.setQuotaType((short) intValue(item, "quota_type", 0));
         model.setModelPrice(decimal(item, "model_price", null));
         model.setEnableGroups(copy(item.get("enable_groups")));

@@ -26,6 +26,7 @@ type RefreshAccessToken = () => Promise<string | null>
 
 let refreshAccessToken: RefreshAccessToken | null = null
 let refreshPromise: Promise<string | null> | null = null
+let backendUnavailableNotified = false
 
 export const backendApi = new RestApiClient(API_BASE_URL)
 export const backendClient = backendApi.getInstance()
@@ -67,7 +68,7 @@ function redirectToLogin() {
 }
 
 function resolveErrorMessage(error: AxiosError<ApiResult<unknown>>): string {
-  if (error.code === "ERR_NETWORK") return "网络连接失败，请检查网络设置"
+  if (error.code === "ERR_NETWORK") return "后端服务未连接，请确认服务已启动"
   if (error.code === "ECONNABORTED" || error.message?.includes("timeout"))
     return "请求超时，请稍后重试"
 
@@ -94,8 +95,31 @@ function resolveErrorMessage(error: AxiosError<ApiResult<unknown>>): string {
   }
 }
 
+function isBackendUnavailable(error: AxiosError<ApiResult<unknown>>): boolean {
+  return !error.response && (error.code === "ERR_NETWORK" || error.code === "ECONNABORTED")
+}
+
+function shouldNotifyError(
+  error: AxiosError<ApiResult<unknown>>,
+  config: RetriableConfig | undefined
+): boolean {
+  if (typeof window === "undefined") return false
+  if (isAuthRequest(config?.url)) return false
+  if (config?.showError === false) return false
+
+  if (isBackendUnavailable(error)) {
+    if (backendUnavailableNotified) return false
+    backendUnavailableNotified = true
+  }
+
+  return true
+}
+
 backendClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    backendUnavailableNotified = false
+    return response
+  },
   async (error: AxiosError<ApiResult<unknown>>) => {
     const response = error.response
     const config = error.config as RetriableConfig | undefined
@@ -113,11 +137,7 @@ backendClient.interceptors.response.use(
     }
 
     // 统一错误提示：非认证接口、showError 未显式关闭时弹 toast
-    if (
-      typeof window !== "undefined" &&
-      !isAuthRequest(config?.url) &&
-      config?.showError !== false
-    ) {
+    if (shouldNotifyError(error, config)) {
       notify.error(resolveErrorMessage(error))
     }
 

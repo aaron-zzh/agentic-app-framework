@@ -15,7 +15,9 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "ai_model_provider")
-@SQLDelete(sql = "UPDATE ai_model_provider SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE ai_model_provider SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AiModelProvider extends BaseEntity {
 
     /** 供应商编码：aliyun / volcengine / deepseek / third_party 等 */

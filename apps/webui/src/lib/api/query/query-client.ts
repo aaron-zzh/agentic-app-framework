@@ -11,6 +11,7 @@ export function createQueryClient(): QueryClient {
         refetchOnReconnect: true,
         retry: (failureCount, error) => {
           if (error instanceof ApiError && error.code === 401) return false
+          if (error instanceof ApiError && error.code === 0) return false
           return failureCount < 3
         }
       },

@@ -28,7 +28,8 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/system/skills")
 @RequiredArgsConstructor
 public class SkillController
-        extends BaseCrudController<SkillDefinition, SkillVO, SkillCreateDTO, SkillUpdateDTO, PageParam> {
+        extends BaseCrudController<
+                SkillDefinition, SkillVO, SkillCreateDTO, SkillUpdateDTO, PageParam> {
 
     private final SkillService skillService;
 
@@ -39,7 +40,8 @@ public class SkillController
 
     @Operation(summary = "查询技能列表", description = "按 assistantId 筛选，不传则查全部")
     @GetMapping("/by-assistant")
-    public Result<List<SkillVO>> listByAssistant(@RequestParam(required = false) String assistantId) {
+    public Result<List<SkillVO>> listByAssistant(
+            @RequestParam(required = false) String assistantId) {
         return Result.success(skillService.list(assistantId));
     }
 

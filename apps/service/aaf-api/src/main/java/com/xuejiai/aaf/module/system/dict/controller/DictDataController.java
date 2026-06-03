@@ -30,7 +30,8 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/system/dict-data")
 @RequiredArgsConstructor
 public class DictDataController
-        extends BaseCrudController<DictData, DictDataVO, DictDataCreateDTO, DictDataUpdateDTO, PageParam> {
+        extends BaseCrudController<
+                DictData, DictDataVO, DictDataCreateDTO, DictDataUpdateDTO, PageParam> {
 
     private final DictDataService dictDataService;
 
