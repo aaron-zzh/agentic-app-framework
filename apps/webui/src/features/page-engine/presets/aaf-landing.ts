@@ -26,7 +26,7 @@ export const aafLandingPageDef: PageDef = {
       id: "hero",
       type: "hero",
       props: {
-        title: "AI 原生多智能体应用开发框架",
+        title: "智能体应用开发框架",
         subtitle:
           "从对话到产品，一句话创建企业级应用。多智能体协作 · 配置驱动视图 · 工作流引擎 · 知识库管理 · 无代码开发。",
         buttons: [
@@ -37,8 +37,7 @@ export const aafLandingPageDef: PageDef = {
             variant: "outline"
           }
         ],
-        backgroundType: "postprocessing",
-        backgroundVariant: "spheres"
+        backgroundType: "gradient"
       },
       style: { fullWidth: true, animation: "fadeIn", padding: "none" }
     },
