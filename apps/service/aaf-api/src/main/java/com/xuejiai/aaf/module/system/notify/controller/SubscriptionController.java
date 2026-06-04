@@ -65,6 +65,13 @@ public class SubscriptionController {
                 subscriptionService.listByUserAndEntity(userId, entityType, entityId));
     }
 
+    @Operation(summary = "查询当前用户对某实体类型的所有已订阅记录 ID")
+    @GetMapping("/ids")
+    public Result<List<Long>> listIds(@RequestParam String entityType) {
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        return Result.success(subscriptionService.listSubscribedIds(userId, entityType));
+    }
+
     /** 创建订阅请求体 */
     record CreateRequest(String entityType, Long entityId, String fields, String channels) {}
 }

@@ -124,28 +124,28 @@ export interface WidgetDataVO {
 
 export const dashboardApi = {
   /** 获取仪表盘列表 */
-  list: () => request<DashboardVO[]>("/dashboards"),
+  list: () => request<DashboardVO[]>("/system/dashboards"),
 
   /** 获取单个仪表盘 */
-  get: (id: string) => request<DashboardVO>(`/dashboards/${id}`),
+  get: (id: string) => request<DashboardVO>(`/system/dashboards/${id}`),
 
   /** 获取默认仪表盘 */
-  getDefault: () => request<DashboardVO>("/dashboards/default"),
+  getDefault: () => request<DashboardVO>("/system/dashboards/default"),
 
   /** 保存仪表盘布局 */
   saveLayout: (id: string, layout: DashboardWidgetVO[]) =>
-    request<void>(`/dashboards/${id}/layout`, {
+    request<void>(`/system/dashboards/${id}/layout`, {
       method: "PUT",
       body: JSON.stringify({ layout })
     }),
 
   /** 创建仪表盘 */
   create: (data: { name: string; shared?: boolean }) =>
-    request<DashboardVO>("/dashboards", { method: "POST", body: JSON.stringify(data) }),
+    request<DashboardVO>("/system/dashboards", { method: "POST", body: JSON.stringify(data) }),
 
   /** 获取 Widget 数据 */
   getWidgetData: (widgetId: string, config: WidgetConfig) =>
-    request<WidgetDataVO>(`/dashboards/widgets/${widgetId}/data`, {
+    request<WidgetDataVO>(`/system/dashboards/widgets/${widgetId}/data`, {
       method: "POST",
       body: JSON.stringify(config)
     })

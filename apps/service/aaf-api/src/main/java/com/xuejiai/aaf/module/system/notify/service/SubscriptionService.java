@@ -60,4 +60,9 @@ public class SubscriptionService {
     public List<Subscription> findSubscribers(String entityType, Long entityId) {
         return subscriptionRepository.findByEntityTypeAndEntityId(entityType, entityId);
     }
+
+    /** 查询当前用户对某实体类型的所有已订阅记录 ID */
+    public List<Long> listSubscribedIds(Long userId, String entityType) {
+        return subscriptionRepository.findEntityIdByUserIdAndEntityType(userId, entityType);
+    }
 }

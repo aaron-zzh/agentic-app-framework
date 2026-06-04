@@ -39,20 +39,20 @@ export interface OrgAddMemberReq {
 
 export const organizationApi = {
   /** 获取当前用户的组织列表 */
-  list: () => backendApi.get<OrganizationVO[]>("/organizations"),
+  list: () => backendApi.get<OrganizationVO[]>("/system/orgs"),
 
   /** 更新组织信息 */
   update: (id: string, data: OrgUpdateReq) =>
-    backendApi.put<OrganizationVO>(`/organizations/${id}`, data),
+    backendApi.put<OrganizationVO>(`/system/orgs/${id}`, data),
 
   /** 获取组织成员列表 */
-  members: (orgId: string) => backendApi.get<OrgMemberVO[]>(`/organizations/${orgId}/members`),
+  members: (orgId: string) => backendApi.get<OrgMemberVO[]>(`/system/orgs/${orgId}/members`),
 
   /** 添加成员 */
   addMember: (orgId: string, data: OrgAddMemberReq) =>
-    backendApi.post<OrgMemberVO>(`/organizations/${orgId}/members`, data),
+    backendApi.post<OrgMemberVO>(`/system/orgs/${orgId}/members`, data),
 
   /** 移除成员 */
   removeMember: (orgId: string, userId: string) =>
-    backendApi.delete<void>(`/organizations/${orgId}/members/${userId}`)
+    backendApi.delete<void>(`/system/orgs/${orgId}/members/${userId}`)
 }

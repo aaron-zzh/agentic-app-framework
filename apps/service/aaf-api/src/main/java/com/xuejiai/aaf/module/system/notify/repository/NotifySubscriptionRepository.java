@@ -19,4 +19,7 @@ public interface NotifySubscriptionRepository extends JpaRepository<Subscription
 
     /** 查询某实体的所有订阅者 */
     List<Subscription> findByEntityTypeAndEntityId(String entityType, Long entityId);
+
+    /** 查询当前用户对某实体类型的所有已订阅记录 ID */
+    List<Long> findEntityIdByUserIdAndEntityType(Long userId, String entityType);
 }
