@@ -91,12 +91,12 @@ export function CreditRechargeDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl gap-0 p-0">
+      <DialogContent className="flex h-screen max-h-screen w-screen max-w-none flex-col gap-0 rounded-none p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle className="text-xl">积分充值</DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-[70vh] overflow-y-auto px-6 pb-4">
+        <div className="flex-1 overflow-y-auto px-6 pb-4">
           {isLoading ? (
             <div className="grid grid-cols-4 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
