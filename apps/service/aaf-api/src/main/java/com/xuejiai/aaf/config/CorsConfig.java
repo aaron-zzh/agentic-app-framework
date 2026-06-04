@@ -1,32 +1,32 @@
 package com.xuejiai.aaf.config;
 
-import java.util.List;
-
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 /**
  * CORS 跨域配置。
  *
- * <p>开发阶段允许所有来源，生产环境应通过配置文件限制。
+ * <p>通过 {@code aaf.cors} 配置允许来源，避免生产环境使用通配跨域。
  */
 @Configuration
+@EnableConfigurationProperties(CorsProperties.class)
 public class CorsConfig {
 
     @Bean
-    public CorsFilter corsFilter() {
+    public CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
+        config.setAllowedOriginPatterns(properties.allowedOriginPatterns());
+        config.setAllowedMethods(properties.allowedMethods());
+        config.setAllowedHeaders(properties.allowedHeaders());
+        config.setAllowCredentials(properties.allowCredentials());
+        config.setMaxAge(properties.maxAge());
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
+        return source;
     }
 }

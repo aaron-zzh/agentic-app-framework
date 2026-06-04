@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * JWT 配置属性。
  *
  * @param secret 签名密钥
- * @param expireSeconds accessToken 有效期（秒），默认 2 小时
+ * @param expireSeconds accessToken 有效期（秒），默认 7 天
  * @param refreshExpireSeconds refreshToken 有效期（秒），默认 30 天
  * @param issuer 签发者
  * @param audience 受众
@@ -24,7 +24,7 @@ public record JwtProperties(
             secret = "aaf-default-secret-change-in-production";
         }
         if (expireSeconds <= 0) {
-            expireSeconds = 7200L;
+            expireSeconds = 604800L; // 7 天
         }
         if (refreshExpireSeconds <= 0) {
             refreshExpireSeconds = 2592000L; // 30 天

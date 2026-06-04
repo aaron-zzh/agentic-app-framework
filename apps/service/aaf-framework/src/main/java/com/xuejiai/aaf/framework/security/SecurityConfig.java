@@ -155,6 +155,7 @@ public class SecurityConfig {
             Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(

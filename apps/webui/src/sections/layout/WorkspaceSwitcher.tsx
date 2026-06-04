@@ -1,8 +1,9 @@
 /**
- * WorkspaceSwitcher——组织切换器
+ * WorkspaceSwitcher——工作区切换器
  * @author AaronZZH & Kiro
  *
- * 切换组织时：
+ * 过渡期按组织映射默认工作区，后续接入工作区接口后替换为真实工作区列表。
+ * 切换默认工作区时：
  * 1. 更新 org-store.currentOrgId（持久化到 localStorage）
  * 2. API client 自动从 org-store 读取 X-Org-Id 请求头
  * 3. invalidateQueries 刷新所有数据
@@ -34,9 +35,10 @@ export function WorkspaceSwitcher() {
 
   const list = orgs ?? []
   const active = list.find((o) => o.id === currentOrgId) ?? list[0]
+  const activeWorkspaceName = active ? `${active.name} 默认工作区` : null
 
-  /** 切换组织 */
-  function handleSwitch(orgId: string) {
+  /** 切换默认工作区 */
+  function handleSwitchWorkspace(orgId: string) {
     if (orgId === currentOrgId) return
     setCurrentOrgId(orgId)
     queryClient.invalidateQueries()
@@ -55,44 +57,53 @@ export function WorkspaceSwitcher() {
         <Avatar className="size-6 rounded-md after:hidden">
           <AvatarImage
             src={active?.logo ?? "/assets/icons/ChatBc.png"}
-            alt={active?.name ?? "组织"}
+            alt={activeWorkspaceName ?? "工作区"}
             className="object-cover"
           />
           <AvatarFallback className="rounded-md bg-primary/10 font-semibold text-primary text-xs">
-            {active?.name?.slice(0, 1) ?? "O"}
+            {active?.name?.slice(0, 1) ?? "W"}
           </AvatarFallback>
         </Avatar>
-        <span className="max-w-28 truncate font-medium text-sm">{active?.name ?? "选择组织"}</span>
+        <span className="max-w-32 truncate font-medium text-sm">
+          {activeWorkspaceName ?? "工作区"}
+        </span>
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-64 overflow-hidden p-0">
         <div className="p-1.5">
           <DropdownMenuGroup>
-            <DropdownMenuLabel>组织</DropdownMenuLabel>
+            <DropdownMenuLabel>工作区</DropdownMenuLabel>
             {list.map((org) => (
-              <DropdownMenuItem
-                key={org.id}
-                onClick={() => handleSwitch(org.id)}
-                className="gap-2.5 rounded-md px-2 py-2"
-              >
-                <Avatar className="size-7 rounded-md after:hidden">
-                  <AvatarImage
-                    src={org.logo ?? "/assets/icons/ChatBc.png"}
-                    alt={org.name}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="rounded-md bg-gradient-to-br from-violet-500 to-indigo-500 font-semibold text-white text-xs">
-                    {org.name.slice(0, 1)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="flex-1 truncate text-sm">{org.name}</span>
-                {active?.id === org.id && (
-                  <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-                    当前
-                  </Badge>
-                )}
-              </DropdownMenuItem>
+              <div key={org.id}>
+                <div className="px-2 pt-2 pb-1 text-muted-foreground text-xs">{org.name}</div>
+                <DropdownMenuItem
+                  onClick={() => handleSwitchWorkspace(org.id)}
+                  className="gap-2.5 rounded-md px-2 py-2"
+                >
+                  <Avatar className="size-7 rounded-md after:hidden">
+                    <AvatarImage
+                      src={org.logo ?? "/assets/icons/ChatBc.png"}
+                      alt={`${org.name} 默认工作区`}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="rounded-md bg-primary/10 font-semibold text-primary text-xs">
+                      {org.name.slice(0, 1)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm">{org.name} 默认工作区</div>
+                  </div>
+                  {active?.id === org.id && (
+                    <Badge
+                      variant="outline"
+                      className="border-primary/20 bg-primary/10 text-primary"
+                    >
+                      当前
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+              </div>
             ))}
           </DropdownMenuGroup>
         </div>
@@ -104,7 +115,7 @@ export function WorkspaceSwitcher() {
             <div className="flex size-7 items-center justify-center rounded-md border border-muted-foreground/40 border-dashed bg-background/50">
               <Plus className="size-3.5 text-muted-foreground" />
             </div>
-            <span className="text-sm">创建组织</span>
+            <span className="text-sm">创建工作区</span>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>

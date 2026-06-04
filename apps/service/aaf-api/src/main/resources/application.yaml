@@ -25,6 +25,14 @@ server:
 aaf:
   app:
     company-name: ${AAF_COMPANY_NAME:学记智能}
+  cors:
+    allowed-origin-patterns:
+      - ${AAF_WEB_ORIGIN:http://localhost:3000}
+      - http://127.0.0.1:3000
+    allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    allowed-headers: ["*"]
+    allow-credentials: true
+    max-age: 3600
   ai:
     default-model: default
     fallback-model: default
@@ -70,6 +78,11 @@ agentscope:
     sse-timeout: 300000
 
 management:
+  info:
+    env:
+      enabled: true
+    build:
+      enabled: true
   endpoints:
     web:
       exposure:
@@ -87,6 +100,12 @@ management:
   metrics:
     tags:
       application: aaf
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: ${spring.application.version}
+    description: AI 原生多智能体应用开发框架后端服务
 
 springdoc:
   api-docs:
