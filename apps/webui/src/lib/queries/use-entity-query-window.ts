@@ -8,6 +8,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
+import { fromEntityDef } from "@/lib/api/rest/crud"
 import {
   ApiError,
   fetchList,
@@ -40,6 +41,7 @@ export function useEntityQueryWindow(
   const { page = 1, pageSize = 20, sort, search, ...filters } = params
   const workspaceId = useUIStore((s) => s.currentWorkspace?.id)
   const orgId = useOrgStore((s) => s.currentOrgId)
+  const resource = fromEntityDef(entity)
   const queryParams = {
     workspaceId,
     orgId: orgId ?? undefined,
@@ -70,7 +72,7 @@ export function useEntityQueryWindow(
         }
       }
       try {
-        return await fetchQueryWindow(entity.apiPath, {
+        return await fetchQueryWindow(resource, {
           pageNo: page,
           pageSize,
           sort,
@@ -80,7 +82,7 @@ export function useEntityQueryWindow(
         })
       } catch (error) {
         if (error instanceof ApiError && error.code === 404) {
-          const fallback = await fetchList<Record<string, unknown>>(entity.apiPath, {
+          const fallback = await fetchList(resource, {
             pageNo: page,
             pageSize,
             sort,

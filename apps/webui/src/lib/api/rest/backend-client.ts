@@ -2,7 +2,8 @@
  * Spring Boot REST API 客户端。
  */
 
-import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios"
+import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios"
+import { clearAxiosAuth, setAxiosAuth } from "@/lib/auth/utils"
 import { notify } from "@/lib/notification"
 import { RestApiClient } from "../api-client"
 import { API_BASE_URL } from "../config"
@@ -31,10 +32,6 @@ let backendUnavailableNotified = false
 export const backendApi = new RestApiClient(API_BASE_URL)
 export const backendClient = backendApi.getInstance()
 
-export function setBackendAccessToken(token: string | null): void {
-  backendApi.setHeader("Authorization", token ? `Bearer ${token}` : null)
-}
-
 export function setBackendOrgId(orgId: string | null): void {
   backendApi.setHeader("X-Org-Id", orgId)
 }
@@ -45,11 +42,6 @@ export function setBackendWorkspaceId(workspaceId: string | null): void {
 
 export function registerBackendTokenRefresh(handler: RefreshAccessToken): void {
   refreshAccessToken = handler
-}
-
-function isAuthRequest(url?: string): boolean {
-  if (!url) return false
-  return url.startsWith("/auth/") || url.includes("/auth/")
 }
 
 async function refreshTokenOnce(): Promise<string | null> {
@@ -63,12 +55,12 @@ async function refreshTokenOnce(): Promise<string | null> {
 
 function redirectToLogin() {
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
-    window.location.href = "/auth/login"
+    window.location.href = "/login"
   }
 }
 
 function resolveErrorMessage(error: AxiosError<ApiResult<unknown>>): string {
-  if (error.code === "ERR_NETWORK") return "后端服务未连接，请确认服务已启动"
+  if (error.code === "ERR_NETWORK") return "网络连接失败，请稍后重试"
   if (error.code === "ECONNABORTED" || error.message?.includes("timeout"))
     return "请求超时，请稍后重试"
 
@@ -104,7 +96,6 @@ function shouldNotifyError(
   config: RetriableConfig | undefined
 ): boolean {
   if (typeof window === "undefined") return false
-  if (isAuthRequest(config?.url)) return false
   if (config?.showError === false) return false
 
   if (isBackendUnavailable(error)) {
@@ -115,6 +106,16 @@ function shouldNotifyError(
   return true
 }
 
+backendClient.interceptors.request.use((config) => {
+  const authorization = axios.defaults.headers.common.Authorization
+  if (typeof authorization === "string") {
+    config.headers.set("Authorization", authorization)
+  } else {
+    config.headers.delete("Authorization")
+  }
+  return config
+})
+
 backendClient.interceptors.response.use(
   (response) => {
     backendUnavailableNotified = false
@@ -124,15 +125,18 @@ backendClient.interceptors.response.use(
     const response = error.response
     const config = error.config as RetriableConfig | undefined
 
-    if (response?.status === 401 && config && !config._aafRetry && !isAuthRequest(config.url)) {
+    if (response?.status === 401 && config && !config._aafRetry) {
       config._aafRetry = true
       const newToken = await refreshTokenOnce()
       if (newToken) {
-        setBackendAccessToken(newToken)
+        setAxiosAuth(newToken)
         config.headers.set("Authorization", `Bearer ${newToken}`)
         return backendClient.request(config)
       }
+      clearAxiosAuth()
+      config.headers.delete("Authorization")
       redirectToLogin()
+      debugger
       throw new ApiError(401, "登录已过期，请重新登录")
     }
 

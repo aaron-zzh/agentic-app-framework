@@ -182,7 +182,9 @@ function Effects() {
 
   useLayoutEffect(() => {
     if (!ref.current) return
-    const maskMaterial = (ref.current as unknown as FocusMaskEffect).maskPass?.getFullscreenMaterial?.()
+    const maskMaterial = (
+      ref.current as unknown as FocusMaskEffect
+    ).maskPass?.getFullscreenMaterial?.()
     if (maskMaterial) maskMaterial.maskFunction = MaskFunction.MULTIPLY_RGB_SET_ALPHA
   })
   return (

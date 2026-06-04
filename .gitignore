@@ -71,3 +71,5 @@ logs/
 /log/
 
 vitest.config.*.timestamp*
+.claude
+

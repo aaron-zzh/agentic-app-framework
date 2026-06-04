@@ -4,6 +4,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { fromEntityDef } from "@/lib/api/rest/crud"
 import { updateRecord } from "@/lib/api/rest/entity/crud"
 import type { EntityDef } from "@/lib/types/entity"
 
@@ -56,6 +57,7 @@ export function mapRecordsToEvents(
 export function useCalendarEventUpdate(entity: EntityDef) {
   const queryClient = useQueryClient()
   const config = entity.calendarView
+  const resource = fromEntityDef(entity)
 
   return useMutation({
     mutationFn: async (params: { id: string; start: string; end?: string; allDay?: boolean }) => {
@@ -67,7 +69,7 @@ export function useCalendarEventUpdate(entity: EntityDef) {
       if (config.allDayField !== undefined) {
         data[config.allDayField] = params.allDay
       }
-      return updateRecord(entity.apiPath, params.id, data)
+      return updateRecord(resource, params.id, data)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })

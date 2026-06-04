@@ -12,14 +12,15 @@ import type {
   SearchResponse
 } from "@/lib/types/knowledge"
 import { buildApiUrl } from "../../config"
-import type { ListParams } from "../entity/crud"
-import { fetchList, request } from "../entity/crud"
+import { backendApi } from "../backend-client"
+import { buildQuery, request, type ListParams, type PageResult } from "../entity/crud"
 
 const API_PATH = "/knowledge-bases"
 
 export const knowledgeApi = {
   /** 知识库列表 */
-  list: (params: ListParams = {}) => fetchList<KnowledgeBase>(API_PATH, params),
+  list: (params: ListParams = {}) =>
+    backendApi.get<PageResult<KnowledgeBase>>(`${API_PATH}${buildQuery(params)}`),
 
   /** 知识库详情 */
   get: (id: string) => request<KnowledgeBase>(`${API_PATH}/${id}`),
@@ -40,7 +41,9 @@ export const knowledgeApi = {
 
   /** 文档列表 */
   documents: (id: string, params: ListParams = {}) =>
-    fetchList<KnowledgeDocument>(`${API_PATH}/${id}/documents`, params),
+    backendApi.get<PageResult<KnowledgeDocument>>(
+      `${API_PATH}/${id}/documents${buildQuery(params)}`
+    ),
 
   /** 图谱数据 */
   graph: (id: string) => request<GraphData>(`${API_PATH}/${id}/graph`),

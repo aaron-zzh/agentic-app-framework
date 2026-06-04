@@ -26,6 +26,7 @@ export function AppHeader() {
     <header className="flex h-[var(--layout-header-height)] shrink-0 items-center gap-2 border-b bg-background px-4">
       {/* 左侧：侧边栏切换 + 功能图标组 */}
       <MobileNav />
+      <WorkspaceSwitcher />
       <CalendarButton />
       <ContactsPanel>
         <button
@@ -38,8 +39,6 @@ export function AppHeader() {
       </ContactsPanel>
       <SearchButton onClick={() => setCmdManualOpen(true)} />
 
-      {/* 中间：工作区切换 + 面包屑 */}
-      <WorkspaceSwitcher />
       <Breadcrumb />
       <div className="flex-1" />
 

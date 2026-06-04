@@ -188,7 +188,14 @@ function Effects() {
   })
   return (
     <EffectComposer enableNormalPass={false} multisampling={0}>
-      <DepthOfField ref={ref} target={[0, 0, 30]} worldFocusRange={20} bokehScale={8} focalLength={0.1} width={1024} />
+      <DepthOfField
+        ref={ref}
+        target={[0, 0, 30]}
+        worldFocusRange={20}
+        bokehScale={8}
+        focalLength={0.1}
+        width={1024}
+      />
       <Vignette>{null}</Vignette>
     </EffectComposer>
   )

@@ -5,7 +5,6 @@
 
 "use client"
 
-import Link from "next/link"
 import { useTheme } from "next-themes"
 import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
@@ -15,9 +14,7 @@ export function AuthHeader() {
 
   return (
     <header className="absolute top-0 z-20 flex h-16 w-full items-center justify-between px-6">
-      <Link href="/">
-        <Brand size="sm" className="text-foreground" />
-      </Link>
+      <Brand size="sm" className="text-foreground" />
       <Button
         variant="ghost"
         size="icon"

@@ -122,8 +122,8 @@ describe("useEntityDelete", () => {
     expect(mockBackendRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         data: JSON.stringify({ ids: ["1", "2", "3"] }),
-        method: "delete",
-        url: "/task"
+        method: "post",
+        url: "/task/_batch-delete"
       })
     )
   })

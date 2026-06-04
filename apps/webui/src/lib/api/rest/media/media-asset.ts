@@ -4,7 +4,8 @@
  */
 
 import type { MediaAssetVO, MediaCategoryVO, MediaTagVO } from "@/features/aigc/types"
-import { fetchList, type ListParams, type PageResult, request } from "../entity/crud"
+import { backendApi } from "../backend-client"
+import { buildQuery, type ListParams, type PageResult, request } from "../entity/crud"
 
 /** 旧路径——生成面板内的素材引用（保留兼容） */
 const LEGACY_PATH = "/media-assets"
@@ -21,7 +22,7 @@ export interface RegenerateParams {
 export const mediaAssetApi = {
   /** 素材列表（旧接口，生成面板用） */
   legacyList: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
-    fetchList<MediaAssetVO>(LEGACY_PATH, params),
+    backendApi.get<PageResult<MediaAssetVO>>(`${LEGACY_PATH}${buildQuery(params)}`),
 
   /** 素材搜索（旧接口，@提及用） */
   legacySearch: (keyword: string): Promise<MediaAssetVO[]> =>
@@ -29,7 +30,7 @@ export const mediaAssetApi = {
 
   /** 素材列表（分页+筛选） */
   list: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
-    fetchList<MediaAssetVO>(API_PATH, params),
+    backendApi.get<PageResult<MediaAssetVO>>(`${API_PATH}${buildQuery(params)}`),
 
   /** 素材搜索（关键词匹配名称/标签） */
   search: (keyword: string): Promise<MediaAssetVO[]> =>

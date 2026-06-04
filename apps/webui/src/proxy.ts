@@ -1,8 +1,7 @@
 /**
  * Next.js Proxy——路由守卫
  *
- * - 未登录访问 workspace 路由 → 重定向到 /auth/login
- * - 已登录访问 auth 路由 → 重定向到 /dashboard
+ * - 未登录访问 workspace 路由 → 重定向到 /login
  * - 判断依据：cookie 中的 aaf-token 存在性
  *
  * @author AaronZZH & Kiro
@@ -23,26 +22,18 @@ const PROTECTED_PATHS = [
   "/aigc"
 ]
 
-/** 已登录后不应访问的路径前缀 */
-const AUTH_PATHS = ["/auth/login", "/auth/register", "/auth/forgot-password"]
-
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get("aaf-token")?.value
 
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
-  const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p))
 
   // 未登录访问受保护路由 → 跳转登录
   if (isProtected && !token) {
-    const loginUrl = new URL("/auth/login", request.url)
+    const loginUrl = new URL("/login", request.url)
+    console.log("未登录访问受保护路由 → 跳转登录")
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
-  }
-
-  // 已登录访问认证页 → 跳转仪表盘
-  if (isAuthPage && token) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
   return NextResponse.next()

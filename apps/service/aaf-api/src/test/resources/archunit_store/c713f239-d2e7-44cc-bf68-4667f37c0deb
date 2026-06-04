@@ -91,7 +91,6 @@ GenerationTemplateController.use() 写接口缺少授权注解（@PreAuthorize/@
 GenericEntityController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 GenericEntityController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 GenericEntityController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-GitController.githubWebhook() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ImageController.action() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ImageController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ImageController.draw() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）

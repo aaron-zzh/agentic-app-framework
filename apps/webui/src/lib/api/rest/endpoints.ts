@@ -1,3 +1,28 @@
+import type { DictDataVO } from "@/lib/api/rest/admin/dict"
+import type { CrudResource } from "@/lib/api/rest/crud/client"
+import type { MenuVO } from "@/lib/api/rest/user/menu"
+
+export const crudResources = {
+  system: {
+    menus: { apiPath: "/system/menus" } satisfies CrudResource<MenuVO>,
+    roles: { apiPath: "/system/roles" } satisfies CrudResource,
+    dictTypes: { apiPath: "/system/dict-types" } satisfies CrudResource,
+    dictData: { apiPath: "/system/dict-data" } satisfies CrudResource<DictDataVO>,
+    skills: { apiPath: "/system/skills" } satisfies CrudResource
+  },
+  admin: {
+    dataAccessRules: { apiPath: "/admin/data-access-rules" } satisfies CrudResource
+  },
+  ai: {
+    actors: { apiPath: "/ai/actors" } satisfies CrudResource,
+    roles: { apiPath: "/ai/roles" } satisfies CrudResource,
+    workflows: { apiPath: "/ai/workflows" } satisfies CrudResource
+  },
+  developer: {
+    subscriptionPlans: { apiPath: "/developer/admin/subscription-plans" } satisfies CrudResource
+  }
+} as const
+
 export const restEndpoints = {
   admin: {
     auditLog: "/admin/audit-log",
@@ -40,6 +65,7 @@ export const restEndpoints = {
     creditTransactions: "/credits/transactions",
     creditTokenRules: "/credit-token-rules",
     developerSubscriptionPlans: "/developer/subscription/plans",
+    developerSubscriptionPlansAdmin: "/developer/admin/subscription-plans",
     developerSubscriptionCurrent: "/developer/subscription/current",
     developerSubscriptionSubscribe: "/developer/subscription/subscribe",
     developerTokenAccount: "/developer/tokens/account",
@@ -160,6 +186,12 @@ export const restEndpoints = {
       `/organizations/${orgId}/members/${userId}`,
     profile: "/user/profile",
     profilePassword: "/user/profile/password"
+  },
+  system: {
+    dictData: "/system/dict-data",
+    dictTypes: "/system/dict-types",
+    roles: "/system/roles",
+    skills: "/system/skills"
   },
   workflow: {
     delegations: "/delegations",

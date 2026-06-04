@@ -7,23 +7,36 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
 import { authApi } from "@/lib/api/rest/user/auth"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
+import {
+  isMockAuthEnabled,
+  MOCK_AUTH_ACCESS_TOKEN,
+  MOCK_AUTH_REFRESH_TOKEN,
+  mockedUser
+} from "./mock-user"
 
 export function useAuth() {
-  const {
-    isAuthenticated,
-    accessToken,
-    user,
-    isChecking,
-    setTokens,
-    setUser,
-    setChecking,
-    clearAuth
-  } = useAuthStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const accessToken = useAuthStore((state) => state.accessToken)
+  const user = useAuthStore((state) => state.user)
+  const isChecking = useAuthStore((state) => state.isChecking)
+  const setTokens = useAuthStore((state) => state.setTokens)
+  const setUser = useAuthStore((state) => state.setUser)
+  const setChecking = useAuthStore((state) => state.setChecking)
+  const clearAuth = useAuthStore((state) => state.clearAuth)
   const qc = useQueryClient()
 
   /** 校验当前 token 有效性，并拉取最新用户信息 */
   const checkAuth = useCallback(async () => {
-    if (!accessToken) return { isValid: false, reason: "no_token" as const }
+    if (isMockAuthEnabled()) {
+      setTokens(MOCK_AUTH_ACCESS_TOKEN, MOCK_AUTH_REFRESH_TOKEN)
+      setUser(mockedUser)
+      setChecking(false)
+      return { isValid: true }
+    }
+
+    // 从 store 直接读取最新 token，避免 useCallback 依赖 accessToken 导致 token 刷新时循环触发
+    const currentToken = useAuthStore.getState().accessToken
+    if (!currentToken) return { isValid: false, reason: "no_token" as const }
     setChecking(true)
     try {
       const info = await qc.fetchQuery({
@@ -40,7 +53,7 @@ export function useAuth() {
     } finally {
       setChecking(false)
     }
-  }, [accessToken, qc, setChecking, setUser, clearAuth])
+  }, [qc, setChecking, setTokens, setUser, clearAuth])
 
   /** 登录：写 tokens + 拉用户信息 */
   const login = useCallback(

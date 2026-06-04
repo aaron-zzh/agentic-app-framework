@@ -11,11 +11,8 @@ import axios from "axios"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { buildApiUrl } from "@/lib/api/config"
-import {
-  type ApiResult,
-  registerBackendTokenRefresh,
-  setBackendAccessToken
-} from "@/lib/api/rest/backend-client"
+import { type ApiResult, registerBackendTokenRefresh } from "@/lib/api/rest/backend-client"
+import { clearAxiosAuth, setAxiosAuth } from "@/lib/auth/utils"
 
 export interface AuthUser {
   id: string
@@ -45,7 +42,7 @@ function syncTokenCookie(token: string | null) {
     document.cookie = `aaf-token=${token}; path=/; max-age=604800; SameSite=Lax`
   } else {
     // biome-ignore lint/suspicious/noDocumentCookie: 需要直接操作 cookie 清除认证
-    document.cookie = "aaf-token=; path=/; max-age=0"
+    document.cookie = "aaf-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT"
   }
 }
 
@@ -67,7 +64,7 @@ export const useAuthStore = create<AuthState>()(
 
       setTokens: (accessToken, refreshToken) => {
         syncTokenCookie(accessToken)
-        setBackendAccessToken(accessToken)
+        setAxiosAuth(accessToken)
         set({ accessToken, refreshToken, isAuthenticated: true })
       },
 
@@ -75,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
 
       clearAuth: () => {
         syncTokenCookie(null)
-        setBackendAccessToken(null)
+        clearAxiosAuth()
         set({
           accessToken: null,
           refreshToken: null,
@@ -114,4 +111,4 @@ registerBackendTokenRefresh(async () => {
 })
 
 const initialToken = useAuthStore.getState().accessToken
-if (initialToken) setBackendAccessToken(initialToken)
+if (initialToken) setAxiosAuth(initialToken)

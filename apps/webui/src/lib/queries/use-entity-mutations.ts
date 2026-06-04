@@ -4,14 +4,16 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createRecord, deleteRecord, fetchRecord, updateRecord } from "@/lib/api/rest/entity/crud"
+import { fromEntityDef } from "@/lib/api/rest/crud"
+import { createRecord, deleteRecords, fetchRecord, updateRecord } from "@/lib/api/rest/entity/crud"
 import type { EntityDef } from "@/lib/types/entity"
 
 /** 单条记录查询 */
 export function useEntityRecord(entity: EntityDef, id: string | undefined) {
+  const resource = fromEntityDef(entity)
   return useQuery<Record<string, unknown>>({
     queryKey: [entity.slug, "record", id],
-    queryFn: () => fetchRecord(entity.apiPath, id ?? ""),
+    queryFn: () => fetchRecord(resource, id ?? ""),
     enabled: !!id
   })
 }
@@ -19,10 +21,11 @@ export function useEntityRecord(entity: EntityDef, id: string | undefined) {
 /** 创建/更新记录（optimistic update） */
 export function useEntityMutation(entity: EntityDef, id?: string) {
   const queryClient = useQueryClient()
+  const resource = fromEntityDef(entity)
 
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      id ? updateRecord(entity.apiPath, id, data) : createRecord(entity.apiPath, data),
+      id ? updateRecord(resource, id, data) : createRecord(resource, data),
     onSuccess: () => {
       // 刷新列表和当前记录缓存
       queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
@@ -36,9 +39,10 @@ export function useEntityMutation(entity: EntityDef, id?: string) {
 /** 删除记录（支持批量） */
 export function useEntityDelete(entity: EntityDef) {
   const queryClient = useQueryClient()
+  const resource = fromEntityDef(entity)
 
   return useMutation({
-    mutationFn: (ids: string[]) => deleteRecord(entity.apiPath, ids),
+    mutationFn: (ids: string[]) => deleteRecords(resource, ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
     }

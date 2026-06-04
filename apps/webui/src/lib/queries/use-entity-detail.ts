@@ -5,6 +5,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
+import { fromEntityDef } from "@/lib/api/rest/crud"
 import { fetchRecord, type PageResult } from "@/lib/api/rest/entity/crud"
 import type { EntityDef } from "@/lib/types/entity"
 
@@ -19,6 +20,7 @@ export function useEntityDetail(
   options: UseEntityDetailOptions = {}
 ) {
   const queryClient = useQueryClient()
+  const resource = fromEntityDef(entity)
   const initialData =
     options.initialData ?? findListInitialData(queryClient, entity.slug, id, options.queryToken)
 
@@ -33,7 +35,7 @@ export function useEntityDetail(
           return mock.find((r) => r.id === id) ?? null
         }
       }
-      return fetchRecord<Record<string, unknown>>(entity.apiPath, id, {
+      return fetchRecord(resource, id, {
         queryToken: options.queryToken,
         fieldSet: "detail"
       })

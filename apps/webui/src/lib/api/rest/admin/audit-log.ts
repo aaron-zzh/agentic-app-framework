@@ -3,7 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { fetchList, type ListParams } from "../entity/crud"
+import { backendApi } from "../backend-client"
+import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
 /** 字段变更记录 */
 export interface FieldChange {
@@ -35,5 +36,6 @@ export interface AuditLogListParams extends ListParams {
 
 export const auditLogApi = {
   /** 审计日志分页列表 */
-  list: (params: AuditLogListParams = {}) => fetchList<AuditLogVO>("/admin/audit-log", params)
+  list: (params: AuditLogListParams = {}) =>
+    backendApi.get<PageResult<AuditLogVO>>(`/admin/audit-log${buildQuery(params)}`)
 }

@@ -18,9 +18,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  useEffect(() => {
-    checkAuth()
-  }, [checkAuth])
+  // 仅在挂载时执行一次，避免 token 刷新后 checkAuth 引用变化导致循环
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { checkAuth() }, [])
 
   useEffect(() => {
     if (!isChecking && !isAuthenticated) {

@@ -53,10 +53,12 @@ type Listener = () => void
 class CommandRegistry {
   private commands = new Map<string, CommandItem>()
   private listeners = new Set<Listener>()
+  private snapshot: CommandItem[] = EMPTY_COMMANDS
 
   /** 注册命令 */
   register(cmd: CommandItem): void {
     this.commands.set(cmd.id, cmd)
+    this.updateSnapshot()
     this.notify()
   }
 
@@ -65,18 +67,20 @@ class CommandRegistry {
     for (const cmd of cmds) {
       this.commands.set(cmd.id, cmd)
     }
+    this.updateSnapshot()
     this.notify()
   }
 
   /** 注销命令 */
   unregister(id: string): void {
     this.commands.delete(id)
+    this.updateSnapshot()
     this.notify()
   }
 
   /** 获取所有命令 */
   getAll(): CommandItem[] {
-    return Array.from(this.commands.values())
+    return this.snapshot
   }
 
   /** 订阅变更（useSyncExternalStore 用） */
@@ -87,7 +91,11 @@ class CommandRegistry {
 
   /** 获取快照（useSyncExternalStore 用） */
   getSnapshot(): CommandItem[] {
-    return this.getAll()
+    return this.snapshot
+  }
+
+  private updateSnapshot(): void {
+    this.snapshot = this.commands.size > 0 ? Array.from(this.commands.values()) : EMPTY_COMMANDS
   }
 
   private notify(): void {

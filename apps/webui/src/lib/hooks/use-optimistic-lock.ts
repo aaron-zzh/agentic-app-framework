@@ -19,6 +19,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
+import { fromEntityDef } from "@/lib/api/rest/crud"
 import { ApiError, fetchRecord, updateRecord } from "@/lib/api/rest/entity/crud"
 import type { EntityDef } from "@/lib/types/entity"
 
@@ -39,6 +40,7 @@ export function useOptimisticLock(
   options?: UseOptimisticLockOptions
 ) {
   const queryClient = useQueryClient()
+  const resource = fromEntityDef(entity)
   const [conflict, setConflict] = useState<ConflictState>({
     open: false,
     myData: null,
@@ -46,7 +48,7 @@ export function useOptimisticLock(
   })
 
   const mutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => updateRecord(entity.apiPath, id, data),
+    mutationFn: (data: Record<string, unknown>) => updateRecord(resource, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
       queryClient.invalidateQueries({ queryKey: [entity.slug, "record", id] })
@@ -55,7 +57,7 @@ export function useOptimisticLock(
     onError: async (error: Error, variables: Record<string, unknown>) => {
       if (error instanceof ApiError && error.code === 409) {
         // 获取服务端最新数据
-        const serverData = await fetchRecord<Record<string, unknown>>(entity.apiPath, id)
+        const serverData = await fetchRecord(resource, id)
         setConflict({ open: true, myData: variables, serverData })
       }
     }

@@ -1,5 +1,11 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { NotFoundIllustration } from "@/components/illustrations/NotFoundIllustration"
+
+export const metadata: Metadata = {
+  title: "页面未找到",
+  description: "抱歉，您访问的页面不存在。"
+}
 
 export default function NotFound() {
   return (
