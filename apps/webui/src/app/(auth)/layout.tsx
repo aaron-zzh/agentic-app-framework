@@ -32,11 +32,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* 卡片 */}
       <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-24">
-        <div className="w-full max-w-[420px] rounded-2xl border bg-background/92 p-8 shadow-2xl shadow-black/10 backdrop-blur-md transition-colors duration-300 dark:border-white/10 dark:bg-background/86 dark:shadow-black/35">
-          <Suspense>
-            <GuestGuard>{children}</GuestGuard>
-          </Suspense>
-        </div>
+        <Suspense>
+          <GuestGuard>{children}</GuestGuard>
+        </Suspense>
       </div>
     </div>
   )

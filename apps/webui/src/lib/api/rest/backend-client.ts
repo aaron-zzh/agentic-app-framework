@@ -55,6 +55,8 @@ async function refreshTokenOnce(): Promise<string | null> {
 
 function redirectToLogin() {
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
+    // 已在登录页则不再跳转
+    if (window.location.pathname.startsWith("/login")) return
     window.location.href = "/login"
   }
 }
@@ -135,8 +137,9 @@ backendClient.interceptors.response.use(
       }
       clearAxiosAuth()
       config.headers.delete("Authorization")
-      redirectToLogin()
       debugger
+
+      redirectToLogin()
       throw new ApiError(401, "登录已过期，请重新登录")
     }
 

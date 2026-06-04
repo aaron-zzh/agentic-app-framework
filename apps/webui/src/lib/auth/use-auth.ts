@@ -47,7 +47,9 @@ export function useAuth() {
       setUser(info as AuthUser)
       return { isValid: true }
     } catch {
+      // 清理token
       clearAuth()
+      // 登出时清掉所有缓存
       qc.clear()
       return { isValid: false, reason: "invalid_token" as const }
     } finally {

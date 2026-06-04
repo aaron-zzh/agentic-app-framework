@@ -89,10 +89,16 @@ public class ChatController {
         return Result.success(chatService.listSessions(userId));
     }
 
-    @Operation(summary = "获取会话消息历史")
+    @Operation(summary = "获取会话消息历史（按数字 ID）")
     @GetMapping("/sessions/{sessionId}/messages")
     public Result<List<ChatMessageVO>> listMessages(@PathVariable Long sessionId) {
         return Result.success(chatService.listMessages(sessionId));
+    }
+
+    @Operation(summary = "获取会话消息历史（按 threadId，AG-UI 链路，公开）")
+    @GetMapping("/sessions/thread/{threadId}/messages")
+    public Result<List<ChatMessageVO>> listMessagesByThreadId(@PathVariable String threadId) {
+        return Result.success(chatService.listMessagesByThreadId(threadId));
     }
 
     @Operation(summary = "分页获取会话消息")

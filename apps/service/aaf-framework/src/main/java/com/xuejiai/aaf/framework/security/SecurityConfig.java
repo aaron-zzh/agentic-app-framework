@@ -51,6 +51,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
         "/api/auth/**",
         "/api/channel/wx/**",
+        "/api/system/chat/sessions/thread/*/messages",
         "/api/hello",
         "/actuator/**",
         "/swagger-ui/**",

@@ -7,32 +7,16 @@
  * @author AaronZZH & Kiro
  */
 
-import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { toast } from "sonner"
-import { paths } from "@/lib/constants/paths"
 import { useAuth } from "./use-auth"
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { checkAuth, isAuthenticated, isChecking } = useAuth()
-  const router = useRouter()
-  const pathname = usePathname()
-
-  // 仅在挂载时执行一次，避免 token 刷新后 checkAuth 引用变化导致循环
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { checkAuth() }, [])
+  const { checkAuth } = useAuth()
 
   useEffect(() => {
-    if (!isChecking && !isAuthenticated) {
-      toast.error("请先登录", {
-        description: "此页面需要登录后才能访问",
-        duration: 3000
-      })
-      setTimeout(() => {
-        router.push(`${paths.auth.login}?redirect=${encodeURIComponent(pathname)}`)
-      }, 1500)
-    }
-  }, [isAuthenticated, isChecking, pathname, router])
+    // 内部调用查询用户信息接口确认，未登录时会跳转登录页
+    checkAuth()
+  }, [checkAuth])
 
   return <>{children}</>
 }

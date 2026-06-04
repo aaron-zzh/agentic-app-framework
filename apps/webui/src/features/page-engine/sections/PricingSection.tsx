@@ -82,8 +82,8 @@ export function PricingSection({ data }: SectionComponentProps) {
 
               {/* 功能列表 */}
               <ul className="mt-6 flex flex-1 flex-col gap-2">
-                {plan.features.map((feat) => (
-                  <li key={feat.text} className="flex items-center gap-2 text-sm">
+                {plan.features.map((feat, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm">
                     {feat.included ? (
                       <Check className="size-4 text-primary" />
                     ) : (

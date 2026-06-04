@@ -62,6 +62,11 @@ logging:
   level:
     org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
     org.springframework.web.filter.AbstractRequestLoggingFilter: DEBUG
+    # 关闭全局 Hibernate SQL（pay/task 轮询噪音太多），按模块开启
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    com.xuejiai.aaf.module.ai: DEBUG
+    com.xuejiai.aaf.module.system: DEBUG
 
 aaf:
   flyway:

@@ -37,7 +37,7 @@ export const restEndpoints = {
     agents: "/ai/agents",
     agent: (id: string) => `/ai/agents/${id}`,
     chatSessions: "/system/chat/sessions",
-    chatSessionMessages: (sessionId: string) => `/system/chat/sessions/${sessionId}/messages`,
+    chatSessionMessages: (threadId: string) => `/system/chat/sessions/thread/${threadId}/messages`,
     chatMessages: "/system/chat/messages",
     generationHistory: "/aigc/history",
     imageGeneration: "/system/images/draw",

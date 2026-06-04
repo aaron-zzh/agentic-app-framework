@@ -31,5 +31,9 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
 
   if (!checked) return <SplashScreen />
 
-  return <>{children}</>
+  return (
+    <div className="w-full max-w-[420px] rounded-2xl border bg-background/92 p-8 shadow-2xl shadow-black/10 backdrop-blur-md transition-colors duration-300 dark:border-white/10 dark:bg-background/86 dark:shadow-black/35">
+      {children}
+    </div>
+  )
 }
