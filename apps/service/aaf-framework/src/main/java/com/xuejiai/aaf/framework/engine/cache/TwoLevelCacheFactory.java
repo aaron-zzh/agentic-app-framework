@@ -7,9 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.json.JsonMapper;
 
 /** 二级缓存工厂——创建并管理 TwoLevelCache 实例。 */
 @Component
@@ -17,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 public class TwoLevelCacheFactory {
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     /** 已创建的缓存实例注册表 */
     private final Map<String, TwoLevelCache<?, ?>> registry = new ConcurrentHashMap<>();
@@ -27,7 +26,7 @@ public class TwoLevelCacheFactory {
             String name, Class<V> type, int maxSize, Duration localTtl, Duration redisTtl) {
         var cache =
                 new TwoLevelCache<Long, V>(
-                        name, type, maxSize, localTtl, redisTtl, redisTemplate, objectMapper);
+                        name, type, maxSize, localTtl, redisTtl, redisTemplate, jsonMapper);
         registry.put(name, cache);
         return cache;
     }

@@ -5,11 +5,11 @@ import java.util.function.Function;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 二级缓存：本地 Caffeine + 远程 Redis。
@@ -21,7 +21,7 @@ public class TwoLevelCache<K, V> {
 
     private final Cache<K, V> localCache;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final String name;
     private final Class<V> type;
     private final Duration redisTtl;
@@ -33,12 +33,12 @@ public class TwoLevelCache<K, V> {
             Duration localTtl,
             Duration redisTtl,
             StringRedisTemplate redisTemplate,
-            ObjectMapper objectMapper) {
+            JsonMapper jsonMapper) {
         this.name = name;
         this.type = type;
         this.redisTtl = redisTtl;
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
+        this.jsonMapper = jsonMapper;
         this.localCache =
                 Caffeine.newBuilder().maximumSize(maxSize).expireAfterWrite(localTtl).build();
     }
@@ -93,7 +93,7 @@ public class TwoLevelCache<K, V> {
         try {
             var json = redisTemplate.opsForValue().get(redisKey(key));
             if (json != null) {
-                return objectMapper.readValue(json, type);
+                return jsonMapper.readValue(json, type);
             }
         } catch (Exception e) {
             log.warn("Redis 缓存读取失败: cache={}, key={}", name, key, e);
@@ -103,7 +103,7 @@ public class TwoLevelCache<K, V> {
 
     private void putToRedis(K key, V value) {
         try {
-            var json = objectMapper.writeValueAsString(value);
+            var json = jsonMapper.writeValueAsString(value);
             redisTemplate.opsForValue().set(redisKey(key), json, redisTtl);
         } catch (Exception e) {
             log.warn("Redis 缓存写入失败: cache={}, key={}", name, key, e);
