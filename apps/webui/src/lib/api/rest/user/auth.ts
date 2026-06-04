@@ -20,10 +20,10 @@ export interface UserInfo {
 }
 
 export const authApi = {
-  login(email: string, password: string) {
+  login(account: string, password: string) {
     return request<LoginResult>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username: email, password })
+      body: JSON.stringify({ username: account, password })
     })
   },
 

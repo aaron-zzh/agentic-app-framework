@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.customerservice.service;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.core.assistant.AssistantExecutor;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "aaf.wecom.kf.enabled", havingValue = "true")
 public class WecomKfMessageHandler {
 
     private final WecomKfApiClient apiClient;

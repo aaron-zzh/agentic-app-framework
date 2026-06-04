@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { authApi } from "./auth"
 
 // mock request()
-vi.mock("./request", () => ({
+vi.mock("../entity/crud", () => ({
   request: vi.fn()
 }))
 
@@ -24,6 +24,17 @@ describe("authApi", () => {
   })
 
   it("login 应发送 POST /auth/login", async () => {
+    mockRequest.mockResolvedValueOnce({ accessToken: "t", refreshToken: "r", userId: "1" })
+
+    await authApi.login("testuser", "pass123")
+
+    expect(mockRequest).toHaveBeenCalledWith("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username: "testuser", password: "pass123" })
+    })
+  })
+
+  it("login 支持邮箱作为登录账号", async () => {
     mockRequest.mockResolvedValueOnce({ accessToken: "t", refreshToken: "r", userId: "1" })
 
     await authApi.login("test@example.com", "pass123")

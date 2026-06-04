@@ -12,6 +12,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.module.customerservice.config.WecomKfProperties;
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "aaf.wecom.kf.enabled", havingValue = "true")
 public class WecomKfCallbackService {
 
     private static final Pattern TOKEN_PATTERN =

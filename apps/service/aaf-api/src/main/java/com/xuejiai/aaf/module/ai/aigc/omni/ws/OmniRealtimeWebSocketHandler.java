@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -54,13 +55,20 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
 
-    private final OmniRealtimeService omniRealtimeService;
+    private final ObjectProvider<OmniRealtimeService> omniRealtimeServiceProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final Map<String, OmniSession> sessionMap = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession wsSession) {
+        var omniRealtimeService = omniRealtimeServiceProvider.getIfAvailable();
+        if (omniRealtimeService == null) {
+            sendError(wsSession, "Omni Realtime 服务未启用，请配置 spring.ai.dashscope.api-key");
+            closeQuietly(wsSession);
+            return;
+        }
+
         var model = extractParam(wsSession, "model", null);
         var voice = extractParam(wsSession, "voice", null);
         var vad = !"false".equals(extractParam(wsSession, "vad", "true"));

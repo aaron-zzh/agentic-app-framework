@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.customerservice.service;
 
 import java.util.Map;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 /** 企微客服API客户端 */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "aaf.wecom.kf.enabled", havingValue = "true")
 public class WecomKfApiClient {
 
     private static final String BASE_URL = "https://qyapi.weixin.qq.com";

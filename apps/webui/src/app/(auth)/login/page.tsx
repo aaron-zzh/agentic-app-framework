@@ -1,5 +1,5 @@
 /**
- * 登录页——邮箱密码登录 + 第三方 OAuth 入口
+ * 登录页——账号/邮箱密码登录 + 第三方 OAuth 入口
  * @author AaronZZH & Kiro
  */
 
@@ -19,7 +19,15 @@ import { paths } from "@/lib/constants/paths"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 const loginSchema = z.object({
-  email: z.string().min(1, "请输入邮箱").email("邮箱格式不正确"),
+  username: z
+    .string()
+    .min(1, "请输入账号或邮箱")
+    .min(4, "账号或邮箱长度为 4-200 位")
+    .max(200, "账号或邮箱长度为 4-200 位")
+    .refine(
+      (value) => /^[A-Za-z0-9]+$/.test(value) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      "请输入用户名或邮箱"
+    ),
   password: z.string().min(1, "请输入密码")
 })
 
@@ -31,7 +39,7 @@ export default function LoginPage() {
 
   const methods = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" }
+    defaultValues: { username: "", password: "" }
   })
 
   const {
@@ -39,7 +47,7 @@ export default function LoginPage() {
   } = methods
 
   async function onSubmit(data: LoginForm) {
-    const result = await authApi.login(data.email, data.password)
+    const result = await authApi.login(data.username, data.password)
     setTokens(result.accessToken, result.refreshToken)
     const user = await authApi.me()
     setUser(user)
@@ -57,11 +65,11 @@ export default function LoginPage() {
     <div className="w-full max-w-sm space-y-6">
       <div>
         <h2 className="font-bold text-2xl">登录</h2>
-        <p className="mt-1 text-muted-foreground text-sm">输入账号密码登录系统</p>
+        <p className="mt-1 text-muted-foreground text-sm">输入账号或邮箱登录系统</p>
       </div>
 
       <Form methods={methods} onSubmit={onSubmit}>
-        <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
+        <FieldText name="username" label="账号/邮箱" type="text" placeholder="用户名或邮箱" />
         <FieldText name="password" label="密码" type="password" placeholder="输入密码" />
 
         <div className="flex justify-end">

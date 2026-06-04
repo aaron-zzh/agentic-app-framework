@@ -30,6 +30,7 @@ public class MockTokenConfig {
                             return auth != null && auth.startsWith("Bearer " + MOCK_SECRET);
                         })
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(

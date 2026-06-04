@@ -19,7 +19,7 @@ public class DefaultAccessDecisionService implements AccessDecisionService {
     private final ObjectProvider<FunctionPermissionChecker> functionPermissionChecker;
     private final ObjectProvider<RelationPermissionChecker> relationPermissionChecker;
     private final ObjectProvider<RecordRuleSupport> recordRuleSupport;
-    private final PolicyEngine policyEngine;
+    private final ObjectProvider<PolicyEngine> policyEngine;
 
     @Override
     public boolean hasPermission(String permissionCode) {
@@ -57,7 +57,8 @@ public class DefaultAccessDecisionService implements AccessDecisionService {
 
     @Override
     public PolicyResult evaluatePolicy(PolicyInput input) {
-        return policyEngine.evaluate(input);
+        var engine = policyEngine.getIfAvailable();
+        return engine == null ? PolicyResult.allow() : engine.evaluate(input);
     }
 
     private boolean hasSuperAdminAuthority() {

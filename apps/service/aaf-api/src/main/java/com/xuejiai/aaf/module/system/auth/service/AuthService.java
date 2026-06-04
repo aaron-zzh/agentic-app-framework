@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -78,8 +79,7 @@ public class AuthService {
     /** 账号密码登录 */
     public AuthLoginVO login(AuthLoginDTO dto, String deviceId) {
         User user =
-                userRepository
-                        .findByUsername(dto.username())
+                findLoginUser(dto.username())
                         .orElseThrow(() -> exception(AUTH_LOGIN_BAD_CREDENTIALS));
         checkLocked(user);
         if (!user.isActive()) {
@@ -92,6 +92,13 @@ public class AuthService {
         user.recordLoginSuccess(null);
         userRepository.save(user);
         return generateTokensWithSession(user, deviceId);
+    }
+
+    private Optional<User> findLoginUser(String account) {
+        if (account.contains("@")) {
+            return userRepository.findByEmail(account);
+        }
+        return userRepository.findByUsername(account);
     }
 
     // ==================== 邮箱注册 ====================
