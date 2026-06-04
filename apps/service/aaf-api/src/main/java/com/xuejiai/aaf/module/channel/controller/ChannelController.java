@@ -37,9 +37,12 @@ import lombok.RequiredArgsConstructor;
 public class ChannelController {
 
     private final ChannelMessageRouter router;
-    private final MiniAppLoginService miniAppLoginService;
     private final ChannelConfigService channelConfigService;
     private final WebhookService webhookService;
+
+    /** 可选注入——仅 aaf.channel.wx.mini.enabled=true 时存在 */
+    @Autowired(required = false)
+    private MiniAppLoginService miniAppLoginService;
 
     /** 可选注入——仅 aaf.channel.dingtalk.enabled=true 时存在 */
     @Autowired(required = false)
@@ -74,6 +77,9 @@ public class ChannelController {
     /** 微信小程序登录 */
     @PostMapping("/wx/mini/login")
     public Result<MiniAppSessionVO> wxMiniLogin(@Validated @RequestBody MiniAppLoginDTO dto) {
+        if (miniAppLoginService == null) {
+            return Result.error(GlobalErrorCode.BAD_REQUEST, "微信小程序渠道未启用");
+        }
         return Result.success(miniAppLoginService.login(dto));
     }
 
@@ -81,6 +87,9 @@ public class ChannelController {
     @PostMapping("/wx/mini/phone-login")
     public Result<MiniAppSessionVO> wxMiniPhoneLogin(
             @Validated @RequestBody MiniAppPhoneLoginDTO dto) {
+        if (miniAppLoginService == null) {
+            return Result.error(GlobalErrorCode.BAD_REQUEST, "微信小程序渠道未启用");
+        }
         return Result.success(miniAppLoginService.phoneLogin(dto));
     }
 

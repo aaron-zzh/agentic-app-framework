@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.channel.service;
 import java.time.LocalDateTime;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "aaf.channel.wx.mini.enabled", havingValue = "true")
 public class MiniAppLoginService {
 
     private static final String PROVIDER = "wechat_mini";
