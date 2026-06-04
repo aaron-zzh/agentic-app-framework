@@ -28,9 +28,13 @@ public class AafAguiConfiguration {
     @Bean
     public Session agentScopeSession(
             @Value("${spring.data.redis.host:localhost}") String host,
-            @Value("${spring.data.redis.port:6379}") int port) {
-        var redisClient =
-                RedisClient.create(RedisURI.builder().withHost(host).withPort(port).build());
+            @Value("${spring.data.redis.port:6379}") int port,
+            @Value("${spring.data.redis.password:}") String password) {
+        var uriBuilder = RedisURI.builder().withHost(host).withPort(port);
+        if (password != null && !password.isBlank()) {
+            uriBuilder.withPassword(password.toCharArray());
+        }
+        var redisClient = RedisClient.create(uriBuilder.build());
         return RedisSession.builder()
                 .lettuceClient(redisClient)
                 .keyPrefix("aaf:agent:session:")
