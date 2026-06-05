@@ -151,6 +151,43 @@
 				<artifactId>agentscope-extensions-session-redis</artifactId>
 				<version>${agentscope.version}</version>
 			</dependency>
+
+			<!-- OkHttp/Okio 版本统一：okhttp-jvm(5.x) 与 okhttp(4.x) 并存导致 Okio.socket() NoSuchMethodError -->
+			<!-- 强制使用与 okhttp 4.x 兼容的 Okio 3.6.0 -->
+			<dependency>
+				<groupId>com.squareup.okio</groupId>
+				<artifactId>okio</artifactId>
+				<version>3.6.0</version>
+			</dependency>
+			<dependency>
+				<groupId>com.squareup.okio</groupId>
+				<artifactId>okio-jvm</artifactId>
+				<version>3.6.0</version>
+			</dependency>
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp</artifactId>
+				<version>4.12.0</version>
+			</dependency>
+			<!-- okhttp-jvm 5.x (OkHttp 5 KMP artifact) 与 okhttp 4.x 冲突，强制 provided 使其不进入运行时类路径 -->
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp-jvm</artifactId>
+				<version>5.3.2</version>
+				<scope>provided</scope>
+			</dependency>
+			<!-- anthropic SDK 传递引入 okhttp-jvm 5.x，排除后由上面锁定的 okhttp 4.x 覆盖 -->
+			<dependency>
+				<groupId>com.anthropic</groupId>
+				<artifactId>anthropic-java-client-okhttp</artifactId>
+				<version>2.14.0</version>
+				<exclusions>
+					<exclusion>
+						<groupId>com.squareup.okhttp3</groupId>
+						<artifactId>okhttp-jvm</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
 			<dependency>
 				<groupId>org.springaicommunity</groupId>
 				<artifactId>spring-ai-a2a-server-autoconfigure</artifactId>
