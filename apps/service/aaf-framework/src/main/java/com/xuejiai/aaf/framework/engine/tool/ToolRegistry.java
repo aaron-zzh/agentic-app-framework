@@ -162,6 +162,22 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
         metas.put(meta.name(), meta);
     }
 
+    /** 注销工具（从注册中心彻底移除）。 */
+    public void unregister(String name) {
+        callbacks.remove(name);
+        metas.remove(name);
+        log.info("注销工具: {}", name);
+    }
+
+    /** 按来源批量注销（如 MCP Server 断开时清理其全部工具）。 */
+    public void unregisterBySource(String source) {
+        metas.values().stream()
+                .filter(m -> source.equals(m.source()))
+                .map(ToolMeta::name)
+                .toList()
+                .forEach(this::unregister);
+    }
+
     public void setWhitelist(String assistantId, List<String> toolNames) {
         /* 已废弃，走 Role */
     }

@@ -12,4 +12,5 @@ import jakarta.validation.constraints.NotBlank;
 public record McpServerAddDTO(
         @NotBlank(message = "服务名称不能为空") @Schema(description = "服务名称") String name,
         @NotBlank(message = "服务地址不能为空") @Schema(description = "服务地址") String url,
-        @Schema(description = "描述") String description) {}
+        @Schema(description = "描述") String description,
+        @Schema(description = "传输协议：HTTP/SSE/STDIO，默认 HTTP") String transport) {}

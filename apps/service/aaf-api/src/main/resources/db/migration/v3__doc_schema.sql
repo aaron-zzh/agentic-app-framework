@@ -13,6 +13,7 @@ CREATE TABLE doc_document (
     doc_type     VARCHAR(50)  NOT NULL DEFAULT 'spec',
     front_matter JSONB,
     status       VARCHAR(20)  NOT NULL DEFAULT 'active',
+    publish      VARCHAR(20)  NOT NULL DEFAULT 'draft',
     archived_at  TIMESTAMP(6),
     owner_id     BIGINT,
     create_by    BIGINT,
@@ -28,9 +29,12 @@ CREATE TABLE doc_document (
 
 COMMENT ON TABLE doc_document IS '业务文档';
 COMMENT ON COLUMN doc_document.front_matter IS 'Front Matter 元数据（YAML 解析后的 JSON）';
+COMMENT ON COLUMN doc_document.publish IS '发布状态：draft=草稿，published=已发布';
 
 CREATE INDEX idx_doc_document_fts
     ON doc_document USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')));
+
+CREATE INDEX idx_doc_document_publish ON doc_document (publish) WHERE deleted = FALSE;
 
 
 CREATE TABLE doc_link (
