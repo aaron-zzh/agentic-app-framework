@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next"
+import { NextIntlClientProvider } from "next-intl"
+import { getLocale, getMessages } from "next-intl/server"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -79,24 +81,29 @@ export const viewport: Viewport = {
   ]
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
     // suppressHydrationWarning: next-themes 在客户端注入 class/style 属性切换主题，
     // 服务端无法预知用户主题偏好，需抑制 hydration 不匹配警告（仅作用于此标签，不影响子元素）
-    <html lang="zh-CN" className="scroll-smooth" suppressHydrationWarning>
+    <html lang={locale} className="scroll-smooth" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${notoSansSC.variable} font-sans antialiased`}
       >
-        <ThemeProvider>
-          <QueryProvider>
-            <TooltipProvider>
-              <NuqsAdapter>{children}</NuqsAdapter>
-              <ToastProvider />
-              <FloatingAssistant />
-            </TooltipProvider>
-          </QueryProvider>
-          <ServiceWorkerRegister />
-        </ThemeProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ThemeProvider>
+            <QueryProvider>
+              <TooltipProvider>
+                <NuqsAdapter>{children}</NuqsAdapter>
+                <ToastProvider />
+                <FloatingAssistant />
+              </TooltipProvider>
+            </QueryProvider>
+            <ServiceWorkerRegister />
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   )

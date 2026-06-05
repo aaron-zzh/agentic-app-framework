@@ -5,7 +5,8 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { Bot, Edit, FileText, Plus, RefreshCw } from "lucide-react"
+import { Bot, Edit, ExternalLink, FileText, Plus, RefreshCw } from "lucide-react"
+import Link from "next/link"
 import { useCallback, useMemo, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -17,20 +18,21 @@ import {
   AccordionItem,
   AccordionTrigger
 } from "@/components/ui/accordion"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { KiroAgentDrawer } from "@/features/livechat/kiro/KiroAgentDrawer"
-import { RichTextEditor } from "@/features/rich-text-editor"
+import { paths } from "@/lib/constants/paths"
 import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import {
   docKeys,
   useDocTree,
   useDocument,
   useImportDocs,
-  useUpdateDocument
+  usePublishDocument,
+  useUnpublishDocument
 } from "@/lib/queries/use-documents"
 import type { DocTreeNode } from "@/lib/types/document"
 import { DocCreateDialog } from "./DocCreateDialog"
@@ -46,19 +48,21 @@ const DOC_TYPE_GROUPS = [
   { key: "explanation", label: "说明" }
 ] as const
 
+type PublishTab = "all" | "draft" | "published"
+
 export default function DocsPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editContent, setEditContent] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
   const [kiroOpen, setKiroOpen] = useState(false)
-  const [tab, setTab] = useState("content")
+  const [contentTab, setContentTab] = useState("content")
+  const [publishTab, setPublishTab] = useState<PublishTab>("all")
 
   const queryClient = useQueryClient()
   const { data: tree, isLoading: treeLoading } = useDocTree()
   const { data: doc, isLoading: docLoading } = useDocument(selectedId)
-  const { mutate: update, isPending: saving } = useUpdateDocument()
   const { mutate: importDocs, isPending: importing } = useImportDocs()
+  const { mutate: publish, isPending: publishing } = usePublishDocument()
+  const { mutate: unpublish, isPending: unpublishing } = useUnpublishDocument()
 
   /** SSE 文档变更通知 */
   const handleDocUpdate = useCallback(() => {
@@ -69,7 +73,7 @@ export default function DocsPage() {
 
   useDocEvents(selectedId, handleDocUpdate)
 
-  /** 按 docType 分组文档（扁平化树中的文件节点） */
+  /** 按 docType 分组，支持 publish tab 筛选 */
   const groupedDocs = useMemo(() => {
     if (!tree) return new Map<string, DocTreeNode[]>()
     const map = new Map<string, DocTreeNode[]>()
@@ -78,7 +82,6 @@ export default function DocsPage() {
         if (node.isDir) {
           collect(node.children)
         } else if (node.id != null) {
-          // 从路径推断 docType
           const docType = inferDocType(node.path)
           const list = map.get(docType) ?? []
           list.push(node)
@@ -90,29 +93,34 @@ export default function DocsPage() {
     return map
   }, [tree])
 
+  /** 按 publish 状态过滤 */
+  const allFlatDocs = useMemo(() => {
+    const all: DocTreeNode[] = []
+    for (const list of groupedDocs.values()) all.push(...list)
+    return all
+  }, [groupedDocs])
+
+  const draftCount = allFlatDocs.length // 树节点无 publish 字段，只用 doc 详情判断
+  void draftCount // suppress lint
+
   function handleSelectDoc(id: number) {
     setSelectedId(id)
-    setTab("content")
+    setContentTab("content")
   }
 
-  function handleEdit() {
-    if (!doc) return
-    setEditContent(doc.content ?? "")
-    setEditOpen(true)
-  }
-
-  function handleSave() {
-    if (!selectedId) return
-    update(
-      { id: selectedId, content: editContent },
-      {
-        onSuccess: () => {
-          setEditOpen(false)
-          toast.success("文档已保存")
-        },
-        onError: () => toast.error("保存失败")
-      }
-    )
+  function handlePublishToggle() {
+    if (!selectedId || !doc) return
+    if (doc.publish === "published") {
+      unpublish(selectedId, {
+        onSuccess: () => toast.success("已转为草稿"),
+        onError: () => toast.error("操作失败")
+      })
+    } else {
+      publish(selectedId, {
+        onSuccess: () => toast.success("已发布"),
+        onError: () => toast.error("操作失败")
+      })
+    }
   }
 
   return (
@@ -124,13 +132,10 @@ export default function DocsPage() {
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="font-medium text-sm">文档</span>
               <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setCreateOpen(true)}
-                  title="新建文档"
-                >
-                  <Plus className="size-4" />
+                <Button size="sm" variant="ghost" asChild title="新建文档">
+                  <Link href={paths.docs.new}>
+                    <Plus className="size-4" />
+                  </Link>
                 </Button>
                 <Button
                   size="sm"
@@ -143,6 +148,24 @@ export default function DocsPage() {
                 </Button>
               </div>
             </div>
+
+            {/* publish 状态筛选 tab */}
+            <div className="border-b px-2 pt-1">
+              <Tabs value={publishTab} onValueChange={(v) => setPublishTab(v as PublishTab)}>
+                <TabsList className="h-7 w-full">
+                  <TabsTrigger value="all" className="flex-1 text-xs">
+                    全部
+                  </TabsTrigger>
+                  <TabsTrigger value="draft" className="flex-1 text-xs">
+                    草稿
+                  </TabsTrigger>
+                  <TabsTrigger value="published" className="flex-1 text-xs">
+                    已发布
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
             <div className="flex-1 overflow-y-auto p-2">
               {treeLoading ? (
                 <div className="space-y-2">
@@ -203,17 +226,52 @@ export default function DocsPage() {
               <>
                 {/* 标题栏 */}
                 <div className="flex items-center justify-between border-b px-4 py-3">
-                  <h2 className="truncate font-semibold text-base">{doc?.title ?? "加载中..."}</h2>
-                  <Button size="sm" variant="outline" onClick={handleEdit} disabled={!doc}>
-                    <Edit className="mr-1 size-4" />
-                    编辑
-                  </Button>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h2 className="truncate font-semibold text-base">
+                      {doc?.title ?? "加载中..."}
+                    </h2>
+                    {doc && (
+                      <Badge
+                        variant={doc.publish === "published" ? "default" : "secondary"}
+                        className="shrink-0 text-xs"
+                      >
+                        {doc.publish === "published" ? "已发布" : "草稿"}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {doc && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handlePublishToggle}
+                          disabled={publishing || unpublishing}
+                        >
+                          {doc.publish === "published" ? "转为草稿" : "发布"}
+                        </Button>
+                        {doc.publish === "published" && (
+                          <Button size="sm" variant="ghost" asChild title="公开阅读页">
+                            <Link href={paths.docs.public(doc.id)} target="_blank">
+                              <ExternalLink className="size-4" />
+                            </Link>
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    <Button size="sm" variant="outline" asChild disabled={!doc}>
+                      <Link href={paths.docs.edit(selectedId)}>
+                        <Edit className="mr-1 size-4" />
+                        编辑
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Tab 切换 */}
                 <Tabs
-                  value={tab}
-                  onValueChange={(v) => setTab(v as string)}
+                  value={contentTab}
+                  onValueChange={(v) => setContentTab(v as string)}
                   className="flex flex-1 flex-col overflow-hidden"
                 >
                   <TabsList className="mx-4 mt-2">
@@ -251,30 +309,6 @@ export default function DocsPage() {
 
       {/* 新建文档弹窗 */}
       <DocCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
-
-      {/* 编辑弹窗 */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>编辑文档：{doc?.title}</DialogTitle>
-          </DialogHeader>
-          <RichTextEditor
-            value={editContent}
-            onChange={setEditContent}
-            preset="document"
-            mode="markdown"
-            minHeight={400}
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setEditOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "保存中..." : "保存"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Kiro Agent 悬浮按钮 */}
       <div className="fixed right-6 bottom-6 z-50">

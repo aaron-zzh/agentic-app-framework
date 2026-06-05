@@ -3,13 +3,15 @@
  * @author AaronZZH & Kiro
  *
  * 放置在 AppHeader 用户菜单区域，通过 DropdownMenu 切换语言。
- * 切换时设置 cookie 并刷新页面以加载新语言消息。
+ * 切换时调用 setUserLocale server action 写入 cookie，通过 router.refresh() 触发服务端重渲染。
  */
 
 "use client"
 
 import { Globe } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useLocale, useTranslations } from "next-intl"
+import { useTransition } from "react"
 
 import {
   DropdownMenu,
@@ -17,7 +19,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { LOCALE_COOKIE, type Locale, locales } from "@/i18n/config"
+import { type Locale, locales } from "@/i18n/config"
+import { setUserLocale } from "@/i18n/locale"
 
 /** 语言显示名称映射 */
 const localeNames: Record<Locale, string> = {
@@ -28,20 +31,23 @@ const localeNames: Record<Locale, string> = {
 export function LanguageSwitcher() {
   const currentLocale = useLocale()
   const t = useTranslations("layout")
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   function switchLocale(locale: Locale) {
     if (locale === currentLocale) return
-    // biome-ignore lint/suspicious/noDocumentCookie: 持久化语言偏好需要直接操作 cookie
-    document.cookie = `${LOCALE_COOKIE}=${locale};path=/;max-age=${60 * 60 * 24 * 365}`
-    // 刷新页面加载新语言
-    window.location.reload()
+    startTransition(async () => {
+      await setUserLocale(locale)
+      router.refresh()
+    })
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
         aria-label={t("switchLanguage")}
+        disabled={isPending}
         render={<button type="button" />}
       >
         <Globe className="size-4" />

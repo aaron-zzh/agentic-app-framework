@@ -1,4 +1,5 @@
 export * from "./animate-border"
+export * from "./LottieIcon"
 export * from "./motion-container"
 export * from "./motion-lazy"
 export * from "./motion-viewport"

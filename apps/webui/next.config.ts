@@ -1,6 +1,9 @@
 import { composePlugins, withNx } from "@nx/next";
 import withSerwistInit from "@serwist/next";
+import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
+
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
@@ -9,6 +12,10 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  webpack: (config) => {
+    config.resolve.alias.canvas = false
+    return config
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
@@ -41,6 +48,6 @@ const nextConfig: NextConfig = {
   ],
 };
 
-const plugins = [withNx, withSerwist];
+const plugins = [withNx, withNextIntl, withSerwist];
 
 export default composePlugins(...plugins)(nextConfig);

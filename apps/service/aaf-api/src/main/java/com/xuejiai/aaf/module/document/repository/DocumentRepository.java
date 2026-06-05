@@ -15,6 +15,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findByStatusOrderByFilePath(String status);
 
+    List<Document> findByPublishOrderByUpdateTimeDesc(String publish);
+
     /** 全文检索（PostgreSQL tsvector） */
     @Query(
             value =

@@ -6,8 +6,8 @@
 
 import type { AxiosRequestConfig } from "axios"
 import { ApiError } from "@/lib/api/errors"
-import type { ApiResult, ListParams, PageResult } from "@/lib/api/types"
 import { backendApi } from "@/lib/api/rest/backend-client"
+import type { ApiResult, ListParams, PageResult } from "@/lib/api/types"
 
 export type CrudId = string | number
 export type CrudRecord = Record<string, unknown>
@@ -100,18 +100,17 @@ export function batchReadRecords<TRecord extends CrudRecord = CrudRecord>(
   return backendApi.post<TRecord[]>(`${resource.apiPath}/_batch-read`, { ids, fieldSet })
 }
 
-export function createRecord<TRecord extends CrudRecord = CrudRecord, TCreate extends CrudData = CrudData>(
-  resource: CrudResource<TRecord>,
-  data: TCreate
-): Promise<TRecord> {
+export function createRecord<
+  TRecord extends CrudRecord = CrudRecord,
+  TCreate extends CrudData = CrudData
+>(resource: CrudResource<TRecord>, data: TCreate): Promise<TRecord> {
   return backendApi.post<TRecord>(resource.apiPath, data)
 }
 
-export function updateRecord<TRecord extends CrudRecord = CrudRecord, TUpdate extends CrudData = CrudData>(
-  resource: CrudResource<TRecord>,
-  id: CrudId,
-  data: TUpdate
-): Promise<TRecord> {
+export function updateRecord<
+  TRecord extends CrudRecord = CrudRecord,
+  TUpdate extends CrudData = CrudData
+>(resource: CrudResource<TRecord>, id: CrudId, data: TUpdate): Promise<TRecord> {
   return backendApi.put<TRecord>(`${resource.apiPath}/${id}`, data)
 }
 

@@ -11,4 +11,5 @@ public record DocCreateDTO(
                 String title,
         @Schema(description = "文件路径", example = "docs/prd/feature-x.md") String filePath,
         @Schema(description = "文档内容（Markdown）") String content,
-        @Schema(description = "文档类型", example = "spec") String docType) {}
+        @Schema(description = "文档类型", example = "spec") String docType,
+        @Schema(description = "发布状态：draft / published", example = "draft") String publish) {}

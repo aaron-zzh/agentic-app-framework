@@ -55,6 +55,10 @@ public class Document extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private String status = "active";
 
+    /** 发布状态：draft / published */
+    @Column(name = "publish", nullable = false, length = 20)
+    private String publish = "draft";
+
     /** 获取 Front Matter 为 Map。 */
     @Transient
     public Map<String, Object> getFrontMatter() {

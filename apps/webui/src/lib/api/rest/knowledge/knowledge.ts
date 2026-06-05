@@ -13,7 +13,7 @@ import type {
 } from "@/lib/types/knowledge"
 import { buildApiUrl } from "../../config"
 import { backendApi } from "../backend-client"
-import { buildQuery, request, type ListParams, type PageResult } from "../entity/crud"
+import { buildQuery, type ListParams, type PageResult, request } from "../entity/crud"
 
 const API_PATH = "/knowledge-bases"
 

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -47,8 +48,14 @@ const examplePages = [
   { label: "ASR", href: "/examples/asr" },
   { label: "Assistant UI", href: "/examples/assistant-ui" },
   { label: "GraphQL", href: "/examples/graphql" },
+  { label: "i18n", href: "/examples/i18n" },
   { label: "Image", href: "/examples/image" },
-  { label: "Omni Realtime", href: "/examples/omni-realtime" }
+  { label: "Lottie", href: "/examples/lottie" },
+  { label: "Next.js Features", href: "/examples/nextjs-features" },
+  { label: "Omni Realtime", href: "/examples/omni-realtime" },
+  { label: "PDF", href: "/examples/pdf" },
+  { label: "Style Showcase", href: "/examples/style-showcase" },
+  { label: "Tech Style", href: "/examples/tech-style" }
 ]
 
 const zustandPages = [
@@ -133,23 +140,27 @@ export function DevHeader() {
               <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-44">
-              <DropdownMenuLabel>基础示例</DropdownMenuLabel>
-              {examplePages.map((p) => (
-                <DropdownMenuItem key={p.href}>
-                  <Link href={p.href} className="w-full cursor-pointer">
-                    {p.label}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>基础示例</DropdownMenuLabel>
+                {examplePages.map((p) => (
+                  <DropdownMenuItem key={p.href}>
+                    <Link href={p.href} className="w-full cursor-pointer">
+                      {p.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Zustand</DropdownMenuLabel>
-              {zustandPages.map((p) => (
-                <DropdownMenuItem key={p.href}>
-                  <Link href={p.href} className="w-full cursor-pointer">
-                    {p.label}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Zustand</DropdownMenuLabel>
+                {zustandPages.map((p) => (
+                  <DropdownMenuItem key={p.href}>
+                    <Link href={p.href} className="w-full cursor-pointer">
+                      {p.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 

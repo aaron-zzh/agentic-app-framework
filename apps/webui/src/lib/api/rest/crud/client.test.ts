@@ -5,14 +5,8 @@ import {
   mockBackendResponse,
   resetMockBackendClient
 } from "@/test/mock-backend-client"
-import {
-  buildQuery,
-  deleteRecord,
-  deleteRecords,
-  fetchList,
-  fetchQueryWindow
-} from "./client"
 import { crudResources } from "../endpoints"
+import { buildQuery, deleteRecord, deleteRecords, fetchList, fetchQueryWindow } from "./client"
 
 describe("crud client", () => {
   beforeEach(() => {

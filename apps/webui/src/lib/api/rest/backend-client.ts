@@ -2,7 +2,11 @@
  * Spring Boot REST API 客户端。
  */
 
-import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios"
+import axios, {
+  type AxiosError,
+  type AxiosRequestConfig,
+  type InternalAxiosRequestConfig
+} from "axios"
 import { clearAxiosAuth, setAxiosAuth } from "@/lib/auth/utils"
 import { notify } from "@/lib/notification"
 import { RestApiClient } from "../api-client"

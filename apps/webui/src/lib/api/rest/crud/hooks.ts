@@ -5,16 +5,16 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ListParams, PageResult } from "@/lib/api/types"
 import {
-  createRecord,
-  deleteRecord,
-  deleteRecords,
-  updateRecord,
   type CrudData,
   type CrudDetailParams,
   type CrudId,
   type CrudQueryWindowParams,
   type CrudRecord,
-  type CrudResource
+  type CrudResource,
+  createRecord,
+  deleteRecord,
+  deleteRecords,
+  updateRecord
 } from "./client"
 import {
   crudDetailKey,
@@ -22,7 +22,7 @@ import {
   crudKey,
   crudListOptions,
   crudMetaOptions,
-  crudQueryWindowOptions,
+  crudQueryWindowOptions
 } from "./query-options"
 
 export interface CrudQueryOptions {
@@ -54,7 +54,7 @@ export function useCrudList<TRecord extends CrudRecord = CrudRecord>(
   resource: CrudResource<TRecord>,
   params: ListParams = {},
   options: CrudQueryOptions = {}
-){
+) {
   return useQuery({
     ...crudListOptions<TRecord>(resource, params),
     enabled: options.enabled,
@@ -141,7 +141,10 @@ export function useCrudUpdate<
       )
     },
     onSuccess: (record, variables) => {
-      queryClient.setQueryData(crudDetailKey(resource, variables.id, { fieldSet: "detail" }), record)
+      queryClient.setQueryData(
+        crudDetailKey(resource, variables.id, { fieldSet: "detail" }),
+        record
+      )
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: crudKey(resource) })

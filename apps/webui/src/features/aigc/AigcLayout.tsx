@@ -24,13 +24,17 @@ function ChatPanel() {
 
 export function AigcLayout() {
   const addReferenceAsset = useAigcStore((s) => s.addReferenceAsset)
+  const addStoryboardAsset = useAigcStore((s) => s.addStoryboardAsset)
   const generationPanelOpen = useAigcStore((s) => s.generationPanelOpen)
   const setGenerationPanelOpen = useAigcStore((s) => s.setGenerationPanelOpen)
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
-    if (over?.id === "generation-drop-zone" && active.data.current) {
+    if (!active.data.current) return
+    if (over?.id === "generation-drop-zone") {
       addReferenceAsset(active.data.current as MediaAssetVO)
+    } else if (over?.id === "storyboard-drop-zone") {
+      addStoryboardAsset(active.data.current as MediaAssetVO)
     }
   }
 

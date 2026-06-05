@@ -1,185 +1,273 @@
 /**
- * 积分概览页面——显示余额、流水列表、充值入口
- * @author AaronZZH & Kiro
+ * 积分详情页——余额公式（总额 = 会员积分 + 奖励积分 + 每周积分）+ tab 流水 + 可展开记录
+ * 对标设计截图，模拟数据
+ * @author Kiro
  */
 
 "use client"
 
+import { ChevronDown, ChevronUp, Gift } from "lucide-react"
 import { useState } from "react"
-import { CreditRechargeDialog } from "@/components/common/CreditRechargeDialog"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table"
-import type { CreditTransactionType } from "@/lib/api/rest/billing/credits"
-import { useCreditBalance, useCreditTransactions } from "@/lib/queries/use-credits"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils/cn"
 
-/** 流水类型标签 */
-const TYPE_LABEL: Record<CreditTransactionType, string> = {
-  EARN: "获得",
-  SPEND: "消费",
-  FREEZE: "冻结",
-  UNFREEZE: "解冻",
-  EXPIRE: "过期"
+// ─── 模拟数据 ────────────────────────────────────────────────────────────────
+
+type TxType = "earn" | "spend"
+
+interface TxRecord {
+  id: string
+  title: string
+  time: string
+  amount: number
+  type: TxType
+  /** 展开详情（子条目） */
+  children?: { id: string; title: string; amount: number }[]
 }
 
-/** 流水类型颜色 */
-const TYPE_VARIANT: Record<CreditTransactionType, "default" | "secondary" | "destructive"> = {
-  EARN: "default",
-  SPEND: "destructive",
-  FREEZE: "secondary",
-  UNFREEZE: "default",
-  EXPIRE: "secondary"
+const MOCK_BALANCE = {
+  total: 666,
+  member: 466,
+  reward: 0,
+  weekly: 200
 }
 
-export default function CreditsPage() {
-  const [page, setPage] = useState(0)
-  const [rechargeOpen, setRechargeOpen] = useState(false)
-  const pageSize = 20
-  const { data: balance, isLoading: balanceLoading } = useCreditBalance()
-  const { data: transactions, isLoading: txLoading } = useCreditTransactions(page, pageSize)
+const MOCK_TRANSACTIONS: TxRecord[] = [
+  {
+    id: "1",
+    title: "Weekly Credits refreshed",
+    time: "2026.06.01 13:36",
+    amount: 200,
+    type: "earn"
+  },
+  {
+    id: "2",
+    title: "Weekly Credits expired",
+    time: "2026.05.25 00:00",
+    amount: -200,
+    type: "spend"
+  },
+  {
+    id: "3",
+    title: "Weekly Credits refreshed",
+    time: "2026.05.19 12:08",
+    amount: 200,
+    type: "earn"
+  },
+  {
+    id: "4",
+    title: "Weekly Credits expired",
+    time: "2026.05.18 00:00",
+    amount: -200,
+    type: "spend"
+  },
+  {
+    id: "5",
+    title: "Weekly Credits refreshed",
+    time: "2026.05.15 14:58",
+    amount: 200,
+    type: "earn"
+  },
+  {
+    id: "6",
+    title: "水墨奇幻次元觉醒",
+    time: "2026.05.14 10:22",
+    amount: -1089,
+    type: "spend",
+    children: [
+      { id: "6-1", title: "图片生成 × 3", amount: -480 },
+      { id: "6-2", title: "LLM 对话 × 12", amount: -360 },
+      { id: "6-3", title: "语音合成 × 2", amount: -249 }
+    ]
+  },
+  {
+    id: "7",
+    title: "Weekly Credits refreshed",
+    time: "2026.05.08 09:00",
+    amount: 200,
+    type: "earn"
+  },
+  { id: "8", title: "新用户奖励积分", time: "2026.05.01 00:00", amount: 500, type: "earn" }
+]
 
-  if (balanceLoading) {
-    return (
-      <div className="space-y-4 p-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-64 w-full" />
+// ─── 余额公式区 ──────────────────────────────────────────────────────────────
+
+function BalanceFormula() {
+  return (
+    <div className="grid grid-cols-4 items-end gap-2 py-6">
+      <div>
+        <p className="text-muted-foreground text-sm">积分余额</p>
+        <p className="mt-1 font-bold text-3xl tabular-nums">{MOCK_BALANCE.total}</p>
       </div>
-    )
-  }
+
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-muted-foreground text-xl">=</span>
+        <div>
+          <p className="flex items-center gap-1 text-muted-foreground text-sm">
+            会员积分
+            <InfoTip text="通过订阅会员获得" />
+          </p>
+          <p className="mt-1 font-bold text-3xl tabular-nums">{MOCK_BALANCE.member}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-muted-foreground text-xl">+</span>
+        <div>
+          <p className="flex items-center gap-1 text-muted-foreground text-sm">
+            奖励积分
+            <InfoTip text="邀请好友或完成任务获得" />
+          </p>
+          <p className="mt-1 font-bold text-3xl tabular-nums">{MOCK_BALANCE.reward}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-muted-foreground text-xl">+</span>
+        <div>
+          <p className="flex items-center gap-1 text-muted-foreground text-sm">
+            每周积分
+            <InfoTip text="每周自动刷新，到期清零" />
+          </p>
+          <p className="mt-1 font-bold text-3xl tabular-nums">{MOCK_BALANCE.weekly}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span
+      className="inline-flex size-4 cursor-default items-center justify-center rounded-full border text-[10px] text-muted-foreground"
+      title={text}
+    >
+      i
+    </span>
+  )
+}
+
+// ─── 流水条目 ────────────────────────────────────────────────────────────────
+
+function TxRow({ tx }: { tx: TxRecord }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasChildren = !!tx.children?.length
+  const isEarn = tx.amount > 0
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      {/* 页面标题 + 充值按钮 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-semibold text-2xl">积分管理</h1>
-          <p className="text-muted-foreground text-sm">查看积分余额和消费记录</p>
+    <>
+      <div className="flex items-center justify-between py-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-medium">{tx.title}</p>
+            {hasChildren && (
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setExpanded((v) => !v)}
+                aria-label={expanded ? "收起" : "展开"}
+              >
+                {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+              </button>
+            )}
+          </div>
+          <p className="mt-0.5 text-muted-foreground text-xs">{tx.time}</p>
         </div>
-        <Button onClick={() => setRechargeOpen(true)}>充值</Button>
+        <span
+          className={cn(
+            "font-semibold tabular-nums",
+            isEarn ? "text-emerald-500" : "text-orange-400"
+          )}
+        >
+          {isEarn ? `+ ${tx.amount}` : `- ${Math.abs(tx.amount)}`}
+        </span>
       </div>
 
-      <CreditRechargeDialog open={rechargeOpen} onOpenChange={setRechargeOpen} />
+      {/* 展开子条目 */}
+      {expanded && tx.children && (
+        <div className="mb-2 ml-4 space-y-2 rounded-lg bg-muted/40 px-4 py-2">
+          {tx.children.map((child) => (
+            <div key={child.id} className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{child.title}</span>
+              <span className="text-orange-400 tabular-nums">- {Math.abs(child.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* 余额卡片 */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>可用积分</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold text-2xl">{balance?.balance ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>冻结积分</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold text-2xl text-muted-foreground">{balance?.frozen ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>累计获得</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold text-2xl text-green-600">{balance?.totalEarned ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>累计消费</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold text-2xl text-red-600">{balance?.totalSpent ?? 0}</p>
-          </CardContent>
-        </Card>
+      <Separator />
+    </>
+  )
+}
+
+// ─── 兑换码对话框（简版） ────────────────────────────────────────────────────
+
+function RedeemButton() {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-1.5 border-amber-500 text-amber-500 hover:bg-amber-500/10"
+    >
+      <Gift className="size-4" />
+      兑换码
+    </Button>
+  )
+}
+
+// ─── 主页面 ──────────────────────────────────────────────────────────────────
+
+type TabValue = "all" | "spend" | "earn"
+
+export default function CreditsPage() {
+  const [tab, setTab] = useState<TabValue>("all")
+
+  const filtered = MOCK_TRANSACTIONS.filter((tx) => {
+    if (tab === "earn") return tx.type === "earn"
+    if (tab === "spend") return tx.type === "spend"
+    return true
+  })
+
+  return (
+    <div className="mx-auto max-w-3xl px-8 py-6">
+      {/* 标题行 */}
+      <div className="flex items-center justify-between">
+        <h1 className="font-semibold text-xl">积分详情</h1>
+        <RedeemButton />
+      </div>
+
+      {/* 余额公式 */}
+      <BalanceFormula />
+
+      <Separator />
+
+      {/* Tab */}
+      <div className="py-4">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
+          <TabsList className="w-full">
+            <TabsTrigger value="all" className="flex-1">
+              全部
+            </TabsTrigger>
+            <TabsTrigger value="spend" className="flex-1">
+              已消耗
+            </TabsTrigger>
+            <TabsTrigger value="earn" className="flex-1">
+              已获得
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* 流水列表 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>积分流水</CardTitle>
-          <CardDescription>最近的积分变动记录</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {txLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={`sk-${i}`} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : !transactions?.list.length ? (
-            <p className="py-8 text-center text-muted-foreground text-sm">暂无流水记录</p>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>类型</TableHead>
-                    <TableHead>金额</TableHead>
-                    <TableHead>余额</TableHead>
-                    <TableHead>来源</TableHead>
-                    <TableHead>时间</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.list.map((tx) => (
-                    <TableRow key={tx.id}>
-                      <TableCell>
-                        <Badge variant={TYPE_VARIANT[tx.type]}>{TYPE_LABEL[tx.type]}</Badge>
-                      </TableCell>
-                      <TableCell className={tx.amount >= 0 ? "text-green-600" : "text-red-600"}>
-                        {tx.amount >= 0 ? `+${tx.amount}` : tx.amount}
-                      </TableCell>
-                      <TableCell>{tx.balanceAfter}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{tx.source}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {tx.createTime}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* 分页 */}
-              {transactions.total > pageSize && (
-                <div className="flex items-center justify-end gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page === 0}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    上一页
-                  </Button>
-                  <span className="text-muted-foreground text-sm">
-                    第 {page + 1} / {Math.ceil(transactions.total / pageSize)} 页
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={(page + 1) * pageSize >= transactions.total}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    下一页
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <div>
+        {filtered.length === 0 ? (
+          <p className="py-12 text-center text-muted-foreground text-sm">暂无记录</p>
+        ) : (
+          filtered.map((tx) => <TxRow key={tx.id} tx={tx} />)
+        )}
+      </div>
     </div>
   )
 }

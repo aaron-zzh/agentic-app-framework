@@ -60,5 +60,27 @@
     "switchLanguage": "Switch Language",
     "zh": "中文",
     "en": "English"
+  },
+  "LocaleSwitcher": {
+    "label": "Language",
+    "zh": "中文",
+    "en": "English"
+  },
+  "i18nExamples": {
+    "title": "i18n / Internationalization",
+    "subtitle": "Language switching powered by next-intl",
+    "currentLocale": "Current locale",
+    "switchLanguage": "Switch Language",
+    "basicUsage": "Basic Usage",
+    "formatsTitle": "Number & Date Formats",
+    "greeting": "Hello, {name}!",
+    "itemCount": "You have {count, plural, =0 {no items} =1 {one item} other {# items}}.",
+    "today": "Today is {date, date, long}.",
+    "price": "Price: {price, number, ::currency/USD}",
+    "serverActionTitle": "Server Action",
+    "serverActionDesc": "Language preference is saved via server action and persists across sessions.",
+    "numberFormat": "Number format",
+    "currencyFormat": "Currency",
+    "dateFormat": "Date format"
   }
 }

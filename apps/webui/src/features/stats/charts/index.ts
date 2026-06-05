@@ -5,6 +5,7 @@
 
 export { BaseChart } from "./BaseChart"
 export { FunnelChart } from "./FunnelChart"
+export { MultiSeriesLineChart } from "./MultiSeriesLineChart"
 export { PieChart } from "./PieChart"
 export { RetentionChart } from "./RetentionChart"
 export { TrendChart } from "./TrendChart"

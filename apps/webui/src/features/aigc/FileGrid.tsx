@@ -5,6 +5,7 @@
 
 "use client"
 
+import { useEffect } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
@@ -71,14 +72,29 @@ function FileGridSkeleton() {
   )
 }
 
-export function FileGrid() {
+interface FileGridProps {
+  filterUnassigned?: boolean
+}
+
+export function FileGrid({ filterUnassigned = false }: FileGridProps) {
   const { data, isLoading } = useMediaAssets({ page: 0, pageSize: 20 })
+  const storyboardAssets = useAigcStore((s) => s.storyboardAssets)
+  const setPreviewList = useAigcStore((s) => s.setPreviewList)
+
+  const assignedIds = new Set(storyboardAssets.map((a) => a.id))
+  const list = data?.list ?? []
+  const filtered = filterUnassigned ? list.filter((a) => !assignedIds.has(a.id)) : list
+
+  // 同步 previewList，支持导航箭头
+  useEffect(() => {
+    setPreviewList(filtered)
+  }, [filtered, setPreviewList])
 
   if (isLoading) {
     return <FileGridSkeleton />
   }
 
-  if (!data?.list || data.list.length === 0) {
+  if (filtered.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 p-8 text-center">
         <p className="text-muted-foreground text-sm">暂无素材</p>
@@ -89,7 +105,7 @@ export function FileGrid() {
 
   return (
     <div className="grid grid-cols-3 gap-2 p-3">
-      {data.list.map((asset) => (
+      {filtered.map((asset) => (
         <DraggableAssetCard key={asset.id} asset={asset} />
       ))}
     </div>

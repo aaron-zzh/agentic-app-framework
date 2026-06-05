@@ -14,6 +14,15 @@ export interface DocCreateParams {
   filePath: string
   docType: string
   content?: string
+  publish?: string
+}
+
+/** 更新文档请求参数 */
+export interface DocUpdateParams {
+  title?: string
+  content?: string
+  docType?: string
+  publish?: string
 }
 
 export const documentApi = {
@@ -25,17 +34,20 @@ export const documentApi = {
 
   /** 新建文档 */
   create: (params: DocCreateParams) =>
-    request<Document>(BASE, {
-      method: "POST",
-      body: JSON.stringify(params)
-    }),
+    request<Document>(BASE, { method: "POST", body: JSON.stringify(params) }),
 
-  /** 更新文档内容 */
-  update: (id: number, content: string) =>
-    request<Document>(`${BASE}/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({ content })
-    }),
+  /** 更新文档 */
+  update: (id: number, params: DocUpdateParams) =>
+    request<Document>(`${BASE}/${id}`, { method: "PUT", body: JSON.stringify(params) }),
+
+  /** 发布文档 */
+  publish: (id: number) => request<Document>(`${BASE}/${id}/publish`, { method: "POST" }),
+
+  /** 取消发布 */
+  unpublish: (id: number) => request<Document>(`${BASE}/${id}/unpublish`, { method: "POST" }),
+
+  /** 获取已发布文档列表（公开端） */
+  published: () => request<Document[]>(`${BASE}/published`),
 
   /** 触发全量导入 */
   import: () => request<number>(`${BASE}/import`, { method: "POST" }),

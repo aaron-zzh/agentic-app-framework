@@ -3,21 +3,19 @@
  * @author AaronZZH & Kiro
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { DocCreateParams } from "@/lib/api/rest/system/document"
+import type { DocCreateParams, DocUpdateParams } from "@/lib/api/rest/system/document"
 import { documentApi } from "@/lib/api/rest/system/document"
 
 export const docKeys = {
   tree: ["docs", "tree"] as const,
   detail: (id: number) => ["docs", id] as const,
   relations: (id: number) => ["docs", id, "relations"] as const,
-  search: (q: string) => ["docs", "search", q] as const
+  search: (q: string) => ["docs", "search", q] as const,
+  published: ["docs", "published"] as const
 }
 
 export function useDocTree() {
-  return useQuery({
-    queryKey: docKeys.tree,
-    queryFn: documentApi.tree
-  })
+  return useQuery({ queryKey: docKeys.tree, queryFn: documentApi.tree })
 }
 
 export function useDocument(id: number | null) {
@@ -44,14 +42,43 @@ export function useDocSearch(q: string) {
   })
 }
 
+export function usePublishedDocs() {
+  return useQuery({ queryKey: docKeys.published, queryFn: documentApi.published })
+}
+
 export function useUpdateDocument() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, content }: { id: number; content: string }) =>
-      documentApi.update(id, content),
+    mutationFn: ({ id, ...params }: { id: number } & DocUpdateParams) =>
+      documentApi.update(id, params),
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: docKeys.detail(id) })
       qc.invalidateQueries({ queryKey: docKeys.tree })
+      qc.invalidateQueries({ queryKey: docKeys.published })
+    }
+  })
+}
+
+export function usePublishDocument() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => documentApi.publish(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: docKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: docKeys.tree })
+      qc.invalidateQueries({ queryKey: docKeys.published })
+    }
+  })
+}
+
+export function useUnpublishDocument() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => documentApi.unpublish(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: docKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: docKeys.tree })
+      qc.invalidateQueries({ queryKey: docKeys.published })
     }
   })
 }
@@ -70,6 +97,7 @@ export function useCreateDocument() {
     mutationFn: (params: DocCreateParams) => documentApi.create(params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: docKeys.tree })
+      qc.invalidateQueries({ queryKey: docKeys.published })
     }
   })
 }

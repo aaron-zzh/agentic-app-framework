@@ -20,6 +20,8 @@ export interface Document {
   content: string
   docType: string
   status: string
+  /** draft | published */
+  publish: string
   createTime: string
   updateTime: string
 }

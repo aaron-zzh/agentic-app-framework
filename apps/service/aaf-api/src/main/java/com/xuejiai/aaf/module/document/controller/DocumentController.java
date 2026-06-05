@@ -48,10 +48,28 @@ public class DocumentController {
         return Result.success(documentService.getById(id));
     }
 
-    @Operation(summary = "更新文档内容")
+    @Operation(summary = "更新文档")
     @PutMapping("/{id}")
-    public Result<Document> update(@PathVariable Long id, @Valid @RequestBody DocUpdateDTO dto) {
-        return Result.success(documentService.update(id, dto.content()));
+    public Result<Document> update(@PathVariable Long id, @RequestBody DocUpdateDTO dto) {
+        return Result.success(documentService.update(id, dto));
+    }
+
+    @Operation(summary = "发布文档")
+    @PostMapping("/{id}/publish")
+    public Result<Document> publish(@PathVariable Long id) {
+        return Result.success(documentService.publish(id));
+    }
+
+    @Operation(summary = "取消发布（转为草稿）")
+    @PostMapping("/{id}/unpublish")
+    public Result<Document> unpublish(@PathVariable Long id) {
+        return Result.success(documentService.unpublish(id));
+    }
+
+    @Operation(summary = "获取已发布文档列表（公开端）")
+    @GetMapping("/published")
+    public Result<List<Document>> getPublished() {
+        return Result.success(documentService.getPublished());
     }
 
     @Operation(summary = "全文检索")

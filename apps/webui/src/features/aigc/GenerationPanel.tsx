@@ -7,7 +7,7 @@
 
 import { useDroppable } from "@dnd-kit/core"
 import { AnimatePresence, motion } from "framer-motion"
-import { ChevronDown, Upload, X } from "lucide-react"
+import { ChevronDown, Plus, Upload, X } from "lucide-react"
 import { useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,34 +30,81 @@ function ReferenceDropZone() {
   const removeReferenceAsset = useAigcStore((s) => s.removeReferenceAsset)
 
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "flex min-h-[72px] flex-wrap items-center gap-2 rounded-lg border border-border/50 border-dashed p-2 transition-colors",
-        isOver && "border-primary bg-primary/5"
-      )}
-    >
-      {referenceAssets.map((asset) => (
-        <div key={asset.id} className="group relative size-14 overflow-hidden rounded-md bg-muted">
-          {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
-          <img
-            src={asset.thumbnailUrl ?? undefined}
-            alt={asset.name}
-            className="size-full object-cover"
-          />
-          <button
-            type="button"
-            onClick={() => removeReferenceAsset(asset.id)}
-            className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
-          >
-            <X className="size-3" />
-          </button>
+    <div className="flex flex-col gap-2">
+      {/* 顶部：计数 + 提示文字 + 上传按钮 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* 已有素材缩略图预览（最多2张） */}
+          <div className="flex -space-x-2">
+            {referenceAssets.slice(0, 2).map((asset) => (
+              // biome-ignore lint/performance/noImgElement: 动态参考素材缩略图
+              <img
+                key={asset.id}
+                src={asset.thumbnailUrl ?? asset.url}
+                alt={asset.name}
+                className="size-10 rounded-md border-2 border-background object-cover"
+              />
+            ))}
+          </div>
+          <span className="text-muted-foreground text-sm">{referenceAssets.length}/16</span>
+          {referenceAssets.length === 0 && (
+            <span className="flex items-center gap-1 text-muted-foreground text-xs">
+              <Upload className="size-3.5" />
+              拖拽素材到此处作为参考
+            </span>
+          )}
         </div>
-      ))}
-      <div className="flex items-center gap-2 text-muted-foreground text-xs">
-        <Upload className="size-4" />
-        <span>{referenceAssets.length}/16</span>
+        {/* 上传按钮 */}
+        <button
+          type="button"
+          className="flex size-10 flex-col items-center justify-center rounded-xl border border-border/60 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted"
+        >
+          <Plus className="size-4" />
+          <span className="text-[10px]">上传</span>
+        </button>
       </div>
+
+      {/* 拖放区：已添加素材缩略图列表 */}
+      {referenceAssets.length > 0 && (
+        <div
+          ref={setNodeRef}
+          className={cn(
+            "flex flex-wrap gap-2 rounded-lg border border-border/50 border-dashed p-2 transition-colors",
+            isOver && "border-primary bg-primary/5"
+          )}
+        >
+          {referenceAssets.map((asset) => (
+            <div
+              key={asset.id}
+              className="group relative size-14 overflow-hidden rounded-md bg-muted"
+            >
+              {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
+              <img
+                src={asset.thumbnailUrl ?? undefined}
+                alt={asset.name}
+                className="size-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => removeReferenceAsset(asset.id)}
+                className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* 空状态时也保留 droppable ref */}
+      {referenceAssets.length === 0 && (
+        <div
+          ref={setNodeRef}
+          className={cn(
+            "rounded-lg border border-border/30 border-dashed p-1 transition-colors",
+            isOver && "border-primary bg-primary/5"
+          )}
+        />
+      )}
     </div>
   )
 }

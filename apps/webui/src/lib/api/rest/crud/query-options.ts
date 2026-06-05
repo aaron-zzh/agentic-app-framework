@@ -5,15 +5,15 @@
 import { queryOptions } from "@tanstack/react-query"
 import type { ListParams } from "@/lib/api/types"
 import {
-  fetchCrudMeta,
-  fetchList,
-  fetchQueryWindow,
-  fetchRecord,
   type CrudDetailParams,
   type CrudId,
   type CrudQueryWindowParams,
   type CrudRecord,
-  type CrudResource
+  type CrudResource,
+  fetchCrudMeta,
+  fetchList,
+  fetchQueryWindow,
+  fetchRecord
 } from "./client"
 
 /**
@@ -33,10 +33,7 @@ export function crudKey(resource: CrudResource): readonly unknown[] {
   return ["crud", resource.apiPath]
 }
 
-export function crudListKey(
-  resource: CrudResource,
-  params: ListParams = {}
-): readonly unknown[] {
+export function crudListKey(resource: CrudResource, params: ListParams = {}): readonly unknown[] {
   return [...crudKey(resource), "list", params]
 }
 

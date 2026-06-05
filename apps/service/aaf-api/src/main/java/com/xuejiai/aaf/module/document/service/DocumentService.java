@@ -57,20 +57,48 @@ public class DocumentService {
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
     }
 
-    /** 更新文档内容，同步写回本地文件。 */
+    /** 更新文档（标题/内容/类型/发布状态），同步写回本地文件。 */
     @Transactional
-    public Document update(Long id, String content) {
+    public Document update(Long id, DocUpdateDTO dto) {
         Document doc = getById(id);
-        doc.setContent(content);
+        if (dto.title() != null) doc.setTitle(dto.title());
+        if (dto.content() != null) doc.setContent(dto.content());
+        if (dto.docType() != null) doc.setDocType(dto.docType());
+        if (dto.publish() != null) doc.setPublish(dto.publish());
         documentRepository.save(doc);
 
-        if (doc.getFilePath() != null) {
-            writeToLocalFile(doc.getFilePath(), content);
+        if (dto.content() != null && doc.getFilePath() != null) {
+            writeToLocalFile(doc.getFilePath(), doc.getContent());
         }
 
         docImportService.extractLinks();
         broadcastChange(id, doc.getTitle());
         return doc;
+    }
+
+    /** 发布文档。 */
+    @Transactional
+    public Document publish(Long id) {
+        Document doc = getById(id);
+        doc.setPublish("published");
+        documentRepository.save(doc);
+        broadcastChange(id, doc.getTitle());
+        return doc;
+    }
+
+    /** 取消发布（转草稿）。 */
+    @Transactional
+    public Document unpublish(Long id) {
+        Document doc = getById(id);
+        doc.setPublish("draft");
+        documentRepository.save(doc);
+        broadcastChange(id, doc.getTitle());
+        return doc;
+    }
+
+    /** 获取所有已发布文档（公开端）。 */
+    public List<Document> getPublished() {
+        return documentRepository.findByPublishOrderByUpdateTimeDesc("published");
     }
 
     /** 新建文档：写入本地文件 + 插入数据库 + 提取链接。 */
@@ -90,6 +118,7 @@ public class DocumentService {
         doc.setDocType(dto.docType() != null ? dto.docType() : "guide");
         doc.setContent(content);
         doc.setStatus("active");
+        doc.setPublish(dto.publish() != null ? dto.publish() : "draft");
         documentRepository.save(doc);
 
         // 提取链接关系

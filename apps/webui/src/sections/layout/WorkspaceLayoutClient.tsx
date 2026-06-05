@@ -1,6 +1,9 @@
 /**
  * WorkspaceLayoutClient——工作区布局客户端部分
- * 包含 GlobalChatter（全局对话弹窗，配置由当前页面决定）
+ * Chatter 以 GitHub Copilot 风格内嵌在右侧：
+ * - 点击 header ChatterToggle → 右侧 panel 滑入/收起
+ * - 不遮挡内容（非 dialog，无遮罩）
+ * - 使用 ResizablePanelGroup 支持拖拽调整宽度
  *
  * @author AaronZZH & Kiro
  */
@@ -8,6 +11,7 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Chatter } from "@/features/chatter"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { AppHeader } from "@/sections/layout/AppHeader"
@@ -19,7 +23,6 @@ interface WorkspaceLayoutClientProps {
 
 export function WorkspaceLayoutClient({ children }: WorkspaceLayoutClientProps) {
   const open = useChatterStore((s) => s.open)
-  const setOpen = useChatterStore((s) => s.setOpen)
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const getConfig = useChatterStore((s) => s.getConfig)
 
@@ -33,19 +36,27 @@ export function WorkspaceLayoutClient({ children }: WorkspaceLayoutClientProps) 
       <div className="hidden md:flex">
         <AppSidebar />
       </div>
+
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
-      </div>
 
-      {/* 全局 Chatter：dialog 模式，配置由当前页面通过 useChatterConfig 注入 */}
-      <Chatter
-        preset={config.preset}
-        agentRole={config.agentRole}
-        layout="dialog"
-        open={open}
-        onOpenChange={setOpen}
-      />
+        {/* 主内容 + 右侧 Copilot 面板 */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
+          <ResizablePanel defaultSize={100} minSize={40}>
+            <main className="flex h-full flex-col overflow-hidden">{children}</main>
+          </ResizablePanel>
+
+          {/* Copilot 侧边面板：open 时展开，closed 时隐藏（无 ResizableHandle） */}
+          {open && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={28} minSize={20} maxSize={50} className="border-l">
+                <Chatter preset={config.preset} agentRole={config.agentRole} layout="panel" />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </div>
     </div>
   )
 }

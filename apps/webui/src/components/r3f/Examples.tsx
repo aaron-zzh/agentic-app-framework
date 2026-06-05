@@ -7,7 +7,7 @@ import { useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 
 export const Blob = ({
-  route = "/demo/threejs/demo/",
+  route = "/examples/threejs/demo/",
   ...props
 }: { route?: string } & Record<string, unknown>) => {
   const router = useRouter()

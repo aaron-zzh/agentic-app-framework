@@ -37,5 +37,11 @@ export const paths = {
     root: "/aigc",
     assets: "/aigc/assets",
     video: "/aigc/video"
+  },
+  docs: {
+    root: "/docs",
+    new: "/docs/new",
+    edit: (id: number | string) => `/docs/${id}/edit`,
+    public: (id: number | string) => `/docs-public/${id}`
   }
 }
