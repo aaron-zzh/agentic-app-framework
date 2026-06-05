@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useActionState } from "react"
+import { Button } from "@/components/ui/button"
 import { createInvoice, type State } from "../../_actions/invoice"
 import type { Customer } from "../../_data/mock"
 
@@ -122,12 +123,7 @@ export default function CreateInvoiceForm({ customers }: { customers: Customer[]
         >
           取消
         </Link>
-        <button
-          type="submit"
-          className="flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm text-white hover:bg-blue-500"
-        >
-          创建发票
-        </button>
+        <Button type="submit">创建发票</Button>
       </div>
     </form>
   )

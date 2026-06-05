@@ -78,7 +78,8 @@ public class ChatService {
     /** 按 threadId 查消息（AG-UI 链路使用） */
     @Transactional(readOnly = true)
     public List<ChatMessageVO> listMessagesByThreadId(String threadId) {
-        return sessionRepository.findByThreadId(threadId)
+        return sessionRepository
+                .findByThreadId(threadId)
                 .map(session -> listMessages(session.getId()))
                 .orElse(java.util.List.of());
     }

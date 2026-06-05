@@ -8,7 +8,7 @@
 
 import { Pencil as PencilIcon, Plus as PlusIcon, Trash2 as TrashIcon } from "lucide-react"
 import Link from "next/link"
-
+import { Button } from "@/components/ui/button"
 import { deleteInvoice } from "../../_actions/invoice"
 
 export function CreateInvoice() {
@@ -38,10 +38,10 @@ export function DeleteInvoice({ id }: { id: string }) {
   const deleteInvoiceWithId = deleteInvoice.bind(null, id)
   return (
     <form action={deleteInvoiceWithId}>
-      <button type="submit" className="rounded-md border p-2 hover:bg-gray-100">
+      <Button type="submit" variant="ghost" size="icon" className="hover:bg-gray-100">
         <span className="sr-only">Delete</span>
         <TrashIcon className="w-4" />
-      </button>
+      </Button>
     </form>
   )
 }

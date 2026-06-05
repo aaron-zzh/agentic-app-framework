@@ -76,6 +76,7 @@ const FEATURES = [
       <svg
         viewBox="0 0 24 24"
         fill="none"
+        aria-hidden="true"
         className="size-5 text-blue-300"
         stroke="currentColor"
         strokeWidth={1.5}
@@ -101,6 +102,7 @@ const FEATURES = [
       <svg
         viewBox="0 0 24 24"
         fill="none"
+        aria-hidden="true"
         className="size-5 text-purple-300"
         stroke="currentColor"
         strokeWidth={1.5}
@@ -121,6 +123,7 @@ const FEATURES = [
       <svg
         viewBox="0 0 24 24"
         fill="none"
+        aria-hidden="true"
         className="size-5 text-blue-300"
         stroke="currentColor"
         strokeWidth={1.5}
@@ -141,6 +144,7 @@ const FEATURES = [
       <svg
         viewBox="0 0 24 24"
         fill="none"
+        aria-hidden="true"
         className="size-5 text-violet-300"
         stroke="currentColor"
         strokeWidth={1.5}
@@ -241,7 +245,12 @@ function FeatureRow({
         }}
       >
         <span className="whitespace-nowrap font-medium text-xs">查看详情</span>
-        <svg viewBox="0 0 16 16" fill="currentColor" className="size-3 opacity-60">
+        <svg
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          aria-hidden="true"
+          className="size-3 opacity-60"
+        >
           <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" />
         </svg>
       </div>

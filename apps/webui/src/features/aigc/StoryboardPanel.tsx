@@ -14,7 +14,7 @@ import { useAigcStore } from "./store"
 import type { MediaAssetVO } from "./types"
 
 function ElementCard({ asset }: { asset: MediaAssetVO }) {
-  const removeStoryboardAsset = useAigcStore((s) => s.removeStoryboardAsset)
+  // const removeStoryboardAsset = useAigcStore((s) => s.removeStoryboardAsset)
   const addReferenceAsset = useAigcStore((s) => s.addReferenceAsset)
 
   return (

@@ -9,6 +9,7 @@
 
 import { ArrowRight as ArrowRightIcon } from "lucide-react"
 import { Link, useTransitionRouter } from "next-view-transitions"
+import { Button } from "@/components/ui/button"
 
 /** 自定义过渡动画：旧页面左滑出，新页面右滑入 */
 function slideInOut() {
@@ -79,16 +80,15 @@ export default function NextjsFeaturesHome() {
             <p className="mb-3 text-slate-500 text-sm">
               使用 useTransitionRouter + Web Animations API 实现左滑过渡效果
             </p>
-            <button
+            <Button
               onClick={() =>
                 router.push("/examples/nextjs-features/dashboard", {
                   onTransitionReady: slideInOut
                 })
               }
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-500"
             >
               自定义动画跳转到 Dashboard <ArrowRightIcon className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
 
           {/* 特性 4：View Transitions 说明 */}

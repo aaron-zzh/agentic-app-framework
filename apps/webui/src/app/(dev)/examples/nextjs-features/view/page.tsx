@@ -7,6 +7,7 @@
 "use client"
 
 import { useTransitionRouter } from "next-view-transitions"
+import { Button } from "@/components/ui/button"
 
 function slideInOut() {
   document.documentElement.animate(
@@ -123,20 +124,16 @@ router.push('/about', { onTransitionReady: myAnimation })`}</code>
         </section>
 
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={() => router.push("/examples/nextjs-features")}
-            className="rounded-lg bg-slate-200 px-4 py-2 text-slate-700 text-sm hover:bg-slate-300"
-          >
+          <Button variant="secondary" onClick={() => router.push("/examples/nextjs-features")}>
             ← 返回首页
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() =>
               router.push("/examples/nextjs-features", { onTransitionReady: slideInOut })
             }
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500"
           >
             自定义动画返回 →
-          </button>
+          </Button>
         </div>
       </div>
     </div>

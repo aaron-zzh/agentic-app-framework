@@ -40,7 +40,7 @@ export function LottieIcon({
   onComplete,
   onLoopComplete
 }: LottieIconProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLButtonElement>(null)
   const animationRef = useRef<AnimationItem | null>(null)
 
   const stableOnComplete = useCallback(() => onComplete?.(), [onComplete])
@@ -77,6 +77,8 @@ export function LottieIcon({
     autoplay,
     playOnHover,
     renderer,
+    onComplete,
+    onLoopComplete,
     stableOnComplete,
     stableOnLoopComplete
   ])
@@ -95,10 +97,19 @@ export function LottieIcon({
   }
 
   return (
-    <div
+    <button
       ref={containerRef}
+      type="button"
+      aria-label={playOnHover ? "animation" : undefined}
       className={className}
-      style={{ width, height }}
+      style={{
+        width,
+        height,
+        background: "none",
+        border: "none",
+        padding: 0,
+        cursor: playOnHover ? "pointer" : "default"
+      }}
       onMouseEnter={playOnHover ? handleMouseEnter : undefined}
       onMouseLeave={playOnHover ? handleMouseLeave : undefined}
     />

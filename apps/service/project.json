@@ -19,7 +19,7 @@
       "options": { "cwd": "apps/service" },
       "inputs": ["{projectRoot}/**/src/**/*.java", "{projectRoot}/**/pom.xml"]
     },
-    "format": {
+    "fix": {
       "command": "node ../../tools/scripts/mvnw.mjs com.diffplug.spotless:spotless-maven-plugin:apply",
       "options": { "cwd": "apps/service" }
     },

@@ -43,7 +43,7 @@ interface AigcStore {
   setAspectRatio: (ratio: string) => void
 }
 
-export const useAigcStore = create<AigcStore>((set, get) => ({
+export const useAigcStore = create<AigcStore>((set, _get) => ({
   generationPanelOpen: false,
   previewAsset: null,
   previewList: [],
@@ -61,7 +61,7 @@ export const useAigcStore = create<AigcStore>((set, get) => ({
   navigatePreview: (direction) =>
     set((state) => {
       if (!state.previewAsset || state.previewList.length === 0) return state
-      const idx = state.previewList.findIndex((a) => a.id === state.previewAsset!.id)
+      const idx = state.previewList.findIndex((a) => a.id === state.previewAsset?.id)
       if (idx === -1) return state
       const next = state.previewList[idx + direction]
       return next ? { previewAsset: next } : state

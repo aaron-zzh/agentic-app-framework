@@ -13,7 +13,7 @@ interface ViewProps extends React.HTMLAttributes<HTMLDivElement> {
 // View 子元素会渲染到 Scene 中的 Canvas
 export const View = ({ children, orbit, ref, ...props }: ViewProps) => {
   const localRef = useRef<HTMLDivElement>(null)
-  useImperativeHandle(ref, () => localRef.current!)
+  useImperativeHandle(ref, () => localRef.current as HTMLDivElement)
 
   return (
     <>

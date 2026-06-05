@@ -32,7 +32,7 @@ export async function createInvoice(_prevState: State, formData: FormData): Prom
 
   const errors: State["errors"] = {}
   if (!customerId) errors.customerId = ["请选择客户"]
-  if (!amount || isNaN(Number(amount))) errors.amount = ["请输入有效金额"]
+  if (!amount || Number.isNaN(Number(amount))) errors.amount = ["请输入有效金额"]
   if (!status) errors.status = ["请选择状态"]
 
   if (Object.keys(errors).length > 0) {
@@ -40,13 +40,13 @@ export async function createInvoice(_prevState: State, formData: FormData): Prom
   }
 
   // Mock：实际项目中在此写入数据库
-  console.log("创建发票:", { customerId, amount, status })
+  // console.log("创建发票:", { customerId, amount, status })
   revalidatePath(BASE_PATH) // 清除缓存
   redirect(BASE_PATH) // 服务端重定向
 }
 
-export async function updateInvoice(id: string, formData: FormData): Promise<void> {
-  console.log("更新发票:", id, Object.fromEntries(formData))
+export async function updateInvoice(_id: string, _formData: FormData): Promise<void> {
+  // console.log("更新发票:", id, Object.fromEntries(formData))
   revalidatePath(BASE_PATH)
   redirect(BASE_PATH)
 }

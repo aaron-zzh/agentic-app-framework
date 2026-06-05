@@ -9,7 +9,7 @@
  */
 "use client"
 
-import { useEffect } from "react"
+import { Button } from "@/components/ui/button"
 
 export default function InvoicesError({
   error,
@@ -18,21 +18,16 @@ export default function InvoicesError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    // 生产环境建议上报到错误监控服务（如 Sentry）
-    console.error("Invoice page error:", error)
-  }, [error])
+  // useEffect(() => {
+  //   // 生产环境建议上报到错误监控服务（如 Sentry）
+  //   console.error("Invoice page error:", error)
+  // }, [error])
 
   return (
     <main className="flex h-full flex-col items-center justify-center gap-4">
       <h2 className="font-semibold text-slate-700 text-xl">出错了！</h2>
       <p className="text-slate-500 text-sm">{error.message || "加载发票数据时发生错误"}</p>
-      <button
-        className="rounded-md bg-blue-500 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-400"
-        onClick={reset}
-      >
-        重试
-      </button>
+      <Button onClick={reset}>重试</Button>
     </main>
   )
 }

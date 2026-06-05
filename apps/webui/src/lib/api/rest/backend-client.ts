@@ -141,8 +141,7 @@ backendClient.interceptors.response.use(
       }
       clearAxiosAuth()
       config.headers.delete("Authorization")
-      debugger
-
+      // 跳转到登录页面
       redirectToLogin()
       throw new ApiError(401, "登录已过期，请重新登录")
     }

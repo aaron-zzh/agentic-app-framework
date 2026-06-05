@@ -65,10 +65,10 @@ export default function SocialsPage() {
     }
   })
 
-  const onSubmit = async (data: SocialsFormValues) => {
+  const onSubmit = async (_data: SocialsFormValues) => {
     try {
       await new Promise((r) => setTimeout(r, 400))
-      console.info("socials saved", data)
+
       notify.success("社交链接已保存")
     } catch {
       notify.error("保存失败，请重试")

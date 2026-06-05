@@ -35,7 +35,7 @@ const Shader = (
 ) => {
   const localRef = useRef<THREE.ShaderMaterial & { time: number }>(null)
 
-  useImperativeHandle(props.ref, () => localRef.current!)
+  useImperativeHandle(props.ref, () => localRef.current as THREE.ShaderMaterial & { time: number })
 
   useFrame((_, delta) => {
     if (localRef.current) localRef.current.time += delta

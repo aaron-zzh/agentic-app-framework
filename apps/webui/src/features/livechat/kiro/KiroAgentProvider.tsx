@@ -32,9 +32,8 @@ export function KiroAgentProvider({ children, agentRole }: KiroAgentProviderProp
 
   const agent = useMemo(() => new HttpAgent({ url }), [url])
 
-  const onError = useCallback((error: Error) => {
-    // biome-ignore lint/suspicious/noConsole: 错误日志需要记录到控制台供调试
-    console.error("[Kiro Agent] 对话错误:", error)
+  const onError = useCallback((_error: Error) => {
+    // console.error("[Kiro Agent] 对话错误:", _error)
     toast.error("Kiro Agent 通信异常，请重试")
   }, [])
 

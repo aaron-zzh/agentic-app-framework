@@ -101,8 +101,7 @@ function AgUiChatterRuntime({
   }, [target, pageConfig, currentPageId])
 
   const onError = useCallback((error: Error) => {
-    // biome-ignore lint/suspicious/noConsole: 错误日志需要记录到控制台供调试
-    console.error("[Chatter] 对话错误:", error)
+    // console.error("[Chatter] 对话错误:", error)
     toast.error(classifyError(error))
   }, [])
 

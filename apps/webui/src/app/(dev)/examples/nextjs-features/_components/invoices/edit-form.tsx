@@ -7,6 +7,7 @@ import {
   UserCircle as UserCircleIcon
 } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { updateInvoice } from "../../_actions/invoice"
 import type { Customer, Invoice } from "../../_data/mock"
 
@@ -96,12 +97,7 @@ export default function EditInvoiceForm({
         >
           取消
         </Link>
-        <button
-          type="submit"
-          className="flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm text-white hover:bg-blue-500"
-        >
-          保存修改
-        </button>
+        <Button type="submit">保存修改</Button>
       </div>
     </form>
   )

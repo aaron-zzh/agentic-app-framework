@@ -57,8 +57,7 @@ export function AgUiChatProvider({ children, initialThreadId }: AgUiChatProvider
 
   /** 错误回调：记录日志 + toast 提示用户 */
   const onError = useCallback((error: Error) => {
-    // biome-ignore lint/suspicious/noConsole: 错误日志需要记录到控制台供调试
-    console.error("[AG-UI] 对话错误:", error)
+    // console.error("[AG-UI] 对话错误:", error)
 
     const message = classifyError(error)
     toast.error(message)

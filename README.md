@@ -165,48 +165,34 @@ pnpm approve-builds
 ### 常用开发命令
 
 ```bash
-# ——— Nx 任务（统一入口，推荐） ———
+# ——— 后端（service） ———
 
-# 后端编译 + 单测
-pnpm nx test service
+pnpm nx serve service          # 启动后端服务
+pnpm nx test service           # 编译 + 单元测试
+pnpm nx build service          # 打包（跳过测试）
+pnpm nx lint service           # Spotless 格式检查
+pnpm nx fix service            # Spotless 自动格式化
+pnpm nx clean service          # 清理 target
 
-# 后端构建
-pnpm nx build service
+# ——— 前端（webui） ———
 
-# 后端清理（清除 target 缓存）
-pnpm nx clean service
+pnpm nx dev webui              # 启动开发服务器
+pnpm nx test webui             # 单元测试（Vitest）
+pnpm nx build webui            # 生产构建
+pnpm nx lint webui             # Biome 检查
+pnpm nx lint webui --fix       # Biome 自动修复
+pnpm nx typecheck webui        # TypeScript 类型检查
 
-# 启动前端开发服务器
-pnpm nx dev webui
+# ——— 质量门控（完工前必跑） ———
 
-# 前端类型检查
-pnpm nx typecheck webui
-
-# 前端单元测试
-pnpm nx test webui
-
-# 前端构建
-pnpm nx build webui
-
-# 前端 Lint（biome）
-pnpm nx lint webui <--fix>
-
-# 全部项目自验证（lint + 单测 + typecheck + build）
-pnpm check
-
-# 只验证受影响的项目（开发完成后必跑）
-pnpm check:affected
+pnpm check:affected            # 验证受影响项目（lint + test + build）
+pnpm check                     # 验证全部项目
 
 # ——— E2E 测试（Playwright） ———
 
-# 首次使用需安装浏览器（仅一次）
-npx playwright install chromium
-
-# 运行 E2E 测试（headless，自动启动 webui dev server）
-pnpm nx e2e webui-e2e
-
-# 有头模式（可视化调试）
-pnpm nx e2e webui-e2e -- --headed
+npx playwright install chromium          # 首次安装浏览器（仅一次）
+pnpm nx e2e webui-e2e                    # headless 模式
+pnpm nx e2e webui-e2e -- --headed        # 有头模式（可视化调试）
 ```
 
 ### 配置管理
