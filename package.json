@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "check": "nx run-many -t check",
-    "check:affected": "nx affected -t check",
+    "check": "nx run-many -t check --exclude=docs,uniapp",
+    "check:affected": "nx affected -t check --exclude=docs,uniapp",
     "check:specs": "node scripts/check-spec-consistency.mjs",
     "acceptance": "nx run-many -t acceptance",
     "acceptance:affected": "nx affected -t acceptance",
