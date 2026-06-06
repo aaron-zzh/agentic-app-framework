@@ -213,7 +213,7 @@ product(Epic→Story 拆分 + Spec 细化)
 | UI/交互设计 | designer | 涉及前端界面（执行阶段 2.2） |
 | 技术方案设计（ADR） | architect | 每个 Story 的接口、类结构、模块交互 |
 
-> 适用规范：[需求管理规范](../dev/requirement-standard.md)、[架构设计方法论](../../design/README.md)、[领域建模规范](../dev/apps/service/domain-modeling-standard.md)、[架构约束](../dev/architecture-constraints.md)
+> 适用规范：[需求管理规范](../dev/requirement-standard.md)、[架构设计方法论](../../design/Readme.md)、[领域建模规范](../dev/apps/service/domain-modeling-standard.md)、[架构约束](../dev/architecture-constraints.md)
 
 ### 3.2 UI/交互设计
 >

@@ -72,7 +72,7 @@
 
 **产出**：需求文件补充 Level 2 + `docs/design/{module}/{doc}.md`
 
-> 规范：[需求管理规范](../../reference/dev/requirement-standard.md)、[架构设计方法论](../../design/README.md)、[领域建模规范](../../reference/dev/apps/service/domain-modeling-standard.md)、[架构约束](../../reference/dev/architecture-constraints.md)
+> 规范：[需求管理规范](../../reference/dev/requirement-standard.md)、[架构设计方法论](../../design/Readme.md)、[领域建模规范](../../reference/dev/apps/service/domain-modeling-standard.md)、[架构约束](../../reference/dev/architecture-constraints.md)
 
 ### 2.2 UI/交互设计（designer）
 
@@ -200,7 +200,7 @@ Bug 分级：P0（阻塞主流程）= blocker；P1（功能不可用）计入 ma
 |------|---------|--------|
 | 准备 | [路线图](../../prd/roadmap.md)、[需求管理规范](../../reference/dev/requirement-standard.md) | 需求文件、backlog、迭代任务文件 |
 | 需求细化 | [需求管理规范](../../reference/dev/requirement-standard.md) | `docs/prd/{module}/{feature}.md`（Level 2） |
-| 技术设计 | [架构设计方法论](../../design/README.md)、[领域建模规范](../../reference/dev/apps/service/domain-modeling-standard.md)、[架构约束](../../reference/dev/architecture-constraints.md) | `docs/design/{module}/{doc}.md` |
+| 技术设计 | [架构设计方法论](../../design/Readme.md)、[领域建模规范](../../reference/dev/apps/service/domain-modeling-standard.md)、[架构约束](../../reference/dev/architecture-constraints.md) | `docs/design/{module}/{doc}.md` |
 | UI 设计 | [UI 设计规范](../../design/ui/Readme.md) | 设计稿、交互说明 |
 | 编码 | [编码风格规范](../../reference/dev/apps/service/coding-style-standard.md)、[架构约束](../../reference/dev/architecture-constraints.md) | 源码、dev-log.md |
 | 测试 | [单元测试](../../reference/dev/test/unit-test-standard.md)、[验收测试](../../reference/dev/test/acceptance-test-standard.md)、[集成测试](../../reference/dev/test/integration-test-standard.md) | 测试代码、test-report.md |

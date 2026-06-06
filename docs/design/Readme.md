@@ -32,7 +32,7 @@ gains:
 
 **需求文档**（做什么）→ **设计文档**（怎么做）→ **需求规格**（做成什么样）→ **代码**（实现）
 
-- 设计文档的输入是 [需求文档（用户故事）](../prd/README.md)，基于业务价值和验收标准进行架构决策
+- 设计文档的输入是 [需求文档（用户故事）](../prd/Readme.md)，基于业务价值和验收标准进行架构决策
 - 设计文档的输出是架构方案、技术选型和功能与交互设计，作为需求规格细化数据模型、接口、约束的依据
 - 开发实现时，须同时遵循需求规格和 [开发规范](../reference/dev/development-standard.md)
 
@@ -450,5 +450,5 @@ journey
 ## 设计文档
 
 - AAF 具体架构设计 [architecture.md](architecture.md)
-- 需求管理 [spec/README.md](../prd/README.md)
+- 需求管理 [spec/README.md](../prd/Readme.md)
 - 开发规范 [development-standard.md](../reference/dev/development-standard.md)

@@ -226,7 +226,7 @@ Epic（Level 1）→ Story 拆分（Level 2）→ Spec + 技术设计（Level 3�
 | 完成技术设计（执行阶段 2.1） | 链接技术设计文档（ADR） | architect |
 | 新增任何相关设计文档 | 同步更新需求文档的"相关设计"章节 | 文档创建者 |
 
-设计文档统一存放在 `docs/design/` 目录下，详见 [架构设计方法论](../../design/README.md)。
+设计文档统一存放在 `docs/design/` 目录下，详见 [架构设计方法论](../../design/Readme.md)。
 
 ## 与任务管理的关系
 

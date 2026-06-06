@@ -96,7 +96,7 @@ packages/        → 共享库（待建设）
 
 文档关系：**需求文档**（做什么）→ **设计文档**（怎么做）→ **代码**（实现）
 
-详见 [需求管理](docs/prd/README.md) | [架构设计](docs/design/README.md)
+详见 [需求管理](docs/prd/Readme.md) | [架构设计](docs/design/Readme.md)
 
 ## 任务管理
 
