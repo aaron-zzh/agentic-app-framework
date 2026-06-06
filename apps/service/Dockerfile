@@ -2,20 +2,11 @@
 FROM bellsoft/liberica-openjdk-alpine:25 AS builder
 WORKDIR /build
 
-# 先复制 pom 利用 layer 缓存
-COPY .mvn/wrapper/ .mvn/wrapper/
-COPY mvnw pom.xml ./
-RUN chmod +x mvnw
-COPY aaf-dependencies/pom.xml aaf-dependencies/
-COPY aaf-common/pom.xml aaf-common/
-COPY aaf-framework/pom.xml aaf-framework/
-COPY aaf-auto-dev/pom.xml aaf-auto-dev/
-COPY aaf-api/pom.xml aaf-api/
-
-RUN ./mvnw dependency:go-offline -q
-
 COPY . .
-RUN ./mvnw package -DskipTests -q
+RUN chmod +x mvnw && \
+    sed -i '/<localRepository>/d' .mvn/settings.xml
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw package -DskipTests -q
 
 # ── 运行阶段 ────────────────────────────────────────────
 FROM bellsoft/liberica-runtime-container:jdk-all-25-slim-musl AS runner
