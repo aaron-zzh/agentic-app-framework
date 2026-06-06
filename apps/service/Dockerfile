@@ -5,6 +5,7 @@ WORKDIR /build
 # 先复制 pom 利用 layer 缓存
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
+RUN chmod +x mvnw
 COPY aaf-dependencies/pom.xml aaf-dependencies/
 COPY aaf-common/pom.xml aaf-common/
 COPY aaf-framework/pom.xml aaf-framework/
