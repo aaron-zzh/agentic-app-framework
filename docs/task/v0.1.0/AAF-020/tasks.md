@@ -11,7 +11,7 @@ author: AaronZZH
 # 协作开发功能（AAF-020）
 
 > 需求：[需求规格](requirement.md)
-> 设计参考：[协作控制台设计](../../../design/framework/auto-dev.md) | [Auto-Dev 模块设计](../../../design/apps/service/auto-dev-design.md)
+> 设计参考：[协作控制台设计](../../../design/framework/auto-dev/auto-dev.md) | Auto-Dev 模块设计（待建）
 > 负责人：developer-service + developer-webui | 创建：05-22
 
 ## 执行策略

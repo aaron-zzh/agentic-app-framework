@@ -14,7 +14,7 @@ changelog:
 # 统一流程图编辑器（FlowEditor）
 
 > 基于 @xyflow/react，一个编辑器组件 + 三套节点注册表，覆盖审批工作流、AI 工作流、聊天机器人脚本三种场景。
-> 所属体系：[结构化视图模式](./interaction-mode-structured-view.md) | [生成式交互模式](tmp/interaction-mode-generative.md) | [聊天模块](./chat-livechat-module.md) | [Inspector 面板](./inspector-panel.md)
+> 所属体系：[结构化视图模式](./interaction-mode-structured-view.md) | 生成式交互模式（待建） | [聊天模块](./chat-livechat-module.md) | [Inspector 面板](./inspector-panel.md)
 > DSL 集成（条件表达式/变量模板）：[DSL 运行时](../../framework/dsl/dsl-runtime.md)
 
 ## 一、设计理念

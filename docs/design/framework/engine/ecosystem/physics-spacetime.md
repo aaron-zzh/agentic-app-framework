@@ -14,7 +14,7 @@ changelog:
 
 > **引擎层（Layer 2）的通用执行能力**，为虚拟空间、3D 场景、语义聚合等场景提供统一的时空坐标与物理规则。
 > 本文档为占位，详细设计待补充。
-> 长期规划：**v2.0 高密度物理计算迁移到 [actormesh](../../../../apps/actormesh/Readme.md)**，获得 C++ 级性能。
+> 长期规划：**v2.0 高密度物理计算迁移到 [actormesh](../../../../../apps/actormesh/Readme.md)**，获得 C++ 级性能。
 
 ## 定位
 
@@ -219,7 +219,7 @@ public interface PhysicsSpaceTimeEngine {
 
 ## 相关文档
 
-- [actormesh 引擎开发框架](../../../../apps/actormesh/Readme.md)
+- [actormesh 引擎开发框架](../../../../../apps/actormesh/Readme.md)
 - [NexusKB 连接式知识引擎](../data-knowledge/nexus-knowledge.md)
 - [AtomMemory 原子记忆引擎](../data-knowledge/atom-memory.md)
 - [SemanticCalc 语义计算引擎](../data-knowledge/semantic-compute.md)

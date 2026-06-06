@@ -191,4 +191,4 @@ v1.0.0  生产就绪（性能、安全、可观测性、多租户）
 
 - [架构思想](architecture-thought.md)：架构决策背后的 Why
 - [设计原则](design-principles.md)：化繁为简、DRY、AI 友好等
-- [元引擎设计](../design/framework/meta-engine.md)：元引擎核心设计
+- [元引擎设计](../design/framework/engine/meta/meta-engine.md)：元引擎核心设计

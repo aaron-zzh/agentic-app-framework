@@ -58,7 +58,7 @@ changelog:
 
 7. ✅ #25 统一格式化方案（后端 Spotless） — developer-service (依赖: #17)
    - `spotless-maven-plugin` + Google Java Format
-   - verify: `pnpm nx run service:format` + `pnpm format:check` 全绿
+   - verify: `pnpm nx run service:fix` + `pnpm format:check` 全绿
 
 8. ✅ #30 框架基础能力脚手架 — developer-service (依赖: #27, #28)
    - **aaf-common**：`Result<T>` / 错误码体系 / `BaseEntity` / 分页封装
@@ -100,7 +100,7 @@ changelog:
     - **子任务进度**（2026-05-14）：
       - ✅ 前端目录结构设计：[directory-structure.md](../../../design/apps/webui/directory-structure.md)
       - ✅ 前端技术选型：[tech-stack.md](../../../design/apps/webui/tech-stack.md)
-      - ✅ Nx 工程化分析 → 已沉淀到 [Nx Monorepo 最佳实践](../../guide/development/nx-monorepo-best-practices.md)
+      - ✅ Nx 工程化分析 → 已沉淀到 [Nx Monorepo 最佳实践](../../../guide/development/nx-monorepo-best-practices.md)
       - ✅ namedInputs 精细化 + pnpm.overrides 统一版本（已实施）
       - ✅ 前端双模式交互设计
       - ✅ 实际创建 `apps/webui/` 完整目录结构（按 directory-structure.md 落地）

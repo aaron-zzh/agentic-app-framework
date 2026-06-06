@@ -12,7 +12,7 @@ author: AaronZZH
 
 > 前端对 Magic-DSL 的解析、渲染和交互执行能力。作为 `features/dsl-runtime/` 存在，被命令面板、AI 工作流编辑器、审批流、AI 对话等多个业务域消费。
 > 语言设计：[magic-dsl.md](magic-dsl.md) | 后端引擎：[dsl-engine.md](dsl-engine.md)
-> 所属体系：[结构化视图模式](../../apps/webui/interaction-mode-structured-view.md) | [生成式交互模式](../../apps/webui/tmp/interaction-mode-generative.md)
+> 所属体系：[结构化视图模式](../../apps/webui/interaction-mode-structured-view.md) | 生成式交互模式（待建）
 
 ## 一、定位
 

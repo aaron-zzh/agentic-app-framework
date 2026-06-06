@@ -10,7 +10,7 @@ author: AaronZZH
 
 # AG-UI 协议层（AAF-044）
 
-> 参考：[assistant-ui](../../tmp/nextjs/assistant-ui) | [AG-UI 协议](../../tmp/ui/agui)
+> 参考：assistant-ui（外部项目）| AG-UI 协议（外部项目）
 > 负责人：architect + developer-service + developer-webui | 创建：05-19
 
 ## 任务列表

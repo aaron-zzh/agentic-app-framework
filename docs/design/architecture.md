@@ -132,7 +132,7 @@ flowchart TB
 
 Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Agent（无状态任务执行）→ Assistant（会话/情感/调度）→ Team（多 Assistant 协作）
 
-> 详见 [智能体系统设计](framework/intelligent/agent.md)
+> 详见 [智能体系统设计](framework/intelligent/agent/agent-design.md)
 
 ## Layer 2 引擎层
 
@@ -154,30 +154,30 @@ Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Age
 
 | 引擎 | 职责 | 设计文档 |
 |------|------|---------|
-| 编排引擎 | 执行路径决策、引擎协同、置信度门控、响应式执行管道 | [orchestration.md](framework/engine/orchestration.md) |
-| 调度引擎 | 异步任务队列、定时触发、重试策略、分布式锁 | [scheduler.md](framework/engine/scheduler.md) |
+| 编排引擎 | 执行路径决策、引擎协同、置信度门控、响应式执行管道 | [orchestration.md](framework/engine/meta/orchestration.md) |
+| 调度引擎 | 异步任务队列、定时触发、重试策略、分布式锁 | [scheduler.md](framework/engine/execution/scheduler.md) |
 | DSL 引擎 | 多范式解析、分层转化、分域路由 | [magic-dsl.md](framework/dsl/magic-dsl.md) |
-| 工作流引擎 | Flowable 封装、DSL 驱动、可视化设计 | [workflow.md](framework/engine/workflow.md) |
-| 工具引擎 | 工具注册发现、调用封装、沙箱执行 | [tools.md](framework/engine/tools.md) |
-| 技能引擎 | 技能定义、匹配路由、内置技能 | [skills.md](framework/engine/skills.md) |
-| 文档引擎 | 文档全生命周期、版本、协同、执行文档 | [document-engine.md](framework/engine/document-engine.md) |
-| 知识库引擎 | 向量检索、知识图谱、全局共享 | [nexus-knowledge.md](framework/engine/nexus-knowledge.md) |
-| 记忆引擎 | 短期/长期/情景记忆、时序+语义双索引 | [atom-memory.md](framework/engine/atom-memory.md) |
-| 语义计算引擎 | 语义相似度、漂移检测、横切支撑 | [semantic-compute.md](framework/engine/semantic-compute.md) |
-| 语义组件引擎 | DSL 驱动动态 UI 组装、组件注册、多端适配、流式渲染 | [sense-ui.md](framework/engine/sense-ui.md) |
-| 消息引擎 | 多渠道消息通知、模板管理、站内/邮件/短信/微信 | [message.md](framework/engine/message.md) |
-| 数据处理引擎 | 结构化/半结构化数据批流处理与统计分析 | [data-process.md](framework/engine/data-process.md) |
-| 外部数据源 | 外部数据库、API、文件系统对接 | [external-datasource.md](framework/engine/external-datasource.md) |
-| 空间引擎 | 世界模型、物理规则、语义引力聚合 | [physics-spacetime.md](framework/engine/physics-spacetime.md) |
-| 自进化引擎 | 行为采集、效果评估、规范更新、热部署 | [auto-dev.md](framework/auto-dev.md) |
-| 积分引擎 | 贡献量化、积分账户、规则执行 | [credit-settlement.md](framework/engine/credit-settlement.md) |
-| 结算引擎 | 支付接口、结算记录、争议仲裁 | [credit-settlement.md](framework/engine/credit-settlement.md) |
-| 预算控制 | 执行前预估、超限介入、多维度约束 | [budget-control.md](framework/engine/budget-control.md) |
-| 监控引擎 | AI 可观测性、指标系统、Token 统计、审计日志 | [monitor.md](framework/engine/monitor.md) |
-| 搜索引擎 | 跨资源统一搜索、语义检索、权限过滤、结果聚合 | [search.md](framework/engine/search.md) |
-| 插件引擎 | 插件注册/加载/隔离/版本管理，支撑市场生态 | [plugin.md](framework/engine/plugin.md) |
-| 推荐引擎 | 基于使用历史和语义相似度的个性化推荐 | [recommendation.md](framework/engine/recommendation.md) |
-| Prompt 引擎 | 提示词库管理、链式组装、Few-shot、评估优化 | [prompt.md](framework/engine/prompt.md) |
+| 工作流引擎 | Flowable 封装、DSL 驱动、可视化设计 | [workflow.md](framework/engine/execution/workflow.md) |
+| 工具引擎 | 工具注册发现、调用封装、沙箱执行 | [tools.md](framework/engine/execution/tools.md) |
+| 技能引擎 | 技能定义、匹配路由、内置技能 | [skills.md](framework/engine/execution/skills.md) |
+| 文档引擎 | 文档全生命周期、版本、协同、执行文档 | [document-engine.md](framework/engine/content/document-engine.md) |
+| 知识库引擎 | 向量检索、知识图谱、全局共享 | [nexus-knowledge.md](framework/engine/data-knowledge/nexus-knowledge.md) |
+| 记忆引擎 | 短期/长期/情景记忆、时序+语义双索引 | [atom-memory.md](framework/engine/data-knowledge/atom-memory.md) |
+| 语义计算引擎 | 语义相似度、漂移检测、横切支撑 | [semantic-compute.md](framework/engine/data-knowledge/semantic-compute.md) |
+| 语义组件引擎 | DSL 驱动动态 UI 组装、组件注册、多端适配、流式渲染 | [sense-ui.md](framework/engine/content/sense-ui.md) |
+| 消息引擎 | 多渠道消息通知、模板管理、站内/邮件/短信/微信 | [message.md](framework/engine/content/message.md) |
+| 数据处理引擎 | 结构化/半结构化数据批流处理与统计分析 | [data-process.md](framework/engine/data-knowledge/data-process-engine.md) |
+| 外部数据源 | 外部数据库、API、文件系统对接 | [external-datasource.md](framework/engine/data-knowledge/external-datasource.md) |
+| 空间引擎 | 世界模型、物理规则、语义引力聚合 | [physics-spacetime.md](framework/engine/ecosystem/physics-spacetime.md) |
+| 自进化引擎 | 行为采集、效果评估、规范更新、热部署 | [auto-dev.md](framework/auto-dev/auto-dev.md) |
+| 积分引擎 | 贡献量化、积分账户、规则执行 | [credit-settlement.md](framework/engine/governance/credit-settlement.md) |
+| 结算引擎 | 支付接口、结算记录、争议仲裁 | [credit-settlement.md](framework/engine/governance/credit-settlement.md) |
+| 预算控制 | 执行前预估、超限介入、多维度约束 | [budget-control.md](framework/engine/governance/budget-control.md) |
+| 监控引擎 | AI 可观测性、指标系统、Token 统计、审计日志 | [monitor.md](framework/engine/governance/monitor.md) |
+| 搜索引擎 | 跨资源统一搜索、语义检索、权限过滤、结果聚合 | [search.md](framework/engine/ecosystem/search.md) |
+| 插件引擎 | 插件注册/加载/隔离/版本管理，支撑市场生态 | [plugin.md](framework/engine/ecosystem/plugin.md) |
+| 推荐引擎 | 基于使用历史和语义相似度的个性化推荐 | [recommendation.md](framework/engine/ecosystem/recommendation.md) |
+| Prompt 引擎 | 提示词库管理、链式组装、Few-shot、评估优化 | [prompt.md](framework/engine/content/prompt.md) |
 | 权限引擎 | 认证、RBAC、数据权限、组织隔离 | [access-control.md](framework/security/access-control.md) |
 
 ## Layer 1 基础设施层
@@ -230,9 +230,9 @@ Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Age
 |------|------|
 | [生态架构](ecosystem.md) | 框架、产品、运营生态三层定位 |
 | [AgentScope 整合](framework/intelligent/agentscope-integration.md) | AgentScope 整合策略、编排模式映射、适配器清单 |
-| [元引擎设计](framework/meta-engine.md) | 核心引擎：调度机制、引擎编排、DSL 调度、自进化机制 |
-| [智能体系统设计](framework/intelligent/agent.md) | 五层智能架构详细设计 |
-| [认知层设计](framework/intelligent/cognition.md) | Cognition：记忆/知识/价值观/检索管道 |
+| [元引擎设计](framework/engine/meta/meta-engine.md) | 核心引擎：调度机制、引擎编排、DSL 调度、自进化机制 |
+| [智能体系统设计](framework/intelligent/agent/agent-design.md) | 五层智能架构详细设计 |
+| [认知层设计](framework/intelligent/cognition/cognition.md) | Cognition：记忆/知识/价值观/检索管道 |
 
 ### 技术选型
 

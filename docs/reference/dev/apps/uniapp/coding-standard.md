@@ -16,7 +16,7 @@ gains:
 
 # 小程序/APP 编码规范（uniapp）
 
-> 技术选型见 [tech-stack.md](../../../design/apps/uniapp/tech-stack.md) | 目录结构见 [directory-structure.md](../../../design/apps/uniapp/directory-structure.md)
+> 技术选型见 [tech-stack.md](../../../../design/apps/uniapp/tech-stack.md) | 目录结构见 [directory-structure.md](../../../../design/apps/uniapp/directory-structure.md)
 
 ## 一、目录约定
 

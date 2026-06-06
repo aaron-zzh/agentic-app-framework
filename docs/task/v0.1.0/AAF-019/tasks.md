@@ -33,7 +33,7 @@ changelog:
 
 3. ✅ #01903 文档导入服务（DocImportService） — developer-service
    - 启动时自动扫描 `docs/`，解析 YAML Front Matter（SnakeYAML）
-   - 提取双链 `[[文档名]]` 和 Markdown 链接 `[text](path)`，写入 PostgreSQL + Neo4j
+   - 提取双链 `[[文档名]]` 和 Markdown 链接，写入 PostgreSQL + Neo4j
 
 4. ✅ #01904 文档 CRUD + 本地文件同步 + 全文检索 — developer-service
    - 6 个 REST 接口：`/api/docs/tree|{id}|{id}/relations|search|import`

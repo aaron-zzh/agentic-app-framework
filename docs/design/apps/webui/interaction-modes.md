@@ -10,7 +10,7 @@ author: AaronZZH
 
 # 前端交互模式总体设计
 
-> 详细设计：[结构化视图模式](./interaction-mode-structured-view.md) | [生成式交互模式](tmp/interaction-mode-generative.md)
+> 详细设计：[结构化视图模式](./interaction-mode-structured-view.md) | 生成式交互模式（待建）
 > 目录结构：[directory-structure.md](./directory-structure.md) | 技术选型：[tech-stack.md](./tech-stack.md)
 
 ## 一、双模式定位
@@ -113,7 +113,7 @@ AAF 前端并存两种交互模式，面向不同用户心智和任务类型：
 | 文档 | 内容 | 状态 |
 |------|------|------|
 | [interaction-mode-structured-view.md](./interaction-mode-structured-view.md) | Action/View/Record 体系、路由、视图类型、数据流 | draft |
-| [interaction-mode-generative.md](tmp/interaction-mode-generative.md) | 对话驱动 UI、语义组件、画板、AG-UI 协议 | draft |
+| interaction-mode-generative.md（待建） | 对话驱动 UI、语义组件、画板、AG-UI 协议 | draft |
 | [directory-structure.md](./directory-structure.md) | 两种模式的路由组织和目录结构 | draft |
 
 

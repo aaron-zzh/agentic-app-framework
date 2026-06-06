@@ -87,5 +87,5 @@ v3  3D 空间交互、物理引擎、空间音效、XR 概念验证
 ## 相关文档
 
 - 对话式交互设计 — 意图理解、任务路由、多层协作可视化
-- [元引擎设计](../framework/meta-engine.md) — doc 域 DSL（layout / style / behavior / content）
+- [元引擎设计](../framework/engine/meta/meta-engine.md) — doc 域 DSL（layout / style / behavior / content）
 - [架构设计思想](../../explanation/architecture-thought.md) — 对话式交互与自适应界面的设计哲学

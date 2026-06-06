@@ -1152,7 +1152,7 @@ interface GroupAction {
 - **如何**：弹窗中选择字段类型（text/number/date/select/checkbox 等）→ 填写标签和配置 → 确认后系统自动加列 + UI 即时渲染新字段
 - **删除**：逻辑隐藏（数据保留，可恢复），不物理删除
 
-详细设计（元数据表、前后端协作流程、字段类型映射）见 [用户自定义字段](../../framework/custom-fields.md)。
+详细设计（元数据表、前后端协作流程、字段类型映射）见 [用户自定义字段](../../framework/intelligent/core/custom-fields.md)。
 
 
 ## 三十五、AI 感知能力（AI Context Awareness）
@@ -1464,7 +1464,7 @@ AI 可直接生成/修改 EntityDef 配置，因为配置本身是结构化 JSON
   4. 返回成功 → 前端即可正常读写数据
 ```
 
-无需预先建表、无需写迁移脚本、无需重启服务。用户/AI 定义 EntityDef → 系统自动生成表结构和 API。详见 [用户自定义字段](../../framework/core/custom-fields.md)。
+无需预先建表、无需写迁移脚本、无需重启服务。用户/AI 定义 EntityDef → 系统自动生成表结构和 API。详见 [用户自定义字段](../../framework/intelligent/core/custom-fields.md)。
 
 
 

@@ -10,7 +10,7 @@ author: AaronZZH
 
 # Nx 工程化持续优化（AAF-035）
 
-> 参考：[Nx Monorepo 最佳实践](../../guide/development/nx-monorepo-best-practices.md)
+> 参考：[Nx Monorepo 最佳实践](../../../guide/development/nx-monorepo-best-practices.md)
 > 前置：AAF-028 packages/ 首个共享包落地后启动
 > 负责人：architect + developer-webui | 创建：05-14
 

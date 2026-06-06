@@ -257,7 +257,7 @@ components:
 
 核心 UI 隐喻：**对话区是意图通道，工作区是结果投影**，两者共享同一套语义组件和 DSL，通过置信度门控动态切换人机主导权。
 
-本文件对应[元引擎设计](../framework/meta-engine.md) `doc 域` 中的 `style` 子域，是 v3 阶段 `doc/layout` 和 `doc/behavior` 规范的前置基础。
+本文件对应[元引擎设计](../framework/engine/meta/meta-engine.md) `doc 域` 中的 `style` 子域，是 v3 阶段 `doc/layout` 和 `doc/behavior` 规范的前置基础。
 
 ## Colors
 

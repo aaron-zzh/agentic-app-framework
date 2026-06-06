@@ -38,7 +38,7 @@ changelog:
 - 在 `*Test.java` 文件里写验收测试（那是 developer 单测的命名 → Surefire 执行 → 混淆职责）
 - 在 `*.test.ts(x)` 里写 E2E 或验收场景
 
-> [Failsafe 配置](../../../../apps/service/pom.xml) 已设置 `includes: **/*IT.java, **/*AcceptanceTest.java`；[vitest.acceptance.config.ts](../../../../apps/webui/vitest.acceptance.config.ts) 只匹配 `*.accept.test.ts(x)`。
+> [Failsafe 配置](../../../../apps/service/pom.xml) 已设置 `includes: **/*IT.java, **/*AcceptanceTest.java`；vitest acceptance 配置只匹配 `*.accept.test.ts(x)`。
 
 ## 技术栈
 

@@ -127,7 +127,7 @@ DSL 是元引擎的核心语言，贯穿开发时和运行时。具备三重身�
 | 预算感知 | 四维预估（Token/时间/工具调用/费用）+ 三档监控（70%/90%/100%）+ 用户决策 | [budget-control.md](../governance/budget-control.md) |
 | 人类计算支撑 | 用户贡献群体智慧，积分引擎量化，结算引擎链上透明 | [human-computation.md](../../intelligent/core/human-computation.md) |
 | 复杂性封装 | 默认隐藏，四层按需展开；查看无需权限，修改按角色分级 | [complexity-encapsulation.md](../../intelligent/core/complexity-encapsulation.md) |
-| 对话式交互 | 意图表达与结果呈现，与元引擎通过 DSL 和事件解耦 | [conversational-interaction.md](../../../apps/webui/tmp/conversational-interaction.md) |
+| 对话式交互 | 意图表达与结果呈现，与元引擎通过 DSL 和事件解耦 | 对话式交互设计（待建） |
 
 ## 技术映射
 
@@ -175,11 +175,11 @@ DSL 域与上下文的对应关系：
 
 ### 五度空间约束
 
-每个子模块复杂度不超过 5，超出则强制递归分解。后端核心和引擎编排层均已达上限 5，不允许再添加新模块而不分解。详见 [复杂性封装策略](core/complexity-encapsulation.md#五度空间约束)。
+每个子模块复杂度不超过 5，超出则强制递归分解。后端核心和引擎编排层均已达上限 5，不允许再添加新模块而不分解。详见 [复杂性封装策略](../../intelligent/core/complexity-encapsulation.md#五度空间约束)。
 
 ### 安全执行链路
 
-输入净化 → DSL 解析 → 工具白名单/记忆隔离/知识分级/模型配额 → 输出审查。详见 [安全架构](security/security.md#元引擎安全执行链路)。
+输入净化 → DSL 解析 → 工具白名单/记忆隔离/知识分级/模型配额 → 输出审查。详见 [安全架构](../../security/security.md#元引擎安全执行链路)。
 
 ### 防退化约束
 

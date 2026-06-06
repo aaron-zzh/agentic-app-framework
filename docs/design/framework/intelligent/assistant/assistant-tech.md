@@ -143,7 +143,7 @@ intelligent/assistant/
 ## 相关文档
 
 - [五层智能架构总览](../architecture.md)
-- [Actor 模型](actor.md)
+- Actor 模型（待建）
 - [用户感知与个性化](../cognition/personalization.md)
 
 ---

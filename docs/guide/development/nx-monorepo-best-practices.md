@@ -338,5 +338,3 @@ pnpm nx reset
 当前阶段 Windows 开发为主，暂不处理。CI 环境如需 Linux 再适配。
 
 ---
-
-> 参考来源：[CopilotKit Nx monorepo 分析](../../design/apps/webui/copilotkit-nx-monorepo-analysis.md) | [Nx 官方文档](https://nx.dev/concepts)

@@ -25,7 +25,7 @@ gains:
 > **与已有设计的关系**：本文档是以下已有设计的**演进与统一**：
 > - [AI 感知能力（第三十五章）](./interaction-mode-structured-view.md#三十五ai-感知能力ai-context-awareness) — 定义了 `AIPageContext` / `UserAction` / `AIAwarenessService`，本文档在此基础上扩展为全面埋点体系
 > - [Copilot 插件](./copilot-plugin.md) — 定义了 Copilot 体验层架构，本文档为其提供底层语义基础设施
-> - [高带宽协作原则](../../explanation/design-principles.md#高带宽协作) — 本文档是该原则在组件层面的具体落地
+> - [高带宽协作原则](../../../explanation/design-principles.md#高带宽协作) — 本文档是该原则在组件层面的具体落地
 >
 > **演进方向**：v0.1.0 的 AI 感知（第三十五章）聚焦于"AI 辅助当前页面操作"，本文档将其扩展为三层完整体系——从被动感知到主动理解到自主行动。
 

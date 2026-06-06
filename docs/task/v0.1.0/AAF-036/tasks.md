@@ -34,7 +34,7 @@ author: AaronZZH
    - uni_modules 引入：`lime-painter`（海报生成）、`lime-qrcode`（二维码）
    - 安装 dev：`vconsole rollup-plugin-visualizer vite-plugin-compression`
    - 确认 `pinia-plugin-persistedstate` 支持 `uni.storage`，否则换 `pinia-plugin-persist-uni`
-   - verify: `pnpm nx run uniapp:type-check` 无类型错误
+   - verify: `pnpm nx run uniapp:typecheck` 无类型错误
 
 3. [x] #3603 ESLint 对齐 AAF 规范 — developer-uniapp (依赖: #3601)
    - `eslint.config.mjs` 补充：`@typescript-eslint/no-explicit-any: error`、`no-console: warn`
@@ -185,14 +185,14 @@ author: AaronZZH
     - 在 `ChatBubble.vue` 中监听 `mp-html` 的 `@linktap` 事件
     - 识别 `route://` 协议，解析页面名称和参数，调用 `router.push()` 跳转
     - 支持协议：`route://页面名?参数`（内部路由）、`http(s)://`（webview）、`tel://`（拨号）
-    - 示例：AI 回复"前往[个人中心](route://profile)修改信息"，点击直接跳转
+    - 示例：AI 回复"前往个人中心（`route://profile`）修改信息"，点击直接跳转
     - verify: 点击 AI 回复中的链接可正确跳转到对应页面
     - **已完成**：ChatBubble.vue 实现 onLinkTap，拦截 route://、tel://、http(s):// 三种协议
 
 - [ ] `pnpm nx dev uniapp` 可启动 H5 开发服务
 - [ ] `pnpm nx run uniapp:build:mp-weixin` 构建成功，主包 < 2MB
 - [ ] `pnpm nx run uniapp:lint` 通过，无 `any` 类型错误
-- [ ] `pnpm nx run uniapp:type-check` 通过
+- [ ] `pnpm nx run uniapp:typecheck` 通过
 - [ ] 微信小程序和 H5 均可接收 SSE 流式响应
 - [ ] 双角色路由拦截正常工作
 - [ ] `.kiro/skills/` 包含 4 个 wot-ui skill
@@ -203,7 +203,7 @@ author: AaronZZH
 - [ ] `pnpm nx dev uniapp` 可启动 H5 开发服务
 - [ ] `pnpm nx run uniapp:build:mp-weixin` 构建成功，主包 < 2MB
 - [ ] `pnpm nx run uniapp:lint` 通过，无 `any` 类型错误
-- [ ] `pnpm nx run uniapp:type-check` 通过
+- [ ] `pnpm nx run uniapp:typecheck` 通过
 - [ ] 微信小程序和 H5 均可接收 SSE 流式响应
 - [ ] 双角色路由拦截正常工作（普通用户无法进入管理分包）
 - [ ] 登录流程完整（微信一键登录 + H5 账号密码）

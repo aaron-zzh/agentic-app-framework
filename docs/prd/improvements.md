@@ -72,3 +72,25 @@ developer-webui agent 在执行本任务期间多次带进后端代码：
 1. 所有 developer agent 提交前必须运行 `git status` 检查，只 `git add <任务明确指定的路径>`，严禁 `git add .` 或 `git add -A`。
 2. 可考虑在 commit hook 中加路径过滤，跨项目提交强制警告。
 3. 在 `.kiro/agents/developer-webui` 的提示词中补充：跨路径提交视为 blocker。
+
+
+## uniapp mp-weixin 构建失败（@vueuse/core 兼容性）
+
+**发现时间**：2026-06-06，本地预验证 CI 流程时发现
+
+**现象**：
+`pnpm nx run uniapp:build:mp-weixin` 失败，报错：
+```
+"TransitionGroup" is not exported by "vue-demi/lib/index.mjs"
+```
+`@vueuse/core@11.x` 依赖 `TransitionGroup`，但 UniApp 小程序环境的 vue 精简包未导出该 API。
+
+**临时处理**：
+CI workflow 中注释掉 `Build uniapp (mp-weixin)` 步骤，H5 构建正常。
+
+**修复方向（待评估）**：
+1. 降级 `@vueuse/core` 到 `^10.x`（需验证无破坏性变更）
+2. 换用 `@uni-helper/vueuse` 或 UniApp 社区适配版
+3. 在 vite 配置中针对 mp-weixin 平台 externalize 不兼容 API
+
+**优先级**：P2，不阻塞当前迭代

@@ -714,7 +714,7 @@ private void doSomething() {
 
 ```bash
 # 格式化所有 Java 文件
-pnpm nx run service:format
+pnpm nx run service:fix
 
 # 检查格式（CI 强制，不通过即失败）
 pnpm nx run service:lint
@@ -724,7 +724,7 @@ pnpm nx run service:lint
 
 **IntelliJ IDEA**：安装 `google-java-format` 插件 → Settings → google-java-format → 勾选 Enable → 选择 AOSP style。保存时自动格式化。
 
-**VS Code**：不推荐直接编辑 Java，使用 `pnpm nx run service:format` 命令行格式化。
+**VS Code**：不推荐直接编辑 Java，使用 `pnpm nx run service:fix` 命令行格式化。
 
 ### 规则
 

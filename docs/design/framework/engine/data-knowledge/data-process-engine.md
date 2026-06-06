@@ -14,7 +14,7 @@ changelog:
 
 > **引擎层（Layer 2）的通用执行能力**，负责结构化/半结构化数据的批/流处理与统计分析。
 > 本文档为占位，详细设计待补充。
-> 长期规划：**v2.0 用 [actormesh](../../../../apps/actormesh/Readme.md) 实现**，获得 C++ 级高并发性能。
+> 长期规划：**v2.0 用 [actormesh](../../../../../apps/actormesh/Readme.md) 实现**，获得 C++ 级高并发性能。
 
 ## 定位
 
@@ -193,7 +193,7 @@ public interface DataProcessEngine {
 
 ## 相关文档
 
-- [actormesh 引擎开发框架](../../../../apps/actormesh/Readme.md)
+- [actormesh 引擎开发框架](../../../../../apps/actormesh/Readme.md)
 - [SemanticCalc 语义计算引擎](semantic-compute.md)
 - [Cognition 认知层设计](../../intelligent/cognition/cognition.md)
 - [路线图 - v2.0 actormesh](../../../../prd/roadmap.md)

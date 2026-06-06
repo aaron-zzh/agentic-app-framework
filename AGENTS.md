@@ -240,7 +240,7 @@ AAF 后端 Maven 模块依赖方向（详见 [architecture-constraints.md](docs/
 | 文档 | 内容 |
 |------|------|
 | [docs/design/architecture.md](docs/design/architecture.md) | 整体架构（五层 + 五层智能） |
-| [docs/design/framework/meta-engine.md](docs/design/framework/meta-engine.md) | 元引擎核心设计 |
+| [docs/design/framework/engine/meta/meta-engine.md](docs/design/framework/engine/meta/meta-engine.md) | 元引擎核心设计 |
 | [docs/explanation/architecture-thought.md](docs/explanation/architecture-thought.md) | 架构决策背后的 Why |
 | [docs/explanation/design-principles.md](docs/explanation/design-principles.md) | 化繁为简、DRY、AI 友好等 |
 | [docs/design/framework/component-overview.md](docs/design/framework/component-overview.md) | 架构级核心组件总览 |

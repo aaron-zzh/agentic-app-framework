@@ -11,7 +11,7 @@ author: AaronZZH
 # 统一富文本编辑器（RichTextEditor）
 
 > 基于 Lexical，一个编辑器引擎 + Feature 插件体系 + 四种预设配置，覆盖文档编辑、表单富文本字段、Chatter 评论输入、多行文本升级四种场景。
-> 所属体系：[结构化视图模式](./interaction-mode-structured-view.md) | [生成式交互模式](tmp/interaction-mode-generative.md) | [对话式交互](tmp/conversational-interaction.md)
+> 所属体系：[结构化视图模式](./interaction-mode-structured-view.md) | 生成式交互模式（待建） | 对话式交互（待建）
 
 ## 一、设计理念
 

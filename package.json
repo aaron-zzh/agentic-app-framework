@@ -12,7 +12,8 @@
     "format:check": "biome check",
     "commitlint": "commitlint --from HEAD~1 --to HEAD",
     "changelog": "nx release changelog",
-    "release": "nx release"
+    "release": "nx release",
+    "audit": "pnpm audit"
   },
   "private": true,
   "engines": {

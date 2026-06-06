@@ -194,6 +194,6 @@ KiroAgentController（aaf-auto-dev）
 ## 相关设计
 
 - AAF-019 文档管理：[requirement.md](../AAF-019/requirement.md)
-- 协作控制台设计：[auto-dev.md](../../../design/framework/auto-dev.md)
-- Auto-Dev 模块设计：[auto-dev-design.md](../../../design/apps/service/auto-dev-design.md)
+- 协作控制台设计：[auto-dev.md](../../../design/framework/auto-dev/auto-dev.md)
+- Auto-Dev 模块设计：auto-dev-design.md（待建）
 - live-chatter 实现：`apps/webui/src/features/livechat/`

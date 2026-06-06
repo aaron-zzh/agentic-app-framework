@@ -352,6 +352,6 @@ apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/system/chat/
 
 ## 相关文档
 
-- AAF-020 需求：[requirement.md](../../task/v0.1.0/AAF-020/requirement.md)
+- AAF-020 需求：[requirement.md](requirement.md)
 - live-chatter 现有实现：`apps/webui/src/features/livechat/`
 - assistant-ui AG-UI runtime：`.kiro/skills/assistant-ui/SKILL.md`

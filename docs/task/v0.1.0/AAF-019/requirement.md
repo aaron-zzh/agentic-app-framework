@@ -50,7 +50,7 @@ Feature: 文档查看与编辑
     Given 本地 docs/ 目录有新增或修改的文件
     When 调用 POST /api/docs/import
     Then 扫描 docs/ 目录，解析 Front Matter 元数据，新增或更新数据库记录
-    And 提取文档中的双链 [[文档名]] 和 Markdown 链接 [text](path)，写入 Neo4j
+    And 提取文档中的双链 [[文档名]] 和 Markdown 链接（`[文本](路径)` 格式），写入 Neo4j
 
   Scenario: 启动时自动同步
     Given 服务启动
@@ -68,7 +68,7 @@ Feature: 文档查看与编辑
 Feature: 文档关系管理
 
   Scenario: 自动识别双链引用
-    Given 文档 A 中包含 [[文档B]] 或 [text](../path/to/B.md)
+    Given 文档 A 中包含 [[文档B]] 或 Markdown 相对链接（`[文本](相对路径)` 格式，如相对路径 `../path/to/B.md`）
     When 文档 A 被导入或保存
     Then 系统在 Neo4j 中创建 A → B 的 REFERENCES 关系边
 
@@ -161,7 +161,7 @@ Feature: 全文检索
 - 文档编辑为单用户模式，不处理并发冲突
 - 本地文件同步：保存时写回文件（AAF → 本地），反向变更需手动触发导入
 - 启动时自动扫描一次（`@EventListener(ApplicationStartedEvent.class)`）
-- 双链解析：`[[文档名]]` 按 title 匹配；`[text](path)` 按 file_path 匹配
+- 双链解析：`[[文档名]]` 按 title 匹配；Markdown 链接按 file_path 匹配
 - 关系图谱深度限制：前端展示深度 ≤ 2，后端接口返回直接关系（1 跳）
 - 全文检索使用 PostgreSQL `tsvector`（中文分词暂用 `simple` 配置）
 

@@ -83,7 +83,7 @@ Agent 执行中
 
 ## 相关文档
 
-- [状态管理器](../design/framework/core/state-manager.md) — 四层状态的持久化与隔离
-- [五层智能架构](../design/framework/intelligent/agent.md) — Checkpoint 分层设计
-- [用户感知与个性化](../design/framework/personalization.md) — 上下文组装优先级
-- [置信度门控器](../design/framework/core/confidence-gate.md) — 审计日志触发时机
+- [状态管理器](../design/framework/engine/meta/state-manager.md) — 四层状态的持久化与隔离
+- [五层智能架构](../design/framework/intelligent/agent/agent-design.md) — Checkpoint 分层设计
+- [用户感知与个性化](../design/framework/intelligent/cognition/personalization.md) — 上下文组装优先级
+- [置信度门控器](../design/framework/intelligent/core/confidence-gate.md) — 审计日志触发时机

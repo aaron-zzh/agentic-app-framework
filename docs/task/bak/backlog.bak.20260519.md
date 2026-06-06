@@ -12,7 +12,7 @@
 
 ### 结构化视图引擎（核心）
 
-- [ ] AAF-028 (创建: 05-13) 视图引擎核心（EntityDef 注册表 + ViewEngine 渲染 + 组件注册表 + Mixin/继承 + 插件机制 + 错误边界）设计文档：[结构化交互模式设计](../design/apps/webui/interaction-mode-structured-view.md) 章节一~十二、二十四、三十、六十二、六十四 (依赖: AAF-023)
+- [ ] AAF-028 (创建: 05-13) 视图引擎核心（EntityDef 注册表 + ViewEngine 渲染 + 组件注册表 + Mixin/继承 + 插件机制 + 错误边界）设计文档：[结构化交互模式设计](../../design/apps/webui/interaction-mode-structured-view.md) 章节一~十二、二十四、三十、六十二、六十四 (依赖: AAF-023)
 - [ ] AAF-029 (创建: 05-13) 数据交互层（通用 CRUD Hooks + URL 状态 + 高级列表 + 搜索筛选 + 导入导出 + 透视报表 + 批量异步化）设计文档：同上 章节六、七、十七、二十一、二十二、三十一、三十四、三十九、四十八、四十九、五十二、六十三 (依赖: AAF-028)
 - [ ] AAF-030 (创建: 05-13) 表单引擎（字段体系 + 关联/文件/签名/子表 + 条件逻辑 + 公式计算 + 跨字段校验 + 向导 + FieldContext + 多币种）设计文档：同上 章节十八、十九、二十五~二十八、三十二、三十六、五十、五十一、五十六、六十、六十一 (依赖: AAF-028)
 - [ ] AAF-031 (创建: 05-13) 协作与通知（实时编辑 + 乐观锁/CRDT + 版本历史 + 活动流 + 消息中心 + PWA 推送 + 字段订阅 + @待办联动）设计文档：同上 章节十三、十四、二十、二十九、三十三、四十六、五十四、五十五 (依赖: AAF-028)
@@ -21,10 +21,10 @@
 
 ### 独立功能
 
-- [ ] AAF-021 (创建: 05-03) Auto Dev 平台（AI 协作开发监控与管理）需求规格：[requirement.md](v0.1.0/AAF-021/requirement.md) (依赖: AAF-023)
+- [ ] AAF-021 (创建: 05-03) Auto Dev 平台（AI 协作开发监控与管理）需求规格：[requirement.md](../v0.1.0/AAF-021/requirement.md) (依赖: AAF-023)
 - [ ] AAF-025 (创建: 05-06) 在线源码查看系统（目录浏览 + 语法高亮 + 文件搜索 + Git 历史 + Agent 代码引用跳转）(依赖: AAF-023, AAF-021)
 - [ ] AAF-034 (创建: 05-13) 企业 Landing Page（产品介绍 + 功能亮点 + 定价方案 + CTA + 响应式 + SEO 优化）(依赖: AAF-023)
-- [ ] AAF-036 (创建: 05-15) 移动端脚手架（uniapp 用户+管理员双角色移动端基础框架：wot-starter-v2 + 平台抽象层 + SSE 双端流式通信 + 权限路由 + 启动序列 + 管理分包）设计文档：[tech-stack.md](../design/apps/uniapp/tech-stack.md) | [directory-structure.md](../design/apps/uniapp/directory-structure.md) | [mobile-admin.md](../design/apps/uniapp/mobile-admin.md) (依赖: AAF-023)
+- [ ] AAF-036 (创建: 05-15) 移动端脚手架（uniapp 用户+管理员双角色移动端基础框架：wot-starter-v2 + 平台抽象层 + SSE 双端流式通信 + 权限路由 + 启动序列 + 管理分包）设计文档：[tech-stack.md](../../design/apps/uniapp/tech-stack.md) | [directory-structure.md](../../design/apps/uniapp/directory-structure.md) | [mobile-admin.md](../../design/apps/uniapp/mobile-admin.md) (依赖: AAF-023)
 
 ## 开发中
 

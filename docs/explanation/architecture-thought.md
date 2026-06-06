@@ -327,7 +327,7 @@ DSL 层（统一中间表示：意图解析 → DSL 生成 → 校验 → 版本
 
 **复杂性封装**：对话框是默认态，DSL 查看是展开态（所有角色可查看，无需权限），DSL 编辑是开发态（需权限）。查看与修改权限严格分离，透明度与安全性并存。
 
-详见 [元引擎设计文档](../design/framework/meta-engine.md)。
+详见 [元引擎设计文档](../design/framework/engine/meta/meta-engine.md)。
 
 ### 分层智能，渐进决策
 
@@ -601,4 +601,4 @@ v3  doc 域（content + layout + style + behavior）+ 自进化闭环 + 预算�
     目标：全域 DSL 覆盖，自进化机制闭环
 ```
 
-更多详见 [元引擎设计文档](../design/framework/meta-engine.md#最小可行实现路径)。
+更多详见 [元引擎设计文档](../design/framework/engine/meta/meta-engine.md#最小可行实现路径)。

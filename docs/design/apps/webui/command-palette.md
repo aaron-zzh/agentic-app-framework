@@ -215,5 +215,5 @@ Copilot 扩展命令面板能力：除了导航/搜索，还支持自然语言�
 | [DSL 运行时](../../framework/dsl/dsl-runtime.md) | 命令面板是 DSL 命令式指令的主要用户入口 |
 | [Copilot 插件](./copilot-plugin.md) | 自然语言意图通过命令面板转发 Copilot |
 | [结构化视图模式](./interaction-mode-structured-view.md) | 命令面板在 AppHeader 中，覆盖全局 |
-| [生成式交互模式](tmp/interaction-mode-generative.md) | 斜杠命令 + @引用的完整定义 |
+| 生成式交互模式（待建） | 斜杠命令 + @引用的完整定义 |
 | [tech-stack.md](./tech-stack.md) | cmdk + fuse.js 选型依据 |

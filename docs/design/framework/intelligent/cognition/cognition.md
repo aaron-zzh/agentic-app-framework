@@ -17,7 +17,7 @@ changelog:
 # 认知层设计（Cognition Layer）
 
 > AAF 五层智能架构中的 **Layer 1 Cognition**，跨 Agent 共享的持久认知底座。
-> 参考：[智能体系统设计](../agent.md#layer-1-认知基础层-cognition) · [架构设计思想](../../../../explanation/architecture-thought.md)
+> 参考：[智能体系统设计](../agent/agent-design.md#layer-1-认知基础层-cognition) · [架构设计思想](../../../../explanation/architecture-thought.md)
 
 ## 一、架构定位
 

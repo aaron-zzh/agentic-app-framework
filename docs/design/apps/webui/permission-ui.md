@@ -12,7 +12,7 @@ author: AaronZZH
 
 > 前端如何消费后端四层权限模型（RBAC + ReBAC + 记录规则 + ABAC），实现 UI 级权限控制和权限配置界面。
 > 后端权限设计：[access-control.md](../../framework/security/access-control.md)
-> 所属体系：[结构化视图模式](./interaction-mode-structured-view.md) | [用户自定义字段](../../framework/core/custom-fields.md)
+> 所属体系：[结构化视图模式](./interaction-mode-structured-view.md) | [用户自定义字段](../../framework/intelligent/core/custom-fields.md)
 
 ## 一、设计原则
 
