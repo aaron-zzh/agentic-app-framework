@@ -35,9 +35,9 @@ jobs:
         with:
           context: ./apps/service
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/aaf/service:latest
-          cache-from: type=registry,ref=${{ env.ACR_REGISTRY }}/aaf/service:buildcache
-          cache-to: type=registry,ref=${{ env.ACR_REGISTRY }}/aaf/service:buildcache,mode=max
+          tags: ${{ env.ACR_REGISTRY }}/aaronzzh/service:latest
+          cache-from: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/service:buildcache
+          cache-to: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/service:buildcache,mode=max
 
       - name: 构建并推送前端镜像
         uses: docker/build-push-action@v6
@@ -45,11 +45,11 @@ jobs:
           context: .
           file: ./apps/webui/Dockerfile
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/aaf/webui:latest
+          tags: ${{ env.ACR_REGISTRY }}/aaronzzh/webui:latest
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          cache-from: type=registry,ref=${{ env.ACR_REGISTRY }}/aaf/webui:buildcache
-          cache-to: type=registry,ref=${{ env.ACR_REGISTRY }}/aaf/webui:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/webui:buildcache
+          cache-to: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/webui:buildcache,mode=max
 
   deploy:
     name: 部署到 ECS
