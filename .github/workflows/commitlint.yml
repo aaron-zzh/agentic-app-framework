@@ -1,6 +1,8 @@
 name: Commitlint
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -24,4 +26,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Lint commits
-        run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+          else
+            pnpm exec commitlint --from HEAD~1 --to HEAD
+          fi

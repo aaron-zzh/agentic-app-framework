@@ -36,8 +36,8 @@ jobs:
           context: ./apps/service
           push: true
           tags: ${{ env.ACR_REGISTRY }}/aaronzzh/service:latest
-          cache-from: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/service:buildcache
-          cache-to: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/service:buildcache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: 构建并推送前端镜像
         uses: docker/build-push-action@v6
@@ -48,8 +48,8 @@ jobs:
           tags: ${{ env.ACR_REGISTRY }}/aaronzzh/webui:latest
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          cache-from: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/webui:buildcache
-          cache-to: type=registry,ref=${{ env.ACR_REGISTRY }}/aaronzzh/webui:buildcache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     name: 部署到 ECS
