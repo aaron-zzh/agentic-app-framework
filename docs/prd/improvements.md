@@ -74,6 +74,44 @@ developer-webui agent 在执行本任务期间多次带进后端代码：
 3. 在 `.kiro/agents/developer-webui` 的提示词中补充：跨路径提交视为 blocker。
 
 
+## NexusKBEngine 增加 Agentic GraphRAG 三层检索分层
+
+**发现时间**：2026-06-06，调研 Neo4j Aura Agent 后提出
+**参考**：[调研笔记](../learn/graphrag-neo4j-aura-agent.md)
+
+**现状**：`NexusKBEngine` 已有向量/关键词/图谱/混合四种检索接口，但检索路径由代码固定，Agent 无法根据问题类型自主选择检索工具。
+
+**建议**：将检索工具按三层暴露给 Agent：
+1. **精确层**：预定义 Cypher 模板（高频/已知问题，低风险）
+2. **语义层**：向量相似度检索（模糊匹配，中风险）
+3. **动态层**：NL→Cypher（聚合/即席查询，高风险，需置信度门控）
+
+同时支持**工具链式调用**：向量检索找到入口节点后，Agent 可自动触发图遍历补全关联上下文（`searchByVector` 结果 → `searchByGraph`），这是 GraphRAG 相比普通 RAG 的核心优势。
+
+**影响范围**：`NexusKBEngine` 接口 + Agent 工具调度层
+**优先级**：P2，v0.3+ 知识引擎增强时考虑 | 待评估
+
+---
+
+## AG-UI 协议补充 THINKING 事件（工具调用可见性）
+
+**发现时间**：2026-06-06，调研 Neo4j Aura Agent 后提出
+**参考**：[调研笔记](../learn/graphrag-neo4j-aura-agent.md)
+
+**现状**：`ag-ui-protocol.md` 已有 `TOOL_CALL_START / TOOL_CALL_END / TOOL_CALL_RESULT` 事件，协议层工具调用可见性基本完备，但缺少 `THINKING` 事件——即 Agent 在决定调用工具前的内部推理文本。
+
+**建议**：在 AG-UI 协议中新增 `THINKING` 事件类型：
+```
+event: THINKING
+data: {"messageId":"...", "delta":"用户在问合同条款，应该先用向量检索找相关片段..."}
+```
+前端可渲染为可折叠的"推理过程"面板，满足法律、医疗、合规等垂直场景的可解释性需求。
+
+**影响范围**：`ag-ui-protocol.md` + 前端 `assistant-ui` Tool Call UI 渲染
+**优先级**：P2，v0.2+ 对话体验增强时考虑 | 待评估
+
+---
+
 ## uniapp mp-weixin 构建失败（@vueuse/core 兼容性）
 
 **发现时间**：2026-06-06，本地预验证 CI 流程时发现

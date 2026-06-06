@@ -112,3 +112,12 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+# Flowable：只启用 BPMN + DMN，禁用不使用的引擎以避免产生多余的 ACT_APP_*/ACT_CMMN_*/ACT_FO_* 表
+flowable:
+  app:
+    enabled: false
+  cmmn:
+    enabled: false
+  form:
+    enabled: false

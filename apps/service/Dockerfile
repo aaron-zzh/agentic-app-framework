@@ -3,7 +3,7 @@ FROM bellsoft/liberica-openjdk-alpine:25 AS builder
 WORKDIR /build
 
 # 先复制 pom 利用 layer 缓存
-COPY .mvn/ .mvn/
+COPY .mvn/wrapper/ .mvn/wrapper/
 COPY mvnw pom.xml ./
 RUN chmod +x mvnw
 COPY aaf-dependencies/pom.xml aaf-dependencies/

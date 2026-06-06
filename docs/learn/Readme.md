@@ -18,6 +18,7 @@ gains:
 - 上下文工程 <https://mp.weixin.qq.com/s/ORrpCrZC-pI8C2bCnAgeAA>
 - Harness工程
 - GraphRAG <https://mp.weixin.qq.com/s/heZhqhfIad6RX_IFzF5DAg>
+- GraphRAG Agent 工程实践（Neo4j Aura Agent）[调研笔记](graphrag-neo4j-aura-agent.md) · <https://neo4j.com/blog/genai/build-context-aware-graphrag-agent/>
 - agenticRAG
 - Agent 范式
 - 5 种 Agent Skill 设计模式 -Google Cloud Tech <https://baijiahao.baidu.com/s?id=1861363020032493790&wfr=spider&for=pc>
