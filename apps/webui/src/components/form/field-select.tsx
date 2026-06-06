@@ -26,6 +26,7 @@ export interface SelectOption {
 export interface FieldSelectProps {
   name: string
   label?: string
+  description?: string
   options: SelectOption[]
   placeholder?: string
   className?: string
@@ -35,6 +36,7 @@ export interface FieldSelectProps {
 export function FieldSelect({
   name,
   label,
+  description,
   options,
   placeholder,
   className,
@@ -67,6 +69,7 @@ export function FieldSelect({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {description && <p className="text-muted-foreground text-xs">{description}</p>}
             {error && <p className="text-destructive text-xs">{error.message}</p>}
           </>
         )}

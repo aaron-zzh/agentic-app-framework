@@ -17,8 +17,8 @@ export const layout = {
   marketingHeaderHeight: "64px",
   marketingMaxWidth: "1200px",
   authCardWidth: "420px",
-  canvasToolbarHeight: "48px",
-} as const;
+  canvasToolbarHeight: "48px"
+} as const
 
 /** 字体栈 */
 export const fontFamily = {
@@ -30,7 +30,7 @@ export const fontFamily = {
     "Hiragino Sans GB",
     "Noto Sans CJK SC",
     "system-ui",
-    "sans-serif",
+    "sans-serif"
   ],
   mono: [
     "var(--font-geist-mono)",
@@ -40,15 +40,14 @@ export const fontFamily = {
     "Monaco",
     "Consolas",
     "Courier New",
-    "monospace",
-  ],
-} as const;
+    "monospace"
+  ]
+} as const
 
 /** 圆角 token */
 export const radius = {
   sm: "calc(var(--radius) - 4px)",
   md: "calc(var(--radius) - 2px)",
   lg: "var(--radius)",
-  xl: "calc(var(--radius) + 4px)",
-} as const;
-
+  xl: "calc(var(--radius) + 4px)"
+} as const

@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/aaron-zzh/agentic-app-framework/workflows/CI/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions)
 [![Commitlint](https://github.com/aaron-zzh/agentic-app-framework/workflows/Commitlint/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions)
+[![Deploy to Aliyun](https://github.com/aaron-zzh/agentic-app-framework/workflows/Deploy%20to%20Aliyun/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions/workflows/deploy.yml)
 
 > 元引擎是 AAF 的核心执行引擎，编排各专项引擎，驱动意图→执行→知识的完整闭环。自我开发、自我进化、规范驱动的围栏工程
 

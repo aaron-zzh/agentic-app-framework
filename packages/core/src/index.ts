@@ -1,2 +1,2 @@
-export * from './lib/is-equal-path';
-export * from './lib/is-external-link';
+export * from "./lib/is-equal-path"
+export * from "./lib/is-external-link"

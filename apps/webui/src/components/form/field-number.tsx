@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils/cn"
 export interface FieldNumberProps {
   name: string
   label?: string
+  description?: string
   placeholder?: string
   min?: number
   max?: number
@@ -25,6 +26,7 @@ export interface FieldNumberProps {
 export function FieldNumber({
   name,
   label,
+  description,
   placeholder,
   min,
   max,
@@ -54,6 +56,7 @@ export function FieldNumber({
               value={field.value ?? ""}
               onChange={(e) => field.onChange(e.target.valueAsNumber)}
             />
+            {description && <p className="text-muted-foreground text-xs">{description}</p>}
             {error && <p className="text-destructive text-xs">{error.message}</p>}
           </>
         )}

@@ -95,7 +95,7 @@ const FEATURES = [
     ),
     title: "多智能体协作",
     value: "Agent · Team · Assistant",
-    accent: "cyan"
+    accent: "cyan" as const
   },
   {
     icon: (
@@ -116,7 +116,7 @@ const FEATURES = [
     ),
     title: "工作流引擎",
     value: "LLM · 知识库 · 条件分支",
-    accent: "purple"
+    accent: "purple" as const
   },
   {
     icon: (
@@ -137,7 +137,7 @@ const FEATURES = [
     ),
     title: "知识库管理",
     value: "PgVector · Neo4j · 语义检索",
-    accent: "cyan"
+    accent: "cyan" as const
   },
   {
     icon: (
@@ -158,7 +158,7 @@ const FEATURES = [
     ),
     title: "AI 自动开发",
     value: "代码生成 · 自我进化 · 规范驱动",
-    accent: "violet"
+    accent: "violet" as const
   }
 ]
 

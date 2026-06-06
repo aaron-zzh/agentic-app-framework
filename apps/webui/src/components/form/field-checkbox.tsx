@@ -14,25 +14,37 @@ import { cn } from "@/lib/utils/cn"
 export interface FieldCheckboxProps {
   name: string
   label?: string
+  description?: string
   className?: string
   disabled?: boolean
 }
 
-export function FieldCheckbox({ name, label, className, disabled }: FieldCheckboxProps) {
+export function FieldCheckbox({
+  name,
+  label,
+  description,
+  className,
+  disabled
+}: FieldCheckboxProps) {
   const { control } = useFormContext()
   return (
     <Controller
       name={name}
       control={control}
-      render={({ field }) => (
-        <div className={cn("flex items-center gap-2", className)}>
-          <Checkbox
-            id={name}
-            checked={field.value ?? false}
-            onCheckedChange={(checked) => field.onChange(checked === true)}
-            disabled={disabled}
-          />
-          {label && <Label htmlFor={name}>{label}</Label>}
+      render={({ field, fieldState: { error } }) => (
+        <div className={cn("flex flex-col gap-1.5", className)}>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id={name}
+              checked={field.value ?? false}
+              onCheckedChange={(checked) => field.onChange(checked === true)}
+              disabled={disabled}
+              aria-invalid={!!error}
+            />
+            {label && <Label htmlFor={name}>{label}</Label>}
+          </div>
+          {description && <p className="text-muted-foreground text-xs">{description}</p>}
+          {error && <p className="text-destructive text-xs">{error.message}</p>}
         </div>
       )}
     />

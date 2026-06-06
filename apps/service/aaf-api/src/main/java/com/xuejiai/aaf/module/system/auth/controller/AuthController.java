@@ -1,7 +1,11 @@
 package com.xuejiai.aaf.module.system.auth.controller;
 
+import java.net.URI;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -26,6 +30,9 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+
+    @Value("${aaf.cors.allowed-origin-patterns[0]:http://localhost:3000}")
+    private String frontendUrl;
 
     public AuthController(AuthService authService, UserService userService) {
         this.authService = authService;
@@ -129,6 +136,21 @@ public class AuthController {
     public Result<String> getOAuthUrl(
             @PathVariable String provider, @RequestParam(defaultValue = "") String state) {
         return Result.success(authService.getOAuthUrl(provider, state));
+    }
+
+    @Operation(summary = "OAuth 服务端回调：换 token 后重定向前端")
+    @GetMapping("/oauth/{provider}/redirect")
+    public ResponseEntity<Void> oauthRedirect(
+            @PathVariable String provider,
+            @RequestParam String code,
+            @RequestParam(defaultValue = "web") String deviceId) {
+        AuthLoginVO vo = authService.oauthLogin(provider, code, deviceId);
+        // 重定向到前端登录页，携带 token 参数
+        String redirectUrl = frontendUrl + "/login?accessToken=" + vo.accessToken()
+                + "&refreshToken=" + vo.refreshToken();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(redirectUrl))
+                .build();
     }
 
     @Operation(summary = "OAuth 回调登录")

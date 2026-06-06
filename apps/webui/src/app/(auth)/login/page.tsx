@@ -7,7 +7,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { FieldText } from "@/components/form/field-text"
@@ -33,9 +34,25 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
+/** 登录页主体，需包在 Suspense 内（useSearchParams 要求） */
+function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { setTokens, setUser } = useAuthStore()
+
+  // 处理后端 OAuth 重定向回来的 token 参数
+  // 后端 GET /api/auth/oauth/{provider}/redirect 换完 token 后 302 到此页面
+  useEffect(() => {
+    const accessToken = searchParams.get("accessToken")
+    const refreshToken = searchParams.get("refreshToken")
+    if (!accessToken || !refreshToken) return
+
+    setTokens(accessToken, refreshToken)
+    authApi.me().then((user) => {
+      setUser(user)
+      router.replace(paths.workspace.root)
+    })
+  }, [searchParams, setTokens, setUser, router])
 
   const methods = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -55,9 +72,7 @@ export default function LoginPage() {
   }
 
   async function handleOAuth(provider: string) {
-    const state = crypto.randomUUID()
-    sessionStorage.setItem("oauth-state", state)
-    const url = await authApi.getOAuthUrl(provider, state)
+    const url = await authApi.getOAuthUrl(provider, "")
     window.location.href = url
   }
 
@@ -111,6 +126,14 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   )
 }
 

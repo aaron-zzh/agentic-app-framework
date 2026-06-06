@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils/cn"
 export interface FieldTextareaProps {
   name: string
   label?: string
+  description?: string
   placeholder?: string
   rows?: number
   className?: string
@@ -28,6 +29,7 @@ export interface FieldTextareaProps {
 export function FieldTextarea({
   name,
   label,
+  description,
   placeholder,
   rows = 3,
   className,
@@ -92,6 +94,7 @@ export function FieldTextarea({
                   {...field}
                   value={field.value ?? ""}
                 />
+                {description && <p className="text-muted-foreground text-xs">{description}</p>}
                 {error && <p className="text-destructive text-xs">{error.message}</p>}
               </>
             )}

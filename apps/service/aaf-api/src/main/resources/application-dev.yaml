@@ -115,16 +115,16 @@ aaf:
       wechat:
         app-id: ${WECHAT_APP_ID:}
         app-secret: ${WECHAT_APP_SECRET:}
-        redirect-uri: ${WECHAT_REDIRECT_URI:http://localhost:3000/auth/callback/wechat}
+        redirect-uri: ${WECHAT_REDIRECT_URI:}
       wecom:
         corp-id: ${WECOM_CORP_ID:}
         agent-id: ${WECOM_AGENT_ID:}
         secret: ${WECOM_SECRET:}
-        redirect-uri: ${WECOM_REDIRECT_URI:http://localhost:3000/auth/callback/wecom}
+        redirect-uri: ${WECOM_REDIRECT_URI:}
       dingtalk:
         app-key: ${DINGTALK_APP_KEY:}
         app-secret: ${DINGTALK_APP_SECRET:}
-        redirect-uri: ${DINGTALK_REDIRECT_URI:http://localhost:3000/auth/callback/dingtalk}
+        redirect-uri: ${DINGTALK_REDIRECT_URI:}
   # ── 示例模块（按需开启，需配置 DASHSCOPE_API_KEY）────────────────
   examples:
     agentscope:

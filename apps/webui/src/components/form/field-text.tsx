@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils/cn"
 export interface FieldTextProps {
   name: string
   label?: string
+  description?: string
   placeholder?: string
   type?: "text" | "email" | "password"
   className?: string
@@ -23,6 +24,7 @@ export interface FieldTextProps {
 export function FieldText({
   name,
   label,
+  description,
   placeholder,
   type = "text",
   className,
@@ -46,6 +48,7 @@ export function FieldText({
               {...field}
               value={field.value ?? ""}
             />
+            {description && <p className="text-muted-foreground text-xs">{description}</p>}
             {error && <p className="text-destructive text-xs">{error.message}</p>}
           </>
         )}

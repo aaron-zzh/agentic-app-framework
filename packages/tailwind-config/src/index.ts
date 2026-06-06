@@ -6,4 +6,4 @@
  *
  * @author AaronZZH & Kiro
  */
-export { fontFamily, layout, radius } from "./preset";
+export { fontFamily, layout, radius } from "./preset"

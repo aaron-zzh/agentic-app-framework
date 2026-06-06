@@ -3,12 +3,12 @@ import { defineConfig } from "vitest/config"
 
 export default defineConfig({
   esbuild: {
-    jsx: "automatic",
+    jsx: "automatic"
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-    },
+      "@": path.resolve(__dirname, "src")
+    }
   },
   test: {
     environment: "jsdom",
@@ -24,14 +24,14 @@ export default defineConfig({
         "src/**/*.{test,spec,accept.test}.{ts,tsx}",
         "src/test/**",
         "src/lib/_mock/**",
-        "src/i18n/messages/**",
+        "src/i18n/messages/**"
       ],
       thresholds: {
         statements: 30,
         branches: 30,
         functions: 30,
-        lines: 30,
-      },
-    },
-  },
+        lines: 30
+      }
+    }
+  }
 })

@@ -1,53 +1,43 @@
 # AAF Docker Compose - 开发/演示环境
 # 使用方式：cp .env.example .env && docker compose up -d
+# Neo4j 使用外部服务（线上版），在 .env 中配置 NEO4J_URI
 
 services:
-  # PostgreSQL + PgVector
+  # PostgreSQL + PgVector（含中文 locale）
   postgres:
-    image: pgvector/pgvector:pg16
+    build:
+      context: ./scripts/deploy/postgres
+      dockerfile: Dockerfile
     container_name: aaf-postgres
     environment:
       POSTGRES_DB: ${DB_NAME:-aaf-dev}
       POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_INITDB_ARGS: "--locale=zh_CN.utf8 --encoding=UTF8"
+      LANG: zh_CN.utf8
+      LC_ALL: zh_CN.utf8
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/create_chinese_db.sh:/docker-entrypoint-initdb.d/01_init.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # Neo4j 图数据库
-  neo4j:
-    image: neo4j:5-community
-    container_name: aaf-neo4j
-    environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-neo4j}
-      NEO4J_PLUGINS: '["apoc"]'
-    ports:
-      - "7474:7474"
-      - "${NEO4J_PORT:-7687}:7687"
-    volumes:
-      - neo4j_data:/data
-    healthcheck:
-      test: ["CMD", "neo4j", "status"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-
   # Redis
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     container_name: aaf-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -58,26 +48,22 @@ services:
       context: ./apps/service
       dockerfile: Dockerfile
     container_name: aaf-service
+    env_file:
+      - .env
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      # 覆盖 .env 中的地址为容器内网地址
+      SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-aaf-dev}
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      NEO4J_URI: bolt://neo4j:7687
-      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-neo4j}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-aaf-dev-secret-must-be-at-least-32-bytes-long!!}
-      JWT_EXPIRE_SECONDS: ${JWT_EXPIRE_SECONDS:-7200}
+    volumes:
+      - ./logs/service:/app/logs
+      - service_heap:/tmp/heap-dumps
     ports:
       - "8080:8080"
     depends_on:
       postgres:
-        condition: service_healthy
-      neo4j:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -95,7 +81,24 @@ services:
     depends_on:
       - aaf-service
 
+  # Nginx 反向代理
+  nginx:
+    image: nginx:1.28-alpine
+    container_name: aaf-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/aaf.conf:/etc/nginx/conf.d/aaf.conf:ro
+      - ${SSL_CERT_DIR}:/etc/ssl/aaf:ro   # 必须在 .env 中配置，如 SSL_CERT_DIR=/root/aaf/ssl
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - aaf-service
+      - aaf-webui
+    restart: unless-stopped
+
 volumes:
   postgres_data:
-  neo4j_data:
   redis_data:
+  service_heap:

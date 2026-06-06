@@ -109,10 +109,7 @@
       }
     },
     {
-      "includes": [
-        "apps/webui/src/app/(dev)/**",
-        "apps/webui/src/app/(landing)/**"
-      ],
+      "includes": ["apps/webui/src/app/(dev)/**", "apps/webui/src/app/(landing)/**"],
       "linter": {
         "rules": {
           "suspicious": {

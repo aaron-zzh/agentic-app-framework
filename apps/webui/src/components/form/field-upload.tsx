@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils/cn"
 export interface FieldUploadProps {
   name: string
   label?: string
+  description?: string
   /** 多文件模式 */
   multiple?: boolean
   /** 接受的文件类型，默认 image/* */
@@ -43,6 +44,7 @@ export interface FieldUploadProps {
 export function FieldUpload({
   name,
   label,
+  description,
   multiple = false,
   accept = "image/*",
   maxSize = 10,
@@ -88,6 +90,7 @@ export function FieldUpload({
               onRemoveAll={onRemoveAll}
               error={!!error}
             />
+            {description && <p className="text-muted-foreground text-xs">{description}</p>}
             {error && <p className="text-destructive text-xs">{error.message}</p>}
           </>
         )}

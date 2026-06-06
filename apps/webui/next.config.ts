@@ -1,17 +1,18 @@
-import { composePlugins, withNx } from "@nx/next";
-import withSerwistInit from "@serwist/next";
-import createNextIntlPlugin from "next-intl/plugin";
-import type { NextConfig } from "next";
+import { composePlugins, withNx } from "@nx/next"
+import withSerwistInit from "@serwist/next"
+import type { NextConfig } from "next"
+import createNextIntlPlugin from "next-intl/plugin"
 
-const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts")
 
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV !== "production"
-});
+})
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   webpack: (config) => {
     config.resolve.alias.canvas = false
     return config
@@ -20,8 +21,8 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       { protocol: "https", hostname: "**.aliyuncs.com" },
-      { protocol: "https", hostname: "**.minio.io" },
-    ],
+      { protocol: "https", hostname: "**.minio.io" }
+    ]
   },
   experimental: {
     optimizePackageImports: [
@@ -30,8 +31,8 @@ const nextConfig: NextConfig = {
       "es-toolkit",
       "@xyflow/react",
       "echarts",
-      "framer-motion",
-    ],
+      "framer-motion"
+    ]
   },
   headers: async () => [
     {
@@ -42,12 +43,16 @@ const nextConfig: NextConfig = {
         { key: "X-Frame-Options", value: "SAMEORIGIN" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-        { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:" },
-      ],
-    },
-  ],
-};
+        {
+          key: "Content-Security-Policy",
+          value:
+            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:"
+        }
+      ]
+    }
+  ]
+}
 
-const plugins = [withNx, withNextIntl, withSerwist];
+const plugins = [withNx, withNextIntl, withSerwist]
 
-export default composePlugins(...plugins)(nextConfig);
+export default composePlugins(...plugins)(nextConfig)

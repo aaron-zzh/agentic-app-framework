@@ -14,12 +14,20 @@ import { cn } from "@/lib/utils/cn"
 export interface FieldDateProps {
   name: string
   label?: string
+  description?: string
   includeTime?: boolean
   className?: string
   disabled?: boolean
 }
 
-export function FieldDate({ name, label, includeTime, className, disabled }: FieldDateProps) {
+export function FieldDate({
+  name,
+  label,
+  description,
+  includeTime,
+  className,
+  disabled
+}: FieldDateProps) {
   const { control } = useFormContext()
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
@@ -37,6 +45,7 @@ export function FieldDate({ name, label, includeTime, className, disabled }: Fie
               {...field}
               value={field.value ?? ""}
             />
+            {description && <p className="text-muted-foreground text-xs">{description}</p>}
             {error && <p className="text-destructive text-xs">{error.message}</p>}
           </>
         )}

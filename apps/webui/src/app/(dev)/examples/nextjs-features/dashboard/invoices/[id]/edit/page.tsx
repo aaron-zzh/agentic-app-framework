@@ -7,9 +7,9 @@
  * 3. Promise.all 并行请求，避免串行瀑布
  */
 import { notFound } from "next/navigation"
-import Breadcrumbs from "../../../_components/invoices/breadcrumbs"
-import EditInvoiceForm from "../../../_components/invoices/edit-form"
-import { fetchCustomers, fetchInvoiceById } from "../../../_data/mock"
+import Breadcrumbs from "../../../../_components/invoices/breadcrumbs"
+import EditInvoiceForm from "../../../../_components/invoices/edit-form"
+import { fetchCustomers, fetchInvoiceById } from "../../../../_data/mock"
 
 export default async function EditInvoicePage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
