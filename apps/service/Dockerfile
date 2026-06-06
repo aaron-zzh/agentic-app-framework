@@ -17,7 +17,7 @@ COPY . .
 RUN ./mvnw package -DskipTests -q
 
 # ── 运行阶段 ────────────────────────────────────────────
-FROM bellsoft/liberica-runtime-container:25-musl AS runner
+FROM bellsoft/liberica-runtime-container:jdk-all-25-slim-musl AS runner
 WORKDIR /app
 
 RUN addgroup -S aaf && adduser -S aaf -G aaf
