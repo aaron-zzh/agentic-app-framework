@@ -6,6 +6,7 @@
 "use client"
 
 import { useBoolean } from "@aaf/hooks"
+import { useQueryClient } from "@tanstack/react-query"
 import { Bell } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -19,8 +20,12 @@ import {
   SheetTrigger
 } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { buildWsUrl } from "@/lib/api/config"
+import type { NotificationItem as NotificationItemType } from "@/lib/api/rest/user/notification"
 import { paths } from "@/lib/constants/paths"
+import { useWebSocket } from "@/lib/hooks/use-websocket"
 import { useMarkRead, useNotifications, useUnreadCount } from "@/lib/queries/use-notifications"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { CountBadge } from "./count-badge"
 import { NotificationItem } from "./notification-item"
 
@@ -28,6 +33,24 @@ export function NotificationDrawer() {
   const { data: countData } = useUnreadCount()
   const unreadCount = countData?.count ?? 0
   const { value: open, setValue: setOpen, onFalse: onClose } = useBoolean()
+  const qc = useQueryClient()
+  const accessToken = useAuthStore((s) => s.accessToken)
+
+  // WS 接入：JWT 握手认证，收到通知推送时刷新通知列表和未读数
+  useWebSocket({
+    url: buildWsUrl(`/ws/notifications?token=${accessToken ?? ""}`),
+    enabled: !!accessToken,
+    onMessage: (data) => {
+      try {
+        const msg = JSON.parse(data) as { type: string }
+        if (msg.type === "notification") {
+          qc.invalidateQueries({ queryKey: ["notifications"] })
+        }
+      } catch {
+        // 忽略非 JSON 消息
+      }
+    }
+  })
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -119,8 +142,6 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
-
-import type { NotificationItem as NotificationItemType } from "@/lib/api/rest/user/notification"
 
 function NotificationList({
   items,

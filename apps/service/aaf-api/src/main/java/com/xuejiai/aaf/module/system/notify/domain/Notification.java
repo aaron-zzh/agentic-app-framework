@@ -40,6 +40,10 @@ public class Notification extends BaseEntity {
     @Column(name = "entity_id")
     private Long entityId;
 
+    /** 跳转链接（前端路由路径） */
+    @Column(name = "related_url", length = 500)
+    private String relatedUrl;
+
     /** 是否已读 */
     @Column(name = "is_read", nullable = false)
     private Boolean isRead = false;

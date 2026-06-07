@@ -88,9 +88,13 @@ SSL_CERT_DIR=         # SSL 证书宿主机路径，如 /etc/ssl/aaf
 ### ECS 初始化（首次）
 
 ```bash
-# 安装 Docker
-curl -fsSL https://get.docker.com | sh
+# 安装 Docker（moby 版本，阿里云 yum 源）
+sudo yum install -y moby
 systemctl enable --now docker
+
+# 安装 Docker Compose V2 插件
+sudo yum install -y docker-compose-plugin
+# 验证：docker compose version
 
 # 创建部署目录
 mkdir -p /root/aaf/logs/service /root/aaf/logs/nginx /root/aaf/ssl

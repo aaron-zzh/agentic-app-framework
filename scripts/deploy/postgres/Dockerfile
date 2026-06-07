@@ -1,4 +1,5 @@
-FROM pgvector/pgvector:pg17
+ARG ACR_REGISTRY
+FROM ${ACR_REGISTRY}/pgvector:0.8.2-pg18
 
 # 安装中文 locale
 RUN apt-get update && \

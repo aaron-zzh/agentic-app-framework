@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * FloatingAssistant——全局浮动 AI 助理（Odoo 风格）
+ * FloatingAssistant——全局浮动 AI 助理
  *
  * - 右下角浮动按钮，点击弹出聊天窗口
  * - 未登录时将 threadId 缓存到 localStorage，刷新后可恢复历史

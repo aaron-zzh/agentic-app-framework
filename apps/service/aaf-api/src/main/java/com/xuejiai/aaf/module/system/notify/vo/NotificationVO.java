@@ -17,5 +17,6 @@ public record NotificationVO(
         String body,
         @Schema(description = "实体类型") String entityType,
         @Schema(description = "实体 ID") Long entityId,
+        @Schema(description = "跳转链接") String relatedUrl,
         Boolean isRead,
         @Schema(description = "创建时间") LocalDateTime createTime) {}

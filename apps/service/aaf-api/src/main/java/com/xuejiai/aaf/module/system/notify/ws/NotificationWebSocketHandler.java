@@ -1,13 +1,10 @@
 package com.xuejiai.aaf.module.system.notify.ws;
 
-import java.net.URI;
-
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,16 +27,16 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        var userId = extractUserId(session);
+        // userId 由 JwtHandshakeInterceptor 从 JWT 解析后写入 attributes
+        var userId = (Long) session.getAttributes().get(USER_ID_ATTR);
         if (userId == null) {
-            log.warn("WebSocket 连接缺少 userId 参数，关闭连接");
+            log.warn("WebSocket 连接缺少 userId，关闭连接（JWT 认证未通过？）");
             try {
                 session.close(CloseStatus.BAD_DATA);
             } catch (Exception ignored) {
             }
             return;
         }
-        session.getAttributes().put(USER_ID_ATTR, userId);
         sessionManager.register(userId, session);
     }
 
@@ -57,24 +54,6 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
         var userId = (Long) session.getAttributes().get(USER_ID_ATTR);
         if (userId != null) {
             sessionManager.remove(userId);
-        }
-    }
-
-    /** 从 URL query param 中提取 userId */
-    private Long extractUserId(WebSocketSession session) {
-        URI uri = session.getUri();
-        if (uri == null) {
-            return null;
-        }
-        var params = UriComponentsBuilder.fromUri(uri).build().getQueryParams();
-        var value = params.getFirst("userId");
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.valueOf(value);
-        } catch (NumberFormatException e) {
-            return null;
         }
     }
 }

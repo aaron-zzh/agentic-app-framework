@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.config.StorageWebConfig;
+import com.xuejiai.aaf.framework.intelligent.assistant.AssistantAuthFilter;
 import com.xuejiai.aaf.framework.logging.RequestMetricsFilter;
 import com.xuejiai.aaf.framework.security.SecurityConfig;
 import com.xuejiai.aaf.framework.security.apikey.ApiKeyAuthFilter;
@@ -49,7 +50,8 @@ import com.xuejiai.aaf.module.system.user.vo.UserVO;
                             StorageWebConfig.class,
                             RequestMetricsFilter.class,
                             SecurityConfig.class,
-                            ApiKeyAuthFilter.class
+                            ApiKeyAuthFilter.class,
+                            AssistantAuthFilter.class
                         }))
 @AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {

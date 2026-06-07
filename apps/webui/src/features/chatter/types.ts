@@ -11,7 +11,7 @@ import type { ReactNode } from "react"
 export type ChatterPreset = "ai" | "kiro" | "livechat"
 
 /** 布局模式 */
-export type ChatterLayout = "panel" | "dialog" | "drawer"
+export type ChatterLayout = "panel" | "dialog" | "drawer" | "page"
 
 /** 对话目标 */
 export interface ChatterTarget {

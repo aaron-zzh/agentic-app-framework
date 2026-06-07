@@ -26,7 +26,8 @@ describe("ContextChip", () => {
       thumbnailUrl: "/thumb.jpg"
     }
     render(<ContextChip item={imgItem} onRemove={vi.fn()} />)
-    expect(screen.getByRole("img")).toHaveAttribute("src", "/thumb.jpg")
+    // Next.js Image 在测试环境会 transform src 为 /_next/image?url=...，用 stringContaining 匹配原始路径
+    expect(screen.getByRole("img")).toHaveAttribute("src", expect.stringContaining("thumb.jpg"))
   })
 
   it("使用 summary 优先于 title", () => {

@@ -14,6 +14,7 @@ public record TodoVO(
         Long id,
         Long assigneeId,
         String title,
+        String category,
         String sourceType,
         String sourceEntity,
         Long sourceId,

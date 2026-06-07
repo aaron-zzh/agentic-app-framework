@@ -14,6 +14,7 @@ export interface NotificationItem {
   body?: string
   entityType?: string
   entityId?: string
+  relatedUrl?: string
   read: boolean
   createdAt: string
 }

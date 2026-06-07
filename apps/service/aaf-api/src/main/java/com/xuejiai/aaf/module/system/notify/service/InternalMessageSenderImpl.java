@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.notify.service;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -27,21 +28,42 @@ public class InternalMessageSenderImpl implements InternalMessageSender {
     private final ObjectMapper objectMapper;
 
     @Override
-    public void send(Long userId, String title, String body) {
+    @Transactional
+    public void send(
+            Long userId,
+            String type,
+            String title,
+            String body,
+            String relatedUrl,
+            String entityType,
+            Long entityId) {
         // 持久化通知
         var notification = new Notification();
         notification.setUserId(userId);
-        notification.setType("message");
+        notification.setType(type);
         notification.setTitle(title);
         notification.setBody(body);
+        notification.setRelatedUrl(relatedUrl);
+        notification.setEntityType(entityType);
+        notification.setEntityId(entityId);
         notification.setIsRead(false);
         notificationRepository.save(notification);
 
-        // WebSocket 实时推送
+        // WebSocket 实时推送（用户不在线时静默忽略）
         try {
             var payload =
                     objectMapper.writeValueAsString(
-                            java.util.Map.of("type", "notification", "title", title, "body", body));
+                            java.util.Map.of(
+                                    "type",
+                                    "notification",
+                                    "notificationType",
+                                    type,
+                                    "title",
+                                    title,
+                                    "body",
+                                    body != null ? body : "",
+                                    "relatedUrl",
+                                    relatedUrl != null ? relatedUrl : ""));
             sessionManager.sendToUser(userId, payload);
         } catch (Exception e) {
             log.warn("WebSocket 推送失败，用户 {} 可能不在线", userId);

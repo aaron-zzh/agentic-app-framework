@@ -2,6 +2,8 @@
  * Chatter——统一对话组件
  * 组合 Runtime + Layout + Panel + DnD，通过 preset/layout 控制行为和布局
  *
+ * 未登录时 panel/page 布局自动降级为 dialog（livechat preset 除外，访客也可对话）
+ *
  * @author AaronZZH & Kiro
  *
  * @example
@@ -21,11 +23,17 @@
 
 import { DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { useCallback, useState } from "react"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { ChatterLayout } from "./ChatterLayout"
 import { ChatterPanel } from "./ChatterPanel"
 import { ChatterRuntime } from "./ChatterRuntime"
 import { ChatterToolbar } from "./ChatterToolbar"
-import type { ChatterDropItem, ChatterProps, ChatterTarget } from "./types"
+import type {
+  ChatterDropItem,
+  ChatterProps,
+  ChatterTarget,
+  ChatterLayout as LayoutType
+} from "./types"
 
 /** 根据 preset 和 props 生成初始 target */
 function presetToTarget(props: ChatterProps): ChatterTarget {
@@ -39,10 +47,37 @@ function presetToTarget(props: ChatterProps): ChatterTarget {
   }
 }
 
+/**
+ * 未登录时 panel/page 降级为 dialog
+ * livechat preset 不降级（访客也可使用客服对话）
+ */
+function resolveLayout(
+  layout: LayoutType,
+  preset: ChatterProps["preset"],
+  isAuthenticated: boolean
+): LayoutType {
+  if (isAuthenticated) return layout
+  if (preset === "livechat") return layout
+  if (layout === "panel" || layout === "page") return "dialog"
+  return layout
+}
+
 export function Chatter(props: ChatterProps) {
   const { preset, layout, persist, open, onOpenChange, toolbar, onDrop } = props
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const effectiveLayout = resolveLayout(layout, preset, isAuthenticated)
+
   const [target, setTarget] = useState<ChatterTarget>(() => presetToTarget(props))
+  const [isOpen, setIsOpen] = useState(open ?? (effectiveLayout === "dialog" && !isAuthenticated))
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
+
+  const handleOpenChange = useCallback(
+    (v: boolean) => {
+      setIsOpen(v)
+      onOpenChange?.(v)
+    },
+    [onOpenChange]
+  )
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -61,14 +96,17 @@ export function Chatter(props: ChatterProps) {
   }, [])
 
   const handleNewSession = useCallback(() => {
-    // 新建会话：清空附件，后续可扩展 sessionId 管理
     setAttachments([])
   }, [])
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
       <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId}>
-        <ChatterLayout layout={layout} open={open} onOpenChange={onOpenChange}>
+        <ChatterLayout
+          layout={effectiveLayout}
+          open={open ?? isOpen}
+          onOpenChange={handleOpenChange}
+        >
           <ChatterPanel
             toolbar={
               <ChatterToolbar

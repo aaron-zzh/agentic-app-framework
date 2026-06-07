@@ -1,9 +1,9 @@
 /**
- * 营销页布局——顶部导航 + 内容 + 页脚 + 客服浮窗
+ * 营销页布局——顶部导航 + 内容 + 页脚
+ * 浮动助理由根 layout 的 FloatingAssistant 统一提供
  * @author AaronZZH & Kiro
  */
 
-import { LivechatWidget } from "@/features/livechat/LivechatWidget"
 import { MarketingFooter } from "@/sections/layout/MarketingFooter"
 import { MarketingHeader } from "@/sections/layout/MarketingHeader"
 
@@ -13,7 +13,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <MarketingHeader />
       <main className="flex-1">{children}</main>
       <MarketingFooter />
-      <LivechatWidget />
     </div>
   )
 }

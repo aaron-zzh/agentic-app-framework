@@ -1,6 +1,7 @@
 /**
  * ChatterThread——消息列表区域
- * AI 消息附加语音播放按钮（SpeechOutput）
+ * AI 消息：MarkdownMessage 富渲染 + 语音播放按钮
+ * 用户消息：纯文本气泡
  *
  * @author AaronZZH & Kiro
  */
@@ -11,6 +12,7 @@ import { MessagePrimitive, ThreadPrimitive, useMessage } from "@assistant-ui/rea
 import { Play } from "lucide-react"
 import { useCallback } from "react"
 import { Button } from "@/components/ui/button"
+import { MarkdownMessage } from "@/features/livechat/components/MarkdownMessage"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
 import { serverTtsStream, useVoiceConfig } from "@/lib/store/voice-config"
 
@@ -24,13 +26,12 @@ function useMessageText(): string {
     .join("")
 }
 
-/** AI 消息气泡（含语音播放） */
+/** AI 消息气泡：Markdown 富渲染 + 语音播放 */
 function AssistantMessage() {
   const text = useMessageText()
   const ttsMode = useVoiceConfig((s) => s.ttsMode)
   const ttsVoice = useVoiceConfig((s) => s.ttsVoice)
 
-  /** server 模式：流式播放 */
   const handleServerPlay = useCallback(async () => {
     if (!text) return
     const audioCtx = new AudioContext()
@@ -46,13 +47,22 @@ function AssistantMessage() {
   return (
     <div className="mb-3 flex justify-start">
       <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm">
-        <MessagePrimitive.Content />
+        {/* MarkdownMessage 作为 Text 组件注入，支持代码高亮、表格等富渲染 */}
+        <MessagePrimitive.Content components={{ Text: MarkdownMessage }} />
         {text && (
           <div className="mt-1 border-t pt-1">
             {ttsMode === "browser" ? (
               <SpeechOutput text={text} />
             ) : (
-              <ServerTtsButton onPlay={handleServerPlay} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleServerPlay}
+                aria-label="播放语音（后端 TTS）"
+              >
+                <Play className="size-4" />
+              </Button>
             )}
           </div>
         )}
@@ -81,20 +91,5 @@ export function ChatterThread() {
         </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
-  )
-}
-
-/** server 模式 TTS 播放按钮 */
-function ServerTtsButton({ onPlay }: { onPlay: () => void }) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      onClick={onPlay}
-      aria-label="播放语音（后端 TTS）"
-    >
-      <Play className="size-4" />
-    </Button>
   )
 }

@@ -1,16 +1,20 @@
 package com.xuejiai.aaf.module.system.log.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.log.domain.Comment;
 import com.xuejiai.aaf.module.system.log.repository.CommentRepository;
-import com.xuejiai.aaf.module.system.task.service.TodoService;
+import com.xuejiai.aaf.module.system.notify.event.MentionEvent;
+import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,7 +30,9 @@ public class CommentService {
     private static final Pattern MENTION_PATTERN = Pattern.compile("@(\\d+)");
 
     private final CommentRepository commentRepository;
-    private final TodoService todoService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final OperatorContext operatorContext;
+    private final UserRepository userRepository;
 
     /** 创建评论 */
     @Transactional
@@ -38,12 +44,24 @@ public class CommentService {
         comment.setMentions(extractMentions(content));
         var saved = commentRepository.save(comment);
 
-        // 为每个 @用户创建待办
+        // 获取当前操作者昵称
+        var actorName =
+                operatorContext
+                        .currentUserId()
+                        .flatMap(userRepository::findById)
+                        .map(u -> u.getNickname() != null ? u.getNickname() : u.getUsername())
+                        .orElse("有人");
+
+        // 评论摘要
+        var excerpt = content.length() > 50 ? content.substring(0, 50) + "…" : content;
+
+        // 发布提及事件（异步，解耦通知逻辑）
         extractMentionIds(content)
                 .forEach(
                         userId ->
-                                todoService.create(
-                                        userId, "你在评论中被提及", "comment", entityType, entityId));
+                                eventPublisher.publishEvent(
+                                        new MentionEvent(
+                                                userId, actorName, entityType, entityId, excerpt)));
 
         return saved;
     }
@@ -70,20 +88,17 @@ public class CommentService {
     /** 提取 @mentions，返回 JSON 数组字符串 */
     private String extractMentions(String content) {
         var matcher = MENTION_PATTERN.matcher(content);
-        var ids = new java.util.ArrayList<String>();
+        var ids = new ArrayList<String>();
         while (matcher.find()) {
             ids.add(matcher.group(1));
         }
-        if (ids.isEmpty()) {
-            return null;
-        }
-        return "[" + String.join(",", ids) + "]";
+        return ids.isEmpty() ? null : "[" + String.join(",", ids) + "]";
     }
 
     /** 提取 @mentions，返回用户 ID 列表 */
     private List<Long> extractMentionIds(String content) {
         var matcher = MENTION_PATTERN.matcher(content);
-        var ids = new java.util.ArrayList<Long>();
+        var ids = new ArrayList<Long>();
         while (matcher.find()) {
             ids.add(Long.parseLong(matcher.group(1)));
         }

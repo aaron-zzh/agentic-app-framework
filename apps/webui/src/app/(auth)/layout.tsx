@@ -1,12 +1,12 @@
 /**
- * 认证布局——全屏背景虚化 + 中央亚克力卡片 + 客服浮窗
+ * 认证布局——全屏背景虚化 + 中央亚克力卡片
+ * 浮动助理由根 layout 的 FloatingAssistant 统一提供
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
 import { Suspense } from "react"
-import { LivechatWidget } from "@/features/livechat/LivechatWidget"
 import { GuestGuard } from "@/lib/auth/GuestGuard"
 import { AuthHeader } from "@/sections/layout/AuthHeader"
 
@@ -37,8 +37,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <GuestGuard>{children}</GuestGuard>
         </Suspense>
       </div>
-
-      <LivechatWidget />
     </div>
   )
 }

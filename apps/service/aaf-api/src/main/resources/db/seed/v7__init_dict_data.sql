@@ -458,3 +458,27 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, status, version, delet
     ('developer_proxy_status', '启用', 'ACTIVE', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('developer_proxy_status', '停用', 'DISABLED', 2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT DO NOTHING;
+
+
+
+-- ==================== 待办字典 ====================
+
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('待办分类', 'sys_todo_category', 0, '对应 TodoCategoryEnum，用于活动流待办跟进'),
+('待办状态', 'sys_todo_status',   0, '待办事项的处理状态')
+ON CONFLICT DO NOTHING;
+
+-- sys_todo_category 待办分类（与 TodoCategoryEnum 一致）
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_todo_category', '待办',   'todo',    1, 'default'),
+('sys_todo_category', '电话',   'call',    2, 'primary'),
+('sys_todo_category', '邮件',   'email',   3, 'info'),
+('sys_todo_category', '会议',   'meeting', 4, 'success')
+ON CONFLICT DO NOTHING;
+
+-- sys_todo_status 待办状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_todo_status', '待处理', 'pending',  1, 'warning'),
+('sys_todo_status', '已完成', 'done',     2, 'success'),
+('sys_todo_status', '已忽略', 'ignored',  3, 'default')
+ON CONFLICT DO NOTHING;

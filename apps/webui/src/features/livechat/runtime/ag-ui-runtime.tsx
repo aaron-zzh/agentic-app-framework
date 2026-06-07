@@ -3,6 +3,8 @@
  * 使用 @ag-ui/client HttpAgent 对接后端 AG-UI SSE 端点，
  * 通过 useAgUiRuntime 将事件流转为 assistant-ui 可消费的 runtime
  *
+ * 支持自定义端点 url 和 initialState，供 ChatterRuntime 复用
+ *
  * @author AaronZZH & Kiro
  */
 
@@ -17,20 +19,39 @@ import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
 import { useAgentRunStore } from "./agent-run-store"
 
-const AGENT_URL = buildApiUrl("/chat/agent/run")
+const DEFAULT_AGENT_URL = buildApiUrl("/chat/agent/run")
 
 interface AgUiChatProviderProps {
   children: ReactNode
+  /** 自定义端点 URL，默认 /chat/agent/run */
+  url?: string
+  /** Agent 初始状态（用于传递页面感知上下文） */
+  initialState?: Record<string, unknown>
   /** 初始线程 ID，传入时自动切换到该线程（用于匿名访客恢复历史） */
   initialThreadId?: string
+  /** 新建会话回调（默认调用 chatApi.createSession） */
+  onNewThread?: () => Promise<void>
 }
 
 /**
  * AG-UI 对话 Provider
  * 包裹子组件，提供 AI 助理对话 runtime（SSE 流式通信）
  */
-export function AgUiChatProvider({ children, initialThreadId }: AgUiChatProviderProps) {
-  const agent = useMemo(() => new HttpAgent({ url: AGENT_URL }), [])
+export function AgUiChatProvider({
+  children,
+  url,
+  initialState,
+  initialThreadId,
+  onNewThread
+}: AgUiChatProviderProps) {
+  // 将 initialState 序列化为稳定字符串，避免每次渲染对象引用不同导致 agent 重建
+  const initialStateKey = JSON.stringify(initialState)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initialState 通过 initialStateKey 跟踪
+  const agent = useMemo(
+    () => new HttpAgent({ url: url ?? DEFAULT_AGENT_URL, initialState }),
+    [url, initialStateKey]
+  )
 
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
   useEffect(() => {
@@ -55,48 +76,43 @@ export function AgUiChatProvider({ children, initialThreadId }: AgUiChatProvider
     return () => sub.unsubscribe()
   }, [agent])
 
-  /** 错误回调：记录日志 + toast 提示用户 */
   const onError = useCallback((error: Error) => {
-    // console.error("[AG-UI] 对话错误:", error)
-
-    const message = classifyError(error)
-    toast.error(message)
+    toast.error(classifyError(error))
   }, [])
 
-  /** 线程列表适配器：新建/切换会话 */
   const threadList: UseAgUiThreadListAdapter = useMemo(
     () => ({
       onSwitchToNewThread: async () => {
-        await chatApi.createSession({ type: "ai" })
+        if (onNewThread) {
+          await onNewThread()
+        } else {
+          await chatApi.createSession({ type: "ai" })
+        }
       },
       onSwitchToThread: async (threadId: string) => {
-        const history = await chatApi.getMessages(threadId)
-        // 后端消息转为 assistant-ui ThreadMessage 格式
-        // 使用 content 字符串形式，runtime 内部会自动转为 TextPart
-        const messages = history.map((msg) => ({
-          id: msg.id,
-          role: msg.role === "user" ? ("user" as const) : ("assistant" as const),
-          content: [{ type: "text" as const, text: msg.content }],
-          createdAt: new Date(msg.createdAt),
-          // assistant 消息需要 status 字段
-          ...(msg.role !== "user" && {
-            status: { type: "complete" as const, reason: "stop" as const }
-          }),
-          // user 消息需要 attachments 字段
-          ...(msg.role === "user" && { attachments: [] }),
-          metadata: { custom: {} }
-        })) as ThreadMessage[]
-        return { messages }
+        try {
+          const history = await chatApi.getMessages(threadId)
+          const messages = history.map((msg) => ({
+            id: msg.id,
+            role: msg.role === "user" ? ("user" as const) : ("assistant" as const),
+            content: [{ type: "text" as const, text: msg.content }],
+            createdAt: new Date(msg.createdAt),
+            ...(msg.role !== "user" && {
+              status: { type: "complete" as const, reason: "stop" as const }
+            }),
+            ...(msg.role === "user" && { attachments: [] }),
+            metadata: { custom: {} }
+          })) as ThreadMessage[]
+          return { messages }
+        } catch {
+          return { messages: [] }
+        }
       }
     }),
-    []
+    [onNewThread]
   )
 
-  const runtime = useAgUiRuntime({
-    agent,
-    onError,
-    adapters: { threadList }
-  })
+  const runtime = useAgUiRuntime({ agent, onError, adapters: { threadList } })
 
   // 初始线程恢复：挂载后切换到指定 threadId（匿名访客历史恢复）
   useEffect(() => {
@@ -111,9 +127,8 @@ export function AgUiChatProvider({ children, initialThreadId }: AgUiChatProvider
 }
 
 /** 根据错误信息分类，返回用户友好的提示 */
-function classifyError(error: Error): string {
+export function classifyError(error: Error): string {
   const msg = error.message.toLowerCase()
-
   if (msg.includes("network") || msg.includes("fetch") || msg.includes("failed to fetch")) {
     return "网络连接异常，请检查网络后重试"
   }

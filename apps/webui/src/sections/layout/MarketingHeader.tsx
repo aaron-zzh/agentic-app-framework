@@ -6,12 +6,12 @@
 "use client"
 
 import Link from "next/link"
-import { useTheme } from "next-themes"
 import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/constants/paths"
 import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
 import { cn } from "@/lib/utils/cn"
+import { ThemeToggle } from "./HeaderActions"
 
 const navLinks = [
   { label: "产品", href: "/" },
@@ -22,7 +22,6 @@ const navLinks = [
 
 /** 营销页顶部导航 */
 export function MarketingHeader() {
-  const { theme, setTheme } = useTheme()
   const isOffset = useScrollOffset()
 
   return (
@@ -48,15 +47,7 @@ export function MarketingHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label="切换主题"
-          >
-            <span className="dark:hidden">🌙</span>
-            <span className="hidden dark:inline">☀️</span>
-          </Button>
+          <ThemeToggle />
           <Button variant="ghost" size="sm" asChild>
             <Link href={paths.auth.login}>登录</Link>
           </Button>

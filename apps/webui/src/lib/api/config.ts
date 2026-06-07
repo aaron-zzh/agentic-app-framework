@@ -31,3 +31,9 @@ export function buildApiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) return path
   return `${API_BASE_URL}${normalizePath(path)}`
 }
+
+/** 构建 WebSocket 地址（将 http/https 替换为 ws/wss） */
+export function buildWsUrl(path: string): string {
+  const wsOrigin = API_ORIGIN.replace(/^http/, "ws")
+  return `${wsOrigin}${path.startsWith("/") ? path : `/${path}`}`
+}

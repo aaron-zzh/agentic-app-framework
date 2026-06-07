@@ -1,23 +1,22 @@
 package com.xuejiai.aaf.module.system.notify.controller;
 
-import java.util.List;
-
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.crud.BaseCrudController;
+import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.module.system.notify.domain.Notice;
 import com.xuejiai.aaf.module.system.notify.service.NoticeService;
 import com.xuejiai.aaf.module.system.notify.vo.NoticeCreateDTO;
+import com.xuejiai.aaf.module.system.notify.vo.NoticePageDTO;
+import com.xuejiai.aaf.module.system.notify.vo.NoticeUpdateDTO;
 import com.xuejiai.aaf.module.system.notify.vo.NoticeVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -29,24 +28,16 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/notices")
 @RequiredArgsConstructor
-public class NoticeController {
+public class NoticeController
+        extends BaseCrudController<
+                Notice, NoticeVO, NoticeCreateDTO, NoticeUpdateDTO, NoticePageDTO> {
 
     private final NoticeService noticeService;
 
-    @GetMapping
-    public Result<List<NoticeVO>> list() {
-        return Result.success(noticeService.list());
-    }
-
-    @PostMapping
-    public Result<NoticeVO> create(@Valid @RequestBody NoticeCreateDTO dto) {
-        return Result.success(noticeService.create(dto));
-    }
-
-    @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        noticeService.delete(id);
-        return Result.success(null);
+    @Override
+    protected BaseCrudService<Notice, NoticeVO, NoticeCreateDTO, NoticeUpdateDTO, NoticePageDTO>
+            getService() {
+        return noticeService;
     }
 
     @Operation(summary = "发布公告")

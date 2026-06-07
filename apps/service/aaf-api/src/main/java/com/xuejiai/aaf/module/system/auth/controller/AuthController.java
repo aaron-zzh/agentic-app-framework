@@ -146,11 +146,13 @@ public class AuthController {
             @RequestParam(defaultValue = "web") String deviceId) {
         AuthLoginVO vo = authService.oauthLogin(provider, code, deviceId);
         // 重定向到前端登录页，携带 token 参数
-        String redirectUrl = frontendUrl + "/login?accessToken=" + vo.accessToken()
-                + "&refreshToken=" + vo.refreshToken();
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(redirectUrl))
-                .build();
+        String redirectUrl =
+                frontendUrl
+                        + "/login?accessToken="
+                        + vo.accessToken()
+                        + "&refreshToken="
+                        + vo.refreshToken();
+        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(redirectUrl)).build();
     }
 
     @Operation(summary = "OAuth 回调登录")

@@ -1,9 +1,14 @@
 package com.xuejiai.aaf.framework.intelligent.agentscope.runtime;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
@@ -18,6 +23,7 @@ import com.xuejiai.aaf.framework.intelligent.agentscope.knowledge.AafKnowledge;
 import com.xuejiai.aaf.framework.intelligent.agentscope.memory.AafAutoContextMemoryAdapter;
 import com.xuejiai.aaf.framework.intelligent.agentscope.tool.AgentScopeToolGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.agentscope.tool.McpToolService;
+import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.actor.Actor;
 import com.xuejiai.aaf.framework.intelligent.assistant.actor.ActorRepository;
@@ -102,6 +108,14 @@ public class AssistantScopeRuntime implements AssistantRuntime {
     private final MemoryContextHook memoryContextHook;
 
     /**
+     * key = "assistantId:configHash"，configHash 由 assistant+actor+role 的 updateTime 拼接而成。 任一实体更新 →
+     * updateTime 变化 → key 变化 → 自动 miss，旧实例由 GC 回收。 maximumSize 防止极端场景内存膨胀；expireAfterAccess
+     * 兜底长期不访问的 key。
+     */
+    private final Cache<String, ReActAgent> agentCache =
+            Caffeine.newBuilder().maximumSize(500).expireAfterAccess(30, TimeUnit.MINUTES).build();
+
+    /**
      * 核心物化方法——将 AssistantDefinition 编译为协调者 ReActAgent。
      *
      * <p>执行步骤：
@@ -128,6 +142,15 @@ public class AssistantScopeRuntime implements AssistantRuntime {
 
         var actor = actorRepo.findByActorId(assistant.getActorId()).orElse(null);
         var role = roleRepo.findByRoleId(assistant.getRoleId()).orElse(null);
+
+        // ── 缓存检查：key = assistantId:configHash ────────────────────────────
+        // configHash 由 assistant/actor/role 的 updateTime 拼接，任一变更 → key 变化 → 自动 miss
+        var cacheKey = buildCacheKey(ctx.assistantId(), assistant, actor, role);
+        var cached = agentCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            log.debug("命中助理缓存: assistantId={}", ctx.assistantId());
+            return cached;
+        }
 
         // ── Step 2: 构建 systemPrompt ─────────────────────────────────────────
         // Actor.systemPrompt 定义核心人格，Actor.persona 补充风格细节
@@ -221,6 +244,7 @@ public class AssistantScopeRuntime implements AssistantRuntime {
                 actor != null ? actor.getActorId() : "null",
                 role != null ? role.getRoleId() : "null",
                 ctx.userId());
+        agentCache.put(cacheKey, agent);
         return agent;
     }
 
@@ -299,6 +323,25 @@ public class AssistantScopeRuntime implements AssistantRuntime {
                 .hook(memoryContextHook)
                 .hook(new AutoContextHook())
                 .build();
+    }
+
+    /**
+     * 构建缓存 key：assistantId + ":" + configHash。 configHash 由 assistant/actor/role 的 updateTime
+     * 拼接，任一变更 → key 不同 → 旧缓存自动失效。
+     */
+    private String buildCacheKey(
+            String assistantId, AssistantDefinition assistant, Actor actor, Role role) {
+        String hash =
+                ts(assistant.getUpdateTime())
+                        + ":"
+                        + ts(actor != null ? actor.getUpdateTime() : null)
+                        + ":"
+                        + ts(role != null ? role.getUpdateTime() : null);
+        return assistantId + ":" + hash;
+    }
+
+    private String ts(LocalDateTime t) {
+        return t != null ? String.valueOf(t.hashCode()) : "0";
     }
 
     private List<String> parseList(String json) {

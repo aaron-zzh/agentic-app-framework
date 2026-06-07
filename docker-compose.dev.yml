@@ -11,6 +11,8 @@ services:
     build:
       context: ./scripts/deploy/postgres
       dockerfile: Dockerfile
+      args:
+        ACR_REGISTRY: ${ACR_REGISTRY}
     container_name: aaf-postgres-dev
     environment:
       POSTGRES_DB: ${DB_NAME:-aaf-dev}
@@ -31,7 +33,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7.4-alpine
+    image: ${ACR_REGISTRY}/redis:8.6-alpine
     container_name: aaf-redis-dev
     command: redis-server --requirepass ${REDIS_PASSWORD:-dev123}
     ports:
@@ -40,7 +42,7 @@ services:
       - redis_dev_data:/data
 
   neo4j:
-    image: neo4j:5-community
+    image: ${ACR_REGISTRY}/neo4j:2026.05.0-community
     container_name: aaf-neo4j-dev
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-neo4j}
@@ -50,7 +52,21 @@ services:
     volumes:
       - neo4j_dev_data:/data
 
+  minio:
+    image: ${ACR_REGISTRY}/minio:latest
+    container_name: aaf-minio-dev
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # 管理界面
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_dev_data:/data
+
 volumes:
   postgres_dev_data:
   redis_dev_data:
   neo4j_dev_data:
+  minio_dev_data:

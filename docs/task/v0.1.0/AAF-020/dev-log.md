@@ -38,3 +38,13 @@
 
 - `@dnd-kit/core` 已在 package.json 中（^6.3.1），无需额外安装
 - 后端统一端点上线后，只需修改 `ChatterRuntime.tsx` 中的 `getEndpointUrl` 函数
+
+
+## AssistantScopeRuntime 缓存优化
+
+✅ 2026-06-07 — developer-service
+
+- `AssistantScopeRuntime.materialize()` 加 Caffeine 缓存，key = `assistantId:configHash`
+- configHash 由 assistant/actor/role 的 `updateTime` 拼接，任一配置变更 → key 变 → 自动 miss
+- 缓存参数：maximumSize=500，expireAfterAccess=30min
+- 记忆/知识库检索不受影响（`MemoryContextHook` 每轮动态执行）；技能/工具白名单/systemPrompt 随配置变更自动刷新

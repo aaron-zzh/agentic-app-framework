@@ -9,7 +9,6 @@
 import { ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useTheme } from "next-themes"
 import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +23,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
 import { cn } from "@/lib/utils/cn"
+import { ThemeToggle } from "./HeaderActions"
 
 const devPages = [
   { label: "工作区", href: "/dashboard" },
@@ -64,23 +64,6 @@ const zustandPages = [
   { label: "Clock", href: "/examples/zustand/clock" },
   { label: "Counter", href: "/examples/zustand/counter" }
 ]
-
-/** 主题切换按钮 */
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      aria-label="切换主题"
-      title={theme === "dark" ? "切换为亮色" : "切换为暗色"}
-    >
-      <span className="dark:hidden">🌙</span>
-      <span className="hidden dark:inline">☀️</span>
-    </Button>
-  )
-}
 
 export function DevHeader() {
   const pathname = usePathname()

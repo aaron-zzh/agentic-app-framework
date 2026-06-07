@@ -6,11 +6,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { activityApi } from "@/lib/api/rest/entity/activity"
 
-const key = (entityType: string, entityId: string) => [entityType, entityId, "activities"]
+const activityKey = (entityType: string, entityId: string) => [entityType, entityId, "activities"]
+const scheduleKey = (entityType: string, entityId: string) => [entityType, entityId, "schedules"]
 
 export function useActivities(entityType: string, entityId: string, enabled = true) {
   return useQuery({
-    queryKey: key(entityType, entityId),
+    queryKey: activityKey(entityType, entityId),
     queryFn: () => activityApi.list(entityType, entityId),
     enabled: enabled && !!entityType && !!entityId
   })
@@ -21,21 +22,21 @@ export function useAddComment(entityType: string, entityId: string) {
   return useMutation({
     mutationFn: ({ content, mentions }: { content: string; mentions?: string[] }) =>
       activityApi.comment(entityType, entityId, content, mentions),
-    onSuccess: () => qc.invalidateQueries({ queryKey: key(entityType, entityId) })
+    onSuccess: () => qc.invalidateQueries({ queryKey: activityKey(entityType, entityId) })
   })
 }
 
 export function useDeleteComment(entityType: string, entityId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => activityApi.deleteComment(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: key(entityType, entityId) })
+    mutationFn: (commentId: string) => activityApi.deleteComment(entityType, entityId, commentId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: activityKey(entityType, entityId) })
   })
 }
 
 export function useSchedules(entityType: string, entityId: string, enabled = true) {
   return useQuery({
-    queryKey: [entityType, entityId, "schedules"],
+    queryKey: scheduleKey(entityType, entityId),
     queryFn: () => activityApi.schedules(entityType, entityId),
     enabled: enabled && !!entityType && !!entityId
   })
@@ -44,8 +45,18 @@ export function useSchedules(entityType: string, entityId: string, enabled = tru
 export function useCreateSchedule(entityType: string, entityId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: activityApi.createSchedule,
-    onSuccess: () => qc.invalidateQueries({ queryKey: [entityType, entityId, "schedules"] })
+    mutationFn: (data: {
+      title: string
+      category: string
+      assigneeId?: number
+      dueDate?: string
+    }) =>
+      activityApi.createSchedule({
+        ...data,
+        sourceEntity: entityType,
+        sourceId: entityId
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: scheduleKey(entityType, entityId) })
   })
 }
 
@@ -53,6 +64,6 @@ export function useCompleteSchedule(entityType: string, entityId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => activityApi.completeSchedule(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [entityType, entityId, "schedules"] })
+    onSuccess: () => qc.invalidateQueries({ queryKey: scheduleKey(entityType, entityId) })
   })
 }

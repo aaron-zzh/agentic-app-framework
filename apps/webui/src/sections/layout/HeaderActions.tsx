@@ -6,7 +6,7 @@
 "use client"
 
 import { m } from "framer-motion"
-import { MessageSquare, Moon, Sun } from "lucide-react"
+import { MessageSquare, MoonStar, SunMedium } from "lucide-react"
 import { useTheme } from "next-themes"
 import { AnimateBorder, transitionTap, varHover, varTap } from "@/components/animate"
 import { ThemeSettings } from "@/components/common/ThemeSettings"
@@ -34,8 +34,8 @@ export function ThemeToggle() {
       aria-label="切换主题"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     >
-      <Sun className="size-5 dark:hidden" />
-      <Moon className="hidden size-5 dark:block" />
+      <SunMedium className="size-5 dark:hidden" aria-hidden="true" />
+      <MoonStar className="hidden size-5 dark:block" aria-hidden="true" />
     </button>
   )
 }

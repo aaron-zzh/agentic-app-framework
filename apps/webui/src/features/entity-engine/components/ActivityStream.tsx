@@ -11,7 +11,7 @@
 "use client"
 
 import { Calendar, CheckCircle2, Mail, Phone, Plus, Send } from "lucide-react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,7 @@ import {
 } from "@/lib/queries/use-activities"
 import { cn } from "@/lib/utils/cn"
 import { formatTimeAgo } from "@/lib/utils/time"
+import { useMentionSearch } from "../hooks/use-mention-search"
 
 interface Props {
   entityType: string
@@ -75,16 +76,47 @@ export function ActivityStream({ entityType, entityId }: Props) {
 
 function CommentInput({ entityType, entityId }: Props) {
   const [content, setContent] = useState("")
+  const [mentionIds, setMentionIds] = useState<number[]>([])
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { mutate: addComment, isPending } = useAddComment(entityType, entityId)
+  const mentionUsers = useMentionSearch(mentionQuery)
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setContent(val)
+    // 检测光标前的 @query
+    const cursor = e.target.selectionStart ?? val.length
+    const before = val.slice(0, cursor)
+    const match = before.match(/@(\w*)$/)
+    setMentionQuery(match ? match[1] : null)
+  }
+
+  const insertMention = (user: { id: number; nickname: string; username: string }) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const cursor = textarea.selectionStart ?? content.length
+    const before = content.slice(0, cursor)
+    const atIdx = before.lastIndexOf("@")
+    const displayName = user.nickname || user.username
+    const newContent = `${content.slice(0, atIdx)}@${displayName} ${content.slice(cursor)}`
+    setContent(newContent)
+    setMentionIds((prev) => (prev.includes(user.id) ? prev : [...prev, user.id]))
+    setMentionQuery(null)
+    // 移动光标到插入文字后
+    const newCursor = atIdx + displayName.length + 2
+    setTimeout(() => textarea.setSelectionRange(newCursor, newCursor), 0)
+  }
 
   const handleSubmit = () => {
     const trimmed = content.trim()
     if (!trimmed) return
     addComment(
-      { content: trimmed },
+      { content: trimmed, mentions: mentionIds.map(String) },
       {
         onSuccess: () => {
           setContent("")
+          setMentionIds([])
           notify.success("评论已发布")
         },
         onError: () => notify.error("发布失败，请重试")
@@ -93,16 +125,44 @@ function CommentInput({ entityType, entityId }: Props) {
   }
 
   return (
-    <div className="mb-4 flex gap-2">
-      <Textarea
-        placeholder="写评论，支持 @提及用户..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="min-h-[72px] resize-none text-sm"
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit()
-        }}
-      />
+    <div className="relative mb-4 flex gap-2">
+      <div className="relative flex-1">
+        <Textarea
+          ref={textareaRef}
+          placeholder="写评论，支持 @提及用户..."
+          value={content}
+          onChange={handleChange}
+          className="min-h-[72px] resize-none text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setMentionQuery(null)
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit()
+          }}
+        />
+        {/* @提及下拉 */}
+        {mentionQuery !== null && mentionUsers.length > 0 && (
+          <div className="absolute top-full left-0 z-50 mt-1 w-56 rounded-md border bg-popover p-1 shadow-md">
+            {mentionUsers.map((u) => (
+              <div
+                key={u.id}
+                role="option"
+                aria-selected={false}
+                tabIndex={0}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent"
+                onMouseDown={(e) => {
+                  e.preventDefault() // 阻止 textarea 失焦
+                  insertMention(u)
+                }}
+                onKeyDown={(e) => e.key === "Enter" && insertMention(u)}
+              >
+                <Avatar size="sm">
+                  <AvatarFallback>{(u.nickname || u.username).slice(0, 1)}</AvatarFallback>
+                </Avatar>
+                <span>{u.nickname || u.username}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <Button
         size="sm"
         className="self-end"
@@ -221,14 +281,14 @@ function getActivityLabel(item: ActivityItem): string {
   }
 }
 
-const SCHEDULE_LABELS: Record<ScheduledActivity["type"], string> = {
+const SCHEDULE_LABELS: Record<ScheduledActivity["category"], string> = {
   todo: "待办",
   call: "电话",
   email: "邮件",
   meeting: "会议"
 }
 
-const SCHEDULE_ICONS: Record<ScheduledActivity["type"], React.ReactNode> = {
+const SCHEDULE_ICONS: Record<ScheduledActivity["category"], React.ReactNode> = {
   todo: <CheckCircle2 className="size-3" />,
   call: <Phone className="size-3" />,
   email: <Mail className="size-3" />,
@@ -237,7 +297,7 @@ const SCHEDULE_ICONS: Record<ScheduledActivity["type"], React.ReactNode> = {
 
 function ScheduleInput({ entityType, entityId }: Props) {
   const [open, setOpen] = useState(false)
-  const [type, setType] = useState<ScheduledActivity["type"]>("todo")
+  const [category, setCategory] = useState<ScheduledActivity["category"]>("todo")
   const [title, setTitle] = useState("")
   const [dueDate, setDueDate] = useState("")
   const { mutate: create, isPending } = useCreateSchedule(entityType, entityId)
@@ -245,7 +305,7 @@ function ScheduleInput({ entityType, entityId }: Props) {
   const handleCreate = () => {
     if (!title.trim() || !dueDate) return
     create(
-      { entityType, entityId, type, title: title.trim(), assigneeId: "current-user", dueDate },
+      { category, title: title.trim(), dueDate },
       {
         onSuccess: () => {
           setTitle("")
@@ -270,9 +330,9 @@ function ScheduleInput({ entityType, entityId }: Props) {
     <div className="mb-4 space-y-3 rounded-lg border p-3">
       {/* 类型选择：ToggleGroup */}
       <ToggleGroup
-        value={[type]}
+        value={[category]}
         onValueChange={(v) => {
-          if (v.length > 0) setType(v[v.length - 1] as ScheduledActivity["type"])
+          if (v.length > 0) setCategory(v[v.length - 1] as ScheduledActivity["category"])
         }}
         variant="outline"
         size="sm"
@@ -337,11 +397,11 @@ function ScheduleList({ entityType, entityId }: Props) {
             <div className="flex items-center gap-2">
               <span className={cn("text-sm", s.done && "line-through")}>{s.title}</span>
               <Badge variant="outline" className="text-[10px]">
-                {SCHEDULE_LABELS[s.type]}
+                {SCHEDULE_LABELS[s.category]}
               </Badge>
             </div>
             <p className="mt-0.5 text-muted-foreground text-xs">
-              截止：{new Date(s.dueDate).toLocaleString("zh-CN")}
+              {s.dueDate && `截止：${new Date(s.dueDate).toLocaleString("zh-CN")}`}
               {s.assigneeName && ` · ${s.assigneeName}`}
             </p>
           </div>

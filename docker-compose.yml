@@ -8,6 +8,8 @@ services:
     build:
       context: ./scripts/deploy/postgres
       dockerfile: Dockerfile
+      args:
+        ACR_REGISTRY: ${ACR_REGISTRY}
     container_name: aaf-postgres
     environment:
       POSTGRES_DB: ${DB_NAME:-aaf-dev}
@@ -29,7 +31,7 @@ services:
 
   # Redis
   redis:
-    image: redis:7.4-alpine
+    image: ${ACR_REGISTRY}/redis:8.6-alpine
     container_name: aaf-redis
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
@@ -79,7 +81,7 @@ services:
 
   # Nginx 反向代理
   nginx:
-    image: nginx:1.28-alpine
+    image: ${ACR_REGISTRY}/nginx:stable-alpine
     container_name: aaf-nginx
     ports:
       - "80:80"

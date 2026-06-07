@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { dashboardApi } from "./dashboard"
 
-vi.mock("./request", () => ({
+vi.mock("../entity/crud", () => ({
   request: vi.fn()
 }))
 
@@ -24,34 +24,26 @@ describe("dashboardApi", () => {
 
   it("list 应请求 GET /dashboards", async () => {
     mockRequest.mockResolvedValueOnce([])
-
     await dashboardApi.list()
-
-    expect(mockRequest).toHaveBeenCalledWith("/dashboards")
+    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards")
   })
 
   it("get 应请求 GET /dashboards/:id", async () => {
     mockRequest.mockResolvedValueOnce({ id: "d1", name: "test", layout: [] })
-
     await dashboardApi.get("d1")
-
-    expect(mockRequest).toHaveBeenCalledWith("/dashboards/d1")
+    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/d1")
   })
 
   it("getDefault 应请求 GET /dashboards/default", async () => {
     mockRequest.mockResolvedValueOnce({ id: "default", name: "默认", layout: [] })
-
     await dashboardApi.getDefault()
-
-    expect(mockRequest).toHaveBeenCalledWith("/dashboards/default")
+    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/default")
   })
 
   it("create 应发送 POST /dashboards", async () => {
     mockRequest.mockResolvedValueOnce({ id: "new", name: "新仪表盘", layout: [] })
-
     await dashboardApi.create({ name: "新仪表盘", shared: true })
-
-    expect(mockRequest).toHaveBeenCalledWith("/dashboards", {
+    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards", {
       method: "POST",
       body: JSON.stringify({ name: "新仪表盘", shared: true })
     })
@@ -68,10 +60,8 @@ describe("dashboardApi", () => {
         config: { type: "counter" as const, entity: "user", aggregation: "count" as const }
       }
     ]
-
     await dashboardApi.saveLayout("d1", layout)
-
-    expect(mockRequest).toHaveBeenCalledWith("/dashboards/d1/layout", {
+    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/d1/layout", {
       method: "PUT",
       body: JSON.stringify({ layout })
     })
@@ -80,10 +70,8 @@ describe("dashboardApi", () => {
   it("getWidgetData 应发送 POST /dashboards/widgets/:id/data", async () => {
     mockRequest.mockResolvedValueOnce({ value: 42 })
     const config = { type: "counter" as const, entity: "order", aggregation: "count" as const }
-
     await dashboardApi.getWidgetData("w1", config)
-
-    expect(mockRequest).toHaveBeenCalledWith("/dashboards/widgets/w1/data", {
+    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/widgets/w1/data", {
       method: "POST",
       body: JSON.stringify(config)
     })

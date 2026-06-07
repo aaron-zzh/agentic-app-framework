@@ -2,13 +2,13 @@
  * Livechat Feature——在线客服与聊天模块
  *
  * 基于 assistant-ui 统一架构，两种 runtime：
- * - AgUiRuntime：AI 助理（AG-UI SSE 协议）
- * - IMRuntime：人与人对话（WebSocket，含客服/IM/用户间聊天）
+ * - AgUiChatProvider：AI 助理（AG-UI SSE 协议），供 chatter/FloatingAssistant 共用
+ * - LivechatProvider：人与人对话（WebSocket，含客服/IM/用户间聊天）
  *
  * @author AaronZZH & Kiro
  */
 
-// 布局
+// 布局（仅 KiroAgentDrawer 内部使用，不作为公开 API）
 export { ChatLayout } from "./ChatLayout"
 // 对话分支
 export {

@@ -23,41 +23,63 @@ export interface ActivityItem {
   createdAt: string
 }
 
+/** 与后端 TodoVO 对齐 */
 export interface ScheduledActivity {
   id: string
-  entityType: string
-  entityId: string
-  type: "call" | "email" | "meeting" | "todo"
-  title: string
-  assigneeId: string
+  assigneeId: number
   assigneeName?: string
-  dueDate: string
+  title: string
+  /** 对应字典 sys_todo_category：todo / call / email / meeting */
+  category: "todo" | "call" | "email" | "meeting"
+  sourceEntity?: string
+  sourceId?: number
+  /** 对应字典 sys_todo_status：pending / done / ignored */
+  status: "pending" | "done" | "ignored"
+  dueDate?: string
+  createTime: string
+  /** UI 兼容字段：done = status === 'done' */
   done: boolean
-  createdAt: string
 }
 
 export const activityApi = {
-  /** 获取活动流（操作日志 + 评论混合） */
+  /** 获取活动流（操作日志 + 评论混合时间线） */
   list: (entityType: string, entityId: string) =>
-    backendApi.get<ActivityItem[]>("/activity-log", { params: { entityType, entityId } }),
+    backendApi.get<ActivityItem[]>(`/api/${entityType}/${entityId}/activities`),
 
   /** 发布评论 */
   comment: (entityType: string, entityId: string, content: string, mentions?: string[]) =>
-    backendApi.post<ActivityItem>("/comments", { entityType, entityId, content, mentions }),
-
-  /** 删除评论 */
-  deleteComment: (id: string) => backendApi.delete<void>(`/comments/${id}`),
-
-  /** 获取活动调度列表 */
-  schedules: (entityType: string, entityId: string) =>
-    backendApi.get<ScheduledActivity[]>("/scheduled-activities", {
-      params: { entityType, entityId }
+    backendApi.post<ActivityItem>(`/api/${entityType}/${entityId}/comments`, {
+      content,
+      mentions
     }),
 
-  /** 创建活动调度 */
-  createSchedule: (data: Omit<ScheduledActivity, "id" | "done" | "createdAt">) =>
-    backendApi.post<ScheduledActivity>("/scheduled-activities", data),
+  /** 删除评论 */
+  deleteComment: (entityType: string, entityId: string, commentId: string) =>
+    backendApi.delete<void>(`/api/${entityType}/${entityId}/comments/${commentId}`),
 
-  /** 完成活动调度 */
-  completeSchedule: (id: string) => backendApi.post<void>(`/scheduled-activities/${id}/complete`)
+  /** 获取实体关联待办列表 */
+  schedules: (entityType: string, entityId: string) =>
+    backendApi
+      .get<Omit<ScheduledActivity, "done">[]>(`/api/todos/by-entity/${entityType}/${entityId}`)
+      .then((list) => list.map((s) => ({ ...s, done: s.status === "done" }))),
+
+  /** 创建待办 */
+  createSchedule: (data: {
+    title: string
+    category: string
+    sourceEntity: string
+    sourceId: string
+    assigneeId?: number
+    dueDate?: string
+  }) =>
+    backendApi
+      .post<Omit<ScheduledActivity, "done">>("/api/todos", {
+        ...data,
+        sourceId: Number(data.sourceId)
+      })
+      .then((s) => ({ ...s, done: s.status === "done" })),
+
+  /** 完成待办（更新状态为 done） */
+  completeSchedule: (id: string) =>
+    backendApi.put<void>(`/api/todos/${id}/status`, { status: "done" })
 }

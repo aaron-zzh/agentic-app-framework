@@ -48,6 +48,10 @@ public class Todo extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private String status = "pending";
 
+    /** 待办分类（todo/call/email/meeting），对应字典 sys_todo_category */
+    @Column(name = "category", length = 20)
+    private String category = "todo";
+
     /** 截止日期 */
     @Column(name = "due_date")
     private LocalDateTime dueDate;

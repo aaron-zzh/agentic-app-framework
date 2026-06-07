@@ -6,7 +6,7 @@
 
 "use client"
 
-import lottie, { type AnimationItem } from "lottie-web"
+import type { AnimationItem } from "lottie-web"
 import { useCallback, useEffect, useRef } from "react"
 
 export interface LottieIconProps {
@@ -51,24 +51,30 @@ export function LottieIcon({
 
     const path = name ? `/icons/lottie/${name}.json` : undefined
 
-    animationRef.current = lottie.loadAnimation({
-      container: containerRef.current,
-      renderer,
-      loop: playOnHover ? false : loop,
-      autoplay: playOnHover ? false : autoplay,
-      ...(animationData ? { animationData } : { path })
+    import("lottie-web").then(({ default: lottie }) => {
+      if (!containerRef.current) return
+      animationRef.current = lottie.loadAnimation({
+        container: containerRef.current,
+        renderer,
+        loop: playOnHover ? false : loop,
+        autoplay: playOnHover ? false : autoplay,
+        ...(animationData ? { animationData } : { path })
+      })
+
+      const anim = animationRef.current
+
+      if (onComplete) anim.addEventListener("complete", stableOnComplete)
+      if (onLoopComplete) anim.addEventListener("loopComplete", stableOnLoopComplete)
     })
 
-    const anim = animationRef.current
-
-    if (onComplete) anim.addEventListener("complete", stableOnComplete)
-    if (onLoopComplete) anim.addEventListener("loopComplete", stableOnLoopComplete)
-
     return () => {
-      if (onComplete) anim.removeEventListener("complete", stableOnComplete)
-      if (onLoopComplete) anim.removeEventListener("loopComplete", stableOnLoopComplete)
-      anim.destroy()
-      animationRef.current = null
+      const anim = animationRef.current
+      if (anim) {
+        if (onComplete) anim.removeEventListener("complete", stableOnComplete)
+        if (onLoopComplete) anim.removeEventListener("loopComplete", stableOnLoopComplete)
+        anim.destroy()
+        animationRef.current = null
+      }
     }
   }, [
     animationData,
