@@ -7,7 +7,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # 只复制依赖声明，利用 layer 缓存
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/webui/package.json ./apps/webui/
-COPY packages/tsconfig/package.json ./packages/tsconfig/
 COPY packages/tailwind-config/package.json ./packages/tailwind-config/
 COPY packages/core/package.json ./packages/core/
 COPY packages/hooks/package.json ./packages/hooks/
