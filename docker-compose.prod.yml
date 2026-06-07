@@ -16,7 +16,7 @@ services:
     ports: !reset []  # 生产不对外暴露
 
   aaf-service:
-    image: ${ACR_REGISTRY}/aaronzzh/service:${IMAGE_TAG:-latest}
+    image: ${ACR_REGISTRY}/service:${IMAGE_TAG:-latest}
     build: !reset null
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -31,7 +31,7 @@ services:
     restart: unless-stopped
 
   aaf-webui:
-    image: ${ACR_REGISTRY}/aaronzzh/webui:${IMAGE_TAG:-latest}
+    image: ${ACR_REGISTRY}/webui:${IMAGE_TAG:-latest}
     build: !reset null
     environment:
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-https://your-domain.com}

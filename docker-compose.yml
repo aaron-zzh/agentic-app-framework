@@ -44,9 +44,7 @@ services:
 
   # 后端服务
   aaf-service:
-    build:
-      context: ./apps/service
-      dockerfile: Dockerfile
+    image: ${ACR_REGISTRY}/service:${IMAGE_TAG:-latest}
     container_name: aaf-service
     env_file:
       - .env
@@ -70,9 +68,7 @@ services:
 
   # 前端服务
   aaf-webui:
-    build:
-      context: ./apps/webui
-      dockerfile: Dockerfile
+    image: ${ACR_REGISTRY}/webui:${IMAGE_TAG:-latest}
     container_name: aaf-webui
     environment:
       NEXT_PUBLIC_API_URL: http://aaf-service:8080

@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}   # 例：registry.cn-hangzhou.aliyuncs.com/your-ns
+  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}   # 含命名空间，例：registry.cn-hangzhou.aliyuncs.com/aaronzzh
 
 jobs:
   build-and-push:
@@ -35,7 +35,7 @@ jobs:
         with:
           context: ./apps/service
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/aaronzzh/service:latest
+          tags: ${{ env.ACR_REGISTRY }}/service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -45,7 +45,7 @@ jobs:
           context: .
           file: ./apps/webui/Dockerfile
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/aaronzzh/webui:latest
+          tags: ${{ env.ACR_REGISTRY }}/webui:latest
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
           cache-from: type=gha
@@ -95,12 +95,9 @@ jobs:
               -p ${{ secrets.ACR_PASSWORD }}
 
             # 拉取最新镜像并滚动重启（不重启 DB/Redis）
-            ACR_REGISTRY=${{ secrets.ACR_REGISTRY }} \
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull aaf-service aaf-webui
-
-            ACR_REGISTRY=${{ secrets.ACR_REGISTRY }} \
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d \
-              --no-deps aaf-service aaf-webui nginx
+            export ACR_REGISTRY=${{ secrets.ACR_REGISTRY }}
+            docker compose pull aaf-service aaf-webui
+            docker compose up -d --no-deps aaf-service aaf-webui nginx
 
             # 清理旧镜像
             docker image prune -f
