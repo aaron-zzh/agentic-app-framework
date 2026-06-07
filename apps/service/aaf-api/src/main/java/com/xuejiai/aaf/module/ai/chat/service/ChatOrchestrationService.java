@@ -1,10 +1,14 @@
 package com.xuejiai.aaf.module.ai.chat.service;
 
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantService;
 import com.xuejiai.aaf.framework.security.access.AccessContext;
 import com.xuejiai.aaf.framework.security.access.AccessLayer;
@@ -40,6 +44,7 @@ public class ChatOrchestrationService {
     private final ChatService chatService;
     private final AssistantService assistantService;
     private final ServicePermissionChecker permissionChecker;
+    private final ResilientChatService chatLlm;
 
     private static final long SSE_TIMEOUT = 5 * 60 * 1000L;
 
@@ -94,6 +99,18 @@ public class ChatOrchestrationService {
                                 emitter,
                                 AgUiEvent.textMessageContent(runId, messageId, response.content()));
                         sendEvent(emitter, AgUiEvent.textMessageEnd(runId, messageId));
+
+                        // 生成追问建议
+                        try {
+                            var suggestions =
+                                    generateSuggestions(userContent, response.content(), userId);
+                            if (!suggestions.isEmpty()) {
+                                sendEvent(emitter, AgUiEvent.custom("suggestions", suggestions));
+                            }
+                        } catch (Exception e) {
+                            log.debug("建议生成失败，跳过: {}", e.getMessage());
+                        }
+
                         sendEvent(emitter, AgUiEvent.runFinished(runId));
                         emitter.complete();
 
@@ -171,5 +188,72 @@ public class ChatOrchestrationService {
         } catch (Exception e) {
             log.debug("SSE 发送失败: {}", e.getMessage());
         }
+    }
+
+    /** 根据对话内容生成追问建议，失败时返回空列表 */
+    private List<Map<String, String>> generateSuggestions(
+            String userInput, String aiReply, Long userId) throws Exception {
+        List<org.springframework.ai.chat.messages.Message> messages =
+                List.of(
+                        new SystemMessage(
+                                """
+                        根据以下对话，生成3条用户可能想追问的问题。
+                        要求：简短精炼（10字以内），与对话内容强相关，用中文。
+                        只返回 JSON 数组，格式：[{"prompt":"问题1"},{"prompt":"问题2"},{"prompt":"问题3"}]
+                        不要任何多余内容。
+                        """),
+                        new UserMessage("用户问：%s\nAI回答：%s".formatted(userInput, aiReply)));
+        var response = chatLlm.call(messages, null, userId);
+        var text = response.getResult().getOutput().getText().trim();
+        var start = text.indexOf('[');
+        var end = text.lastIndexOf(']');
+        if (start < 0 || end < 0) return List.of();
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        return mapper.readValue(
+                text.substring(start, end + 1),
+                new com.fasterxml.jackson.core.type.TypeReference<>() {});
+    }
+
+    // ── 静态默认建议（按 agentId 分类，AI 生成失败时兜底） ──────────────────────
+    private static final Map<String, List<Map<String, String>>> DEFAULT_SUGGESTIONS =
+            Map.of(
+                    "default",
+                            List.of(
+                                    Map.of("prompt", "你能做什么？"),
+                                    Map.of("prompt", "帮我写一份报告"),
+                                    Map.of("prompt", "如何使用知识库？")),
+                    "kiro",
+                            List.of(
+                                    Map.of("prompt", "帮我实现一个功能"),
+                                    Map.of("prompt", "分析这段代码"),
+                                    Map.of("prompt", "如何优化性能？")));
+
+    /** 欢迎页建议：先尝试 AI 生成，失败则返回静态默认 */
+    public List<Map<String, String>> getWelcomeSuggestions(String agentId, Long userId) {
+        try {
+            List<org.springframework.ai.chat.messages.Message> messages =
+                    List.of(
+                            new SystemMessage(
+                                    """
+                            你是一个 AI 助理。根据你的定位，生成3条用户初次见面时可能想问的问题。
+                            要求：简短精炼（10字以内），实用，用中文。
+                            只返回 JSON 数组，格式：[{"prompt":"问题1"},{"prompt":"问题2"},{"prompt":"问题3"}]
+                            不要任何多余内容。
+                            """),
+                            new UserMessage("当前 AI 助理角色：%s".formatted(agentId)));
+            var response = chatLlm.call(messages, null, userId);
+            var text = response.getResult().getOutput().getText().trim();
+            var start = text.indexOf('[');
+            var end = text.lastIndexOf(']');
+            if (start >= 0 && end > start) {
+                var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                return mapper.readValue(
+                        text.substring(start, end + 1),
+                        new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            log.debug("欢迎页建议生成失败，使用默认值: {}", e.getMessage());
+        }
+        return DEFAULT_SUGGESTIONS.getOrDefault(agentId, DEFAULT_SUGGESTIONS.get("default"));
     }
 }

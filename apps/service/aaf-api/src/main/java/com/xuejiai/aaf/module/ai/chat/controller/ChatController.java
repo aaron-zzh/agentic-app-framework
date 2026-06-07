@@ -27,6 +27,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder.HistoryM
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.chat.agui.AgentRunEventStreamService;
+import com.xuejiai.aaf.module.ai.chat.service.ChatOrchestrationService;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.service.IntentService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageSendDTO;
@@ -65,6 +66,7 @@ public class ChatController {
     private final OperatorContext operatorContext;
     private final ResilientChatService resilientChatService;
     private final ChatContextBuilder chatContextBuilder;
+    private final ChatOrchestrationService chatOrchestrationService;
     private final AiProperties aiProperties;
     private final AgentRunEventStreamService agentRunEventStreamService;
     private final AgentRunEventPublisher agentRunEventPublisher;
@@ -269,5 +271,13 @@ public class ChatController {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
+    }
+
+    @GetMapping("/suggestions")
+    @Operation(summary = "获取欢迎页建议问题")
+    public Result<List<java.util.Map<String, String>>> getSuggestions(
+            @RequestParam(required = false, defaultValue = "default") String agentId) {
+        var userId = operatorContext.currentUserId().orElseThrow();
+        return Result.success(chatOrchestrationService.getWelcomeSuggestions(agentId, userId));
     }
 }

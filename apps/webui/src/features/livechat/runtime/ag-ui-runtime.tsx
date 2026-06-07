@@ -19,11 +19,11 @@ import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
 import { useAgentRunStore } from "./agent-run-store"
 
-const DEFAULT_AGENT_URL = buildApiUrl("/chat/agent/run")
+const DEFAULT_AGENT_URL = buildApiUrl("/agui/runs")
 
 interface AgUiChatProviderProps {
   children: ReactNode
-  /** 自定义端点 URL，默认 /chat/agent/run */
+  /** 自定义端点 URL，默认 /agui/runs */
   url?: string
   /** Agent 初始状态（用于传递页面感知上下文） */
   initialState?: Record<string, unknown>
@@ -63,6 +63,10 @@ export function AgUiChatProvider({
       onToolCallStartEvent: ({ event }) => run.startTool(event.toolCallName),
       onToolCallEndEvent: () => run.endTool(),
       onCustomEvent: ({ event }) => {
+        if (event.name === "suggestions") {
+          run.setSuggestions(event.value as { prompt: string; label?: string }[])
+          return
+        }
         if (event.name !== "agent-run") return
         const value = event.value as { type?: string; title?: string; message?: string } | undefined
         run.pushEntry({

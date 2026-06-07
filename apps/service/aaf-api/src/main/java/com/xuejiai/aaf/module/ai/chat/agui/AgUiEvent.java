@@ -28,7 +28,9 @@ public record AgUiEvent(
         String toolCallName,
         String args,
         String result,
-        String error) {
+        String error,
+        String name,
+        Object value) {
 
     /** AG-UI 协议事件类型 */
     public enum AgUiEventType {
@@ -45,24 +47,55 @@ public record AgUiEvent(
         TOOL_CALL_RESULT,
         STATE_SNAPSHOT,
         STATE_DELTA,
-        MESSAGES_SNAPSHOT
+        MESSAGES_SNAPSHOT,
+        CUSTOM
     }
 
     // ========== 工厂方法 ==========
 
     public static AgUiEvent runStarted(String runId) {
         return new AgUiEvent(
-                AgUiEventType.RUN_STARTED, runId, null, null, null, null, null, null, null);
+                AgUiEventType.RUN_STARTED,
+                runId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     public static AgUiEvent runFinished(String runId) {
         return new AgUiEvent(
-                AgUiEventType.RUN_FINISHED, runId, null, null, null, null, null, null, null);
+                AgUiEventType.RUN_FINISHED,
+                runId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     public static AgUiEvent runError(String runId, String error) {
         return new AgUiEvent(
-                AgUiEventType.RUN_ERROR, runId, null, null, null, null, null, null, error);
+                AgUiEventType.RUN_ERROR,
+                runId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                error,
+                null,
+                null);
     }
 
     public static AgUiEvent textMessageStart(String runId, String messageId) {
@@ -70,6 +103,8 @@ public record AgUiEvent(
                 AgUiEventType.TEXT_MESSAGE_START,
                 runId,
                 messageId,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -88,6 +123,8 @@ public record AgUiEvent(
                 null,
                 null,
                 null,
+                null,
+                null,
                 null);
     }
 
@@ -96,6 +133,8 @@ public record AgUiEvent(
                 AgUiEventType.TEXT_MESSAGE_END,
                 runId,
                 messageId,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -114,6 +153,8 @@ public record AgUiEvent(
                 toolCallName,
                 null,
                 null,
+                null,
+                null,
                 null);
     }
 
@@ -127,12 +168,24 @@ public record AgUiEvent(
                 null,
                 args,
                 null,
+                null,
+                null,
                 null);
     }
 
     public static AgUiEvent toolCallEnd(String runId, String toolCallId) {
         return new AgUiEvent(
-                AgUiEventType.TOOL_CALL_END, runId, null, null, toolCallId, null, null, null, null);
+                AgUiEventType.TOOL_CALL_END,
+                runId,
+                null,
+                null,
+                toolCallId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     public static AgUiEvent toolCallResult(String runId, String toolCallId, String result) {
@@ -145,6 +198,13 @@ public record AgUiEvent(
                 null,
                 null,
                 result,
+                null,
+                null,
                 null);
+    }
+
+    public static AgUiEvent custom(String name, Object value) {
+        return new AgUiEvent(
+                AgUiEventType.CUSTOM, null, null, null, null, null, null, null, null, name, value);
     }
 }

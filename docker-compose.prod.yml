@@ -45,7 +45,7 @@ services:
 
   # Nginx 反向代理
   nginx:
-    image: nginx:1.28-alpine
+    image: ${ACR_REGISTRY}/nginx:stable-alpine
     container_name: aaf-nginx
     ports:
       - "80:80"

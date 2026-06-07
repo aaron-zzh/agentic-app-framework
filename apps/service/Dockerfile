@@ -3,8 +3,7 @@ FROM bellsoft/liberica-openjdk-alpine:25 AS builder
 WORKDIR /build
 
 COPY . .
-RUN chmod +x mvnw && \
-    sed -i '/<localRepository>/d' .mvn/settings.xml
+RUN chmod +x mvnw
 RUN --mount=type=cache,target=/root/.m2 \
     ./mvnw package -DskipTests -q
 

@@ -10,10 +10,13 @@
 
 import { MessagePrimitive, ThreadPrimitive, useMessage } from "@assistant-ui/react"
 import { Play } from "lucide-react"
-import { useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { MarkdownMessage } from "@/features/livechat/components/MarkdownMessage"
+import { useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
+import { chatApi } from "@/lib/api/rest/ai/chat"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { serverTtsStream, useVoiceConfig } from "@/lib/store/voice-config"
 
 /** AI 消息内容提取（用于 TTS） */
@@ -82,10 +85,55 @@ function UserMessage() {
   )
 }
 
+const DEFAULT_SUGGESTIONS = [
+  { prompt: "你能做什么？" },
+  { prompt: "帮我写一份报告" },
+  { prompt: "如何使用知识库？" }
+]
+
+/** 欢迎页——对话为空时显示，异步加载 AI 生成的建议 */
+function WelcomeScreen() {
+  const [suggestions, setSuggestions] = useState(DEFAULT_SUGGESTIONS)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const dynamicSuggestions = useAgentRunStore((s) => s.suggestions)
+  const displayed = dynamicSuggestions.length > 0 ? dynamicSuggestions : suggestions
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    chatApi
+      .getSuggestions()
+      .then((res) => {
+        if (res && res.length > 0) setSuggestions(res)
+      })
+      .catch(() => {})
+  }, [isAuthenticated])
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+      <p className="text-muted-foreground text-sm">有什么可以帮你？</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {displayed.map((s) => (
+          <ThreadPrimitive.Suggestion
+            key={s.prompt}
+            prompt={s.prompt}
+            autoSend
+            className="cursor-pointer rounded-full border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            {s.prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ChatterThread() {
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto p-4">
+        <ThreadPrimitive.Empty>
+          <WelcomeScreen />
+        </ThreadPrimitive.Empty>
         <ThreadPrimitive.Messages>
           {({ message }) => (message.role === "assistant" ? <AssistantMessage /> : <UserMessage />)}
         </ThreadPrimitive.Messages>

@@ -57,5 +57,9 @@ export const chatApi = {
     request<ChatMessageVO>(restEndpoints.ai.chatMessages, {
       method: "POST",
       body: JSON.stringify(params)
-    })
+    }),
+
+  /** 获取欢迎页建议问题 */
+  getSuggestions: (agentId?: string) =>
+    request<{ prompt: string; label?: string }[]>(restEndpoints.ai.chatSuggestions(agentId))
 }

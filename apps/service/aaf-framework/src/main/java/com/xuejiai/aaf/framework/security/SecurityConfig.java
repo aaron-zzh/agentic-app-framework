@@ -52,6 +52,8 @@ public class SecurityConfig {
         "/api/auth/**",
         "/api/channel/wx/**",
         "/api/system/chat/sessions/thread/*/messages",
+        "/api/agui/runs",
+        "/api/agui/runs/**",
         "/api/hello",
         "/actuator/**",
         "/swagger-ui/**",

@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -19,6 +20,8 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.NicknameGenerator;
+import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
+import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.mapper.UserConvert;
@@ -36,12 +39,14 @@ import com.xuejiai.aaf.module.system.user.vo.UserVO;
 import com.xuejiai.aaf.util.ImportExecutor;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 用户管理业务逻辑。
  *
  * @author AaronZZH & Kiro
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -50,6 +55,10 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final jakarta.validation.Validator validator;
     private final SystemConfigService systemConfigService;
+    private final AssistantDefinitionRepository assistantRepo;
+
+    @Value("${aaf.assistant.auto-create-on-register:true}")
+    private boolean autoCreateAssistant;
 
     /**
      * 创建用户
@@ -66,6 +75,9 @@ public class UserService {
         user.setNickname(
                 request.nickname() != null ? request.nickname() : NicknameGenerator.generate());
         userRepository.save(user);
+        if (autoCreateAssistant) {
+            initDefaultAssistant(user.getId());
+        }
         return toVO(user);
     }
 
@@ -370,5 +382,22 @@ public class UserService {
 
     private UserVO toVO(User user) {
         return UserConvert.INSTANCE.toVO(user);
+    }
+
+    /** 为新用户克隆 default-assistant，assistantId = "user-{userId}-assistant" */
+    private void initDefaultAssistant(Long userId) {
+        try {
+            var defaultDef = assistantRepo.findByAssistantId("default-assistant").orElse(null);
+            if (defaultDef == null) return;
+            var assistant = new AssistantDefinition();
+            assistant.setAssistantId("user-" + userId + "-assistant");
+            assistant.setUserId(userId);
+            assistant.setActorId(defaultDef.getActorId());
+            assistant.setRoleId(defaultDef.getRoleId());
+            assistant.setMemoryStrategy(defaultDef.getMemoryStrategy());
+            assistantRepo.save(assistant);
+        } catch (Exception e) {
+            log.warn("为用户 {} 自动创建助理失败，跳过: {}", userId, e.getMessage());
+        }
     }
 }

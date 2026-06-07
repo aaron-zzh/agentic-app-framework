@@ -321,3 +321,211 @@ builder.structuredOutputReminder(StructuredOutputReminder.json(schema));
 ├──────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────┤
 │ StructuredOutputReminder             │ 强制结构化输出                        │ ❌ 后续按需     
 
+
+---
+
+## HarnessAgent 演进方向（待评估）
+
+> 记录于 2026-06-08，来源：对 `agentscope-harness` 及四个官方示例的分析。
+
+### 背景
+
+AAF 目标是"可控可编排、自主规划、自进化的通用助理"，与 AgentScope 官方示例体系高度重叠：
+
+| 示例 | 核心能力 | AAF 对应目标 |
+|------|---------|-------------|
+| **agentscope-claw** | 自进化 Agent（自写技能/孵化子 Agent）+ 多通道 | 自进化、外部生态整合 |
+| **agentscope-builder** | 多用户隔离 workspace + 无代码搭 Agent + 知识共享 | 无代码开发、多租户 |
+| **agentscope-codingagent** | 自主执行复杂任务 + Docker Sandbox 隔离 | auto-dev、沙箱执行 |
+| **agentscope-dataagent** | per-用户进化 + Marketplace 审批共享 | 知识沉淀、技能市场 |
+
+四个示例**全部绕开了 `AguiAgentRegistry`**，直接用 `HarnessAgent` + 自定义 `Gateway`/`Channel`——与 AAF 当前 `AafAgentResolver` + `AssistantRuntime` 的做法一致，方向正确。
+
+### 分阶段演进建议
+
+**v0.1（当前）**：维持 `ReActAgent` + `AssistantRuntime.materialize()`，跑通核心链路。删除无效的 `AafAguiRegistryCustomizer`。
+
+**v0.2 智能层重构**：`AssistantRuntime.materialize()` 的产物从 `ReActAgent` 升级为 `HarnessAgent`，获得：
+- 技能文件系统（自学习、自写技能）
+- 动态子 Agent 孵化
+- Workspace 隔离（per-用户/per-Assistant）
+- 内置记忆压缩（`CompactionMiddleware`）
+
+**v0.2+ 外部生态整合**：参考 claw 的 `Channel` 抽象直接复用钉钉/飞书/企微适配器，不重写。
+
+**auto-dev 模块（远期）**：Agent 执行代码时参考 codingagent 的 Sandbox 生命周期管理（Docker/K8s/E2b）。
+
+### 关键判断
+
+`HarnessAgent` 不是替换 `ReActAgent` 的竞品，而是在 `ReActAgent` 之上的封装——加了 Filesystem、Middleware 链、Skill 管理。引入后 AAF 智能层可以更薄，把自进化/技能管理的重实现委托给 Harness。
+
+
+
+---
+
+## AgentScope 2.x 升级要点（待评估）
+
+> 记录于 2026-06-08，来源：`tmp/agentscope-java/docs/v2/zh/docs/change-log.md`。
+> 当前 AAF 使用的是 1.x API，v0.2 升级 AgentScope 2.x 时需对照以下内容迁移。
+
+### 必须迁移（不改会编译失败）
+
+| 1.x | 2.x 替代 |
+|-----|---------|
+| `Pipeline` / `MsgHub` 等多 Agent 编排类 | **全部删除**，改用 middleware + 子 agent（`SubagentsMiddleware`） |
+| `AgentMetaState` | 改名为 `AgentState` |
+| `StateModule` / `StatePersistence` | 删除，由 `Session` 接管持久化 |
+| `ReActAgent.Builder.memory(Memory)` | `.session(Session).sessionKey(SessionKey)` |
+| `SessionManager` | 删除，直接配置 `Session` + `SessionKey` |
+
+### 推荐迁移（`@Deprecated(forRemoval=true)`，仍可调用）
+
+| 1.x | 2.x 替代 |
+|-----|---------|
+| `Hook` / `HookEvent` 全包 | `MiddlewareBase`（5 个 stage：onAgent / onReasoning / onActing / onModelCall / onSystemPrompt） |
+| `Memory` / `InMemoryMemory` | `Session` + `AgentState.getContext()` |
+| `SkillBox` | `AgentSkillRepository` |
+| `stream()` | `streamEvents()` → 返回 `Flux<AgentEvent>`，28 个类型化事件 |
+| RAG 模块（`Knowledge` 等） | v2 重写中，暂不依赖新 API |
+| `ShellCommandTool` / `ReadFileTool` 等 core 内置工具 | 迁到 Harness workspace，享受权限隔离和 HITL |
+
+### 对 AAF 当前代码的影响
+
+AAF 中需要关注的使用点：
+
+- `InMemoryMemory` → 标 deprecated，v0.2 迁到 `Session`
+- `TokenMeteringHook` / `AafTraceHook` / `AafToolPermissionHook` 等 Hook → 迁到 `Middleware`
+- `AgentScopeExampleConfig` 中的 `.memory(new InMemoryMemory())` → 全部需要替换
+
+### 2.x 新增能力（对 AAF 有价值）
+
+- **权限系统**：`PermissionEngine` + `PermissionMode`，工具调用前自动过权限（允许/审批/拒绝），对应 AAF 的工具治理需求
+- **模型容错**：`.maxRetries(int)` + `.fallbackModel(Model)`，主模型失败自动切备用
+- **`HarnessAgent.Builder.fromAgent(ReActAgent)`**：从已有 `ReActAgent` 平滑迁移到 `HarnessAgent` 的辅助方法，v0.2 升级路径的关键入口
+
+
+
+---
+
+## 单实例 vs 多实例架构分析（待决策）
+
+> 记录于 2026-06-08，来源：对 AgentScope 2.x HarnessAgent 体系的分析。
+
+### 当前架构（多实例）
+
+`AssistantRuntime.materialize(assistantId)` 按 assistantId 动态创建 Agent 实例，每个 Assistant 配置对应一个 Agent 对象。
+
+### 目标架构（单实例）
+
+```
+1个 HarnessAgent 对象（Toolkit/Model/Middleware 共享）
+  ├── 会话A (threadId=001, assistantId=客服)  → SessionKey="001" → Redis AgentState
+  ├── 会话B (threadId=002, assistantId=开发)  → SessionKey="002" → Redis AgentState
+  └── 会话C (threadId=003, assistantId=客服)  → SessionKey="003" → Redis AgentState
+```
+
+多对话不是多实例，而是多个 `SessionKey`。Agent 是无状态执行引擎，状态全部外置到 `Session` 存储。
+
+### 个性化如何实现
+
+| 个性化需求 | 实现方式 |
+|-----------|---------|
+| 不同系统提示词 | `onSystemPrompt` Middleware 按 assistantId 动态注入 |
+| 不同工具集（系统内置） | `ToolGroup` 激活/禁用，按 assistantId 配置 group 列表 |
+| 用户自定义工具 | MCP 协议接入，`McpMeta` 动态切换 MCP Server |
+| 通用技能执行 | 单个 `execute_skill` 工具 + Skill 数据库，参考 HarnessAgent Skill 体系 |
+| 用户上下文（userId/知识库等） | `RuntimeContext` 注入，Middleware 和 Tool 均可读取 |
+
+### 工具体系分层
+
+```
+系统内置工具（有限枚举）→ ToolGroup 开关
+用户自定义技能          → execute_skill 工具 + Skill 定义数据库
+用户自定义外部工具      → MCP Server 接入
+```
+
+### HarnessAgent 内部子 Agent 孵化
+
+HarnessAgent 通过 `DynamicSubagentsMiddleware` 支持运行时自主创建子 Agent：
+
+```
+主 HarnessAgent
+  └── 遇到复杂任务时动态孵化子 Agent
+        ├── 子Agent（搜索）
+        ├── 子Agent（代码执行）
+        └── 子Agent（报告生成）→ 可继续孵化下一层
+```
+
+子 Agent 规格由主 Agent 运行时生成并写入 Workspace Filesystem 持久化。这是 AAF "自主规划解决复杂问题 + 自进化"目标的核心实现路径——主 Agent 简单问题直接回答，复杂问题自动分解派给子 Agent，无需开发者预定义所有 Agent 类型。
+
+### 迁移前提条件
+
+- AgentScope 升级到 2.x（`Session` 体系、Middleware、HarnessAgent）
+- 工具体系按上表分层改造
+- `AafAgentResolver` 简化：去掉 `materialize()`，改为查 `ChatSession` 后将 assistantId/userId 注入 `RuntimeContext`
+- `AgentRunContextHolder` 逻辑移入 `onAgent` Middleware
+
+
+
+---
+
+## 工作流编排与 HarnessAgent 整合（架构方向）
+
+> 记录于 2026-06-08。
+
+### 两种编排模式的区别
+
+| 模式 | 谁决定子 Agent | 特点 |
+|------|--------------|------|
+| HarnessAgent 自主编排 | LLM 自主决定是否 fork、怎么分工 | 灵活自适应，但不可控 |
+| AAF 工作流编排 | 开发者/用户预定义 DSL | 可控、可复现、可审计 |
+
+HarnessAgent 不直接支持可控编排，两者需要叠加使用。
+
+### 整合架构
+
+```
+AAF 工作流层（可控编排）
+  └── 工作流定义：后端节点 → 前端节点 → 测试节点（顺序/并行/条件由 DSL 定义）
+        └── 每个节点 = AgentNode
+              └── AgentNode 内部 = HarnessAgent（可自主规划、自主 fork 子 Agent）
+```
+
+执行路径：
+
+```
+用户触发
+  → AAF 工作流引擎：按预定义启动流程
+    → AgentNode1：后端 HarnessAgent（内部可自主拆分子任务）
+    → AgentNode2：前端 HarnessAgent（并行执行）
+    → AgentNode3：测试 HarnessAgent（等前两个完成后启动）
+  → 工作流汇总结果 → 返回用户
+```
+
+### 两层职责分工
+
+| 层 | 负责什么 | 谁控制 |
+|----|---------|-------|
+| 工作流层（AAF Flowable/DSL） | 哪些 Agent、什么顺序、什么条件分支 | 开发者/用户预定义 |
+| HarnessAgent 层 | 单个 Agent 怎么完成任务、要不要自主拆分子任务 | LLM 自主决定 |
+
+### 整合关键技术点
+
+- **适配层**：Flowable ServiceTask 是同步/回调模型，HarnessAgent 是响应式（Reactor `Flux<AgentEvent>`），需要桥接适配器
+- **AgentNode**：AAF 工作流的 AI 节点类型，内部持有 HarnessAgent 引用，把节点执行委托给 Agent
+- **状态传递**：工作流上下文（流程变量）与 Agent `RuntimeContext` 之间的数据映射
+- **流式输出**：工作流执行过程中 AgentEvent 需要透传给前端 MessageStream
+
+### 与 AAF 五层架构的对应
+
+```
+Layer 3 智能层（Team/Assistant/Agent）
+  └── Assistant = 主 HarnessAgent（协调者，每对话一个 SessionKey）
+        └── Agent = 子 HarnessAgent（DynamicSubagentsMiddleware fork）
+
+Layer 2 引擎层（工作流引擎）
+  └── AgentNode = 工作流节点包装 HarnessAgent
+        └── 可控编排 + Agent 自主执行 两层叠加
+```
+
+这是 AAF v0.2 智能层重构的核心架构方向。

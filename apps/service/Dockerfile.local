@@ -1,0 +1,26 @@
+# 本地构建专用：跳过 Maven 构建，直接使用已构建的 JAR
+# 使用前先执行：pnpm nx build service
+# 构建命令：docker build -f apps/service/Dockerfile.local -t <image> .
+FROM bellsoft/liberica-runtime-container:jdk-all-25-slim-musl
+WORKDIR /app
+
+RUN addgroup -S aaf && adduser -S aaf -G aaf
+USER aaf
+
+COPY apps/service/aaf-api/target/aaf-api-*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:InitialRAMPercentage=25.0", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:+UseG1GC", \
+  "-XX:MaxGCPauseMillis=200", \
+  "-XX:+HeapDumpOnOutOfMemoryError", \
+  "-XX:HeapDumpPath=/tmp/heap-dumps", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-Dfile.encoding=UTF-8", \
+  "-Duser.timezone=Asia/Shanghai", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]

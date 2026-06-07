@@ -15,16 +15,24 @@ export interface AgentRunEntry {
   timestamp: number
 }
 
+/** 对话建议条目 */
+export interface AgentSuggestion {
+  prompt: string
+  label?: string
+}
+
 interface AgentRunState {
   phase: AgentRunPhase
   activeTool: string | null
   entries: AgentRunEntry[]
+  suggestions: AgentSuggestion[]
   startRun: () => void
   finishRun: () => void
   errorRun: (message?: string) => void
   startTool: (name: string) => void
   endTool: () => void
   pushEntry: (entry: AgentRunEntry) => void
+  setSuggestions: (suggestions: AgentSuggestion[]) => void
 }
 
 const MAX_ENTRIES = 50
@@ -38,7 +46,8 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   phase: "idle",
   activeTool: null,
   entries: [],
-  startRun: () => set({ phase: "running", activeTool: null, entries: [] }),
+  suggestions: [],
+  startRun: () => set({ phase: "running", activeTool: null, entries: [], suggestions: [] }),
   finishRun: () => set({ phase: "finished", activeTool: null }),
   errorRun: (message) =>
     set((s) => ({
@@ -56,5 +65,6 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
       })
     })),
   endTool: () => set({ activeTool: null }),
-  pushEntry: (entry) => set((s) => ({ entries: append(s.entries, entry) }))
+  pushEntry: (entry) => set((s) => ({ entries: append(s.entries, entry) })),
+  setSuggestions: (suggestions) => set({ suggestions })
 }))

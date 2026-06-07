@@ -62,7 +62,7 @@ aaf:
 # AgentScope AG-UI 配置
 agentscope:
   agui:
-    path-prefix: /agui
+    path-prefix: /api/agui
     cors-enabled: true
     cors-allowed-origins: ["*"]
     emit-state-events: true
