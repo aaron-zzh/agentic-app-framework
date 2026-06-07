@@ -7,6 +7,11 @@ import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
+// mock request 防止 syncToRemote 发出真实 XHR
+vi.mock("@/lib/api/rest/entity/crud", () => ({
+  request: vi.fn().mockResolvedValue(null)
+}))
+
 // mock loadRemoteConfig
 vi.mock("@/lib/store/chatter-store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/store/chatter-store")>()

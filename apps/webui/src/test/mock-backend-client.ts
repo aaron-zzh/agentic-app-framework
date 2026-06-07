@@ -1,4 +1,4 @@
-import { type AxiosAdapter, AxiosError, type AxiosResponse } from "axios"
+import axios, { type AxiosAdapter, AxiosError, type AxiosResponse } from "axios"
 import { vi } from "vitest"
 import { backendClient } from "@/lib/api/rest/backend-client"
 
@@ -19,6 +19,8 @@ export function resetMockBackendClient(): void {
   delete backendClient.defaults.headers.common.Authorization
   delete backendClient.defaults.headers.common["X-Org-Id"]
   delete backendClient.defaults.headers.common["X-Workspace-Id"]
+  // 清除全局 axios 默认 header（setAxiosAuth 写在这里）
+  delete axios.defaults.headers.common.Authorization
 }
 
 export function mockBackendResponse(data: unknown, status = 200): void {
