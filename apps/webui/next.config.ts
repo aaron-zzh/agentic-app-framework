@@ -25,7 +25,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.aliyuncs.com" },
       { protocol: "https", hostname: "**.minio.io" },
       ...(process.env.NEXT_PUBLIC_ASSETS_URL
-        ? [{ protocol: "https" as const, hostname: new URL(process.env.NEXT_PUBLIC_ASSETS_URL).hostname }]
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: new URL(process.env.NEXT_PUBLIC_ASSETS_URL).hostname
+            }
+          ]
         : [])
     ]
   },
@@ -51,7 +56,7 @@ const nextConfig: NextConfig = {
         {
           key: "Content-Security-Policy",
           value:
-            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: http: https: ws: wss:; media-src 'self' https:"
+            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://o.alicdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: http: https: ws: wss:; media-src 'self' https:"
         }
       ]
     }

@@ -16,16 +16,16 @@ import { CSS3DRenderer, CSS3DSprite } from "three/examples/jsm/renderers/CSS3DRe
 const PARTICLES_TOTAL = 512
 
 /** 预计算四种形态的粒子目标坐标 */
-function buildPositions(): number[] {
+function buildPositions(count: number): number[] {
   const positions: number[] = []
 
   // 平面（正弦波）
   const amountX = 16
-  const amountZ = 32
+  const amountZ = Math.ceil(count / amountX)
   const sepPlane = 150
   const offsetX = ((amountX - 1) * sepPlane) / 2
   const offsetZ = ((amountZ - 1) * sepPlane) / 2
-  for (let i = 0; i < PARTICLES_TOTAL; i++) {
+  for (let i = 0; i < count; i++) {
     const x = (i % amountX) * sepPlane
     const z = Math.floor(i / amountX) * sepPlane
     const y = (Math.sin(x * 0.5) + Math.sin(z * 0.5)) * 200
@@ -33,10 +33,10 @@ function buildPositions(): number[] {
   }
 
   // 立方体
-  const amount = 8
+  const amount = Math.ceil(Math.cbrt(count))
   const sepCube = 150
   const offset = ((amount - 1) * sepCube) / 2
-  for (let i = 0; i < PARTICLES_TOTAL; i++) {
+  for (let i = 0; i < count; i++) {
     const x = (i % amount) * sepCube
     const y = Math.floor((i / amount) % amount) * sepCube
     const z = Math.floor(i / (amount * amount)) * sepCube
@@ -44,7 +44,7 @@ function buildPositions(): number[] {
   }
 
   // 随机
-  for (let i = 0; i < PARTICLES_TOTAL; i++) {
+  for (let i = 0; i < count; i++) {
     positions.push(
       Math.random() * 4000 - 2000,
       Math.random() * 4000 - 2000,
@@ -54,9 +54,9 @@ function buildPositions(): number[] {
 
   // 球体
   const radius = 750
-  for (let i = 0; i < PARTICLES_TOTAL; i++) {
-    const phi = Math.acos(-1 + (2 * i) / PARTICLES_TOTAL)
-    const theta = Math.sqrt(PARTICLES_TOTAL * Math.PI) * phi
+  for (let i = 0; i < count; i++) {
+    const phi = Math.acos(-1 + (2 * i) / count)
+    const theta = Math.sqrt(count * Math.PI) * phi
     positions.push(
       radius * Math.cos(theta) * Math.sin(phi),
       radius * Math.sin(theta) * Math.sin(phi),
@@ -82,6 +82,9 @@ export function HeroParticlesBackground() {
     const container = containerRef.current
     if (!container) return
 
+    // 移动端降粒子数，useEffect 内判断保证是客户端运行时值
+    const PARTICLES_COUNT = window.innerWidth < 768 ? 128 : PARTICLES_TOTAL
+
     // 场景、相机
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -96,7 +99,7 @@ export function HeroParticlesBackground() {
 
     // 创建粒子对象
     const objects: CSS3DSprite[] = []
-    for (let i = 0; i < PARTICLES_TOTAL; i++) {
+    for (let i = 0; i < PARTICLES_COUNT; i++) {
       const sprite = new CSS3DSprite(createParticleEl())
       sprite.position.set(
         Math.random() * 4000 - 2000,
@@ -107,11 +110,12 @@ export function HeroParticlesBackground() {
       objects.push(sprite)
     }
 
-    const positions = buildPositions()
+    const positions = buildPositions(PARTICLES_COUNT)
 
     // 渲染器
     const renderer = new CSS3DRenderer()
     renderer.setSize(container.clientWidth, container.clientHeight)
+    renderer.domElement.style.background = "transparent"
     container.appendChild(renderer.domElement)
 
     // 交互控制
@@ -121,10 +125,10 @@ export function HeroParticlesBackground() {
     let current = 0
 
     function transition() {
-      const offset = current * PARTICLES_TOTAL * 3
+      const offset = current * PARTICLES_COUNT * 3
       const duration = 2000
 
-      for (let i = 0, j = offset; i < PARTICLES_TOTAL; i++, j += 3) {
+      for (let i = 0, j = offset; i < PARTICLES_COUNT; i++, j += 3) {
         const obj = objects[i]
         if (!obj) continue
         new TWEEN.Tween(obj.position)
@@ -154,13 +158,6 @@ export function HeroParticlesBackground() {
       animId = requestAnimationFrame(animate)
       TWEEN.update()
       controls.update()
-
-      const time = performance.now()
-      for (const obj of objects) {
-        const scale = Math.sin((Math.floor(obj.position.x) + time) * 0.002) * 0.3 + 1
-        obj.scale.set(scale, scale, scale)
-      }
-
       renderer.render(scene, camera)
     }
     animate()

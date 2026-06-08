@@ -16,12 +16,12 @@ import TWEEN from "three/examples/jsm/libs/tween.module.js"
 
 const PARTICLES_TOTAL = 512
 
-function buildTargets(): Float32Array[] {
+function buildTargets(count: number): Float32Array[] {
   const targets: Float32Array[] = []
 
   const make = (fn: (i: number) => [number, number, number]) => {
-    const arr = new Float32Array(PARTICLES_TOTAL * 3)
-    for (let i = 0; i < PARTICLES_TOTAL; i++) {
+    const arr = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
       const [x, y, z] = fn(i)
       arr[i * 3] = x
       arr[i * 3 + 1] = y
@@ -32,7 +32,7 @@ function buildTargets(): Float32Array[] {
 
   // 平面（正弦波）
   const amountX = 16,
-    amountZ = 32,
+    amountZ = Math.ceil(count / 16),
     sep = 150
   const offsetX = ((amountX - 1) * sep) / 2
   const offsetZ = ((amountZ - 1) * sep) / 2
@@ -46,7 +46,7 @@ function buildTargets(): Float32Array[] {
   )
 
   // 立方体
-  const a = 8,
+  const a = Math.ceil(Math.cbrt(count)),
     sc = 150,
     off = ((a - 1) * sc) / 2
   targets.push(
@@ -70,8 +70,8 @@ function buildTargets(): Float32Array[] {
   const r = 750
   targets.push(
     make((i) => {
-      const phi = Math.acos(-1 + (2 * i) / PARTICLES_TOTAL)
-      const theta = Math.sqrt(PARTICLES_TOTAL * Math.PI) * phi
+      const phi = Math.acos(-1 + (2 * i) / count)
+      const theta = Math.sqrt(count * Math.PI) * phi
       return [
         r * Math.cos(theta) * Math.sin(phi),
         r * Math.sin(theta) * Math.sin(phi),
@@ -96,7 +96,7 @@ function Particles() {
   const { positions, targets } = useMemo(() => {
     const pos = new Float32Array(PARTICLES_TOTAL * 3)
     for (let i = 0; i < PARTICLES_TOTAL * 3; i++) pos[i] = Math.random() * 4000 - 2000
-    return { positions: pos, targets: buildTargets() }
+    return { positions: pos, targets: buildTargets(PARTICLES_TOTAL) }
   }, [])
 
   // 当前插值用的代理对象数组
@@ -111,9 +111,20 @@ function Particles() {
   )
 
   const currentShape = useRef(0)
+  // 预创建 Tween 对象复用，避免每次 transition 批量 new 导致 GC 卡顿
+  const tweensRef = useRef<TWEEN.Tween<{ x: number; y: number; z: number }>[]>([])
 
   useEffect(() => {
     let active = true
+
+    // 初始化复用的 Tween 对象
+    if (tweensRef.current.length === 0) {
+      for (let i = 0; i < PARTICLES_TOTAL; i++) {
+        const proxy = proxies[i]
+        if (!proxy) continue
+        tweensRef.current.push(new TWEEN.Tween(proxy).easing(TWEEN.Easing.Exponential.InOut))
+      }
+    }
 
     function transition() {
       if (!active) return
@@ -122,14 +133,14 @@ function Particles() {
       const duration = 2000
 
       for (let i = 0; i < PARTICLES_TOTAL; i++) {
+        const tween = tweensRef.current[i]
         const proxy = proxies[i]
-        if (!proxy) continue
-        new TWEEN.Tween(proxy)
+        if (!tween || !proxy) continue
+        tween
           .to(
             { x: target[i * 3], y: target[i * 3 + 1], z: target[i * 3 + 2] },
             Math.random() * duration + duration
           )
-          .easing(TWEEN.Easing.Exponential.InOut)
           .start()
       }
 
@@ -173,22 +184,8 @@ function Particles() {
     return c
   }, [])
 
-  // 粒子大小随位置脉冲（在 useFrame 里做）
+  // 粒子固定大小（移除每帧 size 脉冲，降低移动端 GPU 压力）
   const sizes = useMemo(() => new Float32Array(PARTICLES_TOTAL).fill(12), [])
-
-  useFrame(() => {
-    const geo = geoRef.current
-    if (!geo) return
-    const sizeAttr = geo.attributes.size as THREE.BufferAttribute | undefined
-    if (!sizeAttr) return
-    const time = performance.now()
-    for (let i = 0; i < PARTICLES_TOTAL; i++) {
-      const p = proxies[i]
-      if (!p) continue
-      sizeAttr.array[i] = (Math.sin((Math.floor(p.x) + time) * 0.002) * 0.3 + 1) * 12
-    }
-    sizeAttr.needsUpdate = true
-  })
 
   // ShaderMaterial：球形法线光照粒子
   const material = useMemo(
@@ -246,13 +243,13 @@ export function ParticlesR3F() {
       <Canvas
         camera={{ position: [600, 400, 1500], fov: 75, near: 1, far: 5000 }}
         gl={{ antialias: false, powerPreference: "high-performance" }}
-        dpr={[1, 1.5]}
+        dpr={[1, 2]}
       >
         <color attach="background" args={["#000510"]} />
         <Particles />
         <OrbitControls enablePan={false} />
         <EffectComposer>
-          <Bloom luminanceThreshold={0.05} intensity={0.8} luminanceSmoothing={0.9} />
+          <Bloom luminanceThreshold={0.3} intensity={0.6} luminanceSmoothing={0.9} />
         </EffectComposer>
       </Canvas>
     </div>
