@@ -41,7 +41,10 @@ const threejsPages = [
   { label: "Blob", href: "/examples/threejs/demo/blob" },
   { label: "Fiber", href: "/examples/threejs/fiber" },
   { label: "Meshline", href: "/examples/threejs/meshline" },
-  { label: "Test", href: "/examples/threejs/test" }
+  { label: "Test", href: "/examples/threejs/test" },
+  { label: "视频纹理", href: "/examples/threejs/video" },
+  { label: "粒子对比", href: "/examples/threejs/particles" },
+  { label: "GLTF 模型", href: "/examples/threejs/gltf" }
 ]
 
 const examplePages = [

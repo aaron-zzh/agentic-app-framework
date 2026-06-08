@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import Script from "next/script"
 import { NextIntlClientProvider } from "next-intl"
 import { getLocale, getMessages } from "next-intl/server"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
@@ -92,6 +93,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${notoSansSC.variable} font-sans antialiased`}
       >
+        {/* 阿里云 ESA AI 验证码：生产/测试环境启用，本地开发跳过 */}
+        {process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "true" && (
+          <>
+            <Script id="aliyun-captcha-config" strategy="beforeInteractive">{`
+              window.AliyunCaptchaConfig = {
+                region: "${process.env.NEXT_PUBLIC_CAPTCHA_REGION ?? "cn"}",
+                prefix: "${process.env.NEXT_PUBLIC_CAPTCHA_PREFIX ?? ""}",
+              };
+            `}</Script>
+            <Script
+              src="https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js"
+              strategy="beforeInteractive"
+            />
+          </>
+        )}
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider>
             <QueryProvider>

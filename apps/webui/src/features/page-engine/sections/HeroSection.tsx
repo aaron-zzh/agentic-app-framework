@@ -6,6 +6,7 @@
 "use client"
 
 import { motion } from "framer-motion"
+import dynamic from "next/dynamic"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils/cn"
@@ -15,6 +16,14 @@ import {
   type HeroBackgroundVariant,
   HeroPostprocessingBackground
 } from "./HeroPostprocessingBackground"
+
+const ParticlesR3F = dynamic(
+  () =>
+    import("@/app/(dev)/examples/threejs/particles/_components/ParticlesR3F").then(
+      (m) => m.ParticlesR3F
+    ),
+  { ssr: false }
+)
 
 interface CTAButton {
   label: string
@@ -26,7 +35,7 @@ interface HeroProps {
   title?: string
   subtitle?: string
   buttons?: CTAButton[]
-  backgroundType?: "gradient" | "image" | "plain" | "postprocessing"
+  backgroundType?: "gradient" | "image" | "plain" | "postprocessing" | "particles"
   backgroundVariant?: HeroBackgroundVariant
   backgroundImage?: string
   align?: "center" | "left"
@@ -70,15 +79,20 @@ export function HeroSection({ data }: SectionComponentProps) {
       {backgroundType === "postprocessing" && (
         <HeroPostprocessingBackground variant={backgroundVariant} />
       )}
+      {backgroundType === "particles" && (
+        <div className="absolute inset-0">
+          <ParticlesR3F />
+        </div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className={cn(
-          "relative z-10 max-w-3xl",
+          "relative z-10 w-full",
           align === "center" && "text-center",
-          backgroundType === "postprocessing" && "text-white"
+          (backgroundType === "postprocessing" || backgroundType === "particles") && "text-white"
         )}
       >
         <h1 className="font-bold text-4xl tracking-tight md:text-6xl">{title}</h1>
@@ -94,7 +108,13 @@ export function HeroSection({ data }: SectionComponentProps) {
         )}
 
         {(buttons as CTAButton[]).length > 0 && (
-          <div className={cn("mt-8 flex flex-wrap gap-3", align === "center" && "justify-center")}>
+          <div
+            className={cn(
+              "mt-8 flex flex-wrap gap-3",
+              align === "center" && "justify-center",
+              (backgroundType === "postprocessing" || backgroundType === "particles") && "dark"
+            )}
+          >
             {(buttons as CTAButton[]).map((btn) => (
               <Button key={btn.href} variant={btn.variant ?? "default"} size="lg" asChild>
                 <a href={btn.href}>{btn.label}</a>

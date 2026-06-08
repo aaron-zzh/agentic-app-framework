@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useOrganizations } from "@/lib/queries/use-organizations"
 import { useOrgStore } from "@/lib/store/org-store"
+import { $url } from "@/lib/utils"
 
 export function WorkspaceSwitcher() {
   const queryClient = useQueryClient()
@@ -56,7 +57,7 @@ export function WorkspaceSwitcher() {
       >
         <Avatar className="size-6 rounded-md after:hidden">
           <AvatarImage
-            src={active?.logo ?? "/assets/icons/ChatBc.png"}
+            src={active?.logo ?? $url.cdn("/assets/icons/ChatBc.png")}
             alt={activeWorkspaceName ?? "工作区"}
             className="object-cover"
           />
@@ -83,7 +84,7 @@ export function WorkspaceSwitcher() {
                 >
                   <Avatar className="size-7 rounded-md after:hidden">
                     <AvatarImage
-                      src={org.logo ?? "/assets/icons/ChatBc.png"}
+                      src={org.logo ?? $url.cdn("/assets/icons/ChatBc.png")}
                       alt={`${org.name} 默认工作区`}
                       className="object-cover"
                     />

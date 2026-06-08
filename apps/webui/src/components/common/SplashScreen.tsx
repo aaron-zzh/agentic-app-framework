@@ -5,6 +5,8 @@
  * Logo 脉冲缩放 + 旋转边框环，纯 CSS 动画
  */
 
+import { $url } from "@/lib/utils"
+
 export function SplashScreen() {
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-background">
@@ -12,7 +14,7 @@ export function SplashScreen() {
         {/* Logo 脉冲 */}
         <div className="animate-[pulse_2s_ease-in-out_infinite]">
           {/* biome-ignore lint/performance/noImgElement: splash logo */}
-          <img src="/logo/logo.png" alt="" className="size-16" />
+          <img src={$url.cdn("/logo/logo.png")} alt="" className="size-16" />
         </div>
 
         {/* 外圈旋转 */}

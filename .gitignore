@@ -45,6 +45,8 @@ testem.log
 .env
 .env.*
 !.env.example
+!.env.prod
+!apps/webui/.env.prod
 
 # System Files
 .DS_Store

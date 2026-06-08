@@ -9,6 +9,8 @@
 import type { AnimationItem } from "lottie-web"
 import { useCallback, useEffect, useRef } from "react"
 
+import { $url } from "@/lib/utils"
+
 export interface LottieIconProps {
   /** 内联 JSON 动画数据（与 name 二选一） */
   animationData?: object
@@ -49,7 +51,7 @@ export function LottieIcon({
   useEffect(() => {
     if (!containerRef.current) return
 
-    const path = name ? `/icons/lottie/${name}.json` : undefined
+    const path = name ? $url.cdn(`/assets/icons/lottie/${name}.json`) : undefined
 
     import("lottie-web").then(({ default: lottie }) => {
       if (!containerRef.current) return

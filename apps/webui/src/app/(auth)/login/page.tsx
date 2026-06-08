@@ -1,5 +1,6 @@
 /**
  * 登录页——账号/邮箱密码登录 + 第三方 OAuth 入口
+ * 生产/测试环境接入阿里云 ESA AI 验证码（NEXT_PUBLIC_CAPTCHA_ENABLED=true 时启用）
  * @author AaronZZH & Kiro
  */
 
@@ -8,7 +9,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense, useEffect } from "react"
+import { Suspense, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { FieldText } from "@/components/form/field-text"
@@ -18,6 +19,9 @@ import { Separator } from "@/components/ui/separator"
 import { authApi } from "@/lib/api/rest/user/auth"
 import { paths } from "@/lib/constants/paths"
 import { useAuthStore } from "@/lib/store/auth-store"
+
+const CAPTCHA_ENABLED = process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "true"
+const CAPTCHA_SCENE_ID = process.env.NEXT_PUBLIC_CAPTCHA_SCENE_ID ?? ""
 
 const loginSchema = z.object({
   username: z
@@ -39,9 +43,9 @@ function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setTokens, setUser } = useAuthStore()
+  const captchaVerifyParamRef = useRef<string>("")
 
   // 处理后端 OAuth 重定向回来的 token 参数
-  // 后端 GET /api/auth/oauth/{provider}/redirect 换完 token 后 302 到此页面
   useEffect(() => {
     const accessToken = searchParams.get("accessToken")
     const refreshToken = searchParams.get("refreshToken")
@@ -54,6 +58,30 @@ function LoginContent() {
     })
   }, [searchParams, setTokens, setUser, router])
 
+  // 初始化阿里云 ESA AI 验证码
+  useEffect(() => {
+    if (!CAPTCHA_ENABLED || typeof window === "undefined") return
+    if (!window.initAliyunCaptcha) return
+
+    window.initAliyunCaptcha({
+      SceneId: CAPTCHA_SCENE_ID,
+      mode: "popup",
+      element: "#captcha-element",
+      button: "#login-btn",
+      success: (captchaVerifyParam: string) => {
+        captchaVerifyParamRef.current = captchaVerifyParam
+      },
+      fail: (_result: unknown) => {
+        // console.error("验证码验证失败", result)
+      },
+      getInstance: (instance: unknown) => {
+        window.__aliyunCaptchaInstance = instance
+      },
+      server: ["captcha-esa-open.aliyuncs.com", "captcha-esa-open-b.aliyuncs.com"],
+      slideStyle: { width: 360, height: 40 }
+    })
+  }, [])
+
   const methods = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: "", password: "" }
@@ -64,7 +92,12 @@ function LoginContent() {
   } = methods
 
   async function onSubmit(data: LoginForm) {
-    const result = await authApi.login(data.username, data.password)
+    // 验证码启用时，captchaVerifyParam 由 ESA 边缘节点验签（附在请求头中）
+    const result = await authApi.login(
+      data.username,
+      data.password,
+      CAPTCHA_ENABLED ? captchaVerifyParamRef.current : undefined
+    )
     setTokens(result.accessToken, result.refreshToken)
     const user = await authApi.me()
     setUser(user)
@@ -96,7 +129,10 @@ function LoginContent() {
           </Link>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {/* 验证码挂载点（弹出式，仅启用时渲染） */}
+        {CAPTCHA_ENABLED && <div id="captcha-element" />}
+
+        <Button id="login-btn" type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "登录中..." : "登录"}
         </Button>
       </Form>

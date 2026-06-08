@@ -20,10 +20,12 @@ export interface UserInfo {
 }
 
 export const authApi = {
-  login(account: string, password: string) {
+  login(account: string, password: string, captchaVerifyParam?: string) {
     return request<LoginResult>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username: account, password })
+      body: JSON.stringify({ username: account, password }),
+      // ESA 验签参数放请求头，由边缘节点拦截校验，不传给源站
+      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
     })
   },
 

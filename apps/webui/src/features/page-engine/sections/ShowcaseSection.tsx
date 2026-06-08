@@ -6,7 +6,10 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
+import Image from "next/image"
 import { useState } from "react"
+
+import { $url } from "@/lib/utils"
 
 import { cn } from "@/lib/utils/cn"
 
@@ -73,12 +76,13 @@ export function ShowcaseSection({ data }: SectionComponentProps) {
                   transition={{ duration: 0.3 }}
                   className="flex flex-col items-center"
                 >
-                  <div className="overflow-hidden rounded-xl border shadow-lg">
-                    {/* biome-ignore lint/performance/noImgElement: 动态用户配置图片 */}
-                    <img
-                      src={currentTab.image}
+                  <div className="relative aspect-video w-full max-w-4xl overflow-hidden rounded-xl border shadow-lg">
+                    <Image
+                      src={$url.cdn(currentTab.image)}
                       alt={currentTab.label}
-                      className="w-full max-w-4xl"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 896px"
                     />
                   </div>
                   {currentTab.description && (

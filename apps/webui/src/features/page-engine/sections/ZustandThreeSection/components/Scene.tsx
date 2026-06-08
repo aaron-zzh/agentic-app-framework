@@ -8,6 +8,7 @@ import { Suspense, useLayoutEffect, useRef, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 import type * as THREE from "three"
 import { MathUtils, SRGBColorSpace, Vector3 } from "three"
+import { $url } from "@/lib/utils"
 
 declare module "@react-three/fiber" {
   interface ThreeElements {
@@ -230,7 +231,7 @@ function FallbackScene() {
       }}
     >
       <Image
-        src="/assets/images/ogimage.jpg"
+        src={$url.cdn("/assets/images/ogimage.jpg")}
         alt="Zustand Bear"
         fill
         style={{

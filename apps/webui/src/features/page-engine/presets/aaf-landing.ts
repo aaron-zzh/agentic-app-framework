@@ -5,6 +5,7 @@
  * 内容结构：navbar → hero → features → showcase → stats → pricing → faq → cta → footer
  */
 
+import { $url } from "@/lib/utils"
 import type { PageDef } from "../types"
 
 /** AAF 产品首页配置 */
@@ -27,8 +28,7 @@ export const aafLandingPageDef: PageDef = {
       type: "hero",
       props: {
         title: "智能体应用开发框架",
-        subtitle:
-          "从对话到产品，一句话创建企业级应用。多智能体协作 · 配置驱动视图 · 工作流引擎 · 知识库管理 · 无代码开发。",
+        subtitle: "一句话搭建企业级 AI 应用——多智能体 · 工作流 · 知识库 · 无代码，开箱即用。",
         buttons: [
           { label: "快速开始", href: "/docs/getting-started", variant: "default" },
           {
@@ -37,7 +37,7 @@ export const aafLandingPageDef: PageDef = {
             variant: "outline"
           }
         ],
-        backgroundType: "gradient"
+        backgroundType: "particles"
       },
       style: { fullWidth: true, animation: "fadeIn", padding: "none" }
     },
@@ -107,17 +107,17 @@ export const aafLandingPageDef: PageDef = {
           {
             label: "结构化视图",
             description: "配置驱动的列表、表单、看板视图，支持行内编辑、批量操作、多视图切换。",
-            image: "/assets/demos/1.webp"
+            image: $url.cdn("/assets/demos/1.webp")
           },
           {
             label: "对话式交互",
             description: "自然语言驱动 UI 生成，Agent 实时协作，Tool Call 可视化。",
-            image: "/assets/demos/2.webp"
+            image: $url.cdn("/assets/demos/2.webp")
           },
           {
             label: "工作流编排",
             description: "拖拽式流程设计器，支持审批、AI 任务、条件分支、并行网关。",
-            image: "/assets/demos/3.webp"
+            image: $url.cdn("/assets/demos/3.webp")
           }
         ]
       },

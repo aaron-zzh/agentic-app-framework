@@ -18,10 +18,15 @@ const nextConfig: NextConfig = {
     return config
   },
   images: {
+    loader: "custom",
+    loaderFile: "./src/lib/utils/image-loader.ts",
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       { protocol: "https", hostname: "**.aliyuncs.com" },
-      { protocol: "https", hostname: "**.minio.io" }
+      { protocol: "https", hostname: "**.minio.io" },
+      ...(process.env.NEXT_PUBLIC_ASSETS_URL
+        ? [{ protocol: "https" as const, hostname: new URL(process.env.NEXT_PUBLIC_ASSETS_URL).hostname }]
+        : [])
     ]
   },
   experimental: {
@@ -46,7 +51,7 @@ const nextConfig: NextConfig = {
         {
           key: "Content-Security-Policy",
           value:
-            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:"
+            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: http: https: ws: wss:; media-src 'self' https:"
         }
       ]
     }

@@ -5,6 +5,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist"
 import { useCallback, useState } from "react"
 import { Document, Page, pdfjs } from "react-pdf"
 
+import { $url } from "@/lib/utils"
 import "react-pdf/dist/Page/AnnotationLayer.css"
 import "react-pdf/dist/Page/TextLayer.css"
 
@@ -21,7 +22,7 @@ const options = {
 const MAX_WIDTH = 800
 
 export default function PdfViewer() {
-  const [file, setFile] = useState<string | File>("/sample.pdf")
+  const [file, setFile] = useState<string | File>($url.cdn("/assets/docs/sample.pdf"))
   const [numPages, setNumPages] = useState<number>()
   const [containerRef, setContainerRef] = useState<HTMLElement | null>(null)
   const [containerWidth, setContainerWidth] = useState<number>()

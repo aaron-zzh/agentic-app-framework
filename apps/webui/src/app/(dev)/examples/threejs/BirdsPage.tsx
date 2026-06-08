@@ -5,6 +5,7 @@ import { OrbitControls } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
 import { Suspense, useMemo } from "react"
 
+import { $url } from "@/lib/utils"
 import Bird from "./Bird"
 
 export default function BirdsPage() {
@@ -29,7 +30,7 @@ export default function BirdsPage() {
           rotation: [0, x > 0 ? Math.PI : 0, 0] as [number, number, number],
           speed,
           factor,
-          url: `/glb/${bird}.glb`
+          url: $url.cdn(`/assets/models/glb/${bird}.glb`)
         }
       }),
     []

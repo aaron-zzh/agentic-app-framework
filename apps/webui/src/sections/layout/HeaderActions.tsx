@@ -21,6 +21,7 @@ import {
   SheetTrigger
 } from "@/components/ui/sheet"
 import { useChatterStore } from "@/lib/store/chatter-store"
+import { $url } from "@/lib/utils"
 import { NotificationDrawer } from "./notifications"
 
 /** 明暗主题快捷切换 */
@@ -111,7 +112,10 @@ export function UserAvatar({ src, displayName }: { src?: string; displayName?: s
     >
       <AnimateBorder rounded="full" borderWidth={1.5} size={40} glowSize={60} duration={8}>
         <Avatar className="!size-[36px] after:hidden">
-          <AvatarImage src={src || "/assets/avatar/avatar.png"} alt={displayName || "用户头像"} />
+          <AvatarImage
+            src={src || $url.cdn("/assets/avatar/avatar.png")}
+            alt={displayName || "用户头像"}
+          />
           <AvatarFallback>{displayName?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
         </Avatar>
       </AnimateBorder>

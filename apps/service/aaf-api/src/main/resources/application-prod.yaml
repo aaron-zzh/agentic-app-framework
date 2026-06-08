@@ -1,0 +1,23 @@
+# 演示/生产环境配置
+# 基于 dev 配置，覆盖以下差异项：
+# - 关闭 flyway clean（防止误删数据）
+# - 关闭 show-sql（减少日志噪音）
+# - 关闭 mock 认证（使用真实 JWT）
+# - 日志写文件（logback prod profile）
+# 其余配置继承自 application-dev.yaml
+
+spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - application-dev.yaml   # 继承 dev 全部配置
+  flyway:
+    clean-disabled: true       # 生产禁止 clean
+  jpa:
+    show-sql: false
+
+aaf:
+  security:
+    mock-enable: false         # 关闭 mock 认证，使用真实 JWT
+  flyway:
+    clean-on-start: false

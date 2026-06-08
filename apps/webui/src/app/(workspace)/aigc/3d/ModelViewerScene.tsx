@@ -8,13 +8,14 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ModelViewer } from "@/features/aigc/three/ModelViewer"
+import { $url } from "@/lib/utils"
 
 const MODELS = [
-  { name: "鸭子", url: "/glb/duck.glb" },
-  { name: "小狗", url: "/glb/dog.glb" },
-  { name: "鹳鸟", url: "/glb/stork.glb" },
-  { name: "鹦鹉", url: "/glb/parrot.glb" },
-  { name: "火烈鸟", url: "/glb/flamingo.glb" }
+  { name: "鸭子", url: $url.cdn("/assets/models/glb/duck.glb") },
+  { name: "小狗", url: $url.cdn("/assets/models/glb/dog.glb") },
+  { name: "鹳鸟", url: $url.cdn("/assets/models/glb/stork.glb") },
+  { name: "鹦鹉", url: $url.cdn("/assets/models/glb/parrot.glb") },
+  { name: "火烈鸟", url: $url.cdn("/assets/models/glb/flamingo.glb") }
 ]
 
 export default function ModelViewerScene() {

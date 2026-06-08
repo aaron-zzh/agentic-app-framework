@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/lib/auth/use-auth"
 import { paths } from "@/lib/constants/paths"
 import { useCreditGroups } from "@/lib/queries/use-credits"
+import { $url } from "@/lib/utils"
 import { CreditRechargeDialog } from "./CreditRechargeDialog"
 
 const GROUP_ICON: Record<string, string> = {
@@ -60,7 +61,7 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
           <AnimateBorder rounded="full" borderWidth={1.5} size={40} glowSize={60} duration={8}>
             <Avatar className="!size-[36px] after:hidden">
               <AvatarImage
-                src={src || "/assets/avatar/avatar.png"}
+                src={src || $url.cdn("/assets/avatar/avatar.png")}
                 alt={displayName || "用户头像"}
               />
               <AvatarFallback>{displayName?.charAt(0).toUpperCase() || "U"}</AvatarFallback>

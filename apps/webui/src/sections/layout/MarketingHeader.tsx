@@ -15,9 +15,9 @@ import { ThemeToggle } from "./HeaderActions"
 
 const navLinks = [
   { label: "产品", href: "/" },
-  { label: "定价", href: "/pricing" },
-  { label: "模板", href: "/templates" },
-  { label: "文档", href: "/docs" }
+  { label: "定价", href: "/#pricing" },
+  { label: "组件", href: "/components" },
+  { label: "示例", href: "/examples" }
 ]
 
 /** 营销页顶部导航 */

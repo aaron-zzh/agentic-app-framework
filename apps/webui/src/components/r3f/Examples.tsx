@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 
+import { $url } from "@/lib/utils"
+
 export const Blob = ({
   route = "/examples/threejs/demo/",
   ...props
@@ -68,7 +70,7 @@ export const Logo = ({
 }
 
 export function Duck(props: Record<string, unknown>) {
-  const { scene } = useGLTF("/glb/duck.glb")
+  const { scene } = useGLTF($url.cdn("/assets/models/glb/duck.glb"))
   useFrame((_state, delta) => {
     scene.rotation.y += delta
   })
@@ -76,6 +78,6 @@ export function Duck(props: Record<string, unknown>) {
 }
 
 export function Dog(props: Record<string, unknown>) {
-  const { scene } = useGLTF("/glb/dog.glb")
+  const { scene } = useGLTF($url.cdn("/assets/models/glb/dog.glb"))
   return <primitive object={scene} {...props} />
 }

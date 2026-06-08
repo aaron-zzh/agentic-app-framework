@@ -8,6 +8,7 @@
 
 import { Suspense } from "react"
 import { GuestGuard } from "@/lib/auth/GuestGuard"
+import { $url } from "@/lib/utils"
 import { AuthHeader } from "@/sections/layout/AuthHeader"
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -19,13 +20,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* 亮色背景 */}
       <div
         className="absolute inset-0 bg-center bg-cover opacity-55 transition-opacity duration-300 dark:opacity-0"
-        style={{ backgroundImage: "url('/assets/images/cover/cover-10.webp')" }}
+        style={{ backgroundImage: `url('${$url.cdn("/assets/images/cover/cover-10.webp")}')` }}
       />
 
       {/* 暗色背景 */}
       <div
         className="absolute inset-0 bg-center bg-cover opacity-0 transition-opacity duration-300 dark:opacity-40"
-        style={{ backgroundImage: "url('/assets/images/cover/cover-11.webp')" }}
+        style={{ backgroundImage: `url('${$url.cdn("/assets/images/cover/cover-11.webp")}')` }}
       />
 
       {/* 主题遮罩 */}

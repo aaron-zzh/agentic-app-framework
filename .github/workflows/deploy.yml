@@ -39,6 +39,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: 加载前端构建变量（.env.prod）
+        run: cat apps/webui/.env.prod >> $GITHUB_ENV
+
       - name: 构建并推送前端镜像
         uses: docker/build-push-action@v6
         with:
@@ -48,6 +51,11 @@ jobs:
           tags: ${{ env.ACR_REGISTRY }}/webui:latest
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+            NEXT_PUBLIC_ASSETS_URL=${{ env.NEXT_PUBLIC_ASSETS_URL }}
+            NEXT_PUBLIC_CAPTCHA_ENABLED=${{ env.NEXT_PUBLIC_CAPTCHA_ENABLED }}
+            NEXT_PUBLIC_CAPTCHA_REGION=${{ env.NEXT_PUBLIC_CAPTCHA_REGION }}
+            NEXT_PUBLIC_CAPTCHA_PREFIX=${{ env.NEXT_PUBLIC_CAPTCHA_PREFIX }}
+            NEXT_PUBLIC_CAPTCHA_SCENE_ID=${{ env.NEXT_PUBLIC_CAPTCHA_SCENE_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

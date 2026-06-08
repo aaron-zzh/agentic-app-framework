@@ -54,8 +54,6 @@ Thumbs.db
 desktop.ini
 
 ### Application ###
-application-prod.yml
-application-prod.yaml
 
 ### JRebel ###
 rebel.xml

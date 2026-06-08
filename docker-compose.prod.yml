@@ -22,6 +22,11 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-aaf}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
     ports: !reset []  # 由 nginx 代理，不直接暴露
     logging:
       driver: json-file

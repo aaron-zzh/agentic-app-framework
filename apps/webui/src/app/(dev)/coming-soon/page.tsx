@@ -6,6 +6,8 @@
 
 import { useEffect, useState } from "react"
 
+import { $url } from "@/lib/utils"
+
 const TARGET_DATE = new Date("2026-08-20T20:30:00")
 
 function useCountdown(target: Date) {
@@ -54,7 +56,7 @@ export default function ComingSoonPage() {
         </svg>
         {/* biome-ignore lint/performance/noImgElement: 静态插画无需 next/image 优化 */}
         <img
-          src="/assets/illustrations/illustration-rocket-large.webp"
+          src={$url.cdn("/assets/illustrations/illustration-rocket-large.webp")}
           alt=""
           className="absolute h-auto w-48"
         />
