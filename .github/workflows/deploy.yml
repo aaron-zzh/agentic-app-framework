@@ -36,8 +36,7 @@ jobs:
           context: ./apps/service
           push: true
           tags: ${{ env.ACR_REGISTRY }}/service:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          no-cache: true
 
       - name: 加载前端构建变量（.env.prod）
         run: grep -v '^\s*#' apps/webui/.env.prod | grep -v '^\s*$' >> $GITHUB_ENV

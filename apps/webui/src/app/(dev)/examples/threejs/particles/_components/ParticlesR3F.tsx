@@ -12,7 +12,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Bloom, EffectComposer } from "@react-three/postprocessing"
 import { useEffect, useMemo, useRef } from "react"
 import * as THREE from "three"
-import TWEEN from "three/examples/jsm/libs/tween.module.js"
+import TWEEN, { Tween } from "three/examples/jsm/libs/tween.module.js"
 
 const PARTICLES_TOTAL = 512
 
@@ -112,7 +112,7 @@ function Particles() {
 
   const currentShape = useRef(0)
   // 预创建 Tween 对象复用，避免每次 transition 批量 new 导致 GC 卡顿
-  const tweensRef = useRef<TWEEN.Tween<{ x: number; y: number; z: number }>[]>([])
+  const tweensRef = useRef<Tween<{ x: number; y: number; z: number }>[]>([])
 
   useEffect(() => {
     let active = true
