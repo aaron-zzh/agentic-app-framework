@@ -97,6 +97,7 @@ jobs:
           key: ${{ secrets.ECS_SSH_KEY }}
           script: |
             mkdir -p /root/aaf/ssl /root/aaf/logs/nginx /root/aaf/logs/service
+            chmod 777 /root/aaf/logs/service /root/aaf/logs/nginx
             cd /root/aaf
 
             # 登录 ACR（ECS 内网拉取更快）

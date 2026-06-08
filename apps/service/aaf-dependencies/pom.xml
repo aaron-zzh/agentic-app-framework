@@ -69,10 +69,8 @@
 		<archunit.version>1.4.2</archunit.version>
 		<instancio.version>5.4.0</instancio.version>
 		<!-- 工具 -->
-		<!-- 微信 SDK -->
-		<weixin-java.version>4.8.3-20260527.210905</weixin-java.version>
-		<!-- 支付 SDK -->
-		<weixin-java-pay.version>4.8.3-20260527.210905</weixin-java-pay.version>
+		<!-- 微信 SDK（WxJava，含公众号/小程序/支付） -->
+		<weixin-java.version>4.8.3-20260605.182943</weixin-java.version>
 		<alipay-sdk-java.version>4.39.218.ALL</alipay-sdk-java.version>
 		<!-- 内部模块 -->
 		<aaf.version>${revision}</aaf.version>
@@ -376,11 +374,11 @@
 				<version>${ip2region.version}</version>
 			</dependency>
 
-			<!-- ==================== 测试 ==================== -->
+			<!-- ==================== 微信 SDK ==================== -->
 			<dependency>
 				<groupId>com.github.binarywang</groupId>
 				<artifactId>weixin-java-pay</artifactId>
-				<version>${weixin-java-pay.version}</version>
+				<version>${weixin-java.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>com.github.binarywang</groupId>
@@ -390,6 +388,11 @@
 			<dependency>
 				<groupId>com.github.binarywang</groupId>
 				<artifactId>weixin-java-miniapp</artifactId>
+				<version>${weixin-java.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.binarywang</groupId>
+				<artifactId>weixin-java-cp</artifactId>
 				<version>${weixin-java.version}</version>
 			</dependency>
 			<dependency>

@@ -7,8 +7,9 @@
   },
   "files": {
     "includes": [
-      "apps/webui/**/*.{ts,tsx,mjs,css}",
-      "apps/webui/*.{ts,mjs}",
+      "apps/webui/src/**/*.{ts,tsx,mjs,css}",
+      "apps/webui/next.config.{ts,mjs}",
+      "apps/webui/tailwind.config.{ts,mjs}",
       "packages/**/*.{ts,tsx,mjs,css}"
     ],
     "ignoreUnknown": true
