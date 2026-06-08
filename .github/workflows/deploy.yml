@@ -40,7 +40,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 加载前端构建变量（.env.prod）
-        run: cat apps/webui/.env.prod >> $GITHUB_ENV
+        run: grep -v '^\s*#' apps/webui/.env.prod | grep -v '^\s*$' >> $GITHUB_ENV
 
       - name: 构建并推送前端镜像
         uses: docker/build-push-action@v6
