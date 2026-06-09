@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { authApi } from "@/lib/api/rest/user/auth"
 import { paths } from "@/lib/constants/paths"
+import { notify } from "@/lib/notification"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 const CAPTCHA_ENABLED = process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "true"
@@ -88,25 +89,36 @@ function LoginContent() {
   })
 
   const {
-    formState: { isSubmitting }
+    formState: { isSubmitting, errors }
   } = methods
 
   async function onSubmit(data: LoginForm) {
-    // 验证码启用时，captchaVerifyParam 由 ESA 边缘节点验签（附在请求头中）
-    const result = await authApi.login(
-      data.username,
-      data.password,
-      CAPTCHA_ENABLED ? captchaVerifyParamRef.current : undefined
-    )
-    setTokens(result.accessToken, result.refreshToken)
-    const user = await authApi.me()
-    setUser(user)
-    router.push(paths.workspace.root)
+    try {
+      // 验证码启用时，captchaVerifyParam 由 ESA 边缘节点验签（附在请求头中）
+      const result = await authApi.login(
+        data.username,
+        data.password,
+        CAPTCHA_ENABLED ? captchaVerifyParamRef.current : undefined
+      )
+      setTokens(result.accessToken, result.refreshToken)
+      const user = await authApi.me()
+      setUser(user)
+      router.push(paths.workspace.root)
+    } catch (err) {
+      // 表单内展示（可修正的输入错误）+ toast 兜底（网络超时等也能感知）
+      const msg = err instanceof Error ? err.message : "登录失败，请重试"
+      methods.setError("root", { message: msg })
+      notify.error(msg)
+    }
   }
 
   async function handleOAuth(provider: string) {
-    const url = await authApi.getOAuthUrl(provider, "")
-    window.location.href = url
+    try {
+      const url = await authApi.getOAuthUrl(provider, "")
+      window.location.href = url
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "第三方登录失败，请重试")
+    }
   }
 
   return (
@@ -116,11 +128,11 @@ function LoginContent() {
         <p className="mt-1 text-muted-foreground text-sm">输入账号或邮箱登录系统</p>
       </div>
 
-      <Form methods={methods} onSubmit={onSubmit}>
+      <Form methods={methods} onSubmit={onSubmit} className="space-y-5">
         <FieldText name="username" label="账号/邮箱" type="text" placeholder="用户名或邮箱" />
         <FieldText name="password" label="密码" type="password" placeholder="输入密码" />
 
-        <div className="flex justify-end">
+        <div className="mb-0 flex justify-end">
           <Link
             href={paths.auth.forgotPassword}
             className="text-muted-foreground text-sm hover:text-primary"
@@ -132,7 +144,14 @@ function LoginContent() {
         {/* 验证码挂载点（弹出式，仅启用时渲染） */}
         {CAPTCHA_ENABLED && <div id="captcha-element" />}
 
-        <Button id="login-btn" type="submit" className="w-full" disabled={isSubmitting}>
+        {/* 接口级错误——始终占位避免抖动，有错时淡入 */}
+        <p
+          className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${errors.root ? "opacity-100" : "opacity-0"}`}
+        >
+          {errors.root?.message ?? " "}
+        </p>
+
+        <Button id="login-btn" type="submit" className="h-11 w-full" disabled={isSubmitting}>
           {isSubmitting ? "登录中..." : "登录"}
         </Button>
       </Form>

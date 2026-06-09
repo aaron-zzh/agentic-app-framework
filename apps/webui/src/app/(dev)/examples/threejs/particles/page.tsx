@@ -6,30 +6,42 @@
 "use client"
 
 import dynamic from "next/dynamic"
-
-import { HeroParticlesBackground } from "@/features/page-engine/sections/HeroParticlesBackground"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { ParticlesCSS3D } from "./_components/ParticlesCSS3D"
 
 const ParticlesR3F = dynamic(
-  () => import("./_components/ParticlesR3F").then((m) => m.ParticlesR3F),
+  () => import("@/components/three/ParticlesR3F").then((m) => m.ParticlesR3F),
   { ssr: false }
 )
 
 export default function ParticlesComparePage() {
+  const [bloom, setBloom] = useState(false)
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <h2 className="font-bold text-xl">粒子背景方案对比</h2>
 
       <div>
-        <p className="mb-2 font-medium text-sm">CSS3DSprite（当前首页方案）</p>
+        <p className="mb-2 font-medium text-sm">CSS3DSprite</p>
         <div className="relative h-[480px] w-full overflow-hidden rounded-lg">
-          <HeroParticlesBackground />
+          <ParticlesCSS3D />
         </div>
       </div>
 
       <div>
-        <p className="mb-2 font-medium text-sm">R3F WebGL + Bloom（备选方案）</p>
+        <div className="mb-2 flex items-center gap-3">
+          <p className="font-medium text-sm">R3F WebGL（首页方案）</p>
+          <Button
+            size="sm"
+            variant={bloom ? "default" : "outline"}
+            onClick={() => setBloom((v) => !v)}
+          >
+            Bloom {bloom ? "ON" : "OFF"}
+          </Button>
+        </div>
         <div className="h-[480px] w-full overflow-hidden rounded-lg">
-          <ParticlesR3F />
+          <ParticlesR3F bloom={bloom} />
         </div>
       </div>
     </div>

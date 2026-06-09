@@ -53,28 +53,38 @@ export function BaseChart({ option, className, theme }: BaseChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.ECharts | null>(null)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: option is handled in the dedicated effect below
   useEffect(() => {
-    if (!containerRef.current) return
+    const container = containerRef.current
+    if (!container) return
 
-    const chart = echarts.init(containerRef.current, theme)
-    chartRef.current = chart
+    const initChart = () => {
+      if (container.clientWidth === 0 || container.clientHeight === 0) return
+      if (chartRef.current) return
+
+      const chart = echarts.init(container, theme)
+      chartRef.current = chart
+      if (chartRef.current) {
+        chartRef.current.setOption(option, { notMerge: true })
+      }
+    }
 
     const ro = new ResizeObserver(() => {
-      chart.resize()
+      initChart()
+      chartRef.current?.resize()
     })
-    ro.observe(containerRef.current)
+    ro.observe(container)
+    initChart()
 
     return () => {
       ro.disconnect()
-      chart.dispose()
+      chartRef.current?.dispose()
       chartRef.current = null
     }
   }, [theme])
 
   useEffect(() => {
-    if (chartRef.current) {
-      chartRef.current.setOption(option, { notMerge: true })
-    }
+    chartRef.current?.setOption(option, { notMerge: true })
   }, [option])
 
   return <div ref={containerRef} className={className ?? "h-full min-h-[200px] w-full"} />

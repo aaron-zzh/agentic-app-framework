@@ -72,15 +72,21 @@ public class StatsController {
     @Operation(summary = "漏斗分析")
     @GetMapping("/funnel")
     public Result<FunnelVO> queryFunnel(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate endDate) {
+        if (startDate == null) startDate = LocalDate.now().minusDays(7);
+        if (endDate == null) endDate = LocalDate.now();
         return Result.success(behaviorService.queryFunnel(startDate, endDate));
     }
 
     @Operation(summary = "留存分析")
     @GetMapping("/retention")
     public Result<RetentionVO> queryRetention(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate baseDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate baseDate) {
+        if (baseDate == null) baseDate = LocalDate.now();
         return Result.success(behaviorService.queryRetention(baseDate));
     }
 

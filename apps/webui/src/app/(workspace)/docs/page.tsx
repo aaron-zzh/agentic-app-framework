@@ -125,9 +125,9 @@ export default function DocsPage() {
 
   return (
     <PageContainer disablePadding>
-      <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-8rem)]">
+      <ResizablePanelGroup orientation="horizontal" className="h-[calc(100vh-8rem)]">
         {/* 左侧文档树 */}
-        <ResizablePanel defaultSize={25} minSize={15}>
+        <ResizablePanel defaultSize="25%" minSize="15%">
           <div className="flex h-full flex-col overflow-hidden border-r">
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="font-medium text-sm">文档</span>
@@ -213,7 +213,7 @@ export default function DocsPage() {
         <ResizableHandle withHandle />
 
         {/* 右侧内容区 */}
-        <ResizablePanel defaultSize={75}>
+        <ResizablePanel defaultSize="75%">
           <div className="flex h-full flex-col overflow-hidden">
             {!selectedId ? (
               <div className="flex h-full items-center justify-center text-muted-foreground">

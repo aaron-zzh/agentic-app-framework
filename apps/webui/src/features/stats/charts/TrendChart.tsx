@@ -44,7 +44,25 @@ export function TrendChart({
           type: chartType,
           data: data.map((p) => p.value),
           smooth: chartType === "line",
-          areaStyle: chartType === "line" ? { opacity: 0.15 } : undefined
+          showSymbol: false,
+          areaStyle:
+            chartType === "line"
+              ? {
+                  color: {
+                    type: "linear",
+                    x: 0,
+                    y: 0,
+                    x2: 0,
+                    y2: 1,
+                    colorStops: [
+                      { offset: 0, color: "rgba(99,102,241,0.35)" },
+                      { offset: 1, color: "rgba(99,102,241,0)" }
+                    ]
+                  }
+                }
+              : undefined,
+          lineStyle: chartType === "line" ? { color: "rgb(99,102,241)", width: 2 } : undefined,
+          itemStyle: chartType === "line" ? { color: "rgb(99,102,241)" } : undefined
         }
       ],
       dataZoom: dataZoom ? [{ type: "slider", bottom: 0 }] : undefined

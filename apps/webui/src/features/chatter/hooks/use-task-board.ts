@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { getTaskBoardSSEUrl, type SubTask } from "@/lib/api/rest/ai/task-board"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 interface TaskBoardProgress {
   total: number
@@ -46,7 +47,7 @@ export function useTaskBoard(sessionId: string | undefined): UseTaskBoardReturn 
       return
     }
 
-    const url = getTaskBoardSSEUrl(sessionId)
+    const url = getTaskBoardSSEUrl(sessionId, useAuthStore.getState().accessToken)
     const source = new EventSource(url)
 
     source.addEventListener("BOARD_SNAPSHOT", (e: MessageEvent) => {

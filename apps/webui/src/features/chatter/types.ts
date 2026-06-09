@@ -8,7 +8,7 @@
 import type { ReactNode } from "react"
 
 /** 场景预设：决定默认 target + 是否持久化 */
-export type ChatterPreset = "ai" | "kiro" | "livechat"
+export type ChatterPreset = "ai" | "kiro" | "livechat" | "guest"
 
 /** 布局模式 */
 export type ChatterLayout = "panel" | "dialog" | "drawer" | "page"
@@ -53,6 +53,11 @@ export interface ChatterProps {
   maxSize?: number
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  onLayoutChange?: (layout: ChatterLayout) => void
+  /** dialog 模式初始宽度（px），默认 380 */
+  dialogWidth?: number
+  /** dialog 模式初始高度（px），默认 560 */
+  dialogHeight?: number
   toolbar?: ReactNode
   onDrop?: (item: ChatterDropItem) => void
   sessionId?: string

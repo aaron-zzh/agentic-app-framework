@@ -188,5 +188,55 @@ const financePreset: DashboardPreset = {
   ]
 }
 
+/** 金融仪表盘预设 */
+const bankingPreset: DashboardPreset = {
+  key: "banking",
+  name: "金融仪表盘",
+  description: "账户余额、收支趋势、支出分类、近期交易",
+  refreshInterval: 300,
+  widgets: [
+    {
+      id: "bank-overview",
+      type: "finance",
+      title: "总览",
+      position: { x: 0, y: 0, w: 8, h: 7 },
+      config: { type: "finance", component: "overview" }
+    },
+    {
+      id: "bank-current-balance",
+      type: "finance",
+      title: "当前余额",
+      position: { x: 8, y: 0, w: 4, h: 4 },
+      config: { type: "finance", component: "card-carousel" }
+    },
+    {
+      id: "bank-balance-stats",
+      type: "finance",
+      title: "Balance statistics",
+      position: { x: 0, y: 7, w: 8, h: 6 },
+      config: { type: "finance", component: "multi-series-chart" }
+    },
+    {
+      id: "bank-expenses",
+      type: "finance",
+      title: "Expenses categories",
+      position: { x: 8, y: 4, w: 4, h: 6 },
+      config: { type: "finance", component: "expenses-category" }
+    },
+    {
+      id: "bank-transactions",
+      type: "finance",
+      title: "Recent transitions",
+      position: { x: 0, y: 13, w: 8, h: 5 },
+      config: { type: "finance", component: "transaction-list" }
+    }
+  ]
+}
+
 /** 所有预设模板 */
-export const dashboardPresets: DashboardPreset[] = [operationsPreset, techPreset, financePreset]
+export const dashboardPresets: DashboardPreset[] = [
+  operationsPreset,
+  techPreset,
+  financePreset,
+  bankingPreset
+]

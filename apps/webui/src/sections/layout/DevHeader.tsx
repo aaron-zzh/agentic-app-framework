@@ -21,7 +21,9 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
+import { paths } from "@/lib/constants/paths"
 import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"
 import { ThemeToggle } from "./HeaderActions"
 
@@ -67,6 +69,26 @@ const zustandPages = [
   { label: "Clock", href: "/examples/zustand/clock" },
   { label: "Counter", href: "/examples/zustand/counter" }
 ]
+
+function AuthButton() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  if (isAuthenticated) {
+    return (
+      <Link href={paths.workspace.root}>
+        <Button variant="outline" size="sm">
+          进入工作区
+        </Button>
+      </Link>
+    )
+  }
+  return (
+    <Link href={paths.auth.login}>
+      <Button variant="outline" size="sm">
+        登录
+      </Button>
+    </Link>
+  )
+}
 
 export function DevHeader() {
   const pathname = usePathname()
@@ -180,12 +202,8 @@ export function DevHeader() {
         {/* 主题切换 */}
         <ThemeToggle />
 
-        {/* 登录状态占位 */}
-        <Link href="/login">
-          <Button variant="outline" size="sm">
-            登录
-          </Button>
-        </Link>
+        {/* 登录状态 */}
+        <AuthButton />
       </div>
     </header>
   )

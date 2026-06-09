@@ -105,17 +105,20 @@ public class AuthService {
 
     /** 注册（发送验证码） */
     @Transactional
-    public void register(RegisterDTO dto) {
+    public void register(RegisterDTO dto, String sourceApp, String registerIp) {
         if (userRepository.findByEmail(dto.email()).isPresent()) {
             throw exception(AUTH_EMAIL_ALREADY_REGISTERED);
         }
-        // 创建用户（未验证状态）
         User user = new User();
         user.setEmail(dto.email());
         user.setUsername(generateUsername(dto.email()));
         user.setPassword(passwordEncoder.encode(dto.password()));
         user.setNickname(dto.nickname() != null ? dto.nickname() : dto.email().split("@")[0]);
         user.setEmailVerified(false);
+        user.setSourceApp(sourceApp);
+        user.setSourceChannel("local");
+        user.setRegisterIp(registerIp);
+        user.setRegisterLocation(resolveLocation(registerIp));
         userRepository.save(user);
         // 发送验证码
         sendVerifyCode(dto.email(), "register");
@@ -137,7 +140,8 @@ public class AuthService {
 
     /** 邮箱验证码注册（无需密码，验证通过直接登录） */
     @Transactional
-    public AuthLoginVO registerByCode(RegisterByCodeDTO dto, String deviceId) {
+    public AuthLoginVO registerByCode(
+            RegisterByCodeDTO dto, String deviceId, String sourceApp, String registerIp) {
         validateCode(dto.email(), "register", dto.code());
         if (userRepository.findByEmail(dto.email()).isPresent()) {
             throw exception(AUTH_EMAIL_ALREADY_REGISTERED);
@@ -149,6 +153,10 @@ public class AuthService {
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
         user.setNickname(dto.nickname() != null ? dto.nickname() : dto.email().split("@")[0]);
         user.setEmailVerified(true);
+        user.setSourceApp(sourceApp);
+        user.setSourceChannel("local");
+        user.setRegisterIp(registerIp);
+        user.setRegisterLocation(resolveLocation(registerIp));
         userRepository.save(user);
         grantRegistrationCredits(user.getId());
         return generateTokensWithSession(user, deviceId);
@@ -291,7 +299,8 @@ public class AuthService {
 
     /** OAuth 回调登录 */
     @Transactional
-    public AuthLoginVO oauthLogin(String provider, String code, String deviceId) {
+    public AuthLoginVO oauthLogin(
+            String provider, String code, String deviceId, String sourceApp, String registerIp) {
         OAuthClient client = findOAuthClient(provider);
         OAuthUserInfo userInfo;
         try {
@@ -301,23 +310,19 @@ public class AuthService {
             throw exception(OAUTH_EXCHANGE_FAILED);
         }
 
-        // 查找是否已绑定
         var oauthOpt =
                 userOauthRepository.findByProviderAndProviderUserId(
                         userInfo.provider(), userInfo.providerUserId());
 
         User user;
         if (oauthOpt.isPresent()) {
-            // 已绑定，直接登录
             user =
                     userRepository
                             .findById(oauthOpt.get().getUserId())
                             .orElseThrow(() -> exception(USER_NOT_FOUND));
-            // 更新 token
             updateOAuthToken(oauthOpt.get(), userInfo);
         } else {
-            // 未绑定，自动创建用户并绑定
-            user = createOAuthUser(userInfo);
+            user = createOAuthUser(userInfo, sourceApp, registerIp);
             createOAuthBinding(user.getId(), userInfo);
         }
 
@@ -368,7 +373,7 @@ public class AuthService {
                 .orElseThrow(() -> exception(OAUTH_PROVIDER_NOT_CONFIGURED));
     }
 
-    private User createOAuthUser(OAuthUserInfo userInfo) {
+    private User createOAuthUser(OAuthUserInfo userInfo, String sourceApp, String registerIp) {
         var user = new User();
         user.setUsername(userInfo.provider() + "_" + userInfo.providerUserId());
         user.setNickname(userInfo.username() != null ? userInfo.username() : user.getUsername());
@@ -376,6 +381,10 @@ public class AuthService {
         user.setPassword(
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
         user.setEmailVerified(false);
+        user.setSourceApp(sourceApp);
+        user.setSourceChannel(userInfo.provider());
+        user.setRegisterIp(registerIp);
+        user.setRegisterLocation(resolveLocation(registerIp));
         return userRepository.save(user);
     }
 
@@ -414,12 +423,12 @@ public class AuthService {
     private void handleLoginFail(User user) {
         user.recordLoginFail();
         if (user.getLoginFailCount()
-                >= systemConfigService.getInteger("user.login_fail_lock_count", 5)) {
+                >= systemConfigService.getInteger("user.login_fail_lock_count", 6)) {
             user.setLockTime(
                     LocalDateTime.now()
                             .plusMinutes(
                                     systemConfigService.getInteger(
-                                            "user.login_fail_lock_minutes", 30)));
+                                            "user.login_fail_lock_minutes", 5)));
         }
         userRepository.save(user);
     }
@@ -501,6 +510,24 @@ public class AuthService {
             creditService.earn(userId, 50, "register_gift", String.valueOf(userId));
         } catch (Exception e) {
             log.warn("注册赠积分失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
+        }
+    }
+
+    /** IP 解析为可读地址，失败返回 null，本地 IP 返回"内网" */
+    private String resolveLocation(String ip) {
+        if (ip == null || ip.isBlank()) return null;
+        if (ip.startsWith("127.")
+                || ip.startsWith("192.168.")
+                || ip.startsWith("10.")
+                || ip.equals("0:0:0:0:0:0:0:1")
+                || ip.equals("::1")) {
+            return "内网";
+        }
+        try {
+            return com.xuejiai.aaf.common.util.IpUtils.getAreaName(ip);
+        } catch (Exception e) {
+            log.warn("IP 地址解析失败: {}", ip);
+            return null;
         }
     }
 }

@@ -93,7 +93,7 @@ const plugins = [withNx, withSerwist, withNextIntl]
 
 文件：`src/features/agui/tracking/TrackingProvider.tsx`
 
-`TrackingProvider` 实现完整（事件委托、批量上报、自定义事件广播），但未在任何 layout 中使用，埋点系统处于"实现但未启用"状态。如果需要启用，应在 `WorkspaceLayoutClient` 中包裹。
+`TrackingProvider` 实现完整（事件委托、批量上报、自定义事件广播），但未在任何 layout 中使用，埋点系统处于"实现但未启用"状态。如果需要启用，应在 `WorkspaceLayout` 中包裹。
 
 **M-5 API 路由 /api/chat 是 mock 实现**
 

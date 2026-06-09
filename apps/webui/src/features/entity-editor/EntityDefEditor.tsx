@@ -112,8 +112,8 @@ export function EntityDefEditor({ value, builtin, onSave, saving }: EntityDefEdi
       </div>
 
       {/* 编辑器 + 预览 */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={50} minSize={30}>
+      <ResizablePanelGroup orientation="horizontal" className="flex-1">
+        <ResizablePanel defaultSize="50%" minSize="30%">
           <Editor
             language="json"
             theme={resolvedTheme === "dark" ? "vs-dark" : "vs"}
@@ -133,7 +133,7 @@ export function EntityDefEditor({ value, builtin, onSave, saving }: EntityDefEdi
           />
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={50} minSize={20}>
+        <ResizablePanel defaultSize="50%" minSize="20%">
           <div className="h-full overflow-auto bg-muted/30 p-4">
             <p className="mb-2 font-medium text-muted-foreground text-xs">实时预览</p>
             {previewEntity ? (

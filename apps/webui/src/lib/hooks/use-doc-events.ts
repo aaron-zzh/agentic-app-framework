@@ -5,7 +5,8 @@
  */
 import { useEffect, useRef } from "react"
 import { toast } from "sonner"
-import { buildApiUrl } from "@/lib/api/config"
+import { buildSseUrl } from "@/lib/api/config"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 export function useDocEvents(docId: number | null, onUpdate: () => void): void {
   // 用 ref 存储回调，避免 onUpdate 引用变化导致 EventSource 反复重建
@@ -14,7 +15,7 @@ export function useDocEvents(docId: number | null, onUpdate: () => void): void {
 
   useEffect(() => {
     if (!docId) return
-    const es = new EventSource(buildApiUrl(`/autodev/docs/events?docId=${docId}`))
+    const es = new EventSource(buildSseUrl(`/autodev/docs/events?docId=${docId}`, useAuthStore.getState().accessToken))
     es.onmessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data as string) as { type: string }

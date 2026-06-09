@@ -14,6 +14,7 @@ export type WidgetType =
   | "progress"
   | "shortcut"
   | "custom"
+  | "finance"
 
 /** Widget 位置（react-grid-layout 格式） */
 export interface WidgetPosition {
@@ -87,6 +88,17 @@ export interface EChartsWidgetConfig {
   period?: "hour" | "day" | "week" | "month"
 }
 
+/** Finance Widget 配置——金融类专属组件 */
+export interface FinanceWidgetConfig {
+  type: "finance"
+  component:
+    | "overview"
+    | "multi-series-chart"
+    | "expenses-category"
+    | "card-carousel"
+    | "transaction-list"
+}
+
 export type WidgetConfig =
   | CounterWidgetConfig
   | ChartWidgetConfig
@@ -95,6 +107,7 @@ export type WidgetConfig =
   | ShortcutWidgetConfig
   | CustomWidgetConfig
   | EChartsWidgetConfig
+  | FinanceWidgetConfig
 
 /** 仪表盘 Widget */
 export interface DashboardWidgetVO {
@@ -130,7 +143,7 @@ export const dashboardApi = {
   get: (id: string) => request<DashboardVO>(`/system/dashboards/${id}`),
 
   /** 获取默认仪表盘 */
-  getDefault: () => request<DashboardVO>("/system/dashboards/default"),
+  getDefault: () => request<DashboardVO | null>("/system/dashboards/default"),
 
   /** 保存仪表盘布局 */
   saveLayout: (id: string, layout: DashboardWidgetVO[]) =>

@@ -37,4 +37,10 @@ export interface RichTextEditorProps {
   uploadEndpoint?: string
   /** mention 用户搜索（chatter preset 用） */
   onMentionSearch?: (query: string) => Promise<MentionUser[]>
+  /** 允许用户拖拽调整编辑器高度 */
+  resizable?: boolean
+  /** 根容器额外 className */
+  className?: string
+  /** 撑满父容器高度（flex-1 场景） */
+  fill?: boolean
 }

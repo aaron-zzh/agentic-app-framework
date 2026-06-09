@@ -28,6 +28,8 @@ const EXAMPLES = [
   {
     category: "UI / 样式",
     items: [
+      { title: "Dashboard", href: "/examples/dashboard", desc: "仪表盘预设布局（只读·模拟数据）" },
+      { title: "Banking", href: "/examples/banking", desc: "shadcn + ECharts 复刻 banking 仪表盘" },
       { title: "Style Showcase", href: "/examples/style-showcase", desc: "组件库样式展示" },
       { title: "Tech Style", href: "/examples/tech-style", desc: "科技感 UI 风格" },
       { title: "Lottie 动画", href: "/examples/lottie", desc: "Lottie 图标与动画" },

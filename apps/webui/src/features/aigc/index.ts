@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-export { AigcLayout } from "./AigcLayout"
+export { AigcView } from "./AigcView"
 export { AssetLibrary } from "./AssetLibrary"
 // 生成历史
 export { GenerationHistory } from "./GenerationHistory"

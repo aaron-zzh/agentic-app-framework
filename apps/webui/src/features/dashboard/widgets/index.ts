@@ -6,6 +6,7 @@
 export { ChartWidget } from "./ChartWidget"
 export { CounterWidget } from "./CounterWidget"
 export { EChartsWidget } from "./EChartsWidget"
+export { FinanceWidget } from "./FinanceWidget"
 export { ListWidget } from "./ListWidget"
 export { ProgressWidget } from "./ProgressWidget"
 export { ShortcutWidget } from "./ShortcutWidget"

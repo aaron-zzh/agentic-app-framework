@@ -95,9 +95,9 @@ export default function DevDocsPage() {
   return (
     <PageContainer disablePadding>
       <DndContext>
-        <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-8rem)]">
+        <ResizablePanelGroup orientation="horizontal" className="h-[calc(100vh-8rem)]">
           {/* 左侧：文件树 + 大纲 */}
-          <ResizablePanel defaultSize={18} minSize={12} maxSize={30}>
+          <ResizablePanel defaultSize="18%" minSize="12%" maxSize="30%">
             <div className="flex h-full flex-col overflow-hidden border-r">
               <div className="flex items-center justify-between border-b px-3 py-2">
                 <span className="font-medium text-sm">开发文档</span>
@@ -148,7 +148,7 @@ export default function DevDocsPage() {
           <ResizableHandle withHandle />
 
           {/* 中间：文档内容 / 关系图谱 */}
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize="50%" minSize="30%">
             <div className="flex h-full flex-col">
               {!selectedId ? (
                 <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -204,7 +204,7 @@ export default function DevDocsPage() {
           <ResizableHandle withHandle />
 
           {/* 右侧：Kiro Agent 对话（内嵌，无遮罩） */}
-          <ResizablePanel defaultSize={32} minSize={20} maxSize={50}>
+          <ResizablePanel defaultSize="32%" minSize="20%" maxSize="50%">
             <Chatter
               preset="kiro"
               layout="panel"

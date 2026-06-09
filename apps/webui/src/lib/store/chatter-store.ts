@@ -11,13 +11,15 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { ChatterPreset } from "@/features/chatter/types"
+import type { ChatterLayout, ChatterPreset } from "@/features/chatter/types"
 import { request } from "@/lib/api/rest/entity/crud"
 
 export interface ChatterPageConfig {
   preset: ChatterPreset
   agentRole?: string
   open: boolean
+  /** 页面声明的布局模式，未声明时默认 dialog（浮动） */
+  layout?: ChatterLayout
 }
 
 interface ChatterStore {
@@ -27,11 +29,14 @@ interface ChatterStore {
   configs: Record<string, ChatterPageConfig>
   /** 全局 open 状态（dialog 模式） */
   open: boolean
+  /** 页面声明的布局覆盖（panel/dialog），null 表示使用默认 dialog */ 
+  layoutOverride: ChatterLayout | null
 
   setCurrentPage: (pageId: string) => void
   setOpen: (open: boolean) => void
   setConfig: (pageId: string, config: Partial<ChatterPageConfig>) => void
   getConfig: (pageId: string) => ChatterPageConfig
+  setLayoutOverride: (layout: ChatterLayout | null) => void
 }
 
 const DEFAULT_CONFIG: ChatterPageConfig = {
@@ -45,6 +50,7 @@ export const useChatterStore = create<ChatterStore>()(
       currentPageId: null,
       configs: {},
       open: false,
+      layoutOverride: null,
 
       setCurrentPage: (pageId) => set({ currentPageId: pageId }),
 
@@ -70,7 +76,9 @@ export const useChatterStore = create<ChatterStore>()(
 
       getConfig: (pageId) => {
         return get().configs[pageId] ?? DEFAULT_CONFIG
-      }
+      },
+
+      setLayoutOverride: (layout) => set({ layoutOverride: layout })
     }),
     {
       name: "aaf-chatter-config",

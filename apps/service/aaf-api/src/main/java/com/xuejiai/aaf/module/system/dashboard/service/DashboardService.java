@@ -40,6 +40,20 @@ public class DashboardService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
+    /** 查询用户默认仪表盘，无默认则取第一个，均无则返回 null */
+    public DashboardVO getDefault(Long ownerId) {
+        return dashboardRepository
+                .findByOwnerIdAndIsDefaultTrue(ownerId)
+                .or(
+                        () ->
+                                dashboardRepository
+                                        .findByOwnerIdOrderByIsDefaultDescCreateTimeDesc(ownerId)
+                                        .stream()
+                                        .findFirst())
+                .map(this::toVO)
+                .orElse(null);
+    }
+
     /** 查询用户所有仪表盘 */
     public List<DashboardVO> listByOwner(Long ownerId) {
         return dashboardRepository.findByOwnerIdOrderByIsDefaultDescCreateTimeDesc(ownerId).stream()

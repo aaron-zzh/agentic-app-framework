@@ -110,9 +110,9 @@ export default function EntitiesPage() {
         className="flex-1 overflow-hidden rounded-md border"
         style={{ height: "calc(100% - 4rem)" }}
       >
-        <ResizablePanelGroup direction="horizontal">
+        <ResizablePanelGroup orientation="horizontal">
           {/* 左侧列表 */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+          <ResizablePanel defaultSize="20%" minSize="15%" maxSize="35%">
             <EntityDefList
               items={entities ?? []}
               selectedId={selected?.id}
@@ -125,7 +125,7 @@ export default function EntitiesPage() {
           </ResizablePanel>
           <ResizableHandle />
           {/* 右侧编辑器 + 预览 */}
-          <ResizablePanel defaultSize={80}>
+          <ResizablePanel defaultSize="80%">
             {editorValue ? (
               <EntityDefEditor
                 value={editorValue}

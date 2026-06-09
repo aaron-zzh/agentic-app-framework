@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
@@ -76,14 +76,21 @@ interface FileGridProps {
   filterUnassigned?: boolean
 }
 
+const EMPTY_LIST: MediaAssetVO[] = []
+const QUERY_PARAMS = { page: 0, pageSize: 20 }
+
 export function FileGrid({ filterUnassigned = false }: FileGridProps) {
-  const { data, isLoading } = useMediaAssets({ page: 0, pageSize: 20 })
+  const { data, isLoading } = useMediaAssets(QUERY_PARAMS)
   const storyboardAssets = useAigcStore((s) => s.storyboardAssets)
   const setPreviewList = useAigcStore((s) => s.setPreviewList)
+  const pendingTasks = useAigcStore((s) => s.pendingTasks)
 
-  const assignedIds = new Set(storyboardAssets.map((a) => a.id))
-  const list = data?.list ?? []
-  const filtered = filterUnassigned ? list.filter((a) => !assignedIds.has(a.id)) : list
+  const assignedIds = useMemo(() => new Set(storyboardAssets.map((a) => a.id)), [storyboardAssets])
+  const list = data?.list ?? EMPTY_LIST
+  const filtered = useMemo(
+    () => (filterUnassigned ? list.filter((a) => !assignedIds.has(a.id)) : list),
+    [filterUnassigned, list, assignedIds]
+  )
 
   // 同步 previewList，支持导航箭头
   useEffect(() => {
@@ -105,6 +112,18 @@ export function FileGrid({ filterUnassigned = false }: FileGridProps) {
 
   return (
     <div className="grid grid-cols-3 gap-2 p-3">
+      {/* 生成中的占位卡片 */}
+      {pendingTasks.map((task) => (
+        <div
+          key={`pending-${task.id}`}
+          className="flex aspect-square animate-pulse flex-col items-center justify-center gap-1 rounded-lg border border-border/50 bg-muted/30"
+        >
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="line-clamp-1 px-1 text-center text-[10px] text-muted-foreground">
+            {task.prompt.slice(0, 12)}…
+          </span>
+        </div>
+      ))}
       {filtered.map((asset) => (
         <DraggableAssetCard key={asset.id} asset={asset} />
       ))}

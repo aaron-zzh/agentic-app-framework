@@ -22,7 +22,7 @@
 "use client"
 
 import { DndContext, type DragEndEvent } from "@dnd-kit/core"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { ChatterLayout } from "./ChatterLayout"
 import { ChatterPanel } from "./ChatterPanel"
@@ -42,6 +42,8 @@ function presetToTarget(props: ChatterProps): ChatterTarget {
       return { type: "kiro", agentRole: props.agentRole }
     case "livechat":
       return { type: "user", userId: props.targetUserId }
+    case "guest":
+      return { type: "ai", agentRole: "customer-service" }
     default:
       return { type: "ai", agentRole: props.agentRole }
   }
@@ -57,20 +59,29 @@ function resolveLayout(
   isAuthenticated: boolean
 ): LayoutType {
   if (isAuthenticated) return layout
-  if (preset === "livechat") return layout
+  if (preset === "livechat" || preset === "guest") return layout
   if (layout === "panel" || layout === "page") return "dialog"
   return layout
 }
 
 export function Chatter(props: ChatterProps) {
-  const { preset, layout, persist, open, onOpenChange, toolbar, onDrop } = props
+  const { preset, layout, persist, open, onOpenChange, onLayoutChange, toolbar, onDrop } = props
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const effectiveLayout = resolveLayout(layout, preset, isAuthenticated)
 
+  const [mounted, setMounted] = useState(false)
   const [target, setTarget] = useState<ChatterTarget>(() => presetToTarget(props))
   const [isOpen, setIsOpen] = useState(open ?? (effectiveLayout === "dialog" && !isAuthenticated))
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // 外部受控 open prop 变化时同步内部状态
+  useEffect(() => {
+    if (open !== undefined) setIsOpen(open)
+  }, [open])
   const handleOpenChange = useCallback(
     (v: boolean) => {
       setIsOpen(v)
@@ -99,6 +110,9 @@ export function Chatter(props: ChatterProps) {
     setAttachments([])
   }, [])
 
+  // 避免 SSR 时 isAuthenticated=false 导致 panel 降级为 dialog 产生闪烁
+  if (!mounted && (layout === "panel" || layout === "page")) return null
+
   return (
     <DndContext onDragEnd={handleDragEnd}>
       <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId}>
@@ -106,16 +120,28 @@ export function Chatter(props: ChatterProps) {
           layout={effectiveLayout}
           open={open ?? isOpen}
           onOpenChange={handleOpenChange}
+          onLayoutChange={onLayoutChange}
+          dialogWidth={props.dialogWidth}
+          dialogHeight={props.dialogHeight}
+          title={
+            preset === "guest"
+              ? "AI 客服"
+              : preset === "livechat"
+                ? "客服"
+                : "AI 助理"
+          }
         >
           <ChatterPanel
             toolbar={
-              <ChatterToolbar
-                preset={preset}
-                target={target}
-                onTargetChange={setTarget}
-                onNewSession={handleNewSession}
-                toolbar={toolbar}
-              />
+              preset === "livechat" || preset === "guest" ? null : (
+                <ChatterToolbar
+                  preset={preset}
+                  target={target}
+                  onTargetChange={setTarget}
+                  onNewSession={handleNewSession}
+                  toolbar={toolbar}
+                />
+              )
             }
             attachments={attachments}
             onAttachmentRemove={handleAttachmentRemove}

@@ -6,14 +6,12 @@ import { cn } from "@/lib/utils/index"
 
 function ResizablePanelGroup({
   className,
-  direction,
   ...props
-}: ResizablePrimitive.GroupProps & { direction?: "horizontal" | "vertical" }) {
+}: ResizablePrimitive.GroupProps) {
   return (
     <ResizablePrimitive.Group
       data-slot="resizable-panel-group"
       className={cn("flex h-full w-full aria-[orientation=vertical]:flex-col", className)}
-      orientation={direction}
       {...props}
     />
   )

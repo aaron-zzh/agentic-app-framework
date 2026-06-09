@@ -19,10 +19,10 @@ export interface PresetConfig {
 
 export const presets: Record<PresetName, PresetConfig> = {
   minimal: {
-    toolbarFeatures: ["format"],
+    toolbarFeatures: [],
     image: false,
     mention: false,
-    showToolbar: true,
+    showToolbar: false,
     draggable: false,
     slashMenu: false,
     floatingToolbar: false

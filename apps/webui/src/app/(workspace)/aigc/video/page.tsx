@@ -18,7 +18,7 @@ export default function AigcVideoPage() {
   const [mode, setMode] = useState<"generate" | "edit">("generate")
 
   return (
-    <div className="flex h-[calc(100vh-var(--layout-header-height))] flex-col">
+    <div className="flex h-full flex-col">
       {/* 模式切换 Tab */}
       <div className="flex items-center border-border/50 border-b px-4 py-2">
         <Tabs value={mode} onValueChange={(v) => setMode(v as "generate" | "edit")}>
@@ -34,15 +34,15 @@ export default function AigcVideoPage() {
       </div>
 
       {/* 主内容区 */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        {/* 左栏：故事板 + 时间线 */}
-        <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-          <ResizablePanelGroup direction="vertical">
-            <ResizablePanel defaultSize={50}>
+      <ResizablePanelGroup orientation="horizontal" className="flex-1">
+        {/* 左栏：元素区 + 时间线 */}
+        <ResizablePanel defaultSize="20%" minSize="15%" maxSize="30%">
+          <ResizablePanelGroup orientation="vertical">
+            <ResizablePanel defaultSize="50%">
               <VideoStoryboard />
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={50}>
+            <ResizablePanel defaultSize="50%">
               <VideoTimeline />
             </ResizablePanel>
           </ResizablePanelGroup>
@@ -51,7 +51,7 @@ export default function AigcVideoPage() {
         <ResizableHandle withHandle />
 
         {/* 中栏：视频预览 */}
-        <ResizablePanel defaultSize={55} minSize={40}>
+        <ResizablePanel defaultSize="55%" minSize="40%">
           <div className="flex h-full flex-col items-center justify-center p-6">
             <div className="w-full max-w-3xl">
               <VideoPlayer />
@@ -62,7 +62,7 @@ export default function AigcVideoPage() {
         <ResizableHandle withHandle />
 
         {/* 右栏：根据模式切换 */}
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+        <ResizablePanel defaultSize="25%" minSize="20%" maxSize="35%">
           {mode === "generate" ? <VideoGenerationChat /> : <VideoEditPanel />}
         </ResizablePanel>
       </ResizablePanelGroup>

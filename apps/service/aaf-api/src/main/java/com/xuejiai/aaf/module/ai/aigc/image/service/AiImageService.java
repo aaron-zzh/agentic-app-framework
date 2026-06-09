@@ -52,6 +52,10 @@ public class AiImageService {
     private final CapabilityRouter capabilityRouter;
     private final ImageServiceFactory imageServiceFactory;
 
+    /** AIGC 统一任务服务（可选注入，避免循环依赖） */
+    @Autowired(required = false)
+    private com.xuejiai.aaf.module.ai.aigc.task.AigcTaskService aigcTaskService;
+
     // ========== Midjourney ==========
 
     /** 提交 imagine 任务 */
@@ -172,6 +176,15 @@ public class AiImageService {
             image.setButtons(buttonsJson);
         }
         imageRepository.save(image);
+
+        // 通知 AIGC 统一任务服务（OSS 上传 + 素材库 + SSE）
+        if (aigcTaskService != null && taskId != null) {
+            if ("SUCCESS".equals(status)) {
+                Thread.startVirtualThread(() -> aigcTaskService.completeTask(taskId, imageUrl));
+            } else if ("FAILURE".equals(status)) {
+                Thread.startVirtualThread(() -> aigcTaskService.failTask(taskId, failReason));
+            }
+        }
     }
 
     // ========== 通义万象 wanx ==========
@@ -236,12 +249,26 @@ public class AiImageService {
                         image.setPicUrl(result.imageUrl());
                         image.setFinishTime(LocalDateTime.now());
                         imageRepository.save(image);
+                        // 通知 AIGC 统一任务服务完成（OSS 上传 + 素材库 + SSE）
+                        if (aigcTaskService != null && image.getTaskId() != null) {
+                            Thread.startVirtualThread(
+                                    () ->
+                                            aigcTaskService.completeTask(
+                                                    image.getTaskId(), result.imageUrl()));
+                        }
                     }
                     case "FAILED" -> {
                         image.setStatus(STATUS_FAIL);
                         image.setErrorMessage(result.errorMsg());
                         image.setFinishTime(LocalDateTime.now());
                         imageRepository.save(image);
+                        // 通知 AIGC 统一任务服务失败
+                        if (aigcTaskService != null && image.getTaskId() != null) {
+                            Thread.startVirtualThread(
+                                    () ->
+                                            aigcTaskService.failTask(
+                                                    image.getTaskId(), result.errorMsg()));
+                        }
                     }
                     default -> {
                         /* PENDING/RUNNING，继续等待 */

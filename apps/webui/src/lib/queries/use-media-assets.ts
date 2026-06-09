@@ -21,7 +21,7 @@ const KEYS = {
 export function useMediaAssets(params: ListParams = {}) {
   return useQuery({
     queryKey: KEYS.list(params),
-    queryFn: () => mediaAssetApi.legacyList(params)
+    queryFn: () => mediaAssetApi.list(params)
   })
 }
 
@@ -29,7 +29,7 @@ export function useMediaAssets(params: ListParams = {}) {
 export function useMediaAssetSearch(keyword: string) {
   return useQuery({
     queryKey: KEYS.search(keyword),
-    queryFn: () => mediaAssetApi.legacySearch(keyword),
+    queryFn: () => mediaAssetApi.search(keyword),
     enabled: keyword.length > 0
   })
 }

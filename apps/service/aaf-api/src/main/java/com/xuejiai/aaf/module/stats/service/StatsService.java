@@ -36,7 +36,10 @@ public class StatsService {
     public TrendSeriesVO queryTrend(TrendQueryDTO query) {
         var points =
                 queryTrendPoints(
-                        query.metric(), query.period(), query.startDate(), query.endDate());
+                        query.metric(),
+                        query.period(),
+                        query.effectiveStartDate(),
+                        query.effectiveEndDate());
         var categories = points.stream().map(TrendPointVO::time).toList();
         var data = points.stream().map(TrendPointVO::value).toList();
 
@@ -66,12 +69,15 @@ public class StatsService {
     public TrendSeriesVO queryTrendWithComparison(TrendQueryDTO query) {
         var current =
                 queryTrendPoints(
-                        query.metric(), query.period(), query.startDate(), query.endDate());
+                        query.metric(),
+                        query.period(),
+                        query.effectiveStartDate(),
+                        query.effectiveEndDate());
 
         // 计算环比区间（同等长度的前一段）
-        long days = query.endDate().toEpochDay() - query.startDate().toEpochDay();
-        var prevStart = query.startDate().minusDays(days + 1);
-        var prevEnd = query.startDate().minusDays(1);
+        long days = query.effectiveEndDate().toEpochDay() - query.effectiveStartDate().toEpochDay();
+        var prevStart = query.effectiveStartDate().minusDays(days + 1);
+        var prevEnd = query.effectiveStartDate().minusDays(1);
         var previous = queryTrendPoints(query.metric(), query.period(), prevStart, prevEnd);
 
         var categories = current.stream().map(TrendPointVO::time).toList();

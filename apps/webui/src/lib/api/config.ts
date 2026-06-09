@@ -37,3 +37,16 @@ export function buildWsUrl(path: string): string {
   const wsOrigin = API_ORIGIN.replace(/^http/, "ws")
   return `${wsOrigin}${path.startsWith("/") ? path : `/${path}`}`
 }
+
+/**
+ * 构建 SSE 地址并附加 token query param。
+ *
+ * 浏览器原生 EventSource 不支持自定义 header，通过 ?token= 传递 JWT，
+ * 后端 SseTokenFilter 负责读取并注入 Authorization header。
+ */
+export function buildSseUrl(path: string, token: string | null): string {
+  const base = buildApiUrl(path)
+  if (!token) return base
+  const sep = base.includes("?") ? "&" : "?"
+  return `${base}${sep}token=${encodeURIComponent(token)}`
+}

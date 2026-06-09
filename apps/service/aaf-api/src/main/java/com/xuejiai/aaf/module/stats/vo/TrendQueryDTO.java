@@ -12,5 +12,21 @@ import jakarta.validation.constraints.NotNull;
 public record TrendQueryDTO(
         @NotNull @Schema(description = "指标名：dau/mau/messages/tokens/revenue") String metric,
         @NotNull @Schema(description = "时间粒度") StatPeriodEnum period,
-        @NotNull @Schema(description = "开始日期") LocalDate startDate,
-        @NotNull @Schema(description = "结束日期") LocalDate endDate) {}
+        @Schema(description = "开始日期（不传时按粒度自动推算）") LocalDate startDate,
+        @Schema(description = "结束日期（不传时为今天）") LocalDate endDate) {
+
+    /** 返回有效的开始日期：未传时按粒度推算默认范围。 */
+    public LocalDate effectiveStartDate() {
+        if (startDate != null) return startDate;
+        return switch (period) {
+            case HOUR -> java.time.LocalDate.now();
+            case DAY -> java.time.LocalDate.now().minusDays(30);
+            default -> java.time.LocalDate.now().minusDays(7);
+        };
+    }
+
+    /** 返回有效的结束日期：未传时为今天。 */
+    public LocalDate effectiveEndDate() {
+        return endDate != null ? endDate : java.time.LocalDate.now();
+    }
+}

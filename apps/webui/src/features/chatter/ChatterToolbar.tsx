@@ -7,8 +7,9 @@
 
 "use client"
 
-import { Bot, Plus, Sparkles, User } from "lucide-react"
+import { Bot, Maximize2, PanelRightClose, Plus, Sparkles, User, X } from "lucide-react"
 import type { ReactNode } from "react"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useAssistants } from "@/lib/queries/use-assistants"
+import { useChatterStore } from "@/lib/store/chatter-store"
 import type { ChatterPreset, ChatterTarget } from "./types"
 
 interface ChatterToolbarProps {
@@ -45,6 +47,8 @@ function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
       return ["kiro", "ai"]
     case "livechat":
       return ["ai", "kiro", "user"]
+    default:
+      return []
   }
 }
 
@@ -74,6 +78,12 @@ export function ChatterToolbar({
   const targets = getAvailableTargets(preset)
   const showNewSession = preset === "ai" || preset === "livechat"
   const showRoleSelector = target.type === "ai"
+
+  const layoutOverride = useChatterStore((s) => s.layoutOverride)
+  const setLayoutOverride = useChatterStore((s) => s.setLayoutOverride)
+  const setOpen = useChatterStore((s) => s.setOpen)
+  const isPanelMode = layoutOverride === "panel"
+  const router = useRouter()
 
   const { data: assistants } = useAssistants()
   const roles =
@@ -138,6 +148,43 @@ export function ChatterToolbar({
       )}
 
       {toolbar && <div className="ml-auto">{toolbar}</div>}
+
+      {/* panel/page 模式才显示操作区（dialog 模式的按钮在标题栏） */}
+      {(isPanelMode || layoutOverride === "page") && (
+        <div className={`flex items-center gap-0.5 ${toolbar ? "" : "ml-auto"}`}>
+          {layoutOverride === "page" ? (
+            <Button variant="ghost" size="icon-sm" aria-label="返回" onClick={() => router.back()}>
+              <X className="size-3.5" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="全屏对话"
+              onClick={() => {
+                setOpen(false)
+                router.push("/ai/chat")
+              }}
+            >
+              <Maximize2 className="size-3.5" />
+            </Button>
+          )}
+
+          {isPanelMode && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="切换为浮动"
+              onClick={() => {
+                setLayoutOverride(null)
+                setOpen(false)
+              }}
+            >
+              <PanelRightClose className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

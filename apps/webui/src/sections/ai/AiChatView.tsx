@@ -4,7 +4,7 @@
  * 布局：左侧会话列表 + 右侧 Chatter panel（assistant-ui）
  * 使用 ResizablePanelGroup 支持拖拽调整分栏宽度
  *
- * 注意：此页面使用 layout="panel"，WorkspaceLayoutClient 的
+ * 注意：此页面使用 layout="panel"，WorkspaceLayout 的
  * 右侧 Copilot 面板会被此页面自己的 Chatter 替代，无需额外开关。
  *
  * @author AaronZZH & Kiro
@@ -13,11 +13,10 @@
 "use client"
 
 import { MessageSquare, Plus } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { Chatter } from "@/features/chatter"
-import { useChatterStore } from "@/lib/store/chatter-store"
+import { Chatter, useChatterLayoutPreference } from "@/features/chatter"
 import { cn } from "@/lib/utils/cn"
 
 interface Session {
@@ -41,18 +40,14 @@ const MOCK_SESSIONS: Session[] = [
 
 export function AiChatView() {
   const [activeSessionId, setActiveSessionId] = useState<string>(MOCK_SESSIONS[0].id)
-  const setOpen = useChatterStore((s) => s.setOpen)
-
-  // 进入全屏对话页时，关闭 workspace 右侧 Copilot 面板，避免双 Chatter
-  useEffect(() => {
-    setOpen(false)
-  }, [setOpen])
+  // page 模式：WorkspaceLayout 不渲染任何 Chatter UI，此页面完全自管
+  useChatterLayoutPreference("page")
 
   return (
     <div className="flex h-full overflow-hidden rounded-lg border bg-background shadow-sm">
-      <ResizablePanelGroup direction="horizontal" className="h-full">
+      <ResizablePanelGroup orientation="horizontal" className="h-full">
         {/* 左侧：会话列表 */}
-        <ResizablePanel defaultSize={22} minSize={16} maxSize={35} className="flex flex-col">
+        <ResizablePanel defaultSize="22%" minSize="16%" maxSize="35%" className="flex flex-col">
           {/* 列表头 */}
           <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
             <span className="font-semibold text-sm">AI 对话</span>
@@ -89,7 +84,7 @@ export function AiChatView() {
         <ResizableHandle withHandle />
 
         {/* 右侧：Chatter 对话面板 */}
-        <ResizablePanel defaultSize={78} minSize={50}>
+        <ResizablePanel defaultSize="78%" minSize="50%">
           <Chatter preset="ai" layout="panel" sessionId={activeSessionId} />
         </ResizablePanel>
       </ResizablePanelGroup>

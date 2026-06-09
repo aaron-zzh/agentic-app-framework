@@ -18,10 +18,7 @@ import {
 } from "./HeroPostprocessingBackground"
 
 const ParticlesR3F = dynamic(
-  () =>
-    import("@/app/(dev)/examples/threejs/particles/_components/ParticlesR3F").then(
-      (m) => m.ParticlesR3F
-    ),
+  () => import("@/components/three/ParticlesR3F").then((m) => m.ParticlesR3F),
   { ssr: false }
 )
 

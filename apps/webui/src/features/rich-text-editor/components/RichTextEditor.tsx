@@ -55,7 +55,10 @@ export function RichTextEditor({
   preset: presetName = "richField",
   mode = "html",
   uploadEndpoint,
-  onMentionSearch
+  onMentionSearch,
+  resizable = false,
+  fill = false,
+  className
 }: RichTextEditorProps) {
   const initialConfig = {
     namespace: `rte-${presetName}`,
@@ -68,7 +71,7 @@ export function RichTextEditor({
   const isInitialized = useRef(false)
 
   return (
-    <div className="space-y-1">
+    <div className={cn("space-y-1", resizable && "resize-y overflow-hidden", fill && "h-full", className)}>
       <LexicalComposer initialConfig={initialConfig}>
         <EditorInner
           preset={presetName}
@@ -78,6 +81,7 @@ export function RichTextEditor({
           disabled={disabled}
           minHeight={minHeight}
           mode={mode}
+          fill={fill}
           uploadEndpoint={uploadEndpoint}
           onMentionSearch={onMentionSearch}
           isInitialized={isInitialized}
@@ -99,6 +103,7 @@ function EditorInner({
   mode = "html",
   uploadEndpoint,
   onMentionSearch,
+  fill,
   isInitialized
 }: RichTextEditorProps & {
   preset: PresetName
@@ -125,23 +130,24 @@ function EditorInner({
   }, [editor, disabled])
 
   return (
-    <div className={cn("rounded-md border", disabled && "opacity-60")}>
+    <div className={cn("rounded-md border", disabled && "opacity-60", fill && "flex h-full flex-col")}>
       {/* 工具栏 */}
       {preset.showToolbar && !disabled && (
         <ToolbarPlugin features={preset.toolbarFeatures} uploadEndpoint={uploadEndpoint} />
       )}
 
       {/* 编辑区 */}
-      <div className="relative" ref={(el) => setAnchorElem(el)}>
+      <div className={cn("relative", fill && "flex-1")} ref={(el) => setAnchorElem(el)}>
         <RichTextPlugin
           contentEditable={
             <ContentEditable
               className={cn(
                 "w-full rounded-b-md py-2 text-sm outline-none",
                 !preset.showToolbar && "rounded-md",
-                preset.draggable && !disabled ? "px-7" : "px-3"
+                preset.draggable && !disabled ? "px-7" : "px-3",
+                fill && "h-full"
               )}
-              style={{ minHeight }}
+              style={fill ? undefined : { minHeight }}
               aria-disabled={disabled}
             />
           }

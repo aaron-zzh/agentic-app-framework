@@ -5,7 +5,7 @@
 
 "use client"
 
-import { GripVertical, Pencil, Save, X } from "lucide-react"
+import { GripVertical, LayoutDashboard, Pencil, Save, X } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
 import { type Layout, Responsive, WidthProvider } from "react-grid-layout"
 import { Button } from "@/components/ui/button"
@@ -13,10 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { DashboardWidgetVO, WidgetType } from "@/lib/api/rest/dashboard/dashboard"
 import { useDashboard, useSaveDashboardLayout } from "@/lib/queries/use-dashboard"
 import { AddWidgetDialog } from "./AddWidgetDialog"
+import { ApplyPresetDialog } from "./ApplyPresetDialog"
+import { dashboardPresets } from "./presets"
 import {
   ChartWidget,
   CounterWidget,
   EChartsWidget,
+  FinanceWidget,
   ListWidget,
   ProgressWidget,
   ShortcutWidget
@@ -72,6 +75,8 @@ function renderWidget(widget: DashboardWidgetVO, refreshInterval?: number) {
       )
     case "shortcut":
       return <ShortcutWidget title={title} config={config} />
+    case "finance":
+      return <FinanceWidget title={title} config={config} />
     default:
       return (
         <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
@@ -132,8 +137,10 @@ export function DashboardView() {
   const [editing, setEditing] = useState(false)
   const [localWidgets, setLocalWidgets] = useState<DashboardWidgetVO[] | null>(null)
 
-  /** 当前展示的 widgets（编辑模式用本地状态，否则用服务端数据） */
-  const widgets = localWidgets ?? dashboard?.layout ?? []
+  /** 当前展示的 widgets（编辑模式用本地状态，否则用服务端数据；服务端无数据时用默认预设兜底） */
+  const defaultWidgets = (dashboardPresets.find((p) => p.key === "banking") ?? dashboardPresets[0])
+    .widgets
+  const widgets = localWidgets ?? (dashboard?.layout?.length ? dashboard.layout : defaultWidgets)
 
   /** react-grid-layout 的 layouts 数据 */
   const layouts = useMemo(() => {
@@ -193,6 +200,12 @@ export function DashboardView() {
     setLocalWidgets((prev) => [...(prev ?? []), newWidget])
   }, [])
 
+  /** 应用预设 */
+  const handleApplyPreset = useCallback((presetKey: string) => {
+    const preset = dashboardPresets.find((p) => p.key === presetKey)
+    if (preset) setLocalWidgets(preset.widgets)
+  }, [])
+
   /** 删除 Widget */
   const handleRemoveWidget = useCallback((widgetId: string) => {
     setLocalWidgets((prev) => (prev ?? []).filter((w) => w.id !== widgetId))
@@ -200,25 +213,35 @@ export function DashboardView() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={`dash-sk-${i}`} className="h-40" />
-          ))}
+      <div className="p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+        {/* 模拟两行大图表 + 右侧小卡片的布局 */}
+        <div className="grid grid-cols-12 gap-4">
+          <Skeleton className="col-span-8 h-56 rounded-xl" />
+          <Skeleton className="col-span-4 h-56 rounded-xl" />
+          <Skeleton className="col-span-6 h-48 rounded-xl" />
+          <Skeleton className="col-span-3 h-48 rounded-xl" />
+          <Skeleton className="col-span-3 h-48 rounded-xl" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-auto p-6">
+    <div className="flex flex-1 flex-col overflow-auto p-6 pb-10">
       {/* 顶部工具栏 */}
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-bold text-xl">📊 工作台</h1>
+        <h1 className="flex items-center gap-2 font-bold text-xl">
+          <LayoutDashboard className="size-5" />
+          工作台
+        </h1>
         <div className="flex items-center gap-2">
           {editing ? (
             <>
+              <ApplyPresetDialog onApply={handleApplyPreset} />
               <AddWidgetDialog onAdd={handleAddWidget} />
               <Button variant="ghost" size="sm" onClick={cancelEditing}>
                 <X className="mr-1 h-4 w-4" />

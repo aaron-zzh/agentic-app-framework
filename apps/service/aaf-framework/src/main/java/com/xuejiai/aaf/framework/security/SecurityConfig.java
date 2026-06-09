@@ -59,7 +59,8 @@ public class SecurityConfig {
         "/swagger-ui/**",
         "/swagger-ui.html",
         "/v3/api-docs/**",
-        "/error"
+        "/error",
+        "/ws/**"
     };
 
     @Bean
@@ -155,6 +156,7 @@ public class SecurityConfig {
             ApiKeyAuthFilter apiKeyAuthFilter,
             ApiKeyScopeFilter apiKeyScopeFilter,
             AssistantAuthFilter assistantAuthFilter,
+            SseTokenFilter sseTokenFilter,
             Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
@@ -173,6 +175,10 @@ public class SecurityConfig {
                                         jwt ->
                                                 jwt.jwtAuthenticationConverter(
                                                         jwtAuthenticationConverter)))
+                .addFilterBefore(
+                        sseTokenFilter,
+                        org.springframework.security.web.authentication
+                                .UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(
                         apiKeyAuthFilter,
                         org.springframework.security.web.authentication

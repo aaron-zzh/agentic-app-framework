@@ -109,15 +109,15 @@ function WelcomeScreen() {
   }, [isAuthenticated])
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+    <div className="flex flex-1 flex-col justify-center gap-3 px-4 pt-16">
       <p className="text-muted-foreground text-sm">有什么可以帮你？</p>
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex flex-col gap-2">
         {displayed.map((s) => (
           <ThreadPrimitive.Suggestion
             key={s.prompt}
             prompt={s.prompt}
             autoSend
-            className="cursor-pointer rounded-full border px-3 py-1.5 text-sm hover:bg-muted"
+            className="w-fit cursor-pointer rounded-full border px-4 py-1.5 text-sm hover:bg-muted"
           >
             {s.prompt}
           </ThreadPrimitive.Suggestion>

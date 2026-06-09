@@ -10,6 +10,7 @@ import { Brand } from "@/components/brand/Brand"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/constants/paths"
 import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"
 import { ThemeToggle } from "./HeaderActions"
 
@@ -23,6 +24,7 @@ const navLinks = [
 /** 营销页顶部导航 */
 export function MarketingHeader() {
   const isOffset = useScrollOffset()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   return (
     <header
@@ -48,12 +50,20 @@ export function MarketingHeader() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={paths.auth.login}>登录</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link href={paths.auth.register}>免费开始</Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button size="sm" asChild>
+              <Link href={paths.workspace.root}>进入工作区</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={paths.auth.login}>登录</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href={paths.auth.register}>免费开始</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -63,10 +63,10 @@ export function StoryboardPanel() {
   const { isOver, setNodeRef } = useDroppable({ id: "storyboard-drop-zone" })
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden">
       {/* 标题栏 */}
       <div className="flex items-center justify-between border-border/50 border-b px-4 py-3">
-        <h2 className="font-semibold text-foreground text-sm">故事板</h2>
+        <h2 className="font-semibold text-foreground text-sm">元素区</h2>
         <Button variant="ghost" size="sm" className="size-7 p-0">
           <MoreHorizontal className="size-4" />
         </Button>

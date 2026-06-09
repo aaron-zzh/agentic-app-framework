@@ -1520,3 +1520,25 @@ CREATE TABLE ai_mcp_server (
 COMMENT ON TABLE  ai_mcp_server             IS 'MCP Server 配置——存储外部 MCP 工具服务器连接信息，一个 Server 对应 ai_tool_catalog 中多条 MCP 工具';
 COMMENT ON COLUMN ai_mcp_server.transport   IS '传输协议：HTTP / SSE / STDIO';
 COMMENT ON COLUMN ai_mcp_server.status      IS '连接状态：connected / disconnected / error';
+
+
+-- AIGC 统一任务表
+CREATE TABLE aigc_task (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT       NOT NULL,
+    type        VARCHAR(20)  NOT NULL,
+    status      VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    provider    VARCHAR(50),
+    model       VARCHAR(100),
+    prompt      TEXT,
+    params      JSONB,
+    task_id     VARCHAR(200),
+    result_url  TEXT,
+    oss_url     TEXT,
+    error_msg   TEXT,
+    create_time TIMESTAMP DEFAULT NOW(),
+    update_time TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_aigc_task_user_id ON aigc_task(user_id);
+CREATE INDEX idx_aigc_task_status  ON aigc_task(status);

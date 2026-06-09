@@ -56,8 +56,11 @@ public class AuthController {
 
     @Operation(summary = "邮箱注册")
     @PostMapping("/register")
-    public Result<Void> register(@Valid @RequestBody RegisterDTO dto) {
-        authService.register(dto);
+    public Result<Void> register(
+            @Valid @RequestBody RegisterDTO dto,
+            @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
+            jakarta.servlet.http.HttpServletRequest request) {
+        authService.register(dto, sourceApp, getClientIp(request));
         return Result.success();
     }
 
@@ -65,8 +68,11 @@ public class AuthController {
     @PostMapping("/register-by-code")
     public Result<AuthLoginVO> registerByCode(
             @Valid @RequestBody RegisterByCodeDTO dto,
-            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId) {
-        return Result.success(authService.registerByCode(dto, deviceId));
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
+            jakarta.servlet.http.HttpServletRequest request) {
+        return Result.success(
+                authService.registerByCode(dto, deviceId, sourceApp, getClientIp(request)));
     }
 
     @Operation(summary = "验证邮箱")
@@ -143,8 +149,10 @@ public class AuthController {
     public ResponseEntity<Void> oauthRedirect(
             @PathVariable String provider,
             @RequestParam String code,
-            @RequestParam(defaultValue = "web") String deviceId) {
-        AuthLoginVO vo = authService.oauthLogin(provider, code, deviceId);
+            @RequestParam(defaultValue = "web") String deviceId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        AuthLoginVO vo =
+                authService.oauthLogin(provider, code, deviceId, "web", getClientIp(request));
         // 重定向到前端登录页，携带 token 参数
         String redirectUrl =
                 frontendUrl
@@ -158,9 +166,14 @@ public class AuthController {
     @Operation(summary = "OAuth 回调登录")
     @PostMapping("/oauth/{provider}/callback")
     public Result<AuthLoginVO> oauthCallback(
-            @PathVariable String provider, @Valid @RequestBody OAuthCallbackDTO dto) {
+            @PathVariable String provider,
+            @Valid @RequestBody OAuthCallbackDTO dto,
+            @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
+            jakarta.servlet.http.HttpServletRequest request) {
         String deviceId = dto.deviceId() != null ? dto.deviceId() : "web";
-        return Result.success(authService.oauthLogin(provider, dto.code(), deviceId));
+        return Result.success(
+                authService.oauthLogin(
+                        provider, dto.code(), deviceId, sourceApp, getClientIp(request)));
     }
 
     @Operation(summary = "绑定第三方账号")
@@ -185,4 +198,15 @@ public class AuthController {
 
     /** 登出请求体 */
     public record LogoutRequest(String accessToken, String refreshToken) {}
+
+    /** 获取客户端真实 IP，优先读 X-Forwarded-For（反向代理场景） */
+    private String getClientIp(jakarta.servlet.http.HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        String xri = request.getHeader("X-Real-IP");
+        if (xri != null && !xri.isBlank()) return xri.trim();
+        return request.getRemoteAddr();
+    }
 }

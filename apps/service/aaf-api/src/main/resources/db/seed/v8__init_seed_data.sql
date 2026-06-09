@@ -9,8 +9,8 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 ('site',     'site.logo',                    NULL,           NULL,           'string',  '站点 Logo',            'Logo 图片 URL',                      TRUE,  TRUE),
 ('user',     'user.default_password',        '123456',      '123456',      'string',  '用户默认密码',         '管理员创建用户时的初始密码',           FALSE, TRUE),
 ('user',     'user.register_enabled',        'true',        'true',        'boolean', '是否开放注册',         '关闭后禁止新用户自主注册',             TRUE,  TRUE),
-('user',     'user.login_fail_lock_count',   '5',           '5',           'integer', '登录失败锁定次数',     '连续失败超过此次数后锁定账号',         TRUE,  TRUE),
-('user',     'user.login_fail_lock_minutes', '30',          '30',          'integer', '账号锁定时长（分钟）', '登录失败锁定的持续时间',               TRUE,  TRUE),
+('user',     'user.login_fail_lock_count',   '6',           '6',           'integer', '登录失败锁定次数',     '连续失败超过此次数后锁定账号',         TRUE,  TRUE),
+('user',     'user.login_fail_lock_minutes', '5',           '5',           'integer', '账号锁定时长（分钟）', '登录失败锁定的持续时间',               TRUE,  TRUE),
 ('security', 'security.captcha_enabled',     'true',        'true',        'boolean', '是否启用验证码',       '登录时是否需要图形验证码',             TRUE,  TRUE),
 ('security', 'security.verify_code_expire',  '5',           '5',           'integer', '验证码有效期（分钟）', '邮件/短信验证码的有效时间',            TRUE,  TRUE),
 ('storage',  'storage.upload_max_size_mb',   '50',          '50',          'integer', '文件上传大小限制（MB）','单文件最大上传体积',                  TRUE,  TRUE),
@@ -109,7 +109,7 @@ WHERE u.username = 'admin' AND r.code = 'admin'
 ON CONFLICT (user_id, role_id) DO NOTHING;
 
 INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
-SELECT '管理员工作空间', 'personal-' || u.id, 'personal', u.id, u.id
+SELECT '默认工作空间', 'personal-' || u.id, 'personal', u.id, u.id
 FROM sys_user u WHERE u.username = 'admin'
   AND NOT EXISTS (SELECT 1 FROM sys_organization o WHERE o.slug = 'personal-' || u.id);
 

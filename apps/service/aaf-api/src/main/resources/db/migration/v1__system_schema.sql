@@ -31,12 +31,20 @@ CREATE TABLE sys_user (
     update_time      TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     delete_time      TIMESTAMP(6),
     deleted          BOOLEAN      NOT NULL DEFAULT FALSE,
-    remark           VARCHAR(255)
+    remark           VARCHAR(255),
+    source_app       VARCHAR(32),
+    source_channel   VARCHAR(50),
+    register_ip      VARCHAR(50),
+    register_location VARCHAR(100)
 );
 
 COMMENT ON TABLE sys_user IS '系统用户';
 COMMENT ON COLUMN sys_user.status IS '0 正常 / 1 禁用';
 COMMENT ON COLUMN sys_user.email_verified IS '邮箱是否验证';
+COMMENT ON COLUMN sys_user.source_app IS '注册入口: web / uniapp / api';
+COMMENT ON COLUMN sys_user.source_channel IS '注册渠道: local / wechat / wechat_mp / dingtalk / github 等';
+COMMENT ON COLUMN sys_user.register_ip IS '注册时客户端 IP';
+COMMENT ON COLUMN sys_user.register_location IS '注册地址（IP 解析结果，如"广东 深圳市 南山区"）';
 
 CREATE UNIQUE INDEX uk_sys_user_email ON sys_user (email) WHERE email IS NOT NULL;
 

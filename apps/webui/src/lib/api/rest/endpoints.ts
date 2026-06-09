@@ -40,7 +40,7 @@ export const restEndpoints = {
     chatSessionMessages: (threadId: string) => `/system/chat/sessions/thread/${threadId}/messages`,
     chatMessages: "/system/chat/messages",
     chatSuggestions: (agentId?: string) =>
-      `/chat/suggestions${agentId ? `?agentId=${agentId}` : ""}`,
+      `/system/chat/suggestions${agentId ? `?agentId=${agentId}` : ""}`,
     generationHistory: "/aigc/history",
     imageGeneration: "/system/images/draw",
     saveGeneratedAsset: "/aigc/assets/save-from-generation",

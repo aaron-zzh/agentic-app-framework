@@ -11,7 +11,7 @@ import { Bloom, DepthOfField, EffectComposer, Noise, Vignette } from "@react-thr
 import { Suspense, useMemo, useRef } from "react"
 import { CatmullRomCurve3, Color, type Group, MathUtils, type Mesh, Vector3 } from "three"
 
-import { HeroParticlesBackground } from "./HeroParticlesBackground"
+import { ParticlesR3F } from "@/components/three/ParticlesR3F"
 
 export type HeroBackgroundVariant = "streams" | "spheres" | "particles"
 
@@ -244,7 +244,7 @@ export function HeroPostprocessingBackground({
 
   // particles variant 由独立组件处理，避免与 R3F Canvas 混用
   if (variant === "particles") {
-    return <HeroParticlesBackground />
+    return <ParticlesR3F />
   }
 
   return (

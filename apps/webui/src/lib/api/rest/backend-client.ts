@@ -44,6 +44,10 @@ export function setBackendWorkspaceId(workspaceId: string | null): void {
   backendApi.setHeader("X-Workspace-Id", workspaceId)
 }
 
+export function setBackendSourceApp(sourceApp: string): void {
+  backendApi.setHeader("X-Source-App", sourceApp)
+}
+
 export function registerBackendTokenRefresh(handler: RefreshAccessToken): void {
   refreshAccessToken = handler
 }
@@ -158,3 +162,6 @@ backendClient.interceptors.response.use(
 export function backendRequest<T>(path: string, config: AxiosRequestConfig = {}): Promise<T> {
   return backendApi.request<T>({ url: path, ...config })
 }
+
+// webui 固定来源为 web
+setBackendSourceApp("web")

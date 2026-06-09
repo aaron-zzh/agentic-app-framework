@@ -15,10 +15,12 @@ interface AigcStore {
   previewList: MediaAssetVO[]
   /** 拖入生成面板的参考素材 */
   referenceAssets: MediaAssetVO[]
-  /** 故事板元素（从素材库中选取的关键元素） */
+  /** 元素区（从素材库中选取的关键元素） */
   storyboardAssets: MediaAssetVO[]
   /** 文件区只展示未分配素材 */
   fileFilterUnassigned: boolean
+  /** 正在生成中的任务（显示 loading 占位） */
+  pendingTasks: Array<{ id: number; prompt: string; type: string }>
   /** prompt 文本 */
   prompt: string
   /** 模型选择 */
@@ -41,6 +43,8 @@ interface AigcStore {
   setModel: (model: string) => void
   setResolution: (resolution: string) => void
   setAspectRatio: (ratio: string) => void
+  addPendingTask: (task: { id: number; prompt: string; type: string }) => void
+  removePendingTask: (id: number) => void
 }
 
 export const useAigcStore = create<AigcStore>((set, _get) => ({
@@ -50,6 +54,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   referenceAssets: [],
   storyboardAssets: [],
   fileFilterUnassigned: false,
+  pendingTasks: [],
   prompt: "",
   model: "GPT Image 2",
   resolution: "2K",
@@ -85,5 +90,8 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   setPrompt: (prompt) => set({ prompt }),
   setModel: (model) => set({ model }),
   setResolution: (resolution) => set({ resolution }),
-  setAspectRatio: (ratio) => set({ aspectRatio: ratio })
+  setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
+  addPendingTask: (task) => set((state) => ({ pendingTasks: [...state.pendingTasks, task] })),
+  removePendingTask: (id) =>
+    set((state) => ({ pendingTasks: state.pendingTasks.filter((t) => t.id !== id) }))
 }))

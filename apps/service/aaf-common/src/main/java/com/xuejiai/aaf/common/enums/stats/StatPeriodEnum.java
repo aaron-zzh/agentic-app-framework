@@ -2,6 +2,9 @@ package com.xuejiai.aaf.common.enums.stats;
 
 import java.util.Arrays;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import com.xuejiai.aaf.common.enums.ArrayValuable;
 
 import lombok.AllArgsConstructor;
@@ -16,7 +19,7 @@ public enum StatPeriodEnum implements ArrayValuable<String> {
     WEEK("week", "周"),
     MONTH("month", "月");
 
-    private final String code;
+    @JsonValue private final String code;
     private final String label;
 
     public static final String[] ARRAYS =
@@ -30,5 +33,14 @@ public enum StatPeriodEnum implements ArrayValuable<String> {
     /** 转为 PostgreSQL date_trunc 参数 */
     public String toDateTrunc() {
         return code;
+    }
+
+    /** 按 code 反序列化（JSON body + query string 统一入口） */
+    @JsonCreator
+    public static StatPeriodEnum fromCode(String code) {
+        return Arrays.stream(values())
+                .filter(e -> e.code.equalsIgnoreCase(code))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown period: " + code));
     }
 }

@@ -45,6 +45,13 @@ public class DashboardController {
         return Result.success(dashboardService.listByOwner(userId));
     }
 
+    @Operation(summary = "查询当前用户默认仪表盘")
+    @GetMapping("/default")
+    public Result<DashboardVO> getDefault() {
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        return Result.success(dashboardService.getDefault(userId));
+    }
+
     @Operation(summary = "查询仪表盘详情")
     @GetMapping("/{id}")
     public Result<DashboardVO> get(@PathVariable Long id) {
@@ -73,8 +80,9 @@ public class DashboardController {
     }
 
     @Operation(summary = "查询组件数据")
-    @GetMapping("/widgets/{widgetId}/data")
-    public Result<WidgetDataVO> getWidgetData(@PathVariable Long widgetId) {
+    @PostMapping("/widgets/{widgetId}/data")
+    public Result<WidgetDataVO> getWidgetData(
+            @PathVariable Long widgetId, @RequestBody(required = false) Object config) {
         return Result.success(dashboardService.getWidgetData(widgetId));
     }
 }

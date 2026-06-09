@@ -5,10 +5,9 @@
 
 "use client"
 
-import { useDroppable } from "@dnd-kit/core"
-import { AnimatePresence, motion } from "framer-motion"
-import { ChevronDown, Plus, Upload, X } from "lucide-react"
-import { useRef } from "react"
+import { useCallback, useRef, useState } from "react"
+import { AnimatePresence, m } from "framer-motion"
+import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -17,97 +16,11 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/features/rich-text-editor"
 import { useGenerateImage } from "@/lib/queries/use-image-generation"
-import { cn } from "@/lib/utils/index"
-import { AtMention } from "./AtMention"
+import { ReferenceDropZone } from "./ReferenceDropZone"
 import { ReferenceRow } from "./ReferenceRow"
 import { useAigcStore } from "./store"
-
-function ReferenceDropZone() {
-  const { isOver, setNodeRef } = useDroppable({ id: "generation-drop-zone" })
-  const referenceAssets = useAigcStore((s) => s.referenceAssets)
-  const removeReferenceAsset = useAigcStore((s) => s.removeReferenceAsset)
-
-  return (
-    <div className="flex flex-col gap-2">
-      {/* 顶部：计数 + 提示文字 + 上传按钮 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* 已有素材缩略图预览（最多2张） */}
-          <div className="flex -space-x-2">
-            {referenceAssets.slice(0, 2).map((asset) => (
-              // biome-ignore lint/performance/noImgElement: 动态参考素材缩略图
-              <img
-                key={asset.id}
-                src={asset.thumbnailUrl ?? asset.url}
-                alt={asset.name}
-                className="size-10 rounded-md border-2 border-background object-cover"
-              />
-            ))}
-          </div>
-          <span className="text-muted-foreground text-sm">{referenceAssets.length}/16</span>
-          {referenceAssets.length === 0 && (
-            <span className="flex items-center gap-1 text-muted-foreground text-xs">
-              <Upload className="size-3.5" />
-              拖拽素材到此处作为参考
-            </span>
-          )}
-        </div>
-        {/* 上传按钮 */}
-        <button
-          type="button"
-          className="flex size-10 flex-col items-center justify-center rounded-xl border border-border/60 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted"
-        >
-          <Plus className="size-4" />
-          <span className="text-[10px]">上传</span>
-        </button>
-      </div>
-
-      {/* 拖放区：已添加素材缩略图列表 */}
-      {referenceAssets.length > 0 && (
-        <div
-          ref={setNodeRef}
-          className={cn(
-            "flex flex-wrap gap-2 rounded-lg border border-border/50 border-dashed p-2 transition-colors",
-            isOver && "border-primary bg-primary/5"
-          )}
-        >
-          {referenceAssets.map((asset) => (
-            <div
-              key={asset.id}
-              className="group relative size-14 overflow-hidden rounded-md bg-muted"
-            >
-              {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
-              <img
-                src={asset.thumbnailUrl ?? undefined}
-                alt={asset.name}
-                className="size-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => removeReferenceAsset(asset.id)}
-                className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      {/* 空状态时也保留 droppable ref */}
-      {referenceAssets.length === 0 && (
-        <div
-          ref={setNodeRef}
-          className={cn(
-            "rounded-lg border border-border/30 border-dashed p-1 transition-colors",
-            isOver && "border-primary bg-primary/5"
-          )}
-        />
-      )}
-    </div>
-  )
-}
 
 export function GenerationPanel() {
   const open = useAigcStore((s) => s.generationPanelOpen)
@@ -120,49 +33,101 @@ export function GenerationPanel() {
   const setResolution = useAigcStore((s) => s.setResolution)
   const aspectRatio = useAigcStore((s) => s.aspectRatio)
   const setAspectRatio = useAigcStore((s) => s.setAspectRatio)
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const generateImage = useGenerateImage()
+  const addPendingTask = useAigcStore((s) => s.addPendingTask)
+  const [panelHeight, setPanelHeight] = useState<number>(() =>
+    typeof window !== "undefined" ? Math.round(window.innerHeight * 0.6) : 400
+  )
+  const resizeStart = useRef<{ my: number; h: number } | null>(null)
+
+  const handleResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    resizeStart.current = { my: e.clientY, h: e.currentTarget.closest("[data-panel]")?.clientHeight ?? 400 }
+  }, [])
+
+  const handleResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeStart.current) return
+    const delta = resizeStart.current.my - e.clientY // 向上拖为正
+    setPanelHeight(Math.max(200, resizeStart.current.h + delta))
+  }, [])
+
+  const handleResizeUp = useCallback(() => { resizeStart.current = null }, [])
 
   function handleGenerate() {
     if (!prompt.trim()) return
-    generateImage.mutate({ prompt, model })
+    generateImage.mutate(
+      { prompt, model },
+      {
+        onSuccess: (taskId) => {
+          addPendingTask({ id: taskId, prompt, type: "IMAGE" })
+          setPrompt("")
+          setOpen(false)
+        }
+      }
+    )
   }
 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
+          data-panel
           initial={{ y: "100%" }}
           animate={{ y: 0 }}
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="absolute inset-x-0 bottom-0 z-50 rounded-t-xl border-border border-t bg-card shadow-2xl"
+          className="absolute inset-x-0 bottom-0 z-50 flex flex-col rounded-t-xl outline-hidden [background:linear-gradient(135deg,color-mix(in_oklch,var(--color-violet-500)_6%,transparent),transparent_50%,color-mix(in_oklch,var(--color-indigo-500)_6%,transparent)),var(--color-popover)] [box-shadow:0_-8px_32px_-4px_rgba(0,0,0,0.15),0_-2px_8px_-2px_rgba(0,0,0,0.1)]"
+          style={{ height: panelHeight }}
         >
-          <div className="flex flex-col gap-3 p-4">
+          {/* 顶部：拖拽手柄 + 收起按钮 */}
+          <div className="relative flex items-center justify-center py-1.5">
+            <div
+              className="flex flex-1 cursor-ns-resize justify-center opacity-40 hover:opacity-80"
+              onPointerDown={handleResizeDown}
+              onPointerMove={handleResizeMove}
+              onPointerUp={handleResizeUp}
+            >
+              <div className="h-1 w-10 rounded-full bg-muted-foreground" />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-0.5 right-1 opacity-60 hover:opacity-100"
+              onClick={() => setOpen(false)}
+              aria-label="关闭"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 pt-2">
             {/* 参考素材拖入区 */}
             <ReferenceDropZone />
 
             {/* 参考引用行 */}
             <ReferenceRow />
 
-            {/* Prompt 输入 + @提及 */}
-            <div className="relative">
-              <Textarea
-                ref={textareaRef}
+            {/* Prompt 输入：flex-1 撑满剩余空间 */}
+            <div className="flex min-h-[120px] flex-1 flex-col">
+              <RichTextEditor
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="描述你想生成的图像，输入 @ 引用素材..."
-                className="min-h-[80px] resize-y bg-background"
+                onChange={setPrompt}
+                placeholder="描述你想生成的图像..."
+                mode="plaintext"
+                preset="minimal"
+                fill
               />
-              <AtMention value={prompt} onChange={setPrompt} textareaRef={textareaRef} />
             </div>
+          </div>
 
-            {/* 底部参数栏 */}
+          {/* 底部参数栏：固定在面板底部 */}
+          <div className="shrink-0 border-t px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {/* 模型选择 */}
                 <Select value={model} onValueChange={(v) => setModel(v ?? "GPT Image 2")}>
-                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <span className="shrink-0 text-muted-foreground">模型</span>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -174,7 +139,8 @@ export function GenerationPanel() {
 
                 {/* 分辨率 */}
                 <Select value={resolution} onValueChange={(v) => setResolution(v ?? "2K")}>
-                  <SelectTrigger className="h-8 w-[80px] text-xs">
+                  <SelectTrigger className="h-8 w-[110px] text-xs">
+                    <span className="shrink-0 text-muted-foreground">分辨率</span>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -186,25 +152,42 @@ export function GenerationPanel() {
 
                 {/* 比例 */}
                 <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v ?? "9:16")}>
-                  <SelectTrigger className="h-8 w-[80px] text-xs">
+                  <SelectTrigger className="h-8 w-[115px] text-xs">
+                    <span className="shrink-0 text-muted-foreground">比例</span>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1:1">1:1</SelectItem>
-                    <SelectItem value="9:16">9:16</SelectItem>
-                    <SelectItem value="16:9">16:9</SelectItem>
-                    <SelectItem value="4:3">4:3</SelectItem>
+                    {([
+                      { value: "1:1",  rw: 12, rh: 12 },
+                      { value: "9:16", rw: 8,  rh: 14 },
+                      { value: "16:9", rw: 14, rh: 8  },
+                      { value: "4:3",  rw: 12, rh: 9  },
+                    ] as const).map(({ value, rw, rh }) => (
+                      <SelectItem key={value} value={value}>
+                        <span className="flex items-center gap-1.5">
+                          {/* 外框固定 16×16，内部矩形居中按比例 */}
+                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0 text-muted-foreground">
+                            <rect
+                              x={(16 - rw) / 2 + 0.5}
+                              y={(16 - rh) / 2 + 0.5}
+                              width={rw - 1}
+                              height={rh - 1}
+                              rx="1"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                            />
+                          </svg>
+                          {value}
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex items-center gap-2">
-                {/* 收起 */}
-                <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-                  <ChevronDown className="mr-1 size-4" />
-                  收起
-                </Button>
-                {/* 生成按钮 */}
+                {/* 生成图像 */}
                 <Button
                   size="sm"
                   disabled={generateImage.isPending || !prompt.trim()}
@@ -216,7 +199,7 @@ export function GenerationPanel() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   )

@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { buildApiUrl } from "../../config"
+import { buildSseUrl } from "../../config"
 
 /** 子任务 */
 export interface SubTask {
@@ -36,6 +36,6 @@ export interface TaskBoardEvent {
 }
 
 /** 获取 TaskBoard SSE 订阅 URL */
-export function getTaskBoardSSEUrl(sessionId: string): string {
-  return buildApiUrl(`/chat/sessions/${sessionId}/tasks`)
+export function getTaskBoardSSEUrl(sessionId: string, token: string | null): string {
+  return buildSseUrl(`/chat/sessions/${sessionId}/tasks`, token)
 }

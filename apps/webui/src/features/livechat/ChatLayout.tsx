@@ -140,10 +140,10 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
   // 桌面端：可拖拽分割面板
   return (
     <div className="flex h-full flex-col">
-      <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         {sidebarOpen && (
           <>
-            <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+            <ResizablePanel defaultSize="25%" minSize="15%" maxSize="40%">
               <div className="flex h-full flex-col">
                 <div className="flex items-center justify-end border-b px-2 py-1">
                   <Button variant="ghost" size="sm" onClick={toggleSidebar}>

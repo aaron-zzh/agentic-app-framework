@@ -76,5 +76,5 @@ export function submitVideoEdit(params: VideoEditParams) {
 
 /** 查询视频任务状态 */
 export function queryVideoTask(taskId: string) {
-  return request<VideoTaskResult>(`/api/aigc/video/task/${taskId}`)
+  return request<VideoTaskResult>(`/aigc/video/task/${taskId}`)
 }

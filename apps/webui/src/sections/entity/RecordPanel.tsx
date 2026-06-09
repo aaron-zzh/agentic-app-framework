@@ -58,13 +58,13 @@ export function RecordPanel({ entity, recordId, onClose, children, mode = "panel
   // 桌面端：左侧列表 + 右侧详情面板
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full">
-      <ResizablePanel defaultSize={55} minSize={25}>
+      <ResizablePanel defaultSize="55%" minSize="25%">
         {children}
       </ResizablePanel>
 
       <ResizableHandle withHandle />
 
-      <ResizablePanel defaultSize={45} minSize={20}>
+      <ResizablePanel defaultSize="45%" minSize="20%">
         <div className="flex h-full flex-col">
           <div className="flex h-10 shrink-0 items-center justify-between border-b px-4">
             <span className="font-medium text-sm">{entity.label}详情</span>

@@ -11,25 +11,32 @@
 import { isExternalLink } from "@aaf/core"
 import { useBoolean } from "@aaf/hooks"
 import {
+  BarChart3,
   BookOpen,
   Bot,
+  Box,
   CheckSquare,
   ChevronDown,
   CreditCard,
   FileText,
   FolderOpen,
   GitBranch,
+  GitPullRequest,
   Globe,
+  Image,
   LayoutDashboard,
   type LucideIcon,
   Mail,
   MessageSquare,
   Package,
+  ScrollText,
   Settings,
   Shield,
   ShoppingCart,
+  Sparkles,
   Trash2,
   Users,
+  Video,
   Workflow
 } from "lucide-react"
 import Link from "next/link"
@@ -69,7 +76,16 @@ const ICON_MAP: Record<string, LucideIcon> = {
   package: Package,
   shield: Shield,
   "shopping-cart": ShoppingCart,
-  workflow: Workflow
+  workflow: Workflow,
+  // AI 创作
+  sparkles: Sparkles,
+  video: Video,
+  box: Box,
+  image: Image,
+  // 开发工具
+  "scroll-text": ScrollText,
+  "git-pull-request": GitPullRequest,
+  "bar-chart-3": BarChart3
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {

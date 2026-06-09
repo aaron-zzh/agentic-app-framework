@@ -92,22 +92,18 @@
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
-			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>com.aliyun.oss</groupId>
 			<artifactId>aliyun-sdk-oss</artifactId>
-			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>com.aliyun</groupId>
 			<artifactId>dysmsapi20170525</artifactId>
-			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>com.tencentcloudapi</groupId>
 			<artifactId>tencentcloud-sdk-java-sms</artifactId>
-			<optional>true</optional>
 		</dependency>
 
 		<!-- 开发工具 -->

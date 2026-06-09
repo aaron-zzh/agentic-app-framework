@@ -5,7 +5,6 @@ import { getLocale, getMessages } from "next-intl/server"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { FloatingAssistant } from "@/features/floating-assistant/FloatingAssistant"
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
 import { QueryProvider } from "@/providers/QueryProvider"
 import { ServiceWorkerRegister } from "@/providers/ServiceWorkerRegister"
@@ -114,7 +113,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <TooltipProvider>
                 <NuqsAdapter>{children}</NuqsAdapter>
                 <ToastProvider />
-                <FloatingAssistant />
               </TooltipProvider>
             </QueryProvider>
             <ServiceWorkerRegister />

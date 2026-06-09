@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Command,
   CommandEmpty,
@@ -34,7 +34,8 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
   const { data: results = [] } = useMediaAssetSearch(keyword)
 
   /** 监听 textarea 输入，检测 @ 触发 */
-  const handleInput = useCallback(() => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: textareaRef is a stable ref object, .current changes don't trigger re-renders
+  useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
 
@@ -44,10 +45,8 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
 
     if (atIndex >= 0) {
       const charBeforeAt = atIndex > 0 ? textBefore[atIndex - 1] : " "
-      // @ 前必须是空格或行首
       if (charBeforeAt === " " || charBeforeAt === "\n" || atIndex === 0) {
         const query = textBefore.slice(atIndex + 1)
-        // 搜索词不含空格（空格表示已结束输入）
         if (!query.includes(" ") && !query.includes("\n")) {
           setKeyword(query)
           setAtPosition(atIndex)
@@ -57,11 +56,7 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
       }
     }
     setOpen(false)
-  }, [value, textareaRef])
-
-  useEffect(() => {
-    handleInput()
-  }, [handleInput])
+  }, [value])
 
   /** 选择素材后插入引用 */
   function handleSelect(assetName: string) {

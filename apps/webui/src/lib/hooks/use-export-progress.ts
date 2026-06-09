@@ -14,6 +14,8 @@
 
 import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
+import { buildSseUrl } from "@/lib/api/config"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 import type { EntityDef } from "@/lib/types/entity"
 
@@ -85,7 +87,7 @@ export function useExportProgress(entity: EntityDef) {
 
         // 2. 建立 SSE 连接接收进度
         setProgress((p) => ({ ...p, status: "running", taskId }))
-        const es = new EventSource(`${entity.apiPath}/export-progress/${taskId}`)
+        const es = new EventSource(buildSseUrl(`${entity.apiPath}/export-progress/${taskId}`, useAuthStore.getState().accessToken))
         esRef.current = es
 
         es.onmessage = (event) => {

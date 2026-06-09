@@ -227,9 +227,9 @@ export function PageEditorView({ initialPage, onSave, onPublish }: PageEditorVie
       </div>
 
       {/* 三栏布局 */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
+      <ResizablePanelGroup orientation="horizontal" className="flex-1">
         {/* 左侧：区块列表 */}
-        <ResizablePanel defaultSize={20} minSize={15}>
+        <ResizablePanel defaultSize="20%" minSize="15%">
           <ScrollArea className="h-full">
             <div className="space-y-2 p-3">
               <DndContext
@@ -260,7 +260,7 @@ export function PageEditorView({ initialPage, onSave, onPublish }: PageEditorVie
         <ResizableHandle />
 
         {/* 中间：实时预览 */}
-        <ResizablePanel defaultSize={55}>
+        <ResizablePanel defaultSize="55%">
           <ScrollArea className="h-full">
             <div className="min-h-full bg-background">
               <PageEngine page={page} />
@@ -271,7 +271,7 @@ export function PageEditorView({ initialPage, onSave, onPublish }: PageEditorVie
         <ResizableHandle />
 
         {/* 右侧：属性面板 */}
-        <ResizablePanel defaultSize={25} minSize={20}>
+        <ResizablePanel defaultSize="25%" minSize="20%">
           <ScrollArea className="h-full">
             {selectedSection ? (
               <SectionPropsPanel section={selectedSection} onChange={handleSectionChange} />

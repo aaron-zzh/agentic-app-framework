@@ -8,6 +8,7 @@
 import { OrbitControls, useAnimations, useGLTF } from "@react-three/drei"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { Suspense, useEffect, useMemo } from "react"
+import { cdn } from "@/lib/utils/asset-url"
 
 function Bird({
   speed,
@@ -89,7 +90,7 @@ export default function BirdsScene() {
           rotation: [0, x > 0 ? Math.PI : 0, 0] as [number, number, number],
           speed,
           factor,
-          url: `/glb/${type}.glb`
+          url: cdn(`/assets/models/glb/${type}.glb`)
         }
       }),
     []

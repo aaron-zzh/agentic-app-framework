@@ -75,7 +75,7 @@ function createParticleEl(): HTMLElement {
   return el
 }
 
-export function HeroParticlesBackground() {
+export function ParticlesCSS3D() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

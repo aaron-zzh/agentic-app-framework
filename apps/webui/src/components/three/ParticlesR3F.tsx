@@ -12,7 +12,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Bloom, EffectComposer } from "@react-three/postprocessing"
 import { useEffect, useMemo, useRef } from "react"
 import * as THREE from "three"
-import TWEEN, { Tween } from "three/examples/jsm/libs/tween.module.js"
+import TWEEN from "three/examples/jsm/libs/tween.module.js"
 
 const PARTICLES_TOTAL = 512
 
@@ -111,36 +111,26 @@ function Particles() {
   )
 
   const currentShape = useRef(0)
-  // 预创建 Tween 对象复用，避免每次 transition 批量 new 导致 GC 卡顿
-  const tweensRef = useRef<Tween<{ x: number; y: number; z: number }>[]>([])
 
   useEffect(() => {
     let active = true
-
-    // 初始化复用的 Tween 对象
-    if (tweensRef.current.length === 0) {
-      for (let i = 0; i < PARTICLES_TOTAL; i++) {
-        const proxy = proxies[i]
-        if (!proxy) continue
-        tweensRef.current.push(new TWEEN.Tween(proxy).easing(TWEEN.Easing.Exponential.InOut))
-      }
-    }
 
     function transition() {
       if (!active) return
       const target = targets[currentShape.current]
       if (!target) return
       const duration = 2000
+      const isScatter = currentShape.current === 2
 
       for (let i = 0; i < PARTICLES_TOTAL; i++) {
-        const tween = tweensRef.current[i]
         const proxy = proxies[i]
-        if (!tween || !proxy) continue
-        tween
+        if (!proxy) continue
+        new TWEEN.Tween(proxy)
           .to(
             { x: target[i * 3], y: target[i * 3 + 1], z: target[i * 3 + 2] },
-            Math.random() * duration + duration
+            isScatter ? duration * 1.5 : Math.random() * duration + duration
           )
+          .easing(TWEEN.Easing.Exponential.InOut)
           .start()
       }
 
@@ -155,6 +145,7 @@ function Particles() {
     transition()
     return () => {
       active = false
+      TWEEN.removeAll()
     }
   }, [proxies, targets])
 
@@ -237,9 +228,9 @@ function Particles() {
   )
 }
 
-export function ParticlesR3F() {
+export function ParticlesR3F({ bloom = false }: { bloom?: boolean }) {
   return (
-    <div className="h-full w-full bg-[#000510]">
+    <div className="relative h-full w-full bg-[#000510]">
       <Canvas
         camera={{ position: [600, 400, 1500], fov: 75, near: 1, far: 5000 }}
         gl={{ antialias: false, powerPreference: "high-performance" }}
@@ -248,9 +239,11 @@ export function ParticlesR3F() {
         <color attach="background" args={["#000510"]} />
         <Particles />
         <OrbitControls enablePan={false} />
-        <EffectComposer>
-          <Bloom luminanceThreshold={0.3} intensity={0.6} luminanceSmoothing={0.9} />
-        </EffectComposer>
+        {bloom && (
+          <EffectComposer>
+            <Bloom luminanceThreshold={0.4} intensity={0.5} luminanceSmoothing={0.9} />
+          </EffectComposer>
+        )}
       </Canvas>
     </div>
   )

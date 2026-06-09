@@ -22,7 +22,9 @@ const KEYS = {
 export function useDashboard() {
   return useQuery({
     queryKey: KEYS.default(),
-    queryFn: () => dashboardApi.getDefault()
+    queryFn: () => dashboardApi.getDefault(),
+    staleTime: 5 * 60 * 1000, // 5 分钟内不重新请求
+    retry: false // 接口出错不重试，直接降级到本地 preset
   })
 }
 

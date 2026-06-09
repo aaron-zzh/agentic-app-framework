@@ -257,10 +257,10 @@ export function AssetLibrary() {
                   <Skeleton key={`skel-${i}`} className="aspect-square w-full rounded-lg" />
                 ))}
               </div>
-            ) : data && data.list.length > 0 ? (
+            ) : data && data.list?.length > 0 ? (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {data.list.map((asset) => (
+                  {data.list?.map((asset) => (
                     <AssetCard
                       key={asset.id}
                       asset={asset}

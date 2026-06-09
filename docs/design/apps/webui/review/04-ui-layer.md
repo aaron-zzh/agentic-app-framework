@@ -119,7 +119,7 @@
 ### 问题
 
 - [blocker] ✅ 已修复 `sections/layout/AppHeader.tsx:93-110` — `MobileSidebar` 函数内使用 `require()` 动态导入模块（`require("@/sections/layout/nav-config")`）。这在 Next.js App Router 的 `"use client"` 组件中是反模式：(1) 破坏 tree-shaking；(2) 可能导致 SSR/CSR 不一致；(3) 违反 ESM 规范。应改为顶层 `import` 或 `React.lazy` + `dynamic`。
-- [blocker] ✅ 已修复 `sections/layout/AppHeader.tsx:225-228` — `ChatterToggle` 函数内使用 `require("@/stores/chatter-store")` 动态导入 store。同上问题。且 `WorkspaceLayoutClient.tsx` 已正常 import 了 `useChatterStore`，说明该 store 可以正常静态导入。
+- [blocker] ✅ 已修复 `sections/layout/AppHeader.tsx:225-228` — `ChatterToggle` 函数内使用 `require("@/stores/chatter-store")` 动态导入 store。同上问题。且 `WorkspaceLayout.tsx` 已正常 import 了 `useChatterStore`，说明该 store 可以正常静态导入。
 
 > 已修复｜2026-05-30｜提交：apps/webui/src/sections/layout/AppHeader.tsx
 - [major] `sections/layout/AppHeader.tsx:全文` — 文件过大（~230 行），包含 10+ 个子组件（SidebarToggle, MobileSidebar, Breadcrumb, SearchButton, CalendarButton, ThemeToggle, UserAvatar, SettingsButton, SettingsIcon, ChatterToggle）。建议拆分为独立文件。

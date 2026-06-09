@@ -63,6 +63,14 @@ public class User extends BaseEntity {
     @Column(name = "last_login_ip", length = 50)
     private String lastLoginIp;
 
+    /** 注册 IP */
+    @Column(name = "register_ip", length = 50)
+    private String registerIp;
+
+    /** 注册地址（IP 解析结果，如"广东 深圳市 南山区"） */
+    @Column(name = "register_location", length = 100)
+    private String registerLocation;
+
     /** 登录失败次数 */
     @Column(name = "login_fail_count", nullable = false)
     private Integer loginFailCount = 0;
@@ -70,6 +78,14 @@ public class User extends BaseEntity {
     /** 锁定到期时间 */
     @Column(name = "lock_time")
     private LocalDateTime lockTime;
+
+    /** 注册入口：web / uniapp / api */
+    @Column(name = "source_app", length = 32)
+    private String sourceApp;
+
+    /** 注册渠道：local / wechat / wechat_mp / dingtalk / github 等 */
+    @Column(name = "source_channel", length = 50)
+    private String sourceChannel;
 
     // ==================== 业务方法 ====================
 
