@@ -23,11 +23,8 @@ import java.util.Optional;
  */
 public interface SkillStore {
 
-    /** 查询指定 Assistant 的活跃技能 */
-    List<SkillRecord> findByAssistant(String assistantId);
-
     /** 查询绑定了指定 Agent 的活跃技能 */
-    List<SkillRecord> findByAgentId(String agentId);
+    List<SkillRecord> findByAgentId(Long agentId);
 
     /** 查询全局内置技能 */
     List<SkillRecord> findBuiltIn();
@@ -35,20 +32,18 @@ public interface SkillStore {
     /** 查询全局技能（global=true，注入所有 Agent） */
     List<SkillRecord> findGlobal();
 
-    /** 按 skillId 查询 */
-    Optional<SkillRecord> findBySkillId(String skillId);
+    /** 按 id 查询 */
+    Optional<SkillRecord> findBySkillId(Long skillId);
 
-    /** 技能数据记录（引擎层的数据视图，与 Entity 解耦） */
+    /** 技能数据记录（引擎层的数据视图，与 Entity 解耦）。 技能为全局/可复用定义，不再直挂助理，也不再绑定工具。 */
     record SkillRecord(
-            String skillId,
-            String assistantId,
+            Long skillId,
             String name,
             String description,
-            String agentId,
+            Long agentId,
             String triggerIntent,
             String systemPrompt,
             String instructions,
-            String tools,
             int priority,
             boolean builtIn,
             boolean global) {}

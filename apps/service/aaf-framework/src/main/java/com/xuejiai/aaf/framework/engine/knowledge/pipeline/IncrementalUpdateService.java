@@ -24,7 +24,7 @@ public class IncrementalUpdateService {
         var result =
                 entityManager
                         .createNativeQuery(
-                                "SELECT content_hash FROM knowledge_document WHERE id = :id AND deleted = false")
+                                "SELECT content_hash FROM ai_knowledge_document WHERE id = :id AND deleted = false")
                         .setParameter("id", documentId)
                         .getResultList();
         if (result.isEmpty()) return false;
@@ -37,11 +37,11 @@ public class IncrementalUpdateService {
     public void cleanOldData(Long documentId) {
         entityManager
                 .createNativeQuery(
-                        "DELETE FROM knowledge_embedding WHERE chunk_id IN (SELECT id FROM knowledge_chunk WHERE document_id = :docId)")
+                        "DELETE FROM ai_knowledge_embedding WHERE chunk_id IN (SELECT id FROM ai_knowledge_chunk WHERE document_id = :docId)")
                 .setParameter("docId", documentId)
                 .executeUpdate();
         entityManager
-                .createNativeQuery("DELETE FROM knowledge_chunk WHERE document_id = :docId")
+                .createNativeQuery("DELETE FROM ai_knowledge_chunk WHERE document_id = :docId")
                 .setParameter("docId", documentId)
                 .executeUpdate();
     }
@@ -51,7 +51,7 @@ public class IncrementalUpdateService {
     public void updateDocumentHash(Long documentId, String newHash) {
         entityManager
                 .createNativeQuery(
-                        "UPDATE knowledge_document SET content_hash = :hash, updated_at = :now WHERE id = :id")
+                        "UPDATE ai_knowledge_document SET content_hash = :hash, updated_at = :now WHERE id = :id")
                 .setParameter("hash", newHash)
                 .setParameter("now", LocalDateTime.now())
                 .setParameter("id", documentId)

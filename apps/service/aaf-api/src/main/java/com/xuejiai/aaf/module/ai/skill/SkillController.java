@@ -38,11 +38,10 @@ public class SkillController
         return skillService;
     }
 
-    @Operation(summary = "查询技能列表", description = "按 assistantId 筛选，不传则查全部")
-    @GetMapping("/by-assistant")
-    public Result<List<SkillVO>> listByAssistant(
-            @RequestParam(required = false) String assistantId) {
-        return Result.success(skillService.list(assistantId));
+    @Operation(summary = "查询技能列表", description = "按 ownerId 筛选（全局 + 私有），不传则查全部")
+    @GetMapping("/by-owner")
+    public Result<List<SkillVO>> listByOwner(@RequestParam(required = false) Long ownerId) {
+        return Result.success(skillService.list(ownerId));
     }
 
     @Operation(summary = "启用/禁用技能")

@@ -53,7 +53,7 @@ public interface MemoryAtomRepository extends JpaRepository<MemoryAtom, UUID> {
     @Query(
             value =
                     """
-        SELECT * FROM memory_atom
+        SELECT * FROM ai_memory_atom
         WHERE user_id = :userId AND valid_to IS NULL
         ORDER BY embedding <=> cast(:queryVec AS vector)
         LIMIT :topK

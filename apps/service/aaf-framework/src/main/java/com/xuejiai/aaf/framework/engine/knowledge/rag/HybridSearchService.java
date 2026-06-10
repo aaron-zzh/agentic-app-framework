@@ -87,8 +87,8 @@ public class HybridSearchService {
         var sql =
                 """
                 SELECT content, ts_rank(to_tsvector('chinese', content), plainto_tsquery('chinese', :query)) AS rank
-                FROM knowledge_chunk
-                WHERE knowledge_base_id = :kbId
+                FROM ai_knowledge_chunk
+                WHERE ai_knowledge_base_id = :kbId
                   AND to_tsvector('chinese', content) @@ plainto_tsquery('chinese', :query)
                 ORDER BY rank DESC
                 LIMIT :topK

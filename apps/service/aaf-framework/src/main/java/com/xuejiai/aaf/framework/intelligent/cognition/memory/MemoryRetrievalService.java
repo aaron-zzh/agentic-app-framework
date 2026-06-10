@@ -35,9 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MemoryRetrievalService {
 
     private final ShortTermMemoryService shortTermMemory;
-    private final LongTermMemoryService longTermMemory;
     private final GraphMemoryService graphMemory;
-    private final ProceduralMemoryService proceduralMemory;
     private final AtomMemoryEngine atomMemoryEngine;
     private final EmbeddingService embeddingService;
     private final MemoryRerankerService reranker;
@@ -90,7 +88,8 @@ public class MemoryRetrievalService {
         }
 
         if (budget.proceduralTopK > 0 && intent == QueryIntent.PROCEDURAL) {
-            context.setProceduralMemories(proceduralMemory.findByTaskType(query, userId));
+            context.setProceduralMemories(
+                    atomMemoryEngine.searchByScope(userId, "procedural", budget.proceduralTopK));
         }
 
         // 5. 轻量重排（纯计算，对原子记忆二次排序；不调 chat LLM）
@@ -101,10 +100,7 @@ public class MemoryRetrievalService {
                     reranker.rerank(query, context.getAtomicMemories(), budget.atomicTopK));
         }
 
-        // 6. 兼容旧接口：长期记忆
-        context.setLongTermMemories(longTermMemory.recall(userId));
-
-        // 7. 图谱记忆
+        // 6. 图谱记忆
         if (query != null) {
             context.setRelatedEntities(graphMemory.search(userId, query));
         }
@@ -130,9 +126,10 @@ public class MemoryRetrievalService {
         return atomMemoryEngine.searchBundles(userId, queryEmbedding, topK, queryTime);
     }
 
-    /** 按任务类型检索程序化记忆 */
-    public List<ProceduralMemory> retrieveProcedural(Long userId, String taskType) {
-        return proceduralMemory.findByTaskType(taskType, userId);
+    /** 按任务类型检索程序化记忆（TODO: ProceduralMemory 未实现） */
+    public List<Object> retrieveProcedural(Long userId, String taskType) {
+        // TODO: 待 ProceduralMemory Repository 完善后实现
+        return List.of();
     }
 
     // ===== 查询意图路由（对齐认知心理学：线索类型决定激活模式） =====
@@ -201,13 +198,10 @@ public class MemoryRetrievalService {
         /** 情景 Bundle：关联证据链 */
         private List<MemoryBundle> episodicBundles = new ArrayList<>();
 
-        /** 程序化记忆：经验 SOP */
-        private List<ProceduralMemory> proceduralMemories = new ArrayList<>();
+        /** 程序化记忆：scope='procedural' 的原子记忆 */
+        private List<MemoryAtom> proceduralMemories = new ArrayList<>();
 
-        /** 兼容旧接口：长期记忆 */
-        private List<LongTermMemory> longTermMemories = new ArrayList<>();
-
-        /** 兼容旧接口：图谱实体 */
+        /** 图谱记忆实体 */
         private List<GraphMemoryNode> relatedEntities = new ArrayList<>();
     }
 }

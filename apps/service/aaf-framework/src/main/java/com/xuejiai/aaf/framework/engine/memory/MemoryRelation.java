@@ -17,7 +17,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(
-        name = "memory_relation",
+        name = "ai_memory_relation",
         indexes = {
             @Index(columnList = "sourceId"),
             @Index(columnList = "targetId"),

@@ -66,7 +66,7 @@ public class AgentDispatcher {
                         "intent",
                         intent,
                         "agentId",
-                        definition.getAgentId() != null ? definition.getAgentId() : "",
+                        definition.getId() != null ? definition.getId().toString() : "",
                         "agentName",
                         definition.getName()));
         var result = sandbox.execute(agent, input, timeout);
@@ -78,7 +78,7 @@ public class AgentDispatcher {
                         "intent",
                         intent,
                         "agentId",
-                        definition.getAgentId() != null ? definition.getAgentId() : "",
+                        definition.getId() != null ? definition.getId().toString() : "",
                         "success",
                         result.success()));
         return result;

@@ -27,7 +27,10 @@ export function ReferenceDropZone() {
       {referenceAssets.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {referenceAssets.map((asset) => (
-            <div key={asset.id} className="group relative size-14 overflow-hidden rounded-md bg-muted">
+            <div
+              key={asset.id}
+              className="group relative size-14 overflow-hidden rounded-md bg-muted"
+            >
               {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
               <img
                 src={asset.thumbnailUrl ?? undefined}

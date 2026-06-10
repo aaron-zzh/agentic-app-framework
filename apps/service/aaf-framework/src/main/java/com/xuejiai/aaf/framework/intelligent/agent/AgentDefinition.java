@@ -18,10 +18,6 @@ import lombok.Setter;
 @Table(name = "ai_agent_definition")
 public class AgentDefinition extends BaseEntity {
 
-    /** Agent 唯一标识 */
-    @Column(nullable = false, unique = true, length = 64)
-    private String agentId;
-
     /** 显示名称 */
     @Column(nullable = false, length = 128)
     private String name;
@@ -35,8 +31,7 @@ public class AgentDefinition extends BaseEntity {
     private String systemPrompt;
 
     /** 使用的模型 ID */
-    @Column(length = 64)
-    private String modelId;
+    @Column private Long modelId;
 
     /** 能力声明（JSON 数组，如 ["code_review","data_analysis"]） */
     @Column(columnDefinition = "TEXT")

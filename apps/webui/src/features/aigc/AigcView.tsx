@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 // import { useChatterLayoutPreference } from "@/features/chatter"
+import { CopywritingPanel } from "./CopywritingPanel"
 import { GenerationPanel } from "./GenerationPanel"
 import { PreviewPanel } from "./PreviewPanel"
 import { SmartPointerSensor } from "./SmartPointerSensor"
@@ -28,6 +29,9 @@ export function AigcView() {
   const addStoryboardAsset = useAigcStore((s) => s.addStoryboardAsset)
   const generationPanelOpen = useAigcStore((s) => s.generationPanelOpen)
   const setGenerationPanelOpen = useAigcStore((s) => s.setGenerationPanelOpen)
+  const copywritingPanelOpen = useAigcStore((s) => s.copywritingPanelOpen)
+  const setCopywritingPanelOpen = useAigcStore((s) => s.setCopywritingPanelOpen)
+  const storyboardPanelOpen = useAigcStore((s) => s.storyboardPanelOpen)
   const queryClient = useQueryClient()
   const removePendingTask = useAigcStore((s) => s.removePendingTask)
 
@@ -58,47 +62,50 @@ export function AigcView() {
 
   return (
     <div className="min-h-0 flex-1">
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <ResizablePanelGroup orientation="horizontal" className="h-full bg-background">
-        {/* 左栏：素材区 */}
-        <ResizablePanel defaultSize="22%" minSize="15%" maxSize="35%">
-          <StoryboardPanel />
-        </ResizablePanel>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <ResizablePanelGroup orientation="horizontal" className="h-full bg-background">
+          {/* 左栏：元素看板（可关闭） */}
+          {storyboardPanelOpen && (
+            <>
+              <ResizablePanel defaultSize="22%" minSize="15%" maxSize="35%">
+                <StoryboardPanel />
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+            </>
+          )}
 
-        <ResizableHandle withHandle />
+          {/* 中栏：预览 + 文件区 */}
+          <ResizablePanel defaultSize="78%" minSize="40%">
+            <div className="relative h-full">
+              <PreviewPanel orientation={storyboardPanelOpen ? "vertical" : "horizontal"} />
 
-        {/* 中栏：预览 + 文件区 */}
-        <ResizablePanel defaultSize="78%" minSize="40%">
-          <div className="relative h-full">
-            <PreviewPanel />
+              {/* 操作按钮（面板关闭时显示） */}
+              {!generationPanelOpen && !copywritingPanelOpen && (
+                <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="shadow-lg"
+                    onClick={() => setCopywritingPanelOpen(true)}
+                  >
+                    <PenLine className="mr-2 size-4" />
+                    生成文案
+                  </Button>
+                  <Button onClick={() => setGenerationPanelOpen(true)} className="shadow-lg">
+                    <Sparkles className="mr-2 size-4" />
+                    生成图像
+                  </Button>
+                </div>
+              )}
 
-            {/* 操作按钮（面板关闭时显示） */}
-            {!generationPanelOpen && (
-              <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="shadow-lg"
-                  onClick={() => {/* TODO: 打开文案生成面板 */}}
-                >
-                  <PenLine className="mr-2 size-4" />
-                  生成文案
-                </Button>
-                <Button
-                  onClick={() => setGenerationPanelOpen(true)}
-                  className="shadow-lg"
-                >
-                  <Sparkles className="mr-2 size-4" />
-                  生成图像
-                </Button>
-              </div>
-            )}
+              {/* 生成面板（从底部弹起） */}
+              <GenerationPanel />
 
-            {/* 生成面板（从底部弹起） */}
-            <GenerationPanel />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </DndContext>
+              {/* 文案生成面板（从底部弹起） */}
+              <CopywritingPanel />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </DndContext>
     </div>
   )
 }

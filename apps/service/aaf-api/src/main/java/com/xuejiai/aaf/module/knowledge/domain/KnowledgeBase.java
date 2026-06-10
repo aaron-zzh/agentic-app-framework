@@ -21,7 +21,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "knowledge_base")
+@Table(name = "ai_knowledge_base")
 @SQLDelete(
         sql =
                 "UPDATE knowledge_base SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"

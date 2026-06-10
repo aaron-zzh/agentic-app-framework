@@ -27,14 +27,9 @@ public class AgentRegistryService {
         return repository.save(definition);
     }
 
-    /** 按 ID 查找 */
-    public Optional<AgentDefinition> findByAgentId(String agentId) {
-        return repository.findByAgentId(agentId);
-    }
-
-    /** 按 ID 查找（返回 null 而非 Optional，供内部调用） */
-    public AgentDefinition findById(String agentId) {
-        return repository.findByAgentId(agentId).orElse(null);
+    /** 按数字 ID 查找 */
+    public Optional<AgentDefinition> findById(Long id) {
+        return repository.findById(id);
     }
 
     /** 获取所有活跃 Agent */
@@ -49,9 +44,9 @@ public class AgentRegistryService {
 
     /** 停用 Agent */
     @Transactional
-    public void deactivate(String agentId) {
+    public void deactivate(Long agentId) {
         repository
-                .findByAgentId(agentId)
+                .findById(agentId)
                 .ifPresent(
                         d -> {
                             d.setStatus("inactive");
@@ -61,9 +56,9 @@ public class AgentRegistryService {
 
     /** 归档 Agent */
     @Transactional
-    public void archive(String agentId) {
+    public void archive(Long agentId) {
         repository
-                .findByAgentId(agentId)
+                .findById(agentId)
                 .ifPresent(
                         d -> {
                             d.setStatus("archived");

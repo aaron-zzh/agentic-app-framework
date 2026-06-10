@@ -5,38 +5,40 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.core.assistant.ChatSessionResolver;
-import com.xuejiai.aaf.module.ai.chat.repository.ChatMessageRepository;
-import com.xuejiai.aaf.module.ai.chat.repository.ChatSessionRepository;
+import com.xuejiai.aaf.module.chat.conversation.repository.ConversationRepository;
+import com.xuejiai.aaf.module.chat.message.repository.ConversationMessageRepository;
 
 import lombok.RequiredArgsConstructor;
 
-/** {@link ChatSessionResolver} 实现——桥接 ChatSession/ChatMessage。 */
+/** {@link ChatSessionResolver} 实现——桥接 Conversation/ConversationMessage。 */
 @Component
 @RequiredArgsConstructor
 public class ChatSessionResolverImpl implements ChatSessionResolver {
 
-    private final ChatSessionRepository sessionRepository;
-    private final ChatMessageRepository messageRepository;
+    private final ConversationRepository conversationRepository;
+    private final ConversationMessageRepository messageRepository;
 
     @Override
     public SessionContext resolveByThreadId(String threadId) {
         if (threadId == null || threadId.isBlank()) return null;
-        return sessionRepository
+        return conversationRepository
                 .findByThreadId(threadId)
                 .map(
-                        s ->
+                        conv ->
                                 new SessionContext(
-                                        s.getCreatorId(),
-                                        s.getAssistantId(),
-                                        s.getKnowledgeBaseId(),
-                                        s.getId()))
+                                        conv.getCreatorId(),
+                                        conv.getAssistantId() != null
+                                                ? conv.getAssistantId().toString()
+                                                : null,
+                                        conv.getKnowledgeBaseId(),
+                                        conv.getId()))
                 .orElse(null);
     }
 
     @Override
     public List<HistoryMessage> loadHistory(Long sessionId) {
         if (sessionId == null) return List.of();
-        return messageRepository.findBySessionIdOrderByCreateTimeAsc(sessionId).stream()
+        return messageRepository.findByConversationIdOrderByCreateTimeAsc(sessionId).stream()
                 .map(m -> new HistoryMessage(m.getRole(), m.getContent()))
                 .toList();
     }

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.user.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_ADMIN_DELETE_FORBIDDEN;
+import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
 
 import java.util.Collection;
 import java.util.List;
@@ -20,6 +21,9 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.NicknameGenerator;
+import com.xuejiai.aaf.framework.bizlog.annotation.LogRecord;
+import com.xuejiai.aaf.framework.bizlog.context.LogRecordContext;
+import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
@@ -67,6 +71,11 @@ public class UserService {
      * @return 用户视图对象
      */
     @Transactional
+    @LogRecord(
+            type = SYSTEM_USER_TYPE,
+            subType = SYSTEM_USER_CREATE_SUB_TYPE,
+            bizNo = "{{#user.id}}",
+            success = SYSTEM_USER_CREATE_SUCCESS)
     public UserVO create(UserCreateDTO request) {
         validateUsernameUnique(null, request.username());
         var user = new User();
@@ -75,6 +84,8 @@ public class UserService {
         user.setNickname(
                 request.nickname() != null ? request.nickname() : NicknameGenerator.generate());
         userRepository.save(user);
+        // 新增后 id 才有值，通过 LogRecordContext 注入供模板引用
+        LogRecordContext.putVariable("user", user);
         if (autoCreateAssistant) {
             initDefaultAssistant(user.getId());
         }
@@ -121,8 +132,16 @@ public class UserService {
      * @return 更新后的用户视图对象
      */
     @Transactional
+    @LogRecord(
+            type = SYSTEM_USER_TYPE,
+            subType = SYSTEM_USER_UPDATE_SUB_TYPE,
+            bizNo = "{{#id}}",
+            success = SYSTEM_USER_UPDATE_SUCCESS)
     public UserVO update(Long id, UserUpdateDTO request) {
         var user = requireUser(id);
+        // 保存旧对象供 {_DIFF{#updateReqVO}} 比较（executeBefore 函数在执行前取快照）
+        LogRecordContext.putVariable(DiffParseFunction.OLD_OBJECT, user);
+        LogRecordContext.putVariable("user", user);
         if (request.nickname() != null) {
             user.setNickname(request.nickname());
         }
@@ -130,6 +149,7 @@ public class UserService {
             user.setStatus(request.status());
         }
         userRepository.save(user);
+        LogRecordContext.putVariable("updateReqVO", request);
         return toVO(user);
     }
 
@@ -148,12 +168,21 @@ public class UserService {
      * @param id 用户 ID
      */
     @Transactional
+    @LogRecord(
+            type = SYSTEM_USER_TYPE,
+            subType = SYSTEM_USER_DELETE_SUB_TYPE,
+            bizNo = "{{#id}}",
+            success = SYSTEM_USER_DELETE_SUCCESS,
+            fail = "删除用户 ID={{#id}} 失败：{{#_errorMsg}}")
     public void delete(Long id) {
         validateNotAdmin(id);
-        if (!userRepository.existsById(id)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在");
-        }
-        userRepository.deleteById(id);
+        var user =
+                userRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在"));
+        LogRecordContext.putVariable("user", user);
+        userRepository.delete(user);
     }
 
     /**
@@ -162,6 +191,11 @@ public class UserService {
      * @param ids 用户 ID 列表
      */
     @Transactional
+    @LogRecord(
+            type = SYSTEM_USER_TYPE,
+            subType = SYSTEM_USER_DELETE_BATCH_SUB_TYPE,
+            bizNo = "batch",
+            success = SYSTEM_USER_DELETE_BATCH_SUCCESS)
     public void deleteBatch(List<Long> ids) {
         ids.forEach(this::validateNotAdmin);
         userRepository.deleteAllById(ids);
@@ -174,8 +208,14 @@ public class UserService {
      * @param status 目标状态
      */
     @Transactional
+    @LogRecord(
+            type = SYSTEM_USER_TYPE,
+            subType = SYSTEM_USER_UPDATE_STATUS_SUB_TYPE,
+            bizNo = "{{#id}}",
+            success = SYSTEM_USER_UPDATE_STATUS_SUCCESS)
     public void updateStatus(Long id, Integer status) {
         var user = requireUser(id);
+        LogRecordContext.putVariable("user", user);
         user.setStatus(status);
         userRepository.save(user);
     }
@@ -203,8 +243,14 @@ public class UserService {
      * @param newPassword 新密码
      */
     @Transactional
+    @LogRecord(
+            type = SYSTEM_USER_TYPE,
+            subType = SYSTEM_USER_UPDATE_PASSWORD_SUB_TYPE,
+            bizNo = "{{#id}}",
+            success = SYSTEM_USER_UPDATE_PASSWORD_SUCCESS)
     public void resetPassword(Long id, String newPassword) {
         var user = requireUser(id);
+        LogRecordContext.putVariable("user", user);
         user.changePassword(passwordEncoder, newPassword);
         userRepository.save(user);
     }
@@ -384,16 +430,18 @@ public class UserService {
         return UserConvert.INSTANCE.toVO(user);
     }
 
-    /** 为新用户克隆 default-assistant，assistantId = "user-{userId}-assistant" */
+    /** 为新用户克隆 default-assistant（以 userId=0 的第一个 active assistant 为模板） */
     private void initDefaultAssistant(Long userId) {
         try {
-            var defaultDef = assistantRepo.findByAssistantId("default-assistant").orElse(null);
+            var defaultDef =
+                    assistantRepo.findByUserIdAndStatus(0L, "active").stream()
+                            .findFirst()
+                            .orElse(null);
             if (defaultDef == null) return;
             var assistant = new AssistantDefinition();
-            assistant.setAssistantId("user-" + userId + "-assistant");
             assistant.setUserId(userId);
-            assistant.setActorId(defaultDef.getActorId());
-            assistant.setRoleId(defaultDef.getRoleId());
+            assistant.setPersonaId(defaultDef.getPersonaId());
+            assistant.setDefaultRoleId(defaultDef.getDefaultRoleId());
             assistant.setMemoryStrategy(defaultDef.getMemoryStrategy());
             assistantRepo.save(assistant);
         } catch (Exception e) {

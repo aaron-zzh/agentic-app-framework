@@ -120,7 +120,7 @@ Layer 0  内核层  Core                              【请求级·无状态】
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │  InputBuffer（输入缓冲区）                                        │   │
 │  │  Agent 执行期间接收用户追加输入，分类后决定处理时机                 │   │
-│  │  取消→立即中断 / 修改→重新规划 / 补充→注入上下文 / 无关→排队      │   │
+│  │  取消→立即中断 / 修改→重新规划 / 补充→注入上下文 / 无关→排队        │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │  TaskBoard（任务看板）                                            │   │
@@ -484,6 +484,528 @@ LlmNode        →  LlmClient          →  intelligent/ai
 - Agents need budget-awareness: How to enforce 5 mins/$10/2M tokens budgets?
 - Tools should be self-evolving: How can models improve their own tool ergonomics?
 - Multi-agents need new ways of communicating: How to expand from synchronous USER:ASSISTANT turns?
+
+## 数据架构
+
+> 本节定义五层智能架构的数据库表结构与关系。设计原则：**配置与运行态分离、私有与共享分离、持久与临时分离**。
+> 实际表定义以 `v2__ai_schema.sql` / `v8__chat_schema.sql` 为准，本节为设计视角的精简描述。
+
+### 总览
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Layer 4  Team 协作层（配置 + 运行态）                                    │
+│  ai_team  ai_team_member  ai_team_task                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Layer 3  Assistant 助理层（配置 + 运行态）                               │
+│  配置：ai_persona  ai_role  ai_skill_definition  ai_assistant            │
+│  运行：conversation  ai_chat_task  ai_task_execution  ai_task_checkpoint │
+└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Layer 2  Agent 智能体层（配置）                                          │
+│  ai_agent_definition                                                    │
+│  ai_tool_catalog  ai_action_catalog  ai_mcp_server                     │
+└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Layer 1  Cognition 认知基础层（跨会话持久）                               │
+│  ai_memory_atom  ai_memory_relation                                    │
+│  ai_knowledge_base  ai_knowledge_document  ai_knowledge_chunk           │
+│  ai_knowledge_embedding  ai_value_rule  ai_decision_log                │
+└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Layer 0  Core 内核层（模型配置 + 计量）                                  │
+│  ai_model_provider  ai_model  ai_model_preference  ai_prompt_template  │
+│  ai_token_usage                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 模型层（Layer 0）
+
+#### ai_model_provider — 供应商配置
+
+统一维护同一供应商的 baseUrl 与 API Key。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| provider_code | VARCHAR(64) UNIQUE | aliyun / volcengine / deepseek 等 |
+| provider_name | VARCHAR(128) | 显示名称 |
+| provider_type | VARCHAR(32) | OPENAI_COMPAT / ANTHROPIC / OLLAMA |
+| base_url | VARCHAR(512) | API 端点地址 |
+| api_key_encrypted | VARCHAR(1024) | 加密存储 |
+| enabled | BOOLEAN | |
+
+#### ai_model — 模型配置
+
+LLM 模型接入配置，支持多协议类型。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| model_id | VARCHAR(128) UNIQUE | 逻辑标识，如 `openai:gpt-4o` |
+| display_name | VARCHAR(128) | 显示名称 |
+| provider_id | BIGINT FK→ai_model_provider | 供应商配置 |
+| provider_type | VARCHAR(32) | OPENAI_COMPAT / ANTHROPIC / OLLAMA |
+| model_name | VARCHAR(128) | 实际模型名 |
+| base_url | VARCHAR(512) | 覆盖供应商地址（可为空） |
+| api_key_encrypted | VARCHAR(1024) | 覆盖供应商 Key（可为空） |
+| capabilities | VARCHAR(256) | CHAT,VISION,EMBEDDING,IMAGE_GEN 等 |
+| context_window | INTEGER | 上下文窗口大小（tokens） |
+| enabled | BOOLEAN | |
+
+#### ai_model_preference — 模型偏好
+
+按 scope（USER/SYSTEM）× capability 存储有序降级模型列表。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| scope | VARCHAR(16) | USER / SYSTEM |
+| scope_id | BIGINT | 用户ID（scope=USER时），SYSTEM时为null |
+| capability | VARCHAR(32) | CHAT / EMBEDDING / IMAGE_GEN 等 |
+| model_ids | JSONB | 有序降级列表，如 `["n1n:gpt-4o","openai:gpt-4o"]` |
+
+#### ai_prompt_template — Prompt 模板
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| name | VARCHAR(128) | 模板名称（+version 构成唯一约束） |
+| template_version | INTEGER | 版本号 |
+| content | TEXT | 模板内容（支持变量占位） |
+| variables | TEXT | 变量说明 |
+| category | VARCHAR(64) | 分类 |
+
+### 五层智能配置（Layer 2-4）
+
+#### ai_persona — 人格模板（Layer 3）
+
+Actor 人格配置，可被多个 Assistant 复用。通过 `ai_assistant.persona_id` FK 引用，不复制字段。
+
+用户基于公共模板定制时，复制一条记录并设置 `owner_id`，Assistant 改指向新记录——改模板不影响存量 Assistant，改私有人格也不影响其他用户。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| name | VARCHAR(128) | 人格名称 |
+| persona | TEXT | 人格描述 |
+| system_prompt | TEXT | 系统提示词 |
+| avatar_url | VARCHAR(512) | 头像 |
+| status | VARCHAR(16) | active / inactive |
+| owner_id | BIGINT | **NULL=系统公共模板**（所有用户可选）；**有值=用户私有人格**（仅所属用户可用） |
+
+#### ai_agent_definition — Agent 定义（Layer 2）
+
+Agent 静态定义，运行时由 AgentPool 实例化。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| agent_id | VARCHAR(64) UNIQUE | Agent 业务标识 |
+| name | VARCHAR(128) | |
+| system_prompt | TEXT | |
+| model_id | BIGINT FK→ai_model | 绑定模型（NULL则走路由） |
+| tools | TEXT | 工具列表（逗号分隔） |
+| allowed_tools | TEXT | 工具白名单 |
+| mcp_servers | TEXT | MCP 服务器列表 |
+| max_iterations | INTEGER | ReAct 最大循环次数 |
+| memory_config | JSONB | 记忆配置 |
+| status | VARCHAR(16) | active / inactive |
+
+#### ai_skill_definition — 技能定义（Layer 3）
+
+Skill = Assistant→Agent 的路由规则：意图匹配后绑定 Agent + 系统 Prompt。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| assistant_id | BIGINT FK→ai_assistant | 所属 Assistant（NULL=全局技能） |
+| name | VARCHAR(128) | |
+| trigger_intent | TEXT | 触发条件描述 |
+| agent_id | BIGINT FK→ai_agent_definition | 路由到的 Agent |
+| system_prompt | TEXT | 技能专属系统 Prompt |
+| priority | INTEGER | 匹配优先级 |
+| is_global | BOOLEAN | 是否全局技能 |
+| status | VARCHAR(16) | |
+
+#### ai_role — 能力配置（Layer 3）
+
+Role = Assistant 的能力集合：Skill 引用 + Tool 白名单。**注意：与 ai_assistant 存在循环 FK，建表顺序处理**。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| assistant_id | BIGINT FK→ai_assistant | 所属 Assistant |
+| name | VARCHAR(128) | |
+| skill_ids | TEXT | 技能 ID 列表（逗号分隔，逻辑引用） |
+| tool_whitelist | TEXT | 工具白名单 |
+| status | VARCHAR(16) | |
+
+#### ai_assistant — Assistant 配置（Layer 3）
+
+Assistant = Persona + default Role + MemoryStrategy 的组合。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| user_id | BIGINT | 所属用户 |
+| persona_id | BIGINT FK→ai_persona | 人格模板 |
+| default_role_id | BIGINT FK→ai_role | 默认角色 |
+| memory_strategy | VARCHAR(32) | HYBRID / MEMORY_ONLY / KNOWLEDGE_ONLY 等 |
+| knowledge_base_id | BIGINT | 绑定知识库（逻辑引用） |
+| status | VARCHAR(16) | |
+
+#### ai_team — 多智能体团队（Layer 4）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| name | VARCHAR(128) | |
+| collaboration_mode | VARCHAR(32) | LEADER_COORDINATED 等 |
+| coordinator_assistant_id | BIGINT FK→ai_assistant | Leader Assistant |
+| status | VARCHAR(16) | |
+
+#### ai_team_member — 团队成员
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| team_id | BIGINT FK→ai_team | |
+| assistant_id | BIGINT FK→ai_assistant | |
+| role | VARCHAR(32) | leader / member |
+| capabilities | TEXT | 能力描述 |
+
+#### ai_team_task — 团队任务（Layer 4）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| team_id | BIGINT FK→ai_team | |
+| task_id | VARCHAR(64) UNIQUE | 业务标识 |
+| parent_task_id | VARCHAR(64) | 父任务（逻辑自引用，树形） |
+| assignee_id | BIGINT FK→ai_assistant | 执行者 |
+| description | TEXT | |
+| status | VARCHAR(16) | PENDING / RUNNING / DONE / FAILED |
+| dependencies | TEXT | 依赖任务 ID 列表 |
+| result | TEXT | 执行结果 |
+
+### 会话与执行（Layer 3，运行态）
+
+#### conversation — 统一会话
+
+统一 AI / 客服 / IM 三类会话，每个对话对应一个主 Assistant 实例。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| type | VARCHAR(16) | AI / LIVECHAT / IM |
+| status | VARCHAR(16) | ACTIVE / ARCHIVED / CLOSED 等 |
+| creator_id | BIGINT | |
+| assistant_id | BIGINT FK→ai_assistant | AI 对话快捷字段 |
+| thread_id | VARCHAR(64) | AG-UI threadId |
+| knowledge_base_id | BIGINT | 直连知识库（逻辑引用） |
+| channel_extension | JSONB | 客服渠道扩展信息 |
+
+#### conversation_participant — 参与方
+
+支持 HUMAN / ASSISTANT / AGENT / STAFF / BOT 动态进出。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| conversation_id | BIGINT FK→conversation | |
+| participant_id | BIGINT | 参与方业务 ID |
+| participant_type | VARCHAR(16) | HUMAN / ASSISTANT / AGENT / STAFF / BOT |
+| role | VARCHAR(16) | OWNER / MEMBER / OBSERVER |
+| left_at | TIMESTAMP | NULL=仍在会话中 |
+
+#### conversation_message — 消息
+
+统一三类消息，sender 支持任意参与方。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| conversation_id | BIGINT FK→conversation | |
+| sender_id | BIGINT | 发送方业务 ID |
+| sender_type | VARCHAR(16) | HUMAN / ASSISTANT / AGENT / STAFF / BOT |
+| role | VARCHAR(20) | user / assistant / system / tool |
+| content | TEXT | |
+| content_type | VARCHAR(20) | TEXT / IMAGE / FILE / TOOL_CALL / TOOL_RESULT |
+| payload | JSONB | 结构化内容（工具调用参数等） |
+
+#### ai_chat_task — 对话任务
+
+用户在会话中提交的任务队列，助理按优先级逐个执行。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| session_id | BIGINT | 关联会话 |
+| title | VARCHAR(500) | |
+| status | VARCHAR(20) | PENDING / RUNNING / DONE / FAILED / CANCELLED |
+| scheduled_at | TIMESTAMP | 定时执行时间，NULL=立即 |
+| result | TEXT | |
+
+#### ai_task_execution — 执行实例
+
+一个 ChatTask 可多次执行（重试），支持主/子关系。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| task_id | BIGINT | 关联 ai_chat_task（逻辑引用） |
+| parent_execution_id | BIGINT | 父执行实例（NULL=主执行） |
+| subtask_key | VARCHAR(100) | 子任务标识，如 backend/frontend |
+| attempt_no | INTEGER | 重试序号 |
+| status | VARCHAR(20) | PENDING / RUNNING / DONE / FAILED / WAITING_APPROVAL |
+| role | VARCHAR(100) | 执行角色 |
+
+#### ai_task_checkpoint — 执行检查点
+
+支持从最近检查点恢复，对应 Agent 步骤级 + Assistant 会话级。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| execution_id | BIGINT | 关联执行实例 |
+| scope | VARCHAR(20) | coordinator / subtask / agent_step |
+| step_index | INTEGER | 步骤序号 |
+| state_json | JSONB | 状态快照（TaskBoard / 步骤进度 / 工作记忆） |
+
+#### ai_task_event — 任务事件
+
+append-only 审计流水，支持 SSE 实时推送。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| task_id | BIGINT | |
+| execution_id | BIGINT | |
+| type | VARCHAR(50) | task_started / step_completed / tool_called 等 |
+| payload_json | JSONB | 事件数据 |
+
+#### ai_decision_log — AI 决策日志
+
+AI 自主决策的审计记录，支持异步人工审查。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| scope_type | VARCHAR(16) | AGENT / ASSISTANT / TEAM |
+| scope_id | VARCHAR(128) | 执行实例 ID（逻辑引用） |
+| decision_point | TEXT | 决策节点描述 |
+| options | JSONB | 备选方案：[{option, pros, cons}] |
+| chosen_option | TEXT | 选中方案 |
+| confidence | DOUBLE | 置信度（0.0~1.0） |
+| review_status | VARCHAR(16) | PENDING / APPROVED / REJECTED |
+
+### 认知层（Layer 1，Cognition）
+
+#### ai_memory_atom — 记忆原子
+
+用户私有区，短期/长期/情景/程序化记忆，双时态设计（事件时间 + 写入时间）。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID PK | |
+| user_id | BIGINT | 用户私有，严格隔离 |
+| scope | VARCHAR(20) | short_term / long_term / episodic / procedural |
+| content | TEXT | |
+| embedding | vector(1536) | PgVector 向量索引 |
+| event_time | TIMESTAMPTZ | 事件发生时间（双时态） |
+| valid_from/valid_to | TIMESTAMPTZ | 有效期 |
+| weight | DOUBLE | 重要性权重（遗忘策略） |
+| tags | TEXT[] | |
+
+#### ai_memory_relation — 记忆关系
+
+记忆原子间关系图（用于 BundleSearch 图路由），与 Neo4j MemoryEntity 互补。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| source_id | UUID FK→ai_memory_atom | |
+| target_id | UUID FK→ai_memory_atom | |
+| relation_type | VARCHAR(50) | |
+| weight | DOUBLE | |
+| edge_text | TEXT | 关系描述 |
+| edge_embedding | vector(1536) | 边向量 |
+
+#### ai_knowledge_base — 知识库
+
+全局共享区，支持多知识库隔离。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| name | VARCHAR(200) | |
+| embedding_model | VARCHAR(100) | 向量化模型 |
+| chunk_strategy | VARCHAR(50) | 分块策略 |
+| status | INTEGER | |
+
+#### ai_knowledge_document — 知识文档
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| knowledge_base_id | BIGINT FK | |
+| title | VARCHAR(500) | |
+| file_type | VARCHAR(50) | |
+| status | INTEGER | 0=待处理 / 已分块 / 已索引 / 失败 |
+| chunk_count | INTEGER | |
+
+#### ai_knowledge_chunk — 知识分块
+
+检索最小单元，对应 Neo4j KnowledgeEntity 节点。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| document_id | BIGINT FK | |
+| knowledge_base_id | BIGINT FK | |
+| content | TEXT | |
+| chunk_index | INTEGER | 在文档中的位置 |
+| metadata | JSONB | {headings, page, tags} |
+
+#### ai_knowledge_embedding — 知识向量
+
+兼容 Spring AI VectorStore，独立存储向量与关联。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID PK | |
+| embedding | vector(1536) | HNSW 索引 |
+| chunk_id | BIGINT FK→ai_knowledge_chunk | |
+| knowledge_base_id | BIGINT FK | |
+| model_name | VARCHAR(50) | 向量化模型 |
+
+#### ai_value_rule — 价值观规则
+
+全局共享区，Agent 执行前 Value 过滤。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT PK | |
+| name | VARCHAR(128) | |
+| rule_type | VARCHAR(32) | FORBIDDEN / REQUIRED / PREFERRED |
+| condition | TEXT | 规则条件（用于 LLM 判断） |
+| priority | INTEGER | |
+| scope | VARCHAR(16) | GLOBAL / TENANT |
+
+### 工具与计量
+
+#### ai_tool_catalog — 工具目录
+
+ToolCallback / MCP 工具注册，ToolRegistry 的持久化存储。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| tool_name | VARCHAR(120) UNIQUE | Function Calling 中的 name |
+| source | VARCHAR(32) | LOCAL / MCP / CUSTOM |
+| tool_type | VARCHAR(32) | FUNCTION / MCP / HTTP / WORKFLOW / AGENT |
+| risk_level | VARCHAR(16) | NONE / LOW / MEDIUM / HIGH |
+| require_confirm | BOOLEAN | 是否需要人工确认 |
+| input_schema / output_schema | TEXT | JSON Schema |
+
+#### ai_action_catalog — 业务动作目录
+
+AI 可调用的业务能力边界，与 ai_tool_catalog 正交（工具=技术原子；动作=业务语义）。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| action_key | VARCHAR(120) | query / create / update 等 |
+| entity_slug | VARCHAR(120) | 实体标识，如 system-role |
+| risk_level | VARCHAR(16) | low / medium / high |
+| require_confirm | BOOLEAN | |
+| permission_code_override | VARCHAR(120) | 覆写权限码 |
+
+#### ai_mcp_server — MCP 服务器
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | VARCHAR(128) UNIQUE | |
+| url | VARCHAR(512) | |
+| transport | VARCHAR(16) | HTTP / SSE / STDIO |
+| status | VARCHAR(16) | connected / disconnected / error |
+
+#### ai_token_usage — Token 计量
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| user_id | BIGINT | |
+| conversation_id | BIGINT FK→conversation | |
+| model_id | BIGINT FK→ai_model | |
+| prompt_tokens / completion_tokens / total_tokens | BIGINT | |
+| usage_id | VARCHAR(64) UNIQUE | 关联 credit_transaction |
+
+### 实体关系总览
+
+```text
+【模型层】
+ai_model_provider ──(1:N FK)──→ ai_model ←──(FK)── ai_agent_definition
+                                ai_model ←──(FK)── ai_token_usage
+ai_model_preference（独立，逻辑引用 ai_model）
+ai_prompt_template（独立）
+
+【五层智能配置】
+ai_persona ←──(FK)──── ai_assistant.persona_id
+ai_role    ←──(FK)──── ai_assistant.default_role_id
+ai_role.assistant_id ──(FK)──→ ai_assistant        ← 循环FK，建表顺序处理
+ai_role.skill_ids (TEXT) ──逻辑──→ ai_skill_definition
+ai_skill_definition.agent_id ──(FK)──→ ai_agent_definition
+ai_assistant ←──(FK)──── ai_team.coordinator_assistant_id
+ai_team ──(1:N FK)──→ ai_team_member.assistant_id ──(FK)──→ ai_assistant
+ai_team ──(1:N FK)──→ ai_team_task.assignee_id ──(FK)──→ ai_assistant
+ai_team_task.parent_task_id ──逻辑自引用──→ ai_team_task
+
+【会话与执行】
+conversation ──(1:N FK)──→ conversation_participant
+conversation ──(1:N FK)──→ conversation_message
+conversation.assistant_id ──(FK)──→ ai_assistant
+ai_chat_task ──(1:N 逻辑)──→ ai_task_execution
+ai_task_execution.parent_execution_id ──逻辑自引用──→ ai_task_execution
+ai_task_execution ──(1:N 逻辑)──→ ai_task_checkpoint
+ai_task_execution ──(1:N 逻辑)──→ ai_task_event
+ai_token_usage.conversation_id ──(FK)──→ conversation
+
+【认知层 Cognition】
+ai_memory_atom ──(自关联 N:M FK)──→ ai_memory_relation
+ai_knowledge_base ──(1:N FK)──→ ai_knowledge_document
+ai_knowledge_document ──(1:N FK)──→ ai_knowledge_chunk
+ai_knowledge_chunk ──(1:N FK)──→ ai_knowledge_embedding
+ai_value_rule（独立）
+ai_decision_log.scope_id ──逻辑──→ ai_task_execution
+
+【工具与计量】
+ai_mcp_server ──逻辑──→ ai_tool_catalog（source=MCP时）
+ai_tool_catalog / ai_action_catalog（独立目录）
+```
+
+### Neo4j 整合点
+
+PostgreSQL 是 source of truth，Neo4j 承担关系遍历查询（写入成功后异步 Spring Event 同步，幂等 MERGE）。
+
+| Neo4j 节点/关系 | 对应 PG 表 | 桥接字段 | 用途 |
+|------|------|------|------|
+| `MemoryEntity` + `RELATES_TO` | `ai_memory_atom` + `ai_memory_relation` | `GraphMemoryNode.userId` = `ai_memory_atom.user_id` | PG 做向量检索，Neo4j 做实体关系遍历 |
+| `KnowledgeEntity` + `RELATES_TO` | `ai_knowledge_chunk` / `ai_knowledge_document` | `KnowledgeEntity.sourceDocumentId` = `ai_knowledge_document.id` | PG 做向量检索，Neo4j 做知识图谱多跳 |
+| `AgentNode` + `INVOKED` | `ai_task_execution` | `AgentGraphNode.agentId` = `ai_agent_definition.agent_id` | Agent 协作调用拓扑 |
+| `AutodevDoc` | `autodev_doc`（v4） | `AutodevDocNode.docId` = PG 主键 | 文档引用依赖图 |
+
+待补充整合（未实现）：
+
+- **Skill→Agent 路由图**（v0.4）：`ai_role.skill_ids` 当前为 TEXT，建议同步 `(:Assistant)-[:HAS_ROLE]->(:Role)-[:INCLUDES_SKILL]->(:Skill)-[:ROUTES_TO]->(:Agent)`
+- **决策链路图**（v0.4）：`(:Task)-[:TRIGGERED]->(:Decision)-[:CHOSE]->(:Action)`，配合 `ai_decision_log`
+- **Memory ↔ Knowledge 交叉引用**（v0.5）：`(:MemoryEntity)-[:REFERENCES]->(:KnowledgeEntity)`
+
+### 与架构约束的映射
+
+| 架构约束 | 表级实现 |
+|---------|---------|
+| 无状态层可水平扩展（Core/Agent） | Agent 无持久化主表，状态外化到 `ai_task_checkpoint` |
+| 状态集中在 Cognition | 用户数据统一在 `ai_memory_atom` / `ai_knowledge_*` |
+| 私有与共享分离 | `ai_memory_atom`（user_id 严格隔离）vs `ai_knowledge_base`（共享） |
+| 三层上下文分离 | 知识库（`ai_knowledge_*`）/ 记忆（`ai_memory_atom`）/ 上下文（`conversation` + `conversation_message`） |
+| 执行结果反哺知识 | `ai_decision_log` + `ai_task_event`（append-only 溯源） |
+| 配置缓存刷新 | `ai_persona/ai_role/ai_skill_definition/ai_agent_definition/ai_model` 变更 → Spring Event → 缓存失效 |
+
+---
 
 ## 各层详细设计
 

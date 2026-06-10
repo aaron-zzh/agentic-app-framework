@@ -45,7 +45,7 @@ public class ToolCallDispatcher {
 
     /** 执行工具调用（含权限检查，外部调用）。 */
     public ToolCallResult dispatchWithPermission(
-            String sessionId, Long userId, String roleId, String functionName, String arguments) {
+            String sessionId, Long userId, Long roleId, String functionName, String arguments) {
         var meta =
                 registry.listAll().stream()
                         .filter(m -> m.name().equals(functionName))

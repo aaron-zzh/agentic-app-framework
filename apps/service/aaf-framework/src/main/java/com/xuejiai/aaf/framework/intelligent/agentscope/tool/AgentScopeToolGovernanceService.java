@@ -149,7 +149,7 @@ public class AgentScopeToolGovernanceService {
                     return context;
                 }
             }
-            var assistantId = definition.getAgentId();
+            var assistantId = definition.getId().toString();
             return new AafAgentScopeContext("agent:" + assistantId, assistantId);
         }
     }

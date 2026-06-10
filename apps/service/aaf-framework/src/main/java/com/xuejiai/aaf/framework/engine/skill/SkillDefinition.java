@@ -15,20 +15,8 @@ import lombok.Setter;
 @Entity
 @Table(
         name = "ai_skill_definition",
-        indexes = {
-            @Index(columnList = "assistantId"),
-            @Index(columnList = "triggerIntent"),
-            @Index(columnList = "builtIn")
-        })
+        indexes = {@Index(columnList = "triggerIntent"), @Index(columnList = "builtIn")})
 public class SkillDefinition extends BaseEntity {
-
-    /** 技能唯一标识 */
-    @Column(nullable = false, unique = true, length = 64)
-    private String skillId;
-
-    /** 所属 Assistant ID（内置技能为 null，表示全局可用） */
-    @Column(length = 64)
-    private String assistantId;
 
     /** 显示名称 */
     @Column(nullable = false, length = 128)
@@ -39,8 +27,7 @@ public class SkillDefinition extends BaseEntity {
     private String description;
 
     /** 绑定的 Agent ID（null 表示 Assistant 直接处理） */
-    @Column(length = 64)
-    private String agentId;
+    @Column private Long agentId;
 
     /** 触发意图关键词（JSON 数组，如 ["代码审查","review"]） */
     @Column(columnDefinition = "TEXT")
@@ -53,10 +40,6 @@ public class SkillDefinition extends BaseEntity {
     /** 技能专属系统提示词（覆盖 Agent 默认提示词） */
     @Column(columnDefinition = "TEXT")
     private String systemPrompt;
-
-    /** 绑定的工具列表（JSON 数组） */
-    @Column(columnDefinition = "TEXT")
-    private String tools;
 
     /** 优先级（数字越大优先级越高） */
     @Column(nullable = false)

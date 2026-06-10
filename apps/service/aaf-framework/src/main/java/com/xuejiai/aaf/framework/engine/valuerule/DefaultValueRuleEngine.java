@@ -4,27 +4,45 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 默认价值规则引擎——基于关键词黑名单的内容过滤。 后续可升级为 LLM 驱动的语义级价值判断。 */
+/** 默认价值规则引擎——优先从数据库加载规则，降级为内置关键词黑名单。 */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class DefaultValueRuleEngine implements ValueRuleEngine {
 
-    /** 黑名单关键词（后续从数据库/配置加载） */
-    private static final List<String> BLOCKED_KEYWORDS =
+    private final ValueRuleRepository valueRuleRepository;
+
+    /** 内置兜底黑名单（数据库不可用时使用） */
+    private static final List<String> FALLBACK_KEYWORDS =
             List.of("暴力", "色情", "赌博", "毒品", "自杀", "恐怖主义");
 
     @Override
     public ValidationResult validate(String content) {
         if (content == null || content.isBlank()) return ValidationResult.pass();
-        for (var keyword : BLOCKED_KEYWORDS) {
-            if (content.contains(keyword)) {
-                log.debug("价值规则拦截: 命中关键词 [{}]", keyword);
-                return ValidationResult.reject("内容包含违规关键词: " + keyword);
+
+        // 优先从数据库加载 FORBIDDEN 规则
+        try {
+            var rules = valueRuleRepository.findEnabledForbiddenRules();
+            for (var rule : rules) {
+                if (content.contains(rule.getCondition())) {
+                    log.debug("价值规则拦截: 命中规则 [{}]", rule.getName());
+                    return ValidationResult.reject("内容违反价值规则: " + rule.getName());
+                }
             }
+            return ValidationResult.pass();
+        } catch (Exception e) {
+            // 降级：使用内置关键词
+            log.warn("价值规则数据库查询失败，使用内置黑名单: {}", e.getMessage());
+            for (var keyword : FALLBACK_KEYWORDS) {
+                if (content.contains(keyword)) {
+                    return ValidationResult.reject("内容包含违规关键词: " + keyword);
+                }
+            }
+            return ValidationResult.pass();
         }
-        return ValidationResult.pass();
     }
 
     @Override

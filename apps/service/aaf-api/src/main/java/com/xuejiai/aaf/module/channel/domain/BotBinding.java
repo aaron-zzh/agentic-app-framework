@@ -28,8 +28,8 @@ public class BotBinding extends BaseEntity {
     private String name;
 
     /** 绑定的 Assistant ID */
-    @Column(name = "assistant_id", nullable = false, length = 64)
-    private String assistantId;
+    @Column(name = "assistant_id", nullable = false)
+    private Long assistantId;
 
     /** 触发规则 JSON（可选，如关键词匹配、群 ID 过滤等） */
     @Column(name = "route_rule", columnDefinition = "jsonb")

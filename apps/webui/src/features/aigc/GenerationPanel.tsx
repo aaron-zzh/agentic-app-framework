@@ -1,13 +1,14 @@
 /**
  * 生成面板——从底部弹起，包含参考素材区、Prompt 输入、参数栏
+ * 支持 AI 生图 / AI 视频切换
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { useCallback, useRef, useState } from "react"
 import { AnimatePresence, m } from "framer-motion"
 import { X } from "lucide-react"
+import { useCallback, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -16,15 +17,24 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import { useGenerateImage } from "@/lib/queries/use-image-generation"
 import { ReferenceDropZone } from "./ReferenceDropZone"
 import { ReferenceRow } from "./ReferenceRow"
+import { RoleSelector } from "./RoleSelector"
 import { useAigcStore } from "./store"
+
+/** 图像模型 */
+const IMAGE_MODELS = ["GPT Image 2", "DALL·E 3", "Midjourney"]
+/** 视频模型 */
+const VIDEO_MODELS = ["Sora", "Kling 2.0", "Wan 2.1", "HunyuanVideo"]
 
 export function GenerationPanel() {
   const open = useAigcStore((s) => s.generationPanelOpen)
   const setOpen = useAigcStore((s) => s.setGenerationPanelOpen)
+  const generationType = useAigcStore((s) => s.generationType)
+  const setGenerationType = useAigcStore((s) => s.setGenerationType)
   const prompt = useAigcStore((s) => s.prompt)
   const setPrompt = useAigcStore((s) => s.setPrompt)
   const model = useAigcStore((s) => s.model)
@@ -33,6 +43,10 @@ export function GenerationPanel() {
   const setResolution = useAigcStore((s) => s.setResolution)
   const aspectRatio = useAigcStore((s) => s.aspectRatio)
   const setAspectRatio = useAigcStore((s) => s.setAspectRatio)
+  const videoDuration = useAigcStore((s) => s.videoDuration)
+  const setVideoDuration = useAigcStore((s) => s.setVideoDuration)
+  const agentRole = useAigcStore((s) => s.agentRole)
+  const setAgentRole = useAigcStore((s) => s.setAgentRole)
   const generateImage = useGenerateImage()
   const addPendingTask = useAigcStore((s) => s.addPendingTask)
   const [panelHeight, setPanelHeight] = useState<number>(() =>
@@ -42,16 +56,21 @@ export function GenerationPanel() {
 
   const handleResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
-    resizeStart.current = { my: e.clientY, h: e.currentTarget.closest("[data-panel]")?.clientHeight ?? 400 }
+    resizeStart.current = {
+      my: e.clientY,
+      h: e.currentTarget.closest("[data-panel]")?.clientHeight ?? 400
+    }
   }, [])
 
   const handleResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!resizeStart.current) return
-    const delta = resizeStart.current.my - e.clientY // 向上拖为正
+    const delta = resizeStart.current.my - e.clientY
     setPanelHeight(Math.max(200, resizeStart.current.h + delta))
   }, [])
 
-  const handleResizeUp = useCallback(() => { resizeStart.current = null }, [])
+  const handleResizeUp = useCallback(() => {
+    resizeStart.current = null
+  }, [])
 
   function handleGenerate() {
     if (!prompt.trim()) return
@@ -59,13 +78,25 @@ export function GenerationPanel() {
       { prompt, model },
       {
         onSuccess: (taskId) => {
-          addPendingTask({ id: taskId, prompt, type: "IMAGE" })
+          addPendingTask({
+            id: taskId,
+            prompt,
+            type: generationType === "image" ? "IMAGE" : "VIDEO"
+          })
           setPrompt("")
           setOpen(false)
         }
       }
     )
   }
+
+  // 切换类型时同步切换到对应默认模型
+  function handleTypeChange(type: "image" | "video") {
+    setGenerationType(type)
+    setModel(type === "image" ? IMAGE_MODELS[0] : VIDEO_MODELS[0])
+  }
+
+  const isVideo = generationType === "video"
 
   return (
     <AnimatePresence>
@@ -101,6 +132,21 @@ export function GenerationPanel() {
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 pt-2">
+            {/* 类型切换 */}
+            <Tabs
+              value={generationType}
+              onValueChange={(v) => handleTypeChange(v as "image" | "video")}
+            >
+              <TabsList className="h-7">
+                <TabsTrigger value="image" className="h-6 px-3 text-xs">
+                  AI 生图
+                </TabsTrigger>
+                <TabsTrigger value="video" className="h-6 px-3 text-xs">
+                  AI 视频
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
             {/* 参考素材拖入区 */}
             <ReferenceDropZone />
 
@@ -112,7 +158,7 @@ export function GenerationPanel() {
               <RichTextEditor
                 value={prompt}
                 onChange={setPrompt}
-                placeholder="描述你想生成的图像..."
+                placeholder={isVideo ? "描述你想生成的视频内容..." : "描述你想生成的图像..."}
                 mode="plaintext"
                 preset="minimal"
                 fill
@@ -122,51 +168,47 @@ export function GenerationPanel() {
 
           {/* 底部参数栏：固定在面板底部 */}
           <div className="shrink-0 border-t px-4 py-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <div className="flex items-center gap-2">
                 {/* 模型选择 */}
-                <Select value={model} onValueChange={(v) => setModel(v ?? "GPT Image 2")}>
+                <Select value={model} onValueChange={(v) => setModel(v ?? IMAGE_MODELS[0])}>
                   <SelectTrigger className="h-8 w-[160px] text-xs">
                     <span className="shrink-0 text-muted-foreground">模型</span>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="GPT Image 2">GPT Image 2</SelectItem>
-                    <SelectItem value="DALL·E 3">DALL·E 3</SelectItem>
-                    <SelectItem value="Midjourney">Midjourney</SelectItem>
+                    {(isVideo ? VIDEO_MODELS : IMAGE_MODELS).map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
-                {/* 分辨率 */}
-                <Select value={resolution} onValueChange={(v) => setResolution(v ?? "2K")}>
-                  <SelectTrigger className="h-8 w-[110px] text-xs">
-                    <span className="shrink-0 text-muted-foreground">分辨率</span>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1K">1K</SelectItem>
-                    <SelectItem value="2K">2K</SelectItem>
-                    <SelectItem value="4K">4K</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* 比例 */}
+                {/* 比例（图像 + 视频通用） */}
                 <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v ?? "9:16")}>
                   <SelectTrigger className="h-8 w-[115px] text-xs">
                     <span className="shrink-0 text-muted-foreground">比例</span>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {([
-                      { value: "1:1",  rw: 12, rh: 12 },
-                      { value: "9:16", rw: 8,  rh: 14 },
-                      { value: "16:9", rw: 14, rh: 8  },
-                      { value: "4:3",  rw: 12, rh: 9  },
-                    ] as const).map(({ value, rw, rh }) => (
+                    {(
+                      [
+                        { value: "1:1", rw: 12, rh: 12 },
+                        { value: "9:16", rw: 8, rh: 14 },
+                        { value: "16:9", rw: 14, rh: 8 },
+                        { value: "4:3", rw: 12, rh: 9 }
+                      ] as const
+                    ).map(({ value, rw, rh }) => (
                       <SelectItem key={value} value={value}>
                         <span className="flex items-center gap-1.5">
-                          {/* 外框固定 16×16，内部矩形居中按比例 */}
-                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0 text-muted-foreground">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            className="shrink-0 text-muted-foreground"
+                          >
                             <rect
                               x={(16 - rw) / 2 + 0.5}
                               y={(16 - rh) / 2 + 0.5}
@@ -184,19 +226,49 @@ export function GenerationPanel() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* 图像专属：分辨率 */}
+                {!isVideo && (
+                  <Select value={resolution} onValueChange={(v) => setResolution(v ?? "2K")}>
+                    <SelectTrigger className="h-8 w-[110px] text-xs">
+                      <span className="shrink-0 text-muted-foreground">分辨率</span>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1K">1K</SelectItem>
+                      <SelectItem value="2K">2K</SelectItem>
+                      <SelectItem value="4K">4K</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* 视频专属：时长 */}
+                {isVideo && (
+                  <Select value={videoDuration} onValueChange={(v) => setVideoDuration(v ?? "5s")}>
+                    <SelectTrigger className="h-8 w-[110px] text-xs">
+                      <span className="shrink-0 text-muted-foreground">时长</span>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5s">5 秒</SelectItem>
+                      <SelectItem value="10s">10 秒</SelectItem>
+                      <SelectItem value="15s">15 秒</SelectItem>
+                      <SelectItem value="30s">30 秒</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* 生成图像 */}
-                <Button
-                  size="sm"
-                  disabled={generateImage.isPending || !prompt.trim()}
-                  onClick={handleGenerate}
-                  className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
-                >
-                  {generateImage.isPending ? "生成中..." : "生成"}
-                </Button>
-              </div>
+              <RoleSelector value={agentRole} onChange={setAgentRole} />
+
+              <Button
+                size="sm"
+                disabled={generateImage.isPending || !prompt.trim()}
+                onClick={handleGenerate}
+                className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
+              >
+                {generateImage.isPending ? "生成中..." : "生成"}
+              </Button>
             </div>
           </div>
         </m.div>

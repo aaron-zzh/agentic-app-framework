@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 /** 提交评价请求 DTO。 */
 public record RatingSubmitDTO(
-        @NotNull Long sessionId,
+        @NotNull Long conversationId,
         Long userId,
         Long staffId,
         @NotNull @Min(1) @Max(5) Integer score,

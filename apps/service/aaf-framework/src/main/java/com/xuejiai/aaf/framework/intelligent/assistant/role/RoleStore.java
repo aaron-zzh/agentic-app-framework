@@ -6,8 +6,11 @@ import java.util.List;
 public interface RoleStore {
 
     /** 获取 Role 关联的 skillId 列表。 */
-    List<String> getSkillIds(String roleId);
+    List<Long> getSkillIds(Long roleId);
 
-    /** 获取 Role 关联的工具白名单。 */
-    List<String> getToolWhitelist(String roleId);
+    /** 获取 Role 关联的工具授权池（角色级工具白名单）。 */
+    List<String> getToolWhitelist(Long roleId);
+
+    /** 获取助理挂载的角色 ID 列表（经 ai_assistant_role 关联，按排序值升序）。 */
+    List<Long> getRoleIdsByAssistant(Long assistantId);
 }

@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.assistant.service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -13,7 +14,10 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.SkillMatchService;
-import com.xuejiai.aaf.framework.intelligent.assistant.actor.ActorRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.AiAssistantRole;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.AiAssistantRoleRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.core.memory.MemoryStrategy;
 import com.xuejiai.aaf.module.ai.assistant.vo.*;
 
@@ -29,7 +33,9 @@ import lombok.RequiredArgsConstructor;
 public class AssistantManagementService {
 
     private final AssistantDefinitionRepository assistantRepo;
-    private final ActorRepository actorRepo;
+    private final PersonaRepository personaRepo;
+    private final AiRoleRepository roleRepo;
+    private final AiAssistantRoleRepository assistantRoleRepo;
     private final SkillMatchService skillMatchService;
 
     /**
@@ -41,15 +47,16 @@ public class AssistantManagementService {
     @Transactional
     public AssistantVO create(AssistantCreateDTO dto) {
         var entity = new AssistantDefinition();
-        entity.setAssistantId(dto.assistantId());
         entity.setUserId(dto.userId());
-        entity.setActorId(dto.actorId());
-        entity.setRoleId(dto.roleId());
+        entity.setPersonaId(dto.personaId());
+        entity.setDefaultRoleId(dto.defaultRoleId());
         if (dto.memoryStrategy() != null) {
             entity.setMemoryStrategy(MemoryStrategy.valueOf(dto.memoryStrategy()));
         }
         entity.setKnowledgeBaseId(dto.knowledgeBaseId());
         var saved = assistantRepo.save(entity);
+        // 经 ai_assistant_role 维护助理-角色关联（默认角色自动补入）
+        saveRoleBindings(saved.getId(), dto.roleIds(), dto.defaultRoleId());
         return toVO(saved);
     }
 
@@ -106,13 +113,18 @@ public class AssistantManagementService {
                                 () ->
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "Assistant 不存在"));
-        if (dto.actorId() != null) entity.setActorId(dto.actorId());
-        if (dto.roleId() != null) entity.setRoleId(dto.roleId());
+        if (dto.personaId() != null) entity.setPersonaId(dto.personaId());
+        if (dto.defaultRoleId() != null) entity.setDefaultRoleId(dto.defaultRoleId());
         if (dto.memoryStrategy() != null) {
             entity.setMemoryStrategy(MemoryStrategy.valueOf(dto.memoryStrategy()));
         }
         if (dto.knowledgeBaseId() != null) entity.setKnowledgeBaseId(dto.knowledgeBaseId());
         var saved = assistantRepo.save(entity);
+        // 角色列表传入则全量替换助理-角色关联（禁兼容层：直接替换，不保留旧关联）
+        if (dto.roleIds() != null) {
+            assistantRoleRepo.deleteByAssistantId(id);
+            saveRoleBindings(id, dto.roleIds(), saved.getDefaultRoleId());
+        }
         return toVO(saved);
     }
 
@@ -175,19 +187,30 @@ public class AssistantManagementService {
         throw new UnsupportedOperationException("配置工具白名单功能待完善");
     }
 
-    /** 获取当前可用助理列表（含 Actor 头像名称，供前端角色切换）。 返回所有 active 状态的公共助理（userId=0）。 */
+    /** 获取当前可用助理列表（含各助理下的角色列表，供前端角色选择器分组展示）。 返回所有 active 状态的公共助理（userId=0）。 */
     public List<AssistantAvailableVO> listAvailable() {
         var assistants = assistantRepo.findByUserIdAndStatus(0L, "active");
         return assistants.stream()
                 .map(
                         a -> {
-                            var actor = actorRepo.findByActorId(a.getActorId()).orElse(null);
+                            var persona = personaRepo.findById(a.getPersonaId()).orElse(null);
+                            var roles =
+                                    roleRepo
+                                            .findByAssistantIdAndStatus(a.getId(), "active")
+                                            .stream()
+                                            .map(
+                                                    r ->
+                                                            new AssistantAvailableVO.RoleItem(
+                                                                    r.getId(),
+                                                                    r.getName(),
+                                                                    r.getDescription()))
+                                            .toList();
                             return new AssistantAvailableVO(
-                                    a.getAssistantId(),
-                                    a.getRoleId(),
-                                    a.getActorId(),
-                                    actor != null ? actor.getName() : a.getAssistantId(),
-                                    actor != null ? actor.getAvatarUrl() : null);
+                                    a.getId(),
+                                    persona != null ? persona.getName() : String.valueOf(a.getId()),
+                                    persona != null ? persona.getAvatarUrl() : null,
+                                    a.getDefaultRoleId(),
+                                    roles);
                         })
                 .toList();
     }
@@ -195,14 +218,41 @@ public class AssistantManagementService {
     private AssistantVO toVO(AssistantDefinition e) {
         return new AssistantVO(
                 e.getId(),
-                e.getAssistantId(),
                 e.getUserId(),
-                e.getActorId(),
-                e.getRoleId(),
+                e.getPersonaId(),
+                e.getDefaultRoleId(),
+                roleIdsOf(e.getId()),
                 e.getMemoryStrategy() != null ? e.getMemoryStrategy().name() : null,
                 e.getKnowledgeBaseId(),
                 e.getStatus(),
                 e.getCreateTime(),
                 e.getUpdateTime());
+    }
+
+    /** 查询助理挂载的角色 ID 列表（经 ai_assistant_role，按排序值升序）。 */
+    private List<Long> roleIdsOf(Long assistantId) {
+        return assistantRoleRepo.findByAssistantIdOrderBySortOrderAsc(assistantId).stream()
+                .map(AiAssistantRole::getRoleId)
+                .toList();
+    }
+
+    /**
+     * 维护助理-角色关联（ai_assistant_role）。
+     *
+     * <p>绑定集合 = roleIds ∪ {defaultRoleId}，确保默认角色一定在关联中；与 defaultRoleId 相同的关联标记 isDefault。
+     */
+    private void saveRoleBindings(Long assistantId, List<Long> roleIds, Long defaultRoleId) {
+        var ids = new LinkedHashSet<Long>();
+        if (defaultRoleId != null) ids.add(defaultRoleId);
+        if (roleIds != null) ids.addAll(roleIds);
+        int order = 0;
+        for (var roleId : ids) {
+            var link = new AiAssistantRole();
+            link.setAssistantId(assistantId);
+            link.setRoleId(roleId);
+            link.setIsDefault(roleId.equals(defaultRoleId));
+            link.setSortOrder(order++);
+            assistantRoleRepo.save(link);
+        }
     }
 }

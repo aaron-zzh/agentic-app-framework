@@ -36,13 +36,12 @@ public class TokenUsageRecord {
     @Column(nullable = false, unique = true, length = 64)
     private String usageId;
 
-    /** 会话 ID */
-    @Column(length = 64)
-    private String conversationId;
+    /** 会话 ID（FK → conversation.id，允许为空） */
+    @Column private Long conversationId;
 
-    /** 模型 ID */
-    @Column(nullable = false, length = 64)
-    private String modelId;
+    /** 模型 DB 主键（FK → ai_model.id） */
+    @Column(nullable = false)
+    private Long modelId;
 
     /** 输入 Token 数 */
     @Column(nullable = false)

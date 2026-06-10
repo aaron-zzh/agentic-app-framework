@@ -130,7 +130,7 @@ public class DurableTaskExecutor {
                             agentDef,
                             input,
                             task.getCreatorId(),
-                            task.getSessionId().toString(),
+                            task.getConversationId().toString(),
                             null,
                             null);
 
@@ -157,7 +157,7 @@ public class DurableTaskExecutor {
             chatService.saveMessage(
                     task.getCreatorId(),
                     "AI",
-                    task.getSessionId(),
+                    task.getConversationId(),
                     "assistant",
                     "[任务完成: %s]\n%s".formatted(task.getTitle(), result.response()));
 
@@ -221,7 +221,7 @@ public class DurableTaskExecutor {
                                 agentDef,
                                 subtask.description(),
                                 task.getCreatorId(),
-                                task.getSessionId().toString(),
+                                task.getConversationId().toString(),
                                 null,
                                 null);
 
@@ -356,7 +356,7 @@ public class DurableTaskExecutor {
     private void recordOutput(ChatTask task, Long executionId, String result) {
         try {
             var output = new AiOutput();
-            output.setSessionId(task.getSessionId());
+            output.setSessionId(task.getConversationId());
             output.setTaskId(task.getId());
             output.setExecutionId(executionId);
             output.setCreatorId(task.getCreatorId());
@@ -399,10 +399,9 @@ public class DurableTaskExecutor {
 
     private AgentDefinition resolveAgent(ChatTask task) {
         // 优先使用任务关联的 Agent，否则用默认
-        var def = agentRegistry.findById("default");
+        var def = agentRegistry.listActive().stream().findFirst().orElse(null);
         if (def == null) {
             def = new AgentDefinition();
-            def.setAgentId("default");
             def.setName("默认助理");
             def.setSystemPrompt("你是一个有帮助的 AI 助手，请完成用户交给你的任务。");
             def.setTimeoutSeconds(120);

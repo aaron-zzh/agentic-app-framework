@@ -16,8 +16,8 @@ public class TeamTaskEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "team_id", nullable = false, length = 64)
-    private String teamId;
+    @Column(name = "team_id", nullable = false)
+    private Long teamId;
 
     @Column(name = "task_id", nullable = false, unique = true, length = 64)
     private String taskId;
@@ -25,8 +25,8 @@ public class TeamTaskEntity {
     @Column(name = "parent_task_id", length = 64)
     private String parentTaskId;
 
-    @Column(name = "assignee_id", length = 64)
-    private String assigneeId;
+    @Column(name = "assignee_id")
+    private Long assigneeId;
 
     @Column(name = "description", nullable = false, columnDefinition = "TEXT")
     private String description;

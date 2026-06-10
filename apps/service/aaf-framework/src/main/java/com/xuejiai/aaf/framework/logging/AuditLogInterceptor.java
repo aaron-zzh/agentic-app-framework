@@ -11,6 +11,7 @@ import java.util.Set;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.PostRemove;
 import jakarta.persistence.PostUpdate;
+import jakarta.persistence.PreUpdate;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -22,17 +23,28 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AuditLogInterceptor {
 
+    /** 缓存 UPDATE 前的实体快照，用于在 @PostUpdate 中构造 before/after diff。 使用 ThreadLocal 保证并发安全，无额外 DB 查询。 */
+    private static final ThreadLocal<Map<String, Object>> PRE_UPDATE_SNAPSHOT = new ThreadLocal<>();
+
     @PostPersist
     public void onInsert(Object entity) {
         if (!isAuditable(entity)) return;
         publishAuditEvent(entity, "INSERT", null, entityToMap(entity));
     }
 
+    @PreUpdate
+    public void beforeUpdate(Object entity) {
+        if (!isAuditable(entity)) return;
+        // 更新前缓存旧值快照，@PostUpdate 时取出组成完整 before/after diff
+        PRE_UPDATE_SNAPSHOT.set(entityToMap(entity));
+    }
+
     @PostUpdate
     public void onUpdate(Object entity) {
         if (!isAuditable(entity)) return;
-        // PostUpdate 无法获取旧值，变更详情由业务层 EntityChangeEvent 补充
-        publishAuditEvent(entity, "UPDATE", null, entityToMap(entity));
+        var before = PRE_UPDATE_SNAPSHOT.get();
+        PRE_UPDATE_SNAPSHOT.remove(); // 防内存泄漏
+        publishAuditEvent(entity, "UPDATE", before, entityToMap(entity));
     }
 
     @PostRemove

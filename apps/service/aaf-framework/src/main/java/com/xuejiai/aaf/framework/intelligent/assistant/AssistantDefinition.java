@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Assistant 定义：Actor（人格）+ Role（能力）+ MemoryStrategy（记忆管道）的组合。 一个用户可拥有多个 Assistant，每个 Assistant
+ * Assistant 定义：Persona（人格）+ Role（能力）+ MemoryStrategy（记忆管道）的组合。 一个用户可拥有多个 Assistant，每个 Assistant
  * 有独立的人格、技能集和记忆策略。
  */
 @Getter
@@ -19,12 +19,8 @@ import lombok.Setter;
 @Entity
 @Table(
         name = "ai_assistant",
-        indexes = {@Index(columnList = "userId"), @Index(columnList = "assistantId")})
+        indexes = {@Index(columnList = "userId")})
 public class AssistantDefinition extends BaseEntity {
-
-    /** Assistant 唯一标识 */
-    @Column(nullable = false, unique = true, length = 64)
-    private String assistantId;
 
     /** 所属用户 ID */
     @Column(nullable = false)
@@ -39,13 +35,13 @@ public class AssistantDefinition extends BaseEntity {
     @Column(name = "permission_scope", columnDefinition = "jsonb")
     private PermissionScope permissionScope;
 
-    /** 关联的 Actor ID（人格载体） */
-    @Column(nullable = false, length = 64)
-    private String actorId;
+    /** 关联的 Persona ID（人格载体） */
+    @Column(nullable = false)
+    private Long personaId;
 
-    /** 关联的 Role ID（能力配置） */
-    @Column(nullable = false, length = 64)
-    private String roleId;
+    /** 默认 Role ID（助理下可有多个 Role，此为默认使用的） */
+    @Column(nullable = false)
+    private Long defaultRoleId;
 
     /** 记忆管道策略（默认混合检索） */
     @Enumerated(EnumType.STRING)

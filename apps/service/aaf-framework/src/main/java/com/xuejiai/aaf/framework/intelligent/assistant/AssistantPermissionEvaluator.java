@@ -68,7 +68,7 @@ public class AssistantPermissionEvaluator {
     /** 评估助理是否有权执行指定工具调用，带会话级信任状态。 */
     public EvalResult evaluateToolCall(
             String sessionId, String assistantId, String toolName, ToolRiskLevel toolRiskLevel) {
-        var defOpt = assistantRepo.findByAssistantId(assistantId);
+        var defOpt = assistantRepo.findById(parseLong(assistantId));
         if (defOpt.isEmpty()) {
             return EvalResult.denied(OverLimitAction.ASK, "助理不存在或未授权", null);
         }
@@ -124,7 +124,7 @@ public class AssistantPermissionEvaluator {
      * @return 评估结果
      */
     public EvalResult evaluateOperation(String assistantId, String operation, String resource) {
-        var defOpt = assistantRepo.findByAssistantId(assistantId);
+        var defOpt = assistantRepo.findById(parseLong(assistantId));
         if (defOpt.isEmpty()) {
             return EvalResult.denied(OverLimitAction.ASK, "助理不存在或未授权", null);
         }
@@ -165,7 +165,7 @@ public class AssistantPermissionEvaluator {
     /** 获取助理的委托者 ID */
     public Optional<Long> getDelegatorId(String assistantId) {
         return assistantRepo
-                .findByAssistantId(assistantId)
+                .findById(parseLong(assistantId))
                 .map(AssistantDefinition::getEffectiveDelegatorId);
     }
 
@@ -203,5 +203,15 @@ public class AssistantPermissionEvaluator {
             }
         }
         return "tool:" + normalizePermissionSegment(toolName) + ":execute";
+    }
+
+    /** 将字符串 ID 解析为 Long（解析失败返回 -1，Repository 查不到会返回 empty） */
+    private Long parseLong(String id) {
+        if (id == null || id.isBlank()) return -1L;
+        try {
+            return Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            return -1L;
+        }
     }
 }

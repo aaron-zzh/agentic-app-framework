@@ -43,12 +43,11 @@ public class TokenMeteringHook implements Hook {
             var msg = postCall.getFinalMessage();
             if (msg != null && msg.getChatUsage() != null) {
                 var usage = msg.getChatUsage();
-                var userId = operatorContext.currentOwnerId().orElse(null);
-                var modelName = "agentscope";
+                Long userId = operatorContext.currentOwnerId().orElse(null);
                 var usageId = UUID.randomUUID().toString();
                 meteringService.record(
                         userId,
-                        modelName,
+                        (Long) null,
                         null,
                         usage.getInputTokens(),
                         usage.getOutputTokens(),
@@ -64,7 +63,8 @@ public class TokenMeteringHook implements Hook {
         if (guard == null) {
             return;
         }
-        guard.precheck(operatorContext.currentOwnerId().orElse(null), "agentscope");
+        Long userId = operatorContext.currentOwnerId().orElse(null);
+        guard.precheck(userId, "agentscope");
     }
 
     private void settle(Long userId, long totalTokens, String usageId) {

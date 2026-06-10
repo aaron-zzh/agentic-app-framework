@@ -70,7 +70,7 @@ public class AigcTaskService {
             Long userId, String prompt, String model, Integer width, Integer height) {
         var ctx =
                 CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
-        String resolvedModel = capabilityRouter.resolve(ctx);
+        String resolvedModel = capabilityRouter.resolve(ctx).getModelId();
 
         var task = buildTask(userId, TYPE_IMAGE, prompt, resolvedModel);
         task.setParams(

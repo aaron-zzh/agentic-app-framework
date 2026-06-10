@@ -119,7 +119,7 @@ public class ApprovalRecordService {
     public ApprovalComment addComment(
             String processInstanceId,
             String taskId,
-            String userId,
+            Long userId,
             String content,
             List<String> attachments,
             List<String> mentionedUsers) {

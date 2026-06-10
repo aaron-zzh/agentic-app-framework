@@ -2,16 +2,16 @@ package com.xuejiai.aaf.module.livechat.vo;
 
 import java.time.LocalDateTime;
 
-import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
-import com.xuejiai.aaf.common.enums.livechat.SenderTypeEnum;
+import com.xuejiai.aaf.module.chat.enums.MessageContentType;
+import com.xuejiai.aaf.module.chat.enums.MessageSenderType;
 
-/** 消息 VO。 */
+/** 消息 VO（已迁移至 chat 模块枚举）。 */
 public record ChatMessageVO(
         Long id,
-        Long sessionId,
-        SenderTypeEnum senderType,
-        Long senderId,
-        MessageTypeEnum messageType,
+        Long conversationId,
+        MessageSenderType senderType,
+        String senderId,
+        MessageContentType contentType,
         String content,
-        Boolean internal,
+        Boolean isInternal,
         LocalDateTime createTime) {}

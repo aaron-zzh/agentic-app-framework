@@ -28,9 +28,9 @@ public class AiModelSelector {
     /**
      * 根据任务特征选择模型。
      *
-     * @return modelId，无法决策时返回 null
+     * @return AiModel，无法决策时返回 null
      */
-    public String select(CapabilityRoutingContext ctx) {
+    public AiModel select(CapabilityRoutingContext ctx) {
         if (ctx.taskFeatures() == null || ctx.taskFeatures().isEmpty()) return null;
 
         var features = ctx.taskFeatures();
@@ -42,7 +42,6 @@ public class AiModelSelector {
                 || Boolean.TRUE.equals(features.get(CapabilityRoutingContext.FEATURE_HAS_VIDEO))) {
             return modelRepository.findByEnabledTrueOrderBySortOrder().stream()
                     .filter(m -> m.hasCapability("VISION"))
-                    .map(AiModel::getModelId)
                     .findFirst()
                     .orElse(null);
         }
@@ -57,7 +56,6 @@ public class AiModelSelector {
                                     m.getModelName().contains("reasoner")
                                             || m.getModelName().contains("o1")
                                             || m.getModelName().contains("r1"))
-                    .map(AiModel::getModelId)
                     .findFirst()
                     .orElse(null);
         }
@@ -68,7 +66,6 @@ public class AiModelSelector {
             return modelRepository.findByEnabledTrueOrderBySortOrder().stream()
                     .filter(m -> m.hasCapability(capability))
                     .filter(m -> m.getContextWindow() != null && m.getContextWindow() >= 100000)
-                    .map(AiModel::getModelId)
                     .findFirst()
                     .orElse(null);
         }
@@ -79,7 +76,6 @@ public class AiModelSelector {
                     .filter(m -> m.hasCapability(capability))
                     .filter(m -> m.getInputPricePerK() != null)
                     .min((a, b) -> a.getInputPricePerK().compareTo(b.getInputPricePerK()))
-                    .map(AiModel::getModelId)
                     .orElse(null);
         }
 

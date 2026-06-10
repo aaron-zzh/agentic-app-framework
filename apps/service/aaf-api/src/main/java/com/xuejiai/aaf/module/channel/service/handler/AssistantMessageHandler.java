@@ -71,16 +71,19 @@ public class AssistantMessageHandler implements MessageHandler {
                 message.externalUserId(),
                 binding.getAssistantId());
 
+        var assistantIdStr =
+                binding.getAssistantId() != null ? binding.getAssistantId().toString() : null;
+
         try {
             AssistantResponse response =
-                    assistantExecutor.chat(sessionId, binding.getAssistantId(), null, userInput);
+                    assistantExecutor.chat(sessionId, assistantIdStr, null, userInput);
             if (response.success() && response.content() != null) {
                 return UnifiedMessage.outboundText(
                         message.channelType(), message.externalUserId(), response.content());
             }
             log.warn("Assistant 回复失败: {}", response.error());
         } catch (Exception e) {
-            log.error("调用 Assistant 异常: assistantId={}", binding.getAssistantId(), e);
+            log.error("调用 Assistant 异常: assistantId={}", assistantIdStr, e);
         }
 
         var fallback =

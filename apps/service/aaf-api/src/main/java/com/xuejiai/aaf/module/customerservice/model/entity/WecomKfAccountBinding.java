@@ -24,8 +24,8 @@ public class WecomKfAccountBinding extends BaseEntity {
     private String accountName;
 
     /** 绑定的 Assistant ID */
-    @Column(nullable = false, length = 64)
-    private String assistantId;
+    @Column(nullable = false)
+    private Long assistantId;
 
     /** 是否启用 */
     @Column(nullable = false)

@@ -147,16 +147,18 @@ class UserServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 用户存在 When 删除 Then 调用 deleteById")
+    @DisplayName("Given 用户存在 When 删除 Then 调用 delete")
     void should_delete_user_when_id_exists() {
         // mock 方法
-        when(userRepository.existsById(2L)).thenReturn(true);
+        var userToDelete = new User();
+        userToDelete.setId(2L);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(userToDelete));
 
         // 调用
         userService.delete(2L);
 
         // 断言
-        verify(userRepository).deleteById(2L);
+        verify(userRepository).delete(userToDelete);
     }
 
     @Test

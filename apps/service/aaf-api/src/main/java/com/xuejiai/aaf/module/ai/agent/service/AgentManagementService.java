@@ -41,7 +41,6 @@ public class AgentManagementService {
     @Transactional
     public AgentVO create(AgentCreateDTO dto) {
         var definition = new AgentDefinition();
-        definition.setAgentId(dto.agentId());
         definition.setName(dto.name());
         definition.setDescription(dto.description());
         definition.setSystemPrompt(dto.systemPrompt());
@@ -137,7 +136,8 @@ public class AgentManagementService {
                                 () ->
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
-        registryService.archive(entity.getAgentId());
+        entity.setStatus("archived");
+        agentRepo.save(entity);
     }
 
     /**
@@ -224,7 +224,6 @@ public class AgentManagementService {
     private AgentVO toVO(AgentDefinition e) {
         return new AgentVO(
                 e.getId(),
-                e.getAgentId(),
                 e.getName(),
                 e.getDescription(),
                 e.getSystemPrompt(),

@@ -31,7 +31,14 @@ public class AssistantAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        var assistant = assistantRepository.findByAssistantId(assistantId.trim()).orElse(null);
+        Long assistantDefinitionId;
+        try {
+            assistantDefinitionId = Long.parseLong(assistantId.trim());
+        } catch (NumberFormatException e) {
+            response.sendError(HttpStatus.FORBIDDEN.value(), "助理 ID 格式无效");
+            return;
+        }
+        var assistant = assistantRepository.findById(assistantDefinitionId).orElse(null);
         if (assistant == null || !"active".equalsIgnoreCase(assistant.getStatus())) {
             response.sendError(HttpStatus.FORBIDDEN.value(), "助理不存在或已停用");
             return;
@@ -41,7 +48,7 @@ public class AssistantAuthFilter extends OncePerRequestFilter {
             AssistantContextHolder.set(
                     new AssistantContextHolder.AssistantContext(
                             assistant.getId(),
-                            assistant.getAssistantId(),
+                            assistantId.trim(),
                             assistant.getEffectiveDelegatorId()));
             filterChain.doFilter(request, response);
         } finally {

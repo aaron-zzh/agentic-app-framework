@@ -35,8 +35,8 @@ public class ApprovalComment {
     private String taskId;
 
     /** 评论人 */
-    @Column(name = "user_id", nullable = false, length = 64)
-    private String userId;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     /** 评论内容 */
     @Column(name = "content", columnDefinition = "TEXT")
@@ -49,7 +49,7 @@ public class ApprovalComment {
     /**
      * @提及的用户（JSON 数组）
      */
-    @Column(name = "mentioned_users", columnDefinition = "TEXT")
+    @Column(name = "mentioned_users", columnDefinition = "JSONB")
     private String mentionedUsers;
 
     /** 创建时间 */

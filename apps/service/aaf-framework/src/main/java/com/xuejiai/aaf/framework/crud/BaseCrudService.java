@@ -33,17 +33,35 @@ import com.xuejiai.aaf.framework.security.access.FieldAccessSupport;
 import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
 
 /**
- * 通用 CRUD Service 基类。提供分页查询、单条查询、创建、更新、删除、批量删除。
+ * 通用 CRUD Service 基类。继承此类即可获得以下完整能力：
  *
- * <p>子类需实现转换方法和查询条件构建。
+ * <ul>
+ *   <li><b>查询</b>：分页查询 {@link #page}、查询窗口 {@link #queryWindow}、单条查询 {@link #getById}、 批量读取 {@link
+ *       #batchRead}、选择器选项 {@link #options}
+ *   <li><b>写入</b>：创建 {@link #create}、批量创建 {@link #createBatch}、更新 {@link #update}
+ *   <li><b>删除</b>：单条删除 {@link #delete}、批量删除 {@link #deleteBatch}、 归档 {@link #archive}、恢复 {@link
+ *       #restore}
+ *   <li><b>数据权限</b>：行级权限由 {@link RecordRuleSupport} 自动注入；字段级权限由 {@link FieldAccessSupport}
+ *       自动过滤（所有返回 VO 的方法均已应用）
+ *   <li><b>元数据</b>：{@link #meta} 返回实体标识、字段集、可用操作，供 AI 动作注册表消费
+ *   <li><b>导出/导入</b>：{@link #exportData} 默认启用；{@link #importRows} 需子类覆写
+ *   <li><b>扩展点</b>：子类可覆写 {@link #buildSpec}、{@link #toVO(BaseEntity, String)}、 {@link
+ *       #defaultSort}、{@link #displayName}、{@link #buildOptionSpec} 等方法定制行为
+ * </ul>
  *
- * @param <E> 实体类型
+ * <p>子类必须实现：{@link #getRepository}、{@link #getSpecExecutor}、{@link #toVO(BaseEntity)}、 {@link
+ * #toEntity}、{@link #updateEntity}。
+ *
+ * @param <E> 实体类型，必须继承 {@link BaseEntity}
  * @param <V> 响应 VO 类型
  * @param <C> 创建 DTO 类型
  * @param <U> 更新 DTO 类型
- * @param <P> 分页查询 DTO 类型
+ * @param <P> 分页查询 DTO 类型，必须继承 {@link PageParam}
  */
 public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends PageParam> {
+
+    /** 批量读取单次最大条数，防止超长 IN 子句拖垮数据库。 */
+    protected static final int BATCH_READ_MAX_SIZE = 200;
 
     @Autowired(required = false)
     private ObjectProvider<RecordRuleSupport> recordRuleSupport;
@@ -159,8 +177,20 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return applyFieldAccess(toVO(requireEntity(id), normalizedFieldSet), "read");
     }
 
-    /** 批量读取。用于详情相邻记录预取和批量操作前确认。 */
+    /**
+     * 批量读取。用于详情相邻记录预取和批量操作前确认。
+     *
+     * <p>ids 数量上限为 {@link #BATCH_READ_MAX_SIZE}，超出时抛 {@link BusinessException}， 防止生成超长 {@code IN}
+     * 子句拖垮数据库。
+     */
     public List<V> batchRead(List<Long> ids, String fieldSet) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        if (ids.size() > BATCH_READ_MAX_SIZE) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "批量读取数量不得超过 " + BATCH_READ_MAX_SIZE + " 条");
+        }
         var normalizedFieldSet = normalizeFieldSet(fieldSet == null ? "detail" : fieldSet);
         var entitiesById = new LinkedHashMap<Long, E>();
         getSpecExecutor()
@@ -233,21 +263,37 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return CrudValidationResult.success();
     }
 
-    /** 创建。 */
+    /** 创建。返回的 VO 已应用字段级权限过滤。 */
     @Transactional
     public V create(C request) {
         E entity = toEntity(request);
         getRepository().save(entity);
-        return toVO(entity);
+        return applyFieldAccess(toVO(entity), "read");
     }
 
-    /** 更新。 */
+    /**
+     * 批量创建。事务内全部成功或全部回滚。
+     *
+     * <p>使用 {@link JpaRepository#saveAll} 单次批量 INSERT，效率优于循环调用 {@link #create}。 返回的每条 VO
+     * 均已应用字段级权限过滤。
+     */
+    @Transactional
+    public List<V> createBatch(List<C> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        var entities = requests.stream().map(this::toEntity).toList();
+        getRepository().saveAll(entities);
+        return entities.stream().map(this::toVO).map(vo -> applyFieldAccess(vo, "read")).toList();
+    }
+
+    /** 更新。返回的 VO 已应用字段级权限过滤。 */
     @Transactional
     public V update(Long id, U request) {
         E entity = requireEntity(id);
         updateEntity(entity, request);
         getRepository().save(entity);
-        return toVO(entity);
+        return applyFieldAccess(toVO(entity), "read");
     }
 
     /** 删除。 */
@@ -257,11 +303,17 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         getRepository().delete(entity);
     }
 
-    /** 批量删除。 */
+    /**
+     * 批量删除。先经行级数据权限校验，确认所有记录可见后再删除。
+     *
+     * <p>使用 {@link JpaRepository#deleteAllByIdInBatch} 生成单条 {@code DELETE ... WHERE id IN (...)}，
+     * 效率优于逐条删除。
+     */
     @Transactional
     public void deleteBatch(List<Long> ids) {
-        var entities = requireEntities(ids);
-        getRepository().deleteAll(entities);
+        // 权限校验：确保所有记录当前用户可见，任一不存在或不可见则抛 404
+        requireEntities(ids);
+        getRepository().deleteAllByIdInBatch(ids);
     }
 
     /** 归档。默认采用逻辑删除语义；如业务有 archived 状态，子类应覆写。 */

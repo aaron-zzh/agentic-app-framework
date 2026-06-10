@@ -25,14 +25,7 @@ public class SkillStoreImpl implements SkillStore {
     private final SkillDefinitionRepository repository;
 
     @Override
-    public List<SkillRecord> findByAssistant(String assistantId) {
-        return repository.findByAssistantIdAndStatus(assistantId, "active").stream()
-                .map(this::toRecord)
-                .toList();
-    }
-
-    @Override
-    public List<SkillRecord> findByAgentId(String agentId) {
+    public List<SkillRecord> findByAgentId(Long agentId) {
         return repository.findByAgentIdAndStatus(agentId, "active").stream()
                 .map(this::toRecord)
                 .toList();
@@ -53,21 +46,19 @@ public class SkillStoreImpl implements SkillStore {
     }
 
     @Override
-    public Optional<SkillRecord> findBySkillId(String skillId) {
-        return repository.findBySkillId(skillId).map(this::toRecord);
+    public Optional<SkillRecord> findBySkillId(Long skillId) {
+        return repository.findById(skillId).map(this::toRecord);
     }
 
     private SkillRecord toRecord(SkillDefinition e) {
         return new SkillRecord(
-                e.getSkillId(),
-                e.getAssistantId(),
+                e.getId(),
                 e.getName(),
                 e.getDescription(),
                 e.getAgentId(),
                 e.getTriggerIntent(),
                 e.getSystemPrompt(),
                 e.getInstructions(),
-                e.getTools(),
                 e.getPriority(),
                 Boolean.TRUE.equals(e.getBuiltIn()),
                 Boolean.TRUE.equals(e.getIsGlobal()));
@@ -77,13 +68,18 @@ public class SkillStoreImpl implements SkillStore {
 @Repository
 interface SkillDefinitionRepository
         extends JpaRepository<SkillDefinition, Long>, JpaSpecificationExecutor<SkillDefinition> {
-    List<SkillDefinition> findByAssistantIdAndStatus(String assistantId, String status);
-
-    List<SkillDefinition> findByAgentIdAndStatus(String agentId, String status);
+    List<SkillDefinition> findByAgentIdAndStatus(Long agentId, String status);
 
     List<SkillDefinition> findByBuiltInTrueAndStatus(String status);
 
     List<SkillDefinition> findByIsGlobalTrueAndStatus(String status);
 
-    Optional<SkillDefinition> findBySkillId(String skillId);
+    java.util.Optional<SkillDefinition> findByNameAndBuiltInTrue(String name);
+
+    /** 查询全局技能（owner_id 为空）+ 指定 owner 的私有技能。 */
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT s FROM SkillDefinition s WHERE s.status = 'active' "
+                    + "AND (s.ownerId IS NULL OR s.ownerId = :ownerId)")
+    List<SkillDefinition> findGlobalOrOwned(
+            @org.springframework.data.repository.query.Param("ownerId") Long ownerId);
 }

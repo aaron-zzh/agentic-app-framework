@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.role.service;
 
+import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -8,6 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.bizlog.annotation.LogRecord;
+import com.xuejiai.aaf.framework.bizlog.context.LogRecordContext;
+import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.role.domain.Role;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
@@ -119,5 +124,43 @@ public class RoleService
     @Override
     protected String permissionResource() {
         return "role";
+    }
+
+    // ==================== 操作日志 ====================
+
+    @Override
+    @Transactional
+    @LogRecord(
+            type = SYSTEM_ROLE_TYPE,
+            subType = SYSTEM_ROLE_CREATE_SUB_TYPE,
+            bizNo = "{{#_ret.id()}}",
+            success = SYSTEM_ROLE_CREATE_SUCCESS)
+    public RoleVO create(RoleCreateDTO request) {
+        return super.create(request);
+    }
+
+    @Override
+    @Transactional
+    @LogRecord(
+            type = SYSTEM_ROLE_TYPE,
+            subType = SYSTEM_ROLE_UPDATE_SUB_TYPE,
+            bizNo = "{{#id}}",
+            success = SYSTEM_ROLE_UPDATE_SUCCESS)
+    public RoleVO update(Long id, RoleUpdateDTO request) {
+        // 保存旧对象供 {_DIFF{#request}} 比较
+        var old = getRepository().findById(id).orElse(null);
+        LogRecordContext.putVariable(DiffParseFunction.OLD_OBJECT, old);
+        return super.update(id, request);
+    }
+
+    @Override
+    @Transactional
+    @LogRecord(
+            type = SYSTEM_ROLE_TYPE,
+            subType = SYSTEM_ROLE_DELETE_SUB_TYPE,
+            bizNo = "{{#id}}",
+            success = SYSTEM_ROLE_DELETE_SUCCESS)
+    public void delete(Long id) {
+        super.delete(id);
     }
 }

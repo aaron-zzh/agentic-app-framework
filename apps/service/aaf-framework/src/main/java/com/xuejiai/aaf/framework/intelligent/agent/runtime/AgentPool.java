@@ -28,13 +28,14 @@ public class AgentPool {
     /** 借出 Agent 实例（无可用实例时新建）。 */
     public AgentExecutor borrow(AgentDefinition definition) {
         var queue =
-                pool.computeIfAbsent(definition.getAgentId(), k -> new ConcurrentLinkedQueue<>());
+                pool.computeIfAbsent(
+                        definition.getId().toString(), k -> new ConcurrentLinkedQueue<>());
         var executor = queue.poll();
         if (executor == null) {
             executor = factory.create(definition);
-            log.debug("AgentPool 新建实例: {}", definition.getAgentId());
+            log.debug("AgentPool 新建实例: {}", definition.getId());
         } else {
-            log.debug("AgentPool 复用实例: {}", definition.getAgentId());
+            log.debug("AgentPool 复用实例: {}", definition.getId());
         }
         return executor;
     }

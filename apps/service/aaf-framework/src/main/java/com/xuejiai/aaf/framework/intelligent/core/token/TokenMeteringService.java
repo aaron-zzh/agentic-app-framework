@@ -36,7 +36,7 @@ public class TokenMeteringService {
         var record = new TokenUsageRecord();
         record.setUserId(event.userId());
         record.setUsageId(event.usageId());
-        record.setModelId(event.model());
+        record.setModelId(event.modelId());
         record.setPromptTokens(event.promptTokens());
         record.setCompletionTokens(event.completionTokens());
         repository.save(record);
@@ -61,8 +61,8 @@ public class TokenMeteringService {
     /** 记录用量（供 AgentScope Hook 调用） */
     public void record(
             Long userId,
-            String modelId,
-            String conversationId,
+            Long modelId,
+            Long conversationId,
             long promptTokens,
             long completionTokens) {
         record(
@@ -77,8 +77,8 @@ public class TokenMeteringService {
     /** 记录用量并指定流水号，便于和积分流水关联审计。 */
     public void record(
             Long userId,
-            String modelId,
-            String conversationId,
+            Long modelId,
+            Long conversationId,
             long promptTokens,
             long completionTokens,
             String usageId) {

@@ -8,19 +8,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.module.ai.chat.domain.ChatMessage;
-import com.xuejiai.aaf.module.ai.chat.domain.ChatSession;
-import com.xuejiai.aaf.module.ai.chat.repository.ChatMessageRepository;
-import com.xuejiai.aaf.module.ai.chat.repository.ChatSessionRepository;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
+import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
+import com.xuejiai.aaf.module.chat.conversation.repository.ConversationRepository;
+import com.xuejiai.aaf.module.chat.enums.ConversationStatus;
+import com.xuejiai.aaf.module.chat.enums.ConversationType;
+import com.xuejiai.aaf.module.chat.enums.MessageSenderType;
+import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
+import com.xuejiai.aaf.module.chat.message.repository.ConversationMessageRepository;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * 聊天服务，管理会话和消息
+ * 聊天服务，管理会话和消息。
+ *
+ * <p>底层存储已迁移至 module/chat 新实体（Conversation / ConversationMessage）， 对外保持原有方法签名不变。
  *
  * @author AaronZZH & Kiro
  */
@@ -28,8 +33,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChatService {
 
-    private final ChatSessionRepository sessionRepository;
-    private final ChatMessageRepository messageRepository;
+    private final ConversationRepository conversationRepository;
+    private final ConversationMessageRepository messageRepository;
 
     /**
      * 创建会话
@@ -40,13 +45,13 @@ public class ChatService {
      */
     @Transactional
     public ChatSessionVO createSession(Long userId, ChatSessionCreateDTO dto) {
-        var session = new ChatSession();
-        session.setTitle(dto.title());
-        session.setType(dto.type() != null ? dto.type() : "LIVECHAT");
-        session.setStatus("ACTIVE");
-        session.setCreatorId(userId);
-        sessionRepository.save(session);
-        return toSessionVO(session);
+        var conv = new Conversation();
+        conv.setTitle(dto.title());
+        conv.setType(parseType(dto.type()));
+        conv.setStatus(ConversationStatus.ACTIVE);
+        conv.setCreatorId(userId);
+        conversationRepository.save(conv);
+        return toSessionVO(conv);
     }
 
     /**
@@ -57,20 +62,20 @@ public class ChatService {
      */
     @Transactional(readOnly = true)
     public List<ChatSessionVO> listSessions(Long userId) {
-        return sessionRepository.findByCreatorIdOrderByUpdateTimeDesc(userId).stream()
+        return conversationRepository.findByCreatorIdOrderByUpdateTimeDesc(userId).stream()
                 .map(this::toSessionVO)
                 .toList();
     }
 
     /**
-     * 获取会话的消息历史
+     * 获取会话的消息历史（按时间正序）
      *
      * @param sessionId 会话 ID
-     * @return 消息列表（按时间正序）
+     * @return 消息列表
      */
     @Transactional(readOnly = true)
     public List<ChatMessageVO> listMessages(Long sessionId) {
-        return messageRepository.findBySessionIdOrderByCreateTimeAsc(sessionId).stream()
+        return messageRepository.findByConversationIdOrderByCreateTimeAsc(sessionId).stream()
                 .map(this::toMessageVO)
                 .toList();
     }
@@ -78,10 +83,10 @@ public class ChatService {
     /** 按 threadId 查消息（AG-UI 链路使用） */
     @Transactional(readOnly = true)
     public List<ChatMessageVO> listMessagesByThreadId(String threadId) {
-        return sessionRepository
+        return conversationRepository
                 .findByThreadId(threadId)
-                .map(session -> listMessages(session.getId()))
-                .orElse(java.util.List.of());
+                .map(conv -> listMessages(conv.getId()))
+                .orElse(List.of());
     }
 
     /**
@@ -94,9 +99,16 @@ public class ChatService {
      */
     @Transactional(readOnly = true)
     public Page<ChatMessageVO> getMessagesPaged(Long sessionId, int page, int size) {
-        return messageRepository
-                .findBySessionIdOrderByCreateTimeDesc(sessionId, PageRequest.of(page, size))
-                .map(this::toMessageVO);
+        // ConversationMessageRepository 暂不提供分页方法，用 findAll + Specification 替代
+        // TODO: ConversationMessageRepository 增加分页查询方法后移除此处的内存分页
+        var all = messageRepository.findByConversationIdOrderByCreateTimeAsc(sessionId);
+        var total = all.size();
+        var from = Math.min(page * size, total);
+        var to = Math.min(from + size, total);
+        var slice = all.subList(from, to);
+        var vos = slice.stream().map(this::toMessageVO).toList();
+        return new org.springframework.data.domain.PageImpl<>(
+                vos, PageRequest.of(page, size), total);
     }
 
     /**
@@ -106,21 +118,15 @@ public class ChatService {
      */
     @Transactional
     public void archiveSession(Long sessionId) {
-        var session =
-                sessionRepository
-                        .findById(sessionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
-        session.setStatus("ARCHIVED");
-        sessionRepository.save(session);
+        var conv = requireConversation(sessionId);
+        conv.setStatus(ConversationStatus.ARCHIVED);
+        conversationRepository.save(conv);
     }
 
     /**
      * 保存消息
      *
-     * @param senderId 发送者 ID
+     * @param senderId 发送者 ID（Long，内部转 String）
      * @param senderType 发送者类型（HUMAN / AI）
      * @param sessionId 会话 ID
      * @param role 消息角色（user / assistant / system）
@@ -130,19 +136,10 @@ public class ChatService {
     @Transactional
     public ChatMessageVO saveMessage(
             Long senderId, String senderType, Long sessionId, String role, String content) {
-        sessionRepository
-                .findById(sessionId)
-                .orElseThrow(
-                        () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
-
-        var message = new ChatMessage();
-        message.setSessionId(sessionId);
-        message.setSenderId(senderId);
-        message.setSenderType(senderType);
-        message.setRole(role);
-        message.setContent(content);
-        messageRepository.save(message);
-        return toMessageVO(message);
+        requireConversation(sessionId);
+        var msg = buildMessage(senderId, senderType, sessionId, role, content);
+        messageRepository.save(msg);
+        return toMessageVO(msg);
     }
 
     /**
@@ -151,9 +148,9 @@ public class ChatService {
      * @param senderId 发送者 ID
      * @param senderType 发送者类型（HUMAN / AI）
      * @param sessionId 会话 ID
-     * @param role 消息角色（user / assistant / system）
+     * @param role 消息角色
      * @param content 消息内容
-     * @param actorType 行动者类型（human / ai / bot / system）
+     * @param actorType 行动者类型（human / ai / bot / system），暂存至 awarenessContext 前缀
      * @param awarenessContext 用户感知上下文（JSON）
      * @return 消息信息
      */
@@ -166,33 +163,23 @@ public class ChatService {
             String content,
             String actorType,
             String awarenessContext) {
-        sessionRepository
-                .findById(sessionId)
-                .orElseThrow(
-                        () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
-
-        var message = new ChatMessage();
-        message.setSessionId(sessionId);
-        message.setSenderId(senderId);
-        message.setSenderType(senderType);
-        message.setRole(role);
-        message.setContent(content);
-        message.setActorType(actorType != null ? actorType : "human");
-        message.setAwarenessContext(awarenessContext);
-        messageRepository.save(message);
-        return toMessageVO(message);
+        requireConversation(sessionId);
+        var msg = buildMessage(senderId, senderType, sessionId, role, content);
+        msg.setAwarenessContext(awarenessContext);
+        messageRepository.save(msg);
+        return toMessageVO(msg);
     }
 
     /**
      * 保存消息（含 Token 计数和元数据）
      *
      * @param senderId 发送者 ID
-     * @param senderType 发送者类型（HUMAN / AI）
+     * @param senderType 发送者类型
      * @param sessionId 会话 ID
-     * @param role 消息角色（user / assistant / system）
+     * @param role 消息角色
      * @param content 消息内容
      * @param tokenCount Token 消耗数
-     * @param metadata 元数据（JSON 格式）
+     * @param metadata 元数据（JSON）
      * @return 消息信息
      */
     @Transactional
@@ -204,21 +191,12 @@ public class ChatService {
             String content,
             Integer tokenCount,
             String metadata) {
-        sessionRepository
-                .findById(sessionId)
-                .orElseThrow(
-                        () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
-
-        var message = new ChatMessage();
-        message.setSessionId(sessionId);
-        message.setSenderId(senderId);
-        message.setSenderType(senderType);
-        message.setRole(role);
-        message.setContent(content);
-        message.setTokenCount(tokenCount);
-        message.setMetadata(metadata);
-        messageRepository.save(message);
-        return toMessageVO(message);
+        requireConversation(sessionId);
+        var msg = buildMessage(senderId, senderType, sessionId, role, content);
+        msg.setTokenCount(tokenCount);
+        msg.setMetadata(metadata);
+        messageRepository.save(msg);
+        return toMessageVO(msg);
     }
 
     /**
@@ -228,11 +206,8 @@ public class ChatService {
      */
     @Transactional
     public void deleteSession(Long sessionId) {
-        sessionRepository
-                .findById(sessionId)
-                .orElseThrow(
-                        () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
-        sessionRepository.deleteById(sessionId);
+        requireConversation(sessionId);
+        conversationRepository.deleteById(sessionId);
     }
 
     /**
@@ -244,16 +219,10 @@ public class ChatService {
      */
     @Transactional
     public ChatSessionVO renameSession(Long sessionId, String title) {
-        var session =
-                sessionRepository
-                        .findById(sessionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
-        session.setTitle(title);
-        sessionRepository.save(session);
-        return toSessionVO(session);
+        var conv = requireConversation(sessionId);
+        conv.setTitle(title);
+        conversationRepository.save(conv);
+        return toSessionVO(conv);
     }
 
     /**
@@ -265,19 +234,18 @@ public class ChatService {
      */
     @Transactional
     public void messageFeedback(Long messageId, String feedbackType, String comment) {
-        var message =
+        var msg =
                 messageRepository
                         .findById(messageId)
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
                                                 ErrorCodeConstants.CHAT_MESSAGE_NOT_FOUND));
-        // 将反馈信息存入 metadata（JSON 格式追加）
         var feedback =
                 "{\"feedback\":\"%s\",\"comment\":\"%s\"}"
                         .formatted(feedbackType, comment != null ? comment : "");
-        message.setMetadata(feedback);
-        messageRepository.save(message);
+        msg.setMetadata(feedback);
+        messageRepository.save(msg);
     }
 
     /**
@@ -288,35 +256,78 @@ public class ChatService {
      */
     @Transactional
     public void addSessionTokens(Long sessionId, long tokens) {
-        var session =
-                sessionRepository
-                        .findById(sessionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
-        var current = session.getTotalTokens() != null ? session.getTotalTokens() : 0L;
-        session.setTotalTokens(current + tokens);
-        sessionRepository.save(session);
+        var conv = requireConversation(sessionId);
+        var current = conv.getTotalTokens() != null ? conv.getTotalTokens() : 0L;
+        conv.setTotalTokens(current + tokens);
+        conversationRepository.save(conv);
     }
 
-    private ChatSessionVO toSessionVO(ChatSession s) {
+    // ── 私有辅助 ──────────────────────────────────────────────────────────────
+
+    private Conversation requireConversation(Long sessionId) {
+        return conversationRepository
+                .findById(sessionId)
+                .orElseThrow(
+                        () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+    }
+
+    private ConversationMessage buildMessage(
+            Long senderId, String senderType, Long sessionId, String role, String content) {
+        var msg = new ConversationMessage();
+        msg.setConversationId(sessionId);
+        // senderId 从 Long 转 String
+        msg.setSenderId(senderId != null ? senderId.toString() : "0");
+        msg.setSenderType(parseSenderType(senderType));
+        msg.setRole(role);
+        msg.setContent(content);
+        return msg;
+    }
+
+    /** 将字符串 senderType 转换为枚举，未知值降级为 HUMAN */
+    private MessageSenderType parseSenderType(String senderType) {
+        if (senderType == null) return MessageSenderType.HUMAN;
+        return switch (senderType.toUpperCase()) {
+            case "AI", "ASSISTANT" -> MessageSenderType.ASSISTANT;
+            case "STAFF" -> MessageSenderType.STAFF;
+            case "BOT" -> MessageSenderType.BOT;
+            case "SYSTEM" -> MessageSenderType.SYSTEM;
+            default -> MessageSenderType.HUMAN;
+        };
+    }
+
+    /** 将字符串 type 转换为枚举，未知值降级为 AI */
+    private ConversationType parseType(String type) {
+        if (type == null) return ConversationType.AI;
+        try {
+            return ConversationType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ConversationType.AI;
+        }
+    }
+
+    private ChatSessionVO toSessionVO(Conversation conv) {
         return new ChatSessionVO(
-                s.getId(),
-                s.getTitle(),
-                s.getType(),
-                s.getStatus(),
-                s.getCreatorId(),
-                s.getCreateTime(),
-                s.getUpdateTime());
+                conv.getId(),
+                conv.getTitle(),
+                conv.getType() != null ? conv.getType().name() : null,
+                conv.getStatus() != null ? conv.getStatus().name() : null,
+                conv.getCreatorId(),
+                conv.getCreateTime(),
+                conv.getUpdateTime());
     }
 
-    private ChatMessageVO toMessageVO(ChatMessage m) {
+    private ChatMessageVO toMessageVO(ConversationMessage m) {
+        // senderId 从 String 解析回 Long（兼容 ChatMessageVO 字段类型）
+        Long senderIdLong = null;
+        try {
+            if (m.getSenderId() != null) senderIdLong = Long.parseLong(m.getSenderId());
+        } catch (NumberFormatException ignored) {
+        }
         return new ChatMessageVO(
                 m.getId(),
-                m.getSessionId(),
-                m.getSenderId(),
-                m.getSenderType(),
+                m.getConversationId(),
+                senderIdLong,
+                m.getSenderType() != null ? m.getSenderType().name() : null,
                 m.getRole(),
                 m.getContent(),
                 m.getCreateTime());

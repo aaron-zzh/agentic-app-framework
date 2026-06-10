@@ -74,7 +74,7 @@ public class ChatTaskScheduler {
             log.info("[TaskScheduler] 任务完成: taskId={}", task.getId());
 
             // 自动执行下一个
-            executeNext(task.getSessionId());
+            executeNext(task.getConversationId());
         } catch (Exception e) {
             log.error("[TaskScheduler] 任务执行失败: taskId={}", task.getId(), e);
             taskService.fail(task.getId(), e.getMessage());

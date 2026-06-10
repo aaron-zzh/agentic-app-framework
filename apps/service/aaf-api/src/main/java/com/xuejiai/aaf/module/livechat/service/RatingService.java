@@ -10,38 +10,45 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.module.livechat.domain.SessionRating;
-import com.xuejiai.aaf.module.livechat.repository.SessionRatingRepository;
+import com.xuejiai.aaf.module.chat.livechat.rating.domain.SessionRating;
+import com.xuejiai.aaf.module.chat.livechat.rating.repository.SessionRatingRepository;
 import com.xuejiai.aaf.module.livechat.vo.RatingStatVO;
 import com.xuejiai.aaf.module.livechat.vo.RatingSubmitDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 满意度评价服务。 */
+/**
+ * 满意度评价服务。
+ *
+ * <p>迁移后使用 chat 模块的 SessionRating / SessionRatingRepository。
+ *
+ * @author AaronZZH & Kiro
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RatingService {
 
     private final SessionRatingRepository ratingRepository;
-    private final ChatSessionService sessionService;
 
     /** 差评阈值 */
     private static final int LOW_SCORE_THRESHOLD = 2;
 
-    /** 提交评价。 */
+    /**
+     * 提交评价。
+     *
+     * @param dto 评价提交 DTO（conversationId 关联会话）
+     * @return 保存后的评价记录
+     */
     @Transactional
     public SessionRating submit(RatingSubmitDTO dto) {
         // 防止重复评价
-        ratingRepository
-                .findBySessionId(dto.sessionId())
-                .ifPresent(
-                        r -> {
-                            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "该会话已评价");
-                        });
+        if (ratingRepository.existsByConversationId(dto.conversationId())) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "该会话已评价");
+        }
         var rating = new SessionRating();
-        rating.setSessionId(dto.sessionId());
+        rating.setConversationId(dto.conversationId());
         rating.setUserId(dto.userId());
         rating.setStaffId(dto.staffId());
         rating.setScore(dto.score());
@@ -54,7 +61,12 @@ public class RatingService {
         return saved;
     }
 
-    /** 获取评价统计。 */
+    /**
+     * 获取评价统计。
+     *
+     * @param since 统计起始时间
+     * @return 统计结果 VO
+     */
     public RatingStatVO getStatistics(LocalDateTime since) {
         var avgScore = ratingRepository.avgScoreSince(since);
         var distribution = ratingRepository.scoreDistributionSince(since);
@@ -72,22 +84,31 @@ public class RatingService {
         return new RatingStatVO(avgScore != null ? avgScore : 0.0, total, scoreMap);
     }
 
-    /** 按坐席统计平均分。 */
+    /**
+     * 按坐席统计平均分。
+     *
+     * @param staffId 坐席 ID
+     * @return 平均分
+     */
     public Double getStaffAvgScore(Long staffId) {
         return ratingRepository.avgScoreByStaffId(staffId);
     }
 
-    /** 查询差评列表（供主管查看）。 */
+    /**
+     * 查询差评列表（供主管查看）。
+     *
+     * @param since 起始时间
+     * @return 差评列表
+     */
     public List<SessionRating> getLowScoreRatings(LocalDateTime since) {
-        return ratingRepository.findByScoreLessThanEqualAndCreateTimeAfter(
-                LOW_SCORE_THRESHOLD, since);
+        return ratingRepository.findLowScoreRatings(LOW_SCORE_THRESHOLD, since);
     }
 
     /** 差评预警处理。 */
     private void handleLowScore(SessionRating rating) {
         log.warn(
-                "差评预警: sessionId={}, staffId={}, score={}, comment={}",
-                rating.getSessionId(),
+                "差评预警: conversationId={}, staffId={}, score={}, comment={}",
+                rating.getConversationId(),
                 rating.getStaffId(),
                 rating.getScore(),
                 rating.getComment());

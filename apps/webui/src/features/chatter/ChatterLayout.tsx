@@ -105,7 +105,7 @@ function DraggableDialog({
     >
       {/* 标题栏：拖拽 + 操作按钮 */}
       <div
-        className="flex cursor-grab select-none items-center justify-between border-b border-white/10 px-3 py-2 active:cursor-grabbing"
+        className="flex cursor-grab select-none items-center justify-between border-white/10 border-b px-3 py-2 active:cursor-grabbing"
         onPointerDown={handleDragDown}
         onPointerMove={handleDragMove}
         onPointerUp={handleDragUp}
@@ -157,10 +157,34 @@ function DraggableDialog({
         onPointerMove={handleResizeMove}
         onPointerUp={handleResizeUp}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-          <line x1="14" y1="4" x2="4" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="14" y1="8" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="14" y1="12" x2="12" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <line
+            x1="14"
+            y1="4"
+            x2="4"
+            y2="14"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="14"
+            y1="8"
+            x2="8"
+            y2="14"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="14"
+            y1="12"
+            x2="12"
+            y2="14"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
         </svg>
       </div>
     </div>

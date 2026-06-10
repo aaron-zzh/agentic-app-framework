@@ -30,7 +30,8 @@ public class CarbonCopyNode implements JavaDelegate {
 
         var taskName = execution.getCurrentActivityName();
         var entityType = (String) execution.getVariable("entityType");
-        var entityId = (String) execution.getVariable("entityId");
+        var entityIdStr = (String) execution.getVariable("entityId");
+        Long entityId = entityIdStr != null ? Long.parseLong(entityIdStr) : null;
 
         // 发布抄送事件，由业务层监听处理
         eventPublisher.publishEvent(
@@ -49,5 +50,5 @@ public class CarbonCopyNode implements JavaDelegate {
             String taskName,
             String ccUsers,
             String entityType,
-            String entityId) {}
+            Long entityId) {}
 }

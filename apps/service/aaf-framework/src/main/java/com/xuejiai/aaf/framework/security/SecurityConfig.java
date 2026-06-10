@@ -157,10 +157,11 @@ public class SecurityConfig {
             ApiKeyScopeFilter apiKeyScopeFilter,
             AssistantAuthFilter assistantAuthFilter,
             SseTokenFilter sseTokenFilter,
-            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter)
+            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter,
+            org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
-                .cors(cors -> {})
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(

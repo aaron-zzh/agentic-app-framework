@@ -78,6 +78,10 @@ public class MediaAsset extends BaseEntity {
     @Column(name = "category_id")
     private Long categoryId;
 
+    /** 所属元素 ID，关联 media_element，NULL 表示未分组 */
+    @Column(name = "element_id")
+    private Long elementId;
+
     /** 所属用户 ID */
     @Column(name = "user_id", nullable = false)
     private Long userId;

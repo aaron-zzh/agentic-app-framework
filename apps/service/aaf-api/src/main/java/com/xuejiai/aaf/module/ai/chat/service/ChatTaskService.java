@@ -36,15 +36,14 @@ public class ChatTaskService {
             Integer priority,
             LocalDateTime scheduledAt) {
         var task = new ChatTask();
-        task.setSessionId(sessionId);
+        task.setConversationId(sessionId);
         task.setCreatorId(creatorId);
         task.setTitle(title);
         task.setDescription(description);
         if (priority != null) task.setPriority(priority);
         task.setScheduledAt(scheduledAt);
         var tasks =
-                taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(
-                        sessionId);
+                taskRepository.findByConversationIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
         task.setSortOrder(tasks.size());
         taskRepository.save(task);
         return task;
@@ -60,8 +59,7 @@ public class ChatTaskService {
     /** 获取会话的任务列表 */
     @Transactional(readOnly = true)
     public List<ChatTask> listBySession(Long sessionId) {
-        return taskRepository.findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(
-                sessionId);
+        return taskRepository.findByConversationIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
     }
 
     /** 获取下一个可执行的待处理任务（已到期或无定时） */
@@ -119,7 +117,7 @@ public class ChatTaskService {
     /** 统计待处理任务数 */
     @Transactional(readOnly = true)
     public long countPending(Long sessionId) {
-        return taskRepository.countBySessionIdAndStatusAndDeletedFalse(
+        return taskRepository.countByConversationIdAndStatusAndDeletedFalse(
                 sessionId, ChatTaskStatus.PENDING);
     }
 

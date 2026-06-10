@@ -236,20 +236,27 @@ CREATE INDEX idx_company_auto_rule_event ON company_automation_rule(trigger_even
 -- 企业智能运营模块种子数据（角色、技能、字典）
 -- ============================================================
 
+-- 企业运营助理（承载所有企业运营 AI 角色）
+-- ai_persona 种子数据已注释：actor_id 字段已删除，表主键为 id（BIGINT IDENTITY）。
+-- 如需初始化请通过应用启动逻辑或单独数据初始化脚本处理。
+-- INSERT INTO ai_persona (actor_id, name, persona, system_prompt, status, create_time, update_time)
+-- VALUES ('company-ops-actor', '企业运营助理', '专业、务实、数据驱动。专注企业战略与运营管理领域。', '你是一个企业运营 AI 助理，专注于战略规划、运营管理和精益创业指导。', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+-- ON CONFLICT (actor_id) DO NOTHING;
+
+-- ai_assistant 种子数据已注释：assistant_id/actor_id/default_role_id 已改为 BIGINT，
+-- 无法在迁移脚本中硬编码字符串 ID。如需初始化请通过应用启动逻辑或单独数据初始化脚本处理。
+-- INSERT INTO ai_assistant (assistant_id, user_id, actor_id, default_role_id, memory_strategy, status, create_time, update_time)
+-- VALUES ('company-ops-assistant', 0, 'company-ops-actor', 'company-strategist', 'HYBRID', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+-- ON CONFLICT (assistant_id) DO NOTHING;
+
 -- ==================== 企业运营 AI 角色 ====================
 
-INSERT INTO ai_role (role_id, name, description, skill_ids, tool_whitelist, status) VALUES
-('company-strategist', '企业战略规划师', '负责企业战略规划、市场分析、竞争格局研判，输出战略规划文档和里程碑', 'company-planning,company-market-research', 'web_search,document_write', 'active'),
-('company-validator', '创业验证顾问', '用精益框架验证商业想法，社区发现，问题定义，判断是否值得构建', 'company-validate-idea,company-find-community', 'web_search,data_query', 'active'),
-('company-mvp-coach', 'MVP 教练', '指导手动验证→流程化→产品化的三阶段构建，定义最小可行产品范围', 'company-processize,company-mvp-build,company-pricing', 'document_write,data_query', 'active'),
-('company-sales-advisor', '销售增长顾问', '首批客户获取策略、定价优化、内容营销计划、增长渠道设计', 'company-first-customers,company-marketing-plan,company-pricing', 'web_search,notification,data_query', 'active'),
-('company-okr-coach', 'OKR 教练', '辅助制定 OKR、追踪进度、识别风险、提供对齐建议', 'company-okr-align,company-okr-review', 'data_query,notification', 'active'),
-('company-ops-manager', '运营自动化管理员', '管理运营任务、监控指标、触发自动化规则、生成运营报告', 'company-ops-report,company-ops-monitor', 'data_query,notification,webhook', 'active'),
-('company-erp-analyst', '资源与盈利分析师', '追踪预算和资源消耗、盈利分析、可持续增长评估、花费决策审查', 'company-resource-track,company-grow-sustainably', 'data_query,notification', 'active'),
-('company-automation-engineer', '自动化编排工程师', '设计和维护事件驱动的自动化规则，协调 Agent 联动', 'company-automation-design', 'webhook,agent_call,workflow', 'active'),
-('company-culture-advisor', '企业文化顾问', '定义企业价值观、团队文化建设、远程协作规范、招聘文化匹配', 'company-values', 'document_write', 'active'),
-('company-decision-reviewer', '精益决策审查员', '用精益创业 8 条原则审查任何商业决策，给出简化建议', 'company-decision-review', 'data_query', 'active')
-ON CONFLICT (role_id) DO NOTHING;
+-- ai_role 种子数据已注释：role_id/assistant_id 已改为 BIGINT，
+-- 无法在迁移脚本中硬编码字符串 ID。如需初始化请通过应用启动逻辑或单独数据初始化脚本处理。
+-- INSERT INTO ai_role (role_id, assistant_id, name, description, skill_ids, tool_whitelist, status) VALUES
+-- ('company-strategist',           'company-ops-assistant', ...)
+-- ...
+-- ON CONFLICT (role_id) DO NOTHING;
 
 -- ==================== 企业运营 AI 技能 ====================
 

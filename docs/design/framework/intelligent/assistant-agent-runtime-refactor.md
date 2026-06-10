@@ -43,7 +43,7 @@ gains:
 
 - **入口错配**：AG-UI 注册的是 `AgentDefinition`，前端按 `agentId` 直连 Agent，Assistant 沦为旁路。
 - **并行抽象**：「Assistant 调 Agent」有三套实现——`DefaultAssistantExecutor`（Skill→agentId）、`AgentDispatcher`（intent→capability）、`AgentManagementService.execute`（按 DB id 直跑），违反「禁并行抽象」。
-- **膨胀风险**：现 `AafAguiRegistryCustomizer` 启动时 `listActive()` 把每个 Agent 全量注册。若照搬到 per-user 的 Assistant，registry 条目随用户数无限增长且启动期全量加载。
+- **膨胀风险**：现每个 Agent 全量注册。若照搬到 per-user 的 Assistant，registry 条目随用户数无限增长且启动期全量加载。
 
 ## 领域模型定位（钉死）
 

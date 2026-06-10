@@ -158,7 +158,7 @@ function UploadDemo() {
       <div className="w-full space-y-1">
         <p className="font-medium text-sm">Field.Upload（表单绑定）</p>
         <Form methods={methods} className="max-w-sm space-y-3">
-          <Field.Upload name="cover" label="封面图（单张）" accept="image/*" maxSize="5%" />
+          <Field.Upload name="cover" label="封面图（单张）" accept="image/*" maxSize={5} />
           <Field.Upload name="gallery" label="图片集（多张）" accept="image/*" multiple />
           <Button type="submit" size="sm">
             提交

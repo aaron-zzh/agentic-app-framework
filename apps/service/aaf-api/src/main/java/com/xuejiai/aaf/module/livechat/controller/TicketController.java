@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.module.livechat.domain.Ticket;
-import com.xuejiai.aaf.module.livechat.domain.TicketRecord;
+import com.xuejiai.aaf.module.chat.livechat.ticket.domain.Ticket;
+import com.xuejiai.aaf.module.chat.livechat.ticket.domain.TicketRecord;
 import com.xuejiai.aaf.module.livechat.service.RatingService;
 import com.xuejiai.aaf.module.livechat.service.TicketService;
 import com.xuejiai.aaf.module.livechat.vo.RatingStatVO;
@@ -22,10 +22,20 @@ import com.xuejiai.aaf.module.livechat.vo.TicketCreateDTO;
 import com.xuejiai.aaf.module.livechat.vo.TicketStatVO;
 import com.xuejiai.aaf.module.livechat.vo.TicketVO;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 工单与评价 API。 */
+/**
+ * 工单与评价 API。
+ *
+ * @deprecated 旧版 livechat 工单接口，service 层已迁移至 chat 模块实体。 新接口在 {@link
+ *     com.xuejiai.aaf.module.chat.livechat.ticket.controller.TicketController} （路径
+ *     /api/chat/livechat/tickets）。 本 controller 在迁移完成后删除。
+ * @author AaronZZH & Kiro
+ */
+@Deprecated(since = "migrate-livechat", forRemoval = true)
+@Tag(name = "Livechat（已废弃）- 工单与评价")
 @RestController
 @RequestMapping("/api/livechat")
 @RequiredArgsConstructor
@@ -158,7 +168,7 @@ public class TicketController {
                 t.getTitle(),
                 t.getDescription(),
                 t.getUserId(),
-                t.getSessionId(),
+                t.getConversationId(),
                 t.getType(),
                 t.getPriority(),
                 t.getStatus(),

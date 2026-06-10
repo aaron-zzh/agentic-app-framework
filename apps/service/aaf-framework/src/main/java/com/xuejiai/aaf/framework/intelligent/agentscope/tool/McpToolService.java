@@ -43,15 +43,15 @@ public class McpToolService {
     public Toolkit buildToolkit(AgentDefinition definition) {
         var toolkit = new Toolkit();
         var toolNames = parseList(definition.getTools());
-        var callbacks = toolResolver.resolveForAgent(definition.getAgentId(), toolNames);
+        var callbacks = toolResolver.resolveForAgent(definition.getId(), toolNames);
         for (var callback : callbacks) {
             toolkit.registerTool(new ToolCallbackAgentTool(callback, objectMapper));
             log.debug(
                     "Toolkit 注册工具: {} [agentId={}]",
                     callback.getToolDefinition().name(),
-                    definition.getAgentId());
+                    definition.getId());
         }
-        log.info("Agent {} Toolkit 构建完成，共 {} 个工具", definition.getAgentId(), callbacks.size());
+        log.info("Agent {} Toolkit 构建完成，共 {} 个工具", definition.getId(), callbacks.size());
         return toolkit;
     }
 

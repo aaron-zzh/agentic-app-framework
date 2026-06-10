@@ -39,11 +39,22 @@ public interface AtomMemoryEngine {
 
     // ===== 生命周期 =====
 
+    /** 按 scope 检索有效记忆（用于程序化记忆等场景） */
+    List<MemoryAtom> searchByScope(Long userId, String scope, int topK);
+
     /** 标记失效 */
     void invalidate(List<UUID> atomIds);
 
     /** 更新权重 */
     void updateWeight(UUID atomId, double weight);
+
+    /**
+     * 记录程序化记忆的使用结果，按成功率动态更新 weight。
+     *
+     * @param atomId 原子记忆 ID（scope='procedural'）
+     * @param success 本次使用是否成功
+     */
+    void recordUsage(UUID atomId, boolean success);
 
     /** 删除 */
     void delete(List<UUID> atomIds);

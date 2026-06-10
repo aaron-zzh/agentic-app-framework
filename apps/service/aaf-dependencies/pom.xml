@@ -72,6 +72,8 @@
 		<!-- 微信 SDK（WxJava，含公众号/小程序/支付） -->
 		<weixin-java.version>4.8.3-20260605.182943</weixin-java.version>
 		<alipay-sdk-java.version>4.39.218.ALL</alipay-sdk-java.version>
+		<!-- 操作日志 diff -->
+		<java-object-diff.version>0.95</java-object-diff.version>
 		<!-- 内部模块 -->
 		<aaf.version>${revision}</aaf.version>
 	</properties>
@@ -150,41 +152,35 @@
 				<version>${agentscope.version}</version>
 			</dependency>
 
-			<!-- OkHttp/Okio 版本统一：okhttp-jvm(5.x) 与 okhttp(4.x) 并存导致 Okio.socket() NoSuchMethodError -->
-			<!-- 强制使用与 okhttp 4.x 兼容的 Okio 3.6.0 -->
+			<!-- OkHttp/Okio 版本统一：
+			     agentscope-core 1.1.x 直接依赖 okhttp 5.3.2，需要 okio 3.9+（Okio.socket() 是 3.9 新增方法）。
+			     dashscope-sdk-java 2.22.x 依赖 okhttp 4.12，其 API 在 okhttp 5.x 上向后兼容可直接运行。
+			     统一升至 okhttp 5.x + okio 3.9.0，消除 NoSuchMethodError。
+			-->
 			<dependency>
 				<groupId>com.squareup.okio</groupId>
 				<artifactId>okio</artifactId>
-				<version>3.6.0</version>
+				<version>3.9.0</version>
 			</dependency>
 			<dependency>
 				<groupId>com.squareup.okio</groupId>
 				<artifactId>okio-jvm</artifactId>
-				<version>3.6.0</version>
+				<version>3.9.0</version>
 			</dependency>
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp</artifactId>
-				<version>4.12.0</version>
+				<version>5.3.2</version>
 			</dependency>
-			<!-- okhttp-jvm 5.x (OkHttp 5 KMP artifact) 与 okhttp 4.x 冲突，强制 provided 使其不进入运行时类路径 -->
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp-jvm</artifactId>
 				<version>5.3.2</version>
-				<scope>provided</scope>
 			</dependency>
-			<!-- anthropic SDK 传递引入 okhttp-jvm 5.x，排除后由上面锁定的 okhttp 4.x 覆盖 -->
 			<dependency>
 				<groupId>com.anthropic</groupId>
 				<artifactId>anthropic-java-client-okhttp</artifactId>
 				<version>2.14.0</version>
-				<exclusions>
-					<exclusion>
-						<groupId>com.squareup.okhttp3</groupId>
-						<artifactId>okhttp-jvm</artifactId>
-					</exclusion>
-				</exclusions>
 			</dependency>
 			<dependency>
 				<groupId>org.springaicommunity</groupId>
@@ -399,6 +395,13 @@
 				<groupId>com.alipay.sdk</groupId>
 				<artifactId>alipay-sdk-java</artifactId>
 				<version>${alipay-sdk-java.version}</version>
+			</dependency>
+
+			<!-- ==================== 操作日志 ==================== -->
+			<dependency>
+				<groupId>de.danielbechler</groupId>
+				<artifactId>java-object-diff</artifactId>
+				<version>${java-object-diff.version}</version>
 			</dependency>
 
 			<!-- ==================== 测试 ==================== -->

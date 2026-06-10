@@ -100,7 +100,7 @@ public class WecomKfMessageHandler {
     private String resolveAssistantId(String openKfId) {
         return bindingRepo
                 .findByOpenKfIdAndEnabledTrue(openKfId)
-                .map(b -> b.getAssistantId())
+                .map(b -> b.getAssistantId() != null ? b.getAssistantId().toString() : null)
                 .orElseGet(() -> properties.getAssistantId(openKfId));
     }
 }

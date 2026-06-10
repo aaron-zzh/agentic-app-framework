@@ -53,17 +53,13 @@ public class DashScopeRerankService implements RerankService {
     public List<RankedDocument> rerank(String query, List<String> documents, int topN) {
         try {
             // 经六级链按 RERANK 能力解析 modelId（系统默认 / yaml / 内置兜底 gte-rerank-v2）
-            var modelId =
+            var aiModel =
                     capabilityRouter.resolve(
                             CapabilityRoutingContext.ofCapability(
                                     null, CapabilityRoutingContext.CAP_RERANK));
-            // key 与模型名跟着 modelId 走：优先用对应 ai_model 行的凭证，缺失时回退全局 dashscope key
-            var aiModel = modelRepository.findByModelIdAndEnabledTrue(modelId).orElse(null);
-            var modelName = aiModel != null ? aiModel.getModelName() : modelId;
+            var modelName = aiModel.getModelName();
             var key =
-                    aiModel != null && aiModel.effectiveApiKey() != null
-                            ? aiModel.effectiveApiKey()
-                            : fallbackApiKey;
+                    aiModel.effectiveApiKey() != null ? aiModel.effectiveApiKey() : fallbackApiKey;
             var body =
                     objectMapper.writeValueAsString(
                             java.util.Map.of(

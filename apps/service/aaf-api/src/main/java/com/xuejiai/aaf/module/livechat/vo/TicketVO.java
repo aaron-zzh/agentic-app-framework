@@ -2,21 +2,17 @@ package com.xuejiai.aaf.module.livechat.vo;
 
 import java.time.LocalDateTime;
 
-import com.xuejiai.aaf.common.enums.livechat.TicketPriorityEnum;
-import com.xuejiai.aaf.common.enums.livechat.TicketStatusEnum;
-import com.xuejiai.aaf.common.enums.livechat.TicketTypeEnum;
-
-/** 工单 VO。 */
+/** 工单 VO（已迁移至 chat 模块，type/priority/status 均为 String）。 */
 public record TicketVO(
         Long id,
         String ticketNo,
         String title,
         String description,
         Long userId,
-        Long sessionId,
-        TicketTypeEnum type,
-        TicketPriorityEnum priority,
-        TicketStatusEnum status,
+        Long conversationId,
+        String type,
+        String priority,
+        String status,
         Long assigneeId,
         LocalDateTime slaDueTime,
         LocalDateTime closedTime,

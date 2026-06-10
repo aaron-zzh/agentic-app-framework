@@ -123,13 +123,7 @@ export function Chatter(props: ChatterProps) {
           onLayoutChange={onLayoutChange}
           dialogWidth={props.dialogWidth}
           dialogHeight={props.dialogHeight}
-          title={
-            preset === "guest"
-              ? "AI 客服"
-              : preset === "livechat"
-                ? "客服"
-                : "AI 助理"
-          }
+          title={preset === "guest" ? "AI 客服" : preset === "livechat" ? "客服" : "AI 助理"}
         >
           <ChatterPanel
             toolbar={

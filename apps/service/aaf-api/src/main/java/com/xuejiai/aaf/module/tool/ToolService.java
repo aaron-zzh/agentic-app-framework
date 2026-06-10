@@ -73,7 +73,7 @@ public class ToolService {
     }
 
     /** 按 Role 获取可用工具列表 */
-    public List<ToolVO> listByRole(String roleId) {
+    public List<ToolVO> listByRole(Long roleId) {
         return toolRegistry.resolveForRole(roleId).stream()
                 .map(
                         cb -> {

@@ -25,6 +25,7 @@ server:
 aaf:
   app:
     company-name: ${AAF_COMPANY_NAME:学记智能}
+    frontend-url: ${AAF_WEB_ORIGIN:http://localhost:3000}
   cors:
     allowed-origin-patterns:
       - ${AAF_WEB_ORIGIN:http://localhost:3000}

@@ -39,7 +39,6 @@ public class AiRoleCrudService
     protected RoleVO toVO(Role e) {
         return new RoleVO(
                 e.getId(),
-                e.getRoleId(),
                 e.getName(),
                 e.getDescription(),
                 e.getSkillIds(),
@@ -52,7 +51,6 @@ public class AiRoleCrudService
     @Override
     protected Role toEntity(RoleCreateDTO dto) {
         var entity = new Role();
-        entity.setRoleId(dto.roleId());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(dto.skillIds());

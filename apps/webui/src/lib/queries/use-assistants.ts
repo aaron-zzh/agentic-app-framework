@@ -6,16 +6,23 @@
 import { useQuery } from "@tanstack/react-query"
 import { request } from "@/lib/api/rest/entity/crud"
 
-/** 助理列表项（前端展示用，含 actor 头像） */
-export interface AssistantItem {
-  assistantId: string
+/** 助理下的角色条目 */
+export interface RoleItem {
   roleId: string
-  actorId: string
   name: string
-  avatar?: string
+  description?: string
 }
 
-/** 查询当前用户可用的助理列表 */
+/** 助理列表项（含角色列表） */
+export interface AssistantItem {
+  assistantId: string
+  name: string
+  avatar?: string
+  defaultRoleId: string
+  roles: RoleItem[]
+}
+
+/** 查询当前用户可用的助理列表（含各助理下的角色） */
 export function useAssistants() {
   return useQuery({
     queryKey: ["ai", "assistants", "available"],

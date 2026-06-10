@@ -74,7 +74,7 @@ public class CognitiveCycleExecutor {
             String conversationId,
             MemoryStrategy memoryStrategy,
             Long knowledgeBaseId) {
-        var agentId = definition.getAgentId() + ":" + Thread.currentThread().threadId();
+        var agentId = definition.getId().toString() + ":" + Thread.currentThread().threadId();
         var executionId = agentId + ":" + System.nanoTime();
         var startTime = Instant.now();
 

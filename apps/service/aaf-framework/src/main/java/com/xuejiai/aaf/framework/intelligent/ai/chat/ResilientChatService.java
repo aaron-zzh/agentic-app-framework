@@ -10,6 +10,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -45,14 +46,14 @@ public class ResilientChatService {
     public ChatResponse call(List<Message> messages, CapabilityRoutingContext ctx) {
         var ownerId = billingOwnerId(ctx.userId());
         creditGuard.precheck(ownerId, ctx.capability());
-        var modelId = capabilityRouter.resolve(ctx);
+        var model = capabilityRouter.resolve(ctx);
         try {
-            var response = doCall(messages, modelId);
-            publishUsage(response, ownerId, modelId);
+            var response = doCall(messages, model.getModelId());
+            publishUsage(response, ownerId, model.getId());
             return response;
         } catch (Exception e) {
-            log.warn("主模型 [{}] 调用失败，尝试降级: {}", modelId, e.getMessage());
-            return callFallback(messages, modelId, ownerId);
+            log.warn("主模型 [{}] 调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
+            return callFallback(messages, model, ownerId);
         }
     }
 
@@ -73,13 +74,14 @@ public class ResilientChatService {
     public Flux<ChatResponse> stream(List<Message> messages, CapabilityRoutingContext ctx) {
         var ownerId = billingOwnerId(ctx.userId());
         creditGuard.precheck(ownerId, ctx.capability());
-        var modelId = capabilityRouter.resolve(ctx);
+        var model = capabilityRouter.resolve(ctx);
         try {
-            return withStreamUsage(doStream(messages, modelId), ownerId, modelId);
+            return withStreamUsage(doStream(messages, model.getModelId()), ownerId, model.getId());
         } catch (Exception e) {
-            log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", modelId, e.getMessage());
-            var fallbackId = resolveFallback(modelId);
-            return withStreamUsage(doStream(messages, fallbackId), ownerId, fallbackId);
+            log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
+            var fallback = resolveFallback(model);
+            return withStreamUsage(
+                    doStream(messages, fallback.getModelId()), ownerId, fallback.getId());
         }
     }
 
@@ -90,10 +92,10 @@ public class ResilientChatService {
                 CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
     }
 
-    private ChatResponse callFallback(List<Message> messages, String modelId, Long userId) {
-        var fallbackId = resolveFallback(modelId);
-        var response = doCall(messages, fallbackId);
-        publishUsage(response, userId, fallbackId);
+    private ChatResponse callFallback(List<Message> messages, AiModel model, Long userId) {
+        var fallback = resolveFallback(model);
+        var response = doCall(messages, fallback.getModelId());
+        publishUsage(response, userId, fallback.getId());
         return response;
     }
 
@@ -105,15 +107,12 @@ public class ResilientChatService {
         return clientFactory.get(modelId).prompt(new Prompt(messages)).stream().chatResponse();
     }
 
-    private String resolveFallback(String modelId) {
-        return modelRepository
-                .findByModelId(modelId)
-                .filter(m -> m.getFallbackModelId() != null)
-                .map(m -> m.getFallbackModelId())
-                .orElse(modelId);
+    private AiModel resolveFallback(AiModel model) {
+        if (model.getFallbackModelId() == null) return model;
+        return modelRepository.findByModelId(model.getFallbackModelId()).orElse(model);
     }
 
-    private void publishUsage(ChatResponse response, Long userId, String modelId) {
+    private void publishUsage(ChatResponse response, Long userId, Long modelId) {
         if (response == null
                 || response.getMetadata() == null
                 || response.getMetadata().getUsage() == null) return;
@@ -124,7 +123,7 @@ public class ResilientChatService {
     }
 
     private Flux<ChatResponse> withStreamUsage(
-            Flux<ChatResponse> stream, Long userId, String modelId) {
+            Flux<ChatResponse> stream, Long userId, Long modelId) {
         var promptTokens = new AtomicLong();
         var completionTokens = new AtomicLong();
         return stream.doOnNext(

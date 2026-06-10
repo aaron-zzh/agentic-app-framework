@@ -19,7 +19,7 @@ public class TaskDistributor {
     private final TeamOrchestrator orchestrator;
 
     /** 分配任务给团队成员（按能力匹配）。 */
-    public List<TaskAssignment> distribute(String teamId, List<TeamTaskEntity> tasks) {
+    public List<TaskAssignment> distribute(Long teamId, List<TeamTaskEntity> tasks) {
         var members = orchestrator.getMembers(teamId);
         var assignments = new ArrayList<TaskAssignment>();
 
@@ -38,7 +38,8 @@ public class TaskDistributor {
             if (assignee != null) {
                 task.setAssigneeId(assignee.getAssistantId());
                 assignments.add(
-                        new TaskAssignment(task.getTaskId(), assignee.getAssistantId(), task));
+                        new TaskAssignment(
+                                task.getTaskId(), assignee.getAssistantId().toString(), task));
             }
         }
         return assignments;

@@ -17,6 +17,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
@@ -28,6 +29,7 @@ export default function UiPage() {
   const [switched, setSwitched] = useState(false)
   const [selectVal, setSelectVal] = useState("")
   const [progress, setProgress] = useState(40)
+  const [sliderVal, setSliderVal] = useState(50)
 
   return (
     <ComponentLayout
@@ -208,6 +210,30 @@ export default function UiPage() {
                   标签二的内容
                 </TabsContent>
               </Tabs>
+            </ComponentBox>
+          )
+        },
+        {
+          name: "Slider",
+          component: (
+            <ComponentBox className="flex-col items-start gap-4">
+              <div className="flex w-64 flex-col gap-2">
+                <div className="flex justify-between text-muted-foreground text-xs">
+                  <span>默认</span>
+                  <span>{sliderVal}</span>
+                </div>
+                <Slider
+                  min={0}
+                  max={100}
+                  value={[sliderVal]}
+                  onValueChange={(v) => setSliderVal(Array.isArray(v) ? v[0] : v)}
+                  step={2}
+                />
+              </div>
+              <div className="flex w-64 flex-col gap-2">
+                <span className="text-muted-foreground text-xs">禁用</span>
+                <Slider min={0} max={100} defaultValue={[30]} disabled />
+              </div>
             </ComponentBox>
           )
         }

@@ -33,7 +33,7 @@ public class SkillMatchService {
     private final SkillStore skillStore;
 
     /** 根据用户输入匹配 Skill（走 Role 关联路径）。 */
-    public Optional<SkillDefinition> match(String assistantId, String userInput) {
+    public Optional<SkillDefinition> match(Long assistantId, String userInput) {
         var skills = getSkillsForAssistant(assistantId);
         return skills.stream()
                 .filter(s -> matchesIntent(s, userInput))
@@ -41,20 +41,22 @@ public class SkillMatchService {
     }
 
     /** 获取 Assistant 的所有可用技能。 */
-    public List<SkillDefinition> listSkills(String assistantId) {
+    public List<SkillDefinition> listSkills(Long assistantId) {
         return getSkillsForAssistant(assistantId);
     }
 
-    private List<SkillDefinition> getSkillsForAssistant(String assistantId) {
-        // 1. 查 Assistant 定义获取 roleId
-        var assistant = assistantRepo.findByAssistantId(assistantId).orElse(null);
-        if (assistant == null) return List.of();
+    private List<SkillDefinition> getSkillsForAssistant(Long assistantId) {
+        if (assistantId == null) return List.of();
+        if (assistantRepo.findById(assistantId).isEmpty()) return List.of();
 
-        // 2. 查 Role 获取 skillIds
-        var skillIds = roleStore.getSkillIds(assistant.getRoleId());
+        // 助理 → 挂载的角色（ai_assistant_role）→ 各角色 skillIds → 技能定义
+        var skillIds =
+                roleStore.getRoleIdsByAssistant(assistantId).stream()
+                        .flatMap(roleId -> roleStore.getSkillIds(roleId).stream())
+                        .distinct()
+                        .toList();
         if (skillIds.isEmpty()) return List.of();
 
-        // 3. 按 skillIds 查技能定义
         return skillIds.stream()
                 .map(skillStore::findBySkillId)
                 .filter(Optional::isPresent)
@@ -65,14 +67,11 @@ public class SkillMatchService {
 
     private SkillDefinition toEntity(SkillStore.SkillRecord r) {
         var e = new SkillDefinition();
-        e.setSkillId(r.skillId());
-        e.setAssistantId(r.assistantId());
         e.setName(r.name());
         e.setDescription(r.description());
         e.setAgentId(r.agentId());
         e.setTriggerIntent(r.triggerIntent());
         e.setSystemPrompt(r.systemPrompt());
-        e.setTools(r.tools());
         e.setPriority(r.priority());
         e.setBuiltIn(r.builtIn());
         return e;

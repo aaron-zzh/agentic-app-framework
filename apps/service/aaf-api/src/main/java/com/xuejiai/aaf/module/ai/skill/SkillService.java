@@ -43,14 +43,11 @@ public class SkillService
     protected SkillVO toVO(SkillDefinition e) {
         return new SkillVO(
                 e.getId(),
-                e.getSkillId(),
-                e.getAssistantId(),
                 e.getName(),
                 e.getDescription(),
                 e.getAgentId(),
                 e.getTriggerIntent(),
                 e.getSystemPrompt(),
-                e.getTools(),
                 e.getPriority(),
                 e.getBuiltIn(),
                 e.getStatus());
@@ -59,14 +56,11 @@ public class SkillService
     @Override
     protected SkillDefinition toEntity(SkillCreateDTO dto) {
         var entity = new SkillDefinition();
-        entity.setSkillId(dto.skillId());
-        entity.setAssistantId(dto.assistantId());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setAgentId(dto.agentId());
         entity.setTriggerIntent(dto.triggerIntent());
         entity.setSystemPrompt(dto.systemPrompt());
-        entity.setTools(dto.tools());
         entity.setPriority(dto.priority() != null ? dto.priority() : 0);
         entity.setBuiltIn(false);
         entity.setStatus("active");
@@ -80,7 +74,6 @@ public class SkillService
         if (dto.agentId() != null) entity.setAgentId(dto.agentId());
         if (dto.triggerIntent() != null) entity.setTriggerIntent(dto.triggerIntent());
         if (dto.systemPrompt() != null) entity.setSystemPrompt(dto.systemPrompt());
-        if (dto.tools() != null) entity.setTools(dto.tools());
         if (dto.priority() != null) entity.setPriority(dto.priority());
     }
 
@@ -105,11 +98,9 @@ public class SkillService
 
     // ─── 自定义方法 ───
 
-    public List<SkillVO> list(String assistantId) {
-        var skills =
-                assistantId != null
-                        ? repository.findByAssistantIdAndStatus(assistantId, "active")
-                        : repository.findAll();
+    /** 查询技能列表：全局技能（owner_id 为空）+ 指定 owner 的私有技能；ownerId 为空时返回全部。 */
+    public List<SkillVO> list(Long ownerId) {
+        var skills = ownerId != null ? repository.findGlobalOrOwned(ownerId) : repository.findAll();
         return skills.stream().map(this::toVO).toList();
     }
 

@@ -10,10 +10,10 @@ import { Activity } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { FunnelChart, RetentionChart, TrendChart } from "@/features/stats/charts"
 import type { EChartsWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import type { FunnelStage, TrendPoint } from "@/lib/api/rest/dashboard/stats"
 import { useStatsFunnel, useStatsRetention, useStatsTrend } from "@/lib/queries/use-stats"
-import { FunnelChart, RetentionChart, TrendChart } from "@/features/stats/charts"
 
 interface EChartsWidgetProps {
   widgetId: string

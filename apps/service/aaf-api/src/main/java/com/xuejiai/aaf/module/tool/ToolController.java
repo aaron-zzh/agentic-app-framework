@@ -48,7 +48,7 @@ public class ToolController {
 
     @Operation(summary = "按 Role 查询可用工具", description = "返回该 Role 白名单内的工具")
     @GetMapping("/by-role/{roleId}")
-    public Result<List<ToolVO>> listByRole(@PathVariable String roleId) {
+    public Result<List<ToolVO>> listByRole(@PathVariable Long roleId) {
         return Result.success(toolService.listByRole(roleId));
     }
 

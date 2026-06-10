@@ -17,10 +17,10 @@ package com.xuejiai.aaf.framework.intelligent.core.model;
 public interface CapabilityRouter {
 
     /**
-     * 解析 modelId。
+     * 解析模型，返回完整 AiModel 对象。
      *
      * @param context 路由上下文
-     * @return modelId，永不为 null
+     * @return AiModel，永不为 null
      */
-    String resolve(CapabilityRoutingContext context);
+    AiModel resolve(CapabilityRoutingContext context);
 }

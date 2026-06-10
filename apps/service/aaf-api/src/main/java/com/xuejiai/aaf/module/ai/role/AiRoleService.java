@@ -1,5 +1,5 @@
 /**
- * AI 角色管理 Service（Actor + Role 统一管理）。
+ * AI 角色管理 Service（Persona + Role 统一管理）。
  *
  * @author AaronZZH & Kiro
  */
@@ -12,8 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.intelligent.assistant.actor.Actor;
-import com.xuejiai.aaf.framework.intelligent.assistant.actor.ActorRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.persona.Persona;
+import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.Role;
 
@@ -23,72 +23,71 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AiRoleService {
 
-    private final ActorRepository actorRepository;
+    private final PersonaRepository personaRepository;
     private final AiRoleRepository roleRepository;
 
-    // ─── Actor ───
+    // ─── Persona ───
 
     /**
-     * 查询所有 Actor
+     * 查询所有 Persona
      *
-     * @return Actor 列表
+     * @return Persona 列表
      */
-    public List<ActorVO> listActors() {
-        return actorRepository.findAll().stream().map(this::toActorVO).toList();
+    public List<PersonaVO> listActors() {
+        return personaRepository.findAll().stream().map(this::toPersonaVO).toList();
     }
 
     /**
-     * 获取 Actor 详情
+     * 获取 Persona 详情
      *
      * @param id 编号
-     * @return Actor 信息
+     * @return Persona 信息
      */
-    public ActorVO getActorById(Long id) {
-        return toActorVO(getActorEntity(id));
+    public PersonaVO getActorById(Long id) {
+        return toPersonaVO(getActorEntity(id));
     }
 
     /**
-     * 创建 Actor
+     * 创建 Persona
      *
      * @param dto 创建请求
-     * @return Actor 信息
+     * @return Persona 信息
      */
     @Transactional
-    public ActorVO createActor(ActorCreateDTO dto) {
-        var entity = new Actor();
-        entity.setActorId(dto.actorId());
+    public PersonaVO createActor(PersonaCreateDTO dto) {
+        var entity = new Persona();
         entity.setName(dto.name());
         entity.setPersona(dto.persona());
         entity.setSystemPrompt(dto.systemPrompt());
         entity.setAvatarUrl(dto.avatarUrl());
-        return toActorVO(actorRepository.save(entity));
+        return toPersonaVO(personaRepository.save(entity));
     }
 
     /**
-     * 更新 Actor
+     * 更新 Persona
      *
      * @param id 编号
      * @param dto 更新请求
-     * @return 更新后的 Actor 信息
+     * @return 更新后的 Persona 信息
      */
     @Transactional
-    public ActorVO updateActor(Long id, ActorCreateDTO dto) {
+    public PersonaVO updateActor(Long id, PersonaCreateDTO dto) {
         var entity = getActorEntity(id);
         entity.setName(dto.name());
         entity.setPersona(dto.persona());
         entity.setSystemPrompt(dto.systemPrompt());
         entity.setAvatarUrl(dto.avatarUrl());
-        return toActorVO(actorRepository.save(entity));
+        return toPersonaVO(personaRepository.save(entity));
     }
 
     /**
-     * 删除 Actor
+     * 删除 Persona
      *
      * @param id 编号
      */
     @Transactional
     public void deleteActor(Long id) {
-        actorRepository.deleteById(id);
+        personaRepository.deleteById(id);
     }
 
     // ─── Role ───
@@ -121,7 +120,6 @@ public class AiRoleService {
     @Transactional
     public RoleVO createRole(RoleCreateDTO dto) {
         var entity = new Role();
-        entity.setRoleId(dto.roleId());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(dto.skillIds());
@@ -158,10 +156,10 @@ public class AiRoleService {
 
     // ─── 内部方法 ───
 
-    private Actor getActorEntity(Long id) {
-        return actorRepository
+    private Persona getActorEntity(Long id) {
+        return personaRepository
                 .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Actor 不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Persona 不存在"));
     }
 
     private Role getRoleEntity(Long id) {
@@ -170,10 +168,9 @@ public class AiRoleService {
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Role 不存在"));
     }
 
-    private ActorVO toActorVO(Actor e) {
-        return new ActorVO(
+    private PersonaVO toPersonaVO(Persona e) {
+        return new PersonaVO(
                 e.getId(),
-                e.getActorId(),
                 e.getName(),
                 e.getPersona(),
                 e.getSystemPrompt(),
@@ -186,7 +183,6 @@ public class AiRoleService {
     private RoleVO toRoleVO(Role e) {
         return new RoleVO(
                 e.getId(),
-                e.getRoleId(),
                 e.getName(),
                 e.getDescription(),
                 e.getSkillIds(),

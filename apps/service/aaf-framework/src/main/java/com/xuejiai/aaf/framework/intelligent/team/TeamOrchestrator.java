@@ -28,9 +28,8 @@ public class TeamOrchestrator {
     // ===== CRUD =====
 
     /** 创建团队 */
-    public TeamEntity createTeam(String teamId, String name, String mode, String coordinatorId) {
+    public TeamEntity createTeam(String name, String mode, Long coordinatorId) {
         var team = new TeamEntity();
-        team.setTeamId(teamId);
         team.setName(name);
         team.setCollaborationMode(mode);
         team.setCoordinatorAssistantId(coordinatorId);
@@ -38,13 +37,13 @@ public class TeamOrchestrator {
     }
 
     /** 获取团队 */
-    public TeamEntity getTeam(String teamId) {
-        return teamRepository.findByTeamId(teamId).orElse(null);
+    public TeamEntity getTeam(Long teamId) {
+        return teamRepository.findById(teamId).orElse(null);
     }
 
     /** 添加成员 */
     public TeamMemberEntity addMember(
-            String teamId, String assistantId, String role, String capabilities) {
+            Long teamId, Long assistantId, String role, String capabilities) {
         var member = new TeamMemberEntity();
         member.setTeamId(teamId);
         member.setAssistantId(assistantId);
@@ -54,13 +53,13 @@ public class TeamOrchestrator {
     }
 
     /** 获取团队成员 */
-    public List<TeamMemberEntity> getMembers(String teamId) {
+    public List<TeamMemberEntity> getMembers(Long teamId) {
         return memberRepository.findByTeamId(teamId);
     }
 
     /** 获取协调者 */
-    public String getCoordinator(String teamId) {
-        var team = teamRepository.findByTeamId(teamId).orElse(null);
+    public Long getCoordinator(Long teamId) {
+        var team = teamRepository.findById(teamId).orElse(null);
         return team != null ? team.getCoordinatorAssistantId() : null;
     }
 
@@ -75,7 +74,7 @@ public class TeamOrchestrator {
             目标：%s""";
 
     /** LLM 驱动任务拆解 */
-    public List<TeamTaskEntity> decomposeGoal(String teamId, String goal) {
+    public List<TeamTaskEntity> decomposeGoal(Long teamId, String goal) {
         var members = getMembers(teamId);
         var capabilities =
                 members.stream()
@@ -107,7 +106,7 @@ public class TeamOrchestrator {
     // ===== DAG 执行 =====
 
     /** 获取当前可执行的任务（依赖已满足） */
-    public List<TeamTaskEntity> getReadyTasks(String teamId) {
+    public List<TeamTaskEntity> getReadyTasks(Long teamId) {
         var allTasks = taskRepository.findByTeamId(teamId);
         var completedIds =
                 allTasks.stream()
@@ -128,7 +127,7 @@ public class TeamOrchestrator {
     }
 
     /** 更新任务状态 */
-    public void updateTaskStatus(String teamId, String taskId, String status, String result) {
+    public void updateTaskStatus(Long teamId, String taskId, String status, String result) {
         taskRepository
                 .findByTeamIdAndTaskId(teamId, taskId)
                 .ifPresent(
@@ -139,7 +138,7 @@ public class TeamOrchestrator {
                         });
     }
 
-    private List<TeamTaskEntity> parseAndSaveTasks(String teamId, String json) {
+    private List<TeamTaskEntity> parseAndSaveTasks(Long teamId, String json) {
         var tasks = new java.util.ArrayList<TeamTaskEntity>();
         // 简单解析 JSON 数组中的对象
         var pattern =

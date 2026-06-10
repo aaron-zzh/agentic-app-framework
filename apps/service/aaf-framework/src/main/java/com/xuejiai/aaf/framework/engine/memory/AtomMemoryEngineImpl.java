@@ -140,6 +140,14 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
     }
 
     @Override
+    public List<MemoryAtom> searchByScope(Long userId, String scope, int topK) {
+        return atomRepository.findByUserIdAndScopeAndValidToIsNull(userId, scope).stream()
+                .sorted(Comparator.comparingDouble(MemoryAtom::getWeight).reversed())
+                .limit(topK)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public void invalidate(List<UUID> atomIds) {
         if (!atomIds.isEmpty()) {
@@ -151,6 +159,32 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
     @Transactional
     public void updateWeight(UUID atomId, double weight) {
         atomRepository.updateWeight(atomId, weight);
+    }
+
+    @Override
+    @Transactional
+    public void recordUsage(UUID atomId, boolean success) {
+        atomRepository
+                .findById(atomId)
+                .ifPresent(
+                        atom -> {
+                            int useCount = atom.getAccessCount() + 1;
+                            atom.setAccessCount(useCount);
+                            atom.setLastAccessedAt(Instant.now());
+                            // 按成功次数动态更新 weight（metadata 存 successCount）
+                            var meta =
+                                    atom.getMetadata() != null
+                                            ? new java.util.HashMap<>(atom.getMetadata())
+                                            : new java.util.HashMap<String, Object>();
+                            int successCount =
+                                    ((Number) meta.getOrDefault("successCount", 0)).intValue();
+                            if (success) successCount++;
+                            meta.put("successCount", successCount);
+                            atom.setMetadata(meta);
+                            // qualityScore = successCount / useCount，映射到 weight
+                            atom.setWeight(useCount > 0 ? (double) successCount / useCount : 0.5);
+                            atomRepository.save(atom);
+                        });
     }
 
     @Override

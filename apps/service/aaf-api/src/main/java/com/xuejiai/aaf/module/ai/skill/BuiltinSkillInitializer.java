@@ -26,17 +26,17 @@ public class BuiltinSkillInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         for (var builtin : BuiltinSkills.values()) {
-            var existing = repository.findBySkillId(builtin.skillId);
+            // 用 name + builtIn=true 作为唯一标识（skillId 字段已删除）
+            var existing = repository.findByNameAndBuiltInTrue(builtin.name);
             if (existing.isEmpty()) {
                 repository.save(toEntity(builtin));
-                log.info("初始化内置技能: {}", builtin.skillId);
+                log.info("初始化内置技能: {}", builtin.name);
             } else {
                 var entity = existing.get();
-                if (Boolean.TRUE.equals(entity.getBuiltIn())
-                        && !builtin.version.equals(entity.getSkillVersion())) {
+                if (!builtin.version.equals(entity.getSkillVersion())) {
                     updateEntity(entity, builtin);
                     repository.save(entity);
-                    log.info("更新内置技能: {} -> v{}", builtin.skillId, builtin.version);
+                    log.info("更新内置技能: {} -> v{}", builtin.name, builtin.version);
                 }
             }
         }
@@ -44,10 +44,9 @@ public class BuiltinSkillInitializer implements ApplicationRunner {
 
     private SkillDefinition toEntity(BuiltinSkills builtin) {
         var entity = new SkillDefinition();
-        entity.setSkillId(builtin.skillId);
         entity.setName(builtin.name);
         entity.setDescription(builtin.description);
-        entity.setAgentId(builtin.agentId);
+        // agentId 为 null（内置技能由 Assistant 直接处理）
         entity.setTriggerIntent(builtin.triggerIntent);
         entity.setSystemPrompt(builtin.systemPrompt);
         entity.setSkillVersion(builtin.version);

@@ -16,11 +16,11 @@ public class TeamMemberEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "team_id", nullable = false, length = 64)
-    private String teamId;
+    @Column(name = "team_id", nullable = false)
+    private Long teamId;
 
-    @Column(name = "assistant_id", nullable = false, length = 64)
-    private String assistantId;
+    @Column(name = "assistant_id", nullable = false)
+    private Long assistantId;
 
     @Column(name = "role", nullable = false, length = 32)
     private String role = "member";

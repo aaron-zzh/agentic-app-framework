@@ -15,7 +15,9 @@ export function useDocEvents(docId: number | null, onUpdate: () => void): void {
 
   useEffect(() => {
     if (!docId) return
-    const es = new EventSource(buildSseUrl(`/autodev/docs/events?docId=${docId}`, useAuthStore.getState().accessToken))
+    const es = new EventSource(
+      buildSseUrl(`/autodev/docs/events?docId=${docId}`, useAuthStore.getState().accessToken)
+    )
     es.onmessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data as string) as { type: string }

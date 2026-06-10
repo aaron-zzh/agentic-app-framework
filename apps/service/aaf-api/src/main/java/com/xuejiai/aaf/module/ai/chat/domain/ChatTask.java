@@ -29,9 +29,9 @@ import lombok.Setter;
                 "UPDATE ai_chat_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class ChatTask extends BaseEntity {
 
-    /** 所属会话 ID */
-    @Column(name = "session_id", nullable = false)
-    private Long sessionId;
+    /** 所属会话 ID（语义指向 conversation.id，即运行时 sessionId） */
+    @Column(name = "conversation_id", nullable = false)
+    private Long conversationId;
 
     /** 创建者用户 ID */
     @Column(name = "creator_id", nullable = false)

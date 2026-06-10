@@ -21,7 +21,11 @@ import { Switch } from "@/components/ui/switch"
 import { FileGrid } from "./FileGrid"
 import { useAigcStore } from "./store"
 
-export function PreviewPanel() {
+export function PreviewPanel({
+  orientation = "vertical"
+}: {
+  orientation?: "horizontal" | "vertical"
+}) {
   const previewAsset = useAigcStore((s) => s.previewAsset)
   const previewList = useAigcStore((s) => s.previewList)
   const navigatePreview = useAigcStore((s) => s.navigatePreview)
@@ -33,98 +37,102 @@ export function PreviewPanel() {
   const hasNext = currentIdx >= 0 && currentIdx < previewList.length - 1
 
   return (
-    <ResizablePanelGroup orientation="vertical" className="h-full min-w-0">
+    <ResizablePanelGroup orientation={orientation} className="h-full min-w-0">
       {/* 预览区 */}
       <ResizablePanel defaultSize="65%" minSize="30%">
-        <div className="relative flex h-full items-center justify-center overflow-hidden bg-muted/30 p-4">
-          {previewAsset ? (
-            <>
-              {/* 标题栏 */}
-              <div className="absolute top-2 left-4 text-muted-foreground text-xs">
-                预览 {previewAsset.name}
-              </div>
+        <div className="flex h-full flex-col">
+          {/* header */}
+          <div className="flex shrink-0 items-center border-border/50 border-b px-4 py-2">
+            <span className="font-medium text-muted-foreground text-xs">预览</span>
+            {previewAsset && (
+              <span className="ml-2 truncate text-foreground text-xs">{previewAsset.name}</span>
+            )}
+          </div>
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/30 p-4">
+            {previewAsset ? (
+              <>
+                {/* biome-ignore lint/performance/noImgElement: 动态预览大图 */}
+                <img
+                  src={previewAsset.thumbnailUrl ?? undefined}
+                  alt={previewAsset.name}
+                  className="max-h-full max-w-full rounded-lg object-contain"
+                />
 
-              {/* biome-ignore lint/performance/noImgElement: 动态预览大图 */}
-              <img
-                src={previewAsset.thumbnailUrl ?? undefined}
-                alt={previewAsset.name}
-                className="max-h-full max-w-full rounded-lg object-contain"
-              />
-
-              {/* 操作栏 */}
-              <div className="absolute top-2 right-4 flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="size-8 p-0 text-muted-foreground hover:text-foreground"
-                >
-                  <Heart className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="size-8 p-0 text-muted-foreground hover:text-foreground"
-                >
-                  <Download className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="size-8 p-0 text-muted-foreground hover:text-foreground"
-                >
-                  <ThumbsUp className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="size-8 p-0 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-
-              {/* 元素导航箭头（垂直居中，左侧） */}
-              {previewList.length > 1 && (
-                <div className="absolute top-1/2 left-3 flex -translate-y-1/2 flex-col items-center gap-1">
+                {/* 操作栏 */}
+                <div className="absolute top-2 right-4 flex gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!hasPrev}
-                    onClick={() => navigatePreview(-1)}
-                    className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    className="size-8 p-0 text-muted-foreground hover:text-foreground"
                   >
-                    <ChevronUp className="size-4" />
+                    <Heart className="size-4" />
                   </Button>
-                  <span className="text-[10px] text-muted-foreground">元素</span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!hasNext}
-                    onClick={() => navigatePreview(1)}
-                    className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    className="size-8 p-0 text-muted-foreground hover:text-foreground"
                   >
-                    <ChevronDown className="size-4" />
+                    <Download className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <ThumbsUp className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="size-8 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
-              )}
 
-              {/* 模型信息 */}
-              <div className="absolute bottom-4 left-4 rounded-md bg-background/80 px-2 py-1 text-muted-foreground text-xs backdrop-blur-sm">
-                {(() => {
-                  try {
-                    const p = previewAsset.generationParams
-                      ? JSON.parse(previewAsset.generationParams)
-                      : null
-                    return `${p?.model ?? ""} ${p?.resolution ?? "2K"} (${previewAsset.width}×${previewAsset.height})`
-                  } catch {
-                    return `2K (${previewAsset.width}×${previewAsset.height})`
-                  }
-                })()}
-              </div>
-            </>
-          ) : (
-            <p className="text-muted-foreground text-sm">选择素材以预览</p>
-          )}
+                {/* 元素导航箭头（垂直居中，左侧） */}
+                {previewList.length > 1 && (
+                  <div className="absolute top-1/2 left-3 flex -translate-y-1/2 flex-col items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={!hasPrev}
+                      onClick={() => navigatePreview(-1)}
+                      className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    >
+                      <ChevronUp className="size-4" />
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground">元素</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={!hasNext}
+                      onClick={() => navigatePreview(1)}
+                      className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    >
+                      <ChevronDown className="size-4" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* 模型信息 */}
+                <div className="absolute bottom-4 left-4 rounded-md bg-background/80 px-2 py-1 text-muted-foreground text-xs backdrop-blur-sm">
+                  {(() => {
+                    try {
+                      const p = previewAsset.generationParams
+                        ? JSON.parse(previewAsset.generationParams)
+                        : null
+                      return `${p?.model ?? ""} ${p?.resolution ?? "2K"} (${previewAsset.width}×${previewAsset.height})`
+                    } catch {
+                      return `2K (${previewAsset.width}×${previewAsset.height})`
+                    }
+                  })()}
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">选择素材以预览</p>
+            )}
+          </div>
         </div>
       </ResizablePanel>
 

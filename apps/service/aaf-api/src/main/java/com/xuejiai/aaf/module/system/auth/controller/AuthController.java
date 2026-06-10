@@ -31,7 +31,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
 
-    @Value("${aaf.cors.allowed-origin-patterns[0]:http://localhost:3000}")
+    @Value("${aaf.app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
     public AuthController(AuthService authService, UserService userService) {

@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelSelector;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -30,7 +31,8 @@ public class AiAutoConfiguration {
     CapabilityRouter capabilityRouter(
             AiProperties properties,
             ModelPreferenceRepository preferenceRepository,
-            AiModelSelector aiModelSelector) {
+            AiModelSelector aiModelSelector,
+            AiModelRepository modelRepository) {
         // 代码内置兜底（最低优先级），可被 yaml aaf.ai.default-models 覆盖
         var builtIn =
                 new java.util.HashMap<>(
@@ -52,6 +54,7 @@ public class AiAutoConfiguration {
         if (properties.getDefaultModels() != null) {
             builtIn.putAll(properties.getDefaultModels());
         }
-        return new DefaultCapabilityRouter(preferenceRepository, aiModelSelector, builtIn);
+        return new DefaultCapabilityRouter(
+                preferenceRepository, aiModelSelector, modelRepository, builtIn);
     }
 }

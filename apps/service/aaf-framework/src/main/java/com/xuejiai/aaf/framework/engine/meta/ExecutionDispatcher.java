@@ -78,7 +78,13 @@ public class ExecutionDispatcher {
     }
 
     private ExecutionResult dispatchAgent(ExecutionRequest request) {
-        var definition = agentRegistry.findById(request.targetId());
+        Long agentId;
+        try {
+            agentId = Long.parseLong(request.targetId());
+        } catch (NumberFormatException e) {
+            return new ExecutionResult(false, null, "Agent ID 无效: " + request.targetId());
+        }
+        var definition = agentRegistry.findById(agentId).orElse(null);
         if (definition == null) {
             return new ExecutionResult(false, null, "Agent 不存在: " + request.targetId());
         }

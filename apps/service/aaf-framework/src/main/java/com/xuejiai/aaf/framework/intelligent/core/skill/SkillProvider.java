@@ -13,8 +13,8 @@ public interface SkillProvider {
      * @param userInput 用户输入
      * @return 匹配到的技能，无匹配返回 empty
      */
-    Optional<SkillDef> match(String assistantId, String userInput);
+    Optional<SkillDef> match(Long assistantId, String userInput);
 
     /** 获取助理的所有可用技能。 */
-    List<SkillDef> getDefinitions(String assistantId);
+    List<SkillDef> getDefinitions(Long assistantId);
 }

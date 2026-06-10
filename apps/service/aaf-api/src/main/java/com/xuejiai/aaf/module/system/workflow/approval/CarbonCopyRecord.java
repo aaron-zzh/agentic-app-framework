@@ -47,8 +47,8 @@ public class CarbonCopyRecord extends BaseEntity {
     private String entityType;
 
     /** 关联实体 ID */
-    @Column(name = "entity_id", length = 64)
-    private String entityId;
+    @Column(name = "entity_id")
+    private Long entityId;
 
     /** 是否已读 */
     @Column(name = "read", nullable = false)

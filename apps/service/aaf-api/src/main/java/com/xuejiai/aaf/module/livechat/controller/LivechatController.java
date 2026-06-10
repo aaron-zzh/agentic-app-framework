@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.livechat.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,13 +11,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.xuejiai.aaf.common.enums.livechat.SenderTypeEnum;
+import com.xuejiai.aaf.common.enums.livechat.SessionStatusEnum;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
-import com.xuejiai.aaf.module.channel.service.ChannelMessageRouter;
+import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
+import com.xuejiai.aaf.module.chat.enums.ConversationStatus;
+import com.xuejiai.aaf.module.chat.enums.MessageSenderType;
+import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
 import com.xuejiai.aaf.module.knowledge.service.KnowledgeSegmentService;
 import com.xuejiai.aaf.module.knowledge.vo.SemanticSearchResultVO;
-import com.xuejiai.aaf.module.livechat.domain.ChatSession;
 import com.xuejiai.aaf.module.livechat.service.ChatSessionService;
 import com.xuejiai.aaf.module.livechat.service.SeatService;
 import com.xuejiai.aaf.module.livechat.vo.ChatMessageVO;
@@ -24,10 +26,17 @@ import com.xuejiai.aaf.module.livechat.vo.ChatSessionVO;
 import com.xuejiai.aaf.module.livechat.vo.SessionTransferDTO;
 import com.xuejiai.aaf.module.livechat.vo.StaffSendMessageDTO;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** 客服工作台 API。 */
+/**
+ * 客服工作台 API。
+ *
+ * <p>已适配迁移后的 ChatSessionService（使用 Conversation / ConversationMessage）。 后续 livechat 工作台功能统一迁移至
+ * /api/chat/livechat/* 路径，本接口最终删除。
+ */
+@Tag(name = "Livechat - 客服工作台")
 @RestController
 @RequestMapping("/api/livechat")
 @RequiredArgsConstructor
@@ -35,7 +44,6 @@ public class LivechatController {
 
     private final ChatSessionService sessionService;
     private final SeatService seatService;
-    private final ChannelMessageRouter channelRouter;
     private final KnowledgeSegmentService segmentService;
 
     /** 待接入列表 */
@@ -61,44 +69,33 @@ public class LivechatController {
     /** 获取会话消息（坐席视角，含内部消息） */
     @GetMapping("/sessions/{sessionId}/messages")
     public Result<List<ChatMessageVO>> getMessages(@PathVariable Long sessionId) {
-        return Result.success(
-                sessionService.getMessagesForStaff(sessionId).stream()
-                        .map(
-                                m ->
-                                        new ChatMessageVO(
-                                                m.getId(),
-                                                m.getSessionId(),
-                                                m.getSenderType(),
-                                                m.getSenderId(),
-                                                m.getMessageType(),
-                                                m.getContent(),
-                                                m.getInternal(),
-                                                m.getCreateTime()))
-                        .toList());
+        List<ConversationMessage> rawList = sessionService.getMessagesForStaff(sessionId);
+        List<ChatMessageVO> result = new ArrayList<>(rawList.size());
+        for (ConversationMessage m : rawList) {
+            result.add(
+                    new ChatMessageVO(
+                            m.getId(),
+                            m.getConversationId(),
+                            m.getSenderType(),
+                            m.getSenderId(),
+                            m.getContentType(),
+                            m.getContent(),
+                            m.getIsInternal(),
+                            m.getCreateTime()));
+        }
+        return Result.success(result);
     }
 
     /** 坐席发送消息 */
     @PostMapping("/messages/send")
     public Result<Void> sendMessage(
             @RequestParam Long staffId, @RequestBody @Valid StaffSendMessageDTO dto) {
-        // 存储坐席消息
         sessionService.saveMessage(
-                dto.sessionId(), SenderTypeEnum.STAFF, staffId, dto.content(), dto.internal());
-        // 非内部消息需推送给用户（通过渠道路由）
-        if (!dto.internal()) {
-            sessionService.getStaffSessions(staffId).stream()
-                    .filter(s -> s.getId().equals(dto.sessionId()))
-                    .findFirst()
-                    .ifPresent(
-                            s -> {
-                                var reply =
-                                        UnifiedMessage.outboundText(
-                                                s.getChannelType(),
-                                                s.getExternalUserId(),
-                                                dto.content());
-                                channelRouter.routeOutbound(reply);
-                            });
-        }
+                dto.sessionId(),
+                MessageSenderType.STAFF,
+                String.valueOf(staffId),
+                dto.content(),
+                dto.internal());
         return Result.success(null);
     }
 
@@ -113,7 +110,7 @@ public class LivechatController {
                 fromStaffId,
                 dto.toStaffId(),
                 dto.toSkillGroup(),
-                dto.reason(),
+                dto.reason() != null ? dto.reason().name() : null,
                 dto.note());
         return Result.success(null);
     }
@@ -156,17 +153,30 @@ public class LivechatController {
         return Result.success(segmentService.semanticSearch(knowledgeBaseId, query, topK));
     }
 
-    private ChatSessionVO toVO(ChatSession s) {
+    /** Conversation → ChatSessionVO（渠道字段存于 channelExtension，此处仅映射通用字段） */
+    private ChatSessionVO toVO(Conversation c) {
+        SessionStatusEnum status = c.getStatus() != null ? mapStatus(c.getStatus()) : null;
         return new ChatSessionVO(
-                s.getId(),
-                s.getExternalUserId(),
-                s.getChannelType(),
-                s.getStatus(),
-                s.getStaffId(),
-                s.getSkillGroup(),
-                s.getTags(),
-                s.getPriority(),
-                s.getLastActiveTime(),
-                s.getCreateTime());
+                c.getId(),
+                null, // externalUserId 存于 channelExtension，暂不解析
+                null, // channelType 存于 channelExtension，暂不解析
+                status,
+                c.getStaffId(),
+                null, // skillGroup 存于 channelExtension
+                null, // tags 存于 channelExtension
+                c.getPriority(),
+                c.getUpdateTime(), // Conversation 无 lastActiveTime，用 updateTime 代替
+                c.getCreateTime());
+    }
+
+    /** ConversationStatus → SessionStatusEnum 映射 */
+    private SessionStatusEnum mapStatus(ConversationStatus s) {
+        return switch (s) {
+            case ACTIVE -> SessionStatusEnum.ACTIVE;
+            case WAITING -> SessionStatusEnum.WAITING;
+            case BOT -> SessionStatusEnum.BOT;
+            case CLOSED -> SessionStatusEnum.CLOSED;
+            default -> null;
+        };
     }
 }

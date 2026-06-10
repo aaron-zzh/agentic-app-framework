@@ -29,7 +29,7 @@ interface ChatterStore {
   configs: Record<string, ChatterPageConfig>
   /** 全局 open 状态（dialog 模式） */
   open: boolean
-  /** 页面声明的布局覆盖（panel/dialog），null 表示使用默认 dialog */ 
+  /** 页面声明的布局覆盖（panel/dialog），null 表示使用默认 dialog */
   layoutOverride: ChatterLayout | null
 
   setCurrentPage: (pageId: string) => void

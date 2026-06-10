@@ -41,6 +41,13 @@ public class AigcTaskEventService {
         emitter.onTimeout(() -> removeEmitter(userId, emitter));
         emitter.onError(e -> removeEmitter(userId, emitter));
 
+        // 立即发送心跳，防止 Tomcat 异步超时关闭连接
+        try {
+            emitter.send(SseEmitter.event().name("heartbeat").data("connected"));
+        } catch (IOException e) {
+            removeEmitter(userId, emitter);
+        }
+
         return emitter;
     }
 

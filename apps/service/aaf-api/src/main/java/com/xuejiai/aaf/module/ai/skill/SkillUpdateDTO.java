@@ -10,8 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record SkillUpdateDTO(
         @Schema(description = "技能名称") String name,
         @Schema(description = "技能描述") String description,
-        @Schema(description = "关联 Agent ID") String agentId,
+        @Schema(description = "关联 Agent ID") Long agentId,
         @Schema(description = "触发意图") String triggerIntent,
         @Schema(description = "系统提示词") String systemPrompt,
-        @Schema(description = "可用工具列表（JSON）") String tools,
         @Schema(description = "优先级") Integer priority) {}

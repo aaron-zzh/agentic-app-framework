@@ -18,7 +18,7 @@ public class DocumentVersionService {
     public void incrementVersion(Long documentId) {
         entityManager
                 .createNativeQuery(
-                        "UPDATE knowledge_document SET version = COALESCE(version, 0) + 1 WHERE id = :docId")
+                        "UPDATE ai_knowledge_document SET version = COALESCE(version, 0) + 1 WHERE id = :docId")
                 .setParameter("docId", documentId)
                 .executeUpdate();
     }
@@ -28,7 +28,7 @@ public class DocumentVersionService {
     public void cleanOldEmbeddings(Long documentId) {
         entityManager
                 .createNativeQuery(
-                        "DELETE FROM knowledge_embedding WHERE chunk_id IN (SELECT id FROM knowledge_chunk WHERE document_id = :docId)")
+                        "DELETE FROM ai_knowledge_embedding WHERE chunk_id IN (SELECT id FROM ai_knowledge_chunk WHERE document_id = :docId)")
                 .setParameter("docId", documentId)
                 .executeUpdate();
     }

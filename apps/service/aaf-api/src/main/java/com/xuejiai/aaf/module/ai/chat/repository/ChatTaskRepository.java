@@ -14,17 +14,18 @@ import com.xuejiai.aaf.module.ai.chat.domain.enums.ChatTaskStatus;
 public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
 
     /** 获取会话下所有任务（按优先级升序、排序序号升序） */
-    List<ChatTask> findBySessionIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(Long sessionId);
+    List<ChatTask> findByConversationIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(
+            Long conversationId);
 
     /** 获取会话下待处理的下一个任务（已到期或无定时） */
     @Query(
             """
             SELECT t FROM ChatTask t
-            WHERE t.sessionId = :sessionId AND t.status = 'pending' AND t.deleted = false
+            WHERE t.conversationId = :conversationId AND t.status = 'pending' AND t.deleted = false
               AND (t.scheduledAt IS NULL OR t.scheduledAt <= CURRENT_TIMESTAMP)
             ORDER BY t.priority ASC, t.sortOrder ASC
             LIMIT 1""")
-    Optional<ChatTask> findNextPending(Long sessionId);
+    Optional<ChatTask> findNextPending(Long conversationId);
 
     /** 查找所有到期的待处理任务（定时调度用） */
     @Query(
@@ -52,5 +53,5 @@ public interface ChatTaskRepository extends JpaRepository<ChatTask, Long> {
     int recoverOrphans(LocalDateTime cutoff);
 
     /** 统计会话下指定状态的任务数 */
-    long countBySessionIdAndStatusAndDeletedFalse(Long sessionId, ChatTaskStatus status);
+    long countByConversationIdAndStatusAndDeletedFalse(Long conversationId, ChatTaskStatus status);
 }

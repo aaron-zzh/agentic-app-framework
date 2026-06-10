@@ -198,7 +198,7 @@ public class AiImageService {
     public Long draw(Long userId, String prompt, Integer width, Integer height, String model) {
         var ctx =
                 CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
-        String modelId = capabilityRouter.resolve(ctx);
+        String modelId = capabilityRouter.resolve(ctx).getModelId();
 
         var image = new AiImage();
         image.setUserId(userId);

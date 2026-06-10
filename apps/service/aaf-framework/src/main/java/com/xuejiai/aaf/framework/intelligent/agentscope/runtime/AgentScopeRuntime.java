@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
-import com.xuejiai.aaf.framework.engine.workflow.WorkflowTool;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agentscope.hook.AafToolPermissionHook;
 import com.xuejiai.aaf.framework.intelligent.agentscope.hook.AafToolWhitelistHook;
@@ -98,7 +97,6 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
     private final AgentScopeToolGovernanceService toolGovernanceService;
     private final SkillStore skillStore;
-    private final WorkflowTool workflowTool;
     private final AafKnowledge aafKnowledge;
 
     /**
@@ -162,7 +160,7 @@ public class AgentScopeRuntime implements AgentRuntime {
         configureKnowledge(builder, definition);
 
         // 技能：渐进披露，激活后才暴露绑定工具
-        var skillBox = buildSkillBox(toolkit, definition.getAgentId());
+        var skillBox = buildSkillBox(toolkit, definition.getId());
         if (skillBox != null) {
             builder.skillBox(skillBox);
         }
@@ -175,27 +173,24 @@ public class AgentScopeRuntime implements AgentRuntime {
      *
      * <p>AgentScope SkillBox 实现渐进式披露：Agent 默认只看到 skill 列表， 用户明确激活某技能后才暴露该技能绑定的工具，避免工具过多干扰 LLM 决策。
      */
-    private SkillBox buildSkillBox(io.agentscope.core.tool.Toolkit toolkit, String agentId) {
+    private SkillBox buildSkillBox(io.agentscope.core.tool.Toolkit toolkit, Long agentId) {
         if (agentId == null) return null;
         var skills = new java.util.ArrayList<>(skillStore.findByAgentId(agentId));
         skills.addAll(skillStore.findGlobal());
         if (skills.isEmpty()) return null;
 
         var skillBox = new SkillBox(toolkit);
-        skillBox.registerSkillLoadTool(); // 注册 load_skill 工具，让 Agent 能主动激活技能
+        skillBox.registerSkillLoadTool();
 
         for (var skill : skills) {
             var agentSkill =
                     AgentSkill.builder()
-                            .name(skill.skillId())
+                            .name(skill.skillId() != null ? skill.skillId().toString() : "")
                             .description(skill.description() != null ? skill.description() : "")
                             .skillContent(skill.instructions() != null ? skill.instructions() : "")
                             .build();
-            var registration = skillBox.registration().skill(agentSkill);
-            if (skill.tools() != null && skill.tools().contains("start_workflow")) {
-                registration.tool(workflowTool);
-            }
-            registration.apply();
+            // 技能不再绑定工具：工具由角色级 tool_whitelist ∩ Agent 级 allowed_tools 两级收窄统一治理
+            skillBox.registration().skill(agentSkill).apply();
         }
         return skillBox;
     }
@@ -213,18 +208,15 @@ public class AgentScopeRuntime implements AgentRuntime {
                         null,
                         CapabilityRoutingContext.CAP_CHAT,
                         null,
-                        definition.getModelId(),
+                        definition.getModelId() != null ? definition.getModelId().toString() : null,
                         null);
-        var resolvedModelId = capabilityRouter.resolve(ctx);
+        var resolvedModel = capabilityRouter.resolve(ctx);
 
-        var dbModel = modelRepository.findByModelIdAndEnabledTrue(resolvedModelId).orElse(null);
-        OpenAIChatModel chatModel;
-        if (dbModel != null) {
-            chatModel = buildFromDb(dbModel);
-        } else {
-            log.warn("模型 [{}] 不可用，降级使用模型名直接调用", resolvedModelId);
-            chatModel = OpenAIChatModel.builder().modelName(resolvedModelId).build();
-        }
+        var dbModel =
+                modelRepository
+                        .findByModelIdAndEnabledTrue(resolvedModel.getModelId())
+                        .orElse(resolvedModel);
+        OpenAIChatModel chatModel = buildFromDb(dbModel);
         builder.model(chatModel);
         builder.memory(
                 AafAutoContextMemoryAdapter.create(

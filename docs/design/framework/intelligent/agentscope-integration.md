@@ -529,3 +529,242 @@ Layer 2 引擎层（工作流引擎）
 ```
 
 这是 AAF v0.2 智能层重构的核心架构方向。
+
+
+
+---
+
+## AAF 领域概念 vs AgentScope 核心概念对照
+
+> 记录于 2026-06-10。两侧概念独立演进，不强求一一映射。
+
+### AAF 五层智能架构核心概念
+
+| AAF 概念 | 所在层 | 含义 | DB 表 |
+|---------|--------|------|-------|
+| **Core** | Layer 0 | LLM 推理单元，无状态 | ai_model |
+| **Cognition** | Layer 1 | 跨会话持久认知底座：记忆 + 知识库 + 价值观 + 决策日志 | ai_memory_atom / ai_knowledge_* |
+| **Agent** | Layer 2 | 任务执行单元，AAF 语义无状态（配置模板） | ai_agent_definition |
+| **Assistant** | Layer 3 | 用户面向的对话主体，有人格/角色/记忆策略 | ai_assistant |
+| **Team** | Layer 4 | 多 Assistant 协作完成复杂目标 | ai_team / ai_team_task |
+| **Persona** | Layer 3 | 人格模板，可复用 | ai_persona |
+| **Role** | Layer 3 | 能力配置：技能集 + 工具白名单 | ai_role |
+| **Skill** | Layer 3 | 意图路由规则，匹配后路由到对应 Agent | ai_skill_definition |
+| **Tool** | Layer 2 | Agent 可调用的原子能力 | ai_tool_catalog |
+| **Conversation** | Layer 3 | 统一会话（AI/客服/IM） | conversation |
+| **ChatTask** | Layer 3 | 用户提交的任务，助理按优先级执行 | ai_chat_task |
+| **TaskExecution** | Layer 3 | 任务执行实例，支持主/子执行、重试 | ai_task_execution |
+| **MemoryAtom** | Layer 1 | 记忆原子，含向量 + 双时态 + 图关系 | ai_memory_atom |
+
+### AgentScope 2.x 核心概念
+
+| AgentScope 概念 | 含义 | 实例粒度 | 有状态 |
+|----------------|------|---------|--------|
+| **ReActAgent** | 核心推理执行单元：感知→规划→执行→评估循环 | 共享或 per-user，`AgentState` final 绑定在实例上，同一实例不可并发调用 | ✅ AgentState |
+| **HarnessAgent** | ReActAgent + Workspace + Subagents + Skills + PlanMode 完整封装 | 同 ReActAgent | ✅ |
+| **AgentState** | Agent 运行时状态：对话历史（context）、规划进度、interrupt flag；build 时 final 绑定，不可 per-call 切换 | per-实例，唯一 | ✅ |
+| **Session** | 状态持久化存储后端（InMemory/Json/Redis/MySQL）；**≠ 业务"会话"**，是 Repository | 应用级单例 | ❌ |
+| **SessionKey** | AgentState 在 Session 中的存储键，通常为 userId 或 (userId:agentId) | per-请求传入 | ❌ |
+| **Workspace** | Agent 文件系统上下文（AGENTS.md/MEMORY.md/KNOWLEDGE.md/subagents/），通过 NamespaceFactory 按 userId 路径隔离 | per-userId 路径 | ✅（文件） |
+| **Middleware** | 2.x 替代 Hook，5 个 stage 拦截点（onAgent/onReasoning/onActing/onSystemPrompt/onModelCall） | per-agent 注册 | ❌ |
+| **WorkspaceContextMiddleware** | 每次推理前按 userId 读取 workspace/AGENTS.md + MEMORY.md 注入 SYSTEM | — | ❌ |
+| **MemoryFlushMiddleware** | 对话结束后将重要内容写回 workspace/MEMORY.md（per-userId 路径） | — | ❌ |
+| **SubagentDeclaration** | 子 Agent 规格：name/description/systemPrompt/tools/model，LLM 据 description 决定何时委派 | 构建时注册 | ❌ |
+| **DynamicSubagentsMiddleware** | 每次推理前从 workspace/subagents/*.md 动态重载子 Agent 声明 | — | ❌ |
+| **SessionAgentManager** | 子 Agent 生命周期管理：agentCache（per-sessionKey 独立实例）+ 并发控制 | 应用级单例 | ✅（cache） |
+| **HarnessGateway** | 请求路由 + per-gateKey 串行锁（SessionTurnGate），将请求分发到 HarnessAgent | 应用级单例 | ❌ |
+| **SessionTurnGate** | per-gateKey 公平锁，保证同一 gateKey 请求串行，不同 gateKey 可并发 | — | ❌ |
+| **PlanNotebook** | Agent 内置多步任务规划，存于 AgentState | per-实例 | ✅ |
+| **TaskTool / TaskOutputTool** | 主 Agent 委派子 Agent 的工具：同步 + 异步后台 + 结果轮询 | — | ❌ |
+
+### 关键差异与易混淆点
+
+| 概念 | AAF | AgentScope | 差异 |
+|------|-----|-----------|------|
+| **Skill** | 意图路由规则（匹配后路由到某 Agent） | 技能文件（工具集 + 提示词，文件系统来源） | 命名相同，语义完全不同 |
+| **Agent** | 领域语义无状态（配置模板） | 运行时有状态实例（AgentState final 绑定） | AAF"无状态"是业务语义，AS 实例是有状态的 |
+| **Memory** | 跨会话持久记忆（ai_memory_atom，Cognition 层） | 当前对话上下文（AgentState.context） | 层次完全不同 |
+| **Session** | 业务会话（conversation 表） | 状态存储后端（Redis/JSON） | 完全不同概念，仅名字相似 |
+| **Task** | 用户视角后台任务（ai_chat_task） | Agent 内部子任务（TaskTool 异步执行单元） | 层次不同 |
+| **多 Agent 协作** | Team 层外部编排 | LLM 自主 spawn 子 Agent | AAF 偏显式控制，AS 偏自主决策 |
+
+### 实例模型：主 Agent 与子 Agent 的区别
+
+这是最易混淆的地方，需要明确区分：
+
+**主 Agent（MAIN session，HarnessGateway 路由）**：
+```
+启动时 build 1-N 个共享 HarnessAgent 实例（按 agentId 注册到 gateway.agentRegistry）
+  ↓
+用户A发消息 → gateKey="userA" → SessionTurnGate.acquire("userA")
+              → 从 agentRegistry 取共享实例
+              → runtimeContext = {userId="userA", sessionId="sk-A"}
+              → 共享实例.call(msgs, runtimeContext)
+                  WorkspaceContextMiddleware 按 userId 读 workspace/userA/MEMORY.md → 注入 SYSTEM
+                  AgentState.context 写入对话历史（共享 context！）
+                  MemoryFlushMiddleware 按 userId 写回 workspace/userA/MEMORY.md
+              → SessionTurnGate.release("userA")
+
+用户B发消息 → gateKey="userB" → 与 userA 并发执行（不同锁）
+              → 同一个共享实例，但 workspace 路径是 workspace/userB/MEMORY.md
+```
+
+**关键**：主 Agent 的 `AgentState.context` 在多用户间**串行共享**（同一时刻只有一个用户在写），per-user 隔离靠 **Workspace 文件系统**（MEMORY.md 路径按 userId 隔离），不靠 AgentState。
+
+**子 Agent（SUBAGENT session，SessionAgentManager 管理）**：
+```
+主 Agent LLM 决定委派 → 调用 TaskTool("researcher", "帮我查...")
+  → SessionAgentManager.execute(sessionKey="userA:researcher")
+  → agentCache.computeIfAbsent(sessionKey, k -> SubagentFactory.create(parentRc))
+      → 创建独立 HarnessAgent 实例（有自己的 AgentState）
+      → 执行完毕，实例留在 cache 或销毁
+```
+
+子 Agent 才是 per-(用户+任务) 独立实例，状态隔离。主 Agent 是共享实例靠文件系统隔离。
+
+---
+
+## HarnessAgent 运行时逻辑详解
+
+> 记录于 2026-06-10。来源：官方示例（claw/builder/codingagent）源码分析。
+
+### 整体架构
+
+```
+应用启动
+  └── 1-N 个 HarnessAgent（共享实例，per-agentId）
+        └── delegate: ReActAgent
+              ├── AgentState（final，build 时绑定，当前轮次 working context）
+              ├── Session（Redis，存储后端）
+              └── Middleware 链
+
+HarnessGateway（路由层）
+  ├── agentRegistry: Map<agentId, HarnessAgent>（共享实例）
+  ├── contextKeyToSessionKey: Map<gateKey, sessionKey>
+  └── SessionTurnGate（per-gateKey 串行锁）
+
+SessionAgentManager（子 Agent 管理）
+  ├── agentCache: Map<sessionKey, Agent>（per-sessionKey 独立实例）
+  └── 并发控制（Semaphore）
+```
+
+### 单次请求完整流程
+
+```
+用户A: "帮我分析这个数据"
+  │
+  ▼
+HarnessGateway.run(MsgContext{userId="userA", gateKey="userA"}, msgs)
+  │
+  ├─ resolveOrCreateMainSession("userA") → sessionKey="sk-userA-001"
+  ├─ runtimeContext = {userId="userA", sessionId="sk-userA-001"}
+  ├─ SessionTurnGate.acquire("userA")   ← 同一用户串行
+  │
+  ▼
+mainAgent.call(msgs, runtimeContext)
+  │
+  ├─ Middleware.onAgent():
+  │   WorkspaceContextMiddleware
+  │     → workspaceManager.readMemoryMd(rc)  ← 读 workspace/userA/MEMORY.md
+  │     → 注入到 SYSTEM message
+  │   DynamicSubagentsMiddleware
+  │     → 扫描 workspace/userA/subagents/*.md → 更新可用子 Agent 列表
+  │
+  ├─ Middleware.onSystemPrompt():
+  │   HarnessSkillMiddleware → 注入激活的技能提示词
+  │
+  ├─ [ReAct 循环 maxIters 次]
+  │   ├─ LLM 推理 → 决定调用子 Agent "data-analyzer"
+  │   ├─ TaskTool("data-analyzer", "分析用户上传的CSV")
+  │   │     → SessionAgentManager.execute(sessionKey="userA:data-analyzer")
+  │   │     → agentCache 里没有 → SubagentFactory.create() → 新实例
+  │   │     → 子实例独立执行，有自己的 AgentState
+  │   │     → 返回结果
+  │   └─ 主 Agent 汇总结果继续推理
+  │
+  ├─ Middleware.onAgent() 结束:
+  │   MemoryFlushMiddleware
+  │     → 将重要内容写入 workspace/userA/MEMORY.md  ← per-userId 隔离
+  │
+  └─ 生成最终回复
+  │
+  ▼
+SessionTurnGate.release("userA")
+```
+
+### Middleware 注册顺序
+
+| 顺序 | Middleware | 触发时机 | 作用 |
+|------|-----------|---------|------|
+| 1 | AgentTraceMiddleware | onAgent | 执行追踪日志 |
+| 2 | WorkspaceContextMiddleware | onAgent + onSystemPrompt | 按 userId 读 AGENTS.md/MEMORY.md/KNOWLEDGE.md 注入 SYSTEM |
+| 3 | AtPathExpansionMiddleware | onReasoning | 展开 `@path` 引用 |
+| 4 | MemoryFlushMiddleware | onAgent（结束） | 将对话重要内容 flush 到 workspace/[userId]/MEMORY.md |
+| 5 | MemoryMaintenanceMiddleware | onAgent | 定期整理 MEMORY.md |
+| 6 | CompactionMiddleware | onReasoning | Token 超限时 LLM 摘要压缩 AgentState.context |
+| 7 | ToolResultEvictionMiddleware | onActing | 大工具结果替换为摘要 |
+| 8 | DynamicSubagentsMiddleware | onAgent + onReasoning | 按 userId 重载 subagents/*.md，注入可用子 Agent 说明 |
+| 9 | HarnessSkillMiddleware | onSystemPrompt | 注入激活的 Skill 文件内容 |
+| 10 | PlanModeMiddleware | onActing | Plan 模式下过滤非只读工具 |
+
+### 多用户并发模型
+
+```
+用户A请求 → gateKey="userA" → 加锁A ──────────────────→ 释放A
+用户B请求 → gateKey="userB" → 加锁B ──────────────────→ 释放B
+                               ↑两个锁不同，可以同时进行
+
+同一用户A的第2个请求 → 等待第1个完成后才能执行
+```
+
+- 不同用户：不同 gateKey，不同锁，**可以并发**
+- 同一用户：相同 gateKey，相同锁，**必须串行**
+- 主 Agent 实例：**共享**，不是 per-user
+- per-user 状态隔离：**Workspace 文件路径**（NamespaceFactory 按 userId 路由）
+
+### Workspace 文件系统结构
+
+```
+<workspace>/
+  [userId/]                     ← NamespaceFactory 按 userId 隔离
+    AGENTS.md                   ← 用户的自定义系统提示（WorkspaceContextMiddleware 读取）
+    MEMORY.md                   ← 用户长期记忆摘要（MemoryFlushMiddleware 写入/读取）
+    KNOWLEDGE.md                ← 知识库索引
+    subagents/                  ← 动态子 Agent 声明（DynamicSubagentsMiddleware 扫描）
+      researcher.md
+      coder.md
+    skills/                     ← 技能文件
+      _drafts/                  ← 待审批草稿
+    tools.json                  ← MCP 服务器配置
+    plans/                      ← Plan 模式设计文档
+```
+
+---
+
+## HarnessAgent 与 AAF 领域模型的映射
+
+### 映射总表
+
+| AAF 概念 | AgentScope 承接方式 | 隔离机制 | 说明 |
+|---------|-------------------|---------|------|
+| ai_agent_definition | **共享 HarnessAgent 实例**（per-agentId） | — | 1个定义对应1个共享实例 |
+| ai_assistant | onSystemPrompt Middleware 按 userId 动态注入 | per-userId workspace | 不对应实例，对应运行时注入参数 |
+| ai_persona | workspace/[userId]/AGENTS.md | per-userId 文件路径 | 初始化时写入，用户可自定义修改 |
+| ai_role（工具白名单） | ToolGroup 激活 + AafToolWhitelistHook | — | build 时配置或 Middleware 注入 |
+| ai_skill_definition | workspace/[userId]/subagents/*.md | per-userId 文件路径 | Session 建立时写入，DynamicSubagentsMW 动态加载 |
+| ai_memory_atom | AafLongTermMemory（retrieve/record） | per-userId 查询条件 | 每轮推理前注入，回复后异步写回 |
+| workspace/MEMORY.md | MemoryFlushMiddleware | per-userId 文件路径 | 近期上下文摘要，与 ai_memory_atom 互补 |
+| ai_knowledge_* | AafKnowledge + KNOWLEDGE.md | per-knowledgeBase 查询 | HybridSearchService 对接 |
+| conversation | gateKey + sessionKey | per-gateKey 串行锁 | thread_id 作为 gateKey |
+| ai_chat_task | 一次 call()/streamEvents() | — | — |
+| ai_task_execution（子任务） | SessionAgentManager agentCache 里的子 Agent 实例 | per-sessionKey 独立实例 | 子 Agent 才是 per-task 独立 |
+| ai_task_checkpoint | workspace/[userId]/agents/[agentId]/context/[sessionId]/ | per-userId 文件路径 | JsonSession 持久化 AgentState |
+| Team 协作 | DynamicSubagentsMiddleware 自主 spawn | — | LLM 自主决策，可叠加工作流外部编排 |
+
+### 待决策问题
+
+1. **AAF 不使用 Workspace 文件系统做状态隔离**（AAF 用 DB），需要用 `AafLongTermMemory` + `MemoryContextHook` 替代 `WorkspaceContextMiddleware` + `MemoryFlushMiddleware`。两者逻辑等价，存储介质不同。
+
+2. **ai_assistant 的个性化注入粒度**：同一用户的不同 ai_assistant（不同人格/角色），在共享实例模式下靠 onSystemPrompt Middleware 按 (userId + assistantId) 动态注入。如果差异很大（工具集完全不同），则需要 per-assistantId 独立实例。
+
+3. **子 Agent 并发上限**：SessionAgentManager 通过 Semaphore 控制，需要结合 AAF 的积分/权益系统设置合理上限。

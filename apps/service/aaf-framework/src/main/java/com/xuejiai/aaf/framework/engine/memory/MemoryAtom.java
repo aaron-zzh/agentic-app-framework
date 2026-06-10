@@ -22,7 +22,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(
-        name = "memory_atom",
+        name = "ai_memory_atom",
         indexes = {
             @Index(columnList = "userId,scope"),
             @Index(columnList = "userId,eventTime DESC"),

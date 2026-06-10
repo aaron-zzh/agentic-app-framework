@@ -15,7 +15,7 @@ export type RuntimeType = "ag-ui" | "im"
  */
 export interface AgUiRuntimeConfig {
   type: "ag-ui"
-  /** 路由到哪个 Agent（对应 AafAguiRegistryCustomizer 注册的 agentId） */
+  /** 路由到哪个 Agent（对应 后端 注册的 agentId） */
   agentId?: string
 }
 

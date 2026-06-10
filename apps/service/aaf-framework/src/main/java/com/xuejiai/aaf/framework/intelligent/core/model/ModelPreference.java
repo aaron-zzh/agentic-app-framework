@@ -1,5 +1,10 @@
 package com.xuejiai.aaf.framework.intelligent.core.model;
 
+import java.util.List;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
@@ -9,12 +14,7 @@ import lombok.Setter;
 /**
  * 模型偏好配置。
  *
- * <p>支持两种 scope：
- *
- * <ul>
- *   <li>USER — 用户级别，优先于系统默认
- *   <li>SYSTEM — 系统级别，管理员配置的全局默认
- * </ul>
+ * <p>model_ids 是有序渠道列表，RouterCapability 按顺序取第一个可用模型，其余作为降级链。
  */
 @Getter
 @Setter
@@ -27,19 +27,22 @@ public class ModelPreference extends BaseEntity {
     public static final String SCOPE_USER = "USER";
     public static final String SCOPE_SYSTEM = "SYSTEM";
 
-    /** 作用域：USER / SYSTEM */
     @Column(nullable = false, length = 16)
     private String scope;
 
-    /** 作用域 ID：userId（SYSTEM 时为 null） */
     @Column(name = "scope_id")
     private Long scopeId;
 
-    /** 能力类型：CHAT / EMBEDDING / IMAGE_GEN / SPEECH_ASR 等 */
     @Column(nullable = false, length = 32)
     private String capability;
 
-    /** 指向 ai_model.model_id */
-    @Column(nullable = false, length = 64)
-    private String modelId;
+    /** 有序渠道列表，如 ["n1n:gpt-4o","openrouter:gpt-4o","openai:gpt-4o"] */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "model_ids", nullable = false, columnDefinition = "jsonb")
+    private List<String> modelIds;
+
+    /** 取第一个 model_id（兼容旧的单值场景） */
+    public String getPrimaryModelId() {
+        return modelIds != null && !modelIds.isEmpty() ? modelIds.get(0) : null;
+    }
 }

@@ -20,7 +20,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "knowledge_document")
+@Table(name = "ai_knowledge_document")
 @SQLDelete(
         sql =
                 "UPDATE knowledge_document SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"

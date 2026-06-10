@@ -110,23 +110,10 @@
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-starter-model-openai</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp-jvm</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-openai</artifactId>
-			<exclusions>
-				<!-- anthropic SDK 传递引入 okhttp-jvm 5.x，与 okhttp 4.x 冲突导致 Okio.socket() NoSuchMethodError -->
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp-jvm</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
@@ -135,12 +122,6 @@
 		<dependency>
 			<groupId>io.agentscope</groupId>
 			<artifactId>agentscope-spring-boot-starter</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp-jvm</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.alibaba</groupId>
@@ -158,21 +139,11 @@
 					<groupId>org.jboss.slf4j</groupId>
 					<artifactId>slf4j-jboss-logmanager</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp-jvm</artifactId>
-				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>io.agentscope</groupId>
 			<artifactId>agentscope-agui-spring-boot-starter</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp-jvm</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>io.agentscope</groupId>
@@ -274,6 +245,12 @@
 			<artifactId>js</artifactId>
 			<version>24.1.1</version>
 			<type>pom</type>
+		</dependency>
+
+		<!-- 操作日志 diff（bizlog 移植自 mzt-biz-log） -->
+		<dependency>
+			<groupId>de.danielbechler</groupId>
+			<artifactId>java-object-diff</artifactId>
 		</dependency>
 
 		<!-- 测试 -->

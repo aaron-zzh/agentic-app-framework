@@ -71,7 +71,14 @@ export function RichTextEditor({
   const isInitialized = useRef(false)
 
   return (
-    <div className={cn("space-y-1", resizable && "resize-y overflow-hidden", fill && "h-full", className)}>
+    <div
+      className={cn(
+        "space-y-1",
+        resizable && "resize-y overflow-hidden",
+        fill && "h-full",
+        className
+      )}
+    >
       <LexicalComposer initialConfig={initialConfig}>
         <EditorInner
           preset={presetName}
@@ -130,7 +137,9 @@ function EditorInner({
   }, [editor, disabled])
 
   return (
-    <div className={cn("rounded-md border", disabled && "opacity-60", fill && "flex h-full flex-col")}>
+    <div
+      className={cn("rounded-md border", disabled && "opacity-60", fill && "flex h-full flex-col")}
+    >
       {/* 工具栏 */}
       {preset.showToolbar && !disabled && (
         <ToolbarPlugin features={preset.toolbarFeatures} uploadEndpoint={uploadEndpoint} />

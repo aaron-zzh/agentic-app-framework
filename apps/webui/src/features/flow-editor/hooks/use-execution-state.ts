@@ -47,7 +47,12 @@ export function useExecutionState(processInstanceId?: string) {
     if (!processInstanceId) return
 
     reset()
-    const source = new EventSource(buildSseUrl(`/flows/${processInstanceId}/execution-events`, useAuthStore.getState().accessToken))
+    const source = new EventSource(
+      buildSseUrl(
+        `/flows/${processInstanceId}/execution-events`,
+        useAuthStore.getState().accessToken
+      )
+    )
 
     source.onmessage = (event) => {
       const data = JSON.parse(event.data) as ExecutionEvent

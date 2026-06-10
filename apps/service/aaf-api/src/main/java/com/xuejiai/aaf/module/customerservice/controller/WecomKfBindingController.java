@@ -56,7 +56,7 @@ public class WecomKfBindingController {
     public record BindingRequest(
             @NotBlank String openKfId,
             String accountName,
-            @NotBlank String assistantId,
+            @jakarta.validation.constraints.NotNull Long assistantId,
             Boolean enabled,
             String remark) {}
 }

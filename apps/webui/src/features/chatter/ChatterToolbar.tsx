@@ -8,8 +8,8 @@
 "use client"
 
 import { Bot, Maximize2, PanelRightClose, Plus, Sparkles, User, X } from "lucide-react"
-import type { ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import type { ReactNode } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -86,8 +86,16 @@ export function ChatterToolbar({
   const router = useRouter()
 
   const { data: assistants } = useAssistants()
-  const roles =
-    assistants?.map((a) => ({ roleId: a.roleId, name: a.name, avatar: a.avatar })) ?? FALLBACK_ROLES
+  // 将助理树展开为扁平角色列表（单角色助理用助理名，多角色助理用"助理名·角色名"）
+  const roles = assistants
+    ? assistants.flatMap((a) =>
+        (a.roles ?? []).map((r) => ({
+          roleId: r.roleId,
+          name: (a.roles?.length ?? 0) > 1 ? `${a.name} · ${r.name}` : a.name,
+          avatar: a.avatar
+        }))
+      )
+    : FALLBACK_ROLES
   const currentRole =
     roles.find((r) => r.roleId === (target.agentRole ?? "default-generalist")) ?? roles[0]
 
