@@ -1,118 +1,54 @@
 package com.xuejiai.aaf.module.ai.aigc.image.service;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.GenerationTemplate;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.GenerationTemplateRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateCreateDTO;
+import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplatePageDTO;
+import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateVO;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * 参数模板服务。
+ * 参数模板 CRUD 服务。
  *
  * @author AaronZZH & Kiro
  */
 @Service
 @RequiredArgsConstructor
-public class GenerationTemplateService {
+@Transactional(readOnly = true)
+public class GenerationTemplateService
+        extends BaseCrudService<
+                GenerationTemplate,
+                GenerationTemplateVO,
+                GenerationTemplateCreateDTO,
+                GenerationTemplateUpdateDTO,
+                GenerationTemplatePageDTO> {
 
     private final GenerationTemplateRepository templateRepository;
 
-    /**
-     * 分页查询用户模板。
-     *
-     * @param userId 用户 ID
-     * @param page 页码
-     * @param size 每页数量
-     * @return 模板分页结果
-     */
-    @Transactional(readOnly = true)
-    public Page<GenerationTemplateVO> listByUser(Long userId, int page, int size) {
-        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
-        return templateRepository.findByUserId(userId, pageable).map(this::toVO);
+    @Override
+    protected JpaRepository<GenerationTemplate, Long> getRepository() {
+        return templateRepository;
     }
 
-    /**
-     * 按分类查询公开模板。
-     *
-     * @param category 分类名称（可选）
-     * @param page 页码
-     * @param size 每页数量
-     * @return 公开模板分页结果
-     */
-    @Transactional(readOnly = true)
-    public Page<GenerationTemplateVO> listPublic(String category, int page, int size) {
-        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "usageCount"));
-        if (category != null) {
-            return templateRepository.findByCategory(category, pageable).map(this::toVO);
-        }
-        return templateRepository.findByIsPublicTrue(pageable).map(this::toVO);
+    @Override
+    protected JpaSpecificationExecutor<GenerationTemplate> getSpecExecutor() {
+        return templateRepository;
     }
 
-    /**
-     * 创建模板。
-     *
-     * @param userId 用户 ID
-     * @param dto 创建请求
-     * @return 新建的模板
-     */
-    @Transactional
-    public GenerationTemplateVO create(Long userId, GenerationTemplateCreateDTO dto) {
-        var template = new GenerationTemplate();
-        template.setUserId(userId);
-        template.setName(dto.name());
-        template.setCategory(dto.category());
-        template.setPrompt(dto.prompt());
-        template.setNegativePrompt(dto.negativePrompt());
-        template.setModel(dto.model());
-        template.setWidth(dto.width());
-        template.setHeight(dto.height());
-        template.setSteps(dto.steps());
-        template.setSeed(dto.seed());
-        template.setIsPublic(dto.isPublic() != null && dto.isPublic());
-        return toVO(templateRepository.save(template));
-    }
-
-    /**
-     * 使用模板（增加使用计数并返回参数）。
-     *
-     * @param templateId 模板 ID
-     * @return 模板详情
-     */
-    @Transactional
-    public GenerationTemplateVO use(Long templateId) {
-        var template = findById(templateId);
-        template.incrementUsage();
-        return toVO(templateRepository.save(template));
-    }
-
-    /**
-     * 删除模板。
-     *
-     * @param templateId 模板 ID
-     */
-    @Transactional
-    public void delete(Long templateId) {
-        templateRepository.deleteById(templateId);
-    }
-
-    private GenerationTemplate findById(Long id) {
-        return templateRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "模板不存在"));
-    }
-
-    private GenerationTemplateVO toVO(GenerationTemplate t) {
+    @Override
+    protected GenerationTemplateVO toVO(GenerationTemplate t) {
         return new GenerationTemplateVO(
                 t.getId(),
+                t.getType(),
                 t.getName(),
                 t.getCategory(),
                 t.getPrompt(),
@@ -123,6 +59,76 @@ public class GenerationTemplateService {
                 t.getSteps(),
                 t.getSeed(),
                 t.getIsPublic(),
-                t.getUsageCount());
+                t.getUsageCount(),
+                t.getScope());
+    }
+
+    @Override
+    protected GenerationTemplate toEntity(GenerationTemplateCreateDTO dto) {
+        var entity = new GenerationTemplate();
+        entity.setName(dto.name());
+        entity.setCategory(dto.category());
+        entity.setPrompt(dto.prompt());
+        entity.setNegativePrompt(dto.negativePrompt());
+        entity.setModel(dto.model());
+        entity.setWidth(dto.width());
+        entity.setHeight(dto.height());
+        entity.setSteps(dto.steps());
+        entity.setSeed(dto.seed());
+        entity.setIsPublic(dto.isPublic() != null && dto.isPublic());
+        return entity;
+    }
+
+    @Override
+    protected void updateEntity(GenerationTemplate entity, GenerationTemplateUpdateDTO dto) {
+        if (dto.name() != null) entity.setName(dto.name());
+        if (dto.category() != null) entity.setCategory(dto.category());
+        if (dto.prompt() != null) entity.setPrompt(dto.prompt());
+        if (dto.negativePrompt() != null) entity.setNegativePrompt(dto.negativePrompt());
+        if (dto.model() != null) entity.setModel(dto.model());
+        if (dto.width() != null) entity.setWidth(dto.width());
+        if (dto.height() != null) entity.setHeight(dto.height());
+        if (dto.steps() != null) entity.setSteps(dto.steps());
+        if (dto.seed() != null) entity.setSeed(dto.seed());
+        if (dto.isPublic() != null) entity.setIsPublic(dto.isPublic());
+        if (dto.scope() != null) entity.setScope(dto.scope());
+    }
+
+    @Override
+    protected org.springframework.data.jpa.domain.Specification<GenerationTemplate> buildSpec(
+            GenerationTemplatePageDTO query) {
+        return SpecificationBuilder.<GenerationTemplate>builder()
+                .eqIfPresent("type", query.getType())
+                .eqIfPresent("scope", query.getScope())
+                .eqIfPresent("category", query.getCategory())
+                .eqIfPresent("isPublic", query.getIsPublic())
+                .build();
+    }
+
+    /** 数据权限由 sys_data_access_rule 表声明式配置驱动，entitySlug = "generation-template"。 不在代码里硬编码权限逻辑。 */
+    @Override
+    protected String entitySlug() {
+        return "generation-template";
+    }
+
+    @Override
+    protected String entityName() {
+        return "参数模板";
+    }
+
+    /** 增加使用计数。 */
+    @Transactional
+    public GenerationTemplateVO incrementUsage(Long id) {
+        var template =
+                getRepository()
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new com.xuejiai.aaf.common.exception.BusinessException(
+                                                com.xuejiai.aaf.common.exception.GlobalErrorCode
+                                                        .NOT_FOUND,
+                                                "模板不存在"));
+        template.incrementUsage();
+        return toVO(getRepository().save(template));
     }
 }

@@ -93,7 +93,7 @@ public class AssistantScopeRuntime implements AssistantRuntime {
     private final AgentRegistryService agentRegistry;
     private final AiModelRepository modelRepository;
     private final CapabilityRouter capabilityRouter;
-    private final SkillStore skillStore;
+    private final ObjectProvider<SkillStore> skillStoreProvider;
     private final McpToolService mcpToolService;
     private final AgentScopeToolGovernanceService toolGovernanceService;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
@@ -285,6 +285,9 @@ public class AssistantScopeRuntime implements AssistantRuntime {
 
         var skillBox = new SkillBox(toolkit);
         skillBox.registerSkillLoadTool();
+
+        var skillStore = skillStoreProvider.getIfAvailable();
+        if (skillStore == null) return skillBox;
 
         for (var skillId : skillIds) {
             var skillOpt = skillStore.findBySkillId(skillId);

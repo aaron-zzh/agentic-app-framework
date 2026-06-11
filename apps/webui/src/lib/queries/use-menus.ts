@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type MenuCreateDTO, type MenuUpdateDTO, menuApi } from "@/lib/api/rest/user/menu"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 const KEYS = {
   all: ["menus"] as const,
@@ -14,10 +15,12 @@ const KEYS = {
 
 /** 当前用户可见菜单树（侧边栏用，5 分钟缓存） */
 export function useUserMenus() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return useQuery({
     queryKey: KEYS.user,
     queryFn: () => menuApi.getUserMenus(),
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    enabled: isAuthenticated
   })
 }
 

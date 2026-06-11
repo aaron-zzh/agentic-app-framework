@@ -1,4 +1,5 @@
 "use client"
+"use client"
 
 import { useState } from "react"
 import { ComponentLayout } from "@/components/common/ComponentLayout"
@@ -75,6 +76,22 @@ export default function EditorPage() {
                 placeholder="支持图片上传（工具栏 🖼 或粘贴/拖拽）..."
                 preset="document"
                 uploadEndpoint="/api/upload"
+              />
+            </div>
+          )
+        },
+        {
+          name: "markdown",
+          description: "Markdown 模式（测试中文输入）",
+          component: (
+            <div className="w-full">
+              <RichTextEditor
+                value=""
+                onChange={() => {}}
+                placeholder="测试中文输入..."
+                preset="richField"
+                mode="markdown"
+                minHeight={120}
               />
             </div>
           )

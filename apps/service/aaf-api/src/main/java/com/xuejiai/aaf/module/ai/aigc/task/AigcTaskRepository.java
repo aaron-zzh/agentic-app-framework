@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.task;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,4 +23,7 @@ public interface AigcTaskRepository extends JpaRepository<AigcTask, Long> {
 
     /** 查询指定状态的任务列表 */
     List<AigcTask> findByStatus(String status);
+
+    /** 查询指定状态且创建时间早于给定时间的任务（用于检测卡住的任务） */
+    List<AigcTask> findByStatusAndCreateTimeBefore(String status, LocalDateTime before);
 }

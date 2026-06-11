@@ -96,7 +96,7 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final CapabilityRouter capabilityRouter;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
     private final AgentScopeToolGovernanceService toolGovernanceService;
-    private final SkillStore skillStore;
+    private final ObjectProvider<SkillStore> skillStoreProvider;
     private final AafKnowledge aafKnowledge;
 
     /**
@@ -175,6 +175,8 @@ public class AgentScopeRuntime implements AgentRuntime {
      */
     private SkillBox buildSkillBox(io.agentscope.core.tool.Toolkit toolkit, Long agentId) {
         if (agentId == null) return null;
+        var skillStore = skillStoreProvider.getIfAvailable();
+        if (skillStore == null) return null;
         var skills = new java.util.ArrayList<>(skillStore.findByAgentId(agentId));
         skills.addAll(skillStore.findGlobal());
         if (skills.isEmpty()) return null;

@@ -8,11 +8,11 @@
 import { useState } from "react"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { VideoEditPanel } from "@/features/aigc/VideoEditPanel"
-import { VideoGenerationChat } from "@/features/aigc/VideoGenerationChat"
-import { VideoPlayer } from "@/features/aigc/VideoPlayer"
-import { VideoStoryboard } from "@/features/aigc/VideoStoryboard"
-import { VideoTimeline } from "@/features/aigc/VideoTimeline"
+import { VideoEditPanel } from "@/features/aigc/video/VideoEditPanel"
+import { VideoGenerationChat } from "@/features/aigc/video/VideoGenerationChat"
+import { VideoPlayer } from "@/features/aigc/video/VideoPlayer"
+import { VideoStoryboard } from "@/features/aigc/video/VideoStoryboard"
+import { VideoTimeline } from "@/features/aigc/video/VideoTimeline"
 
 export default function AigcVideoPage() {
   const [mode, setMode] = useState<"generate" | "edit">("generate")

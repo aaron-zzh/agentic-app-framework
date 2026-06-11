@@ -55,6 +55,7 @@ public class SecurityConfig {
         "/api/agui/runs",
         "/api/agui/runs/**",
         "/api/hello",
+        "/api/system/files/**",
         "/actuator/**",
         "/swagger-ui/**",
         "/swagger-ui.html",

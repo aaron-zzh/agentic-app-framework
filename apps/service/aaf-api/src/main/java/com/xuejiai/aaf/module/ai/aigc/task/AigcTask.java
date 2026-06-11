@@ -2,6 +2,9 @@ package com.xuejiai.aaf.module.ai.aigc.task;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,20 +40,25 @@ public class AigcTask {
     @Column(name = "provider", length = 50)
     private String provider;
 
-    /** 模型名称 */
+    /** 模型 ID */
     @Column(name = "model", length = 100)
     private String model;
+
+    /** 模型显示名称，如 豆包图像生成 */
+    @Column(name = "model_name", length = 100)
+    private String modelName;
 
     /** 生成 prompt */
     @Column(name = "prompt", columnDefinition = "TEXT")
     private String prompt;
 
     /** 额外参数，JSON 格式（width/height 等） */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "params", columnDefinition = "JSONB")
     private String params;
 
     /** 第三方任务 ID */
-    @Column(name = "task_id", length = 200)
+    @Column(name = "task_id", columnDefinition = "TEXT")
     private String taskId;
 
     /** 第三方结果 URL（未上传 OSS 前） */

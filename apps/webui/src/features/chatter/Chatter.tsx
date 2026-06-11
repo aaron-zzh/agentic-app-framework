@@ -21,9 +21,9 @@
 
 "use client"
 
-import { DndContext, type DragEndEvent } from "@dnd-kit/core"
 import { useCallback, useEffect, useState } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { useChatterStore } from "@/lib/store/chatter-store"
 import { ChatterLayout } from "./ChatterLayout"
 import { ChatterPanel } from "./ChatterPanel"
 import { ChatterRuntime } from "./ChatterRuntime"
@@ -90,17 +90,16 @@ export function Chatter(props: ChatterProps) {
     [onOpenChange]
   )
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { over, active } = event
-      if (!over || over.id !== "chatter-composer-drop") return
-      const item = active.data.current as ChatterDropItem | undefined
-      if (!item) return
-      setAttachments((prev) => [...prev, item])
-      onDrop?.(item)
-    },
-    [onDrop]
-  )
+  const pendingDropItem = useChatterStore((s) => s.pendingDropItem)
+  const setPendingDropItem = useChatterStore((s) => s.setPendingDropItem)
+
+  // 消费全局 DnD 落下的附件
+  useEffect(() => {
+    if (!pendingDropItem) return
+    setAttachments((prev) => [...prev, pendingDropItem])
+    onDrop?.(pendingDropItem)
+    setPendingDropItem(null)
+  }, [pendingDropItem, onDrop, setPendingDropItem])
 
   const handleAttachmentRemove = useCallback((index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
@@ -114,36 +113,34 @@ export function Chatter(props: ChatterProps) {
   if (!mounted && (layout === "panel" || layout === "page")) return null
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
-      <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId}>
-        <ChatterLayout
-          layout={effectiveLayout}
-          open={open ?? isOpen}
-          onOpenChange={handleOpenChange}
-          onLayoutChange={onLayoutChange}
-          dialogWidth={props.dialogWidth}
-          dialogHeight={props.dialogHeight}
-          title={preset === "guest" ? "AI 客服" : preset === "livechat" ? "客服" : "AI 助理"}
-        >
-          <ChatterPanel
-            toolbar={
-              preset === "livechat" || preset === "guest" ? null : (
-                <ChatterToolbar
-                  preset={preset}
-                  target={target}
-                  onTargetChange={setTarget}
-                  onNewSession={handleNewSession}
-                  toolbar={toolbar}
-                />
-              )
-            }
-            attachments={attachments}
-            onAttachmentRemove={handleAttachmentRemove}
-            onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
-            sessionId={props.sessionId}
-          />
-        </ChatterLayout>
-      </ChatterRuntime>
-    </DndContext>
+    <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId}>
+      <ChatterLayout
+        layout={effectiveLayout}
+        open={open ?? isOpen}
+        onOpenChange={handleOpenChange}
+        onLayoutChange={onLayoutChange}
+        dialogWidth={props.dialogWidth}
+        dialogHeight={props.dialogHeight}
+        title={preset === "guest" ? "AI 客服" : preset === "livechat" ? "客服" : "AI 助理"}
+      >
+        <ChatterPanel
+          toolbar={
+            preset === "livechat" || preset === "guest" ? null : (
+              <ChatterToolbar
+                preset={preset}
+                target={target}
+                onTargetChange={setTarget}
+                onNewSession={handleNewSession}
+                toolbar={toolbar}
+              />
+            )
+          }
+          attachments={attachments}
+          onAttachmentRemove={handleAttachmentRemove}
+          onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
+          sessionId={props.sessionId}
+        />
+      </ChatterLayout>
+    </ChatterRuntime>
   )
 }

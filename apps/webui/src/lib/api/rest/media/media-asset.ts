@@ -57,5 +57,16 @@ export const mediaAssetApi = {
   getCategories: (): Promise<MediaCategoryVO[]> => request<MediaCategoryVO[]>("/aigc/categories"),
 
   /** 获取标签列表 */
-  getTags: (): Promise<MediaTagVO[]> => request<MediaTagVO[]>("/aigc/tags")
+  getTags: (): Promise<MediaTagVO[]> => request<MediaTagVO[]>("/aigc/tags"),
+
+  /** 移动素材到指定分组 */
+  moveToGroup: (assetId: number, groupId: number): Promise<void> =>
+    request<void>(`${API_PATH}/${assetId}/group`, {
+      method: "PATCH",
+      body: JSON.stringify({ groupId })
+    }),
+
+  /** 删除素材组及组内所有素材和文件 */
+  deleteGroup: (groupId: number): Promise<void> =>
+    request<void>(`${API_PATH}/group/${groupId}`, { method: "DELETE" })
 }

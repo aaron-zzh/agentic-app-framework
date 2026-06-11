@@ -28,6 +28,10 @@ public class GenerationTemplate extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    /** 模板类型：IMAGE / VIDEO / COPYWRITING */
+    @Column(name = "type", length = 30)
+    private String type = "IMAGE";
+
     /** 模板分类 */
     @Column(name = "category", length = 50)
     private String category;
@@ -67,6 +71,10 @@ public class GenerationTemplate extends BaseEntity {
     /** 使用次数 */
     @Column(name = "usage_count", nullable = false)
     private Integer usageCount = 0;
+
+    /** 使用场景：GENERATION=单次生成面板，PROJECT=项目级提示词 */
+    @Column(name = "scope", nullable = false, length = 20)
+    private String scope = "GENERATION";
 
     /** 所属用户 ID */
     @Column(name = "user_id", nullable = false)

@@ -29,8 +29,18 @@ public class SseTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String token = request.getParameter("token");
-        if (StringUtils.hasText(token) && request.getHeader("Authorization") == null) {
-            request = new BearerTokenRequestWrapper(request, token);
+        if (StringUtils.hasText(token)) {
+            // SSE via EventSource 不支持自定义 header，通过 query param 传 JWT
+            if (request.getHeader("Authorization") == null) {
+                request = new BearerTokenRequestWrapper(request, token);
+            }
+            // 确保 SSE 响应携带 CORS header（认证失败时 Spring Security 不自动添加）
+            String origin = request.getHeader("Origin");
+            if (StringUtils.hasText(origin)
+                    && !response.containsHeader("Access-Control-Allow-Origin")) {
+                response.setHeader("Access-Control-Allow-Origin", origin);
+                response.setHeader("Access-Control-Allow-Credentials", "true");
+            }
         }
         chain.doFilter(request, response);
     }

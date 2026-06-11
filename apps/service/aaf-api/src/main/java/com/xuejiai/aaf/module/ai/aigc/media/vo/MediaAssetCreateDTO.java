@@ -23,4 +23,8 @@ public record MediaAssetCreateDTO(
         @Schema(description = "生成参数（JSON）", example = "{\"prompt\":\"风景\"}")
                 String generationParams,
         @Schema(description = "标签，逗号分隔", example = "风景,AI生成") String tags,
-        @Schema(description = "分类 ID", example = "1") Long categoryId) {}
+        @Schema(description = "分类 ID", example = "1") Long categoryId,
+        @Schema(description = "素材组 ID", example = "1") Long groupId,
+        @Schema(description = "是否 AI 生成", example = "true") Boolean aiGenerated,
+        @Schema(description = "AI 模型显示名称", example = "豆包图像生成") String modelName,
+        @Schema(description = "模型供应商编码", example = "volcengine") String providerCode) {}

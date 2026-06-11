@@ -784,9 +784,12 @@ CREATE TABLE sys_config (
     visible       BOOLEAN      NOT NULL DEFAULT TRUE,
     editable      BOOLEAN      NOT NULL DEFAULT TRUE,
     create_by     BIGINT,
+    create_by_type VARCHAR(16),
     create_time   TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_by     BIGINT,
+    update_by_type VARCHAR(16),
     update_time   TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id      BIGINT,
     delete_time   TIMESTAMP(6),
     deleted       BOOLEAN      NOT NULL DEFAULT FALSE,
     remark        VARCHAR(255)
@@ -872,9 +875,12 @@ CREATE TABLE sys_sequence (
     use_date_range   BOOLEAN      NOT NULL DEFAULT FALSE,
     active           BOOLEAN      NOT NULL DEFAULT TRUE,
     create_by        BIGINT,
+    create_by_type   VARCHAR(16),
     create_time      TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_by        BIGINT,
+    update_by_type   VARCHAR(16),
     update_time      TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id         BIGINT,
     delete_time      TIMESTAMP(6),
     deleted          BOOLEAN      NOT NULL DEFAULT FALSE,
     remark           VARCHAR(255)
@@ -1735,7 +1741,7 @@ CREATE TABLE IF NOT EXISTS user_event (
 );
 
 CREATE INDEX idx_user_event_type_time ON user_event (event_type, create_time);
-CREATE INDEX idx_user_event_user ON user_event (user_id, create_time);
+CREATE INDEX IF NOT EXISTS idx_user_event_user ON user_event (user_id, create_time);
 CREATE INDEX idx_user_event_date ON user_event ((create_time::date));
 COMMENT ON TABLE user_event IS '用户行为事件（追加写入）';
 

@@ -17,6 +17,7 @@ import {
   Box,
   CheckSquare,
   ChevronDown,
+  Cpu,
   CreditCard,
   FileText,
   FolderOpen,
@@ -85,7 +86,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   // 开发工具
   "scroll-text": ScrollText,
   "git-pull-request": GitPullRequest,
-  "bar-chart-3": BarChart3
+  "bar-chart-3": BarChart3,
+  // 系统
+  cpu: Cpu
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {

@@ -14,6 +14,7 @@ public class AigcProjectVO {
     private String type;
     private String status;
     private Long userId;
+    private String prompt;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

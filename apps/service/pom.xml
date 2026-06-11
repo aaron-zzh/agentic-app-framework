@@ -37,6 +37,7 @@
 		<!-- 工具库 -->
 		<lombok.version>1.18.46</lombok.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
+		<mockito.version>5.7.0</mockito.version>
 	</properties>
 
 	<dependencyManagement>

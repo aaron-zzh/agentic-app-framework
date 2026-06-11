@@ -6,6 +6,8 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,8 +31,9 @@ public class AiModelProvider extends BaseEntity {
     private String providerName;
 
     /** 默认协议类型 */
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    private String providerType = AiModel.PROVIDER_TYPE_OPENAI_COMPAT;
+    private AiModelProviderType providerType = AiModelProviderType.OPENAI_COMPAT;
 
     /** 默认 API Base URL */
     @Column(length = 512)

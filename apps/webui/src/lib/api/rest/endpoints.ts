@@ -186,8 +186,8 @@ export const restEndpoints = {
     organizationMembers: (orgId: string) => `/system/orgs/${orgId}/members`,
     organizationMember: (orgId: string, userId: string) =>
       `/system/orgs/${orgId}/members/${userId}`,
-    profile: "/user/profile",
-    profilePassword: "/user/profile/password"
+    profile: "/system/user/profile",
+    profilePassword: "/system/user/profile/password"
   },
   system: {
     dictData: "/system/dict-data",

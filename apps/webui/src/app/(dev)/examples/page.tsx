@@ -22,6 +22,11 @@ const EXAMPLES = [
         title: "粒子波浪",
         href: "/examples/threejs/waves",
         desc: "2500 粒子正弦波浪场 + 自定义 GLSL + 鼠标追踪"
+      },
+      {
+        title: "全球视图",
+        href: "/examples/threejs/globe",
+        desc: "3D 地球 + 航线弧线 + 日夜切换"
       }
     ]
   },

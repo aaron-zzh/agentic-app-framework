@@ -4,7 +4,7 @@
  */
 
 import type { StoryElement } from "@/features/aigc/types"
-import type { VideoScene } from "@/features/aigc/VideoTimeline"
+import type { VideoScene } from "@/features/aigc/video/VideoTimeline"
 
 /** 媒体素材状态（VideoGenerationChat 用） */
 export interface MediaAssetStatus {

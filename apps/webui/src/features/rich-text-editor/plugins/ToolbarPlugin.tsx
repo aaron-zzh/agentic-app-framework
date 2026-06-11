@@ -355,7 +355,7 @@ function ToolBtn({
     <button
       type="button"
       title={title}
-      disabled={disabled}
+      disabled={disabled ?? false}
       onClick={onClick}
       className={cn(
         "h-7 min-w-7 rounded px-1 text-xs transition-colors",

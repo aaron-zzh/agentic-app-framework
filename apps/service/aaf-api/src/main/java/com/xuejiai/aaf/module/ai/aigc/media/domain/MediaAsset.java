@@ -2,7 +2,9 @@ package com.xuejiai.aaf.module.ai.aigc.media.domain;
 
 import java.math.BigDecimal;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
@@ -67,6 +69,7 @@ public class MediaAsset extends BaseEntity {
     private BigDecimal duration;
 
     /** 生成参数（JSON），记录 AI 生成时的 prompt、模型等信息 */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "generation_params", columnDefinition = "JSONB")
     private String generationParams;
 
@@ -81,6 +84,22 @@ public class MediaAsset extends BaseEntity {
     /** 所属元素 ID，关联 media_element，NULL 表示未分组 */
     @Column(name = "element_id")
     private Long elementId;
+
+    /** 素材组 ID（每次生成任务对应一个组） */
+    @Column(name = "group_id")
+    private Long groupId;
+
+    /** 是否由 AI 生成 */
+    @Column(name = "ai_generated", nullable = false)
+    private boolean aiGenerated;
+
+    /** AI 模型显示名称，如 豆包图像生成 */
+    @Column(name = "model_name", length = 100)
+    private String modelName;
+
+    /** 模型供应商编码，对应 ai_model_provider.provider_code */
+    @Column(name = "provider_code", length = 64)
+    private String providerCode;
 
     /** 所属用户 ID */
     @Column(name = "user_id", nullable = false)

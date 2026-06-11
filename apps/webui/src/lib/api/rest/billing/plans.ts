@@ -53,7 +53,7 @@ export interface CreditPackageVO {
 
 export const billingPlansApi = {
   /** 获取所有启用的订阅套餐（含权益列表） */
-  getPlans: () => request<SubscriptionPlanVO[]>("/billing/plans"),
+  getPlans: () => request<SubscriptionPlanVO[]>("/billing/subscription/plans"),
 
   /** 获取积分充值套餐列表 */
   getCreditPackages: () => request<CreditPackageVO[]>("/billing/credit-packages"),

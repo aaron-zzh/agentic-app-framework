@@ -20,11 +20,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "knowledge_segment")
+@Table(name = "ai_knowledge_segment")
 @SQLDelete(
         sql =
-                "UPDATE knowledge_segment SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
-                        + " id = ?")
+                "UPDATE ai_knowledge_segment SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
+                        + " id = ? AND version = ?")
 public class KnowledgeSegment extends BaseEntity {
 
     /** 所属文档 ID */

@@ -24,8 +24,8 @@ import lombok.Setter;
 @Table(name = "ai_knowledge_base")
 @SQLDelete(
         sql =
-                "UPDATE knowledge_base SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
-                        + " id = ?")
+                "UPDATE ai_knowledge_base SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
+                        + " id = ? AND version = ?")
 public class KnowledgeBase extends BaseEntity {
 
     /** 知识库名称 */

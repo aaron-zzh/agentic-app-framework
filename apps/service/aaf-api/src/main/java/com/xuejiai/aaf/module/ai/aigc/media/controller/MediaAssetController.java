@@ -2,10 +2,10 @@ package com.xuejiai.aaf.module.ai.aigc.media.controller;
 
 import java.util.List;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
+import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
@@ -37,14 +37,15 @@ public class MediaAssetController {
 
     @Operation(summary = "分页查询素材")
     @GetMapping
-    public Result<Page<MediaAssetVO>> page(
+    public Result<PageResult<MediaAssetVO>> page(
             @RequestParam(required = false) MediaAssetType type,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = operatorContext.currentUserId().orElseThrow();
+        var springPage = assetService.page(userId, type, categoryId, PageRequest.of(page, size));
         return Result.success(
-                assetService.page(userId, type, categoryId, PageRequest.of(page, size)));
+                new PageResult<>(springPage.getContent(), springPage.getTotalElements()));
     }
 
     @Operation(summary = "搜索素材")
@@ -78,6 +79,21 @@ public class MediaAssetController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         assetService.delete(id);
+        return Result.success();
+    }
+
+    @Operation(summary = "删除素材组及组内所有素材")
+    @DeleteMapping("/group/{groupId}")
+    public Result<Void> deleteGroup(@PathVariable Long groupId) {
+        assetService.deleteGroup(groupId);
+        return Result.success();
+    }
+
+    @Operation(summary = "移动素材到指定分组")
+    @PatchMapping("/{id}/group")
+    public Result<Void> moveToGroup(
+            @PathVariable Long id, @RequestBody java.util.Map<String, Long> body) {
+        assetService.moveToGroup(id, body.get("groupId"));
         return Result.success();
     }
 

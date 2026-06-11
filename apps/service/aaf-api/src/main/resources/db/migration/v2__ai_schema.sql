@@ -20,9 +20,12 @@ CREATE TABLE ai_knowledge_base (
     chunk_overlap   INTEGER          DEFAULT 64,
     status          INTEGER      NOT NULL DEFAULT 0,
     create_by       BIGINT,
+    create_by_type  VARCHAR(16),
     create_time     TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_by       BIGINT,
+    update_by_type  VARCHAR(16),
     update_time     TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id        BIGINT,
     delete_time     TIMESTAMP(6),
     deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
     remark          TEXT
@@ -45,9 +48,12 @@ CREATE TABLE ai_knowledge_document (
     error_message     VARCHAR(2000),
     chunk_count       INTEGER          DEFAULT 0,
     create_by         BIGINT,
+    create_by_type    VARCHAR(16),
     create_time       TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_by         BIGINT,
+    update_by_type    VARCHAR(16),
     update_time       TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id          BIGINT,
     delete_time       TIMESTAMP(6),
     deleted           BOOLEAN      NOT NULL DEFAULT FALSE,
     remark            TEXT
@@ -226,12 +232,14 @@ CREATE TABLE ai_model (
     delete_time         TIMESTAMP(6),
     deleted             BOOLEAN          NOT NULL DEFAULT FALSE,
     remark              TEXT,
+    image_config        JSONB,
     CONSTRAINT fk_ai_model_provider FOREIGN KEY (provider_id) REFERENCES ai_model_provider(id)
 );
 
 COMMENT ON TABLE ai_model IS 'AI 模型配置';
 COMMENT ON COLUMN ai_model.provider_type     IS '协议类型：OPENAI_COMPAT / ANTHROPIC / OLLAMA';
 COMMENT ON COLUMN ai_model.capabilities      IS '能力标记：CHAT,VISION,EMBEDDING,IMAGE_GEN,AUDIO,RERANK';
+COMMENT ON COLUMN ai_model.image_config      IS '图像生成能力配置。ratio 模式：{"mode":"ratio","sizes":{"1:1":[[1024,1024],[1536,1536]],...},"features":{"edit":true,"seed":true,"promptExtend":true,"negativePrompt":true,"maxImages":6}}；fixed 模式：{"mode":"fixed","sizes":[[2688,1536],[2048,2048],[1536,2688]],"features":{...}}';
 COMMENT ON COLUMN ai_model.input_price_per_k IS '输入 Token 单价（元/千Token）';
 COMMENT ON COLUMN ai_model.output_price_per_k IS '输出 Token 单价（元/千Token）';
 COMMENT ON COLUMN ai_model.model_ratio       IS '模型价格倍率（基础系数）';
@@ -421,6 +429,8 @@ CREATE TABLE ai_assistant (
     org_id            BIGINT,
     workspace_id      BIGINT,
     user_id           BIGINT       NOT NULL,
+    delegator_id      BIGINT,
+    permission_scope  JSONB,
     persona_id        BIGINT       NOT NULL REFERENCES ai_persona(id),
     default_role_id   BIGINT       NOT NULL REFERENCES ai_role(id),
     model_id          BIGINT       REFERENCES ai_model(id),
@@ -667,39 +677,45 @@ INSERT INTO ai_model (model_id, display_name, provider, provider_type, model_nam
                       capabilities, context_window, sort_order, enabled)
 VALUES
 -- P0: OpenAI
-('openai:gpt-4o',           'GPT-4o',            'openai',     'OPENAI_COMPAT', 'gpt-4o',                     'https://api.openai.com/v1',                         'CHAT,VISION', 128000, 10,  true),
-('openai:gpt-4o-mini',      'GPT-4o Mini',        'openai',     'OPENAI_COMPAT', 'gpt-4o-mini',                'https://api.openai.com/v1',                         'CHAT,VISION', 128000, 11,  true),
-('openai:o1',               'o1',                 'openai',     'OPENAI_COMPAT', 'o1',                         'https://api.openai.com/v1',                         'CHAT',        200000, 12,  true),
-('openai:text-embedding-3', 'text-embedding-3',   'openai',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://api.openai.com/v1',                         'EMBEDDING',   8191,   13,  true),
+('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                   'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 10,  true),
+('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',              'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 11,  true),
+('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                         'EMBEDDING',   8191,   13,  true),
 -- P0: DeepSeek
 ('deepseek:chat',           'DeepSeek Chat',      'deepseek',   'OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                       'CHAT',        64000,  20,  true),
 ('deepseek:reasoner',       'DeepSeek R1',        'deepseek',   'OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                       'CHAT',        64000,  21,  true),
 -- P0: 通义千问
-('qwen:max',                'Qwen Max',           'qwen',       'OPENAI_COMPAT', 'qwen-max',                   'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',        32000,  30,  true),
-('qwen:long',               'Qwen Long',          'qwen',       'OPENAI_COMPAT', 'qwen-long',                  'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',        1000000,31,  true),
-('qwen:embedding',          'Qwen Embedding',     'qwen',       'OPENAI_COMPAT', 'text-embedding-v3',          'https://dashscope.aliyuncs.com/compatible-mode/v1', 'EMBEDDING',   8192,   32,  true),
--- P0: 月之暗面
-('moonshot:v1-128k',        'Kimi 128k',          'moonshot',   'OPENAI_COMPAT', 'moonshot-v1-128k',           'https://api.moonshot.cn/v1',                        'CHAT',        128000, 40,  true),
--- P1: 智谱
-('zhipu:glm-4',             'GLM-4',              'zhipu',      'OPENAI_COMPAT', 'glm-4',                      'https://open.bigmodel.cn/api/paas/v4',              'CHAT',        128000, 50,  true),
-('zhipu:glm-4v',            'GLM-4V',             'zhipu',      'OPENAI_COMPAT', 'glm-4v',                     'https://open.bigmodel.cn/api/paas/v4',              'CHAT,VISION', 2000,   51,  true),
--- P1: Anthropic
-('anthropic:claude-3-5-sonnet', 'Claude 3.5 Sonnet', 'anthropic', 'ANTHROPIC',  'claude-3-5-sonnet-20241022', 'https://api.anthropic.com',                         'CHAT,VISION', 200000, 60,  true),
-('anthropic:claude-3-haiku',    'Claude 3 Haiku',    'anthropic', 'ANTHROPIC',  'claude-3-haiku-20240307',    'https://api.anthropic.com',                         'CHAT,VISION', 200000, 61,  true),
--- P1: Ollama（本地，默认禁用）
-('ollama:llama3',           'Llama 3',            'ollama',     'OLLAMA',        'llama3',                     'http://localhost:11434',                            'CHAT',        8192,   70,  false),
-('ollama:qwen2.5',          'Qwen2.5 Local',      'ollama',     'OLLAMA',        'qwen2.5',                    'http://localhost:11434',                            'CHAT',        32768,  71,  false),
--- P1: 聚合平台
-('openrouter:claude-3-5',   'Claude 3.5 via OR',  'openrouter', 'OPENAI_COMPAT', 'anthropic/claude-3.5-sonnet','https://openrouter.ai/api/v1',                     'CHAT,VISION', 200000, 80,  true),
-('openrouter:gpt-4o',       'GPT-4o via OR',      'openrouter', 'OPENAI_COMPAT', 'openai/gpt-4o',              'https://openrouter.ai/api/v1',                     'CHAT,VISION', 128000, 81,  true),
-('n1n:gpt-4o',              'GPT-4o via n1n',     'n1n',        'OPENAI_COMPAT', 'gpt-4o',                     'https://api.n1n.ai/v1',                             'CHAT,VISION', 128000, 90,  true),
-('linkai:gpt-4o',           'GPT-4o via LinkAI',  'linkai',     'OPENAI_COMPAT', 'gpt-4o',                     'https://api.link-ai.tech/v1',                      'CHAT,VISION', 128000, 100, true),
--- P1: 阶跃星辰
-('stepfun:step-2',          'Step-2',             'stepfun',    'OPENAI_COMPAT', 'step-2-16k',                 'https://api.stepfun.com/v1',                        'CHAT',        16000,  110, true),
-('stepfun:step-1v',         'Step-1V（视觉）',     'stepfun',    'OPENAI_COMPAT', 'step-1v-8k',                 'https://api.stepfun.com/v1',                        'CHAT,VISION', 8000,   111, true),
--- P1: 火山引擎
-('volcengine:doubao-pro',   'Doubao Pro',         'volcengine', 'OPENAI_COMPAT', 'doubao-pro-32k',             'https://ark.cn-beijing.volces.com/api/v3',          'CHAT',        32000,  120, true),
-('volcengine:doubao-lite',  'Doubao Lite',        'volcengine', 'OPENAI_COMPAT', 'doubao-lite-32k',            'https://ark.cn-beijing.volces.com/api/v3',          'CHAT',        32000,  121, true)
+('qwen:qwen3.7-max',        'Qwen Max',           'qwen',       'OPENAI_COMPAT', 'qwen3.7-max',                   'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',        32000,   30,  true),
+('qwen:qwen3.7-plus',       'Qwen Plus',          'qwen',       'OPENAI_COMPAT', 'qwen3.7-plus',                  'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',        1000000, 31,  true),
+('qwen:qwen3.6-flash',      'Qwen Flash',         'qwen',      'OPENAI_COMPAT', 'qwen3.6-flash',                  'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',        1000000, 32,  true),
+('qwen:text-embedding-v4',  'Qwen Embedding',     'qwen',       'OPENAI_COMPAT', 'text-embedding-v4',            'https://dashscope.aliyuncs.com/compatible-mode/v1',  'EMBEDDING',       192, 33,  true),
+-- -- P0: 月之暗面
+-- ('moonshot:v1-128k',        'Kimi 128k',          'moonshot',   'OPENAI_COMPAT', 'moonshot-v1-128k',           'https://api.moonshot.cn/v1',                        'CHAT',        128000, 40,  true),
+-- -- P1: 智谱
+-- ('zhipu:glm-4',             'GLM-4',              'zhipu',      'OPENAI_COMPAT', 'glm-4',                      'https://open.bigmodel.cn/api/paas/v4',              'CHAT',        128000, 50,  true),
+-- ('zhipu:glm-4v',            'GLM-4V',             'zhipu',      'OPENAI_COMPAT', 'glm-4v',                     'https://open.bigmodel.cn/api/paas/v4',              'CHAT,VISION', 2000,   51,  true),
+-- -- P1: Anthropic
+-- ('anthropic:claude-3-5-sonnet', 'Claude 3.5 Sonnet', 'anthropic', 'ANTHROPIC',  'claude-3-5-sonnet-20241022', 'https://api.anthropic.com',                         'CHAT,VISION', 200000, 60,  true),
+-- ('anthropic:claude-3-haiku',    'Claude 3 Haiku',    'anthropic', 'ANTHROPIC',  'claude-3-haiku-20240307',    'https://api.anthropic.com',                         'CHAT,VISION', 200000, 61,  true),
+-- -- P1: Ollama（本地，默认禁用）
+-- ('ollama:llama3',           'Llama 3',            'ollama',     'OLLAMA',        'llama3',                     'http://localhost:11434',                            'CHAT',        8192,   70,  false),
+-- ('ollama:qwen2.5',          'Qwen2.5 Local',      'ollama',     'OLLAMA',        'qwen2.5',                    'http://localhost:11434',                            'CHAT',        32768,  71,  false),
+-- -- P1: 聚合平台
+-- ('openrouter:claude-3-5',   'Claude 3.5 via OR',  'openrouter', 'OPENAI_COMPAT', 'anthropic/claude-3.5-sonnet','https://openrouter.ai/api/v1',                     'CHAT,VISION', 200000, 80,  true),
+-- ('openrouter:gpt-4o',       'GPT-4o via OR',      'openrouter', 'OPENAI_COMPAT', 'openai/gpt-4o',              'https://openrouter.ai/api/v1',                     'CHAT,VISION', 128000, 81,  true),
+-- ('linkai:gpt-4o',           'GPT-4o via LinkAI',  'linkai',     'OPENAI_COMPAT', 'gpt-4o',                     'https://api.link-ai.tech/v1',                      'CHAT,VISION', 128000, 100, true),
+-- -- P1: 阶跃星辰
+-- ('stepfun:step-2',          'Step-2',             'stepfun',    'OPENAI_COMPAT', 'step-2-16k',                 'https://api.stepfun.com/v1',                        'CHAT',        16000,  110, true),
+-- ('stepfun:step-1v',         'Step-1V（视觉）',     'stepfun',    'OPENAI_COMPAT', 'step-1v-8k',                 'https://api.stepfun.com/v1',                        'CHAT,VISION', 8000,   111, true),
+-- -- P1: 火山引擎
+-- ('volcengine:doubao-pro',   'Doubao Pro',         'volcengine', 'OPENAI_COMPAT', 'doubao-pro-32k',             'https://ark.cn-beijing.volces.com/api/v3',          'CHAT',        32000,  120, true),
+-- ('volcengine:doubao-lite',  'Doubao Lite',        'volcengine', 'OPENAI_COMPAT', 'doubao-lite-32k',            'https://ark.cn-beijing.volces.com/api/v3',          'CHAT',        32000,  121, true),
+-- P1: 图像生成
+('qwen:wan2.7-image',       '万相 Wan2.7',         'qwen',       'DASHSCOPE',     'wan2.7-image',                   'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 210, true),
+('qwen:qwen-image-2',       '千问图像 2.0',        'qwen',        'DASHSCOPE',     'qwen-image-2.0',                 'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 211, true),
+('n1n:gpt-image-2',         'GPT Image 2',         'n1n',        'OPENAI_COMPAT',  'gpt-image-2',                             'https://llm-api.net/v1',         'IMAGE_GEN', null, 212, true),
+('n1n:gemini-3.1-flash-image-preview', 'Gemini 3.1 Flash Image', 'n1n',    'OPENAI_COMPAT', 'gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 220, true),
+('n1n:gemini-3-pro-image-preview',     'Gemini 3 Pro Image',     'n1n',    'OPENAI_COMPAT', 'gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 221, true),
+('n1n:doubao-seedream-5-0',            '豆包 Seedream 5.0',      'n1n',    'OPENAI_COMPAT', 'doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',      null, 230, true)
 ON CONFLICT (model_id) DO NOTHING;
 
 
@@ -850,6 +866,7 @@ CREATE TABLE ai_value_rule (
     update_by   BIGINT,
     update_by_type VARCHAR(16),
     update_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id    BIGINT,
     delete_time TIMESTAMP(6),
     deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
     remark      TEXT
@@ -1329,8 +1346,16 @@ CREATE TABLE ai_eval_suite (
     org_id       BIGINT,
     workspace_id BIGINT,
     create_by    BIGINT,
+    create_by_type VARCHAR(16),
     create_time  TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted      BOOLEAN      NOT NULL DEFAULT FALSE
+    update_by    BIGINT,
+    update_by_type VARCHAR(16),
+    update_time  TIMESTAMP(6),
+    owner_id     BIGINT,
+    delete_time  TIMESTAMP(6),
+    deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark       TEXT,
+    version      INTEGER      NOT NULL DEFAULT 0
 );
 
 COMMENT ON TABLE  ai_eval_suite           IS '模型评测集';
@@ -1381,7 +1406,17 @@ CREATE TABLE ai_eval_run (
     status       VARCHAR(16)  NOT NULL DEFAULT 'RUNNING',  -- RUNNING/DONE/FAILED
     started_at   TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at     TIMESTAMP(6),
-    create_by    BIGINT
+    create_by    BIGINT,
+    create_by_type VARCHAR(16),
+    create_time  TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by    BIGINT,
+    update_by_type VARCHAR(16),
+    update_time  TIMESTAMP(6),
+    owner_id     BIGINT,
+    delete_time  TIMESTAMP(6),
+    deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark       TEXT,
+    version      INTEGER      NOT NULL DEFAULT 0
 );
 
 COMMENT ON TABLE  ai_eval_run                  IS '评测运行实例：指定模型对一个评测集的一次完整测试';
@@ -1458,8 +1493,18 @@ CREATE TABLE ai_eval_experiment (
     org_id       BIGINT,
     workspace_id BIGINT,
     create_by    BIGINT,
+    create_by_type VARCHAR(16),
     started_at   TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ended_at     TIMESTAMP(6)
+    ended_at     TIMESTAMP(6),
+    create_time  TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by    BIGINT,
+    update_by_type VARCHAR(16),
+    update_time  TIMESTAMP(6),
+    owner_id     BIGINT,
+    delete_time  TIMESTAMP(6),
+    deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark       TEXT,
+    version      INTEGER      NOT NULL DEFAULT 0
 );
 
 COMMENT ON TABLE ai_eval_experiment IS '对比实验：将同一评测集并发分配给多个「模型 × 编排」组合，汇总横向对比结果';
@@ -1557,6 +1602,14 @@ CREATE TABLE ai_workflow_version (
     create_by           BIGINT,
     create_by_type      VARCHAR(16),                 -- USER=人工 / AI=AI自动生成
     create_time         TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by           BIGINT,
+    update_by_type      VARCHAR(16),
+    update_time         TIMESTAMP(6),
+    owner_id            BIGINT,
+    delete_time         TIMESTAMP(6),
+    deleted             BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark              TEXT,
+    version             INTEGER      NOT NULL DEFAULT 0,
     UNIQUE (definition_id, version_no)
 );
 
@@ -1587,3 +1640,213 @@ ALTER TABLE ai_eval_experiment_config
     ADD COLUMN wf_version_id  BIGINT REFERENCES ai_workflow_version(id);
 
 COMMENT ON COLUMN ai_eval_experiment_config.wf_version_id IS '指定评测的工作流版本；NULL 时使用 workflow_key 对应的当前发布版本';
+
+
+-- ============================================================
+-- AI 工作流定义
+-- ============================================================
+CREATE TABLE IF NOT EXISTS ai_flow_definition (
+    id              BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    version         INTEGER      NOT NULL DEFAULT 0,
+    org_id          BIGINT,
+    workspace_id    BIGINT,
+    name            VARCHAR(128) NOT NULL,
+    description     VARCHAR(512),
+    mode            VARCHAR(32)  NOT NULL DEFAULT 'CHAT',
+    definition      JSONB        NOT NULL DEFAULT '{}',
+    status          VARCHAR(16)  NOT NULL DEFAULT 'DRAFT',
+    deployment_id   VARCHAR(64),
+    published_at    TIMESTAMP(6),
+    agent_callable  BOOLEAN      NOT NULL DEFAULT FALSE,
+    require_confirm BOOLEAN      NOT NULL DEFAULT TRUE,
+    owner_id        BIGINT,
+    create_by       BIGINT,
+    create_by_type  VARCHAR(16),
+    create_time     TIMESTAMP(6),
+    update_by       BIGINT,
+    update_by_type  VARCHAR(16),
+    update_time     TIMESTAMP(6),
+    delete_time     TIMESTAMP(6),
+    deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark          TEXT
+);
+
+COMMENT ON TABLE  ai_flow_definition                IS 'AI 工作流定义（flow-editor 编辑态，发布后部署到 Flowable）';
+COMMENT ON COLUMN ai_flow_definition.mode           IS '流程模式：CHAT / COMPLETION / AGENT';
+COMMENT ON COLUMN ai_flow_definition.definition     IS '编辑态 JSON（ReactFlow 节点+连线）';
+COMMENT ON COLUMN ai_flow_definition.status         IS '发布状态：DRAFT / PUBLISHED / DISABLED';
+COMMENT ON COLUMN ai_flow_definition.deployment_id  IS 'Flowable deployment ID，发布后有值';
+COMMENT ON COLUMN ai_flow_definition.agent_callable IS '是否允许智能体自动调用';
+COMMENT ON COLUMN ai_flow_definition.require_confirm IS '智能体调用前是否需要用户确认';
+
+
+-- ============================================================
+-- AI 生成工具
+-- ============================================================
+CREATE TABLE IF NOT EXISTS ai_generated_tool (
+    id               BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    version          INTEGER      NOT NULL DEFAULT 0,
+    org_id           BIGINT,
+    workspace_id     BIGINT,
+    name             VARCHAR(64)  NOT NULL UNIQUE,
+    description      VARCHAR(256),
+    parameters_json  TEXT,
+    code             TEXT         NOT NULL,
+    creator_user_id  BIGINT       NOT NULL,
+    visibility       VARCHAR(16)  NOT NULL DEFAULT 'PRIVATE',
+    status           VARCHAR(16)  NOT NULL DEFAULT 'active',
+    owner_id         BIGINT,
+    create_by        BIGINT,
+    create_by_type   VARCHAR(16),
+    create_time      TIMESTAMP(6),
+    update_by        BIGINT,
+    update_by_type   VARCHAR(16),
+    update_time      TIMESTAMP(6),
+    delete_time      TIMESTAMP(6),
+    deleted          BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark           TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_generated_tool_name       ON ai_generated_tool (name);
+CREATE INDEX IF NOT EXISTS idx_ai_generated_tool_creator    ON ai_generated_tool (creator_user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_generated_tool_visibility ON ai_generated_tool (visibility);
+
+COMMENT ON TABLE ai_generated_tool IS 'AI 动态生成的工具定义';
+
+-- ============================================================
+-- AI 产出记录
+-- ============================================================
+CREATE TABLE IF NOT EXISTS ai_output (
+    id               BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    version          INTEGER      NOT NULL DEFAULT 0,
+    org_id           BIGINT,
+    workspace_id     BIGINT,
+    session_id       BIGINT,
+    task_id          BIGINT,
+    execution_id     BIGINT,
+    creator_id       BIGINT       NOT NULL,
+    source_type      VARCHAR(30)  NOT NULL,
+    category         VARCHAR(30)  NOT NULL,
+    risk_level       VARCHAR(10)  NOT NULL DEFAULT 'LOW',
+    title            VARCHAR(500) NOT NULL,
+    description      TEXT,
+    content_snapshot JSONB,
+    revert_info      JSONB,
+    status           VARCHAR(20)  NOT NULL DEFAULT 'EFFECTIVE',
+    adjust_note      TEXT,
+    owner_id         BIGINT,
+    create_by        BIGINT,
+    create_by_type   VARCHAR(16),
+    create_time      TIMESTAMP(6),
+    update_by        BIGINT,
+    update_by_type   VARCHAR(16),
+    update_time      TIMESTAMP(6),
+    delete_time      TIMESTAMP(6),
+    deleted          BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark           TEXT
+);
+
+COMMENT ON TABLE ai_output IS 'AI 产出记录——所有助理工作成果的统一归档';
+
+-- ============================================================
+-- 智能体执行运行记录
+-- ============================================================
+CREATE TABLE IF NOT EXISTS execution_run (
+    id              BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    execution_id    VARCHAR(128) NOT NULL UNIQUE,
+    parent_run_id   BIGINT,
+    agent_id        VARCHAR(64)  NOT NULL,
+    agent_name      VARCHAR(128),
+    user_id         BIGINT,
+    conversation_id VARCHAR(64),
+    input           TEXT,
+    output          TEXT,
+    status          VARCHAR(16)  NOT NULL,
+    error_message   TEXT,
+    token_input     INTEGER      NOT NULL DEFAULT 0,
+    token_output    INTEGER      NOT NULL DEFAULT 0,
+    started_at      TIMESTAMP(6) NOT NULL,
+    finished_at     TIMESTAMP(6),
+    duration_ms     BIGINT,
+    retry_count     INTEGER      NOT NULL DEFAULT 0,
+    metadata        JSONB
+);
+
+COMMENT ON TABLE execution_run IS '智能体执行运行记录';
+
+
+-- ============================================================
+-- 智能体执行步骤
+-- ============================================================
+CREATE TABLE IF NOT EXISTS execution_step (
+    id             BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    run_id         BIGINT       NOT NULL,
+    parent_step_id BIGINT,
+    step_index     INTEGER      NOT NULL,
+    step_type      VARCHAR(32)  NOT NULL,
+    agent_id       VARCHAR(64),
+    tool_name      VARCHAR(128),
+    input          TEXT,
+    output         TEXT,
+    status         VARCHAR(16)  NOT NULL,
+    error_message  TEXT,
+    started_at     TIMESTAMP(6) NOT NULL,
+    finished_at    TIMESTAMP(6),
+    duration_ms    BIGINT
+);
+
+CREATE INDEX IF NOT EXISTS idx_execution_step_run ON execution_step (run_id);
+COMMENT ON TABLE execution_step IS '智能体执行步骤';
+
+-- ============================================================
+-- 工具调用审计记录
+-- ============================================================
+CREATE TABLE IF NOT EXISTS tool_call_audit (
+    id            BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    user_id       BIGINT,
+    session_id    VARCHAR(64),
+    agent_id      VARCHAR(64),
+    function_name VARCHAR(128) NOT NULL,
+    arguments     TEXT,
+    success       BOOLEAN      NOT NULL,
+    output        TEXT,
+    error_message TEXT,
+    duration_ms   BIGINT,
+    risk_level    VARCHAR(16),
+    created_at    TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE tool_call_audit IS '工具调用审计记录';
+
+
+
+-- ============================================================
+-- 知识库段落（文档分块最小检索单元）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS ai_knowledge_segment (
+    id                BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    version           INTEGER      NOT NULL DEFAULT 0,
+    org_id            BIGINT,
+    workspace_id      BIGINT,
+    document_id       BIGINT       NOT NULL,
+    knowledge_base_id BIGINT       NOT NULL,
+    content           TEXT         NOT NULL,
+    position          INTEGER      NOT NULL,
+    word_count        INTEGER,
+    enabled           BOOLEAN      NOT NULL DEFAULT TRUE,
+    embedding         vector,
+    owner_id          BIGINT,
+    create_by         BIGINT,
+    create_by_type    VARCHAR(16),
+    create_time       TIMESTAMP(6),
+    update_by         BIGINT,
+    update_by_type    VARCHAR(16),
+    update_time       TIMESTAMP(6),
+    delete_time       TIMESTAMP(6),
+    deleted           BOOLEAN      NOT NULL DEFAULT FALSE,
+    remark            TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_segment_doc ON ai_knowledge_segment (document_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_segment_kb  ON ai_knowledge_segment (knowledge_base_id);
+COMMENT ON TABLE ai_knowledge_segment IS '知识库段落（文档分块最小检索单元）';

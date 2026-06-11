@@ -84,6 +84,12 @@
 			<artifactId>fesod-sheet</artifactId>
 		</dependency>
 
+		<!-- PDF 文本提取 -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+		</dependency>
+
 		<!-- 存储（按需引入，本地开发只需 thumbnailator） -->
 		<dependency>
 			<groupId>net.coobird</groupId>

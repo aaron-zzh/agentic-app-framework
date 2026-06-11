@@ -20,6 +20,11 @@ export interface MediaAssetVO {
   generationParams: string | null
   tags: string | null
   categoryId: number | null
+  groupId: number | null
+  groupName: string | null
+  aiGenerated: boolean
+  modelName: string | null
+  providerCode: string | null
   userId: number
   version: number
   createTime: string

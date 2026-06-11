@@ -91,6 +91,13 @@ export class ApiClient {
 }
 
 export class RestApiClient extends ApiClient {
+  protected override setupInterceptors(): void {
+    this.instance.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => Promise.reject(this.normalizeError(error))
+    )
+  }
+
   override async request<T>(config: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<ApiResult<T>> = await this.instance.request<ApiResult<T>>(config)
     const result = response.data

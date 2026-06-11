@@ -59,6 +59,10 @@ public class Document extends BaseEntity {
     @Column(name = "publish", nullable = false, length = 20)
     private String publish = "draft";
 
+    /** 来源文件 ID（sys_file.id），PDF 导入时非空 */
+    @Column(name = "source_file_id")
+    private Long sourceFileId;
+
     /** 获取 Front Matter 为 Map。 */
     @Transient
     public Map<String, Object> getFrontMatter() {

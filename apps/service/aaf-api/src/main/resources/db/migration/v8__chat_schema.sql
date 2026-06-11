@@ -103,7 +103,7 @@ CREATE TABLE conversation_message (
     workspace_id        BIGINT,
     conversation_id     BIGINT       NOT NULL REFERENCES conversation(id),
     -- 发送方 ID（HUMAN/STAFF=sys_user.id；ASSISTANT/BOT=ai_assistant.id；AGENT=ai_agent_definition.id）
-    sender_id           BIGINT       NOT NULL,
+    sender_id           VARCHAR(64)  NOT NULL,
     -- 发送方类型：HUMAN / ASSISTANT / AGENT / STAFF / BOT / SYSTEM
     sender_type         VARCHAR(16)  NOT NULL DEFAULT 'HUMAN',
     -- LLM role：user / assistant / system / tool
@@ -124,9 +124,12 @@ CREATE TABLE conversation_message (
     token_count         INTEGER,
     metadata            JSONB,
     create_by           BIGINT,
+    create_by_type      VARCHAR(16),
     create_time         TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_by           BIGINT,
+    update_by_type      VARCHAR(16),
     update_time         TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id            BIGINT,
     delete_time         TIMESTAMP(6),
     deleted             BOOLEAN      NOT NULL DEFAULT FALSE,
     remark              VARCHAR(255)

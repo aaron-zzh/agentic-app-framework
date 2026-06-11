@@ -21,13 +21,7 @@ import lombok.Setter;
 /**
  * LLM 模型注册信息，持久化到数据库，支持动态启用/禁用。
  *
- * <p>providerType 决定运行时使用哪个 SDK：
- *
- * <ul>
- *   <li>OPENAI_COMPAT — OpenAI 兼容接口（覆盖绝大多数厂商和聚合平台）
- *   <li>ANTHROPIC — Anthropic 原生 Messages API
- *   <li>OLLAMA — 本地 Ollama 部署
- * </ul>
+ * <p>providerType 决定运行时使用哪个 SDK，见 {@link AiModelProviderType}。
  *
  * <p>provider 是来源标识（openai / deepseek / qwen / openrouter 等），自由文本。
  */
@@ -57,16 +51,11 @@ public class AiModel extends BaseEntity {
     /**
      * 协议类型，决定运行时 SDK 选择。
      *
-     * @see #PROVIDER_TYPE_OPENAI_COMPAT
-     * @see #PROVIDER_TYPE_ANTHROPIC
-     * @see #PROVIDER_TYPE_OLLAMA
+     * @see AiModelProviderType
      */
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    private String providerType = PROVIDER_TYPE_OPENAI_COMPAT;
-
-    public static final String PROVIDER_TYPE_OPENAI_COMPAT = "OPENAI_COMPAT";
-    public static final String PROVIDER_TYPE_ANTHROPIC = "ANTHROPIC";
-    public static final String PROVIDER_TYPE_OLLAMA = "OLLAMA";
+    private AiModelProviderType providerType = AiModelProviderType.OPENAI_COMPAT;
 
     /** 模型名称（发送给 API 的实际名称） */
     @Column(nullable = false, length = 128)
@@ -189,6 +178,27 @@ public class AiModel extends BaseEntity {
     @Column(length = 512)
     private String remark;
 
+    /**
+     * 图像生成能力配置（JSON）。
+     *
+     * <p>ratio 模式示例：
+     *
+     * <pre>
+     * {"mode":"ratio","sizes":{"1:1":[[1024,1024],[1536,1536]],"16:9":[[1280,720],[1920,1080]]},
+     *  "features":{"edit":true,"seed":true,"promptExtend":true,"negativePrompt":true,"maxImages":6}}
+     * </pre>
+     *
+     * <p>fixed 模式示例：
+     *
+     * <pre>
+     * {"mode":"fixed","sizes":[[2688,1536],[2048,2048],[1536,2688]],
+     *  "features":{"seed":true,"promptExtend":true,"negativePrompt":true,"maxImages":6}}
+     * </pre>
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "image_config", columnDefinition = "jsonb")
+    private JsonNode imageConfig;
+
     /** 是否支持指定能力 */
     public boolean hasCapability(String capability) {
         return capabilities != null && capabilities.contains(capability);
@@ -211,13 +221,14 @@ public class AiModel extends BaseEntity {
     }
 
     /** 实际协议类型：模型级覆盖优先，其次使用供应商级配置。 */
-    public String effectiveProviderType() {
-        if (hasText(providerType)) {
+    public AiModelProviderType effectiveProviderType() {
+        if (providerType != null) {
             return providerType;
         }
-        return providerConfig != null
-                ? providerConfig.getProviderType()
-                : PROVIDER_TYPE_OPENAI_COMPAT;
+        if (providerConfig != null && providerConfig.getProviderType() != null) {
+            return providerConfig.getProviderType();
+        }
+        return AiModelProviderType.OPENAI_COMPAT;
     }
 
     private boolean hasText(String value) {

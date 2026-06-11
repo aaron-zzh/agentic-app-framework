@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -137,6 +138,11 @@ public class DocumentService {
         emitter.onTimeout(remove);
         emitter.onError(e -> remove.run());
         return emitter;
+    }
+
+    /** 导入 PDF（委托 DocImportService）。 */
+    public Document importPdf(MultipartFile file) throws IOException {
+        return docImportService.importPdf(file);
     }
 
     /** 全文检索。 */

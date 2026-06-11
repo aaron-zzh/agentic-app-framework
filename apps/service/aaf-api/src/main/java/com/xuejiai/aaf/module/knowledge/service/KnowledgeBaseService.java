@@ -120,7 +120,7 @@ public class KnowledgeBaseService {
                 ((Number)
                                 entityManager
                                         .createNativeQuery(
-                                                "SELECT COUNT(*) FROM ai_knowledge_chunk WHERE ai_knowledge_base_id = :id")
+                                                "SELECT COUNT(*) FROM ai_knowledge_chunk WHERE knowledge_base_id = :id")
                                         .setParameter("id", id)
                                         .getSingleResult())
                         .longValue();
@@ -128,7 +128,7 @@ public class KnowledgeBaseService {
                 ((Number)
                                 entityManager
                                         .createNativeQuery(
-                                                "SELECT COUNT(*) FROM ai_knowledge_embedding WHERE ai_knowledge_base_id = :id")
+                                                "SELECT COUNT(*) FROM ai_knowledge_embedding WHERE knowledge_base_id = :id")
                                         .setParameter("id", id)
                                         .getSingleResult())
                         .longValue();

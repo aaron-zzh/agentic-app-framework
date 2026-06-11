@@ -15,6 +15,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetVariant;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
+import com.xuejiai.aaf.module.ai.aigc.media.repository.MediaAssetGroupRepository;
 import com.xuejiai.aaf.module.ai.aigc.media.repository.MediaAssetRepository;
 import com.xuejiai.aaf.module.ai.aigc.media.repository.MediaAssetVariantRepository;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaAssetCreateDTO;
@@ -38,7 +39,9 @@ public class MediaAssetService {
 
     private final MediaAssetRepository assetRepository;
     private final MediaAssetVariantRepository variantRepository;
+    private final MediaAssetGroupRepository groupRepository;
     private final ImageServiceFactory imageServiceFactory;
+    private final com.xuejiai.aaf.framework.storage.FileService fileService;
 
     /**
      * 分页查询素材。
@@ -108,6 +111,10 @@ public class MediaAssetService {
         asset.setGenerationParams(dto.generationParams());
         asset.setTags(dto.tags());
         asset.setCategoryId(dto.categoryId());
+        asset.setGroupId(dto.groupId());
+        asset.setAiGenerated(Boolean.TRUE.equals(dto.aiGenerated()));
+        asset.setModelName(dto.modelName());
+        asset.setProviderCode(dto.providerCode());
         // AI 自动打标
         autoTag(asset);
         return toVO(assetRepository.save(asset));
@@ -129,15 +136,53 @@ public class MediaAssetService {
         return toVO(assetRepository.save(asset));
     }
 
+    /** 移动素材到指定分组。 */
+    @Transactional
+    public void moveToGroup(Long assetId, Long groupId) {
+        var asset = findById(assetId);
+        asset.setGroupId(groupId);
+        assetRepository.save(asset);
+    }
+
     /**
-     * 删除素材（软删除）。
+     * 删除素材组及组内所有素材和文件。
+     *
+     * @param groupId 素材组 ID
+     */
+    @Transactional
+    public void deleteGroup(Long groupId) {
+        var assets = assetRepository.findByGroupId(groupId);
+        for (var asset : assets) {
+            deleteFileQuietly(asset.getUrl());
+            deleteFileQuietly(asset.getThumbnailUrl());
+        }
+        assetRepository.deleteAll(assets);
+        groupRepository.deleteById(groupId);
+    }
+
+    /**
+     * 删除素材及其关联文件。
      *
      * @param id 素材 ID
      */
     @Transactional
     public void delete(Long id) {
         var asset = findById(id);
+        // 删除 OSS/本地文件（从 URL 提取 key，忽略外部 URL）
+        deleteFileQuietly(asset.getUrl());
+        deleteFileQuietly(asset.getThumbnailUrl());
         assetRepository.delete(asset);
+    }
+
+    /** 静默删除文件，失败不影响主流程 */
+    private void deleteFileQuietly(String url) {
+        if (url == null || url.isBlank()) return;
+        try {
+            var key = url.replaceFirst("^https?://[^/]+/", "");
+            fileService.delete(key);
+        } catch (Exception e) {
+            log.warn("删除素材文件失败，忽略: url={}, err={}", url, e.getMessage());
+        }
     }
 
     /**
@@ -147,7 +192,8 @@ public class MediaAssetService {
      * @param dto 保存请求
      * @return 保存的素材
      */
-    @Transactional
+    @Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public MediaAssetVO saveFromGeneration(Long userId, SaveFromGenerationDTO dto) {
         var asset = new MediaAsset();
         asset.setUserId(userId);
@@ -159,6 +205,10 @@ public class MediaAssetService {
         asset.setHeight(dto.height());
         asset.setDuration(dto.duration());
         asset.setGenerationParams(dto.generationParams());
+        if (dto.groupId() != null) asset.setGroupId(dto.groupId());
+        asset.setAiGenerated(Boolean.TRUE.equals(dto.aiGenerated()));
+        asset.setModelName(dto.modelName());
+        asset.setProviderCode(dto.providerCode());
         // AI 自动打标
         autoTag(asset);
         return toVO(assetRepository.save(asset));
@@ -289,6 +339,11 @@ public class MediaAssetService {
     }
 
     private MediaAssetVO toVO(MediaAsset asset) {
+        String groupName = null;
+        if (asset.getGroupId() != null) {
+            groupName =
+                    groupRepository.findById(asset.getGroupId()).map(g -> g.getName()).orElse(null);
+        }
         return new MediaAssetVO(
                 asset.getId(),
                 asset.getName(),
@@ -302,6 +357,11 @@ public class MediaAssetService {
                 asset.getGenerationParams(),
                 asset.getTags(),
                 asset.getCategoryId(),
+                asset.getGroupId(),
+                groupName,
+                asset.isAiGenerated(),
+                asset.getModelName(),
+                asset.getProviderCode(),
                 asset.getUserId(),
                 asset.getVersion(),
                 asset.getCreateTime(),

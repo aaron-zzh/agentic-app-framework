@@ -34,6 +34,8 @@ public class AigcTaskController {
     public record SubmitTaskDTO(
             @NotBlank String type,
             @NotBlank String prompt,
+            /** 用于展示/命名的用户原始输入（不含项目提示词前缀），为空时回退到 prompt */
+            String displayPrompt,
             String model,
             Map<String, Object> params) {}
 
@@ -58,12 +60,36 @@ public class AigcTaskController {
         Long taskId =
                 switch (dto.type().toUpperCase()) {
                     case "IMAGE" -> {
-                        Integer width =
-                                dto.params() != null ? toInt(dto.params().get("width")) : null;
-                        Integer height =
-                                dto.params() != null ? toInt(dto.params().get("height")) : null;
+                        var p = dto.params() != null ? dto.params() : java.util.Map.of();
+                        String imageUrl = toString(p.get("imageUrl"));
+                        @SuppressWarnings("unchecked")
+                        java.util.List<String> imageUrls =
+                                p.get("imageUrls") instanceof java.util.List
+                                        ? (java.util.List<String>) p.get("imageUrls")
+                                        : (imageUrl != null ? java.util.List.of(imageUrl) : null);
+                        int w = toInt(p.get("width")) != null ? toInt(p.get("width")) : 1024;
+                        int h = toInt(p.get("height")) != null ? toInt(p.get("height")) : 1024;
                         yield taskService.submitImageTask(
-                                userId, dto.prompt(), dto.model(), width, height);
+                                userId,
+                                new ImageTaskRequest(
+                                        dto.prompt(),
+                                        dto.model(),
+                                        w,
+                                        h,
+                                        toString(p.get("negativePrompt")),
+                                        toInt(p.get("seed")),
+                                        toBool(p.get("promptExtend")),
+                                        toInt(p.get("imageCount")),
+                                        imageUrls,
+                                        toString(p.get("quality")),
+                                        toString(p.get("format")),
+                                        toString(p.get("background")),
+                                        toString(p.get("contentModeration")),
+                                        toString(p.get("sizePreset")),
+                                        toString(p.get("aspectRatio")),
+                                        dto.displayPrompt(),
+                                        null,
+                                        null));
                     }
                     case "VIDEO" -> taskService.submitVideoTask(userId, dto.prompt(), dto.model());
                     case "MODEL_3D" -> taskService.submit3dTask(userId, dto.prompt(), dto.model());
@@ -128,5 +154,15 @@ public class AigcTaskController {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String toString(Object val) {
+        return val == null ? null : val.toString();
+    }
+
+    private static Boolean toBool(Object val) {
+        if (val == null) return null;
+        if (val instanceof Boolean b) return b;
+        return Boolean.parseBoolean(val.toString());
     }
 }

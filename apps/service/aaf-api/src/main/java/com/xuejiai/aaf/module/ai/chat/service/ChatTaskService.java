@@ -43,7 +43,8 @@ public class ChatTaskService {
         if (priority != null) task.setPriority(priority);
         task.setScheduledAt(scheduledAt);
         var tasks =
-                taskRepository.findByConversationIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
+                taskRepository.findByConversationIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(
+                        sessionId);
         task.setSortOrder(tasks.size());
         taskRepository.save(task);
         return task;
@@ -59,7 +60,8 @@ public class ChatTaskService {
     /** 获取会话的任务列表 */
     @Transactional(readOnly = true)
     public List<ChatTask> listBySession(Long sessionId) {
-        return taskRepository.findByConversationIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(sessionId);
+        return taskRepository.findByConversationIdAndDeletedFalseOrderByPriorityAscSortOrderAsc(
+                sessionId);
     }
 
     /** 获取下一个可执行的待处理任务（已到期或无定时） */

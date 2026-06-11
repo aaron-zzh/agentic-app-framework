@@ -3,6 +3,8 @@ package com.xuejiai.aaf.module.ai.model.vo;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonRawValue;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /** AI 模型信息 Response VO（不含 apiKey 明文）。 */
@@ -26,5 +28,6 @@ public record AiModelVO(
         @Schema(description = "降级模型标识") String fallbackModelId,
         @Schema(description = "排序", example = "100") Integer sortOrder,
         @Schema(description = "备注") String remark,
+        @Schema(description = "图像生成能力配置（JSON）") @JsonRawValue String imageConfig,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {}

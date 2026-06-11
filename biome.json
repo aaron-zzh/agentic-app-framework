@@ -35,6 +35,12 @@
         "useUniqueElementIds": "off",
         "noNestedComponentDefinitions": "off"
       },
+      "a11y": {
+        "noSvgWithoutTitle": "warn",
+        "noStaticElementInteractions": "warn",
+        "useButtonType": "warn",
+        "useSemanticElements": "warn"
+      },
       "style": {
         "noNonNullAssertion": "warn",
         "useImportType": "error",
@@ -119,7 +125,8 @@
           "a11y": {
             "noSvgWithoutTitle": "warn",
             "noStaticElementInteractions": "warn",
-            "useButtonType": "warn"
+            "useButtonType": "warn",
+            "useSemanticElements": "warn"
           }
         }
       }

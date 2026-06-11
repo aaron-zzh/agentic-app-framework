@@ -67,6 +67,8 @@ logging:
     org.hibernate.orm.jdbc.bind: WARN
     com.xuejiai.aaf.module.ai: DEBUG
     com.xuejiai.aaf.module.system: DEBUG
+    # 客户端主动断开 SSE 连接时的正常异常，降为 WARN 避免日志噪音
+    org.springframework.web.context.request.async: WARN
 
 aaf:
   flyway:
@@ -94,8 +96,8 @@ aaf:
   storage:
     type: local
     local:
-      base-path: ${user.home}/aaf-files
-      url-prefix: /files
+      base-path: ${AAF_FILE_PATH:${user.home}/aaf-files}
+      url-prefix: ${AAF_FILE_DOMAIN:http://localhost:8080}/api/system/files
   messaging:
     # dev 默认不启用短信，避免无配置时启动失败；需要时取消注释并填写 .env
     sms:

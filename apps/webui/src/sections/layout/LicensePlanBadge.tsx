@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils/cn"
 export function LicensePlanBadge({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(false)
   const { data: license } = useLicenseStatus()
-  const tier = license?.premium ? license.tier || "Pro" : "免费版"
+  const tier = license?.premium ? license.tier || "Pro" : "体验版"
 
   return (
     <>

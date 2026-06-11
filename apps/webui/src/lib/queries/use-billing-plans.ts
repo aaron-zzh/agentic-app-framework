@@ -1,19 +1,24 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { billingPlansApi } from "@/lib/api/rest/billing/plans"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 export function useSubscriptionPlans() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return useQuery({
     queryKey: ["billing", "plans"],
     queryFn: billingPlansApi.getPlans,
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    enabled: isAuthenticated
   })
 }
 
 export function useCreditPackages() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return useQuery({
     queryKey: ["billing", "credit-packages"],
     queryFn: billingPlansApi.getCreditPackages,
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    enabled: isAuthenticated
   })
 }
 

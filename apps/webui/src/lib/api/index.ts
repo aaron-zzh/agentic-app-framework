@@ -1,3 +1,4 @@
+export * from "./ai-stream"
 export * from "./api-client"
 export * from "./config"
 export * from "./errors"

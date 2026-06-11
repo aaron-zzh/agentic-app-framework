@@ -23,8 +23,8 @@ import lombok.Setter;
 @Table(name = "ai_knowledge_document")
 @SQLDelete(
         sql =
-                "UPDATE knowledge_document SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
-                        + " id = ?")
+                "UPDATE ai_knowledge_document SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
+                        + " id = ? AND version = ?")
 public class KnowledgeDocument extends BaseEntity {
 
     /**

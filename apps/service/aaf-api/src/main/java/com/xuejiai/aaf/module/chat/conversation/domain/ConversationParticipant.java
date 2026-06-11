@@ -39,8 +39,8 @@ public class ConversationParticipant {
     private Long conversationId;
 
     /** 统一字符串 ID：user_id 转字符串 / assistant_id / agent_id */
-    @Column(name = "participant_id", nullable = false, length = 64)
-    private String participantId;
+    @Column(name = "participant_id", nullable = false)
+    private Long participantId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "participant_type", nullable = false, length = 16)

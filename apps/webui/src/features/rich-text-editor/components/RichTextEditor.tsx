@@ -4,15 +4,31 @@
  *
  * 四种 preset：minimal / chatter / richField / document
  *
+ * ## ⚠️ 受控 vs 非受控
+ *
+ * Lexical 本质是非受控编辑器（内部维护自己的 EditorState）。
+ * 如果父组件把 `onChange` 的返回值再传回 `value`，每次输入都会触发：
+ * `onChange → setState → re-render → 新 value → 重新初始化编辑器`
+ * 这会打断中文/日文 IME 的组合输入，导致拼音字母被直接提交。
+ *
+ * **正确用法**：
+ * - 需要实时回显（如字数统计）→ 受控模式，接受 IME 有限制
+ * - 只在提交时读值（如表单）→ 非受控模式，用 `useRef` 存值
+ *
  * @example
  * ```tsx
- * // 表单字段
+ * // ✅ 受控模式——value 变化不触发编辑器重新初始化（仅初始值生效）
  * <RichTextEditor value={html} onChange={setHtml} preset="richField" />
  *
- * // 文档编辑（含图片上传）
+ * // ✅ 非受控模式——不传 value 回编辑器，IME 输入正常（推荐用于表单）
+ * const contentRef = useRef("")
+ * <RichTextEditor value="" onChange={(v) => { contentRef.current = v }} preset="richField" />
+ * // 提交时读 contentRef.current
+ *
+ * // ✅ 文档编辑（含图片上传）
  * <RichTextEditor value={html} onChange={setHtml} preset="document" uploadEndpoint="/api/upload" />
  *
- * // 评论输入（含 @mention）
+ * // ✅ 评论输入（含 @mention）
  * <RichTextEditor value={html} onChange={setHtml} preset="chatter" onMentionSearch={searchUsers} />
  * ```
  */
@@ -60,8 +76,9 @@ export function RichTextEditor({
   fill = false,
   className
 }: RichTextEditorProps) {
+  const uid = useRef(`${presetName}-${Math.random().toString(36).slice(2)}`)
   const initialConfig = {
-    namespace: `rte-${presetName}`,
+    namespace: `rte-${uid.current}`,
     theme: editorTheme,
     nodes: allNodes,
     editable: !disabled,
@@ -161,7 +178,12 @@ function EditorInner({
             />
           }
           placeholder={
-            <div className="pointer-events-none absolute top-2 left-3 text-muted-foreground text-sm">
+            <div
+              className={cn(
+                "pointer-events-none absolute top-2 text-muted-foreground text-sm",
+                preset.draggable && !disabled ? "left-7" : "left-3"
+              )}
+            >
               {placeholder}
             </div>
           }

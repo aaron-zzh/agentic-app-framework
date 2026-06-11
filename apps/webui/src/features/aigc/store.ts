@@ -35,8 +35,21 @@ interface AigcStore {
   storyboardPanelOpen: boolean
   /** 文件区只展示未分配素材 */
   fileFilterUnassigned: boolean
+  /** 文件区是否展开 */
+  fileAreaOpen: boolean
+  /** 文件区素材类型筛选 */
+  fileTypeFilter: "ALL" | "IMAGE" | "VIDEO" | "AUDIO"
+  /** 文件区缩放比例（50-150） */
+  fileZoom: number
   /** 正在生成中的任务（显示 loading 占位） */
-  pendingTasks: Array<{ id: number; prompt: string; type: string }>
+  pendingTasks: Array<{
+    id: number
+    prompt: string
+    type: string
+    ossUrl?: string
+    error?: string
+    asset?: MediaAssetVO
+  }>
   /** 生成类型：image=AI生图 video=AI视频 */
   generationType: "image" | "video"
   /** 视频时长（秒） */
@@ -51,6 +64,26 @@ interface AigcStore {
   agentRole: string
   /** 生成 Prompt */
   prompt: string
+  /** 当前项目提示词标签（null = 未启用） */
+  projectPromptTag: { label: string; content: string } | null
+  /** 随机种子（0 表示不指定） */
+  seed: number
+  /** 是否开启提示词智能改写 */
+  promptExtend: boolean
+  /** 反向提示词 */
+  negativePrompt: string
+  /** 生成张数 */
+  imageCount: number
+  /** 画质：low / medium / high / auto */
+  quality: string
+  /** 图片格式：png / jpeg / webp */
+  format: string
+  /** 尺寸档位：1K / 2K / 4K（万相等档位模型用） */
+  sizePreset: string
+  /** 背景模式：auto / transparent / opaque */
+  background: string
+  /** 内容审核：auto / low */
+  contentModeration: string
 
   setGenerationPanelOpen: (open: boolean) => void
   setStoryboardPanelOpen: (open: boolean) => void
@@ -71,12 +104,27 @@ interface AigcStore {
   addStoryboardAsset: (asset: MediaAssetVO) => void
   removeStoryboardAsset: (id: number) => void
   toggleFileFilter: () => void
+  setFileAreaOpen: (open: boolean) => void
+  setFileTypeFilter: (type: "ALL" | "IMAGE" | "VIDEO" | "AUDIO") => void
+  setFileZoom: (zoom: number) => void
   setPrompt: (prompt: string) => void
+  setProjectPromptTag: (tag: { label: string; content: string } | null) => void
+  setSeed: (seed: number) => void
+  setPromptExtend: (v: boolean) => void
+  setNegativePrompt: (v: string) => void
+  setImageCount: (n: number) => void
+  setQuality: (q: string) => void
+  setFormat: (f: string) => void
+  setSizePreset: (s: string) => void
+  setBackground: (b: string) => void
+  setContentModeration: (v: string) => void
   setModel: (model: string) => void
   setResolution: (resolution: string) => void
   setAspectRatio: (ratio: string) => void
   setVideoDuration: (duration: string) => void
   addPendingTask: (task: { id: number; prompt: string; type: string }) => void
+  completePendingTask: (id: number, ossUrl: string, asset?: MediaAssetVO) => void
+  failPendingTask: (id: number, error: string) => void
   removePendingTask: (id: number) => void
 }
 
@@ -97,9 +145,22 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   storyboardAssets: [],
   storyboardPanelOpen: true,
   fileFilterUnassigned: false,
+  fileAreaOpen: true,
+  fileTypeFilter: "ALL",
+  fileZoom: 100,
   pendingTasks: [],
   prompt: "",
-  model: "GPT Image 2",
+  projectPromptTag: null,
+  seed: 0,
+  promptExtend: true,
+  negativePrompt: "",
+  imageCount: 1,
+  quality: "auto",
+  format: "png",
+  sizePreset: "2K",
+  background: "auto",
+  contentModeration: "auto",
+  model: "",
   resolution: "2K",
   aspectRatio: "9:16",
   agentRole: "",
@@ -141,12 +202,37 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   removeStoryboardAsset: (id) =>
     set((state) => ({ storyboardAssets: state.storyboardAssets.filter((a) => a.id !== id) })),
   toggleFileFilter: () => set((state) => ({ fileFilterUnassigned: !state.fileFilterUnassigned })),
+  setFileAreaOpen: (open) => set({ fileAreaOpen: open }),
+  setFileTypeFilter: (type) => set({ fileTypeFilter: type }),
+  setFileZoom: (zoom) => set({ fileZoom: zoom }),
   setPrompt: (prompt) => set({ prompt }),
+  setProjectPromptTag: (projectPromptTag) => set({ projectPromptTag }),
+  setSeed: (seed) => set({ seed }),
+  setPromptExtend: (promptExtend) => set({ promptExtend }),
+  setNegativePrompt: (negativePrompt) => set({ negativePrompt }),
+  setImageCount: (imageCount) => set({ imageCount }),
+  setQuality: (quality) => set({ quality }),
+  setFormat: (format) => set({ format }),
+  setSizePreset: (sizePreset) => set({ sizePreset }),
+  setBackground: (background) => set({ background }),
+  setContentModeration: (contentModeration) => set({ contentModeration }),
   setModel: (model) => set({ model }),
   setResolution: (resolution) => set({ resolution }),
   setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
   setVideoDuration: (duration) => set({ videoDuration: duration }),
-  addPendingTask: (task) => set((state) => ({ pendingTasks: [...state.pendingTasks, task] })),
+  addPendingTask: (task) =>
+    set((state) => {
+      if (state.pendingTasks.some((t) => t.id === task.id)) return state
+      return { pendingTasks: [...state.pendingTasks, task] }
+    }),
+  completePendingTask: (id, ossUrl, asset) =>
+    set((state) => ({
+      pendingTasks: state.pendingTasks.map((t) => (t.id === id ? { ...t, ossUrl, asset } : t))
+    })),
+  failPendingTask: (id, error) =>
+    set((state) => ({
+      pendingTasks: state.pendingTasks.map((t) => (t.id === id ? { ...t, error } : t))
+    })),
   removePendingTask: (id) =>
     set((state) => ({ pendingTasks: state.pendingTasks.filter((t) => t.id !== id) }))
 }))

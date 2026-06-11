@@ -39,6 +39,7 @@ const devPages = [
 
 const threejsPages = [
   { label: "总览", href: "/examples/threejs" },
+  { label: "全球视图", href: "/examples/threejs/globe" },
   { label: "Demo（Logo + Blob）", href: "/examples/threejs/demo" },
   { label: "Blob", href: "/examples/threejs/demo/blob" },
   { label: "Fiber", href: "/examples/threejs/fiber" },

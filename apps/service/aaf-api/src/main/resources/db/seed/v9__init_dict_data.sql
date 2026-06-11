@@ -635,3 +635,16 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, status, version, delet
     ('livechat_seat_type', '人工坐席', 'HUMAN', 1, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('livechat_seat_type', 'AI坐席',   'AI',    2, 0, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT DO NOTHING;
+
+
+-- ai_model_provider_type AI 模型协议类型
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('AI 模型协议类型', 'ai_model_provider_type', 0, '决定运行时 SDK 选择')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('ai_model_provider_type', 'OpenAI 兼容', 'OPENAI_COMPAT', 1, 'primary'),
+('ai_model_provider_type', 'Anthropic',   'ANTHROPIC',     2, 'success'),
+('ai_model_provider_type', 'Ollama',      'OLLAMA',        3, 'info'),
+('ai_model_provider_type', '阿里云百炼',  'DASHSCOPE',     4, 'warning')
+ON CONFLICT DO NOTHING;

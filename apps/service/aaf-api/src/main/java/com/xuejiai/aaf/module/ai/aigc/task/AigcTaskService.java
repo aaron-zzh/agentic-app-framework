@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
-import com.xuejiai.aaf.framework.intelligent.ai.image.AsyncImageGenerationService.AsyncImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -52,6 +51,7 @@ public class AigcTaskService {
     private final MediaAssetService mediaAssetService;
     private final ImageServiceFactory imageServiceFactory;
     private final CapabilityRouter capabilityRouter;
+    private final AigcTaskExecutor taskExecutor;
 
     // ========== 提交任务 ==========
 
@@ -66,40 +66,42 @@ public class AigcTaskService {
      * @return 统一任务 ID
      */
     @Transactional
-    public Long submitImageTask(
-            Long userId, String prompt, String model, Integer width, Integer height) {
+    public Long submitImageTask(Long userId, ImageTaskRequest req) {
+        long t0 = System.currentTimeMillis();
         var ctx =
-                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
-        String resolvedModel = capabilityRouter.resolve(ctx).getModelId();
+                CapabilityRoutingContext.of(
+                        userId, CapabilityRoutingContext.CAP_IMAGE_GEN, req.model());
+        var resolvedAiModel = capabilityRouter.resolve(ctx);
+        log.debug("[submitImageTask] resolve 耗时: {}ms", System.currentTimeMillis() - t0);
+        String resolvedModel = resolvedAiModel.getModelId();
 
-        var task = buildTask(userId, TYPE_IMAGE, prompt, resolvedModel);
-        task.setParams(
-                "{\"width\":%d,\"height\":%d}"
-                        .formatted(width != null ? width : 1024, height != null ? height : 1024));
+        var task =
+                buildTask(
+                        userId,
+                        TYPE_IMAGE,
+                        req.prompt(),
+                        resolvedModel,
+                        resolvedAiModel.getDisplayName());
+        // 将所有生成参数序列化存入 params，供 submitSync 读取（@Async 线程中执行，非阻塞）
+        task.setParams(req.toParamsJson());
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
-        // 异步提交到底层服务
-        var asyncService = imageServiceFactory.getAsyncService(resolvedModel);
-        var req =
-                new AsyncImageRequest(
-                        prompt,
-                        resolvedModel,
-                        width != null ? width : 1024,
-                        height != null ? height : 1024);
-        Thread.startVirtualThread(
-                () -> {
-                    try {
-                        String thirdTaskId = asyncService.submitTask(req);
-                        task.setTaskId(thirdTaskId);
-                        task.setStatus(STATUS_RUNNING);
-                        taskRepo.save(task);
-                    } catch (Exception e) {
-                        log.error("[submitImageTask] 提交失败: taskId={}", task.getId(), e);
-                        failTask(task.getTaskId(), e.getMessage());
-                    }
-                });
-
+        // 事务提交后再触发异步生成，避免异步线程读不到未提交的 task 记录
+        final Long taskId = task.getId();
+        final String prompt = req.prompt();
+        org.springframework.transaction.support.TransactionSynchronizationManager
+                .registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                taskExecutor.submitSync(taskId, prompt, resolvedModel);
+                            }
+                        });
+        log.info(
+                "[submitImageTask] 总耗时: {}ms, taskId={}",
+                System.currentTimeMillis() - t0,
+                task.getId());
         return task.getId();
     }
 
@@ -113,7 +115,7 @@ public class AigcTaskService {
      */
     @Transactional
     public Long submitVideoTask(Long userId, String prompt, String model) {
-        var task = buildTask(userId, TYPE_VIDEO, prompt, model);
+        var task = buildTask(userId, TYPE_VIDEO, prompt, model, null);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
         log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), model);
@@ -131,7 +133,7 @@ public class AigcTaskService {
      */
     @Transactional
     public Long submit3dTask(Long userId, String prompt, String model) {
-        var task = buildTask(userId, TYPE_MODEL3D, prompt, model);
+        var task = buildTask(userId, TYPE_MODEL3D, prompt, model, null);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
         log.info("[submit3dTask] 3D 模型生成任务已创建: taskId={}, model={}", task.getId(), model);
@@ -147,7 +149,8 @@ public class AigcTaskService {
      * @param thirdTaskId 第三方任务 ID
      * @param resultUrl 第三方结果 URL
      */
-    @Transactional
+    @Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void completeTask(String thirdTaskId, String resultUrl) {
         var task = taskRepo.findByTaskId(thirdTaskId).orElse(null);
         if (task == null) {
@@ -178,7 +181,8 @@ public class AigcTaskService {
      * @param thirdTaskId 第三方任务 ID（或本系统任务 ID 字符串）
      * @param errorMsg 失败原因
      */
-    @Transactional
+    @Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void failTask(String thirdTaskId, String errorMsg) {
         if (thirdTaskId == null) return;
         var task = taskRepo.findByTaskId(thirdTaskId).orElse(null);
@@ -216,23 +220,19 @@ public class AigcTaskService {
 
     // ========== 内部方法 ==========
 
-    private AigcTask buildTask(Long userId, String type, String prompt, String model) {
+    private AigcTask buildTask(
+            Long userId, String type, String prompt, String model, String modelName) {
         var task = new AigcTask();
         task.setUserId(userId);
         task.setType(type);
         task.setStatus(STATUS_PENDING);
         task.setPrompt(prompt);
         task.setModel(model);
-        // 简单从 model 名推断 provider
+        task.setModelName(modelName);
         if (model != null) {
-            if (model.toLowerCase().contains("midjourney")) {
-                task.setProvider("midjourney");
-            } else if (model.toLowerCase().contains("wanx")
-                    || model.toLowerCase().contains("wan-x")) {
-                task.setProvider("wanx");
-            } else {
-                task.setProvider(model);
-            }
+            // 从 model id 冒号前取 provider，如 "qwen:wan2.7-image" → "qwen"
+            int colon = model.indexOf(':');
+            task.setProvider(colon > 0 ? model.substring(0, colon) : model);
         }
         return task;
     }
@@ -241,7 +241,7 @@ public class AigcTaskService {
     private String uploadToOss(String url, String type, Long taskId) {
         try {
             String ext = guessExtension(url, type);
-            String filename = "aigc/%s/%d.%s".formatted(type.toLowerCase(), taskId, ext);
+            String filename = "aigc/%s/%s.%s".formatted(type.toLowerCase(), java.util.UUID.randomUUID(), ext);
             String contentType = guessContentType(type);
 
             try (InputStream is = URI.create(url).toURL().openStream()) {
@@ -271,7 +271,11 @@ public class AigcTaskService {
                                             task.getModel() != null ? task.getModel() : ""),
                             null,
                             null,
-                            null);
+                            null,
+                            null,
+                            true,
+                            task.getModelName(),
+                            task.getProvider());
             mediaAssetService.saveFromGeneration(task.getUserId(), dto);
         } catch (Exception e) {
             log.warn("[saveToMediaAsset] 写入素材库失败: taskId={}", task.getId(), e);

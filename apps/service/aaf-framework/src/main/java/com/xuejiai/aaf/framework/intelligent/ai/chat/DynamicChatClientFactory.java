@@ -41,6 +41,7 @@ public class DynamicChatClientFactory {
 
     private final AiModelRepository modelRepository;
     private final ApplicationContext applicationContext;
+    private final AiProperties aiProperties;
 
     private final Cache<String, ChatClient> cache =
             Caffeine.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).maximumSize(200).build();
@@ -66,9 +67,8 @@ public class DynamicChatClientFactory {
                 model.effectiveProviderType());
         var chatModel =
                 switch (model.effectiveProviderType()) {
-                    case AiModel.PROVIDER_TYPE_OPENAI_COMPAT -> buildOpenAiCompat(model);
-                    case AiModel.PROVIDER_TYPE_ANTHROPIC, AiModel.PROVIDER_TYPE_OLLAMA ->
-                            buildFromContainer(model);
+                    case OPENAI_COMPAT -> buildOpenAiCompat(model);
+                    case ANTHROPIC, OLLAMA -> buildFromContainer(model);
                     default -> throw exception(GlobalErrorCode.BAD_REQUEST);
                 };
         return ChatClient.builder(chatModel).build();
@@ -76,10 +76,19 @@ public class DynamicChatClientFactory {
 
     private OpenAiChatModel buildOpenAiCompat(AiModel model) {
         // Spring AI 2.0.0-M6 使用官方 OpenAI Java SDK，通过 OpenAiSetup 构建 client
+        // apiKey 优先级：模型级 > 供应商级 > yaml aaf.ai.models.{provider}.api-key > default
+        String apiKey = model.effectiveApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            var models = aiProperties.getModels();
+            var cfg = models.getOrDefault(model.getProvider(), models.get("default"));
+            if (cfg != null) {
+                apiKey = cfg.getApiKey();
+            }
+        }
         var syncClient =
                 OpenAiSetup.setupSyncClient(
                         model.effectiveBaseUrl(),
-                        model.effectiveApiKey() != null ? model.effectiveApiKey() : "",
+                        apiKey != null ? apiKey : "",
                         null,
                         null,
                         null,
@@ -94,7 +103,7 @@ public class DynamicChatClientFactory {
         var asyncClient =
                 OpenAiSetup.setupAsyncClient(
                         model.effectiveBaseUrl(),
-                        model.effectiveApiKey() != null ? model.effectiveApiKey() : "",
+                        apiKey != null ? apiKey : "",
                         null,
                         null,
                         null,
@@ -127,10 +136,8 @@ public class DynamicChatClientFactory {
     private ChatModel buildFromContainer(AiModel model) {
         var className =
                 switch (model.effectiveProviderType()) {
-                    case AiModel.PROVIDER_TYPE_ANTHROPIC ->
-                            "org.springframework.ai.anthropic.AnthropicChatModel";
-                    case AiModel.PROVIDER_TYPE_OLLAMA ->
-                            "org.springframework.ai.ollama.OllamaChatModel";
+                    case ANTHROPIC -> "org.springframework.ai.anthropic.AnthropicChatModel";
+                    case OLLAMA -> "org.springframework.ai.ollama.OllamaChatModel";
                     default -> throw exception(GlobalErrorCode.BAD_REQUEST);
                 };
         try {

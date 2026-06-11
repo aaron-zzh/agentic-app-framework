@@ -24,6 +24,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProvider;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderRepository;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelCreateDTO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelImportResultVO;
@@ -62,7 +63,7 @@ public class AiModelService {
         model.setModelId(dto.modelId());
         model.setDisplayName(dto.displayName());
         model.setProvider(dto.provider());
-        model.setProviderType(dto.providerType());
+        model.setProviderType(AiModelProviderType.valueOf(dto.providerType()));
         model.setModelName(dto.modelName());
         model.setBaseUrl(dto.baseUrl());
         model.setApiKey(dto.apiKey());
@@ -167,6 +168,16 @@ public class AiModelService {
         return repository.findByEnabledTrueOrderBySortOrder().stream().map(this::toVO).toList();
     }
 
+    public List<AiModelVO> listEnabledByCapability(String capability) {
+        return repository.findByEnabledTrueOrderBySortOrder().stream()
+                .filter(
+                        m ->
+                                m.getCapabilities() != null
+                                        && m.getCapabilities().contains(capability))
+                .map(this::toVO)
+                .toList();
+    }
+
     /**
      * 从第三方模型价格 JSON 导入模型。按 enable_groups 分组，每组取 sort_order 最靠前的 10 个模型后去重入库。
      *
@@ -232,7 +243,7 @@ public class AiModelService {
                 m.getModelId(),
                 m.getDisplayName(),
                 m.getProvider(),
-                m.getProviderType(),
+                m.getProviderType() != null ? m.getProviderType().getCode() : null,
                 m.getModelName(),
                 m.getBaseUrl(),
                 m.getApiKey() != null && !m.getApiKey().isBlank(),
@@ -246,6 +257,7 @@ public class AiModelService {
                 m.getFallbackModelId(),
                 m.getSortOrder(),
                 m.getRemark(),
+                m.getImageConfig() != null ? m.getImageConfig().toString() : null,
                 m.getCreateTime(),
                 m.getUpdateTime());
     }
@@ -258,7 +270,7 @@ public class AiModelService {
             provider.setProviderCode(providerCode);
             provider.setProviderName(
                     providerName != null && !providerName.isBlank() ? providerName : "第三方聚合");
-            provider.setProviderType(AiModel.PROVIDER_TYPE_OPENAI_COMPAT);
+            provider.setProviderType(AiModelProviderType.OPENAI_COMPAT);
         }
         if (providerName != null && !providerName.isBlank()) {
             provider.setProviderName(providerName);
@@ -364,16 +376,16 @@ public class AiModelService {
         model.setRemark("从模型价格 JSON 导入");
     }
 
-    private String resolveProviderType(JsonNode item) {
+    private AiModelProviderType resolveProviderType(JsonNode item) {
         var endpoints = firstPresent(item, "supported_endpoint_types", "supported_endpoints");
         if (endpoints != null && endpoints.isArray()) {
             for (var endpoint : endpoints) {
                 if ("anthropic".equalsIgnoreCase(endpoint.asText())) {
-                    return AiModel.PROVIDER_TYPE_ANTHROPIC;
+                    return AiModelProviderType.ANTHROPIC;
                 }
             }
         }
-        return AiModel.PROVIDER_TYPE_OPENAI_COMPAT;
+        return AiModelProviderType.OPENAI_COMPAT;
     }
 
     private String resolveCapabilities(JsonNode item) {

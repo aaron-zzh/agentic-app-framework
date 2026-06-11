@@ -55,6 +55,10 @@ public class Model3dGenerationTool {
                                                     request.prompt().replace("\"", "\\\""), taskId),
                                     null,
                                     null,
+                                    null,
+                                    null,
+                                    true,
+                                    null,
                                     null);
                     mediaAssetService.saveFromGeneration(0L, saveDto);
                 } catch (Exception e) {

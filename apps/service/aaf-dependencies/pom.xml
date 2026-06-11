@@ -153,19 +153,20 @@
 			</dependency>
 
 			<!-- OkHttp/Okio 版本统一：
-			     agentscope-core 1.1.x 直接依赖 okhttp 5.3.2，需要 okio 3.9+（Okio.socket() 是 3.9 新增方法）。
-			     dashscope-sdk-java 2.22.x 依赖 okhttp 4.12，其 API 在 okhttp 5.x 上向后兼容可直接运行。
-			     统一升至 okhttp 5.x + okio 3.9.0，消除 NoSuchMethodError。
+			     agentscope-core 和 dashscope-sdk 均传递依赖 okhttp，版本混用导致
+			     NoSuchMethodError: okio.Okio.socket()。
+			     okhttp-jvm 5.3.2 要求 okio-jvm >= 3.16.4（socket() 方法在此版本新增）。
+			     统一锁定：okhttp 全系列 5.3.2 + okio 3.16.4。
 			-->
 			<dependency>
 				<groupId>com.squareup.okio</groupId>
 				<artifactId>okio</artifactId>
-				<version>3.9.0</version>
+				<version>3.16.4</version>
 			</dependency>
 			<dependency>
 				<groupId>com.squareup.okio</groupId>
 				<artifactId>okio-jvm</artifactId>
-				<version>3.9.0</version>
+				<version>3.16.4</version>
 			</dependency>
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
@@ -175,6 +176,16 @@
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp-jvm</artifactId>
+				<version>5.3.2</version>
+			</dependency>
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>logging-interceptor</artifactId>
+				<version>5.3.2</version>
+			</dependency>
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp-sse</artifactId>
 				<version>5.3.2</version>
 			</dependency>
 			<dependency>

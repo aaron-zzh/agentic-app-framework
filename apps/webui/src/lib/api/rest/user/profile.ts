@@ -30,11 +30,12 @@ export interface ChangePasswordReq {
 }
 
 export const profileApi = {
-  get: () => backendApi.get<ProfileVO>("/user/profile"),
+  get: () => backendApi.get<ProfileVO>("/system/user/profile"),
 
-  update: (data: ProfileUpdateReq) => backendApi.put<ProfileVO>("/user/profile", data),
+  update: (data: ProfileUpdateReq) => backendApi.put<ProfileVO>("/system/user/profile", data),
 
-  changePassword: (data: ChangePasswordReq) => backendApi.put<void>("/user/profile/password", data)
+  changePassword: (data: ChangePasswordReq) =>
+    backendApi.put<void>("/system/user/profile/password", data)
 }
 
 export const profileQueries = {

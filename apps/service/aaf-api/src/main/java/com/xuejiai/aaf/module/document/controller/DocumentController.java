@@ -1,8 +1,11 @@
 package com.xuejiai.aaf.module.document.controller;
 
+import java.io.IOException;
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -82,5 +85,12 @@ public class DocumentController {
     @GetMapping("/events")
     public SseEmitter subscribe(@RequestParam(required = false) Long docId) {
         return documentService.subscribe(docId != null ? docId : 0L);
+    }
+
+    @Operation(summary = "导入 PDF（上传原文 + 提取文本存入文档库）")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/import-pdf")
+    public Result<Document> importPdf(@RequestParam("file") MultipartFile file) throws IOException {
+        return Result.success(documentService.importPdf(file));
     }
 }

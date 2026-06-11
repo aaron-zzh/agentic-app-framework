@@ -24,7 +24,11 @@ public class StorageWebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         var local = properties.local();
-        registry.addResourceHandler(local.urlPrefix() + "/**")
+        // urlPrefix 可能是完整 URL（如 http://localhost:8080/files），提取路径部分
+        String urlPrefix = local.urlPrefix();
+        String path =
+                urlPrefix.startsWith("http") ? java.net.URI.create(urlPrefix).getPath() : urlPrefix;
+        registry.addResourceHandler(path + "/**")
                 .addResourceLocations("file:" + local.basePath() + "/");
     }
 }

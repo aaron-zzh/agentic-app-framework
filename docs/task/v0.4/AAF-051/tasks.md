@@ -41,7 +41,6 @@ author: AaronZZH
   - `Actor`：人格载体（name/persona/systemPrompt/avatar），可复用跨 Role
   - `Role`：能力配置（Skill 集 + Tool 白名单），可复用跨 Actor
   - `AssistantDefinition`：Actor + Role + MemoryStrategy 的组合，是运行时实体
-  - 对应数据库表：`ai_actor` / `ai_role` / `ai_assistant`（关联 actor_id + role_id）
 
 ### #5102 意图理解（核心补充）
 

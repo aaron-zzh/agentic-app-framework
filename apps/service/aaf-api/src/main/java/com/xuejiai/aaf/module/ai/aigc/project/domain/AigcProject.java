@@ -41,4 +41,8 @@ public class AigcProject extends BaseEntity {
     /** 所属用户 ID */
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    /** 项目级提示词——生成时直接使用，文档为可选增强 */
+    @Column(name = "prompt", columnDefinition = "TEXT")
+    private String prompt;
 }

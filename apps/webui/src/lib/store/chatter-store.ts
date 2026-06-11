@@ -11,7 +11,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { ChatterLayout, ChatterPreset } from "@/features/chatter/types"
+import type { ChatterDropItem, ChatterLayout, ChatterPreset } from "@/features/chatter/types"
 import { request } from "@/lib/api/rest/entity/crud"
 
 export interface ChatterPageConfig {
@@ -37,6 +37,9 @@ interface ChatterStore {
   setConfig: (pageId: string, config: Partial<ChatterPageConfig>) => void
   getConfig: (pageId: string) => ChatterPageConfig
   setLayoutOverride: (layout: ChatterLayout | null) => void
+  /** 全局 DnD 落下时写入，Chatter 消费后清空 */
+  pendingDropItem: ChatterDropItem | null
+  setPendingDropItem: (item: ChatterDropItem | null) => void
 }
 
 const DEFAULT_CONFIG: ChatterPageConfig = {
@@ -51,6 +54,7 @@ export const useChatterStore = create<ChatterStore>()(
       configs: {},
       open: false,
       layoutOverride: null,
+      pendingDropItem: null,
 
       setCurrentPage: (pageId) => set({ currentPageId: pageId }),
 
@@ -78,7 +82,8 @@ export const useChatterStore = create<ChatterStore>()(
         return get().configs[pageId] ?? DEFAULT_CONFIG
       },
 
-      setLayoutOverride: (layout) => set({ layoutOverride: layout })
+      setLayoutOverride: (layout) => set({ layoutOverride: layout }),
+      setPendingDropItem: (item) => set({ pendingDropItem: item })
     }),
     {
       name: "aaf-chatter-config",

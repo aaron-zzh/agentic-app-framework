@@ -30,8 +30,8 @@ public record AiModelCreateDTO(
                         example = "OPENAI_COMPAT")
                 @NotBlank
                 @Pattern(
-                        regexp = "^(OPENAI_COMPAT|ANTHROPIC|OLLAMA)$",
-                        message = "providerType 必须为 OPENAI_COMPAT / ANTHROPIC / OLLAMA")
+                        regexp = "^(OPENAI_COMPAT|ANTHROPIC|OLLAMA|DASHSCOPE)$",
+                        message = "providerType 必须为 OPENAI_COMPAT / ANTHROPIC / OLLAMA / DASHSCOPE")
                 String providerType,
         @Schema(
                         description = "模型名称",

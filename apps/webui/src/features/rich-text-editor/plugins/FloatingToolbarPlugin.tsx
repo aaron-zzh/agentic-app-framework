@@ -43,6 +43,11 @@ export function FloatingToolbarPlugin() {
   })
 
   const updateToolbar = useCallback(() => {
+    // IME 输入中不显示工具栏
+    if (editor.isComposing()) {
+      setShow(false)
+      return
+    }
     // 在 read 上下文内获取 Lexical 状态
     const selection = $getSelection()
     if (!$isRangeSelection(selection) || selection.isCollapsed()) {
@@ -73,7 +78,7 @@ export function FloatingToolbarPlugin() {
       })
       setShow(true)
     })
-  }, [])
+  }, [editor.isComposing])
 
   useEffect(() => {
     return mergeRegister(

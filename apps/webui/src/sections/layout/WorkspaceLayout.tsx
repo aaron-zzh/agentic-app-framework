@@ -16,6 +16,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Chatter } from "@/features/chatter"
 import { FloatingChatterButton } from "@/features/chatter/FloatingChatterButton"
+import { GlobalDndContext } from "@/features/dnd/GlobalDndContext"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { AppHeader } from "@/sections/layout/AppHeader"
 import { AppSidebar } from "@/sections/layout/AppSidebar"
@@ -52,51 +53,54 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* 桌面端固定侧边栏 */}
-      <div className="hidden md:flex">
-        <AppSidebar />
-      </div>
+    <GlobalDndContext>
+      <div className="flex h-screen overflow-hidden">
+        {/* 桌面端固定侧边栏 */}
+        <div className="hidden md:flex">
+          <AppSidebar />
+        </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <AppHeader />
+        {/* min-h-0：flex 子元素默认 min-height:auto 会撑破父级，加此才能让内层 overflow-y-auto 生效 */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <AppHeader />
 
-        {isPageMode ? (
-          /* page 模式：页面完全接管，不渲染任何 Chatter UI */
-          <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
-        ) : isPanelMode ? (
-          /* 嵌入模式：ResizablePanel */
-          <ResizablePanelGroup orientation="horizontal" className="flex-1 overflow-hidden">
-            <ResizablePanel
-              panelRef={mainPanelRef}
-              defaultSize={open ? "65%" : "100%"}
-              minSize="30%"
-            >
-              <main className="flex h-full flex-col overflow-hidden">{children}</main>
-            </ResizablePanel>
-            {open && (
-              <>
-                <ResizableHandle withHandle />
-                <ResizablePanel
-                  panelRef={chatPanelCallback}
-                  defaultSize="35%"
-                  minSize="23%"
-                  maxSize="50%"
-                  className="border-l"
-                >
-                  <Chatter preset={config.preset} agentRole={config.agentRole} layout="panel" />
-                </ResizablePanel>
-              </>
-            )}
-          </ResizablePanelGroup>
-        ) : (
-          /* 浮动模式：主内容全宽，浮动按钮 + dialog */
-          <main className="flex flex-1 flex-col overflow-hidden">
-            {children}
-            <FloatingChatterButton preset={config.preset} agentRole={config.agentRole} />
-          </main>
-        )}
+          {isPageMode ? (
+            /* page 模式：页面完全接管，不渲染任何 Chatter UI */
+            <main className="flex flex-1 flex-col overflow-y-auto">{children}</main>
+          ) : isPanelMode ? (
+            /* 嵌入模式：ResizablePanel */
+            <ResizablePanelGroup orientation="horizontal" className="flex-1 overflow-hidden">
+              <ResizablePanel
+                panelRef={mainPanelRef}
+                defaultSize={open ? "65%" : "100%"}
+                minSize="30%"
+              >
+                <main className="flex h-full flex-col overflow-hidden">{children}</main>
+              </ResizablePanel>
+              {open && (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel
+                    panelRef={chatPanelCallback}
+                    defaultSize="35%"
+                    minSize="23%"
+                    maxSize="50%"
+                    className="border-l"
+                  >
+                    <Chatter preset={config.preset} agentRole={config.agentRole} layout="panel" />
+                  </ResizablePanel>
+                </>
+              )}
+            </ResizablePanelGroup>
+          ) : (
+            /* 浮动模式：主内容全宽，浮动按钮 + dialog */
+            <main className="flex flex-1 flex-col overflow-y-auto">
+              {children}
+              <FloatingChatterButton preset={config.preset} agentRole={config.agentRole} />
+            </main>
+          )}
+        </div>
       </div>
-    </div>
+    </GlobalDndContext>
   )
 }

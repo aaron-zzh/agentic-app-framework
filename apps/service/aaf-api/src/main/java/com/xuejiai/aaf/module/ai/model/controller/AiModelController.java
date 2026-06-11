@@ -47,9 +47,12 @@ public class AiModelController {
         return Result.success(aiModelService.list(provider, enabled, pageable));
     }
 
-    @Operation(summary = "已启用模型列表（下拉选择用）")
+    @Operation(summary = "已启用模型列表（下拉选择用，可按能力过滤）")
     @GetMapping("/enabled")
-    public Result<List<AiModelVO>> listEnabled() {
+    public Result<List<AiModelVO>> listEnabled(@RequestParam(required = false) String capability) {
+        if (capability != null && !capability.isBlank()) {
+            return Result.success(aiModelService.listEnabledByCapability(capability));
+        }
         return Result.success(aiModelService.listEnabled());
     }
 

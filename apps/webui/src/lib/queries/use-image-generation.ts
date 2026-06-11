@@ -8,9 +8,22 @@ import { request } from "@/lib/api/rest/entity/crud"
 
 export interface GenerateImageParams {
   prompt: string
+  /** 用于展示/命名的用户原始输入（不含项目提示词前缀） */
+  displayPrompt?: string
   model?: string
   width?: number
   height?: number
+  imageUrls?: string[]
+  negativePrompt?: string
+  seed?: number
+  promptExtend?: boolean
+  imageCount?: number
+  quality?: string
+  format?: string
+  sizePreset?: string
+  aspectRatio?: string
+  background?: string
+  contentModeration?: string
 }
 
 /** 提交图像生成任务，返回统一任务 ID */
@@ -23,8 +36,25 @@ export function useGenerateImage() {
         body: JSON.stringify({
           type: "IMAGE",
           prompt: params.prompt,
+          displayPrompt: params.displayPrompt,
           model: params.model,
-          params: { width: params.width ?? 1024, height: params.height ?? 1024 }
+          params: {
+            width: params.width ?? 1024,
+            height: params.height ?? 1024,
+            ...(params.imageUrls?.length ? { imageUrls: params.imageUrls } : {}),
+            ...(params.negativePrompt ? { negativePrompt: params.negativePrompt } : {}),
+            ...(params.seed ? { seed: params.seed } : {}),
+            ...(params.promptExtend !== undefined ? { promptExtend: params.promptExtend } : {}),
+            ...(params.imageCount && params.imageCount > 1
+              ? { imageCount: params.imageCount }
+              : {}),
+            ...(params.quality ? { quality: params.quality } : {}),
+            ...(params.format ? { format: params.format } : {}),
+            ...(params.sizePreset ? { sizePreset: params.sizePreset } : {}),
+            ...(params.aspectRatio ? { aspectRatio: params.aspectRatio } : {}),
+            ...(params.background ? { background: params.background } : {}),
+            ...(params.contentModeration ? { contentModeration: params.contentModeration } : {})
+          }
         }),
         headers: { "Content-Type": "application/json" }
       }),

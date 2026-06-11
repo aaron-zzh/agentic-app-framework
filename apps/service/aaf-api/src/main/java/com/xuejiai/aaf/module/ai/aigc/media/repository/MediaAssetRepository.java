@@ -22,6 +22,8 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, Long> {
 
     List<MediaAsset> findByCategoryId(Long categoryId);
 
+    List<MediaAsset> findByGroupId(Long groupId);
+
     @Query(
             "SELECT a FROM MediaAsset a WHERE a.userId = :userId AND a.deleted = false"
                     + " AND (LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))"

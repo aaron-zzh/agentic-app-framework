@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { creditsApi } from "@/lib/api/rest/billing/credits"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 const BALANCE_KEY = ["credits", "balance"]
 const TRANSACTIONS_KEY = ["credits", "transactions"]
@@ -36,10 +37,12 @@ export function useTokenRules() {
 
 /** 查询积分分组明细（按 batch_type 汇总） */
 export function useCreditGroups() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return useQuery({
     queryKey: ["credits", "groups"],
     queryFn: creditsApi.getGroups,
-    staleTime: 60 * 1000
+    staleTime: 60 * 1000,
+    enabled: isAuthenticated
   })
 }
 

@@ -20,7 +20,7 @@ public class ImageSyncJob {
 
     private final AiImageService aiImageService;
 
-    @Scheduled(fixedDelay = 60_000)
+    @Scheduled(fixedDelay = 10_000)
     public void sync() {
         try {
             aiImageService.syncMidjourneyTasks();

@@ -65,7 +65,8 @@ public class AigcTaskEventService {
         for (var emitter : emitters) {
             try {
                 emitter.send(SseEmitter.event().name(eventType).data(data));
-            } catch (IOException e) {
+            } catch (Exception e) {
+                log.debug("[push] emitter 已失效，移除: userId={}, event={}", userId, eventType);
                 removeEmitter(userId, emitter);
             }
         }

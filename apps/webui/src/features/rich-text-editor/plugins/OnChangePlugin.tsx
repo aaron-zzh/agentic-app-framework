@@ -22,15 +22,20 @@ export function OnChangePlugin({ onChange, mode = "html" }: OnChangePluginProps)
   const [editor] = useLexicalComposerContext()
 
   const handleChange = (editorState: EditorState) => {
-    editorState.read(() => {
-      if (mode === "markdown") {
-        onChange($convertToMarkdownString(MARKDOWN_TRANSFORMERS))
-      } else if (mode === "plaintext") {
-        onChange($getRoot().getTextContent())
-      } else {
+    if (mode === "html") {
+      // 0.45+ 要求在 editor.read() 上下文中调用 $generateHtmlFromNodes
+      editor.read(() => {
         onChange($generateHtmlFromNodes(editor))
-      }
-    })
+      })
+    } else {
+      editorState.read(() => {
+        if (mode === "markdown") {
+          onChange($convertToMarkdownString(MARKDOWN_TRANSFORMERS))
+        } else {
+          onChange($getRoot().getTextContent())
+        }
+      })
+    }
   }
 
   return <LexicalOnChangePlugin onChange={handleChange} ignoreSelectionChange />

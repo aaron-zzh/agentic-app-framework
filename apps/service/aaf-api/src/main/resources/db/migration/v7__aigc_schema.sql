@@ -27,6 +27,9 @@ CREATE TABLE media_asset (
     project_id        BIGINT,
     source_type       VARCHAR(30),
     source_id         BIGINT,
+    ai_generated      BOOLEAN        NOT NULL DEFAULT FALSE,
+    model_name        VARCHAR(100),
+    provider_code     VARCHAR(64),
     user_id           BIGINT         NOT NULL,
     owner_id          BIGINT,
     create_by         BIGINT,
@@ -198,6 +201,7 @@ CREATE TABLE generation_template (
     org_id            BIGINT,
     workspace_id      BIGINT,
     name              VARCHAR(100)   NOT NULL,
+    type              VARCHAR(30)    NOT NULL DEFAULT 'IMAGE',
     category          VARCHAR(50),
     prompt            TEXT           NOT NULL,
     negative_prompt   TEXT,
@@ -208,6 +212,7 @@ CREATE TABLE generation_template (
     seed              BIGINT,
     is_public         BOOLEAN        NOT NULL DEFAULT FALSE,
     usage_count       INTEGER        NOT NULL DEFAULT 0,
+    scope             VARCHAR(20)    NOT NULL DEFAULT 'GENERATION',
     user_id           BIGINT         NOT NULL,
     owner_id          BIGINT,
     create_by         BIGINT,
@@ -234,9 +239,11 @@ COMMENT ON COLUMN generation_template.seed IS '随机种子，-1 表示随机';
 COMMENT ON COLUMN generation_template.is_public IS '是否公开，true 表示全用户可见';
 COMMENT ON COLUMN generation_template.usage_count IS '被使用次数';
 COMMENT ON COLUMN generation_template.user_id IS '创建者用户 ID';
+COMMENT ON COLUMN generation_template.scope IS '使用场景：GENERATION=单次生成面板，PROJECT=项目级提示词';
 CREATE INDEX idx_gen_template_user     ON generation_template (user_id);
 CREATE INDEX idx_gen_template_category ON generation_template (category);
 CREATE INDEX idx_gen_template_public   ON generation_template (is_public);
+CREATE INDEX idx_gen_template_scope    ON generation_template (scope);
 
 -- 视频模板
 CREATE TABLE video_template (
@@ -321,9 +328,10 @@ CREATE TABLE aigc_task (
     status            VARCHAR(20)    NOT NULL DEFAULT 'PENDING',
     provider          VARCHAR(50),
     model             VARCHAR(100),
+    model_name        VARCHAR(100),
     prompt            TEXT,
     params            JSONB,
-    task_id           VARCHAR(200),
+    task_id           TEXT,
     result_url        TEXT,
     oss_url           TEXT,
     error_msg         TEXT,
@@ -670,3 +678,164 @@ COMMENT ON TABLE aigc_shot_asset IS '分镜-素材关联';
 COMMENT ON COLUMN aigc_shot_asset.role IS '素材角色：FINAL_VIDEO/FINAL_AUDIO/REFERENCE';
 CREATE INDEX idx_aigc_shot_asset_shot  ON aigc_shot_asset (shot_id);
 CREATE INDEX idx_aigc_shot_asset_asset ON aigc_shot_asset (asset_id);
+
+
+-- ============================================================
+-- ai_model 图像生成能力配置（image_config）
+-- ============================================================
+-- wan2.7-image（支持文生图和图像编辑，size 用档位 1K/2K，最多9张输入图）
+UPDATE ai_model SET image_config = '{
+  "mode": "fixed",
+  "sizes": [],
+  "generate": {
+    "maxImages": 4,
+    "sizePresets": ["1K","2K"],
+    "seed": true
+  },
+  "edit": {
+    "maxInputImages": 9,
+    "maxImages": 4,
+    "sizePresets": ["1K","2K"],
+    "seed": true
+  }
+}' WHERE model_id = 'qwen:wan2.7-image';
+
+-- qwen-image-2.0（fixed 模式，生成和编辑参数相同，编辑支持最多3张参考图）
+UPDATE ai_model SET image_config = '{
+  "mode": "fixed",
+  "sizes": [[2688,1536],[2368,1728],[2048,2048],[1728,2368],[1536,2688]],
+  "generate": {"maxImages": 6, "seed": true, "promptExtend": true, "negativePrompt": true},
+  "edit":     {"maxInputImages": 3, "maxImages": 6, "seed": true, "promptExtend": true, "negativePrompt": true}
+}' WHERE model_id = 'qwen:qwen-image-2';
+
+-- gpt-image-2（文生图/编辑都支持 quality/format/background/moderation，编辑多了 maxInputImages=16）
+UPDATE ai_model SET image_config = '{
+  "mode": "fixed",
+  "sizes": [[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[3840,2160],[2160,3840]],
+  "generate": {
+    "maxImages": 10,
+    "quality": ["auto","low","medium","high"],
+    "format": ["png","jpeg","webp"],
+    "background": ["auto","transparent","opaque"],
+    "contentModeration": ["auto","low"]
+  },
+  "edit": {
+    "maxInputImages": 16,
+    "maxImages": 10,
+    "quality": ["auto","low","medium","high"],
+    "format": ["png","jpeg","webp"],
+    "background": ["auto","transparent","opaque"],
+    "contentModeration": ["auto","low"]
+  }
+}' WHERE model_id = 'n1n:gpt-image-2';
+
+-- gemini-3.1-flash-image-preview（支持 14 张参考图，比例完整，档位 512/1K/2K/4K）
+UPDATE ai_model SET image_config = '{
+  "mode": "ratio",
+  "sizes": {
+    "1:1": [], "1:4": [], "1:8": [], "2:3": [], "3:2": [],
+    "3:4": [], "4:1": [], "4:3": [], "4:5": [], "5:4": [],
+    "8:1": [], "9:16": [], "16:9": [], "21:9": []
+  },
+  "generate": {
+    "maxImages": 1,
+    "sizePresets": ["512","1K","2K","4K"]
+  },
+  "edit": {
+    "maxInputImages": 14,
+    "maxImages": 1,
+    "sizePresets": ["512","1K","2K","4K"]
+  }
+}' WHERE model_id = 'n1n:gemini-3.1-flash-image-preview';
+
+-- gemini-3-pro-image-preview（支持 14 张参考图，比例不含极端比，档位 1K/2K/4K）
+UPDATE ai_model SET image_config = '{
+  "mode": "ratio",
+  "sizes": {
+    "1:1": [], "2:3": [], "3:2": [], "3:4": [],
+    "4:3": [], "4:5": [], "5:4": [], "9:16": [], "16:9": [], "21:9": []
+  },
+  "generate": {
+    "maxImages": 1,
+    "sizePresets": ["1K","2K","4K"]
+  },
+  "edit": {
+    "maxInputImages": 14,
+    "maxImages": 1,
+    "sizePresets": ["1K","2K","4K"]
+  }
+}' WHERE model_id = 'n1n:gemini-3-pro-image-preview';
+
+-- ============================================================
+-- 素材组（每次生成任务自动建组，组内含一张或多张素材）
+-- ============================================================
+
+CREATE TABLE media_asset_group (
+    id                BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    version           INTEGER        NOT NULL DEFAULT 0,
+    name              VARCHAR(200)   NOT NULL,
+    cover_url         VARCHAR(1000),
+    asset_count       INTEGER        NOT NULL DEFAULT 0,
+    user_id           BIGINT         NOT NULL,
+    create_time       TIMESTAMP(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time       TIMESTAMP(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted           BOOLEAN        NOT NULL DEFAULT FALSE
+);
+
+COMMENT ON TABLE  media_asset_group            IS '素材组——每次生成任务对应一个组';
+COMMENT ON COLUMN media_asset_group.name       IS '组名，默认由 prompt 截取或文件名生成';
+COMMENT ON COLUMN media_asset_group.cover_url  IS '封面图，取组内第一张素材 URL';
+COMMENT ON COLUMN media_asset_group.asset_count IS '组内素材数量（冗余，便于列表展示）';
+COMMENT ON COLUMN media_asset_group.user_id    IS '所属用户';
+CREATE INDEX idx_media_asset_group_user ON media_asset_group (user_id);
+
+-- media_asset 加 group_id 列
+ALTER TABLE media_asset ADD COLUMN IF NOT EXISTS group_id BIGINT;
+COMMENT ON COLUMN media_asset.group_id IS '所属素材组 ID，NULL 表示未分组';
+CREATE INDEX idx_media_asset_group_id ON media_asset (group_id);
+
+-- doubao-seedream-5-0（支持 2K/4K 档位或固定尺寸，n=1-4，output_format）
+UPDATE ai_model SET image_config = '{
+  "mode": "fixed",
+  "sizes": [[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[1152,2048]],
+  "generate": {
+    "maxImages": 4,
+    "format": ["jpeg","png"]
+  }
+}' WHERE model_id = 'n1n:doubao-seedream-5-0';
+
+
+-- ============================================================
+-- PDF 导入链路 + AIGC 项目文档关联（原 v11）
+-- ============================================================
+
+-- doc_document 加 source_file_id 关联原始文件（PDF 导入时指向 sys_file.id）
+ALTER TABLE doc_document
+    ADD COLUMN IF NOT EXISTS source_file_id BIGINT;
+
+COMMENT ON COLUMN doc_document.source_file_id IS '来源文件 ID（sys_file.id），PDF 导入时非空';
+
+-- aigc_project 加 prompt 字段（项目级提示词，生成时直接使用，文档为可选增强）
+ALTER TABLE aigc_project
+    ADD COLUMN IF NOT EXISTS prompt TEXT;
+
+COMMENT ON COLUMN aigc_project.prompt IS '项目级提示词，生成时直接使用，文档关联为可选增强';
+
+-- AIGC 项目-文档 M2M 关联表
+CREATE TABLE IF NOT EXISTS aigc_project_doc (
+    id           BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    project_id   BIGINT       NOT NULL,
+    doc_id       BIGINT       NOT NULL,
+    role         VARCHAR(20)  NOT NULL DEFAULT 'ref',
+    sort_order   INTEGER      NOT NULL DEFAULT 0,
+    create_time  TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_aigc_project_doc UNIQUE (project_id, doc_id),
+    CONSTRAINT fk_apd_project FOREIGN KEY (project_id) REFERENCES aigc_project (id) ON DELETE CASCADE,
+    CONSTRAINT fk_apd_doc     FOREIGN KEY (doc_id)     REFERENCES doc_document (id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE aigc_project_doc IS 'AIGC 项目-文档关联';
+COMMENT ON COLUMN aigc_project_doc.role IS '文档角色：spec=创作规范 / ref=参考资料 / output=产出文档';
+
+CREATE INDEX IF NOT EXISTS idx_apd_project ON aigc_project_doc (project_id);
+CREATE INDEX IF NOT EXISTS idx_apd_doc     ON aigc_project_doc (doc_id);

@@ -57,9 +57,11 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      AAF_FILE_PATH: /data/files
     volumes:
       - ./logs/service:/app/logs
       - service_heap:/tmp/heap-dumps
+      - aaf_files:/data/files
     ports:
       - "8080:8080"
     depends_on:
@@ -100,3 +102,4 @@ volumes:
   postgres_data:
   redis_data:
   service_heap:
+  aaf_files:

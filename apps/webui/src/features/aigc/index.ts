@@ -3,13 +3,15 @@
  * @author AaronZZH & Kiro
  */
 
-export { AigcView } from "./AigcView"
-export { AssetLibrary } from "./AssetLibrary"
+// 素材库
+export { AssetLibrary } from "./asset/AssetLibrary"
 // 生成历史
-export { GenerationHistory } from "./GenerationHistory"
+export { GenerationHistory } from "./generation/GenerationHistory"
 // 对话内联预览
-export { MediaPreviewCard } from "./MediaPreviewCard"
-export { StyleAdjustDialog } from "./StyleAdjustDialog"
+export { MediaPreviewCard } from "./preview/MediaPreviewCard"
+export { StyleAdjustDialog } from "./preview/StyleAdjustDialog"
+// 项目管理
+export { AigcView } from "./project/AigcView"
 export { useAigcStore } from "./store"
 export { threeViewConfig } from "./three"
 // 3D（动态导入使用，此处仅导出类型和容器）
@@ -24,10 +26,10 @@ export type {
   Model3dTaskStatus,
   StoryElement
 } from "./types"
-export { VideoEditPanel } from "./VideoEditPanel"
-export { VideoGenerationChat } from "./VideoGenerationChat"
-export { VideoPlayer } from "./VideoPlayer"
 // 视频生成
-export { VideoStoryboard } from "./VideoStoryboard"
-export type { SceneStatus, VideoScene } from "./VideoTimeline"
-export { VideoTimeline } from "./VideoTimeline"
+export { VideoEditPanel } from "./video/VideoEditPanel"
+export { VideoGenerationChat } from "./video/VideoGenerationChat"
+export { VideoPlayer } from "./video/VideoPlayer"
+export { VideoStoryboard } from "./video/VideoStoryboard"
+export type { SceneStatus, VideoScene } from "./video/VideoTimeline"
+export { VideoTimeline } from "./video/VideoTimeline"

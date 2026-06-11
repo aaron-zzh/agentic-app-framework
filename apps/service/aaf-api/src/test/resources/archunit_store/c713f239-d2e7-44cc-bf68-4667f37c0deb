@@ -85,8 +85,6 @@ DocumentController.update() 写接口缺少授权注解（@PreAuthorize/@AccessC
 EntityDefController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 EntityDefController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 EntityDefController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-GenerationTemplateController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-GenerationTemplateController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 GenerationTemplateController.use() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 GenericEntityController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 GenericEntityController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
@@ -108,13 +106,6 @@ KnowledgeSegmentController.delete() 写接口缺少授权注解（@PreAuthorize/
 KnowledgeSegmentController.semanticSearch() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 KnowledgeSegmentController.toggleEnabled() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 KnowledgeSegmentController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-LivechatController.acceptSession() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-LivechatController.closeSession() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-LivechatController.collaborate() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-LivechatController.goOffline() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-LivechatController.goOnline() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-LivechatController.sendMessage() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-LivechatController.transfer() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 MailAccountController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 MailAccountController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 MailTemplateController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
@@ -185,14 +176,6 @@ TeamController.addMember() 写接口缺少授权注解（@PreAuthorize/@AccessCo
 TeamController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TeamController.decompose() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TeamController.updateStatus() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.assign() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.closeTicket() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.confirm() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.createTicket() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.reopen() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.scanOverdue() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.submitRating() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-TicketController.transferTicket() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TodoController.updateStatus() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TrackingController.reportEvents() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TrashController.purge() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）

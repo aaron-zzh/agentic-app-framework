@@ -67,6 +67,10 @@ public class ImageGenerationTool {
                                                     request.prompt().replace("\"", "\\\""), model),
                                     width,
                                     height,
+                                    null,
+                                    null,
+                                    true,
+                                    null,
                                     null);
                     // 工具调用场景无用户上下文，使用系统用户 ID 0
                     mediaAssetService.saveFromGeneration(0L, saveDto);

@@ -1,59 +1,84 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image;
 
-import java.util.List;
-
 import org.springframework.stereotype.Component;
+
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 图像生成服务工厂，根据 modelId 前缀路由到对应实现。
+ * 图像生成服务工厂，根据模型类型路由到对应实现。
  *
- * <p>路由规则（modelId 前缀）：
+ * <p>路由规则（按 providerType）：
  *
  * <ul>
- *   <li>{@code qwen-image*} / {@code wanx*} → {@link WanxImageGenerationService}（异步）
- *   <li>{@code dall-e*} / 其他 → {@link SpringAiImageGenerationService}（同步）
+ *   <li>DASHSCOPE → {@link DashScopeImageGenerationService}（统一同步，内部三分支）
+ *   <li>OPENAI_COMPAT → {@link SpringAiImageGenerationService}（images/generations，如 DALL-E /
+ *       gpt-image-2）
+ *   <li>其他 → 抛出 {@link IllegalArgumentException}
  * </ul>
+ *
+ * <p>所有 DASHSCOPE 模型均走同步路径（{@link #isAsyncModel} 返回 false）， 由 {@code AigcTaskExecutor.submitSync} 的
+ * {@code @Async} 包装为非阻塞任务。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ImageServiceFactory {
 
-    private final List<AsyncImageGenerationService> asyncServices;
-    private final List<ImageGenerationService> syncServices;
+    private final ChatBasedImageGenerationService chatBasedService;
+    private final DashScopeImageGenerationService dashScopeService;
+    private final DashScopeAsyncImageService dashScopeAsyncService;
+    private final GeminiNativeImageGenerationService geminiNativeService;
+    private final SpringAiImageGenerationService springAiService;
+    private final AiModelRepository modelRepository;
 
-    /**
-     * 根据 modelId 获取异步图像生成服务（wanx 系列）。
-     *
-     * @throws IllegalStateException 无可用实现时
-     */
-    public AsyncImageGenerationService getAsyncService(String modelId) {
-        if (asyncServices.isEmpty()) {
-            throw new IllegalStateException("无可用的异步图像生成服务，请检查 DASHSCOPE_API_KEY 配置");
-        }
-        // 当前只有 WanxImageGenerationService，直接返回第一个
-        return asyncServices.get(0);
+    /** 获取异步图像生成服务（供旧路径 AiImageService 使用）。 */
+    public AsyncImageGenerationService getAsyncService(String modelName) {
+        return dashScopeAsyncService;
     }
 
-    /**
-     * 根据 modelId 获取同步图像生成服务（DALL-E 等）。
-     *
-     * @throws IllegalStateException 无可用实现时
-     */
+    /** 根据 modelId 获取图像生成服务。 */
     public ImageGenerationService getSyncService(String modelId) {
-        if (syncServices.isEmpty()) {
-            throw new IllegalStateException("无可用的同步图像生成服务，请检查 Spring AI 配置");
+        var model = modelRepository.findByModelIdAndEnabledTrue(modelId).orElse(null);
+        log.info("[ImageServiceFactory] getSyncService: modelId={}", modelId);
+        if (model == null) {
+            throw new IllegalArgumentException("模型不存在或已禁用: " + modelId);
         }
-        return syncServices.get(0);
+        var providerType = model.effectiveProviderType();
+        return switch (providerType) {
+            case DASHSCOPE -> dashScopeService;
+            // case OPENAI_CHAT -> {
+            //     log.info("[ImageServiceFactory] 路由到 ChatBasedImageGenerationService: modelId={}",
+            // modelId);
+            //     yield chatBasedService;
+            // }
+            case OPENAI_COMPAT -> {
+                // Gemini image 模型需走原生 generateContent 接口，不能用 OpenAI images/generations
+                if (model.getModelName() != null
+                        && model.getModelName().startsWith("gemini-")
+                        && model.hasCapability("IMAGE_GEN")) {
+                    log.info(
+                            "[ImageServiceFactory] 路由到 GeminiNativeImageGenerationService: modelId={}",
+                            modelId);
+                    yield geminiNativeService;
+                }
+                yield springAiService;
+            }
+            default ->
+                    throw new IllegalArgumentException(
+                            "模型 " + modelId + " 的协议类型 " + providerType + " 不支持图像生成");
+        };
     }
 
-    /** 判断 modelId 是否为异步模型（wanx / qwen-image 系列） */
-    public boolean isAsyncModel(String modelId) {
-        if (modelId == null) return true; // 默认走异步（wanx）
-        String lower = modelId.toLowerCase();
-        return lower.startsWith("wanx") || lower.startsWith("qwen-image");
+    /**
+     * 判断是否为异步图像生成模型。
+     *
+     * <p>当前所有支持的图像模型均走同步路径，统一返回 false。
+     */
+    public boolean isAsyncModel(AiModel model) {
+        return false;
     }
 }
