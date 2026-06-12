@@ -24,6 +24,12 @@ public class BillingQueryService {
     private final CreditService creditService;
     private final EntitlementLedgerRepository ledgerRepository;
 
+    /** 积分余额 */
+    @Transactional(readOnly = true)
+    public long getCreditBalance(Long userId) {
+        return creditService.getBalance(userId);
+    }
+
     /** 积分流水分页查询 */
     @Transactional(readOnly = true)
     public Page<CreditTransaction> getCreditTransactions(Long userId, Pageable pageable) {

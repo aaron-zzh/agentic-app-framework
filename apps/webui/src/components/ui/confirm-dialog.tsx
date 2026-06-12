@@ -41,7 +41,7 @@ export function ConfirmDialog({
   description,
   confirmText = "确认",
   cancelText = "取消",
-  variant = "destructive",
+  variant = "default",
   onConfirm
 }: ConfirmDialogProps) {
   return (
@@ -62,7 +62,7 @@ export function ConfirmDialog({
             }}
             className={
               variant === "destructive"
-                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                ? "bg-destructive text-white hover:bg-destructive/90"
                 : undefined
             }
           >

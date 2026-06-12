@@ -5,7 +5,7 @@
 
 "use client"
 
-import { Image, Layers, PenLine, Video } from "lucide-react"
+import { Image, Layers, Music, PenLine, Video } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -33,14 +33,8 @@ const PROJECT_TYPES = [
     icon: Video,
     route: "video"
   },
-  {
-    value: "VIDEO_DRAMA",
-    label: "视频剧集",
-    desc: "分镜 + 时间轴编排",
-    icon: Video,
-    route: "video"
-  },
-  { value: "MIXED", label: "综合项目", desc: "图像 + 视频 + 文案", icon: Layers, route: "image" }
+  { value: "MUSIC", label: "音乐生成", desc: "AI 作词作曲生成歌曲", icon: Music, route: "music" },
+  { value: "MODEL_3D", label: "3D 生成", desc: "文本/图片生成 3D 模型", icon: Layers, route: "3d" }
 ] as const
 
 export default function AigcNewProjectPage() {
@@ -140,7 +134,7 @@ export default function AigcNewProjectPage() {
               placeholder="描述你想要创作的内容，AI 将根据此提示词生成素材..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="min-h-[120px] resize-y"
+              className="min-h-[100px] resize-y"
             />
           </div>
 
@@ -154,7 +148,7 @@ export default function AigcNewProjectPage() {
               }}
               preset="richField"
               mode="markdown"
-              minHeight={200}
+              minHeight={140}
               placeholder="添加项目简介，支持富文本格式..."
             />
           </div>

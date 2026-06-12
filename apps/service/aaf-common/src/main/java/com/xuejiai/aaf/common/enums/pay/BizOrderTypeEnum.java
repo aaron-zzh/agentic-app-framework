@@ -11,7 +11,8 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum BizOrderTypeEnum implements ArrayValuable<String> {
-    RECHARGE("RECHARGE", "充值"),
+    RECHARGE("RECHARGE", "直接充值"),
+    CREDIT_PACKAGE("CREDIT_PACKAGE", "积分套餐购买"),
     PURCHASE("PURCHASE", "购买"),
     SUBSCRIPTION("SUBSCRIPTION", "订阅");
 

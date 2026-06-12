@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageProcessService;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 import com.xuejiai.aaf.module.examples.image.service.ImageExampleService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +37,7 @@ public class ImageExampleController {
 
     @Operation(summary = "文生图（DALL-E / wanx）")
     @PostMapping("/generate")
-    public Result<ImageGenerationService.ImageResult> generate(
+    public Result<ImageResult> generate(
             @Valid @RequestBody ImageExampleService.GenerateRequest req) {
         return Result.success(imageExampleService.generate(req));
     }

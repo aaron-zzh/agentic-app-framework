@@ -19,6 +19,7 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 ('ai',       'ai.token_quota_per_user',      '100000',      '100000',      'integer', '用户 Token 配额',         '每用户每月 Token 使用上限，0=不限制',                  TRUE,  TRUE),
 ('ai',       'ai.credit_warn_threshold',     '10',          '10',          'integer', '积分预警阈值',             '用户积分低于此值时发送预警通知，提示充值',             TRUE,  TRUE),
 ('ai',       'ai.free_assistant_credit_cap', '100',         '100',         'integer', '免费助理虚拟用户预算上限', '免费助理入口绑定的系统虚拟用户每月积分预算上限',       TRUE,  TRUE),
+('ai',       'ai.token_markup_rate',         '10',          '10',          'integer', 'Token计费加价倍数',       '相对供应商成本的加价倍数，默认10倍（1积分=1元）', TRUE, TRUE),
 ('brand',    'brand.company_name',           '学记智能',    '学记智能',    'string',  '公司名称',            '显示在邮件、页面标题等位置',           TRUE,  TRUE),
 ('brand',    'brand.logo_url',               NULL,          NULL,          'string',  'Logo URL',            '系统 Logo 图片地址',                   TRUE,  TRUE)
 ON CONFLICT (config_key) DO NOTHING;
@@ -124,9 +125,9 @@ WHERE o.type = 'personal' AND o.owner_id = (SELECT id FROM sys_user WHERE userna
 
 INSERT INTO credit_token_rule (name, credit_amount, token_amount, status, priority, remark)
 VALUES
-    ('基础套餐',   1000,  10000,  'ENABLED', 10, '1000积分=10000 Token'),
-    ('标准套餐',   5000,  55000,  'ENABLED', 5,  '5000积分=55000 Token（赠10%）'),
-    ('高级套餐',   10000, 120000, 'ENABLED', 1,  '10000积分=120000 Token（赠20%）')
+    ('基础套餐',   100,  100,  'ENABLED', 10, '100元=100积分'),
+    ('标准套餐',   500,  550,  'ENABLED', 5,  '500元=550积分（赠10%）'),
+    ('高级套餐',   1000, 1200, 'ENABLED', 1,  '1000元=1200积分（赠20%）')
 ON CONFLICT DO NOTHING;
 
 
@@ -134,21 +135,49 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible) VALUES
 (NULL, '概览', NULL, NULL, 0, 'GROUP', true),
-(1, '工作台', '/dashboard', 'layout-dashboard', 0, 'MENU', true),
 (NULL, 'AI 创作', NULL, NULL, 10, 'GROUP', true),
-(3, '图像生成', '/aigc', 'sparkles', 0, 'MENU', true),
-(3, '视频生成', '/aigc/video', 'video', 1, 'MENU', true),
-(3, '3D 生成', '/aigc/3d', 'box', 2, 'MENU', true),
-(3, '素材库', '/aigc/assets', 'image', 3, 'MENU', true),
 (NULL, '开发工具', NULL, NULL, 20, 'GROUP', false),
-(8, '文档管理', '/dev/docs', 'file-text', 0, 'MENU', false),
-(8, '开发日志', '/dev/log', 'scroll-text', 1, 'MENU', false),
-(8, '代码审查', '/dev/review', 'git-pull-request', 2, 'MENU', false),
-(8, '迭代统计', '/dev/stats', 'bar-chart-3', 3, 'MENU', false),
-(NULL, '系统', NULL, NULL, 99, 'GROUP', true),
-(13, 'AI 模型', '/system/model', 'cpu', 0, 'MENU', true),
-(13, '回收站', '/trash', 'trash-2', 1, 'MENU', true),
-(13, '设置', '/settings', 'settings', 2, 'MENU', true)
+(NULL, '系统', NULL, NULL, 99, 'GROUP', true)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '工作台', '/dashboard', 'layout-dashboard', 0, 'MENU', true FROM sys_menu WHERE title = '概览' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '创作项目', '/aigc', 'sparkles', 0, 'MENU', true FROM sys_menu WHERE title = 'AI 创作' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '素材库', '/aigc/assets', 'image', 1, 'MENU', true FROM sys_menu WHERE title = 'AI 创作' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '文档管理', '/dev/docs', 'file-text', 0, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '开发日志', '/dev/log', 'scroll-text', 1, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '代码审查', '/dev/review', 'git-pull-request', 2, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '迭代统计', '/dev/stats', 'bar-chart-3', 3, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, 'AI 模型', '/system/model', 'cpu', 0, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '回收站', '/trash', 'trash-2', 1, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '设置', '/settings', 'settings', 2, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
 ON CONFLICT DO NOTHING;
 
 
@@ -338,10 +367,13 @@ ON CONFLICT (tool_name) DO UPDATE SET
     sort_order = EXCLUDED.sort_order,
     update_time = CURRENT_TIMESTAMP;
 
--- ==================== FREE 套餐 ====================
+-- ==================== 订阅套餐 ====================
 
-INSERT INTO subscription_plan (code, name, duration_days, price, market_price, status, sort)
-VALUES ('FREE', '免费套餐', 0, 0, 0, 'ENABLED', 0)
+INSERT INTO subscription_plan (code, name, duration_days, price, market_price, monthly_credits, status, sort)
+VALUES
+    ('FREE', '免费套餐', 0,  0,    0,     0,    'ENABLED', 0),
+    ('PRO',  '专业版',   30, 2900, 3900,  500,  'ENABLED', 1),
+    ('TEAM', '团队版',   30, 9900, 12900, 2000, 'ENABLED', 2)
 ON CONFLICT DO NOTHING;
 
 -- ==================== FREE 套餐权益挂接 ====================
@@ -429,7 +461,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT r.id, m.id
 FROM sys_role r
-JOIN sys_menu m ON m.title IN ('概览', '工作台', 'AI 创作', '图像生成', '素材库')
+JOIN sys_menu m ON m.title IN ('概览', '工作台', 'AI 创作', '创作项目', '素材库')
 WHERE r.code = 'sales'
 ON CONFLICT DO NOTHING;
 

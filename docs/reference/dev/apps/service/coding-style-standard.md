@@ -707,6 +707,7 @@ private void doSomething() {
 | 缩进风格 | AOSP（4 空格） | 比 Google 默认 2 空格更易读 |
 | import 顺序 | `java` → `javax` → `org` → `com` → `com.xuejiai` → 静态 | 分组清晰 |
 | 未使用 import | 自动移除 | — |
+| 全限定类名 | 禁止在字段/方法/参数中使用全限定类名（如 `com.xxx.Foo field`），必须在文件头 import 后使用短名 | 可读性 |
 | 尾部空白 | 自动清除 | — |
 | 文件末尾 | 强制换行 | — |
 

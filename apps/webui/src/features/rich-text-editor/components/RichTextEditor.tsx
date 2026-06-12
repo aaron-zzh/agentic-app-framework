@@ -43,7 +43,8 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin"
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin"
 import { ListPlugin } from "@lexical/react/LexicalListPlugin"
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin"
-import { useEffect, useRef, useState } from "react"
+import { $getRoot, $getSelection, $isRangeSelection } from "lexical"
+import { useEffect, useImperativeHandle, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils/cn"
 import { htmlToEditorState } from "../converters/html"
@@ -74,7 +75,8 @@ export function RichTextEditor({
   onMentionSearch,
   resizable = false,
   fill = false,
-  className
+  className,
+  ref
 }: RichTextEditorProps) {
   const uid = useRef(`${presetName}-${Math.random().toString(36).slice(2)}`)
   const initialConfig = {
@@ -98,6 +100,7 @@ export function RichTextEditor({
     >
       <LexicalComposer initialConfig={initialConfig}>
         <EditorInner
+          ref={ref}
           preset={presetName}
           value={value}
           onChange={onChange}
@@ -128,7 +131,8 @@ function EditorInner({
   uploadEndpoint,
   onMentionSearch,
   fill,
-  isInitialized
+  isInitialized,
+  ref
 }: RichTextEditorProps & {
   preset: PresetName
   isInitialized: React.MutableRefObject<boolean>
@@ -136,6 +140,30 @@ function EditorInner({
   const preset = presets[presetName]
   const [editor] = useLexicalComposerContext()
   const [anchorElem, setAnchorElem] = useState<HTMLElement | null>(null)
+
+  // 暴露 insertText / clear 给父组件
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertText: (text: string) => {
+        editor.update(() => {
+          const root = $getRoot()
+          root.selectEnd()
+          const sel = $getSelection()
+          if ($isRangeSelection(sel)) {
+            sel.insertText(text)
+          }
+        })
+      },
+      clear: () => {
+        editor.update(() => {
+          $getRoot().clear()
+        })
+        isInitialized.current = false
+      }
+    }),
+    [editor, isInitialized]
+  )
 
   // 初始值注入（按 mode 选择转换器）
   useEffect(() => {
@@ -207,3 +235,5 @@ function EditorInner({
     </div>
   )
 }
+
+export default RichTextEditor

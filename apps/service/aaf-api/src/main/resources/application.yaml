@@ -35,18 +35,19 @@ aaf:
     allow-credentials: true
     max-age: 3600
   ai:
-    default-model: default
+    default-model: deepseek:chat
     fallback-model: default
     # 各能力兜底 modelId，优先级：DB(ai_model_preference) > 此处 > 代码内置默认值
     default-models:
-      IMAGE_GEN: qwen-image-plus
-      VIDEO_GEN: wan2.6-i2v-flash
-      SPEECH_ASR: fun-asr-realtime
-      SPEECH_TTS: cosyvoice-v3-flash
-      MUSIC_GEN: fun-music-v1
-      OMNI_REALTIME: qwen3-omni-flash-realtime
-      RERANK: gte-rerank-v2
-      EMBEDDING: text-embedding-v3
+      CHAT: deepseek:chat
+      IMAGE_GEN: qwen:wan2.7-image
+      VIDEO_GEN: qwen:happyhorse-1.0-i2v
+      SPEECH_ASR: qwen:fun-asr-realtime
+      SPEECH_TTS: qwen:cosyvoice-v3-flash
+      MUSIC_GEN: qwen:fun-music-v1
+      OMNI_REALTIME: qwen:qwen3-omni-flash-realtime
+      RERANK: qwen:qwen3-rerank
+      EMBEDDING: qwen:text-embedding-v4
     prompts:
       chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
   task:

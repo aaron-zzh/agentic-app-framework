@@ -40,16 +40,16 @@ public class AiAutoConfiguration {
                                 CapabilityRoutingContext.CAP_CHAT,
                                         properties.getDefaultModel() != null
                                                 ? properties.getDefaultModel()
-                                                : "deepseek-v4-pro",
-                                CapabilityRoutingContext.CAP_IMAGE_GEN, "qwen-image-plus",
-                                CapabilityRoutingContext.CAP_VIDEO_GEN, "wan2.6-i2v-flash",
-                                CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen3-asr-flash",
-                                CapabilityRoutingContext.CAP_SPEECH_TTS, "cosyvoice-v3-flash",
-                                CapabilityRoutingContext.CAP_MUSIC_GEN, "fun-music-v1",
+                                                : "deepseek:chat",
+                                CapabilityRoutingContext.CAP_IMAGE_GEN, "qwen:wan2.7-image",
+                                CapabilityRoutingContext.CAP_VIDEO_GEN, "qwen:happyhorse-1.0-i2v",
+                                CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen:fun-asr-realtime",
+                                CapabilityRoutingContext.CAP_SPEECH_TTS, "qwen:cosyvoice-v3-flash",
+                                CapabilityRoutingContext.CAP_MUSIC_GEN, "qwen:fun-music-v1",
                                 CapabilityRoutingContext.CAP_OMNI_REALTIME,
-                                        "qwen3-omni-flash-realtime",
-                                CapabilityRoutingContext.CAP_RERANK, "gte-rerank-v2",
-                                CapabilityRoutingContext.CAP_EMBEDDING, "text-embedding-v3"));
+                                        "qwen:qwen3-omni-flash-realtime",
+                                CapabilityRoutingContext.CAP_RERANK, "qwen:qwen3-rerank",
+                                CapabilityRoutingContext.CAP_EMBEDDING, "qwen:text-embedding-v4"));
         // yaml 配置覆盖内置默认值
         if (properties.getDefaultModels() != null) {
             builtIn.putAll(properties.getDefaultModels());

@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.ai.aigc.task;
+package com.xuejiai.aaf.module.ai.aigc.task.vo;
 
 import java.util.List;
 
@@ -28,7 +28,9 @@ public record ImageTaskRequest(
         /** AI 模型显示名称，如 豆包图像生成，存入素材记录 */
         String modelName,
         /** 模型供应商编码，如 volcengine，存入素材记录 */
-        String providerCode) {
+        String providerCode,
+        /** 所属项目 ID */
+        Long projectId) {
 
     /** 序列化为 JSON 存入 aigc_task.params，供 AigcTaskExecutor 读取。 */
     public String toParamsJson() {

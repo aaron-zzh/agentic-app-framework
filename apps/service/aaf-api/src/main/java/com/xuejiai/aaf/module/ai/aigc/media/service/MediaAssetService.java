@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.ai.aigc.media.service;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -10,8 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetVariant;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
@@ -41,7 +41,7 @@ public class MediaAssetService {
     private final MediaAssetVariantRepository variantRepository;
     private final MediaAssetGroupRepository groupRepository;
     private final ImageServiceFactory imageServiceFactory;
-    private final com.xuejiai.aaf.framework.storage.FileService fileService;
+    private final FileService fileService;
 
     /**
      * 分页查询素材。
@@ -54,9 +54,11 @@ public class MediaAssetService {
      */
     @Transactional(readOnly = true)
     public Page<MediaAssetVO> page(
-            Long userId, MediaAssetType type, Long categoryId, Pageable pageable) {
+            Long userId, MediaAssetType type, Long categoryId, Long projectId, Pageable pageable) {
         Page<MediaAsset> page;
-        if (type != null) {
+        if (projectId != null) {
+            page = assetRepository.findByUserIdAndProjectId(userId, projectId, pageable);
+        } else if (type != null) {
             page = assetRepository.findByUserIdAndType(userId, type, pageable);
         } else if (categoryId != null) {
             page = assetRepository.findByUserIdAndCategoryId(userId, categoryId, pageable);
@@ -115,8 +117,6 @@ public class MediaAssetService {
         asset.setAiGenerated(Boolean.TRUE.equals(dto.aiGenerated()));
         asset.setModelName(dto.modelName());
         asset.setProviderCode(dto.providerCode());
-        // AI 自动打标
-        autoTag(asset);
         return toVO(assetRepository.save(asset));
     }
 
@@ -209,8 +209,7 @@ public class MediaAssetService {
         asset.setAiGenerated(Boolean.TRUE.equals(dto.aiGenerated()));
         asset.setModelName(dto.modelName());
         asset.setProviderCode(dto.providerCode());
-        // AI 自动打标
-        autoTag(asset);
+        if (dto.projectId() != null) asset.setProjectId(dto.projectId());
         return toVO(assetRepository.save(asset));
     }
 
@@ -245,7 +244,6 @@ public class MediaAssetService {
         variant.setWidth(original.getWidth());
         variant.setHeight(original.getHeight());
         variant.setGenerationParams("{\"prompt\":\"%s\"}".formatted(prompt.replace("\"", "\\\"")));
-        autoTag(variant);
         variant = assetRepository.save(variant);
 
         // 创建变体关联
@@ -294,33 +292,6 @@ public class MediaAssetService {
         return assetRepository
                 .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "素材不存在"));
-    }
-
-    /** AI 自动打标：从 generationParams 中的 prompt 提取前 5 个逗号分隔的词作为 tags。 */
-    private void autoTag(MediaAsset asset) {
-        if (asset.getTags() != null && !asset.getTags().isBlank()) return;
-        var params = asset.getGenerationParams();
-        if (params == null || params.isBlank()) return;
-        // 简单提取 prompt 字段值
-        var promptStart = params.indexOf("\"prompt\"");
-        if (promptStart < 0) return;
-        var valueStart = params.indexOf(":", promptStart);
-        if (valueStart < 0) return;
-        var quoteStart = params.indexOf("\"", valueStart + 1);
-        if (quoteStart < 0) return;
-        var quoteEnd = params.indexOf("\"", quoteStart + 1);
-        if (quoteEnd < 0) return;
-        var prompt = params.substring(quoteStart + 1, quoteEnd);
-        // 取前 5 个逗号分隔的词
-        var tags =
-                Arrays.stream(prompt.split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .limit(5)
-                        .toList();
-        if (!tags.isEmpty()) {
-            asset.setTags(String.join(",", tags));
-        }
     }
 
     /** 从素材的 generationParams 中提取 prompt。 */

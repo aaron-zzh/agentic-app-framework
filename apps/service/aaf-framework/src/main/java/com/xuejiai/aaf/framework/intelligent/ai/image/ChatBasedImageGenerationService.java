@@ -9,6 +9,9 @@ import org.springframework.ai.content.Media;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,10 +31,12 @@ public class ChatBasedImageGenerationService implements ImageGenerationService {
 
     @Override
     public ImageResult generate(ImageRequest request) {
-        log.info("[ChatBasedImage] 开始生成: modelId={}", request.modelId());
-        var client = chatClientFactory.get(request.modelId());
+        log.info("[ChatBasedImage] 开始生成: modelId={}", request.getModelId());
+        var client = chatClientFactory.get(request.getModelId());
         var response =
-                client.prompt(new Prompt(new UserMessage(request.prompt()))).call().chatResponse();
+                client.prompt(new Prompt(new UserMessage(request.getPrompt())))
+                        .call()
+                        .chatResponse();
 
         // 从响应中提取图片：优先取 media 附件，否则尝试解析 base64 文本
         var result = response.getResult();
@@ -46,18 +51,18 @@ public class ChatBasedImageGenerationService implements ImageGenerationService {
                             .findFirst()
                             .orElse(mediaList.get(0));
             String b64 = Base64.getEncoder().encodeToString((byte[]) media.getData());
-            log.info("[ChatBasedImage] 生成完成（media）: modelId={}", request.modelId());
-            return new ImageResult(null, b64, request.modelId());
+            log.info("[ChatBasedImage] 生成完成（media）: modelId={}", request.getModelId());
+            return new ImageResult(null, b64, request.getModelId());
         }
 
         // fallback：文本内容本身就是 base64
         String text = content.getText();
         if (text != null && !text.isBlank()) {
-            log.info("[ChatBasedImage] 生成完成（text b64）: modelId={}", request.modelId());
-            return new ImageResult(null, text.trim(), request.modelId());
+            log.info("[ChatBasedImage] 生成完成（text b64）: modelId={}", request.getModelId());
+            return new ImageResult(null, text.trim(), request.getModelId());
         }
 
-        throw new IllegalStateException("chat/completions 未返回图片内容，modelId=" + request.modelId());
+        throw new IllegalStateException("chat/completions 未返回图片内容，modelId=" + request.getModelId());
     }
 
     @Override

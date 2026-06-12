@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.ai.aigc.task;
+package com.xuejiai.aaf.module.ai.aigc.task.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -7,13 +7,17 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 
 /**
  * AIGC 统一任务 Repository。
  *
  * @author Kiro
  */
-public interface AigcTaskRepository extends JpaRepository<AigcTask, Long> {
+public interface AigcTaskRepository
+        extends JpaRepository<AigcTask, Long>, JpaSpecificationExecutor<AigcTask> {
 
     /** 按用户分页查询（最新在前） */
     Page<AigcTask> findByUserIdOrderByCreateTimeDesc(Long userId, Pageable pageable);

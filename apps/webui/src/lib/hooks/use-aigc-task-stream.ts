@@ -14,7 +14,7 @@ import { useAuthStore } from "@/lib/store/auth-store"
 export interface AigcTaskEvent {
   id: number
   userId: number
-  type: "IMAGE" | "VIDEO" | "MODEL_3D"
+  type: "IMAGE" | "VIDEO" | "MUSIC" | "MODEL_3D"
   status: "PENDING" | "RUNNING" | "SUCCESS" | "FAIL"
   provider?: string
   model?: string

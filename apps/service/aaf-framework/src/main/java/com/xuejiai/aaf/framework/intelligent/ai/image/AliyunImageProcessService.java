@@ -10,6 +10,7 @@ import com.aliyun.imageenhan20190930.models.EnhanceImageColorAdvanceRequest;
 import com.aliyun.imageenhan20190930.models.GenerateCartoonizedImageAdvanceRequest;
 import com.aliyun.imageenhan20190930.models.GetAsyncJobResultRequest;
 import com.aliyun.teautil.models.RuntimeOptions;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @ConditionalOnBean(Client.class)
 public class AliyunImageProcessService implements ImageProcessService {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final Client client;
 
@@ -80,9 +83,7 @@ public class AliyunImageProcessService implements ImageProcessService {
             var data = resp.getBody().getData();
             return switch (data.getStatus()) {
                 case "PROCESS_SUCCESS" -> {
-                    var node =
-                            new com.fasterxml.jackson.databind.ObjectMapper()
-                                    .readTree(data.getResult());
+                    var node = MAPPER.readTree(data.getResult());
                     yield ProcessResult.success(node.path("resultUrl").asText());
                 }
                 case "PROCESS_FAILED", "TIMEOUT_FAILED" ->

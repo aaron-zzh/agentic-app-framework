@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 import { SmartPointerSensor } from "@/features/aigc/SmartPointerSensor"
 import { useAigcStore } from "@/features/aigc/store"
+import type { MediaAssetVO } from "@/features/aigc/types"
 import { mediaAssetApi } from "@/lib/api/rest/media/media-asset"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
@@ -51,12 +52,12 @@ export function GlobalDndContext({ children }: GlobalDndContextProps) {
     const aigc = useAigcStore.getState()
 
     if (overId === "generation-drop-zone") {
-      aigc.addReferenceAsset(item)
+      aigc.addReferenceAsset(item as unknown as MediaAssetVO)
       return
     }
 
     if (overId === "storyboard-drop-zone") {
-      aigc.addStoryboardAsset(item)
+      aigc.addStoryboardAsset(item as unknown as MediaAssetVO)
       return
     }
     if (overId.startsWith("group-")) {

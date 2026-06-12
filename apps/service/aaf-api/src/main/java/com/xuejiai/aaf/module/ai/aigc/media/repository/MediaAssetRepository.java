@@ -16,6 +16,8 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, Long> {
 
     Page<MediaAsset> findByUserId(Long userId, Pageable pageable);
 
+    Page<MediaAsset> findByUserIdAndProjectId(Long userId, Long projectId, Pageable pageable);
+
     Page<MediaAsset> findByUserIdAndType(Long userId, MediaAssetType type, Pageable pageable);
 
     Page<MediaAsset> findByUserIdAndCategoryId(Long userId, Long categoryId, Pageable pageable);

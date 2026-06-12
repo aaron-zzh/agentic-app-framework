@@ -20,6 +20,7 @@ export interface AuthUser {
   email: string
   nickname: string
   avatar?: string
+  roles?: string[]
 }
 
 interface AuthState {

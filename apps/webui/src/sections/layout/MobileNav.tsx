@@ -46,15 +46,14 @@ export function MobileNav() {
 /** 移动端侧边栏内容（复用导航配置） */
 function MobileSidebarContent() {
   const pathname = usePathname()
-  const { data: menus, isError } = useUserMenus()
+  const { data: menus } = useUserMenus()
   const { data: license } = useLicenseStatus()
   const navConfig = useMemo(() => {
     const appendOfficial = (groups: NavGroup[]) =>
       license?.owner ? [...groups, buildOfficialNavConfig()] : groups
     if (menus) return appendOfficial(buildNavFromApi(menus))
-    if (isError) return appendOfficial(buildNavConfig())
     return appendOfficial(buildNavConfig())
-  }, [menus, isError, license?.owner])
+  }, [menus, license?.owner])
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">

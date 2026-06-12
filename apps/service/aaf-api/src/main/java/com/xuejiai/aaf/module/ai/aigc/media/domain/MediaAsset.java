@@ -104,4 +104,8 @@ public class MediaAsset extends BaseEntity {
     /** 所属用户 ID */
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    /** 所属项目 ID，NULL 表示全局素材 */
+    @Column(name = "project_id")
+    private Long projectId;
 }

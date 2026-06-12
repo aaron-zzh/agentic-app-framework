@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageProcessService;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +32,9 @@ public class ImageExampleService {
     private final ImageProcessService imageProcessService;
 
     /** 文生图示例 */
-    public ImageGenerationService.ImageResult generate(GenerateRequest req) {
+    public ImageResult generate(GenerateRequest req) {
         return imageGenerationService.generate(
-                new ImageGenerationService.ImageRequest(
-                        req.prompt(), req.modelId(), req.width(), req.height(), "url"));
+                new ImageRequest(req.prompt(), req.modelId(), req.width(), req.height(), "url"));
     }
 
     /** 图像处理示例 */

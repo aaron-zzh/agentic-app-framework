@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { backendApi } from "@/lib/api/rest/backend-client"
 import type { PageResult } from "@/lib/api/types"
 import { notify } from "@/lib/notification"
+import * as $url from "@/lib/utils/asset-url"
 import { cn } from "@/lib/utils/cn"
 
 type ModelKind = "文本" | "图像" | "音视频" | "检索"
@@ -44,6 +45,8 @@ interface BackendAiModel {
   modelName: string
   inputPricePerK?: number | null
   outputPricePerK?: number | null
+  modelPrice?: number | null
+  quotaType?: number | null
   capabilities?: string | null
   enabled: boolean
 }
@@ -108,6 +111,7 @@ function adaptBackendModel(model: BackendAiModel): ModelCard {
       if (item === "EMBEDDING") return "向量"
       return item
     })
+  const isByUnit = model.quotaType === 1
   return {
     id: model.modelId,
     name: model.displayName || model.modelName,
@@ -118,9 +122,10 @@ function adaptBackendModel(model: BackendAiModel): ModelCard {
     kind,
     tags,
     description: `${model.providerType} 协议模型，实际调用名称 ${model.modelName}`,
-    inputPrice: model.inputPricePerK ? model.inputPricePerK * 1000 : undefined,
-    outputPrice: model.outputPricePerK ? model.outputPricePerK * 1000 : undefined,
-    billing: "按量计费",
+    inputPrice: model.inputPricePerK != null ? model.inputPricePerK * 1000 : undefined,
+    outputPrice: model.outputPricePerK != null ? model.outputPricePerK * 1000 : undefined,
+    modelPrice: model.modelPrice != null ? model.modelPrice : undefined,
+    billing: isByUnit ? "按次计费" : "按量计费",
     enabled: model.enabled
   }
 }
@@ -254,7 +259,14 @@ export default function ModelManagementPage() {
           </aside>
 
           <section className="space-y-4 p-4 sm:p-5">
-            <div className="relative overflow-hidden rounded-md bg-[linear-gradient(100deg,#dff2fb_0%,#e8eefc_45%,#f7dfef_100%)] px-5 py-6">
+            <div
+              className="relative overflow-hidden rounded-md px-5 py-6"
+              style={{
+                backgroundImage: `linear-gradient(100deg,rgba(223,242,251,0.92) 0%,rgba(232,238,252,0.88) 45%,rgba(247,223,239,0.85) 100%), url('${$url.cdn("/assets/images/cover/cover-2.webp")}')`,
+                backgroundSize: "cover",
+                backgroundPosition: "center"
+              }}
+            >
               <div className="flex min-h-24 items-center justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
@@ -476,7 +488,7 @@ function PriceBlock({ model }: { model: ModelCard }) {
   if (model.modelPrice !== undefined) {
     return (
       <p className="text-slate-500 text-xs">
-        模型价格 <span className="font-medium text-slate-700">{formatPrice(model.modelPrice)}</span>
+        按次 <span className="font-medium text-slate-700">¥{model.modelPrice.toFixed(4)}/次</span>
       </p>
     )
   }
@@ -485,14 +497,12 @@ function PriceBlock({ model }: { model: ModelCard }) {
     <div className="space-y-0.5 text-xs">
       {model.inputPrice !== undefined && (
         <p className="text-slate-500">
-          输入价格{" "}
-          <span className="font-medium text-slate-700">{formatPrice(model.inputPrice)}</span>
+          输入 <span className="font-medium text-slate-700">{formatPrice(model.inputPrice)}</span>
         </p>
       )}
       {model.outputPrice !== undefined && (
         <p className="text-slate-500">
-          补全价格{" "}
-          <span className="font-medium text-slate-700">{formatPrice(model.outputPrice)}</span>
+          输出 <span className="font-medium text-slate-700">{formatPrice(model.outputPrice)}</span>
         </p>
       )}
       {model.cachePrice !== undefined && (

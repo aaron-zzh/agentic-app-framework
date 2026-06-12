@@ -17,6 +17,7 @@ export interface UserInfo {
   email: string
   nickname: string
   avatar?: string
+  roles?: string[]
 }
 
 export const authApi = {
@@ -86,7 +87,7 @@ export const authApi = {
   },
 
   me() {
-    return request<UserInfo>("/auth/me")
+    return request<{ user: UserInfo; roles: string[] }>("/auth/me")
   },
 
   getOAuthUrl(provider: string, state: string) {

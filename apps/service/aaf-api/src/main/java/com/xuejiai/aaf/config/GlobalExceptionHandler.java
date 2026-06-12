@@ -138,9 +138,14 @@ public class GlobalExceptionHandler {
 
     /** 兜底：未知异常 */
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Result<?> handleException(Exception e, HttpServletRequest request) {
+    public ResponseEntity<Result<?>> handleException(Exception e, HttpServletRequest request) {
         log.error("未知异常: uri={}", request.getRequestURI(), e);
-        return Result.error(GlobalErrorCode.INTERNAL_SERVER_ERROR);
+        // SSE 请求已设置 text/event-stream，无法再写 JSON body，直接返回 503 空响应避免 converter 错误
+        String accept = request.getHeader("Accept");
+        if (accept != null && accept.contains("text/event-stream")) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Result.error(GlobalErrorCode.INTERNAL_SERVER_ERROR));
     }
 }

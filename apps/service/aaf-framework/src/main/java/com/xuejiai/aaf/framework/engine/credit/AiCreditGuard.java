@@ -45,4 +45,30 @@ public interface AiCreditGuard {
     default void settle(Long userId, String capability, long actualCost, String bizId) {
         settle(userId, capability, actualCost);
     }
+
+    /**
+     * 按模型 input/output token 分离计费。
+     *
+     * @param userId 用户 ID
+     * @param modelId 模型数据库 ID，用于查价格
+     * @param inputTokens 输入 token 数
+     * @param outputTokens 输出 token 数
+     * @param bizId 业务流水号
+     */
+    default void settleByModel(
+            Long userId, Long modelId, long inputTokens, long outputTokens, String bizId) {
+        // 默认降级：加总后走通用 settle
+        settle(userId, "chat", inputTokens + outputTokens, bizId);
+    }
+
+    /**
+     * 按次计费（图像/视频生成等固定单价场景）。
+     *
+     * @param userId 用户 ID
+     * @param modelId 模型数据库 ID，用于查 model_price
+     * @param bizId 业务流水号
+     */
+    default void settlePerUse(Long userId, Long modelId, String bizId) {
+        settle(userId, "image", 1, bizId);
+    }
 }

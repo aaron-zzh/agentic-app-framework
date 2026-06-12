@@ -19,6 +19,7 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary"
 import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin"
 import {
   $createParagraphNode,
+  $createTextNode,
   $getRoot,
   DecoratorNode,
   type LexicalNode,
@@ -177,6 +178,31 @@ function ProjectPromptTag({
 // 字数统计插件
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** 外部 value → 编辑器内容同步（仅在 value 变化且非用户输入时覆写） */
+function ExternalValuePlugin({ value }: { value: string }) {
+  const [editor] = useLexicalComposerContext()
+  const prevRef = useRef("")
+
+  useEffect(() => {
+    if (value === prevRef.current) return
+    prevRef.current = value
+    // 读取编辑器当前纯文本，相同则跳过（用户输入已触发 onChange → store，无需再写回）
+    const currentText = editor.getEditorState().read(() => $getRoot().getTextContent())
+    if (currentText === value) return
+    editor.update(() => {
+      const root = $getRoot()
+      for (const child of root.getChildren()) {
+        if (!(child instanceof ProjectPromptNode)) child.remove()
+      }
+      const p = $createParagraphNode()
+      p.append($createTextNode(value))
+      root.append(p)
+    })
+  }, [editor, value])
+
+  return null
+}
+
 function CharCountPlugin({ onCount }: { onCount: (n: number) => void }) {
   const [editor] = useLexicalComposerContext()
 
@@ -266,6 +292,8 @@ export interface PromptInputProps {
   placeholder?: string
   /** 项目提示词标签（null = 不展示） */
   projectPrompt?: { label: string; content: string } | null
+  /** 用户关闭项目提示词标签时回调 */
+  onDismissProjectPrompt?: () => void
   /** 最大字数限制（0 = 不限制） */
   maxLength?: number
   className?: string
@@ -277,13 +305,17 @@ export function PromptInput({
   onChange,
   placeholder = "描述你想生成的内容...",
   projectPrompt = null,
+  onDismissProjectPrompt,
   maxLength = 500,
   className,
   minHeight = 100
 }: PromptInputProps) {
   const [charCount, setCharCount] = useState(0)
   const [dismissed, setDismissed] = useState(false)
-  const handleDismiss = useCallback(() => setDismissed(true), [])
+  const handleDismiss = useCallback(() => {
+    setDismissed(true)
+    onDismissProjectPrompt?.()
+  }, [onDismissProjectPrompt])
 
   // 项目提示词内容变化时重置 dismissed
   const promptKey = `${projectPrompt?.label}::${projectPrompt?.content}`
@@ -355,6 +387,7 @@ export function PromptInput({
 
         {/* 插件 */}
         <OnChangePlugin onChange={onChange} mode="plaintext" />
+        <ExternalValuePlugin value={_value} />
         <CharCountPlugin onCount={setCharCount} />
         <ProjectPromptPlugin projectPrompt={activePrompt} onDismiss={handleDismiss} />
       </div>

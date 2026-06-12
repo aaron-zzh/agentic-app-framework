@@ -63,10 +63,11 @@ public class BizOrderService {
         bizOrderRepository.save(order);
     }
 
-    /** 标记已支付 */
+    /** 标记已支付（幂等：已 PAID 直接返回） */
     @Transactional
     public void markPaid(Long bizOrderId) {
         var order = getOrder(bizOrderId);
+        if (BizOrderStatusEnum.PAID.getCode().equals(order.getStatus())) return;
         order.setStatus(BizOrderStatusEnum.PAID.getCode());
         bizOrderRepository.save(order);
     }

@@ -1,10 +1,18 @@
 package com.xuejiai.aaf.module.pay.controller;
 
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
+import com.xuejiai.aaf.module.pay.service.BizOrderService;
+import com.xuejiai.aaf.module.pay.service.PayNotifyService;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.service.RechargeService;
 import com.xuejiai.aaf.module.pay.vo.PayNotifyDTO;
@@ -14,18 +22,43 @@ import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** 支付订单接口 */
+@Slf4j
 @Tag(name = "支付订单")
 @RestController
 @RequestMapping("/api/pay/orders")
-@RequiredArgsConstructor
 public class PayOrderController {
 
     private final PayOrderService payOrderService;
     private final RechargeService rechargeService;
+    private final BizOrderService bizOrderService;
+    private final PayNotifyService payNotifyService;
     private final OperatorContext operatorContext;
+
+    /** bizOrderType → handler，启动时自动注册所有 PaySuccessHandler Bean */
+    private final Map<String, PaySuccessHandler> handlers;
+
+    public PayOrderController(
+            PayOrderService payOrderService,
+            RechargeService rechargeService,
+            BizOrderService bizOrderService,
+            PayNotifyService payNotifyService,
+            OperatorContext operatorContext,
+            List<PaySuccessHandler> handlerList) {
+        this.payOrderService = payOrderService;
+        this.rechargeService = rechargeService;
+        this.bizOrderService = bizOrderService;
+        this.payNotifyService = payNotifyService;
+        this.operatorContext = operatorContext;
+        this.handlers =
+                handlerList.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        PaySuccessHandler::bizOrderType, Function.identity()));
+        log.info("PaySuccessHandler 注册完成: {}", this.handlers.keySet());
+    }
 
     @Operation(summary = "发起充值")
     @PreAuthorize("isAuthenticated()")
@@ -46,12 +79,11 @@ public class PayOrderController {
     }
 
     @Operation(summary = "支付回调通知")
-    @PreAuthorize("isAuthenticated()")
     @PostMapping("/notify")
     public Result<Void> notify(@Valid @RequestBody PayNotifyDTO dto) {
         var payOrderId = payOrderService.handleNotify(dto);
         if (payOrderId != null) {
-            rechargeService.onPaySuccess(payOrderId);
+            payNotifyService.onPaySuccess(payOrderId);
         }
         return Result.success();
     }

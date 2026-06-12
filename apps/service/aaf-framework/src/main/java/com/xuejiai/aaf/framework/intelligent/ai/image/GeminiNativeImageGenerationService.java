@@ -1,16 +1,20 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
-import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiEditParams;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiGenerateParams;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,101 +32,28 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class GeminiNativeImageGenerationService implements ImageGenerationService {
 
-    private final AiModelRepository modelRepository;
-    private final AiProperties aiProperties;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private final ModelManagementService modelManagementService;
 
     @Override
     public ImageResult generate(ImageRequest request) {
-        var aiModel = modelRepository.findByModelIdAndEnabledTrue(request.modelId()).orElseThrow();
-        String apiKey = resolveApiKey(aiModel);
-        String baseUrl = aiModel.effectiveBaseUrl().replaceAll("/$", "");
-        String modelName = aiModel.getModelName();
-
-        try {
-            // contents: 纯文本
-            var textPart = Map.of("text", request.prompt());
-            var userContent = Map.of("role", "user", "parts", List.of(textPart));
-
-            // generationConfig
-            var genConfig = new LinkedHashMap<String, Object>();
-            genConfig.put("responseModalities", List.of("TEXT", "IMAGE"));
-            if (request.aspectRatio() != null || request.sizePreset() != null) {
-                var imageOpts = new LinkedHashMap<String, Object>();
-                if (request.aspectRatio() != null)
-                    imageOpts.put("aspectRatio", request.aspectRatio());
-                if (request.sizePreset() != null) imageOpts.put("imageSize", request.sizePreset());
-                genConfig.put("responseFormat", Map.of("image", imageOpts));
-            }
-
-            var body = new LinkedHashMap<String, Object>();
-            body.put("contents", List.of(userContent));
-            body.put("generationConfig", genConfig);
-
-            var response =
-                    RestClient.create()
-                            .post()
-                            .uri(buildGeminiUrl(baseUrl, modelName))
-                            .header("x-goog-api-key", apiKey)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .body(body)
-                            .retrieve()
-                            .body(String.class);
-
-            String b64 = extractB64(response);
-            log.info("[GeminiNative] 生成完成: modelId={}", request.modelId());
-            return new ImageResult(null, b64, request.modelId());
-        } catch (Exception e) {
-            log.error("[GeminiNative] 生成失败: modelId={}", request.modelId(), e);
-            throw new RuntimeException("Gemini 图像生成失败: " + e.getMessage(), e);
-        }
+        var aiModel = modelManagementService.getModel(request.getModelId());
+        var config = modelManagementService.resolveImageConfig(request.getModelId());
+        var params = GeminiGenerateParams.of(request, config);
+        log.debug("[GeminiNative] generate 提交: modelId={}, prompt={}, aspectRatio={}, sizePreset={}",
+                request.getModelId(), request.getPrompt(), request.getAspectRatio(), request.getSizePreset());
+        return call(aiModel, params.toBody(), "generate", request.getModelId());
     }
 
     @Override
     public ImageResult imageToImage(ImageEditRequest request) {
-        var aiModel = modelRepository.findByModelIdAndEnabledTrue(request.model()).orElseThrow();
-        String apiKey = resolveApiKey(aiModel);
-        String baseUrl = aiModel.effectiveBaseUrl().replaceAll("/$", "");
-        String modelName = aiModel.getModelName();
-
-        try {
-            var parts = new ArrayList<Map<String, Object>>();
-            // 参考图以 base64 inline_data 传入
-            for (String imgUrl : request.allSourceUrls()) {
-                byte[] bytes = java.net.URI.create(imgUrl).toURL().openStream().readAllBytes();
-                String b64 = java.util.Base64.getEncoder().encodeToString(bytes);
-                String mime =
-                        imgUrl.contains(".jpg") || imgUrl.contains(".jpeg")
-                                ? "image/jpeg"
-                                : "image/png";
-                parts.add(Map.of("inline_data", Map.of("mime_type", mime, "data", b64)));
-            }
-            parts.add(Map.of("text", request.prompt()));
-
-            var userContent = Map.of("role", "user", "parts", parts);
-            var genConfig = new LinkedHashMap<String, Object>();
-            genConfig.put("responseModalities", List.of("TEXT", "IMAGE"));
-
-            var body = new LinkedHashMap<String, Object>();
-            body.put("contents", List.of(userContent));
-            body.put("generationConfig", genConfig);
-
-            var response =
-                    RestClient.create()
-                            .post()
-                            .uri(buildGeminiUrl(baseUrl, modelName))
-                            .header("x-goog-api-key", apiKey)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .body(body)
-                            .retrieve()
-                            .body(String.class);
-
-            String b64 = extractB64(response);
-            log.info("[GeminiNative] 图像编辑完成: modelId={}", request.model());
-            return new ImageResult(null, b64, request.model());
-        } catch (Exception e) {
-            log.error("[GeminiNative] 图像编辑失败: modelId={}", request.model(), e);
-            throw new RuntimeException("Gemini 图像编辑失败: " + e.getMessage(), e);
-        }
+        var aiModel = modelManagementService.getModel(request.getModelId());
+        var config = modelManagementService.resolveImageConfig(request.getModelId());
+        var params = GeminiEditParams.of(request, config);
+        log.debug("[GeminiNative] edit 提交: modelId={}, prompt={}, sourceUrls={}",
+                request.getModelId(), request.getPrompt(), request.allSourceUrls().size());
+        return call(aiModel, params.toBody(), "edit", request.getModelId());
     }
 
     @Override
@@ -130,17 +61,46 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
         return imageToImage(request);
     }
 
-    private String extractB64(String responseBody) {
-        if (responseBody == null || responseBody.isBlank()) return null;
+    // ========== 内部方法 ==========
+
+    private ImageResult call(AiModel aiModel, Map<String, Object> body, String op, String modelId) {
+        String apiKey = modelManagementService.resolveApiKey(modelId);
+        String baseUrl = aiModel.effectiveBaseUrl().replaceAll("/$", "");
+        String modelName = aiModel.getModelName();
         try {
-            var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(responseBody);
-            var candidates = node.path("candidates");
-            if (candidates.isMissingNode() || candidates.isEmpty()) return null;
-            var parts = candidates.get(0).path("content").path("parts");
+            log.debug("[GeminiNative] {} body: {}", op, body);
+            var response =
+                    RestClient.create()
+                            .post()
+                            .uri(buildGeminiUrl(baseUrl, modelName))
+                            .header("x-goog-api-key", apiKey)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(body)
+                            .retrieve()
+                            .body(String.class);
+
+            String b64 = extractB64(response);
+            if (b64 == null) {
+                throw new RuntimeException("Gemini 未返回图片，请检查日志中的完整响应");
+            }
+            log.info("[GeminiNative] {} 完成: modelId={}", op, modelId);
+            return new ImageResult(null, b64, modelId);
+        } catch (Exception e) {
+            log.error("[GeminiNative] {} 失败: modelId={}", op, modelId, e);
+            throw new RuntimeException("Gemini 图像" + op + "失败: " + e.getMessage(), e);
+        }
+    }
+
+    private String extractB64(String responseBody) {
+        try {
+            var node = MAPPER.readTree(responseBody);
+            var parts = node.path("candidates").get(0).path("content").path("parts");
             for (var part : parts) {
-                var inlineData = part.path("inline_data");
+                var inlineData = part.path("inlineData");
+                if (inlineData.isMissingNode()) inlineData = part.path("inline_data");
                 if (!inlineData.isMissingNode()) {
-                    return inlineData.path("data").asText(null);
+                    String data = inlineData.path("data").asText(null);
+                    if (data != null && !data.isBlank()) return data;
                 }
             }
         } catch (Exception e) {
@@ -149,20 +109,9 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
         return null;
     }
 
-    /** 从 baseUrl（如 https://llm-api.net/v1）提取根域名，拼接 /v1beta/models/... */
+    /** 从 baseUrl 提取根域名，拼接 /v1beta/models/{model}:generateContent */
     private String buildGeminiUrl(String baseUrl, String modelName) {
-        // 去掉末尾的 /v1、/v1beta 等版本路径，保留根域名
         String root = baseUrl.replaceAll("/(v\\d+beta?|v\\d+)/?$", "");
         return root + "/v1beta/models/" + modelName + ":generateContent";
-    }
-
-    private String resolveApiKey(com.xuejiai.aaf.framework.intelligent.core.model.AiModel model) {
-        String apiKey = model.effectiveApiKey();
-        if (apiKey == null || apiKey.isBlank()) {
-            var models = aiProperties.getModels();
-            var cfg = models.getOrDefault(model.getProvider(), models.get("default"));
-            if (cfg != null) apiKey = cfg.getApiKey();
-        }
-        return apiKey != null ? apiKey : "";
     }
 }

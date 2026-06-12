@@ -666,7 +666,7 @@ CREATE INDEX idx_ai_team_task_team_status ON ai_team_task (team_id, status);
 -- 注：向量列固定 vector(1536)，EMBEDDING 默认须选 1536 维模型（qwen:embedding 为 1024 维，不兼容）
 INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
 VALUES
-    ('SYSTEM', NULL, 'CHAT',      '["deepseek:chat"]'),
+    ('SYSTEM', NULL, 'CHAT',      '["n1n:claude-sonnet-4-6"]'),
     ('SYSTEM', NULL, 'EMBEDDING', '["openai:text-embedding-3"]'),
     ('SYSTEM', NULL, 'IMAGE_GEN', '["openai:dall-e-3"]')
 ON CONFLICT ON CONSTRAINT uq_model_preference DO NOTHING;
@@ -679,7 +679,10 @@ VALUES
 -- P0: OpenAI
 ('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                   'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 10,  true),
 ('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',              'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 11,  true),
-('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                         'EMBEDDING',   8191,   13,  true),
+('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,   13,  true),
+('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,   13,  true),
+('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,   13,  true),
+('n1n:claude-fable-5',    'Claude Fable 5',     'n1n',     'OPENAI_COMPAT', 'claude-fable-5',             'https://llm-api.net/v1',                        'CHAT,VISION',   8191,   13,  true),
 -- P0: DeepSeek
 ('deepseek:chat',           'DeepSeek Chat',      'deepseek',   'OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                       'CHAT',        64000,  20,  true),
 ('deepseek:reasoner',       'DeepSeek R1',        'deepseek',   'OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                       'CHAT',        64000,  21,  true),
@@ -711,11 +714,25 @@ VALUES
 -- ('volcengine:doubao-lite',  'Doubao Lite',        'volcengine', 'OPENAI_COMPAT', 'doubao-lite-32k',            'https://ark.cn-beijing.volces.com/api/v3',          'CHAT',        32000,  121, true),
 -- P1: 图像生成
 ('qwen:wan2.7-image',       '万相 Wan2.7',         'qwen',       'DASHSCOPE',     'wan2.7-image',                   'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 210, true),
-('qwen:qwen-image-2',       '千问图像 2.0',        'qwen',        'DASHSCOPE',     'qwen-image-2.0',                 'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 211, true),
+('qwen:qwen-image-2.0',       '千问图像 2.0',        'qwen',        'DASHSCOPE',     'qwen-image-2.0',                 'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 211, true),
 ('n1n:gpt-image-2',         'GPT Image 2',         'n1n',        'OPENAI_COMPAT',  'gpt-image-2',                             'https://llm-api.net/v1',         'IMAGE_GEN', null, 212, true),
 ('n1n:gemini-3.1-flash-image-preview', 'Gemini 3.1 Flash Image', 'n1n',    'OPENAI_COMPAT', 'gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 220, true),
 ('n1n:gemini-3-pro-image-preview',     'Gemini 3 Pro Image',     'n1n',    'OPENAI_COMPAT', 'gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 221, true),
-('n1n:doubao-seedream-5-0',            '豆包 Seedream 5.0',      'n1n',    'OPENAI_COMPAT', 'doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',      null, 230, true)
+('n1n:doubao-260128seedream-5-0-',            '豆包 Seedream 5.0',      'n1n',    'OPENAI_COMPAT', 'doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',      null, 230, true),
+-- P1: 视频生成
+('qwen:happyhorse-1.0-i2v',   'HappyHorse',   'qwen',  'DASHSCOPE', 'happyhorse-1.0-i2v',               'https://dashscope.aliyuncs.com', 'VIDEO_GEN',       null, 350, true),
+-- P1: 重排序
+('qwen:qwen3-rerank',      'GTE Rerank v2',      'qwen',  'DASHSCOPE', 'qwen3-rerank',                     'https://dashscope.aliyuncs.com', 'RERANK',          null, 360, true),
+-- P1: 语音识别（ASR）
+('qwen:fun-asr-realtime',    '通义 ASR Flash',     'qwen',  'DASHSCOPE', 'fun-asr-realtime',                'https://dashscope.aliyuncs.com', 'SPEECH_ASR',      null, 310, true),
+-- P1: 语音合成（TTS）
+('qwen:cosyvoice-v3-flash', 'CosyVoice 3 Flash',  'qwen',  'DASHSCOPE', 'cosyvoice-v3-flash',             'https://dashscope.aliyuncs.com', 'SPEECH_TTS',      null, 320, true),
+('qwen:cosyvoice-v3-plus',  'CosyVoice 3 Plus',   'qwen',  'DASHSCOPE', 'cosyvoice-v3-plus',              'https://dashscope.aliyuncs.com', 'SPEECH_TTS',      null, 321, true),
+-- P1: 音乐生成
+('qwen:fun-music-v1',       '文生音乐 v1',         'qwen',  'DASHSCOPE', 'fun-music-v1',            'https://dashscope.aliyuncs.com', 'MUSIC_GEN',       null, 330, true),
+-- P1: 全模态实时
+('qwen:qwen3-omni-flash-realtime',   'Qwen3 Omni Flash Realtime',   'qwen', 'DASHSCOPE', 'qwen-omni-flash-realtime',      'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true),
+('qwen:qwen3.5-omni-plus-realtime',  'Qwen3.5 Omni Plus Realtime',  'qwen', 'DASHSCOPE', 'qwen3.5-omni-plus-realtime',   'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true)
 ON CONFLICT (model_id) DO NOTHING;
 
 

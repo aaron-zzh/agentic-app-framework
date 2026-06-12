@@ -7,6 +7,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ModelViewer } from "@/features/aigc/three/ModelViewer"
 import { useMediaAssetDetail, useMediaAssetVariants } from "@/lib/queries/use-media-assets"
 
 function safeJsonParse<T>(str: string): T | null {
@@ -21,6 +22,34 @@ interface AssetDetailDialogProps {
   assetId: number | null
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+/** 根据素材类型渲染预览区域 */
+function AssetPreview({ url, type, name }: { url: string; type: string; name: string }) {
+  if (type === "VIDEO") {
+    return (
+      <video controls src={url} className="size-full rounded-lg object-contain">
+        <track kind="captions" />
+      </video>
+    )
+  }
+  if (type === "AUDIO") {
+    return (
+      <div className="flex size-full items-center justify-center rounded-lg bg-muted p-4">
+        <audio controls src={url} className="w-full">
+          <track kind="captions" />
+        </audio>
+      </div>
+    )
+  }
+  if (type === "MODEL_3D") {
+    return <ModelViewer modelUrl={url} className="size-full rounded-lg" />
+  }
+  // 默认图片
+  return (
+    // biome-ignore lint/performance/noImgElement: 素材详情大图
+    <img src={url} alt={name} className="size-full object-contain" />
+  )
 }
 
 export function AssetDetailDialog({ assetId, open, onOpenChange }: AssetDetailDialogProps) {
@@ -40,9 +69,8 @@ export function AssetDetailDialog({ assetId, open, onOpenChange }: AssetDetailDi
           <DialogTitle>{asset.name}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="overflow-hidden rounded-lg bg-muted">
-            {/* biome-ignore lint/performance/noImgElement: 素材详情大图 */}
-            <img src={asset.url} alt={asset.name} className="size-full object-contain" />
+          <div className="overflow-hidden rounded-lg bg-muted" style={{ minHeight: 300 }}>
+            <AssetPreview url={asset.url} type={asset.type} name={asset.name} />
           </div>
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2 text-sm">

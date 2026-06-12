@@ -23,7 +23,7 @@ public class PayOrderSyncTask {
 
     private final PayOrderRepository payOrderRepository;
     private final SettlementEngine settlementEngine;
-    private final RechargeService rechargeService;
+    private final PayNotifyService payNotifyService;
 
     /** 每 30 秒轮询一次未完成的支付订单 */
     @Scheduled(fixedDelay = 30_000, initialDelay = 60_000)
@@ -51,7 +51,7 @@ public class PayOrderSyncTask {
             order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
             order.setSuccessTime(LocalDateTime.now());
             payOrderRepository.save(order);
-            rechargeService.onPaySuccess(order.getId());
+            payNotifyService.onPaySuccess(order.getId()); // 统一路由到对应 handler
             log.info("轮询发现支付成功: merchantOrderNo={}", order.getMerchantOrderNo());
         } else if (status == PayStatus.CLOSED) {
             order.setStatus(PayOrderStatusEnum.CLOSED.getCode());

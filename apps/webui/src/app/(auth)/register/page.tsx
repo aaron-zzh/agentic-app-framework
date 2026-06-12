@@ -64,7 +64,7 @@ export default function RegisterPage() {
   async function onVerify(data: VerifyForm) {
     const result = await authApi.verifyEmail(email, data.code)
     setTokens(result.accessToken, result.refreshToken)
-    const user = await authApi.me()
+    const { user } = await authApi.me()
     setUser(user)
     router.push(paths.workspace.root)
   }

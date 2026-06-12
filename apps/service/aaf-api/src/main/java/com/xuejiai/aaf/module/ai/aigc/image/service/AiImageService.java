@@ -54,7 +54,7 @@ public class AiImageService {
 
     /** AIGC 统一任务服务（可选注入，避免循环依赖） */
     @Autowired(required = false)
-    private com.xuejiai.aaf.module.ai.aigc.task.AigcTaskService aigcTaskService;
+    private com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService aigcTaskService;
 
     // ========== Midjourney ==========
 

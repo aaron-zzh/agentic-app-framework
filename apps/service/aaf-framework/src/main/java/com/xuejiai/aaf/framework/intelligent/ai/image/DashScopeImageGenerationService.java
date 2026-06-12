@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image;
 
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -12,14 +14,20 @@ import org.springframework.stereotype.Service;
 
 import com.alibaba.dashscope.aigc.imagegeneration.ImageGeneration;
 import com.alibaba.dashscope.aigc.imagegeneration.ImageGenerationMessage;
+import com.alibaba.dashscope.aigc.imagegeneration.ImageGenerationOutput;
 import com.alibaba.dashscope.aigc.imagegeneration.ImageGenerationParam;
 import com.alibaba.dashscope.aigc.imagesynthesis.ImageSynthesis;
 import com.alibaba.dashscope.aigc.imagesynthesis.ImageSynthesisParam;
 import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversation;
+import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversationOutput;
 import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversationParam;
 import com.alibaba.dashscope.common.MultiModalMessage;
 import com.alibaba.dashscope.common.Role;
 import com.alibaba.dashscope.utils.Constants;
+
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,44 +65,45 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
 
     @Override
     public ImageResult generate(ImageRequest req) {
-        String model = stripNamespace(req.modelId());
+        String model = stripNamespace(req.getModelId());
         log.info("[DashScopeImage] 生成: model={}", model);
 
         if (model.startsWith("wan2.")) {
             // wan2: size 优先用 sizePreset 档位（"1K"/"2K"/"4K"），否则用像素字符串
-            String size =
-                    req.sizePreset() != null
-                            ? req.sizePreset()
-                            : (req.width() != null && req.height() != null
-                                    ? req.width() + "*" + req.height()
-                                    : null);
-            return callWan2(model, req.prompt(), size, req.seed(), req.count(), null);
+            String size = req.resolveSize();
+            return callWan2(model, req.getPrompt(), size, req.getSeed(), req.getImageCount(), null);
         }
         if (model.startsWith("qwen-image-2")) {
             String size =
-                    req.width() != null && req.height() != null
-                            ? req.width() + "*" + req.height()
+                    req.getWidth() > 0 && req.getHeight() > 0
+                            ? req.getWidth() + "*" + req.getHeight()
                             : null;
             return callQwenImage2(
                     model,
-                    req.prompt(),
+                    req.getPrompt(),
                     null,
                     size,
-                    req.negativePrompt(),
-                    req.seed(),
-                    req.promptExtend(),
-                    req.count());
+                    req.getNegativePrompt(),
+                    req.getSeed(),
+                    req.getPromptExtend(),
+                    req.getImageCount());
         }
-        String size = req.width() + "*" + req.height();
+        String size = req.getWidth() + "*" + req.getHeight();
         return callImageSynthesis(
-                model, req.prompt(), size, req.negativePrompt(), req.seed(), req.count());
+                model,
+                req.getPrompt(),
+                size,
+                req.getNegativePrompt(),
+                req.getSeed(),
+                req.getImageCount());
     }
 
     @Override
     public ImageResult imageToImage(ImageEditRequest req) {
-        String model = req.model() != null ? stripNamespace(req.model()) : "qwen-image-2.0-pro";
-        var urls = req.sourceUrl() != null ? java.util.List.of(req.sourceUrl()) : null;
-        return callQwenImage2(model, req.prompt(), urls, null, null, null, null, 1);
+        String model =
+                req.getModelId() != null ? stripNamespace(req.getModelId()) : "qwen-image-2.0-pro";
+        var urls = req.getSourceUrl() != null ? List.of(req.getSourceUrl()) : null;
+        return callQwenImage2(model, req.getPrompt(), urls, null, null, null, null, 1);
     }
 
     @Override
@@ -107,10 +116,22 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
      *
      * @param isPresetSize true 表示 size 是档位字符串（1K/2K），false 表示像素字符串
      */
+    /** {@link #generateWithImages} 的 ImageRequest 重载。 */
+    public ImageResult generateWithImages(ImageRequest req) {
+        return generateWithImages(
+                req.getModelId(),
+                req.getPrompt(),
+                req.getImageUrls(),
+                req.getEditSize(),
+                req.getSeed(),
+                req.getImageCount(),
+                req.getSizePreset() != null);
+    }
+
     public ImageResult generateWithImages(
             String modelId,
             String prompt,
-            java.util.List<String> imageUrls,
+            List<String> imageUrls,
             String size,
             Integer seed,
             int count,
@@ -132,13 +153,14 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
             String size,
             Integer seed,
             int count,
-            java.util.List<String> imageUrls) {
+            List<String> imageUrls) {
         try {
-            var contentList = new java.util.ArrayList<java.util.Map<String, Object>>();
-            // 有图时先加图片（图像编辑）
+            var contentList = new ArrayList<Map<String, Object>>();
+            // 有图时先加图片（图像编辑）——本地 URL 转 base64，避免百炼服务器拉取失败
             if (imageUrls != null) {
                 for (String imgUrl : imageUrls) {
-                    contentList.add(Collections.singletonMap("image", imgUrl));
+                    String imageValue = isLocalUrl(imgUrl) ? toBase64DataUrl(imgUrl) : imgUrl;
+                    contentList.add(Collections.singletonMap("image", imageValue));
                 }
             }
             contentList.add(Collections.singletonMap("text", prompt));
@@ -169,7 +191,7 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     private ImageResult callQwenImage2(
             String model,
             String prompt,
-            java.util.List<String> imageUrls,
+            List<String> imageUrls,
             String size,
             String negativePrompt,
             Integer seed,
@@ -219,15 +241,12 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
 
     /** 将图片 URL 下载并转为 data:{mime};base64,{data} 格式 */
     private String toBase64DataUrl(String imageUrl) {
-        try (var is = java.net.URI.create(imageUrl).toURL().openStream()) {
+        try (var is = URI.create(imageUrl).toURL().openStream()) {
             byte[] bytes = is.readAllBytes();
             String mime = "image/png"; // 默认 png，OSS URL 通常不带扩展名
             if (imageUrl.contains(".jpg") || imageUrl.contains(".jpeg")) mime = "image/jpeg";
             else if (imageUrl.contains(".webp")) mime = "image/webp";
-            return "data:"
-                    + mime
-                    + ";base64,"
-                    + java.util.Base64.getEncoder().encodeToString(bytes);
+            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
             log.warn("[DashScopeImage] 图片下载失败，回退使用 URL: {}", imageUrl);
             return imageUrl; // 下载失败时降级用 URL（部分情况 DashScope 也接受 URL）
@@ -272,19 +291,27 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
 
     // ========== 工具方法 ==========
 
+    /** 判断是否为本地/内网 URL，百炼服务器无法访问 */
+    private boolean isLocalUrl(String url) {
+        if (url == null) return false;
+        return url.contains("localhost")
+                || url.contains("127.0.0.1")
+                || url.contains("192.168.")
+                || url.contains("10.")
+                || url.startsWith("file:");
+    }
+
     private String stripNamespace(String modelId) {
         if (modelId == null) return "";
         return modelId.contains(":") ? modelId.substring(modelId.indexOf(':') + 1) : modelId;
     }
 
-    private String extractUrlFromChoices(
-            List<com.alibaba.dashscope.aigc.imagegeneration.ImageGenerationOutput.Choice> choices) {
+    private String extractUrlFromChoices(List<ImageGenerationOutput.Choice> choices) {
         List<String> urls = extractAllUrlsFromChoices(choices);
         return urls.isEmpty() ? null : urls.get(0);
     }
 
-    private List<String> extractAllUrlsFromChoices(
-            List<com.alibaba.dashscope.aigc.imagegeneration.ImageGenerationOutput.Choice> choices) {
+    private List<String> extractAllUrlsFromChoices(List<ImageGenerationOutput.Choice> choices) {
         List<String> urls = new ArrayList<>();
         if (choices == null) return urls;
         for (var choice : choices) {
@@ -301,20 +328,13 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
         return urls;
     }
 
-    private String extractUrlFromMultiModal(
-            List<
-                            com.alibaba.dashscope.aigc.multimodalconversation
-                                    .MultiModalConversationOutput.Choice>
-                    choices) {
+    private String extractUrlFromMultiModal(List<MultiModalConversationOutput.Choice> choices) {
         List<String> urls = extractAllUrlsFromMultiModal(choices);
         return urls.isEmpty() ? null : urls.get(0);
     }
 
     private List<String> extractAllUrlsFromMultiModal(
-            List<
-                            com.alibaba.dashscope.aigc.multimodalconversation
-                                    .MultiModalConversationOutput.Choice>
-                    choices) {
+            List<MultiModalConversationOutput.Choice> choices) {
         List<String> urls = new ArrayList<>();
         if (choices == null) return urls;
         for (var choice : choices) {

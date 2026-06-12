@@ -7,6 +7,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class WorkflowToolCallbackRegistrar {
 
     private final WorkflowTool workflowTool;
     private final ToolRegistry toolRegistry;
+    private final ObjectMapper objectMapper;
 
     @EventListener(ApplicationReadyEvent.class)
     public void register() {
@@ -51,7 +54,7 @@ public class WorkflowToolCallbackRegistrar {
                     @Override
                     public String call(String arguments) {
                         try {
-                            var om = new com.fasterxml.jackson.databind.ObjectMapper();
+                            var om = objectMapper;
                             var map =
                                     om.readValue(
                                             arguments,

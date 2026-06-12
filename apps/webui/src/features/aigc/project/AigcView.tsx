@@ -1,5 +1,5 @@
 /**
- * AIGC 图像生成视图——左栏素材区 + 中栏预览/文件区
+ * AIGC 图像生成视图——左栏素材区 + 中栏预览/素材区
  * 右栏对话由外层 WorkspaceLayout Copilot 面板统一提供
  * @author AaronZZH & Kiro
  */
@@ -7,10 +7,9 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { PenLine, Sparkles } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useAigcProject } from "@/lib/queries/use-aigc-projects"
@@ -33,8 +32,6 @@ export function AigcView() {
   // aigc 页面需要嵌入式对话面板
   // useChatterLayoutPreference("panel")
 
-  const _addReferenceAsset = useAigcStore((s) => s.addReferenceAsset)
-  const _addStoryboardAsset = useAigcStore((s) => s.addStoryboardAsset)
   const setProjectPromptTag = useAigcStore((s) => s.setProjectPromptTag)
 
   // 项目加载后把项目提示词同步到 store，供 GenerationPanel 使用
@@ -47,10 +44,6 @@ export function AigcView() {
     )
     return () => setProjectPromptTag(null)
   }, [project, setProjectPromptTag])
-  const generationPanelOpen = useAigcStore((s) => s.generationPanelOpen)
-  const setGenerationPanelOpen = useAigcStore((s) => s.setGenerationPanelOpen)
-  const copywritingPanelOpen = useAigcStore((s) => s.copywritingPanelOpen)
-  const setCopywritingPanelOpen = useAigcStore((s) => s.setCopywritingPanelOpen)
   const storyboardPanelOpen = useAigcStore((s) => s.storyboardPanelOpen)
   const queryClient = useQueryClient()
   const removePendingTask = useAigcStore((s) => s.removePendingTask)
@@ -79,7 +72,11 @@ export function AigcView() {
           userId: 0,
           version: 0,
           createTime: "",
-          updateTime: ""
+          updateTime: "",
+          groupName: null,
+          aiGenerated: true,
+          modelName: null,
+          providerCode: null
         }
         completePendingTask(task.id, task.ossUrl, tempAsset)
       }
@@ -92,6 +89,7 @@ export function AigcView() {
       // SSE 可能比 onSuccess 更早到达，兜底确保 pendingTask 存在
       addPendingTask({ id: task.id, prompt: task.prompt ?? "", type: task.type })
       failPendingTask(task.id, task.errorMsg ?? "生成失败")
+      toast.error(task.errorMsg ?? "生成失败")
       setTimeout(() => removePendingTask(task.id), 3000)
     }
   })
@@ -109,28 +107,10 @@ export function AigcView() {
           </>
         )}
 
-        {/* 中栏：预览 + 文件区 */}
+        {/* 中栏：预览 + 素材区 */}
         <ResizablePanel defaultSize="78%" minSize="40%">
           <div className="relative h-full">
             <PreviewPanel orientation={storyboardPanelOpen ? "vertical" : "horizontal"} />
-
-            {/* 操作按钮（面板关闭时显示） */}
-            {!generationPanelOpen && !copywritingPanelOpen && (
-              <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="shadow-lg"
-                  onClick={() => setCopywritingPanelOpen(true)}
-                >
-                  <PenLine className="mr-2 size-4" />
-                  生成文案
-                </Button>
-                <Button onClick={() => setGenerationPanelOpen(true)} className="shadow-lg">
-                  <Sparkles className="mr-2 size-4" />
-                  生成图像
-                </Button>
-              </div>
-            )}
 
             {/* 生成面板（从底部弹起） */}
             <GenerationPanel />

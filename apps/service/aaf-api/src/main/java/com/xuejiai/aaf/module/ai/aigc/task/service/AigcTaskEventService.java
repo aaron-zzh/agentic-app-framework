@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.ai.aigc.task;
+package com.xuejiai.aaf.module.ai.aigc.task.service;
 
 import java.io.IOException;
 import java.util.Map;

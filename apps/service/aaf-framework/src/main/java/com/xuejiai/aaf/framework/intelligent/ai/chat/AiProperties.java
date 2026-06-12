@@ -19,8 +19,8 @@ import lombok.Setter;
 @ConfigurationProperties(prefix = "aaf.ai")
 public class AiProperties {
 
-    /** 默认模型名称（chat 能力兜底，对应 models Map 中的 key） */
-    private String defaultModel = "default";
+    /** 默认模型名称（chat 能力兜底，对应 DB ai_model.model_id，格式：{provider}:{name}） */
+    private String defaultModel = "deepseek:chat";
 
     /** 降级模型名称 */
     private String fallbackModel;
@@ -37,10 +37,10 @@ public class AiProperties {
      *   ai:
      *     default-models:
      *       IMAGE_GEN: qwen-image-plus
-     *       VIDEO_GEN: wan2.6-i2v-flash
-     *       SPEECH_ASR: qwen3-asr-flash
+     *       VIDEO_GEN: happyhorse-1.0-i2v
+     *       SPEECH_ASR: fun-asr-realtime
      *       SPEECH_TTS: cosyvoice-v3-flash
-     *       RERANK: gte-rerank-v2
+     *       RERANK: qwen3-rerank
      *       EMBEDDING: text-embedding-v3
      * </pre>
      */

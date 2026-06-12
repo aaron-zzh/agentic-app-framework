@@ -56,6 +56,7 @@ public class SecurityConfig {
         "/api/agui/runs/**",
         "/api/hello",
         "/api/system/files/**",
+        "/api/pay/orders/notify",
         "/actuator/**",
         "/swagger-ui/**",
         "/swagger-ui.html",

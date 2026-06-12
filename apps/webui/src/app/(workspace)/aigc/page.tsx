@@ -7,7 +7,7 @@
 
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Image as ImageIcon, Layers, Plus, Trash2, Video } from "lucide-react"
+import { Image as ImageIcon, Layers, Music, Plus, Trash2, Video } from "lucide-react"
 import NextImage from "next/image"
 import Link from "next/link"
 import { useState } from "react"
@@ -25,14 +25,18 @@ const TYPE_LABELS: Record<string, string> = {
   IMAGE_POST: "图像",
   SHORT_VIDEO: "短视频",
   VIDEO_DRAMA: "视频",
-  MIXED: "综合"
+  MIXED: "综合",
+  MUSIC: "音乐",
+  MODEL_3D: "3D"
 }
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   IMAGE_POST: <ImageIcon className="size-4" />,
   SHORT_VIDEO: <Video className="size-4" />,
   VIDEO_DRAMA: <Video className="size-4" />,
-  MIXED: <Layers className="size-4" />
+  MIXED: <Layers className="size-4" />,
+  MUSIC: <Music className="size-4" />,
+  MODEL_3D: <Layers className="size-4" />
 }
 
 /** 项目类型 → 工作台子路由 */
@@ -41,7 +45,9 @@ function getProjectRoute(project: AigcProjectVO): string {
     IMAGE_POST: "image",
     SHORT_VIDEO: "video",
     VIDEO_DRAMA: "video",
-    MIXED: "image"
+    MIXED: "image",
+    MUSIC: "music",
+    MODEL_3D: "3d"
   }
   const sub = typeRouteMap[project.type] ?? "image"
   return `/aigc/${project.id}/${sub}`

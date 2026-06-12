@@ -7,7 +7,12 @@ import org.springframework.ai.openai.OpenAiImageOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -19,35 +24,38 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class SpringAiImageGenerationService implements ImageGenerationService {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final DynamicImageModelFactory imageModelFactory;
     private final AiModelRepository modelRepository;
     private final AiProperties aiProperties;
 
     @Override
     public ImageResult generate(ImageRequest request) {
-        var aiModel = modelRepository.findByModelIdAndEnabledTrue(request.modelId()).orElse(null);
+        var aiModel =
+                modelRepository.findByModelIdAndEnabledTrue(request.getModelId()).orElse(null);
         // GPT image 模型直接走 HTTP（传 background/output_format/moderation 等参数）
         if (aiModel != null && isGptImageModel(aiModel.getModelName())) {
             return generateViaHttp(request, aiModel);
         }
         // 其他模型走 Spring AI
-        var imageModel = imageModelFactory.get(request.modelId());
+        var imageModel = imageModelFactory.get(request.getModelId());
         String sizeStr =
-                (request.width() != null && request.height() != null)
-                        ? request.width() + "x" + request.height()
+                (request.getWidth() > 0 && request.getHeight() > 0)
+                        ? request.getWidth() + "x" + request.getHeight()
                         : null;
         var optBuilder = OpenAiImageOptions.builder().responseFormat("url");
         if (sizeStr != null) optBuilder.size(sizeStr);
-        if (request.quality() != null) optBuilder.quality(request.quality());
-        if (request.count() > 1) optBuilder.N(request.count());
-        var response = imageModel.call(new ImagePrompt(request.prompt(), optBuilder.build()));
+        if (request.getQuality() != null) optBuilder.quality(request.getQuality());
+        if (request.getImageCount() > 1) optBuilder.N(request.getImageCount());
+        var response = imageModel.call(new ImagePrompt(request.getPrompt(), optBuilder.build()));
         List<String> urls =
                 response.getResults().stream()
                         .map(r -> r.getOutput())
                         .map(o -> o.getUrl() != null ? o.getUrl() : o.getB64Json())
                         .filter(s -> s != null && !s.isBlank())
                         .toList();
-        return ImageResult.ofUrls(urls, request.modelId());
+        return ImageResult.ofUrls(urls, request.getModelId());
     }
 
     /** GPT image 模型：直接 HTTP POST /images/generations（JSON body，支持全部参数） */
@@ -60,14 +68,14 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
         try {
             var body = new java.util.LinkedHashMap<String, Object>();
             body.put("model", modelName);
-            body.put("prompt", request.prompt());
-            if (request.width() != null && request.height() != null)
-                body.put("size", request.width() + "x" + request.height());
-            if (request.quality() != null) body.put("quality", request.quality());
-            if (request.format() != null) body.put("output_format", request.format());
-            if (request.count() > 1) body.put("n", request.count());
-            if (request.background() != null) body.put("background", request.background());
-            if (request.moderation() != null) body.put("moderation", request.moderation());
+            body.put("prompt", request.getPrompt());
+            if (request.getWidth() > 0 && request.getHeight() > 0)
+                body.put("size", request.getWidth() + "x" + request.getHeight());
+            if (request.getQuality() != null) body.put("quality", request.getQuality());
+            if (request.getFormat() != null) body.put("output_format", request.getFormat());
+            if (request.getImageCount() > 1) body.put("n", request.getImageCount());
+            if (request.getBackground() != null) body.put("background", request.getBackground());
+            if (request.getModeration() != null) body.put("moderation", request.getModeration());
 
             var response =
                     RestClient.create()
@@ -92,12 +100,17 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                     if (url == null && u != null && !u.isBlank()) url = u;
                 }
             }
-            log.info("文生图完成(HTTP): modelId={}, count={}, url={}, b64={}", request.modelId(), urls.size(), url, b64 != null ? b64.substring(0, Math.min(20, b64.length())) + "..." : null);
+            log.info(
+                    "文生图完成(HTTP): modelId={}, count={}, url={}, b64={}",
+                    request.getModelId(),
+                    urls.size(),
+                    url,
+                    b64 != null ? b64.substring(0, Math.min(20, b64.length())) + "..." : null);
             return urls.size() > 1
-                    ? ImageResult.ofUrls(urls, request.modelId())
-                    : new ImageResult(url, b64, request.modelId());
+                    ? ImageResult.ofUrls(urls, request.getModelId())
+                    : new ImageResult(url, b64, request.getModelId());
         } catch (Exception e) {
-            log.error("文生图失败(HTTP): modelId={}", request.modelId(), e);
+            log.error("文生图失败(HTTP): modelId={}", request.getModelId(), e);
             throw new RuntimeException("图像生成失败: " + e.getMessage(), e);
         }
     }
@@ -109,40 +122,62 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                         || modelName.startsWith("doubao-seedream"));
     }
 
-    /** 图像编辑：调用 /v1/images/edits（JSON body，images 数组传 image_url）。 */
+    /** 图像编辑：调用 /v1/images/edits（multipart/form-data，OpenAI 标准格式）。 */
     @Override
     public ImageResult imageToImage(ImageEditRequest req) {
-        String modelId = req.model();
+        String modelId = req.getModelId();
         var aiModel = modelRepository.findByModelIdAndEnabledTrue(modelId).orElseThrow();
         String apiKey = resolveApiKey(aiModel);
         String baseUrl = aiModel.effectiveBaseUrl().replaceAll("/$", "");
         String modelName = aiModel.getModelName();
 
         try {
-            var body = new java.util.LinkedHashMap<String, Object>();
-            body.put("model", modelName);
-            body.put("prompt", req.prompt());
-            // images 数组：每张图用 image_url 传递（支持最多16张）
-            var images = new java.util.ArrayList<java.util.Map<String, String>>();
-            for (String imgUrl : req.allSourceUrls()) {
-                images.add(java.util.Map.of("image_url", imgUrl));
+            var multipart = new org.springframework.http.client.MultipartBodyBuilder();
+            multipart.part("model", modelName);
+            multipart.part("prompt", req.getPrompt());
+
+            // 下载图片并以 binary 形式上传
+            List<String> srcUrls = req.allSourceUrls();
+            for (int i = 0; i < srcUrls.size(); i++) {
+                byte[] bytes =
+                        java.net.URI.create(srcUrls.get(i)).toURL().openStream().readAllBytes();
+                String fname = "image_" + i + ".png";
+                // OpenAI edits 接口：单图用 "image"，多图用 "image[]"
+                String fieldName = srcUrls.size() == 1 ? "image" : "image[]";
+                multipart.part(
+                        fieldName,
+                        new org.springframework.core.io.ByteArrayResource(bytes) {
+                            @Override
+                            public String getFilename() {
+                                return fname;
+                            }
+                        },
+                        org.springframework.http.MediaType.IMAGE_PNG);
             }
-            body.put("images", images);
-            if (req.maskUrl() != null)
-                body.put("mask", java.util.Map.of("image_url", req.maskUrl()));
-            if (req.quality() != null) body.put("quality", req.quality());
-            if (req.format() != null) body.put("output_format", req.format());
-            if (req.background() != null) body.put("background", req.background());
-            if (req.contentModeration() != null) body.put("moderation", req.contentModeration());
-            if (req.n() != null && req.n() > 1) body.put("n", req.n());
+            if (req.getMaskUrl() != null) {
+                byte[] maskBytes =
+                        java.net.URI.create(req.getMaskUrl()).toURL().openStream().readAllBytes();
+                multipart.part(
+                        "mask",
+                        new org.springframework.core.io.ByteArrayResource(maskBytes) {
+                            @Override
+                            public String getFilename() {
+                                return "mask.png";
+                            }
+                        },
+                        org.springframework.http.MediaType.IMAGE_PNG);
+            }
+            if (req.getQuality() != null) multipart.part("quality", req.getQuality());
+            if (req.getFormat() != null) multipart.part("output_format", req.getFormat());
+            if (req.getBackground() != null) multipart.part("background", req.getBackground());
+            if (req.getImageCount() > 1) multipart.part("n", String.valueOf(req.getImageCount()));
 
             var response =
                     RestClient.create()
                             .post()
                             .uri(baseUrl + "/images/edits")
                             .header("Authorization", "Bearer " + apiKey)
-                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                            .body(body)
+                            .body(multipart.build())
                             .retrieve()
                             .body(String.class);
 
@@ -182,7 +217,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
     private com.fasterxml.jackson.databind.JsonNode parseJson(String json) {
         if (json == null || json.isBlank()) return null;
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+            return MAPPER.readTree(json);
         } catch (Exception e) {
             log.warn("[SpringAiImage] JSON 解析失败: {}", e.getMessage());
             return null;

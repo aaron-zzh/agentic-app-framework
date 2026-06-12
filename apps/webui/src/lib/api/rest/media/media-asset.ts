@@ -5,7 +5,7 @@
 
 import type { MediaAssetVO, MediaCategoryVO, MediaTagVO } from "@/features/aigc/types"
 import { backendApi } from "../backend-client"
-import { buildQuery, type ListParams, type PageResult, request } from "../entity/crud"
+import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
 /** 旧路径——生成面板内的素材引用（保留兼容） */
 const LEGACY_PATH = "/media-assets"
@@ -26,7 +26,7 @@ export const mediaAssetApi = {
 
   /** 素材搜索（旧接口，@提及用） */
   legacySearch: (keyword: string): Promise<MediaAssetVO[]> =>
-    request<MediaAssetVO[]>(`${LEGACY_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
+    backendApi.get<MediaAssetVO[]>(`${LEGACY_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
 
   /** 素材列表（分页+筛选） */
   list: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
@@ -34,39 +34,34 @@ export const mediaAssetApi = {
 
   /** 素材搜索（关键词匹配名称/标签） */
   search: (keyword: string): Promise<MediaAssetVO[]> =>
-    request<MediaAssetVO[]>(`${API_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
+    backendApi.get<MediaAssetVO[]>(`${API_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
 
   /** 获取单条素材详情 */
-  getById: (id: number): Promise<MediaAssetVO> => request<MediaAssetVO>(`${API_PATH}/${id}`),
+  getById: (id: number): Promise<MediaAssetVO> => backendApi.get<MediaAssetVO>(`${API_PATH}/${id}`),
 
   /** 删除素材 */
-  delete: (id: number): Promise<void> => request<void>(`${API_PATH}/${id}`, { method: "DELETE" }),
+  delete: (id: number): Promise<void> => backendApi.delete<void>(`${API_PATH}/${id}`),
 
   /** 重新生成素材 */
   regenerate: (params: RegenerateParams): Promise<MediaAssetVO> =>
-    request<MediaAssetVO>(`${API_PATH}/regenerate`, {
-      method: "POST",
-      body: JSON.stringify(params)
-    }),
+    backendApi.post<MediaAssetVO>(`${API_PATH}/regenerate`, params),
 
   /** 获取素材变体列表 */
   getVariants: (id: number): Promise<MediaAssetVO[]> =>
-    request<MediaAssetVO[]>(`${API_PATH}/${id}/variants`),
+    backendApi.get<MediaAssetVO[]>(`${API_PATH}/${id}/variants`),
 
   /** 获取分类树 */
-  getCategories: (): Promise<MediaCategoryVO[]> => request<MediaCategoryVO[]>("/aigc/categories"),
+  getCategories: (): Promise<MediaCategoryVO[]> =>
+    backendApi.get<MediaCategoryVO[]>("/aigc/categories"),
 
   /** 获取标签列表 */
-  getTags: (): Promise<MediaTagVO[]> => request<MediaTagVO[]>("/aigc/tags"),
+  getTags: (): Promise<MediaTagVO[]> => backendApi.get<MediaTagVO[]>("/aigc/tags"),
 
   /** 移动素材到指定分组 */
   moveToGroup: (assetId: number, groupId: number): Promise<void> =>
-    request<void>(`${API_PATH}/${assetId}/group`, {
-      method: "PATCH",
-      body: JSON.stringify({ groupId })
-    }),
+    backendApi.patch<void>(`${API_PATH}/${assetId}/group`, { groupId }),
 
   /** 删除素材组及组内所有素材和文件 */
   deleteGroup: (groupId: number): Promise<void> =>
-    request<void>(`${API_PATH}/group/${groupId}`, { method: "DELETE" })
+    backendApi.delete<void>(`${API_PATH}/group/${groupId}`)
 }

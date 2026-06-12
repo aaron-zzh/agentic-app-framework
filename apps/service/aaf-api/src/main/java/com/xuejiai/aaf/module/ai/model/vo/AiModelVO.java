@@ -24,6 +24,8 @@ public record AiModelVO(
         @Schema(description = "上下文窗口", example = "128000") Integer contextWindow,
         @Schema(description = "输入价格（每千 Token）", example = "0.005") BigDecimal inputPricePerK,
         @Schema(description = "输出价格（每千 Token）", example = "0.015") BigDecimal outputPricePerK,
+        @Schema(description = "按次固定价格（quotaType=1 时有效）") BigDecimal modelPrice,
+        @Schema(description = "计费类型：0=按量，1=按次") Short quotaType,
         @Schema(description = "是否启用") Boolean enabled,
         @Schema(description = "降级模型标识") String fallbackModelId,
         @Schema(description = "排序", example = "100") Integer sortOrder,

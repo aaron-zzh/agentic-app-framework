@@ -11,8 +11,10 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageConfig;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -229,6 +231,16 @@ public class AiModel extends BaseEntity {
             return providerConfig.getProviderType();
         }
         return AiModelProviderType.OPENAI_COMPAT;
+    }
+
+    /** 解析 imageConfig JSONB 为 {@link ImageConfig}，字段为空或解析失败返回 null。 */
+    public ImageConfig getImageConfigParsed() {
+        if (imageConfig == null || imageConfig.isNull()) return null;
+        try {
+            return new ObjectMapper().treeToValue(imageConfig, ImageConfig.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private boolean hasText(String value) {

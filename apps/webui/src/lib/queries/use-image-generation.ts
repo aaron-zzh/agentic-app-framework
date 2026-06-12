@@ -24,6 +24,7 @@ export interface GenerateImageParams {
   aspectRatio?: string
   background?: string
   contentModeration?: string
+  projectId?: number | null
 }
 
 /** 提交图像生成任务，返回统一任务 ID */
@@ -38,6 +39,7 @@ export function useGenerateImage() {
           prompt: params.prompt,
           displayPrompt: params.displayPrompt,
           model: params.model,
+          projectId: params.projectId ?? null,
           params: {
             width: params.width ?? 1024,
             height: params.height ?? 1024,

@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.ai.aigc.task;
+package com.xuejiai.aaf.module.ai.aigc.task.vo;
 
 import java.time.LocalDateTime;
 
@@ -22,5 +22,6 @@ public record AigcTaskVO(
         @Schema(description = "第三方结果 URL") String resultUrl,
         @Schema(description = "OSS 存储 URL") String ossUrl,
         @Schema(description = "失败原因") String errorMsg,
+        @Schema(description = "所属项目 ID") Long projectId,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {}

@@ -65,6 +65,15 @@ public class SystemConfigService {
         return v != null ? Boolean.parseBoolean(v) : defaultVal;
     }
 
+    public Double getDouble(String key, double defaultVal) {
+        var v = getValue(key);
+        try {
+            return v != null ? Double.parseDouble(v) : defaultVal;
+        } catch (NumberFormatException e) {
+            return defaultVal;
+        }
+    }
+
     // ── 写入 ──────────────────────────────────────────────────
 
     @Transactional

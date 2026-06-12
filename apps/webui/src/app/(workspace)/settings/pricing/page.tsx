@@ -113,9 +113,9 @@ function PlanCard({
       </Button>
 
       {/* 权益列表 */}
-      {plan.entitlements.length > 0 && (
+      {(plan.entitlements ?? []).length > 0 && (
         <div className="mt-6 space-y-2 border-t pt-4">
-          {plan.entitlements.map((ent) => (
+          {(plan.entitlements ?? []).map((ent) => (
             <div key={ent.code} className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Check className="h-3.5 w-3.5 shrink-0 text-green-500" />

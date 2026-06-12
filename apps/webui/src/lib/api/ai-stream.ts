@@ -47,21 +47,82 @@ export async function postAiStream(path: string, body: unknown, opts: AiSseOptio
   }
 
   if (!res.ok || !res.body) {
-    onError?.(new Error(`HTTP ${res.status}`))
+    try {
+      const json = await res.json()
+      onError?.(new Error(json?.message ?? `HTTP ${res.status}`))
+    } catch {
+      onError?.(new Error(res.status === 401 ? "登录已过期，请刷新页面重试" : `HTTP ${res.status}`))
+    }
+    return
+  }
+
+  // 检查是否是业务错误（Content-Type 为 JSON 而非 event-stream）
+  const contentType = res.headers.get("content-type") ?? ""
+  if (!contentType.includes("text/event-stream")) {
+    try {
+      const text = await res.text()
+      try {
+        const json = JSON.parse(text)
+        if (json?.code && json.code !== 0) {
+          onError?.(new Error(json.message ?? "请求失败"))
+          return
+        }
+      } catch {
+        // 非 JSON，直接用文本
+      }
+      onError?.(new Error(text || `HTTP ${res.status}`))
+    } catch {
+      onError?.(new Error("响应解析失败"))
+    }
     return
   }
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
+  let buf = ""
   try {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      const raw = decoder.decode(value, { stream: true })
-      for (const line of raw.split("\n")) {
-        // SSE 格式：`data: <text>`；纯文本 chunk 直接使用
-        const text = line.startsWith("data:") ? line.slice(5).trim() : line.trim()
-        if (text && text !== "[DONE]") onChunk(text)
+      buf += decoder.decode(value, { stream: true })
+
+      // SSE 标准：事件以空行（\n\n）分隔
+      const events = buf.split("\n\n")
+      buf = events.pop() ?? ""
+
+      for (const event of events) {
+        // 一个事件可能有多个 data: 行，按协议用 \n 拼接
+        const dataLines = event
+          .split("\n")
+          .filter((l) => l.startsWith("data:"))
+          .map((l) => {
+            const val = l.slice(5)
+            // SSE 规范：data: value 中第一个空格是可选分隔符，去掉它
+            // 但若整行就是 "data: "（value 为单个空格），保留该空格
+            return val.startsWith(" ") && val.length > 1 ? val.slice(1) : val
+          })
+        if (dataLines.length === 0) continue
+        const text = dataLines.join("\n")
+        if (!text || text === "[DONE]") continue
+        if (text.startsWith("[ERROR]")) {
+          onError?.(new Error(text.slice(7)))
+          return
+        }
+        try {
+          const evt = JSON.parse(text)
+          if (evt !== null && typeof evt === "object") {
+            if (evt.type === "TEXT_MESSAGE_CONTENT" && typeof evt.delta === "string") {
+              onChunk(evt.delta)
+            } else if (evt.type === "RUN_ERROR") {
+              onError?.(new Error(evt.error ?? "运行失败"))
+              return
+            }
+          } else {
+            onChunk(String(evt))
+          }
+        } catch {
+          onChunk(text)
+        }
       }
     }
     onDone?.()

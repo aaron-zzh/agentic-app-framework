@@ -163,11 +163,6 @@ SmsController.updateTemplate() 写接口缺少授权注解（@PreAuthorize/@Acce
 StatsController.trackEvents() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 SubscriptionController.cancel() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 SubscriptionController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-SystemConfigController.create() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-SystemConfigController.delete() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-SystemConfigController.refresh() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-SystemConfigController.refreshAll() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-SystemConfigController.update() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TaskManagementController.pause() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TaskManagementController.resume() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 TaskManagementController.retryDeadLetter() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）

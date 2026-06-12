@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.system.auth.service.AuthService;
 import com.xuejiai.aaf.module.system.auth.vo.*;
+import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
+import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
 import com.xuejiai.aaf.module.system.user.service.UserService;
 import com.xuejiai.aaf.module.system.user.vo.UserVO;
 
@@ -30,20 +32,42 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final UserRoleRepository userRoleRepository;
+    private final RoleRepository roleRepository;
 
     @Value("${aaf.app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
-    public AuthController(AuthService authService, UserService userService) {
+    public AuthController(
+            AuthService authService,
+            UserService userService,
+            UserRoleRepository userRoleRepository,
+            RoleRepository roleRepository) {
         this.authService = authService;
         this.userService = userService;
+        this.userRoleRepository = userRoleRepository;
+        this.roleRepository = roleRepository;
     }
+
+    /** 当前用户信息（含角色 code 列表） */
+    public record MeVO(UserVO user, List<String> roles) {}
 
     @Operation(summary = "获取当前登录用户信息")
     @GetMapping("/me")
-    public Result<UserVO> me() {
+    public Result<MeVO> me() {
         Long userId = authService.currentUserId();
-        return Result.success(userService.getById(userId));
+        var userVO = userService.getById(userId);
+        var roleIds =
+                userRoleRepository.findByUserIdAndDeletedFalse(userId).stream()
+                        .map(ur -> ur.getRoleId())
+                        .toList();
+        var roles =
+                roleIds.isEmpty()
+                        ? List.<String>of()
+                        : roleRepository.findAllById(roleIds).stream()
+                                .map(r -> r.getCode())
+                                .toList();
+        return Result.success(new MeVO(userVO, roles));
     }
 
     @Operation(summary = "账号密码登录")

@@ -274,7 +274,7 @@ export function StoryboardPanel() {
           ) : (
             <div className="py-8 text-center">
               <Film className="mx-auto mb-2 size-8 text-muted-foreground/30" />
-              <p className="text-muted-foreground text-xs">从文件区拖入素材添加元素</p>
+              <p className="text-muted-foreground text-xs">从素材区拖入素材添加元素</p>
             </div>
           )}
         </div>

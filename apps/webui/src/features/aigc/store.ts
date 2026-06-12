@@ -13,8 +13,8 @@ interface AigcStore {
   copywritingPanelOpen: boolean
   /** 文案内容 */
   copywritingContent: string
-  /** 文案生成类型：oral=口播 xiaohongshu=小红书 */
-  copywritingType: "oral" | "xiaohongshu"
+  /** 文案生成类型：oral=口播 xiaohongshu=小红书 viral=爆款复制 */
+  copywritingType: "oral" | "xiaohongshu" | "viral"
   /** 文案生成模板 */
   copywritingTemplate: string
   /** 文案生成语言/翻译目标 */
@@ -33,13 +33,13 @@ interface AigcStore {
   storyboardAssets: MediaAssetVO[]
   /** 元素看板是否展开 */
   storyboardPanelOpen: boolean
-  /** 文件区只展示未分配素材 */
+  /** 素材区只展示未分配素材 */
   fileFilterUnassigned: boolean
-  /** 文件区是否展开 */
+  /** 素材区是否展开 */
   fileAreaOpen: boolean
-  /** 文件区素材类型筛选 */
+  /** 素材区素材类型筛选 */
   fileTypeFilter: "ALL" | "IMAGE" | "VIDEO" | "AUDIO"
-  /** 文件区缩放比例（50-150） */
+  /** 素材区缩放比例（50-150） */
   fileZoom: number
   /** 正在生成中的任务（显示 loading 占位） */
   pendingTasks: Array<{
@@ -91,7 +91,7 @@ interface AigcStore {
   setAgentRole: (roleId: string) => void
   setCopywritingPanelOpen: (open: boolean) => void
   setCopywritingContent: (content: string) => void
-  setCopywritingType: (type: "oral" | "xiaohongshu") => void
+  setCopywritingType: (type: "oral" | "xiaohongshu" | "viral") => void
   setCopywritingTemplate: (template: string) => void
   setCopywritingTranslateTo: (lang: string) => void
   setCopywritingLength: (length: "short" | "medium" | "long") => void
@@ -138,7 +138,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   copywritingTemplate: "",
   copywritingTranslateTo: "",
   copywritingLength: "medium",
-  copywritingModel: "GPT-4o",
+  copywritingModel: "",
   previewAsset: null,
   previewList: [],
   referenceAssets: [],

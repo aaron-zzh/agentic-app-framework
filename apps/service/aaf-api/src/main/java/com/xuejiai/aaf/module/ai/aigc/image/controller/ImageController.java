@@ -13,15 +13,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageEditRequest;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService.ImageResult;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService.TaskStatus;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.image.service.AiImageService;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.AiImageVO;
@@ -53,6 +55,7 @@ public class ImageController {
     private final AiImageService aiImageService;
     private final ImageServiceFactory imageServiceFactory;
     private final OperatorContext operatorContext;
+    private final ObjectMapper objectMapper;
 
     // ========== 请求 DTO ==========
 
@@ -104,9 +107,7 @@ public class ImageController {
         String buttonsJson = null;
         if (buttons != null) {
             try {
-                buttonsJson =
-                        new com.fasterxml.jackson.databind.ObjectMapper()
-                                .writeValueAsString(buttons);
+                buttonsJson = objectMapper.writeValueAsString(buttons);
             } catch (Exception ignored) {
                 // 忽略序列化失败
             }

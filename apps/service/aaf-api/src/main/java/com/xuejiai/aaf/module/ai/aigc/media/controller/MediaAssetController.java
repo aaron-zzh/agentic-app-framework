@@ -40,10 +40,12 @@ public class MediaAssetController {
     public Result<PageResult<MediaAssetVO>> page(
             @RequestParam(required = false) MediaAssetType type,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long projectId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = operatorContext.currentUserId().orElseThrow();
-        var springPage = assetService.page(userId, type, categoryId, PageRequest.of(page, size));
+        var springPage =
+                assetService.page(userId, type, categoryId, projectId, PageRequest.of(page, size));
         return Result.success(
                 new PageResult<>(springPage.getContent(), springPage.getTotalElements()));
     }

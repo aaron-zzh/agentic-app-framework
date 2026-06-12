@@ -59,6 +59,7 @@ public class Model3dGenerationTool {
                                     null,
                                     true,
                                     null,
+                                    null,
                                     null);
                     mediaAssetService.saveFromGeneration(0L, saveDto);
                 } catch (Exception e) {

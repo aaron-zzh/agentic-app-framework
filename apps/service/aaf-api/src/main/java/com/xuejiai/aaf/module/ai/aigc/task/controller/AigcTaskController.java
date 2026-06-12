@@ -1,13 +1,20 @@
-package com.xuejiai.aaf.module.ai.aigc.task;
+package com.xuejiai.aaf.module.ai.aigc.task.controller;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
+import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,6 +44,8 @@ public class AigcTaskController {
             /** 用于展示/命名的用户原始输入（不含项目提示词前缀），为空时回退到 prompt */
             String displayPrompt,
             String model,
+            /** 所属项目 ID，null 表示全局任务 */
+            Long projectId,
             Map<String, Object> params) {}
 
     /**
@@ -52,21 +61,17 @@ public class AigcTaskController {
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(
-                                () ->
-                                        new com.xuejiai.aaf.common.exception.BusinessException(
-                                                com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                        .UNAUTHORIZED,
-                                                "未登录"));
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         Long taskId =
                 switch (dto.type().toUpperCase()) {
                     case "IMAGE" -> {
-                        var p = dto.params() != null ? dto.params() : java.util.Map.of();
+                        var p = dto.params() != null ? dto.params() : Map.of();
                         String imageUrl = toString(p.get("imageUrl"));
                         @SuppressWarnings("unchecked")
-                        java.util.List<String> imageUrls =
-                                p.get("imageUrls") instanceof java.util.List
-                                        ? (java.util.List<String>) p.get("imageUrls")
-                                        : (imageUrl != null ? java.util.List.of(imageUrl) : null);
+                        List<String> imageUrls =
+                                p.get("imageUrls") instanceof List
+                                        ? (List<String>) p.get("imageUrls")
+                                        : (imageUrl != null ? List.of(imageUrl) : null);
                         int w = toInt(p.get("width")) != null ? toInt(p.get("width")) : 1024;
                         int h = toInt(p.get("height")) != null ? toInt(p.get("height")) : 1024;
                         yield taskService.submitImageTask(
@@ -89,14 +94,28 @@ public class AigcTaskController {
                                         toString(p.get("aspectRatio")),
                                         dto.displayPrompt(),
                                         null,
-                                        null));
+                                        null,
+                                        dto.projectId()));
                     }
-                    case "VIDEO" -> taskService.submitVideoTask(userId, dto.prompt(), dto.model());
-                    case "MODEL_3D" -> taskService.submit3dTask(userId, dto.prompt(), dto.model());
+                    case "VIDEO" ->
+                            taskService.submitVideoTask(
+                                    userId, dto.prompt(), dto.model(), dto.projectId());
+                    case "MODEL_3D" ->
+                            taskService.submit3dTask(
+                                    userId, dto.prompt(), dto.model(), dto.projectId());
+                    case "MUSIC" -> {
+                        var p = dto.params() != null ? dto.params() : Map.of();
+                        yield taskService.submitMusicTask(
+                                userId,
+                                dto.prompt(),
+                                dto.model(),
+                                toString(p.get("lyrics")),
+                                toString(p.get("gender")),
+                                dto.projectId());
+                    }
                     default ->
-                            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST,
-                                    "不支持的任务类型: " + dto.type());
+                            throw new BusinessException(
+                                    GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + dto.type());
                 };
         return Result.success(taskId);
     }
@@ -113,11 +132,7 @@ public class AigcTaskController {
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(
-                                () ->
-                                        new com.xuejiai.aaf.common.exception.BusinessException(
-                                                com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                        .UNAUTHORIZED,
-                                                "未登录"));
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         return eventService.subscribe(userId);
     }
 
@@ -137,12 +152,21 @@ public class AigcTaskController {
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(
-                                () ->
-                                        new com.xuejiai.aaf.common.exception.BusinessException(
-                                                com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                        .UNAUTHORIZED,
-                                                "未登录"));
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         return Result.success(taskService.pageByUser(userId, pageNo, pageSize));
+    }
+
+    @Operation(summary = "查询单个 AIGC 任务")
+    @GetMapping("/{id}")
+    public Result<AigcTaskVO> getById(@PathVariable Long id) {
+        return Result.success(taskService.getById(id));
+    }
+
+    @Operation(summary = "删除 AIGC 任务")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        taskService.delete(id);
+        return Result.success();
     }
 
     private static Integer toInt(Object val) {

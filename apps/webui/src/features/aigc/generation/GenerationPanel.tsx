@@ -9,8 +9,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { AnimatePresence, m } from "framer-motion"
 import { X } from "lucide-react"
+import { useParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,6 +41,7 @@ export function GenerationPanel() {
   const prompt = useAigcStore((s) => s.prompt)
   const setPrompt = useAigcStore((s) => s.setPrompt)
   const projectPromptTag = useAigcStore((s) => s.projectPromptTag)
+  const setProjectPromptTag = useAigcStore((s) => s.setProjectPromptTag)
   const model = useAigcStore((s) => s.model)
   const setModel = useAigcStore((s) => s.setModel)
   const resolution = useAigcStore((s) => s.resolution)
@@ -116,6 +117,8 @@ export function GenerationPanel() {
 
   const generateImage = useGenerateImage()
   const addPendingTask = useAigcStore((s) => s.addPendingTask)
+  const routeParams = useParams()
+  const projectId = routeParams.projectId ? Number(routeParams.projectId) : null
 
   /** ratio 模式无精确尺寸时的降级换算 */
   function resolveSize(res: string, ratio: string): { width: number; height: number } {
@@ -171,7 +174,8 @@ export function GenerationPanel() {
         quality: modeConfig?.quality ? quality : undefined,
         format: modeConfig?.format ? format : undefined,
         background: modeConfig?.background ? background : undefined,
-        contentModeration: modeConfig?.contentModeration ? contentModeration : undefined
+        contentModeration: modeConfig?.contentModeration ? contentModeration : undefined,
+        projectId: projectId ?? undefined
       },
       {
         onSuccess: (taskId) => {
@@ -179,11 +183,7 @@ export function GenerationPanel() {
           setPrompt("")
           setOpen(false)
         },
-        onError: (err) => {
-          toast.error("提交失败", {
-            description: err instanceof Error ? err.message : "请稍后重试"
-          })
-        }
+        onError: () => {}
       }
     )
   }
@@ -475,18 +475,34 @@ export function GenerationPanel() {
 
             {/* Prompt 输入 */}
             <div className="flex min-h-[120px] flex-1 flex-col gap-1">
-              <div className="flex justify-end">
-                <PromptTemplateDialog
-                  type={isVideo ? "VIDEO" : "IMAGE"}
-                  onSelect={(p) => setPrompt(p)}
-                  hasReferenceImages={!isVideo && referenceAssets.length > 0}
-                />
+              <div className="flex items-center justify-between">
+                {referenceAssets.length > 0 && isEditMode && (
+                  <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600/80 text-xs">
+                    <svg className="size-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path
+                        d="M11 2L14 5L5 14H2V11L11 2Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    图像编辑
+                  </span>
+                )}
+                <div className="ml-auto">
+                  <PromptTemplateDialog
+                    type={isVideo ? "VIDEO" : "IMAGE"}
+                    onSelect={(p) => setPrompt(p)}
+                    hasReferenceImages={!isVideo && referenceAssets.length > 0}
+                  />
+                </div>
               </div>
               <PromptInput
                 value={prompt}
                 onChange={setPrompt}
                 placeholder={isVideo ? "描述你想生成的视频内容..." : "描述你想生成的图像..."}
                 projectPrompt={projectPromptTag}
+                onDismissProjectPrompt={() => setProjectPromptTag(null)}
                 className="flex-1"
                 minHeight={80}
               />

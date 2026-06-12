@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 基于 DashScope HTTP API 的重排序实现，用于 RAG 精排。
  *
- * <p>支持模型：gte-rerank-v2、qwen3-rerank 等。
+ * <p>支持模型：qwen3-rerank、qwen3-rerank 等。
  *
  * <p>启用条件：配置 {@code spring.ai.dashscope.api-key}
  */
@@ -52,7 +52,7 @@ public class DashScopeRerankService implements RerankService {
     @Override
     public List<RankedDocument> rerank(String query, List<String> documents, int topN) {
         try {
-            // 经六级链按 RERANK 能力解析 modelId（系统默认 / yaml / 内置兜底 gte-rerank-v2）
+            // 经六级链按 RERANK 能力解析 modelId（系统默认 / yaml / 内置兜底 qwen3-rerank）
             var aiModel =
                     capabilityRouter.resolve(
                             CapabilityRoutingContext.ofCapability(

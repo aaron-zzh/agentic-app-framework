@@ -11,6 +11,8 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
@@ -45,6 +47,7 @@ public class AiChatHandler {
     private final ChatService chatService;
     private final AgentRunEventStreamService agentRunEventStreamService;
     private final AgentRunEventPublisher agentRunEventPublisher;
+    private final ObjectMapper objectMapper;
 
     /**
      * 处理 AI 对话请求
@@ -57,6 +60,7 @@ public class AiChatHandler {
     public SseEmitter handle(ChatRunRequest request, Long userId, Long sessionId) {
         var emitter = new SseEmitter(SSE_TIMEOUT);
         var runId = UUID.randomUUID().toString();
+        // 1. 注册 SSE emitter，后续所有 AG-UI 事件通过此 emitter 推送到前端
         agentRunEventStreamService.attach(
                 runId, emitter, AgentRunEventStreamService.Format.AGUI_CUSTOM);
 
@@ -65,16 +69,22 @@ public class AiChatHandler {
 
         var messages = buildMessages(request);
 
+        // 2. 虚拟线程异步执行，避免阻塞 Servlet 线程
         Thread.startVirtualThread(
                 () -> {
+                    // 3. 开启 AgentRunContext（runId/userId 绑定到当前线程，供下游服务读取）
                     try (var ignored = AgentRunContextHolder.open(runId, userId, null)) {
                         agentRunEventPublisher.publish(
                                 AgentRunEventType.RUN_STARTED,
                                 "运行开始",
                                 "AI 对话运行已启动",
                                 java.util.Map.of("sessionId", sessionId != null ? sessionId : 0L));
-                        var flux = resilientChatService.stream(messages, "chat", userId);
-                        // 流结束后持久化 AI 回复
+                        // 4. 调 ResilientChatService 获取 LLM 流式响应
+                        //    内部：CapabilityRouter 路由 → DynamicChatClientFactory 构建 ChatClient → 调
+                        // LLM
+                        var flux = resilientChatService.stream(messages, request.modelId(), userId);
+                        // 5. AgUiStreamHandler 将 Flux<ChatResponse> 转为 AG-UI SSE 事件流推送给前端
+                        //    流结束后回调持久化 AI 回复到 chat_message 表
                         streamHandler.handleStream(
                                 flux,
                                 emitter,
@@ -122,9 +132,7 @@ public class AiChatHandler {
 
     private void sendErrorAndComplete(SseEmitter emitter, String runId, Exception e) {
         try {
-            var json =
-                    new com.fasterxml.jackson.databind.ObjectMapper()
-                            .writeValueAsString(AgUiEvent.runError(runId, e.getMessage()));
+            var json = objectMapper.writeValueAsString(AgUiEvent.runError(runId, e.getMessage()));
             emitter.send(SseEmitter.event().data(json));
         } catch (Exception ignored) {
         }

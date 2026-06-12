@@ -68,6 +68,10 @@ export class ApiClient {
     return this.request<T>({ ...config, method: "PUT", url, data })
   }
 
+  patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    return this.request<T>({ ...config, method: "PATCH", url, data })
+  }
+
   delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return this.request<T>({ ...config, method: "DELETE", url })
   }
@@ -94,7 +98,7 @@ export class RestApiClient extends ApiClient {
   protected override setupInterceptors(): void {
     this.instance.interceptors.response.use(
       (response) => response,
-      (error: AxiosError) => Promise.reject(this.normalizeError(error))
+      (error: AxiosError) => Promise.reject(error) // 保留原始 AxiosError，让后注册的拦截器处理
     )
   }
 

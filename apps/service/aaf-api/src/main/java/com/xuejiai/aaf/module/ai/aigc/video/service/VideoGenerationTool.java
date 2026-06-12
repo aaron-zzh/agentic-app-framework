@@ -67,6 +67,7 @@ public class VideoGenerationTool {
                                     null,
                                     true,
                                     null,
+                                    null,
                                     null);
                     mediaAssetService.saveFromGeneration(0L, saveDto);
                 } catch (Exception e) {

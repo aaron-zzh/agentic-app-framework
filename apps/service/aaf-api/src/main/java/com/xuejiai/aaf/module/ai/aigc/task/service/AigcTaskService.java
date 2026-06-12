@@ -1,16 +1,17 @@
-package com.xuejiai.aaf.module.ai.aigc.task;
+package com.xuejiai.aaf.module.ai.aigc.task.service;
 
 import java.io.InputStream;
 import java.net.URI;
-import java.time.LocalDateTime;
+import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -18,26 +19,34 @@ import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
+import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
+import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
+import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * AIGC 统一任务服务——汇聚图像/视频/3D 模型三类生成任务，统一管理状态流转和 OSS 存储。
+ * AIGC 统一任务服务——汇聚图像/视频/3D 模型/音乐四类生成任务，统一管理状态流转和 OSS 存储。
  *
  * @author Kiro
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AigcTaskService {
+@Transactional(readOnly = true)
+public class AigcTaskService
+        extends BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> {
 
     private static final String TYPE_IMAGE = "IMAGE";
     private static final String TYPE_VIDEO = "VIDEO";
     private static final String TYPE_MODEL3D = "MODEL_3D";
+    private static final String TYPE_MUSIC = "MUSIC";
 
     private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_RUNNING = "RUNNING";
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_FAIL = "FAIL";
 
@@ -47,24 +56,66 @@ public class AigcTaskService {
 
     private final AigcTaskRepository taskRepo;
     private final AigcTaskEventService eventService;
+    private final AigcTaskMapper taskMapper;
     private final StorageService storageService;
     private final MediaAssetService mediaAssetService;
     private final ImageServiceFactory imageServiceFactory;
     private final CapabilityRouter capabilityRouter;
     private final AigcTaskExecutor taskExecutor;
 
+    // ========== BaseCrudService 必须实现 ==========
+
+    @Override
+    protected JpaRepository<AigcTask, Long> getRepository() {
+        return taskRepo;
+    }
+
+    @Override
+    protected JpaSpecificationExecutor<AigcTask> getSpecExecutor() {
+        return taskRepo;
+    }
+
+    @Override
+    public AigcTaskVO toVO(AigcTask task) {
+        return taskMapper.toVO(task);
+    }
+
+    /** 创建入口由业务方法（submit*）负责，不支持通用 create。 */
+    @Override
+    protected AigcTask toEntity(Void createDTO) {
+        throw new UnsupportedOperationException("请使用 submit*Task 方法创建任务");
+    }
+
+    /** 任务状态由内部流转，不支持通用 update。 */
+    @Override
+    protected void updateEntity(AigcTask entity, Void updateDTO) {
+        throw new UnsupportedOperationException("任务状态由内部流转管理");
+    }
+
+    @Override
+    protected Specification<AigcTask> buildSpec(AigcTaskPageDTO dto) {
+        return (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (dto.getUserId() != null)
+                predicates.add(cb.equal(root.get("userId"), dto.getUserId()));
+            if (dto.getType() != null) predicates.add(cb.equal(root.get("type"), dto.getType()));
+            if (dto.getStatus() != null)
+                predicates.add(cb.equal(root.get("status"), dto.getStatus()));
+            if (dto.getProjectId() != null)
+                predicates.add(cb.equal(root.get("projectId"), dto.getProjectId()));
+            return predicates.isEmpty()
+                    ? null
+                    : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    @Override
+    protected String entityName() {
+        return "AIGC任务";
+    }
+
     // ========== 提交任务 ==========
 
-    /**
-     * 提交图像生成任务，根据 model 路由到 wanx 或 midjourney。
-     *
-     * @param userId 用户 ID
-     * @param prompt 生成描述
-     * @param model 模型名（null 则由路由决策）
-     * @param width 宽度（像素）
-     * @param height 高度（像素）
-     * @return 统一任务 ID
-     */
     @Transactional
     public Long submitImageTask(Long userId, ImageTaskRequest req) {
         long t0 = System.currentTimeMillis();
@@ -81,13 +132,12 @@ public class AigcTaskService {
                         TYPE_IMAGE,
                         req.prompt(),
                         resolvedModel,
-                        resolvedAiModel.getDisplayName());
-        // 将所有生成参数序列化存入 params，供 submitSync 读取（@Async 线程中执行，非阻塞）
+                        resolvedAiModel.getDisplayName(),
+                        req.projectId());
         task.setParams(req.toParamsJson());
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
-        // 事务提交后再触发异步生成，避免异步线程读不到未提交的 task 记录
         final Long taskId = task.getId();
         final String prompt = req.prompt();
         org.springframework.transaction.support.TransactionSynchronizationManager
@@ -105,50 +155,61 @@ public class AigcTaskService {
         return task.getId();
     }
 
-    /**
-     * 提交视频生成任务（占位实现，底层接入具体服务时扩展）。
-     *
-     * @param userId 用户 ID
-     * @param prompt 生成描述
-     * @param model 模型名
-     * @return 统一任务 ID
-     */
     @Transactional
-    public Long submitVideoTask(Long userId, String prompt, String model) {
-        var task = buildTask(userId, TYPE_VIDEO, prompt, model, null);
+    public Long submitVideoTask(Long userId, String prompt, String model, Long projectId) {
+        var task = buildTask(userId, TYPE_VIDEO, prompt, model, null, projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
         log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), model);
-        // TODO: 接入视频生成底层服务（如通义万象视频生成）
         return task.getId();
     }
 
-    /**
-     * 提交 3D 模型生成任务（占位实现，底层接入具体服务时扩展）。
-     *
-     * @param userId 用户 ID
-     * @param prompt 生成描述
-     * @param model 模型名
-     * @return 统一任务 ID
-     */
     @Transactional
-    public Long submit3dTask(Long userId, String prompt, String model) {
-        var task = buildTask(userId, TYPE_MODEL3D, prompt, model, null);
+    public Long submit3dTask(Long userId, String prompt, String model, Long projectId) {
+        var task = buildTask(userId, TYPE_MODEL3D, prompt, model, null, projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
-        log.info("[submit3dTask] 3D 模型生成任务已创建: taskId={}, model={}", task.getId(), model);
-        // TODO: 接入 3D 生成底层服务
+
+        final Long taskId = task.getId();
+        org.springframework.transaction.support.TransactionSynchronizationManager
+                .registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                taskExecutor.submitModel3dSync(taskId, prompt);
+                            }
+                        });
+        return task.getId();
+    }
+
+    @Transactional
+    public Long submitMusicTask(
+            Long userId,
+            String prompt,
+            String model,
+            String lyrics,
+            String gender,
+            Long projectId) {
+        var task = buildTask(userId, TYPE_MUSIC, prompt, model, null, projectId);
+        taskRepo.save(task);
+        eventService.push(userId, EVENT_CREATED, toVO(task));
+
+        final Long taskId = task.getId();
+        final String resolvedGender = gender != null ? gender : "female";
+        org.springframework.transaction.support.TransactionSynchronizationManager
+                .registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                taskExecutor.submitMusicSync(
+                                        taskId, prompt, lyrics, resolvedGender);
+                            }
+                        });
         return task.getId();
     }
 
     // ========== 任务完成/失败回调 ==========
 
-    /**
-     * 任务完成回调：下载第三方 resultUrl → 上传 OSS → 写入 MediaAsset → 推送 SSE。
-     *
-     * @param thirdTaskId 第三方任务 ID
-     * @param resultUrl 第三方结果 URL
-     */
     @Transactional(
             propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void completeTask(String thirdTaskId, String resultUrl) {
@@ -157,30 +218,16 @@ public class AigcTaskService {
             log.warn("[completeTask] 任务不存在: thirdTaskId={}", thirdTaskId);
             return;
         }
-
         task.setResultUrl(resultUrl);
-
-        // 下载结果并上传 OSS
         String ossUrl = uploadToOss(resultUrl, task.getType(), task.getId());
         task.setOssUrl(ossUrl);
         task.setStatus(STATUS_SUCCESS);
-        task.setUpdateTime(LocalDateTime.now());
         taskRepo.save(task);
-
-        // 写入素材库
         saveToMediaAsset(task, ossUrl);
-
-        // 推送 SSE 完成事件
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
     }
 
-    /**
-     * 任务失败回调：更新状态 → 推送 SSE。
-     *
-     * @param thirdTaskId 第三方任务 ID（或本系统任务 ID 字符串）
-     * @param errorMsg 失败原因
-     */
     @Transactional(
             propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void failTask(String thirdTaskId, String errorMsg) {
@@ -192,36 +239,31 @@ public class AigcTaskService {
         }
         task.setStatus(STATUS_FAIL);
         task.setErrorMsg(errorMsg);
-        task.setUpdateTime(LocalDateTime.now());
         taskRepo.save(task);
-
         eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
         log.info("[failTask] 任务失败: taskId={}, reason={}", task.getId(), errorMsg);
     }
 
-    // ========== 查询 ==========
+    // ========== 兼容旧分页查询（Controller 过渡用） ==========
 
-    /**
-     * 分页查询用户任务列表。
-     *
-     * @param userId 用户 ID
-     * @param pageNo 页码（从 1 开始）
-     * @param pageSize 每页大小
-     * @return 分页结果
-     */
     @Transactional(readOnly = true)
     public PageResult<AigcTaskVO> pageByUser(Long userId, int pageNo, int pageSize) {
-        var pageable =
-                PageRequest.of(pageNo - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime"));
-        Page<AigcTask> page = taskRepo.findByUserIdOrderByCreateTimeDesc(userId, pageable);
-        return new PageResult<>(
-                page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+        var dto = new AigcTaskPageDTO();
+        dto.setUserId(userId);
+        dto.setPageNo(pageNo);
+        dto.setPageSize(pageSize);
+        return page(dto);
     }
 
-    // ========== 内部方法 ==========
+    // ========== 内部工具方法 ==========
 
     private AigcTask buildTask(
-            Long userId, String type, String prompt, String model, String modelName) {
+            Long userId,
+            String type,
+            String prompt,
+            String model,
+            String modelName,
+            Long projectId) {
         var task = new AigcTask();
         task.setUserId(userId);
         task.setType(type);
@@ -229,32 +271,29 @@ public class AigcTaskService {
         task.setPrompt(prompt);
         task.setModel(model);
         task.setModelName(modelName);
+        task.setProjectId(projectId);
         if (model != null) {
-            // 从 model id 冒号前取 provider，如 "qwen:wan2.7-image" → "qwen"
             int colon = model.indexOf(':');
             task.setProvider(colon > 0 ? model.substring(0, colon) : model);
         }
         return task;
     }
 
-    /** 从 URL 下载内容并上传到 OSS，返回 OSS 访问 URL。 */
     private String uploadToOss(String url, String type, Long taskId) {
         try {
             String ext = guessExtension(url, type);
-            String filename = "aigc/%s/%s.%s".formatted(type.toLowerCase(), java.util.UUID.randomUUID(), ext);
+            String filename = "aigc/%s/%s.%s".formatted(type.toLowerCase(), UUID.randomUUID(), ext);
             String contentType = guessContentType(type);
-
             try (InputStream is = URI.create(url).toURL().openStream()) {
                 String key = storageService.upload(is, filename, contentType);
                 return storageService.getUrl(key);
             }
         } catch (Exception e) {
             log.warn("[uploadToOss] 上传 OSS 失败，回退使用原始 URL: taskId={}, url={}", taskId, url, e);
-            return url; // 上传失败时降级使用原始 URL
+            return url;
         }
     }
 
-    /** 将完成的任务写入素材库 */
     private void saveToMediaAsset(AigcTask task, String ossUrl) {
         try {
             var dto =
@@ -275,7 +314,8 @@ public class AigcTaskService {
                             null,
                             true,
                             task.getModelName(),
-                            task.getProvider());
+                            task.getProvider(),
+                            task.getProjectId());
             mediaAssetService.saveFromGeneration(task.getUserId(), dto);
         } catch (Exception e) {
             log.warn("[saveToMediaAsset] 写入素材库失败: taskId={}", task.getId(), e);
@@ -286,6 +326,7 @@ public class AigcTaskService {
         return switch (type) {
             case TYPE_VIDEO -> MediaAssetType.VIDEO;
             case TYPE_MODEL3D -> MediaAssetType.MODEL_3D;
+            case TYPE_MUSIC -> MediaAssetType.AUDIO;
             default -> MediaAssetType.IMAGE;
         };
     }
@@ -300,6 +341,7 @@ public class AigcTaskService {
         return switch (type) {
             case TYPE_VIDEO -> "mp4";
             case TYPE_MODEL3D -> "glb";
+            case TYPE_MUSIC -> "mp3";
             default -> "png";
         };
     }
@@ -308,24 +350,8 @@ public class AigcTaskService {
         return switch (type) {
             case TYPE_VIDEO -> "video/mp4";
             case TYPE_MODEL3D -> "model/gltf-binary";
+            case TYPE_MUSIC -> "audio/mpeg";
             default -> "image/png";
         };
-    }
-
-    AigcTaskVO toVO(AigcTask task) {
-        return new AigcTaskVO(
-                task.getId(),
-                task.getUserId(),
-                task.getType(),
-                task.getStatus(),
-                task.getProvider(),
-                task.getModel(),
-                task.getPrompt(),
-                task.getTaskId(),
-                task.getResultUrl(),
-                task.getOssUrl(),
-                task.getErrorMsg(),
-                task.getCreateTime(),
-                task.getUpdateTime());
     }
 }

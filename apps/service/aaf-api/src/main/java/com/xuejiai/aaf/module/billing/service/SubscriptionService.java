@@ -16,6 +16,7 @@ import com.xuejiai.aaf.module.billing.domain.SubscriptionRecord;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRecordRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
+import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
@@ -32,7 +33,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service("billingSubscriptionService")
 @RequiredArgsConstructor
-public class SubscriptionService {
+public class SubscriptionService implements PaySuccessHandler {
+
+    @Override
+    public String bizOrderType() {
+        return BizOrderTypeEnum.SUBSCRIPTION.getCode();
+    }
 
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionRecordRepository recordRepository;

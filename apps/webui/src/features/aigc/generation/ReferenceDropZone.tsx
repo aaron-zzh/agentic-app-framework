@@ -38,7 +38,7 @@ async function uploadImageFile(file: File): Promise<MediaAssetVO> {
 
 export function ReferenceDropZone({
   max = 16,
-  isEditMode = false
+  isEditMode: _isEditMode = false
 }: {
   max?: number
   isEditMode?: boolean
@@ -95,78 +95,62 @@ export function ReferenceDropZone({
       ref={setNodeRef}
       aria-label="参考素材拖放区"
       className={cn(
-        "flex min-h-[96px] flex-col gap-2 rounded-lg border border-border/50 border-dashed bg-muted/30 p-3 transition-colors",
+        "relative flex min-h-[96px] flex-col gap-2 rounded-lg border border-border/50 border-dashed bg-muted/30 p-3 transition-colors",
         (isOver || fileDragOver) && "border-primary bg-primary/5"
       )}
       onDragOver={onFileDragOver}
       onDragLeave={onFileDragLeave}
       onDrop={onFileDrop}
     >
-      {/* 缩略图网格 */}
+      {/* 右上角：计数 + 上传按钮（固定） */}
       {referenceAssets.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {referenceAssets.map((asset) => (
-            <div
-              key={asset.id}
-              className="group relative size-14 overflow-hidden rounded-md bg-muted"
-            >
-              {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
-              <img
-                src={asset.thumbnailUrl ?? undefined}
-                alt={asset.name}
-                className="size-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => removeReferenceAsset(asset.id)}
-                className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          ))}
-        </div>
+        <span className="absolute right-2 bottom-1 text-[10px] text-muted-foreground">
+          {referenceAssets.length}/{max}
+        </span>
       )}
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => fileInputRef.current?.click()}
+        className="absolute top-4 right-2 flex size-14 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+      >
+        {uploading ? <Loader2 className="size-5 animate-spin" /> : <Plus className="size-5" />}
+      </button>
 
-      {/* 底部：提示文字 + 计数 + 上传按钮 */}
-      <div className="mt-auto flex items-center gap-2">
-        {referenceAssets.length === 0 && (
-          <span className="flex flex-1 items-center gap-1.5 text-muted-foreground text-xs">
+      {/* 缩略图网格 */}
+      {referenceAssets.length > 0 ? (
+        <div className="flex flex-1 items-center">
+          <div className="flex flex-wrap gap-2 pr-16">
+            {referenceAssets.map((asset) => (
+              <div
+                key={asset.id}
+                className="group relative size-14 overflow-hidden rounded-md bg-muted"
+              >
+                {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
+                <img
+                  src={asset.thumbnailUrl ?? asset.url ?? undefined}
+                  alt={asset.name}
+                  className="size-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeReferenceAsset(asset.id)}
+                  className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 items-center pr-10">
+          <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
             <Upload className="size-3.5 shrink-0" />
             拖拽素材或文件到此处作为参考
           </span>
-        )}
-        {referenceAssets.length > 0 && isEditMode && (
-          <span className="flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 font-medium text-violet-500 text-xs">
-            <svg className="size-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M11 2L14 5L5 14H2V11L11 2Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-            </svg>
-            图像编辑
-          </span>
-        )}
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="text-muted-foreground text-xs">
-            {referenceAssets.length}/{max}
-          </span>
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex size-7 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            {uploading ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Plus className="size-3.5" />
-            )}
-          </button>
         </div>
-      </div>
+      )}
 
       {/* 隐藏文件选择器 */}
       <input

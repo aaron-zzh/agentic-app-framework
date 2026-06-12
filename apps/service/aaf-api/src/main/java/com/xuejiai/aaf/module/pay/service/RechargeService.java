@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
@@ -16,34 +17,38 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RechargeService {
+public class RechargeService implements PaySuccessHandler {
 
     private final BizOrderService bizOrderService;
     private final PayOrderService payOrderService;
     private final CreditService creditService;
 
+    /** 延迟注入打破循环：PayNotifyService → RechargeService(handler) → PayNotifyService */
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private PayNotifyService payNotifyService;
+
+    @Override
+    public String bizOrderType() {
+        return BizOrderTypeEnum.RECHARGE.getCode();
+    }
+
     /** 发起充值：创建业务订单 + 支付单，MOCK 渠道同步入账 */
     @Transactional
     public PayOrderVO initiateRecharge(Long userId, long amount, String channelCode) {
-        // 创建业务订单
         var bizOrder =
                 bizOrderService.create(
                         userId,
                         new BizOrderCreateDTO(
                                 BizOrderTypeEnum.RECHARGE.getCode(), "积分充值", amount, channelCode));
-
-        // 创建支付单
         var payOrder =
                 payOrderService.create(
                         new PayOrderCreateDTO(
                                 bizOrder.orderNo(), "积分充值", null, amount, channelCode, userId));
-
-        // 关联支付单
         bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
 
-        // 如果支付已同步成功（MOCK 渠道），直接触发积分入账
         if (payOrderService.isSuccess(payOrder.id())) {
-            onPaySuccess(payOrder.id());
+            payNotifyService.onPaySuccess(payOrder.id());
         }
         return payOrder;
     }

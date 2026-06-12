@@ -1,5 +1,5 @@
 /**
- * 文件区素材网格——接入真实 API，素材按组聚合展示
+ * 素材区素材网格——接入真实 API，素材按组聚合展示
  * @author AaronZZH & Kiro
  */
 
@@ -127,13 +127,14 @@ function FileGridSkeleton() {
 
 interface FileGridProps {
   filterUnassigned?: boolean
+  projectId?: number | null
 }
 
 const EMPTY_LIST: MediaAssetVO[] = []
-const QUERY_PARAMS = { page: 0, pageSize: 20 }
 
-export function FileGrid({ filterUnassigned = false }: FileGridProps) {
-  const { data, isLoading } = useMediaAssets(QUERY_PARAMS)
+export function FileGrid({ filterUnassigned = false, projectId }: FileGridProps) {
+  const queryParams = projectId ? { page: 0, pageSize: 20, projectId } : { page: 0, pageSize: 20 }
+  const { data, isLoading } = useMediaAssets(queryParams)
   const storyboardAssets = useAigcStore((s) => s.storyboardAssets)
   const setPreviewList = useAigcStore((s) => s.setPreviewList)
   const pendingTasks = useAigcStore((s) => s.pendingTasks)
@@ -188,7 +189,13 @@ export function FileGrid({ filterUnassigned = false }: FileGridProps) {
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${colWidth}px, 1fr))` }}
     >
       {groups.map((g) => (
-        <AssetGroupCard key={g.id} groupId={g.id} groupName={g.name} assets={g.assets} colWidth={colWidth} />
+        <AssetGroupCard
+          key={g.id}
+          groupId={g.id}
+          groupName={g.name}
+          assets={g.assets}
+          colWidth={colWidth}
+        />
       ))}
       {ungrouped.map((asset) => (
         <DraggableAssetCard key={asset.id} asset={asset} />

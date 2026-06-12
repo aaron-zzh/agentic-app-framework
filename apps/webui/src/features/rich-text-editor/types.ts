@@ -2,6 +2,7 @@
  * 富文本编辑器类型定义
  * @author AaronZZH & Kiro
  */
+import type React from "react"
 
 export type ToolbarFeature =
   | "format"
@@ -23,7 +24,16 @@ export interface MentionUser {
 /** 编辑器序列化模式：html（默认）/ markdown / plaintext */
 export type EditorMode = "html" | "markdown" | "plaintext"
 
+/** 通过 ref 暴露的编辑器命令句柄 */
+export interface RichTextEditorHandle {
+  /** 在当前光标位置插入文本（流式场景使用） */
+  insertText: (text: string) => void
+  /** 清空编辑器内容 */
+  clear: () => void
+}
+
 export interface RichTextEditorProps {
+  ref?: React.Ref<RichTextEditorHandle>
   value?: string
   onChange?: (value: string) => void
   placeholder?: string

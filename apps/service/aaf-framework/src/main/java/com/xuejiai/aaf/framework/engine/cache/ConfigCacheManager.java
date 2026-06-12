@@ -43,6 +43,8 @@ public class ConfigCacheManager {
     private final ModelPreferenceRepository modelPreferenceRepository;
 
     private TwoLevelCache<Long, AiModel> aiModelCache;
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> aiModelIdIndex =
+            new java.util.concurrent.ConcurrentHashMap<>();
     private TwoLevelCache<Long, AgentDefinition> agentDefCache;
     private TwoLevelCache<Long, AssistantDefinition> assistantDefCache;
     private TwoLevelCache<Long, PromptTemplate> promptTemplateCache;
@@ -75,6 +77,16 @@ public class ConfigCacheManager {
         return aiModelCache.get(id, k -> aiModelRepository.findById(k).orElse(null));
     }
 
+    /** 按 modelId 字符串查询（如 "n1n:gpt-4o"），先走 id 索引再查缓存 */
+    public AiModel getAiModelByModelId(String modelId) {
+        if (modelId == null) return null;
+        Long id =
+                aiModelIdIndex.computeIfAbsent(
+                        modelId,
+                        k -> aiModelRepository.findByModelId(k).map(AiModel::getId).orElse(null));
+        return id != null ? getAiModel(id) : null;
+    }
+
     public AgentDefinition getAgentDef(Long id) {
         return agentDefCache.get(id, k -> agentDefinitionRepository.findById(k).orElse(null));
     }
@@ -99,7 +111,14 @@ public class ConfigCacheManager {
 
     private void warmUp() {
         log.info("开始预热配置缓存...");
-        aiModelRepository.findAll().forEach(m -> aiModelCache.put(m.getId(), m));
+        aiModelRepository
+                .findAll()
+                .forEach(
+                        m -> {
+                            aiModelCache.put(m.getId(), m);
+                            if (m.getModelId() != null)
+                                aiModelIdIndex.put(m.getModelId(), m.getId());
+                        });
         agentDefinitionRepository.findAll().forEach(a -> agentDefCache.put(a.getId(), a));
         assistantDefinitionRepository.findAll().forEach(a -> assistantDefCache.put(a.getId(), a));
         promptTemplateRepository.findAll().forEach(p -> promptTemplateCache.put(p.getId(), p));

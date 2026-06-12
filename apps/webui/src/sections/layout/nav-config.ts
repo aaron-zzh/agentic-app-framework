@@ -3,10 +3,9 @@
  * @author AaronZZH & Kiro
  *
  * 优先使用 buildNavFromApi() 将后端 MenuVO[] 转为 NavGroup[]
- * API 失败时 fallback 到 buildNavConfig()（本地静态 + entityRegistry）
+ * API 失败时 fallback 到 buildNavConfig()（仅保留核心入口）
  */
 
-import { entityRegistry } from "@/features/entity-engine"
 import type { MenuVO } from "@/lib/api/rest/user/menu"
 import { paths } from "@/lib/constants/paths"
 
@@ -31,87 +30,27 @@ export interface NavGroup {
   items: NavItem[]
 }
 
-/** 固定菜单项（不依赖 entityRegistry） */
-const STATIC_NAV: NavGroup[] = [
-  {
-    subheader: "概览",
-    items: [{ title: "工作台", path: paths.workspace.dashboard, icon: "layout-dashboard" }]
-  },
-  {
-    subheader: "AI 创作",
-    items: [
-      { title: "图像生成", path: paths.aigc.root, icon: "sparkles" },
-      { title: "视频生成", path: paths.aigc.video, icon: "video" },
-      { title: "3D 展示", path: "/aigc/3d", icon: "box" },
-      { title: "素材库", path: paths.aigc.assets, icon: "image" }
-    ]
-  }
-]
-
-/** 开发工具菜单 */
-const DEV_NAV: NavGroup[] = [
-  {
-    subheader: "开发工具",
-    items: [
-      { title: "文档管理", path: "/dev/docs", icon: "file-text" },
-      { title: "开发日志", path: "/dev/log", icon: "scroll-text" },
-      { title: "代码审查", path: "/dev/review", icon: "git-pull-request" },
-      { title: "迭代统计", path: "/dev/stats", icon: "bar-chart-3" }
-    ]
-  }
-]
-
-/** 固定底部菜单 */
-const BOTTOM_NAV: NavGroup[] = [
-  {
-    subheader: "系统",
-    items: [
-      { title: "回收站", path: paths.workspace.trash, icon: "trash-2" },
-      {
-        title: "设置",
-        path: paths.workspace.settings,
-        icon: "settings",
-        children: [
-          { title: "个人资料", path: `${paths.workspace.settings}/profile` },
-          { title: "API Key", path: `${paths.workspace.settings}/api-keys` },
-          { title: "团队管理", path: `${paths.workspace.settings}/team`, badge: 3 },
-          {
-            title: "系统配置",
-            path: `${paths.workspace.settings}/system`,
-            children: [
-              { title: "模型管理", path: `${paths.workspace.settings}/system/model` },
-              {
-                title: "插件市场",
-                path: `${paths.workspace.settings}/system/plugins`,
-                badge: "NEW"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
-]
-
-/** 从 entityRegistry 生成实体菜单组 */
-function buildEntityNav(): NavGroup[] {
-  const groups = entityRegistry.getByGroup()
-  return Object.entries(groups).map(([group, entities]) => ({
-    subheader: entities[0]?.groupLabel ?? group,
-    items: entities.map((e) => ({
-      title: e.label,
-      path: paths.workspace.module(e.slug),
-      icon: e.icon,
-      deepMatch: true
-    }))
-  }))
-}
-
 /**
  * 构建完整导航配置（静态 fallback，API 失败时使用）
  */
 export function buildNavConfig(): NavGroup[] {
-  return [...STATIC_NAV, ...buildEntityNav(), ...DEV_NAV, ...BOTTOM_NAV]
+  return [
+    {
+      subheader: "概览",
+      items: [{ title: "工作台", path: paths.workspace.dashboard, icon: "layout-dashboard" }]
+    },
+    {
+      subheader: "AI 创作",
+      items: [
+        { title: "创作项目", path: paths.aigc.root, icon: "sparkles" },
+        { title: "素材库", path: paths.aigc.assets, icon: "image" }
+      ]
+    },
+    {
+      subheader: "系统",
+      items: [{ title: "设置", path: paths.workspace.settings, icon: "settings" }]
+    }
+  ]
 }
 
 export function buildOfficialNavConfig(): NavGroup {

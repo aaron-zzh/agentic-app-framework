@@ -26,6 +26,11 @@ public class TokenUsageEventListener {
     @EventListener
     public void onTokenUsage(TokenUsageEvent event) {
         if (event.userId() == null) return;
-        creditGuard.settle(event.userId(), "chat", event.totalTokens(), event.usageId());
+        creditGuard.settleByModel(
+                event.userId(),
+                event.modelId(),
+                event.promptTokens(),
+                event.completionTokens(),
+                event.usageId());
     }
 }

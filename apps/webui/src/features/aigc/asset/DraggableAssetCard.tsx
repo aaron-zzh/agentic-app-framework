@@ -53,16 +53,18 @@ export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) 
         if (e.key === "Enter") setPreviewAsset(asset)
       }}
     >
-      <div className={cn(
-        "rounded-[6px] outline outline-1 outline-transparent transition-[outline-color]",
-        isSelected ? "outline-primary" : "hover:outline-primary/40"
-      )}>
+      <div
+        className={cn(
+          "overflow-hidden rounded-[6px] outline outline-1 outline-transparent transition-[outline-color]",
+          isSelected ? "outline-primary" : "hover:outline-primary/40"
+        )}
+      >
         <div className="aspect-square bg-muted">
           {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
           <img
             src={asset.thumbnailUrl ?? asset.url}
             alt={asset.name}
-            className="size-full rounded-[6px] object-cover"
+            className="size-full object-cover"
           />
         </div>
       </div>

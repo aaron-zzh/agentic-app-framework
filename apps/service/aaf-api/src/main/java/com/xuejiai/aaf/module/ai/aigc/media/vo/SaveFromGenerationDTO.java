@@ -23,4 +23,5 @@ public record SaveFromGenerationDTO(
         @Schema(description = "所属素材组 ID") Long groupId,
         @Schema(description = "是否 AI 生成，默认 true") boolean aiGenerated,
         @Schema(description = "AI 模型显示名称", example = "豆包图像生成") String modelName,
-        @Schema(description = "模型供应商编码", example = "volcengine") String providerCode) {}
+        @Schema(description = "模型供应商编码", example = "volcengine") String providerCode,
+        @Schema(description = "所属项目 ID，NULL 表示全局素材") Long projectId) {}

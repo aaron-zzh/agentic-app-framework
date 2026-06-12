@@ -43,7 +43,7 @@ function OAuthCallbackContent() {
       .oauthCallback(provider, code)
       .then(async (result) => {
         setTokens(result.accessToken, result.refreshToken)
-        const user = await authApi.me()
+        const { user } = await authApi.me()
         setUser(user)
         router.push(paths.workspace.root)
       })

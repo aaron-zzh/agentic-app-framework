@@ -64,3 +64,8 @@ export async function listImageModels(): Promise<AiModelVO[]> {
 export async function listVideoModels(): Promise<AiModelVO[]> {
   return request<AiModelVO[]>("/ai/models/enabled?capability=VIDEO_GEN")
 }
+
+/** 获取已启用的文本生成模型列表 */
+export async function listTextModels(): Promise<AiModelVO[]> {
+  return request<AiModelVO[]>("/ai/models/enabled?capability=CHAT")
+}

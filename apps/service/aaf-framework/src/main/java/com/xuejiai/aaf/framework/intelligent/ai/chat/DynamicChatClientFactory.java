@@ -75,19 +75,20 @@ public class DynamicChatClientFactory {
     }
 
     private OpenAiChatModel buildOpenAiCompat(AiModel model) {
-        // Spring AI 2.0.0-M6 使用官方 OpenAI Java SDK，通过 OpenAiSetup 构建 client
-        // apiKey 优先级：模型级 > 供应商级 > yaml aaf.ai.models.{provider}.api-key > default
+        // 1. apiKey/baseUrl 优先级：模型级 > 供应商级 > yaml aaf.ai.models.{provider}.api-key > default
         String apiKey = model.effectiveApiKey();
-        if (apiKey == null || apiKey.isBlank()) {
+        String baseUrl = model.effectiveBaseUrl();
+        if (apiKey == null || apiKey.isBlank() || baseUrl == null || baseUrl.isBlank()) {
             var models = aiProperties.getModels();
             var cfg = models.getOrDefault(model.getProvider(), models.get("default"));
             if (cfg != null) {
-                apiKey = cfg.getApiKey();
+                if (apiKey == null || apiKey.isBlank()) apiKey = cfg.getApiKey();
+                if (baseUrl == null || baseUrl.isBlank()) baseUrl = cfg.getBaseUrl();
             }
         }
         var syncClient =
                 OpenAiSetup.setupSyncClient(
-                        model.effectiveBaseUrl(),
+                        baseUrl,
                         apiKey != null ? apiKey : "",
                         null,
                         null,
@@ -100,9 +101,17 @@ public class DynamicChatClientFactory {
                         2,
                         null,
                         null);
+        log.info(
+                "[ChatClient] modelId={}, modelName={}, baseUrl={}, apiKey=****{}",
+                model.getModelId(),
+                model.getModelName(),
+                baseUrl,
+                apiKey != null && apiKey.length() > 4
+                        ? apiKey.substring(apiKey.length() - 4)
+                        : "?");
         var asyncClient =
                 OpenAiSetup.setupAsyncClient(
-                        model.effectiveBaseUrl(),
+                        baseUrl,
                         apiKey != null ? apiKey : "",
                         null,
                         null,

@@ -40,7 +40,7 @@ function PackageCard({
       type="button"
       onClick={onClick}
       className={[
-        "relative rounded-xl border p-4 text-left transition-all",
+        "relative w-36 rounded-xl border p-4 text-left transition-all",
         "hover:border-primary/60",
         selected ? "border-primary bg-primary/5 ring-2 ring-primary/40" : "border-border bg-card"
       ].join(" ")}
@@ -91,7 +91,7 @@ export function CreditRechargeDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-screen max-h-screen w-screen max-w-none flex-col gap-0 rounded-none p-0">
+      <DialogContent className="flex max-h-[90vh] w-[50vw] max-w-none! flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle className="text-xl">积分充值</DialogTitle>
         </DialogHeader>
@@ -109,8 +109,10 @@ export function CreditRechargeDialog({ open, onOpenChange }: Props) {
             <div className="space-y-6">
               {groups.map((group) => (
                 <div key={group}>
-                  <p className="mb-3 font-medium text-muted-foreground text-sm">{group}</p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <p className="mb-3 text-center font-medium text-muted-foreground text-sm">
+                    {group}
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-3">
                     {packages
                       .filter((p) => (p.group ?? "会员积分充值") === group)
                       .map((pkg) => (

@@ -1,7 +1,6 @@
 "use client"
-
 /**
- * assistant-ui 示例页——使用 useLocalRuntime 对接 /api/chat 流式接口
+ * assistant-ui 示例页——使用 useLocalRuntime + postAiStream 对接 /api/chat/run 流式接口（自动携带 Bearer token）
  * 路由：/dev/examples/assistant-ui
  * @author AaronZZH & Kiro
  */
@@ -14,73 +13,93 @@ import {
   ThreadPrimitive,
   useLocalRuntime
 } from "@assistant-ui/react"
+import { useEffect, useRef, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { buildApiUrl } from "@/lib/api/config"
-
-/**
- * 自定义 ChatModelAdapter，对接 /api/chat SSE 流式接口
- */
-const chatModelAdapter: ChatModelAdapter = {
-  async *run({ messages, abortSignal }) {
-    const body = JSON.stringify({
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content
-          .filter((p) => p.type === "text")
-          .map((p) => p.text)
-          .join("")
-      }))
-    })
-
-    const response = await fetch(buildApiUrl("/chat"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-      signal: abortSignal
-    })
-
-    if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`)
-    }
-
-    const reader = response.body?.getReader()
-    if (!reader) throw new Error("无法读取响应流")
-
-    const decoder = new TextDecoder()
-    let content = ""
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      const chunk = decoder.decode(value, { stream: true })
-      const lines = chunk.split("\n")
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue
-        const data = line.slice(6).trim()
-        if (data === "[DONE]") break
-
-        try {
-          const parsed = JSON.parse(data) as {
-            choices: { delta: { content?: string } }[]
-          }
-          const delta = parsed.choices[0]?.delta?.content
-          if (delta) {
-            content += delta
-            yield { content: [{ type: "text" as const, text: content }] }
-          }
-        } catch {
-          // 忽略解析错误
-        }
-      }
-    }
-  }
-}
+import { postAiStream } from "@/lib/api/ai-stream"
+import { type AiModelVO, listTextModels } from "@/lib/api/rest/ai/ai-model"
 
 export default function AssistantUIExamplePage() {
+  const [models, setModels] = useState<AiModelVO[]>([])
+  const [modelId, setModelId] = useState<string>("")
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    listTextModels()
+      .then(setModels)
+      .catch(() => {})
+  }, [])
+
+  /** adapter 持有 modelId ref，保证每次发送都用最新值 */
+  const modelIdRef = useRef(modelId)
+  useEffect(() => {
+    modelIdRef.current = modelId
+  }, [modelId])
+
+  const chatModelAdapter: ChatModelAdapter = {
+    async *run({ messages, abortSignal }) {
+      const body = {
+        threadId: `thread-${Date.now()}`,
+        modelId: modelIdRef.current,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content
+            .filter((p) => p.type === "text")
+            .map((p) => p.text)
+            .join("")
+        })),
+        target: { type: "ai" },
+        state: { persist: false }
+      }
+
+      let content = ""
+      let resolver: ((v: string | null) => void) | null = null
+      const queue: (string | null)[] = []
+
+      const enqueue = (val: string | null) => {
+        if (resolver) {
+          const r = resolver
+          resolver = null
+          r(val)
+        } else queue.push(val)
+      }
+
+      const streamPromise = postAiStream("/chat/run", body, {
+        onChunk: (text) => {
+          content += text
+          enqueue(content)
+        },
+        onDone: () => enqueue(null),
+        onError: (err) => {
+          throw err
+        },
+        signal: abortSignal ?? undefined
+      })
+
+      while (true) {
+        const next: string | null =
+          queue.length > 0
+            ? (queue.shift() as string | null)
+            : await new Promise<string | null>((r) => {
+                resolver = r
+              })
+        if (next === null) break
+        yield { content: [{ type: "text" as const, text: next }] }
+      }
+
+      await streamPromise
+    }
+  }
+
   const runtime = useLocalRuntime(chatModelAdapter)
 
   return (
@@ -88,8 +107,32 @@ export default function AssistantUIExamplePage() {
       <div className="mb-6 space-y-2">
         <TypographyH1>assistant-ui 示例</TypographyH1>
         <TypographyMuted>
-          使用 useLocalRuntime + ChatModelAdapter 对接 /api/chat 流式接口
+          使用 useLocalRuntime + ChatModelAdapter 对接 /api/chat/run 流式接口
         </TypographyMuted>
+      </div>
+
+      {/* 模型选择 */}
+      <div className="mb-4 flex items-center gap-2">
+        <span className="text-muted-foreground text-sm">对话模型：</span>
+        <Select
+          value={modelId}
+          onValueChange={(v) => v && setModelId(v)}
+          disabled={mounted && models.length === 0}
+        >
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="选择模型">
+              {modelId ? models.find((m) => m.modelId === modelId)?.displayName : "系统默认"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">系统默认</SelectItem>
+            {models.map((m) => (
+              <SelectItem key={m.modelId} value={m.modelId}>
+                {m.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-xl border bg-card">
@@ -111,7 +154,6 @@ export default function AssistantUIExamplePage() {
   )
 }
 
-/** 用户消息气泡 */
 function UserMessage() {
   return (
     <div className="mb-3 flex justify-end">
@@ -122,7 +164,6 @@ function UserMessage() {
   )
 }
 
-/** AI 消息气泡 */
 function AssistantMessage() {
   return (
     <div className="mb-3 flex justify-start">
@@ -133,7 +174,6 @@ function AssistantMessage() {
   )
 }
 
-/** 输入框组合 */
 function Composer() {
   return (
     <ComposerPrimitive.Root className="flex items-end gap-2 border-t p-3">

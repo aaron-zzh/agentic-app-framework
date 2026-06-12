@@ -31,6 +31,8 @@ export interface ChatterDropItem {
   url?: string
   /** 缩略图（图片/视频预览） */
   thumbnailUrl?: string
+  /** 所属素材组 ID（素材拖拽时携带，供 drop handler 判断是否需要变更分组） */
+  groupId?: number
   /** 语义元数据快照 */
   semantics?: {
     componentName: string

@@ -9,6 +9,7 @@
 import { FileText, Loader2, Trash2, Upload } from "lucide-react"
 import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -40,7 +41,13 @@ export function ProjectDocPanel({ open, onOpenChange }: Props) {
   const { mutate: updateProject } = useUpdateAigcProject()
   const { mutate: unlinkDoc } = useUnlinkProjectDoc()
   const { mutate: linkDoc } = useLinkProjectDoc()
-  const { mutate: createDoc, isPending: creating } = useCreateDocument()
+  const { mutate: createDocMutate, isPending: creating } = useCreateDocument()
+  // DocEditor 的 createDoc prop 只传 { title, content }，在此补充必填字段
+  const createDoc = (
+    p: { title: string; content: string },
+    opts: { onSuccess: (doc: { id: number }) => void }
+  ) =>
+    createDocMutate({ title: p.title, content: p.content, filePath: "", docType: "markdown" }, opts)
   const { mutate: importPdf, isPending: importing } = useImportProjectPdf(projectId)
 
   const [prompt, setPrompt] = useState("")

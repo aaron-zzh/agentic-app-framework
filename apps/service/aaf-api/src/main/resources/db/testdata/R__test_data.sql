@@ -35,6 +35,11 @@ WHERE u.username IN ('user1', 'user2')
 
 -- 为测试用户创建积分账户
 INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
+SELECT u.id, 999, 0, 999, 0
+FROM sys_user u WHERE u.username = 'admin'
+  AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
+
+INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
 SELECT u.id, 5000, 0, 5000, 0
 FROM sys_user u WHERE u.username = 'user1'
   AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
@@ -43,3 +48,18 @@ INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
 SELECT u.id, 2000, 500, 3000, 500
 FROM sys_user u WHERE u.username = 'user2'
   AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
+
+
+-- 统一设置语言模型价格基准（输入 36元/1M Token，补全 108元/1M Token）
+-- input_price_per_k 单位：元/千Token = 36/1000 = 0.036
+-- output_price_per_k 单位：元/千Token = 108/1000 = 0.108
+UPDATE ai_model
+SET input_price_per_k  = 0.036000,
+    output_price_per_k = 0.108000
+WHERE model_type = 'TEXT' AND (input_price_per_k IS NULL OR input_price_per_k = 0);
+
+-- 图像生成模型按次固定价格（quota_type=1，1元/次）
+UPDATE ai_model
+SET model_price = 1.000000,
+    quota_type  = 1
+WHERE model_type = 'IMAGE' AND (model_price IS NULL OR model_price = 0);

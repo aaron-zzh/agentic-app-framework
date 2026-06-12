@@ -1,12 +1,15 @@
 package com.xuejiai.aaf.module.ai.aigc.copywriting;
 
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -35,17 +38,41 @@ public class CopywritingService {
      * @return 文字 token 流
      */
     public Flux<String> generate(
-            String modelId, String type, String topic, String template, String length) {
+            String modelId,
+            String type,
+            String topic,
+            String template,
+            String length,
+            String translateTo,
+            String referenceAnalysis,
+            String userNotes) {
         Long userId = operatorContext.currentUserId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
         var messages =
                 List.<Message>of(
                         new SystemMessage(CopywritingConstants.SYS_GENERATE),
-                        new UserMessage(buildGeneratePrompt(type, topic, template, length)));
-        log.info("[文案生成] type={}, length={}, modelId={}", type, length, modelId);
+                        new UserMessage(
+                                buildGeneratePrompt(
+                                        type,
+                                        topic,
+                                        template,
+                                        length,
+                                        translateTo,
+                                        referenceAnalysis,
+                                        userNotes)));
+        log.info(
+                "[文案生成] type={}, length={}, translateTo={}, modelId={}",
+                type,
+                length,
+                translateTo,
+                modelId);
         return chatService.stream(messages, ctx)
+                .onErrorContinue(
+                        com.openai.errors.OpenAIInvalidDataException.class,
+                        (e, o) -> log.debug("[LLM流] 跳过无效 chunk: {}", e.getMessage()))
                 .mapNotNull(r -> r.getResult() != null ? r.getResult().getOutput().getText() : null)
-                .filter(text -> text != null && !text.isEmpty());
+                .filter(text -> text != null && !text.isEmpty())
+                .onErrorMap(this::mapLlmError);
     }
 
     /**
@@ -64,11 +91,56 @@ public class CopywritingService {
                         new UserMessage("请改写以下文案：\n\n" + content));
         log.info("[文案改写] modelId={}, length={}", modelId, content.length());
         return chatService.stream(messages, ctx)
+                .onErrorContinue(
+                        com.openai.errors.OpenAIInvalidDataException.class,
+                        (e, o) -> log.debug("[LLM流] 跳过无效 chunk: {}", e.getMessage()))
                 .mapNotNull(r -> r.getResult() != null ? r.getResult().getOutput().getText() : null)
-                .filter(text -> text != null && !text.isEmpty());
+                .filter(text -> text != null && !text.isEmpty())
+                .onErrorMap(this::mapLlmError);
     }
 
-    private String buildGeneratePrompt(String type, String topic, String template, String length) {
+    /** 将 LLM 客户端异常统一映射为 BusinessException，使 SSE 错误信息可读。 */
+    private Throwable mapLlmError(Throwable e) {
+        Throwable cause =
+                (e instanceof CompletionException && e.getCause() != null) ? e.getCause() : e;
+        String msg = cause.getMessage();
+        if (msg != null
+                && (msg.contains("401")
+                        || msg.contains("Authentication")
+                        || msg.contains("Unauthorized"))) {
+            log.error("[AI调用] API Key 无效或未授权: {}", msg);
+            return new BusinessException(
+                    GlobalErrorCode.INTERNAL_SERVER_ERROR, "AI 服务认证失败，请检查 API Key 配置");
+        }
+        log.error("[AI调用] 调用失败: {}", msg, cause);
+        return new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "AI 服务调用失败，请稍后重试");
+    }
+
+    public Flux<String> analyze(String modelId, String content) {
+        Long userId = operatorContext.currentUserId().orElse(null);
+        var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
+        var messages =
+                List.<Message>of(
+                        new SystemMessage(CopywritingConstants.SYS_ANALYZE),
+                        new UserMessage("请分析以下爆款内容：\n\n" + content));
+        log.info("[爆款分析] modelId={}, length={}", modelId, content.length());
+        return chatService.stream(messages, ctx)
+                .onErrorContinue(
+                        com.openai.errors.OpenAIInvalidDataException.class,
+                        (e, o) -> log.debug("[LLM流] 跳过无效 chunk: {}", e.getMessage()))
+                .mapNotNull(r -> r.getResult() != null ? r.getResult().getOutput().getText() : null)
+                .filter(text -> text != null)
+                .onErrorMap(this::mapLlmError);
+    }
+
+    private String buildGeneratePrompt(
+            String type,
+            String topic,
+            String template,
+            String length,
+            String translateTo,
+            String referenceAnalysis,
+            String userNotes) {
         String typeName = "oral".equals(type) ? "口播" : "小红书";
         String lengthDesc =
                 switch (length != null ? length : "medium") {
@@ -79,10 +151,42 @@ public class CopywritingService {
         var sb = new StringBuilder();
         sb.append("请生成一篇").append(typeName).append("文案。\n");
         sb.append("主题：").append(topic).append("\n");
+        if ("oral".equals(type)) {
+            sb.append("格式要求：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构，自然流畅，适合视频配音。\n");
+        } else {
+            sb.append("格式要求：活泼有趣，多用 emoji，有吸引力的标题，直接输出纯文本，不要使用 Markdown 语法。\n");
+        }
         if (template != null && !template.isBlank()) {
-            sb.append("风格模板：").append(template).append("\n");
+            String templateLabel =
+                    switch (template) {
+                        case "product-launch" -> "新品上市";
+                        case "promotion" -> "促销活动";
+                        case "brand-story" -> "品牌故事";
+                        case "tutorial" -> "教程攻略";
+                        case "review" -> "测评分享";
+                        default -> template;
+                    };
+            sb.append("风格模板：").append(templateLabel).append("\n");
         }
         sb.append("长度要求：").append(lengthDesc);
+        if (translateTo != null && !translateTo.isBlank()) {
+            String langName =
+                    switch (translateTo) {
+                        case "en" -> "英文";
+                        case "ja" -> "日文";
+                        case "ko" -> "韩文";
+                        case "fr" -> "法文";
+                        case "es" -> "西班牙文";
+                        default -> translateTo;
+                    };
+            sb.append("\n翻译要求：生成完成后将内容翻译为").append(langName);
+        }
+        if (referenceAnalysis != null && !referenceAnalysis.isBlank()) {
+            sb.append("\n\n参考爆款结构分析：\n").append(referenceAnalysis);
+        }
+        if (userNotes != null && !userNotes.isBlank()) {
+            sb.append("\n\n创作要求补充：\n").append(userNotes);
+        }
         return sb.toString();
     }
 }

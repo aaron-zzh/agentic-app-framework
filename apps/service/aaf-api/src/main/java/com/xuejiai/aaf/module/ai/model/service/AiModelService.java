@@ -169,11 +169,19 @@ public class AiModelService {
     }
 
     public List<AiModelVO> listEnabledByCapability(String capability) {
+        return listEnabledByCapabilities(List.of(capability));
+    }
+
+    public List<AiModelVO> listEnabledByCapabilities(List<String> capabilities) {
         return repository.findByEnabledTrueOrderBySortOrder().stream()
                 .filter(
                         m ->
                                 m.getCapabilities() != null
-                                        && m.getCapabilities().contains(capability))
+                                        && capabilities.stream()
+                                                .anyMatch(
+                                                        c ->
+                                                                m.getCapabilities()
+                                                                        .contains(c.trim())))
                 .map(this::toVO)
                 .toList();
     }
@@ -253,6 +261,8 @@ public class AiModelService {
                 m.getContextWindow(),
                 m.getInputPricePerK(),
                 m.getOutputPricePerK(),
+                m.getModelPrice(),
+                m.getQuotaType(),
                 m.getEnabled(),
                 m.getFallbackModelId(),
                 m.getSortOrder(),

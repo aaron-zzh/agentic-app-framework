@@ -24,12 +24,14 @@ const MAX_SCALE = 20
 
 export function ImageViewer({ src, alt = "", className, onLoad }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const panStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
 
   const [view, setView] = useState<ViewState>({ scale: 1, offsetX: 0, offsetY: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
 
   const fitView = useCallback(() => {
     const el = containerRef.current
@@ -42,18 +44,21 @@ export function ImageViewer({ src, alt = "", className, onLoad }: Props) {
   }, [])
 
   // src 变化时重置视图和加载状态
+  // biome-ignore lint/correctness/useExhaustiveDependencies: src 是 prop，监听它触发重置是正确语义
   useEffect(() => {
     setView({ scale: 1, offsetX: 0, offsetY: 0 })
     setLoaded(false)
+    setNaturalSize(null)
   }, [src])
 
   // 滚轮缩放（以鼠标为中心）
   useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
+    const el = innerRef.current
+    const container = containerRef.current
+    if (!el || !container) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
-      const rect = el.getBoundingClientRect()
+      const rect = container.getBoundingClientRect()
       const mx = e.clientX - rect.left
       const my = e.clientY - rect.top
       setView((prev) => {
@@ -118,34 +123,52 @@ export function ImageViewer({ src, alt = "", className, onLoad }: Props) {
       ref={containerRef}
       role="application"
       aria-label={alt || "图像查看器"}
-      className={`group relative overflow-hidden rounded-[8px] ${className ?? ""}`}
-      style={{ cursor: isDragging ? "grabbing" : "grab", userSelect: "none" }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onDoubleClick={handleDoubleClick}
+      className={`group relative ${className ?? ""}`}
     >
-      {/* biome-ignore lint/performance/noImgElement: 动态预览大图，需要 transform 定位 */}
-      <img
-        ref={imgRef}
-        src={src}
-        alt={alt}
-        draggable={false}
-        className="absolute top-0 left-0 max-w-none rounded-lg transition-opacity duration-200"
+      {/* 内层：与图像原始尺寸一致，用 transform 跟随缩放/平移，负责圆角裁切和事件 */}
+      <div
+        ref={innerRef}
+        role="img"
+        aria-label={alt || "图像"}
+        className="absolute top-0 left-0 overflow-hidden rounded-[6px]"
         style={{
-          transformOrigin: "0 0",
-          transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})`,
-          pointerEvents: "none",
-          opacity: loaded ? 1 : 0
+          width: naturalSize ? naturalSize.w * view.scale : 0,
+          height: naturalSize ? naturalSize.h * view.scale : 0,
+          transform: `translate(${view.offsetX}px, ${view.offsetY}px)`,
+          cursor: isDragging ? "grabbing" : "grab",
+          userSelect: "none"
         }}
-        onLoad={(e) => {
-          fitView()
-          setLoaded(true)
-          onLoad?.(e)
-        }}
-      />
-      <span className="pointer-events-none absolute right-2 bottom-2 rounded bg-black/40 px-1.5 py-0.5 text-[10px] text-white/50 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
+      >
+        {/* biome-ignore lint/performance/noImgElement: 动态预览大图，需要 transform 定位 */}
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt}
+          draggable={false}
+          className="block max-w-none transition-opacity duration-200"
+          style={{
+            width: naturalSize?.w ?? "auto",
+            height: naturalSize?.h ?? "auto",
+            transform: `scale(${view.scale})`,
+            transformOrigin: "0 0",
+            pointerEvents: "none",
+            opacity: loaded ? 1 : 0
+          }}
+          onLoad={(e) => {
+            const img = e.currentTarget
+            setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
+            fitView()
+            setLoaded(true)
+            onLoad?.(e)
+          }}
+        />
+      </div>
+      <span className="pointer-events-none absolute right-2 bottom-0 rounded px-1.5 py-0.5 text-[10px] text-black/50 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
         滚轮缩放 · 拖动平移 · 双击适配
       </span>
     </div>

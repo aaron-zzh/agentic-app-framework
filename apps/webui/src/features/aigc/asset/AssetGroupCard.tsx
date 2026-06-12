@@ -11,17 +11,7 @@ import { useDroppable } from "@dnd-kit/core"
 import { useQueryClient } from "@tanstack/react-query"
 import { ChevronRight, Download, LayoutGrid, MessageSquarePlus, Plus, Trash2 } from "lucide-react"
 import { useRef, useState } from "react"
-import { toast } from "sonner"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { mediaAssetApi } from "@/lib/api/rest/media/media-asset"
@@ -38,7 +28,12 @@ interface AssetGroupCardProps {
   colWidth?: number
 }
 
-export function AssetGroupCard({ groupId, groupName, assets, colWidth = 160 }: AssetGroupCardProps) {
+export function AssetGroupCard({
+  groupId,
+  groupName,
+  assets,
+  colWidth = 160
+}: AssetGroupCardProps) {
   const canExpand = assets.length > 1
   const [expanded, setExpanded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -68,7 +63,6 @@ export function AssetGroupCard({ groupId, groupName, assets, colWidth = 160 }: A
       .catch(() => {
         // 删除失败时回滚：重新拉取
         queryClient.invalidateQueries({ queryKey: ["media-assets"] })
-        toast.error("删除失败")
       })
   }
 
@@ -101,7 +95,11 @@ export function AssetGroupCard({ groupId, groupName, assets, colWidth = 160 }: A
         userId: 0,
         version: 0,
         createTime: "",
-        updateTime: ""
+        updateTime: "",
+        groupName: null,
+        aiGenerated: false,
+        modelName: null,
+        providerCode: null
       }
       addPendingTask({ id: tempId, prompt: file.name, type: "IMAGE" })
       // 直接把临时 asset 写入（completePendingTask 第三参）让卡片立即显示真图
@@ -250,36 +248,26 @@ export function AssetGroupCard({ groupId, groupName, assets, colWidth = 160 }: A
           className="hidden"
           onChange={handleFileChange}
         />
-        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>删除 {assets.length} 张素材</AlertDialogTitle>
-              <AlertDialogDescription>
-                此操作将永久删除组内所有素材及文件，无法恢复。确认继续？
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleDeleteGroup}
-              >
-                删除
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          title={`删除 ${assets.length} 张素材`}
+          description="此操作将永久删除组内所有素材及文件，无法恢复。确认继续？"
+          confirmText="删除"
+          variant="destructive"
+          onConfirm={handleDeleteGroup}
+        />
         <button
           type="button"
           className={cn(
-            "relative z-10 aspect-square w-full cursor-pointer rounded-[6px] outline outline-1 outline-transparent transition-[outline-color]",
+            "relative z-10 aspect-square w-full cursor-pointer overflow-hidden rounded-[6px] outline outline-1 outline-transparent transition-[outline-color]",
             isGroupSelected ? "outline-primary" : "hover:outline-primary/40"
           )}
           onPointerUp={() => firstAsset && setPreviewAsset(firstAsset)}
         >
           {coverUrl && (
             // biome-ignore lint/performance/noImgElement: 素材组封面
-            <img src={coverUrl} alt={groupName} className="size-full rounded-[6px] object-cover" />
+            <img src={coverUrl} alt={groupName} className="size-full object-cover" />
           )}
         </button>
         <div className="mt-1">{actionBar}</div>

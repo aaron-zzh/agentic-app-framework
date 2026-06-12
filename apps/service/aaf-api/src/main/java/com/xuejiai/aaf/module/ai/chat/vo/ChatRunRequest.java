@@ -16,7 +16,8 @@ public record ChatRunRequest(
         @Schema(description = "线程 ID", example = "thread-abc123") @NotBlank String threadId,
         @Schema(description = "消息列表") @NotNull List<AgUiMessage> messages,
         @Schema(description = "聊天目标") @NotNull @Valid ChatTarget target,
-        @Schema(description = "运行状态") ChatRunState state) {
+        @Schema(description = "运行状态") ChatRunState state,
+        @Schema(description = "显式指定模型 ID，为空时走路由决策链", example = "deepseek-v4-pro") String modelId) {
 
     /** AG-UI 消息 */
     public record AgUiMessage(

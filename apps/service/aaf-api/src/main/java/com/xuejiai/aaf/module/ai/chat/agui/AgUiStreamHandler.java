@@ -63,7 +63,7 @@ public class AgUiStreamHandler {
         var messageId = UUID.randomUUID().toString();
         var fullContent = new StringBuilder();
 
-        // 发送 RUN_STARTED + TEXT_MESSAGE_START
+        // 1. 先推送会话开始事件
         sendEvent(emitter, AgUiEvent.runStarted(runId));
         sendEvent(emitter, AgUiEvent.textMessageStart(runId, messageId));
 
@@ -75,7 +75,8 @@ public class AgUiStreamHandler {
                             }
                             var output = response.getResult().getOutput();
 
-                            // 处理文本内容
+                            // 2. 每个文本 token 推送 TEXT_MESSAGE_CONTENT { delta }
+                            //    前端 ai-stream.ts 解析此事件取 delta 拼接显示
                             var text = output.getText();
                             if (text != null && !text.isEmpty()) {
                                 fullContent.append(text);
@@ -84,7 +85,7 @@ public class AgUiStreamHandler {
                                         AgUiEvent.textMessageContent(runId, messageId, text));
                             }
 
-                            // 处理工具调用
+                            // 3. 工具调用：推送 TOOL_CALL_START / TOOL_CALL_ARGS / TOOL_CALL_END
                             var toolCalls = output.getToolCalls();
                             if (toolCalls != null && !toolCalls.isEmpty()) {
                                 for (var toolCall : toolCalls) {
@@ -124,9 +125,10 @@ public class AgUiStreamHandler {
                         })
                 .doOnComplete(
                         () -> {
+                            // 4. 流结束：推送会话结束事件
                             sendEvent(emitter, AgUiEvent.textMessageEnd(runId, messageId));
                             sendEvent(emitter, AgUiEvent.runFinished(runId));
-                            // 触发完整内容回调（用于持久化）
+                            // 5. 触发完整内容回调（AiChatHandler 用于持久化到 chat_message 表）
                             if (onComplete != null) {
                                 onComplete.accept(fullContent.toString());
                             }

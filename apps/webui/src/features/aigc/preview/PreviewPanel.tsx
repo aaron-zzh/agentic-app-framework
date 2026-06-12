@@ -12,39 +12,83 @@ import {
   Heart,
   Layers,
   MoreHorizontal,
+  Music,
   PanelLeft,
+  PenLine,
+  RefreshCw,
+  Sparkles,
   ThumbsUp,
   Trash2,
+  Video,
   X
 } from "lucide-react"
+import { useParams } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger
+} from "@/components/ui/context-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Switch } from "@/components/ui/switch"
 import { FileGrid } from "../asset/FileGrid"
 import { useAigcStore } from "../store"
 import { ImageViewer } from "./ImageViewer"
 
 function FileAreaHeader({ onClose }: { onClose?: () => void }) {
-  const fileFilterUnassigned = useAigcStore((s) => s.fileFilterUnassigned)
-  const toggleFileFilter = useAigcStore((s) => s.toggleFileFilter)
+  // const fileFilterUnassigned = useAigcStore((s) => s.fileFilterUnassigned)
+  // const toggleFileFilter = useAigcStore((s) => s.toggleFileFilter)
   const fileTypeFilter = useAigcStore((s) => s.fileTypeFilter)
   const setFileTypeFilter = useAigcStore((s) => s.setFileTypeFilter)
   const fileZoom = useAigcStore((s) => s.fileZoom)
   const setFileZoom = useAigcStore((s) => s.setFileZoom)
+  const setGenerationPanelOpen = useAigcStore((s) => s.setGenerationPanelOpen)
+  const setCopywritingPanelOpen = useAigcStore((s) => s.setCopywritingPanelOpen)
 
   return (
     <div className="flex shrink-0 items-center justify-between border-border/50 border-b px-3 py-2">
-      <span className="font-medium text-muted-foreground text-xs">文件区</span>
+      <span className="font-medium text-muted-foreground text-xs">素材区</span>
       <div className="flex items-center gap-1">
-        <span className="text-muted-foreground text-xs">只展示未分配</span>
+        {/* 生成下拉按钮 */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="group/button inline-flex h-6 shrink-0 select-none items-center justify-center gap-1 rounded-lg border border-transparent bg-primary px-2 font-medium text-primary-foreground text-xs outline-none transition-all hover:opacity-90 focus-visible:ring-2">
+            <Sparkles className="size-3" />
+            生成
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem onClick={() => setGenerationPanelOpen(true)}>
+              <Sparkles className="mr-2 size-3.5" />
+              生成图像
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setCopywritingPanelOpen(true)}>
+              <PenLine className="mr-2 size-3.5" />
+              生成文案
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <Video className="mr-2 size-3.5" />
+              生成视频
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <Music className="mr-2 size-3.5" />
+              生成音乐
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {/* <span className="text-muted-foreground text-xs">只展示未分配</span>
         <Switch
           checked={fileFilterUnassigned}
           onCheckedChange={toggleFileFilter}
           className="scale-75"
-        />
+        /> */}
         <Popover>
           <PopoverTrigger className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">
             <MoreHorizontal className="size-3.5" />
@@ -129,12 +173,27 @@ export function PreviewPanel({
   const setFileAreaOpen = useAigcStore((s) => s.setFileAreaOpen)
   const storyboardPanelOpen = useAigcStore((s) => s.storyboardPanelOpen)
   const setStoryboardPanelOpen = useAigcStore((s) => s.setStoryboardPanelOpen)
+  const params = useParams()
+  const projectId = params.projectId ? Number(params.projectId) : null
 
   const currentIdx = previewAsset ? previewList.findIndex((a) => a.id === previewAsset.id) : -1
   const hasPrev = currentIdx > 0
   const hasNext = currentIdx >= 0 && currentIdx < previewList.length - 1
 
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
+
+  // 编辑弹窗状态
+  const [_editOpen, _setEditOpen] = useState(false)
+  const [_editPrompt, _setEditPrompt] = useState("")
+
+  function getPrompt() {
+    try {
+      const p = previewAsset?.generationParams ? JSON.parse(previewAsset.generationParams) : {}
+      return p.prompt ?? previewAsset?.name ?? ""
+    } catch {
+      return previewAsset?.name ?? ""
+    }
+  }
 
   return (
     <ResizablePanelGroup orientation={orientation} className="h-full min-w-0">
@@ -145,7 +204,7 @@ export function PreviewPanel({
             <div className="flex h-full flex-col overflow-hidden">
               <FileAreaHeader onClose={() => setFileAreaOpen(false)} />
               <ScrollArea className="min-h-0 flex-1">
-                <FileGrid filterUnassigned={fileFilterUnassigned} />
+                <FileGrid filterUnassigned={fileFilterUnassigned} projectId={projectId} />
               </ScrollArea>
             </div>
           </ResizablePanel>
@@ -184,18 +243,43 @@ export function PreviewPanel({
               </Button>
             )}
           </div>
-          <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/30 p-4">
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/30 p-1">
             {previewAsset ? (
               <>
-                <ImageViewer
-                  src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
-                  alt={previewAsset.name}
-                  className="h-full w-full"
-                  onLoad={(e) => {
-                    const img = e.currentTarget
-                    setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
-                  }}
-                />
+                {/* 图片区域 + 右键菜单 */}
+                <ContextMenu>
+                  <ContextMenuTrigger className="h-full w-full">
+                    <ImageViewer
+                      src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
+                      alt={previewAsset.name}
+                      className="h-full w-full"
+                      onLoad={(e) => {
+                        const img = e.currentTarget
+                        setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
+                      }}
+                    />
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={() => {
+                        useAigcStore.getState().addReferenceAsset(previewAsset)
+                        useAigcStore.getState().setGenerationPanelOpen(true)
+                      }}
+                    >
+                      <PenLine className="mr-2 size-3.5" />
+                      AI 编辑
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => {
+                        useAigcStore.getState().setPrompt(getPrompt())
+                        useAigcStore.getState().setGenerationPanelOpen(true)
+                      }}
+                    >
+                      <RefreshCw className="mr-2 size-3.5" />
+                      重新生成
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
                 <div className="absolute inset-x-4 top-2 flex items-center justify-between">
                   {/* 左：模型 + 尺寸信息 */}
                   <div className="flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 backdrop-blur-sm">
@@ -310,7 +394,7 @@ export function PreviewPanel({
             <div className="flex h-full flex-col overflow-hidden">
               <FileAreaHeader onClose={() => setFileAreaOpen(false)} />
               <ScrollArea className="min-h-0 flex-1">
-                <FileGrid filterUnassigned={fileFilterUnassigned} />
+                <FileGrid filterUnassigned={fileFilterUnassigned} projectId={projectId} />
               </ScrollArea>
             </div>
           </ResizablePanel>

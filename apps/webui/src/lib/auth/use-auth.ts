@@ -44,7 +44,7 @@ export function useAuth() {
         queryFn: () => authApi.me(),
         staleTime: 30_000
       })
-      setUser(info as AuthUser)
+      setUser({ ...info.user, roles: info.roles } as AuthUser)
       return { isValid: true }
     } catch {
       // 清理token
@@ -63,7 +63,7 @@ export function useAuth() {
       const result = await authApi.login(email, password)
       setTokens(result.accessToken, result.refreshToken)
       const info = await authApi.me()
-      setUser(info as AuthUser)
+      setUser({ ...info.user, roles: info.roles } as AuthUser)
       return result
     },
     [setTokens, setUser]

@@ -1,16 +1,17 @@
-package com.xuejiai.aaf.module.ai.aigc.task;
-
-import java.time.LocalDateTime;
+package com.xuejiai.aaf.module.ai.aigc.task.domain;
 
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
+
+import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
- * AIGC 统一任务实体——IMAGE / VIDEO / MODEL_3D 三类任务的统一存储。
+ * AIGC 统一任务实体——IMAGE / VIDEO / MODEL_3D / MUSIC 四类任务的统一存储。
  *
  * @author Kiro
  */
@@ -18,17 +19,15 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "aigc_task")
-public class AigcTask {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@SQLDelete(
+        sql = "UPDATE aigc_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+public class AigcTask extends BaseEntity {
 
     /** 用户 ID */
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    /** 任务类型：IMAGE / VIDEO / MODEL_3D */
+    /** 任务类型：IMAGE / VIDEO / MODEL_3D / MUSIC */
     @Column(name = "type", nullable = false, length = 20)
     private String type;
 
@@ -73,14 +72,7 @@ public class AigcTask {
     @Column(name = "error_msg", columnDefinition = "TEXT")
     private String errorMsg;
 
-    @Column(name = "create_time")
-    private LocalDateTime createTime = LocalDateTime.now();
-
-    @Column(name = "update_time")
-    private LocalDateTime updateTime = LocalDateTime.now();
-
-    @PreUpdate
-    void onUpdate() {
-        this.updateTime = LocalDateTime.now();
-    }
+    /** 所属项目 ID，NULL 表示全局任务 */
+    @Column(name = "project_id")
+    private Long projectId;
 }

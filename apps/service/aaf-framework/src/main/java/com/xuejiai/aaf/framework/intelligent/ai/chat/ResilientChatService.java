@@ -73,12 +73,16 @@ public class ResilientChatService {
     /** 流式调用，使用完整路由上下文。 */
     public Flux<ChatResponse> stream(List<Message> messages, CapabilityRoutingContext ctx) {
         var ownerId = billingOwnerId(ctx.userId());
+        // 1. 积分/配额预检，不足则抛异常
         creditGuard.precheck(ownerId, ctx.capability());
+        // 2. 路由决策链：显式 modelId → 编排引擎 → AI 辅助 → 用户偏好 → 系统默认 → yaml 兜底
         var model = capabilityRouter.resolve(ctx);
         try {
+            // 3. 从 DynamicChatClientFactory 取 ChatClient（Caffeine 缓存）并发起流式调用
             return withStreamUsage(doStream(messages, model.getModelId()), ownerId, model.getId());
         } catch (Exception e) {
             log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
+            // 4. 主模型失败时降级到 fallbackModelId
             var fallback = resolveFallback(model);
             return withStreamUsage(
                     doStream(messages, fallback.getModelId()), ownerId, fallback.getId());

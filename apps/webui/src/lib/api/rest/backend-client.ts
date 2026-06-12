@@ -20,6 +20,8 @@ export type { ApiResult } from "../types"
 declare module "axios" {
   interface AxiosRequestConfig {
     showError?: boolean
+    /** 请求成功后自动 toast 提示，传字符串则用该字符串，传 true 则用"操作成功" */
+    showSuccess?: boolean | string
   }
 }
 
@@ -80,6 +82,8 @@ function resolveErrorMessage(error: AxiosError<ApiResult<unknown>>): string {
   switch (status) {
     case 400:
       return "请求参数错误"
+    case 401:
+      return "登录已过期，请重新登录"
     case 403:
       return "权限不足，请联系管理员"
     case 404:
@@ -129,23 +133,38 @@ backendClient.interceptors.request.use((config) => {
 backendClient.interceptors.response.use(
   (response) => {
     backendUnavailableNotified = false
+    const data = response.data as ApiResult<unknown> | undefined
+    const cfg = response.config as { showError?: boolean; showSuccess?: boolean | string }
+    if (data && typeof data.code === "number") {
+      if (
+        data.code !== 0 &&
+        data.message &&
+        cfg.showError !== false &&
+        typeof window !== "undefined"
+      ) {
+        notify.error(data.message)
+      }
+      if (data.code === 0 && cfg.showSuccess && typeof window !== "undefined") {
+        notify.success(typeof cfg.showSuccess === "string" ? cfg.showSuccess : "操作成功")
+      }
+    }
     return response
   },
   async (error: AxiosError<ApiResult<unknown>>) => {
     const response = error.response
     const config = error.config as RetriableConfig | undefined
 
-    if (response?.status === 401 && config && !config._aafRetry) {
-      config._aafRetry = true
-      const newToken = await refreshTokenOnce()
-      if (newToken) {
-        setAxiosAuth(newToken)
-        config.headers.set("Authorization", `Bearer ${newToken}`)
-        return backendClient.request(config)
+    if (response?.status === 401) {
+      if (config && !config._aafRetry) {
+        config._aafRetry = true
+        const newToken = await refreshTokenOnce()
+        if (newToken) {
+          setAxiosAuth(newToken)
+          config.headers.set("Authorization", `Bearer ${newToken}`)
+          return backendClient.request(config)
+        }
       }
       clearAxiosAuth()
-      config.headers.delete("Authorization")
-      // 跳转到登录页面
       redirectToLogin()
       throw new ApiError(401, "登录已过期，请重新登录")
     }

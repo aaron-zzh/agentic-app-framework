@@ -53,7 +53,7 @@ function LoginContent() {
     if (!accessToken || !refreshToken) return
 
     setTokens(accessToken, refreshToken)
-    authApi.me().then((user) => {
+    authApi.me().then(({ user }) => {
       setUser(user)
       router.replace(paths.workspace.root)
     })
@@ -101,7 +101,7 @@ function LoginContent() {
         CAPTCHA_ENABLED ? captchaVerifyParamRef.current : undefined
       )
       setTokens(result.accessToken, result.refreshToken)
-      const user = await authApi.me()
+      const { user } = await authApi.me()
       setUser(user)
       router.push(paths.workspace.root)
     } catch (err) {

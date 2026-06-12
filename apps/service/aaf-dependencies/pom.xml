@@ -60,7 +60,7 @@
 		<aliyun-dysmsapi.version>4.5.1</aliyun-dysmsapi.version>
 		<tencentcloud-sms.version>3.1.1451</tencentcloud-sms.version>
 		<!-- DashScope SDK -->
-		<dashscope-sdk-java.version>2.22.18</dashscope-sdk-java.version>
+		<dashscope-sdk-java.version>2.22.22</dashscope-sdk-java.version>
 		<!-- 阿里云图像处理 SDK -->
 		<aliyun-imageenhan.version>1.0.13</aliyun-imageenhan.version>
 		<!-- 可观测性 -->

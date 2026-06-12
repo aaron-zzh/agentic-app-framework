@@ -50,10 +50,12 @@ public record CapabilityRoutingContext(
     public static final String FEATURE_COST_SENSITIVE = "costSensitive";
     public static final String FEATURE_REASONING_REQUIRED = "reasoningRequired";
 
-    /** 简化构造：只有显式 modelId */
+    /** 简化构造：只有显式 modelId（空字符串视为 null，走路由决策链） */
     public static CapabilityRoutingContext of(
             Long userId, String capability, String explicitModelId) {
-        return new CapabilityRoutingContext(userId, capability, explicitModelId, null, null);
+        var normalizedModelId =
+                (explicitModelId != null && !explicitModelId.isBlank()) ? explicitModelId : null;
+        return new CapabilityRoutingContext(userId, capability, normalizedModelId, null, null);
     }
 
     /** 简化构造：纯能力路由，无显式指定 */
