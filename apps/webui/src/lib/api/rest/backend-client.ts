@@ -134,6 +134,10 @@ backendClient.interceptors.response.use(
   (response) => {
     backendUnavailableNotified = false
     const data = response.data as ApiResult<unknown> | undefined
+    // login 请求时把验证码验证结果附加到数据上
+    if (response.config.url?.includes("/auth/login") && data?.data) {
+      ;(data.data as Record<string, unknown>).verifyCode = response.headers["x-captcha-verify-code"]
+    }
     const cfg = response.config as { showError?: boolean; showSuccess?: boolean | string }
     if (data && typeof data.code === "number") {
       if (

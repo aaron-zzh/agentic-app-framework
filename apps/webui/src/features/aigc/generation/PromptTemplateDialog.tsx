@@ -74,7 +74,7 @@ export function PromptTemplateDialog({
         <Sparkles className="size-3" />
         模板库
       </DialogTrigger>
-      <DialogContent className="max-w-2xl p-0">
+      <DialogContent className="max-w-2xl! p-0">
         <DialogHeader className="border-b px-4 py-3">
           <DialogTitle className="text-sm">选择提示词模板</DialogTitle>
         </DialogHeader>

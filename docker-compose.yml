@@ -48,6 +48,7 @@ services:
   aaf-service:
     image: ${ACR_REGISTRY}/service:${IMAGE_TAG:-latest}
     container_name: aaf-service
+    user: root
     env_file:
       - .env
     environment:
@@ -61,7 +62,7 @@ services:
     volumes:
       - ./logs/service:/app/logs
       - service_heap:/tmp/heap-dumps
-      - aaf_files:/data/files
+      - /root/aaf/data/files:/data/files
     ports:
       - "8080:8080"
     depends_on:
@@ -102,4 +103,4 @@ volumes:
   postgres_data:
   redis_data:
   service_heap:
-  aaf_files:
+

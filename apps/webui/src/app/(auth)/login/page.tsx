@@ -45,6 +45,7 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const { setTokens, setUser } = useAuthStore()
   const captchaVerifyParamRef = useRef<string>("")
+  const submitRef = useRef<(() => void) | null>(null)
 
   // 处理后端 OAuth 重定向回来的 token 参数
   useEffect(() => {
@@ -70,7 +71,9 @@ function LoginContent() {
       element: "#captcha-element",
       button: "#login-btn",
       success: (captchaVerifyParam: string) => {
+        // 按钮被拦截，验证成功回调 success，然后执行 authApi.login（带captchaVerifyParam）
         captchaVerifyParamRef.current = captchaVerifyParam
+        submitRef.current?.()
       },
       fail: (_result: unknown) => {
         // console.error("验证码验证失败", result)
@@ -92,16 +95,19 @@ function LoginContent() {
     formState: { isSubmitting, errors }
   } = methods
 
+  // 绑定提交函数供验证码 success 回调调用
+  // 点登录 → 弹验证码 → 验证通过 → 提交表单
+  submitRef.current = methods.handleSubmit(onSubmit)
+
   async function onSubmit(data: LoginForm) {
     try {
       // 验证码启用时，captchaVerifyParam 由 ESA 边缘节点验签（附在请求头中）
-      // 验证码加载失败时降级跳过，不阻塞登录
-      const captchaFailed = typeof window !== "undefined" && window.__captchaLoadFailed
       const result = await authApi.login(
         data.username,
         data.password,
-        CAPTCHA_ENABLED && !captchaFailed ? captchaVerifyParamRef.current : undefined
+        CAPTCHA_ENABLED ? captchaVerifyParamRef.current : undefined
       )
+      // console.log("verifyCode", result.verifyCode) // == 'T001' 成功
       setTokens(result.accessToken, result.refreshToken)
       const { user } = await authApi.me()
       setUser(user)
@@ -111,6 +117,10 @@ function LoginContent() {
       const msg = err instanceof Error ? err.message : "登录失败，请重试"
       methods.setError("root", { message: msg })
       notify.error(msg)
+    } finally {
+      // 验证码一次性，用完重置
+      captchaVerifyParamRef.current = ""
+      ;(window.__aliyunCaptchaInstance as { refresh?: () => void })?.refresh?.()
     }
   }
 

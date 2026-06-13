@@ -60,6 +60,7 @@ public class AigcTaskExecutor {
     private final ConfigCacheManager configCacheManager;
     private final MusicGenerationService musicGenerationService;
     private final Model3dGenerationService model3dGenerationService;
+    private final jakarta.persistence.EntityManager entityManager;
 
     private static final String STATUS_RUNNING = "RUNNING";
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -244,7 +245,7 @@ public class AigcTaskExecutor {
             return storageService.getUrl(key);
         } catch (Exception e) {
             log.warn("[uploadB64ToOss] 上传失败: taskId={}", taskId, e);
-            return "data:image/png;base64," + b64;
+            throw new IllegalStateException("图片上传 OSS 失败: taskId=" + taskId, e);
         }
     }
 
@@ -298,6 +299,8 @@ public class AigcTaskExecutor {
             return group.getId();
         } catch (Exception e) {
             log.warn("[saveToMediaAsset] 写入素材库失败: taskId={}", task.getId(), e);
+            // 清除脏 Session，防止 null ID 的 group 污染后续操作
+            entityManager.clear();
             return 0L;
         }
     }

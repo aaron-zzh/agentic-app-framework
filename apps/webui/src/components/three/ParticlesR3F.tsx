@@ -229,8 +229,7 @@ function Particles() {
 }
 
 export function ParticlesR3F({ bloom = false }: { bloom?: boolean }) {
-  const isMobile =
-    typeof navigator !== "undefined" && /Mobi|Android/i.test(navigator.userAgent)
+  const isMobile = typeof navigator !== "undefined" && /Mobi|Android/i.test(navigator.userAgent)
   return (
     <div className="relative h-full w-full bg-[#000510]">
       <Canvas
@@ -238,7 +237,7 @@ export function ParticlesR3F({ bloom = false }: { bloom?: boolean }) {
         gl={{
           antialias: false,
           powerPreference: isMobile ? "low-power" : "high-performance",
-          alpha: false,
+          alpha: false
         }}
         dpr={isMobile ? 1 : [1, 1.5]}
       >

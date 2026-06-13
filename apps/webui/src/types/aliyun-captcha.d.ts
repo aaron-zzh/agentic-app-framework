@@ -18,6 +18,5 @@ interface AliyunCaptchaOptions {
 interface Window {
   AliyunCaptchaConfig?: { region: string; prefix: string }
   initAliyunCaptcha?: (options: AliyunCaptchaOptions) => void
-  __aliyunCaptchaInstance?: unknown
-  __captchaLoadFailed?: boolean
+  __aliyunCaptchaInstance?: { refresh?: () => void } | unknown
 }
