@@ -44,23 +44,23 @@ export interface ScheduledActivity {
 export const activityApi = {
   /** 获取活动流（操作日志 + 评论混合时间线） */
   list: (entityType: string, entityId: string) =>
-    backendApi.get<ActivityItem[]>(`/api/${entityType}/${entityId}/activities`),
+    backendApi.get<ActivityItem[]>(`/${entityType}/${entityId}/activities`),
 
   /** 发布评论 */
   comment: (entityType: string, entityId: string, content: string, mentions?: string[]) =>
-    backendApi.post<ActivityItem>(`/api/${entityType}/${entityId}/comments`, {
+    backendApi.post<ActivityItem>(`/${entityType}/${entityId}/comments`, {
       content,
       mentions
     }),
 
   /** 删除评论 */
   deleteComment: (entityType: string, entityId: string, commentId: string) =>
-    backendApi.delete<void>(`/api/${entityType}/${entityId}/comments/${commentId}`),
+    backendApi.delete<void>(`/${entityType}/${entityId}/comments/${commentId}`),
 
   /** 获取实体关联待办列表 */
   schedules: (entityType: string, entityId: string) =>
     backendApi
-      .get<Omit<ScheduledActivity, "done">[]>(`/api/todos/by-entity/${entityType}/${entityId}`)
+      .get<Omit<ScheduledActivity, "done">[]>(`/todos/by-entity/${entityType}/${entityId}`)
       .then((list) => list.map((s) => ({ ...s, done: s.status === "done" }))),
 
   /** 创建待办 */
@@ -80,6 +80,5 @@ export const activityApi = {
       .then((s) => ({ ...s, done: s.status === "done" })),
 
   /** 完成待办（更新状态为 done） */
-  completeSchedule: (id: string) =>
-    backendApi.put<void>(`/api/todos/${id}/status`, { status: "done" })
+  completeSchedule: (id: string) => backendApi.put<void>(`/todos/${id}/status`, { status: "done" })
 }

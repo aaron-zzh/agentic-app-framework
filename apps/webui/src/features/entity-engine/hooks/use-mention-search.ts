@@ -12,7 +12,7 @@ export interface MentionUser {
   nickname: string
 }
 
-/** 搜索可提及用户（基于 /api/users/simple 过滤） */
+/** 搜索可提及用户（基于 /users/simple 过滤） */
 export function useMentionSearch(query: string | null) {
   const [users, setUsers] = useState<MentionUser[]>([])
 
@@ -22,7 +22,7 @@ export function useMentionSearch(query: string | null) {
       return
     }
     backendApi
-      .get<MentionUser[]>("/api/users/simple")
+      .get<MentionUser[]>("/users/simple")
       .then((list) => {
         const q = query.toLowerCase()
         setUsers(

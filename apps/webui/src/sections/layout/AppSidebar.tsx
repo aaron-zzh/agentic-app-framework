@@ -11,14 +11,18 @@
 import { isExternalLink } from "@aaf/core"
 import { useBoolean } from "@aaf/hooks"
 import {
+  BadgeCheck,
+  BarChart2,
   BarChart3,
   BookOpen,
   Bot,
   Box,
   CheckSquare,
   ChevronDown,
+  Clock,
   Cpu,
   CreditCard,
+  Database,
   FileText,
   FolderOpen,
   GitBranch,
@@ -28,16 +32,20 @@ import {
   LayoutDashboard,
   type LucideIcon,
   Mail,
+  Menu,
   MessageSquare,
   Package,
+  Receipt,
   ScrollText,
   Settings,
   Shield,
   ShoppingCart,
   Sparkles,
+  Ticket,
   Trash2,
   Users,
   Video,
+  Wand2,
   Workflow
 } from "lucide-react"
 import Link from "next/link"
@@ -87,6 +95,15 @@ const ICON_MAP: Record<string, LucideIcon> = {
   "scroll-text": ScrollText,
   "git-pull-request": GitPullRequest,
   "bar-chart-3": BarChart3,
+  "bar-chart-2": BarChart2,
+  // 会员中心 / 管理
+  receipt: Receipt,
+  "badge-check": BadgeCheck,
+  ticket: Ticket,
+  clock: Clock,
+  menu: Menu,
+  database: Database,
+  "wand-2": Wand2,
   // 系统
   cpu: Cpu
 }

@@ -1,23 +1,26 @@
-# 演示/生产环境配置
-# 基于 dev 配置，覆盖以下差异项：
-# - 关闭 flyway clean（防止误删数据）
-# - 关闭 show-sql（减少日志噪音）
-# - 关闭 mock 认证（使用真实 JWT）
-# - 日志写文件（logback prod profile）
-# 其余配置继承自 application-dev.yaml
-
+# 演示/生产环境配置。
+# 公共底座（DB/Redis/Neo4j/Mail/AI/security/storage 等）由 application.yaml 提供，经环境变量(.env)注入真实值。
+# 本文件只覆盖与公共底座不同的安全/噪音差异项：
+# - 禁止 flyway clean（防误删数据）
+# - 关闭 mock 认证（使用真实 JWT，靠 JWT_SECRET 环境变量）
+# - 关闭 show-sql / clean-on-start
+# - 关闭 API 文档（不在生产暴露 swagger / api-docs）
 spring:
   config:
-    import:
-      - optional:file:.env[.properties]
-      - application-dev.yaml   # 继承 dev 全部配置
+    import: optional:file:.env[.properties]
   flyway:
-    clean-disabled: true       # 生产禁止 clean
+    clean-disabled: true # 生产禁止 clean
   jpa:
     show-sql: false
 
 aaf:
-  security:
-    mock-enable: false         # 关闭 mock 认证，使用真实 JWT
   flyway:
-    clean-on-start: false
+    clean-on-start: false # 生产禁止启动清库
+  security:
+    mock-enable: false # 关闭 mock 认证，使用真实 JWT
+
+springdoc:
+  api-docs:
+    enabled: false # 生产关闭 OpenAPI 文档端点
+  swagger-ui:
+    enabled: false # 生产关闭 Swagger UI

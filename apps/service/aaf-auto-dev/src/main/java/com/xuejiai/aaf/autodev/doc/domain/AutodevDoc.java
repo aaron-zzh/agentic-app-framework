@@ -2,8 +2,10 @@ package com.xuejiai.aaf.autodev.doc.domain;
 
 import java.util.Map;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -40,6 +42,7 @@ public class AutodevDoc extends BaseEntity {
     private String status = "active";
 
     /** Front Matter 元数据（YAML 解析后存为 JSON 字符串）。 */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "front_matter", columnDefinition = "JSONB")
     private String frontMatterJson;
 

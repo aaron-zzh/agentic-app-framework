@@ -15,6 +15,9 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
+import { buildWsUrl } from "@/lib/api/config"
+import { useAuthStore } from "@/lib/store/auth-store"
+import { float32ToPcm16 } from "@/lib/utils/audio"
 
 type WsStatus = "connecting" | "connected" | "disconnected"
 
@@ -23,11 +26,8 @@ interface OmniMessage {
   text: string
 }
 
-const WS_BASE =
-  process.env.NEXT_PUBLIC_WS_URL ??
-  `ws://${typeof window !== "undefined" ? window.location.host : "localhost:8080"}`
-
 export default function OmniRealtimePage() {
+  const accessToken = useAuthStore((s) => s.accessToken)
   const [status, setStatus] = useState<WsStatus>("disconnected")
   const [messages, setMessages] = useState<OmniMessage[]>([])
   const [recording, setRecording] = useState(false)
@@ -41,6 +41,42 @@ export default function OmniRealtimePage() {
   const videoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  // 播放侧：单例 24kHz AudioContext + 播放头（用于无缝排队播放，区别于 16kHz 采集 context）
+  const playbackCtxRef = useRef<AudioContext | null>(null)
+  const playheadRef = useRef(0)
+
+  /** 将增量 base64 PCM(24kHz/16bit/mono) 排队到播放头，依次无缝播放，实现实时流式播放。 */
+  const playAudioChunk = useCallback((base64Data: string | undefined) => {
+    if (!base64Data) return
+    try {
+      let ctx = playbackCtxRef.current
+      if (!ctx || ctx.state === "closed") {
+        ctx = new AudioContext({ sampleRate: 24000 })
+        playbackCtxRef.current = ctx
+        playheadRef.current = ctx.currentTime
+      }
+
+      const binary = atob(base64Data)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+      const int16 = new Int16Array(bytes.buffer)
+      const float32 = new Float32Array(int16.length)
+      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 0x8000
+
+      const audioBuffer = ctx.createBuffer(1, float32.length, 24000)
+      audioBuffer.getChannelData(0).set(float32)
+      const source = ctx.createBufferSource()
+      source.buffer = audioBuffer
+      source.connect(ctx.destination)
+
+      // 从 max(当前时间, 播放头) 开始，避免分片重叠；累加时长保证下一段紧接其后
+      const startAt = Math.max(ctx.currentTime, playheadRef.current)
+      source.start(startAt)
+      playheadRef.current = startAt + audioBuffer.duration
+    } catch {
+      // 静默忽略播放错误
+    }
+  }, [])
 
   const captureAndSendFrame = useCallback((ws: WebSocket) => {
     const video = videoRef.current
@@ -64,8 +100,8 @@ export default function OmniRealtimePage() {
     setMessages([])
     setCurrentTranscript("")
 
-    const params = new URLSearchParams({ vad: "true" })
-    const ws = new WebSocket(`${WS_BASE}/ws/omni-realtime?${params.toString()}`)
+    const params = new URLSearchParams({ vad: "true", token: accessToken ?? "" })
+    const ws = new WebSocket(buildWsUrl(`/ws/omni-realtime?${params.toString()}`))
     wsRef.current = ws
     setStatus("connecting")
 
@@ -156,7 +192,7 @@ export default function OmniRealtimePage() {
     }
 
     ws.onerror = () => ws.close()
-  }, [enableVideo, captureAndSendFrame])
+  }, [enableVideo, captureAndSendFrame, accessToken, playAudioChunk])
 
   const handleStop = useCallback(() => {
     // 停止视频采集
@@ -174,6 +210,13 @@ export default function OmniRealtimePage() {
       audioContextRef.current.close()
       audioContextRef.current = null
     }
+
+    // 关闭播放上下文并重置播放头
+    if (playbackCtxRef.current) {
+      playbackCtxRef.current.close()
+      playbackCtxRef.current = null
+    }
+    playheadRef.current = 0
 
     // 释放媒体流
     if (streamRef.current) {
@@ -280,16 +323,6 @@ export default function OmniRealtimePage() {
   )
 }
 
-/** Float32 PCM → Int16 PCM */
-function float32ToPcm16(float32: Float32Array): Int16Array {
-  const int16 = new Int16Array(float32.length)
-  for (let i = 0; i < float32.length; i++) {
-    const s = Math.max(-1, Math.min(1, float32[i]))
-    int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-  }
-  return int16
-}
-
 /** ArrayBuffer → Base64 */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer)
@@ -298,34 +331,4 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     binary += String.fromCharCode(bytes[i])
   }
   return btoa(binary)
-}
-
-/** 播放 Base64 PCM 24kHz 音频片段 */
-function playAudioChunk(base64Data: string | undefined): void {
-  if (!base64Data) return
-  try {
-    const binary = atob(base64Data)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-
-    // PCM 24kHz 16bit mono → AudioBuffer
-    const audioCtx = new AudioContext({ sampleRate: 24000 })
-    const int16 = new Int16Array(bytes.buffer)
-    const float32 = new Float32Array(int16.length)
-    for (let i = 0; i < int16.length; i++) {
-      float32[i] = int16[i] / 0x8000
-    }
-
-    const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000)
-    audioBuffer.getChannelData(0).set(float32)
-
-    const source = audioCtx.createBufferSource()
-    source.buffer = audioBuffer
-    source.connect(audioCtx.destination)
-    source.start()
-  } catch {
-    // 静默忽略播放错误
-  }
 }

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -24,6 +25,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService.TextTo3dRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService.MusicRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetGroup;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
@@ -60,6 +62,7 @@ public class AigcTaskExecutor {
     private final ConfigCacheManager configCacheManager;
     private final MusicGenerationService musicGenerationService;
     private final Model3dGenerationService model3dGenerationService;
+    private final ObjectProvider<SpeechService> speechServiceProvider;
     private final jakarta.persistence.EntityManager entityManager;
 
     private static final String STATUS_RUNNING = "RUNNING";
@@ -411,6 +414,91 @@ public class AigcTaskExecutor {
                     toVO(task));
         } catch (Exception e) {
             log.debug("[submitMusicSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
+        }
+    }
+
+    /** 配音生成异步执行（TTS 非流式，阻塞合成完整音频后上传 OSS）。 */
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void submitVoiceSync(Long taskId, String text, String voice) {
+        var task = taskRepo.findById(taskId).orElse(null);
+        if (task == null) return;
+        try {
+            task.setStatus(STATUS_RUNNING);
+            taskRepo.save(task);
+
+            var speechService = speechServiceProvider.getIfAvailable();
+            if (speechService == null) {
+                throw new IllegalStateException("配音服务未启用，请配置 spring.ai.dashscope.api-key");
+            }
+
+            byte[] audio = speechService.synthesize(text, voice);
+            if (audio == null || audio.length == 0) {
+                throw new IllegalStateException("配音合成结果为空: taskId=" + taskId);
+            }
+
+            String ossUrl = uploadAudioBytesToOss(audio, task.getId());
+            task.setResultUrl(ossUrl);
+            task.setOssUrl(ossUrl);
+            task.setStatus(STATUS_SUCCESS);
+            task.setUpdateTime(LocalDateTime.now());
+            taskRepo.save(task);
+
+            // 写入素材库（AUDIO 类型），用配音文本前 20 字命名
+            try {
+                String name = text.substring(0, Math.min(text.length(), 20));
+                var dto =
+                        new SaveFromGenerationDTO(
+                                name,
+                                MediaAssetType.AUDIO,
+                                ossUrl,
+                                null,
+                                "{\"text\":\"%s\",\"voice\":\"%s\"}"
+                                        .formatted(
+                                                text.replace("\"", "'"),
+                                                voice != null ? voice : ""),
+                                null,
+                                null,
+                                null,
+                                null,
+                                true,
+                                task.getModelName(),
+                                task.getProvider(),
+                                task.getProjectId());
+                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+            } catch (Exception e) {
+                log.warn("[submitVoiceSync] 写入素材库失败: taskId={}", taskId, e);
+            }
+
+            log.info("[submitVoiceSync] 配音生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
+        } catch (Exception e) {
+            log.error("[submitVoiceSync] 生成失败: taskId={}", taskId, e);
+            task.setStatus(STATUS_FAIL);
+            task.setErrorMsg(e.getMessage());
+            task.setUpdateTime(LocalDateTime.now());
+            taskRepo.save(task);
+        }
+        try {
+            eventService.push(
+                    task.getUserId(),
+                    STATUS_SUCCESS.equals(task.getStatus()) ? EVENT_COMPLETED : EVENT_FAILED,
+                    toVO(task));
+        } catch (Exception e) {
+            log.debug("[submitVoiceSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
+        }
+    }
+
+    /** 将 TTS 合成的音频字节（MP3）上传 OSS，返回可访问 URL。 */
+    private String uploadAudioBytesToOss(byte[] audio, Long taskId) {
+        try {
+            String filename = "aigc/voice/%s.mp3".formatted(UUID.randomUUID());
+            String key =
+                    storageService.upload(
+                            new java.io.ByteArrayInputStream(audio), filename, "audio/mpeg");
+            return storageService.getUrl(key);
+        } catch (Exception e) {
+            log.warn("[uploadAudioBytesToOss] 上传失败: taskId={}", taskId, e);
+            throw new IllegalStateException("配音上传 OSS 失败: taskId=" + taskId, e);
         }
     }
 

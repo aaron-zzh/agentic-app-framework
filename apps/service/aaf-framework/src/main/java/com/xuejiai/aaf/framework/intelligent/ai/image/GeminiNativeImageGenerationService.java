@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.MediaType;
@@ -41,8 +44,12 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
         var aiModel = modelManagementService.getModel(request.getModelId());
         var config = modelManagementService.resolveImageConfig(request.getModelId());
         var params = GeminiGenerateParams.of(request, config);
-        log.debug("[GeminiNative] generate 提交: modelId={}, prompt={}, aspectRatio={}, sizePreset={}",
-                request.getModelId(), request.getPrompt(), request.getAspectRatio(), request.getSizePreset());
+        log.debug(
+                "[GeminiNative] generate 提交: modelId={}, prompt={}, aspectRatio={}, sizePreset={}",
+                request.getModelId(),
+                request.getPrompt(),
+                request.getAspectRatio(),
+                request.getSizePreset());
         return call(aiModel, params.toBody(), "generate", request.getModelId());
     }
 
@@ -51,8 +58,11 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
         var aiModel = modelManagementService.getModel(request.getModelId());
         var config = modelManagementService.resolveImageConfig(request.getModelId());
         var params = GeminiEditParams.of(request, config);
-        log.debug("[GeminiNative] edit 提交: modelId={}, prompt={}, sourceUrls={}",
-                request.getModelId(), request.getPrompt(), request.allSourceUrls().size());
+        log.debug(
+                "[GeminiNative] edit 提交: modelId={}, prompt={}, sourceUrls={}",
+                request.getModelId(),
+                request.getPrompt(),
+                request.allSourceUrls().size());
         return call(aiModel, params.toBody(), "edit", request.getModelId());
     }
 
@@ -63,12 +73,41 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
 
     // ========== 内部方法 ==========
 
+    /** 递归 redact 请求体用于日志：把 inline_data 的 base64 {@code data} 字段替换为长度占位， 避免把整段图片 base64 打进日志。 */
+    @SuppressWarnings("unchecked")
+    private static Object redactForLog(Object node) {
+        if (node instanceof Map<?, ?> map) {
+            Map<String, Object> copy = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = String.valueOf(entry.getKey());
+                Object value = entry.getValue();
+                if ("data".equals(key) && value instanceof String s) {
+                    copy.put(key, "<base64 " + s.length() + " chars>");
+                } else {
+                    copy.put(key, redactForLog(value));
+                }
+            }
+            return copy;
+        }
+        if (node instanceof List<?> list) {
+            List<Object> copy = new ArrayList<>(list.size());
+            for (Object item : list) {
+                copy.add(redactForLog(item));
+            }
+            return copy;
+        }
+        return node;
+    }
+
     private ImageResult call(AiModel aiModel, Map<String, Object> body, String op, String modelId) {
         String apiKey = modelManagementService.resolveApiKey(modelId);
         String baseUrl = aiModel.effectiveBaseUrl().replaceAll("/$", "");
         String modelName = aiModel.getModelName();
         try {
-            log.debug("[GeminiNative] {} body: {}", op, body);
+            // 请求体含 base64 内联图片（inline_data.data），打印前 redact 掉，避免刷爆日志/泄露数据
+            if (log.isDebugEnabled()) {
+                log.debug("[GeminiNative] {} body: {}", op, redactForLog(body));
+            }
             var response =
                     RestClient.create()
                             .post()

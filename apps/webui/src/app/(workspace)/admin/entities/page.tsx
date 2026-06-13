@@ -25,7 +25,7 @@ const NEW_ENTITY_TEMPLATE = JSON.stringify(
   {
     slug: "new-entity",
     label: "新实体",
-    apiPath: "/api/new-entity",
+    apiPath: "/new-entity",
     fields: [{ name: "title", type: "text", label: "标题", required: true }],
     listView: {
       columns: ["title"]

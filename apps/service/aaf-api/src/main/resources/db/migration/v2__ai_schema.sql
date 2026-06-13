@@ -192,6 +192,7 @@ CREATE TABLE ai_model (
     temperature         DOUBLE PRECISION,
     max_tokens          INTEGER,
     context_window      INTEGER,
+    enable_thinking     BOOLEAN              DEFAULT FALSE,
     enabled             BOOLEAN          NOT NULL DEFAULT TRUE,
     capabilities        VARCHAR(256),
     input_price_per_k   NUMERIC(10, 6),
@@ -677,12 +678,13 @@ INSERT INTO ai_model (model_id, display_name, provider, provider_type, model_nam
                       capabilities, context_window, sort_order, enabled)
 VALUES
 -- P0: OpenAI
+('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true),
+('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true),
+('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true),
+('n1n:claude-fable-5',    'Claude Fable 5',     'n1n',     'OPENAI_COMPAT', 'claude-fable-5',             'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  4,  true),
 ('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                   'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 10,  true),
 ('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',              'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 11,  true),
-('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,   13,  true),
-('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,   13,  true),
-('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,   13,  true),
-('n1n:claude-fable-5',    'Claude Fable 5',     'n1n',     'OPENAI_COMPAT', 'claude-fable-5',             'https://llm-api.net/v1',                        'CHAT,VISION',   8191,   13,  true),
+
 -- P0: DeepSeek
 ('deepseek:chat',           'DeepSeek Chat',      'deepseek',   'OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                       'CHAT',        64000,  20,  true),
 ('deepseek:reasoner',       'DeepSeek R1',        'deepseek',   'OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                       'CHAT',        64000,  21,  true),

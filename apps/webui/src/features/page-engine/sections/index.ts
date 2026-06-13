@@ -16,6 +16,7 @@ import type { SectionComponentProps } from "../types"
 
 import { CTASection } from "./CTASection"
 import { FAQSection } from "./FAQSection"
+import { FeatureCardsSection } from "./FeatureCardsSection"
 import { FeaturesSection } from "./FeaturesSection"
 import { FooterSection } from "./FooterSection"
 import { HeroSection } from "./HeroSection"
@@ -51,6 +52,12 @@ registerSectionType("features", {
   component: FeaturesSection as ComponentType<SectionComponentProps>,
   label: "功能亮点",
   icon: "LayoutGrid"
+})
+
+registerSectionType("feature-cards", {
+  component: FeatureCardsSection as ComponentType<SectionComponentProps>,
+  label: "深色卡片展示",
+  icon: "Grid2x2"
 })
 
 registerSectionType("pricing", {
@@ -105,6 +112,7 @@ registerSectionType("logos", {
 
 export { CTASection } from "./CTASection"
 export { FAQSection } from "./FAQSection"
+export { FeatureCardsSection } from "./FeatureCardsSection"
 export { FeaturesSection } from "./FeaturesSection"
 export { FooterSection } from "./FooterSection"
 export { HeroSection } from "./HeroSection"

@@ -2,7 +2,9 @@ package com.xuejiai.aaf.module.document.domain;
 
 import java.util.Map;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -44,6 +46,7 @@ public class Document extends BaseEntity {
     private String content;
 
     /** Front Matter 元数据（JSONB 存储，Java 侧用 String 持久化） */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "front_matter", columnDefinition = "jsonb")
     private String frontMatterJson;
 

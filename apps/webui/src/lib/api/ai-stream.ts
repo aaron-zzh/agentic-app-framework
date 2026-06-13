@@ -1,30 +1,22 @@
 /**
  * AI 对话 POST SSE 工具——向后端发起 POST 请求并以流式方式接收 text/event-stream 响应。
  *
- * 使用场景：文案生成、改写、对话流式输出等所有 AI 流式接口。
- * 认证：从 axios 默认头读取 Bearer token，自动附加到请求头。
+ * 解析遵循 WHATWG SSE 规范：逐行处理，支持 \r\n / \r / \n 三种换行，
+ * 按 `字段:值` 解析（去掉一个可选前导空格），空行分发事件，多行 data 以 \n 拼接。
  */
 
 import axios from "axios"
 import { buildApiUrl } from "./config"
 
 export interface AiSseOptions {
-  /** 每个 token 回调 */
   onChunk: (text: string) => void
-  /** 流结束回调 */
   onDone?: () => void
-  /** 错误回调 */
   onError?: (err: Error) => void
-  /** AbortSignal，用于取消请求 */
   signal?: AbortSignal
 }
 
 /**
  * 向 `path` 发起 POST SSE 请求，逐 token 调用 `onChunk`。
- *
- * @param path  相对路径，如 `/aigc/copywriting/generate`
- * @param body  请求体（JSON 序列化）
- * @param opts  回调选项
  */
 export async function postAiStream(path: string, body: unknown, opts: AiSseOptions): Promise<void> {
   const { onChunk, onDone, onError, signal } = opts
@@ -56,73 +48,101 @@ export async function postAiStream(path: string, body: unknown, opts: AiSseOptio
     return
   }
 
-  // 检查是否是业务错误（Content-Type 为 JSON 而非 event-stream）
   const contentType = res.headers.get("content-type") ?? ""
   if (!contentType.includes("text/event-stream")) {
+    // 后端返回了非 SSE 响应（业务错误等）
     try {
-      const text = await res.text()
-      try {
-        const json = JSON.parse(text)
-        if (json?.code && json.code !== 0) {
-          onError?.(new Error(json.message ?? "请求失败"))
-          return
-        }
-      } catch {
-        // 非 JSON，直接用文本
-      }
-      onError?.(new Error(text || `HTTP ${res.status}`))
+      const json = await res.json()
+      onError?.(new Error(json?.message ?? "请求失败"))
     } catch {
-      onError?.(new Error("响应解析失败"))
+      onError?.(new Error("响应格式错误"))
     }
     return
   }
 
+  /**
+   * 处理一个完整事件的 data 内容。
+   * @returns true 表示出现终止性事件（错误），调用方应停止读取。
+   */
+  const dispatch = (data: string): boolean => {
+    if (!data || data === "[DONE]") return false
+    if (data.startsWith("[ERROR]")) {
+      onError?.(new Error(data.slice(7)))
+      return true
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(data)
+    } catch {
+      // 非 JSON，视为纯文本 token（兜底）
+      onChunk(data)
+      return false
+    }
+    // copywriting 链路：JSON 编码的纯文本 token（保留前导空格等）
+    if (typeof parsed === "string") {
+      if (parsed.startsWith("[ERROR]")) {
+        onError?.(new Error(parsed.slice(7)))
+        return true
+      }
+      onChunk(parsed)
+      return false
+    }
+    // AG-UI 链路：结构化事件对象
+    if (parsed !== null && typeof parsed === "object") {
+      const evt = parsed as Record<string, unknown>
+      if (evt.type === "TEXT_MESSAGE_CONTENT" && typeof evt.delta === "string") {
+        onChunk(evt.delta)
+      } else if (evt.type === "RUN_ERROR") {
+        onError?.(new Error(typeof evt.error === "string" ? evt.error : "运行失败"))
+        return true
+      }
+      // 其他事件类型（RUN_STARTED / TEXT_MESSAGE_END / TOOL_CALL_* 等）忽略
+    }
+    return false
+  }
+
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
-  let buf = ""
+  let buf = "" // 尚未处理的不完整行
+  let dataBuffer = "" // 当前事件累积的 data 值（每行末尾带 \n）
+
   try {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
+
       buf += decoder.decode(value, { stream: true })
 
-      // SSE 标准：事件以空行（\n\n）分隔
-      const events = buf.split("\n\n")
-      buf = events.pop() ?? ""
+      // 统一换行为 \n（SSE 规范支持 \r\n / \r / \n）。
+      // 结尾孤立的 \r 可能是跨 chunk 的 \r\n 前半，先挂起到下次拼接，避免误判行边界。
+      let pending = ""
+      if (buf.endsWith("\r")) {
+        pending = "\r"
+        buf = buf.slice(0, -1)
+      }
+      const lines = buf.replace(/\r\n?/g, "\n").split("\n")
+      buf = (lines.pop() ?? "") + pending // 最后一段是不完整行，留到下次
 
-      for (const event of events) {
-        // 一个事件可能有多个 data: 行，按协议用 \n 拼接
-        const dataLines = event
-          .split("\n")
-          .filter((l) => l.startsWith("data:"))
-          .map((l) => {
-            const val = l.slice(5)
-            // SSE 规范：data: value 中第一个空格是可选分隔符，去掉它
-            // 但若整行就是 "data: "（value 为单个空格），保留该空格
-            return val.startsWith(" ") && val.length > 1 ? val.slice(1) : val
-          })
-        if (dataLines.length === 0) continue
-        const text = dataLines.join("\n")
-        if (!text || text === "[DONE]") continue
-        if (text.startsWith("[ERROR]")) {
-          onError?.(new Error(text.slice(7)))
-          return
-        }
-        try {
-          const evt = JSON.parse(text)
-          if (evt !== null && typeof evt === "object") {
-            if (evt.type === "TEXT_MESSAGE_CONTENT" && typeof evt.delta === "string") {
-              onChunk(evt.delta)
-            } else if (evt.type === "RUN_ERROR") {
-              onError?.(new Error(evt.error ?? "运行失败"))
-              return
-            }
-          } else {
-            onChunk(String(evt))
+      for (const line of lines) {
+        if (line === "") {
+          // 空行 → 分发当前事件（规范：去掉 data 末尾追加的换行）
+          if (dataBuffer !== "") {
+            const stop = dispatch(dataBuffer.slice(0, -1))
+            dataBuffer = ""
+            if (stop) return
           }
-        } catch {
-          onChunk(text)
+          continue
         }
+        if (line.startsWith(":")) continue // 注释行（心跳）忽略
+
+        // 字段名取第一个冒号之前，值取之后并去掉一个可选前导空格
+        const colon = line.indexOf(":")
+        const field = colon === -1 ? line : line.slice(0, colon)
+        let val = colon === -1 ? "" : line.slice(colon + 1)
+        if (val.startsWith(" ")) val = val.slice(1)
+
+        if (field === "data") dataBuffer += `${val}\n`
+        // event / id / retry 字段此链路用不到，忽略
       }
     }
     onDone?.()

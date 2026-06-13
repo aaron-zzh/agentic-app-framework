@@ -5,6 +5,8 @@
 
 "use client"
 
+import { Music, Pause, Play } from "lucide-react"
+import { useRef, useState } from "react"
 import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "../store"
@@ -33,6 +35,17 @@ export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) 
   const previewAsset = useAigcStore((s) => s.previewAsset)
   const isSelected = previewAsset?.id === asset.id
 
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const isAudio = asset.type === "AUDIO"
+
+  const togglePlay = () => {
+    const el = audioRef.current
+    if (!el) return
+    if (el.paused) el.play()
+    else el.pause()
+  }
+
   const handlePointerUp = () => {
     if (!isDragging) setPreviewAsset(asset)
   }
@@ -60,12 +73,38 @@ export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) 
         )}
       >
         <div className="aspect-square bg-muted">
-          {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
-          <img
-            src={asset.thumbnailUrl ?? asset.url}
-            alt={asset.name}
-            className="size-full object-cover"
-          />
+          {isAudio ? (
+            <div className="relative flex size-full items-center justify-center bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15">
+              <Music className="size-8 text-muted-foreground/50" />
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => {
+                  e.stopPropagation()
+                  togglePlay()
+                }}
+                className="absolute inset-0 m-auto flex size-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
+                aria-label={playing ? "暂停" : "播放"}
+              >
+                {playing ? <Pause className="size-5" /> : <Play className="size-5" />}
+              </button>
+              {/* biome-ignore lint/a11y/useMediaCaption: 生成音频无字幕轨 */}
+              <audio
+                ref={audioRef}
+                src={asset.url}
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onEnded={() => setPlaying(false)}
+              />
+            </div>
+          ) : (
+            // biome-ignore lint/performance/noImgElement: 动态素材缩略图
+            <img
+              src={asset.thumbnailUrl ?? asset.url}
+              alt={asset.name}
+              className="size-full object-cover"
+            />
+          )}
         </div>
       </div>
       <div className="px-2 py-1.5">

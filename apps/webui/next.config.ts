@@ -56,7 +56,7 @@ const nextConfig: NextConfig = {
         {
           key: "Content-Security-Policy",
           value:
-            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://o.alicdn.com https://g.alicdn.com; style-src 'self' 'unsafe-inline' https://g.alicdn.com; img-src 'self' data: blob: http: https:; font-src 'self' data: https://g.alicdn.com; connect-src 'self' blob: http: https: ws: wss:; media-src 'self' https:"
+            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://o.alicdn.com https://g.alicdn.com; style-src 'self' 'unsafe-inline' https://g.alicdn.com; img-src 'self' data: blob: http: https:; font-src 'self' data: https://g.alicdn.com; connect-src 'self' blob: http: https: ws: wss:; media-src 'self' blob: http: https:"
         }
       ]
     }

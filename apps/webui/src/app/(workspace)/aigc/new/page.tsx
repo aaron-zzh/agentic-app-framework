@@ -5,7 +5,7 @@
 
 "use client"
 
-import { Image, Layers, Music, PenLine, Video } from "lucide-react"
+import { Image, Layers, Mic, Music, PenLine, Video } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,7 @@ const PROJECT_TYPES = [
     route: "video"
   },
   { value: "MUSIC", label: "音乐生成", desc: "AI 作词作曲生成歌曲", icon: Music, route: "music" },
+  { value: "VOICE", label: "配音生成", desc: "文本合成自然配音", icon: Mic, route: "voice" },
   { value: "MODEL_3D", label: "3D 生成", desc: "文本/图片生成 3D 模型", icon: Layers, route: "3d" }
 ] as const
 
@@ -79,7 +80,7 @@ export default function AigcNewProjectPage() {
           {/* 项目类型 — 大屏一行四列 */}
           <div className="space-y-3">
             <Label>项目类型</Label>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-5 gap-4">
               {PROJECT_TYPES.map(({ value, label, desc, icon: Icon }) => (
                 <Card
                   key={value}

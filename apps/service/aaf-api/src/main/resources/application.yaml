@@ -9,6 +9,10 @@ spring:
     import: optional:file:.env[.properties]
   profiles:
     active: dev
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf-dev}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
   jpa:
     open-in-view: false
     hibernate:
@@ -17,6 +21,40 @@ spring:
     enabled: true
     placeholder-replacement: false
     sql-migration-prefix: v
+    # 公共迁移 + 种子数据；dev 额外追加 db/testdata（见 application-dev.yaml）
+    locations: classpath:db/migration,classpath:db/seed
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:neo4j}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  mail:
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.ssl.enable: true
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-placeholder}
+      base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
+      chat:
+        model: ${OPENAI_MODEL:deepseek-v4-pro}
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+    vectorstore:
+      pgvector:
+        table-name: knowledge_embedding
+        dimensions: 1536
+        distance-type: cosine_distance
+        index-type: hnsw
+        initialize-schema: false
 
 server:
   servlet:
@@ -37,6 +75,25 @@ aaf:
   ai:
     default-model: deepseek:chat
     fallback-model: default
+    midjourney:
+      enabled: ${MJ_ENABLED:false}
+      base-url: ${MJ_BASE_URL:https://api.holdai.top/mj}
+      api-key: ${MJ_API_KEY:}
+      notify-url: ${MJ_NOTIFY_URL:}
+    # OPENAI_COMPAT 链路凭证 fallback：key = AiModel.provider，由 DynamicChatClientFactory 读取
+    # （仅当 ai_model 记录未填 api-key/base-url 时生效）
+    models:
+      default:
+        provider: openai
+        api-key: ${OPENAI_API_KEY:sk-placeholder}
+        base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
+        model: ${OPENAI_MODEL:gpt-4o-mini}
+        max-tokens: 4096
+        temperature: 0.7
+      # qwen chat 走百炼 OpenAI 兼容端点 compatible-mode，key 复用百炼账号 DASHSCOPE_API_KEY
+      qwen:
+        api-key: ${DASHSCOPE_API_KEY:}
+        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
     # 各能力兜底 modelId，优先级：DB(ai_model_preference) > 此处 > 代码内置默认值
     default-models:
       CHAT: deepseek:chat
@@ -50,6 +107,38 @@ aaf:
       EMBEDDING: qwen:text-embedding-v4
     prompts:
       chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
+  messaging:
+    sms:
+      provider: aliyun
+      aliyun:
+        access-key-id: ${SMS_ACCESS_KEY_ID:}
+        access-key-secret: ${SMS_ACCESS_KEY_SECRET:}
+        sign-name: ${SMS_SIGN_NAME:AAF}
+    email:
+      from: ${EMAIL_FROM:noreply@xuejiai.com}
+  storage:
+    type: local
+    local:
+      base-path: ${AAF_FILE_PATH:${user.home}/aaf-files}
+      url-prefix: ${AAF_FILE_DOMAIN:http://localhost:8080}/api/system/files
+  security:
+    jwt:
+      secret: ${JWT_SECRET:aaf-dev-secret-must-be-at-least-32-bytes-long!!}
+      expire-seconds: ${JWT_EXPIRE_SECONDS:604800}
+    oauth:
+      wechat:
+        app-id: ${WECHAT_APP_ID:}
+        app-secret: ${WECHAT_APP_SECRET:}
+        redirect-uri: ${WECHAT_REDIRECT_URI:}
+      wecom:
+        corp-id: ${WECOM_CORP_ID:}
+        agent-id: ${WECOM_AGENT_ID:}
+        secret: ${WECOM_SECRET:}
+        redirect-uri: ${WECOM_REDIRECT_URI:}
+      dingtalk:
+        app-key: ${DINGTALK_APP_KEY:}
+        app-secret: ${DINGTALK_APP_SECRET:}
+        redirect-uri: ${DINGTALK_REDIRECT_URI:}
   task:
     scheduler:
       pool-size: 4
@@ -78,6 +167,12 @@ agentscope:
     session-timeout-minutes: 30
     run-timeout: 10m
     sse-timeout: 300000
+  a2a:
+    server:
+      card:
+        name: AAF Supervisor Agent
+        description: AAF 多智能体协作框架 - Supervisor Agent，支持日程管理等任务委托
+        version: 0.1.0
 
 management:
   info:

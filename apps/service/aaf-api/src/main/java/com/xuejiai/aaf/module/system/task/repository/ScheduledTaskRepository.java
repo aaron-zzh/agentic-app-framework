@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.task.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -15,4 +16,7 @@ public interface ScheduledTaskRepository extends JpaRepository<ScheduledTask, Lo
 
     /** 查询所有活跃任务 */
     List<ScheduledTask> findByStatus(String status);
+
+    /** 按名称查询（任务名全局唯一） */
+    Optional<ScheduledTask> findByName(String name);
 }

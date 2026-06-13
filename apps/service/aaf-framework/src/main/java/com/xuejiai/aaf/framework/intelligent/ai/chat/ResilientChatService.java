@@ -72,21 +72,67 @@ public class ResilientChatService {
 
     /** 流式调用，使用完整路由上下文。 */
     public Flux<ChatResponse> stream(List<Message> messages, CapabilityRoutingContext ctx) {
+        long startedAt = System.currentTimeMillis();
         var ownerId = billingOwnerId(ctx.userId());
         // 1. 积分/配额预检，不足则抛异常
         creditGuard.precheck(ownerId, ctx.capability());
         // 2. 路由决策链：显式 modelId → 编排引擎 → AI 辅助 → 用户偏好 → 系统默认 → yaml 兜底
         var model = capabilityRouter.resolve(ctx);
+        long routedAt = System.currentTimeMillis();
+        log.info("[流式计时] 路由完成 model={} 预检+路由耗时={}ms", model.getModelId(), routedAt - startedAt);
         try {
             // 3. 从 DynamicChatClientFactory 取 ChatClient（Caffeine 缓存）并发起流式调用
-            return withStreamUsage(doStream(messages, model.getModelId()), ownerId, model.getId());
+            return logTiming(
+                    withStreamUsage(doStream(messages, model.getModelId()), ownerId, model.getId()),
+                    model.getModelId(),
+                    routedAt);
         } catch (Exception e) {
             log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
             // 4. 主模型失败时降级到 fallbackModelId
             var fallback = resolveFallback(model);
-            return withStreamUsage(
-                    doStream(messages, fallback.getModelId()), ownerId, fallback.getId());
+            return logTiming(
+                    withStreamUsage(
+                            doStream(messages, fallback.getModelId()), ownerId, fallback.getId()),
+                    fallback.getModelId(),
+                    routedAt);
         }
+    }
+
+    /**
+     * 流式计时日志：用于判断上游是否「真流式」。
+     *
+     * <p>关键判据是 <b>首 token → 完成</b> 的时长配合 chunk 数：
+     *
+     * <ul>
+     *   <li>该时长较长、chunk 分散到达 → 真流式（token 逐个产生）
+     *   <li>TTFT 很大但「首 token→完成」接近 0、chunk 瞬间到齐 → 上游攒完一次性返回，非真流式
+     * </ul>
+     */
+    private Flux<ChatResponse> logTiming(Flux<ChatResponse> stream, String modelId, long routedAt) {
+        var firstTokenAt = new AtomicLong(0);
+        var chunkCount = new AtomicLong(0);
+        return stream.doOnNext(
+                        r -> {
+                            long now = System.currentTimeMillis();
+                            if (firstTokenAt.compareAndSet(0, now)) {
+                                log.info(
+                                        "[流式计时] 首 token model={} TTFT(路由后)={}ms",
+                                        modelId,
+                                        now - routedAt);
+                            }
+                            chunkCount.incrementAndGet();
+                        })
+                .doOnComplete(
+                        () -> {
+                            long now = System.currentTimeMillis();
+                            long first = firstTokenAt.get();
+                            log.info(
+                                    "[流式计时] 完成 model={} chunk数={} 首token→完成={}ms 路由后总时长={}ms",
+                                    modelId,
+                                    chunkCount.get(),
+                                    first > 0 ? now - first : -1,
+                                    now - routedAt);
+                        });
     }
 
     /** 流式调用，简化入口。 */

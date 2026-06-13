@@ -17,6 +17,9 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { Chatter } from "@/features/chatter"
 import { FloatingChatterButton } from "@/features/chatter/FloatingChatterButton"
 import { GlobalDndContext } from "@/features/dnd/GlobalDndContext"
+import { entityRegistry } from "@/features/entity-engine/lib/registry"
+import type { EntityDef } from "@/features/entity-engine/types"
+import { entityDefApi } from "@/lib/api/rest/entity/entity-def"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { AppHeader } from "@/sections/layout/AppHeader"
 import { AppSidebar } from "@/sections/layout/AppSidebar"
@@ -31,6 +34,19 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const getConfig = useChatterStore((s) => s.getConfig)
   const layoutOverride = useChatterStore((s) => s.layoutOverride)
   const mainPanelRef = useRef<PanelImperativeHandle>(null)
+
+  // 启动时从后端拉取 EntityDef，覆盖同 slug 的硬编码定义（后端优先）
+  useEffect(() => {
+    entityDefApi
+      .list()
+      .then((records) => {
+        const defs = records.filter((r) => r.enabled).map((r) => r.config as unknown as EntityDef)
+        if (defs.length > 0) entityRegistry.registerAll(defs)
+      })
+      .catch(() => {
+        // 后端不可用时静默降级，使用硬编码定义
+      })
+  }, [])
 
   const config = currentPageId
     ? getConfig(currentPageId)

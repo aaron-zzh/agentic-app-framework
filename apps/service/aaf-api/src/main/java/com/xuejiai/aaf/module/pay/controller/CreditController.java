@@ -58,17 +58,21 @@ public class CreditController {
                         "MANUAL", "额外赠送");
         // 非标准 batchType 合并到 REWARD
         var normalizedMap = new java.util.LinkedHashMap<String, Long>();
-        grouped.forEach((type, amount) -> {
-            String key = labelMap.containsKey(type) ? type : "REWARD";
-            normalizedMap.merge(key, amount, Long::sum);
-        });
-        var groups = normalizedMap.entrySet().stream()
-                .map(e -> new CreditGroupVO(
-                        e.getKey(),
-                        labelMap.getOrDefault(e.getKey(), e.getKey()),
-                        e.getValue(),
-                        null))
-                .toList();
+        grouped.forEach(
+                (type, amount) -> {
+                    String key = labelMap.containsKey(type) ? type : "REWARD";
+                    normalizedMap.merge(key, amount, Long::sum);
+                });
+        var groups =
+                normalizedMap.entrySet().stream()
+                        .map(
+                                e ->
+                                        new CreditGroupVO(
+                                                e.getKey(),
+                                                labelMap.getOrDefault(e.getKey(), e.getKey()),
+                                                e.getValue(),
+                                                null))
+                        .toList();
         return Result.success(groups);
     }
 

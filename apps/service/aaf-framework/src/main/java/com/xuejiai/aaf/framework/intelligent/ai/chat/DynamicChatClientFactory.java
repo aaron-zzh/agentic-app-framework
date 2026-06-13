@@ -8,6 +8,7 @@ package com.xuejiai.aaf.framework.intelligent.ai.chat;
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.ai.chat.client.ChatClient;
@@ -124,11 +125,18 @@ public class DynamicChatClientFactory {
                         2,
                         null,
                         null);
+        // DashScope/Qwen 等的 enable_thinking 为非 OpenAI 标准参数，通过 extraBody 透传（默认 false 关闭思考）；
+        // 为 null 时下发空 extraBody，不影响纯 OpenAI 端点
+        Map<String, Object> extraBody =
+                model.getEnableThinking() != null
+                        ? Map.of("enable_thinking", model.getEnableThinking())
+                        : Map.of();
         var options =
                 OpenAiChatOptions.builder()
                         .model(model.getModelName())
                         .temperature(model.getTemperature())
                         .maxTokens(model.getMaxTokens())
+                        .extraBody(extraBody)
                         .build();
         return OpenAiChatModel.builder()
                 .openAiClient(syncClient)

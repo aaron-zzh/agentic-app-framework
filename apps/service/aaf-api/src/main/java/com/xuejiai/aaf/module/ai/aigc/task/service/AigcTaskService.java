@@ -45,6 +45,10 @@ public class AigcTaskService
     private static final String TYPE_VIDEO = "VIDEO";
     private static final String TYPE_MODEL3D = "MODEL_3D";
     private static final String TYPE_MUSIC = "MUSIC";
+    private static final String TYPE_VOICE = "VOICE";
+
+    /** 配音文本最大长度（字） */
+    private static final int VOICE_TEXT_MAX_LEN = 200;
 
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -208,6 +212,49 @@ public class AigcTaskService
         return task.getId();
     }
 
+    /**
+     * 提交配音生成任务（TTS）。文本长度上限 {@value #VOICE_TEXT_MAX_LEN} 字。
+     *
+     * @param userId 用户 ID
+     * @param text 配音文本（即 prompt）
+     * @param voice 音色编码，null 时执行器回退到系统默认音色
+     * @param model TTS 模型名，可空
+     * @param projectId 所属项目 ID，可空
+     * @return 任务 ID
+     */
+    @Transactional
+    public Long submitVoiceTask(
+            Long userId, String text, String voice, String model, Long projectId) {
+        if (text == null || text.isBlank()) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "配音文本不能为空");
+        }
+        if (text.length() > VOICE_TEXT_MAX_LEN) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST,
+                    "配音文本不能超过 " + VOICE_TEXT_MAX_LEN + " 字");
+        }
+
+        var task = buildTask(userId, TYPE_VOICE, text, model, null, projectId);
+        if (voice != null && !voice.isBlank()) {
+            task.setParams("{\"voice\":\"" + voice.replace("\"", "'") + "\"}");
+        }
+        taskRepo.save(task);
+        eventService.push(userId, EVENT_CREATED, toVO(task));
+
+        final Long taskId = task.getId();
+        org.springframework.transaction.support.TransactionSynchronizationManager
+                .registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                taskExecutor.submitVoiceSync(taskId, text, voice);
+                            }
+                        });
+        log.info("[submitVoiceTask] 配音生成任务已创建: taskId={}, voice={}", task.getId(), voice);
+        return task.getId();
+    }
+
     // ========== 任务完成/失败回调 ==========
 
     @Transactional(
@@ -327,6 +374,7 @@ public class AigcTaskService
             case TYPE_VIDEO -> MediaAssetType.VIDEO;
             case TYPE_MODEL3D -> MediaAssetType.MODEL_3D;
             case TYPE_MUSIC -> MediaAssetType.AUDIO;
+            case TYPE_VOICE -> MediaAssetType.AUDIO;
             default -> MediaAssetType.IMAGE;
         };
     }
@@ -342,6 +390,7 @@ public class AigcTaskService
             case TYPE_VIDEO -> "mp4";
             case TYPE_MODEL3D -> "glb";
             case TYPE_MUSIC -> "mp3";
+            case TYPE_VOICE -> "mp3";
             default -> "png";
         };
     }
@@ -351,6 +400,7 @@ public class AigcTaskService
             case TYPE_VIDEO -> "video/mp4";
             case TYPE_MODEL3D -> "model/gltf-binary";
             case TYPE_MUSIC -> "audio/mpeg";
+            case TYPE_VOICE -> "audio/mpeg";
             default -> "image/png";
         };
     }

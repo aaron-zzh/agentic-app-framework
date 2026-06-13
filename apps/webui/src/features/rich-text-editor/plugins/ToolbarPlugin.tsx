@@ -65,9 +65,11 @@ interface ToolbarPluginProps {
   )[]
   /** 图片上传接口 */
   uploadEndpoint?: string
+  /** 根容器额外 className */
+  className?: string
 }
 
-export function ToolbarPlugin({ features, uploadEndpoint }: ToolbarPluginProps) {
+export function ToolbarPlugin({ features, uploadEndpoint, className }: ToolbarPluginProps) {
   const [editor] = useLexicalComposerContext()
   const [state, setState] = useState<ToolbarState>({
     bold: false,
@@ -181,7 +183,12 @@ export function ToolbarPlugin({ features, uploadEndpoint }: ToolbarPluginProps) 
   }, [editor, state.isLink])
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 bg-muted/30 px-2 py-1">
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 bg-muted/30 px-2 py-1",
+        className
+      )}
+    >
       {/* 撤销/重做 */}
       {features.includes("history") && (
         <>

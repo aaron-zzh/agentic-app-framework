@@ -292,8 +292,10 @@ export interface PromptInputProps {
   placeholder?: string
   /** 项目提示词标签（null = 不展示） */
   projectPrompt?: { label: string; content: string } | null
-  /** 用户关闭项目提示词标签时回调 */
-  onDismissProjectPrompt?: () => void
+  /** 项目提示词是否被移除（受控）；为 true 时隐藏标签并显示「再次添加」按钮 */
+  dismissed?: boolean
+  /** 移除状态变化回调（受控）；true=用户移除，false=用户恢复 */
+  onDismissedChange?: (dismissed: boolean) => void
   /** 最大字数限制（0 = 不限制） */
   maxLength?: number
   className?: string
@@ -305,25 +307,16 @@ export function PromptInput({
   onChange,
   placeholder = "描述你想生成的内容...",
   projectPrompt = null,
-  onDismissProjectPrompt,
+  dismissed = false,
+  onDismissedChange,
   maxLength = 500,
   className,
   minHeight = 100
 }: PromptInputProps) {
   const [charCount, setCharCount] = useState(0)
-  const [dismissed, setDismissed] = useState(false)
   const handleDismiss = useCallback(() => {
-    setDismissed(true)
-    onDismissProjectPrompt?.()
-  }, [onDismissProjectPrompt])
-
-  // 项目提示词内容变化时重置 dismissed
-  const promptKey = `${projectPrompt?.label}::${projectPrompt?.content}`
-  const prevPromptKeyRef = useRef(promptKey)
-  if (prevPromptKeyRef.current !== promptKey) {
-    prevPromptKeyRef.current = promptKey
-    if (dismissed) setDismissed(false)
-  }
+    onDismissedChange?.(true)
+  }, [onDismissedChange])
 
   const activePrompt = dismissed ? null : projectPrompt
 
@@ -366,7 +359,7 @@ export function PromptInput({
           {projectPrompt && dismissed ? (
             <button
               type="button"
-              onClick={() => setDismissed(false)}
+              onClick={() => onDismissedChange?.(false)}
               className="text-primary/70 text-xs hover:text-primary"
             >
               + 项目提示词

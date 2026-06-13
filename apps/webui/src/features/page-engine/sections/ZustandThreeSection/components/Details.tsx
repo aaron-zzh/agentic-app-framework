@@ -15,7 +15,7 @@ export default function Details() {
         </a>
       </div>
       <span className="absolute top-20 left-10 inline-block font-bold text-5xl text-white uppercase leading-none max-md:text-base">
-        Zustand
+        可视化
       </span>
     </>
   )

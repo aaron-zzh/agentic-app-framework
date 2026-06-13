@@ -10,9 +10,13 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.crud.BaseCrudController;
+import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 
@@ -31,11 +35,32 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/aigc/tasks")
 @RequiredArgsConstructor
-public class AigcTaskController {
+public class AigcTaskController
+        extends BaseCrudController<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> {
 
     private final AigcTaskService taskService;
     private final AigcTaskEventService eventService;
     private final OperatorContext operatorContext;
+
+    @Override
+    protected BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> getService() {
+        return taskService;
+    }
+
+    /** 屏蔽创建——任务通过 /submit 提交 */
+    @Override
+    public Result<AigcTaskVO> create(
+            @org.springframework.web.bind.annotation.RequestBody Void body) {
+        throw new BusinessException(GlobalErrorCode.METHOD_NOT_ALLOWED, "请使用 /submit 提交任务");
+    }
+
+    /** 屏蔽更新——任务不支持编辑 */
+    @Override
+    public Result<AigcTaskVO> update(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestBody Void body) {
+        throw new BusinessException(GlobalErrorCode.METHOD_NOT_ALLOWED, "任务不支持编辑");
+    }
 
     /** 提交任务请求 DTO */
     public record SubmitTaskDTO(
@@ -113,6 +138,15 @@ public class AigcTaskController {
                                 toString(p.get("gender")),
                                 dto.projectId());
                     }
+                    case "VOICE" -> {
+                        var p = dto.params() != null ? dto.params() : Map.of();
+                        yield taskService.submitVoiceTask(
+                                userId,
+                                dto.prompt(),
+                                toString(p.get("voice")),
+                                dto.model(),
+                                dto.projectId());
+                    }
                     default ->
                             throw new BusinessException(
                                     GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + dto.type());
@@ -136,37 +170,18 @@ public class AigcTaskController {
         return eventService.subscribe(userId);
     }
 
-    /**
-     * 查询我的任务列表（分页）。
-     *
-     * @param pageNo 页码（默认 1）
-     * @param pageSize 每页大小（默认 20）
-     * @return 分页任务列表
-     */
+    /** 查询我的任务列表（分页）。 */
+    @Override
     @Operation(summary = "查询我的 AIGC 任务列表")
-    @GetMapping
-    public Result<PageResult<AigcTaskVO>> list(
-            @RequestParam(defaultValue = "1") int pageNo,
-            @RequestParam(defaultValue = "20") int pageSize) {
+    public Result<PageResult<AigcTaskVO>> page(
+            @org.springframework.validation.annotation.Validated AigcTaskPageDTO request) {
         Long userId =
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
-        return Result.success(taskService.pageByUser(userId, pageNo, pageSize));
-    }
-
-    @Operation(summary = "查询单个 AIGC 任务")
-    @GetMapping("/{id}")
-    public Result<AigcTaskVO> getById(@PathVariable Long id) {
-        return Result.success(taskService.getById(id));
-    }
-
-    @Operation(summary = "删除 AIGC 任务")
-    @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        taskService.delete(id);
-        return Result.success();
+        return Result.success(
+                taskService.pageByUser(userId, request.getPageNo(), request.getPageSize()));
     }
 
     private static Integer toInt(Object val) {

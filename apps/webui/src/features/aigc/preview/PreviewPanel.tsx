@@ -249,15 +249,33 @@ export function PreviewPanel({
                 {/* 图片区域 + 右键菜单 */}
                 <ContextMenu>
                   <ContextMenuTrigger className="h-full w-full">
-                    <ImageViewer
-                      src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
-                      alt={previewAsset.name}
-                      className="h-full w-full"
-                      onLoad={(e) => {
-                        const img = e.currentTarget
-                        setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
-                      }}
-                    />
+                    {previewAsset.type === "AUDIO" ? (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
+                        <Music className="size-16 text-muted-foreground/60" />
+                        <span className="max-w-full truncate text-muted-foreground text-sm">
+                          {previewAsset.name}
+                        </span>
+                        {/* biome-ignore lint/a11y/useMediaCaption: 生成音频无字幕轨 */}
+                        <audio controls src={previewAsset.url ?? ""} className="w-full max-w-md" />
+                      </div>
+                    ) : previewAsset.type === "VIDEO" ? (
+                      // biome-ignore lint/a11y/useMediaCaption: 生成视频无字幕轨
+                      <video
+                        controls
+                        src={previewAsset.url ?? ""}
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <ImageViewer
+                        src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
+                        alt={previewAsset.name}
+                        className="h-full w-full"
+                        onLoad={(e) => {
+                          const img = e.currentTarget
+                          setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
+                        }}
+                      />
+                    )}
                   </ContextMenuTrigger>
                   <ContextMenuContent>
                     <ContextMenuItem

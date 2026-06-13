@@ -84,6 +84,15 @@ public class AiModel extends BaseEntity {
     /** 上下文窗口大小 */
     private Integer contextWindow;
 
+    /**
+     * 是否开启深度思考（DashScope/Qwen 等 enable_thinking 扩展参数）。
+     *
+     * <p>默认关闭：思考型模型流式时会把推理放进 reasoning_content、content 为空，关闭后正文回到 content 通道正常流式。 非空时通过 extraBody
+     * 透传给 OpenAI 兼容端点；为 null 则不下发该参数（兼容纯 OpenAI 端点）。
+     */
+    @Column(name = "enable_thinking")
+    private Boolean enableThinking = false;
+
     /** 输入 Token 单价（元/千Token，用于积分结算） */
     @Column(name = "input_price_per_k", precision = 10, scale = 6)
     private BigDecimal inputPricePerK;

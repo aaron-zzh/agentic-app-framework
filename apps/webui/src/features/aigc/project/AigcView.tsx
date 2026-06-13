@@ -19,6 +19,7 @@ import { StoryboardPanel } from "../copywriting/StoryboardPanel"
 import { GenerationPanel } from "../generation/GenerationPanel"
 import { PreviewPanel } from "../preview/PreviewPanel"
 import { useAigcStore } from "../store"
+import type { MediaAssetType } from "../types"
 
 export function AigcView() {
   const router = useRouter()
@@ -55,10 +56,19 @@ export function AigcView() {
   useAigcTaskStream({
     onCompleted: (task) => {
       if (task.ossUrl) {
+        // 临时占位 asset 的类型需与任务类型对齐，否则音频/视频/3D 会被当作图片渲染
+        const assetType: MediaAssetType =
+          task.type === "VIDEO"
+            ? "VIDEO"
+            : task.type === "MODEL_3D"
+              ? "MODEL_3D"
+              : task.type === "VOICE" || task.type === "MUSIC"
+                ? "AUDIO"
+                : "IMAGE"
         const tempAsset = {
           id: task.id,
-          name: task.prompt ?? "生成图片",
-          type: "IMAGE" as const,
+          name: task.prompt ?? "生成素材",
+          type: assetType,
           url: task.ossUrl,
           thumbnailUrl: task.ossUrl,
           size: null,
@@ -116,7 +126,7 @@ export function AigcView() {
             <GenerationPanel />
 
             {/* 文案生成面板（从底部弹起） */}
-            <CopywritingPanel />
+            <CopywritingPanel projectId={projectId ?? undefined} />
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>

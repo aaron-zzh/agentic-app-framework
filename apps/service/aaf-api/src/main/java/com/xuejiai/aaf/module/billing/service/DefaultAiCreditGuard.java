@@ -102,11 +102,36 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 double cost =
                         (inputTokens * prices[0] + outputTokens * prices[1]) / 1000.0 * markup;
                 creditCost = Math.max(1, Math.round(cost));
+                log.info(
+                        "chat 计费: userId={}, modelId={}, inTokens={}, outTokens={}, "
+                                + "inPricePerK={}, outPricePerK={}, markup={}, rawCost={}, creditCost={}",
+                        userId,
+                        modelId,
+                        inputTokens,
+                        outputTokens,
+                        prices[0],
+                        prices[1],
+                        markup,
+                        cost,
+                        creditCost);
             } else {
                 creditCost = fallbackCreditCost(inputTokens + outputTokens);
+                log.info(
+                        "chat 计费(降级-模型无单价): userId={}, modelId={}, totalTokens={}, markup={}, creditCost={}",
+                        userId,
+                        modelId,
+                        inputTokens + outputTokens,
+                        markup,
+                        creditCost);
             }
         } else {
             creditCost = fallbackCreditCost(inputTokens + outputTokens);
+            log.info(
+                    "chat 计费(降级-无modelId): userId={}, totalTokens={}, markup={}, creditCost={}",
+                    userId,
+                    inputTokens + outputTokens,
+                    markup,
+                    creditCost);
         }
         try {
             creditService.spend(userId, creditCost, "chat", bizId);

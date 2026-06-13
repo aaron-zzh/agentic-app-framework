@@ -10,6 +10,11 @@
             </encoder>
         </appender>
 
+        <!-- 调试级 logger 仅 dev/test 生效，避免生产打 DEBUG/SQL 噪音及敏感参数 -->
+        <logger name="com.xuejiai.aaf" level="DEBUG"/>
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.type.descriptor.sql" level="TRACE"/>
+
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
@@ -47,9 +52,6 @@
         </root>
     </springProfile>
 
-    <!-- 通用 logger 配置 -->
-    <logger name="com.xuejiai.aaf" level="DEBUG"/>
+    <!-- 通用 logger 配置（所有 profile 生效，保持 prod 安全的级别） -->
     <logger name="org.springframework.web" level="INFO"/>
-    <logger name="org.hibernate.SQL" level="DEBUG"/>
-    <logger name="org.hibernate.type.descriptor.sql" level="TRACE"/>
 </configuration>

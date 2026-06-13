@@ -12,7 +12,7 @@ export const documentEntity: EntityDef = {
   slug: "document",
   label: "文档",
   labelPlural: "文档",
-  apiPath: "/api/documents",
+  apiPath: "/documents",
   icon: "file-text",
   group: "content",
   groupLabel: "内容管理",
@@ -55,7 +55,7 @@ export const userEntity: EntityDef = {
   slug: "user",
   label: "用户",
   labelPlural: "用户",
-  apiPath: "/api/system/users",
+  apiPath: "/system/users",
   icon: "users",
   group: "system",
   groupLabel: "系统管理",
@@ -123,7 +123,7 @@ export const taskEntity: EntityDef = {
   slug: "task",
   label: "任务",
   labelPlural: "任务",
-  apiPath: "/api/tasks",
+  apiPath: "/tasks",
   icon: "check-square",
   group: "project",
   groupLabel: "项目管理",
@@ -191,6 +191,7 @@ export const sampleEntities: EntityDef[] = [documentEntity, userEntity, taskEnti
 
 // ─── 模块 side effect：自动注册示例实体（幂等，重复 import 不会重复注册） ───
 import { entityRegistry } from "../lib/registry"
+import { aigcEntities } from "./aigc-entities"
 import { billingEntities } from "./billing-entities"
 
 /** 幂等守卫：防止多次 import 导致重复注册 */
@@ -199,4 +200,5 @@ if (!_registered) {
   _registered = true
   entityRegistry.registerAll(sampleEntities)
   entityRegistry.registerAll(billingEntities)
+  entityRegistry.registerAll(aigcEntities)
 }

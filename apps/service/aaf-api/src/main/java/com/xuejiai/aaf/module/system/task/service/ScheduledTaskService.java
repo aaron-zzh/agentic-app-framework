@@ -2,6 +2,9 @@ package com.xuejiai.aaf.module.system.task.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
+import com.xuejiai.aaf.module.system.task.action.ScheduledActionExecutor;
 import com.xuejiai.aaf.module.system.task.domain.ScheduledTask;
 import com.xuejiai.aaf.module.system.task.repository.ScheduledTaskRepository;
 
@@ -28,6 +32,20 @@ public class ScheduledTaskService {
 
     private final ScheduledTaskRepository scheduledTaskRepository;
     private final NotificationService notificationService;
+    private final List<ScheduledActionExecutor> actionExecutors;
+    private final HolidayCalendarService holidayCalendarService;
+
+    /** actionType → executor 映射，启动时构建 */
+    private Map<String, ScheduledActionExecutor> executorMap;
+
+    @jakarta.annotation.PostConstruct
+    void init() {
+        executorMap =
+                actionExecutors.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        ScheduledActionExecutor::actionType, Function.identity()));
+    }
 
     /** 连续失败阈值 */
     @Value("${aaf.scheduled-task.max-fail-count:3}")
@@ -60,7 +78,7 @@ public class ScheduledTaskService {
     public void runNow(Long id) {
         var task = getById(id);
         try {
-            // 记录执行时间
+            executeAction(task);
             task.setLastRun(LocalDateTime.now());
             task.setFailCount(0);
             task.setStatus("active");
@@ -70,6 +88,45 @@ public class ScheduledTaskService {
             recordFailure(task);
             throw e;
         }
+    }
+
+    /** 创建用户自定义计划任务 */
+    @Transactional
+    public ScheduledTask createUserTask(
+            String name,
+            String cron,
+            String actionType,
+            String actionConfig,
+            String misfirePolicy) {
+        if (!executorMap.containsKey(actionType)) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST,
+                    "不支持的动作类型: " + actionType + "，支持: " + executorMap.keySet());
+        }
+        var task = new ScheduledTask();
+        task.setName(name);
+        task.setType("user_defined");
+        task.setCron(cron);
+        task.setActionType(actionType);
+        task.setActionConfig(actionConfig);
+        task.setMisfirePolicy(misfirePolicy != null ? misfirePolicy : "IGNORE");
+        return scheduledTaskRepository.save(task);
+    }
+
+    /** 执行任务动作（含日历排除判断） */
+    public void executeAction(ScheduledTask task) {
+        // 日历排除检查
+        if (holidayCalendarService.isExcluded(java.time.LocalDate.now(), task.getCalendarCode())) {
+            log.info("任务 [{}] 命中日历排除 ({})，跳过执行", task.getName(), task.getCalendarCode());
+            return;
+        }
+        if (task.getActionType() == null) return;
+        var executor = executorMap.get(task.getActionType());
+        if (executor == null) {
+            log.warn("未找到动作执行器: {}", task.getActionType());
+            return;
+        }
+        executor.execute(task);
     }
 
     /** 记录任务失败，连续失败超阈值自动暂停并通知 */
@@ -88,7 +145,8 @@ public class ScheduledTaskService {
         scheduledTaskRepository.save(task);
     }
 
-    private ScheduledTask getById(Long id) {
+    /** 根据 ID 查询任务 */
+    public ScheduledTask getById(Long id) {
         return scheduledTaskRepository
                 .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "计划任务不存在"));

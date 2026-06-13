@@ -105,12 +105,13 @@ public class DocumentService {
     /** 新建文档：写入本地文件 + 插入数据库 + 提取链接。 */
     @Transactional
     public DocTreeNodeVO create(DocCreateDTO dto) {
-        // 路径安全校验：必须以 docs/ 开头且规范化后仍在 docs/ 下（防路径穿越）
-        validateFilePath(dto.filePath());
-
-        // 写入本地文件
         String content = dto.content() != null ? dto.content() : "";
-        writeToLocalFile(dto.filePath(), content);
+
+        // filePath 有值时才做路径安全校验和本地文件写入
+        if (dto.filePath() != null && !dto.filePath().isBlank()) {
+            validateFilePath(dto.filePath());
+            writeToLocalFile(dto.filePath(), content);
+        }
 
         // 插入数据库
         var doc = new Document();

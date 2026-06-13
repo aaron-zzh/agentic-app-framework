@@ -31,7 +31,8 @@ export interface NavGroup {
 }
 
 /**
- * 构建完整导航配置（静态 fallback，API 失败时使用）
+ * 构建最小核心导航（静态 fallback，仅 API 失败时使用）
+ * 完整菜单由后端 seed 数据驱动，通过 buildNavFromApi() 渲染
  */
 export function buildNavConfig(): NavGroup[] {
   return [

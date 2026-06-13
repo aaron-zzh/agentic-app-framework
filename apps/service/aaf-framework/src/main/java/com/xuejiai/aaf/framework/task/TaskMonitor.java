@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 任务执行监控。记录任务执行状态，支持超时检测。 */
+/** 任务执行监控。记录任务执行状态，支持超时检测和历史自动清理。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -20,15 +20,25 @@ public class TaskMonitor {
     /** 超时阈值（分钟） */
     private static final long TIMEOUT_MINUTES = 30;
 
+    /** 执行历史保留天数（默认 90 天）。 可通过 aaf.task.execution-retention-days 配置。 设为 -1 表示永久保留（不清理）。 */
+    @org.springframework.beans.factory.annotation.Value("${aaf.task.execution-retention-days:90}")
+    private int retentionDays;
+
     /** 记录任务开始，返回 executionId */
     public Long recordStart(String taskName, String taskType) {
+        return recordStart(taskName, taskType, null, null);
+    }
+
+    /** 记录任务开始（含业务 ID 和执行上下文快照），返回 executionId */
+    public Long recordStart(String taskName, String taskType, String bizId, String context) {
         var sql =
                 """
-                INSERT INTO sys_task_execution (task_name, task_type, status, start_time, create_time)
-                VALUES (?, ?, 'running', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO sys_task_execution
+                    (task_name, task_type, status, start_time, biz_id, context, create_time)
+                VALUES (?, ?, 'running', CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP)
                 RETURNING id
                 """;
-        return jdbcTemplate.queryForObject(sql, Long.class, taskName, taskType);
+        return jdbcTemplate.queryForObject(sql, Long.class, taskName, taskType, bizId, context);
     }
 
     /** 记录任务成功 */
@@ -79,6 +89,26 @@ public class TaskMonitor {
         var count = jdbcTemplate.update(sql, threshold);
         if (count > 0) {
             log.warn("检测到 {} 个超时任务", count);
+        }
+    }
+
+    /**
+     * 清理过期执行历史（每天凌晨 3:00 执行）。 只清理终态（success/failed/timeout）记录，保留 running 状态。 retentionDays=-1
+     * 时跳过清理。
+     */
+    @Scheduled(cron = "0 0 3 * * ?")
+    public void cleanupHistory() {
+        if (retentionDays < 0) return;
+        var threshold = LocalDateTime.now().minusDays(retentionDays);
+        var count =
+                jdbcTemplate.update(
+                        """
+                DELETE FROM sys_task_execution
+                WHERE create_time < ? AND status IN ('success', 'failed', 'timeout')
+                """,
+                        threshold);
+        if (count > 0) {
+            log.info("清理过期任务执行历史 {} 条（保留 {} 天）", count, retentionDays);
         }
     }
 }

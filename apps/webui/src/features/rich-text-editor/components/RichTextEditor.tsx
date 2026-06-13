@@ -47,8 +47,8 @@ import { $getRoot, $getSelection, $isRangeSelection } from "lexical"
 import { useEffect, useImperativeHandle, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils/cn"
-import { htmlToEditorState } from "../converters/html"
-import { markdownToEditorState } from "../converters/markdown"
+import { editorStateToHtml, htmlToEditorState } from "../converters/html"
+import { editorStateToMarkdown, markdownToEditorState } from "../converters/markdown"
 import { allNodes } from "../lib/nodes"
 import { editorTheme } from "../lib/theme"
 import { AIWritePlugin } from "../plugins/AIWritePlugin"
@@ -71,10 +71,12 @@ export function RichTextEditor({
   minHeight = 200,
   preset: presetName = "richField",
   mode = "html",
+  initialValueMode,
   uploadEndpoint,
   onMentionSearch,
   resizable = false,
   fill = false,
+  noBorder = false,
   className,
   ref
 }: RichTextEditorProps) {
@@ -90,14 +92,7 @@ export function RichTextEditor({
   const isInitialized = useRef(false)
 
   return (
-    <div
-      className={cn(
-        "space-y-1",
-        resizable && "resize-y overflow-hidden",
-        fill && "h-full",
-        className
-      )}
-    >
+    <div className={cn("space-y-1", resizable && "resize-y overflow-hidden", fill && "h-full")}>
       <LexicalComposer initialConfig={initialConfig}>
         <EditorInner
           ref={ref}
@@ -108,7 +103,10 @@ export function RichTextEditor({
           disabled={disabled}
           minHeight={minHeight}
           mode={mode}
+          initialValueMode={initialValueMode}
           fill={fill}
+          noBorder={noBorder}
+          className={className}
           uploadEndpoint={uploadEndpoint}
           onMentionSearch={onMentionSearch}
           isInitialized={isInitialized}
@@ -128,9 +126,12 @@ function EditorInner({
   disabled,
   minHeight,
   mode = "html",
+  initialValueMode,
   uploadEndpoint,
   onMentionSearch,
   fill,
+  noBorder,
+  className,
   isInitialized,
   ref
 }: RichTextEditorProps & {
@@ -141,7 +142,7 @@ function EditorInner({
   const [editor] = useLexicalComposerContext()
   const [anchorElem, setAnchorElem] = useState<HTMLElement | null>(null)
 
-  // 暴露 insertText / clear 给父组件
+  // 暴露 insertText / clear / getContent 给父组件
   useImperativeHandle(
     ref,
     () => ({
@@ -160,21 +161,31 @@ function EditorInner({
           $getRoot().clear()
         })
         isInitialized.current = false
+      },
+      getContent: (m: "html" | "markdown") =>
+        m === "markdown" ? editorStateToMarkdown(editor) : editorStateToHtml(editor),
+      setValue: (text: string, m: "html" | "markdown" = "markdown") => {
+        if (m === "markdown") {
+          markdownToEditorState(editor, text)
+        } else {
+          htmlToEditorState(editor, text)
+        }
       }
     }),
     [editor, isInitialized]
   )
 
-  // 初始值注入（按 mode 选择转换器）
+  // 初始值注入（按 initialValueMode 或 mode 选择转换器）
   useEffect(() => {
     if (isInitialized.current || !value) return
     isInitialized.current = true
-    if (mode === "markdown" || mode === "plaintext") {
+    const initMode = initialValueMode ?? mode
+    if (initMode === "markdown" || initMode === "plaintext") {
       markdownToEditorState(editor, value)
     } else {
       htmlToEditorState(editor, value)
     }
-  }, [editor, value, mode, isInitialized])
+  }, [editor, value, mode, initialValueMode, isInitialized])
 
   // disabled 状态同步
   useEffect(() => {
@@ -183,15 +194,28 @@ function EditorInner({
 
   return (
     <div
-      className={cn("rounded-md border", disabled && "opacity-60", fill && "flex h-full flex-col")}
+      className={cn(
+        "rounded-md border",
+        noBorder && "rounded-none border-0",
+        disabled && "opacity-60",
+        fill && "flex h-full flex-col",
+        className
+      )}
     >
       {/* 工具栏 */}
       {preset.showToolbar && !disabled && (
-        <ToolbarPlugin features={preset.toolbarFeatures} uploadEndpoint={uploadEndpoint} />
+        <ToolbarPlugin
+          features={preset.toolbarFeatures}
+          uploadEndpoint={uploadEndpoint}
+          className={noBorder ? "rounded-none border-0 border-b" : undefined}
+        />
       )}
 
       {/* 编辑区 */}
-      <div className={cn("relative", fill && "flex-1")} ref={(el) => setAnchorElem(el)}>
+      <div
+        className={cn("relative", fill && "min-h-0 flex-1 overflow-y-auto")}
+        ref={(el) => setAnchorElem(el)}
+      >
         <RichTextPlugin
           contentEditable={
             <ContentEditable
@@ -199,7 +223,7 @@ function EditorInner({
                 "w-full rounded-b-md py-2 text-sm outline-none",
                 !preset.showToolbar && "rounded-md",
                 preset.draggable && !disabled ? "px-7" : "px-3",
-                fill && "h-full"
+                fill && "min-h-full"
               )}
               style={fill ? undefined : { minHeight }}
               aria-disabled={disabled}

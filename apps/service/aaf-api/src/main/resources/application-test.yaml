@@ -1,28 +1,20 @@
+# 测试环境专属配置。公共底座见 application.yaml，本文件只保留 test 差异项。
 spring:
   datasource:
+    # 独立测试库，避免污染 dev 数据
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf_test}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
   flyway:
     clean-disabled: false
     validate-on-migrate: false
+    # test 不灌 dev 的 testdata，仅 migration + seed（base 默认已是该值，显式声明以防 base 变更）
     locations: classpath:db/migration,classpath:db/seed
-  neo4j:
-    uri: ${NEO4J_URI:bolt://localhost:7687}
-    authentication:
-      username: ${NEO4J_USERNAME:neo4j}
-      password: ${NEO4J_PASSWORD:neo4j}
-  data:
-    neo4j:
-      schema-generate: none
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
   jpa:
     show-sql: true
   ai:
     openai:
+      # test 默认指向 OpenAI 官方（与 dev/base 的 deepseek 默认不同）
       api-key: ${OPENAI_API_KEY:sk-placeholder}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
 
@@ -34,9 +26,6 @@ aaf:
       enabled: true
   security:
     mock-enable: true
-  pay:
-    mock:
-      enabled: true
     jwt:
       secret: ${JWT_SECRET:aaf-test-secret-must-be-at-least-32-bytes-long!}
       expire-seconds: 3600

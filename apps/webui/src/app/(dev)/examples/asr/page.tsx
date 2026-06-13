@@ -20,6 +20,9 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
+import { buildWsUrl } from "@/lib/api/config"
+import { useAuthStore } from "@/lib/store/auth-store"
+import { float32ToPcm16 } from "@/lib/utils/audio"
 
 type WsStatus = "connecting" | "connected" | "disconnected"
 
@@ -28,25 +31,24 @@ interface AsrMessage {
   final: boolean
 }
 
-const WS_BASE =
-  process.env.NEXT_PUBLIC_WS_URL ??
-  `ws://${typeof window !== "undefined" ? window.location.host : "localhost:8080"}`
-
 export default function AsrExamplePage() {
+  const accessToken = useAuthStore((s) => s.accessToken)
   const [lang, setLang] = useState("zh-CN")
   const [status, setStatus] = useState<WsStatus>("disconnected")
   const [lines, setLines] = useState<string[]>([])
   const [recording, setRecording] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
 
   const handleStart = useCallback(async () => {
     setLines([])
 
     // 建立 WebSocket 连接
-    const ws = new WebSocket(`${WS_BASE}/ws/asr?lang=${lang}`)
+    const params = new URLSearchParams({ lang, token: accessToken ?? "" })
+    const ws = new WebSocket(buildWsUrl(`/ws/asr?${params.toString()}`))
     ws.binaryType = "arraybuffer"
     wsRef.current = ws
     setStatus("connecting")
@@ -56,20 +58,29 @@ export default function AsrExamplePage() {
 
       // 获取麦克风权限并开始录音
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: 16000, channelCount: 1 }
+        })
         streamRef.current = stream
 
-        const recorder = new MediaRecorder(stream)
-        recorderRef.current = recorder
+        // 采集原始 PCM 16kHz 单声道 —— DashScope 流式 ASR（fun-asr-realtime）要求的格式。
+        // MediaRecorder 默认产出 WebM/Opus 容器分片，无法被 DashScope 当作 PCM 解码。
+        const audioCtx = new AudioContext({ sampleRate: 16000 })
+        audioContextRef.current = audioCtx
+        const source = audioCtx.createMediaStreamSource(stream)
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1)
+        processorRef.current = processor
 
-        recorder.ondataavailable = async (e: BlobEvent) => {
-          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            const buffer = await e.data.arrayBuffer()
-            ws.send(buffer)
-          }
+        processor.onaudioprocess = (e: AudioProcessingEvent) => {
+          if (ws.readyState !== WebSocket.OPEN) return
+          const float32 = e.inputBuffer.getChannelData(0)
+          const pcm16 = float32ToPcm16(float32)
+          ws.send(pcm16.buffer as ArrayBuffer)
         }
 
-        recorder.start(250) // 每 250ms 产生一个 chunk
+        source.connect(processor)
+        processor.connect(audioCtx.destination)
+
         setRecording(true)
       } catch {
         ws.close()
@@ -107,14 +118,19 @@ export default function AsrExamplePage() {
     ws.onerror = () => {
       ws.close()
     }
-  }, [lang])
+  }, [lang, accessToken])
 
   const handleStop = useCallback(() => {
-    // 停止录音
-    if (recorderRef.current && recorderRef.current.state !== "inactive") {
-      recorderRef.current.stop()
+    // 停止 PCM 采集
+    if (processorRef.current) {
+      processorRef.current.disconnect()
+      processorRef.current.onaudioprocess = null
+      processorRef.current = null
     }
-    recorderRef.current = null
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
 
     // 释放麦克风
     if (streamRef.current) {

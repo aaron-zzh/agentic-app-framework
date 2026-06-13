@@ -9,7 +9,11 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 素材组——每次 AIGC 生成任务对应一个组，组内含一张或多张素材。 */
+/**
+ * 素材组——每次 AIGC 生成任务对应一个组，组内含一张或多张素材。
+ *
+ * <p>设计决策：组不存储类型字段。拖放时前端读目标组首个素材的 {@code type} 与被拖素材对比，不一致则拦截，后端无需约束。
+ */
 @Getter
 @Setter
 @Entity

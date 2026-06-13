@@ -134,14 +134,26 @@ ON CONFLICT DO NOTHING;
 -- ==================== 系统菜单初始数据 ====================
 
 INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible) VALUES
-(NULL, '概览', NULL, NULL, 0, 'GROUP', true),
-(NULL, 'AI 创作', NULL, NULL, 10, 'GROUP', true),
-(NULL, '开发工具', NULL, NULL, 20, 'GROUP', false),
-(NULL, '系统', NULL, NULL, 99, 'GROUP', true)
+(NULL, '概览',      NULL, NULL, 0,  'GROUP', true),
+(NULL, 'AI 创作',   NULL, NULL, 10, 'GROUP', true),
+(NULL, '知识库',    NULL, NULL, 20, 'GROUP', true),
+(NULL, 'AI 助手',   NULL, NULL, 25, 'GROUP', false),
+(NULL, '会员中心',  NULL, NULL, 30, 'GROUP', false),
+(NULL, '管理',      NULL, NULL, 40, 'GROUP', true),
+(NULL, '开发工具',  NULL, NULL, 90, 'GROUP', false),
+(NULL, '系统',      NULL, NULL, 99, 'GROUP', true)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
 SELECT id, '工作台', '/dashboard', 'layout-dashboard', 0, 'MENU', true FROM sys_menu WHERE title = '概览' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '积分统计', '/admin/credits-analytics', 'bar-chart-2', 0, 'MENU', true FROM sys_menu WHERE title = '概览' AND parent_id IS NULL
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT id, '开发示例', '/examples', 'file-text', 0, 'MENU', true FROM sys_menu WHERE title = '概览' AND parent_id IS NULL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
@@ -169,16 +181,45 @@ SELECT id, '迭代统计', '/dev/stats', 'bar-chart-3', 3, 'MENU', false FROM sy
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, 'AI 模型', '/system/model', 'cpu', 0, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
 SELECT id, '回收站', '/trash', 'trash-2', 1, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
 SELECT id, '设置', '/settings', 'settings', 2, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
 ON CONFLICT DO NOTHING;
+
+-- 补充所有有前端视图的菜单项（幂等）
+WITH all_groups AS (
+  SELECT id, title FROM sys_menu
+  WHERE title IN ('AI 创作', '知识库', 'AI 助手', '会员中心', '管理', '系统')
+    AND parent_id IS NULL AND deleted = false
+),
+items (group_title, title, path, icon, sort_order) AS (
+  VALUES
+    ('AI 创作',   'AIGC 任务',   '/module/aigc-task',           'wand-2',        2),
+    ('知识库',    '知识库',       '/knowledge',                  'database',      0),
+    -- ('知识库','文档',         '/docs',                       'file-text',     1),
+    -- ('知识库','审批流',       '/workflow',                   'git-branch',    2),
+    -- ('AI 助手',  'AI 对话',      '/ai/chat',                    'message-square',0),
+    -- ('AI 助手',  '智能体',       '/ai/agents',                  'bot',           1),
+    ('会员中心', '积分流水',     '/module/wallet-transaction',  'receipt',       1),
+    ('会员中心', '订阅套餐',     '/module/subscription-plan',   'credit-card',   2),
+    ('会员中心', '用户订阅',     '/module/subscription',        'badge-check',   3),
+    ('管理',     'AI 模型',     '/system/model',                'cpu',        0),
+    ('管理',     '兑换码',   '/module/credit-redeem-code',     'ticket',        1),
+    -- ('管理',     '实体管理',     '/admin/entities',             'layers',        3),
+    -- ('管理',     '审计日志',     '/admin/audit-log',            'shield-check',  4),
+    ('系统',     '计划任务',     '/admin/scheduled-tasks',      'clock',         3),
+    ('系统',     '菜单管理',     '/admin/menus',                'menu',          4),
+    ('管理',     '待办管理',     '/todos',                      'check-square',  4)
+)
+INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
+SELECT DISTINCT ON (i.path) g.id, i.title, i.path, i.icon, i.sort_order, 'MENU', true
+FROM items i
+JOIN all_groups g ON g.title = i.group_title
+WHERE NOT EXISTS (
+  SELECT 1 FROM sys_menu WHERE path = i.path AND deleted = false
+);
 
 
 -- ==================== 画像维度预置数据 ====================

@@ -7,7 +7,7 @@
 
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Image as ImageIcon, Layers, Music, Plus, Trash2, Video } from "lucide-react"
+import { Image as ImageIcon, Layers, Mic, Music, Plus, Trash2, Video } from "lucide-react"
 import NextImage from "next/image"
 import Link from "next/link"
 import { useState } from "react"
@@ -27,6 +27,7 @@ const TYPE_LABELS: Record<string, string> = {
   VIDEO_DRAMA: "视频",
   MIXED: "综合",
   MUSIC: "音乐",
+  VOICE: "配音",
   MODEL_3D: "3D"
 }
 
@@ -36,6 +37,7 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   VIDEO_DRAMA: <Video className="size-4" />,
   MIXED: <Layers className="size-4" />,
   MUSIC: <Music className="size-4" />,
+  VOICE: <Mic className="size-4" />,
   MODEL_3D: <Layers className="size-4" />
 }
 
@@ -47,6 +49,7 @@ function getProjectRoute(project: AigcProjectVO): string {
     VIDEO_DRAMA: "video",
     MIXED: "image",
     MUSIC: "music",
+    VOICE: "voice",
     MODEL_3D: "3d"
   }
   const sub = typeRouteMap[project.type] ?? "image"
@@ -153,8 +156,11 @@ export default function AigcProjectListPage() {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
           <Layers className="size-12 opacity-20" />
           <p>还没有创作项目</p>
-          <Button asChild variant="outline">
-            <Link href="/aigc/new">创建第一个项目</Link>
+          <Button asChild size="lg">
+            <Link href="/aigc/new">
+              <Plus className="mr-2 size-4" />
+              创建第一个项目
+            </Link>
           </Button>
         </div>
       ) : (

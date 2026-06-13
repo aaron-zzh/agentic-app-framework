@@ -1,6 +1,7 @@
 "use client"
 
 import { m } from "framer-motion"
+import { Coins, Gift, LogOut, Settings, Star, Ticket } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -15,13 +16,29 @@ import { useCreditGroups } from "@/lib/queries/use-credits"
 import { $url } from "@/lib/utils"
 import { CreditRechargeDialog } from "./CreditRechargeDialog"
 
-const GROUP_ICON: Record<string, string> = {
-  SUBSCRIPTION: "🎫",
-  TOPUP: "💳",
-  WEEKLY: "📅",
-  REWARD: "🎁",
-  MANUAL: "🎀"
-}
+const POPOVER_TREE = [
+  {
+    key: "MEMBER",
+    label: "会员积分",
+    icon: <Ticket className="size-3.5" />,
+    children: ["SUBSCRIPTION", "TOPUP", "MANUAL"] as const,
+    childLabels: { SUBSCRIPTION: "套餐", TOPUP: "购买积分", MANUAL: "额外" }
+  },
+  {
+    key: "WEEKLY",
+    label: "每周积分",
+    icon: <Star className="size-3.5" />,
+    children: [] as const,
+    childLabels: {} as Record<string, string>
+  },
+  {
+    key: "REWARD",
+    label: "奖励积分",
+    icon: <Gift className="size-3.5" />,
+    children: [] as const,
+    childLabels: {} as Record<string, string>
+  }
+]
 
 interface Props {
   src?: string
@@ -85,7 +102,7 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
                 onClick={() => setRechargeOpen(true)}
                 title="点击充值"
               >
-                <span className="text-amber-400">🪙</span>
+                <Coins className="size-4 text-amber-400" />
                 <span className="font-medium">{totalCredits.toLocaleString()}</span>
                 <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{planName}</span>
@@ -98,7 +115,7 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
                 asChild
                 className="mt-3 w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-white hover:opacity-90"
               >
-                <Link href="/settings/pricing">▶ 开通会员</Link>
+                <Link href="/settings/pricing">开通会员</Link>
               </Button>
             )}
           </div>
@@ -106,50 +123,46 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
           <div className="border-t" />
 
           {/* 积分分组明细 */}
-          <div className="space-y-3 px-5 py-4">
+          <div className="space-y-2 px-5 py-4">
             {groupsLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={`sk-${i}`} className="h-6 w-full" />
                 ))}
               </div>
-            ) : !groups?.length ? (
-              [
-                { batchType: "SUBSCRIPTION", label: "会员积分" },
-                { batchType: "WEEKLY", label: "每周积分" },
-                { batchType: "REWARD", label: "奖励积分" }
-              ].map((g) => (
-                <div key={g.batchType} className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 font-medium text-sm">
-                    <span>{GROUP_ICON[g.batchType]}</span>
-                    {g.label}
-                  </span>
-                  <span className="font-medium text-sm">0</span>
-                </div>
-              ))
             ) : (
-              groups.map((group) => (
-                <div key={group.batchType}>
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 font-medium text-sm">
-                      <span>{GROUP_ICON[group.batchType] ?? "🪙"}</span>
-                      {group.label}
-                    </span>
-                    <span className="font-medium text-sm">{group.remain.toLocaleString()}</span>
-                  </div>
-                  {group.items?.map((item) => (
-                    <div key={item.label} className="mt-0.5 flex items-center justify-between pl-6">
-                      <span className="text-muted-foreground text-xs">{item.label}</span>
-                      <span className="text-muted-foreground text-xs">
-                        {item.remain.toLocaleString()}
+              POPOVER_TREE.map((group) => {
+                const remainMap: Record<string, number> = {}
+                for (const g of groups ?? []) remainMap[g.batchType] = g.remain
+                const parentRemain =
+                  group.children.length > 0
+                    ? group.children.reduce((sum, k) => sum + (remainMap[k] ?? 0), 0)
+                    : (remainMap[group.key] ?? 0)
+                return (
+                  <div key={group.key}>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-medium text-sm">
+                        {group.icon}
+                        {group.label}
                       </span>
+                      <span className="font-medium text-sm">{parentRemain.toLocaleString()}</span>
                     </div>
-                  ))}
-                  {group.batchType === "WEEKLY" && (
-                    <p className="mt-0.5 pl-6 text-muted-foreground text-xs">每周一 00:00 刷新</p>
-                  )}
-                </div>
-              ))
+                    {group.children.map((childKey) => (
+                      <div key={childKey} className="flex items-center justify-between pl-4">
+                        <span className="text-muted-foreground text-xs">
+                          {group.childLabels[childKey]}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          {(remainMap[childKey] ?? 0).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                    {group.key === "WEEKLY" && (
+                      <p className="pl-4 text-muted-foreground text-xs">每周一 00:00 刷新</p>
+                    )}
+                  </div>
+                )
+              })
             )}
           </div>
 
@@ -166,7 +179,7 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
           <div className="space-y-1 px-5 py-3">
             <Button variant="ghost" className="w-full justify-start gap-3 rounded-lg" asChild>
               <Link href={paths.workspace.settingsProfile}>
-                <span>⚙️</span> 管理账户
+                <Settings className="size-4" /> 管理账户
               </Link>
             </Button>
             <Button
@@ -174,7 +187,7 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
               className="w-full justify-start gap-3 rounded-lg text-destructive hover:text-destructive"
               onClick={handleLogout}
             >
-              <span>🚪</span> 退出登录
+              <LogOut className="size-4" /> 退出登录
             </Button>
           </div>
         </PopoverContent>

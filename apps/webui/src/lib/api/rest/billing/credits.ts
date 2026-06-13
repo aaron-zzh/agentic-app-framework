@@ -65,6 +65,13 @@ export const creditsApi = {
   /** 获取积分分组明细（按 batch_type 汇总） */
   getGroups: () => request<CreditGroupVO[]>("/credits/groups"),
 
+  /** 兑换积分码 */
+  redeem: (code: string) =>
+    request<number>("/billing/credit-redeem-codes/redeem", {
+      method: "POST",
+      body: JSON.stringify({ code })
+    }),
+
   /** 创建充值订单 */
   createRecharge: (amount: number) =>
     request<RechargeOrderVO>("/biz/orders", {

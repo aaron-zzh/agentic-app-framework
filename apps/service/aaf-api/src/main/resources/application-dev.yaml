@@ -1,3 +1,5 @@
+# 开发环境专属配置（调试 / mock / 危险开关）。
+# 基础设施与 env 驱动配置（DB/Redis/Neo4j/Mail/AI/security/storage 等）见 application.yaml。
 spring:
   autoconfigure:
     exclude:
@@ -7,56 +9,22 @@ spring:
       # - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration
       # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jDataAutoConfiguration
       # - org.springframework.boot.autoconfigure.data.neo4j.Neo4jRepositoriesAutoConfiguration
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf-dev}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
   flyway:
     clean-disabled: false
     validate-on-migrate: false
+    # 在公共 migration,seed 基础上追加 dev 测试数据
     locations: classpath:db/migration,classpath:db/seed,classpath:db/testdata
-  neo4j:
-    uri: ${NEO4J_URI:bolt://localhost:7687}
-    authentication:
-      username: ${NEO4J_USERNAME:neo4j}
-      password: ${NEO4J_PASSWORD:neo4j}
   data:
     neo4j:
       schema-generate: create
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
   graphql:
     graphiql:
       enabled: true # 开发环境启用 GraphiQL 调试界面（访问 /graphiql）
     schema:
       printer:
         enabled: true
-  mail:
-    host: ${MAIL_HOST:smtp.qq.com}
-    port: ${MAIL_PORT:465}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail.smtp.ssl.enable: true
   jpa:
     show-sql: true
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:sk-placeholder}
-      base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
-      chat:
-        model: ${OPENAI_MODEL:deepseek-v4-pro}
-    dashscope:
-      api-key: ${DASHSCOPE_API_KEY:}
-    vectorstore:
-      pgvector:
-        table-name: knowledge_embedding
-        dimensions: 1536
-        distance-type: cosine_distance
-        index-type: hnsw
-        initialize-schema: false
 
 logging:
   level:
@@ -72,61 +40,13 @@ logging:
 
 aaf:
   flyway:
-    clean-on-start: true
-  ai:
-    # 模型兜底配置：优先级 DB配置 → 此处yaml → Spring AI默认值
-    # 数据库模型管理上线后，此处作为 DB 不可用时的 fallback，建议保留
-    midjourney:
-      enabled: ${MJ_ENABLED:false}
-      base-url: ${MJ_BASE_URL:https://api.holdai.top/mj}
-      api-key: ${MJ_API_KEY:}
-      notify-url: ${MJ_NOTIFY_URL:}
-    models:
-      default:
-        provider: openai
-        api-key: ${OPENAI_API_KEY:sk-placeholder}
-        base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
-        model: ${OPENAI_MODEL:gpt-4o-mini}
-        max-tokens: 4096
-        temperature: 0.7
+    clean-on-start: true # ⚠️ 仅 dev：启动时清库重建
   pay:
     # 开发环境启用模拟支付渠道；生产默认关闭（MockPayChannelAdapter @ConditionalOnProperty）
     mock:
       enabled: true
-  storage:
-    type: local
-    local:
-      base-path: ${AAF_FILE_PATH:${user.home}/aaf-files}
-      url-prefix: ${AAF_FILE_DOMAIN:http://localhost:8080}/api/system/files
-  messaging:
-    # dev 默认不启用短信，避免无配置时启动失败；需要时取消注释并填写 .env
-    sms:
-      provider: aliyun
-      aliyun:
-        access-key-id: ${SMS_ACCESS_KEY_ID:}
-        access-key-secret: ${SMS_ACCESS_KEY_SECRET:}
-        sign-name: ${SMS_SIGN_NAME:AAF}
-    email:
-      from: ${EMAIL_FROM:noreply@xuejiai.com}
   security:
-    mock-enable: true
-    jwt:
-      secret: ${JWT_SECRET:aaf-dev-secret-must-be-at-least-32-bytes-long!!}
-      expire-seconds: ${JWT_EXPIRE_SECONDS:604800}
-    oauth:
-      wechat:
-        app-id: ${WECHAT_APP_ID:}
-        app-secret: ${WECHAT_APP_SECRET:}
-        redirect-uri: ${WECHAT_REDIRECT_URI:}
-      wecom:
-        corp-id: ${WECOM_CORP_ID:}
-        agent-id: ${WECOM_AGENT_ID:}
-        secret: ${WECOM_SECRET:}
-        redirect-uri: ${WECOM_REDIRECT_URI:}
-      dingtalk:
-        app-key: ${DINGTALK_APP_KEY:}
-        app-secret: ${DINGTALK_APP_SECRET:}
-        redirect-uri: ${DINGTALK_REDIRECT_URI:}
+    mock-enable: true # ⚠️ 仅 dev：mock 认证，生产必须为 false
   # ── 示例模块（按需开启，需配置 DASHSCOPE_API_KEY）────────────────
   examples:
     agentscope:
@@ -136,11 +56,3 @@ aaf:
         # 留空则 mcpToolAgent 以无工具模式运行
         server-url: ${MCP_SERVER_URL:https://nws.caseyjhand.co}
         transport: ${MCP_TRANSPORT:streamable-http}
-
-agentscope:
-  a2a:
-    server:
-      card:
-        name: AAF Supervisor Agent
-        description: AAF 多智能体协作框架 - Supervisor Agent，支持日程管理等任务委托
-        version: 0.1.0

@@ -51,7 +51,7 @@ interface AigcStore {
     asset?: MediaAssetVO
   }>
   /** 生成类型：image=AI生图 video=AI视频 */
-  generationType: "image" | "video"
+  generationType: "image" | "video" | "voice" | "music"
   /** 视频时长（秒） */
   videoDuration: string
   /** 模型选择 */
@@ -64,8 +64,10 @@ interface AigcStore {
   agentRole: string
   /** 生成 Prompt */
   prompt: string
-  /** 当前项目提示词标签（null = 未启用） */
+  /** 当前项目提示词标签（null = 未启用），由项目数据同步，删除标签不清空此源 */
   projectPromptTag: { label: string; content: string } | null
+  /** 项目提示词是否被用户临时移除（true = 不注入输入框且不参与生成，可一键恢复） */
+  projectPromptDismissed: boolean
   /** 随机种子（0 表示不指定） */
   seed: number
   /** 是否开启提示词智能改写 */
@@ -87,7 +89,7 @@ interface AigcStore {
 
   setGenerationPanelOpen: (open: boolean) => void
   setStoryboardPanelOpen: (open: boolean) => void
-  setGenerationType: (type: "image" | "video") => void
+  setGenerationType: (type: "image" | "video" | "voice" | "music") => void
   setAgentRole: (roleId: string) => void
   setCopywritingPanelOpen: (open: boolean) => void
   setCopywritingContent: (content: string) => void
@@ -109,6 +111,7 @@ interface AigcStore {
   setFileZoom: (zoom: number) => void
   setPrompt: (prompt: string) => void
   setProjectPromptTag: (tag: { label: string; content: string } | null) => void
+  setProjectPromptDismissed: (dismissed: boolean) => void
   setSeed: (seed: number) => void
   setPromptExtend: (v: boolean) => void
   setNegativePrompt: (v: string) => void
@@ -151,6 +154,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   pendingTasks: [],
   prompt: "",
   projectPromptTag: null,
+  projectPromptDismissed: false,
   seed: 0,
   promptExtend: true,
   negativePrompt: "",
@@ -206,7 +210,10 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   setFileTypeFilter: (type) => set({ fileTypeFilter: type }),
   setFileZoom: (zoom) => set({ fileZoom: zoom }),
   setPrompt: (prompt) => set({ prompt }),
-  setProjectPromptTag: (projectPromptTag) => set({ projectPromptTag }),
+  // 项目提示词源变化时（项目加载/切换/更新）自动重置移除状态，确保新内容默认展示
+  setProjectPromptTag: (projectPromptTag) =>
+    set({ projectPromptTag, projectPromptDismissed: false }),
+  setProjectPromptDismissed: (projectPromptDismissed) => set({ projectPromptDismissed }),
   setSeed: (seed) => set({ seed }),
   setPromptExtend: (promptExtend) => set({ promptExtend }),
   setNegativePrompt: (negativePrompt) => set({ negativePrompt }),

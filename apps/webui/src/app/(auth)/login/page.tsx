@@ -140,7 +140,13 @@ function LoginContent() {
         <p className="mt-1 text-muted-foreground text-sm">输入账号或邮箱登录系统</p>
       </div>
 
-      <Form methods={methods} onSubmit={onSubmit} className="space-y-5">
+      {/* 启用 ESA 验证码时，禁止 form 原生 submit（避免 captchaVerifyParam 为空就先发请求）
+          提交由 ESA success 回调独占触发（captchaVerifyParamRef 赋值后再调 submitRef.current）*/}
+      <Form
+        methods={methods}
+        onSubmit={CAPTCHA_ENABLED ? undefined : onSubmit}
+        className="space-y-5"
+      >
         <FieldText name="username" label="账号/邮箱" type="text" placeholder="用户名或邮箱" />
         <FieldText name="password" label="密码" type="password" placeholder="输入密码" />
 
@@ -163,7 +169,13 @@ function LoginContent() {
           {errors.root?.message ?? " "}
         </p>
 
-        <Button id="login-btn" type="submit" className="h-11 w-full" disabled={isSubmitting}>
+        {/* ESA 启用时改为 button 类型，禁止 form 原生提交，由 ESA SDK 拦截点击并触发验证 */}
+        <Button
+          id="login-btn"
+          type={CAPTCHA_ENABLED ? "button" : "submit"}
+          className="h-11 w-full"
+          disabled={isSubmitting}
+        >
           {isSubmitting ? "登录中..." : "登录"}
         </Button>
       </Form>

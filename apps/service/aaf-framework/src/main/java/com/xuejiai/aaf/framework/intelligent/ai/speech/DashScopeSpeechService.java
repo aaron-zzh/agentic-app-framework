@@ -79,7 +79,7 @@ public class DashScopeSpeechService implements SpeechService {
             try (var fos = new FileOutputStream(tmpFile)) {
                 fos.write(audioBytes);
             }
-            var param = buildAsrParam(language);
+            var param = buildAsrParam(language, "wav");
             String result = recognizer.call(param, tmpFile);
             log.debug("ASR 识别完成: length={}", result != null ? result.length() : 0);
             return result != null ? result : "";
@@ -99,7 +99,7 @@ public class DashScopeSpeechService implements SpeechService {
                 sink -> {
                     Recognition recognizer = new Recognition();
                     try {
-                        var param = buildAsrParam(language);
+                        var param = buildAsrParam(language, "pcm");
                         // 将 Reactor Flux<byte[]> 转为 RxJava Flowable<ByteBuffer>
                         io.reactivex.Flowable<ByteBuffer> audioFlowable =
                                 io.reactivex.Flowable.create(
@@ -213,18 +213,31 @@ public class DashScopeSpeechService implements SpeechService {
 
     // ========== 内部方法 ==========
 
-    private RecognitionParam buildAsrParam(String language) {
+    private RecognitionParam buildAsrParam(String language, String format) {
         var builder =
                 RecognitionParam.builder()
                         .apiKey(apiKey)
                         .model(asrModel)
-                        .format("wav")
+                        .format(format)
                         .sampleRate(16000);
-        // language_hints: fun-asr-realtime 支持 zh/en/ja
-        if (StringUtils.hasText(language)) {
-            builder.parameter("language_hints", new String[] {language});
+        // language_hints: fun-asr-realtime 仅支持 zh/en/ja，需将 zh-CN/en-US 等区域码归一化为主语言码
+        String hint = normalizeLanguageHint(language);
+        if (hint != null) {
+            builder.parameter("language_hints", new String[] {hint});
         }
         return builder.build();
+    }
+
+    /** 将 BCP-47 区域码（如 zh-CN、en-US）归一化为 fun-asr-realtime 支持的主语言码（zh/en/ja）。 */
+    private String normalizeLanguageHint(String language) {
+        if (!StringUtils.hasText(language)) {
+            return null;
+        }
+        String primary = language.trim().toLowerCase().split("[-_]")[0];
+        return switch (primary) {
+            case "zh", "en", "ja" -> primary;
+            default -> null; // 不支持的语种交给模型自动识别
+        };
     }
 
     private SpeechSynthesisParam buildTtsParam(String voice) {

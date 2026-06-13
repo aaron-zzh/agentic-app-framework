@@ -17,6 +17,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 /**
  * ASR 双向流式 WebSocket 处理器。
@@ -52,6 +53,10 @@ public class AsrWebSocketHandler extends BinaryWebSocketHandler {
 
         speechService
                 .transcribeStream(sink.asFlux(), lang)
+                // 关键：streamCall/blockingForEach 是阻塞调用，必须放到独立线程，
+                // 否则会阻塞 WebSocket 处理线程，导致 handleBinaryMessage 无法投递、
+                // 音频帧发不到服务端，最终触发 "request timeout after 23 seconds"。
+                .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         text -> sendText(session, text),
                         err -> {

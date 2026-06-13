@@ -10,7 +10,7 @@ export const levelEntity: EntityDef = {
   slug: "level",
   label: "会员等级",
   labelPlural: "会员等级",
-  apiPath: "/api/level",
+  apiPath: "/level",
   icon: "crown",
   group: "billing",
   groupLabel: "会员中心",
@@ -34,7 +34,7 @@ export const subscriptionPlanEntity: EntityDef = {
   slug: "subscription-plan",
   label: "订阅套餐",
   labelPlural: "订阅套餐",
-  apiPath: "/api/subscription/plans",
+  apiPath: "/subscription/plans",
   icon: "credit-card",
   group: "billing",
   groupLabel: "会员中心",
@@ -99,7 +99,7 @@ export const subscriptionEntity: EntityDef = {
   slug: "subscription",
   label: "用户订阅",
   labelPlural: "用户订阅",
-  apiPath: "/api/subscription",
+  apiPath: "/subscription",
   icon: "zap",
   group: "billing",
   groupLabel: "会员中心",
@@ -137,7 +137,7 @@ export const entitlementQuotaEntity: EntityDef = {
   slug: "entitlement-quota",
   label: "权益额度",
   labelPlural: "权益额度",
-  apiPath: "/api/entitlement/quotas",
+  apiPath: "/entitlement/quotas",
   icon: "wallet",
   group: "billing",
   groupLabel: "会员中心",
@@ -161,7 +161,7 @@ export const walletTransactionEntity: EntityDef = {
   slug: "wallet-transaction",
   label: "积分流水",
   labelPlural: "积分流水",
-  apiPath: "/api/billing/transactions",
+  apiPath: "/billing/transactions",
   icon: "receipt",
   group: "billing",
   groupLabel: "会员中心",
@@ -194,11 +194,66 @@ export const walletTransactionEntity: EntityDef = {
   mixins: ["baseEntity"]
 }
 
+/** 积分兑换码 */
+export const creditRedeemCodeEntity: EntityDef = {
+  slug: "credit-redeem-code",
+  label: "积分兑换码",
+  labelPlural: "积分兑换码",
+  apiPath: "/billing/credit-redeem-codes",
+  icon: "ticket",
+  group: "billing",
+  groupLabel: "会员中心",
+  access: { read: true, create: false, update: true, delete: true }, // 创建走 /generate 特殊端点，禁用通用创建按钮
+  fields: [
+    { type: "text", name: "codePrefix", label: "兑换码", readOnly: true },
+    { type: "number", name: "creditAmount", label: "积分数量", required: true },
+    {
+      type: "select",
+      name: "batchType",
+      label: "积分类型",
+      options: [
+        { label: "会员积分", value: "SUBSCRIPTION", color: "blue" },
+        { label: "购买积分", value: "TOPUP", color: "green" },
+        { label: "奖励积分", value: "REWARD", color: "orange" },
+        { label: "每周积分", value: "WEEKLY", color: "purple" },
+        { label: "额外赠送", value: "MANUAL", color: "gray" }
+      ]
+    },
+    {
+      type: "select",
+      name: "status",
+      label: "状态",
+      readOnly: true,
+      options: [
+        { label: "未使用", value: "UNUSED", color: "green" },
+        { label: "已兑换", value: "REDEEMED", color: "gray" },
+        { label: "已过期", value: "EXPIRED", color: "red" }
+      ]
+    },
+    { type: "date", name: "expiresAt", label: "过期时间", includeTime: true },
+    { type: "number", name: "redeemedByUserId", label: "兑换用户 ID", readOnly: true },
+    { type: "date", name: "redeemedAt", label: "兑换时间", includeTime: true, readOnly: true },
+    { type: "text", name: "remark", label: "备注" }
+  ],
+  listView: {
+    columns: ["codePrefix", "creditAmount", "batchType", "status", "expiresAt", "redeemedAt"],
+    defaultSort: "createTime:desc",
+    filterableFields: ["status", "batchType"],
+    quickFilters: [
+      { label: "未使用", field: "status", operator: "eq", value: "UNUSED" },
+      { label: "已兑换", field: "status", operator: "eq", value: "REDEEMED" },
+      { label: "已过期", field: "status", operator: "eq", value: "EXPIRED" }
+    ]
+  },
+  mixins: ["baseEntity"]
+}
+
 /** 会员中心所有实体 */
 export const billingEntities: EntityDef[] = [
   levelEntity,
   subscriptionPlanEntity,
   subscriptionEntity,
   entitlementQuotaEntity,
-  walletTransactionEntity
+  walletTransactionEntity,
+  creditRedeemCodeEntity
 ]

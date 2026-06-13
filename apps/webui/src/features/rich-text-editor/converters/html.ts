@@ -8,7 +8,11 @@ import { $getRoot, $insertNodes, type LexicalEditor } from "lexical"
 
 /** EditorState → HTML 字符串 */
 export function editorStateToHtml(editor: LexicalEditor): string {
-  return editor.getEditorState().read(() => $generateHtmlFromNodes(editor))
+  let html = ""
+  editor.read(() => {
+    html = $generateHtmlFromNodes(editor)
+  })
+  return html
 }
 
 /** HTML 字符串 → 写入编辑器 */

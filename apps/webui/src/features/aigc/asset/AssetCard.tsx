@@ -5,7 +5,7 @@
 
 "use client"
 
-import { Download, RefreshCw, Trash2 } from "lucide-react"
+import { Download, Music, RefreshCw, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,7 @@ interface AssetCardProps {
 
 export function AssetCard({ asset, onClick, onDelete, onRegenerate }: AssetCardProps) {
   const is3D = asset.type === "MODEL_3D"
+  const isAudio = asset.type === "AUDIO"
 
   return (
     <Card
@@ -39,6 +40,10 @@ export function AssetCard({ asset, onClick, onDelete, onRegenerate }: AssetCardP
       <div className="relative aspect-square overflow-hidden bg-muted">
         {is3D ? (
           <Model3DPreview url={asset.url} className="size-full" />
+        ) : isAudio ? (
+          <div className="flex size-full items-center justify-center bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15">
+            <Music className="size-10 text-muted-foreground/60" />
+          </div>
         ) : (
           // biome-ignore lint/performance/noImgElement: 动态素材缩略图
           <img

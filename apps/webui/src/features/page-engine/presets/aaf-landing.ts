@@ -97,6 +97,44 @@ export const aafLandingPageDef: PageDef = {
       style: { animation: "slideUp" }
     },
 
+    // ─── 深色卡片展示 ──────────────────────────────────────────────────────────
+    {
+      id: "feature-cards",
+      type: "feature-cards",
+      props: {
+        title: "开箱即用 安全可控",
+        subtitle: "每一项能力都已内建，无需自行搭建底层样板代码",
+        columns: 2,
+        items: [
+          {
+            icon: "key-round",
+            title: "API Keys",
+            description:
+              "Give every user secure, production-ready API keys without building any of the underlying boilerplate code or UI."
+          },
+          {
+            icon: "users",
+            title: "多智能体协作",
+            description:
+              "通过意图路由和 Skill 注册，让多个 Agent 协同工作，自动编排任务流水线，无需人工干预。"
+          },
+          {
+            icon: "git-branch",
+            title: "工作流引擎",
+            description:
+              "可视化 AI 编排流水线，支持 LLM 节点、知识库节点、条件分支，对标 Dify 工作流能力。"
+          },
+          {
+            icon: "database",
+            title: "知识库管理",
+            description:
+              "向量数据库 + Neo4j 图谱双引擎，支持语义检索与时序知识图谱，让 AI 拥有长期记忆。"
+          }
+        ]
+      },
+      style: { fullWidth: true, animation: "fadeIn", padding: "none" }
+    },
+
     // ─── 产品展示 ────────────────────────────────────────────────────────────
     {
       id: "showcase",

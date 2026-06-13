@@ -30,6 +30,10 @@ export interface RichTextEditorHandle {
   insertText: (text: string) => void
   /** 清空编辑器内容 */
   clear: () => void
+  /** 读取当前内容（按指定格式序列化） */
+  getContent: (mode: "html" | "markdown") => string
+  /** 写入内容（不重建编辑器，保留 undo 历史之前的状态可撤销） */
+  setValue: (text: string, mode?: "html" | "markdown") => void
 }
 
 export interface RichTextEditorProps {
@@ -43,6 +47,8 @@ export interface RichTextEditorProps {
   preset?: import("./presets").PresetName
   /** 序列化模式：html（默认）/ markdown / plaintext */
   mode?: EditorMode
+  /** 初始值的格式（不传则与 mode 一致） */
+  initialValueMode?: EditorMode
   /** 图片上传端点（document preset 用） */
   uploadEndpoint?: string
   /** mention 用户搜索（chatter preset 用） */
@@ -53,4 +59,6 @@ export interface RichTextEditorProps {
   className?: string
   /** 撑满父容器高度（flex-1 场景） */
   fill?: boolean
+  /** 去掉外层边框 */
+  noBorder?: boolean
 }

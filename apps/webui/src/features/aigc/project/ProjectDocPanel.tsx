@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import {
   useAigcProject,
@@ -200,7 +201,7 @@ export function ProjectDocPanel({ open, onOpenChange }: Props) {
                 onCancel={() => setSelectedDocId(null)}
               />
             ) : activeDocId ? (
-              <DocEditor docId={activeDocId} />
+              <DocEditor key={activeDocId} docId={activeDocId} />
             ) : (
               <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
                 选择文档预览
@@ -244,10 +245,27 @@ function DocEditor({
   const { mutate: updateDoc, isPending: saving } = useUpdateDocument()
 
   const [mode, setMode] = useState<"wysiwyg" | "markdown">("wysiwyg")
+  const [editorKey, setEditorKey] = useState(0)
+  const [initMode, setInitMode] = useState<"html" | "markdown">("markdown")
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [dirty, setDirty] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<RichTextEditorHandle>(null)
+
+  function handleModeChange(v: string) {
+    const newMode = v as "wysiwyg" | "markdown"
+    if (newMode === "markdown") {
+      // wysiwyg → markdown：从 Lexical 导出 markdown 字符串
+      const md = editorRef.current?.getContent("markdown") ?? content
+      setContent(md)
+    } else {
+      // markdown → wysiwyg：content 是 markdown，告知编辑器用 markdown 解析初始值
+      setInitMode("markdown")
+      setEditorKey((k) => k + 1)
+    }
+    setMode(newMode)
+  }
 
   // 新建模式自动聚焦标题
   useEffect(() => {
@@ -272,10 +290,13 @@ function DocEditor({
   }
 
   function handleSave() {
+    // wysiwyg 模式下从编辑器读 markdown，确保保存格式与后端一致
+    const saveContent =
+      mode === "wysiwyg" ? (editorRef.current?.getContent("markdown") ?? content) : content
     if (isNew) {
       if (!projectId || !title.trim() || !createDoc || !linkDoc) return
       createDoc(
-        { title: title.trim(), content },
+        { title: title.trim(), content: saveContent },
         {
           onSuccess: (created) => {
             linkDoc({ projectId, docId: created.id })
@@ -284,7 +305,7 @@ function DocEditor({
         }
       )
     } else {
-      updateDoc({ id: docId ?? 0, title, content })
+      updateDoc({ id: docId ?? 0, title, content: saveContent })
       setDirty(false)
     }
   }
@@ -303,7 +324,7 @@ function DocEditor({
             setDirty(true)
           }}
         />
-        <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
+        <Tabs value={mode} onValueChange={handleModeChange}>
           <TabsList className="h-7">
             <TabsTrigger value="wysiwyg" className="px-2 text-xs">
               易读
@@ -331,17 +352,33 @@ function DocEditor({
 
       {/* 内容区 */}
       <div className="min-h-0 flex-1 overflow-auto">
-        <RichTextEditor
-          value={content}
-          onChange={(v) => {
-            setContent(v)
-            setDirty(true)
-          }}
-          preset="document"
-          mode={mode === "markdown" ? "markdown" : "html"}
-          fill
-          className="h-full border-0"
-        />
+        {mode === "markdown" ? (
+          <textarea
+            className="h-full w-full resize-none bg-transparent p-3 font-mono text-sm outline-none"
+            value={content}
+            onChange={(e) => {
+              setContent(e.target.value)
+              setDirty(true)
+            }}
+            spellCheck={false}
+          />
+        ) : (
+          <RichTextEditor
+            key={editorKey}
+            ref={editorRef}
+            value={content}
+            onChange={(v) => {
+              setContent(v)
+              setDirty(true)
+            }}
+            preset="document"
+            mode="html"
+            initialValueMode={initMode}
+            fill
+            noBorder
+            className="h-full"
+          />
+        )}
       </div>
     </div>
   )
