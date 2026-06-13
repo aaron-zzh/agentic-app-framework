@@ -95,10 +95,12 @@ function LoginContent() {
   async function onSubmit(data: LoginForm) {
     try {
       // 验证码启用时，captchaVerifyParam 由 ESA 边缘节点验签（附在请求头中）
+      // 验证码加载失败时降级跳过，不阻塞登录
+      const captchaFailed = typeof window !== "undefined" && window.__captchaLoadFailed
       const result = await authApi.login(
         data.username,
         data.password,
-        CAPTCHA_ENABLED ? captchaVerifyParamRef.current : undefined
+        CAPTCHA_ENABLED && !captchaFailed ? captchaVerifyParamRef.current : undefined
       )
       setTokens(result.accessToken, result.refreshToken)
       const { user } = await authApi.me()

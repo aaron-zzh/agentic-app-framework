@@ -104,6 +104,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Script
               src="https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js"
               strategy="beforeInteractive"
+              onError={() => { window.__captchaLoadFailed = true }}
             />
           </>
         )}

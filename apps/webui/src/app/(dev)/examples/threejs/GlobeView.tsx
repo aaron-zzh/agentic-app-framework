@@ -5,6 +5,7 @@ import { Canvas, useFrame, useLoader } from "@react-three/fiber"
 import { Suspense, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import { TextureLoader } from "three"
+import { $url } from "@/lib/utils"
 
 function latLngToVec3(lat: number, lng: number, radius: number): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180)
@@ -44,9 +45,9 @@ function CityDot({ position }: { position: THREE.Vector3 }) {
 function Earth({ isNight }: { isNight: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [dayMap, nightMap, normalMap] = useLoader(TextureLoader, [
-    "/assets/images/8k_earth_daymap.jpg",
-    "/assets/images/8k_earth_nightmap.jpg",
-    "/assets/images/8k_earth_normal_map.jpg"
+    $url.cdn('/assets/images/8k_earth_daymap.jpg'),
+    $url.cdn('/assets/images/8k_earth_nightmap.jpg'),
+    $url.cdn('/assets/images/8k_earth_normal_map.jpg')
   ])
 
   // Fresnel 大气层：BackSide 视觉效果最好，NormalBlending 避免闪烁

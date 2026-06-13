@@ -204,13 +204,13 @@ function Particles() {
         vec3 light = normalize(vec3(-0.5, 0.8, 0.5));
         float diffuse = max(dot(normal, light), 0.0);
         float specular = pow(max(dot(reflect(-light, normal), vec3(0.0, 0.0, 1.0)), 0.0), 32.0);
-        vec3 col = vColor * (0.25 + 0.75 * diffuse) + vec3(specular * 0.4);
+        vec3 col = vColor * (0.3 + 0.7 * diffuse) + vec3(specular * 0.4);
         gl_FragColor = vec4(col, 1.0);
       }
     `,
         transparent: false,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending
+        depthWrite: true,
+        blending: THREE.NormalBlending
       }),
     [size.height]
   )
@@ -229,12 +229,18 @@ function Particles() {
 }
 
 export function ParticlesR3F({ bloom = false }: { bloom?: boolean }) {
+  const isMobile =
+    typeof navigator !== "undefined" && /Mobi|Android/i.test(navigator.userAgent)
   return (
     <div className="relative h-full w-full bg-[#000510]">
       <Canvas
         camera={{ position: [600, 400, 1500], fov: 75, near: 1, far: 5000 }}
-        gl={{ antialias: false, powerPreference: "high-performance" }}
-        dpr={[1, 2]}
+        gl={{
+          antialias: false,
+          powerPreference: isMobile ? "low-power" : "high-performance",
+          alpha: false,
+        }}
+        dpr={isMobile ? 1 : [1, 1.5]}
       >
         <color attach="background" args={["#000510"]} />
         <Particles />
