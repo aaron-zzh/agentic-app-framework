@@ -648,3 +648,34 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('ai_model_provider_type', 'Ollama',      'OLLAMA',        3, 'info'),
 ('ai_model_provider_type', '阿里云百炼',  'DASHSCOPE',     4, 'warning')
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== 联系人字典 ====================
+
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('联系人类型',     'sys_contact_type',    0, 'PERSON=个人 / ORG=组织'),
+('联系人来源',     'sys_contact_source',  0, '联系人数据来源'),
+('联系人状态',     'sys_contact_status',  0, '联系人当前状态')
+ON CONFLICT DO NOTHING;
+
+-- sys_contact_type 联系人类型（与 ContactType 枚举一致）
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_contact_type', '个人', 'PERSON', 1, 'primary'),
+('sys_contact_type', '组织', 'ORG',    2, 'default')
+ON CONFLICT DO NOTHING;
+
+-- sys_contact_source 联系人来源
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_contact_source', '注册',     'REGISTER', 1, 'success'),
+('sys_contact_source', '导入',     'IMPORT',   2, 'default'),
+('sys_contact_source', '渠道接入', 'CHANNEL',  3, 'primary'),
+('sys_contact_source', '访客',     'VISITOR',  4, 'info')
+ON CONFLICT DO NOTHING;
+
+-- sys_contact_status 联系人状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('sys_contact_status', '活跃',   'ACTIVE',   1, 'success'),
+('sys_contact_status', '线索',   'LEAD',     2, 'warning'),
+('sys_contact_status', '访客',   'VISITOR',  3, 'info'),
+('sys_contact_status', '已归档', 'ARCHIVED', 4, 'default')
+ON CONFLICT DO NOTHING;

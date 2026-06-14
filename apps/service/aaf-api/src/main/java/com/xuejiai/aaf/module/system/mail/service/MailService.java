@@ -19,8 +19,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * 邮件服务（账号管理 + 模板管理）。
  *
- * <p>发送邮件统一通过 {@link com.xuejiai.aaf.framework.messaging.MessageService} 进行。
- * 发送日志统一记录在 sys_message_log，查询入口见 MessageLogController。
+ * <p>发送邮件统一通过 {@link com.xuejiai.aaf.framework.messaging.MessageService} 进行。 发送日志统一记录在
+ * sys_message_log，查询入口见 MessageLogController。
  *
  * @author AaronZZH & Kiro
  */
@@ -82,13 +82,25 @@ public class MailService {
 
     private MailAccountVO toAccountVO(MailAccount a) {
         return new MailAccountVO(
-                a.getId(), a.getName(), a.getHost(), a.getPort(),
-                a.getUsername(), a.getSslEnabled(), a.getFromAddress(), a.getStatus());
+                a.getId(),
+                a.getName(),
+                a.getHost(),
+                a.getPort(),
+                a.getUsername(),
+                a.getSslEnabled(),
+                a.getFromAddress(),
+                a.getStatus());
     }
 
     private MailTemplateVO toTemplateVO(MailTemplate t) {
         return new MailTemplateVO(
-                t.getId(), t.getCode(), t.getName(), t.getSubject(),
-                t.getContent(), t.getAccountId(), t.getParams(), t.getStatus());
+                t.getId(),
+                t.getCode(),
+                t.getName(),
+                t.getSubject(),
+                t.getContent(),
+                t.getAccountId(),
+                t.getParams(),
+                t.getStatus());
     }
 }

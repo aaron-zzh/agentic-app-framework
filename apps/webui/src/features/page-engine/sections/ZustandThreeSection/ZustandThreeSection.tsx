@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import CodePreview from "./components/CodePreview"
 import Counter from "./components/Counter"
 import Details from "./components/Details"
@@ -8,6 +9,18 @@ import Scene from "./components/Scene"
 const SECTION_ROOT_ID = "zustand-three-section"
 
 export function ZustandThreeSection() {
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)")
+    setIsDesktop(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+
+  if (!isDesktop) return null
+
   return (
     <section
       id={SECTION_ROOT_ID}

@@ -228,6 +228,12 @@
 			<artifactId>weixin-java-pay</artifactId>
 			<optional>true</optional>
 		</dependency>
+		<!-- 企业微信 SDK（可选） -->
+		<dependency>
+			<groupId>com.github.binarywang</groupId>
+			<artifactId>weixin-java-cp</artifactId>
+			<optional>true</optional>
+		</dependency>
 		<dependency>
 			<groupId>com.alipay.sdk</groupId>
 			<artifactId>alipay-sdk-java</artifactId>

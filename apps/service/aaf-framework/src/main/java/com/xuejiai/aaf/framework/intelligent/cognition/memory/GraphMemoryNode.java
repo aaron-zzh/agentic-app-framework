@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.springframework.data.neo4j.core.schema.*;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +21,7 @@ import lombok.Setter;
 @Node("MemoryEntity")
 public class GraphMemoryNode {
 
-    @Id @GeneratedValue private Long id;
+    @Id @GeneratedValue(UUIDStringGenerator.class) private String id;
 
     /** 实体名称 */
     private String name;

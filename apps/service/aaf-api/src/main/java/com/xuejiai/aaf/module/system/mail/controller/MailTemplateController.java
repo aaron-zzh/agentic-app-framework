@@ -58,15 +58,18 @@ public class MailTemplateController {
     @Operation(summary = "发送测试邮件")
     @PostMapping("/test-send")
     public Result<String> testSend(@Valid @RequestBody TestSendDTO dto) {
-        Map<String, Object> variables = dto.params() == null ? Map.of()
-                : dto.params().entrySet().stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        messageService.send(new MessageRequest(
-                MessageChannel.EMAIL,
-                dto.templateCode(),
-                List.of(dto.toAddress()),
-                variables,
-                null));
+        Map<String, Object> variables =
+                dto.params() == null
+                        ? Map.of()
+                        : dto.params().entrySet().stream()
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        messageService.send(
+                new MessageRequest(
+                        MessageChannel.EMAIL,
+                        dto.templateCode(),
+                        List.of(dto.toAddress()),
+                        variables,
+                        null));
         return Result.success("发送成功");
     }
 

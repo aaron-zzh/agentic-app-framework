@@ -31,7 +31,8 @@ public class OAuthAutoConfiguration {
 
     @Bean
     public DingtalkOAuthClient dingtalkOAuthClient(OAuthProperties properties) {
-        if (properties.dingtalk() == null || !StringUtils.hasText(properties.dingtalk().clientId())) {
+        if (properties.dingtalk() == null
+                || !StringUtils.hasText(properties.dingtalk().clientId())) {
             return null;
         }
         return new DingtalkOAuthClient(properties.dingtalk(), restClient);

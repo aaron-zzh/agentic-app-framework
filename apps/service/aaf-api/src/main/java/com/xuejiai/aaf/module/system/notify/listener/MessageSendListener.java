@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.messaging.ChannelSender;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageLogWriter;
@@ -25,8 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 消息发送监听器。
  *
- * <p>异步监听 {@link MessageSendRequestedEvent}，按渠道路由实际发送，完成后更新 sys_message_log 状态。
- * 同时实现 {@link MessageLogWriter} 供 MessageServiceImpl 写待发送日志。
+ * <p>异步监听 {@link MessageSendRequestedEvent}，按渠道路由实际发送，完成后更新 sys_message_log 状态。 同时实现 {@link
+ * MessageLogWriter} 供 MessageServiceImpl 写待发送日志。
  *
  * @author AaronZZH & Kiro
  */
@@ -43,15 +44,20 @@ public class MessageSendListener implements MessageLogWriter {
 
     @PostConstruct
     void init() {
-        senderMap = senderList.stream()
-                .collect(Collectors.toMap(ChannelSender::channel, Function.identity()));
+        senderMap =
+                senderList.stream()
+                        .collect(Collectors.toMap(ChannelSender::channel, Function.identity()));
     }
 
     // ── MessageLogWriter 实现 ──────────────────────────────
 
     @Override
-    public Long createPending(String channel, String templateCode, List<String> recipients,
-            String subject, String content) {
+    public Long createPending(
+            String channel,
+            String templateCode,
+            List<String> recipients,
+            String subject,
+            String content) {
         try {
             var log = new MessageLog();
             log.setChannel(channel);
@@ -70,23 +76,31 @@ public class MessageSendListener implements MessageLogWriter {
     @Override
     public void markSuccess(Long logId) {
         if (logId == null) return;
-        logRepository.findById(logId).ifPresent(l -> {
-            l.setStatus("SUCCESS");
-            l.setSendTime(LocalDateTime.now());
-            logRepository.save(l);
-        });
+        logRepository
+                .findById(logId)
+                .ifPresent(
+                        l -> {
+                            l.setStatus("SUCCESS");
+                            l.setSendTime(LocalDateTime.now());
+                            logRepository.save(l);
+                        });
     }
 
     @Override
     public void markFailed(Long logId, String errorMsg) {
         if (logId == null) return;
-        logRepository.findById(logId).ifPresent(l -> {
-            l.setStatus("FAILED");
-            l.setErrorMsg(errorMsg != null && errorMsg.length() > 500
-                    ? errorMsg.substring(0, 500) : errorMsg);
-            l.setSendTime(LocalDateTime.now());
-            logRepository.save(l);
-        });
+        logRepository
+                .findById(logId)
+                .ifPresent(
+                        l -> {
+                            l.setStatus("FAILED");
+                            l.setErrorMsg(
+                                    errorMsg != null && errorMsg.length() > 500
+                                            ? errorMsg.substring(0, 500)
+                                            : errorMsg);
+                            l.setSendTime(LocalDateTime.now());
+                            logRepository.save(l);
+                        });
     }
 
     // ── 异步发送监听 ──────────────────────────────────────
@@ -102,11 +116,16 @@ public class MessageSendListener implements MessageLogWriter {
             return;
         }
         try {
-            sender.send(request.recipients(), event.subject(), event.renderedContent(),
+            sender.send(
+                    request.recipients(),
+                    event.subject(),
+                    event.renderedContent(),
                     request.variables());
             markSuccess(event.logId());
-            log.info("消息发送成功: channel={}, recipients={}",
-                    request.channel(), request.recipients().size());
+            log.info(
+                    "消息发送成功: channel={}, recipients={}",
+                    request.channel(),
+                    request.recipients().size());
         } catch (Exception e) {
             markFailed(event.logId(), e.getMessage());
             log.error("消息发送失败: channel={}, error={}", request.channel(), e.getMessage(), e);

@@ -22,14 +22,14 @@ public class GraphReasoningService {
     private final ConcurrentHashMap<String, List<ReasoningPath>> cache = new ConcurrentHashMap<>();
 
     /** 多跳推理：查找起止实体间路径并计算置信度 */
-    public List<ReasoningPath> reason(Long startEntityId, Long endEntityId, int maxHops) {
+    public List<ReasoningPath> reason(String startEntityId, String endEntityId, int maxHops) {
         var cacheKey = startEntityId + ":" + endEntityId;
         return cache.computeIfAbsent(cacheKey, k -> doReason(startEntityId, endEntityId, maxHops));
     }
 
-    private List<ReasoningPath> doReason(Long startEntityId, Long endEntityId, int maxHops) {
+    private List<ReasoningPath> doReason(String startEntityId, String endEntityId, int maxHops) {
         var cypher =
-                "MATCH p = allShortestPaths((a)-[*..%d]-(b)) WHERE id(a) = $fromId AND id(b) = $toId RETURN p"
+                "MATCH p = allShortestPaths((a)-[*..%d]-(b)) WHERE a.id = $fromId AND b.id = $toId RETURN p"
                         .formatted(maxHops);
         try (var session = driver.session()) {
             return session.run(cypher, Map.of("fromId", startEntityId, "toId", endEntityId))

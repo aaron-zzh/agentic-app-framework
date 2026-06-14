@@ -36,7 +36,7 @@ public class GraphMemoryService {
 
     /** 添加关系 */
     @Transactional
-    public void addRelation(Long sourceId, Long targetId, String relationType, Double weight) {
+    public void addRelation(String sourceId, String targetId, String relationType, Double weight) {
         var source = repository.findById(sourceId).orElseThrow();
         var target = repository.findById(targetId).orElseThrow();
         var relation = new GraphMemoryRelation();

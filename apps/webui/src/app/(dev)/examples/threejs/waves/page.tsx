@@ -7,7 +7,7 @@
 
 import dynamic from "next/dynamic"
 
-const WavesScene = dynamic(() => import("./_components/WavesScene").then((m) => m.WavesScene), {
+const WavesScene = dynamic(() => import("@/components/three").then((m) => m.WavesScene), {
   ssr: false
 })
 

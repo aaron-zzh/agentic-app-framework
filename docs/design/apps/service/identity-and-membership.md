@@ -72,14 +72,15 @@ gains:
 ```text
 contact
   id              BIGINT PK
-  type            VARCHAR(16)   -- PERSON / ORG（个人 / 组织）
+  type            VARCHAR(16)   -- PERSON=个人 / ORG=组织
   name            VARCHAR       -- 显示名
   real_name       VARCHAR       -- 真实姓名（可空）
   avatar          VARCHAR
   email           VARCHAR
-  mobile          VARCHAR
+  phone           VARCHAR
   source          VARCHAR(16)   -- 来源：REGISTER / IMPORT / CHANNEL / VISITOR
   status          VARCHAR(16)   -- ACTIVE / LEAD / VISITOR / ARCHIVED
+  parent_id       BIGINT FK→contact  -- 所属组织（自关联）
   ext             JSONB         -- 扩展字段（地区、标签、行业等）
   + BaseEntity 审计字段（create_by / owner_id 等）
 ```
@@ -89,7 +90,7 @@ contact
 ```text
 user
   id              BIGINT PK
-  contact_id      BIGINT FK→contact  -- 1:1，身份本体
+  contact_id      BIGINT FK→contact  -- 可空；有真实人对应时填写，系统账号/机器人为 null
   username        VARCHAR UNIQUE     -- 登录账号（可空，OAuth 用户可无）
   nickname        VARCHAR
   status          VARCHAR(16)        -- ACTIVE / DISABLED / LOCKED
@@ -98,23 +99,22 @@ user
   + BaseEntity 审计字段
 ```
 
-> 与现有 `module/system/user` 对齐：保留现有 user 子域，新增 `contact_id` 外键即可，无需重建。
+> 与现有 `module/system/user` 对齐：保留现有 user 子域，新增 `contact_id` 可空外键。
+> `contact_id NULLABLE` 是有意设计：系统内置账号（admin/system）、API 机器人、测试账号不对应真实联系人，强制 NOT NULL 会造成无意义的 contact 记录。
 
-### user_identity（认证方式，1:N）
+### user_identity（认证方式）
 
-一个 user 可绑定多种登录/识别方式，登录通道与用户解耦。
-
-```text
-user_identity
-  id              BIGINT PK
-  user_id         BIGINT FK→user
-  identity_type   VARCHAR(24)   -- password / phone_otp / email
-                                -- wechat_oa / wechat_mp / dingtalk / feishu / oauth_*
-  identifier      VARCHAR       -- 账号 / 手机 / 邮箱 / openid / unionid
-  credential      VARCHAR       -- 密码哈希（BCrypt），第三方为空
-  verified_at     TIMESTAMP
-  UNIQUE(identity_type, identifier)
-```
+> **ADR 决策（2026-06-14）**：`user_identity` 不单独建表，由以下三者组合替代，无需引入额外抽象：
+>
+> | 认证方式 | 存储位置 |
+> |---|---|
+> | 密码登录、手机号、邮箱 | `sys_user`（username / phone / email 字段） |
+> | OAuth 登录 token（微信/企微/钉钉） | `sys_user_oauth`（access_token / refresh_token） |
+> | 渠道身份索引（企微userId、微信openId等） | `sys_contact_identity`（channel / external_id） |
+>
+> **`sys_user_oauth` 与 `sys_contact_identity` 分工**：
+> - `sys_user_oauth`：登录凭证管理——"你用这个平台账号登录了系统，这是你的 token"（必须有 sys_user）
+> - `sys_contact_identity`：渠道身份索引——"你在各个平台叫什么 ID，用于发消息和同步"（不要求有 sys_user，外部客户也可以有）
 
 ## 权益模型：成长线 + 付费线双轨
 
@@ -365,8 +365,8 @@ assistant（AI）     → Operator(AI)，权限 = 委托 user 权限 ∩ scope�
 ## 模块归位
 
 ```text
-module/system/contact     ← contact（新增子域）
-module/system/user        ← user + user_identity（扩展现有子域）
+module/system/contact     ← contact（新增子域，已实现）
+module/system/user        ← user + user_identity 组合（扩展现有子域，contact_id 已加）
 module/system/role        ← role / permission（现有，不动）
 module/billing            ← 计费域（AAF-074），含三组表：
                               · 套餐权益：subscription_plan / entitlement_def / plan_entitlement
@@ -384,6 +384,8 @@ module/billing            ← 计费域（AAF-074），含三组表：
 |------|------|------|
 | 用户建模 | 统一 user 表，不分 admin/member | AAF 是 PaaS，B/C 用户高度重叠；分表导致双记录、双 RBAC |
 | 身份本体 | 引入 contact 层 | 容纳访客 / 渠道关注者 / CRM 线索等非登录实体 |
+| contact_id | `sys_user.contact_id` NULLABLE | 系统账号/机器人无需对应真实联系人，强制 NOT NULL 造成无意义记录 |
+| user_identity | 不单独建表，由 sys_user + sys_user_oauth + sys_contact_identity 组合替代 | 三者职责已清晰分离（密码/凭证/渠道索引），无需引入额外抽象层 |
 | 会员建模 | 会员是 user 的消费身份（订阅 + 钱包），不建 member_user | 会员不是另一个人，避免冗余表 |
 | 权益模型 | 关系化 plan/entitlement/quota/ledger | token 计费是核心变现路径，须可计量/对账/退款 |
 | 获取双轨 | level（成长免费）+ subscription（付费）并存 | 成长线零成本激励活跃，付费线承载变现，职责分离 |
@@ -409,8 +411,9 @@ module/billing            ← 计费域（AAF-074），含三组表：
 
 ### 身份层（system 模块）
 
-- ⏳ `contact` 表 + `user.contact_id` 外键（直接改 `v1__system_schema.sql`）
-- ⏳ `user_identity` 表（统一 password/phone/wechat/oauth），现有 `sys_user_oauth` 归并
+- ✅ `sys_contact` 表 + `sys_contact_identity` 表（v9__contact_schema.sql）
+- ✅ `sys_user.contact_id` 可空外键（v9__contact_schema.sql ALTER TABLE）
+- ✅ `user_identity` 不单独建表，由 `sys_user` + `sys_user_oauth` + `sys_contact_identity` 三者组合替代
 - ⏳ 补微信小程序登录（`wx_lite` 注册登录）
 - ⏳ 登录接口返回 roles，前端角色驱动菜单（webui）
 

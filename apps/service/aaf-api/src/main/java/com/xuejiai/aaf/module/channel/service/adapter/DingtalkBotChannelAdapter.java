@@ -30,9 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 钉钉企业内部机器人渠道适配器。
  *
- * <p>支持 Stream 模式（推荐，无需公网回调）和 HTTP 回调两种模式。
- * 配置了 appKey+appSecret 时自动启用 Stream 模式，否则走 HTTP 回调。
- * 需配置 aaf.channel.dingtalk.enabled=true 激活。
+ * <p>支持 Stream 模式（推荐，无需公网回调）和 HTTP 回调两种模式。 配置了 appKey+appSecret 时自动启用 Stream 模式，否则走 HTTP 回调。 需配置
+ * aaf.channel.dingtalk.enabled=true 激活。
  */
 @Slf4j
 @Component
@@ -49,39 +48,44 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
     @EventListener(ApplicationReadyEvent.class)
     public void startStreamClient() {
         var dingtalk = properties.dingtalk();
-        if (dingtalk.clientId() == null || dingtalk.clientId().isBlank()
-                || dingtalk.clientSecret() == null || dingtalk.clientSecret().isBlank()) {
+        if (dingtalk.clientId() == null
+                || dingtalk.clientId().isBlank()
+                || dingtalk.clientSecret() == null
+                || dingtalk.clientSecret().isBlank()) {
             log.warn("钉钉 clientId/clientSecret 未配置，Stream 模式未启动");
             return;
         }
         try {
-            OpenDingTalkStreamClientBuilder
-                    .custom()
-                    .credential(new AuthClientCredential(dingtalk.clientId(), dingtalk.clientSecret()))
-                    .registerAllEventListener((GenericOpenDingTalkEvent event) -> {
-                        try {
-                            var eventId = event.getEventId();
-                            var eventType = event.getEventType();
-                            var bizData = event.getData();
-                            log.debug("钉钉事件: id={}, type={}", eventId, eventType);
-                            // 按事件类型分发，后续事件类型增多时可抽为 DingtalkEventDispatcher Bean
-                            // 注入多个 DingtalkEventHandler 实现，按 eventType 路由
-                            switch (eventType != null ? eventType : "") {
-                                // 机器人消息：路由到 AI 对话处理链
-                                case "im_robot_message" -> {
-                                    if (bizData != null) {
-                                        router.routeInbound(ChannelTypeEnum.DINGTALK, bizData.toJSONString());
+            OpenDingTalkStreamClientBuilder.custom()
+                    .credential(
+                            new AuthClientCredential(dingtalk.clientId(), dingtalk.clientSecret()))
+                    .registerAllEventListener(
+                            (GenericOpenDingTalkEvent event) -> {
+                                try {
+                                    var eventId = event.getEventId();
+                                    var eventType = event.getEventType();
+                                    var bizData = event.getData();
+                                    log.debug("钉钉事件: id={}, type={}", eventId, eventType);
+                                    // 按事件类型分发，后续事件类型增多时可抽为 DingtalkEventDispatcher Bean
+                                    // 注入多个 DingtalkEventHandler 实现，按 eventType 路由
+                                    switch (eventType != null ? eventType : "") {
+                                        // 机器人消息：路由到 AI 对话处理链
+                                        case "im_robot_message" -> {
+                                            if (bizData != null) {
+                                                router.routeInbound(
+                                                        ChannelTypeEnum.DINGTALK,
+                                                        bizData.toJSONString());
+                                            }
+                                        }
+                                        // TODO: 审批事件、通讯录变更等后续在此扩展
+                                        default -> log.debug("暂不处理的钉钉事件类型: {}", eventType);
                                     }
+                                    return EventAckStatus.SUCCESS;
+                                } catch (Exception e) {
+                                    log.error("钉钉事件处理失败: {}", e.getMessage(), e);
+                                    return EventAckStatus.LATER;
                                 }
-                                // TODO: 审批事件、通讯录变更等后续在此扩展
-                                default -> log.debug("暂不处理的钉钉事件类型: {}", eventType);
-                            }
-                            return EventAckStatus.SUCCESS;
-                        } catch (Exception e) {
-                            log.error("钉钉事件处理失败: {}", e.getMessage(), e);
-                            return EventAckStatus.LATER;
-                        }
-                    })
+                            })
                     .build()
                     .start();
             log.info("钉钉 Stream 模式已启动");

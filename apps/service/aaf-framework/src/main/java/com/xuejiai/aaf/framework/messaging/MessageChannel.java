@@ -9,5 +9,7 @@ public enum MessageChannel {
     /** 站内信 */
     INTERNAL,
     /** 钉钉机器人 */
-    DINGTALK
+    DINGTALK,
+    /** 企业微信工作通知 */
+    WECOM
 }

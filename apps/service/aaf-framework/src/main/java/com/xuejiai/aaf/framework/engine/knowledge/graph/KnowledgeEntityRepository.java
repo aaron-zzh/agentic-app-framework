@@ -7,7 +7,7 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 
 /** 知识图谱实体仓储 */
-public interface KnowledgeEntityRepository extends Neo4jRepository<KnowledgeEntity, Long> {
+public interface KnowledgeEntityRepository extends Neo4jRepository<KnowledgeEntity, String> {
 
     List<KnowledgeEntity> findByKnowledgeBaseId(Long knowledgeBaseId);
 
@@ -17,5 +17,5 @@ public interface KnowledgeEntityRepository extends Neo4jRepository<KnowledgeEnti
 
     /** 查询 N 跳邻居节点 */
     @Query("MATCH (n)-[*1..$hops]-(m) WHERE n.id = $entityId RETURN DISTINCT m")
-    List<KnowledgeEntity> findNeighbors(Long entityId, int hops);
+    List<KnowledgeEntity> findNeighbors(String entityId, int hops);
 }

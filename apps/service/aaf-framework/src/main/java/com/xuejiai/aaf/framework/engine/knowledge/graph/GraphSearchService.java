@@ -17,7 +17,7 @@ public class GraphSearchService {
     private final Driver driver;
 
     /** N 跳子图检索 */
-    public List<KnowledgeEntity> subgraphSearch(Long entityId, int hops) {
+    public List<KnowledgeEntity> subgraphSearch(String entityId, int hops) {
         var cypher =
                 "MATCH (n)-[*1..%d]-(m) WHERE n.id = $entityId RETURN DISTINCT m".formatted(hops);
         try (var session = driver.session()) {
@@ -27,7 +27,7 @@ public class GraphSearchService {
     }
 
     /** 两实体间所有最短路径 */
-    public List<List<KnowledgeEntity>> findPaths(Long fromId, Long toId, int maxDepth) {
+    public List<List<KnowledgeEntity>> findPaths(String fromId, String toId, int maxDepth) {
         var cypher =
                 "MATCH p = allShortestPaths((a)-[*..%d]-(b)) WHERE a.id = $fromId AND b.id = $toId RETURN p"
                         .formatted(maxDepth);
@@ -45,7 +45,6 @@ public class GraphSearchService {
 
     /** 简化版社区发现 — 按连通分量分组 */
     public Map<Integer, List<KnowledgeEntity>> detectCommunities(Long knowledgeBaseId) {
-        // 获取所有节点及其邻接关系，用 BFS 划分连通分量
         var cypher =
                 """
                 MATCH (n:KnowledgeEntity {knowledgeBaseId: $kbId})
@@ -55,29 +54,27 @@ public class GraphSearchService {
         try (var session = driver.session()) {
             var records = session.run(cypher, Map.of("kbId", knowledgeBaseId)).list();
 
-            // 构建邻接表
-            Map<Long, List<Long>> adjacency = new HashMap<>();
-            Map<Long, KnowledgeEntity> nodeMap = new HashMap<>();
+            Map<String, List<String>> adjacency = new HashMap<>();
+            Map<String, KnowledgeEntity> nodeMap = new HashMap<>();
             for (var record : records) {
-                long nodeId = record.get("nodeId").asLong();
+                String nodeId = record.get("nodeId").asString();
                 nodeMap.put(nodeId, mapToEntity(record.get("node").asNode()));
-                adjacency.put(nodeId, record.get("neighbors").asList(v -> v.asLong()));
+                adjacency.put(nodeId, record.get("neighbors").asList(v -> v.asString()));
             }
 
-            // BFS 连通分量
-            Set<Long> visited = new HashSet<>();
+            Set<String> visited = new HashSet<>();
             Map<Integer, List<KnowledgeEntity>> communities = new HashMap<>();
             int communityId = 0;
-            for (Long nodeId : adjacency.keySet()) {
+            for (String nodeId : adjacency.keySet()) {
                 if (visited.contains(nodeId)) continue;
                 List<KnowledgeEntity> community = new ArrayList<>();
-                Queue<Long> queue = new LinkedList<>();
+                Queue<String> queue = new LinkedList<>();
                 queue.add(nodeId);
                 visited.add(nodeId);
                 while (!queue.isEmpty()) {
-                    Long current = queue.poll();
+                    String current = queue.poll();
                     community.add(nodeMap.get(current));
-                    for (Long neighbor : adjacency.getOrDefault(current, List.of())) {
+                    for (String neighbor : adjacency.getOrDefault(current, List.of())) {
                         if (neighbor != null && visited.add(neighbor)) {
                             queue.add(neighbor);
                         }
@@ -91,7 +88,7 @@ public class GraphSearchService {
 
     private KnowledgeEntity mapToEntity(Node node) {
         var entity = new KnowledgeEntity();
-        entity.setId(node.get("id").asLong(0));
+        entity.setId(node.get("id").asString(null));
         entity.setName(node.get("name").asString(null));
         entity.setType(node.get("type").asString(null));
         entity.setKnowledgeBaseId(node.get("knowledgeBaseId").asLong(0));

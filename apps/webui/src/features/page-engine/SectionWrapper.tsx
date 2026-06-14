@@ -12,6 +12,7 @@
 
 import { cn } from "@/lib/utils/cn"
 
+import { ScrollDownHint } from "./components/ScrollDownHint"
 import { type AnimationType, useScrollAnimation } from "./hooks/use-scroll-animation"
 import type { SectionStyle } from "./types"
 
@@ -47,7 +48,7 @@ export function SectionWrapper({ id, style, darkMode, children }: SectionWrapper
       id={id}
       className={cn(
         paddingClass,
-        "w-full",
+        "relative w-full",
         style?.maxWidth && !style?.fullWidth && "mx-auto",
         darkMode && "dark",
         style?.className
@@ -58,6 +59,11 @@ export function SectionWrapper({ id, style, darkMode, children }: SectionWrapper
       }}
     >
       {children}
+      {style?.scrollHint && (
+        <div className="absolute bottom-4 left-0 flex w-full justify-center">
+          <ScrollDownHint />
+        </div>
+      )}
     </section>
   )
 }

@@ -28,10 +28,16 @@ public class SmsChannelSender implements ChannelSender {
     }
 
     @Override
-    public void send(List<String> recipients, String subject, String content,
+    public void send(
+            List<String> recipients,
+            String subject,
+            String content,
             Map<String, Object> variables) {
-        var params = variables.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue())));
+        var params =
+                variables.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey, e -> String.valueOf(e.getValue())));
         for (var phone : recipients) {
             if (!PHONE_PATTERN.matcher(phone).matches()) {
                 log.warn("手机号格式不正确，跳过发送: {}", phone);

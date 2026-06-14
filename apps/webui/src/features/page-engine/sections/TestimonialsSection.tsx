@@ -50,18 +50,20 @@ export function TestimonialsSection({ data }: SectionComponentProps) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08, duration: 0.4 }}
-              className="flex flex-col rounded-xl border bg-card p-6"
+              className="flex flex-col rounded-2xl bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
             >
-              <Quote className="mb-3 size-5 text-primary/40" />
-              <p className="flex-1 text-sm leading-relaxed">{item.quote}</p>
+              <Quote className="mb-4 size-6 text-primary/30" />
+              <p className="flex-1 text-sm leading-7 text-foreground/80">{item.quote ?? (item as never as { content: string }).content}</p>
 
-              <div className="mt-4 flex items-center gap-3 border-t pt-4">
-                <Avatar className="size-9">
+              <div className="mt-5 flex items-center gap-3 border-t pt-4">
+                <Avatar className="size-10 ring-2 ring-primary/10">
                   <AvatarImage src={item.avatar} alt={item.author} />
-                  <AvatarFallback>{item.author[0]}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 font-semibold text-primary text-sm">
+                    {item.author[0]}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium text-sm">{item.author}</p>
+                  <p className="font-semibold text-sm">{item.author}</p>
                   {(item.role || item.company) && (
                     <p className="text-muted-foreground text-xs">
                       {[item.role, item.company].filter(Boolean).join(" · ")}

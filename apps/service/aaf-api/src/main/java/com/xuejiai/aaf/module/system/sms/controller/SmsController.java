@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.system.sms.domain.SmsLog;
 import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
 import com.xuejiai.aaf.module.system.sms.repository.SmsLogRepository;
@@ -28,7 +29,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import com.xuejiai.aaf.framework.messaging.MessageService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -121,17 +121,21 @@ public class SmsController {
     @Operation(summary = "测试短信发送", description = "实际调用厂商 API 发送短信，会产生真实费用，仅用于配置验证")
     @PostMapping("/test-send")
     public Result<String> testSend(@Valid @RequestBody SmsTestSendDTO dto) {
-        var variables = dto.params() == null ? java.util.Map.<String, Object>of()
-                : dto.params().entrySet().stream()
-                        .collect(java.util.stream.Collectors.toMap(
-                                java.util.Map.Entry::getKey,
-                                e -> (Object) e.getValue()));
-        messageService.send(new com.xuejiai.aaf.framework.messaging.MessageRequest(
-                com.xuejiai.aaf.framework.messaging.MessageChannel.SMS,
-                dto.code(),
-                java.util.List.of(dto.phone()),
-                variables,
-                null));
+        var variables =
+                dto.params() == null
+                        ? java.util.Map.<String, Object>of()
+                        : dto.params().entrySet().stream()
+                                .collect(
+                                        java.util.stream.Collectors.toMap(
+                                                java.util.Map.Entry::getKey,
+                                                e -> (Object) e.getValue()));
+        messageService.send(
+                new com.xuejiai.aaf.framework.messaging.MessageRequest(
+                        com.xuejiai.aaf.framework.messaging.MessageChannel.SMS,
+                        dto.code(),
+                        java.util.List.of(dto.phone()),
+                        variables,
+                        null));
         return Result.success("发送成功（异步）");
     }
 

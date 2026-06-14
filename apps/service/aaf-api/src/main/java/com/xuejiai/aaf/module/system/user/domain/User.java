@@ -87,6 +87,14 @@ public class User extends BaseEntity {
     @Column(name = "source_channel", length = 50)
     private String sourceChannel;
 
+    /**
+     * 关联联系人 ID（可空）。
+     *
+     * <p>有真实人对应的用户填此字段；系统账号/机器人账号保持 null。 user 是"能登录的 contact"，contact 是身份本体。
+     */
+    @Column(name = "contact_id")
+    private Long contactId;
+
     // ==================== 业务方法 ====================
 
     /** 校验密码是否匹配 */

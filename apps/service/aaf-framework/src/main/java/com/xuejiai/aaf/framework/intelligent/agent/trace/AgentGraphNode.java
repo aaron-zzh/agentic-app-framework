@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.springframework.data.neo4j.core.schema.*;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -15,7 +16,7 @@ import lombok.Setter;
 @Node("AgentNode")
 public class AgentGraphNode {
 
-    @Id @GeneratedValue private Long id;
+    @Id @GeneratedValue(UUIDStringGenerator.class) private String id;
 
     private String agentId;
 

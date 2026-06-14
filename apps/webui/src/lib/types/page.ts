@@ -41,6 +41,8 @@ export interface SectionStyle {
   fullWidth?: boolean
   /** 滚动动效 */
   animation?: "fadeIn" | "slideUp" | "slideLeft" | "slideRight" | "scaleIn" | "none"
+  /** 底部显示向下滚动提示 */
+  scrollHint?: boolean
 }
 
 /** Section 定义 */

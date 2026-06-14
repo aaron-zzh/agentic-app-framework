@@ -24,7 +24,7 @@ interface PricingPlan {
   price: string
   period?: string
   description?: string
-  features: PricingFeature[]
+  features: (PricingFeature | string)[]
   cta?: { label: string; href: string }
   highlighted?: boolean
 }
@@ -82,18 +82,20 @@ export function PricingSection({ data }: SectionComponentProps) {
 
               {/* 功能列表 */}
               <ul className="mt-6 flex flex-1 flex-col gap-2">
-                {plan.features.map((feat, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    {feat.included ? (
-                      <Check className="size-4 text-primary" />
-                    ) : (
-                      <X className="size-4 text-muted-foreground/50" />
-                    )}
-                    <span className={cn(!feat.included && "text-muted-foreground/60")}>
-                      {feat.text}
-                    </span>
-                  </li>
-                ))}
+                {plan.features.map((feat, i) => {
+                  const text = typeof feat === "string" ? feat : feat.text
+                  const included = typeof feat === "string" ? true : feat.included
+                  return (
+                    <li key={i} className="flex items-center gap-2 text-sm">
+                      {included ? (
+                        <Check className="size-4 text-primary" />
+                      ) : (
+                        <X className="size-4 text-muted-foreground/50" />
+                      )}
+                      <span className={cn(!included && "text-muted-foreground/60")}>{text}</span>
+                    </li>
+                  )
+                })}
               </ul>
 
               {/* CTA */}

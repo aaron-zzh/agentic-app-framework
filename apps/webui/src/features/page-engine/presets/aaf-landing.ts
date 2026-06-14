@@ -30,16 +30,18 @@ export const aafLandingPageDef: PageDef = {
         title: "智能体应用开发框架",
         subtitle: "一句话搭建企业级 AI 应用——多智能体 · 工作流 · 知识库 · 无代码，开箱即用。",
         buttons: [
-          { label: "快速开始", href: "/dashboard", variant: "default" },
           {
-            label: "GitHub",
+            label: "",
             href: "https://github.com/aaron-zzh/agentic-app-framework",
-            variant: "outline"
-          }
+            variant: "ghost",
+            icon: "github"
+          },
+          { label: "开发示例", href: "/examples", variant: "default" },
+          { label: "立即使用", href: "/dashboard", variant: "outline" },
         ],
         backgroundType: "particles"
       },
-      style: { fullWidth: true, animation: "fadeIn", padding: "none" }
+      style: { fullWidth: true, animation: "fadeIn", padding: "none", scrollHint: true }
     },
 
     // ─── 核心能力 ────────────────────────────────────────────────────────────
@@ -90,7 +92,7 @@ export const aafLandingPageDef: PageDef = {
             icon: "puzzle",
             title: "插件生态",
             description:
-              "registerFieldType / registerViewType / registerSectionType，第三方可扩展一切。"
+              "registerFieldType / registerViewType，第三方可扩展一切。"
           }
         ]
       },
@@ -110,25 +112,25 @@ export const aafLandingPageDef: PageDef = {
             icon: "key-round",
             title: "API Keys",
             description:
-              "Give every user secure, production-ready API keys without building any of the underlying boilerplate code or UI."
+              "为每位用户提供安全、生产就绪的 API 密钥，无需编写任何底层样板代码或 UI"
           },
           {
             icon: "users",
             title: "多智能体协作",
             description:
-              "通过意图路由和 Skill 注册，让多个 Agent 协同工作，自动编排任务流水线，无需人工干预。"
+              "通过意图路由和 Skill 注册，让多个 Agent 协同工作，自动编排任务流水线，无需人工干预"
           },
           {
             icon: "git-branch",
             title: "工作流引擎",
             description:
-              "可视化 AI 编排流水线，支持 LLM 节点、知识库节点、条件分支，对标 Dify 工作流能力。"
+              "可视化 AI 编排流水线，支持 LLM 节点、知识库节点、条件分支，对标 Dify 工作流能力"
           },
           {
             icon: "database",
             title: "知识库管理",
             description:
-              "向量数据库 + Neo4j 图谱双引擎，支持语义检索与时序知识图谱，让 AI 拥有长期记忆。"
+              "向量数据库 + Neo4j 图谱双引擎，支持语义检索与时序知识图谱，让 AI 拥有长期记忆"
           }
         ]
       },
@@ -143,7 +145,7 @@ export const aafLandingPageDef: PageDef = {
         title: "产品演示",
         tabs: [
           {
-            label: "结构化视图",
+            label: "低代码开发",
             description: "配置驱动的列表、表单、看板视图，支持行内编辑、批量操作、多视图切换。",
             image: $url.cdn("/assets/demos/1.webp")
           },
@@ -153,9 +155,14 @@ export const aafLandingPageDef: PageDef = {
             image: $url.cdn("/assets/demos/2.webp")
           },
           {
+            label: "内容创作",
+            description: "文生图、图生视频、语音克隆、数字人、3D 模型，一站式 AI 内容生产工作台，从创意到成片全流程",
+            image: $url.cdn("/assets/demos/3.webp")
+          },
+          {
             label: "工作流编排",
             description: "拖拽式流程设计器，支持审批、AI 任务、条件分支、并行网关。",
-            image: $url.cdn("/assets/demos/3.webp")
+            image: $url.cdn("/assets/images/cover/cover-11.webp")
           }
         ]
       },
@@ -242,6 +249,47 @@ export const aafLandingPageDef: PageDef = {
       style: { animation: "slideUp" }
     },
 
+    // ─── 视频分割 ──────────────────────────────────────────────────────────────
+    {
+      id: "divider-video",
+      type: "divider",
+      props: { mode: "video", src: "/assets/videos/bg.mp4", height: "35vh", scrollHint: true }
+    },
+
+    // ─── 用户评价 ──────────────────────────────────────────────────────────────
+    {
+      id: "testimonials",
+      type: "testimonials",
+      props: {
+        title: "开发者怎么说",
+        subtitle: "来自真实用户的反馈",
+        items: [
+          {
+            author: "张工",
+            role: "后端架构师",
+            company: "某科技公司",
+            quote: "AAF 让我们的 AI 应用开发周期缩短了 60%，多智能体协作和工作流引擎开箱即用，省去了大量底层建设。",
+            avatar: "/assets/avatar/avatar.png"
+          },
+          {
+            author: "李同学",
+            role: "全栈开发者",
+            company: "独立开发者",
+            quote: "规范驱动开发的理念很先进，AI 和人类共享同一份真理源，协作效率极高，再也不用反复沟通需求了。",
+            avatar: "/assets/avatar/avatar.png"
+          },
+          {
+            author: "王总",
+            role: "CTO",
+            company: "AI 创业公司",
+            quote: "从知识库到多租户 RBAC 一应俱全，我们直接基于 AAF 搭建了企业级产品，节省了至少半年的研发时间。",
+            avatar: "/assets/avatar/avatar.png"
+          }
+        ]
+      },
+      style: { animation: "fadeIn" }
+    },
+
     // ─── FAQ ─────────────────────────────────────────────────────────────────
     {
       id: "faq",
@@ -276,6 +324,13 @@ export const aafLandingPageDef: PageDef = {
         ]
       },
       style: { animation: "fadeIn" }
+    },
+
+    // ─── 波浪分割 ──────────────────────────────────────────────────────────────
+    {
+      id: "divider-waves",
+      type: "divider",
+      props: { mode: "waves", height: "35vh" }
     },
 
     // ─── CTA ─────────────────────────────────────────────────────────────────

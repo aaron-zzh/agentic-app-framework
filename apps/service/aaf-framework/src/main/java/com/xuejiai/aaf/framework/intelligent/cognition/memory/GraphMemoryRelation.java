@@ -8,6 +8,7 @@ package com.xuejiai.aaf.framework.intelligent.cognition.memory;
 import java.time.Instant;
 
 import org.springframework.data.neo4j.core.schema.*;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -18,7 +19,7 @@ import lombok.Setter;
 @RelationshipProperties
 public class GraphMemoryRelation {
 
-    @Id @GeneratedValue private Long id;
+    @RelationshipId @GeneratedValue private Long id;
 
     /** 关系类型描述（如 "认识"、"参与"、"属于"） */
     private String relationType;

@@ -15,8 +15,8 @@ import me.chanjar.weixin.mp.config.impl.WxMpDefaultConfigImpl;
 /**
  * 微信渠道自动配置。
  *
- * <p>根据 aaf.channel.wx.mp.enabled / aaf.channel.wx.mini.enabled 按需创建 SDK Bean。
- * AccessToken 当前使用内存存储；多实例部署时需接入 WxRedisOps 适配器（见 WxJava 文档）。
+ * <p>根据 aaf.channel.wx.mp.enabled / aaf.channel.wx.mini.enabled 按需创建 SDK Bean。 AccessToken
+ * 当前使用内存存储；多实例部署时需接入 WxRedisOps 适配器（见 WxJava 文档）。
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(WechatChannelProperties.class)

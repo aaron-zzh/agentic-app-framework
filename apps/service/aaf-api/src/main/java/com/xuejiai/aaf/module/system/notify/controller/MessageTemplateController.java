@@ -70,12 +70,13 @@ public class MessageTemplateController {
     @Operation(summary = "测试发送消息（支持 EMAIL/SMS/DINGTALK 等所有渠道）")
     @PostMapping("/test-send")
     public Result<String> testSend(@Valid @RequestBody TestSendDTO dto) {
-        messageService.send(new MessageRequest(
-                MessageChannel.valueOf(dto.channel().toUpperCase()),
-                dto.templateCode(),
-                dto.recipients(),
-                dto.variables() != null ? dto.variables() : Map.of(),
-                dto.subject()));
+        messageService.send(
+                new MessageRequest(
+                        MessageChannel.valueOf(dto.channel().toUpperCase()),
+                        dto.templateCode(),
+                        dto.recipients(),
+                        dto.variables() != null ? dto.variables() : Map.of(),
+                        dto.subject()));
         return Result.success("发送成功");
     }
 

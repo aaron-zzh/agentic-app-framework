@@ -11,7 +11,7 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 
 /** 图谱记忆 Neo4j 数据访问。 */
-public interface GraphMemoryRepository extends Neo4jRepository<GraphMemoryNode, Long> {
+public interface GraphMemoryRepository extends Neo4jRepository<GraphMemoryNode, String> {
 
     List<GraphMemoryNode> findByUserId(Long userId);
 

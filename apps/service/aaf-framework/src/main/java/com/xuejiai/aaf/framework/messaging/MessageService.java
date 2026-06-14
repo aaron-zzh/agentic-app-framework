@@ -50,9 +50,11 @@ public class MessageService {
         } else {
             var templateCode = request.templateCode();
             var channelSpecificCode = templateCode + "_" + request.channel().name();
-            templateInfo = templateProvider.findByCode(channelSpecificCode)
-                    .or(() -> templateProvider.findByCode(templateCode))
-                    .orElseThrow(() -> new RuntimeException("消息模板不存在: " + templateCode));
+            templateInfo =
+                    templateProvider
+                            .findByCode(channelSpecificCode)
+                            .or(() -> templateProvider.findByCode(templateCode))
+                            .orElseThrow(() -> new RuntimeException("消息模板不存在: " + templateCode));
             content = templateEngine.render(templateInfo.content(), request.variables());
             subject = request.subject() != null ? request.subject() : templateInfo.subject();
         }
@@ -62,19 +64,22 @@ public class MessageService {
 
         Long logId = null;
         if (logWriter != null) {
-            logId = logWriter.createPending(
-                    request.channel().name(),
-                    request.templateCode(),
-                    request.recipients(),
-                    subject,
-                    content);
+            logId =
+                    logWriter.createPending(
+                            request.channel().name(),
+                            request.templateCode(),
+                            request.recipients(),
+                            subject,
+                            content);
         }
 
-        eventPublisher.publishEvent(new MessageSendRequestedEvent(
-                request, templateInfo, content, subject, logId));
+        eventPublisher.publishEvent(
+                new MessageSendRequestedEvent(request, templateInfo, content, subject, logId));
 
-        log.debug("消息发送事件已发布: channel={}, recipients={}",
-                request.channel(), request.recipients().size());
+        log.debug(
+                "消息发送事件已发布: channel={}, recipients={}",
+                request.channel(),
+                request.recipients().size());
     }
 
     /** 批量发送消息 */

@@ -42,9 +42,7 @@ public class SmsAutoConfiguration {
 
     @Bean
     public ChannelSender smsChannelSender(
-            SmsSenderRouter router,
-            SmsRateLimiter rateLimiter,
-            SmsProperties properties) {
+            SmsSenderRouter router, SmsRateLimiter rateLimiter, SmsProperties properties) {
         return new SmsChannelSender(router, rateLimiter, properties.provider());
     }
 }

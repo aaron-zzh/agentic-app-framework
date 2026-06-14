@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.agent.trace;
 import java.time.Instant;
 
 import org.springframework.data.neo4j.core.schema.*;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +14,7 @@ import lombok.Setter;
 @RelationshipProperties
 public class AgentInvocationRelation {
 
-    @Id @GeneratedValue private Long id;
+    @RelationshipId @GeneratedValue private Long id;
 
     /** 调用次数（聚合） */
     private int count;

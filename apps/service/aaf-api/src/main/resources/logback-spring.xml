@@ -54,4 +54,6 @@
 
     <!-- 通用 logger 配置（所有 profile 生效，保持 prod 安全的级别） -->
     <logger name="org.springframework.web" level="INFO"/>
+    <!-- 屏蔽多存储环境下 Spring Data 无法识别 repository 归属的噪音 WARN -->
+    <logger name="org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport" level="ERROR"/>
 </configuration>

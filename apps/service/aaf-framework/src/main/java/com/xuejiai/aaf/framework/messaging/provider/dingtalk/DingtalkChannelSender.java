@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.framework.messaging.ChannelSender;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 
@@ -36,15 +37,26 @@ public class DingtalkChannelSender implements ChannelSender {
     }
 
     @Override
-    public void send(List<String> recipients, String subject, String content, Map<String, Object> variables) {
+    public void send(
+            List<String> recipients,
+            String subject,
+            String content,
+            Map<String, Object> variables) {
         try {
             var url = buildUrl();
-            var body = objectMapper.writeValueAsString(Map.of(
-                    "msgtype", "markdown",
-                    "markdown", Map.of(
-                            "title", subject != null ? subject : "消息通知",
-                            "text", content)));
-            restClient.post()
+            var body =
+                    objectMapper.writeValueAsString(
+                            Map.of(
+                                    "msgtype",
+                                    "markdown",
+                                    "markdown",
+                                    Map.of(
+                                            "title",
+                                            subject != null ? subject : "消息通知",
+                                            "text",
+                                            content)));
+            restClient
+                    .post()
                     .uri(url)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
@@ -66,9 +78,15 @@ public class DingtalkChannelSender implements ChannelSender {
         long timestamp = System.currentTimeMillis();
         String stringToSign = timestamp + "\n" + properties.secret();
         Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        mac.init(
+                new SecretKeySpec(
+                        properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         byte[] signData = mac.doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
         String sign = java.util.Base64.getEncoder().encodeToString(signData);
-        return baseUrl + "&timestamp=" + timestamp + "&sign=" + java.net.URLEncoder.encode(sign, StandardCharsets.UTF_8);
+        return baseUrl
+                + "&timestamp="
+                + timestamp
+                + "&sign="
+                + java.net.URLEncoder.encode(sign, StandardCharsets.UTF_8);
     }
 }

@@ -86,7 +86,7 @@ export function ShowcaseSection({ data }: SectionComponentProps) {
                     />
                   </div>
                   {currentTab.description && (
-                    <p className="mt-4 text-center text-muted-foreground text-sm">
+                    <p className="mt-4 text-muted-foreground text-sm">
                       {currentTab.description}
                     </p>
                   )}

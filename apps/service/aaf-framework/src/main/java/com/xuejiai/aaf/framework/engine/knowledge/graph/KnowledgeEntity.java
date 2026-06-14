@@ -6,9 +6,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Relationship;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,7 +24,7 @@ import lombok.Setter;
 public class KnowledgeEntity {
 
     /** 业务 ID，由序列生成器分配，不使用 Neo4j 内部 elementId */
-    @Id private Long id;
+    @Id @GeneratedValue(UUIDStringGenerator.class) private String id;
 
     /** 实体名称 */
     private String name;

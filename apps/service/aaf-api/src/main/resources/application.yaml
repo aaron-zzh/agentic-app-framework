@@ -33,6 +33,8 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      repositories:
+        enabled: false
   mail:
     host: ${MAIL_HOST:smtp.qq.com}
     port: ${MAIL_PORT:465}
@@ -136,6 +138,9 @@ aaf:
         app-id: ${WECHAT_APP_ID:}
         app-secret: ${WECHAT_APP_SECRET:}
         redirect-uri: ${WECHAT_REDIRECT_URI:}
+      # 企业微信：OAuth 登录 + 企业应用消息推送（工作通知）+ 接收员工消息，共用同一个企业自建应用
+      # 在企业微信管理后台（work.weixin.qq.com）创建自建应用后获取
+      # corp-id: 企业 ID，agent-id: 应用 AgentId，secret: 应用 Secret
       wecom:
         corp-id: ${WECOM_CORP_ID:}
         agent-id: ${WECOM_AGENT_ID:}

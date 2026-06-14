@@ -189,14 +189,14 @@ function Effects() {
     if (maskMaterial) maskMaterial.maskFunction = MaskFunction.MULTIPLY_RGB_SET_ALPHA
   })
   return (
-    <EffectComposer enableNormalPass={false} multisampling={0}>
+    <EffectComposer enableNormalPass={false} multisampling={0} resolutionScale={0.5}>
       <DepthOfField
         ref={ref}
         target={[0, 0, 30]}
         worldFocusRange={20}
         bokehScale={8}
         focalLength={0.1}
-        width={1024}
+        width={512}
       />
       <Vignette>{null}</Vignette>
     </EffectComposer>

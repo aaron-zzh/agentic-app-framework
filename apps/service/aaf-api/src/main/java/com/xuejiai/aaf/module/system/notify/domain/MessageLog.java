@@ -22,7 +22,8 @@ import lombok.Setter;
 @Entity
 @Table(name = "sys_message_log")
 @SQLDelete(
-        sql = "UPDATE sys_message_log SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+        sql =
+                "UPDATE sys_message_log SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class MessageLog extends BaseEntity {
 
     /** 消息渠道（EMAIL/SMS/DINGTALK） */

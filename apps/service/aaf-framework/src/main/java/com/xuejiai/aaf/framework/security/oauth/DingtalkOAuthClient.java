@@ -52,10 +52,14 @@ public class DingtalkOAuthClient implements OAuthClient {
                         .uri(TOKEN_URL)
                         .body(
                                 Map.of(
-                                        "clientId", config.clientId(),
-                                        "clientSecret", config.clientSecret(),
-                                        "code", code,
-                                        "grantType", "authorization_code"))
+                                        "clientId",
+                                        config.clientId(),
+                                        "clientSecret",
+                                        config.clientSecret(),
+                                        "code",
+                                        code,
+                                        "grantType",
+                                        "authorization_code"))
                         .retrieve()
                         .body(Map.class);
         log.debug("钉钉 token 响应: {}", tokenResp);

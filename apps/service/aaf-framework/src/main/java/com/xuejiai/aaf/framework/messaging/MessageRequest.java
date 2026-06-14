@@ -23,8 +23,11 @@ public record MessageRequest(
 
     /** 使用模板发送 */
     public MessageRequest(
-            MessageChannel channel, String templateCode,
-            List<String> recipients, Map<String, Object> variables, String subject) {
+            MessageChannel channel,
+            String templateCode,
+            List<String> recipients,
+            Map<String, Object> variables,
+            String subject) {
         this(channel, templateCode, recipients, variables, subject, null);
     }
 

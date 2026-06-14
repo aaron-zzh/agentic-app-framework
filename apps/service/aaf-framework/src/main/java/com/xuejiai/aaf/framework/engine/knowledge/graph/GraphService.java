@@ -25,7 +25,7 @@ public class GraphService {
     }
 
     /** 保存关系：从 fromId 到 toId 建立 RELATES_TO 关系 */
-    public void saveRelation(Long fromId, Long toId, KnowledgeRelation relation) {
+    public void saveRelation(String fromId, String toId, KnowledgeRelation relation) {
         var from =
                 entityRepository
                         .findById(fromId)
@@ -49,7 +49,7 @@ public class GraphService {
     }
 
     /** 查询 N 跳邻居 */
-    public List<KnowledgeEntity> findNeighbors(Long entityId, int hops) {
+    public List<KnowledgeEntity> findNeighbors(String entityId, int hops) {
         return entityRepository.findNeighbors(entityId, hops);
     }
 }

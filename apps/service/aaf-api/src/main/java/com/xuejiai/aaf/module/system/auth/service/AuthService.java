@@ -468,11 +468,15 @@ public class AuthService {
                             "AUTH_VERIFY_CODE",
                             recipients,
                             Map.of(
-                                    "code", code,
-                                    "type", type,
+                                    "code",
+                                    code,
+                                    "type",
+                                    type,
                                     "expireMinutes",
-                                    systemConfigService.getInteger("security.verify_code_expire", 5),
-                                    "companyName", companyName),
+                                    systemConfigService.getInteger(
+                                            "security.verify_code_expire", 5),
+                                    "companyName",
+                                    companyName),
                             "【" + companyName + "】安全验证码"));
         } catch (Exception e) {
             // 发送失败不阻断流程，验证码已存 Redis，开发环境可从日志获取
