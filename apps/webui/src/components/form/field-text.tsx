@@ -21,6 +21,7 @@ export interface FieldTextProps {
   type?: "text" | "email" | "password"
   className?: string
   disabled?: boolean
+  autoComplete?: string
 }
 
 export function FieldText({
@@ -30,7 +31,8 @@ export function FieldText({
   placeholder,
   type = "text",
   className,
-  disabled
+  disabled,
+  autoComplete
 }: FieldTextProps) {
   const { control } = useFormContext()
   const [showPassword, setShowPassword] = useState(false)
@@ -50,10 +52,10 @@ export function FieldText({
                 type={isPassword ? (showPassword ? "text" : "password") : type}
                 placeholder={placeholder}
                 disabled={disabled}
+                autoComplete={autoComplete}
                 aria-invalid={!!error}
                 className={cn(isPassword && "pr-9")}
                 {...field}
-                value={field.value ?? ""}
               />
               {isPassword && (
                 <button

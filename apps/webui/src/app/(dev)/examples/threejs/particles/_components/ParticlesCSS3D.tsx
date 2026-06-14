@@ -7,10 +7,10 @@
 
 "use client"
 
+import { Easing, Group, Tween } from "@tweenjs/tween.js"
 import { useEffect, useRef } from "react"
 import * as THREE from "three"
 import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js"
-import TWEEN from "three/examples/jsm/libs/tween.module.js"
 import { CSS3DRenderer, CSS3DSprite } from "three/examples/jsm/renderers/CSS3DRenderer.js"
 
 const PARTICLES_TOTAL = 512
@@ -123,6 +123,7 @@ export function ParticlesCSS3D() {
 
     // 形态过渡
     let current = 0
+    const tweenGroup = new Group()
 
     function transition() {
       const offset = current * PARTICLES_COUNT * 3
@@ -131,18 +132,17 @@ export function ParticlesCSS3D() {
       for (let i = 0, j = offset; i < PARTICLES_COUNT; i++, j += 3) {
         const obj = objects[i]
         if (!obj) continue
-        new TWEEN.Tween(obj.position)
+        new Tween(obj.position, tweenGroup)
           .to(
             { x: positions[j], y: positions[j + 1], z: positions[j + 2] },
-            Math.random() * duration + duration
+            Math.random() * duration * 1.5 + duration * 0.5
           )
-          .easing(TWEEN.Easing.Exponential.InOut)
+          .easing(Easing.Exponential.InOut)
           .start()
       }
 
-      // 用哑计时器触发下一次形态过渡
       const timer = { t: 0 }
-      new TWEEN.Tween(timer)
+      new Tween(timer, tweenGroup)
         .to({ t: 1 }, duration * 3)
         .onComplete(transition)
         .start()
@@ -156,7 +156,7 @@ export function ParticlesCSS3D() {
     let animId: number
     function animate() {
       animId = requestAnimationFrame(animate)
-      TWEEN.update()
+      tweenGroup.update()
       controls.update()
       renderer.render(scene, camera)
     }

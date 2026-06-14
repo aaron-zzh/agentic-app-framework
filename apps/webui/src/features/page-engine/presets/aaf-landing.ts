@@ -30,7 +30,7 @@ export const aafLandingPageDef: PageDef = {
         title: "智能体应用开发框架",
         subtitle: "一句话搭建企业级 AI 应用——多智能体 · 工作流 · 知识库 · 无代码，开箱即用。",
         buttons: [
-          { label: "快速开始", href: "/docs/getting-started", variant: "default" },
+          { label: "快速开始", href: "/dashboard", variant: "default" },
           {
             label: "GitHub",
             href: "https://github.com/aaron-zzh/agentic-app-framework",
@@ -204,7 +204,7 @@ export const aafLandingPageDef: PageDef = {
               "单租户部署",
               "5 个自定义实体"
             ],
-            cta: { label: "开始使用", href: "/docs/getting-started" }
+            cta: { label: "开始使用", href: "/dashboard" }
           },
           {
             name: "专业版",
@@ -286,7 +286,7 @@ export const aafLandingPageDef: PageDef = {
         title: "准备好开始了吗？",
         description: "5 分钟内启动你的第一个 AI 原生应用",
         buttons: [
-          { label: "快速开始", href: "/docs/getting-started", variant: "default" },
+          { label: "快速开始", href: "/dashboard", variant: "default" },
           { label: "查看文档", href: "/docs", variant: "outline" }
         ]
       },

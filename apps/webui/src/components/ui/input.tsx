@@ -1,13 +1,18 @@
 "use client"
 
-import { Input as InputPrimitive } from "@base-ui/react/input"
 import type * as React from "react"
 
 import { cn } from "@/lib/utils/index"
 
+/**
+ * 样式封装的原生 input。
+ * 注意：项目表单体系基于 RHF + Zod，不使用 @base-ui/react 的表单体系（Field.Root 等）。
+ * base-ui Input（Field.Control）需要 Field.Root context，单独使用时点击会触发内部
+ * re-render 重置输入值，故此处直接用原生 <input>。
+ */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
-    <InputPrimitive
+    <input
       type={type}
       data-slot="input"
       className={cn(

@@ -21,7 +21,7 @@ import { useAuthStore } from "@/lib/store/auth-store"
 const registerSchema = z
   .object({
     email: z.string().min(1, "请输入邮箱").email("邮箱格式不正确"),
-    password: z.string().min(6, "密码至少 6 位"),
+    password: z.string().min(8, "密码至少 8 位").max(32, "密码最多 32 位"),
     confirmPassword: z.string().min(1, "请确认密码"),
     nickname: z.string().optional()
   })
@@ -56,7 +56,6 @@ export default function RegisterPage() {
 
   async function onRegister(data: RegisterForm) {
     await authApi.register(data.email, data.password, data.nickname || undefined)
-    await authApi.sendCode(data.email, "register")
     setEmail(data.email)
     setStep("verify")
   }
@@ -78,7 +77,7 @@ export default function RegisterPage() {
         </div>
 
         <Form methods={verifyMethods} onSubmit={onVerify}>
-          <FieldText name="code" label="验证码" placeholder="输入 6 位验证码" />
+          <FieldText name="code" label="验证码" placeholder="输入 6 位验证码" autoComplete="one-time-code" />
           <Button type="submit" className="w-full" disabled={verifyMethods.formState.isSubmitting}>
             {verifyMethods.formState.isSubmitting ? "验证中..." : "验证并登录"}
           </Button>
@@ -97,7 +96,7 @@ export default function RegisterPage() {
       <Form methods={registerMethods} onSubmit={onRegister}>
         <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
         <FieldText name="nickname" label="昵称" placeholder="可选" />
-        <FieldText name="password" label="密码" type="password" placeholder="至少 6 位" />
+        <FieldText name="password" label="密码" type="password" placeholder="至少 8 位" />
         <FieldText
           name="confirmPassword"
           label="确认密码"

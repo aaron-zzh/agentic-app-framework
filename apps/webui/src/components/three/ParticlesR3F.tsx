@@ -10,9 +10,9 @@
 import { OrbitControls } from "@react-three/drei"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Bloom, EffectComposer } from "@react-three/postprocessing"
+import { Easing, Group, Tween } from "@tweenjs/tween.js"
 import { useEffect, useMemo, useRef } from "react"
 import * as THREE from "three"
-import TWEEN from "three/examples/jsm/libs/tween.module.js"
 
 const PARTICLES_TOTAL = 512
 
@@ -111,9 +111,11 @@ function Particles() {
   )
 
   const currentShape = useRef(0)
+  const tweenGroup = useRef(new Group())
 
   useEffect(() => {
     let active = true
+    const group = tweenGroup.current
 
     function transition() {
       if (!active) return
@@ -125,17 +127,18 @@ function Particles() {
       for (let i = 0; i < PARTICLES_TOTAL; i++) {
         const proxy = proxies[i]
         if (!proxy) continue
-        new TWEEN.Tween(proxy)
+        new Tween(proxy, group)
           .to(
             { x: target[i * 3], y: target[i * 3 + 1], z: target[i * 3 + 2] },
-            isScatter ? duration * 1.5 : Math.random() * duration + duration
+            // 分散完成时间，避免大量 Tween 在同一帧完成导致卡顿峰值
+            isScatter ? duration * 1.5 : Math.random() * duration * 1.5 + duration * 0.5
           )
-          .easing(TWEEN.Easing.Exponential.InOut)
+          .easing(Easing.Exponential.InOut)
           .start()
       }
 
       const timer = { t: 0 }
-      new TWEEN.Tween(timer)
+      new Tween(timer, group)
         .to({ t: 1 }, duration * 3)
         .onComplete(transition)
         .start()
@@ -145,12 +148,12 @@ function Particles() {
     transition()
     return () => {
       active = false
-      TWEEN.removeAll()
+      group.removeAll()
     }
   }, [proxies, targets])
 
   useFrame(() => {
-    TWEEN.update()
+    tweenGroup.current.update()
     const geo = geoRef.current
     if (!geo) return
     const attr = geo.attributes.position as THREE.BufferAttribute
@@ -229,17 +232,16 @@ function Particles() {
 }
 
 export function ParticlesR3F({ bloom = false }: { bloom?: boolean }) {
-  const isMobile = typeof navigator !== "undefined" && /Mobi|Android/i.test(navigator.userAgent)
   return (
     <div className="relative h-full w-full bg-[#000510]">
       <Canvas
         camera={{ position: [600, 400, 1500], fov: 75, near: 1, far: 5000 }}
         gl={{
           antialias: false,
-          powerPreference: isMobile ? "low-power" : "high-performance",
-          alpha: false
+          powerPreference: "high-performance",
+          alpha: false,
         }}
-        dpr={isMobile ? 1 : [1, 1.5]}
+        dpr={[1, 2]}
       >
         <color attach="background" args={["#000510"]} />
         <Particles />

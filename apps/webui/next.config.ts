@@ -12,6 +12,7 @@ const withSerwist = withSerwistInit({
 })
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["192.168.0.0/24"], // 其他设备访问测试
   output: "standalone",
   webpack: (config) => {
     config.resolve.alias.canvas = false
