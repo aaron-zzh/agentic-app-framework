@@ -17,7 +17,6 @@ import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.system.mail.service.MailService;
-import com.xuejiai.aaf.module.system.mail.vo.MailSendDTO;
 import com.xuejiai.aaf.module.system.mail.vo.MailTemplateCreateDTO;
 import com.xuejiai.aaf.module.system.mail.vo.MailTemplateVO;
 
@@ -58,7 +57,7 @@ public class MailTemplateController {
 
     @Operation(summary = "发送测试邮件")
     @PostMapping("/test-send")
-    public Result<String> testSend(@Valid @RequestBody MailSendDTO dto) {
+    public Result<String> testSend(@Valid @RequestBody TestSendDTO dto) {
         Map<String, Object> variables = dto.params() == null ? Map.of()
                 : dto.params().entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -70,4 +69,9 @@ public class MailTemplateController {
                 null));
         return Result.success("发送成功");
     }
+
+    public record TestSendDTO(
+            @jakarta.validation.constraints.NotBlank String toAddress,
+            @jakarta.validation.constraints.NotBlank String templateCode,
+            Map<String, String> params) {}
 }

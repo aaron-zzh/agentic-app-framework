@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -45,8 +44,7 @@ public class SmsAutoConfiguration {
     public ChannelSender smsChannelSender(
             SmsSenderRouter router,
             SmsRateLimiter rateLimiter,
-            ApplicationEventPublisher eventPublisher,
             SmsProperties properties) {
-        return new SmsChannelSender(router, rateLimiter, eventPublisher, properties.provider());
+        return new SmsChannelSender(router, rateLimiter, properties.provider());
     }
 }

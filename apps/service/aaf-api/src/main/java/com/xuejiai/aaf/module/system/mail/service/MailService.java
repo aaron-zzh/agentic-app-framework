@@ -2,29 +2,25 @@ package com.xuejiai.aaf.module.system.mail.service;
 
 import java.util.List;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.module.system.mail.domain.MailAccount;
 import com.xuejiai.aaf.module.system.mail.domain.MailTemplate;
 import com.xuejiai.aaf.module.system.mail.repository.MailAccountRepository;
-import com.xuejiai.aaf.module.system.mail.repository.MailLogRepository;
 import com.xuejiai.aaf.module.system.mail.repository.MailTemplateRepository;
 import com.xuejiai.aaf.module.system.mail.vo.MailAccountCreateDTO;
 import com.xuejiai.aaf.module.system.mail.vo.MailAccountVO;
-import com.xuejiai.aaf.module.system.mail.vo.MailLogVO;
 import com.xuejiai.aaf.module.system.mail.vo.MailTemplateCreateDTO;
 import com.xuejiai.aaf.module.system.mail.vo.MailTemplateVO;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * 邮件服务（账号管理 + 模板管理 + 日志查询）。
+ * 邮件服务（账号管理 + 模板管理）。
  *
  * <p>发送邮件统一通过 {@link com.xuejiai.aaf.framework.messaging.MessageService} 进行。
+ * 发送日志统一记录在 sys_message_log，查询入口见 MessageLogController。
  *
  * @author AaronZZH & Kiro
  */
@@ -34,9 +30,6 @@ public class MailService {
 
     private final MailAccountRepository accountRepository;
     private final MailTemplateRepository templateRepository;
-    private final MailLogRepository logRepository;
-
-    // ── 账号管理 ──────────────────────────────────────────────
 
     public List<MailAccountVO> listAccounts() {
         return accountRepository.findAll().stream()
@@ -63,8 +56,6 @@ public class MailService {
         accountRepository.deleteById(id);
     }
 
-    // ── 模板管理 ──────────────────────────────────────────────
-
     public List<MailTemplateVO> listTemplates() {
         return templateRepository.findAll().stream()
                 .filter(t -> !t.getDeleted())
@@ -89,16 +80,6 @@ public class MailService {
         templateRepository.deleteById(id);
     }
 
-    // ── 日志查询 ──────────────────────────────────────────────
-
-    public Page<MailLogVO> listLogs(int pageNo, int pageSize) {
-        var page = logRepository.findAll(
-                PageRequest.of(pageNo - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime")));
-        return page.map(this::toLogVO);
-    }
-
-    // ── 转换 ──────────────────────────────────────────────────
-
     private MailAccountVO toAccountVO(MailAccount a) {
         return new MailAccountVO(
                 a.getId(), a.getName(), a.getHost(), a.getPort(),
@@ -109,11 +90,5 @@ public class MailService {
         return new MailTemplateVO(
                 t.getId(), t.getCode(), t.getName(), t.getSubject(),
                 t.getContent(), t.getAccountId(), t.getParams(), t.getStatus());
-    }
-
-    private MailLogVO toLogVO(com.xuejiai.aaf.module.system.mail.domain.MailLog l) {
-        return new MailLogVO(
-                l.getId(), l.getTemplateId(), l.getToAddress(), l.getSubject(),
-                l.getSendStatus(), l.getSendTime(), l.getErrorMessage());
     }
 }

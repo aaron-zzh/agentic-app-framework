@@ -28,6 +28,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.messaging.MessageService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -43,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SmsController {
 
     private final SmsTemplateRepository templateRepository;
+    private final MessageService messageService;
     private final SmsLogRepository smsLogRepository;
 
     private final SmsService smsService;
@@ -119,18 +121,18 @@ public class SmsController {
     @Operation(summary = "测试短信发送", description = "实际调用厂商 API 发送短信，会产生真实费用，仅用于配置验证")
     @PostMapping("/test-send")
     public Result<String> testSend(@Valid @RequestBody SmsTestSendDTO dto) {
-        try {
-            smsService.send(dto.phone(), dto.code(), dto.params());
-            log.info("短信测试发送成功: phone={}, code={}", dto.phone(), dto.code());
-            return Result.success("发送成功");
-        } catch (Exception e) {
-            log.warn(
-                    "短信测试发送失败: phone={}, code={}, error={}",
-                    dto.phone(),
-                    dto.code(),
-                    e.getMessage());
-            return Result.error(500, "发送失败：" + e.getMessage());
-        }
+        var variables = dto.params() == null ? java.util.Map.<String, Object>of()
+                : dto.params().entrySet().stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                java.util.Map.Entry::getKey,
+                                e -> (Object) e.getValue()));
+        messageService.send(new com.xuejiai.aaf.framework.messaging.MessageRequest(
+                com.xuejiai.aaf.framework.messaging.MessageChannel.SMS,
+                dto.code(),
+                java.util.List.of(dto.phone()),
+                variables,
+                null));
+        return Result.success("发送成功（异步）");
     }
 
     // ── 厂商回调 ──────────────────────────────────────────────
