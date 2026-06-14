@@ -7,19 +7,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record BotChannelProperties(DingtalkProperties dingtalk, FeishuProperties feishu) {
 
     public BotChannelProperties {
-        if (dingtalk == null) dingtalk = new DingtalkProperties(null, null, null, null);
+        if (dingtalk == null) dingtalk = new DingtalkProperties(null, null, null);
         if (feishu == null) feishu = new FeishuProperties(null, null, null, null);
     }
 
     public record DingtalkProperties(
-            /** 机器人 Webhook URL */
+            /** 机器人 Webhook URL（用于回复群消息） */
             String webhookUrl,
-            /** 加签密钥 */
-            String secret,
-            /** 应用 AppKey（用于主动发消息） */
-            String appKey,
-            /** 应用 AppSecret */
-            String appSecret) {}
+            /** 应用 Client ID（Stream 模式，对应旧版 AppKey） */
+            String clientId,
+            /** 应用 Client Secret（Stream 模式，对应旧版 AppSecret） */
+            String clientSecret) {}
 
     public record FeishuProperties(
             /** 应用 App ID */

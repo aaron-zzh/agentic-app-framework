@@ -10,5 +10,5 @@ public record OAuthProperties(WechatConfig wechat, WecomConfig wecom, DingtalkCo
 
     public record WecomConfig(String corpId, String agentId, String secret, String redirectUri) {}
 
-    public record DingtalkConfig(String appKey, String appSecret, String redirectUri) {}
+    public record DingtalkConfig(String clientId, String clientSecret, String redirectUri) {}
 }

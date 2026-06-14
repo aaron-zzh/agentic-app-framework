@@ -21,8 +21,8 @@ import lombok.Setter;
 @Table(name = "sys_mail_log")
 public class MailLog extends BaseEntity {
 
-    /** 关联模板 ID */
-    @Column(nullable = false)
+    /** 关联模板 ID，直接发送时为 null */
+    @Column
     private Long templateId;
 
     /** 收件人地址 */

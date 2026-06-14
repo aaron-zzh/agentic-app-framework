@@ -16,14 +16,12 @@ import me.chanjar.weixin.mp.config.impl.WxMpDefaultConfigImpl;
  * 微信渠道自动配置。
  *
  * <p>根据 aaf.channel.wx.mp.enabled / aaf.channel.wx.mini.enabled 按需创建 SDK Bean。
+ * AccessToken 当前使用内存存储；多实例部署时需接入 WxRedisOps 适配器（见 WxJava 文档）。
  */
-// proxyBeanMethods=false：禁用 CGLIB 子类代理，@Bean 方法不会被拦截以保证单例。
-// 适用于各 @Bean 方法之间无直接调用的场景，可减少启动开销并避免因缺少依赖类导致的增强失败。
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(WechatChannelProperties.class)
 public class WechatChannelAutoConfiguration {
 
-    /** 微信公众号 SDK */
     @Bean
     @ConditionalOnProperty(name = "aaf.channel.wx.mp.enabled", havingValue = "true")
     public WxMpService wxMpService(WechatChannelProperties props) {
@@ -37,7 +35,6 @@ public class WechatChannelAutoConfiguration {
         return service;
     }
 
-    /** 微信小程序 SDK（客服消息用 WxMpService） */
     @Bean("wxMiniMpService")
     @ConditionalOnProperty(name = "aaf.channel.wx.mini.enabled", havingValue = "true")
     public WxMpService wxMiniMpService(WechatChannelProperties props) {
@@ -49,7 +46,6 @@ public class WechatChannelAutoConfiguration {
         return service;
     }
 
-    /** 微信小程序登录 SDK */
     @Bean
     @ConditionalOnProperty(name = "aaf.channel.wx.mini.enabled", havingValue = "true")
     public WxMaService wxMaService(WechatChannelProperties props) {

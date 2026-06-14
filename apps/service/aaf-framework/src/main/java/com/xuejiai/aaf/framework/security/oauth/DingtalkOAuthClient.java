@@ -33,7 +33,7 @@ public class DingtalkOAuthClient implements OAuthClient {
     public String buildAuthorizationUrl(String state) {
         return AUTH_URL
                 + "?client_id="
-                + config.appKey()
+                + config.clientId()
                 + "&redirect_uri="
                 + URLEncoder.encode(config.redirectUri(), StandardCharsets.UTF_8)
                 + "&response_type=code"
@@ -46,21 +46,16 @@ public class DingtalkOAuthClient implements OAuthClient {
     @Override
     @SuppressWarnings("unchecked")
     public OAuthUserInfo exchangeToken(String code) {
-        // 用 code 换取 user access_token
         var tokenResp =
                 restClient
                         .post()
                         .uri(TOKEN_URL)
                         .body(
                                 Map.of(
-                                        "clientId",
-                                        config.appKey(),
-                                        "clientSecret",
-                                        config.appSecret(),
-                                        "code",
-                                        code,
-                                        "grantType",
-                                        "authorization_code"))
+                                        "clientId", config.clientId(),
+                                        "clientSecret", config.clientSecret(),
+                                        "code", code,
+                                        "grantType", "authorization_code"))
                         .retrieve()
                         .body(Map.class);
         log.debug("钉钉 token 响应: {}", tokenResp);

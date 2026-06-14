@@ -39,7 +39,6 @@ ChannelController.createConfig() 写接口缺少授权注解（@PreAuthorize/@Ac
 ChannelController.createWebhook() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ChannelController.deleteConfig() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ChannelController.deleteWebhook() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
-ChannelController.dingtalkCallback() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ChannelController.feishuCallback() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ChannelController.testConnection() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）
 ChannelController.updateConfig() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）

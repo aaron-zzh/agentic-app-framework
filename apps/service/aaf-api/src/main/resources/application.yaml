@@ -64,6 +64,11 @@ aaf:
   app:
     company-name: ${AAF_COMPANY_NAME:学记智能}
     frontend-url: ${AAF_WEB_ORIGIN:http://localhost:3000}
+  storage:
+    type: local
+    local:
+      base-path: ${AAF_FILE_PATH:${user.home}/aaf-files}
+      url-prefix: ${AAF_FILE_DOMAIN:http://localhost:8080}/api/system/files
   cors:
     allowed-origin-patterns:
       - ${AAF_WEB_ORIGIN:http://localhost:3000}
@@ -118,14 +123,10 @@ aaf:
         sign-name: ${SMS_SIGN_NAME:AAF}
     email:
       from: ${EMAIL_FROM:noreply@xuejiai.com}
+    # 【钉钉①】自定义机器人：主动推送消息到群（验证码调试、系统通知）, 在钉钉群里添加自定义机器人后获取 access_token 和加签密钥
     dingtalk:
-      webhook-url: ${DINGTALK_WEBHOOK_URL:}
-      secret: ${DINGTALK_SECRET:}
-  storage:
-    type: local
-    local:
-      base-path: ${AAF_FILE_PATH:${user.home}/aaf-files}
-      url-prefix: ${AAF_FILE_DOMAIN:http://localhost:8080}/api/system/files
+      api-key: ${DINGTALK_BOT_TOKEN:c4276c598eeb3ec929934ad6e191d2049d92211eacba85c40f02f5b35b16e390}
+      secret: ${DINGTALK_SECRET:SECd7950093c3b96abf8e865abfbcad43bd5c7ecef1e74ca2a4e3ae2100a5cf3bda}
   security:
     jwt:
       secret: ${JWT_SECRET:aaf-dev-secret-must-be-at-least-32-bytes-long!!}
@@ -140,10 +141,40 @@ aaf:
         agent-id: ${WECOM_AGENT_ID:}
         secret: ${WECOM_SECRET:}
         redirect-uri: ${WECOM_REDIRECT_URI:}
+      # 【钉钉②③】企业内部应用：OAuth 登录 + Stream 机器人消息接收（AI 对话）共用同一个应用
+      # 在钉钉开放平台（open.dingtalk.com）创建企业内部应用后获取
       dingtalk:
-        app-key: ${DINGTALK_APP_KEY:}
-        app-secret: ${DINGTALK_APP_SECRET:}
+        client-id: ${DINGTALK_CLIENT_ID:}
+        client-secret: ${DINGTALK_CLIENT_SECRET:}
         redirect-uri: ${DINGTALK_REDIRECT_URI:}
+  channel:
+    # 企业内部应用机器人 Stream 模式（接收用户消息/AI 对话），复用上方 DINGTALK_CLIENT_ID/SECRET
+    dingtalk:
+      enabled: ${DINGTALK_ENABLED:false}
+      client-id: ${DINGTALK_CLIENT_ID:}
+      client-secret: ${DINGTALK_CLIENT_SECRET:}
+      webhook-url: ${DINGTALK_BOT_WEBHOOK_URL:}
+      app-key: ${DINGTALK_APP_KEY:}
+      app-secret: ${DINGTALK_APP_SECRET:}
+    feishu:
+      enabled: ${FEISHU_ENABLED:false}
+      app-id: ${FEISHU_APP_ID:}
+      app-secret: ${FEISHU_APP_SECRET:}
+      verification-token: ${FEISHU_VERIFICATION_TOKEN:}
+      encrypt-key: ${FEISHU_ENCRYPT_KEY:}
+    wx:
+      # 微信公众号（服务号）：接收用户消息、发送模板消息、客服消息
+      mp:
+        enabled: ${WX_MP_ENABLED:false}
+        app-id: ${WX_MP_APP_ID:}
+        secret: ${WX_MP_SECRET:}
+        token: ${WX_MP_TOKEN:}
+        aes-key: ${WX_MP_AES_KEY:}
+      # 微信小程序：登录授权、手机号获取
+      mini:
+        enabled: ${WX_MINI_ENABLED:false}
+        app-id: ${WX_MINI_APP_ID:}
+        secret: ${WX_MINI_SECRET:}
   task:
     scheduler:
       pool-size: 4

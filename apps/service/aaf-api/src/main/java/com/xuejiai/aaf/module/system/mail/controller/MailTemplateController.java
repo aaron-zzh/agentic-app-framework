@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.system.mail.controller;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,10 +13,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.MessageRequest;
+import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.system.mail.service.MailService;
+import com.xuejiai.aaf.module.system.mail.vo.MailSendDTO;
 import com.xuejiai.aaf.module.system.mail.vo.MailTemplateCreateDTO;
 import com.xuejiai.aaf.module.system.mail.vo.MailTemplateVO;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 public class MailTemplateController {
 
     private final MailService mailService;
+    private final MessageService messageService;
 
     @GetMapping
     public Result<List<MailTemplateVO>> list() {
@@ -46,5 +54,20 @@ public class MailTemplateController {
     public Result<Void> delete(@PathVariable Long id) {
         mailService.deleteTemplate(id);
         return Result.success(null);
+    }
+
+    @Operation(summary = "发送测试邮件")
+    @PostMapping("/test-send")
+    public Result<String> testSend(@Valid @RequestBody MailSendDTO dto) {
+        Map<String, Object> variables = dto.params() == null ? Map.of()
+                : dto.params().entrySet().stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        messageService.send(new MessageRequest(
+                MessageChannel.EMAIL,
+                dto.templateCode(),
+                List.of(dto.toAddress()),
+                variables,
+                null));
+        return Result.success("发送成功");
     }
 }

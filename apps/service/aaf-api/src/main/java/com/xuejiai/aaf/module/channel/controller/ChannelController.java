@@ -17,7 +17,6 @@ import com.xuejiai.aaf.module.channel.service.ChannelConfigService;
 import com.xuejiai.aaf.module.channel.service.ChannelMessageRouter;
 import com.xuejiai.aaf.module.channel.service.MiniAppLoginService;
 import com.xuejiai.aaf.module.channel.service.WebhookService;
-import com.xuejiai.aaf.module.channel.service.adapter.DingtalkBotChannelAdapter;
 import com.xuejiai.aaf.module.channel.service.adapter.FeishuBotChannelAdapter;
 import com.xuejiai.aaf.module.channel.vo.ChannelStatsVO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppLoginDTO;
@@ -43,10 +42,6 @@ public class ChannelController {
     /** 可选注入——仅 aaf.channel.wx.mini.enabled=true 时存在 */
     @Autowired(required = false)
     private MiniAppLoginService miniAppLoginService;
-
-    /** 可选注入——仅 aaf.channel.dingtalk.enabled=true 时存在 */
-    @Autowired(required = false)
-    private DingtalkBotChannelAdapter dingtalkAdapter;
 
     /** 可选注入——仅 aaf.channel.feishu.enabled=true 时存在 */
     @Autowired(required = false)
@@ -91,27 +86,6 @@ public class ChannelController {
             return Result.error(GlobalErrorCode.BAD_REQUEST, "微信小程序渠道未启用");
         }
         return Result.success(miniAppLoginService.phoneLogin(dto));
-    }
-
-    // ==================== 钉钉机器人回调 ====================
-
-    /** 钉钉机器人消息回调 */
-    @PostMapping("/dingtalk/callback")
-    public Result<String> dingtalkCallback(
-            @RequestHeader(value = "timestamp", required = false) String timestamp,
-            @RequestHeader(value = "sign", required = false) String sign,
-            @RequestBody String jsonPayload) {
-        if (dingtalkAdapter == null) {
-            return Result.error(GlobalErrorCode.BAD_REQUEST, "钉钉渠道未启用");
-        }
-        // 加签验证
-        if (timestamp != null && sign != null) {
-            if (!dingtalkAdapter.verifySign(timestamp, sign)) {
-                return Result.error(GlobalErrorCode.FORBIDDEN, "签名验证失败");
-            }
-        }
-        router.routeInbound(ChannelTypeEnum.DINGTALK, jsonPayload);
-        return Result.success("ok");
     }
 
     // ==================== 飞书机器人回调 ====================

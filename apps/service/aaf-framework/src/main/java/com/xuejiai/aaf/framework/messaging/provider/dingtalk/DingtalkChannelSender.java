@@ -57,11 +57,11 @@ public class DingtalkChannelSender implements ChannelSender {
         }
     }
 
-    /** 构建含加签的 Webhook URL */
+    /** 构建请求 URL，配置了加签密钥时附加签名参数 */
     private String buildUrl() throws Exception {
-        var url = properties.webhookUrl();
+        var baseUrl = "https://oapi.dingtalk.com/robot/send?access_token=" + properties.apiKey();
         if (properties.secret() == null || properties.secret().isBlank()) {
-            return url;
+            return baseUrl;
         }
         long timestamp = System.currentTimeMillis();
         String stringToSign = timestamp + "\n" + properties.secret();
@@ -69,6 +69,6 @@ public class DingtalkChannelSender implements ChannelSender {
         mac.init(new SecretKeySpec(properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         byte[] signData = mac.doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
         String sign = java.util.Base64.getEncoder().encodeToString(signData);
-        return url + "&timestamp=" + timestamp + "&sign=" + java.net.URLEncoder.encode(sign, StandardCharsets.UTF_8);
+        return baseUrl + "&timestamp=" + timestamp + "&sign=" + java.net.URLEncoder.encode(sign, StandardCharsets.UTF_8);
     }
 }

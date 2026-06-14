@@ -35,8 +35,11 @@ logging:
     org.hibernate.orm.jdbc.bind: WARN
     com.xuejiai.aaf.module.ai: DEBUG
     com.xuejiai.aaf.module.system: DEBUG
+    com.xuejiai.aaf.module.channel: DEBUG
     # 客户端主动断开 SSE 连接时的正常异常，降为 WARN 避免日志噪音
     org.springframework.web.context.request.async: WARN
+    # Spring Boot 3.x 存在部分误报 WARN，屏蔽噪音
+    org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
 
 aaf:
   flyway:

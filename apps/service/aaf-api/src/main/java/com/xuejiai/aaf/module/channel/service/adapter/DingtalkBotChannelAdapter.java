@@ -1,17 +1,19 @@
 package com.xuejiai.aaf.module.channel.service.adapter;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import com.dingtalk.open.app.api.OpenDingTalkStreamClientBuilder;
+import com.dingtalk.open.app.api.message.GenericOpenDingTalkEvent;
+import com.dingtalk.open.app.api.security.AuthClientCredential;
+import com.dingtalk.open.app.stream.protocol.event.EventAckStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
@@ -20,6 +22,7 @@ import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
 import com.xuejiai.aaf.module.channel.config.BotChannelProperties;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.service.ChannelAdapter;
+import com.xuejiai.aaf.module.channel.service.ChannelMessageRouter;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +30,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 钉钉企业内部机器人渠道适配器。
  *
- * <p>接收机器人消息回调、回复文本/Markdown/卡片消息、加签验证。 需配置 aaf.channel.dingtalk.enabled=true 激活。
+ * <p>支持 Stream 模式（推荐，无需公网回调）和 HTTP 回调两种模式。
+ * 配置了 appKey+appSecret 时自动启用 Stream 模式，否则走 HTTP 回调。
+ * 需配置 aaf.channel.dingtalk.enabled=true 激活。
  */
 @Slf4j
 @Component
@@ -38,6 +43,52 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
     private final BotChannelProperties properties;
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
+    private final ChannelMessageRouter router;
+
+    /** 应用启动后自动启动 Stream 长连接 */
+    @EventListener(ApplicationReadyEvent.class)
+    public void startStreamClient() {
+        var dingtalk = properties.dingtalk();
+        if (dingtalk.clientId() == null || dingtalk.clientId().isBlank()
+                || dingtalk.clientSecret() == null || dingtalk.clientSecret().isBlank()) {
+            log.warn("钉钉 clientId/clientSecret 未配置，Stream 模式未启动");
+            return;
+        }
+        try {
+            OpenDingTalkStreamClientBuilder
+                    .custom()
+                    .credential(new AuthClientCredential(dingtalk.clientId(), dingtalk.clientSecret()))
+                    .registerAllEventListener((GenericOpenDingTalkEvent event) -> {
+                        try {
+                            var eventId = event.getEventId();
+                            var eventType = event.getEventType();
+                            var bizData = event.getData();
+                            log.debug("钉钉事件: id={}, type={}", eventId, eventType);
+                            // 按事件类型分发，后续事件类型增多时可抽为 DingtalkEventDispatcher Bean
+                            // 注入多个 DingtalkEventHandler 实现，按 eventType 路由
+                            switch (eventType != null ? eventType : "") {
+                                // 机器人消息：路由到 AI 对话处理链
+                                case "im_robot_message" -> {
+                                    if (bizData != null) {
+                                        router.routeInbound(ChannelTypeEnum.DINGTALK, bizData.toJSONString());
+                                    }
+                                }
+                                // TODO: 审批事件、通讯录变更等后续在此扩展
+                                default -> log.debug("暂不处理的钉钉事件类型: {}", eventType);
+                            }
+                            return EventAckStatus.SUCCESS;
+                        } catch (Exception e) {
+                            log.error("钉钉事件处理失败: {}", e.getMessage(), e);
+                            return EventAckStatus.LATER;
+                        }
+                    })
+                    .build()
+                    .start();
+            log.info("钉钉 Stream 模式已启动");
+        } catch (Exception e) {
+            log.error("钉钉 Stream 客户端启动失败: {}", e.getMessage(), e);
+        }
+    }
 
     @Override
     public ChannelTypeEnum channelType() {
@@ -128,24 +179,6 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
      * @param sign 请求头中的签名
      * @return 验证是否通过
      */
-    public boolean verifySign(String timestamp, String sign) {
-        var secret = properties.dingtalk().secret();
-        if (secret == null || secret.isBlank()) {
-            return true; // 未配置密钥则跳过验证
-        }
-        try {
-            var stringToSign = timestamp + "\n" + secret;
-            var mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            var signData = mac.doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
-            var computed = java.util.Base64.getEncoder().encodeToString(signData);
-            return computed.equals(sign);
-        } catch (Exception e) {
-            log.error("钉钉签名验证异常: {}", e.getMessage());
-            return false;
-        }
-    }
-
     private Map<String, Object> buildReplyBody(UnifiedMessage message) {
         var body = new HashMap<String, Object>();
         return switch (message.messageType()) {

@@ -16,7 +16,7 @@ import com.xuejiai.aaf.framework.messaging.ChannelSender;
  */
 @Configuration
 @EnableConfigurationProperties(DingtalkProperties.class)
-@ConditionalOnProperty(prefix = "aaf.messaging.dingtalk", name = "webhook-url")
+@ConditionalOnProperty(prefix = "aaf.messaging.dingtalk", name = "api-key")
 public class DingtalkAutoConfiguration {
 
     @Bean
