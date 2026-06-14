@@ -169,6 +169,10 @@ agentscope:
     sse-timeout: 300000
   a2a:
     server:
+      # AAF 默认走自有 A2A 引擎（见上方 aaf.a2a.engine=local），AgentScope A2A Server 默认关闭。
+      # 该 Server 依赖 ReActAgent Bean 派生 AgentRunner，仅在示例模块开启（dev profile）时才有，
+      # 否则 AgentRunner 缺失会导致 agentScopeA2aServer 装配失败、应用启动中止。
+      enabled: false
       card:
         name: AAF Supervisor Agent
         description: AAF 多智能体协作框架 - Supervisor Agent，支持日程管理等任务委托

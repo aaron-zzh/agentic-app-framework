@@ -57,7 +57,6 @@ public class SecurityConfig {
         "/api/hello",
         "/api/system/files/**",
         "/api/pay/orders/notify",
-        "/actuator/**",
         "/swagger-ui/**",
         "/swagger-ui.html",
         "/v3/api-docs/**",
@@ -170,6 +169,13 @@ public class SecurityConfig {
                         auth ->
                                 auth.requestMatchers(PUBLIC_PATHS)
                                         .permitAll()
+                                        // 健康探针保持公开，供容器/编排做存活与就绪检查
+                                        .requestMatchers("/actuator/health/**")
+                                        .permitAll()
+                                        // 其余 actuator 端点（info/prometheus/loggers 等）暴露
+                                        // 内存、流量、日志级别等敏感信息，必须管理员认证后访问
+                                        .requestMatchers("/actuator/**")
+                                        .hasRole("ADMIN")
                                         .anyRequest()
                                         .authenticated())
                 .oauth2ResourceServer(
