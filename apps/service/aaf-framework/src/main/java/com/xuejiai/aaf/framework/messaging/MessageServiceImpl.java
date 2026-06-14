@@ -1,11 +1,15 @@
 package com.xuejiai.aaf.framework.messaging;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+
+import com.xuejiai.aaf.framework.messaging.email.EmailSendEvent;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,16 +21,19 @@ public class MessageServiceImpl implements MessageService {
     private final Map<MessageChannel, ChannelSender> senderMap;
     private final MessageTemplateEngine templateEngine;
     private final MessageTemplateProvider templateProvider;
+    private final ApplicationEventPublisher eventPublisher;
 
     public MessageServiceImpl(
             List<ChannelSender> senders,
             MessageTemplateEngine templateEngine,
-            MessageTemplateProvider templateProvider) {
+            MessageTemplateProvider templateProvider,
+            ApplicationEventPublisher eventPublisher) {
         this.senderMap =
                 senders.stream()
                         .collect(Collectors.toMap(ChannelSender::channel, Function.identity()));
         this.templateEngine = templateEngine;
         this.templateProvider = templateProvider;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -45,12 +52,28 @@ public class MessageServiceImpl implements MessageService {
         if (sender == null) {
             throw new RuntimeException("不支持的消息渠道: " + request.channel());
         }
-        sender.send(request.recipients(), subject, content, request.variables());
-        log.info(
-                "消息发送成功: channel={}, template={}, recipients={}",
-                request.channel(),
-                templateInfo.code(),
-                request.recipients().size());
+
+        var sendTime = LocalDateTime.now();
+        String errorMessage = null;
+        boolean success = false;
+        try {
+            sender.send(request.recipients(), subject, content, request.variables());
+            success = true;
+        } catch (Exception e) {
+            errorMessage = e.getMessage();
+            throw e;
+        } finally {
+            // EMAIL 渠道发布事件供 EmailSendEventListener 写日志
+            if (request.channel() == MessageChannel.EMAIL) {
+                for (var recipient : request.recipients()) {
+                    eventPublisher.publishEvent(new EmailSendEvent(
+                            recipient, subject, content, success, sendTime, errorMessage,
+                            templateInfo.id()));
+                }
+            }
+        }
+        log.info("消息发送成功: channel={}, template={}, recipients={}",
+                request.channel(), templateInfo.code(), request.recipients().size());
     }
 
     @Override

@@ -89,6 +89,7 @@ public class MessageTemplateService implements MessageTemplateProvider {
                 .map(
                         t ->
                                 new MessageTemplateInfo(
+                                        t.getId(),
                                         t.getCode(),
                                         MessageChannel.valueOf(t.getChannel()),
                                         t.getSubject(),

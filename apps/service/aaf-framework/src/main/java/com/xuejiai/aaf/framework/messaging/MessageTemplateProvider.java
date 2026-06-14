@@ -10,5 +10,5 @@ public interface MessageTemplateProvider {
 
     /** 模板信息 */
     record MessageTemplateInfo(
-            String code, MessageChannel channel, String subject, String content) {}
+            Long id, String code, MessageChannel channel, String subject, String content) {}
 }
