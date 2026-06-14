@@ -252,7 +252,7 @@ export const aafLandingPageDef: PageDef = {
     {
       id: "divider-video",
       type: "divider",
-      props: { mode: "video", src: "/assets/videos/bg.mp4", height: "35vh", scrollHint: true }
+      props: { mode: "video", src: $url.cdn("/assets/videos/bg.mp4"), height: "35vh", scrollHint: true }
     },
 
     // ─── 用户评价 ──────────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ export const aafLandingPageDef: PageDef = {
             company: "某科技公司",
             quote:
               "AAF 让我们的 AI 应用开发周期缩短了 60%，多智能体协作和工作流引擎开箱即用，省去了大量底层建设。",
-            avatar: "/assets/avatar/avatar.png"
+            avatar: $url.cdn("/assets/avatar/avatar.png")
           },
           {
             author: "李同学",
@@ -277,7 +277,7 @@ export const aafLandingPageDef: PageDef = {
             company: "独立开发者",
             quote:
               "规范驱动开发的理念很先进，AI 和人类共享同一份真理源，协作效率极高，再也不用反复沟通需求了。",
-            avatar: "/assets/avatar/avatar.png"
+            avatar: $url.cdn("/assets/avatar/avatar.png")
           },
           {
             author: "王总",
@@ -285,7 +285,7 @@ export const aafLandingPageDef: PageDef = {
             company: "AI 创业公司",
             quote:
               "从知识库到多租户 RBAC 一应俱全，我们直接基于 AAF 搭建了企业级产品，节省了至少半年的研发时间。",
-            avatar: "/assets/avatar/avatar.png"
+            avatar: $url.cdn("/assets/avatar/avatar.png")
           }
         ]
       },
