@@ -53,7 +53,9 @@ export function TestimonialsSection({ data }: SectionComponentProps) {
               className="flex flex-col rounded-2xl bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
             >
               <Quote className="mb-4 size-6 text-primary/30" />
-              <p className="flex-1 text-sm leading-7 text-foreground/80">{item.quote ?? (item as never as { content: string }).content}</p>
+              <p className="flex-1 text-foreground/80 text-sm leading-7">
+                {item.quote ?? (item as never as { content: string }).content}
+              </p>
 
               <div className="mt-5 flex items-center gap-3 border-t pt-4">
                 <Avatar className="size-10 ring-2 ring-primary/10">

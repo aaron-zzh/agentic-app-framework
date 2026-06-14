@@ -3,7 +3,6 @@ package com.xuejiai.aaf.framework.intelligent.agent.trace;
 import java.time.Instant;
 
 import org.springframework.data.neo4j.core.schema.*;
-import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import lombok.Getter;
 import lombok.Setter;

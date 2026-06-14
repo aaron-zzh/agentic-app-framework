@@ -15,8 +15,8 @@ import { registerSectionType } from "../registry"
 import type { SectionComponentProps } from "../types"
 
 import { CTASection } from "./CTASection"
-import { FAQSection } from "./FAQSection"
 import { DividerSection } from "./DividerSection"
+import { FAQSection } from "./FAQSection"
 import { FeatureCardsSection } from "./FeatureCardsSection"
 import { FeaturesSection } from "./FeaturesSection"
 import { FooterSection } from "./FooterSection"
@@ -118,9 +118,9 @@ registerSectionType("logos", {
 // ─── 导出组件 ────────────────────────────────────────────────────────────────
 
 export { CTASection } from "./CTASection"
+export { DividerSection } from "./DividerSection"
 export { FAQSection } from "./FAQSection"
 export { FeatureCardsSection } from "./FeatureCardsSection"
-export { DividerSection } from "./DividerSection"
 export { FeaturesSection } from "./FeaturesSection"
 export { FooterSection } from "./FooterSection"
 export { HeroSection } from "./HeroSection"

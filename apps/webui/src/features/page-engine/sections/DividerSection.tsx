@@ -23,19 +23,17 @@ interface DividerProps {
 }
 
 export function DividerSection({ data }: SectionComponentProps) {
-  const { mode = "video", src = "/assets/videos/bg.mp4", height = "40vh", scrollHint } = data as DividerProps
+  const {
+    mode = "video",
+    src = "/assets/videos/bg.mp4",
+    height = "40vh",
+    scrollHint
+  } = data as DividerProps
 
   return (
     <div className="relative w-full overflow-hidden" style={{ height }}>
       {mode === "video" && (
-        <video
-          className="h-full w-full object-cover"
-          src={src}
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
+        <video className="h-full w-full object-cover" src={src} autoPlay muted loop playsInline />
       )}
       {mode === "waves" && <WavesScene />}
       {scrollHint && (

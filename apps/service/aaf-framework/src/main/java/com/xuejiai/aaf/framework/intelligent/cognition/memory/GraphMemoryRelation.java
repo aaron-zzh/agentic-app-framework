@@ -8,7 +8,6 @@ package com.xuejiai.aaf.framework.intelligent.cognition.memory;
 import java.time.Instant;
 
 import org.springframework.data.neo4j.core.schema.*;
-import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import lombok.Getter;
 import lombok.Setter;

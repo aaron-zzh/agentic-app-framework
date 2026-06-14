@@ -24,7 +24,10 @@ import me.chanjar.weixin.cp.config.impl.WxCpDefaultConfigImpl;
 @Configuration
 @EnableConfigurationProperties(WecomProperties.class)
 @ConditionalOnClass(WxCpService.class)
-@ConditionalOnProperty(prefix = "aaf.security.oauth.wecom", name = "corp-id", matchIfMissing = false)
+@ConditionalOnProperty(
+        prefix = "aaf.security.oauth.wecom",
+        name = "corp-id",
+        matchIfMissing = false)
 public class WecomAutoConfiguration {
 
     @Bean

@@ -7,8 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import com.xuejiai.aaf.common.enums.sys.ContactStatusEnum;
-import com.xuejiai.aaf.common.enums.sys.ContactTypeEnum;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.contact.domain.Contact;
 import com.xuejiai.aaf.module.system.contact.repository.ContactRepository;
@@ -89,10 +87,8 @@ public class ContactService
     protected Specification<Contact> buildSpec(ContactPageParam p) {
         return (root, query, cb) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-            if (p.getType() != null)
-                predicates.add(cb.equal(root.get("type"), p.getType()));
-            if (p.getStatus() != null)
-                predicates.add(cb.equal(root.get("status"), p.getStatus()));
+            if (p.getType() != null) predicates.add(cb.equal(root.get("type"), p.getType()));
+            if (p.getStatus() != null) predicates.add(cb.equal(root.get("status"), p.getStatus()));
             if (p.getParentId() != null)
                 predicates.add(cb.equal(root.get("parentId"), p.getParentId()));
             if (StringUtils.hasText(p.getKeyword()))

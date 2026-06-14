@@ -4,11 +4,8 @@ import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
-import com.xuejiai.aaf.module.system.contact.domain.Contact;
 import com.xuejiai.aaf.module.system.contact.domain.ContactIdentity;
 import com.xuejiai.aaf.module.system.contact.service.ContactIdentityService;
-import com.xuejiai.aaf.module.system.contact.service.ContactService;
-import com.xuejiai.aaf.module.system.contact.vo.ContactDTO;
 import com.xuejiai.aaf.module.system.contact.vo.ContactIdentityDTO;
 import com.xuejiai.aaf.module.system.contact.vo.ContactIdentityPageParam;
 import com.xuejiai.aaf.module.system.contact.vo.ContactIdentityVO;

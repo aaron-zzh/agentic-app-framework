@@ -103,11 +103,12 @@ public class ContactIdentityService
     public ContactIdentityVO upsert(ContactIdentityDTO dto) {
         return identityRepository
                 .findByChannelAndExternalIdAndCorpId(dto.channel(), dto.externalId(), dto.corpId())
-                .map(existing -> {
-                    existing.setDisplayName(dto.displayName());
-                    existing.setAvatarUrl(dto.avatarUrl());
-                    return toVO(identityRepository.save(existing));
-                })
+                .map(
+                        existing -> {
+                            existing.setDisplayName(dto.displayName());
+                            existing.setAvatarUrl(dto.avatarUrl());
+                            return toVO(identityRepository.save(existing));
+                        })
                 .orElseGet(() -> toVO(identityRepository.save(toEntity(dto))));
     }
 

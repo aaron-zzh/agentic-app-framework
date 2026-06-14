@@ -77,7 +77,12 @@ export default function RegisterPage() {
         </div>
 
         <Form methods={verifyMethods} onSubmit={onVerify}>
-          <FieldText name="code" label="验证码" placeholder="输入 6 位验证码" autoComplete="one-time-code" />
+          <FieldText
+            name="code"
+            label="验证码"
+            placeholder="输入 6 位验证码"
+            autoComplete="one-time-code"
+          />
           <Button type="submit" className="w-full" disabled={verifyMethods.formState.isSubmitting}>
             {verifyMethods.formState.isSubmitting ? "验证中..." : "验证并登录"}
           </Button>

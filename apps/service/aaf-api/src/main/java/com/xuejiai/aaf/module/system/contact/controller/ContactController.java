@@ -2,7 +2,6 @@ package com.xuejiai.aaf.module.system.contact.controller;
 
 import org.springframework.web.bind.annotation.*;
 
-import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.module.system.contact.domain.Contact;
 import com.xuejiai.aaf.module.system.contact.service.ContactService;

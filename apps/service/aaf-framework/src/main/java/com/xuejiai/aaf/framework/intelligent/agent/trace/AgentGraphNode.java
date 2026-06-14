@@ -16,7 +16,9 @@ import lombok.Setter;
 @Node("AgentNode")
 public class AgentGraphNode {
 
-    @Id @GeneratedValue(UUIDStringGenerator.class) private String id;
+    @Id
+    @GeneratedValue(UUIDStringGenerator.class)
+    private String id;
 
     private String agentId;
 

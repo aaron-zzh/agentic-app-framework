@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.system.contact.domain;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.enums.sys.ContactSourceEnum;
 import com.xuejiai.aaf.common.enums.sys.ContactStatusEnum;
@@ -14,9 +16,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /**
  * 联系人/伙伴。

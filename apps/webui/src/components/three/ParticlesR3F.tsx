@@ -239,7 +239,7 @@ export function ParticlesR3F({ bloom = false }: { bloom?: boolean }) {
         gl={{
           antialias: false,
           powerPreference: "high-performance",
-          alpha: false,
+          alpha: false
         }}
         dpr={[1, 2]}
       >

@@ -18,7 +18,7 @@ export function ScrollDownHint({ className }: ScrollDownHintProps) {
     >
       {/* 呼吸光晕 */}
       <motion.div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/15"
+        className="absolute top-1/2 left-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/15"
         animate={{ scale: [1, 1.9, 1], opacity: [0.4, 0, 0.4] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
       />

@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import com.xuejiai.aaf.common.enums.sys.ContactTypeEnum;
 import com.xuejiai.aaf.module.system.contact.domain.Contact;
 
-public interface ContactRepository extends JpaRepository<Contact, Long>, JpaSpecificationExecutor<Contact> {
+public interface ContactRepository
+        extends JpaRepository<Contact, Long>, JpaSpecificationExecutor<Contact> {
 
     List<Contact> findByType(ContactTypeEnum type);
 
