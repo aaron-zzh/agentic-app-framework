@@ -164,6 +164,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         user.setEmail("test@example.com");
         user.setPassword("encoded-password");
         user.setStatus(0);
+        user.setEmailVerified(true);
         return user;
     }
 }

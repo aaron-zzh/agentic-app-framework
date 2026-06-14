@@ -86,6 +86,25 @@ VALUES
      '["code","expireMinutes"]')
 ON CONFLICT (code) DO NOTHING;
 
+-- 钉钉渠道验证码模板（开发/测试环境调试用）
+INSERT INTO sys_message_template (code, name, channel, subject, content, variables)
+VALUES (
+    'AUTH_VERIFY_CODE_DINGTALK',
+    '认证验证码（钉钉）',
+    'DINGTALK',
+    '安全验证码',
+    '## 【${companyName}】安全验证码
+
+您正在进行账号验证，您的验证码为：
+
+# ${code}
+
+验证码 **${expireMinutes} 分钟**内有效，请勿泄露给他人。
+
+> 如非本人操作，请忽略此消息。',
+    '["code","type","expireMinutes","companyName"]'
+) ON CONFLICT (code) DO NOTHING;
+
 
 -- ==================== 初始管理员 ====================
 

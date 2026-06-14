@@ -69,6 +69,9 @@ public class AuthService {
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
 
+    @Value("${aaf.messaging.verify-code-channel:EMAIL}")
+    private String verifyCodeChannel;
+
     /** 获取当前登录用户 ID */
     public Long currentUserId() {
         return operatorContext.currentUserId().orElseThrow(() -> exception(AUTH_TOKEN_EXPIRED));
@@ -88,6 +91,9 @@ public class AuthService {
         if (!user.checkPassword(passwordEncoder, dto.password())) {
             handleLoginFail(user);
             throw exception(AUTH_LOGIN_BAD_CREDENTIALS);
+        }
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw exception(AUTH_EMAIL_NOT_VERIFIED);
         }
         user.recordLoginSuccess(null);
         userRepository.save(user);
@@ -453,25 +459,24 @@ public class AuthService {
                         Duration.ofMinutes(
                                 systemConfigService.getInteger("security.verify_code_expire", 5)));
         try {
+            var channel = MessageChannel.valueOf(verifyCodeChannel.toUpperCase());
+            // 钉钉渠道收件人用邮箱占位（实际推送到群机器人，recipients 字段忽略）
+            var recipients = List.of(email);
             messageService.send(
                     new MessageRequest(
-                            MessageChannel.EMAIL,
+                            channel,
                             "AUTH_VERIFY_CODE",
-                            List.of(email),
+                            recipients,
                             Map.of(
-                                    "code",
-                                    code,
-                                    "type",
-                                    type,
+                                    "code", code,
+                                    "type", type,
                                     "expireMinutes",
-                                    systemConfigService.getInteger(
-                                            "security.verify_code_expire", 5),
-                                    "companyName",
-                                    companyName),
+                                    systemConfigService.getInteger("security.verify_code_expire", 5),
+                                    "companyName", companyName),
                             "【" + companyName + "】安全验证码"));
         } catch (Exception e) {
-            // 邮件发送失败不阻断流程，验证码已存 Redis，开发环境可从日志获取
-            log.warn("验证码邮件发送失败，邮箱={}, 类型={}, 验证码={}", email, type, code, e);
+            // 发送失败不阻断流程，验证码已存 Redis，开发环境可从日志获取
+            log.warn("验证码发送失败，邮箱={}, 类型={}, 验证码={}", email, type, code, e);
         }
     }
 

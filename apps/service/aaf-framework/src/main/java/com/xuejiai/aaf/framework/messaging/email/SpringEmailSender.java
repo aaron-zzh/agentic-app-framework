@@ -1,34 +1,37 @@
 package com.xuejiai.aaf.framework.messaging.email;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.scheduling.annotation.Async;
 
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 基于 Spring Mail 的邮件发送器，异步发送。 */
+/** 基于 Spring Mail 的邮件发送器，发送后发布 EmailSendEvent 供业务层记录日志。 */
 @Slf4j
 @RequiredArgsConstructor
 public class SpringEmailSender implements EmailSender {
 
     private final JavaMailSender mailSender;
     private final EmailProperties properties;
+    private final ApplicationEventPublisher eventPublisher;
 
-    @Async
     @Override
     public void send(String to, String subject, String htmlContent) {
         sendWithAttachment(to, subject, htmlContent, List.of());
     }
 
-    @Async
     @Override
     public void sendWithAttachment(
             String to, String subject, String htmlContent, List<Attachment> attachments) {
+        var sendTime = LocalDateTime.now();
+        String errorMessage = null;
+        boolean success = false;
         try {
             var message = mailSender.createMimeMessage();
             var helper = new MimeMessageHelper(message, !attachments.isEmpty(), "UTF-8");
@@ -46,10 +49,15 @@ public class SpringEmailSender implements EmailSender {
                         attachment.contentType());
             }
             mailSender.send(message);
+            success = true;
             log.info("邮件发送成功: to={}, subject={}", to, subject);
         } catch (MessagingException e) {
+            errorMessage = e.getMessage();
             log.error("邮件发送失败: to={}, subject={}", to, subject, e);
             throw new RuntimeException("邮件发送失败", e);
+        } finally {
+            eventPublisher.publishEvent(
+                    new EmailSendEvent(to, subject, htmlContent, success, sendTime, errorMessage));
         }
     }
 }

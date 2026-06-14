@@ -31,11 +31,12 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public void send(MessageRequest request) {
-        var templateInfo =
-                templateProvider
-                        .findByCode(request.templateCode())
-                        .orElseThrow(
-                                () -> new RuntimeException("消息模板不存在: " + request.templateCode()));
+        // 优先查渠道专属模板（如 AUTH_VERIFY_CODE_DINGTALK），找不到 fallback 到通用模板
+        var templateCode = request.templateCode();
+        var channelSpecificCode = templateCode + "_" + request.channel().name();
+        var templateInfo = templateProvider.findByCode(channelSpecificCode)
+                .or(() -> templateProvider.findByCode(templateCode))
+                .orElseThrow(() -> new RuntimeException("消息模板不存在: " + templateCode));
 
         var content = templateEngine.render(templateInfo.content(), request.variables());
         var subject = request.subject() != null ? request.subject() : templateInfo.subject();
@@ -48,7 +49,7 @@ public class MessageServiceImpl implements MessageService {
         log.info(
                 "消息发送成功: channel={}, template={}, recipients={}",
                 request.channel(),
-                request.templateCode(),
+                templateInfo.code(),
                 request.recipients().size());
     }
 

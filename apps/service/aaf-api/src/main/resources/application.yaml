@@ -108,6 +108,8 @@ aaf:
     prompts:
       chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
   messaging:
+    # 验证码发送渠道：EMAIL（默认）/ DINGTALK（开发调试用，推到钉钉群机器人）/ SMS
+    verify-code-channel: ${VERIFY_CODE_CHANNEL:EMAIL}
     sms:
       provider: aliyun
       aliyun:
@@ -116,6 +118,9 @@ aaf:
         sign-name: ${SMS_SIGN_NAME:AAF}
     email:
       from: ${EMAIL_FROM:noreply@xuejiai.com}
+    dingtalk:
+      webhook-url: ${DINGTALK_WEBHOOK_URL:}
+      secret: ${DINGTALK_SECRET:}
   storage:
     type: local
     local:

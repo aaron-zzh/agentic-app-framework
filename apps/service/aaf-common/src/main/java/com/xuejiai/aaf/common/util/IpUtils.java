@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.common.util;
 
+import org.lionsoul.ip2region.xdb.LongByteArray;
 import org.lionsoul.ip2region.xdb.Searcher;
+import org.lionsoul.ip2region.xdb.Version;
 
 import com.xuejiai.aaf.common.util.area.Area;
 import com.xuejiai.aaf.common.util.area.AreaUtils;
@@ -26,10 +28,12 @@ public class IpUtils {
     private static void init() {
         try {
             long start = System.currentTimeMillis();
-            var url = IpUtils.class.getClassLoader().getResource("ip2region_v4.xdb");
-            if (url == null) throw new IllegalStateException("ip2region_v4.xdb 未找到");
-            var cBuff = Searcher.loadContentFromFile(url.getPath());
-            SEARCHER = Searcher.newWithBuffer(org.lionsoul.ip2region.xdb.Version.IPv4, cBuff);
+            try (var is = IpUtils.class.getClassLoader().getResourceAsStream("ip2region_v4.xdb")) {
+                if (is == null) throw new IllegalStateException("ip2region_v4.xdb 未找到");
+                var buf = new LongByteArray();
+                buf.append(is.readAllBytes());
+                SEARCHER = Searcher.newWithBuffer(Version.IPv4, buf);
+            }
             log.info("IpUtils 初始化完成，耗时 {} ms", System.currentTimeMillis() - start);
         } catch (Exception e) {
             throw new RuntimeException("IpUtils 初始化失败", e);

@@ -7,5 +7,7 @@ public enum MessageChannel {
     /** 邮件 */
     EMAIL,
     /** 站内信 */
-    INTERNAL
+    INTERNAL,
+    /** 钉钉机器人 */
+    DINGTALK
 }
