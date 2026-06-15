@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { buildSseUrl } from "@/lib/api/config"
-import { useAuthStore } from "@/lib/store/auth-store"
 import type { ExecutionState } from "../types"
 
 /** 节点执行日志条目 */
@@ -48,10 +47,7 @@ export function useExecutionState(processInstanceId?: string) {
 
     reset()
     const source = new EventSource(
-      buildSseUrl(
-        `/flows/${processInstanceId}/execution-events`,
-        useAuthStore.getState().accessToken
-      )
+      buildSseUrl(`/flows/${processInstanceId}/execution-events`)
     )
 
     source.onmessage = (event) => {

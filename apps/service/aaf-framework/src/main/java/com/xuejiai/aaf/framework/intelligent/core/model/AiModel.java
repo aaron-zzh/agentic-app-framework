@@ -10,10 +10,8 @@ import java.math.BigDecimal;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageConfig;
 
 import jakarta.persistence.*;
@@ -124,7 +122,7 @@ public class AiModel extends BaseEntity {
     /** 阶梯计费配置 */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "step_ratios", columnDefinition = "jsonb")
-    private JsonNode stepRatios;
+    private String stepRatios;
 
     /** 第三方文档标签 */
     @Column(length = 200)
@@ -137,7 +135,7 @@ public class AiModel extends BaseEntity {
     /** 支持的接口类型 */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "supported_endpoints", columnDefinition = "jsonb")
-    private JsonNode supportedEndpoints;
+    private String supportedEndpoints;
 
     /** 配额类型 */
     private Short quotaType = 0;
@@ -149,7 +147,7 @@ public class AiModel extends BaseEntity {
     /** 启用分组 */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "enable_groups", columnDefinition = "jsonb")
-    private JsonNode enableGroups;
+    private String enableGroups;
 
     /** 来源侧供应商 ID */
     private Long vendorId;
@@ -172,7 +170,7 @@ public class AiModel extends BaseEntity {
     /** 官方定价参考 */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "official_price", columnDefinition = "jsonb")
-    private JsonNode officialPrice;
+    private String officialPrice;
 
     /** 是否启用 */
     @Column(nullable = false)
@@ -208,7 +206,7 @@ public class AiModel extends BaseEntity {
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "image_config", columnDefinition = "jsonb")
-    private JsonNode imageConfig;
+    private String imageConfig;
 
     /** 是否支持指定能力 */
     public boolean hasCapability(String capability) {
@@ -244,12 +242,7 @@ public class AiModel extends BaseEntity {
 
     /** 解析 imageConfig JSONB 为 {@link ImageConfig}，字段为空或解析失败返回 null。 */
     public ImageConfig getImageConfigParsed() {
-        if (imageConfig == null || imageConfig.isNull()) return null;
-        try {
-            return new ObjectMapper().treeToValue(imageConfig, ImageConfig.class);
-        } catch (Exception e) {
-            return null;
-        }
+        return JsonUtils.parseObjectQuietly(imageConfig, ImageConfig.class);
     }
 
     private boolean hasText(String value) {

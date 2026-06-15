@@ -36,6 +36,6 @@ export interface TaskBoardEvent {
 }
 
 /** 获取 TaskBoard SSE 订阅 URL */
-export function getTaskBoardSSEUrl(sessionId: string, token: string | null): string {
-  return buildSseUrl(`/chat/sessions/${sessionId}/tasks`, token)
+export function getTaskBoardSSEUrl(sessionId: string): string {
+  return buildSseUrl(`/chat/sessions/${sessionId}/tasks`)
 }

@@ -252,7 +252,12 @@ export const aafLandingPageDef: PageDef = {
     {
       id: "divider-video",
       type: "divider",
-      props: { mode: "video", src: $url.cdn("/assets/videos/bg.mp4"), height: "35vh", scrollHint: true }
+      props: {
+        mode: "video",
+        src: $url.cdn("/assets/videos/bg.mp4"),
+        height: "35vh",
+        scrollHint: true
+      }
     },
 
     // ─── 用户评价 ──────────────────────────────────────────────────────────────

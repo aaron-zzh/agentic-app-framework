@@ -101,6 +101,10 @@ export function AigcView() {
       failPendingTask(task.id, task.errorMsg ?? "生成失败")
       toast.error(task.errorMsg ?? "生成失败")
       setTimeout(() => removePendingTask(task.id), 3000)
+    },
+    onReconnect: () => {
+      // SSE 断连重连后，补查断连期间可能丢失的任务结果
+      queryClient.invalidateQueries({ queryKey: ["media-assets"] })
     }
   })
 

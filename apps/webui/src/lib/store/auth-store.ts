@@ -35,18 +35,6 @@ interface AuthState {
   clearAuth: () => void
 }
 
-/** 同步写入 cookie（非 httpOnly，仅供 middleware 判断登录状态） */
-function syncTokenCookie(token: string | null) {
-  if (typeof document === "undefined") return
-  if (token) {
-    // biome-ignore lint/suspicious/noDocumentCookie: 需要直接操作 cookie 同步认证状态
-    document.cookie = `aaf-token=${token}; path=/; max-age=604800; SameSite=Lax`
-  } else {
-    // biome-ignore lint/suspicious/noDocumentCookie: 需要直接操作 cookie 清除认证
-    document.cookie = "aaf-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-  }
-}
-
 interface TokenPair {
   accessToken: string
   refreshToken: string
@@ -64,7 +52,6 @@ export const useAuthStore = create<AuthState>()(
       setChecking: (isChecking) => set({ isChecking }),
 
       setTokens: (accessToken, refreshToken) => {
-        syncTokenCookie(accessToken)
         setAxiosAuth(accessToken)
         set({ accessToken, refreshToken, isAuthenticated: true })
       },
@@ -72,7 +59,6 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
 
       clearAuth: () => {
-        syncTokenCookie(null)
         clearAxiosAuth()
         set({
           accessToken: null,

@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -22,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class AigcTaskEventService {
 
-    private static final long SSE_TIMEOUT = 10 * 60 * 1000L;
+    private static final long SSE_TIMEOUT = -1L; // 永不超时，由心跳保活
 
     /** userId → 订阅者连接集合 */
     private final Map<Long, Set<SseEmitter>> subscribers = new ConcurrentHashMap<>();
@@ -78,5 +79,19 @@ public class AigcTaskEventService {
             set.remove(emitter);
             if (set.isEmpty()) subscribers.remove(userId);
         }
+    }
+
+    /** 每 15 秒向所有活跃连接发送心跳，防止 ESA/CDN 30 秒无数据断连 */
+    @Scheduled(fixedDelay = 15000)
+    public void heartbeat() {
+        subscribers.forEach((userId, emitters) -> {
+            for (var emitter : emitters) {
+                try {
+                    emitter.send(SseEmitter.event().name("heartbeat").data("ping"));
+                } catch (Exception e) {
+                    removeEmitter(userId, emitter);
+                }
+            }
+        });
     }
 }

@@ -186,8 +186,8 @@ public class SecurityConfig {
                                                         jwtAuthenticationConverter)))
                 .addFilterBefore(
                         sseTokenFilter,
-                        org.springframework.security.web.authentication
-                                .UsernamePasswordAuthenticationFilter.class)
+                        org.springframework.security.oauth2.server.resource.web.authentication
+                                .BearerTokenAuthenticationFilter.class)
                 .addFilterBefore(
                         apiKeyAuthFilter,
                         org.springframework.security.web.authentication

@@ -109,7 +109,12 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
                 log.debug("[GeminiNative] {} body: {}", op, redactForLog(body));
             }
             var response =
-                    RestClient.create()
+                    RestClient.builder()
+                            .requestFactory(new org.springframework.http.client.SimpleClientHttpRequestFactory() {{
+                                setConnectTimeout(10_000);
+                                setReadTimeout(0); // 不限读超时，等待 Gemini 返回
+                            }})
+                            .build()
                             .post()
                             .uri(buildGeminiUrl(baseUrl, modelName))
                             .header("x-goog-api-key", apiKey)

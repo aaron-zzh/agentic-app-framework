@@ -96,7 +96,8 @@ public class TwoLevelCache<K, V> {
                 return jsonMapper.readValue(json, type);
             }
         } catch (Exception e) {
-            log.warn("Redis 缓存读取失败: cache={}, key={}", name, key, e);
+            log.warn("Redis 缓存读取失败，清除脏数据回源: cache={}, key={}", name, key);
+            redisTemplate.delete(redisKey(key));
         }
         return null;
     }

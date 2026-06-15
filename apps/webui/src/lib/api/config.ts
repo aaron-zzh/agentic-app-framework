@@ -39,14 +39,11 @@ export function buildWsUrl(path: string): string {
 }
 
 /**
- * 构建 SSE 地址并附加 token query param。
+ * 构建 SSE 地址。
  *
- * 浏览器原生 EventSource 不支持自定义 header，通过 ?token= 传递 JWT，
- * 后端 SseTokenFilter 负责读取并注入 Authorization header。
+ * 浏览器 EventSource 会自动携带同域 Cookie（withCredentials=true），
+ * 后端 SseTokenFilter 从 aaf-token Cookie 读取 JWT 认证。
  */
-export function buildSseUrl(path: string, token: string | null): string {
-  const base = buildApiUrl(path)
-  if (!token) return base
-  const sep = base.includes("?") ? "&" : "?"
-  return `${base}${sep}token=${encodeURIComponent(token)}`
+export function buildSseUrl(path: string, token?: string | null): string {
+  return buildApiUrl(path)
 }

@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
@@ -92,6 +92,7 @@ public class AgentScopeRuntime implements AgentRuntime {
     private final AafToolPermissionHook aafToolPermissionHook;
     private final MemoryContextHook memoryContextHook;
     private final McpToolService mcpToolService;
+    private final JsonMapper objectMapper;
     private final AiModelRepository modelRepository;
     private final CapabilityRouter capabilityRouter;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
@@ -241,7 +242,7 @@ public class AgentScopeRuntime implements AgentRuntime {
         var json = definition.getMemoryConfig();
         if (json == null || json.isBlank()) return; // 无配置 = FUSION（默认行为，MemoryContextHook 处理）
         try {
-            var node = new ObjectMapper().readTree(json);
+            var node = objectMapper.readTree(json);
             if (!node.has("ragMode")) return;
             var mode = node.get("ragMode").asText().toUpperCase();
             var limit = node.has("ragLimit") ? node.get("ragLimit").asInt() : 3;
@@ -278,7 +279,7 @@ public class AgentScopeRuntime implements AgentRuntime {
                         .minConsecutiveToolMessages(6);
         if (json != null && !json.isBlank()) {
             try {
-                var node = new ObjectMapper().readTree(json);
+                var node = objectMapper.readTree(json);
                 if (node.has("maxToken")) b.maxToken(node.get("maxToken").asInt());
                 if (node.has("msgThreshold")) b.msgThreshold(node.get("msgThreshold").asInt());
                 if (node.has("lastKeep")) b.lastKeep(node.get("lastKeep").asInt());

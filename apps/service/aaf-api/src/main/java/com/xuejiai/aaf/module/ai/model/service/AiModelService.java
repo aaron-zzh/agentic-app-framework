@@ -449,8 +449,13 @@ public class AiModelService {
         return null;
     }
 
-    private JsonNode copy(JsonNode node) {
-        return node == null || node.isNull() ? null : node.deepCopy();
+    private String copy(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        try {
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String text(JsonNode node, String fieldName) {

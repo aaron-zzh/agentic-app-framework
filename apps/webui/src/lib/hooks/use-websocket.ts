@@ -31,7 +31,7 @@ const RECONNECT_BASE = 1000
 /** 重连最大延迟（ms） */
 const RECONNECT_MAX = 30000
 /** 心跳间隔（ms） */
-const HEARTBEAT_INTERVAL = 30000
+const HEARTBEAT_INTERVAL = 15000
 
 /** 默认最大重连次数 */
 const MAX_RETRIES_DEFAULT = 10

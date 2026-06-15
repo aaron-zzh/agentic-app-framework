@@ -28,13 +28,16 @@ public class SseTokenFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
+        // 优先从 query param 读（兼容旧路径），其次从 Cookie 读（推荐，CDN 友好）
         String token = request.getParameter("token");
+        if (token == null || token.isBlank()) {
+            token = extractFromCookie(request, "aaf-token");
+        }
+
         if (StringUtils.hasText(token)) {
-            // SSE via EventSource 不支持自定义 header，通过 query param 传 JWT
             if (request.getHeader("Authorization") == null) {
                 request = new BearerTokenRequestWrapper(request, token);
             }
-            // 确保 SSE 响应携带 CORS header（认证失败时 Spring Security 不自动添加）
             String origin = request.getHeader("Origin");
             if (StringUtils.hasText(origin)
                     && !response.containsHeader("Access-Control-Allow-Origin")) {
@@ -43,6 +46,14 @@ public class SseTokenFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    private String extractFromCookie(HttpServletRequest request, String name) {
+        if (request.getCookies() == null) return null;
+        for (var cookie : request.getCookies()) {
+            if (name.equals(cookie.getName())) return cookie.getValue();
+        }
+        return null;
     }
 
     /** 包装请求，注入 Bearer Token 到 Authorization header。 */

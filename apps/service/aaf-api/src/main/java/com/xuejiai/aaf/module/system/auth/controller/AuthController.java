@@ -1,9 +1,11 @@
 package com.xuejiai.aaf.module.system.auth.controller;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +20,7 @@ import com.xuejiai.aaf.module.system.user.vo.UserVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 /**
@@ -34,6 +37,7 @@ public class AuthController {
     private final UserService userService;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
+    private final Environment environment;
 
     @Value("${aaf.app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
@@ -42,11 +46,13 @@ public class AuthController {
             AuthService authService,
             UserService userService,
             UserRoleRepository userRoleRepository,
-            RoleRepository roleRepository) {
+            RoleRepository roleRepository,
+            Environment environment) {
         this.authService = authService;
         this.userService = userService;
         this.userRoleRepository = userRoleRepository;
         this.roleRepository = roleRepository;
+        this.environment = environment;
     }
 
     /** 当前用户信息（含角色 code 列表） */
@@ -54,7 +60,8 @@ public class AuthController {
 
     @Operation(summary = "获取当前登录用户信息")
     @GetMapping("/me")
-    public Result<MeVO> me() {
+    public Result<MeVO> me(jakarta.servlet.http.HttpServletRequest request,
+                           HttpServletResponse response) {
         Long userId = authService.currentUserId();
         var userVO = userService.getById(userId);
         var roleIds =
@@ -67,6 +74,11 @@ public class AuthController {
                         : roleRepository.findAllById(roleIds).stream()
                                 .map(r -> r.getCode())
                                 .toList();
+        // 顺带刷新 HttpOnly Cookie，确保切换页面时 SSE 能用 Cookie 认证
+        String auth = request.getHeader("Authorization");
+        if (auth != null && auth.startsWith("Bearer ")) {
+            writeTokenCookie(response, auth.substring(7));
+        }
         return Result.success(new MeVO(userVO, roles));
     }
 
@@ -74,8 +86,11 @@ public class AuthController {
     @PostMapping("/login")
     public Result<AuthLoginVO> login(
             @Valid @RequestBody AuthLoginDTO dto,
-            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId) {
-        return Result.success(authService.login(dto, deviceId));
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            HttpServletResponse response) {
+        var vo = authService.login(dto, deviceId);
+        writeTokenCookie(response, vo.accessToken());
+        return Result.success(vo);
     }
 
     @Operation(summary = "邮箱注册")
@@ -94,17 +109,22 @@ public class AuthController {
             @Valid @RequestBody RegisterByCodeDTO dto,
             @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
             @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
-            jakarta.servlet.http.HttpServletRequest request) {
-        return Result.success(
-                authService.registerByCode(dto, deviceId, sourceApp, getClientIp(request)));
+            jakarta.servlet.http.HttpServletRequest request,
+            HttpServletResponse response) {
+        var vo = authService.registerByCode(dto, deviceId, sourceApp, getClientIp(request));
+        writeTokenCookie(response, vo.accessToken());
+        return Result.success(vo);
     }
 
     @Operation(summary = "验证邮箱")
     @PostMapping("/verify-email")
     public Result<AuthLoginVO> verifyEmail(
             @Valid @RequestBody VerifyEmailDTO dto,
-            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId) {
-        return Result.success(authService.verifyEmail(dto, deviceId));
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            HttpServletResponse response) {
+        var vo = authService.verifyEmail(dto, deviceId);
+        writeTokenCookie(response, vo.accessToken());
+        return Result.success(vo);
     }
 
     @Operation(summary = "发送验证码")
@@ -118,8 +138,11 @@ public class AuthController {
     @PostMapping("/login-by-code")
     public Result<AuthLoginVO> loginByCode(
             @Valid @RequestBody LoginByCodeDTO dto,
-            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId) {
-        return Result.success(authService.loginByCode(dto, deviceId));
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            HttpServletResponse response) {
+        var vo = authService.loginByCode(dto, deviceId);
+        writeTokenCookie(response, vo.accessToken());
+        return Result.success(vo);
     }
 
     @Operation(summary = "忘记密码")
@@ -133,16 +156,21 @@ public class AuthController {
     @PostMapping("/refresh")
     public Result<AuthLoginVO> refresh(
             @RequestBody RefreshRequest request,
-            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId) {
-        return Result.success(authService.refresh(request.refreshToken(), deviceId));
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            HttpServletResponse response) {
+        var vo = authService.refresh(request.refreshToken(), deviceId);
+        writeTokenCookie(response, vo.accessToken());
+        return Result.success(vo);
     }
 
     @Operation(summary = "登出")
     @PostMapping("/logout")
     public Result<Void> logout(
             @RequestBody LogoutRequest request,
-            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId) {
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            HttpServletResponse response) {
         authService.logout(request.accessToken(), request.refreshToken(), deviceId);
+        clearTokenCookie(response);
         return Result.success();
     }
 
@@ -232,5 +260,20 @@ public class AuthController {
         String xri = request.getHeader("X-Real-IP");
         if (xri != null && !xri.isBlank()) return xri.trim();
         return request.getRemoteAddr();
+    }
+
+    /** 写入 HttpOnly aaf-token Cookie，生产加 Secure，开发用 SameSite=Lax 支持 localhost */
+    private void writeTokenCookie(HttpServletResponse response, String token) {
+        boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        String cookie = isProd
+                ? "aaf-token=" + token + "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800"
+                : "aaf-token=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800";
+        response.addHeader("Set-Cookie", cookie);
+    }
+
+    /** 登出时清除 aaf-token Cookie */
+    private void clearTokenCookie(HttpServletResponse response) {
+        response.addHeader("Set-Cookie",
+                "aaf-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
     }
 }
