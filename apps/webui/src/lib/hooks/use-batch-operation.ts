@@ -66,7 +66,7 @@ export function useBatchOperation(entity: EntityDef, options?: BatchOperationOpt
       if (cancelledRef.current) return
 
       try {
-        const res = await fetch(`/api/tasks/${taskId}/progress`)
+        const res = await fetch(`/api/memory-tasks/${taskId}/progress`)
         const json = await res.json()
         const data = json.data ?? {}
 
@@ -157,7 +157,7 @@ export function useBatchOperation(entity: EntityDef, options?: BatchOperationOpt
     // 从最新 progress 中获取 taskId（通过 setState 回调读取）
     setProgress((p) => {
       if (p.taskId) {
-        fetch(`/api/tasks/${p.taskId}/cancel`, { method: "POST" }).catch(() => {})
+        fetch(`/api/memory-tasks/${p.taskId}/cancel`, { method: "POST" }).catch(() => {})
       }
       return { ...p, status: "cancelled" }
     })

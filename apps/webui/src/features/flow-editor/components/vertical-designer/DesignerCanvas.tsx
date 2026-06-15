@@ -1,6 +1,6 @@
 /**
  * 竖向设计器——画布容器（节点链递归渲染 + 添加按钮 + 条件分支）
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

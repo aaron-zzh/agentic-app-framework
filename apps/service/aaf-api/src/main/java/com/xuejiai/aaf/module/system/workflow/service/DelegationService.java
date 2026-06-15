@@ -3,8 +3,6 @@ package com.xuejiai.aaf.module.system.workflow.service;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-import org.flowable.engine.TaskService;
-import org.flowable.task.api.Task;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -14,6 +12,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.module.system.workflow.domain.Delegation;
 import com.xuejiai.aaf.module.system.workflow.repository.DelegationRepository;
 import com.xuejiai.aaf.module.system.workflow.vo.DelegationCreateDTO;
@@ -33,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class DelegationService {
 
     private final DelegationRepository delegationRepository;
-    private final TaskService taskService;
+    private final WorkflowEngine workflowEngine;
 
     /** 创建委托 */
     @Transactional
@@ -87,11 +86,7 @@ public class DelegationService {
     /** 单次转交任务 */
     @Transactional
     public void transfer(WorkflowTransferDTO dto) {
-        Task task = taskService.createTaskQuery().taskId(dto.taskId()).singleResult();
-        if (task == null) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "任务不存在");
-        }
-        taskService.setAssignee(dto.taskId(), dto.targetUserId().toString());
+        workflowEngine.reassignTask(dto.taskId(), dto.targetUserId().toString());
     }
 
     private DelegationVO toVO(Delegation d) {

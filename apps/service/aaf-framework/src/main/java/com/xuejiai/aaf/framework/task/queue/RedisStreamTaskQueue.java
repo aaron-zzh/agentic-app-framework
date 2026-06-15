@@ -17,6 +17,24 @@ import lombok.extern.slf4j.Slf4j;
  * 基于 Redis Stream 的任务队列实现。
  *
  * <p>优先级通过多个 Stream 实现：task_queue:high（0-2）/ task_queue:normal（3-6）/ task_queue:low（7-9）。
+ *
+ * <h3>适用场景</h3>
+ *
+ * <ul>
+ *   <li>生产者-消费者解耦，削峰填谷
+ *   <li>需要优先级调度（高/普通/低）
+ *   <li>需要延迟执行（{@code enqueueWithDelay}）
+ *   <li>需要自动重试和死信队列兜底
+ *   <li>典型：AIGC 图片/视频批量生成、邮件批量发送
+ * </ul>
+ *
+ * <h3>不适用场景</h3>
+ *
+ * <ul>
+ *   <li>需要前端实时进度条 → 用 AsyncTaskService（内存异步）
+ *   <li>需要 cron 定时触发 → 用 ScheduledTaskService
+ *   <li>需要人工介入、流程审批 → 用 Flowable 工作流
+ * </ul>
  */
 @Slf4j
 @Component

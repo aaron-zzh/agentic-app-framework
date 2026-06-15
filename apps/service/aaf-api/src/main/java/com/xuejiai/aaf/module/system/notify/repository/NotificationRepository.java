@@ -22,4 +22,8 @@ public interface NotificationRepository
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.id IN :ids AND n.userId = :userId")
     int markAsRead(List<Long> ids, Long userId);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.userId = :userId")
+    int markAllAsRead(Long userId);
 }

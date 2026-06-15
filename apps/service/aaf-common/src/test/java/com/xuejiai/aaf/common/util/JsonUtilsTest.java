@@ -12,7 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * JsonUtils 单元测试。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 class JsonUtilsTest {
 
@@ -53,7 +53,9 @@ class JsonUtilsTest {
 
     @Test
     void parseArray_正常反序列化() {
-        var list = JsonUtils.parseArray("[{\"name\":\"A\",\"age\":1},{\"name\":\"B\",\"age\":2}]", Person.class);
+        var list =
+                JsonUtils.parseArray(
+                        "[{\"name\":\"A\",\"age\":1},{\"name\":\"B\",\"age\":2}]", Person.class);
         assertThat(list).hasSize(2);
         assertThat(list.get(0).name()).isEqualTo("A");
     }

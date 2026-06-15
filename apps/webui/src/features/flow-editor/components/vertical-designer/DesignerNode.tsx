@@ -1,6 +1,6 @@
 /**
  * 竖向设计器——单个节点卡片渲染
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

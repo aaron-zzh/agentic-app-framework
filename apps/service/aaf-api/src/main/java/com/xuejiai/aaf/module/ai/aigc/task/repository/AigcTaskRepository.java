@@ -14,7 +14,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 /**
  * AIGC 统一任务 Repository。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 public interface AigcTaskRepository
         extends JpaRepository<AigcTask, Long>, JpaSpecificationExecutor<AigcTask> {

@@ -42,6 +42,8 @@ logging:
     org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
 
 aaf:
+  demo:
+    enabled: true  # dev 环境开启演示模式，暴露 /api/system/demo/load 和 /clean
   flyway:
     clean-on-start: true # ⚠️ 仅 dev：启动时清库重建
   pay:

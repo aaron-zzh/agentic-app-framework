@@ -14,7 +14,7 @@ import { NotificationIcon } from "./icons"
 
 interface Props {
   notification: NotificationItemType
-  onRead?: (id: string) => void
+  onRead?: (id: number) => void
 }
 
 /** 按通知类型决定 action 标签 */
@@ -42,13 +42,13 @@ export function NotificationItem({ notification, onRead }: Props) {
     <div className="flex w-full gap-3 px-4 py-3 text-left hover:bg-accent/50">
       <NotificationIcon type={notification.type} />
       <div className="min-w-0 flex-1">
-        <p className={cn("text-sm", !notification.read && "font-medium")}>{notification.title}</p>
+        <p className={cn("text-sm", !notification.isRead && "font-medium")}>{notification.title}</p>
         {notification.body && (
           <p className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{notification.body}</p>
         )}
         <div className="mt-1 flex items-center gap-3">
           <span className="text-muted-foreground text-xs">
-            {formatTimeAgo(notification.createdAt)}
+            {formatTimeAgo(notification.createTime)}
           </span>
           {notification.relatedUrl && (
             <span className="flex items-center gap-0.5 text-primary text-xs hover:underline">
@@ -58,13 +58,13 @@ export function NotificationItem({ notification, onRead }: Props) {
           )}
         </div>
       </div>
-      {!notification.read && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
+      {!notification.isRead && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
     </div>
   )
 
   return (
     <li
-      className={cn("border-b border-dashed last:border-0", !notification.read && "bg-primary/5")}
+      className={cn("border-b border-dashed last:border-0", !notification.isRead && "bg-primary/5")}
     >
       {notification.relatedUrl ? (
         <Link href={notification.relatedUrl} onClick={handleClick} className="block">

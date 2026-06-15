@@ -163,77 +163,51 @@ INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visib
 (NULL, '系统',      NULL, NULL, 99, 'GROUP', true)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '工作台', '/dashboard', 'layout-dashboard', 0, 'MENU', true FROM sys_menu WHERE title = '概览' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '积分统计', '/admin/credits-analytics', 'bar-chart-2', 0, 'MENU', true FROM sys_menu WHERE title = '概览' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '开发示例', '/examples', 'file-text', 0, 'MENU', true FROM sys_menu WHERE title = '概览' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '创作项目', '/aigc', 'sparkles', 0, 'MENU', true FROM sys_menu WHERE title = 'AI 创作' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '素材库', '/aigc/assets', 'image', 1, 'MENU', true FROM sys_menu WHERE title = 'AI 创作' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '文档管理', '/dev/docs', 'file-text', 0, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '开发日志', '/dev/log', 'scroll-text', 1, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '代码审查', '/dev/review', 'git-pull-request', 2, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '迭代统计', '/dev/stats', 'bar-chart-3', 3, 'MENU', false FROM sys_menu WHERE title = '开发工具' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '回收站', '/trash', 'trash-2', 1, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT id, '设置', '/settings', 'settings', 2, 'MENU', true FROM sys_menu WHERE title = '系统' AND parent_id IS NULL
-ON CONFLICT DO NOTHING;
-
--- 补充所有有前端视图的菜单项（幂等）
+-- 所有菜单子项（幂等，按 path 去重）
 WITH all_groups AS (
   SELECT id, title FROM sys_menu
-  WHERE title IN ('AI 创作', '知识库', 'AI 助手', '会员中心', '管理', '系统')
-    AND parent_id IS NULL AND deleted = false
+  WHERE parent_id IS NULL AND deleted = false
 ),
-items (group_title, title, path, icon, sort_order) AS (
+items (group_title, title, path, icon, sort_order, visible) AS (
   VALUES
-    ('AI 创作',   'AIGC 任务',   '/module/aigc-task',           'wand-2',        2),
-    ('知识库',    '知识库',       '/knowledge',                  'database',      0),
-    -- ('知识库','文档',         '/docs',                       'file-text',     1),
-    -- ('知识库','审批流',       '/workflow',                   'git-branch',    2),
-    -- ('AI 助手',  'AI 对话',      '/ai/chat',                    'message-square',0),
-    -- ('AI 助手',  '智能体',       '/ai/agents',                  'bot',           1),
-    ('会员中心', '积分流水',     '/module/wallet-transaction',  'receipt',       1),
-    ('会员中心', '订阅套餐',     '/module/subscription-plan',   'credit-card',   2),
-    ('会员中心', '用户订阅',     '/module/subscription',        'badge-check',   3),
-    ('管理',     'AI 模型',     '/system/model',                'cpu',        0),
-    ('管理',     '兑换码',   '/module/credit-redeem-code',     'ticket',        1),
-    -- ('管理',     '实体管理',     '/admin/entities',             'layers',        3),
-    -- ('管理',     '审计日志',     '/admin/audit-log',            'shield-check',  4),
-    ('系统',     '计划任务',     '/admin/scheduled-tasks',      'clock',         3),
-    ('系统',     '菜单管理',     '/admin/menus',                'menu',          4),
-    ('管理',     '待办管理',     '/todos',                      'check-square',  4)
+    -- 概览
+    ('概览',     '工作台',     '/dashboard',                  'layout-dashboard',  0,  true),
+    ('概览',     '积分统计',   '/admin/credits-analytics',    'bar-chart-2',       1,  true),
+    ('概览',     '开发示例',   '/examples',                   'file-text',         2,  true),
+    -- AI 创作
+    ('AI 创作',  '创作项目',   '/aigc',                       'sparkles',          0,  true),
+    ('AI 创作',  '素材库',     '/aigc/assets',                'image',             1,  true),
+    ('AI 创作',  'AIGC 任务',  '/module/aigc-task',           'wand-2',            2,  true),
+    -- 知识库
+    ('知识库',   '知识库',     '/knowledge',                  'database',          0,  true),
+    -- 会员中心
+    ('会员中心', '积分流水',   '/module/wallet-transaction',  'receipt',           1,  true),
+    ('会员中心', '订阅套餐',   '/module/subscription-plan',   'credit-card',       2,  true),
+    ('会员中心', '用户订阅',   '/module/subscription',        'badge-check',       3,  true),
+    -- 管理
+    ('管理',     'AI 模型',    '/system/model',               'cpu',               0,  true),
+    ('管理',     '兑换码',     '/module/credit-redeem-code',  'ticket',            1,  true),
+    ('管理',     '待办管理',   '/todos',                      'check-square',      4,  true),
+    -- 系统
+    ('系统',     '回收站',     '/trash',                      'trash-2',           1,  true),
+    ('系统',     '设置',       '/settings',                   'settings',          2,  true),
+    ('系统',     '计划任务',   '/admin/scheduled-tasks',      'clock',             3,  true),
+    ('系统',     '菜单管理',   '/admin/menus',                'menu',              4,  true),
+    -- 开发工具（隐藏）
+    ('开发工具', '文档管理',   '/dev/docs',                   'file-text',         0,  false),
+    ('开发工具', '开发日志',   '/dev/log',                    'scroll-text',       1,  false),
+    ('开发工具', '代码审查',   '/dev/review',                 'git-pull-request',  2,  false),
+    ('开发工具', '迭代统计',   '/dev/stats',                  'bar-chart-3',       3,  false)
+    -- 待启用
+    -- ('知识库',   '文档',       '/docs',                       'file-text',         1,  true),
+    -- ('知识库',   '审批流',     '/workflow',                   'git-branch',        2,  true),
+    -- ('AI 助手',  'AI 对话',    '/ai/chat',                    'message-square',    0,  true),
+    -- ('AI 助手',  '智能体',     '/ai/agents',                  'bot',               1,  true),
+    -- ('管理',     '实体管理',   '/admin/entities',             'layers',            3,  true),
+    -- ('管理',     '审计日志',   '/admin/audit-log',            'shield-check',      4,  true)
 )
 INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT DISTINCT ON (i.path) g.id, i.title, i.path, i.icon, i.sort_order, 'MENU', true
+SELECT DISTINCT ON (i.path) g.id, i.title, i.path, i.icon, i.sort_order, 'MENU', i.visible
 FROM items i
 JOIN all_groups g ON g.title = i.group_title
 WHERE NOT EXISTS (

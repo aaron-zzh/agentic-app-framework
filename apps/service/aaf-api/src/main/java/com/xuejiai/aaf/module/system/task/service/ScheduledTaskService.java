@@ -21,7 +21,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 计划任务业务逻辑。
+ * 计划任务业务逻辑。管理 DB 驱动的定时任务（cron / fixedDelay / fixedRate）。
+ *
+ * <h3>适用场景</h3>
+ *
+ * <ul>
+ *   <li>按时间规则自动触发的后台任务（cron 表达式或固定间隔）
+ *   <li>需要持久化执行记录、失败重试、错过补偿（misfire）
+ *   <li>支持动作类型扩展：NOTIFY（推送通知）/ WORKFLOW（触发 Flowable 流程）/ WEBHOOK
+ *   <li>典型：定时生成报表、定时清理过期数据、定时触发 AI 工作流
+ * </ul>
+ *
+ * <h3>不适用场景</h3>
+ *
+ * <ul>
+ *   <li>用户主动触发、需要进度反馈 → 用 AsyncTaskService（内存异步）
+ *   <li>高并发消息驱动、需要优先级队列 → 用 Redis Stream 任务队列
+ *   <li>需要人工审批、多步骤状态流转 → 用 Flowable 工作流
+ * </ul>
  *
  * @author AaronZZH & Kiro
  */

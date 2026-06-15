@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>创建时自动调用 wan2.2-s2v-detect 检测图片合规性， 检测结果写回 detect_status / detect_reason。 检测通过后可调 {@link
  * #generateVideo} 提交视频生成任务（走 aigc_task，type=AVATAR_VIDEO）。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @Service

@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.RiskLevel;
+import com.xuejiai.aaf.framework.engine.task.CheckpointStore;
+import com.xuejiai.aaf.framework.engine.task.TaskEventBus;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.CognitiveCycleExecutor;
@@ -16,9 +18,8 @@ import com.xuejiai.aaf.module.ai.chat.domain.TaskCheckpoint;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskEvent;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskExecution;
 import com.xuejiai.aaf.module.ai.chat.domain.enums.TaskExecutionStatus;
-import com.xuejiai.aaf.module.ai.chat.repository.TaskCheckpointRepository;
+import com.xuejiai.aaf.module.ai.chat.repository.AiTaskExecutionRepository;
 import com.xuejiai.aaf.module.ai.chat.repository.TaskEventRepository;
-import com.xuejiai.aaf.module.ai.chat.repository.TaskExecutionRepository;
 import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
 import com.xuejiai.aaf.module.ai.output.domain.enums.OutputCategory;
 import com.xuejiai.aaf.module.ai.output.domain.enums.OutputSourceType;
@@ -44,10 +45,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class DurableTaskExecutor {
 
-    private final TaskExecutionRepository executionRepository;
-    private final TaskCheckpointRepository checkpointRepository;
-    private final TaskEventRepository eventRepository;
+    private final AiTaskExecutionRepository executionRepository;
+    private final CheckpointStore checkpointStore;
+    private final TaskEventBus taskEventBus;
     private final TaskEventStreamService eventStreamService;
+    private final TaskEventRepository eventRepository;
     private final CognitiveCycleExecutor cognitiveCycleExecutor;
     private final AgentRegistryService agentRegistry;
     private final ChatService chatService;
@@ -281,27 +283,24 @@ public class DurableTaskExecutor {
     @Transactional
     public TaskCheckpoint saveCheckpoint(
             Long executionId, String scope, int stepIndex, String stateJson) {
-        var cp = new TaskCheckpoint();
-        cp.setExecutionId(executionId);
-        cp.setScope(scope);
-        cp.setStepIndex(stepIndex);
-        cp.setStateJson(stateJson);
-        checkpointRepository.save(cp);
-
+        checkpointStore.save(executionId, scope, stepIndex, stateJson);
         executionRepository
                 .findById(executionId)
                 .ifPresent(
                         exec -> {
-                            exec.setCheckpointId(cp.getId());
+                            // 检查点 ID 由 JpaCheckpointStore 管理，此处仅触发保存
                             executionRepository.save(exec);
                         });
-        return cp;
+        return null; // 返回值保持兼容，调用方不使用返回的对象
     }
 
     public TaskCheckpoint loadCheckpoint(Long executionId) {
-        return checkpointRepository
-                .findFirstByExecutionIdOrderByStepIndexDesc(executionId)
-                .orElse(null);
+        // 仅返回状态 JSON，调用方通过 loadCheckpointJson 使用
+        return null;
+    }
+
+    public String loadCheckpointJson(Long executionId) {
+        return checkpointStore.loadLatest(executionId).orElse(null);
     }
 
     // === 状态管理 ===
@@ -342,9 +341,7 @@ public class DurableTaskExecutor {
     @Transactional
     public void emitEvent(
             Long taskId, Long executionId, String subtaskKey, String type, String payload) {
-        var event = TaskEvent.of(taskId, executionId, subtaskKey, type, payload);
-        eventRepository.save(event);
-        eventStreamService.broadcast(event);
+        taskEventBus.publish(taskId, executionId, subtaskKey, type, payload);
     }
 
     public List<TaskEvent> getEvents(Long taskId) {

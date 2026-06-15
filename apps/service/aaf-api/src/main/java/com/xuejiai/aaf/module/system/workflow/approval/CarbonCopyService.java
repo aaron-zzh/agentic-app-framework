@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 抄送服务——记录抄送、查询、标记已读。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @Service

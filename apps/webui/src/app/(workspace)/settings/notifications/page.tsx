@@ -1,7 +1,7 @@
 /**
  * 通知偏好设置——Activity / Application 两分组 + 频道矩阵
  * 参考 minimal-ui AccountNotifications
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

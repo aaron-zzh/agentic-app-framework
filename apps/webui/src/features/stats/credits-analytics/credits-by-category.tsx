@@ -1,6 +1,6 @@
 /**
  * 积分消耗分布图——按服务/部门两维度切换的环形饼图
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

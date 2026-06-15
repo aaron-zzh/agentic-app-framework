@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task.domain;
+package com.xuejiai.aaf.framework.task;
 
 import java.time.LocalDateTime;
 
@@ -12,7 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 任务执行记录。
+ * 任务执行记录——定时任务和队列任务的通用执行历史。
  *
  * @author AaronZZH & Kiro
  */
@@ -50,6 +50,20 @@ public class TaskExecution {
 
     @Column(name = "retry_count")
     private Integer retryCount = 0;
+
+    /** 队列任务优先级（0-9，0 最高），定时任务为 null */
+    @Column(name = "priority")
+    private Short priority;
+
+    /** 定时任务触发类型（CRON/FIXED_DELAY/FIXED_RATE），队列任务为 null */
+    @Column(name = "trigger_type", length = 20)
+    private String triggerType;
+
+    @Column(name = "biz_id", length = 100)
+    private String bizId;
+
+    @Column(name = "context", columnDefinition = "TEXT")
+    private String context;
 
     @Column(name = "create_time", nullable = false, updatable = false)
     private LocalDateTime createTime;

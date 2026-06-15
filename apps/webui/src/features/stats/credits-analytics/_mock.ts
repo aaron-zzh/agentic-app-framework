@@ -1,6 +1,6 @@
 /**
  * 积分消耗统计仪表盘模拟数据
- * @author Kiro
+ * @author AaronZZH
  */
 
 /** 概览统计 */

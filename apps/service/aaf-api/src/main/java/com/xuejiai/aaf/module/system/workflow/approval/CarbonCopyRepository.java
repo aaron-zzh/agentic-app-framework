@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /**
  * 抄送记录仓储。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 public interface CarbonCopyRepository extends JpaRepository<CarbonCopyRecord, Long> {
 

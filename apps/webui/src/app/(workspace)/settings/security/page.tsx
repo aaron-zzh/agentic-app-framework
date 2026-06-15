@@ -1,6 +1,6 @@
 /**
  * 安全设置——修改密码，对标 minimal-ui AccountChangePassword
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

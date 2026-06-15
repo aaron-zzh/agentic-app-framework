@@ -11,6 +11,7 @@ package com.xuejiai.aaf.framework.task;
  * @param enabled 是否启用
  * @param description 任务描述
  * @param misfirePolicy 错过执行补偿策略（仅 CRON 有效）
+ * @param timeoutSeconds 任务超时秒数（0 = 使用全局默认值）
  */
 public record TaskDefinition(
         String name,
@@ -20,7 +21,8 @@ public record TaskDefinition(
         Class<? extends Runnable> taskClass,
         boolean enabled,
         String description,
-        MisfirePolicy misfirePolicy) {
+        MisfirePolicy misfirePolicy,
+        long timeoutSeconds) {
 
     /** Cron 任务快捷构造 */
     public TaskDefinition(String name, String cronExpression, Class<? extends Runnable> taskClass) {
@@ -32,7 +34,8 @@ public record TaskDefinition(
                 taskClass,
                 true,
                 "",
-                MisfirePolicy.IGNORE);
+                MisfirePolicy.IGNORE,
+                0);
     }
 
     /** Cron 任务完整构造（兼容旧代码） */
@@ -50,7 +53,8 @@ public record TaskDefinition(
                 taskClass,
                 enabled,
                 description,
-                MisfirePolicy.IGNORE);
+                MisfirePolicy.IGNORE,
+                0);
     }
 
     /** Cron 任务含 misfire 构造（兼容旧代码） */
@@ -69,7 +73,8 @@ public record TaskDefinition(
                 taskClass,
                 enabled,
                 description,
-                misfirePolicy);
+                misfirePolicy,
+                0);
     }
 
     /** FIXED_DELAY / FIXED_RATE 任务快捷构造 */
@@ -83,7 +88,8 @@ public record TaskDefinition(
                 taskClass,
                 true,
                 "",
-                MisfirePolicy.IGNORE);
+                MisfirePolicy.IGNORE,
+                0);
     }
 
     public static TaskDefinition fixedRate(
@@ -96,6 +102,7 @@ public record TaskDefinition(
                 taskClass,
                 true,
                 "",
-                MisfirePolicy.IGNORE);
+                MisfirePolicy.IGNORE,
+                0);
     }
 }

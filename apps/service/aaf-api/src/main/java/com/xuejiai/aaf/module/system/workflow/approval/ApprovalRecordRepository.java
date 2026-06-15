@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /**
  * 审批记录仓储。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 public interface ApprovalRecordRepository extends JpaRepository<ApprovalRecord, Long> {
 

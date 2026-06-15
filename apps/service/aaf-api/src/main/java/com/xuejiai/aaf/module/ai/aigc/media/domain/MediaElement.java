@@ -13,7 +13,7 @@ import lombok.Setter;
  *
  * <p>一个元素对应一个角色、场景或道具主题，下挂多条 {@link MediaAsset}（通过 element_id 关联）。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Getter
 @Setter

@@ -342,7 +342,7 @@ export default function ModelManagementPage() {
             {tableView ? (
               <ModelTable models={filteredModels} />
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+              <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))]">
                 {filteredModels.map((model) => (
                   <ModelCardItem key={model.id} model={model} />
                 ))}

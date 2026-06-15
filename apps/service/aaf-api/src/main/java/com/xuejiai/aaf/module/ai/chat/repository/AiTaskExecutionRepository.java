@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.module.ai.chat.domain.TaskExecution;
 
-public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Long> {
+public interface AiTaskExecutionRepository extends JpaRepository<TaskExecution, Long> {
 
     /** 获取任务的最新执行实例 */
     Optional<TaskExecution> findFirstByTaskIdOrderByAttemptNoDesc(Long taskId);

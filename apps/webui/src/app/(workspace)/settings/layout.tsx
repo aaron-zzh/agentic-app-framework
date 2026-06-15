@@ -1,7 +1,7 @@
 /**
  * 个人中心统一 Layout——左侧固定侧边导航 + 右侧内容区
  * 参考 minimal-ui account-layout（顶部 tab → 侧边栏）
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

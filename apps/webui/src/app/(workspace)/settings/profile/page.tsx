@@ -1,7 +1,7 @@
 /**
  * 个人资料页——左栏头像卡（上传/公开/删除）+ 右栏表单网格
  * 参考 minimal-ui AccountGeneral 双列布局
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

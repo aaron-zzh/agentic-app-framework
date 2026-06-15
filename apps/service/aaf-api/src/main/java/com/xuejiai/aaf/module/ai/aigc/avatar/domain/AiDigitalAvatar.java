@@ -15,7 +15,7 @@ import lombok.Setter;
  *
  * <p>存储用户上传的形象图片及 wan2.2-s2v-detect 检测状态。 检测通过后可提交视频生成任务（走 aigc_task，type=AVATAR_VIDEO）。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Getter
 @Setter

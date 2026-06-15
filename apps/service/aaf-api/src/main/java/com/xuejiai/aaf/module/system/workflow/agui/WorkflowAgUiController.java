@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 工作流 AG-UI 协议端点——通过 AG-UI 协议启动工作流并返回 SSE 事件流。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Tag(name = "工作流 AG-UI")
 @RestController

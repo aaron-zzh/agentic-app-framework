@@ -1,7 +1,7 @@
 /**
  * 社交链接设置——对标 minimal-ui AccountSocials
  * 每个链接前缀带品牌图标
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

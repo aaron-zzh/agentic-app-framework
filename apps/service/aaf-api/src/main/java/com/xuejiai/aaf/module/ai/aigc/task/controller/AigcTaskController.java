@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * AIGC 统一任务接口——提交生成任务、订阅实时事件、查询任务列表。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Tag(name = "AIGC 统一任务")
 @RestController

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.framework.messaging.internal.InternalMessage;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessageSender;
 import com.xuejiai.aaf.module.system.notify.domain.Notification;
 import com.xuejiai.aaf.module.system.notify.repository.NotificationRepository;
@@ -48,10 +49,14 @@ public class NotificationService {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 
-    /** 标记已读 */
+    /** 标记已读：ids 为空则全部已读 */
     @Transactional
     public void markAsRead(Long userId, List<Long> ids) {
-        notificationRepository.markAsRead(ids, userId);
+        if (ids == null || ids.isEmpty()) {
+            notificationRepository.markAllAsRead(userId);
+        } else {
+            notificationRepository.markAsRead(ids, userId);
+        }
     }
 
     /** 删除通知（物理删除） */
@@ -72,18 +77,43 @@ public class NotificationService {
             String relatedUrl,
             String entityType,
             Long entityId) {
-        messageSender.send(userId, type, title, body, relatedUrl, entityType, entityId);
+        messageSender.send(
+                InternalMessage.builder()
+                        .userId(userId)
+                        .type(type)
+                        .title(title)
+                        .body(body)
+                        .relatedUrl(relatedUrl)
+                        .entityType(entityType)
+                        .entityId(entityId)
+                        .build());
     }
 
-    /** 批量发送给多个用户（公告场景） */
+    /** 批量发送给多个用户（公告场景，只存库不实时推送） */
     public void sendToUsers(
             List<Long> userIds, String type, String title, String body, String relatedUrl) {
-        userIds.forEach(uid -> messageSender.send(uid, type, title, body, relatedUrl, null, null));
+        userIds.forEach(
+                uid ->
+                        messageSender.send(
+                                InternalMessage.builder()
+                                        .userId(uid)
+                                        .type(type)
+                                        .title(title)
+                                        .body(body)
+                                        .relatedUrl(relatedUrl)
+                                        .strategy(InternalMessage.PushStrategy.PERSIST_ONLY)
+                                        .build()));
     }
 
     /** 发送系统通知（无正文、无关联实体的简单通知，便捷方法） */
     public void sendSystemNotification(Long userId, String title, String body) {
-        messageSender.send(userId, "SYSTEM", title, body, null, null, null);
+        messageSender.send(
+                InternalMessage.builder()
+                        .userId(userId)
+                        .type("system")
+                        .title(title)
+                        .body(body)
+                        .build());
     }
 
     private NotificationVO toVO(Notification n) {

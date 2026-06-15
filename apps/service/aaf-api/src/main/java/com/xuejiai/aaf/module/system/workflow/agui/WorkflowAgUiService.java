@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 工作流 AG-UI 服务——启动工作流并将执行日志转换为 AG-UI 事件流。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @Service

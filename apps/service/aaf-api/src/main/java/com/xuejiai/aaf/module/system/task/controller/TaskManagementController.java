@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.task.ScheduledTaskExecutor;
+import com.xuejiai.aaf.framework.task.TaskExecution;
+import com.xuejiai.aaf.framework.task.TaskExecutionRepository;
 import com.xuejiai.aaf.framework.task.TaskRegistry;
-import com.xuejiai.aaf.module.system.task.domain.TaskExecution;
-import com.xuejiai.aaf.module.system.task.repository.SysTaskExecutionRepository;
 import com.xuejiai.aaf.module.system.task.vo.TaskVO;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +36,7 @@ public class TaskManagementController {
 
     private final TaskRegistry taskRegistry;
     private final ScheduledTaskExecutor scheduledTaskExecutor;
-    private final SysTaskExecutionRepository taskExecutionRepository;
+    private final TaskExecutionRepository taskExecutionRepository;
 
     @Operation(summary = "任务列表（定时任务）")
     @GetMapping

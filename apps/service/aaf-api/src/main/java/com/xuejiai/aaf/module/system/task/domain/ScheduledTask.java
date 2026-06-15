@@ -103,4 +103,8 @@ public class ScheduledTask extends BaseEntity {
     /** 连续失败次数 */
     @Column(name = "fail_count", nullable = false)
     private Integer failCount = 0;
+
+    /** 任务超时秒数（0 = 使用全局默认值 aaf.task.runtime.timeout-seconds） */
+    @Column(name = "timeout_seconds", nullable = false)
+    private Integer timeoutSeconds = 0;
 }

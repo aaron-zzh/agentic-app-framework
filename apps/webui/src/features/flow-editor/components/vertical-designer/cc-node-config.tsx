@@ -1,6 +1,6 @@
 /**
  * 抄送节点配置面板——抄送人选择 + 抄送时机
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

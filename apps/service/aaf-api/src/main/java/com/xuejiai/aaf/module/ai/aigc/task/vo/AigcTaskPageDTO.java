@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 /**
  * AIGC 任务分页查询参数。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

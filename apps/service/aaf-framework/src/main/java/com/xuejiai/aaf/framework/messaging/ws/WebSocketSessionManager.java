@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.notify.ws;
+package com.xuejiai.aaf.framework.messaging.ws;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;

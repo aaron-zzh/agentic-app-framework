@@ -17,7 +17,7 @@ import lombok.Setter;
 /**
  * 审批记录。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Getter
 @Setter

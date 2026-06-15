@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.engine.workflow.condition.ConditionExpression.L
 /**
  * 条件表达式求值器——支持嵌套条件组的求值和 Flowable UEL 表达式转换。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Component
 public class ConditionEvaluator {

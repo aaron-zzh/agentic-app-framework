@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>DELETE /api/aigc/cloned-voices/{id} — 逻辑删除本地记录（不删除百炼平台音色）
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Tag(name = "声音复刻")
 @RestController

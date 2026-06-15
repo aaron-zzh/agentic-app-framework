@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  durable-agent-loop.bpmn20.xml
+  AI Agent 持久化循环流程模板（中层 Loop）
+
+  【加载时机】
+  Flowable Spring Boot 自动扫描 classpath:/processes/*.bpmn20.xml，
+  应用启动时自动部署到 Flowable 引擎（ACT_RE_PROCDEF 表）。
+  aaf-framework 作为 aaf-api 的依赖，其 resources/ 目录在同一 classpath，
+  因此本文件随应用启动自动部署，无需手动调用 deploy()。
+  流程定义 key = "durable-agent-loop"，通过 workflowEngine.startProcess(key, ...) 启动。
+
+  【三层 Loop 对应关系】
+  外层 Loop（任务级）   ← 调用方（Assistant / ChatTaskScheduler）负责，传入 input/goalCondition
+  中层 Loop（步骤级）   ← 本流程，Flowable 原生提供持久化、检查点、人工节点
+  内层 Loop（ReAct）   ← AgentLoopStepDelegate 内部调用 CognitiveCycleExecutor
+
+  【Loop 五要素实现】
+  Goal Condition  → AgentLoopStepDelegate 检测 [DONE] 标记，写 goalAchieved=true
+  Step Budget     → maxSteps 变量（默认 20），超限时 goalAchieved=true 收尾
+  Checkpoint      → AgentLoopStepDelegate 每步调用 CheckpointStore.save()
+  Compensation    → 待扩展：可在 finalize 节点前加补偿子流程
+  Human Gate      → needsApproval=true 时路由到 humanApproval UserTask
+
+  【流程变量（启动时传入）】
+  agentId         - Agent 标识（必填）
+  input           - 任务输入文本（必填）
+  userId          - 用户 ID（必填）
+  taskId          - 业务任务 ID（可选，用于 TaskEventBus 事件关联）
+  executionId     - 执行实例 ID（可选，用于 CheckpointStore 关联）
+  maxSteps        - 最大步数，默认 20（可选）
+  goalCondition   - 目标完成条件描述，Agent 可参考（可选）
+  approver        - 人工审批节点的 assignee（needsApproval=true 时必填）
+
+  【流程变量（运行时写入）】
+  stepCount       - 当前步数
+  loopOutput      - 累计输出（每步追加）
+  finalOutput     - 最终输出（流程结束后读取）
+  goalAchieved    - 是否达成目标
+  needsApproval   - 是否需要人工审批
+  stepResult      - 本步输出
+  stepSuccess     - 本步是否成功
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://www.xuejiai.com/aaf/agent">
+
+    <process id="durable-agent-loop" name="AI Agent 持久化循环" isExecutable="true">
+
+        <!-- ① 开始 -->
+        <startEvent id="start" name="启动"/>
+
+        <sequenceFlow id="flow-start-init" sourceRef="start" targetRef="init"/>
+
+        <!-- ② 初始化循环状态 -->
+        <serviceTask id="init" name="初始化"
+                     flowable:delegateExpression="${agentLoopInitDelegate}"/>
+
+        <sequenceFlow id="flow-init-step" sourceRef="init" targetRef="step"/>
+
+        <!-- ③ 执行一步认知循环（内层 Loop 入口） -->
+        <serviceTask id="step" name="执行步骤"
+                     flowable:delegateExpression="${agentLoopStepDelegate}"/>
+
+        <sequenceFlow id="flow-step-approval-gateway" sourceRef="step" targetRef="approvalGateway"/>
+
+        <!-- ④ 判断是否需要人工审批 -->
+        <exclusiveGateway id="approvalGateway" name="需要审批？"/>
+
+        <sequenceFlow id="flow-needs-approval" sourceRef="approvalGateway" targetRef="humanApproval">
+            <conditionExpression>${needsApproval == true}</conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow-no-approval" sourceRef="approvalGateway" targetRef="goalGateway">
+            <conditionExpression>${needsApproval == false}</conditionExpression>
+        </sequenceFlow>
+
+        <!-- ⑤ 人工审批节点（Human Gate） -->
+        <userTask id="humanApproval" name="人工审批"
+                  flowable:assignee="${approver}">
+            <documentation>Agent 检测到高风险操作，需要人工确认后继续。</documentation>
+        </userTask>
+
+        <sequenceFlow id="flow-approval-goal-gateway" sourceRef="humanApproval" targetRef="goalGateway"/>
+
+        <!-- ⑥ 判断是否达成目标或超出步数限制 -->
+        <exclusiveGateway id="goalGateway" name="目标达成？"/>
+
+        <sequenceFlow id="flow-goal-achieved" sourceRef="goalGateway" targetRef="finalize">
+            <conditionExpression>${goalAchieved == true}</conditionExpression>
+        </sequenceFlow>
+
+        <!-- 未达成目标：回到步骤节点继续循环 -->
+        <sequenceFlow id="flow-continue-loop" sourceRef="goalGateway" targetRef="step">
+            <conditionExpression>${goalAchieved == false}</conditionExpression>
+        </sequenceFlow>
+
+        <!-- ⑦ 收尾：保存结果，发布完成事件 -->
+        <serviceTask id="finalize" name="收尾"
+                     flowable:delegateExpression="${agentLoopFinalizeDelegate}"/>
+
+        <sequenceFlow id="flow-finalize-end" sourceRef="finalize" targetRef="end"/>
+
+        <!-- ⑧ 结束 -->
+        <endEvent id="end" name="完成"/>
+
+    </process>
+
+</definitions>

@@ -11,7 +11,7 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 验证 Jackson 3 JsonMapper 和 Jackson 2 兼容 ObjectMapper 都能正常工作。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 class JacksonTest {
 

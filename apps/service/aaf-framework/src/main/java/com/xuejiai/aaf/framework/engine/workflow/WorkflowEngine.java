@@ -344,4 +344,31 @@ public interface WorkflowEngine {
      * @param variables 变量
      */
     void sendMessage(String messageName, String processInstanceId, Map<String, Object> variables);
+
+    // ==================== 审批操作 ====================
+
+    /**
+     * 加签——向当前任务所在的多实例节点动态追加审批人。
+     *
+     * @param taskId 当前任务 ID
+     * @param assignee 加签审批人
+     */
+    void addSign(String taskId, String assignee);
+
+    /**
+     * 转签——将任务转交给其他人处理。
+     *
+     * @param taskId 任务 ID
+     * @param targetAssignee 目标审批人
+     * @param reason 转签原因（可为 null）
+     */
+    void transferSign(String taskId, String targetAssignee, String reason);
+
+    /**
+     * 撤回——发起人撤回流程（后续节点已处理则抛出异常）。
+     *
+     * @param processInstanceId 流程实例 ID
+     * @param initiator 发起人标识
+     */
+    void withdraw(String processInstanceId, String initiator);
 }

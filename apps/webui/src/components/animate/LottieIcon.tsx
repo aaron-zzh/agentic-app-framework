@@ -1,7 +1,7 @@
 /**
  * LottieIcon——基于 lottie-web 的轻量动画组件
  * 支持 animationData 对象或 name（/icons/lottie/{name}.json 路径）两种数据源
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

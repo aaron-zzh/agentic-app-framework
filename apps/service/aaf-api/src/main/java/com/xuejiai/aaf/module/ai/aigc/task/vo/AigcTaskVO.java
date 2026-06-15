@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * AIGC 任务响应 VO。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Schema(description = "AIGC 任务")
 public record AigcTaskVO(

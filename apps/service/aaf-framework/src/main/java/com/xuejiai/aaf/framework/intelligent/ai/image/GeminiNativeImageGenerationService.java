@@ -110,10 +110,14 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
             }
             var response =
                     RestClient.builder()
-                            .requestFactory(new org.springframework.http.client.SimpleClientHttpRequestFactory() {{
-                                setConnectTimeout(10_000);
-                                setReadTimeout(0); // 不限读超时，等待 Gemini 返回
-                            }})
+                            .requestFactory(
+                                    new org.springframework.http.client
+                                            .SimpleClientHttpRequestFactory() {
+                                        {
+                                            setConnectTimeout(10_000);
+                                            setReadTimeout(0); // 不限读超时，等待 Gemini 返回
+                                        }
+                                    })
                             .build()
                             .post()
                             .uri(buildGeminiUrl(baseUrl, modelName))

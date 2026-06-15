@@ -6,6 +6,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.messaging.internal.InternalMessage;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessageSender;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
@@ -32,16 +33,18 @@ public class NotificationEventListener {
     @EventListener
     public void onMention(MentionEvent event) {
         messageSender.send(
-                event.getMentionedUserId(),
-                "mention",
-                event.getActorName() + " 在评论中提到了你",
-                event.getExcerpt(),
-                event.getRelatedUrl(),
-                event.getEntityType(),
-                event.getEntityId());
+                InternalMessage.builder()
+                        .userId(event.getMentionedUserId())
+                        .type("mention")
+                        .title(event.getActorName() + " 在评论中提到了你")
+                        .body(event.getExcerpt())
+                        .relatedUrl(event.getRelatedUrl())
+                        .entityType(event.getEntityType())
+                        .entityId(event.getEntityId())
+                        .build());
     }
 
-    /** 处理公告发布事件，推送给所有用户 */
+    /** 处理公告发布事件，推送给所有用户（只存库，避免推送风暴） */
     @Async
     @EventListener
     public void onNoticePublished(NoticePublishedEvent event) {
@@ -49,13 +52,14 @@ public class NotificationEventListener {
         userIds.forEach(
                 userId ->
                         messageSender.send(
-                                userId,
-                                "system",
-                                "【公告】" + event.getTitle(),
-                                event.getExcerpt(),
-                                event.getRelatedUrl(),
-                                null,
-                                null));
+                                InternalMessage.builder()
+                                        .userId(userId)
+                                        .type("system")
+                                        .title("【公告】" + event.getTitle())
+                                        .body(event.getExcerpt())
+                                        .relatedUrl(event.getRelatedUrl())
+                                        .strategy(InternalMessage.PushStrategy.PERSIST_ONLY)
+                                        .build()));
         log.info("公告 {} 已推送给 {} 个用户", event.getNoticeId(), userIds.size());
     }
 }

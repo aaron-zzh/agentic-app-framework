@@ -1,6 +1,6 @@
 /**
  * 积分消耗趋势图——多系列，支持日/月 + 柱状/折线切换
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

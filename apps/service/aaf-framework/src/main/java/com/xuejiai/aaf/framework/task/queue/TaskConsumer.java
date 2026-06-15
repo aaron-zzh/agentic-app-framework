@@ -14,14 +14,15 @@ import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.task.TaskMonitor;
+import com.xuejiai.aaf.framework.engine.meta.runtime.ExecutionMeta;
+import com.xuejiai.aaf.framework.engine.meta.runtime.TaskRuntime;
 import com.xuejiai.aaf.framework.task.TaskProperties;
 
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 任务消费者。使用 XREADGROUP 消费 Redis Stream，按优先级轮询。 */
+/** 任务消费者。使用 XREADGROUP 消费 Redis Stream，按优先级轮询。 消费到消息后通过 {@link TaskRuntime} 统一执行（含监控、超时、通知）。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -33,8 +34,7 @@ public class TaskConsumer {
             List.of("task_queue:high", "task_queue:normal", "task_queue:low");
 
     private final StringRedisTemplate redisTemplate;
-    private final TaskHandlerRegistry handlerRegistry;
-    private final TaskMonitor taskMonitor;
+    private final TaskRuntime taskRuntime;
     private final TaskProperties taskProperties;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -57,9 +57,7 @@ public class TaskConsumer {
     @PreDestroy
     public void stop() {
         running.set(false);
-        if (executor != null) {
-            executor.shutdownNow();
-        }
+        if (executor != null) executor.shutdownNow();
     }
 
     private void pollLoop() {
@@ -97,32 +95,25 @@ public class TaskConsumer {
         var map = new java.util.HashMap<String, String>();
         record.getValue().forEach((k, v) -> map.put(String.valueOf(k), String.valueOf(v)));
         var task = RedisStreamTaskQueue.fromMap(map);
-        var handler = handlerRegistry.getHandler(task.type());
-        if (handler == null) {
-            log.warn("未找到任务处理器: {}", task.type());
-            redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
-            return;
+
+        // 通过元引擎运行时统一执行（含监控、超时控制、通知）
+        var priority = (short) (STREAMS.indexOf(stream) * 3); // high=0, normal=3, low=6
+        var result =
+                taskRuntime.submit(
+                        task.type(), task.payload(), ExecutionMeta.queue(priority, task.payload()));
+        if (!result.success()) {
+            log.error("队列任务执行失败: {} [{}] - {}", task.id(), task.type(), result.error());
         }
-        var executionId = taskMonitor.recordStart(task.type(), "async");
-        try {
-            handler.handle(task);
-            taskMonitor.recordSuccess(executionId);
-            redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
-        } catch (Exception e) {
-            log.error("任务处理失败: {} [{}]", task.id(), task.type(), e);
-            taskMonitor.recordFailure(executionId, e.getMessage());
-            // 重试由 RetryableTaskConsumer 处理，此处仍 ACK 避免重复消费
-            redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
-            throw e;
-        }
+        // 无论成功失败均 ACK，重试由 RetryableTaskConsumer 处理
+        redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
     }
 
     private void ensureGroups() {
         for (var stream : STREAMS) {
             try {
                 redisTemplate.opsForStream().createGroup(stream, GROUP);
-            } catch (Exception e) {
-                // 组已存在或 stream 不存在时忽略
+            } catch (Exception ignored) {
+                // 组已存在时忽略
             }
         }
     }

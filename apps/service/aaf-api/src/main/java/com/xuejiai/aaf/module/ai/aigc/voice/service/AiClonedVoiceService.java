@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>创建时调用 {@link VoiceEnrollmentService} 与百炼平台交互， 将返回的 voice 名称持久化到本地，方便后续对话直接查询使用。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @Service

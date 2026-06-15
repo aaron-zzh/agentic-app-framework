@@ -1,6 +1,6 @@
 /**
  * Lottie 动画示例页——参考 tmp/nextjs/xueji/apps/demo/src/app/(demo)/lottie
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

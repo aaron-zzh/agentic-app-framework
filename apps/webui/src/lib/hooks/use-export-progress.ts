@@ -86,9 +86,7 @@ export function useExportProgress(entity: EntityDef) {
 
         // 2. 建立 SSE 连接接收进度
         setProgress((p) => ({ ...p, status: "running", taskId }))
-        const es = new EventSource(
-          buildSseUrl(`${entity.apiPath}/export-progress/${taskId}`)
-        )
+        const es = new EventSource(buildSseUrl(`${entity.apiPath}/export-progress/${taskId}`))
         esRef.current = es
 
         es.onmessage = (event) => {
@@ -158,7 +156,7 @@ export function useExportProgress(entity: EntityDef) {
     // 通过 setState 回调读取最新 taskId，避免依赖 progress 对象引用
     setProgress((p) => {
       if (p.taskId) {
-        fetch(`/api/tasks/${p.taskId}/cancel`, { method: "POST" }).catch(() => {})
+        fetch(`/api/memory-tasks/${p.taskId}/cancel`, { method: "POST" }).catch(() => {})
       }
       return { ...p, status: "idle" }
     })

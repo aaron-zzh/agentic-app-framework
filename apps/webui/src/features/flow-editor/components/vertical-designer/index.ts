@@ -1,6 +1,6 @@
 /**
  * 竖向审批设计器——公开 API
- * @author Kiro
+ * @author AaronZZH
  */
 
 export { ApproverNodeConfig } from "./approver-node-config"

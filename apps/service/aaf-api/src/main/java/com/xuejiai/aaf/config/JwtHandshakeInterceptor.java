@@ -66,8 +66,15 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     private String extractToken(ServerHttpRequest request) {
         if (request instanceof ServletServerHttpRequest servletRequest) {
+            // 优先 query param（兼容），其次 Cookie
             var token = servletRequest.getServletRequest().getParameter("token");
             if (token != null && !token.isBlank()) return token;
+            var cookies = servletRequest.getServletRequest().getCookies();
+            if (cookies != null) {
+                for (var cookie : cookies) {
+                    if ("aaf-token".equals(cookie.getName())) return cookie.getValue();
+                }
+            }
         }
         var authHeader = request.getHeaders().getFirst("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {

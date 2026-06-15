@@ -63,6 +63,8 @@ server:
     context-path: /
 
 aaf:
+  demo:
+    enabled: ${AAF_DEMO_ENABLED:false}  # 演示模式：开启后注册 /api/system/demo/load 和 /clean 接口
   app:
     company-name: ${AAF_COMPANY_NAME:学记智能}
     frontend-url: ${AAF_WEB_ORIGIN:http://localhost:3000}

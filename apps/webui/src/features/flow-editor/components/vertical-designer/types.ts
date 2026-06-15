@@ -1,6 +1,6 @@
 /**
  * 竖向审批设计器类型定义——钉钉/飞书风格
- * @author Kiro
+ * @author AaronZZH
  */
 
 /** 条件表达式 */

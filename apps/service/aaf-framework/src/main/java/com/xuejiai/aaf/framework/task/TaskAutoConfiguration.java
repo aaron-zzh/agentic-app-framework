@@ -12,9 +12,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 public class TaskAutoConfiguration {
 
     @Bean
-    public TaskScheduler taskScheduler(TaskProperties props) {
+    public TaskScheduler taskScheduler() {
         var scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(props.getScheduler().getPoolSize());
+        scheduler.setVirtualThreads(true);
         scheduler.setThreadNamePrefix("aaf-task-");
         scheduler.setWaitForTasksToCompleteOnShutdown(true);
         scheduler.setAwaitTerminationSeconds(30);

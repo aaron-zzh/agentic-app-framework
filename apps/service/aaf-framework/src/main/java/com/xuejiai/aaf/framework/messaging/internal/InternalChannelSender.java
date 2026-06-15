@@ -27,7 +27,13 @@ public class InternalChannelSender implements ChannelSender {
             Map<String, Object> variables) {
         for (var recipient : recipients) {
             var userId = Long.valueOf(recipient);
-            internalMessageSender.send(userId, subject, content);
+            internalMessageSender.send(
+                    InternalMessage.builder()
+                            .userId(userId)
+                            .type("system")
+                            .title(subject)
+                            .body(content)
+                            .build());
         }
     }
 }

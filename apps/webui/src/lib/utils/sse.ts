@@ -1,6 +1,6 @@
 /**
  * SSE 流式解析共享工具——从 ReadableStream 中逐行解析 SSE data: 事件
- * @author Kiro
+ * @author AaronZZH
  *
  * @example
  * const res = await fetch(url, { method: "POST", body })

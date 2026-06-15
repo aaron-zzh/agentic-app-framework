@@ -16,7 +16,7 @@ import lombok.Setter;
  * <p>存储用户通过 qwen-voice-enrollment 创建的克隆音色元数据。 voice 字段由百炼平台生成并返回，可直接用于 OmniRealtimeService 的 voice
  * 参数。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Getter
 @Setter

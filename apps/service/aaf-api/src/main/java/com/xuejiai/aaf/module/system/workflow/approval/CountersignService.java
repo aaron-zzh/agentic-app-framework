@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 会签/或签服务——创建多实例任务、计算投票结果、查询投票进度。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @Service

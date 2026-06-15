@@ -11,7 +11,23 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 异步任务服务。提交任务 → 后台执行 → 进度可查询。
+ * 内存异步任务服务。提交任务 → @Async 线程池后台执行 → 进度可查询。
+ *
+ * <h3>适用场景</h3>
+ *
+ * <ul>
+ *   <li>用户主动触发（HTTP 请求）的批量操作，需要前端进度条反馈
+ *   <li>操作耗时在分钟级以内，重启丢失进度可接受
+ *   <li>典型：批量删除用户、批量导入/导出
+ * </ul>
+ *
+ * <h3>不适用场景</h3>
+ *
+ * <ul>
+ *   <li>需要持久化、重启恢复 → 用 Redis Stream 任务队列
+ *   <li>需要定时调度 → 用 ScheduledTaskService
+ *   <li>需要人工审批、多步骤状态流转 → 用 Flowable 工作流
+ * </ul>
  *
  * @author AaronZZH & Kiro
  */

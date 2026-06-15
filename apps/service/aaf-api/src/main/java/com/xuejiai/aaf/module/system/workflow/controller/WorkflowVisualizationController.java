@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 工作流可视化数据端点——提供执行轨迹和时间线数据。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Tag(name = "工作流可视化")
 @RestController

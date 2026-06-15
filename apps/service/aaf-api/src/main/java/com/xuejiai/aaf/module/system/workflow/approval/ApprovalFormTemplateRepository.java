@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /**
  * 审批表单模板仓储。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 public interface ApprovalFormTemplateRepository extends JpaRepository<ApprovalFormTemplate, Long> {
 

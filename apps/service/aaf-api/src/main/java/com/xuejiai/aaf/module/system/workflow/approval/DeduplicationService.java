@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 审批人去重服务——避免同一流程中同一人重复审批。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @Component

@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /**
  * 审批评论仓储。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 public interface ApprovalCommentRepository extends JpaRepository<ApprovalComment, Long> {
 

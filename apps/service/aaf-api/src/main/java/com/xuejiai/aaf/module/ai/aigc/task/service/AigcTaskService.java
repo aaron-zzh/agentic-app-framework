@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AIGC 统一任务服务——汇聚图像/视频/3D 模型/音乐四类生成任务，统一管理状态流转和 OSS 存储。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @Service

@@ -23,6 +23,7 @@ import {
   useRemoveNotifications
 } from "@/lib/queries/use-notifications"
 import { cn } from "@/lib/utils/cn"
+import { formatTimeAgo } from "@/lib/utils/time"
 import { NotificationIcon } from "@/sections/layout/notifications/icons"
 
 const TYPE_LABELS: Record<NotificationType | "all", string> = {
@@ -37,7 +38,7 @@ const TYPE_LABELS: Record<NotificationType | "all", string> = {
 type Tab = "all" | "unread" | "read"
 
 export default function NotificationsPage() {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [activeTab, setActiveTab] = useState<Tab>("all")
 
   const { data } = useNotifications()
@@ -45,15 +46,15 @@ export default function NotificationsPage() {
   const { mutate: remove } = useRemoveNotifications()
 
   const allItems = data?.list ?? []
-  const unreadItems = allItems.filter((n) => !n.read)
-  const readItems = allItems.filter((n) => n.read)
+  const unreadItems = allItems.filter((n) => !n.isRead)
+  const readItems = allItems.filter((n) => n.isRead)
   const currentItems =
     activeTab === "all" ? allItems : activeTab === "unread" ? unreadItems : readItems
 
   const allSelected = selectedIds.size === currentItems.length && currentItems.length > 0
   const someSelected = selectedIds.size > 0 && !allSelected
 
-  const toggleSelect = (id: string) =>
+  const toggleSelect = (id: number) =>
     setSelectedIds((prev) => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
@@ -189,7 +190,7 @@ function NotificationRow({
     <li
       className={cn(
         "flex items-start gap-3 border-b border-dashed px-4 py-3 last:border-0",
-        !item.read && "bg-primary/5",
+        !item.isRead && "bg-primary/5",
         selected && "bg-accent"
       )}
     >
@@ -202,17 +203,15 @@ function NotificationRow({
       <NotificationIcon type={item.type} />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className={cn("text-sm", !item.read && "font-medium")}>{item.title}</p>
+          <p className={cn("text-sm", !item.isRead && "font-medium")}>{item.title}</p>
           <Badge variant="outline" className="shrink-0 text-[10px]">
             {TYPE_LABELS[item.type] ?? item.type}
           </Badge>
         </div>
         {item.body && <p className="mt-0.5 text-muted-foreground text-xs">{item.body}</p>}
-        <p className="mt-1 text-muted-foreground text-xs">
-          {new Date(item.createdAt).toLocaleString("zh-CN")}
-        </p>
+        <p className="mt-1 text-muted-foreground text-xs">{formatTimeAgo(item.createTime)}</p>
       </div>
-      {!item.read && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
+      {!item.isRead && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
     </li>
   )
 }

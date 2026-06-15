@@ -24,6 +24,7 @@ import { buildWsUrl } from "@/lib/api/config"
 import type { NotificationItem as NotificationItemType } from "@/lib/api/rest/user/notification"
 import { paths } from "@/lib/constants/paths"
 import { useWebSocket } from "@/lib/hooks/use-websocket"
+import { notify } from "@/lib/notification"
 import { useMarkRead, useNotifications, useUnreadCount } from "@/lib/queries/use-notifications"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { CountBadge } from "./count-badge"
@@ -31,20 +32,21 @@ import { NotificationItem } from "./notification-item"
 
 export function NotificationDrawer() {
   const { data: countData } = useUnreadCount()
-  const unreadCount = countData?.count ?? 0
+  const unreadCount = countData ?? 0
   const { value: open, setValue: setOpen, onFalse: onClose } = useBoolean()
   const qc = useQueryClient()
   const accessToken = useAuthStore((s) => s.accessToken)
 
   // WS 接入：JWT 握手认证，收到通知推送时刷新通知列表和未读数
   useWebSocket({
-    url: buildWsUrl(`/ws/notifications?token=${accessToken ?? ""}`),
+    url: buildWsUrl("/ws/notifications"),
     enabled: !!accessToken,
     onMessage: (data) => {
       try {
-        const msg = JSON.parse(data) as { type: string }
+        const msg = JSON.parse(data) as { type: string; title?: string; body?: string }
         if (msg.type === "notification") {
           qc.invalidateQueries({ queryKey: ["notifications"] })
+          notify.info(msg.title ?? "新通知", { description: msg.body })
         }
       } catch {
         // 忽略非 JSON 消息
@@ -84,12 +86,11 @@ export function NotificationDrawer() {
 
 function NotificationPanel({ onClose }: { onClose: () => void }) {
   const { data: all } = useNotifications()
-  const { data: unread } = useNotifications({ read: false })
   const { mutate: markRead } = useMarkRead()
 
   const allItems = all?.list ?? []
-  const unreadItems = unread?.list ?? []
-  const readItems = allItems.filter((n) => n.read)
+  const unreadItems = allItems.filter((n) => !n.isRead)
+  const readItems = allItems.filter((n) => n.isRead)
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -148,7 +149,7 @@ function NotificationList({
   onRead
 }: {
   items: NotificationItemType[]
-  onRead?: (id: string) => void
+  onRead?: (id: number) => void
 }) {
   if (!items || items.length === 0) {
     return <p className="p-8 text-center text-muted-foreground text-sm">暂无通知</p>

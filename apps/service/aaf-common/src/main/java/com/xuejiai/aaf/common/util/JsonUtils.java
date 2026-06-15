@@ -13,7 +13,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>启动时由 {@code JacksonAutoConfiguration} 调用 {@link #init} 注入 Spring 管理的 Bean，
  * 复用统一的序列化配置（JavaTimeModule 等）。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Slf4j
 @UtilityClass
@@ -69,8 +69,7 @@ public class JsonUtils {
         if (text == null || text.isBlank()) return List.of();
         try {
             return jsonMapper.readValue(
-                    text,
-                    jsonMapper.getTypeFactory().constructCollectionType(List.class, clazz));
+                    text, jsonMapper.getTypeFactory().constructCollectionType(List.class, clazz));
         } catch (Exception e) {
             log.error("JSON 数组反序列化失败: {}", text, e);
             throw new RuntimeException(e);

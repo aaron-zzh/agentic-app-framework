@@ -1,6 +1,6 @@
 /**
  * 积分详情页——总余额 + 三大分组树形列表（会员/每周/奖励）+ tab 流水
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

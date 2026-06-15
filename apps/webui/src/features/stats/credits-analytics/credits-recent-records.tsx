@@ -1,6 +1,6 @@
 /**
  * 积分最近消耗记录表格
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

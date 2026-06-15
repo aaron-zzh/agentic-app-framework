@@ -37,7 +37,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>POST /api/aigc/avatars/{id}/generate — 提交视频生成任务
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Tag(name = "数字人形象")
 @RestController

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import com.xuejiai.aaf.common.util.JsonUtils;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -26,9 +27,12 @@ public class JacksonAutoConfiguration {
     @Primary
     @ConditionalOnMissingBean(JsonMapper.class)
     public JsonMapper jsonMapper() {
-        JsonMapper mapper = JsonMapper.builder()
-                .disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .build();
+        JsonMapper mapper =
+                JsonMapper.builder()
+                        .disable(
+                                tools.jackson.databind.DeserializationFeature
+                                        .FAIL_ON_UNKNOWN_PROPERTIES)
+                        .build();
         JsonUtils.init(mapper);
         return mapper;
     }

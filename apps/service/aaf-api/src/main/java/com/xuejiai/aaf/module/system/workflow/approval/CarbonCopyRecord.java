@@ -15,7 +15,7 @@ import lombok.Setter;
 /**
  * 抄送记录。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Getter
 @Setter

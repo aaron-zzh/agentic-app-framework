@@ -122,7 +122,8 @@ public class DbTaskPersistencePort implements TaskPersistencePort {
                             taskClass,
                             "active".equals(task.getStatus()),
                             task.getRemark(),
-                            misfire));
+                            misfire,
+                            task.getTimeoutSeconds() != null ? task.getTimeoutSeconds() : 0));
         } catch (Exception e) {
             log.warn("任务 [{}] 定义解析失败，跳过调度: {}", task.getName(), e.getMessage());
             return Optional.empty();

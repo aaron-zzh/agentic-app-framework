@@ -5,8 +5,6 @@ import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-import tools.jackson.databind.json.JsonMapper;
-
 import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
@@ -36,6 +34,7 @@ import io.agentscope.core.skill.AgentSkill;
 import io.agentscope.core.skill.SkillBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * AgentScope 运行时——AAF 与 AgentScope 的唯一桥梁。

@@ -1,6 +1,6 @@
 /**
  * 多系列折线图——多条折线对比，支持面积填充
- * @author Kiro
+ * @author AaronZZH
  */
 
 "use client"

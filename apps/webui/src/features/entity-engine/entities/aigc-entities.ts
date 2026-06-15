@@ -1,6 +1,6 @@
 /**
  * AIGC 实体配置
- * @author Kiro
+ * @author AaronZZH
  */
 
 import type { EntityDef } from "../types"

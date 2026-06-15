@@ -18,7 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * <p>浏览器原生 {@code EventSource} 不支持自定义 header，通过 query param 传递 JWT 是标准变通方案。 仅在请求头中没有 Authorization
  * 时生效，不覆盖已有认证信息。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Component
 public class SseTokenFilter extends OncePerRequestFilter {

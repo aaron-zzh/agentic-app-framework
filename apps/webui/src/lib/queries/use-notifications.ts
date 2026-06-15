@@ -4,7 +4,6 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { _notifications } from "@/lib/_mock/notifications"
 import { type NotificationListParams, notificationApi } from "@/lib/api/rest/user/notification"
 
 const KEYS = {
@@ -17,21 +16,7 @@ const KEYS = {
 export function useNotifications(params: NotificationListParams = {}) {
   return useQuery({
     queryKey: KEYS.list(params),
-    queryFn: async () => {
-      // mock 仅在开发环境使用，生产环境走真实 API
-      if (process.env.NODE_ENV === "development") {
-        const mockList = _notifications.map((n) => ({
-          id: n.id,
-          type: n.type,
-          title: n.title,
-          body: n.description,
-          read: !n.isUnRead,
-          createdAt: n.createdAt
-        }))
-        return { list: mockList, total: mockList.length, page: 1, pageSize: 20 }
-      }
-      return notificationApi.list(params)
-    }
+    queryFn: () => notificationApi.list(params)
   })
 }
 
@@ -39,12 +24,7 @@ export function useNotifications(params: NotificationListParams = {}) {
 export function useUnreadCount() {
   return useQuery({
     queryKey: KEYS.unreadCount,
-    queryFn: async () => {
-      if (process.env.NODE_ENV === "development") {
-        return { count: _notifications.filter((n) => n.isUnRead).length }
-      }
-      return notificationApi.unreadCount()
-    },
+    queryFn: () => notificationApi.unreadCount(),
     refetchInterval: 60_000
   })
 }
@@ -53,7 +33,7 @@ export function useUnreadCount() {
 export function useMarkRead() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (ids?: string[]) => notificationApi.markRead(ids),
+    mutationFn: (ids?: number[]) => notificationApi.markRead(ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.all })
     }
@@ -64,7 +44,7 @@ export function useMarkRead() {
 export function useRemoveNotifications() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (ids: string[]) => notificationApi.remove(ids),
+    mutationFn: (ids: number[]) => notificationApi.remove(ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.all })
     }

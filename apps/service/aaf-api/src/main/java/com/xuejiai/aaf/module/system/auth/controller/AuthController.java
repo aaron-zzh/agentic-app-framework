@@ -60,8 +60,8 @@ public class AuthController {
 
     @Operation(summary = "获取当前登录用户信息")
     @GetMapping("/me")
-    public Result<MeVO> me(jakarta.servlet.http.HttpServletRequest request,
-                           HttpServletResponse response) {
+    public Result<MeVO> me(
+            jakarta.servlet.http.HttpServletRequest request, HttpServletResponse response) {
         Long userId = authService.currentUserId();
         var userVO = userService.getById(userId);
         var roleIds =
@@ -265,15 +265,19 @@ public class AuthController {
     /** 写入 HttpOnly aaf-token Cookie，生产加 Secure，开发用 SameSite=Lax 支持 localhost */
     private void writeTokenCookie(HttpServletResponse response, String token) {
         boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
-        String cookie = isProd
-                ? "aaf-token=" + token + "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800"
-                : "aaf-token=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800";
+        String cookie =
+                isProd
+                        ? "aaf-token="
+                                + token
+                                + "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800"
+                        : "aaf-token=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800";
         response.addHeader("Set-Cookie", cookie);
     }
 
     /** 登出时清除 aaf-token Cookie */
     private void clearTokenCookie(HttpServletResponse response) {
-        response.addHeader("Set-Cookie",
+        response.addHeader(
+                "Set-Cookie",
                 "aaf-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
     }
 }

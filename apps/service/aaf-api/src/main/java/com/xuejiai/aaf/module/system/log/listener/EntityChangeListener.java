@@ -3,13 +3,13 @@ package com.xuejiai.aaf.module.system.log.listener;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
 import com.xuejiai.aaf.module.system.log.event.EntityChangeEvent;
 import com.xuejiai.aaf.module.system.log.service.ActivityService;
 import com.xuejiai.aaf.module.system.log.service.AuditLogService;
 import com.xuejiai.aaf.module.system.notify.domain.Notification;
 import com.xuejiai.aaf.module.system.notify.repository.NotificationRepository;
 import com.xuejiai.aaf.module.system.notify.service.SubscriptionService;
-import com.xuejiai.aaf.module.system.notify.ws.WebSocketSessionManager;
 import com.xuejiai.aaf.module.system.workflow.service.AutomationService;
 
 import lombok.RequiredArgsConstructor;

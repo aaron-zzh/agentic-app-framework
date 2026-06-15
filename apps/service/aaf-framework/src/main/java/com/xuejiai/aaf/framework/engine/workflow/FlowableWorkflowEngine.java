@@ -425,6 +425,58 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
         runtimeService.messageEventReceived(messageName, execution.getId(), variables);
     }
 
+    // ==================== 审批操作 ====================
+
+    @Override
+    public void addSign(String taskId, String assignee) {
+        var task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (task == null) throw new IllegalArgumentException("任务不存在: " + taskId);
+        runtimeService.addMultiInstanceExecution(
+                task.getTaskDefinitionKey(),
+                task.getProcessInstanceId(),
+                Map.of("assignee", assignee));
+        log.info("加签完成：taskId={}, assignee={}", taskId, assignee);
+    }
+
+    @Override
+    public void transferSign(String taskId, String targetAssignee, String reason) {
+        var task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (task == null) throw new IllegalArgumentException("任务不存在: " + taskId);
+        var originalAssignee = task.getAssignee();
+        taskService.setAssignee(taskId, targetAssignee);
+        if (reason != null) {
+            taskService.addComment(
+                    taskId,
+                    task.getProcessInstanceId(),
+                    "转签：%s → %s，原因：%s".formatted(originalAssignee, targetAssignee, reason));
+        }
+        log.info("转签完成：taskId={}, {} → {}", taskId, originalAssignee, targetAssignee);
+    }
+
+    @Override
+    public void withdraw(String processInstanceId, String initiator) {
+        var variables = runtimeService.getVariables(processInstanceId);
+        var processInitiator = (String) variables.get("initiator");
+        if (!initiator.equals(processInitiator)) {
+            throw new IllegalArgumentException("只有发起人可以撤回");
+        }
+        boolean hasOtherCompleted =
+                historyService
+                        .createHistoricActivityInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .activityType("userTask")
+                        .finished()
+                        .list()
+                        .stream()
+                        .anyMatch(
+                                t -> t.getAssignee() != null && !t.getAssignee().equals(initiator));
+        if (hasOtherCompleted) {
+            throw new IllegalStateException("后续节点已处理，无法撤回");
+        }
+        runtimeService.deleteProcessInstance(processInstanceId, "发起人撤回");
+        log.info("流程撤回：processInstanceId={}, initiator={}", processInstanceId, initiator);
+    }
+
     // ==================== 内部辅助方法 ====================
 
     private TaskInfo toTaskInfo(Task t) {

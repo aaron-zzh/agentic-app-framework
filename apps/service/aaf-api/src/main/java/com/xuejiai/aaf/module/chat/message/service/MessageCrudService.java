@@ -5,8 +5,13 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
+import com.xuejiai.aaf.module.chat.conversation.repository.ConversationParticipantRepository;
+import com.xuejiai.aaf.module.chat.enums.ParticipantType;
 import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
 import com.xuejiai.aaf.module.chat.message.repository.ConversationMessageRepository;
 import com.xuejiai.aaf.module.chat.message.vo.MessageCreateDTO;
@@ -15,12 +20,14 @@ import com.xuejiai.aaf.module.chat.message.vo.MessageUpdateDTO;
 import com.xuejiai.aaf.module.chat.message.vo.MessageVO;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 消息 CRUD 服务。
  *
  * @author AaronZZH & Kiro
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -33,6 +40,9 @@ public class MessageCrudService
                 MessagePageDTO> {
 
     private final ConversationMessageRepository messageRepository;
+    private final ConversationParticipantRepository participantRepository;
+    private final WebSocketSessionManager wsSessionManager;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected JpaRepository<ConversationMessage, Long> getRepository() {
@@ -93,5 +103,40 @@ public class MessageCrudService
     @Override
     protected String entityName() {
         return "消息";
+    }
+
+    /** 覆写 create，消息存库后通过 WS 实时推送给会话中其他参与者。 只推送 HUMAN 类型参与者（userId），忽略 AGENT/STAFF 类型。 */
+    @Override
+    @Transactional
+    public MessageVO create(MessageCreateDTO dto) {
+        var vo = super.create(dto);
+        pushToParticipants(vo);
+        return vo;
+    }
+
+    private void pushToParticipants(MessageVO vo) {
+        try {
+            var payload =
+                    objectMapper.writeValueAsString(
+                            java.util.Map.of(
+                                    "type", "im_message",
+                                    "conversationId", vo.conversationId(),
+                                    "messageId", vo.id(),
+                                    "senderId", vo.senderId(),
+                                    "content", vo.content() != null ? vo.content() : ""));
+            participantRepository.findByConversationIdAndLeftAtIsNull(vo.conversationId()).stream()
+                    .filter(p -> p.getParticipantType() == ParticipantType.HUMAN)
+                    .filter(p -> !p.getParticipantId().equals(vo.senderId())) // 不推给自己
+                    .forEach(
+                            p -> {
+                                try {
+                                    wsSessionManager.sendToUser(
+                                            Long.valueOf(p.getParticipantId()), payload);
+                                } catch (Exception ignored) {
+                                }
+                            });
+        } catch (Exception e) {
+            log.warn("IM 消息推送失败: conversationId={}", vo.conversationId(), e);
+        }
     }
 }

@@ -13,7 +13,7 @@ import lombok.Setter;
 /**
  * AIGC 统一任务实体——IMAGE / VIDEO / MODEL_3D / MUSIC 四类任务的统一存储。
  *
- * @author Kiro
+ * @author AaronZZH
  */
 @Getter
 @Setter
