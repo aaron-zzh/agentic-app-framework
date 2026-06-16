@@ -17,6 +17,8 @@ import { type ReactNode, useCallback, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
+import { useAuthStore } from "@/lib/store/auth-store"
+import { OmniVoiceAdapter } from "@/lib/voice/omni-voice-adapter"
 import { useAgentRunStore } from "./agent-run-store"
 
 const DEFAULT_AGENT_URL = buildApiUrl("/agui/runs")
@@ -116,7 +118,12 @@ export function AgUiChatProvider({
     [onNewThread]
   )
 
-  const runtime = useAgUiRuntime({ agent, onError, adapters: { threadList } })
+  const voiceAdapter = useMemo(
+    () => new OmniVoiceAdapter({ getToken: () => useAuthStore.getState().accessToken }),
+    []
+  )
+
+  const runtime = useAgUiRuntime({ agent, onError, adapters: { threadList, voice: voiceAdapter } })
 
   // 初始线程恢复：挂载后切换到指定 threadId（匿名访客历史恢复）
   useEffect(() => {

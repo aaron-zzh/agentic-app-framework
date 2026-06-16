@@ -50,6 +50,7 @@ public class SecurityConfig {
     /** 公开路径，无需认证 */
     private static final String[] PUBLIC_PATHS = {
         "/api/auth/**",
+        "/api/public/**",
         "/api/channel/wx/**",
         "/api/system/chat/sessions/thread/*/messages",
         "/api/agui/runs",

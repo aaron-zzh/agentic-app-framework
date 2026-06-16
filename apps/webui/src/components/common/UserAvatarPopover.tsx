@@ -115,7 +115,7 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
                 asChild
                 className="mt-3 w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-white hover:opacity-90"
               >
-                <Link href="/settings/pricing">开通会员</Link>
+                <Link href="/">🚀 升级套餐</Link>
               </Button>
             )}
           </div>

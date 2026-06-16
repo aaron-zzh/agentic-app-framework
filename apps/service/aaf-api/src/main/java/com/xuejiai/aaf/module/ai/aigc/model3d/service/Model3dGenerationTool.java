@@ -57,6 +57,7 @@ public class Model3dGenerationTool {
                                     null,
                                     null,
                                     null,
+                                    null,
                                     true,
                                     null,
                                     null,

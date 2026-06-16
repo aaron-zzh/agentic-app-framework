@@ -682,8 +682,9 @@ VALUES
 ('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true),
 ('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true),
 ('n1n:claude-fable-5',    'Claude Fable 5',     'n1n',     'OPENAI_COMPAT', 'claude-fable-5',             'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  4,  true),
-('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                   'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 10,  true),
-('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',              'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 11,  true),
+('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000, 5,  true),
+('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 10,  true),
+('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 11,  true),
 
 -- P0: DeepSeek
 ('deepseek:chat',           'DeepSeek Chat',      'deepseek',   'OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                       'CHAT',        64000,  20,  true),
@@ -718,8 +719,8 @@ VALUES
 ('qwen:wan2.7-image',       '万相 Wan2.7',         'qwen',       'DASHSCOPE',     'wan2.7-image',                   'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 210, true),
 ('qwen:qwen-image-2.0',       '千问图像 2.0',        'qwen',        'DASHSCOPE',     'qwen-image-2.0',                 'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 211, true),
 ('n1n:gpt-image-2',         'GPT Image 2',         'n1n',        'OPENAI_COMPAT',  'gpt-image-2',                             'https://llm-api.net/v1',         'IMAGE_GEN', null, 212, true),
-('n1n:gemini-3.1-flash-image-preview', 'Gemini 3.1 Flash Image', 'n1n',    'OPENAI_COMPAT', 'gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 220, true),
-('n1n:gemini-3-pro-image-preview',     'Gemini 3 Pro Image',     'n1n',    'OPENAI_COMPAT', 'gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 221, true),
+('n1n:gemini-3.1-flash-image-preview', 'Gemini 3.1 Flash', 'n1n',    'OPENAI_COMPAT', 'gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 220, true),
+('n1n:gemini-3-pro-image-preview',     'Gemini 3 Pro',     'n1n',    'OPENAI_COMPAT', 'gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 221, true),
 ('n1n:doubao-260128seedream-5-0-',            '豆包 Seedream 5.0',      'n1n',    'OPENAI_COMPAT', 'doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',      null, 230, true),
 -- P1: 视频生成
 ('qwen:happyhorse-1.0-i2v',   'HappyHorse',   'qwen',  'DASHSCOPE', 'happyhorse-1.0-i2v',               'https://dashscope.aliyuncs.com', 'VIDEO_GEN',       null, 350, true),

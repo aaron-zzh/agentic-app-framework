@@ -1,8 +1,10 @@
 "use client"
 
-import { Copy, KeyRound, Settings2, Ticket, Users } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Copy, KeyRound, Pencil, Plus, Settings2, Ticket, Users, X } from "lucide-react"
 import type { ReactNode } from "react"
 import { useState } from "react"
+import { toast } from "sonner"
 import { LicenseOwnerOnly } from "@/components/common/LicenseOwnerOnly"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
@@ -11,9 +13,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { type DeveloperSubscriptionPlan, developerApi } from "@/lib/api/rest/billing/developer"
 import { licenseApi } from "@/lib/api/rest/billing/license"
 import { useDeveloperPlans } from "@/lib/queries/use-developer-billing"
 import {
@@ -31,14 +40,14 @@ const FEATURE_OPTIONS = [
 
 export default function OfficialAdminPage() {
   const { data: license } = useLicenseStatus()
-  const { data: plans = [], isLoading } = useDeveloperPlans(Boolean(license?.owner))
-  const { data: summary } = useOfficialConsoleSummary(Boolean(license?.owner))
+  const isOwner = license?.features?.includes("official-console") ?? false
+  const { data: plans = [], isLoading } = useDeveloperPlans(isOwner)
+  const { data: summary } = useOfficialConsoleSummary(isOwner)
   const issueLicense = useIssueLicense()
   const [form, setForm] = useState({
     subject: "",
     tier: "premium",
     org: "",
-    owner: false,
     features: ["developer", "source-download"],
     expiresAt: nextYearDateTimeLocal()
   })
@@ -48,7 +57,6 @@ export default function OfficialAdminPage() {
       subject: form.subject,
       tier: form.tier,
       org: form.org,
-      owner: form.owner,
       features: form.features,
       expiresAt: new Date(form.expiresAt).toISOString()
     })
@@ -135,25 +143,7 @@ export default function OfficialAdminPage() {
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {plans.map((plan) => (
-                  <div key={plan.id} className="rounded-md border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-medium">{plan.name}</div>
-                        <div className="text-muted-foreground text-xs">{plan.code}</div>
-                      </div>
-                      <Badge variant={plan.status === "ACTIVE" ? "default" : "secondary"}>
-                        {plan.status}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
-                      <SmallValue label="价格" value={`¥${(plan.price / 100).toFixed(2)}`} />
-                      <SmallValue label="天数" value={`${plan.durationDays}`} />
-                      <SmallValue
-                        label="Token"
-                        value={new Intl.NumberFormat("zh-CN").format(plan.includedTokens)}
-                      />
-                    </div>
-                  </div>
+                  <PlanCard key={plan.id} plan={plan} />
                 ))}
               </div>
             )}
@@ -216,16 +206,11 @@ export default function OfficialAdminPage() {
               </Field>
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div>
-                  <div className="font-medium text-sm">官方 owner 授权</div>
+                  <div className="font-medium text-sm">官方控制台权限</div>
                   <div className="text-muted-foreground text-xs">
-                    仅给雪稽 AI 官方服务实例开启。
+                    在 features 中勾选 <code>official-console</code> 即可开启。
                   </div>
                 </div>
-                <Switch
-                  checked={form.owner}
-                  onCheckedChange={(owner) => setForm((v) => ({ ...v, owner }))}
-                  aria-label="官方 owner 授权"
-                />
               </div>
               <Button type="button" onClick={handleIssue} disabled={issueLicense.isPending}>
                 <KeyRound className="size-4" />
@@ -270,6 +255,8 @@ export default function OfficialAdminPage() {
             </div>
           </CardContent>
         </Card>
+
+        <RedeemCodeCard isOwner={isOwner} />
       </LicenseOwnerOnly>
     </PageContainer>
   )
@@ -327,6 +314,264 @@ function SmallValue({ label, value }: { label: string; value: string }) {
     <div>
       <div className="text-muted-foreground text-xs">{label}</div>
       <div className="truncate font-medium">{value}</div>
+    </div>
+  )
+}
+
+/** 生成兑换码 Card */
+function RedeemCodeCard({ isOwner }: { isOwner: boolean }) {
+  const [type, setType] = useState<"TOKEN" | "LICENSE">("TOKEN")
+  const [tokenAmount, setTokenAmount] = useState("10000")
+  const [planCode, setPlanCode] = useState("")
+  const [expiresAt, setExpiresAt] = useState(nextYearDateTimeLocal())
+  const [result, setResult] = useState<{ code: string; licenseJwt?: string } | null>(null)
+
+  const { data: adminPlans = [] } = useQuery<DeveloperSubscriptionPlan[]>({
+    queryKey: ["adminPlans"],
+    queryFn: developerApi.adminPlans,
+    enabled: isOwner
+  })
+
+  const { mutate: generate, isPending } = useMutation({
+    mutationFn: () =>
+      developerApi.createRedeemCode({
+        type,
+        tokenAmount: type === "TOKEN" ? Number(tokenAmount) : undefined,
+        planCode: type === "LICENSE" ? planCode : undefined,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined
+      }),
+    onSuccess: (data) => {
+      setResult({ code: data.code, licenseJwt: data.licenseJwt })
+      toast.success("兑换码已生成")
+    },
+    onError: (e) => toast.error((e as Error).message ?? "生成失败")
+  })
+
+  async function copyCode() {
+    if (!result?.code) return
+    await navigator.clipboard.writeText(result.code)
+    toast.success("已复制兑换码")
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>生成兑换码</CardTitle>
+        <CardDescription>生成 TOKEN 额度兑换码或 LICENSE 套餐激活码。</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="兑换码类型">
+            <Select value={type} onValueChange={(v) => setType(v as "TOKEN" | "LICENSE")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TOKEN">TOKEN — 发放积分额度</SelectItem>
+                <SelectItem value="LICENSE">LICENSE — 激活套餐订阅</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          {type === "TOKEN" ? (
+            <Field label="Token 额度">
+              <Input
+                type="number"
+                value={tokenAmount}
+                onChange={(e) => setTokenAmount(e.target.value)}
+                min={1}
+              />
+            </Field>
+          ) : (
+            <Field label="绑定套餐">
+              <Select value={planCode} onValueChange={setPlanCode}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择套餐" />
+                </SelectTrigger>
+                <SelectContent>
+                  {adminPlans.map((p) => (
+                    <SelectItem key={p.code} value={p.code}>
+                      {p.name}（{p.code}）
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+
+          <Field label="过期时间">
+            <Input
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        <Button
+          type="button"
+          onClick={() => generate()}
+          disabled={isPending || (type === "LICENSE" && !planCode)}
+        >
+          <Plus className="size-4" />
+          {isPending ? "生成中..." : "生成兑换码"}
+        </Button>
+
+        {result && (
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-3">
+              <code className="break-all font-mono text-sm">{result.code}</code>
+              <Button type="button" variant="outline" size="sm" onClick={copyCode}>
+                <Copy className="size-3.5" />
+                复制
+              </Button>
+            </div>
+            {result.licenseJwt && (
+              <Textarea readOnly className="min-h-24 font-mono text-xs" value={result.licenseJwt} />
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** 套餐卡片，支持内联编辑 */
+function PlanCard({ plan }: { plan: DeveloperSubscriptionPlan }) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({
+    name: plan.name,
+    price: String(plan.price),
+    durationDays: String(plan.durationDays),
+    includedTokens: String(plan.includedTokens),
+    status: plan.status
+  })
+  const qc = useQueryClient()
+
+  const { mutate: save, isPending } = useMutation({
+    mutationFn: () =>
+      developerApi.updatePlan(plan.id, {
+        name: form.name,
+        price: Number(form.price),
+        durationDays: Number(form.durationDays),
+        includedTokens: Number(form.includedTokens),
+        status: form.status
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developerBilling", "plans"] })
+      setEditing(false)
+      toast.success("套餐已更新")
+    },
+    onError: (e) => toast.error((e as Error).message ?? "保存失败")
+  })
+
+  if (!editing) {
+    return (
+      <div className="rounded-md border p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="font-medium">{plan.name}</div>
+            <div className="text-muted-foreground text-xs">{plan.code}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={plan.status === "ACTIVE" ? "default" : "secondary"}>
+              {plan.status}
+            </Badge>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+          <SmallValue label="价格" value={`¥${(plan.price / 100).toFixed(2)}`} />
+          <SmallValue label="天数" value={`${plan.durationDays}天`} />
+          <SmallValue
+            label="Token 配额"
+            value={
+              plan.includedTokens >= 1_000_000
+                ? `${(plan.includedTokens / 1_000_000).toFixed(1)}M`
+                : plan.includedTokens >= 1_000
+                  ? `${(plan.includedTokens / 1_000).toFixed(0)}K`
+                  : `${plan.includedTokens}`
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-md border p-3 ring-1 ring-primary">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="font-medium text-sm">{plan.code}</span>
+        <div className="flex gap-1">
+          <Button type="button" size="sm" onClick={() => save()} disabled={isPending}>
+            {isPending ? "保存中..." : "保存"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={() => setEditing(false)}
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="套餐名称">
+          <Input
+            value={form.name}
+            onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
+            className="h-7 text-xs"
+          />
+        </Field>
+        <Field label="价格（分）">
+          <Input
+            type="number"
+            value={form.price}
+            onChange={(e) => setForm((v) => ({ ...v, price: e.target.value }))}
+            className="h-7 text-xs"
+          />
+        </Field>
+        <Field label="有效天数">
+          <Input
+            type="number"
+            value={form.durationDays}
+            onChange={(e) => setForm((v) => ({ ...v, durationDays: e.target.value }))}
+            className="h-7 text-xs"
+          />
+        </Field>
+        <Field label="Token 额度">
+          <Input
+            type="number"
+            value={form.includedTokens}
+            onChange={(e) => setForm((v) => ({ ...v, includedTokens: e.target.value }))}
+            className="h-7 text-xs"
+          />
+        </Field>
+        <Field label="状态">
+          <Select
+            value={form.status}
+            onValueChange={(v) => setForm((prev) => ({ ...prev, status: v }))}
+          >
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ENABLED">ENABLED</SelectItem>
+              <SelectItem value="DISABLED">DISABLED</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
     </div>
   )
 }

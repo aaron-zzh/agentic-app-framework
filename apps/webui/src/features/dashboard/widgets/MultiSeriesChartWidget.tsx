@@ -95,7 +95,7 @@ export function MultiSeriesChartWidget({ title, subheader, chart }: MultiSeriesC
             </div>
           ))}
         </div>
-        <BaseChart option={option} className="h-[320px] w-full" />
+        <BaseChart option={option} className="h-[240px] w-full" />
       </CardContent>
     </Card>
   )

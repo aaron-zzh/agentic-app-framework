@@ -21,6 +21,7 @@ public record SaveFromGenerationDTO(
         @Schema(description = "高度（像素）", example = "1024") Integer height,
         @Schema(description = "时长（秒）", example = "15.5") BigDecimal duration,
         @Schema(description = "所属素材组 ID") Long groupId,
+        @Schema(description = "素材组名称（groupId 为 null 时自动建组用）") String groupName,
         @Schema(description = "是否 AI 生成，默认 true") boolean aiGenerated,
         @Schema(description = "AI 模型显示名称", example = "豆包图像生成") String modelName,
         @Schema(description = "模型供应商编码", example = "volcengine") String providerCode,

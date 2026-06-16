@@ -13,6 +13,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
+import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetGroup;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetVariant;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.repository.MediaAssetGroupRepository;
@@ -193,7 +194,8 @@ public class MediaAssetService {
      * @return 保存的素材
      */
     @Transactional(
-            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW,
+            noRollbackFor = Exception.class)
     public MediaAssetVO saveFromGeneration(Long userId, SaveFromGenerationDTO dto) {
         var asset = new MediaAsset();
         asset.setUserId(userId);
@@ -205,7 +207,20 @@ public class MediaAssetService {
         asset.setHeight(dto.height());
         asset.setDuration(dto.duration());
         asset.setGenerationParams(dto.generationParams());
-        if (dto.groupId() != null) asset.setGroupId(dto.groupId());
+
+        // groupId 优先使用传入值；若无则按 groupName 自动建组，保证 group+asset 在同一事务
+        Long resolvedGroupId = dto.groupId();
+        if (resolvedGroupId == null && dto.groupName() != null && !dto.groupName().isBlank()) {
+            var group = new MediaAssetGroup();
+            group.setName(dto.groupName());
+            group.setCoverUrl(dto.url());
+            group.setAssetCount(1);
+            group.setUserId(userId);
+            group = groupRepository.save(group);
+            resolvedGroupId = group.getId();
+        }
+        if (resolvedGroupId != null) asset.setGroupId(resolvedGroupId);
+
         asset.setAiGenerated(Boolean.TRUE.equals(dto.aiGenerated()));
         asset.setModelName(dto.modelName());
         asset.setProviderCode(dto.providerCode());

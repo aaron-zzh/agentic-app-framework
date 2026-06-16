@@ -6,8 +6,6 @@ import java.util.Set;
 
 /** 当前框架授权状态。 */
 public record LicenseStatusVO(
-        boolean premium,
-        boolean owner,
         boolean identityValid,
         String tier,
         String userId,

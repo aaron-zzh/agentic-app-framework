@@ -2078,10 +2078,16 @@ CREATE TABLE developer_redeem_code (
     update_time                TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     delete_time                TIMESTAMP(6),
     deleted                    BOOLEAN      NOT NULL DEFAULT FALSE,
-    remark                     VARCHAR(255)
+    remark                     VARCHAR(255),
+    type                       VARCHAR(20)  NOT NULL DEFAULT 'TOKEN',
+    plan_code                  VARCHAR(40),
+    license_jwt                TEXT
 );
 
 COMMENT ON TABLE developer_redeem_code IS '开发者 Token 兑换码';
+COMMENT ON COLUMN developer_redeem_code.type        IS '兑换码类型：TOKEN=发放token额度，LICENSE=激活套餐订阅';
+COMMENT ON COLUMN developer_redeem_code.plan_code   IS 'type=LICENSE 时绑定的套餐 code';
+COMMENT ON COLUMN developer_redeem_code.license_jwt IS 'type=LICENSE 时预签发的 license.jwt 内容';
 CREATE UNIQUE INDEX uk_developer_redeem_code_hash ON developer_redeem_code(code_hash) WHERE deleted = FALSE;
 
 CREATE TABLE developer_api_key (

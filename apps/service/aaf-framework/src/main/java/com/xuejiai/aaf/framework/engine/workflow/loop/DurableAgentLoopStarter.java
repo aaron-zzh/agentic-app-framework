@@ -67,8 +67,10 @@ public class DurableAgentLoopStarter {
             variables.put("goalCondition", request.goalCondition());
         if (request.taskId() != null) variables.put("taskId", request.taskId());
         if (request.executionId() != null) variables.put("executionId", request.executionId());
-        if (request.conversationId() != null) variables.put("conversationId", request.conversationId());
-        if (request.knowledgeBaseId() != null) variables.put("knowledgeBaseId", request.knowledgeBaseId());
+        if (request.conversationId() != null)
+            variables.put("conversationId", request.conversationId());
+        if (request.knowledgeBaseId() != null)
+            variables.put("knowledgeBaseId", request.knowledgeBaseId());
         if (request.extraVariables() != null) variables.putAll(request.extraVariables());
 
         var businessKey =

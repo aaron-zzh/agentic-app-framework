@@ -27,9 +27,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService.MusicRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
 import com.xuejiai.aaf.framework.storage.StorageService;
-import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetGroup;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
-import com.xuejiai.aaf.module.ai.aigc.media.repository.MediaAssetGroupRepository;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
@@ -55,7 +53,6 @@ public class AigcTaskExecutor {
     private final AigcTaskMapper taskMapper;
     private final StorageService storageService;
     private final MediaAssetService mediaAssetService;
-    private final MediaAssetGroupRepository groupRepository;
     private final ImageServiceFactory imageServiceFactory;
     private final ObjectMapper objectMapper;
     private final AiCreditGuard creditGuard;
@@ -263,7 +260,7 @@ public class AigcTaskExecutor {
                     };
 
             // 每次生成任务创建一个素材组，用 displayPrompt（用户原始输入）命名，避免带入项目提示词前缀
-            var group = new MediaAssetGroup();
+            // group 在 saveFromGeneration 的 REQUIRES_NEW 事务内创建，保证 group+asset 原子提交
             String nameSource =
                     displayPrompt != null && !displayPrompt.isBlank()
                             ? displayPrompt
@@ -271,11 +268,6 @@ public class AigcTaskExecutor {
                                     ? task.getPrompt()
                                     : "AI生成-" + task.getType() + "-" + task.getId());
             String groupName = nameSource.substring(0, Math.min(nameSource.length(), 20));
-            group.setName(groupName);
-            group.setCoverUrl(ossUrl);
-            group.setAssetCount(1);
-            group.setUserId(task.getUserId());
-            group = groupRepository.save(group);
 
             var dto =
                     new SaveFromGenerationDTO(
@@ -293,13 +285,14 @@ public class AigcTaskExecutor {
                             w,
                             h,
                             null,
-                            group.getId(),
+                            null,
+                            groupName,
                             true,
                             task.getModelName(),
                             task.getProvider(),
                             task.getProjectId());
-            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            return group.getId();
+            var saved = mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+            return saved.groupId() != null ? saved.groupId() : 0L;
         } catch (Exception e) {
             log.warn("[saveToMediaAsset] 写入素材库失败: taskId={}", task.getId(), e);
             // 清除脏 Session，防止 null ID 的 group 污染后续操作
@@ -339,6 +332,7 @@ public class AigcTaskExecutor {
                             h,
                             null,
                             groupId,
+                            null,
                             true,
                             task.getModelName(),
                             task.getProvider(),
@@ -386,6 +380,7 @@ public class AigcTaskExecutor {
                                                         ? task.getPrompt().replace("\"", "'")
                                                         : "",
                                                 task.getModel() != null ? task.getModel() : ""),
+                                null,
                                 null,
                                 null,
                                 null,
@@ -457,6 +452,7 @@ public class AigcTaskExecutor {
                                         .formatted(
                                                 text.replace("\"", "'"),
                                                 voice != null ? voice : ""),
+                                null,
                                 null,
                                 null,
                                 null,
@@ -580,6 +576,7 @@ public class AigcTaskExecutor {
                                                         ? task.getPrompt().replace("\"", "'")
                                                         : "",
                                                 task.getModel() != null ? task.getModel() : ""),
+                                null,
                                 null,
                                 null,
                                 null,

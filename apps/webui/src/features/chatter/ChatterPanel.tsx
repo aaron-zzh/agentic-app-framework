@@ -8,7 +8,9 @@
 
 "use client"
 
+import { AuiIf, useVoiceState } from "@assistant-ui/react"
 import type { ReactNode } from "react"
+import { VoiceControl, VoiceOrb, deriveVoiceOrbState } from "@/components/voice"
 import { ChatterComposer } from "./ChatterComposer"
 import { ChatterThread } from "./ChatterThread"
 import { DroppableComposer } from "./dnd/DroppableComposer"
@@ -38,13 +40,19 @@ export function ChatterPanel({
   return (
     <div className="flex h-full flex-col">
       {toolbar}
+      {/* 通话中显示语音控制区（Orb 动画 + 控制栏） */}
+      <AuiIf condition={(s) => s.thread.voice != null && s.thread.voice.status.type !== "ended"}>
+        <div className="flex flex-col items-center gap-2 border-b py-4">
+          <ActiveVoiceOrb />
+          <VoiceControl className="border-none py-0" />
+        </div>
+      </AuiIf>
       {recovered && (
         <div className="px-3 pt-2">
           <RecoveryNotification taskCount={recovered.taskCount} onDismiss={dismissRecovery} />
         </div>
       )}
       <ChatterThread />
-      {/* 工具调用确认 UI（Agent 因权限检查暂停时展示） */}
       <ToolConfirmOverlay />
       <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />
       <DroppableComposer onDrop={onAttachmentAdd}>
@@ -52,4 +60,12 @@ export function ChatterPanel({
       </DroppableComposer>
     </div>
   )
+}
+
+
+/** 读取 voice 状态并传给 VoiceOrb */
+function ActiveVoiceOrb() {
+  const voiceState = useVoiceState()
+  const state = deriveVoiceOrbState(voiceState)
+  return <VoiceOrb state={state} className="size-20" />
 }

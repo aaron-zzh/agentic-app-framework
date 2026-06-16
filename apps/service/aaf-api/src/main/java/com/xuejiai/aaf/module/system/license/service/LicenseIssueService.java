@@ -36,14 +36,30 @@ public class LicenseIssueService {
     private final AuditLogService auditLogService;
 
     public LicenseIssueService(
-            @Value("${aaf.license.signing.private-key:}") String privateKeyPem,
+            @Value("${aaf.license.signing.private-key:}") String privateKeyValue,
+            @Value("${aaf.license.signing.private-key-file:}") String privateKeyFile,
             @Value("${aaf.license.signing.issuer:aaf.xuejiai.com}") String issuer,
             LicenseIdentityService identityService,
             AuditLogService auditLogService) {
-        this.privateKeyPem = privateKeyPem;
+        // 优先使用文件路径，其次使用直接配置的 PEM 内容
+        this.privateKeyPem = resolvePrivateKey(privateKeyFile, privateKeyValue);
         this.issuer = issuer;
         this.identityService = identityService;
         this.auditLogService = auditLogService;
+    }
+
+    private static String resolvePrivateKey(String filePath, String pemValue) {
+        if (filePath != null && !filePath.isBlank()) {
+            try {
+                var path =
+                        java.nio.file.Path.of(
+                                filePath.replace("~", System.getProperty("user.home")));
+                return java.nio.file.Files.readString(path);
+            } catch (Exception e) {
+                throw new IllegalStateException("读取 license 私钥文件失败: " + filePath, e);
+            }
+        }
+        return pemValue;
     }
 
     public LicenseIssueVO issue(LicenseIssueDTO dto) {
@@ -61,7 +77,6 @@ public class LicenseIssueService {
                             .issueTime(Date.from(Instant.now()))
                             .expirationTime(Date.from(expiresAt))
                             .claim("tier", dto.tier())
-                            .claim("owner", dto.owner())
                             .claim("features", features.stream().toList());
             if (dto.org() != null && !dto.org().isBlank()) {
                 builder.claim("org", dto.org());
@@ -69,12 +84,9 @@ public class LicenseIssueService {
             var signedJwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), builder.build());
             signedJwt.sign(new RSASSASigner(parsePrivateKey(privateKeyPem)));
             auditLogService.record(
-                    "license",
-                    0L,
-                    "ISSUE",
-                    auditChanges(subject, dto.tier(), dto.owner(), features));
+                    "license", 0L, "ISSUE", auditChanges(subject, dto.tier(), features));
             return new LicenseIssueVO(
-                    signedJwt.serialize(), subject, dto.tier(), dto.owner(), features, expiresAt);
+                    signedJwt.serialize(), subject, dto.tier(), features, expiresAt);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -82,13 +94,13 @@ public class LicenseIssueService {
         }
     }
 
-    private String auditChanges(String subject, String tier, boolean owner, Set<String> features) {
+    private String auditChanges(String subject, String tier, Set<String> features) {
         var featureJson =
                 features.stream().map(this::jsonString).collect(Collectors.joining(",", "[", "]"));
         return """
-                {"subject":%s,"tier":%s,"owner":%s,"features":%s}
+                {"subject":%s,"tier":%s,"features":%s}
                 """
-                .formatted(jsonString(subject), jsonString(tier), owner, featureJson);
+                .formatted(jsonString(subject), jsonString(tier), featureJson);
     }
 
     private String jsonString(String value) {

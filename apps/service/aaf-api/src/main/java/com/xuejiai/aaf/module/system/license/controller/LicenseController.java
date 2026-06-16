@@ -38,8 +38,6 @@ public class LicenseController {
         var license = License.get();
         return Result.success(
                 new LicenseStatusVO(
-                        license.isPremium(),
-                        license.isOwner(),
                         license.isIdentityValid(),
                         license.getTier(),
                         license.getUserId(),

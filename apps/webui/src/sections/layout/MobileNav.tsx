@@ -48,12 +48,13 @@ function MobileSidebarContent() {
   const pathname = usePathname()
   const { data: menus } = useUserMenus()
   const { data: license } = useLicenseStatus()
+  const hasOfficial = license?.features?.includes("official-console") ?? false
   const navConfig = useMemo(() => {
     const appendOfficial = (groups: NavGroup[]) =>
-      license?.owner ? [...groups, buildOfficialNavConfig()] : groups
+      hasOfficial ? [...groups, buildOfficialNavConfig()] : groups
     if (menus) return appendOfficial(buildNavFromApi(menus))
     return appendOfficial(buildNavConfig())
-  }, [menus, license?.owner])
+  }, [menus, hasOfficial])
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">

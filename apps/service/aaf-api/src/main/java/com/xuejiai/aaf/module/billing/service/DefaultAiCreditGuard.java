@@ -70,6 +70,24 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     }
 
     @Override
+    public void precheck(Long userId, String capability, long estimatedCost) {
+        if (userId == null) {
+            throw new IllegalStateException("AI 门控：userId 为空，无法归账，拒绝调用 capability=" + capability);
+        }
+        long balance = creditService.getBalance(userId);
+        // estimatedCost=0 表示 token 计费场景（事前不知花费），用透支上限宽松检查
+        long overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
+        long minRequired = estimatedCost > 0 ? estimatedCost : 1;
+        if (balance + overdraft < minRequired) {
+            throw new InsufficientCreditsException(userId, balance);
+        }
+        long threshold = configService.getInteger(SysConfigKeys.Ai.CREDIT_WARN_THRESHOLD, 10);
+        if (balance <= threshold) {
+            eventPublisher.publishEvent(new CreditLowEvent(userId, balance, threshold));
+        }
+    }
+
+    @Override
     public void settle(Long userId, String capability, long actualCost) {
         settle(userId, capability, actualCost, null);
     }
@@ -134,7 +152,8 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                     creditCost);
         }
         try {
-            creditService.spend(userId, creditCost, "chat", bizId);
+            long overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
+            creditService.spendAllowOverdraft(userId, creditCost, "chat", bizId, overdraft);
         } catch (Exception e) {
             log.warn(
                     "AI 积分扣减失败: userId={}, modelId={}, cost={}, err={}",

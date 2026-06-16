@@ -49,7 +49,15 @@ export function buildNavConfig(): NavGroup[] {
     },
     {
       subheader: "系统",
-      items: [{ title: "设置", path: paths.workspace.settings, icon: "settings" }]
+      items: [
+        { title: "设置", path: paths.workspace.settings, icon: "settings" },
+        {
+          title: "演示模式",
+          path: paths.admin.demo,
+          icon: "flask-conical",
+          allowedRoles: ["SUPER_ADMIN"]
+        }
+      ]
     }
   ]
 }

@@ -24,6 +24,18 @@ public interface AiCreditGuard {
     void precheck(Long userId, String capability);
 
     /**
+     * 调用前预检：余额 >= estimatedCost 才放行。
+     *
+     * @param userId 用户 ID
+     * @param capability 能力标识
+     * @param estimatedCost 预估消耗积分数
+     * @throws InsufficientCreditsException 余额不足时抛出
+     */
+    default void precheck(Long userId, String capability, long estimatedCost) {
+        precheck(userId, capability); // 默认降级到 > 0 检查
+    }
+
+    /**
      * 调用成功后按实际消耗扣积分（{@link CreditService#spend}）+ 写流水。
      *
      * <p>扣减失败仅 warn，不回滚已完成的 AI 调用。

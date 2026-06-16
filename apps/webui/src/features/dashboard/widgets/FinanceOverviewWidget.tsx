@@ -43,7 +43,7 @@ function GradientLineChart({ data }: { data: TrendPoint[] }) {
       }
     ]
   }
-  return <BaseChart option={option} className="h-[270px] w-full" />
+  return <BaseChart option={option} className="h-[220px] w-full" />
 }
 
 const TABS = [

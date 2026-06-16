@@ -44,6 +44,6 @@ export function buildWsUrl(path: string): string {
  * 浏览器 EventSource 会自动携带同域 Cookie（withCredentials=true），
  * 后端 SseTokenFilter 从 aaf-token Cookie 读取 JWT 认证。
  */
-export function buildSseUrl(path: string, token?: string | null): string {
+export function buildSseUrl(path: string, _token?: string | null): string {
   return buildApiUrl(path)
 }

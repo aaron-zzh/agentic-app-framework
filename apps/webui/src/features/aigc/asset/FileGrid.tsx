@@ -7,6 +7,7 @@
 
 import Image from "next/image"
 import { useEffect, useMemo, useState } from "react"
+import { PendingOverlay } from "@/components/animate/PendingOverlay"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMediaAssets } from "@/lib/queries/use-media-assets"
 import { cn } from "@/lib/utils/index"
@@ -17,36 +18,6 @@ import { DraggableAssetCard } from "./DraggableAssetCard"
 
 /** zoom=100 时单列基准宽度（px） */
 const BASE_COL_WIDTH = 160
-
-/** 统一的生成/上传动画蒙版 */
-function PendingOverlay({ label }: { label: string }) {
-  return (
-    <div className="absolute inset-0 overflow-hidden rounded-[6px]">
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "linear-gradient(135deg, #7c3aed, #db2777, #6366f1, #0ea5e9, #7c3aed)",
-          backgroundSize: "300% 300%",
-          animation: "gradientBreath 3s ease infinite",
-          opacity: 0.7
-        }}
-      />
-      <div
-        className="absolute inset-0 animate-[shimmerDiag_4s_ease-in-out_infinite] opacity-0"
-        style={{
-          background:
-            "linear-gradient(135deg, transparent 20%, rgba(255,255,255,0.25) 50%, transparent 80%)",
-          backgroundSize: "400% 400%"
-        }}
-      />
-      <div className="absolute inset-x-0 bottom-2 flex justify-center">
-        <span className="line-clamp-1 rounded-full bg-black/35 px-2 py-0.5 text-[10px] text-white/90 backdrop-blur-sm">
-          {label}
-        </span>
-      </div>
-    </div>
-  )
-}
 
 function PendingTaskCard({
   task
@@ -86,7 +57,7 @@ function PendingTaskCard({
         </div>
       ) : (
         <>
-          {!loaded && <PendingOverlay label={task.prompt.slice(0, 16)} />}
+          {!loaded && <PendingOverlay label={task.prompt.slice(0, 16)} showProgress />}
           {task.ossUrl && (
             <Image
               src={task.ossUrl}

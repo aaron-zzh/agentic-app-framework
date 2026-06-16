@@ -89,6 +89,19 @@ public class CreditServiceImpl implements CreditService {
     @Override
     @Transactional
     public void spend(Long userId, long amount, String source, String bizId) {
+        spendInternal(userId, amount, source, bizId, 0L);
+    }
+
+    @Override
+    @Transactional
+    public void spendAllowOverdraft(
+            Long userId, long amount, String source, String bizId, long overdraftLimit) {
+        spendInternal(userId, amount, source, bizId, overdraftLimit);
+    }
+
+    /** 内部扣减实现，overdraftLimit=0 表示不允许透支 */
+    private void spendInternal(
+            Long userId, long amount, String source, String bizId, long overdraftLimit) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "消费金额必须大于 0");
         }
@@ -97,11 +110,11 @@ public class CreditServiceImpl implements CreditService {
                         .findByUserIdForUpdate(userId)
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "积分账户不存在"));
-        if (account.getBalance() < amount) {
+        if (account.getBalance() + overdraftLimit < amount) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分余额不足");
         }
 
-        // 按批次优先扣减
+        // 按批次优先扣减（余额可能不够，批次扣完为止）
         var batches = transactionRepository.findActiveBatchesByAccountId(account.getId());
         long remaining = amount;
         for (var batch : batches) {
@@ -111,6 +124,7 @@ public class CreditServiceImpl implements CreditService {
             transactionRepository.save(batch);
             remaining -= deduct;
         }
+        // remaining > 0 说明进入透支区间，批次已清空，余额直接扣负
 
         account.setBalance(account.getBalance() - amount);
         account.setTotalSpent(account.getTotalSpent() + amount);
@@ -126,7 +140,12 @@ public class CreditServiceImpl implements CreditService {
         tx.setRemain(0L);
         transactionRepository.save(tx);
 
-        log.info("积分消费: userId={}, amount={}, source={}", userId, amount, source);
+        log.info(
+                "积分消费: userId={}, amount={}, source={}, balanceAfter={}",
+                userId,
+                amount,
+                source,
+                account.getBalance());
     }
 
     @Override

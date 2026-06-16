@@ -7,7 +7,19 @@
 
 "use client"
 
-import { Bot, Maximize2, PanelRightClose, Plus, Sparkles, User, X } from "lucide-react"
+import { useVoiceControls, useVoiceState } from "@assistant-ui/react"
+import {
+  Bot,
+  Maximize2,
+  PanelRight,
+  PanelRightClose,
+  Phone,
+  PhoneOff,
+  Plus,
+  Sparkles,
+  User,
+  X
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -82,7 +94,9 @@ export function ChatterToolbar({
   const layoutOverride = useChatterStore((s) => s.layoutOverride)
   const setLayoutOverride = useChatterStore((s) => s.setLayoutOverride)
   const setOpen = useChatterStore((s) => s.setOpen)
+  const hasVoice = preset === "ai" || preset === "kiro"
   const isPanelMode = layoutOverride === "panel"
+  const isFloating = layoutOverride === null
   const router = useRouter()
 
   const { data: assistants } = useAssistants()
@@ -101,52 +115,58 @@ export function ChatterToolbar({
 
   return (
     <div className="flex items-center gap-2 border-b px-3 py-2">
-      <ToggleGroup
-        value={[target.type]}
-        onValueChange={(value: string[]) => {
-          const newType = value.find((v) => v !== target.type) ?? target.type
-          if (newType !== target.type) {
-            onTargetChange({ ...target, type: newType as ChatterTarget["type"] })
-          }
-        }}
-        size="sm"
-        spacing={0}
-      >
-        {targets.map((t) => (
-          <ToggleGroupItem key={t} value={t} aria-label={TARGET_LABELS[t]}>
-            {TARGET_ICONS[t]}
-            <span className="ml-1 text-xs">{TARGET_LABELS[t]}</span>
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-
-      {/* 角色选择下拉（仅 AI target 时显示） */}
-      {showRoleSelector && (
-        <Select
-          value={target.agentRole ?? "default-generalist"}
-          onValueChange={(role) => onTargetChange({ ...target, agentRole: role ?? undefined })}
-        >
-          <SelectTrigger className="h-7 w-auto gap-1.5 border-none bg-muted/50 px-2 text-xs">
-            <Avatar className="size-4">
-              <AvatarImage src={currentRole?.avatar} />
-              <AvatarFallback className="text-[8px]">{currentRole?.name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <SelectValue>{currentRole?.name}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((r) => (
-              <SelectItem key={r.roleId} value={r.roleId}>
-                <span className="flex items-center gap-2">
-                  <Avatar className="size-5">
-                    <AvatarImage src={r.avatar} />
-                    <AvatarFallback className="text-[9px]">{r.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span>{r.name}</span>
-                </span>
-              </SelectItem>
+      {!isFloating && (
+        <>
+          <ToggleGroup
+            value={[target.type]}
+            onValueChange={(value: string[]) => {
+              const newType = value.find((v) => v !== target.type) ?? target.type
+              if (newType !== target.type) {
+                onTargetChange({ ...target, type: newType as ChatterTarget["type"] })
+              }
+            }}
+            size="sm"
+            spacing={0}
+          >
+            {targets.map((t) => (
+              <ToggleGroupItem key={t} value={t} aria-label={TARGET_LABELS[t]}>
+                {TARGET_ICONS[t]}
+                <span className="ml-1 text-xs">{TARGET_LABELS[t]}</span>
+              </ToggleGroupItem>
             ))}
-          </SelectContent>
-        </Select>
+          </ToggleGroup>
+
+          {/* 角色选择下拉（仅 AI target 时显示） */}
+          {showRoleSelector && (
+            <Select
+              value={target.agentRole ?? "default-generalist"}
+              onValueChange={(role) => onTargetChange({ ...target, agentRole: role ?? undefined })}
+            >
+              <SelectTrigger className="h-7 w-auto gap-1.5 border-none bg-muted/50 px-2 text-xs">
+                <Avatar className="size-4">
+                  <AvatarImage src={currentRole?.avatar} />
+                  <AvatarFallback className="text-[8px]">
+                    {currentRole?.name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <SelectValue>{currentRole?.name}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((r) => (
+                  <SelectItem key={r.roleId} value={r.roleId}>
+                    <span className="flex items-center gap-2">
+                      <Avatar className="size-5">
+                        <AvatarImage src={r.avatar} />
+                        <AvatarFallback className="text-[9px]">{r.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <span>{r.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </>
       )}
 
       {showNewSession && (
@@ -157,13 +177,47 @@ export function ChatterToolbar({
 
       {toolbar && <div className="ml-auto">{toolbar}</div>}
 
-      {/* panel/page 模式才显示操作区（dialog 模式的按钮在标题栏） */}
-      {(isPanelMode || layoutOverride === "page") && (
-        <div className={`flex items-center gap-0.5 ${toolbar ? "" : "ml-auto"}`}>
+      {/* 实时语音对话按钮（仅 voice adapter 已配置时显示） */}
+      {hasVoice && <VoiceButton hasToolbar={!!toolbar} />}
+
+      {/* 操作区：panel/page 模式 + dialog（浮动 modal）模式均显示 */}
+      {(isPanelMode || layoutOverride === "page" || layoutOverride === null) && (
+        <div className="flex items-center gap-0.5">
           {layoutOverride === "page" ? (
             <Button variant="ghost" size="icon-sm" aria-label="返回" onClick={() => router.back()}>
               <X className="size-3.5" />
             </Button>
+          ) : layoutOverride === null ? (
+            /* 浮动 modal 模式：全屏 + 关闭 */
+            <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="全屏对话"
+                onClick={() => {
+                  setOpen(false)
+                  router.push("/ai/chat")
+                }}
+              >
+                <Maximize2 className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="嵌入侧边"
+                onClick={() => setLayoutOverride("panel")}
+              >
+                <PanelRight className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="关闭"
+                onClick={() => setOpen(false)}
+              >
+                <X className="size-3.5" />
+              </Button>
+            </>
           ) : (
             <Button
               variant="ghost"
@@ -194,5 +248,24 @@ export function ChatterToolbar({
         </div>
       )}
     </div>
+  )
+}
+
+/** 独立组件：仅在 voice adapter 存在时渲染，安全调用 voice hooks */
+function VoiceButton({ hasToolbar }: { hasToolbar: boolean }) {
+  const voiceState = useVoiceState()
+  const { connect, disconnect } = useVoiceControls()
+  const isActive = voiceState != null
+
+  return (
+    <Button
+      variant={isActive ? "destructive" : "ghost"}
+      size="icon-sm"
+      aria-label={isActive ? "结束语音对话" : "实时语音对话"}
+      className={`${hasToolbar ? "" : "ml-auto"} shrink-0`}
+      onClick={() => (isActive ? disconnect() : connect())}
+    >
+      {isActive ? <PhoneOff className="size-3.5" /> : <Phone className="size-3.5" />}
+    </Button>
   )
 }

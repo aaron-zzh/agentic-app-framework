@@ -132,6 +132,17 @@ function TxRow({ tx }: { tx: CreditTransactionVO }) {
         >
           {isEarn ? `+ ${tx.amount}` : `- ${Math.abs(tx.amount)}`}
         </span>
+        <div className="ml-4 text-right">
+          <p className="text-muted-foreground text-xs">余额</p>
+          <p
+            className={cn(
+              "font-medium text-sm tabular-nums",
+              tx.balanceAfter < 0 && "text-destructive"
+            )}
+          >
+            {tx.balanceAfter.toLocaleString()}
+          </p>
+        </div>
       </div>
       <Separator />
     </>

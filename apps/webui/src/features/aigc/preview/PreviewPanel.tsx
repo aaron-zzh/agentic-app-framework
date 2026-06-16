@@ -9,12 +9,14 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Eye,
   Heart,
   Layers,
   MoreHorizontal,
   Music,
   PanelLeft,
   PenLine,
+  Plus,
   RefreshCw,
   Sparkles,
   ThumbsUp,
@@ -31,6 +33,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger
 } from "@/components/ui/context-menu"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,9 +63,9 @@ function FileAreaHeader({ onClose }: { onClose?: () => void }) {
       <div className="flex items-center gap-1">
         {/* 生成下拉按钮 */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="group/button inline-flex h-6 shrink-0 select-none items-center justify-center gap-1 rounded-lg border border-transparent bg-primary px-2 font-medium text-primary-foreground text-xs outline-none transition-all hover:opacity-90 focus-visible:ring-2">
-            <Sparkles className="size-3" />
-            生成
+          <DropdownMenuTrigger className="group/button inline-flex h-6 shrink-0 select-none items-center justify-center gap-1 rounded-lg px-1.5 text-muted-foreground text-xs outline-none transition-all hover:bg-accent hover:text-foreground focus-visible:ring-2">
+            <Plus className="size-3.5" />
+            添加
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-36">
             <DropdownMenuItem onClick={() => setGenerationPanelOpen(true)}>
@@ -181,6 +184,7 @@ export function PreviewPanel({
   const hasNext = currentIdx >= 0 && currentIdx < previewList.length - 1
 
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
+  const [fullscreenOpen, setFullscreenOpen] = useState(false)
 
   // 编辑弹窗状态
   const [_editOpen, _setEditOpen] = useState(false)
@@ -196,228 +200,257 @@ export function PreviewPanel({
   }
 
   return (
-    <ResizablePanelGroup orientation={orientation} className="h-full min-w-0">
-      {/* 水平模式（元素看板关闭）：文件区在左，预览区在右 */}
-      {orientation === "horizontal" && fileAreaOpen && (
-        <>
-          <ResizablePanel defaultSize="35%" minSize="20%">
-            <div className="flex h-full flex-col overflow-hidden">
-              <FileAreaHeader onClose={() => setFileAreaOpen(false)} />
-              <ScrollArea className="min-h-0 flex-1">
-                <FileGrid filterUnassigned={fileFilterUnassigned} projectId={projectId} />
-              </ScrollArea>
-            </div>
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-        </>
-      )}
+    <>
+      <ResizablePanelGroup orientation={orientation} className="h-full min-w-0">
+        {/* 水平模式（元素看板关闭）：文件区在左，预览区在右 */}
+        {orientation === "horizontal" && fileAreaOpen && (
+          <>
+            <ResizablePanel defaultSize="35%" minSize="20%">
+              <div className="flex h-full flex-col overflow-hidden">
+                <FileAreaHeader onClose={() => setFileAreaOpen(false)} />
+                <ScrollArea className="min-h-0 flex-1">
+                  <FileGrid filterUnassigned={fileFilterUnassigned} projectId={projectId} />
+                </ScrollArea>
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+          </>
+        )}
 
-      {/* 预览区 */}
-      <ResizablePanel defaultSize="50%" minSize="30%">
-        <div className="flex h-full flex-col">
-          <div className="flex shrink-0 items-center border-border/50 border-b px-4 py-2">
-            {!storyboardPanelOpen && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mr-1 size-6 p-0 text-muted-foreground"
-                onClick={() => setStoryboardPanelOpen(true)}
-                title="展开元素看板"
-              >
-                <PanelLeft className="size-3.5" />
-              </Button>
-            )}
-            <span className="font-medium text-muted-foreground text-xs">预览</span>
-            {previewAsset && (
-              <span className="ml-2 truncate text-foreground text-xs">{previewAsset.name}</span>
-            )}
-            {!fileAreaOpen && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto size-6 p-0 text-muted-foreground"
-                onClick={() => setFileAreaOpen(true)}
-                title="展开文件区"
-              >
-                <Layers className="size-3.5" />
-              </Button>
-            )}
-          </div>
-          <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/30 p-1">
-            {previewAsset ? (
-              <>
-                {/* 图片区域 + 右键菜单 */}
-                <ContextMenu>
-                  <ContextMenuTrigger className="h-full w-full">
-                    {previewAsset.type === "AUDIO" ? (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
-                        <Music className="size-16 text-muted-foreground/60" />
-                        <span className="max-w-full truncate text-muted-foreground text-sm">
-                          {previewAsset.name}
-                        </span>
-                        {/* biome-ignore lint/a11y/useMediaCaption: 生成音频无字幕轨 */}
-                        <audio controls src={previewAsset.url ?? ""} className="w-full max-w-md" />
-                      </div>
-                    ) : previewAsset.type === "VIDEO" ? (
-                      // biome-ignore lint/a11y/useMediaCaption: 生成视频无字幕轨
-                      <video
-                        controls
-                        src={previewAsset.url ?? ""}
-                        className="h-full w-full object-contain"
-                      />
-                    ) : (
-                      <ImageViewer
-                        src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
-                        alt={previewAsset.name}
-                        className="h-full w-full"
-                        onLoad={(e) => {
-                          const img = e.currentTarget
-                          setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
+        {/* 预览区 */}
+        <ResizablePanel defaultSize="50%" minSize="30%">
+          <div className="flex h-full flex-col">
+            <div className="flex shrink-0 items-center border-border/50 border-b px-4 py-2">
+              {!storyboardPanelOpen && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mr-1 size-6 p-0 text-muted-foreground"
+                  onClick={() => setStoryboardPanelOpen(true)}
+                  title="展开元素看板"
+                >
+                  <PanelLeft className="size-3.5" />
+                </Button>
+              )}
+              <span className="font-medium text-muted-foreground text-xs">预览</span>
+              {previewAsset && (
+                <span className="ml-2 truncate text-foreground text-xs">{previewAsset.name}</span>
+              )}
+              {!fileAreaOpen && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto size-6 p-0 text-muted-foreground"
+                  onClick={() => setFileAreaOpen(true)}
+                  title="展开文件区"
+                >
+                  <Layers className="size-3.5" />
+                </Button>
+              )}
+            </div>
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/30 p-1">
+              {previewAsset ? (
+                <>
+                  {/* 图片区域 + 右键菜单 */}
+                  <ContextMenu>
+                    <ContextMenuTrigger className="h-full w-full">
+                      {previewAsset.type === "AUDIO" ? (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
+                          <Music className="size-16 text-muted-foreground/60" />
+                          <span className="max-w-full truncate text-muted-foreground text-sm">
+                            {previewAsset.name}
+                          </span>
+                          {/* biome-ignore lint/a11y/useMediaCaption: 生成音频无字幕轨 */}
+                          <audio
+                            controls
+                            src={previewAsset.url ?? ""}
+                            className="w-full max-w-md"
+                          />
+                        </div>
+                      ) : previewAsset.type === "VIDEO" ? (
+                        // biome-ignore lint/a11y/useMediaCaption: 生成视频无字幕轨
+                        <video
+                          controls
+                          src={previewAsset.url ?? ""}
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <ImageViewer
+                          src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
+                          alt={previewAsset.name}
+                          className="h-full w-full"
+                          onLoad={(e) => {
+                            const img = e.currentTarget
+                            setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
+                          }}
+                        />
+                      )}
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem
+                        onClick={() => {
+                          useAigcStore.getState().addReferenceAsset(previewAsset)
+                          useAigcStore.getState().setGenerationPanelOpen(true)
                         }}
-                      />
-                    )}
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem
-                      onClick={() => {
-                        useAigcStore.getState().addReferenceAsset(previewAsset)
-                        useAigcStore.getState().setGenerationPanelOpen(true)
-                      }}
-                    >
-                      <PenLine className="mr-2 size-3.5" />
-                      AI 编辑
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => {
-                        useAigcStore.getState().setPrompt(getPrompt())
-                        useAigcStore.getState().setGenerationPanelOpen(true)
-                      }}
-                    >
-                      <RefreshCw className="mr-2 size-3.5" />
-                      重新生成
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-                <div className="absolute inset-x-4 top-2 flex items-center justify-between">
-                  {/* 左：模型 + 尺寸信息 */}
-                  <div className="flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 backdrop-blur-sm">
-                    {(() => {
-                      let model = previewAsset.modelName ?? ""
-                      let sizePreset = ""
-                      try {
-                        const p = previewAsset.generationParams
-                          ? JSON.parse(previewAsset.generationParams)
-                          : {}
-                        if (!model) model = p.model ?? ""
-                        sizePreset = p.sizePreset ?? ""
-                      } catch {}
-                      const w = naturalSize?.w
-                      const h = naturalSize?.h
-                      const sizeStr = w && h ? `${w}×${h}` : ""
-                      return (
-                        <>
-                          {model && <span className="text-white/80 text-xs">{model}</span>}
-                          {sizePreset && (
-                            <span className="text-white/60 text-xs">{sizePreset}</span>
-                          )}
-                          {sizeStr && <span className="text-white/60 text-xs">{sizeStr}</span>}
-                        </>
-                      )
-                    })()}
-                  </div>
-                  {/* 右：操作按钮 */}
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="size-8 p-0 text-muted-foreground hover:text-foreground"
-                    >
-                      <Heart className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="size-8 p-0 text-muted-foreground hover:text-foreground"
-                      onClick={async () => {
-                        if (!previewAsset?.url) return
+                      >
+                        <PenLine className="mr-2 size-3.5" />
+                        AI 编辑
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => {
+                          useAigcStore.getState().setPrompt(getPrompt())
+                          useAigcStore.getState().setGenerationPanelOpen(true)
+                        }}
+                      >
+                        <RefreshCw className="mr-2 size-3.5" />
+                        重新生成
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                  <div className="absolute inset-x-4 top-2 flex items-center justify-between">
+                    {/* 左：模型 + 尺寸信息 */}
+                    <div className="flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 backdrop-blur-sm">
+                      {(() => {
+                        let model = previewAsset.modelName ?? ""
+                        let sizePreset = ""
                         try {
-                          const res = await fetch(previewAsset.url)
-                          const blob = await res.blob()
-                          const blobUrl = URL.createObjectURL(blob)
-                          const a = document.createElement("a")
-                          a.href = blobUrl
-                          a.download = previewAsset.name || "image"
-                          a.click()
-                          URL.revokeObjectURL(blobUrl)
-                        } catch {
-                          // 跨域 fetch 失败时降级直接打开
-                          window.open(previewAsset.url, "_blank")
-                        }
-                      }}
-                    >
-                      <Download className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="size-8 p-0 text-muted-foreground hover:text-foreground"
-                    >
-                      <ThumbsUp className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="size-8 p-0 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                          const p = previewAsset.generationParams
+                            ? JSON.parse(previewAsset.generationParams)
+                            : {}
+                          if (!model) model = p.model ?? ""
+                          sizePreset = p.sizePreset ?? ""
+                        } catch {}
+                        const w = naturalSize?.w
+                        const h = naturalSize?.h
+                        const sizeStr = w && h ? `${w}×${h}` : ""
+                        return (
+                          <>
+                            {model && <span className="text-white/80 text-xs">{model}</span>}
+                            {sizePreset && (
+                              <span className="text-white/60 text-xs">{sizePreset}</span>
+                            )}
+                            {sizeStr && <span className="text-white/60 text-xs">{sizeStr}</span>}
+                          </>
+                        )
+                      })()}
+                    </div>
+                    {/* 右：操作按钮 */}
+                    <div className="flex gap-1">
+                      {previewAsset.type !== "AUDIO" && previewAsset.type !== "VIDEO" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => setFullscreenOpen(true)}
+                        >
+                          <Eye className="size-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <Heart className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={async () => {
+                          if (!previewAsset?.url) return
+                          try {
+                            const res = await fetch(previewAsset.url)
+                            const blob = await res.blob()
+                            const blobUrl = URL.createObjectURL(blob)
+                            const a = document.createElement("a")
+                            a.href = blobUrl
+                            a.download = previewAsset.name || "image"
+                            a.click()
+                            URL.revokeObjectURL(blobUrl)
+                          } catch {
+                            // 跨域 fetch 失败时降级直接打开
+                            window.open(previewAsset.url, "_blank")
+                          }
+                        }}
+                      >
+                        <Download className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <ThumbsUp className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="size-8 p-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                {previewList.length > 1 && (
-                  <div className="absolute top-1/2 left-3 flex -translate-y-1/2 flex-col items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={!hasPrev}
-                      onClick={() => navigatePreview(-1)}
-                      className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    >
-                      <ChevronUp className="size-4" />
-                    </Button>
-                    <span className="text-[10px] text-muted-foreground">元素</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={!hasNext}
-                      onClick={() => navigatePreview(1)}
-                      className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    >
-                      <ChevronDown className="size-4" />
-                    </Button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-muted-foreground text-sm">选择素材以预览</p>
-            )}
-          </div>
-        </div>
-      </ResizablePanel>
-
-      {/* 文件区（垂直模式） */}
-      {orientation === "vertical" && fileAreaOpen && (
-        <>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize="50%" minSize="15%">
-            <div className="flex h-full flex-col overflow-hidden">
-              <FileAreaHeader onClose={() => setFileAreaOpen(false)} />
-              <ScrollArea className="min-h-0 flex-1">
-                <FileGrid filterUnassigned={fileFilterUnassigned} projectId={projectId} />
-              </ScrollArea>
+                  {previewList.length > 1 && (
+                    <div className="absolute top-1/2 left-3 flex -translate-y-1/2 flex-col items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={!hasPrev}
+                        onClick={() => navigatePreview(-1)}
+                        className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronUp className="size-4" />
+                      </Button>
+                      <span className="text-[10px] text-muted-foreground">元素</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={!hasNext}
+                        onClick={() => navigatePreview(1)}
+                        className="size-8 rounded-full p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronDown className="size-4" />
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-muted-foreground text-sm">选择素材以预览</p>
+              )}
             </div>
-          </ResizablePanel>
-        </>
+          </div>
+        </ResizablePanel>
+
+        {/* 文件区（垂直模式） */}
+        {orientation === "vertical" && fileAreaOpen && (
+          <>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize="50%" minSize="15%">
+              <div className="flex h-full flex-col overflow-hidden">
+                <FileAreaHeader onClose={() => setFileAreaOpen(false)} />
+                <ScrollArea className="min-h-0 flex-1">
+                  <FileGrid filterUnassigned={fileFilterUnassigned} projectId={projectId} />
+                </ScrollArea>
+              </div>
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+
+      {/* 全屏查看 Dialog */}
+      {previewAsset && (
+        <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
+          <DialogContent className="h-[90vh] max-w-[90vw] p-0 [&>button]:text-white">
+            <ImageViewer
+              src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
+              alt={previewAsset.name}
+              className="h-full w-full rounded-lg bg-black"
+            />
+          </DialogContent>
+        </Dialog>
       )}
-    </ResizablePanelGroup>
+    </>
   )
 }

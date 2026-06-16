@@ -24,6 +24,7 @@ import {
   CreditCard,
   Database,
   FileText,
+  FlaskConical,
   FolderOpen,
   GitBranch,
   GitPullRequest,
@@ -50,11 +51,12 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLicenseStatus } from "@/lib/queries/use-license-status"
 import { useUserMenus } from "@/lib/queries/use-menus"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
 import { LicensePlanBadge } from "./LicensePlanBadge"
@@ -105,7 +107,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   database: Database,
   "wand-2": Wand2,
   // 系统
-  cpu: Cpu
+  cpu: Cpu,
+  "flask-conical": FlaskConical
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {
@@ -120,14 +123,30 @@ export function AppSidebar() {
   const { sidebarOpen, toggleSidebar } = useUIStore()
   const { data: menus, isLoading, isError } = useUserMenus()
   const { data: license } = useLicenseStatus()
+  const userRoles = useAuthStore((s) => s.user?.roles)
+  const hasOfficial = license?.features?.includes("official-console") ?? false
+
+  /** 过滤静态 fallback 中需要特定角色的菜单项 */
+  const filterByRole = useCallback(
+    (groups: NavGroup[]): NavGroup[] =>
+      groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter(
+            (item) => !item.allowedRoles || item.allowedRoles.some((r) => userRoles?.includes(r))
+          )
+        }))
+        .filter((g) => g.items.length > 0),
+    [userRoles]
+  )
 
   const navConfig = useMemo(() => {
     const appendOfficial = (groups: NavGroup[]) =>
-      license?.owner ? [...groups, buildOfficialNavConfig()] : groups
+      hasOfficial ? [...groups, buildOfficialNavConfig()] : groups
     if (menus) return appendOfficial(buildNavFromApi(menus))
-    if (isError) return appendOfficial(buildNavConfig())
+    if (isError) return appendOfficial(filterByRole(buildNavConfig()))
     return null
-  }, [menus, isError, license?.owner])
+  }, [menus, isError, hasOfficial, filterByRole])
 
   return (
     <aside

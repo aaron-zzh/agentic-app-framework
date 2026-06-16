@@ -91,8 +91,9 @@ public class AgentLoopStepDelegate implements JavaDelegate {
 
         // 执行内层 Loop（ReAct 认知循环），传入 conversationId + knowledgeBaseId 接通混合检索
         var agentDef = resolveAgent(agentId);
-        var result = cognitiveCycleExecutor.execute(agentDef, stepInput, userId,
-                conversationId, null, knowledgeBaseId);
+        var result =
+                cognitiveCycleExecutor.execute(
+                        agentDef, stepInput, userId, conversationId, null, knowledgeBaseId);
 
         var stepResult = result.response();
         execution.setVariable("stepResult", stepResult);

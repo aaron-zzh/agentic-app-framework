@@ -85,8 +85,8 @@ export function ExpensesCategoryWidget({ title, series }: ExpensesCategoryWidget
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center gap-6 md:flex-row">
-          <BaseChart option={option} className="h-60 w-60 shrink-0" />
-          <div className="grid flex-1 grid-cols-2 gap-3">
+          <BaseChart option={option} className="h-44 w-44 shrink-0" />
+          <div className="grid flex-1 grid-cols-2 gap-2">
             {series.map((item, i) => (
               <div key={item.label} className="flex items-center gap-2">
                 <span

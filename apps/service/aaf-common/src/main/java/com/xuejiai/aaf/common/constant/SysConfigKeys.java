@@ -57,6 +57,8 @@ public final class SysConfigKeys {
                 "ai.token_quota_per_user"; // 用户 Token 配额（每月）
         public static final String CREDIT_WARN_THRESHOLD =
                 "ai.credit_warn_threshold"; // 积分预警阈值，低于此值发预警通知
+        public static final String CREDIT_OVERDRAFT_LIMIT =
+                "ai.credit_overdraft_limit"; // 积分透支上限（token 场景允许欠费，默认 0 即不允许）
         public static final String FREE_ASSISTANT_CREDIT_CAP =
                 "ai.free_assistant_credit_cap"; // 免费助理虚拟用户预算上限（积分）
         public static final String TOKEN_MARKUP_RATE =

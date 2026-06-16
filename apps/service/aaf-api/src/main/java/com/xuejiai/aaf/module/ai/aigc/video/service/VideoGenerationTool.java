@@ -65,6 +65,7 @@ public class VideoGenerationTool {
                                     null,
                                     null,
                                     null,
+                                    null,
                                     true,
                                     null,
                                     null,

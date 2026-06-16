@@ -61,6 +61,9 @@ aaf:
         # 留空则 mcpToolAgent 以无工具模式运行
         server-url: ${MCP_SERVER_URL:https://nws.caseyjhand.co}
         transport: ${MCP_TRANSPORT:streamable-http}
+  license:
+    signing:
+      private-key-file: ${AAF_LICENSE_KEY_FILE:~/.aaf/signing.key}
 
 # 示例模块开启后存在 ReActAgent Bean（supervisorAgent 等），可派生 AgentRunner，
 # 因此 dev 下启用 AgentScope A2A Server 暴露 AgentCard（card 内容见 application.yaml）。

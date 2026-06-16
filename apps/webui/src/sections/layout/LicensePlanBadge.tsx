@@ -8,10 +8,12 @@ import {
   CreditCard,
   Download,
   ExternalLink,
+  RefreshCw,
   Sparkles
 } from "lucide-react"
 import type { ReactNode } from "react"
 import { useState } from "react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -29,7 +31,8 @@ import { cn } from "@/lib/utils/cn"
 export function LicensePlanBadge({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(false)
   const { data: license } = useLicenseStatus()
-  const tier = license?.premium ? license.tier || "Pro" : "体验版"
+  const isPremium = license ? license.tier !== "free" : false
+  const tier = isPremium ? license?.tier || "Pro" : "体验版"
 
   return (
     <>
@@ -45,12 +48,10 @@ export function LicensePlanBadge({ collapsed }: { collapsed: boolean }) {
         <span
           className={cn(
             "flex size-7 shrink-0 items-center justify-center rounded-md",
-            license?.premium
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
+            isPremium ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
           )}
         >
-          {license?.premium ? <BadgeCheck className="size-4" /> : <Sparkles className="size-4" />}
+          {isPremium ? <BadgeCheck className="size-4" /> : <Sparkles className="size-4" />}
         </span>
         {!collapsed && (
           <>
@@ -58,7 +59,7 @@ export function LicensePlanBadge({ collapsed }: { collapsed: boolean }) {
               <span className="block truncate font-medium">框架版本</span>
               <span className="block truncate text-muted-foreground text-xs">管理订阅与额度</span>
             </span>
-            <Badge variant={license?.premium ? "default" : "secondary"}>{tier}</Badge>
+            <Badge variant={isPremium ? "default" : "secondary"}>{tier}</Badge>
           </>
         )}
       </button>
@@ -75,13 +76,12 @@ function BillingPlanDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const user = useAuthStore((s) => s.user)
-  const { data: license } = useLicenseStatus()
-  const planLabel = license?.premium ? license.tier || "Pro" : "免费版"
-
-  function handleManagePlan() {
-    if (!license?.upgradeUrl) return
-    window.open(license.upgradeUrl, "_blank", "noopener,noreferrer")
-  }
+  const { data: license, refetch, isFetching } = useLicenseStatus()
+  const planLabel = license
+    ? license.tier !== "free"
+      ? license.tier || "Pro"
+      : "免费版"
+    : "免费版"
 
   async function downloadSourceCode() {
     const res = await fetch(licenseApi.sourceDownloadUrl(), {
@@ -119,11 +119,15 @@ function BillingPlanDialog({
               type="button"
               variant="outline"
               className="text-primary"
-              disabled={!license?.upgradeUrl}
-              onClick={handleManagePlan}
+              onClick={() => {
+                const url = license?.features?.includes("official-console")
+                  ? "/official/admin"
+                  : "/"
+                window.open(url, "_blank", "noopener,noreferrer")
+              }}
             >
               <CreditCard className="size-4" />
-              Manage plan
+              获取授权
               <ExternalLink className="size-4" />
             </Button>
           </div>
@@ -132,7 +136,18 @@ function BillingPlanDialog({
         <section className="border-b p-5">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h3 className="font-semibold text-xl">License Status</h3>
+              <h3 className="flex items-center gap-2 font-semibold text-xl">
+                License Status
+                <button
+                  type="button"
+                  onClick={() => refetch().then(() => toast.success("授权状态已刷新"))}
+                  disabled={isFetching}
+                  title="刷新授权状态"
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
+                </button>
+              </h3>
               <p className="text-muted-foreground text-sm">授权状态由当前部署实例校验。</p>
             </div>
             <Badge variant="secondary" className="h-8 rounded-md px-3 text-sm">
@@ -144,7 +159,13 @@ function BillingPlanDialog({
             <StatusTile label="授权用户" value={license?.userId ?? "未安装授权文件"} />
             <StatusTile
               label="授权标识"
-              value={license?.premium ? (license.identityValid ? "有效" : "异常") : "免费版"}
+              value={
+                license?.tier && license.tier !== "free"
+                  ? license.identityValid
+                    ? "有效"
+                    : "异常"
+                  : "免费版"
+              }
             />
           </div>
           {license?.features?.length ? (
@@ -167,11 +188,15 @@ function BillingPlanDialog({
             <Button
               type="button"
               className="mt-4"
-              disabled={!license?.upgradeUrl}
-              onClick={handleManagePlan}
+              onClick={() => {
+                const url = license?.features?.includes("official-console")
+                  ? "/official/admin"
+                  : "/"
+                window.open(url, "_blank", "noopener,noreferrer")
+              }}
             >
               <CreditCard className="size-4" />
-              打开升级入口
+              获取授权 / 升级版本
               <ExternalLink className="size-4" />
             </Button>
             {license?.features?.includes("source-download") ? (

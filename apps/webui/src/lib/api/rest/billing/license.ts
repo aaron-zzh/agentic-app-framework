@@ -3,8 +3,6 @@ import { request } from "@/lib/api/rest/entity/crud"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 export interface LicenseStatus {
-  premium: boolean
-  owner: boolean
   identityValid: boolean
   tier: string
   userId: string | null
@@ -24,7 +22,6 @@ export interface LicenseIssueRequest {
   subject: string
   tier: string
   org?: string
-  owner: boolean
   features: string[]
   expiresAt: string
 }
@@ -33,7 +30,6 @@ export interface LicenseIssueResult {
   token: string
   subject: string
   tier: string
-  owner: boolean
   features: string[]
   expiresAt: string
 }

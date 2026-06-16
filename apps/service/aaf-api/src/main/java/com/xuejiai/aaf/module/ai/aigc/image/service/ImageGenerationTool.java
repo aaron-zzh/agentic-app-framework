@@ -69,6 +69,7 @@ public class ImageGenerationTool {
                                     height,
                                     null,
                                     null,
+                                    null,
                                     true,
                                     null,
                                     null,

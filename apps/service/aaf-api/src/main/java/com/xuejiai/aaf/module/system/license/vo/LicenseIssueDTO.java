@@ -12,6 +12,5 @@ public record LicenseIssueDTO(
         String subject,
         @NotBlank String tier,
         String org,
-        boolean owner,
         Set<String> features,
         @NotNull @Future Instant expiresAt) {}

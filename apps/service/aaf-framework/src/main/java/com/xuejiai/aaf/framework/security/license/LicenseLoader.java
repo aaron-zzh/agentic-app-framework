@@ -40,15 +40,15 @@ public class LicenseLoader {
         this.identityService = identityService;
     }
 
-    // 测试用 RSA 2048 公钥（PEM 格式，生产环境替换）
+    // RSA 2048 公钥（与 BootstrapLicenseTool 生成的密钥对配套，运行工具后更新）
     static final String PUBLIC_KEY_PEM =
-            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWe"
-                    + "h3XPHiWMp5HqOPgEsXbdDoSMCWfMZjFHBYXnYMhjJTLEqFJBx1caIqPaLUcq3JOZ"
-                    + "ZMlMrSvGMbSG5G9bNFPaO0YHzYFmJOaKSi6aFpXJnqHln9ZbGN0fRsMiGMEn0GE"
-                    + "FWBV1gOECmXq0UXOS0kFz0MZWB3pLOaQnGCFm0fVSYTHOHVhGYMBh7TkYGMz3E"
-                    + "R1HMpifa0nbTNEYCPkBSMa0GbTtGMSoS7BPKRZ9ASl0vd/5bBMEVaNFMnQn8xaO"
-                    + "VFpGNjpqTimFhMi0mAHBfnSaOj9AJHfIL0dBMqhHMzBFkWJJdKrGMSt0oeFakVX"
-                    + "5wIDAQAB";
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqJ22Rvvmw7B3z7U5vFKb"
+                    + "MZm2Pf0ioN2HhrtI0u69huBL32twjglO9faCBDA3X/sCTc7aZ5qBDVl5f6UYT8iK"
+                    + "7+2QhFTuIRjLKG4x9maMJqwE4SGf8VPcAmxjXCmg4mlMnb7ulejL7H/mqqWeM9QX"
+                    + "nJTuOo2Ds+9ISjUEfHv9TfA71oTPAQUch7otyaIOGWuANutni/Dz7X8Ng82ovfu9"
+                    + "0kiHtPeWXnOWF+6YvQ7OL5eAyCg0qldFXVJJDnrtLTsbzZFGOCx51CxmTP9+rH0f"
+                    + "8d493P6yjihbbPy9DS4qIBpv8uqSB/3M46v1S/5yA3V9QfOpenFqiif9gTi0+lmvg"
+                    + "QIDAQAB";
 
     @EventListener(ApplicationStartedEvent.class)
     public void loadLicense() {
@@ -83,7 +83,6 @@ public class LicenseLoader {
 
             var sub = claims.getSubject();
             var tier = claims.getStringClaim("tier");
-            var owner = Boolean.TRUE.equals(claims.getBooleanClaim("owner"));
             var features = normalizeFeatures(claims.getStringListClaim("features"));
             var expiresAt = exp != null ? exp.toInstant() : null;
 
@@ -92,10 +91,9 @@ public class LicenseLoader {
                             sub,
                             tier != null ? tier : "premium",
                             expiresAt,
-                            owner,
                             identityService,
                             features);
-            log.info("License loaded: premium [{}], owner={}", sub, owner);
+            log.info("License loaded: tier={}, features={}", tier, features);
         } catch (Exception e) {
             log.warn("Invalid or expired license, falling back to free mode");
         }

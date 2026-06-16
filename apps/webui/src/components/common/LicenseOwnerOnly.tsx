@@ -1,16 +1,21 @@
 "use client"
 
 import { ExternalLink, ShieldAlert } from "lucide-react"
-import type { ReactNode } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLicenseStatus } from "@/lib/queries/use-license-status"
 
 export function LicenseOwnerOnly({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false)
   const { data: license, isLoading } = useLicenseStatus()
 
-  if (isLoading) {
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -19,7 +24,7 @@ export function LicenseOwnerOnly({ children }: { children: ReactNode }) {
     )
   }
 
-  if (!license?.owner) {
+  if (!license?.features?.includes("official-console")) {
     return (
       <Card>
         <CardHeader>

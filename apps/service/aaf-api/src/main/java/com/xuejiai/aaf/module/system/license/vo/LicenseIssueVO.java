@@ -5,9 +5,4 @@ import java.util.Set;
 
 /** 官方 license.jwt 签发结果。 */
 public record LicenseIssueVO(
-        String token,
-        String subject,
-        String tier,
-        boolean owner,
-        Set<String> features,
-        Instant expiresAt) {}
+        String token, String subject, String tier, Set<String> features, Instant expiresAt) {}

@@ -35,6 +35,14 @@ public interface CreditService {
     /** 消费积分（按批次优先扣减：最快到期的批次优先） */
     void spend(Long userId, long amount, String source, String bizId);
 
+    /**
+     * 消费积分，允许余额扣成负数（透支）。 透支部分在下次充值（earn）后自动从余额中消化，无需额外操作。
+     *
+     * @param overdraftLimit 允许的最大透支额，余额不得低于 -overdraftLimit
+     */
+    void spendAllowOverdraft(
+            Long userId, long amount, String source, String bizId, long overdraftLimit);
+
     /** 冻结积分（预扣） */
     void freeze(Long userId, long amount, String bizId);
 

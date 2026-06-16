@@ -8,6 +8,8 @@
 "use client"
 
 import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive } from "@assistant-ui/react"
+import { SendHorizonal } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 /**
  * 聊天面板组件
@@ -37,7 +39,11 @@ export function LivechatPanel() {
           className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
           placeholder="输入消息..."
         />
-        <ComposerPrimitive.Send />
+        <ComposerPrimitive.Send asChild>
+          <Button type="submit" size="icon" variant="ghost" aria-label="发送">
+            <SendHorizonal className="size-4" />
+          </Button>
+        </ComposerPrimitive.Send>
       </ComposerPrimitive.Root>
     </ThreadPrimitive.Root>
   )

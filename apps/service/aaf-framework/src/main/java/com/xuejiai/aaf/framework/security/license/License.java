@@ -8,8 +8,6 @@ public final class License {
 
     private static final License INSTANCE = new License();
 
-    private volatile boolean premium = false;
-    private volatile boolean owner = false;
     private volatile boolean identityValid = false;
     private volatile long couplingSeed = 0L;
     private volatile String userId = null;
@@ -23,12 +21,14 @@ public final class License {
         return INSTANCE;
     }
 
+    /** 是否已激活付费授权（tier 不为 free） */
     public boolean isPremium() {
-        return premium;
+        return !"free".equals(tier);
     }
 
+    /** 是否官方拥有者（具有 official-console 功能权限） */
     public boolean isOwner() {
-        return owner;
+        return features.contains("official-console");
     }
 
     public boolean isIdentityValid() {
@@ -56,30 +56,30 @@ public final class License {
     }
 
     public boolean hasFeature(String feature) {
-        return premium && (features.contains(feature) || features.contains("*"));
+        return isPremium() && (features.contains(feature) || features.contains("*"));
     }
 
     /** 仅启动时调用一次，设置授权信息。 */
     void activate(String userId, String tier, Instant expiresAt) {
-        activate(userId, tier, expiresAt, false);
+        activate(userId, tier, expiresAt, null, Set.of());
     }
 
-    /** 仅启动时调用一次，设置授权信息。 */
+    /** 仅启动时调用一次，设置授权信息（owner 参数保留兼容，已无实际作用）。 */
     void activate(String userId, String tier, Instant expiresAt, boolean owner) {
-        activate(userId, tier, expiresAt, owner, null);
+        activate(userId, tier, expiresAt, null, Set.of());
     }
 
-    /** 仅启动时调用一次，设置授权信息。 */
+    /** 仅启动时调用一次，设置授权信息（owner 参数保留兼容，已无实际作用）。 */
     void activate(
             String userId,
             String tier,
             Instant expiresAt,
             boolean owner,
             LicenseIdentityService identityService) {
-        activate(userId, tier, expiresAt, owner, identityService, Set.of());
+        activate(userId, tier, expiresAt, identityService, Set.of());
     }
 
-    /** 仅启动时调用一次，设置授权信息。 */
+    /** 仅启动时调用一次，设置授权信息（owner 参数保留兼容，已无实际作用）。 */
     void activate(
             String userId,
             String tier,
@@ -87,20 +87,26 @@ public final class License {
             boolean owner,
             LicenseIdentityService identityService,
             Set<String> features) {
+        activate(userId, tier, expiresAt, identityService, features);
+    }
+
+    /** 仅启动时调用一次，设置授权信息。 */
+    void activate(
+            String userId,
+            String tier,
+            Instant expiresAt,
+            LicenseIdentityService identityService,
+            Set<String> features) {
         this.userId = userId;
         this.tier = tier;
         this.expiresAt = expiresAt;
-        this.owner = owner;
         this.identityValid = identityService != null && identityService.isValid(userId);
         this.couplingSeed = identityService != null ? identityService.couplingSeed(userId) : 0L;
         this.features = features == null ? Set.of() : Set.copyOf(features);
-        this.premium = true;
     }
 
     /** 重置为免费模式（测试用）。 */
     void reset() {
-        this.premium = false;
-        this.owner = false;
         this.identityValid = false;
         this.couplingSeed = 0L;
         this.userId = null;

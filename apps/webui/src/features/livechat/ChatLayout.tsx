@@ -14,7 +14,7 @@ import {
   ThreadPrimitive,
   useAssistantRuntime
 } from "@assistant-ui/react"
-import { PanelLeftClose, PanelLeftOpen, PlusIcon } from "lucide-react"
+import { PanelLeftClose, PanelLeftOpen, PlusIcon, SendHorizonal } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
@@ -129,7 +129,11 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                 className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
                 placeholder="输入消息..."
               />
-              <ComposerPrimitive.Send />
+              <ComposerPrimitive.Send asChild>
+                <Button type="submit" size="icon" variant="ghost" aria-label="发送">
+                  <SendHorizonal className="size-4" />
+                </Button>
+              </ComposerPrimitive.Send>
             </ComposerPrimitive.Root>
           </ThreadPrimitive.Root>
         </div>
@@ -192,7 +196,11 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                     className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
                     placeholder="输入消息..."
                   />
-                  <ComposerPrimitive.Send />
+                  <ComposerPrimitive.Send asChild>
+                    <Button type="submit" size="icon" variant="ghost" aria-label="发送">
+                      <SendHorizonal className="size-4" />
+                    </Button>
+                  </ComposerPrimitive.Send>
                 </ComposerPrimitive.Root>
               </ThreadPrimitive.Root>
             </div>

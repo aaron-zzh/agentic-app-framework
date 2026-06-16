@@ -38,6 +38,9 @@ export const paths = {
     assets: "/aigc/assets",
     video: "/aigc/video"
   },
+  admin: {
+    demo: "/admin/demo"
+  },
   docs: {
     root: "/docs",
     new: "/docs/new",

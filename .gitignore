@@ -75,3 +75,14 @@ logs/
 vitest.config.*.timestamp*
 .claude
 
+
+
+# License 签发私钥（不提交，保管在本地）
+*.signing.key
+signing.key
+signing.pub
+license.jwt
+config/license.jwt
+
+# License Bootstrap 工具（私有，不开源）
+**/license/tool/BootstrapLicenseTool.java

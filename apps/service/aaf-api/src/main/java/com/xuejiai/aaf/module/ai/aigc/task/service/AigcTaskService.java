@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -66,6 +67,7 @@ public class AigcTaskService
     private final ImageServiceFactory imageServiceFactory;
     private final CapabilityRouter capabilityRouter;
     private final AigcTaskExecutor taskExecutor;
+    private final AiCreditGuard creditGuard;
 
     // ========== BaseCrudService 必须实现 ==========
 
@@ -122,11 +124,20 @@ public class AigcTaskService
 
     @Transactional
     public Long submitImageTask(Long userId, ImageTaskRequest req) {
+        creditGuard.precheck(userId, "image-gen");
         long t0 = System.currentTimeMillis();
         var ctx =
                 CapabilityRoutingContext.of(
                         userId, CapabilityRoutingContext.CAP_IMAGE_GEN, req.model());
         var resolvedAiModel = capabilityRouter.resolve(ctx);
+        // 用模型单价估算本次花费，精确拦截余额不足
+        int markup = 10; // 与 DefaultAiCreditGuard 保持一致的默认倍率
+        long estimatedCost = 1;
+        if (resolvedAiModel.getModelPrice() != null) {
+            estimatedCost =
+                    Math.max(1, Math.round(resolvedAiModel.getModelPrice().doubleValue() * markup));
+        }
+        creditGuard.precheck(userId, "image-gen", estimatedCost);
         log.debug("[submitImageTask] resolve 耗时: {}ms", System.currentTimeMillis() - t0);
         String resolvedModel = resolvedAiModel.getModelId();
 
@@ -194,6 +205,7 @@ public class AigcTaskService
             String lyrics,
             String gender,
             Long projectId) {
+        creditGuard.precheck(userId, "music-gen");
         var task = buildTask(userId, TYPE_MUSIC, prompt, model, null, projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
@@ -225,6 +237,7 @@ public class AigcTaskService
     @Transactional
     public Long submitVoiceTask(
             Long userId, String text, String voice, String model, Long projectId) {
+        creditGuard.precheck(userId, "voice-gen");
         if (text == null || text.isBlank()) {
             throw new com.xuejiai.aaf.common.exception.BusinessException(
                     com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "配音文本不能为空");
@@ -355,6 +368,7 @@ public class AigcTaskService
                                                     ? task.getPrompt().replace("\"", "'")
                                                     : "",
                                             task.getModel() != null ? task.getModel() : ""),
+                            null,
                             null,
                             null,
                             null,

@@ -22,6 +22,10 @@ import lombok.Setter;
                 "UPDATE developer_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class DeveloperRedeemCode extends BaseEntity {
 
+    /** 兑换码类型：TOKEN=发放token额度，LICENSE=激活套餐订阅 */
+    @Column(name = "type", nullable = false, length = 20)
+    private String type = "TOKEN";
+
     @Column(name = "code_hash", nullable = false, unique = true, length = 64)
     private String codeHash;
 
@@ -30,6 +34,14 @@ public class DeveloperRedeemCode extends BaseEntity {
 
     @Column(name = "token_amount", nullable = false)
     private Long tokenAmount;
+
+    /** type=LICENSE 时绑定的套餐 code */
+    @Column(name = "plan_code", length = 40)
+    private String planCode;
+
+    /** type=LICENSE 时预签发的 license.jwt 内容 */
+    @Column(name = "license_jwt", columnDefinition = "TEXT")
+    private String licenseJwt;
 
     @Column(name = "status", nullable = false, length = 20)
     private String status = "UNUSED";
