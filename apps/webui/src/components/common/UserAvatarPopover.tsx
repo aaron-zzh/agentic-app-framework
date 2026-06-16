@@ -112,10 +112,11 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
 
             {planName === "Free" && (
               <Button
-                asChild
+                nativeButton={false}
+                render={<Link href="/" />}
                 className="mt-3 w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-white hover:opacity-90"
               >
-                <Link href="/">🚀 升级套餐</Link>
+                🚀 升级套餐
               </Button>
             )}
           </div>
@@ -168,8 +169,13 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
 
           {/* 查看用量 */}
           <div className="px-5 pb-4">
-            <Button variant="secondary" className="w-full rounded-full" asChild>
-              <Link href={paths.workspace.settingsProfile}>查看用量</Link>
+            <Button
+              variant="secondary"
+              className="w-full rounded-full"
+              nativeButton={false}
+              render={<Link href={paths.workspace.settingsProfile} />}
+            >
+              查看用量
             </Button>
           </div>
 
@@ -177,10 +183,13 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
 
           {/* 底部操作 */}
           <div className="space-y-1 px-5 py-3">
-            <Button variant="ghost" className="w-full justify-start gap-3 rounded-lg" asChild>
-              <Link href={paths.workspace.settingsProfile}>
-                <Settings className="size-4" /> 管理账户
-              </Link>
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3 rounded-lg"
+              nativeButton={false}
+              render={<Link href={paths.workspace.settingsProfile} />}
+            >
+              <Settings className="size-4" /> 管理账户
             </Button>
             <Button
               variant="ghost"

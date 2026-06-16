@@ -46,6 +46,7 @@ interface AigcStore {
     id: number
     prompt: string
     type: string
+    modelId?: string
     ossUrl?: string
     error?: string
     asset?: MediaAssetVO
@@ -125,7 +126,7 @@ interface AigcStore {
   setResolution: (resolution: string) => void
   setAspectRatio: (ratio: string) => void
   setVideoDuration: (duration: string) => void
-  addPendingTask: (task: { id: number; prompt: string; type: string }) => void
+  addPendingTask: (task: { id: number; prompt: string; type: string; modelId?: string }) => void
   completePendingTask: (id: number, ossUrl: string, asset?: MediaAssetVO) => void
   failPendingTask: (id: number, error: string) => void
   removePendingTask: (id: number) => void

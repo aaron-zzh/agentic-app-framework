@@ -99,6 +99,10 @@ export function GenerationPanel() {
   const isEditMode = !isVideo && !!imageConfig?.edit && referenceAssets.length > 0
   // 当前模式的参数配置
   const modeConfig = isEditMode ? imageConfig?.edit : imageConfig?.generate
+  // prompt 最大字符数：优先用模型配置，其次按 contextWindow 直接作为字符数上限，兜底 3000
+  const promptMaxLength = currentModelMeta?.contextWindow
+    ? Math.min(currentModelMeta.contextWindow, 3000)
+    : 3000
 
   // 尺寸选择值，格式 "WxH"
   const [fixedSize, setFixedSize] = useState<string>("")
@@ -123,6 +127,14 @@ export function GenerationPanel() {
       if (firstSize) setFixedSize(`${firstSize[0]}x${firstSize[1]}`)
     }
   }, [imageConfig?.sizes, imageConfig?.mode])
+
+  // 切换模型时重置 quality 为该模型支持的第一个值（避免传不支持的值）
+  useEffect(() => {
+    const supported = imageConfig?.generate?.quality ?? imageConfig?.edit?.quality
+    if (supported && supported.length > 0 && !supported.includes(quality)) {
+      setQuality(supported.includes("auto") ? "auto" : supported[0])
+    }
+  }, [imageConfig, quality, setQuality])
 
   const generateImage = useGenerateImage()
   const addPendingTask = useAigcStore((s) => s.addPendingTask)
@@ -188,7 +200,7 @@ export function GenerationPanel() {
       },
       {
         onSuccess: (taskId) => {
-          addPendingTask({ id: taskId, prompt, type: isVideo ? "VIDEO" : "IMAGE" })
+          addPendingTask({ id: taskId, prompt, type: isVideo ? "VIDEO" : "IMAGE", modelId: model })
           setPrompt("")
           setOpen(false)
         },
@@ -258,7 +270,7 @@ export function GenerationPanel() {
   function renderSizeControl() {
     // sizePresets 优先：档位选择（1K/2K/4K）
     if (modeConfig?.sizePresets && modeConfig.sizePresets.length > 0) {
-      return (
+      const presetSelect = (
         <Select value={sizePreset} onValueChange={(v) => v != null && setSizePreset(v)}>
           <SelectTrigger className="h-8 w-[90px] text-xs">
             <span className="shrink-0 text-muted-foreground">规格</span>
@@ -273,6 +285,29 @@ export function GenerationPanel() {
           </SelectContent>
         </Select>
       )
+      // ratio 模式：同时显示比例选择
+      if (imageConfig?.mode === "ratio") {
+        const ratios = Object.keys((imageConfig.sizes ?? {}) as Record<string, unknown>)
+        return (
+          <>
+            <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v ?? ratios[0])}>
+              <SelectTrigger className="h-8 w-[100px] text-xs">
+                <span className="shrink-0 text-muted-foreground">比例</span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ratios.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {presetSelect}
+          </>
+        )
+      }
+      return presetSelect
     }
 
     if (!imageConfig) {
@@ -524,7 +559,7 @@ export function GenerationPanel() {
             )}
 
             {/* Prompt 输入 */}
-            <div className="flex min-h-[120px] flex-1 flex-col gap-1">
+            <div className="flex min-h-0 flex-1 flex-col gap-1">
               <div className="flex items-center justify-between">
                 {referenceAssets.length > 0 && isEditMode && (
                   <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600/80 text-xs">
@@ -562,8 +597,9 @@ export function GenerationPanel() {
                 projectPrompt={projectPromptTag}
                 dismissed={projectPromptDismissed}
                 onDismissedChange={setProjectPromptDismissed}
+                maxLength={promptMaxLength}
                 className="flex-1"
-                minHeight={80}
+                minHeight={40}
               />
             </div>
 
@@ -776,7 +812,9 @@ export function GenerationPanel() {
 
                 <Button
                   size="sm"
-                  disabled={generateImage.isPending || !prompt.trim()}
+                  disabled={
+                    generateImage.isPending || !prompt.trim() || prompt.length > promptMaxLength
+                  }
                   onClick={handleGenerate}
                   className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
                 >

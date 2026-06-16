@@ -23,11 +23,15 @@ public final class GeminiEditParams {
     private final String prompt;
     private final List<String> sourceUrls;
     private final String quality;
+    private final String aspectRatio;
+    private final String sizePreset;
 
     private GeminiEditParams(ImageEditRequest req, ImageConfig.ImageModeConfig cfg) {
         this.prompt = req.getPrompt();
         this.sourceUrls = req.allSourceUrls();
         this.quality = req.getQuality();
+        this.aspectRatio = req.getAspectRatio();
+        this.sizePreset = req.getSizePreset();
 
         validate(cfg);
     }
@@ -62,6 +66,8 @@ public final class GeminiEditParams {
     public Map<String, Object> toBody() {
         var parts = new ArrayList<Map<String, Object>>();
 
+        // prompt 在前，参考图在后——Gemini 推荐顺序，有助于模型理解参考图用途
+        parts.add(Map.of("text", prompt));
         for (String url : sourceUrls) {
             try {
                 byte[] bytes = URI.create(url).toURL().openStream().readAllBytes();
@@ -72,11 +78,15 @@ public final class GeminiEditParams {
                 log.warn("[GeminiEditParams] 参考图下载失败，跳过: url={}", url, e);
             }
         }
-        parts.add(Map.of("text", prompt));
 
         var userContent = Map.of("role", "user", "parts", parts);
         var genConfig = new LinkedHashMap<String, Object>();
         genConfig.put("responseModalities", List.of("IMAGE"));
+
+        var imageFormat = new LinkedHashMap<String, Object>();
+        if (aspectRatio != null) imageFormat.put("aspectRatio", aspectRatio);
+        if (sizePreset != null) imageFormat.put("imageSize", sizePreset);
+        if (!imageFormat.isEmpty()) genConfig.put("imageConfig", imageFormat);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("contents", List.of(userContent));

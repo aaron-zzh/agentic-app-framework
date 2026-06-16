@@ -95,11 +95,20 @@ SET input_price_per_k  = 0.036000,
     output_price_per_k = 0.108000
 WHERE capabilities LIKE '%CHAT%' AND (input_price_per_k IS NULL OR input_price_per_k = 0);
 
--- 图像生成模型按次固定价格（quota_type=1，1元/次）
+-- 图像生成模型按次固定价格（quota_type=1，1元/次），gpt-image-2 除外（按 token 计费）
 UPDATE ai_model
 SET model_price = 1.000000,
     quota_type  = 1
-WHERE capabilities LIKE '%IMAGE_GEN%' AND (model_price IS NULL OR model_price = 0);
+WHERE capabilities LIKE '%IMAGE_GEN%'
+  AND model_id != 'n1n:gpt-image-2'
+  AND (model_price IS NULL OR model_price = 0);
+
+-- gpt-image-2 按 token 计费（$3.0/M 输入，$18.0/M 输出）
+UPDATE ai_model
+SET input_price_per_k  = 0.003,
+    output_price_per_k = 0.018,
+    quota_type         = 0
+WHERE model_id = 'n1n:gpt-image-2';
 
 
 -- ==================== 通知演示数据 ====================

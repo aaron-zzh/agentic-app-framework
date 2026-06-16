@@ -17,8 +17,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * License 公开激活接口（无需登录）。
  *
- * <p>用户部署的实例传入 LICENSE 类型兑换码，服务端验证并返回预签发的 license.jwt。
- * 兑换码一次性，用完即标记 REDEEMED。
+ * <p>用户部署的实例传入 LICENSE 类型兑换码，服务端验证并返回预签发的 license.jwt。 兑换码一次性，用完即标记 REDEEMED。
  *
  * @author AaronZZH & Kiro
  */

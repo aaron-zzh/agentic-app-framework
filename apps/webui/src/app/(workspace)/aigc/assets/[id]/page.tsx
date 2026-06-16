@@ -19,10 +19,14 @@ export default function AssetPreviewPage({ params }: { params: Promise<{ id: str
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b px-4 py-3">
-        <Button variant="ghost" size="icon" className="size-8" asChild>
-          <Link href="/aigc/assets">
-            <ArrowLeft className="size-4" />
-          </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          nativeButton={false}
+          render={<Link href="/aigc/assets" />}
+        >
+          <ArrowLeft className="size-4" />
         </Button>
         <h1 className="font-semibold">{asset?.name ?? "3D 预览"}</h1>
         {asset && (

@@ -10,7 +10,7 @@
 
 import { AuiIf, useVoiceState } from "@assistant-ui/react"
 import type { ReactNode } from "react"
-import { VoiceControl, VoiceOrb, deriveVoiceOrbState } from "@/components/voice"
+import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
 import { ChatterComposer } from "./ChatterComposer"
 import { ChatterThread } from "./ChatterThread"
 import { DroppableComposer } from "./dnd/DroppableComposer"
@@ -61,7 +61,6 @@ export function ChatterPanel({
     </div>
   )
 }
-
 
 /** 读取 voice 状态并传给 VoiceOrb */
 function ActiveVoiceOrb() {

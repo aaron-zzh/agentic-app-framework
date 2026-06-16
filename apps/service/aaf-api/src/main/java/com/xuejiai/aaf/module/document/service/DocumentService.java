@@ -216,8 +216,14 @@ public class DocumentService {
 
     private void broadcastChange(Long docId, String title) {
         String json =
-                "{\"type\":\"doc_updated\",\"docId\":%d,\"title\":\"%s\"}"
-                        .formatted(docId, title != null ? title.replace("\"", "\\\"") : "");
+                com.xuejiai.aaf.common.util.JsonUtils.toJsonString(
+                        java.util.Map.of(
+                                "type",
+                                "doc_updated",
+                                "docId",
+                                docId,
+                                "title",
+                                title != null ? title : ""));
         // 通知特定文档订阅者
         sendToSubscribers(docId, json);
         // 通知全局订阅者

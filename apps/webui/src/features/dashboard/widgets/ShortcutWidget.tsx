@@ -28,8 +28,15 @@ export function ShortcutWidget({ title, config }: ShortcutWidgetProps) {
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
           {config.items.map((item) => (
-            <Button key={item.href} variant="outline" size="sm" asChild className="justify-start">
-              <Link href={item.href}>{item.label}</Link>
+            <Button
+              key={item.href}
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={item.href} />}
+              className="justify-start"
+            >
+              {item.label}
             </Button>
           ))}
         </div>

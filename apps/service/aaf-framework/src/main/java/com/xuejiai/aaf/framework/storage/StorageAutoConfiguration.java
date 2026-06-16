@@ -39,10 +39,7 @@ public class StorageAutoConfiguration {
     }
 
     @Bean
-    public FileService fileService(
-            StorageService storageService,
-            ImageProcessor imageProcessor,
-            StorageProperties properties) {
-        return new FileService(storageService, imageProcessor, properties.uploadOrDefault());
+    public FileService fileService(StorageService storageService, StorageProperties properties) {
+        return new FileService(storageService, properties.uploadOrDefault());
     }
 }

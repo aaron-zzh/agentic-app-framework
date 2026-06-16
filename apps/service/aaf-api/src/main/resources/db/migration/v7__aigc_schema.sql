@@ -718,16 +718,14 @@ UPDATE ai_model SET image_config = '{
     "maxImages": 10,
     "quality": ["auto","low","medium","high"],
     "format": ["png","jpeg","webp"],
-    "background": ["auto","transparent","opaque"],
-    "contentModeration": ["auto","low"]
+    "background": ["auto","opaque"]
   },
   "edit": {
     "maxInputImages": 16,
     "maxImages": 10,
     "quality": ["auto","low","medium","high"],
     "format": ["png","jpeg","webp"],
-    "background": ["auto","transparent","opaque"],
-    "contentModeration": ["auto","low"]
+    "background": ["auto","opaque"]
   }
 }' WHERE model_id = 'n1n:gpt-image-2';
 

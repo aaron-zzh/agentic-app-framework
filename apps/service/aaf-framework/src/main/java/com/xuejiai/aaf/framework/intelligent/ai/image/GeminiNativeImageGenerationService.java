@@ -47,7 +47,12 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
         log.debug(
                 "[GeminiNative] generate 提交: modelId={}, prompt={}, aspectRatio={}, sizePreset={}",
                 request.getModelId(),
-                request.getPrompt(),
+                request.getPrompt() != null && request.getPrompt().length() > 50
+                        ? request.getPrompt().substring(0, 50)
+                                + "...["
+                                + request.getPrompt().length()
+                                + "chars]"
+                        : request.getPrompt(),
                 request.getAspectRatio(),
                 request.getSizePreset());
         return call(aiModel, params.toBody(), "generate", request.getModelId());
@@ -61,7 +66,12 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
         log.debug(
                 "[GeminiNative] edit 提交: modelId={}, prompt={}, sourceUrls={}",
                 request.getModelId(),
-                request.getPrompt(),
+                request.getPrompt() != null && request.getPrompt().length() > 50
+                        ? request.getPrompt().substring(0, 50)
+                                + "...["
+                                + request.getPrompt().length()
+                                + "chars]"
+                        : request.getPrompt(),
                 request.allSourceUrls().size());
         return call(aiModel, params.toBody(), "edit", request.getModelId());
     }
@@ -83,6 +93,8 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
                 Object value = entry.getValue();
                 if ("data".equals(key) && value instanceof String s) {
                     copy.put(key, "<base64 " + s.length() + " chars>");
+                } else if ("text".equals(key) && value instanceof String s && s.length() > 50) {
+                    copy.put(key, s.substring(0, 50) + "...[" + s.length() + "chars]");
                 } else {
                     copy.put(key, redactForLog(value));
                 }

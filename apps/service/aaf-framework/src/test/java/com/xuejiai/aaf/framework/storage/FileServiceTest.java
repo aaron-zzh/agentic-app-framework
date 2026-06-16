@@ -13,9 +13,8 @@ import org.springframework.mock.web.MockMultipartFile;
 class FileServiceTest {
 
     private final StorageService storage = mock(StorageService.class);
-    private final ImageProcessor imageProcessor = mock(ImageProcessor.class);
     private final FileService service =
-            new FileService(storage, imageProcessor, StorageProperties.UploadLimits.defaults());
+            new FileService(storage, StorageProperties.UploadLimits.defaults());
 
     /** B13：超过大小上限（默认 10MB）→ 拒绝。 */
     @Test

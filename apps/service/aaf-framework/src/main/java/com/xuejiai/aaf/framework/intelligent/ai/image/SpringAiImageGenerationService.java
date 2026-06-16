@@ -77,6 +77,15 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             if (request.getBackground() != null) body.put("background", request.getBackground());
             if (request.getModeration() != null) body.put("moderation", request.getModeration());
 
+            log.debug(
+                    "[SpringAiImage] 文生图请求: model={}, size={}, quality={}, format={}, n={}",
+                    modelName,
+                    body.get("size"),
+                    body.get("quality"),
+                    body.get("output_format"),
+                    body.getOrDefault("n", 1));
+
+            // gpt-image-2 文生图走 /images/generations（官方接口规范）
             var response =
                     RestClient.create()
                             .post()
@@ -106,9 +115,21 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                     urls.size(),
                     url,
                     b64 != null ? b64.substring(0, Math.min(20, b64.length())) + "..." : null);
+            int inputTokens = 0, outputTokens = 0;
+            if (responseNode != null && responseNode.has("usage")) {
+                var usage = responseNode.get("usage");
+                inputTokens = usage.path("prompt_tokens").asInt(0);
+                outputTokens = usage.path("completion_tokens").asInt(0);
+            }
             return urls.size() > 1
-                    ? ImageResult.ofUrls(urls, request.getModelId())
-                    : new ImageResult(url, b64, request.getModelId());
+                    ? ImageResult.ofUrls(urls, request.getModelId(), inputTokens, outputTokens)
+                    : new ImageResult(
+                            url,
+                            b64,
+                            request.getModelId(),
+                            url != null ? List.of(url) : List.of(),
+                            inputTokens,
+                            outputTokens);
         } catch (Exception e) {
             log.error("文生图失败(HTTP): modelId={}", request.getModelId(), e);
             throw new RuntimeException("图像生成失败: " + e.getMessage(), e);
@@ -171,6 +192,9 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             if (req.getFormat() != null) multipart.part("output_format", req.getFormat());
             if (req.getBackground() != null) multipart.part("background", req.getBackground());
             if (req.getImageCount() > 1) multipart.part("n", String.valueOf(req.getImageCount()));
+            // gpt-image-2 edits 接口 size 格式为 WxH
+            String editSize = req.getEditSize();
+            if (editSize != null) multipart.part("size", editSize.replace("*", "x"));
 
             var response =
                     RestClient.create()
@@ -195,9 +219,21 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                 }
             }
             log.info("[SpringAiImage] 图像编辑完成: modelId={}, count={}", modelId, urls.size());
+            int inputTokens = 0, outputTokens = 0;
+            if (responseNode != null && responseNode.has("usage")) {
+                var usage = responseNode.get("usage");
+                inputTokens = usage.path("prompt_tokens").asInt(0);
+                outputTokens = usage.path("completion_tokens").asInt(0);
+            }
             return urls.size() > 1
-                    ? ImageResult.ofUrls(urls, modelId)
-                    : new ImageResult(url, b64, modelId);
+                    ? ImageResult.ofUrls(urls, modelId, inputTokens, outputTokens)
+                    : new ImageResult(
+                            url,
+                            b64,
+                            modelId,
+                            url != null ? List.of(url) : List.of(),
+                            inputTokens,
+                            outputTokens);
         } catch (Exception e) {
             log.error("[SpringAiImage] 图像编辑失败: modelId={}", modelId, e);
             throw new RuntimeException("图像编辑失败: " + e.getMessage(), e);

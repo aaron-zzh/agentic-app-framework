@@ -100,7 +100,7 @@ export function AigcView() {
       addPendingTask({ id: task.id, prompt: task.prompt ?? "", type: task.type })
       failPendingTask(task.id, task.errorMsg ?? "生成失败")
       toast.error(task.errorMsg ?? "生成失败")
-      setTimeout(() => removePendingTask(task.id), 3000)
+      // 失败卡片保留，等用户点击重试或手动关闭
     },
     onReconnect: () => {
       // SSE 断连重连后，补查断连期间可能丢失的任务结果

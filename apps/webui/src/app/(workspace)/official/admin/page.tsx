@@ -384,7 +384,7 @@ function RedeemCodeCard({ isOwner }: { isOwner: boolean }) {
             </Field>
           ) : (
             <Field label="绑定套餐">
-              <Select value={planCode} onValueChange={setPlanCode}>
+              <Select value={planCode} onValueChange={(v) => setPlanCode(v ?? "")}>
                 <SelectTrigger>
                   <SelectValue placeholder="选择套餐" />
                 </SelectTrigger>
@@ -560,7 +560,7 @@ function PlanCard({ plan }: { plan: DeveloperSubscriptionPlan }) {
         <Field label="状态">
           <Select
             value={form.status}
-            onValueChange={(v) => setForm((prev) => ({ ...prev, status: v }))}
+            onValueChange={(v) => setForm((prev) => ({ ...prev, status: v ?? prev.status }))}
           >
             <SelectTrigger className="h-7 text-xs">
               <SelectValue />

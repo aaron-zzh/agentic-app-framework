@@ -134,10 +134,13 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
       </Tabs>
 
       <div className="shrink-0 border-t p-4">
-        <Button variant="outline" className="w-full" asChild>
-          <Link href={paths.workspace.notifications} onClick={onClose}>
-            查看全部通知
-          </Link>
+        <Button
+          variant="outline"
+          className="w-full"
+          nativeButton={false}
+          render={<Link href={paths.workspace.notifications} onClick={onClose} />}
+        >
+          查看全部通知
         </Button>
       </div>
     </div>

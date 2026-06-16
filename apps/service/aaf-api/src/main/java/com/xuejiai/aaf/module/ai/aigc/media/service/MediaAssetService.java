@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.storage.FileService;
@@ -265,7 +266,7 @@ public class MediaAssetService {
         var relation = new MediaAssetVariant();
         relation.setOriginalAssetId(original.getId());
         relation.setVariantAssetId(variant.getId());
-        relation.setParamsDiff("{\"newPrompt\":\"%s\"}".formatted(prompt.replace("\"", "\\\"")));
+        relation.setParamsDiff(JsonUtils.toJsonString(java.util.Map.of("newPrompt", prompt)));
         variantRepository.save(relation);
 
         return toVO(variant);

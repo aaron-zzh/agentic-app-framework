@@ -29,16 +29,20 @@ export function SmartButtons({ entity, record }: SmartButtonsProps) {
         const href = btn.linkTo.replace("{id}", String(record.id ?? ""))
 
         return (
-          <Button key={btn.key} variant="outline" size="sm" asChild>
-            <Link href={href}>
-              <span>{btn.icon}</span>
-              <span>{btn.label.replace("{count}", String(count ?? 0))}</span>
-              {count !== undefined && count > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {count}
-                </Badge>
-              )}
-            </Link>
+          <Button
+            key={btn.key}
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={href} />}
+          >
+            <span>{btn.icon}</span>
+            <span>{btn.label.replace("{count}", String(count ?? 0))}</span>
+            {count !== undefined && count > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {count}
+              </Badge>
+            )}
           </Button>
         )
       })}

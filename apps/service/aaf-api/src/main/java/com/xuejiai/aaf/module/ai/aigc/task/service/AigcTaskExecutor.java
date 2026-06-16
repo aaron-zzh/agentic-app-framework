@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.image.DashScopeImageGenerationService;
@@ -105,7 +106,14 @@ public class AigcTaskExecutor {
                                             p.getBackground(),
                                             p.getModeration(),
                                             p.getImageCount() > 1 ? p.getImageCount() : null,
-                                            p.getImageUrls()));
+                                            p.getImageUrls()) {
+                                        {
+                                            setWidth(p.getWidth());
+                                            setHeight(p.getHeight());
+                                            setSizePreset(p.getSizePreset());
+                                            setAspectRatio(p.getAspectRatio());
+                                        }
+                                    });
                 }
             } else {
                 result = svc.generate(p);
@@ -177,12 +185,21 @@ public class AigcTaskExecutor {
             }
 
             log.info("[submitSync] 任务完成: taskId={}, ossUrl={}", taskId, ossUrl);
-            // 按次扣积分
+            // 有 token 用量时按 token 结算，否则按次结算
             var aiModel = configCacheManager.getAiModelByModelId(modelId);
-            creditGuard.settlePerUse(
-                    task.getUserId(),
-                    aiModel != null ? aiModel.getId() : null,
-                    String.valueOf(taskId));
+            if (result.inputTokens() > 0 || result.outputTokens() > 0) {
+                creditGuard.settleByModel(
+                        task.getUserId(),
+                        aiModel != null ? aiModel.getId() : null,
+                        result.inputTokens(),
+                        result.outputTokens(),
+                        String.valueOf(taskId));
+            } else {
+                creditGuard.settlePerUse(
+                        task.getUserId(),
+                        aiModel != null ? aiModel.getId() : null,
+                        String.valueOf(taskId));
+            }
         } catch (Exception e) {
             log.error("[submitSync] 生成失败: taskId={}", taskId, e);
             task.setStatus(STATUS_FAIL);
@@ -267,7 +284,14 @@ public class AigcTaskExecutor {
                             : (task.getPrompt() != null && !task.getPrompt().isBlank()
                                     ? task.getPrompt()
                                     : "AI生成-" + task.getType() + "-" + task.getId());
-            String groupName = nameSource.substring(0, Math.min(nameSource.length(), 20));
+            // 截取前 20 字符，并去掉末尾不完整的标点/空白，避免截断中文词
+            String groupName =
+                    nameSource.length() <= 20
+                            ? nameSource.strip()
+                            : nameSource
+                                    .substring(0, 20)
+                                    .replaceAll("[，。！？、,.!?\\s]+$", "")
+                                    .strip();
 
             var dto =
                     new SaveFromGenerationDTO(
@@ -275,13 +299,14 @@ public class AigcTaskExecutor {
                             type,
                             ossUrl,
                             null,
-                            "{\"prompt\":\"%s\",\"model\":\"%s\",\"sizePreset\":\"%s\"}"
-                                    .formatted(
-                                            task.getPrompt() != null
-                                                    ? task.getPrompt().replace("\"", "'")
-                                                    : "",
-                                            task.getModel() != null ? task.getModel() : "",
-                                            sizePreset != null ? sizePreset : ""),
+                            JsonUtils.toJsonString(
+                                    java.util.Map.of(
+                                            "prompt",
+                                                    task.getPrompt() != null
+                                                            ? task.getPrompt()
+                                                            : "",
+                                            "model", task.getModel() != null ? task.getModel() : "",
+                                            "sizePreset", sizePreset != null ? sizePreset : "")),
                             w,
                             h,
                             null,
@@ -321,13 +346,14 @@ public class AigcTaskExecutor {
                             type,
                             ossUrl,
                             null,
-                            "{\"prompt\":\"%s\",\"model\":\"%s\",\"sizePreset\":\"%s\"}"
-                                    .formatted(
-                                            task.getPrompt() != null
-                                                    ? task.getPrompt().replace("\"", "'")
-                                                    : "",
-                                            task.getModel() != null ? task.getModel() : "",
-                                            sizePreset != null ? sizePreset : ""),
+                            JsonUtils.toJsonString(
+                                    java.util.Map.of(
+                                            "prompt",
+                                                    task.getPrompt() != null
+                                                            ? task.getPrompt()
+                                                            : "",
+                                            "model", task.getModel() != null ? task.getModel() : "",
+                                            "sizePreset", sizePreset != null ? sizePreset : "")),
                             w,
                             h,
                             null,

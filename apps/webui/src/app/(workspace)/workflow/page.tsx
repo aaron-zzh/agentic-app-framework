@@ -149,12 +149,17 @@ function TaskList({
               <p className="truncate font-medium text-sm">{task.name || "审批任务"}</p>
               <p className="text-muted-foreground text-xs">流程：{task.processInstanceId}</p>
             </div>
-            <Button size="sm" variant="outline" asChild>
-              <Link
-                href={`/module/${task.entityType ?? "workflow"}/${task.entityId ?? task.processInstanceId}`}
-              >
-                处理
-              </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link
+                  href={`/module/${task.entityType ?? "workflow"}/${task.entityId ?? task.processInstanceId}`}
+                />
+              }
+            >
+              处理
             </Button>
           </li>
         ))}

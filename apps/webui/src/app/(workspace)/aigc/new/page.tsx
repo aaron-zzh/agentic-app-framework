@@ -136,6 +136,7 @@ export default function AigcNewProjectPage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               className="min-h-[100px] resize-y"
+              maxLength={3000}
             />
           </div>
 

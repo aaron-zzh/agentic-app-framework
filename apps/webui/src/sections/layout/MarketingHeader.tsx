@@ -51,16 +51,21 @@ export function MarketingHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {isAuthenticated ? (
-            <Button size="sm" asChild>
-              <Link href={paths.workspace.root}>进入工作区</Link>
+            <Button size="sm" nativeButton={false} render={<Link href={paths.workspace.root} />}>
+              进入工作区
             </Button>
           ) : (
             <>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={paths.auth.login}>登录</Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={paths.auth.login} />}
+              >
+                登录
               </Button>
-              <Button size="sm" asChild>
-                <Link href={paths.auth.register}>免费开始</Link>
+              <Button size="sm" nativeButton={false} render={<Link href={paths.auth.register} />}>
+                免费开始
               </Button>
             </>
           )}

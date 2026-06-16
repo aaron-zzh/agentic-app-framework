@@ -6,6 +6,7 @@
 "use client"
 
 import { Eye, Pencil, Plus } from "lucide-react"
+import Link from "next/link"
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 
@@ -93,14 +94,20 @@ export default function PagesAdminPage() {
                   >
                     <Pencil className="size-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" asChild aria-label="预览">
-                    <a
-                      href={`/${page.slug === "home" ? "" : page.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Eye className="size-4" />
-                    </a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="预览"
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={`/${page.slug === "home" ? "" : page.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      />
+                    }
+                  >
+                    <Eye className="size-4" />
                   </Button>
                 </div>
               </div>

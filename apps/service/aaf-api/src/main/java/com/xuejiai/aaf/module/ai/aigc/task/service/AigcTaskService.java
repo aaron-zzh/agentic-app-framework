@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
@@ -163,7 +164,7 @@ public class AigcTaskService
                                 taskExecutor.submitSync(taskId, prompt, resolvedModel);
                             }
                         });
-        log.info(
+        log.debug(
                 "[submitImageTask] 总耗时: {}ms, taskId={}",
                 System.currentTimeMillis() - t0,
                 task.getId());
@@ -250,7 +251,7 @@ public class AigcTaskService
 
         var task = buildTask(userId, TYPE_VOICE, text, model, null, projectId);
         if (voice != null && !voice.isBlank()) {
-            task.setParams("{\"voice\":\"" + voice.replace("\"", "'") + "\"}");
+            task.setParams(JsonUtils.toJsonString(java.util.Map.of("voice", voice)));
         }
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));

@@ -37,6 +37,7 @@ export function KiroAgentProvider({ children, agentRole }: KiroAgentProviderProp
     toast.error("Kiro Agent 通信异常，请重试")
   }, [])
 
+  // @ts-expect-error: @ag-ui/client 版本与 @assistant-ui/react-ag-ui 期望的 AbstractAgent 类型不匹配（pendingInterrupts），升级依赖后可移除
   const runtime = useAgUiRuntime({ agent, onError })
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>

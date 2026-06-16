@@ -209,12 +209,7 @@ function CharCountPlugin({ onCount }: { onCount: (n: number) => void }) {
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
-        const root = $getRoot()
-        let count = 0
-        for (const child of root.getAllTextNodes()) {
-          count += child.getTextContent().length
-        }
-        onCount(count)
+        onCount($getRoot().getTextContent().length)
       })
     })
   }, [editor, onCount])
@@ -329,18 +324,13 @@ export function PromptInput({
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <div
-        className={cn(
-          "flex flex-col rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
-          className
-        )}
-      >
+      <div className={cn("flex min-h-0 flex-col rounded-md border bg-background", className)}>
         {/* 编辑区 */}
-        <div className="relative flex-1">
+        <div className="relative min-h-0 flex-1">
           <PlainTextPlugin
             contentEditable={
               <ContentEditable
-                className="w-full px-3 py-2 text-sm outline-none"
+                className="h-full w-full overflow-y-auto px-3 py-2 text-sm outline-none"
                 style={{ minHeight }}
                 aria-label="提示词输入框"
               />

@@ -7,6 +7,7 @@
 
 import { AnimatePresence, motion } from "framer-motion"
 import { Menu, X } from "lucide-react"
+import Link from "next/link"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -64,8 +65,8 @@ export function NavbarSection({ data }: SectionComponentProps) {
         {/* 桌面端 CTA */}
         <div className="hidden md:block">
           {cta && (
-            <Button asChild>
-              <a href={cta.href}>{cta.label}</a>
+            <Button nativeButton={false} render={<Link href={cta.href} />}>
+              {cta.label}
             </Button>
           )}
         </div>
@@ -100,8 +101,8 @@ export function NavbarSection({ data }: SectionComponentProps) {
               ))}
               {cta && (
                 <li className="pt-2">
-                  <Button asChild className="w-full">
-                    <a href={cta.href}>{cta.label}</a>
+                  <Button nativeButton={false} render={<Link href={cta.href} />} className="w-full">
+                    {cta.label}
                   </Button>
                 </li>
               )}

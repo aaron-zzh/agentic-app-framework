@@ -102,8 +102,15 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     public ImageResult imageToImage(ImageEditRequest req) {
         String model =
                 req.getModelId() != null ? stripNamespace(req.getModelId()) : "qwen-image-2.0-pro";
-        var urls = req.getSourceUrl() != null ? List.of(req.getSourceUrl()) : null;
-        return callQwenImage2(model, req.getPrompt(), urls, null, null, null, null, 1);
+        var urls = req.allSourceUrls().isEmpty() ? null : req.allSourceUrls();
+        return generateWithImages(
+                model,
+                req.getPrompt(),
+                urls,
+                req.getEditSize(),
+                req.getSeed(),
+                req.getImageCount() > 1 ? req.getImageCount() : 1,
+                req.getSizePreset() != null);
     }
 
     @Override

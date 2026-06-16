@@ -95,7 +95,7 @@ export function ReferenceDropZone({
       ref={setNodeRef}
       aria-label="参考素材拖放区"
       className={cn(
-        "relative flex min-h-[96px] flex-col gap-2 rounded-lg border border-border/50 border-dashed bg-muted/30 p-3 transition-colors",
+        "relative flex min-h-[96px] flex-col gap-2 rounded-lg border border-border border-dashed bg-muted/30 p-3 transition-colors",
         (isOver || fileDragOver) && "border-primary bg-primary/5"
       )}
       onDragOver={onFileDragOver}

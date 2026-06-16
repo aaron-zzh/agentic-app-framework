@@ -93,7 +93,9 @@ export default function MusicGenerationPage() {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="描述你想要的音乐风格、主题、情绪...（如：轻快的流行风格，关于夏天的歌曲）"
             className="min-h-[80px] resize-none"
+            maxLength={3000}
           />
+          <p className="text-right text-muted-foreground text-xs">{prompt.length}/3000</p>
         </div>
 
         <div className="space-y-2">
@@ -103,7 +105,9 @@ export default function MusicGenerationPage() {
             onChange={(e) => setLyrics(e.target.value)}
             placeholder="直接填写歌词内容，AI 将根据歌词生成音乐..."
             className="min-h-[80px] resize-none"
+            maxLength={3000}
           />
+          <p className="text-right text-muted-foreground text-xs">{lyrics.length}/3000</p>
         </div>
 
         <div className="flex items-center gap-4">

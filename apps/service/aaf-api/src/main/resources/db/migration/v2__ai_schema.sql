@@ -681,7 +681,6 @@ VALUES
 ('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true),
 ('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true),
 ('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true),
-('n1n:claude-fable-5',    'Claude Fable 5',     'n1n',     'OPENAI_COMPAT', 'claude-fable-5',             'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  4,  true),
 ('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000, 5,  true),
 ('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 10,  true),
 ('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                         'CHAT,VISION', 128000, 11,  true),
@@ -716,12 +715,12 @@ VALUES
 -- ('volcengine:doubao-pro',   'Doubao Pro',         'volcengine', 'OPENAI_COMPAT', 'doubao-pro-32k',             'https://ark.cn-beijing.volces.com/api/v3',          'CHAT',        32000,  120, true),
 -- ('volcengine:doubao-lite',  'Doubao Lite',        'volcengine', 'OPENAI_COMPAT', 'doubao-lite-32k',            'https://ark.cn-beijing.volces.com/api/v3',          'CHAT',        32000,  121, true),
 -- P1: 图像生成
-('qwen:wan2.7-image',       '万相 Wan2.7',         'qwen',       'DASHSCOPE',     'wan2.7-image',                   'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 210, true),
-('qwen:qwen-image-2.0',       '千问图像 2.0',        'qwen',        'DASHSCOPE',     'qwen-image-2.0',                 'https://dashscope.aliyuncs.com',        'IMAGE_GEN', null, 211, true),
-('n1n:gpt-image-2',         'GPT Image 2',         'n1n',        'OPENAI_COMPAT',  'gpt-image-2',                             'https://llm-api.net/v1',         'IMAGE_GEN', null, 212, true),
-('n1n:gemini-3.1-flash-image-preview', 'Gemini 3.1 Flash', 'n1n',    'OPENAI_COMPAT', 'gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 220, true),
-('n1n:gemini-3-pro-image-preview',     'Gemini 3 Pro',     'n1n',    'OPENAI_COMPAT', 'gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', null, 221, true),
-('n1n:doubao-260128seedream-5-0-',            '豆包 Seedream 5.0',      'n1n',    'OPENAI_COMPAT', 'doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',      null, 230, true),
+('qwen:wan2.7-image',       '万相 Wan2.7',         'qwen',       'DASHSCOPE',     'wan2.7-image',                   'https://dashscope.aliyuncs.com',        'IMAGE_GEN',  800, 210, true),
+('qwen:qwen-image-2.0',       '千问图像 2.0',        'qwen',        'DASHSCOPE',     'qwen-image-2.0',                 'https://dashscope.aliyuncs.com',        'IMAGE_GEN',  800, 211, true),
+('n1n:gpt-image-2',         'GPT Image 2',         'n1n',        'OPENAI_COMPAT',  'gpt-image-2',                             'https://llm-api.net/v1',         'IMAGE_GEN', 3000, 212, true),
+('n1n:gemini-3.1-flash-image-preview', 'Gemini 3.1 Flash', 'n1n',    'OPENAI_COMPAT', 'gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 220, true),
+('n1n:gemini-3-pro-image-preview',     'Gemini 3 Pro',     'n1n',    'OPENAI_COMPAT', 'gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true),
+('n1n:doubao-seedream-5-0-260128', '豆包 Seedream 5.0',      'n1n',    'OPENAI_COMPAT', 'doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true),
 -- P1: 视频生成
 ('qwen:happyhorse-1.0-i2v',   'HappyHorse',   'qwen',  'DASHSCOPE', 'happyhorse-1.0-i2v',               'https://dashscope.aliyuncs.com', 'VIDEO_GEN',       null, 350, true),
 -- P1: 重排序
@@ -737,6 +736,7 @@ VALUES
 ('qwen:qwen3-omni-flash-realtime',   'Qwen3 Omni Flash Realtime',   'qwen', 'DASHSCOPE', 'qwen-omni-flash-realtime',      'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true),
 ('qwen:qwen3.5-omni-plus-realtime',  'Qwen3.5 Omni Plus Realtime',  'qwen', 'DASHSCOPE', 'qwen3.5-omni-plus-realtime',   'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true)
 ON CONFLICT (model_id) DO NOTHING;
+
 
 
 -- ============================================================

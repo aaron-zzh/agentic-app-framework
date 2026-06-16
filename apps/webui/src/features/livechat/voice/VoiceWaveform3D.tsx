@@ -57,7 +57,8 @@ function WaveformLine({
     geometry.current.getAttribute("position").needsUpdate = true
   })
 
-  return <line geometry={geometry.current} material={material.current} />
+  const lineObj = useRef(new THREE.Line(geometry.current, material.current))
+  return <primitive object={lineObj.current} />
 }
 
 interface VoiceWaveform3DProps {

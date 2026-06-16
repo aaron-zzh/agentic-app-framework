@@ -7,6 +7,7 @@
 
 import { motion } from "framer-motion"
 import dynamic from "next/dynamic"
+import Link from "next/link"
 import type React from "react"
 
 import { Button } from "@/components/ui/button"
@@ -128,11 +129,15 @@ export function HeroSection({ data }: SectionComponentProps) {
             )}
           >
             {(buttons as CTAButton[]).map((btn) => (
-              <Button key={btn.href} variant={btn.variant ?? "default"} size="lg" asChild>
-                <a href={btn.href} className="flex items-center gap-2">
-                  {btn.icon && ICON_MAP[btn.icon]}
-                  {btn.label}
-                </a>
+              <Button
+                key={btn.href}
+                variant={btn.variant ?? "default"}
+                size="lg"
+                nativeButton={false}
+                render={<Link href={btn.href} className="flex items-center gap-2" />}
+              >
+                {btn.icon && ICON_MAP[btn.icon]}
+                {btn.label}
               </Button>
             ))}
           </div>

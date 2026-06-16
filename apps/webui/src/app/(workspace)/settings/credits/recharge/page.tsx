@@ -64,8 +64,13 @@ export default function RechargePage() {
       {/* 页面标题 */}
       <div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/settings/credits">← 返回</Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/settings/credits" />}
+          >
+            ← 返回
           </Button>
           <h1 className="font-semibold text-2xl">积分充值</h1>
         </div>

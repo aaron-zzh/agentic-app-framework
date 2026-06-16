@@ -132,10 +132,14 @@ export default function DocsPage() {
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="font-medium text-sm">文档</span>
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" asChild title="新建文档">
-                  <Link href={paths.docs.new}>
-                    <Plus className="size-4" />
-                  </Link>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link href={paths.docs.new} />}
+                  title="新建文档"
+                >
+                  <Plus className="size-4" />
                 </Button>
                 <Button
                   size="sm"
@@ -251,19 +255,27 @@ export default function DocsPage() {
                           {doc.publish === "published" ? "转为草稿" : "发布"}
                         </Button>
                         {doc.publish === "published" && (
-                          <Button size="sm" variant="ghost" asChild title="公开阅读页">
-                            <Link href={paths.docs.public(doc.id)} target="_blank">
-                              <ExternalLink className="size-4" />
-                            </Link>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            nativeButton={false}
+                            render={<Link href={paths.docs.public(doc.id)} target="_blank" />}
+                            title="公开阅读页"
+                          >
+                            <ExternalLink className="size-4" />
                           </Button>
                         )}
                       </>
                     )}
-                    <Button size="sm" variant="outline" asChild disabled={!doc}>
-                      <Link href={paths.docs.edit(selectedId)}>
-                        <Edit className="mr-1 size-4" />
-                        编辑
-                      </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link href={paths.docs.edit(selectedId)} />}
+                      disabled={!doc}
+                    >
+                      <Edit className="mr-1 size-4" />
+                      编辑
                     </Button>
                   </div>
                 </div>

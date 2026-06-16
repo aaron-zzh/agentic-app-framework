@@ -7,6 +7,7 @@
 
 import { motion } from "framer-motion"
 import { Check, X } from "lucide-react"
+import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -103,9 +104,10 @@ export function PricingSection({ data }: SectionComponentProps) {
                 <Button
                   variant={plan.highlighted ? "default" : "outline"}
                   className="mt-6 w-full"
-                  asChild
+                  nativeButton={false}
+                  render={<Link href={plan.cta.href} />}
                 >
-                  <a href={plan.cta.href}>{plan.cta.label}</a>
+                  {plan.cta.label}
                 </Button>
               )}
             </motion.div>

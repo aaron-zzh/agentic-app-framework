@@ -52,6 +52,7 @@ export interface AiModelVO {
   modelName: string
   capabilities: string
   enabled: boolean
+  contextWindow?: number
   imageConfig?: ImageConfig
 }
 

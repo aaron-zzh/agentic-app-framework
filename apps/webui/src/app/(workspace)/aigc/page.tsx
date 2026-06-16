@@ -137,11 +137,9 @@ export default function AigcProjectListPage() {
           <h1 className="font-bold text-2xl">创作项目</h1>
           <p className="text-muted-foreground text-sm">管理你的 AIGC 创作项目</p>
         </div>
-        <Button asChild>
-          <Link href="/aigc/new">
-            <Plus className="mr-2 size-4" />
-            新建项目
-          </Link>
+        <Button nativeButton={false} render={<Link href="/aigc/new" />}>
+          <Plus className="mr-2 size-4" />
+          新建项目
         </Button>
       </div>
 
@@ -156,11 +154,9 @@ export default function AigcProjectListPage() {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
           <Layers className="size-12 opacity-20" />
           <p>还没有创作项目</p>
-          <Button asChild size="lg">
-            <Link href="/aigc/new">
-              <Plus className="mr-2 size-4" />
-              创建第一个项目
-            </Link>
+          <Button nativeButton={false} render={<Link href="/aigc/new" />} size="lg">
+            <Plus className="mr-2 size-4" />
+            创建第一个项目
           </Button>
         </div>
       ) : (

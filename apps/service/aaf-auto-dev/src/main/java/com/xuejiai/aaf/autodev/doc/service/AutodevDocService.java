@@ -157,8 +157,14 @@ public class AutodevDocService {
 
     private void broadcastChange(Long docId, String title) {
         String json =
-                "{\"type\":\"doc_updated\",\"docId\":%d,\"title\":\"%s\"}"
-                        .formatted(docId, title.replace("\"", "\\\""));
+                com.xuejiai.aaf.common.util.JsonUtils.toJsonString(
+                        java.util.Map.of(
+                                "type",
+                                "doc_updated",
+                                "docId",
+                                docId,
+                                "title",
+                                title != null ? title : ""));
         // 精确订阅者 + 全局订阅者
         for (Long key : List.of(docId, 0L)) {
             var list = subscribers.get(key);

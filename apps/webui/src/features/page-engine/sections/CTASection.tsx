@@ -6,6 +6,7 @@
 "use client"
 
 import { motion } from "framer-motion"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 
@@ -41,8 +42,14 @@ export function CTASection({ data }: SectionComponentProps) {
         {(buttons as CTAButton[]).length > 0 && (
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             {(buttons as CTAButton[]).map((btn) => (
-              <Button key={btn.href} variant={btn.variant ?? "default"} size="lg" asChild>
-                <a href={btn.href}>{btn.label}</a>
+              <Button
+                key={btn.href}
+                variant={btn.variant ?? "default"}
+                size="lg"
+                nativeButton={false}
+                render={<Link href={btn.href} />}
+              >
+                {btn.label}
               </Button>
             ))}
           </div>

@@ -131,7 +131,9 @@ export default function AigcThreeDPage() {
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="描述你想要生成的 3D 模型（如：一只可爱的小猫，卡通风格）"
                   className="min-h-[80px] resize-none"
+                  maxLength={3000}
                 />
+                <p className="text-right text-muted-foreground text-xs">{prompt.length}/3000</p>
               </div>
               <Button
                 className="gap-2 self-end"
