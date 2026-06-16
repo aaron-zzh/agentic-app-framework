@@ -51,7 +51,7 @@ public class DeveloperTokenController {
 
     @Operation(summary = "兑换开发者 Token")
     @PostMapping("/redeem")
-    public Result<Long> redeem(@Valid @RequestBody DeveloperRedeemDTO dto) {
+    public Result<Object> redeem(@Valid @RequestBody DeveloperRedeemDTO dto) {
         var developer = accountService.getOrCreateCurrent();
         return Result.success(redeemCodeService.redeem(developer.getId(), dto.code()));
     }
