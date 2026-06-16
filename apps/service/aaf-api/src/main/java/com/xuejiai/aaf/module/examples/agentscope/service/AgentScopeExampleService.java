@@ -48,6 +48,19 @@ import lombok.extern.slf4j.Slf4j;
         matchIfMissing = false)
 public class AgentScopeExampleService {
 
+    /*
+     * 注意：以下 Agent 均为 Spring 单例 Bean，全局共享。
+     *
+     * AgentScope 内置并发保护（AgentBase.acquireExecution + AtomicBoolean）：
+     * 同一实例同时只能执行一个 call()，并发第二个请求会直接抛 IllegalStateException。
+     *
+     * 已知问题：
+     * 1. InMemoryMemory 也是单例，所有用户的对话历史混在一起，后来的用户会"继承"之前用户的上下文。
+     *    这使 basic-chat 表现出"记忆"效果，但与 session-chat 的持久化记忆原理不同。
+     * 2. 高并发场景第二个请求直接失败。
+     *
+     * TODO: 演示精确性要求高时，改为每次请求动态创建 Agent 实例，彻底隔离状态。
+     */
     @Qualifier("basicChatAgent")
     private final ReActAgent basicChatAgent;
 

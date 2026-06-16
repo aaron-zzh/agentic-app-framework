@@ -13,14 +13,14 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(
-        name = "plan_entitlement",
+        name = "billing_plan_entitlement",
         uniqueConstraints =
                 @UniqueConstraint(
                         name = "uk_plan_ent",
                         columnNames = {"plan_id", "ent_id"}))
 @SQLDelete(
         sql =
-                "UPDATE plan_entitlement SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE billing_plan_entitlement SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class PlanEntitlement extends BaseEntity {
 
     /** 套餐 ID */

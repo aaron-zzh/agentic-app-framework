@@ -51,6 +51,7 @@ const threejsPages = [
 ]
 
 const examplePages = [
+  { label: "AgentScope", href: "/examples/agentscope" },
   { label: "ASR", href: "/examples/asr" },
   { label: "Assistant UI", href: "/examples/assistant-ui" },
   { label: "GraphQL", href: "/examples/graphql" },

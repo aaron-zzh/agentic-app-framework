@@ -18,6 +18,12 @@ aaf:
     clean-on-start: false # 生产禁止启动清库
   security:
     mock-enable: false # 关闭 mock 认证，使用真实 JWT
+  examples:
+    agentscope:
+      enabled: true
+      mcp:
+        server-url: ${MCP_SERVER_URL:https://nws.caseyjhand.co}
+        transport: ${MCP_TRANSPORT:streamable-http}
 
 springdoc:
   api-docs:

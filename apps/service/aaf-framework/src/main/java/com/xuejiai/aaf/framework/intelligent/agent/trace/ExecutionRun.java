@@ -14,7 +14,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "execution_run")
+@Table(name = "ai_execution_run")
 public class ExecutionRun {
 
     @Id

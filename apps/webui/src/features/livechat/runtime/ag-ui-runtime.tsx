@@ -13,7 +13,7 @@
 import { HttpAgent } from "@ag-ui/client"
 import { AssistantRuntimeProvider, type ThreadMessage } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
-import { type ReactNode, useCallback, useEffect, useMemo } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
@@ -55,6 +55,9 @@ export function AgUiChatProvider({
     [url, initialStateKey]
   )
 
+  // 当前 threadId——由后端创建会话时生成，通过此状态传给 threadList 适配器
+  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(initialThreadId)
+
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
   useEffect(() => {
     const run = useAgentRunStore.getState()
@@ -88,14 +91,17 @@ export function AgUiChatProvider({
 
   const threadList: UseAgUiThreadListAdapter = useMemo(
     () => ({
+      threadId: currentThreadId,
       onSwitchToNewThread: async () => {
         if (onNewThread) {
           await onNewThread()
         } else {
-          await chatApi.createSession({ type: "ai" })
+          const session = await chatApi.createSession({ type: "ai" })
+          setCurrentThreadId(session.threadId)
         }
       },
       onSwitchToThread: async (threadId: string) => {
+        setCurrentThreadId(threadId)
         try {
           const history = await chatApi.getMessages(threadId)
           const messages = history.map((msg) => ({
@@ -115,7 +121,7 @@ export function AgUiChatProvider({
         }
       }
     }),
-    [onNewThread]
+    [onNewThread, currentThreadId]
   )
 
   const voiceAdapter = useMemo(

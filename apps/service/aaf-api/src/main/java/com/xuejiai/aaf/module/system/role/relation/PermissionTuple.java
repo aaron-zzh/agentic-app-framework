@@ -16,7 +16,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(
-        name = "permission_tuple",
+        name = "sys_permission_tuple",
         uniqueConstraints =
                 @UniqueConstraint(
                         columnNames = {

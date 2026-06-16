@@ -15,5 +15,6 @@ public record ChatSessionVO(
         @Schema(description = "会话类型", example = "AI") String type,
         @Schema(description = "会话状态", example = "ACTIVE") String status,
         @Schema(description = "创建者用户 ID", example = "1") Long creatorId,
+        @Schema(description = "AG-UI 线程 ID") String threadId,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {}

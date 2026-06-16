@@ -86,4 +86,13 @@ public final class SysConfigKeys {
                 "member.credit_expire_enabled"; // 积分过期清理开关
         public static final String FAQ = "member.faq"; // 会员与积分常见问题（JSON 数组）
     }
+
+    /** 示例模块配置 */
+    public static final class Examples {
+
+        private Examples() {}
+
+        public static final String AGENTSCOPE_RATE_LIMIT_PER_MINUTE =
+                "examples.agentscope_rate_limit_per_minute"; // AgentScope 示例接口限流（次/分钟/IP）
+    }
 }

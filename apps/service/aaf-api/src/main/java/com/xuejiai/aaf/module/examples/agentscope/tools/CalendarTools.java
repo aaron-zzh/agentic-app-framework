@@ -24,7 +24,6 @@ public class CalendarTools {
     @Tool(name = "get_available_time_slots", description = "查询指定日期的可用时间段")
     public String getAvailableTimeSlots(
             @ToolParam(name = "date", description = "日期，格式 yyyy-MM-dd") String date) {
-        // Stub：返回固定可用时间段
         return "日期 " + date + " 的可用时间段：09:00-10:00、14:00-15:00、16:00-17:00";
     }
 

@@ -50,6 +50,7 @@ public class ChatService {
         conv.setType(parseType(dto.type()));
         conv.setStatus(ConversationStatus.ACTIVE);
         conv.setCreatorId(userId);
+        conv.setThreadId(java.util.UUID.randomUUID().toString());
         conversationRepository.save(conv);
         return toSessionVO(conv);
     }
@@ -312,6 +313,7 @@ public class ChatService {
                 conv.getType() != null ? conv.getType().name() : null,
                 conv.getStatus() != null ? conv.getStatus().name() : null,
                 conv.getCreatorId(),
+                conv.getThreadId(),
                 conv.getCreateTime(),
                 conv.getUpdateTime());
     }

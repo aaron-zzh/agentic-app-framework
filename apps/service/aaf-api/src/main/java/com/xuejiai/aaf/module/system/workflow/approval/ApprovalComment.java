@@ -19,7 +19,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "approval_comment")
+@Table(name = "sys_approval_comment")
 public class ApprovalComment {
 
     @Id

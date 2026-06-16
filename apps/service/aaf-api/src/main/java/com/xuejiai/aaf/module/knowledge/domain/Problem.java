@@ -8,7 +8,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "knowledge_problem")
+@Table(name = "ai_knowledge_problem")
 public class Problem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

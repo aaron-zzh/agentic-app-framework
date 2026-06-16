@@ -57,6 +57,11 @@ const EXAMPLES = [
     category: "AI / 实时",
     items: [
       { title: "Assistant UI", href: "/examples/assistant-ui", desc: "AI 对话组件集成" },
+      {
+        title: "AgentScope 示例",
+        href: "/examples/agentscope",
+        desc: "AgentScope 多 Agent 示例（需后端开启）"
+      },
       { title: "语音识别 ASR", href: "/examples/asr", desc: "实时语音转文字" },
       { title: "Omni Realtime", href: "/examples/omni-realtime", desc: "多模态实时交互" }
     ]

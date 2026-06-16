@@ -146,7 +146,7 @@ CREATE INDEX idx_conv_message_conv ON conversation_message(conversation_id, crea
 CREATE INDEX idx_conv_message_type ON conversation_message(conversation_id, content_type) WHERE deleted = FALSE;
 
 -- ============================================================
--- livechat_seat / session_rating / ticket 已在 v1 直接修改，无需 ALTER
+-- livechat_seat / livechat_session_rating / livechat_ticket 已在 v1 直接修改，无需 ALTER
 -- ============================================================
 
 -- ============================================================
@@ -192,7 +192,7 @@ CREATE UNIQUE INDEX idx_livechat_seat_assistant ON livechat_seat(assistant_id)
 -- 会话满意度评价
 -- ============================================================
 
-CREATE TABLE session_rating (
+CREATE TABLE livechat_session_rating (
     id              BIGSERIAL PRIMARY KEY,
     conversation_id BIGINT       NOT NULL,
     user_id         BIGINT,
@@ -214,14 +214,14 @@ CREATE TABLE session_rating (
     version         INTEGER      NOT NULL DEFAULT 0
 );
 
-CREATE UNIQUE INDEX idx_session_rating_conv ON session_rating(conversation_id) WHERE deleted = FALSE;
-COMMENT ON TABLE session_rating IS '会话满意度评价';
+CREATE UNIQUE INDEX idx_session_rating_conv ON livechat_session_rating(conversation_id) WHERE deleted = FALSE;
+COMMENT ON TABLE livechat_session_rating IS '会话满意度评价';
 
 -- ============================================================
 -- 客服工单
 -- ============================================================
 
-CREATE TABLE ticket (
+CREATE TABLE livechat_ticket (
     id              BIGSERIAL PRIMARY KEY,
     ticket_no       VARCHAR(32)  NOT NULL UNIQUE,
     title           VARCHAR(128) NOT NULL,
@@ -249,10 +249,10 @@ CREATE TABLE ticket (
     version         INTEGER      NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_ticket_status ON ticket(status);
-COMMENT ON TABLE ticket IS '客服工单';
+CREATE INDEX idx_ticket_status ON livechat_ticket(status);
+COMMENT ON TABLE livechat_ticket IS '客服工单';
 
-CREATE TABLE ticket_record (
+CREATE TABLE livechat_ticket_record (
     id              BIGSERIAL PRIMARY KEY,
     ticket_id       BIGINT       NOT NULL,
     operation       VARCHAR(16)  NOT NULL,
@@ -275,7 +275,7 @@ CREATE TABLE ticket_record (
     version         INTEGER      NOT NULL DEFAULT 0
 );
 
-COMMENT ON TABLE ticket_record IS '工单流转记录';
+COMMENT ON TABLE livechat_ticket_record IS '工单流转记录';
 
 
 -- ai_token_usage.conversation_id FK（v2 建表时 conversation 表未创建，在此追加）

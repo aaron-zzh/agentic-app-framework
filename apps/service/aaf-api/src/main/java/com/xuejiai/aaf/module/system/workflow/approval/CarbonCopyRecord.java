@@ -20,10 +20,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "approval_cc_record")
+@Table(name = "sys_approval_cc_record")
 @SQLDelete(
         sql =
-                "UPDATE approval_cc_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+                "UPDATE sys_approval_cc_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class CarbonCopyRecord extends BaseEntity {
 
     /** 流程实例 ID */

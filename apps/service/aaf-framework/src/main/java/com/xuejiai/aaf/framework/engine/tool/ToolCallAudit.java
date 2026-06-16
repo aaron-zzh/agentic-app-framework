@@ -10,7 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "tool_call_audit")
+@Table(name = "ai_tool_call_audit")
 public class ToolCallAudit {
 
     @Id

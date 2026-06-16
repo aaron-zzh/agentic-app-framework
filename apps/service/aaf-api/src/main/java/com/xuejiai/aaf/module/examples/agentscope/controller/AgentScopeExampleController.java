@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.module.examples.agentscope.config.ExampleRateLimiter;
 import com.xuejiai.aaf.module.examples.agentscope.service.AgentScopeExampleService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,6 +51,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AgentScopeExampleController {
 
     private final AgentScopeExampleService exampleService;
+    private final ExampleRateLimiter rateLimiter;
 
     public record ChatRequest(String input) {}
 
@@ -57,33 +59,49 @@ public class AgentScopeExampleController {
 
     public record SessionChatRequest(String sessionId, String input) {}
 
+    private void checkRate(jakarta.servlet.http.HttpServletRequest request) {
+        var ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
+        rateLimiter.check(ip);
+    }
+
     @Operation(summary = "① 基础聊天", description = "无工具，直接与 Agent 对话")
     @PostMapping("/basic-chat")
-    public Result<String> basicChat(@RequestBody ChatRequest req) {
+    public Result<String> basicChat(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.basicChat(req.input()));
     }
 
     @Operation(summary = "② 工具调用", description = "Agent 使用数学计算和时间查询工具（@Tool/@ToolParam）")
     @PostMapping("/tool-calling")
-    public Result<String> toolCalling(@RequestBody ChatRequest req) {
+    public Result<String> toolCalling(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.toolCalling(req.input()));
     }
 
     @Operation(summary = "③ Supervisor 多智能体", description = "主 Agent 通过 subAgent 委托给日历子 Agent")
     @PostMapping("/supervisor")
-    public Result<String> supervisor(@RequestBody ChatRequest req) {
+    public Result<String> supervisor(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.supervisorChat(req.input()));
     }
 
     @Operation(summary = "④ Pipeline 顺序管道", description = "自然语言 → SQL 生成 → SQL 质量评分（多 Agent 串联）")
     @PostMapping("/pipeline")
-    public Result<Map<String, Object>> pipeline(@RequestBody ChatRequest req) {
+    public Result<Map<String, Object>> pipeline(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.pipelineRun(req.input()));
     }
 
     @Operation(summary = "⑤ MsgHub 辩论", description = "两个辩手 Agent 通过 MsgHub 广播消息互相感知，主持人汇总结论")
     @PostMapping("/debate")
-    public Result<Map<String, Object>> debate(@RequestBody DebateRequest req) {
+    public Result<Map<String, Object>> debate(
+            @RequestBody DebateRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.debate(req.topic(), req.rounds()));
     }
 
@@ -91,7 +109,9 @@ public class AgentScopeExampleController {
             summary = "⑥ Session 持久化",
             description = "相同 sessionId 多次调用延续上下文，使用 JsonSession 保存/恢复对话历史")
     @PostMapping("/session-chat")
-    public Result<Map<String, Object>> sessionChat(@RequestBody SessionChatRequest req) {
+    public Result<Map<String, Object>> sessionChat(
+            @RequestBody SessionChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.sessionChat(req.sessionId(), req.input()));
     }
 
@@ -99,19 +119,25 @@ public class AgentScopeExampleController {
             summary = "⑦ MCP 工具集成",
             description = "通过 MCP 协议动态发现并调用外部工具服务器，需配置 aaf.examples.agentscope.mcp.server-url")
     @PostMapping("/mcp-tool")
-    public Result<String> mcpTool(@RequestBody ChatRequest req) {
+    public Result<String> mcpTool(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.mcpToolCall(req.input()));
     }
 
     @Operation(summary = "⑧ RAG 知识库聊天", description = "Generic RAG 模式：每次推理前自动检索知识库注入上下文，减少幻觉")
     @PostMapping("/rag-chat")
-    public Result<String> ragChat(@RequestBody ChatRequest req) {
+    public Result<String> ragChat(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.ragChat(req.input()));
     }
 
     @Operation(summary = "⑨ Plan 任务规划", description = "PlanNotebook：Agent 将复杂任务分解为子任务，逐步执行并追踪进度")
     @PostMapping("/plan-chat")
-    public Result<String> planChat(@RequestBody ChatRequest req) {
+    public Result<String> planChat(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.planChat(req.input()));
     }
 
@@ -120,7 +146,9 @@ public class AgentScopeExampleController {
             description =
                     "WebSocket 流式 TTS，保存 WAV 到服务端 ~/.aaf/examples/tts/，返回文件路径。需配置 DASHSCOPE_API_KEY")
     @PostMapping("/tts")
-    public Result<String> tts(@RequestBody ChatRequest req) {
+    public Result<String> tts(
+            @RequestBody ChatRequest req, jakarta.servlet.http.HttpServletRequest http) {
+        checkRate(http);
         return Result.success(exampleService.textToSpeech(req.input()));
     }
 }

@@ -12,10 +12,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "entitlement_def")
+@Table(name = "billing_entitlement_def")
 @SQLDelete(
         sql =
-                "UPDATE entitlement_def SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE billing_entitlement_def SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class EntitlementDef extends BaseEntity {
 
     /** 权益编码（ai_token/model_gpt4/kb_storage 等） */

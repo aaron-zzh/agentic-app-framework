@@ -10,7 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "entitlement_ledger")
+@Table(name = "billing_entitlement_ledger")
 public class EntitlementLedger {
 
     @Id

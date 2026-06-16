@@ -15,10 +15,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "refund_order")
+@Table(name = "pay_refund_order")
 @SQLDelete(
         sql =
-                "UPDATE refund_order SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE pay_refund_order SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class RefundOrder extends BaseEntity {
 
     /** 退款单号（唯一） */

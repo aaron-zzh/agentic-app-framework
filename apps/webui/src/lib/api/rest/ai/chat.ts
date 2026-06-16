@@ -12,6 +12,7 @@ export interface ChatSession {
   title: string
   type: "ai" | "livechat" | "im"
   userId: string
+  threadId: string
   agentId?: string
   createdAt: string
   updatedAt: string

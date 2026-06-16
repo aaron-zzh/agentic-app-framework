@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.util.StringUtils;
 
 import com.xuejiai.aaf.framework.intelligent.agentscope.hook.TokenMeteringHook;
@@ -212,9 +211,6 @@ public class AgentScopeExampleConfig {
                 .model(exampleDashScopeModel)
                 .toolkit(toolkit)
                 .memory(new InMemoryMemory())
-                // [Hook能力点] 注册多个 Hook，按 priority() 顺序执行
-                .hook(tokenMeteringHook) // priority=200，Token 计量
-                .hook(observationHook) // priority=900，链路观察
                 .build();
     }
 
@@ -234,9 +230,11 @@ public class AgentScopeExampleConfig {
     }
 
     /** Supervisor Agent：通过 subAgent 委托给日历子 Agent，作为 A2A 对外暴露的主 Agent */
-    @Primary
     @Bean("supervisorAgent")
-    public ReActAgent supervisorAgent(Model exampleDashScopeModel, ReActAgent calendarSubAgent) {
+    public ReActAgent supervisorAgent(
+            Model exampleDashScopeModel,
+            @org.springframework.beans.factory.annotation.Qualifier("calendarSubAgent")
+                    ReActAgent calendarSubAgent) {
         Toolkit toolkit = new Toolkit();
         toolkit.registration().subAgent(() -> calendarSubAgent).apply();
         return ReActAgent.builder()
@@ -263,7 +261,6 @@ public class AgentScopeExampleConfig {
     public AguiAgentRegistryCustomizer exampleAguiAgentRegistryCustomizer(
             Model exampleDashScopeModel, MathTools mathTools) {
         return registry -> {
-            // 基础聊天 Agent（AG-UI 默认）
             registry.registerFactory(
                     "basic",
                     () ->
@@ -275,7 +272,6 @@ public class AgentScopeExampleConfig {
                                     .toolkit(new Toolkit())
                                     .build());
 
-            // 工具调用 Agent
             registry.registerFactory(
                     "tool",
                     () -> {

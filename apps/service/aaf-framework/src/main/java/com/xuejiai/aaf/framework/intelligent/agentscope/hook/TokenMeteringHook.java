@@ -44,6 +44,10 @@ public class TokenMeteringHook implements Hook {
             if (msg != null && msg.getChatUsage() != null) {
                 var usage = msg.getChatUsage();
                 Long userId = operatorContext.currentOwnerId().orElse(null);
+                if (userId == null) {
+                    log.debug("TokenMeteringHook: userId 为空，跳过 Token 计量");
+                    return Mono.just(event);
+                }
                 var usageId = UUID.randomUUID().toString();
                 meteringService.record(
                         userId,
@@ -60,10 +64,9 @@ public class TokenMeteringHook implements Hook {
 
     private void precheck() {
         var guard = creditGuard.getIfAvailable();
-        if (guard == null) {
-            return;
-        }
+        if (guard == null) return;
         Long userId = operatorContext.currentOwnerId().orElse(null);
+        if (userId == null) return;
         guard.precheck(userId, "agentscope");
     }
 

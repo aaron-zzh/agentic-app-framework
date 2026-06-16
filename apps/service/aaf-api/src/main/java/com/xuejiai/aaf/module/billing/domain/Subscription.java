@@ -14,10 +14,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "subscription")
+@Table(name = "billing_subscription")
 @SQLDelete(
         sql =
-                "UPDATE subscription SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE billing_subscription SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class Subscription extends BaseEntity {
 
     /** 用户 ID */

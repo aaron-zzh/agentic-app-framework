@@ -6,7 +6,7 @@
 -- ============================================================
 
 -- 清空标记表，确保重复执行幂等
-DELETE FROM demo_data_record;
+DELETE FROM sys_demo_data_record;
 
 -- ==================== 测试用户 ====================
 
@@ -16,7 +16,7 @@ VALUES ('user1', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC',
        ('user2', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '用户2', 'user2@xuejiai.com', TRUE, 0)
 ON CONFLICT (username) DO NOTHING;
 
-INSERT INTO demo_data_record (table_name, record_id)
+INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'sys_user', id FROM sys_user WHERE username IN ('user1', 'user2');
 
 INSERT INTO sys_user_role (user_id, role_id)
@@ -30,7 +30,7 @@ FROM sys_user u
 WHERE u.username IN ('user1', 'user2')
   AND NOT EXISTS (SELECT 1 FROM sys_organization o WHERE o.slug = 'personal-' || u.id);
 
-INSERT INTO demo_data_record (table_name, record_id)
+INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'sys_organization', id FROM sys_organization
 WHERE owner_id IN (SELECT id FROM sys_user WHERE username IN ('user1', 'user2'));
 
@@ -59,7 +59,7 @@ SELECT u.id, 30, 0, 30, 0
 FROM sys_user u WHERE u.username = 'user2'
   AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
 
-INSERT INTO demo_data_record (table_name, record_id)
+INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'credit_account', ca.id FROM credit_account ca
 JOIN sys_user u ON ca.user_id = u.id
 WHERE u.username IN ('user1', 'user2');
@@ -83,7 +83,7 @@ FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
 WHERE u.username = 'user2'
   AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN');
 
-INSERT INTO demo_data_record (table_name, record_id)
+INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'credit_transaction', ct.id FROM credit_transaction ct
 JOIN credit_account ca ON ct.account_id = ca.id
 JOIN sys_user u ON ca.user_id = u.id
@@ -160,11 +160,11 @@ SELECT u.id, 'approval', '王五的请假申请已通过', NULL, true, null, '20
 FROM sys_user u WHERE u.username = 'admin'
   AND NOT EXISTS (SELECT 1 FROM sys_notification n WHERE n.user_id = u.id AND n.title = '王五的请假申请已通过');
 
-INSERT INTO demo_data_record (table_name, record_id)
+INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'sys_notice', id FROM sys_notice
 WHERE title IN ('2026年Q2系统升级公告', '关于报销流程优化的通知');
 
-INSERT INTO demo_data_record (table_name, record_id)
+INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'sys_notification', n.id FROM sys_notification n
 JOIN sys_user u ON n.user_id = u.id
 WHERE u.username = 'admin'

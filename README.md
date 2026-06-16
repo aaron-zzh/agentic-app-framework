@@ -1,10 +1,10 @@
-# AI 原生应用开发框架 Agentic App Framework (AAF)
+# Agentic App Framework (AAF)
 
 [![CI](https://github.com/aaron-zzh/agentic-app-framework/workflows/CI/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions)
 [![Commitlint](https://github.com/aaron-zzh/agentic-app-framework/workflows/Commitlint/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions)
 [![Deploy to Aliyun](https://github.com/aaron-zzh/agentic-app-framework/workflows/Deploy%20to%20Aliyun/badge.svg)](https://github.com/aaron-zzh/agentic-app-framework/actions/workflows/deploy.yml)
 
-> 元引擎是 AAF 的核心执行引擎，编排各专项引擎，驱动意图→执行→知识的完整闭环。自我开发、自我进化、规范驱动的围栏工程
+> AI 原生应用开发框架
 
 ## 项目简介
 
@@ -20,13 +20,13 @@ AAF 是一个面向开发人员的生产级 AI 原生框架，支持：
 
 ## 模块分层
 
-| 层次 | 名称 | 包含模块 | 职责 |
-|------|------|---------|------|
-| Layer 5 | 对话与交互层 | 意图理解、任务路由、多层协作可视化、编辑器内联命令、多端适配、REST API、WebSocket/SSE、RPC、CLI、DSL 指令 | 人机交互入口，意图表达与结果呈现，系统对外边界 |
-| Layer 4 | 服务层 | 《框架内置》Auto Dev、文档、用户、任务、知识、外部整合、众包协作、虚拟空间；《自定义》用户在 AAF 上构建的具体业务 | 面向用户的具体业务逻辑 |
-| Layer 3 | 智能层 | Core、Cognition、Agent、Assistant、Team | AI 推理与协作，五层智能架构 |
-| Layer 2 | 引擎层 | 调度机制（执行调度器、状态管理器、上下文管理器、置信度门控器、元数据管理器）；专项引擎（DSL、工作流、工具、调度、文档、知识库、记忆、空间、语义组件、自进化、积分、结算、监控、权限） | 通用执行能力，无具体业务语义 |
-| Layer 1 | 基础设施层 | PostgreSQL、Redis、Neo4j、向量库、Agent Sandbox、沙箱运行时 | 存储、通信、计算底座 |
+| 层次 | 包含模块 | 职责 |
+|------|---------|------|
+| 对话与交互层 | 意图理解、任务路由、多层协作可视化、编辑器内联命令、多端适配、REST API、WebSocket/SSE、RPC、CLI、DSL 指令 | 人机交互入口，意图表达与结果呈现，系统对外边界 |
+| 服务层 | 《内置》Auto Dev、文档、用户、任务、知识、外部整合、众包协作、虚拟空间；《自定义》用户在 AAF 上构建的具体业务 | 面向用户的具体业务逻辑 |
+| 智能层 | Core、Cognition、Agent、Assistant、Team | AI 推理与协作，五层智能架构 |
+| 引擎层 | 调度机制（执行调度器、状态管理器、上下文管理器、置信度门控器、元数据管理器）；专项引擎（DSL、工作流、工具、调度、文档、知识库、记忆、空间、语义组件、自进化、积分、结算、监控、权限） | 通用执行能力，无具体业务语义 |
+| 基础设施层 | PostgreSQL、Redis、Neo4j、向量库、Agent Sandbox、沙箱运行时 | 存储、通信、计算底座 |
 
 **核心规则：上层可调用任意下层，禁止下层调用上层。**
 

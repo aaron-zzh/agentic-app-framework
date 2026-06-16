@@ -10,7 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "execution_step")
+@Table(name = "ai_execution_step")
 public class ExecutionStep {
 
     @Id

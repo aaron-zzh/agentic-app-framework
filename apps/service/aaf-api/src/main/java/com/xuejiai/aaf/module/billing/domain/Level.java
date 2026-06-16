@@ -14,10 +14,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "level")
+@Table(name = "billing_level")
 @SQLDelete(
         sql =
-                "UPDATE level SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE billing_level SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 public class Level extends BaseEntity {
 
     /** 等级编码（L0/L1/L2） */

@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- 生产必需种子数据（随应用一起部署，所有环境均执行）
 -- ============================================================
 
@@ -22,7 +22,8 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 ('ai',       'ai.free_assistant_credit_cap', '100',         '100',         'integer', '免费助理虚拟用户预算上限', '免费助理入口绑定的系统虚拟用户每月积分预算上限',       TRUE,  TRUE),
 ('ai',       'ai.token_markup_rate',         '10',          '10',          'integer', 'Token计费加价倍数',       '相对供应商成本的加价倍数，默认10倍（1积分=1元）', TRUE, TRUE),
 ('brand',    'brand.company_name',           '学记智能',    '学记智能',    'string',  '公司名称',            '显示在邮件、页面标题等位置',           TRUE,  TRUE),
-('brand',    'brand.logo_url',               NULL,          NULL,          'string',  'Logo URL',            '系统 Logo 图片地址',                   TRUE,  TRUE)
+('brand',    'brand.logo_url',               NULL,          NULL,          'string',  'Logo URL',            '系统 Logo 图片地址',                   TRUE,  TRUE),
+('examples', 'examples.agentscope_rate_limit_per_minute', '20', '20', 'integer', 'AgentScope示例限流（次/分钟/IP）', 'AgentScope示例接口每个IP每分钟最多调用次数', TRUE, TRUE)
 ON CONFLICT (config_key) DO NOTHING;
 
 INSERT INTO sys_file_config (name, storage_type, config, master, status)
@@ -220,7 +221,7 @@ WHERE NOT EXISTS (
 -- ==================== 画像维度预置数据 ====================
 
 -- basic 基础信息
-INSERT INTO profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
+INSERT INTO sys_profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
 VALUES
 ('basic.age_range', '年龄段', 'basic', 'enum', 'manual', 1, true, true),
 ('basic.gender', '性别', 'basic', 'enum', 'manual', 2, true, true),
@@ -229,12 +230,12 @@ VALUES
 ('basic.education', '教育程度', 'basic', 'enum', 'manual', 5, true, false)
 ON CONFLICT (code) DO NOTHING;
 
-UPDATE profile_dimension SET enum_options = '["18以下","18-25","26-35","36-45","46-55","56-65","65以上"]' WHERE code = 'basic.age_range';
-UPDATE profile_dimension SET enum_options = '["男","女","其他"]' WHERE code = 'basic.gender';
-UPDATE profile_dimension SET enum_options = '["小学","初中","高中","大专","本科","硕士","博士"]' WHERE code = 'basic.education';
+UPDATE sys_profile_dimension SET enum_options = '["18以下","18-25","26-35","36-45","46-55","56-65","65以上"]' WHERE code = 'basic.age_range';
+UPDATE sys_profile_dimension SET enum_options = '["男","女","其他"]' WHERE code = 'basic.gender';
+UPDATE sys_profile_dimension SET enum_options = '["小学","初中","高中","大专","本科","硕士","博士"]' WHERE code = 'basic.education';
 
 -- preference 偏好
-INSERT INTO profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
+INSERT INTO sys_profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
 VALUES
 ('preference.interests', '兴趣爱好', 'preference', 'tags', 'manual', 1, true, true),
 ('preference.diet', '饮食偏好', 'preference', 'tags', 'manual', 2, false, true),
@@ -242,21 +243,21 @@ VALUES
 ('preference.language', '语言', 'preference', 'text', 'manual', 4, true, true)
 ON CONFLICT (code) DO NOTHING;
 
-UPDATE profile_dimension SET enum_options = '["简洁直接","详细耐心","幽默轻松","正式专业"]' WHERE code = 'preference.communication_style';
+UPDATE sys_profile_dimension SET enum_options = '["简洁直接","详细耐心","幽默轻松","正式专业"]' WHERE code = 'preference.communication_style';
 
 -- behavior 行为（自动计算）
-INSERT INTO profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
+INSERT INTO sys_profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
 VALUES
 ('behavior.activity_level', '活跃度', 'behavior', 'enum', 'behavior', 1, true, true),
 ('behavior.usage_frequency', '使用频率', 'behavior', 'text', 'behavior', 2, true, false),
 ('behavior.spending_level', '消费等级', 'behavior', 'enum', 'behavior', 3, true, true)
 ON CONFLICT (code) DO NOTHING;
 
-UPDATE profile_dimension SET enum_options = '["高","中","低"]' WHERE code = 'behavior.activity_level';
-UPDATE profile_dimension SET enum_options = '["高消费","中等","低消费","免费用户"]' WHERE code = 'behavior.spending_level';
+UPDATE sys_profile_dimension SET enum_options = '["高","中","低"]' WHERE code = 'behavior.activity_level';
+UPDATE sys_profile_dimension SET enum_options = '["高消费","中等","低消费","免费用户"]' WHERE code = 'behavior.spending_level';
 
 -- health 健康（康养场景）
-INSERT INTO profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible, unit)
+INSERT INTO sys_profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible, unit)
 VALUES
 ('health.blood_pressure', '血压', 'health', 'text', 'device', 1, false, true, 'mmHg'),
 ('health.blood_sugar', '血糖', 'health', 'number', 'device', 2, false, true, 'mmol/L'),
@@ -266,11 +267,11 @@ VALUES
 ('health.cognitive', '认知状态', 'health', 'enum', 'manual', 6, true, true, NULL)
 ON CONFLICT (code) DO NOTHING;
 
-UPDATE profile_dimension SET enum_options = '["完全自理","需辅助","轮椅","卧床"]' WHERE code = 'health.mobility';
-UPDATE profile_dimension SET enum_options = '["正常","轻度下降","中度下降","重度下降"]' WHERE code = 'health.cognitive';
+UPDATE sys_profile_dimension SET enum_options = '["完全自理","需辅助","轮椅","卧床"]' WHERE code = 'health.mobility';
+UPDATE sys_profile_dimension SET enum_options = '["正常","轻度下降","中度下降","重度下降"]' WHERE code = 'health.cognitive';
 
 -- living 生活
-INSERT INTO profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
+INSERT INTO sys_profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
 VALUES
 ('living.residence_type', '居住方式', 'living', 'enum', 'manual', 1, true, true),
 ('living.diet_restriction', '饮食禁忌', 'living', 'tags', 'manual', 2, false, true),
@@ -278,25 +279,25 @@ VALUES
 ('living.emergency_contact', '紧急联系人', 'living', 'text', 'manual', 4, false, false)
 ON CONFLICT (code) DO NOTHING;
 
-UPDATE profile_dimension SET enum_options = '["独居","与配偶","与子女","养老院","其他"]' WHERE code = 'living.residence_type';
-UPDATE profile_dimension SET enum_options = '["步行","公交","自驾","轮椅","不出门"]' WHERE code = 'living.transport';
+UPDATE sys_profile_dimension SET enum_options = '["独居","与配偶","与子女","养老院","其他"]' WHERE code = 'living.residence_type';
+UPDATE sys_profile_dimension SET enum_options = '["步行","公交","自驾","轮椅","不出门"]' WHERE code = 'living.transport';
 
 -- personality 性格
-INSERT INTO profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
+INSERT INTO sys_profile_dimension (code, name, group_code, value_type, source, sort_order, searchable, ai_visible)
 VALUES
 ('personality.mbti', 'MBTI', 'personality', 'text', 'ai', 1, true, true),
 ('personality.emotion_tendency', '情绪倾向', 'personality', 'enum', 'ai', 2, false, true),
 ('personality.patience_level', '耐心程度', 'personality', 'enum', 'ai', 3, false, true)
 ON CONFLICT (code) DO NOTHING;
 
-UPDATE profile_dimension SET enum_options = '["乐观积极","平和稳定","容易焦虑","情绪波动"]' WHERE code = 'personality.emotion_tendency';
-UPDATE profile_dimension SET enum_options = '["高","中","低"]' WHERE code = 'personality.patience_level';
+UPDATE sys_profile_dimension SET enum_options = '["乐观积极","平和稳定","容易焦虑","情绪波动"]' WHERE code = 'personality.emotion_tendency';
+UPDATE sys_profile_dimension SET enum_options = '["高","中","低"]' WHERE code = 'personality.patience_level';
 
 
 
 -- ==================== 资源类权益定义 ====================
 
-INSERT INTO entitlement_def (code, name, type, unit, description)
+INSERT INTO billing_entitlement_def (code, name, type, unit, description)
 VALUES
 ('kb_storage',      '知识库存储',   'COUNTABLE', 'GB',  '知识库可用存储空间上限'),
 ('image_storage',   '图像存储',     'COUNTABLE', '张',  '图像素材库存储数量上限'),
@@ -405,7 +406,7 @@ ON CONFLICT (tool_name) DO UPDATE SET
 
 -- ==================== 订阅套餐 ====================
 
-INSERT INTO subscription_plan (code, name, duration_days, price, market_price, monthly_credits, status, sort)
+INSERT INTO billing_subscription_plan (code, name, duration_days, price, market_price, monthly_credits, status, sort)
 VALUES
     ('FREE', '免费套餐', 0,  0,    0,     0,    'ENABLED', 0),
     ('PRO',  '专业版',   30, 2900, 3900,  500,  'ENABLED', 1),
@@ -414,16 +415,16 @@ ON CONFLICT DO NOTHING;
 
 -- ==================== FREE 套餐权益挂接 ====================
 
-INSERT INTO plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
+INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
 SELECT p.id, e.id, v.quota, v.reset_cycle, 0
-FROM subscription_plan p
+FROM billing_subscription_plan p
 CROSS JOIN (VALUES
     ('kb_storage',     1,    'NONE'),
     ('image_storage',  100,  'NONE'),
     ('agent_count',    3,    'NONE'),
     ('workflow_count', 5,    'NONE')
 ) AS v(code, quota, reset_cycle)
-JOIN entitlement_def e ON e.code = v.code AND e.deleted = FALSE
+JOIN billing_entitlement_def e ON e.code = v.code AND e.deleted = FALSE
 WHERE p.code = 'FREE' AND p.deleted = FALSE
 ON CONFLICT DO NOTHING;
 

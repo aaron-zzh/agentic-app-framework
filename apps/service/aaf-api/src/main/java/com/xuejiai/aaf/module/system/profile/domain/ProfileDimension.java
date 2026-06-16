@@ -12,7 +12,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "profile_dimension")
+@Table(name = "sys_profile_dimension")
 public class ProfileDimension extends BaseEntity {
 
     @Column(name = "code", nullable = false, unique = true, length = 64)

@@ -18,10 +18,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "approval_form_template")
+@Table(name = "sys_approval_form_template")
 @SQLDelete(
         sql =
-                "UPDATE approval_form_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+                "UPDATE sys_approval_form_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class ApprovalFormTemplate extends BaseEntity {
 
     /** 模板名称 */
