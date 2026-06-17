@@ -139,6 +139,7 @@ public class DashScopeSpeechService implements SpeechService {
     /** TTS 非流式：阻塞等待完整音频返回。 */
     @Override
     public byte[] synthesize(String text, String voice) {
+        text = cleanText(text);
         var param = buildTtsParam(voice);
         var synthesizer = new SpeechSynthesizer(param, null);
         try {
@@ -155,12 +156,13 @@ public class DashScopeSpeechService implements SpeechService {
     /** TTS 单向流式：callAsFlowable，文本一次性传入，音频分帧推送。 */
     @Override
     public Flux<byte[]> synthesizeStream(String text, String voice) {
+        final String cleanedText = cleanText(text);
         return Flux.create(
                 sink -> {
                     var synthesizer = new SpeechSynthesizer(buildTtsParam(voice), null);
                     try {
                         synthesizer
-                                .callAsFlowable(text)
+                                .callAsFlowable(cleanedText)
                                 .blockingForEach(
                                         result -> {
                                             var frame = result.getAudioFrame();
@@ -247,5 +249,14 @@ public class DashScopeSpeechService implements SpeechService {
                 .model(DEFAULT_TTS_MODEL)
                 .voice(v)
                 .build();
+    }
+
+    /** 清理 TTS 输入文本：去除不可打印控制字符、合并多余空白，保留换行作为句间停顿 */
+    private static String cleanText(String text) {
+        if (text == null) return "";
+        return text.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]", "") // 去除控制字符，保留 \t\n\r
+                .replaceAll("[ \\t]+", " ") // 多个空格/tab 合并
+                .replaceAll("(\\r?\\n){3,}", "\n\n") // 连续空行合并
+                .strip();
     }
 }

@@ -14,8 +14,8 @@ import type { ReactNode } from "react"
 import { useCallback, useEffect, useRef } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { Chatter } from "@/features/chatter"
-import { FloatingChatterButton } from "@/features/chatter/FloatingChatterButton"
+import { FloatingChatterButton } from "@/features/chatter/layout/FloatingChatterButton"
+import { GlobalChatter } from "@/features/chatter/layout/GlobalChatter"
 import { GlobalDndContext } from "@/features/dnd/GlobalDndContext"
 import { entityRegistry } from "@/features/entity-engine/lib/registry"
 import type { EntityDef } from "@/features/entity-engine/types"
@@ -76,15 +76,12 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
           <AppSidebar />
         </div>
 
-        {/* min-h-0：flex 子元素默认 min-height:auto 会撑破父级，加此才能让内层 overflow-y-auto 生效 */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <AppHeader />
 
           {isPageMode ? (
-            /* page 模式：页面完全接管，不渲染任何 Chatter UI */
             <main className="flex flex-1 flex-col overflow-y-auto">{children}</main>
           ) : isPanelMode ? (
-            /* 嵌入模式：ResizablePanel */
             <ResizablePanelGroup orientation="horizontal" className="flex-1 overflow-hidden">
               <ResizablePanel
                 panelRef={mainPanelRef}
@@ -103,20 +100,24 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
                     maxSize="50%"
                     className="border-l"
                   >
-                    <Chatter preset={config.preset} agentRole={config.agentRole} layout="panel" />
+                    {/* GlobalChatter 通过 Portal 渲染到此 slot */}
+                    <div id="chatter-panel-slot" className="h-full" />
                   </ResizablePanel>
                 </>
               )}
             </ResizablePanelGroup>
           ) : (
-            /* 浮动模式：主内容全宽，浮动按钮 + dialog */
             <main className="flex flex-1 flex-col overflow-y-auto">
               {children}
+              {/* dialog 模式：只保留浮动触发按钮，Chatter 由 GlobalChatter 统一管理 */}
               <FloatingChatterButton preset={config.preset} agentRole={config.agentRole} />
             </main>
           )}
         </div>
       </div>
+
+      {/* 单例 GlobalChatter，挂在布局根部确保跨页面存活 */}
+      <GlobalChatter />
     </GlobalDndContext>
   )
 }

@@ -52,7 +52,7 @@ interface AigcStore {
     asset?: MediaAssetVO
   }>
   /** 生成类型：image=AI生图 video=AI视频 */
-  generationType: "image" | "video" | "voice" | "music"
+  generationType: "IMAGE_GEN" | "VIDEO_GEN" | "VOICE" | "MUSIC"
   /** 视频时长（秒） */
   videoDuration: string
   /** 模型选择 */
@@ -90,7 +90,7 @@ interface AigcStore {
 
   setGenerationPanelOpen: (open: boolean) => void
   setStoryboardPanelOpen: (open: boolean) => void
-  setGenerationType: (type: "image" | "video" | "voice" | "music") => void
+  setGenerationType: (type: "IMAGE_GEN" | "VIDEO_GEN" | "VOICE" | "MUSIC") => void
   setAgentRole: (roleId: string) => void
   setCopywritingPanelOpen: (open: boolean) => void
   setCopywritingContent: (content: string) => void
@@ -134,7 +134,7 @@ interface AigcStore {
 
 export const useAigcStore = create<AigcStore>((set, _get) => ({
   generationPanelOpen: false,
-  generationType: "image",
+  generationType: "IMAGE_GEN",
   videoDuration: "5s",
   copywritingPanelOpen: false,
   copywritingContent: "",

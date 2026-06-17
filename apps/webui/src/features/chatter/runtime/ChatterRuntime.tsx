@@ -11,12 +11,12 @@
 "use client"
 
 import { type ReactNode, useMemo } from "react"
+import type { ChatterTarget } from "@/features/chatter/types"
 import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { AgUiChatProvider } from "@/features/livechat/runtime/ag-ui-runtime"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
 import { useChatterStore } from "@/lib/store/chatter-store"
-import type { ChatterTarget } from "./types"
 
 /** 构建对话端点 URL：kiro 走独立端点，AI 走 /agui/runs */
 function buildAguiUrl(target: ChatterTarget): string {
@@ -31,6 +31,7 @@ interface ChatterRuntimeProps {
   target: ChatterTarget
   persist?: boolean
   sessionId?: string
+  modelId?: string
   children: ReactNode
 }
 
@@ -39,7 +40,7 @@ interface ChatterRuntimeProps {
  * - AI/Kiro → AgUiChatProvider（/agui/runs 或 /autodev/kiro/run）
  * - user    → LivechatProvider（WebSocket IM）
  */
-export function ChatterRuntime({ target, sessionId, children }: ChatterRuntimeProps) {
+export function ChatterRuntime({ target, sessionId, modelId, children }: ChatterRuntimeProps) {
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const configs = useChatterStore((s) => s.configs)
   const pageConfig = currentPageId ? configs[currentPageId] : undefined
@@ -50,9 +51,10 @@ export function ChatterRuntime({ target, sessionId, children }: ChatterRuntimePr
     () => ({
       pageId: currentPageId,
       preset: pageConfig?.preset,
-      agentRole: target.agentRole ?? pageConfig?.agentRole
+      agentRole: target.agentRole ?? pageConfig?.agentRole,
+      ...(modelId ? { modelId } : {})
     }),
-    [target.agentRole, pageConfig, currentPageId]
+    [target.agentRole, pageConfig, currentPageId, modelId]
   )
 
   const onNewThread = useMemo(

@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
@@ -240,13 +242,11 @@ public class AigcTaskService
             Long userId, String text, String voice, String model, Long projectId) {
         creditGuard.precheck(userId, "voice-gen");
         if (text == null || text.isBlank()) {
-            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "配音文本不能为空");
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "配音文本不能为空");
         }
         if (text.length() > VOICE_TEXT_MAX_LEN) {
-            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST,
-                    "配音文本不能超过 " + VOICE_TEXT_MAX_LEN + " 字");
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "配音文本不能超过 " + VOICE_TEXT_MAX_LEN + " 字");
         }
 
         var task = buildTask(userId, TYPE_VOICE, text, model, null, projectId);
@@ -363,12 +363,16 @@ public class AigcTaskService
                             toMediaAssetType(task.getType()),
                             ossUrl,
                             null,
-                            "{\"prompt\":\"%s\",\"model\":\"%s\"}"
-                                    .formatted(
-                                            task.getPrompt() != null
-                                                    ? task.getPrompt().replace("\"", "'")
-                                                    : "",
-                                            task.getModel() != null ? task.getModel() : ""),
+                            JsonUtils.toJsonString(
+                                    java.util.Map.of(
+                                            "prompt",
+                                                    task.getPrompt() != null
+                                                            ? task.getPrompt()
+                                                            : "",
+                                            "model",
+                                                    task.getModel() != null
+                                                            ? task.getModel()
+                                                            : "")),
                             null,
                             null,
                             null,

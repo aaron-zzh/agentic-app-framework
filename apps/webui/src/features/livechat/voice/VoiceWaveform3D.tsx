@@ -46,10 +46,11 @@ function WaveformLine({
     const amp = amplitude.current * ampScale
     const pos = posRef.current
     for (let i = 0; i < POINT_COUNT; i++) {
-      const x = (i / (POINT_COUNT - 1) - 0.5) * 14 // -7 ~ 7
+      // x 范围 -12~12，适配宽高比大的 canvas，曲线铺满并超出相机视野
+      const x = (i / (POINT_COUNT - 1) - 0.5) * 24
       const y =
-        Math.sin(x * 1.5 + phaseX + t * phaseT) * amp +
-        Math.sin(x * 3 + phaseX * 2 + t * (phaseT * 1.3)) * amp * 0.4
+        Math.sin(x * 0.9 + phaseX + t * phaseT) * amp +
+        Math.sin(x * 2.0 + phaseX * 2 + t * (phaseT * 1.3)) * amp * 0.4
       pos[i * 3] = x
       pos[i * 3 + 1] = y
       pos[i * 3 + 2] = 0
@@ -83,7 +84,7 @@ export function VoiceWaveform3D({ stream }: VoiceWaveform3DProps) {
       analyser.getByteFrequencyData(data)
       const lowFreq = data.slice(0, data.length / 4)
       const avg = lowFreq.reduce((s, v) => s + v, 0) / lowFreq.length
-      amplitudeRef.current = (avg / 255) * 0.8
+      amplitudeRef.current = (avg / 255) * 2.5
       requestAnimationFrame(tick)
     }
     tick()
@@ -96,14 +97,48 @@ export function VoiceWaveform3D({ stream }: VoiceWaveform3DProps) {
   }
 
   return (
-    <Canvas
-      camera={{ position: [0, 0, 2.5], fov: 55 }}
-      gl={{ alpha: true, antialias: true }}
-      style={{ background: "transparent" }}
-    >
-      {LINES.map((line, i) => (
-        <WaveformLine key={i} amplitude={amplitudeRef} {...line} />
-      ))}
-    </Canvas>
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+      {/* canvas 填满容器，x 范围远超相机视野，曲线两端自然被裁掉 */}
+      <Canvas
+        camera={{ position: [0, 0, 2.5], fov: 55 }}
+        gl={{ alpha: true, antialias: true }}
+        style={{
+          background: "transparent",
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0
+        }}
+      >
+        {LINES.map((line, i) => (
+          <WaveformLine key={i} amplitude={amplitudeRef} {...line} />
+        ))}
+      </Canvas>
+      {/* 左侧渐变遮罩，固定 8px，仅在 canvas 内淡出曲线端点 */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 8,
+          background: "linear-gradient(to right, var(--background), transparent)",
+          pointerEvents: "none"
+        }}
+      />
+      {/* 右侧渐变遮罩，固定 8px */}
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: 8,
+          background: "linear-gradient(to left, var(--background), transparent)",
+          pointerEvents: "none"
+        }}
+      />
+    </div>
   )
 }

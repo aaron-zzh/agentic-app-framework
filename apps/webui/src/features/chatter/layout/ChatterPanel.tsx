@@ -11,14 +11,15 @@
 import { AuiIf, useVoiceState } from "@assistant-ui/react"
 import type { ReactNode } from "react"
 import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
-import { ChatterComposer } from "./ChatterComposer"
-import { ChatterThread } from "./ChatterThread"
-import { DroppableComposer } from "./dnd/DroppableComposer"
-import { useTaskBoard } from "./hooks/use-task-board"
-import { RecoveryNotification } from "./RecoveryNotification"
-import { TaskBoardPanel } from "./TaskBoardPanel"
-import { ToolConfirmOverlay } from "./ToolConfirmOverlay"
-import type { ChatterDropItem } from "./types"
+import { ChatterComposer } from "@/features/chatter/composer"
+import { DroppableComposer } from "@/features/chatter/dnd/DroppableComposer"
+import { useTaskBoard } from "@/features/chatter/hooks/use-task-board"
+import { RecoveryNotification } from "@/features/chatter/task/RecoveryNotification"
+import { TaskBoardPanel } from "@/features/chatter/task/TaskBoardPanel"
+import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
+import { ChatterThread } from "@/features/chatter/thread"
+import type { ChatterDropItem } from "@/features/chatter/types"
+import type { AiModelVO } from "@/lib/api/rest/ai/ai-model"
 
 interface ChatterPanelProps {
   toolbar: ReactNode
@@ -26,6 +27,8 @@ interface ChatterPanelProps {
   onAttachmentRemove: (index: number) => void
   onAttachmentAdd: (item: ChatterDropItem) => void
   sessionId?: string
+  modelId?: string
+  onModelChange?: (modelId: string, model: AiModelVO) => void
 }
 
 export function ChatterPanel({
@@ -33,7 +36,9 @@ export function ChatterPanel({
   attachments,
   onAttachmentRemove,
   onAttachmentAdd,
-  sessionId
+  sessionId,
+  modelId,
+  onModelChange
 }: ChatterPanelProps) {
   const { tasks, progress, isLoading, recovered, dismissRecovery } = useTaskBoard(sessionId)
 
@@ -56,7 +61,12 @@ export function ChatterPanel({
       <ToolConfirmOverlay />
       <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />
       <DroppableComposer onDrop={onAttachmentAdd}>
-        <ChatterComposer attachments={attachments} onAttachmentRemove={onAttachmentRemove} />
+        <ChatterComposer
+          attachments={attachments}
+          onAttachmentRemove={onAttachmentRemove}
+          modelId={modelId}
+          onModelChange={onModelChange}
+        />
       </DroppableComposer>
     </div>
   )

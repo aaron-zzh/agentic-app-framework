@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -62,6 +63,7 @@ public class TaskConsumer {
 
     private void pollLoop() {
         var timeout = taskProperties.getQueue().getPollTimeout();
+        var consecutiveErrors = new AtomicInteger(0);
         while (running.get()) {
             try {
                 for (var stream : STREAMS) {
@@ -81,10 +83,22 @@ public class TaskConsumer {
                         }
                     }
                 }
+                consecutiveErrors.set(0); // 正常消费后重置
+            } catch (org.springframework.dao.QueryTimeoutException e) {
+                // Redis 阻塞读超时属正常现象（无新消息），不计入错误，安静重试
+                log.debug("Stream 阻塞读超时（无消息），继续轮询");
+            } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+                // 连接断开：打 WARN + 退避等待，待连接恢复
+                int errors = consecutiveErrors.incrementAndGet();
+                long backoffMs = Math.min(1000L * errors, 30_000L); // 最长退避 30s
+                log.warn("Redis 连接异常（第 {} 次），{}ms 后重试: {}", errors, backoffMs, e.getMessage());
+                sleep(backoffMs);
             } catch (Exception e) {
                 if (running.get()) {
-                    log.error("消费循环异常", e);
-                    sleep(1000);
+                    int errors = consecutiveErrors.incrementAndGet();
+                    long backoffMs = Math.min(500L * errors, 10_000L);
+                    log.error("消费循环异常（第 {} 次），{}ms 后重试", errors, backoffMs, e);
+                    sleep(backoffMs);
                 }
             }
         }

@@ -1,11 +1,10 @@
 "use client"
 
-import { m } from "framer-motion"
 import { Coins, Gift, LogOut, Settings, Star, Ticket } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { AnimateBorder, transitionTap, varHover, varTap } from "@/components/animate"
+import { AnimateBorder } from "@/components/animate"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -40,19 +39,16 @@ const POPOVER_TREE = [
   }
 ]
 
-interface Props {
-  src?: string
-  displayName?: string
-  email?: string
-  planName?: string
-}
-
-export function UserAvatarPopover({ src, displayName, email, planName = "Free" }: Props) {
+export function UserAvatarPopover() {
   const [rechargeOpen, setRechargeOpen] = useState(false)
   const { data: groups, isLoading: groupsLoading } = useCreditGroups()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const router = useRouter()
 
+  const displayName = user?.nickname || user?.username || "User"
+  const email = user?.email
+  const src = user?.avatar
+  const planName = "Free"
   const totalCredits = groups?.reduce((sum, g) => sum + g.remain, 0) ?? 0
 
   async function handleLogout() {
@@ -65,12 +61,9 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
       <Popover>
         <PopoverTrigger
           render={
-            <m.button
+            <button
               type="button"
-              whileTap={varTap(0.96)}
-              whileHover={varHover(1.04)}
-              transition={transitionTap()}
-              className="inline-flex items-center justify-center border-none bg-transparent p-0"
+              className="inline-flex cursor-pointer items-center justify-center border-none bg-transparent p-0"
               aria-label="用户菜单"
             />
           }
@@ -104,8 +97,6 @@ export function UserAvatarPopover({ src, displayName, email, planName = "Free" }
               >
                 <Coins className="size-4 text-amber-400" />
                 <span className="font-medium">{totalCredits.toLocaleString()}</span>
-                <span className="text-muted-foreground">|</span>
-                <span className="text-muted-foreground">{planName}</span>
               </button>
             </div>
             {email && <p className="mt-0.5 text-muted-foreground text-sm">{email}</p>}

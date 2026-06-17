@@ -6,7 +6,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { useState, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { request } from "@/lib/api/rest/entity/crud"
@@ -87,9 +87,9 @@ export default function AgentScopeExamplePage() {
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
-  const [sendCount, setSendCount] = useState(0)
+  const sendCountRef = useRef(0)
   const [cooldown, setCooldown] = useState(0)
-  const selected = AGENTS.find((a) => a.id === selectedId)!
+  const selected = AGENTS.find((a) => a.id === selectedId) ?? AGENTS[0]
 
   // 冷却倒计时
   useEffect(() => {
@@ -109,24 +109,25 @@ export default function AgentScopeExamplePage() {
         selectedId === "debate"
           ? { topic: userMsg, rounds: 2 }
           : selectedId === "session-chat"
-          ? { sessionId: "demo-session", input: userMsg }
-          : { input: userMsg }
-      const res = await request<string | Record<string, unknown>>(`/examples/agentscope/${selectedId}`, {
-        method: "POST",
-        body: JSON.stringify(body)
-      })
-      const content = typeof res === "string"
-        ? res
-        : selectedId === "session-chat" && "reply" in res
-        ? `${res.reply}\n\n---\n📋 会话状态：${res.isNew ? "新建" : "已恢复"} | 历史消息数：${res.historyMessages}`
-        : JSON.stringify(res, null, 2)
+            ? { sessionId: "demo-session", input: userMsg }
+            : { input: userMsg }
+      const res = await request<string | Record<string, unknown>>(
+        `/examples/agentscope/${selectedId}`,
+        {
+          method: "POST",
+          body: JSON.stringify(body)
+        }
+      )
+      const content =
+        typeof res === "string"
+          ? res
+          : selectedId === "session-chat" && "reply" in res
+            ? `${res.reply}\n\n---\n📋 会话状态：${res.isNew ? "新建" : "已恢复"} | 历史消息数：${res.historyMessages}`
+            : JSON.stringify(res, null, 2)
       setMessages((prev) => [...prev, { role: "assistant", content: content ?? "(无回复)" }])
       // 每2次触发5秒冷却
-      setSendCount((c) => {
-        const next = c + 1
-        if (next % 10 === 0) setCooldown(5)
-        return next
-      })
+      sendCountRef.current += 1
+      if (sendCountRef.current % 10 === 0) setCooldown(5)
     } catch (e) {
       setMessages((prev) => [
         ...prev,

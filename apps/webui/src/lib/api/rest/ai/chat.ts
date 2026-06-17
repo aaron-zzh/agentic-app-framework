@@ -4,10 +4,11 @@
  */
 
 import { restEndpoints } from "../endpoints"
-import { request } from "../entity/crud"
+import { fetchList, request } from "../entity/crud"
 
 /** 聊天会话 */
 export interface ChatSession {
+  [key: string]: unknown
   id: string
   title: string
   type: "ai" | "livechat" | "im"
@@ -46,8 +47,12 @@ export const chatApi = {
       body: JSON.stringify(params)
     }),
 
-  /** 获取会话列表 */
+  /** 获取会话列表（全量，兼容旧用法） */
   listSessions: () => request<ChatSession[]>(restEndpoints.ai.chatSessions),
+
+  /** 分页查询会话列表（支持标题模糊搜索），走 ConversationController 标准分页接口 */
+  pageListSessions: (params?: { page?: number; pageSize?: number; search?: string }) =>
+    fetchList<ChatSession>({ apiPath: restEndpoints.ai.chatConversations }, params),
 
   /** 获取会话消息历史 */
   getMessages: (sessionId: string) =>

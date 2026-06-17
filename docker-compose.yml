@@ -1,6 +1,5 @@
 # AAF Docker Compose - 开发/演示环境
 # 使用方式：cp .env.example .env && docker compose up -d
-# Neo4j 使用外部服务（线上版），在 .env 中配置 NEO4J_URI
 
 services:
   # PostgreSQL + PgVector（含中文 locale）
@@ -44,6 +43,23 @@ services:
       timeout: 3s
       retries: 5
 
+  # Neo4j
+  neo4j:
+    image: ${ACR_REGISTRY}/neo4j:2026.05.0-community
+    container_name: aaf-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+    ports:
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # 后端服务
   aaf-service:
     image: ${ACR_REGISTRY}/service:${IMAGE_TAG:-latest}
@@ -58,6 +74,7 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      NEO4J_URI: bolt://neo4j:7687
       AAF_FILE_PATH: /data/files
     volumes:
       - ./logs/service:/app/logs
@@ -69,6 +86,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      neo4j:
         condition: service_healthy
 
   # 前端服务
@@ -102,5 +121,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  neo4j_data:
   service_heap:
 

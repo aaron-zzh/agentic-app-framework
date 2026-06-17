@@ -11,7 +11,7 @@
 "use client"
 
 import { HttpAgent } from "@ag-ui/client"
-import { AssistantRuntimeProvider, type ThreadMessage } from "@assistant-ui/react"
+import { AssistantRuntimeProvider, type ThreadMessage, useVoiceControls } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -141,7 +141,24 @@ export function AgUiChatProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime.threads.switchToThread, initialThreadId])
 
-  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <VoiceCleanup />
+      {children}
+    </AssistantRuntimeProvider>
+  )
+}
+
+/** 卸载时断开语音，防止切换页面后 WebSocket 残留 */
+function VoiceCleanup() {
+  const { disconnect } = useVoiceControls()
+  useEffect(
+    () => () => {
+      disconnect()
+    },
+    [disconnect]
+  )
+  return null
 }
 
 /** 根据错误信息分类，返回用户友好的提示 */

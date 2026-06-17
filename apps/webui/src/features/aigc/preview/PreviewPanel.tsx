@@ -25,7 +25,7 @@ import {
   X
 } from "lucide-react"
 import { useParams } from "next/navigation"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
@@ -179,12 +179,28 @@ export function PreviewPanel({
   const params = useParams()
   const projectId = params.projectId ? Number(params.projectId) : null
 
+  // 切换项目时清空预览素材
+  const setPreviewAsset = useAigcStore((s) => s.setPreviewAsset)
+  const prevProjectId = useRef(params.projectId)
+  if (prevProjectId.current !== params.projectId) {
+    prevProjectId.current = params.projectId
+    setPreviewAsset(null)
+  }
+
   const currentIdx = previewAsset ? previewList.findIndex((a) => a.id === previewAsset.id) : -1
   const hasPrev = currentIdx > 0
   const hasNext = currentIdx >= 0 && currentIdx < previewList.length - 1
 
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
   const [fullscreenOpen, setFullscreenOpen] = useState(false)
+
+  // 切换素材时重置状态
+  const prevAssetId = useRef(previewAsset?.id)
+  if (prevAssetId.current !== previewAsset?.id) {
+    prevAssetId.current = previewAsset?.id
+    setNaturalSize(null)
+    setFullscreenOpen(false)
+  }
 
   // 编辑弹窗状态
   const [_editOpen, _setEditOpen] = useState(false)
@@ -262,6 +278,7 @@ export function PreviewPanel({
                           </span>
                           {/* biome-ignore lint/a11y/useMediaCaption: 生成音频无字幕轨 */}
                           <audio
+                            key={previewAsset.id}
                             controls
                             src={previewAsset.url ?? ""}
                             className="w-full max-w-md"
@@ -270,6 +287,7 @@ export function PreviewPanel({
                       ) : previewAsset.type === "VIDEO" ? (
                         // biome-ignore lint/a11y/useMediaCaption: 生成视频无字幕轨
                         <video
+                          key={previewAsset.id}
                           controls
                           src={previewAsset.url ?? ""}
                           className="h-full w-full object-contain"

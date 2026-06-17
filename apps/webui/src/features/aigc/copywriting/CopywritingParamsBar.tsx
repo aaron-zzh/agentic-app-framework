@@ -6,10 +6,9 @@
 
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { useEffect } from "react"
+import { ModelSelector } from "@/components/common/ModelSelector"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
-import { listTextModels } from "@/lib/api/rest/ai/ai-model"
+import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { RoleSelector } from "../generation/RoleSelector"
 import { useAigcStore } from "../store"
 import { TEMPLATES, TRANSLATE_OPTIONS } from "./constants"
@@ -26,34 +25,15 @@ export function CopywritingParamsBar() {
   const agentRole = useAigcStore((s) => s.agentRole)
   const setAgentRole = useAigcStore((s) => s.setAgentRole)
 
-  const { data: textModels = [] } = useQuery({
-    queryKey: ["ai", "models", "text"],
-    queryFn: listTextModels,
-    staleTime: 5 * 60 * 1000
+  const { options, modelId, setModelId } = useModelSelector("CHAT", {
+    value: model,
+    onChange: (id) => setModel(id)
   })
-
-  useEffect(() => {
-    if (!model && textModels.length > 0) setModel(textModels[0].modelId)
-  }, [model, textModels, setModel])
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={model} onValueChange={(v) => setModel(v ?? "")}>
-          <SelectTrigger className="h-8 w-[160px] text-xs">
-            <span className="shrink-0 text-muted-foreground">模型</span>
-            <span className="truncate">
-              {textModels.find((m) => m.modelId === model)?.displayName ?? model}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            {textModels.map((m) => (
-              <SelectItem key={m.modelId} value={m.modelId}>
-                {m.displayName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ModelSelector variant="select" options={options} value={modelId} onChange={setModelId} />
 
         <Select value={template} onValueChange={(v) => setTemplate(v ?? "")}>
           <SelectTrigger className="h-8 w-[130px] text-xs">

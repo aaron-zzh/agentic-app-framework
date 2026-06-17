@@ -143,10 +143,14 @@ product(Epic→Story 拆分 + Spec 细化)
 - **TypeScript 严格模式**：类型必须显式，禁 `any` / 禁 `@ts-ignore`（特殊情况加注释解释）
 - **前端服务端状态边界**：TanStack Query 管服务端缓存；Zustand 仅管客户端 UI；禁止把服务端数据复制到 Zustand
 - **测试放置**：共享逻辑 → `packages/*.test.ts`；平台接线 → `apps/*.test.tsx`；测试需 mock `next/*` 来测共享组件即 blocker（位置错误）
+- **编码任务开始前必须加载对应 agent 上下文**：前端任务开始前加载 `.kiro/agents/developer-webui.json` 中 `resources` 列出的所有文档；后端任务开始前加载 `.kiro/agents/developer-service.json` 中 `resources` 列出的所有文档；前后端同时涉及时两者都加载。不得凭记忆跳过加载直接编码
 - **完工前必跑 `pnpm check:affected`**：失败即未完工，不得提交或汇报
 - **上下文使用率 ≤ 50%**：超过必须分析原因 + 记录 + 优化（详见 [上下文管理规范](docs/reference/team/context-management-standard.md)）
 - **strReplace 前必须读取文件最新内容**：禁止凭记忆直接写 `old_str`，必须先用文件读取工具确认当前内容再做替换，否则大概率 `old_str not found`
 - **Windows 环境禁用 Linux shell 参数**：shell 命令运行在 Windows PowerShell，禁用 `-tail` / `-head`（Linux 专属），读取文件末尾用 `Select-Object -Last N`，读取开头用 `Select-Object -First N`；优先用文件读取工具代替 shell 命令
+- **base-ui Trigger 组件禁止套 `<Button>`**：`DropdownMenuTrigger`、`SelectTrigger` 等 base-ui primitive trigger 本身渲染为 `<button>`，不能再用 `asChild` 套 `<Button>`（会产生 button 嵌套 button 导致 hydration error）。需要自定义样式时直接给 trigger 加 `className`（可用 `buttonVariants()` 生成），需要自定义组件时用 `render` prop：`<Menu.Trigger render={<MyButton />}>`
+- **base-ui 组合优先用 `render` prop，禁用 `asChild`**：base-ui 不支持 `asChild`（Radix 模式），组合自定义组件统一用 `render` prop。两种用法：`render={<Button variant="ghost" />}`（用封装的 Button 组件）或 `render={<button type="button" />}`（原生 button 自加 className）
+- **`Button` 渲染为非 button 元素时必须加 `nativeButton={false}`**：`Button` 配合 `render={<Link href="..." />}` 渲染为链接时，必须加 `nativeButton={false}`，否则 base-ui 会同时渲染 `<button>` 导致嵌套错误。示例：`<Button nativeButton={false} render={<Link href="/path" />}>文字</Button>`
 
 ## AI 验证循环（写代码时的内循环）
 

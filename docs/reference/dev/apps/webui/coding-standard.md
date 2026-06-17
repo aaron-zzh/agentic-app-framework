@@ -315,6 +315,37 @@ shadcn/ui 使用 Base UI（`@base-ui/react`）而非 Radix，API 有差异：
 <Select onValueChange={(v) => onChange(v ?? "")}>
 ```
 
+**Trigger 组件不能套 `<Button>`**：`DropdownMenuTrigger`、`SelectTrigger` 等 primitive trigger 本身渲染为 `<button>`，再用 `asChild` 套 `<Button>` 会产生 button 嵌套 button 导致 hydration error。
+
+```tsx
+// ✅ 直接给 Trigger 加样式（推荐）
+<DropdownMenuTrigger className={buttonVariants({ variant: "ghost" })}>
+  内容
+</DropdownMenuTrigger>
+
+// ✅ 用 render prop 组合（需自定义组件时）
+<DropdownMenuTrigger render={<Button variant="ghost" />}>
+  内容
+</DropdownMenuTrigger>
+
+// ❌ asChild 套 Button → button 嵌套 button
+<DropdownMenuTrigger asChild>
+  <Button>内容</Button>
+</DropdownMenuTrigger>
+```
+
+**`Button` 渲染为非 button 元素时必须加 `nativeButton={false}`**：
+
+```tsx
+// ✅ Button 渲染为 Link，必须加 nativeButton={false}
+<Button nativeButton={false} render={<Link href="/path" />}>
+  进入
+</Button>
+
+// ❌ 缺少 nativeButton={false} → base-ui 同时渲染 button 和 Link 导致嵌套
+<Button render={<Link href="/path" />}>进入</Button>
+```
+
 
 ## shadcn/ui 优先使用规则
 

@@ -148,39 +148,42 @@ export function WsAsrButton({
       if (ws.readyState === WebSocket.OPEN) ws.send(silenceChunk)
     }
 
-    // 超时兜底：1s 内没收到 final 就强制关闭
-    const timeout = setTimeout(() => {
-      const text = (finalTextRef.current + interimTextRef.current).trim()
+    let timeout: ReturnType<typeof setTimeout>
+
+    const closeWs = (flushInterim = false) => {
+      clearTimeout(timeout)
       ws.onclose = null
       ws.onmessage = null
       ws.close()
       wsRef.current = null
+      if (flushInterim) {
+        const tail = interimTextRef.current.trim()
+        if (tail) onResult(finalTextRef.current + tail)
+      }
       finalTextRef.current = ""
       interimTextRef.current = ""
       stoppingRef.current = false
-      if (text) onResult(text)
-    }, 5000)
+    }
 
-    // 若 500ms 内收到 final 消息则提前结束
+    // 没有未确认的 interim 文本，说明当前没有进行中的句子，直接关
+    if (!interimTextRef.current) {
+      closeWs()
+      return
+    }
+
+    // 超时兜底：1.5s 内没收到最后一条 final 就强制关闭，保留 interim 文字
+    timeout = setTimeout(() => closeWs(true), 1500)
+
+    // 收到最后一条 final 后提前关闭
     ws.onmessage = (event: MessageEvent) => {
       const msg = JSON.parse(event.data as string) as { text: string; final: boolean }
       if (msg.final) {
         finalTextRef.current += msg.text
         interimTextRef.current = ""
+        onResult(finalTextRef.current)
+        closeWs()
       } else {
         interimTextRef.current = msg.text
-      }
-      if (msg.final) {
-        clearTimeout(timeout)
-        const text = (finalTextRef.current + interimTextRef.current).trim()
-        ws.onclose = null
-        ws.onmessage = null
-        ws.close()
-        wsRef.current = null
-        finalTextRef.current = ""
-        interimTextRef.current = ""
-        stoppingRef.current = false
-        if (text) onResult(text)
       }
     }
   }, [onRecordingChange, onResult])
@@ -206,7 +209,7 @@ export function WsAsrButton({
         const processor = audioCtx.createScriptProcessor(4096, 1, 1)
         processorRef.current = processor
         processor.onaudioprocess = (e: AudioProcessingEvent) => {
-          if (ws.readyState !== WebSocket.OPEN) return
+          if (ws.readyState !== WebSocket.OPEN || stoppingRef.current) return
           ws.send(float32ToPcm16(e.inputBuffer.getChannelData(0)).buffer as ArrayBuffer)
         }
         source.connect(processor)
@@ -224,6 +227,8 @@ export function WsAsrButton({
       if (msg.final) {
         finalTextRef.current += msg.text
         interimTextRef.current = ""
+        // 实时追加：每完成一句就回调，让输入框即时看到文字
+        onResult(finalTextRef.current)
         onInterim?.(finalTextRef.current)
       } else {
         interimTextRef.current = msg.text
@@ -235,7 +240,7 @@ export function WsAsrButton({
       // 异常断开（非主动 stop）时清理资源
       if (!stoppingRef.current) cleanup()
     }
-  }, [lang, accessToken, onInterim, onRecordingChange, cleanup])
+  }, [lang, accessToken, onInterim, onRecordingChange, cleanup, onResult])
 
   // 长按右 Ctrl：按下开始，松开停止
   useEffect(() => {

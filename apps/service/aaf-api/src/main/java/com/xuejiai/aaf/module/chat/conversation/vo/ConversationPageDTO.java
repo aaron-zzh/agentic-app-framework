@@ -29,4 +29,7 @@ public class ConversationPageDTO extends PageParam {
 
     @Schema(description = "助理 ID")
     private Long assistantId;
+
+    @Schema(description = "标题模糊搜索")
+    private String search;
 }

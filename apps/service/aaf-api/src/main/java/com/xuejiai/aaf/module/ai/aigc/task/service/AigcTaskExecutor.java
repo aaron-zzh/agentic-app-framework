@@ -474,10 +474,9 @@ public class AigcTaskExecutor {
                                 MediaAssetType.AUDIO,
                                 ossUrl,
                                 null,
-                                "{\"text\":\"%s\",\"voice\":\"%s\"}"
-                                        .formatted(
-                                                text.replace("\"", "'"),
-                                                voice != null ? voice : ""),
+                                JsonUtils.toJsonString(
+                                        java.util.Map.of(
+                                                "text", text, "voice", voice != null ? voice : "")),
                                 null,
                                 null,
                                 null,

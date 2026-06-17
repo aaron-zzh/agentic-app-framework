@@ -29,11 +29,14 @@ interface ChatterStore {
   configs: Record<string, ChatterPageConfig>
   /** 全局 open 状态（dialog 模式） */
   open: boolean
+  /** 当前显示模式：dialog=浮窗 panel=嵌入侧边 page=全屏 */
+  mode: "dialog" | "panel" | "page"
   /** 页面声明的布局覆盖（panel/dialog），null 表示使用默认 dialog */
   layoutOverride: ChatterLayout | null
 
   setCurrentPage: (pageId: string) => void
   setOpen: (open: boolean) => void
+  setMode: (mode: "dialog" | "panel" | "page") => void
   setConfig: (pageId: string, config: Partial<ChatterPageConfig>) => void
   getConfig: (pageId: string) => ChatterPageConfig
   setLayoutOverride: (layout: ChatterLayout | null) => void
@@ -53,6 +56,7 @@ export const useChatterStore = create<ChatterStore>()(
       currentPageId: null,
       configs: {},
       open: false,
+      mode: "dialog",
       layoutOverride: null,
       pendingDropItem: null,
 
@@ -66,6 +70,8 @@ export const useChatterStore = create<ChatterStore>()(
           get().setConfig(currentPageId, { open })
         }
       },
+
+      setMode: (mode) => set({ mode }),
 
       setConfig: (pageId, config) => {
         set((state) => ({

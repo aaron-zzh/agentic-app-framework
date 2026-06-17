@@ -67,7 +67,8 @@ function redirectToLogin() {
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
     // 已在登录页则不再跳转
     if (window.location.pathname.startsWith("/login")) return
-    window.location.href = "/login"
+    const redirect = encodeURIComponent(window.location.pathname + window.location.search)
+    window.location.href = `/login?redirect=${redirect}`
   }
 }
 

@@ -37,6 +37,7 @@ export const restEndpoints = {
     agents: "/ai/agents",
     agent: (id: string) => `/ai/agents/${id}`,
     chatSessions: "/system/chat/sessions",
+    chatConversations: "/chat/conversations",
     chatSessionMessages: (threadId: string) => `/system/chat/sessions/thread/${threadId}/messages`,
     chatMessages: "/system/chat/messages",
     chatSuggestions: (agentId?: string) =>

@@ -15,7 +15,7 @@ import { Maximize2, PanelRight, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { type ReactNode, useCallback, useRef, useState } from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import type { ChatterLayout as LayoutType } from "./types"
+import type { ChatterLayout as LayoutType } from "@/features/chatter/types"
 
 interface ChatterLayoutProps {
   layout: LayoutType

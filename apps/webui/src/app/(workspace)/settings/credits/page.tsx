@@ -7,7 +7,7 @@
 
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -42,13 +42,16 @@ const DEFAULT_GROUPS = ["SUBSCRIPTION", "REWARD", "WEEKLY"]
 
 function BalanceFormula() {
   const { data: groups, isLoading } = useCreditGroups()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="grid grid-cols-4 gap-2 py-6">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={`sk-${i}`} className="h-14 w-full" />
-        ))}
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
       </div>
     )
   }
@@ -64,22 +67,20 @@ function BalanceFormula() {
       <div>
         <p className="text-muted-foreground text-sm">积分余额</p>
         <p className="mt-1 font-bold text-3xl tabular-nums">
-          {displayGroups.reduce((s, g) => s + g.remain, 0).toLocaleString()}
+          {(groups ?? []).reduce((s, g) => s + g.remain, 0).toLocaleString()}
         </p>
       </div>
       {displayGroups.map((g, i) => (
-        <>
-          <span key={`op-${g.batchType}`} className="text-center text-muted-foreground text-xl">
-            {i === 0 ? "=" : "+"}
-          </span>
-          <div key={g.batchType} className="text-center">
+        <Fragment key={g.batchType}>
+          <span className="text-center text-muted-foreground text-xl">{i === 0 ? "=" : "+"}</span>
+          <div className="text-center">
             <p className="flex items-center justify-center gap-1 text-muted-foreground text-sm">
               {GROUP_LABEL[g.batchType] ?? g.batchType}
               <InfoTip text={GROUP_TIP[g.batchType] ?? ""} />
             </p>
             <p className="mt-1 font-bold text-3xl tabular-nums">{g.remain.toLocaleString()}</p>
           </div>
-        </>
+        </Fragment>
       ))}
     </div>
   )
@@ -113,7 +114,7 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 function TxRow({ tx }: { tx: CreditTransactionVO }) {
-  const isEarn = tx.amount > 0
+  const isEarn = tx.type === "EARN"
 
   return (
     <>
@@ -124,23 +125,22 @@ function TxRow({ tx }: { tx: CreditTransactionVO }) {
             {format(new Date(tx.createTime), "yyyy年MM月dd日 HH:mm", { locale: zhCN })}
           </p>
         </div>
-        <span
-          className={cn(
-            "font-semibold tabular-nums",
-            isEarn ? "text-emerald-500" : "text-orange-400"
-          )}
-        >
-          {isEarn ? `+ ${tx.amount}` : `- ${Math.abs(tx.amount)}`}
-        </span>
-        <div className="ml-4 text-right">
-          <p className="text-muted-foreground text-xs">余额</p>
+        <div className="text-right">
           <p
             className={cn(
-              "font-medium text-sm tabular-nums",
-              tx.balanceAfter < 0 && "text-destructive"
+              "font-semibold text-lg tabular-nums",
+              isEarn ? "text-emerald-500" : "text-orange-400"
             )}
           >
-            {tx.balanceAfter.toLocaleString()}
+            {isEarn ? `+${tx.amount}` : `-${Math.abs(tx.amount)}`}
+          </p>
+          <p
+            className={cn(
+              "mt-0.5 text-xs tabular-nums",
+              tx.balanceAfter < 0 ? "text-destructive" : "text-muted-foreground"
+            )}
+          >
+            余额 {tx.balanceAfter.toLocaleString()}
           </p>
         </div>
       </div>
@@ -219,8 +219,8 @@ export default function CreditsPage() {
 
   const transactions = txPage?.list ?? []
   const filtered = transactions.filter((tx) => {
-    if (tab === "earn") return tx.amount > 0
-    if (tab === "spend") return tx.amount < 0
+    if (tab === "earn") return tx.type === "EARN"
+    if (tab === "spend") return tx.type === "SPEND"
     return true
   })
 

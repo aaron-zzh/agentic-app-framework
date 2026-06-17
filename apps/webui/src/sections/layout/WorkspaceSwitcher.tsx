@@ -36,7 +36,7 @@ export function WorkspaceSwitcher() {
 
   const list = orgs ?? []
   const active = list.find((o) => o.id === currentOrgId) ?? list[0]
-  const activeWorkspaceName = active ? `${active.name} 默认工作区` : null
+  const activeWorkspaceName = active ? active.name : null
 
   /** 切换默认工作区 */
   function handleSwitchWorkspace(orgId: string) {
@@ -77,7 +77,9 @@ export function WorkspaceSwitcher() {
             <DropdownMenuLabel>工作区</DropdownMenuLabel>
             {list.map((org) => (
               <div key={org.id}>
-                <div className="px-2 pt-2 pb-1 text-muted-foreground text-xs">{org.name}</div>
+                {list.length > 1 && (
+                  <div className="px-2 pt-2 pb-1 text-muted-foreground text-xs">{org.name}</div>
+                )}
                 <DropdownMenuItem
                   onClick={() => handleSwitchWorkspace(org.id)}
                   className="gap-2.5 rounded-md px-2 py-2"
@@ -85,7 +87,7 @@ export function WorkspaceSwitcher() {
                   <Avatar className="size-7 rounded-md after:hidden">
                     <AvatarImage
                       src={org.logo ?? $url.cdn("/assets/icons/ChatBc.png")}
-                      alt={`${org.name} 默认工作区`}
+                      alt={org.name}
                       className="object-cover"
                     />
                     <AvatarFallback className="rounded-md bg-primary/10 font-semibold text-primary text-xs">
@@ -93,7 +95,7 @@ export function WorkspaceSwitcher() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">{org.name} 默认工作区</div>
+                    <div className="truncate text-sm">{org.name}</div>
                   </div>
                   {active?.id === org.id && (
                     <Badge

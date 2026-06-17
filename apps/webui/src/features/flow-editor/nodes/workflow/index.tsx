@@ -7,6 +7,8 @@
 
 "use client"
 
+import { ModelSelector } from "@/components/common/ModelSelector"
+import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { createNodeRegistry, registerNodeType, setWorkflowRegistry } from "../../lib/registry"
 import type { InspectorProps, NodeTypeDef, NodeTypeRegistry, PortDef } from "../../types"
 import { BaseNode } from "../_base/base-node"
@@ -19,6 +21,10 @@ const inputOutput: PortDef[] = [
 
 /** Agent 节点属性面板 */
 function AgentInspector({ data, onChange }: InspectorProps) {
+  const { options, modelId, setModelId } = useModelSelector("CHAT", {
+    value: (data.modelId as string) ?? "",
+    onChange: (id) => onChange({ ...data, modelId: id })
+  })
   return (
     <div className="space-y-3">
       <div>
@@ -50,18 +56,13 @@ function AgentInspector({ data, onChange }: InspectorProps) {
         <label htmlFor="agent-modelId" className="font-medium text-sm">
           模型
         </label>
-        <select
-          id="agent-modelId"
-          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
-          value={(data.modelId as string) ?? ""}
-          onChange={(e) => onChange({ ...data, modelId: e.target.value })}
-        >
-          <option value="">默认模型</option>
-          <option value="gpt-4o">GPT-4o</option>
-          <option value="gpt-4o-mini">GPT-4o Mini</option>
-          <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
-          <option value="deepseek-chat">DeepSeek Chat</option>
-        </select>
+        <ModelSelector
+          variant="select"
+          options={options}
+          value={modelId}
+          onChange={setModelId}
+          className="mt-1 h-8 w-full text-sm"
+        />
       </div>
       <div>
         <label htmlFor="agent-temperature" className="font-medium text-sm">
@@ -122,24 +123,23 @@ function AgentInspector({ data, onChange }: InspectorProps) {
 
 /** LLM 节点属性面板 */
 function LLMInspector({ data, onChange }: InspectorProps) {
+  const { options, modelId, setModelId } = useModelSelector("CHAT", {
+    value: (data.modelId as string) ?? "",
+    onChange: (id) => onChange({ ...data, modelId: id })
+  })
   return (
     <div className="space-y-3">
       <div>
         <label htmlFor="llm-modelId" className="font-medium text-sm">
           模型
         </label>
-        <select
-          id="llm-modelId"
-          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
-          value={(data.modelId as string) ?? ""}
-          onChange={(e) => onChange({ ...data, modelId: e.target.value })}
-        >
-          <option value="">默认模型</option>
-          <option value="gpt-4o">GPT-4o</option>
-          <option value="gpt-4o-mini">GPT-4o Mini</option>
-          <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
-          <option value="deepseek-chat">DeepSeek Chat</option>
-        </select>
+        <ModelSelector
+          variant="select"
+          options={options}
+          value={modelId}
+          onChange={setModelId}
+          className="mt-1 h-8 w-full text-sm"
+        />
       </div>
       <div>
         <label htmlFor="prompt" className="font-medium text-sm">

@@ -18,16 +18,16 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
   const { isAuthenticated, isChecking } = useAuth()
   const [checked, setChecked] = useState(false)
+  const redirectTo = searchParams.get("redirect") ?? paths.workspace.root
 
   useEffect(() => {
     if (isChecking) return
     if (isAuthenticated) {
-      const returnTo = searchParams.get("redirect") ?? paths.workspace.root
-      router.replace(returnTo)
+      router.replace(redirectTo)
     } else {
       setChecked(true)
     }
-  }, [isAuthenticated, isChecking, router, searchParams])
+  }, [isAuthenticated, isChecking, router, redirectTo])
 
   if (!checked) return <SplashScreen />
 

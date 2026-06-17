@@ -40,6 +40,19 @@ interface TokenPair {
   refreshToken: string
 }
 
+/** 同步写入 cookie（非 httpOnly，仅供 proxy 服务端路由守卫判断登录状态）
+ *  后端的 HttpOnly Cookie 因跨域（8080→3000）无法被 Next.js proxy 读取，需前端补写同域 cookie */
+function syncTokenCookie(token: string | null) {
+  if (typeof document === "undefined") return
+  if (token) {
+    // biome-ignore lint/suspicious/noDocumentCookie: 需要直接操作 cookie 同步认证状态
+    document.cookie = `aaf-token=${token}; path=/; max-age=604800; SameSite=Lax`
+  } else {
+    // biome-ignore lint/suspicious/noDocumentCookie: 需要直接操作 cookie 清除认证
+    document.cookie = "aaf-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -53,6 +66,7 @@ export const useAuthStore = create<AuthState>()(
 
       setTokens: (accessToken, refreshToken) => {
         setAxiosAuth(accessToken)
+        syncTokenCookie(accessToken)
         set({ accessToken, refreshToken, isAuthenticated: true })
       },
 
@@ -60,6 +74,7 @@ export const useAuthStore = create<AuthState>()(
 
       clearAuth: () => {
         clearAxiosAuth()
+        syncTokenCookie(null)
         set({
           accessToken: null,
           refreshToken: null,

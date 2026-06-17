@@ -85,6 +85,7 @@ public class ConversationCrudService
                 .eqIfPresent("status", query.getStatus())
                 .eqIfPresent("creatorId", query.getCreatorId())
                 .eqIfPresent("assistantId", query.getAssistantId())
+                .likeIfPresent("title", query.getSearch())
                 .build();
     }
 

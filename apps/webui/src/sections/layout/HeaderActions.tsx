@@ -6,7 +6,7 @@
 "use client"
 
 import { m } from "framer-motion"
-import { MessageSquare, MoonStar, SunMedium } from "lucide-react"
+import { MessageSquare, MoonStar, SunMedium, Users } from "lucide-react"
 import { useTheme } from "next-themes"
 import { AnimateBorder, transitionTap, varHover, varTap } from "@/components/animate"
 import { ThemeSettings } from "@/components/common/ThemeSettings"
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { $url } from "@/lib/utils"
+import { ContactsPanel } from "./ContactsPanel"
 import { NotificationDrawer } from "./notifications"
 
 /** 明暗主题快捷切换 */
@@ -128,6 +129,15 @@ export function HeaderActions() {
   return (
     <>
       <ThemeToggle />
+      <ContactsPanel>
+        <button
+          type="button"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="联系人"
+        >
+          <Users className="size-4" />
+        </button>
+      </ContactsPanel>
       <ChatterToggle />
       <NotificationDrawer />
       <SettingsButton />

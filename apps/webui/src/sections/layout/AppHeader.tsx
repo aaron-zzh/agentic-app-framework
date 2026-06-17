@@ -7,12 +7,11 @@
 
 "use client"
 
-import { Calendar, Search, Users } from "lucide-react"
+import { Calendar, Search } from "lucide-react"
 import { useState } from "react"
 import { CommandPalette } from "@/components/common/CommandPalette"
 import { useCommandPalette } from "@/lib/hooks/use-command-palette"
 import { cn } from "@/lib/utils/cn"
-import { ContactsPanel } from "./ContactsPanel"
 import { HeaderActions } from "./HeaderActions"
 import { MobileNav } from "./MobileNav"
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
@@ -28,15 +27,6 @@ export function AppHeader() {
       <MobileNav />
       <WorkspaceSwitcher />
       <CalendarButton />
-      <ContactsPanel>
-        <button
-          type="button"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="联系人"
-        >
-          <Users className="size-4" />
-        </button>
-      </ContactsPanel>
       <SearchButton onClick={() => setCmdManualOpen(true)} />
 
       <Breadcrumb />

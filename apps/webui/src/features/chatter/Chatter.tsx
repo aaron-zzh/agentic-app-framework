@@ -24,10 +24,10 @@
 import { useCallback, useEffect, useState } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
-import { ChatterLayout } from "./ChatterLayout"
-import { ChatterPanel } from "./ChatterPanel"
-import { ChatterRuntime } from "./ChatterRuntime"
-import { ChatterToolbar } from "./ChatterToolbar"
+import { ChatterLayout } from "./layout/ChatterLayout"
+import { ChatterPanel } from "./layout/ChatterPanel"
+import { ChatterRuntime } from "./runtime/ChatterRuntime"
+import { ChatterToolbar } from "./toolbar/ChatterToolbar"
 import type {
   ChatterDropItem,
   ChatterProps,
@@ -73,6 +73,7 @@ export function Chatter(props: ChatterProps) {
   const [target, setTarget] = useState<ChatterTarget>(() => presetToTarget(props))
   const [isOpen, setIsOpen] = useState(open ?? (effectiveLayout === "dialog" && !isAuthenticated))
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
+  const [modelId, setModelId] = useState<string>("")
 
   useEffect(() => {
     setMounted(true)
@@ -113,7 +114,7 @@ export function Chatter(props: ChatterProps) {
   if (!mounted && (layout === "panel" || layout === "page")) return null
 
   return (
-    <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId}>
+    <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId} modelId={modelId}>
       <ChatterLayout
         layout={effectiveLayout}
         open={open ?? isOpen}
@@ -139,6 +140,8 @@ export function Chatter(props: ChatterProps) {
           onAttachmentRemove={handleAttachmentRemove}
           onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
           sessionId={props.sessionId}
+          modelId={modelId}
+          onModelChange={setModelId}
         />
       </ChatterLayout>
     </ChatterRuntime>
