@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
@@ -68,7 +69,7 @@ public class RechargeService implements PaySuccessHandler {
         bizOrderService.markPaid(bizOrder.getId());
         // 积分入账（金额从业务订单获取）
         creditService.earn(
-                bizOrder.getUserId(), bizOrder.getTotalAmount(), "RECHARGE", bizOrder.getOrderNo());
+                bizOrder.getUserId(), bizOrder.getTotalAmount(), CreditTransactionSourceEnum.RECHARGE.getCode(), bizOrder.getOrderNo());
         log.info(
                 "充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), bizOrder.getTotalAmount());
     }

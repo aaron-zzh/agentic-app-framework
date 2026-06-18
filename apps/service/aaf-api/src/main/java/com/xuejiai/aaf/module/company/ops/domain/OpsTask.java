@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "company_ops_task")
 @SQLDelete(
         sql =
-                "UPDATE company_ops_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE company_ops_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class OpsTask extends BaseEntity {
 
     /** 任务名称 */

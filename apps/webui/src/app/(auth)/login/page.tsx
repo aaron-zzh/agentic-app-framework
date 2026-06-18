@@ -56,7 +56,7 @@ function LoginContent() {
     setTokens(accessToken, refreshToken)
     authApi.me().then(({ user }) => {
       setUser(user)
-      router.replace(paths.workspace.root)
+      router.replace(searchParams.get("redirect") || paths.workspace.root)
     })
   }, [searchParams, setTokens, setUser, router])
 
@@ -111,7 +111,7 @@ function LoginContent() {
       setTokens(result.accessToken, result.refreshToken)
       const { user } = await authApi.me()
       setUser(user)
-      router.push(paths.workspace.root)
+      router.push(searchParams.get("redirect") || paths.workspace.root)
     } catch (err) {
       // 表单内展示（可修正的输入错误）+ toast 兜底（网络超时等也能感知）
       const msg = err instanceof Error ? err.message : "登录失败，请重试"

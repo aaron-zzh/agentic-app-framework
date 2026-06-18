@@ -18,7 +18,7 @@ import lombok.Setter;
 @Table(name = "pay_reconcile_record")
 @SQLDelete(
         sql =
-                "UPDATE pay_reconcile_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE pay_reconcile_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class ReconcileRecord extends BaseEntity {
 
     /** 对账日期 */

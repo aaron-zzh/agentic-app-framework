@@ -19,7 +19,7 @@ import lombok.Setter;
 @Table(name = "credit_redeem_code")
 @SQLDelete(
         sql =
-                "UPDATE credit_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE credit_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class CreditRedeemCode extends BaseEntity {
 
     /** SHA-256 哈希，存储时不保留明文 */

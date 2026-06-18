@@ -23,7 +23,7 @@ import lombok.Setter;
 @Table(name = "ai_digital_avatar")
 @SQLDelete(
         sql =
-                "UPDATE ai_digital_avatar SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE ai_digital_avatar SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AiDigitalAvatar extends BaseEntity {
 
     /** 形象名称 */

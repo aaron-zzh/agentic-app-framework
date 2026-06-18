@@ -18,7 +18,7 @@ import lombok.Setter;
 @Table(name = "credit_token_rule")
 @SQLDelete(
         sql =
-                "UPDATE credit_token_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE credit_token_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class CreditTokenRule extends BaseEntity {
 
     /** 规则名称 */

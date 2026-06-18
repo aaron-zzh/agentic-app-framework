@@ -29,7 +29,7 @@ import lombok.Setter;
 @Table(name = "doc_document")
 @SQLDelete(
         sql =
-                "UPDATE doc_document SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE doc_document SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Document extends BaseEntity {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

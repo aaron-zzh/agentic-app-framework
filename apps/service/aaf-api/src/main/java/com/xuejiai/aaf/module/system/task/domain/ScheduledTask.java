@@ -107,4 +107,8 @@ public class ScheduledTask extends BaseEntity {
     /** 任务超时秒数（0 = 使用全局默认值 aaf.task.runtime.timeout-seconds） */
     @Column(name = "timeout_seconds", nullable = false)
     private Integer timeoutSeconds = 0;
+
+    /** 归属用户 ID：null = 系统任务，非 null = 用户任务（执行时注入用户上下文） */
+    @Column(name = "owner_id")
+    private Long ownerId;
 }

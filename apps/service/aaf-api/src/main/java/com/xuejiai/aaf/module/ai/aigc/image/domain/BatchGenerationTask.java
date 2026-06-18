@@ -22,7 +22,7 @@ import lombok.Setter;
 @Table(name = "batch_generation_task")
 @SQLDelete(
         sql =
-                "UPDATE batch_generation_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE batch_generation_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class BatchGenerationTask extends BaseEntity {
 
     /** 用户 ID */

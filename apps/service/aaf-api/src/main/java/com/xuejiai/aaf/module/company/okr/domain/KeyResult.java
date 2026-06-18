@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "company_key_result")
 @SQLDelete(
         sql =
-                "UPDATE company_key_result SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE company_key_result SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class KeyResult extends BaseEntity {
 
     /** 所属目标 ID */

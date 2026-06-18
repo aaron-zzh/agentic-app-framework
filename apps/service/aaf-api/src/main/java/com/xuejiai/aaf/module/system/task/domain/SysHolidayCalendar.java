@@ -19,7 +19,7 @@ import lombok.Setter;
 @Table(name = "sys_holiday_calendar")
 @SQLDelete(
         sql =
-                "UPDATE sys_holiday_calendar SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE sys_holiday_calendar SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SysHolidayCalendar extends BaseEntity {
 
     /** 日历编码（如 CN_HOLIDAY、CUSTOM） */

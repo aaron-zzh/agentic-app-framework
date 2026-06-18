@@ -24,7 +24,7 @@ import lombok.Setter;
 @Table(name = "livechat_seat")
 @SQLDelete(
         sql =
-                "UPDATE livechat_seat SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE livechat_seat SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class LivechatSeat extends BaseEntity {
 
     @Enumerated(EnumType.STRING)

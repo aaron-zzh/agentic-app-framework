@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
@@ -516,7 +517,7 @@ public class AuthService {
     /** 注册赠积分（赠送数量固定 50，不可配置） */
     private void grantRegistrationCredits(Long userId) {
         try {
-            creditService.earn(userId, 50, "register_gift", String.valueOf(userId));
+            creditService.earn(userId, 50, CreditTransactionSourceEnum.REGISTER_GIFT.getCode(), String.valueOf(userId));
         } catch (Exception e) {
             log.warn("注册赠积分失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
         }

@@ -19,7 +19,7 @@ import lombok.Setter;
 @Table(name = "developer_api_key")
 @SQLDelete(
         sql =
-                "UPDATE developer_api_key SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE developer_api_key SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class DeveloperApiKey extends BaseEntity {
 
     @Column(name = "developer_id", nullable = false)

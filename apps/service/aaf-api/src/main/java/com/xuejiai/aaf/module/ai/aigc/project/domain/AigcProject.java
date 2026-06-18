@@ -15,7 +15,7 @@ import lombok.Setter;
 @Table(name = "aigc_project")
 @SQLDelete(
         sql =
-                "UPDATE aigc_project SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE aigc_project SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcProject extends BaseEntity {
 
     /** 项目名称 */

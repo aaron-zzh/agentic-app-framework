@@ -20,7 +20,7 @@ import lombok.Setter;
                         columnNames = {"plan_id", "ent_id"}))
 @SQLDelete(
         sql =
-                "UPDATE billing_plan_entitlement SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE billing_plan_entitlement SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class PlanEntitlement extends BaseEntity {
 
     /** 套餐 ID */

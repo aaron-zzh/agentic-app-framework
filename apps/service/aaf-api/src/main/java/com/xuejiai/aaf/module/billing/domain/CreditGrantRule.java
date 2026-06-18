@@ -23,7 +23,7 @@ import lombok.Setter;
 @Table(name = "credit_grant_rule")
 @SQLDelete(
         sql =
-                "UPDATE credit_grant_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE credit_grant_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class CreditGrantRule extends BaseEntity {
 
     /** 规则编码（WEEKLY/INVITE/EXPLORE/REGISTER/EVENT_xxx） */

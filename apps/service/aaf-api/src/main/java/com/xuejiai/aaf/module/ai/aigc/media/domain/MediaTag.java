@@ -18,8 +18,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "media_tag")
 @SQLDelete(
-        sql =
-                "UPDATE media_tag SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        sql = "UPDATE media_tag SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class MediaTag extends BaseEntity {
 
     /** 标签名称 */

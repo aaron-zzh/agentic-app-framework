@@ -21,7 +21,7 @@ import lombok.Setter;
 @Table(name = "livechat_session_rating")
 @SQLDelete(
         sql =
-                "UPDATE livechat_session_rating SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE livechat_session_rating SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SessionRating extends BaseEntity {
 
     /** 关联会话 ID */

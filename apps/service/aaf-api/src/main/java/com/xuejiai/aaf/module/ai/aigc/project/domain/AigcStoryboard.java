@@ -15,7 +15,7 @@ import lombok.Setter;
 @Table(name = "aigc_storyboard")
 @SQLDelete(
         sql =
-                "UPDATE aigc_storyboard SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE aigc_storyboard SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcStoryboard extends BaseEntity {
 
     /** 归属项目 ID */

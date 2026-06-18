@@ -19,7 +19,7 @@ import lombok.Setter;
 @Table(name = "video_template")
 @SQLDelete(
         sql =
-                "UPDATE video_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE video_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class VideoTemplate extends BaseEntity {
 
     /** 模板名称 */

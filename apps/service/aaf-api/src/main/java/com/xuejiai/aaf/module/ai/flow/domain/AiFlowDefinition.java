@@ -23,7 +23,7 @@ import lombok.Setter;
 @Table(name = "ai_flow_definition")
 @SQLDelete(
         sql =
-                "UPDATE ai_flow_definition SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE ai_flow_definition SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AiFlowDefinition extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 128)

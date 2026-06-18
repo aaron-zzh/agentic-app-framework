@@ -18,7 +18,7 @@ import lombok.Setter;
 @Table(name = "company_ops_metric")
 @SQLDelete(
         sql =
-                "UPDATE company_ops_metric SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE company_ops_metric SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class OpsMetric extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 128)

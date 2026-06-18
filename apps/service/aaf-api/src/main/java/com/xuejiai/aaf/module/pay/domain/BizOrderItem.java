@@ -15,7 +15,7 @@ import lombok.Setter;
 @Table(name = "biz_order_item")
 @SQLDelete(
         sql =
-                "UPDATE biz_order_item SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE biz_order_item SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class BizOrderItem extends BaseEntity {
 
     /** 关联订单 ID */

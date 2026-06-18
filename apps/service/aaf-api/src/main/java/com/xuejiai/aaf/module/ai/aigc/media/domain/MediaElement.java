@@ -21,7 +21,7 @@ import lombok.Setter;
 @Table(name = "media_element")
 @SQLDelete(
         sql =
-                "UPDATE media_element SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE media_element SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class MediaElement extends BaseEntity {
 
     /** 元素名称 */

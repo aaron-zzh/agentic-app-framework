@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "billing_subscription_plan")
 @SQLDelete(
         sql =
-                "UPDATE billing_subscription_plan SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE billing_subscription_plan SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SubscriptionPlan extends BaseEntity {
 
     /** 套餐编码（FREE/PRO/TEAM/ENTERPRISE） */

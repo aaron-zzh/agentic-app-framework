@@ -27,7 +27,7 @@ import lombok.Setter;
 @Table(name = "livechat_ticket")
 @SQLDelete(
         sql =
-                "UPDATE livechat_ticket SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE livechat_ticket SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Ticket extends BaseEntity {
 
     /** 工单编号，全局唯一 */

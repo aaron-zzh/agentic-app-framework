@@ -21,7 +21,7 @@ import lombok.Setter;
 @Table(name = "generation_template")
 @SQLDelete(
         sql =
-                "UPDATE generation_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE generation_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class GenerationTemplate extends BaseEntity {
 
     /** 模板名称 */

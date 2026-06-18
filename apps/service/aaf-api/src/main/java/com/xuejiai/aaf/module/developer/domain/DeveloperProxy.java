@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "developer_proxy")
 @SQLDelete(
         sql =
-                "UPDATE developer_proxy SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE developer_proxy SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class DeveloperProxy extends BaseEntity {
 
     @Column(name = "parent_developer_id", nullable = false)

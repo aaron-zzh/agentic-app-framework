@@ -19,7 +19,7 @@ import lombok.Setter;
 @Table(name = "media_category")
 @SQLDelete(
         sql =
-                "UPDATE media_category SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE media_category SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class MediaCategory extends BaseEntity {
 
     /** 分类名称 */

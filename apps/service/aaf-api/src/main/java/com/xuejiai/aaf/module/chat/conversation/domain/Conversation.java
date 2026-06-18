@@ -29,7 +29,7 @@ import lombok.Setter;
 @Table(name = "conversation")
 @SQLDelete(
         sql =
-                "UPDATE conversation SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE conversation SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Conversation extends BaseEntity {
 
     @Enumerated(EnumType.STRING)

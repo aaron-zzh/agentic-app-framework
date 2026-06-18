@@ -23,6 +23,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Table;
+
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -71,6 +75,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
 
     @Autowired(required = false)
     private ObjectProvider<FieldAccessSupport> fieldAccessSupport;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /** 子类提供 Repository 实例。 */
     protected abstract JpaRepository<E, Long> getRepository();
@@ -306,14 +313,36 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /**
      * 批量删除。先经行级数据权限校验，确认所有记录可见后再删除。
      *
-     * <p>使用 {@link JpaRepository#deleteAllByIdInBatch} 生成单条 {@code DELETE ... WHERE id IN (...)}，
-     * 效率优于逐条删除。
+     * <p>用原生 SQL 一条 UPDATE 批量软删除，避免逐条触发 {@code @SQLDelete} 的 N 次请求。
      */
     @Transactional
     public void deleteBatch(List<Long> ids) {
-        // 权限校验：确保所有记录当前用户可见，任一不存在或不可见则抛 404
         requireEntities(ids);
-        getRepository().deleteAllByIdInBatch(ids);
+        String tableName = resolveTableName();
+        if (tableName != null) {
+            entityManager.createNativeQuery(
+                    "UPDATE " + tableName
+                    + " SET deleted = true, delete_time = CURRENT_TIMESTAMP"
+                    + " WHERE id IN (:ids) AND deleted = false")
+                    .setParameter("ids", ids)
+                    .executeUpdate();
+        } else {
+            // 兜底：逐条软删除（触发 @SQLDelete）
+            getRepository().deleteAll(getRepository().findAllById(ids));
+        }
+    }
+
+    /** 通过泛型参数上的 @Table 注解解析表名，避免查库。 */
+    @SuppressWarnings("unchecked")
+    private String resolveTableName() {
+        try {
+            var type = (java.lang.reflect.ParameterizedType) getClass().getGenericSuperclass();
+            var entityClass = (Class<E>) type.getActualTypeArguments()[0];
+            var table = entityClass.getAnnotation(Table.class);
+            return table != null ? table.name() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** 归档。默认采用逻辑删除语义；如业务有 archived 状态，子类应覆写。 */

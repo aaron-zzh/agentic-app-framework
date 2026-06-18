@@ -14,8 +14,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "aigc_shot")
 @SQLDelete(
-        sql =
-                "UPDATE aigc_shot SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        sql = "UPDATE aigc_shot SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcShot extends BaseEntity {
 
     /** 归属分镜规划 ID */

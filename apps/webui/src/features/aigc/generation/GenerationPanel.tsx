@@ -250,7 +250,7 @@ export function GenerationPanel() {
             {/* Prompt 输入 */}
             <div className="flex min-h-0 flex-1 flex-col gap-1">
               {referenceAssets.length > 0 && isEditMode && (
-                <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600/80 text-xs">
+                <span className="flex w-fit items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600/80 text-xs">
                   <svg className="size-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path
                       d="M11 2L14 5L5 14H2V11L11 2Z"

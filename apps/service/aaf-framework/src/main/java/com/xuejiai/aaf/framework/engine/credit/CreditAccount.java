@@ -18,7 +18,7 @@ import lombok.Setter;
                 @UniqueConstraint(name = "uk_credit_account_user", columnNames = "user_id"))
 @SQLDelete(
         sql =
-                "UPDATE credit_account SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE credit_account SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class CreditAccount extends BaseEntity {
 
     /** 用户 ID（唯一） */

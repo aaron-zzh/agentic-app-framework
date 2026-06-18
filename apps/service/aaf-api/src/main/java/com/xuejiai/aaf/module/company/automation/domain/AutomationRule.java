@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "company_automation_rule")
 @SQLDelete(
         sql =
-                "UPDATE company_automation_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE company_automation_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AutomationRule extends BaseEntity {
 
     /** 规则名称 */

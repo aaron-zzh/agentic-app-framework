@@ -34,6 +34,7 @@ import lombok.Setter;
  * <pre>{@code
  * @SQLDelete(sql = "UPDATE sys_user SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
  * public class User extends BaseEntity { ... }
+ *
  * }</pre>
  */
 @Getter

@@ -14,8 +14,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "aigc_clip")
 @SQLDelete(
-        sql =
-                "UPDATE aigc_clip SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        sql = "UPDATE aigc_clip SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcClip extends BaseEntity {
 
     /** 归属轨道 ID */

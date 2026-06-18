@@ -27,7 +27,7 @@ import lombok.Setter;
 @Table(name = "conversation_message")
 @SQLDelete(
         sql =
-                "UPDATE conversation_message SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE conversation_message SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class ConversationMessage extends BaseEntity {
 
     /** 所属会话 ID */

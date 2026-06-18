@@ -22,7 +22,7 @@ import lombok.Setter;
                         columnNames = {"user_id", "ent_id"}))
 @SQLDelete(
         sql =
-                "UPDATE billing_entitlement_quota SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE billing_entitlement_quota SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class EntitlementQuota extends BaseEntity {
 
     /** 用户 ID */

@@ -24,7 +24,7 @@ import lombok.Setter;
 @Table(name = "ai_cloned_voice")
 @SQLDelete(
         sql =
-                "UPDATE ai_cloned_voice SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE ai_cloned_voice SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AiClonedVoice extends BaseEntity {
 
     /** 百炼平台 voice 名称，如 qwen-omni-vc-myvoice-20250812105009-xxx */

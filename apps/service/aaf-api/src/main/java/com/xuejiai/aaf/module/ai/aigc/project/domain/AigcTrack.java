@@ -14,8 +14,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "aigc_track")
 @SQLDelete(
-        sql =
-                "UPDATE aigc_track SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        sql = "UPDATE aigc_track SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcTrack extends BaseEntity {
 
     /** 归属时间轴 ID */

@@ -31,8 +31,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "media_asset")
 @SQLDelete(
-        sql =
-                "UPDATE media_asset SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        sql = "UPDATE media_asset SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class MediaAsset extends BaseEntity {
 
     /** 素材名称 */

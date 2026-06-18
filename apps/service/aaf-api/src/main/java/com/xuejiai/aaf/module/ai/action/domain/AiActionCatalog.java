@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "ai_action_catalog")
 @SQLDelete(
         sql =
-                "UPDATE ai_action_catalog SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE ai_action_catalog SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AiActionCatalog extends BaseEntity {
 
     @Column(name = "action_key", nullable = false, length = 120)

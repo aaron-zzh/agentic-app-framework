@@ -19,7 +19,7 @@ import lombok.Setter;
 @Table(name = "developer_redeem_code")
 @SQLDelete(
         sql =
-                "UPDATE developer_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE developer_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class DeveloperRedeemCode extends BaseEntity {
 
     /** 兑换码类型：TOKEN=发放token额度，LICENSE=激活套餐订阅 */
