@@ -679,3 +679,62 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_contact_status', '访客',   'VISITOR',  3, 'info'),
 ('sys_contact_status', '已归档', 'ARCHIVED', 4, 'default')
 ON CONFLICT DO NOTHING;
+
+
+-- credit_transaction_source 积分流水来源
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('积分流水来源', 'credit_transaction_source', 0, '标记积分变动的业务来源')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('credit_transaction_source', '用户充值',     'recharge',           1,  'success'),
+('credit_transaction_source', '订阅套餐',     'subscribe',          2,  'primary'),
+('credit_transaction_source', '注册赠送',     'register_gift',      3,  'info'),
+('credit_transaction_source', '兑换码',       'redeem_code',        4,  'info'),
+('credit_transaction_source', '权益补充',     'entitlement_refill', 5,  'warning'),
+('credit_transaction_source', '管理员调整',   'admin_adjust',       6,  'danger'),
+('credit_transaction_source', '周期奖励',     'periodic_reward',    7,  'info'),
+('credit_transaction_source', 'AI 能力消费',  'ai_consume',         8,  'default'),
+('credit_transaction_source', '工具调用消费', 'tool_consume',       9,  'default'),
+('credit_transaction_source', '其他',         'other',              10, 'default')
+ON CONFLICT DO NOTHING;
+
+-- credit_transaction_category 积分消费分类（AI 能力维度）
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('积分消费分类', 'credit_transaction_category', 0, '标记积分花在哪种 AI 能力，仅 SPEND 类型有意义')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('credit_transaction_category', '文本对话',     'chat',        1,  'primary'),
+('credit_transaction_category', '图像生成',     'image_gen',   2,  'success'),
+('credit_transaction_category', '图像编辑',     'image_edit',  3,  'success'),
+('credit_transaction_category', 'OCR 识别',     'ocr',         4,  'info'),
+('credit_transaction_category', '视频生成',     'video',       5,  'warning'),
+('credit_transaction_category', '语音合成',     'speech_tts',  6,  'info'),
+('credit_transaction_category', '语音识别',     'speech_asr',  7,  'info'),
+('credit_transaction_category', '向量嵌入',     'embedding',   8,  'default'),
+('credit_transaction_category', '3D 生成',      'model_3d',    9,  'default'),
+('credit_transaction_category', '数字人视频',   'avatar',      10, 'default'),
+('credit_transaction_category', '工具调用',     'tool',        11, 'default'),
+('credit_transaction_category', '权益补充',     'entitlement', 12, 'default'),
+('credit_transaction_category', '其他',         'other',       13, 'default')
+ON CONFLICT DO NOTHING;
+
+
+-- ai_ocr_document_type OCR 支持的证件/票据类型
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('OCR证件类型', 'ai_ocr_document_type', 0, 'Qwen-OCR KEY_INFORMATION_EXTRACTION 任务支持的常见证件与票据类型')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('ai_ocr_document_type', '中国护照',       '中国护照',       1,  'default'),
+('ai_ocr_document_type', '往来港澳通行证', '往来港澳通行证', 2,  'default'),
+('ai_ocr_document_type', '机动车驾驶证',   '机动车驾驶证',   3,  'default'),
+('ai_ocr_document_type', '机动车行驶证',   '机动车行驶证',   4,  'default'),
+('ai_ocr_document_type', '增值税普通发票', '增值税普通发票', 5,  'default'),
+('ai_ocr_document_type', '火车票',         '火车票',         6,  'default'),
+('ai_ocr_document_type', '12306高铁票',    '12306高铁票',    7,  'default'),
+('ai_ocr_document_type', '营业执照',       '营业执照',       8,  'default'),
+('ai_ocr_document_type', '社会保障卡',     '社会保障卡',     9,  'default'),
+('ai_ocr_document_type', '不动产权证书',   '不动产权证书',   10, 'default')
+ON CONFLICT DO NOTHING;

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.ErrorCode;
-import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 
 import lombok.RequiredArgsConstructor;
 

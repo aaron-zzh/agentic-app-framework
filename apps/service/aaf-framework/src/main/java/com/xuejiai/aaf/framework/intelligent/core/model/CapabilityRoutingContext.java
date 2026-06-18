@@ -41,6 +41,9 @@ public record CapabilityRoutingContext(
     public static final String CAP_OMNI_REALTIME = "OMNI_REALTIME";
     public static final String CAP_RERANK = "RERANK";
     public static final String CAP_EMBEDDING = "EMBEDDING";
+    public static final String CAP_OCR = "OCR";
+    public static final String CAP_MODEL_3D = "MODEL_3D";
+    public static final String CAP_AVATAR = "AVATAR";
 
     /** 任务特征 key 常量 */
     public static final String FEATURE_INPUT_LENGTH = "inputLength";

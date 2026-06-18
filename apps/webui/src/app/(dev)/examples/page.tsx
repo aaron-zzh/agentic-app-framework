@@ -63,7 +63,8 @@ const EXAMPLES = [
         desc: "AgentScope 多 Agent 示例（需后端开启）"
       },
       { title: "语音识别 ASR", href: "/examples/asr", desc: "实时语音转文字" },
-      { title: "Omni Realtime", href: "/examples/omni-realtime", desc: "多模态实时交互" }
+      { title: "Omni Realtime", href: "/examples/omni-realtime", desc: "多模态实时交互" },
+      { title: "OCR 文字识别", href: "/examples/ocr", desc: "Qwen-OCR 多任务文字提取" }
     ]
   },
   {

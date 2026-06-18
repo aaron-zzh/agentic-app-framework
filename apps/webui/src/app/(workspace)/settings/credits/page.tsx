@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { CreditTransactionVO } from "@/lib/api/rest/billing/credits"
 import { creditsApi } from "@/lib/api/rest/billing/credits"
+import { useDict } from "@/lib/hooks/use-dict"
 import { useCreditGroups, useCreditTransactions } from "@/lib/queries/use-credits"
 import { cn } from "@/lib/utils/cn"
 
@@ -99,28 +100,40 @@ function InfoTip({ text }: { text: string }) {
 
 // ─── 流水条目 ────────────────────────────────────────────────────────────────
 
-const SOURCE_LABEL: Record<string, string> = {
-  WEEKLY: "每周积分发放",
-  SUBSCRIPTION: "订阅套餐积分",
-  TOPUP: "购买积分",
-  MANUAL: "人工赠送",
-  REWARD: "奖励积分",
-  register_gift: "注册赠送",
-  chat: "对话消耗",
-  image: "图像生成消耗",
-  ENT_REFILL: "权益补充",
-  "Weekly Credits refreshed": "每周积分刷新",
-  "Weekly Credits expired": "每周积分过期"
-}
 
-function TxRow({ tx }: { tx: CreditTransactionVO }) {
+function TxRow({ tx, getTypeLabel, getTypeColor, getSourceLabel, getCategoryLabel }: {
+  tx: CreditTransactionVO
+  getTypeLabel: (v: string) => string
+  getTypeColor: (v: string) => string
+  getSourceLabel: (v: string) => string
+  getCategoryLabel: (v: string) => string
+}) {
   const isEarn = tx.type === "EARN"
+  const typeLabel = getTypeLabel(tx.type) || tx.type
+  const typeColor = getTypeColor(tx.type)
 
   return (
     <>
       <div className="flex items-center justify-between py-4">
         <div className="flex-1">
-          <p className="font-medium">{SOURCE_LABEL[tx.source] ?? tx.source}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium">{tx.remark || getSourceLabel(tx.source) || tx.source}</p>
+            <span className={cn(
+              "rounded px-1.5 py-0.5 text-xs",
+              typeColor === "success" && "bg-emerald-100 text-emerald-700",
+              typeColor === "danger" && "bg-orange-100 text-orange-700",
+              typeColor === "warning" && "bg-yellow-100 text-yellow-700",
+              typeColor === "info" && "bg-blue-100 text-blue-700",
+              !["success","danger","warning","info"].includes(typeColor) && "bg-muted text-muted-foreground"
+            )}>
+              {typeLabel}
+            </span>
+            {tx.category && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground text-xs">
+                {getCategoryLabel(tx.category) || tx.category}
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-muted-foreground text-xs">
             {format(new Date(tx.createTime), "yyyy年MM月dd日 HH:mm", { locale: zhCN })}
           </p>
@@ -216,6 +229,9 @@ export default function CreditsPage() {
   const [tab, setTab] = useState<TabValue>("all")
   const [page, setPage] = useState(0)
   const { data: txPage, isLoading: txLoading } = useCreditTransactions(page)
+  const { getLabel: getTypeLabel, getColor: getTypeColor } = useDict("credit_transaction_type")
+  const { getLabel: getSourceLabel } = useDict("credit_transaction_source")
+  const { getLabel: getCategoryLabel } = useDict("credit_transaction_category")
 
   const transactions = txPage?.list ?? []
   const filtered = transactions.filter((tx) => {
@@ -265,7 +281,7 @@ export default function CreditsPage() {
         ) : filtered.length === 0 ? (
           <p className="py-12 text-center text-muted-foreground text-sm">暂无记录</p>
         ) : (
-          filtered.map((tx) => <TxRow key={tx.id} tx={tx} />)
+          filtered.map((tx) => <TxRow key={tx.id} tx={tx} getTypeLabel={getTypeLabel} getTypeColor={getTypeColor} getSourceLabel={getSourceLabel} getCategoryLabel={getCategoryLabel} />)
         )}
       </div>
 

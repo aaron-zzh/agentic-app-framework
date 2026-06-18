@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.billing.EntitlementOperationEnum;
 import com.xuejiai.aaf.common.enums.billing.EntitlementTypeEnum;
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
@@ -243,7 +244,11 @@ public class EntitlementService implements EntitlementChecker {
         }
 
         // 消耗积分
-        creditService.spend(userId, totalCreditCost, "ENT_REFILL", def.getCode());
+        creditService.spend(
+                userId,
+                totalCreditCost,
+                CreditTransactionSourceEnum.ENTITLEMENT_REFILL.getCode(),
+                def.getCode());
 
         // 充值额度
         var refillAmount = refillUnits * rule.getQuota();

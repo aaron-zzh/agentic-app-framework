@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.enums.OverLimitAction;
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogEntry;
@@ -235,7 +236,13 @@ public class ToolPermissionGuard {
                     if (creditBlock != null) {
                         yield asJson(creditBlock);
                     }
-                    var output = delegate.call(arguments);
+                    String output;
+                    try {
+                        output = delegate.call(arguments);
+                    } catch (com.xuejiai.aaf.common.exception.InsufficientCreditsException e) {
+                        // @AiCredit 切面积分不足时转结构化结果，供 LLM 感知并告知用户
+                        yield asJson(ToolCallResult.insufficientCredits(toolName, "ai_credit", 0));
+                    }
                     if (isSuccessfulOutput(output)) {
                         settleCredit(userId, toolName, catalogEntry);
                     }
@@ -434,7 +441,11 @@ public class ToolPermissionGuard {
             return;
         }
         try {
-            credit.spend(userId, cost, "TOOL:" + toolName, entry.entitlementCode());
+            credit.spend(
+                    userId,
+                    cost,
+                    CreditTransactionSourceEnum.TOOL_CONSUME.getCode(),
+                    entry.entitlementCode());
         } catch (Exception ex) {
             log.warn(
                     "工具扣费失败，已完成调用不回滚: tool={}, userId={}, cost={}, err={}",

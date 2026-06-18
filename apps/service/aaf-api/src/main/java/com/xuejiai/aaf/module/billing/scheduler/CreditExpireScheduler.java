@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.engine.credit.CreditAccountRepository;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransaction;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransactionRepository;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransactionType;
-import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
+import com.xuejiai.aaf.common.enums.ai.AiQuotaTypeEnum;
 import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
 
 /**
@@ -10,6 +11,11 @@ import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
  * <p>调用顺序：{@link #precheck} → AI 调用 → {@link #settle}
  */
 public interface AiCreditGuard {
+
+    /** 获取当前积分倍率（从 sys_config 读取，供 estimateCost 使用）。 默认返回 10，实现类从配置中心读取实际值。 */
+    default int getMarkupRate() {
+        return 10;
+    }
 
     /**
      * 调用前预检：积分余额 > 0 才放行。
@@ -69,6 +75,17 @@ public interface AiCreditGuard {
      */
     default void settleByModel(
             Long userId, Long modelId, long inputTokens, long outputTokens, String bizId) {
+        settleByModel(userId, modelId, inputTokens, outputTokens, bizId, null);
+    }
+
+    /** 同上，额外传入 remark 写入积分流水备注。 */
+    default void settleByModel(
+            Long userId,
+            Long modelId,
+            long inputTokens,
+            long outputTokens,
+            String bizId,
+            String remark) {
         // 默认降级：加总后走通用 settle
         settle(userId, "chat", inputTokens + outputTokens, bizId);
     }
@@ -81,6 +98,51 @@ public interface AiCreditGuard {
      * @param bizId 业务流水号
      */
     default void settlePerUse(Long userId, Long modelId, String bizId) {
+        settlePerUse(userId, modelId, bizId, null);
+    }
+
+    /** 同上，额外传入 remark 写入积分流水备注。 */
+    default void settlePerUse(Long userId, Long modelId, String bizId, String remark) {
         settle(userId, "image", 1, bizId);
+    }
+
+    /**
+     * 按模型 quotaType 自动决策结算方式（统一入口，同步/异步回调均可调用）。
+     *
+     * <p>quotaType == 1（按次）→ {@link #settlePerUse}；其余（按 token）→ {@link #settleByModel}。
+     *
+     * @param userId 用户 ID
+     * @param model 已解析的模型对象（含 quotaType / modelPrice / id）
+     * @param inputTokens 输入 token 数（按次时忽略）
+     * @param outputTokens 输出 token 数（按次时忽略）
+     * @param bizId 业务流水号
+     */
+    default void settleByUsage(
+            Long userId,
+            com.xuejiai.aaf.framework.intelligent.core.model.AiModel model,
+            long inputTokens,
+            long outputTokens,
+            String bizId) {
+        settleByUsage(userId, model, inputTokens, outputTokens, bizId, null);
+    }
+
+    /** 同上，额外传入 remark 写入积分流水备注。 */
+    default void settleByUsage(
+            Long userId,
+            com.xuejiai.aaf.framework.intelligent.core.model.AiModel model,
+            long inputTokens,
+            long outputTokens,
+            String bizId,
+            String remark) {
+        Long modelId = model != null ? model.getId() : null;
+        boolean perUse =
+                model != null
+                        && model.getQuotaType() != null
+                        && model.getQuotaType() == AiQuotaTypeEnum.PER_USE.getCode();
+        if (perUse) {
+            settlePerUse(userId, modelId, bizId, remark);
+        } else {
+            settleByModel(userId, modelId, inputTokens, outputTokens, bizId, remark);
+        }
     }
 }

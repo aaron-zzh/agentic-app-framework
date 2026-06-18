@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.enums.OperatorType;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantContextHolder;
+import com.xuejiai.aaf.framework.task.TaskExecutionContextHolder;
 
 /** 基于 SecurityContext 的 OperatorContext 实现。当前仅支持 Human 场景，AI 场景待 Agent 认证体系落地后扩展。 */
 @Component
@@ -33,6 +34,11 @@ public class SecurityOperatorContext implements OperatorContext {
 
     @Override
     public Optional<Long> currentOwnerId() {
+        // 定时任务上下文优先级最高（任务执行线程无 SecurityContext）
+        var taskOwnerId = TaskExecutionContextHolder.get();
+        if (taskOwnerId != null) {
+            return Optional.of(taskOwnerId);
+        }
         var permissionExecutionContext = PermissionExecutionContextHolder.get();
         if (permissionExecutionContext != null) {
             return Optional.ofNullable(permissionExecutionContext.ownerId());

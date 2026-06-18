@@ -44,72 +44,69 @@ WHERE u.username IN ('user1', 'user2')
 
 -- ==================== 积分测试数据 ====================
 
-INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
-SELECT u.id, 999, 0, 999, 0
-FROM sys_user u WHERE u.username = 'admin'
-  AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
-
-INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
-SELECT u.id, 50, 0, 50, 0
-FROM sys_user u WHERE u.username = 'user1'
-  AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
-
-INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
-SELECT u.id, 30, 0, 30, 0
-FROM sys_user u WHERE u.username = 'user2'
-  AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
-
+WITH inserted AS (
+    INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
+    SELECT u.id, 999, 0, 999, 0
+    FROM sys_user u WHERE u.username = 'admin'
+      AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id)
+    RETURNING id
+)
 INSERT INTO sys_demo_data_record (table_name, record_id)
-SELECT 'credit_account', ca.id FROM credit_account ca
-JOIN sys_user u ON ca.user_id = u.id
-WHERE u.username IN ('user1', 'user2');
+SELECT 'credit_account', id FROM inserted;
+
+WITH inserted AS (
+    INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
+    SELECT u.id, 50, 0, 50, 0
+    FROM sys_user u WHERE u.username = 'user1'
+      AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id)
+    RETURNING id
+)
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'credit_account', id FROM inserted;
+
+WITH inserted AS (
+    INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
+    SELECT u.id, 30, 0, 30, 0
+    FROM sys_user u WHERE u.username = 'user2'
+      AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id)
+    RETURNING id
+)
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'credit_account', id FROM inserted;
 
 -- 为测试账户补充 EARN 流水，使 /api/credits/groups 能正确汇总分组余额
-INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
-SELECT ca.id, 'EARN', 999, 999, 'MANUAL', 'MANUAL', 999, false
-FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
-WHERE u.username = 'admin'
-  AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN');
-
-INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
-SELECT ca.id, 'EARN', 50, 50, 'MANUAL', 'SUBSCRIPTION', 50, false
-FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
-WHERE u.username = 'user1'
-  AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN');
-
-INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
-SELECT ca.id, 'EARN', 30, 30, 'MANUAL', 'SUBSCRIPTION', 30, false
-FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
-WHERE u.username = 'user2'
-  AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN');
-
+WITH inserted AS (
+    INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
+    SELECT ca.id, 'EARN', 999, 999, 'MANUAL', 'MANUAL', 999, false
+    FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
+    WHERE u.username = 'admin'
+      AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN')
+    RETURNING id
+)
 INSERT INTO sys_demo_data_record (table_name, record_id)
-SELECT 'credit_transaction', ct.id FROM credit_transaction ct
-JOIN credit_account ca ON ct.account_id = ca.id
-JOIN sys_user u ON ca.user_id = u.id
-WHERE u.username IN ('user1', 'user2');
+SELECT 'credit_transaction', id FROM inserted;
 
--- 统一设置语言模型价格基准（输入 36元/1M Token，补全 108元/1M Token）
-UPDATE ai_model
-SET input_price_per_k  = 0.036000,
-    output_price_per_k = 0.108000
-WHERE capabilities LIKE '%CHAT%' AND (input_price_per_k IS NULL OR input_price_per_k = 0);
+WITH inserted AS (
+    INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
+    SELECT ca.id, 'EARN', 50, 50, 'MANUAL', 'SUBSCRIPTION', 50, false
+    FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
+    WHERE u.username = 'user1'
+      AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN')
+    RETURNING id
+)
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'credit_transaction', id FROM inserted;
 
--- 图像生成模型按次固定价格（quota_type=1，1元/次），gpt-image-2 除外（按 token 计费）
-UPDATE ai_model
-SET model_price = 1.000000,
-    quota_type  = 1
-WHERE capabilities LIKE '%IMAGE_GEN%'
-  AND model_id != 'n1n:gpt-image-2'
-  AND (model_price IS NULL OR model_price = 0);
-
--- gpt-image-2 按 token 计费（$3.0/M 输入，$18.0/M 输出）
-UPDATE ai_model
-SET input_price_per_k  = 0.003,
-    output_price_per_k = 0.018,
-    quota_type         = 0
-WHERE model_id = 'n1n:gpt-image-2';
-
+WITH inserted AS (
+    INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
+    SELECT ca.id, 'EARN', 30, 30, 'MANUAL', 'SUBSCRIPTION', 30, false
+    FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
+    WHERE u.username = 'user2'
+      AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN')
+    RETURNING id
+)
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'credit_transaction', id FROM inserted;
 
 -- ==================== 通知演示数据 ====================
 

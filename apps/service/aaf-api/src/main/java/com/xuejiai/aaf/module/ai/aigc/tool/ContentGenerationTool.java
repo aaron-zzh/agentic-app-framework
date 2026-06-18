@@ -14,14 +14,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
-import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.VideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.VideoServiceFactory;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.image.service.AiImageService;
+import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
+import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
+import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** 暴露给 AI 的生成式内容工具。目录开放、权限、积分和确认由 ai_tool_catalog 控制。 */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ContentGenerationTool {
@@ -30,7 +37,9 @@ public class ContentGenerationTool {
     private static final String VIDEO_TOOL = "generateVideo";
 
     private final AiImageService aiImageService;
-    private final ObjectProvider<VideoGenerationService> videoGenerationService;
+    private final VideoServiceFactory videoServiceFactory;
+    private final CapabilityRouter capabilityRouter;
+    private final MediaAssetService mediaAssetService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final OperatorContext operatorContext;
     private final ObjectMapper objectMapper;
@@ -72,10 +81,6 @@ public class ContentGenerationTool {
                     "生成视频。参数为 JSON：prompt 必填，imageUrl/referenceImageUrls/model/resolution/ratio/duration/seed 可选。")
     public String generateVideo(@ToolParam(description = "视频生成 JSON 参数") String requestJson) {
         try {
-            var service = videoGenerationService.getIfAvailable();
-            if (service == null) {
-                return asJson(ToolCallResult.error(VIDEO_TOOL, "TOOL_UNAVAILABLE", "视频生成服务未启用"));
-            }
             var request = objectMapper.readValue(requestJson, VideoGenerateRequest.class);
             var safety =
                     review(
@@ -87,6 +92,14 @@ public class ContentGenerationTool {
                 return blockedBySafety(
                         VIDEO_TOOL, safety.code(), safety.message(), safety.reviewId());
             }
+            // 走决策链选模型，再通过 factory 路由到正确实现
+            var userId = operatorContext.currentOwnerId().orElse(null);
+            var ctx =
+                    CapabilityRoutingContext.of(
+                            userId, CapabilityRoutingContext.CAP_VIDEO_GEN, request.model());
+            var aiModel = capabilityRouter.resolve(ctx);
+            var service = videoServiceFactory.getService(aiModel);
+
             var taskId =
                     service.submit(
                             new VideoRequest(
@@ -98,6 +111,31 @@ public class ContentGenerationTool {
                                     request.ratio(),
                                     request.duration(),
                                     request.seed()));
+
+            // 自动保存到素材库（视频为异步任务，先记录 taskId）
+            try {
+                mediaAssetService.saveFromGeneration(
+                        userId != null ? userId : 0L,
+                        new SaveFromGenerationDTO(
+                                null,
+                                MediaAssetType.VIDEO,
+                                "pending://" + taskId,
+                                null,
+                                "{\"prompt\":\"%s\",\"taskId\":\"%s\"}"
+                                        .formatted(request.prompt().replace("\"", "\\\""), taskId),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                true,
+                                null,
+                                null,
+                                null));
+            } catch (Exception e) {
+                log.warn("自动保存素材库失败: {}", e.getMessage());
+            }
+
             return asJson(
                     ToolCallResult.success(
                             VIDEO_TOOL,

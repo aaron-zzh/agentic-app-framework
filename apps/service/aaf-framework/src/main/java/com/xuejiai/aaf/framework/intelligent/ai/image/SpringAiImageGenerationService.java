@@ -9,10 +9,12 @@ import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -31,7 +33,8 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
     private final AiProperties aiProperties;
 
     @Override
-    public ImageResult generate(ImageRequest request) {
+    @AiCredit(precheck = false)
+    public ImageResult generate(AiModel model, ImageRequest request) {
         var aiModel =
                 modelRepository.findByModelIdAndEnabledTrue(request.getModelId()).orElse(null);
         // GPT image 模型直接走 HTTP（传 background/output_format/moderation 等参数）
@@ -145,7 +148,8 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
 
     /** 图像编辑：调用 /v1/images/edits（multipart/form-data，OpenAI 标准格式）。 */
     @Override
-    public ImageResult imageToImage(ImageEditRequest req) {
+    @AiCredit(precheck = false)
+    public ImageResult imageToImage(AiModel model, ImageEditRequest req) {
         String modelId = req.getModelId();
         var aiModel = modelRepository.findByModelIdAndEnabledTrue(modelId).orElseThrow();
         String apiKey = resolveApiKey(aiModel);
@@ -261,7 +265,8 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    public ImageResult editImage(ImageEditRequest request) {
-        return imageToImage(request);
+    @AiCredit(precheck = false)
+    public ImageResult editImage(AiModel model, ImageEditRequest request) {
+        return imageToImage(model, request);
     }
 }

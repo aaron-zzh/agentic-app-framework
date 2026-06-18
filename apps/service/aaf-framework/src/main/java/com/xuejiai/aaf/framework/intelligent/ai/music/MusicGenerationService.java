@@ -1,14 +1,28 @@
 package com.xuejiai.aaf.framework.intelligent.ai.music;
 
+import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+
 /**
  * 音乐生成服务接口。
  *
  * <p>基于阿里云百炼 fun-music-v1 模型，支持文本提示词或歌词生成音乐。
  */
-public interface MusicGenerationService {
+public interface MusicGenerationService extends AiCapability {
+
+    @Override
+    default String capability() {
+        return CapabilityRoutingContext.CAP_MUSIC_GEN;
+    }
+
+    @Override
+    default String bizName() {
+        return "音乐生成";
+    }
 
     /** 提交音乐生成任务（非流式），返回生成结果。 */
-    MusicResult generate(MusicRequest request);
+    MusicResult generate(AiModel model, MusicRequest request);
 
     // === 请求/响应 Records ===
 

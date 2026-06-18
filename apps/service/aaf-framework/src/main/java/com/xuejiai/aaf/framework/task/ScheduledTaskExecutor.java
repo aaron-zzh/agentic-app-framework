@@ -253,6 +253,10 @@ public class ScheduledTaskExecutor {
 
         var now = LocalDateTime.now();
         try {
+            // 用户任务：注入归属者上下文，供 @AiCredit 等切面取到用户 ID
+            if (def.ownerId() != null) {
+                TaskExecutionContextHolder.set(def.ownerId());
+            }
             // 通过元引擎运行时执行（含执行监控回调）
             var result =
                     taskRuntime.submit(
@@ -267,7 +271,8 @@ public class ScheduledTaskExecutor {
             // 记录失败次数，连续失败超阈值自动暂停任务
             persistencePort.ifAvailable(port -> port.recordFailure(def.name(), e.getMessage()));
         } finally {
-            // 无论成功失败都释放锁
+            // 无论成功失败都释放锁，并清理用户上下文
+            TaskExecutionContextHolder.clear();
             redisTemplate.delete(lockKey);
         }
     }

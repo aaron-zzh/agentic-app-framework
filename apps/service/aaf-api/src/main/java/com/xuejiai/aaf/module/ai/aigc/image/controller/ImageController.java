@@ -24,6 +24,8 @@ import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyImageService.TaskStatus;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.image.service.AiImageService;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.AiImageVO;
@@ -54,6 +56,7 @@ public class ImageController {
 
     private final AiImageService aiImageService;
     private final ImageServiceFactory imageServiceFactory;
+    private final CapabilityRouter capabilityRouter;
     private final OperatorContext operatorContext;
     private final ObjectMapper objectMapper;
 
@@ -188,37 +191,57 @@ public class ImageController {
         return Result.success(midjourneyService.queryTasks(request.taskIds()));
     }
 
-    // ========== 图生图 / 局部编辑 ==========
+    // ========== 图생图 / 局部编辑 ==========
 
     /** 图生图请求 DTO。 */
     public record ImageToImageRequest(
-            @NotBlank String sourceUrl, @NotBlank String prompt, Double strength) {}
+            @NotBlank String sourceUrl,
+            @NotBlank String prompt,
+            @NotBlank String modelId,
+            Double strength) {}
 
     /** 局部编辑请求 DTO。 */
     public record ImageEditDTO(
-            @NotBlank String sourceUrl, String maskUrl, @NotBlank String prompt) {}
+            @NotBlank String sourceUrl,
+            String maskUrl,
+            @NotBlank String prompt,
+            @NotBlank String modelId) {}
 
     @Operation(summary = "图生图（参考图 + 风格 Prompt + 强度）")
     @PostMapping("/image-to-image")
     public Result<ImageResult> imageToImage(@RequestBody @Valid ImageToImageRequest request) {
+        Long userId = operatorContext.currentOwnerId().orElse(null);
+        var model =
+                capabilityRouter.resolve(
+                        CapabilityRoutingContext.of(
+                                userId,
+                                CapabilityRoutingContext.CAP_IMAGE_GEN,
+                                request.modelId()));
         var editRequest =
                 new ImageEditRequest(
                         request.sourceUrl(),
                         null,
                         request.prompt(),
                         request.strength() != null ? request.strength() : 0.75,
-                        null);
-        var result = imageServiceFactory.getSyncService(null).imageToImage(editRequest);
+                        model.getModelId());
+        var result = imageServiceFactory.getSyncService(model).imageToImage(model, editRequest);
         return Result.success(result);
     }
 
     @Operation(summary = "局部编辑（原图 + 蒙版 + 编辑 Prompt）")
     @PostMapping("/edit")
     public Result<ImageResult> editImage(@RequestBody @Valid ImageEditDTO request) {
+        Long userId = operatorContext.currentOwnerId().orElse(null);
+        var model =
+                capabilityRouter.resolve(
+                        CapabilityRoutingContext.of(
+                                userId,
+                                CapabilityRoutingContext.CAP_IMAGE_GEN,
+                                request.modelId()));
         var editRequest =
                 new ImageEditRequest(
-                        request.sourceUrl(), request.maskUrl(), request.prompt(), null, null);
-        var result = imageServiceFactory.getSyncService(null).editImage(editRequest);
+                        request.sourceUrl(), request.maskUrl(), request.prompt(), null, model.getModelId());
+        var result = imageServiceFactory.getSyncService(model).editImage(model, editRequest);
         return Result.success(result);
     }
 }

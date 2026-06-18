@@ -91,6 +91,8 @@ public class CreditController {
                                                 t.getAmount(),
                                                 t.getBalanceAfter(),
                                                 t.getSource(),
+                                                t.getCategory(),
+                                                t.getRemark(),
                                                 t.getBizId(),
                                                 t.getCreateTime()))
                         .toList();

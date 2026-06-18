@@ -18,7 +18,8 @@ public enum AiModelProviderType implements ArrayValuable<String> {
     OPENAI_COMPAT("OPENAI_COMPAT", "OpenAI 兼容（images/generations）"),
     ANTHROPIC("ANTHROPIC", "Anthropic"),
     OLLAMA("OLLAMA", "Ollama"),
-    DASHSCOPE("DASHSCOPE", "阿里云百炼");
+    DASHSCOPE("DASHSCOPE", "阿里云百炼"),
+    VOLCENGINE("VOLCENGINE", "火山引擎方舟");
 
     private final String code;
     private final String description;

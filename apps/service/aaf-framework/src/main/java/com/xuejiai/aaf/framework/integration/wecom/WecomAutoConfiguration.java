@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import com.xuejiai.aaf.framework.messaging.ChannelSender;
 import com.xuejiai.aaf.framework.messaging.provider.wecom.WecomChannelSender;
 
-import lombok.extern.slf4j.Slf4j;
 import me.chanjar.weixin.cp.api.WxCpService;
 import me.chanjar.weixin.cp.api.impl.WxCpServiceImpl;
 import me.chanjar.weixin.cp.config.impl.WxCpDefaultConfigImpl;
@@ -20,7 +19,6 @@ import me.chanjar.weixin.cp.config.impl.WxCpDefaultConfigImpl;
  * <p>配置 aaf.security.oauth.wecom.corp-id 后自动注册 WxCpService 和 WecomClient Bean。 与 OAuth 登录共用同一套
  * corpId/agentId/secret 配置。
  */
-@Slf4j
 @Configuration
 @EnableConfigurationProperties(WecomProperties.class)
 @ConditionalOnClass(WxCpService.class)
@@ -32,7 +30,6 @@ public class WecomAutoConfiguration {
 
     @Bean
     public WxCpService wxCpService(WecomProperties props) {
-        log.info("企业微信配置加载: corpId={}, agentId={}", props.corpId(), props.agentId());
         var config = new WxCpDefaultConfigImpl();
         config.setCorpId(props.corpId());
         if (props.agentId() != null) {

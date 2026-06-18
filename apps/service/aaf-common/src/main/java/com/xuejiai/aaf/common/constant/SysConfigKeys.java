@@ -87,6 +87,18 @@ public final class SysConfigKeys {
         public static final String FAQ = "member.faq"; // 会员与积分常见问题（JSON 数组）
     }
 
+    /** AIGC 通用配置 */
+    public static final class Aigc {
+
+        private Aigc() {}
+
+        /** AIGC 生成 Mock 开关，开启后跳过真实 API 调用，返回 {@link #MOCK_DATA} 中的固定值，适用于开发调试。 */
+        public static final String MOCK_ENABLED = "aigc.mock_enabled";
+
+        /** AIGC Mock 固定返回数据（JSON），各类型 key 对应固定返回值。示例： */
+        public static final String MOCK_DATA = "aigc.mock_data";
+    }
+
     /** 示例模块配置 */
     public static final class Examples {
 

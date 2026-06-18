@@ -59,6 +59,7 @@ const examplePages = [
   { label: "Image", href: "/examples/image" },
   { label: "Lottie", href: "/examples/lottie" },
   { label: "Next.js Features", href: "/examples/nextjs-features" },
+  { label: "OCR", href: "/examples/ocr" },
   { label: "Omni Realtime", href: "/examples/omni-realtime" },
   { label: "PDF", href: "/examples/pdf" },
   { label: "Style Showcase", href: "/examples/style-showcase" },

@@ -5,10 +5,12 @@ import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageProcessService;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +21,7 @@ import lombok.RequiredArgsConstructor;
  * <p>只调用封装好的接口，不直接使用 SDK：
  *
  * <ul>
- *   <li>{@link ImageGenerationService} — 文生图
+ *   <li>{@link ImageServiceFactory} — 文生图路由
  *   <li>{@link ImageProcessService} — 图像处理
  * </ul>
  */
@@ -28,13 +30,22 @@ import lombok.RequiredArgsConstructor;
 @ConditionalOnProperty(name = "aaf.examples.image.enabled", havingValue = "true")
 public class ImageExampleService {
 
-    private final ImageGenerationService imageGenerationService;
+    private final ImageServiceFactory imageServiceFactory;
     private final ImageProcessService imageProcessService;
+    private final CapabilityRouter capabilityRouter;
 
     /** 文生图示例 */
     public ImageResult generate(GenerateRequest req) {
-        return imageGenerationService.generate(
-                new ImageRequest(req.prompt(), req.modelId(), req.width(), req.height(), "url"));
+        var model =
+                capabilityRouter.resolve(
+                        CapabilityRoutingContext.of(
+                                null, CapabilityRoutingContext.CAP_IMAGE_GEN, req.modelId()));
+        return imageServiceFactory
+                .getSyncService(model)
+                .generate(
+                        model,
+                        new ImageRequest(
+                                req.prompt(), model.getModelId(), req.width(), req.height(), "url"));
     }
 
     /** 图像处理示例 */

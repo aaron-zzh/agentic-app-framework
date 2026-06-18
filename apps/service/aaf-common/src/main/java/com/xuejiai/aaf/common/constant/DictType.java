@@ -38,6 +38,14 @@ public final class DictType {
         public static final String APPROVAL_OPERATION_TYPE = "approval_operation_type"; // 审批操作类型
     }
 
+    /** AI 模块 */
+    public static final class Ai {
+
+        private Ai() {}
+
+        public static final String OCR_DOCUMENT_TYPE = "ai_ocr_document_type"; // OCR 支持的证件/票据类型
+    }
+
     /** 支付模块 */
     public static final class Pay {
 
@@ -50,7 +58,12 @@ public final class DictType {
         public static final String REFUND_STATUS = "pay_refund_status"; // 退款订单状态
         public static final String TRANSFER_TYPE = "pay_transfer_type"; // 转账类型
         public static final String TRANSFER_STATUS = "pay_transfer_status"; // 转账订单状态
-        public static final String CREDIT_TRANSACTION_TYPE = "credit_transaction_type"; // 积分流水类型
+        public static final String CREDIT_TRANSACTION_TYPE =
+                "credit_transaction_type"; // 积分流水类型，见 CreditTransactionTypeEnum
+        public static final String CREDIT_TRANSACTION_SOURCE =
+                "credit_transaction_source"; // 积分流水来源，见 CreditTransactionSourceEnum
+        public static final String CREDIT_TRANSACTION_CATEGORY =
+                "credit_transaction_category"; // 积分消费分类，见 CreditTransactionCategoryEnum
         public static final String BIZ_ORDER_TYPE = "biz_order_type"; // 业务订单类型
         public static final String BIZ_ORDER_STATUS = "biz_order_status"; // 业务订单状态
         public static final String CREDIT_RULE_STATUS = "credit_rule_status"; // 积分规则状态

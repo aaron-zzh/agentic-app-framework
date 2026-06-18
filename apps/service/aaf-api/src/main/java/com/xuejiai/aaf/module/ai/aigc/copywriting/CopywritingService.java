@@ -8,11 +8,16 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +31,8 @@ public class CopywritingService {
 
     private final ResilientChatService chatService;
     private final OperatorContext operatorContext;
+    private final SystemConfigService systemConfigService;
+    private final ObjectMapper objectMapper;
 
     /**
      * 流式生成文案。
@@ -46,6 +53,7 @@ public class CopywritingService {
             String translateTo,
             String referenceAnalysis,
             String userNotes) {
+        if (isMockEnabled()) return mockTextStream();
         Long userId = operatorContext.currentUserId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
         var messages =
@@ -83,6 +91,7 @@ public class CopywritingService {
      * @return 文字 token 流
      */
     public Flux<String> rewrite(String modelId, String content) {
+        if (isMockEnabled()) return mockTextStream();
         Long userId = operatorContext.currentUserId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
         var messages =
@@ -117,6 +126,7 @@ public class CopywritingService {
     }
 
     public Flux<String> analyze(String modelId, String content) {
+        if (isMockEnabled()) return mockTextStream();
         Long userId = operatorContext.currentUserId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
         var messages =
@@ -188,5 +198,32 @@ public class CopywritingService {
             sb.append("\n\n创作要求补充：\n").append(userNotes);
         }
         return sb.toString();
+    }
+
+    // ========== Mock 辅助方法 ==========
+
+    private boolean isMockEnabled() {
+        return systemConfigService.getBoolean(SysConfigKeys.Aigc.MOCK_ENABLED, false);
+    }
+
+    /** 将 mock 固定文本拆成单字符逐个 emit，模拟流式输出效果。 固定文本从 {@code aigc.mock_data} 的 {@code text} 字段读取。 */
+    private Flux<String> mockTextStream() {
+        var json = systemConfigService.getString(SysConfigKeys.Aigc.MOCK_DATA);
+        String mockText = "这是一段 Mock 固定文字内容。";
+        if (json != null && !json.isBlank()) {
+            try {
+                var map =
+                        objectMapper.readValue(
+                                json, new TypeReference<java.util.Map<String, String>>() {});
+                var val = map.get("text");
+                if (val != null && !val.isBlank()) mockText = val;
+            } catch (Exception e) {
+                log.warn("[mock] 解析 aigc.mock_data 失败: {}", e.getMessage());
+            }
+        }
+        // 按字符拆分，模拟 token 逐字输出
+        var chars = mockText.chars().mapToObj(c -> String.valueOf((char) c)).toList();
+        log.info("[mock] 文案流式 mock，共 {} 字", chars.size());
+        return Flux.fromIterable(chars);
     }
 }

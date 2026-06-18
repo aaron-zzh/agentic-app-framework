@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiEditParams;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiGenerateParams;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
@@ -40,7 +41,8 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
     private final ModelManagementService modelManagementService;
 
     @Override
-    public ImageResult generate(ImageRequest request) {
+    @AiCredit(precheck = false)
+    public ImageResult generate(AiModel model, ImageRequest request) {
         var aiModel = modelManagementService.getModel(request.getModelId());
         var config = modelManagementService.resolveImageConfig(request.getModelId());
         var params = GeminiGenerateParams.of(request, config);
@@ -59,7 +61,8 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
     }
 
     @Override
-    public ImageResult imageToImage(ImageEditRequest request) {
+    @AiCredit(precheck = false)
+    public ImageResult imageToImage(AiModel model, ImageEditRequest request) {
         var aiModel = modelManagementService.getModel(request.getModelId());
         var config = modelManagementService.resolveImageConfig(request.getModelId());
         var params = GeminiEditParams.of(request, config);
@@ -77,8 +80,9 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
     }
 
     @Override
-    public ImageResult editImage(ImageEditRequest request) {
-        return imageToImage(request);
+    @AiCredit(precheck = false)
+    public ImageResult editImage(AiModel model, ImageEditRequest request) {
+        return imageToImage(model, request);
     }
 
     // ========== 内部方法 ==========
@@ -143,8 +147,17 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
             if (b64 == null) {
                 throw new RuntimeException("Gemini 未返回图片，请检查日志中的完整响应");
             }
+            int inputTokens = 0, outputTokens = 0;
+            try {
+                var root = MAPPER.readTree(response);
+                var usage = root.path("usageMetadata");
+                inputTokens = usage.path("promptTokenCount").asInt(0);
+                outputTokens = usage.path("candidatesTokenCount").asInt(0);
+            } catch (Exception ignore) {
+            }
             log.info("[GeminiNative] {} 完成: modelId={}", op, modelId);
-            return new ImageResult(null, b64, modelId);
+            return new ImageResult(
+                    null, b64, modelId, java.util.List.of(), inputTokens, outputTokens);
         } catch (Exception e) {
             log.error("[GeminiNative] {} 失败: modelId={}", op, modelId, e);
             throw new RuntimeException("Gemini 图像" + op + "失败: " + e.getMessage(), e);

@@ -69,7 +69,10 @@ public class RechargeService implements PaySuccessHandler {
         bizOrderService.markPaid(bizOrder.getId());
         // 积分入账（金额从业务订单获取）
         creditService.earn(
-                bizOrder.getUserId(), bizOrder.getTotalAmount(), CreditTransactionSourceEnum.RECHARGE.getCode(), bizOrder.getOrderNo());
+                bizOrder.getUserId(),
+                bizOrder.getTotalAmount(),
+                CreditTransactionSourceEnum.RECHARGE.getCode(),
+                bizOrder.getOrderNo());
         log.info(
                 "充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), bizOrder.getTotalAmount());
     }

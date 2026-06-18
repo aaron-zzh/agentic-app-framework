@@ -2,12 +2,20 @@ package com.xuejiai.aaf.framework.intelligent.ai.model3d;
 
 import java.util.List;
 
+import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+
 /**
  * 3D 模型生成服务接口（异步任务模式）。
  *
  * @author AaronZZH & Kiro
  */
-public interface Model3dGenerationService {
+public interface Model3dGenerationService extends AiCapability {
+
+    @Override
+    default String capability() {
+        return CapabilityRoutingContext.CAP_MODEL_3D;
+    }
 
     /** 文生 3D，返回 taskId。 */
     String submitTextTo3d(TextTo3dRequest request);

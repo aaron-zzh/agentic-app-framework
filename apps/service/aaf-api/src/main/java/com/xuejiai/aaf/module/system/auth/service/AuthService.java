@@ -27,8 +27,8 @@ import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.oauth.OAuthClient;
 import com.xuejiai.aaf.framework.security.oauth.OAuthUserInfo;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.auth.vo.*;
-import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
 import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
@@ -517,7 +517,11 @@ public class AuthService {
     /** 注册赠积分（赠送数量固定 50，不可配置） */
     private void grantRegistrationCredits(Long userId) {
         try {
-            creditService.earn(userId, 50, CreditTransactionSourceEnum.REGISTER_GIFT.getCode(), String.valueOf(userId));
+            creditService.earn(
+                    userId,
+                    50,
+                    CreditTransactionSourceEnum.REGISTER_GIFT.getCode(),
+                    String.valueOf(userId));
         } catch (Exception e) {
             log.warn("注册赠积分失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
         }

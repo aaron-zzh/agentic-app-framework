@@ -9,5 +9,7 @@ public record CreditTransactionVO(
         Long amount,
         Long balanceAfter,
         String source,
+        String category,
+        String remark,
         String bizId,
         LocalDateTime createTime) {}

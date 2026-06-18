@@ -21,7 +21,9 @@ const PROTECTED_PATHS = [
   "/todos",
   "/trash",
   "/admin",
-  "/aigc"
+  "/aigc",
+  "/examples/ocr",
+  "/examples/image"
 ]
 
 /**

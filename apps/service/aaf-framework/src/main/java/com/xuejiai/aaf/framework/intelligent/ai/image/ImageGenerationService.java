@@ -3,33 +3,49 @@ package com.xuejiai.aaf.framework.intelligent.ai.image;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
+import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
 /** 文生图服务接口，支持按模型动态切换（DALL-E / 通义万象 wanx 等）。 */
-public interface ImageGenerationService {
+public interface ImageGenerationService extends AiCapability {
+
+    @Override
+    default String capability() {
+        return CapabilityRoutingContext.CAP_IMAGE_GEN;
+    }
+
+    @Override
+    default String bizName() {
+        return "图像生成";
+    }
 
     /**
      * 文生图。
      *
+     * @param model 使用的 AI 模型
      * @param request 生成请求
      * @return 生成结果（URL 或 Base64）
      */
-    ImageResult generate(ImageRequest request);
+    ImageResult generate(AiModel model, ImageRequest request);
 
     /**
      * 图生图（参考图 + 风格 Prompt + 强度）。
      *
+     * @param model 使用的 AI 模型
      * @param request 编辑请求（sourceUrl 必填，maskUrl 为 null）
      * @return 生成结果
      */
-    ImageResult imageToImage(ImageEditRequest request);
+    ImageResult imageToImage(AiModel model, ImageEditRequest request);
 
     /**
      * 局部编辑（原图 + 蒙版区域 + 编辑 Prompt）。
      *
+     * @param model 使用的 AI 模型
      * @param request 编辑请求（sourceUrl + maskUrl + prompt）
      * @return 生成结果
      */
-    ImageResult editImage(ImageEditRequest request);
+    ImageResult editImage(AiModel model, ImageEditRequest request);
 
     /**
      * 图片生成请求。

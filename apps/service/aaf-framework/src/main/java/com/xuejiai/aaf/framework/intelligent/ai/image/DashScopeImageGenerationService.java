@@ -25,9 +25,11 @@ import com.alibaba.dashscope.common.MultiModalMessage;
 import com.alibaba.dashscope.common.Role;
 import com.alibaba.dashscope.utils.Constants;
 
+import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,22 +66,24 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    public ImageResult generate(ImageRequest req) {
-        String model = stripNamespace(req.getModelId());
-        log.info("[DashScopeImage] 生成: model={}", model);
+    @AiCredit(precheck = false)
+    public ImageResult generate(AiModel model, ImageRequest req) {
+        String modelStr = stripNamespace(req.getModelId());
+        log.info("[DashScopeImage] 生成: model={}", modelStr);
 
-        if (model.startsWith("wan2.")) {
+        if (modelStr.startsWith("wan2.")) {
             // wan2: size 优先用 sizePreset 档位（"1K"/"2K"/"4K"），否则用像素字符串
             String size = req.resolveSize();
-            return callWan2(model, req.getPrompt(), size, req.getSeed(), req.getImageCount(), null);
+            return callWan2(
+                    modelStr, req.getPrompt(), size, req.getSeed(), req.getImageCount(), null);
         }
-        if (model.startsWith("qwen-image-2")) {
+        if (modelStr.startsWith("qwen-image-2")) {
             String size =
                     req.getWidth() > 0 && req.getHeight() > 0
                             ? req.getWidth() + "*" + req.getHeight()
                             : null;
             return callQwenImage2(
-                    model,
+                    modelStr,
                     req.getPrompt(),
                     null,
                     size,
@@ -90,7 +94,7 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
         }
         String size = req.getWidth() + "*" + req.getHeight();
         return callImageSynthesis(
-                model,
+                modelStr,
                 req.getPrompt(),
                 size,
                 req.getNegativePrompt(),
@@ -99,12 +103,13 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    public ImageResult imageToImage(ImageEditRequest req) {
-        String model =
+    @AiCredit(precheck = false)
+    public ImageResult imageToImage(AiModel model, ImageEditRequest req) {
+        String modelStr =
                 req.getModelId() != null ? stripNamespace(req.getModelId()) : "qwen-image-2.0-pro";
         var urls = req.allSourceUrls().isEmpty() ? null : req.allSourceUrls();
         return generateWithImages(
-                model,
+                modelStr,
                 req.getPrompt(),
                 urls,
                 req.getEditSize(),
@@ -114,8 +119,9 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    public ImageResult editImage(ImageEditRequest req) {
-        return imageToImage(req);
+    @AiCredit(precheck = false)
+    public ImageResult editImage(AiModel model, ImageEditRequest req) {
+        return imageToImage(model, req);
     }
 
     /**
@@ -133,6 +139,12 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
                 req.getSeed(),
                 req.getImageCount(),
                 req.getSizePreset() != null);
+    }
+
+    /** 供 AigcTaskExecutor 调用，携带 AiModel 供 @AiCredit 切面结算。 */
+    @AiCredit(precheck = false)
+    public ImageResult generateWithImages(AiModel model, ImageRequest req) {
+        return generateWithImages(req);
     }
 
     public ImageResult generateWithImages(

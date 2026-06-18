@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "autodev_session")
 @SQLDelete(
         sql =
-                "UPDATE autodev_session SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE autodev_session SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AutodevSession extends BaseEntity {
 
     @Column(name = "session_id", nullable = false, length = 64)

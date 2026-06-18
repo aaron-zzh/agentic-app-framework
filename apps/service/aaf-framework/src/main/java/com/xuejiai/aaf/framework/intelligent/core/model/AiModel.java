@@ -137,7 +137,8 @@ public class AiModel extends BaseEntity {
     @Column(name = "supported_endpoints", columnDefinition = "jsonb")
     private String supportedEndpoints;
 
-    /** 配额类型 */
+    /** 配额类型：0=token计费，1=次数计费 */
+    @Column(nullable = false)
     private Short quotaType = 0;
 
     /** 固定价格 */

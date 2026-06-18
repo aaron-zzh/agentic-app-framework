@@ -211,7 +211,7 @@ CREATE TABLE ai_model (
     model_type          VARCHAR(50),
     supported_endpoints JSONB,
     -- 配额管理
-    quota_type          SMALLINT         DEFAULT 0,
+    quota_type          SMALLINT         NOT NULL DEFAULT 0,
     model_price         NUMERIC(10, 6),
     -- 分组与供应商
     enable_groups       JSONB,

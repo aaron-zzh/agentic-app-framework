@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.config.domain;
+package com.xuejiai.aaf.framework.system.config.domain;
 
 import org.hibernate.annotations.SQLDelete;
 

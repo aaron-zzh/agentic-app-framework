@@ -12,6 +12,8 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetGroup;
@@ -43,6 +45,7 @@ public class MediaAssetService {
     private final MediaAssetVariantRepository variantRepository;
     private final MediaAssetGroupRepository groupRepository;
     private final ImageServiceFactory imageServiceFactory;
+    private final CapabilityRouter capabilityRouter;
     private final FileService fileService;
 
     /**
@@ -239,17 +242,25 @@ public class MediaAssetService {
     @Transactional
     public MediaAssetVO regenerate(Long userId, RegenerateRequest request) {
         var original = findById(request.assetId());
-        // 构建生成请求
         var prompt = request.newPrompt() != null ? request.newPrompt() : extractPrompt(original);
-        var service = imageServiceFactory.getSyncService(null);
+        // 走模型决策链：优先用请求中指定的 modelId，否则沿用原素材的 modelName（通常即 modelId）
+        var explicitModelId =
+                request.modelId() != null ? request.modelId() : original.getModelName();
+        var model =
+                capabilityRouter.resolve(
+                        CapabilityRoutingContext.of(
+                                userId, CapabilityRoutingContext.CAP_IMAGE_GEN, explicitModelId));
         var result =
-                service.generate(
-                        new ImageRequest(
-                                prompt,
-                                null,
-                                original.getWidth() != null ? original.getWidth() : 1024,
-                                original.getHeight() != null ? original.getHeight() : 1024,
-                                "url"));
+                imageServiceFactory
+                        .getSyncService(model)
+                        .generate(
+                                model,
+                                new ImageRequest(
+                                        prompt,
+                                        model.getModelId(),
+                                        original.getWidth() != null ? original.getWidth() : 1024,
+                                        original.getHeight() != null ? original.getHeight() : 1024,
+                                        "url"));
 
         // 保存为新素材
         var variant = new MediaAsset();

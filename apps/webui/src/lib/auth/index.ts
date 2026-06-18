@@ -1,3 +1,4 @@
+export * from "./AuthGuard"
 export * from "./AuthProvider"
 export * from "./GuestGuard"
 export * from "./mock-user"

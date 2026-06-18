@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.framework.intelligent.ai.avatar;
 
+import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+
 /**
  * 数字人视频生成服务接口（wan2.2-s2v）。
  *
@@ -11,7 +14,12 @@ package com.xuejiai.aaf.framework.intelligent.ai.avatar;
  *   <li>{@link #query} — 轮询任务结果
  * </ol>
  */
-public interface AvatarVideoService {
+public interface AvatarVideoService extends AiCapability {
+
+    @Override
+    default String capability() {
+        return CapabilityRoutingContext.CAP_AVATAR;
+    }
 
     /**
      * 检测图片是否满足数字人生成要求（清晰度、单人、正面等）。

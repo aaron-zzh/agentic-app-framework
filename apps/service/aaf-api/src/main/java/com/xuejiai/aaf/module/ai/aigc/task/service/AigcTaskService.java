@@ -10,6 +10,10 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
@@ -20,6 +24,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.storage.StorageService;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
@@ -71,6 +76,8 @@ public class AigcTaskService
     private final CapabilityRouter capabilityRouter;
     private final AigcTaskExecutor taskExecutor;
     private final AiCreditGuard creditGuard;
+    private final SystemConfigService systemConfigService;
+    private final ObjectMapper objectMapper;
 
     // ========== BaseCrudService 必须实现 ==========
 
@@ -158,12 +165,13 @@ public class AigcTaskService
 
         final Long taskId = task.getId();
         final String prompt = req.prompt();
+        final String mockUrl = isMockEnabled() ? getMockValue("image") : null;
         org.springframework.transaction.support.TransactionSynchronizationManager
                 .registerSynchronization(
                         new org.springframework.transaction.support.TransactionSynchronization() {
                             @Override
                             public void afterCommit() {
-                                taskExecutor.submitSync(taskId, prompt, resolvedModel);
+                                taskExecutor.submitSync(taskId, prompt, resolvedModel, mockUrl);
                             }
                         });
         log.debug(
@@ -178,6 +186,10 @@ public class AigcTaskService
         var task = buildTask(userId, TYPE_VIDEO, prompt, model, null, projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
+        if (isMockEnabled()) {
+            mockComplete(task, "video");
+            return task.getId();
+        }
         log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), model);
         return task.getId();
     }
@@ -189,12 +201,13 @@ public class AigcTaskService
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
+        final String mockUrl3d = isMockEnabled() ? getMockValue("model3d") : null;
         org.springframework.transaction.support.TransactionSynchronizationManager
                 .registerSynchronization(
                         new org.springframework.transaction.support.TransactionSynchronization() {
                             @Override
                             public void afterCommit() {
-                                taskExecutor.submitModel3dSync(taskId, prompt);
+                                taskExecutor.submitModel3dSync(taskId, prompt, mockUrl3d);
                             }
                         });
         return task.getId();
@@ -215,13 +228,14 @@ public class AigcTaskService
 
         final Long taskId = task.getId();
         final String resolvedGender = gender != null ? gender : "female";
+        final String mockUrlMusic = isMockEnabled() ? getMockValue("audio") : null;
         org.springframework.transaction.support.TransactionSynchronizationManager
                 .registerSynchronization(
                         new org.springframework.transaction.support.TransactionSynchronization() {
                             @Override
                             public void afterCommit() {
                                 taskExecutor.submitMusicSync(
-                                        taskId, prompt, lyrics, resolvedGender);
+                                        taskId, prompt, lyrics, resolvedGender, mockUrlMusic);
                             }
                         });
         return task.getId();
@@ -257,12 +271,13 @@ public class AigcTaskService
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
+        final String mockUrlVoice = isMockEnabled() ? getMockValue("audio") : null;
         org.springframework.transaction.support.TransactionSynchronizationManager
                 .registerSynchronization(
                         new org.springframework.transaction.support.TransactionSynchronization() {
                             @Override
                             public void afterCommit() {
-                                taskExecutor.submitVoiceSync(taskId, text, voice);
+                                taskExecutor.submitVoiceSync(taskId, text, voice, mockUrlVoice);
                             }
                         });
         log.info("[submitVoiceTask] 配音生成任务已创建: taskId={}, voice={}", task.getId(), voice);
@@ -422,5 +437,54 @@ public class AigcTaskService
             case TYPE_VOICE -> "audio/mpeg";
             default -> "image/png";
         };
+    }
+
+    // ========== Mock 辅助方法 ==========
+
+    /** 判断 AIGC Mock 开关是否开启。 */
+    private boolean isMockEnabled() {
+        return systemConfigService.getBoolean(SysConfigKeys.Aigc.MOCK_ENABLED, false);
+    }
+
+    /**
+     * 读取指定类型的 mock 固定返回值。
+     *
+     * <p>从 {@code aigc.mock_data} JSON 中按 {@code typeKey} 取值，JSON 示例：
+     *
+     * <pre>
+     * {@code {"image":"https://...","video":"https://...","text":"固定文字","audio":"https://..."}}
+     * </pre>
+     *
+     * @param typeKey image / video / text / audio
+     * @return 固定返回值，配置缺失时返回空字符串
+     */
+    private String getMockValue(String typeKey) {
+        var json = systemConfigService.getString(SysConfigKeys.Aigc.MOCK_DATA);
+        if (json == null || json.isBlank()) return "";
+        try {
+            var map =
+                    objectMapper.readValue(
+                            json, new TypeReference<java.util.Map<String, String>>() {});
+            return map.getOrDefault(typeKey, "");
+        } catch (Exception e) {
+            log.warn("[getMockValue] 解析 aigc.mock_data 失败: {}", e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * Mock 模式下将任务直接标记为成功，写入固定返回值，并同步写入素材库（image/video/model3d）。
+     *
+     * @param task 已保存的任务实体
+     * @param typeKey image / video / text / audio / model3d
+     */
+    private void mockComplete(AigcTask task, String typeKey) {
+        var mockVal = getMockValue(typeKey);
+        task.setResultUrl(mockVal);
+        task.setOssUrl(mockVal);
+        task.setStatus(STATUS_SUCCESS);
+        taskRepo.save(task);
+        eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+        log.info("[mock] 任务直接完成: taskId={}, type={}, url={}", task.getId(), typeKey, mockVal);
     }
 }

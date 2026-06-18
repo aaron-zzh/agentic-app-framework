@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "credit_transaction")
 @SQLDelete(
         sql =
-                "UPDATE credit_transaction SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+                "UPDATE credit_transaction SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class CreditTransaction extends BaseEntity {
 
     /** 关联账户 ID */
@@ -37,9 +37,13 @@ public class CreditTransaction extends BaseEntity {
     @Column(name = "balance_after", nullable = false)
     private Long balanceAfter;
 
-    /** 来源描述 */
+    /** 来源描述（历史字段，新代码改用枚举值） */
     @Column(name = "source", length = 100)
     private String source;
+
+    /** 消费分类（AI 能力维度，仅 SPEND 类型有意义），对应 {@link CreditTransactionCategory} */
+    @Column(name = "category", length = 32)
+    private String category;
 
     /** 业务单号 */
     @Column(name = "biz_id", length = 64)

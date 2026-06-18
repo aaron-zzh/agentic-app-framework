@@ -78,7 +78,7 @@ public class AigcTaskExecutor {
      */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitSync(Long taskId, String prompt, String modelId) {
+    public void submitSync(Long taskId, String prompt, String modelId, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
         try {
@@ -86,37 +86,44 @@ public class AigcTaskExecutor {
             taskRepo.save(task);
 
             var p = parseImageParams(prompt, modelId, task.getParams());
+            var aiModel = configCacheManager.getAiModelByModelId(modelId);
 
-            var svc = imageServiceFactory.getSyncService(modelId);
             ImageResult result;
-            if (p.getImageUrls() != null && !p.getImageUrls().isEmpty()) {
-                if (svc instanceof DashScopeImageGenerationService ds) {
-                    result = ds.generateWithImages(p);
-                } else {
-                    result =
-                            svc.imageToImage(
-                                    new ImageEditRequest(
-                                            p.getImageUrls().get(0),
-                                            null,
-                                            prompt,
-                                            null,
-                                            modelId,
-                                            p.getQuality(),
-                                            p.getFormat(),
-                                            p.getBackground(),
-                                            p.getModeration(),
-                                            p.getImageCount() > 1 ? p.getImageCount() : null,
-                                            p.getImageUrls()) {
-                                        {
-                                            setWidth(p.getWidth());
-                                            setHeight(p.getHeight());
-                                            setSizePreset(p.getSizePreset());
-                                            setAspectRatio(p.getAspectRatio());
-                                        }
-                                    });
-                }
+            if (mockUrl != null && !mockUrl.isBlank()) {
+                // Mock 模式：跳过真实 API，直接构造结果
+                result = new ImageResult(mockUrl, null, modelId);
             } else {
-                result = svc.generate(p);
+                var svc = imageServiceFactory.getSyncService(modelId);
+                if (p.getImageUrls() != null && !p.getImageUrls().isEmpty()) {
+                    if (svc instanceof DashScopeImageGenerationService ds) {
+                        result = ds.generateWithImages(aiModel, p);
+                    } else {
+                        result =
+                                svc.imageToImage(
+                                        aiModel,
+                                        new ImageEditRequest(
+                                                p.getImageUrls().get(0),
+                                                null,
+                                                prompt,
+                                                null,
+                                                modelId,
+                                                p.getQuality(),
+                                                p.getFormat(),
+                                                p.getBackground(),
+                                                p.getModeration(),
+                                                p.getImageCount() > 1 ? p.getImageCount() : null,
+                                                p.getImageUrls()) {
+                                            {
+                                                setWidth(p.getWidth());
+                                                setHeight(p.getHeight());
+                                                setSizePreset(p.getSizePreset());
+                                                setAspectRatio(p.getAspectRatio());
+                                            }
+                                        });
+                    }
+                } else {
+                    result = svc.generate(aiModel, p);
+                }
             }
 
             String ossUrl;
@@ -185,21 +192,6 @@ public class AigcTaskExecutor {
             }
 
             log.info("[submitSync] 任务完成: taskId={}, ossUrl={}", taskId, ossUrl);
-            // 有 token 用量时按 token 结算，否则按次结算
-            var aiModel = configCacheManager.getAiModelByModelId(modelId);
-            if (result.inputTokens() > 0 || result.outputTokens() > 0) {
-                creditGuard.settleByModel(
-                        task.getUserId(),
-                        aiModel != null ? aiModel.getId() : null,
-                        result.inputTokens(),
-                        result.outputTokens(),
-                        String.valueOf(taskId));
-            } else {
-                creditGuard.settlePerUse(
-                        task.getUserId(),
-                        aiModel != null ? aiModel.getId() : null,
-                        String.valueOf(taskId));
-            }
         } catch (Exception e) {
             log.error("[submitSync] 生成失败: taskId={}", taskId, e);
             task.setStatus(STATUS_FAIL);
@@ -372,19 +364,24 @@ public class AigcTaskExecutor {
     /** 音乐生成异步执行（同步 API，阻塞直到结果返回）。 */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitMusicSync(Long taskId, String prompt, String lyrics, String gender) {
+    public void submitMusicSync(
+            Long taskId, String prompt, String lyrics, String gender, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
         try {
             task.setStatus("RUNNING");
             taskRepo.save(task);
 
-            var result =
-                    musicGenerationService.generate(
-                            new MusicRequest(prompt, lyrics, gender, "mp3"));
-
-            String ossUrl = uploadAudioToOss(result.audioUrl(), task.getId());
-            task.setResultUrl(result.audioUrl());
+            String ossUrl;
+            if (mockUrl != null && !mockUrl.isBlank()) {
+                ossUrl = mockUrl;
+            } else {
+                var result =
+                        musicGenerationService.generate(
+                                null, new MusicRequest(prompt, lyrics, gender, "mp3"));
+                task.setResultUrl(result.audioUrl());
+                ossUrl = uploadAudioToOss(result.audioUrl(), task.getId());
+            }
             task.setOssUrl(ossUrl);
             task.setStatus("SUCCESS");
             task.setUpdateTime(LocalDateTime.now());
@@ -441,24 +438,29 @@ public class AigcTaskExecutor {
     /** 配音生成异步执行（TTS 非流式，阻塞合成完整音频后上传 OSS）。 */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitVoiceSync(Long taskId, String text, String voice) {
+    public void submitVoiceSync(Long taskId, String text, String voice, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
         try {
             task.setStatus(STATUS_RUNNING);
             taskRepo.save(task);
 
-            var speechService = speechServiceProvider.getIfAvailable();
-            if (speechService == null) {
-                throw new IllegalStateException("配音服务未启用，请配置 spring.ai.dashscope.api-key");
+            String ossUrl;
+            if (mockUrl != null && !mockUrl.isBlank()) {
+                ossUrl = mockUrl;
+            } else {
+                var speechService = speechServiceProvider.getIfAvailable();
+                if (speechService == null) {
+                    throw new IllegalStateException("配音服务未启用，请配置 spring.ai.dashscope.api-key");
+                }
+
+                byte[] audio = speechService.synthesize(text, voice);
+                if (audio == null || audio.length == 0) {
+                    throw new IllegalStateException("配音合成结果为空: taskId=" + taskId);
+                }
+                ossUrl = uploadAudioBytesToOss(audio, task.getId());
             }
 
-            byte[] audio = speechService.synthesize(text, voice);
-            if (audio == null || audio.length == 0) {
-                throw new IllegalStateException("配音合成结果为空: taskId=" + taskId);
-            }
-
-            String ossUrl = uploadAudioBytesToOss(audio, task.getId());
             task.setResultUrl(ossUrl);
             task.setOssUrl(ossUrl);
             task.setStatus(STATUS_SUCCESS);
@@ -526,60 +528,69 @@ public class AigcTaskExecutor {
     /** 3D 模型生成异步执行（提交后轮询直到完成，最多等待 10 分钟）。 */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitModel3dSync(Long taskId, String prompt) {
+    public void submitModel3dSync(Long taskId, String prompt, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
         try {
             task.setStatus("RUNNING");
             taskRepo.save(task);
 
-            // 提交到第三方，拿到外部 taskId
-            String thirdTaskId =
-                    model3dGenerationService.submitTextTo3d(
-                            new TextTo3dRequest(prompt, null, null));
-            task.setTaskId(thirdTaskId);
-            taskRepo.save(task);
-            log.info("[submitModel3dSync] 任务已提交: taskId={}, thirdTaskId={}", taskId, thirdTaskId);
+            String ossUrl;
+            if (mockUrl != null && !mockUrl.isBlank()) {
+                ossUrl = mockUrl;
+            } else {
+                // 提交到第三方，拿到外部 taskId
+                String thirdTaskId =
+                        model3dGenerationService.submitTextTo3d(
+                                new TextTo3dRequest(prompt, null, null));
+                task.setTaskId(thirdTaskId);
+                taskRepo.save(task);
+                log.info(
+                        "[submitModel3dSync] 任务已提交: taskId={}, thirdTaskId={}",
+                        taskId,
+                        thirdTaskId);
 
-            // 轮询结果，每 10 秒一次，最多 180 次 = 30 分钟
-            com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService
-                            .Model3dTaskResult
-                    result = null;
-            for (int i = 0; i < 180; i++) {
-                Thread.sleep(10000);
-                result = model3dGenerationService.query(thirdTaskId);
-                if ((i + 1) % 6 == 0) {
-                    log.info(
-                            "[submitModel3dSync] 轮询中: taskId={}, status={}, elapsed={}min",
-                            taskId,
-                            result.status(),
-                            (i + 1) / 6);
+                // 轮询结果，每 10 秒一次，最多 180 次 = 30 分钟
+                com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService
+                                .Model3dTaskResult
+                        result = null;
+                for (int i = 0; i < 180; i++) {
+                    Thread.sleep(10000);
+                    result = model3dGenerationService.query(thirdTaskId);
+                    if ((i + 1) % 6 == 0) {
+                        log.info(
+                                "[submitModel3dSync] 轮询中: taskId={}, status={}, elapsed={}min",
+                                taskId,
+                                result.status(),
+                                (i + 1) / 6);
+                    }
+                    if (result.status()
+                                    == com.xuejiai.aaf.framework.intelligent.ai.model3d
+                                            .Model3dGenerationService.Model3dTaskResult.TaskStatus
+                                            .SUCCEEDED
+                            || result.status()
+                                    == com.xuejiai.aaf.framework.intelligent.ai.model3d
+                                            .Model3dGenerationService.Model3dTaskResult.TaskStatus
+                                            .FAILED) {
+                        break;
+                    }
                 }
-                if (result.status()
-                                == com.xuejiai.aaf.framework.intelligent.ai.model3d
-                                        .Model3dGenerationService.Model3dTaskResult.TaskStatus
-                                        .SUCCEEDED
+
+                if (result == null
                         || result.status()
-                                == com.xuejiai.aaf.framework.intelligent.ai.model3d
+                                != com.xuejiai.aaf.framework.intelligent.ai.model3d
                                         .Model3dGenerationService.Model3dTaskResult.TaskStatus
-                                        .FAILED) {
-                    break;
+                                        .SUCCEEDED) {
+                    throw new RuntimeException(
+                            "3D 生成失败或超时: status=" + (result != null ? result.status() : "null"));
                 }
+
+                String sourceUrl =
+                        result.modelUrl() != null ? result.modelUrl() : result.baseModelUrl();
+                ossUrl = uploadModel3dToOss(sourceUrl, task.getId());
+                task.setResultUrl(sourceUrl);
             }
 
-            if (result == null
-                    || result.status()
-                            != com.xuejiai.aaf.framework.intelligent.ai.model3d
-                                    .Model3dGenerationService.Model3dTaskResult.TaskStatus
-                                    .SUCCEEDED) {
-                throw new RuntimeException(
-                        "3D 生成失败或超时: status=" + (result != null ? result.status() : "null"));
-            }
-
-            String sourceUrl =
-                    result.modelUrl() != null ? result.modelUrl() : result.baseModelUrl();
-            String ossUrl = uploadModel3dToOss(sourceUrl, task.getId());
-            task.setResultUrl(sourceUrl);
             task.setOssUrl(ossUrl);
             task.setStatus("SUCCESS");
             task.setUpdateTime(LocalDateTime.now());
@@ -670,6 +681,18 @@ public class AigcTaskExecutor {
         } catch (Exception ignore) {
             return new ImageRequest(prompt, modelId);
         }
+    }
+
+    private String resolveBizName(String taskType) {
+        if (taskType == null) return null;
+        return switch (taskType) {
+            case "IMAGE" -> "图像生成";
+            case "VIDEO" -> "视频生成";
+            case "MODEL_3D" -> "3D 生成";
+            case "MUSIC" -> "音乐生成";
+            case "VOICE" -> "语音合成";
+            default -> null;
+        };
     }
 
     private AigcTaskVO toVO(AigcTask task) {

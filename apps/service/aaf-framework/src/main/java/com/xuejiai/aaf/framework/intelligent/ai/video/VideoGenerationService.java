@@ -2,14 +2,23 @@ package com.xuejiai.aaf.framework.intelligent.ai.video;
 
 import java.util.List;
 
+import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+
 /**
  * 视频生成服务接口，异步任务模式。
  *
  * <p>支持：文生视频(t2v)、图生视频(i2v)、参考生视频(r2v)、视频编辑(video-edit)。
  *
- * <p>基于阿里云百炼 HappyHorse 模型 HTTP API。
+ * <p>各实现按模型类型分发：happyhorse-* 走 HTTP API，wan2.* 走百炼 SDK。
  */
-public interface VideoGenerationService {
+public interface VideoGenerationService extends AiCapability {
+
+    @Override
+    default String capability() {
+        return CapabilityRoutingContext.CAP_VIDEO_GEN;
+    }
 
     /**
      * 统一提交视频生成任务，返回 taskId。
@@ -45,11 +54,12 @@ public interface VideoGenerationService {
         return submitTextToVideo(
                 new TextToVideoRequest(
                         request.prompt(),
-                        request.model(),
+                        null,
                         request.resolution(),
                         request.ratio(),
                         request.duration(),
-                        request.seed()));
+                        request.seed(),
+                        null));
     }
 
     /** 提交文生视频任务，返回 taskId。 */
@@ -93,11 +103,14 @@ public interface VideoGenerationService {
     /** 文生视频请求。 */
     record TextToVideoRequest(
             String prompt,
-            String model,
+            /** 由 CapabilityRouter 解析后的模型，实现类从此取 modelName / apiKey 等。 */
+            AiModel resolvedModel,
             String resolution,
             String ratio,
             Integer duration,
-            Integer seed) {}
+            Integer seed,
+            /** 是否开启提示词扩写（wan2 系列支持）。 */
+            Boolean promptExtend) {}
 
     /** 图生视频请求。 */
     record ImageToVideoRequest(

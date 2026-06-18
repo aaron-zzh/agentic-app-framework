@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
@@ -251,7 +252,11 @@ public class ToolCallDispatcher {
             return;
         }
         try {
-            credit.spend(userId, cost, "TOOL:" + functionName, entry.entitlementCode());
+            credit.spend(
+                    userId,
+                    cost,
+                    CreditTransactionSourceEnum.TOOL_CONSUME.getCode(),
+                    entry.entitlementCode());
         } catch (Exception ex) {
             log.warn(
                     "工具扣费失败，已完成调用不回滚: tool={}, userId={}, cost={}, err={}",

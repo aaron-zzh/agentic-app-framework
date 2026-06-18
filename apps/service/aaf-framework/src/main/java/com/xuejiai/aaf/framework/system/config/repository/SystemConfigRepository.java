@@ -1,11 +1,11 @@
-package com.xuejiai.aaf.module.system.config.repository;
+package com.xuejiai.aaf.framework.system.config.repository;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.xuejiai.aaf.module.system.config.domain.SystemConfig;
+import com.xuejiai.aaf.framework.system.config.domain.SystemConfig;
 
 /**
  * @author AaronZZH & Kiro

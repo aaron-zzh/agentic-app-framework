@@ -188,6 +188,7 @@ public class AiBusinessActionExecutor {
         credit.spend(
                 userId,
                 cost,
+                // source 记录具体操作路径（entitySlug.action），用于行为追踪，不走枚举
                 "ACTION:%s.%s".formatted(adapter.entitySlug(), action.action()),
                 entry.entitlementCode());
     }

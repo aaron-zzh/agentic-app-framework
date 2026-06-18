@@ -23,10 +23,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.Table;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -35,6 +31,10 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.access.FieldAccessSupport;
 import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Table;
 
 /**
  * 通用 CRUD Service 基类。继承此类即可获得以下完整能力：
@@ -76,8 +76,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     @Autowired(required = false)
     private ObjectProvider<FieldAccessSupport> fieldAccessSupport;
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    @PersistenceContext private EntityManager entityManager;
 
     /** 子类提供 Repository 实例。 */
     protected abstract JpaRepository<E, Long> getRepository();
@@ -320,10 +319,12 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         requireEntities(ids);
         String tableName = resolveTableName();
         if (tableName != null) {
-            entityManager.createNativeQuery(
-                    "UPDATE " + tableName
-                    + " SET deleted = true, delete_time = CURRENT_TIMESTAMP"
-                    + " WHERE id IN (:ids) AND deleted = false")
+            entityManager
+                    .createNativeQuery(
+                            "UPDATE "
+                                    + tableName
+                                    + " SET deleted = true, delete_time = CURRENT_TIMESTAMP"
+                                    + " WHERE id IN (:ids) AND deleted = false")
                     .setParameter("ids", ids)
                     .executeUpdate();
         } else {

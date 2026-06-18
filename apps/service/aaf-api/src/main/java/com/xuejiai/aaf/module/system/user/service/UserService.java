@@ -26,7 +26,7 @@ import com.xuejiai.aaf.framework.bizlog.context.LogRecordContext;
 import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
-import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.mapper.UserConvert;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;

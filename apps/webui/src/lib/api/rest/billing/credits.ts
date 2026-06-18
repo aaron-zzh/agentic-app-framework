@@ -23,6 +23,10 @@ export interface CreditTransactionVO {
   amount: number
   balanceAfter: number
   source: string
+  /** 消费分类（仅 SPEND 类型有值），对应字典 credit_transaction_category */
+  category?: string
+  /** 业务备注，优先于 source 展示 */
+  remark?: string
   bizId: string
   createTime: string
 }

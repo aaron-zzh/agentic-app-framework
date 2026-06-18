@@ -17,6 +17,7 @@ export interface RegenerateParams {
   newPrompt?: string
   newSeed?: number
   newStyle?: string
+  modelId?: string
 }
 
 export const mediaAssetApi = {

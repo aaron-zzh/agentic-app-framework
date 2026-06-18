@@ -15,6 +15,8 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.BatchGenerationTask;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.BatchGenerationTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationSubmitDTO;
@@ -43,6 +45,7 @@ public class BatchGenerationService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final ImageServiceFactory imageServiceFactory;
+    private final CapabilityRouter capabilityRouter;
 
     /**
      * 提交批量生成任务。
@@ -185,18 +188,21 @@ public class BatchGenerationService {
     }
 
     /** 带重试的单次生成执行。 */
-    private boolean executeWithRetry(String prompt, String model, Integer width, Integer height) {
+    private boolean executeWithRetry(String prompt, String modelId, Integer width, Integer height) {
         for (int attempt = 1; attempt <= MAX_RETRY; attempt++) {
             try {
-                var service = imageServiceFactory.getSyncService(model);
+                var model =
+                        capabilityRouter.resolve(
+                                CapabilityRoutingContext.of(
+                                        null, CapabilityRoutingContext.CAP_IMAGE_GEN, modelId));
                 var request =
                         new ImageRequest(
                                 prompt,
-                                model,
+                                model.getModelId(),
                                 width != null ? width : 1024,
                                 height != null ? height : 1024,
                                 "url");
-                service.generate(request);
+                imageServiceFactory.getSyncService(model).generate(model, request);
                 log.debug("批量生成成功: prompt={}, attempt={}", prompt, attempt);
                 return true;
             } catch (Exception e) {

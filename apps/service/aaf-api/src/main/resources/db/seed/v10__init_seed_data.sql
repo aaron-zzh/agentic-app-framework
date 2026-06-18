@@ -115,21 +115,6 @@ INSERT INTO sys_user (username, password, nickname, email, email_verified, statu
 VALUES ('admin', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '管理员', 'admin@xuejiai.com', TRUE, 0)
 ON CONFLICT (username) DO NOTHING;
 
-INSERT INTO sys_role (code, name, description)
-VALUES ('admin', '管理员', '系统管理员，拥有全部权限'),
-       ('user',  '普通用户', '普通用户，仅有只读权限'),
-       ('super_admin', '超级管理员', '系统最高权限，不可删除'),
-       ('org_admin', '组织管理员', '组织级管理权限'),
-       ('member', '普通成员', '默认角色，基础读写权限'),
-       ('guest', '访客', '只读权限'),
-       ('agent', 'AI 智能体', 'AI Agent 专用角色')
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO sys_user_role (user_id, role_id)
-SELECT u.id, r.id FROM sys_user u, sys_role r
-WHERE u.username = 'admin' AND r.code = 'super_admin'
-ON CONFLICT (user_id, role_id) DO NOTHING;
-
 INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
 SELECT '默认工作空间', 'personal-' || u.id, 'personal', u.id, u.id
 FROM sys_user u WHERE u.username = 'admin'
@@ -141,6 +126,82 @@ FROM sys_organization o
 WHERE o.type = 'personal' AND o.owner_id = (SELECT id FROM sys_user WHERE username = 'admin')
   AND NOT EXISTS (SELECT 1 FROM sys_org_member m WHERE m.org_id = o.id AND m.user_id = o.owner_id);
 
+-- ==================== 角色定义 ====================
+
+INSERT INTO sys_role (code, name, description)
+VALUES ('admin',       '管理员',     '系统管理员，拥有全部权限'),
+       ('user',        '普通用户',   '普通用户，仅有只读权限'),
+       ('super_admin', '超级管理员', '系统最高权限，不可删除'),
+       ('org_admin',   '组织管理员', '组织级管理权限'),
+       ('member',      '普通成员',   '默认角色，基础读写权限'),
+       ('guest',       '访客',       '只读权限'),
+       ('agent',       'AI 智能体',  'AI Agent 专用角色')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO sys_user_role (user_id, role_id)
+SELECT u.id, r.id FROM sys_user u, sys_role r
+WHERE u.username = 'admin' AND r.code = 'super_admin'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+-- ==================== 通用权限码 ====================
+-- 菜单只引用权限码；接口安全边界由 @PreAuthorize/hasPermission 执行。
+
+INSERT INTO sys_permission_code (name, code, module, resource, action, status)
+VALUES
+    ('角色读取',           'system:role:read',                   'system',    'role',              'read',    0),
+    ('角色创建',           'system:role:create',                 'system',    'role',              'create',  0),
+    ('角色更新',           'system:role:update',                 'system',    'role',              'update',  0),
+    ('角色删除',           'system:role:delete',                 'system',    'role',              'delete',  0),
+    ('角色导出',           'system:role:export',                 'system',    'role',              'export',  0),
+    ('用户读取',           'system:user:read',                   'system',    'user',              'read',    0),
+    ('用户创建',           'system:user:create',                 'system',    'user',              'create',  0),
+    ('用户更新',           'system:user:update',                 'system',    'user',              'update',  0),
+    ('用户删除',           'system:user:delete',                 'system',    'user',              'delete',  0),
+    ('菜单管理',           'system:menu:manage',                 'system',    'menu',              'manage',  0),
+    ('权限码管理',         'system:permission:manage',           'system',    'permission',        'manage',  0),
+    ('数据权限规则管理',   'system:data-access-rule:manage',     'system',    'data-access-rule',  'manage',  0),
+    ('ReBAC 关系管理',     'system:relation:manage',             'system',    'relation',          'manage',  0),
+    ('访问策略管理',       'system:access-policy:manage',        'system',    'access-policy',     'manage',  0),
+    ('开发者订阅套餐读取', 'developer:subscription-plan:read',   'developer', 'subscription-plan', 'read',    0),
+    ('开发者订阅套餐创建', 'developer:subscription-plan:create', 'developer', 'subscription-plan', 'create',  0),
+    ('开发者订阅套餐更新', 'developer:subscription-plan:update', 'developer', 'subscription-plan', 'update',  0),
+    ('开发者订阅套餐删除', 'developer:subscription-plan:delete', 'developer', 'subscription-plan', 'delete',  0),
+    ('开发者订阅套餐导出', 'developer:subscription-plan:export', 'developer', 'subscription-plan', 'export',  0),
+    ('工具执行',           'tool:default:execute',               'tool',      'default',           'execute', 0),
+    ('业务动作工具执行',   'tool:business-action:execute',       'tool',      'business-action',   'execute', 0),
+    ('图片生成工具执行',   'tool:image-generate:execute',        'tool',      'image-generate',    'execute', 0),
+    ('视频生成工具执行',   'tool:video-generate:execute',        'tool',      'video-generate',    'execute', 0)
+ON CONFLICT (code) DO NOTHING;
+
+-- ==================== 角色菜单与权限挂接 ====================
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT r.id, p.id FROM sys_role r CROSS JOIN sys_permission_code p
+WHERE r.code IN ('super_admin', 'admin', 'org_admin')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT r.id, m.id FROM sys_role r CROSS JOIN sys_menu m
+WHERE r.code IN ('super_admin', 'admin', 'org_admin')
+ON CONFLICT DO NOTHING;
+
+-- ==================== 销售演示角色 ====================
+
+INSERT INTO sys_role (code, name, description, status)
+VALUES ('sales', '销售', '销售演示角色，拥有工作台与 AI 创作入口，不包含系统管理权限', 0)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT r.id, m.id FROM sys_role r
+JOIN sys_menu m ON m.title IN ('概览', '工作台', 'AI 创作', '创作项目', '素材库')
+WHERE r.code = 'sales'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT r.id, p.id FROM sys_role r
+JOIN sys_permission_code p ON p.code IN ('tool:default:execute', 'tool:image-generate:execute')
+WHERE r.code = 'sales'
+ON CONFLICT DO NOTHING;
 
 -- ==================== 积分转Token规则（默认） ====================
 
@@ -377,10 +438,10 @@ INSERT INTO ai_tool_catalog (
 ('executeBusinessAction', 'LOCAL', TRUE, 'FUNCTION', 'BUSINESS_ACTION', 'MEDIUM', FALSE, TRUE, 'tool:business-action:execute', NULL, NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 请求，包含 action、entity、params，可选 sessionId/confidence/verifiable"}}}',
  110, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('generateImage', 'LOCAL', TRUE, 'GENERATIVE', 'IMAGE_GENERATION', 'MEDIUM', FALSE, TRUE, 'tool:image-generate:execute', 'aigc_image', '10',
+('generateImage', 'LOCAL', TRUE, 'GENERATIVE', 'IMAGE_GENERATION', 'MEDIUM', FALSE, TRUE, 'tool:image-generate:execute', NULL, NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：prompt 必填，width/height/model 可选"}}}',
  200, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('generateVideo', 'LOCAL', TRUE, 'GENERATIVE', 'VIDEO_GENERATION', 'HIGH', FALSE, TRUE, 'tool:video-generate:execute', 'aigc_video', '100',
+('generateVideo', 'LOCAL', TRUE, 'GENERATIVE', 'VIDEO_GENERATION', 'HIGH', FALSE, TRUE, 'tool:video-generate:execute', NULL, NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：prompt 必填，imageUrl/referenceImageUrls/model/resolution/ratio/duration/seed 可选"}}}',
  210, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('start_workflow', 'LOCAL', TRUE, 'FUNCTION', 'WORKFLOW', 'MEDIUM', FALSE, TRUE, 'tool:workflow:start', NULL, NULL,
@@ -388,7 +449,10 @@ INSERT INTO ai_tool_catalog (
  300, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('list_workflows', 'LOCAL', TRUE, 'FUNCTION', 'WORKFLOW', 'LOW', TRUE, FALSE, NULL, NULL, NULL,
  '{"type":"object","properties":{}}',
- 301, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ 301, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('recognizeOcr', 'LOCAL', TRUE, 'FUNCTION', 'OCR', 'LOW', TRUE, FALSE, 'tool:ocr:execute', NULL, NULL,
+ '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：imageUrl 必填；task 可选（TEXT_RECOGNITION/KEY_INFORMATION_EXTRACTION/TABLE_PARSING/DOCUMENT_PARSING/FORMULA_RECOGNITION/MULTI_LAN）；prompt 可选"}}}',
+ 220, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (tool_name) DO UPDATE SET
     source = EXCLUDED.source,
     enabled = EXCLUDED.enabled,
@@ -426,87 +490,6 @@ CROSS JOIN (VALUES
 ) AS v(code, quota, reset_cycle)
 JOIN billing_entitlement_def e ON e.code = v.code AND e.deleted = FALSE
 WHERE p.code = 'FREE' AND p.deleted = FALSE
-ON CONFLICT DO NOTHING;
-
-
--- ==================== 通用权限码 ====================
-
--- 通用权限码种子。菜单只引用权限码；接口安全边界由 @PreAuthorize/hasPermission 执行。
-
-INSERT INTO sys_permission_code (name, code, module, resource, action, status)
-VALUES
-    ('角色读取', 'system:role:read', 'system', 'role', 'read', 0),
-    ('角色创建', 'system:role:create', 'system', 'role', 'create', 0),
-    ('角色更新', 'system:role:update', 'system', 'role', 'update', 0),
-    ('角色删除', 'system:role:delete', 'system', 'role', 'delete', 0),
-    ('角色导出', 'system:role:export', 'system', 'role', 'export', 0),
-    ('用户读取', 'system:user:read', 'system', 'user', 'read', 0),
-    ('用户创建', 'system:user:create', 'system', 'user', 'create', 0),
-    ('用户更新', 'system:user:update', 'system', 'user', 'update', 0),
-    ('用户删除', 'system:user:delete', 'system', 'user', 'delete', 0),
-    ('菜单管理', 'system:menu:manage', 'system', 'menu', 'manage', 0),
-    ('权限码管理', 'system:permission:manage', 'system', 'permission', 'manage', 0),
-    ('数据权限规则管理', 'system:data-access-rule:manage', 'system', 'data-access-rule', 'manage', 0),
-    ('ReBAC 关系管理', 'system:relation:manage', 'system', 'relation', 'manage', 0),
-    ('访问策略管理', 'system:access-policy:manage', 'system', 'access-policy', 'manage', 0),
-    ('开发者订阅套餐读取', 'developer:subscription-plan:read', 'developer', 'subscription-plan', 'read', 0),
-    ('开发者订阅套餐创建', 'developer:subscription-plan:create', 'developer', 'subscription-plan', 'create', 0),
-    ('开发者订阅套餐更新', 'developer:subscription-plan:update', 'developer', 'subscription-plan', 'update', 0),
-    ('开发者订阅套餐删除', 'developer:subscription-plan:delete', 'developer', 'subscription-plan', 'delete', 0),
-    ('开发者订阅套餐导出', 'developer:subscription-plan:export', 'developer', 'subscription-plan', 'export', 0),
-    ('工具执行', 'tool:default:execute', 'tool', 'default', 'execute', 0),
-    ('业务动作工具执行', 'tool:business-action:execute', 'tool', 'business-action', 'execute', 0),
-    ('图片生成工具执行', 'tool:image-generate:execute', 'tool', 'image-generate', 'execute', 0),
-    ('视频生成工具执行', 'tool:video-generate:execute', 'tool', 'video-generate', 'execute', 0)
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO sys_role_permission (role_id, permission_id)
-SELECT r.id, p.id
-FROM sys_role r
-CROSS JOIN sys_permission_code p
-WHERE r.code IN ('super_admin', 'org_admin')
-ON CONFLICT DO NOTHING;
-
-
--- ==================== 角色菜单与管理权限 ====================
-
--- 角色菜单与管理权限种子，保证初始管理员能看到动态菜单并管理系统配置。
-
-INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT r.id, m.id
-FROM sys_role r
-CROSS JOIN sys_menu m
-WHERE r.code IN ('admin', 'org_admin', 'super_admin')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_role_permission (role_id, permission_id)
-SELECT r.id, p.id
-FROM sys_role r
-CROSS JOIN sys_permission_code p
-WHERE r.code IN ('admin', 'org_admin', 'super_admin')
-ON CONFLICT DO NOTHING;
-
-
--- ==================== 销售演示角色 ====================
-
--- 销售演示角色：用于验证非管理员的菜单可见性与权限码授权。
-
-INSERT INTO sys_role (code, name, description, status)
-VALUES ('sales', '销售', '销售演示角色，拥有工作台与 AI 创作入口，不包含系统管理权限', 0)
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT r.id, m.id
-FROM sys_role r
-JOIN sys_menu m ON m.title IN ('概览', '工作台', 'AI 创作', '创作项目', '素材库')
-WHERE r.code = 'sales'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_role_permission (role_id, permission_id)
-SELECT r.id, p.id
-FROM sys_role r
-JOIN sys_permission_code p ON p.code IN ('tool:default:execute', 'tool:image-generate:execute')
-WHERE r.code = 'sales'
 ON CONFLICT DO NOTHING;
 
 
@@ -635,30 +618,6 @@ INSERT INTO developer_subscription_plan (
     ('DEV_ENTERPRISE', '企业代理版', 365, 299900, 100000000, TRUE, TRUE, 2, 'ENABLED', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT DO NOTHING;
 
-
-
-
-
--- ==================== 行级数据权限规则 ====================
--- 普通成员只能看/改自己的待办和通知；管理员/超级管理员自动绕过（isSuperAdmin 逻辑）
-
-INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
-VALUES
-    ('todo',
-     '["member","guest","sales","agent"]',
-     '{"field":"assigneeId","op":"eq","value":"$user.id"}',
-     'allow'),
-    ('notification',
-     '["member","guest","sales","agent"]',
-     '{"field":"userId","op":"eq","value":"$user.id"}',
-     'allow'),
-    -- generation-template：普通用户只能看自己的模板或公开模板
-    ('generation-template',
-     '["member","guest","sales","agent"]',
-     '{"or":[{"field":"userId","op":"eq","value":"$user.id"},{"field":"isPublic","op":"eq","value":true}]}',
-     'allow')
-ON CONFLICT DO NOTHING;
-
 -- ============================================================
 -- 模型供应商
 -- ============================================================
@@ -666,8 +625,65 @@ INSERT INTO ai_model_provider (provider_code, provider_name, provider_type, base
 VALUES
 ('aliyun',    '阿里云百炼',   'OPENAI_COMPAT', 'https://dashscope.aliyuncs.com/compatible-mode/v1', true,  10, '阿里云百炼平台，支持通义千问、万相图像等模型，DashScope SDK'),
 ('deepseek',  'DeepSeek',    'OPENAI_COMPAT', 'https://api.deepseek.com/v1',                       true,  20, 'DeepSeek 官方 API，支持 deepseek-chat / deepseek-reasoner'),
-('n1n',       'N1N',         'OPENAI_COMPAT', 'https://llm-api.net/v1',                            true,  30, 'N1N 聚合平台，兼容 OpenAI 接口协议')
+('n1n',       'N1N',         'OPENAI_COMPAT', 'https://llm-api.net/v1',                            true,  30, 'N1N 聚合平台，兼容 OpenAI 接口协议'),
+('volcengine','火山引擎方舟', 'VOLCENGINE',    'https://ark.cn-beijing.volces.com/api/v3',           true,  40, '字节跳动火山引擎方舟平台，支持 doubao-seedance 等视频生成模型')
 ON CONFLICT (provider_code) DO NOTHING;
+
+-- ============================================================
+-- AI 模型
+-- capabilities: CHAT / EMBEDDING / VISION / IMAGE_GEN / AUDIO / RERANK / VIDEO_GEN / SPEECH_ASR / SPEECH_TTS / MUSIC_GEN / OMNI_REALTIME
+-- ============================================================
+INSERT INTO ai_model (model_id, display_name, provider, provider_type, model_name, base_url,
+                      capabilities, context_window, sort_order, enabled,
+                      input_price_per_k, output_price_per_k, model_price, quota_type)
+VALUES
+-- 语言模型（输入 0.036元/K，输出 0.108元/K）
+('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true,  0.036, 0.108, null, 0),
+('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true,  0.036, 0.108, null, 0),
+('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true,  0.036, 0.108, null, 0),
+('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000,  5,  true,  0.036, 0.108, null, 0),
+('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 10,  true,  0.036, 0.108, null, 0),
+('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.036, 0.108, null, 0),
+('deepseek:chat',         'DeepSeek Chat',       'deepseek','OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                   'CHAT',        64000,  20,  true,  0.036, 0.108, null, 0),
+('deepseek:reasoner',     'DeepSeek R1',         'deepseek','OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                   'CHAT',        64000,  21,  true,  0.036, 0.108, null, 0),
+('qwen:qwen3.7-max',      'Qwen Max',            'qwen',    'OPENAI_COMPAT', 'qwen3.7-max',                'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',    32000,  30,  true,  0.036, 0.108, null, 0),
+('qwen:qwen3.7-plus',     'Qwen Plus',           'qwen',    'OPENAI_COMPAT', 'qwen3.7-plus',               'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',  1000000, 31,  true,  0.036, 0.108, null, 0),
+('qwen:qwen3.6-flash',    'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.6-flash',              'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT',  1000000, 32,  true,  0.036, 0.108, null, 0),
+('qwen:text-embedding-v4','Qwen Embedding',       'qwen',    'OPENAI_COMPAT', 'text-embedding-v4',          'https://dashscope.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 192, 33,  true,  0.036, 0.108, null, 0),
+-- 图像生成（按次 1元/次，quota_type=1）
+('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  1.0, 1),
+('qwen:qwen-image-2.0',            '千问图像 2.0',        'qwen', 'DASHSCOPE',    'qwen-image-2.0',                 'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 211, true,  null,  null,  1.0, 1),
+('n1n:gpt-image-2',                'GPT Image 2',         'n1n',  'OPENAI_COMPAT','gpt-image-2',                    'https://llm-api.net/v1',         'IMAGE_GEN', 3000, 212, true,  0.003, 0.018, null, 0),
+('n1n:gemini-3.1-flash-image-preview','Gemini 3.1 Flash', 'n1n',  'OPENAI_COMPAT','gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 220, true, null, null, 1.0, 1),
+('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1),
+('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1),
+-- 视频生成
+('qwen:happyhorse-1.0-i2v',        'HappyHorse',          'qwen', 'DASHSCOPE',    'happyhorse-1.0-i2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 0),
+('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 351, true, null, null, null, 0),
+-- 重排序
+('qwen:qwen3-rerank',              'GTE Rerank v2',       'qwen', 'DASHSCOPE',    'qwen3-rerank',                   'https://dashscope.aliyuncs.com', 'RERANK',     null, 360, true,  null,  null, null, 0),
+-- 语音识别（ASR）
+('qwen:fun-asr-realtime',          '通义 ASR Flash',      'qwen', 'DASHSCOPE',    'fun-asr-realtime',               'https://dashscope.aliyuncs.com', 'SPEECH_ASR', null, 310, true,  null,  null, null, 0),
+-- 语音合成（TTS）
+('qwen:cosyvoice-v3-flash',        'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3-flash',             'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  null,  null, null, 0),
+('qwen:cosyvoice-v3-plus',         'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3-plus',              'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  null,  null, null, 0),
+-- 音乐生成
+('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, null, 0),
+-- 全模态实时
+('qwen:qwen3-omni-flash-realtime', 'Qwen3 Omni Flash',    'qwen', 'DASHSCOPE',    'qwen-omni-flash-realtime',       'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true, null, null, null, 0),
+('qwen:qwen3.5-omni-plus-realtime','Qwen3.5 Omni Plus',   'qwen', 'DASHSCOPE',    'qwen3.5-omni-plus-realtime',     'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true, null, null, null, 0),
+-- OCR
+('qwen:qwen3.5-ocr',               'Qwen3.5 OCR',         'qwen', 'OPENAI_COMPAT','qwen3.5-ocr',                    'https://dashscope.aliyuncs.com/compatible-mode/v1', 'OCR', null, 370, true, 0.0005, 0.002, null, 0)
+ON CONFLICT (model_id) DO NOTHING;
+
+-- 系统默认模型偏好
+INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
+VALUES
+    ('SYSTEM', NULL, 'CHAT',      '["n1n:claude-sonnet-4-6"]'),
+    ('SYSTEM', NULL, 'EMBEDDING', '["openai:text-embedding-3"]'),
+    ('SYSTEM', NULL, 'IMAGE_GEN', '["openai:dall-e-3"]'),
+    ('SYSTEM', NULL, 'OCR',       '["qwen:qwen3.5-ocr"]')
+ON CONFLICT ON CONSTRAINT uq_model_preference DO NOTHING;
 
 
 
@@ -793,3 +809,16 @@ E'为以上主题生成 5 个开头钩子（每个不超过 30 字）：\n- 制�
 'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 
 ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- AIGC Mock 系统参数（开发调试用，默认开启）
+-- ============================================================
+INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable) VALUES
+('aigc', 'aigc.mock_enabled', 'true', 'true', 'boolean', 'AIGC Mock 开关',
+ '开启后所有 AIGC 生成任务跳过真实 API 调用，直接返回 aigc.mock_data 中的固定值，适用于开发调试', TRUE, TRUE),
+('aigc', 'aigc.mock_data',
+ '{"image":"https://picsum.photos/seed/aaf/1280/720","video":"https://www.w3schools.com/html/mov_bbb.mp4","model3d":"","text":"这是一段 Mock 固定文字内容","audio":"https://www.w3schools.com/html/horse.ogg"}',
+ '{"image":"","video":"","model3d":"","text":"","audio":""}',
+ 'json', 'AIGC Mock 数据',
+ 'JSON 格式，各类型固定返回值，key 为 image/video/model3d/text/audio', TRUE, TRUE)
+ON CONFLICT (config_key) DO NOTHING;

@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.module.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.system.config.service.SystemConfigApiService;
 import com.xuejiai.aaf.module.system.config.vo.SystemConfigCreateDTO;
 import com.xuejiai.aaf.module.system.config.vo.SystemConfigUpdateDTO;
 import com.xuejiai.aaf.module.system.config.vo.SystemConfigVO;
@@ -33,16 +34,13 @@ import lombok.RequiredArgsConstructor;
 public class SystemConfigController {
 
     private final SystemConfigService configService;
+    private final SystemConfigApiService apiService;
 
     /** 按分类查询配置列表（敏感配置 value 返回 null） */
     @GetMapping
     @PreAuthorize("hasRole('super_admin')")
     public Result<List<SystemConfigVO>> list(@RequestParam(required = false) String category) {
-        var list =
-                category != null
-                        ? configService.listByCategory(category)
-                        : configService.listByCategory("*");
-        return Result.success(list.stream().map(configService::toVO).toList());
+        return Result.success(apiService.listByCategory(category != null ? category : "*"));
     }
 
     /** 更新配置值 */
@@ -57,14 +55,14 @@ public class SystemConfigController {
     @PostMapping
     @PreAuthorize("hasRole('super_admin')")
     public Result<SystemConfigVO> create(@Valid @RequestBody SystemConfigCreateDTO dto) {
-        return Result.success(configService.create(dto));
+        return Result.success(apiService.create(dto));
     }
 
     /** 删除配置项 */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('super_admin')")
     public Result<Void> delete(@PathVariable Long id) {
-        configService.delete(id);
+        apiService.delete(id);
         return Result.success(null);
     }
 

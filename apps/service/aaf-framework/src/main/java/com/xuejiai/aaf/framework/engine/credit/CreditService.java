@@ -36,12 +36,42 @@ public interface CreditService {
     void spend(Long userId, long amount, String source, String bizId);
 
     /**
+     * 消费积分，记录消费分类（AI 能力维度），见 {@link com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum}
+     */
+    default void spend(Long userId, long amount, String source, String category, String bizId) {
+        spend(userId, amount, source, bizId); // 默认降级，子类可覆写写入 category
+    }
+
+    /**
      * 消费积分，允许余额扣成负数（透支）。 透支部分在下次充值（earn）后自动从余额中消化，无需额外操作。
      *
      * @param overdraftLimit 允许的最大透支额，余额不得低于 -overdraftLimit
      */
     void spendAllowOverdraft(
             Long userId, long amount, String source, String bizId, long overdraftLimit);
+
+    /** 消费积分（允许透支），记录消费分类 */
+    default void spendAllowOverdraft(
+            Long userId,
+            long amount,
+            String source,
+            String category,
+            String bizId,
+            long overdraftLimit) {
+        spendAllowOverdraft(userId, amount, source, category, bizId, overdraftLimit, null);
+    }
+
+    /** 消费积分（允许透支），记录消费分类和业务备注 */
+    default void spendAllowOverdraft(
+            Long userId,
+            long amount,
+            String source,
+            String category,
+            String bizId,
+            long overdraftLimit,
+            String remark) {
+        spendAllowOverdraft(userId, amount, source, bizId, overdraftLimit);
+    }
 
     /** 冻结积分（预扣） */
     void freeze(Long userId, long amount, String bizId);

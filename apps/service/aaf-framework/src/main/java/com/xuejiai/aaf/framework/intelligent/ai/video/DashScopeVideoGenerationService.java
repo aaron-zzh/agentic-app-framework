@@ -20,13 +20,15 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 基于阿里云百炼 HappyHorse HTTP API 的视频生成实现。
  *
- * <p>支持模型：
+ * <p>支持模型（happyhorse 系列）：
  *
  * <ul>
  *   <li>happyhorse-1.0-t2v — 文生视频
  *   <li>happyhorse-1.0-i2v — 图生视频（首帧）
  *   <li>happyhorse-1.0-video-edit — 视频编辑
  * </ul>
+ *
+ * <p>wan2.x 系列请使用 {@link WanxVideoGenerationService}。
  */
 @Slf4j
 @Service
@@ -48,7 +50,10 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
 
     @Override
     public String submitTextToVideo(TextToVideoRequest request) {
-        var model = request.model() != null ? request.model() : "happyhorse-1.0-t2v";
+        var model =
+                request.resolvedModel() != null
+                        ? request.resolvedModel().getModelName()
+                        : "happyhorse-1.0-t2v";
         var input = Map.<String, Object>of("prompt", request.prompt());
         var parameters = buildT2vParameters(request);
         return doSubmit(model, input, parameters);

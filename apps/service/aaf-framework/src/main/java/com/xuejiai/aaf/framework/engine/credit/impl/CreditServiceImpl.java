@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.framework.engine.credit;
+package com.xuejiai.aaf.framework.engine.credit.impl;
 
 import java.time.LocalDateTime;
 
@@ -7,6 +7,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.engine.credit.CreditAccount;
+import com.xuejiai.aaf.framework.engine.credit.CreditAccountRepository;
+import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.engine.credit.CreditTransaction;
+import com.xuejiai.aaf.framework.engine.credit.CreditTransactionRepository;
+import com.xuejiai.aaf.framework.engine.credit.CreditTransactionType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,19 +95,66 @@ public class CreditServiceImpl implements CreditService {
     @Override
     @Transactional
     public void spend(Long userId, long amount, String source, String bizId) {
-        spendInternal(userId, amount, source, bizId, 0L);
+        spendInternal(userId, amount, source, null, bizId, 0L);
+    }
+
+    @Override
+    @Transactional
+    public void spend(Long userId, long amount, String source, String category, String bizId) {
+        spendInternal(userId, amount, source, category, bizId, 0L);
     }
 
     @Override
     @Transactional
     public void spendAllowOverdraft(
             Long userId, long amount, String source, String bizId, long overdraftLimit) {
-        spendInternal(userId, amount, source, bizId, overdraftLimit);
+        spendInternal(userId, amount, source, null, bizId, overdraftLimit);
+    }
+
+    @Override
+    @Transactional
+    public void spendAllowOverdraft(
+            Long userId,
+            long amount,
+            String source,
+            String category,
+            String bizId,
+            long overdraftLimit) {
+        spendInternal(userId, amount, source, category, bizId, overdraftLimit, null);
+    }
+
+    @Override
+    @Transactional
+    public void spendAllowOverdraft(
+            Long userId,
+            long amount,
+            String source,
+            String category,
+            String bizId,
+            long overdraftLimit,
+            String remark) {
+        spendInternal(userId, amount, source, category, bizId, overdraftLimit, remark);
     }
 
     /** 内部扣减实现，overdraftLimit=0 表示不允许透支 */
     private void spendInternal(
-            Long userId, long amount, String source, String bizId, long overdraftLimit) {
+            Long userId,
+            long amount,
+            String source,
+            String category,
+            String bizId,
+            long overdraftLimit) {
+        spendInternal(userId, amount, source, category, bizId, overdraftLimit, null);
+    }
+
+    private void spendInternal(
+            Long userId,
+            long amount,
+            String source,
+            String category,
+            String bizId,
+            long overdraftLimit,
+            String remark) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "消费金额必须大于 0");
         }
@@ -136,7 +189,9 @@ public class CreditServiceImpl implements CreditService {
         tx.setAmount(amount);
         tx.setBalanceAfter(account.getBalance());
         tx.setSource(source);
+        tx.setCategory(category);
         tx.setBizId(bizId);
+        tx.setRemark(remark);
         tx.setRemain(0L);
         transactionRepository.save(tx);
 

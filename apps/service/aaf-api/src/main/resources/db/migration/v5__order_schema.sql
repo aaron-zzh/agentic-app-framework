@@ -44,6 +44,7 @@ CREATE TABLE credit_transaction (
     amount          BIGINT       NOT NULL,
     balance_after   BIGINT       NOT NULL,
     source          VARCHAR(100),
+    category        VARCHAR(32),
     biz_id          VARCHAR(64),
     batch_type      VARCHAR(16),
     expire_at       TIMESTAMP(6),
@@ -62,6 +63,8 @@ CREATE TABLE credit_transaction (
 
 COMMENT ON TABLE credit_transaction IS '积分流水记录';
 COMMENT ON COLUMN credit_transaction.type IS 'EARN/SPEND/FREEZE/UNFREEZE/EXPIRE';
+COMMENT ON COLUMN credit_transaction.source IS '来源：从哪来/为什么发生，见 CreditTransactionSourceEnum';
+COMMENT ON COLUMN credit_transaction.category IS '消费分类：花在哪种 AI 能力，仅 SPEND 时有意义，见 CreditTransactionCategoryEnum';
 COMMENT ON COLUMN credit_transaction.batch_type IS '批次来源：SUBSCRIPTION/TOPUP/REWARD/WEEKLY/MANUAL';
 COMMENT ON COLUMN credit_transaction.expire_at  IS '过期时间，NULL=永不过期（充值积分）';
 COMMENT ON COLUMN credit_transaction.remain     IS '本批次剩余可用量（EARN 时=amount，消费后递减）';

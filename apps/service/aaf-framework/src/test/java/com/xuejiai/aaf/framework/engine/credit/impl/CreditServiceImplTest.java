@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.framework.engine.credit;
+package com.xuejiai.aaf.framework.engine.credit.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,6 +15,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.framework.engine.credit.CreditAccount;
+import com.xuejiai.aaf.framework.engine.credit.CreditAccountRepository;
+import com.xuejiai.aaf.framework.engine.credit.CreditTransactionRepository;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class CreditServiceImplTest extends BaseMockitoUnitTest {

@@ -14,6 +14,9 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.xuejiai.aaf.framework.engine.credit.AiCredit;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -40,7 +43,8 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
     }
 
     @Override
-    public MusicResult generate(MusicRequest request) {
+    @AiCredit(precheck = false)
+    public MusicResult generate(AiModel model, MusicRequest request) {
         try {
             var body = buildRequestBody(request);
             var json = objectMapper.writeValueAsString(body);
