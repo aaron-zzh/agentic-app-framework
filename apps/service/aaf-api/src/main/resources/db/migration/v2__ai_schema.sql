@@ -234,13 +234,17 @@ CREATE TABLE ai_model (
     deleted             BOOLEAN          NOT NULL DEFAULT FALSE,
     remark              TEXT,
     image_config        JSONB,
+    video_config        JSONB,
+    params_config       JSONB,
     CONSTRAINT fk_ai_model_provider FOREIGN KEY (provider_id) REFERENCES ai_model_provider(id)
 );
 
 COMMENT ON TABLE ai_model IS 'AI 模型配置';
-COMMENT ON COLUMN ai_model.provider_type     IS '协议类型：OPENAI_COMPAT / ANTHROPIC / OLLAMA';
+COMMENT ON COLUMN ai_model.provider_type     IS '协议类型：OPENAI_COMPAT / ANTHROPIC / OLLAMA / DASHSCOPE / VOLCENGINE / MIDJOURNEY';
 COMMENT ON COLUMN ai_model.capabilities      IS '能力标记：CHAT,VISION,EMBEDDING,IMAGE_GEN,AUDIO,RERANK';
 COMMENT ON COLUMN ai_model.image_config      IS '图像生成能力配置。ratio 模式：{"mode":"ratio","sizes":{"1:1":[[1024,1024],[1536,1536]],...},"features":{"edit":true,"seed":true,"promptExtend":true,"negativePrompt":true,"maxImages":6}}；fixed 模式：{"mode":"fixed","sizes":[[2688,1536],[2048,2048],[1536,2688]],"features":{...}}';
+COMMENT ON COLUMN ai_model.video_config      IS '视频生成能力配置（resolutions/ratios/durations/maxDuration/promptExtend/maxReferenceImages）';
+COMMENT ON COLUMN ai_model.params_config     IS '其余能力公用配置容器（chat/ocr/speech 等子对象），参数多时再拆独立字段';
 COMMENT ON COLUMN ai_model.input_price_per_k IS '输入 Token 单价（元/千Token）';
 COMMENT ON COLUMN ai_model.output_price_per_k IS '输出 Token 单价（元/千Token）';
 COMMENT ON COLUMN ai_model.model_ratio       IS '模型价格倍率（基础系数）';

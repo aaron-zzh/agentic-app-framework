@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonObject;
 
 import com.xuejiai.aaf.common.exception.ExceptionUtil;
-import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.AiErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.vo.OcrRequest;
@@ -37,12 +36,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 基于百炼 DashScope SDK 的 OCR 服务实现。
  *
- * <p>支持全部内置任务（通用识别、信息抽取、表格解析、文档解析、公式识别、高精识别、多语言识别）， 以及自定义 prompt 模式。图像来源支持公网 URL 和 Base64 编码。
- *
- * <p>{@link AiCredit} 切面从第一个参数 {@link AiModel} 读取计费元数据，自动完成预检与结算。
+ * <p>积分由 {@link OcrServiceDecorator} 装饰器统一处理，本类只负责业务逻辑。
  */
 @Slf4j
-@Service
+@Service("dashScopeOcrService")
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
 public class DashScopeOcrService implements OcrService {
 
@@ -73,9 +70,9 @@ public class DashScopeOcrService implements OcrService {
      * <p>URL 场景无法同步读取尺寸，回退到父类估算。
      */
     @Override
-    public long estimateCost(AiModel model, Object[] args, int markupRate) {
-        if (args == null || args.length < 2 || !(args[1] instanceof OcrRequest request)) {
-            return defaultEstimateCost(model, args, markupRate);
+    public long estimateCost(AiModel model, Object req, int markupRate) {
+        if (!(req instanceof OcrRequest request)) {
+            return defaultEstimateCost(model, req, markupRate);
         }
         if (request.imageWidth() != null && request.imageHeight() != null) {
             long token =
@@ -84,7 +81,6 @@ public class DashScopeOcrService implements OcrService {
                             request.imageWidth(),
                             request.minPixels(),
                             request.maxPixels());
-            // 图像 token 全部视为 input token，按模型单价计算积分
             double pricePerK =
                     (model != null && model.getInputPricePerK() != null)
                             ? model.getInputPricePerK().doubleValue()
@@ -92,7 +88,7 @@ public class DashScopeOcrService implements OcrService {
             long cost =
                     Math.max(
                             1,
-                            Math.round(token * pricePerK / 1000.0 * YUAN_TO_CREDIT * markupRate));
+                            Math.round(token * pricePerK / 1000.0 * AiCreditGuard.YUAN_TO_CREDIT * markupRate));
             log.debug(
                     "OCR 积分预估: {}x{} -> imageToken={}, pricePerK={}, markupRate={}, estimatedCost={}",
                     request.imageWidth(),
@@ -103,7 +99,7 @@ public class DashScopeOcrService implements OcrService {
                     cost);
             return cost;
         }
-        long cost = defaultEstimateCost(model, args, markupRate);
+        long cost = defaultEstimateCost(model, req, markupRate);
         log.debug("OCR 积分预估(无宽高，回退父类): estimatedCost={}", cost);
         return cost;
     }
@@ -125,7 +121,6 @@ public class DashScopeOcrService implements OcrService {
     }
 
     @Override
-    @AiCredit
     public OcrResult recognize(AiModel model, OcrRequest request) {
         request.validate();
         try {
@@ -208,7 +203,6 @@ public class DashScopeOcrService implements OcrService {
     }
 
     @Override
-    @AiCredit(settle = false)
     public Flowable<String> streamRecognize(AiModel model, OcrRequest request) {
         request.validate();
         String modelName =
@@ -251,9 +245,9 @@ public class DashScopeOcrService implements OcrService {
                                     creditGuard.settleByUsage(
                                             userId,
                                             model,
-                                            tokens[0],
-                                            tokens[1],
-                                            CapabilityRoutingContext.CAP_OCR);
+                                            OcrResult.ofText(null, tokens[0], tokens[1]),
+                                            CapabilityRoutingContext.CAP_OCR,
+                                            "OCR 流式识别");
                                 } catch (Exception e) {
                                     log.warn(
                                             "OCR 流式结算失败: userId={}, err={}",

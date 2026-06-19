@@ -30,4 +30,7 @@ public interface AigcTaskRepository
 
     /** 查询指定状态且创建时间早于给定时间的任务（用于检测卡住的任务） */
     List<AigcTask> findByStatusAndCreateTimeBefore(String status, LocalDateTime before);
+
+    /** 按状态和任务类型查询 */
+    List<AigcTask> findByStatusAndType(String status, String type);
 }

@@ -46,6 +46,7 @@ CREATE TABLE credit_transaction (
     source          VARCHAR(100),
     category        VARCHAR(32),
     biz_id          VARCHAR(64),
+    biz_type        VARCHAR(64),
     batch_type      VARCHAR(16),
     expire_at       TIMESTAMP(6),
     remain          BIGINT,
@@ -66,11 +67,13 @@ COMMENT ON COLUMN credit_transaction.type IS 'EARN/SPEND/FREEZE/UNFREEZE/EXPIRE'
 COMMENT ON COLUMN credit_transaction.source IS '来源：从哪来/为什么发生，见 CreditTransactionSourceEnum';
 COMMENT ON COLUMN credit_transaction.category IS '消费分类：花在哪种 AI 能力，仅 SPEND 时有意义，见 CreditTransactionCategoryEnum';
 COMMENT ON COLUMN credit_transaction.batch_type IS '批次来源：SUBSCRIPTION/TOPUP/REWARD/WEEKLY/MANUAL';
+COMMENT ON COLUMN credit_transaction.biz_type   IS '业务表标识，与 biz_id 组合定位具体业务记录，如 AIGC_TASK / TOOL_CALL_AUDIT';
 COMMENT ON COLUMN credit_transaction.expire_at  IS '过期时间，NULL=永不过期（充值积分）';
 COMMENT ON COLUMN credit_transaction.remain     IS '本批次剩余可用量（EARN 时=amount，消费后递减）';
 
 CREATE INDEX idx_credit_transaction_account ON credit_transaction(account_id) WHERE deleted = FALSE;
 CREATE INDEX idx_credit_transaction_biz ON credit_transaction(biz_id) WHERE deleted = FALSE;
+CREATE INDEX idx_credit_transaction_biz_type_id ON credit_transaction(biz_type, biz_id) WHERE deleted = FALSE;
 
 -- ==================== 积分转Token规则 ====================
 
@@ -583,124 +586,6 @@ COMMENT ON COLUMN credit_grant_rule.ext         IS '扩展配置（JSONB），�
 
 CREATE UNIQUE INDEX uk_credit_grant_rule_code ON credit_grant_rule(code) WHERE deleted = FALSE;
 
--- ============================================================
--- 字典 Seed 数据
--- ============================================================
-
--- 成长等级
-INSERT INTO billing_level (code, name, exp_min, exp_max, perks, sort) VALUES
-    ('L0', '普通会员', 0, 99, '{"sign_bonus": 1.0}', 0),
-    ('L1', '银牌会员', 100, 499, '{"sign_bonus": 1.5}', 1),
-    ('L2', '金牌会员', 500, 2147483647, '{"sign_bonus": 2.0}', 2);
-
--- 订阅套餐
-INSERT INTO billing_subscription_plan (code, name, duration_days, price, market_price, status, sort) VALUES
-    ('FREE', '免费版', 0, 0, 0, 'ENABLED', 0),
-    ('PRO', '专业版', 30, 9900, 12900, 'ENABLED', 1),
-    ('TEAM', '团队版', 30, 29900, 39900, 'ENABLED', 2),
-    ('ENTERPRISE', '企业版', 365, 299900, 399900, 'ENABLED', 3);
-
--- 权益定义
-INSERT INTO billing_entitlement_def (code, name, type, unit, description) VALUES
-    ('ai_token', 'AI Token 额度', 'COUNTABLE', 'token', 'AI 对话消耗的 Token 额度'),
-    ('model_gpt4', 'GPT-4 模型访问', 'BOOLEAN', NULL, '是否可使用 GPT-4 模型'),
-    ('kb_storage', '知识库存储', 'COUNTABLE', 'MB', '知识库文件存储空间'),
-    ('workflow_run', '工作流执行次数', 'COUNTABLE', '次', '每月可执行工作流次数');
-
--- 套餐×权益规则（FREE）
-INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT sp.id, ed.id, 10000, 'MONTHLY', 100
-FROM billing_subscription_plan sp, billing_entitlement_def ed
-WHERE sp.code = 'FREE' AND ed.code = 'ai_token';
-
-INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT sp.id, ed.id, 1024, 'NONE', 0
-FROM billing_subscription_plan sp, billing_entitlement_def ed
-WHERE sp.code = 'FREE' AND ed.code = 'kb_storage';
-
-INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT sp.id, ed.id, 10, 'MONTHLY', 50
-FROM billing_subscription_plan sp, billing_entitlement_def ed
-WHERE sp.code = 'FREE' AND ed.code = 'workflow_run';
-
--- 套餐×权益规则（PRO）
-INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT sp.id, ed.id, 1000000, 'MONTHLY', 10
-FROM billing_subscription_plan sp, billing_entitlement_def ed
-WHERE sp.code = 'PRO' AND ed.code = 'ai_token';
-
-INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT sp.id, ed.id, 1, 'NONE', 0
-FROM billing_subscription_plan sp, billing_entitlement_def ed
-WHERE sp.code = 'PRO' AND ed.code = 'model_gpt4';
-
-INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT sp.id, ed.id, 10240, 'NONE', 0
-FROM billing_subscription_plan sp, billing_entitlement_def ed
-WHERE sp.code = 'PRO' AND ed.code = 'kb_storage';
-
-INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT sp.id, ed.id, 100, 'MONTHLY', 20
-FROM billing_subscription_plan sp, billing_entitlement_def ed
-WHERE sp.code = 'PRO' AND ed.code = 'workflow_run';
-
--- 订阅套餐月度积分
-UPDATE billing_subscription_plan SET monthly_credits = 8400   WHERE code = 'PRO';
-UPDATE billing_subscription_plan SET monthly_credits = 30000  WHERE code = 'TEAM';
-UPDATE billing_subscription_plan SET monthly_credits = 100000 WHERE code = 'ENTERPRISE';
-
--- 积分发放规则
-INSERT INTO credit_grant_rule (code, name, amount, expire_days, trigger, status) VALUES
-    ('WEEKLY',   '每周积分',     200,  7, 'SCHEDULE', 'ENABLED'),
-    ('REGISTER', '注册奖励',     100, 30, 'EVENT',    'ENABLED'),
-    ('INVITE',   '邀请奖励',     500, 30, 'EVENT',    'ENABLED'),
-    ('EXPLORE',  '探索使用奖励', 200, 30, 'EVENT',    'ENABLED');
-
-
--- 会员与积分 FAQ（前端定价页展示）
-INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable)
-VALUES (
-    'member',
-    'member.faq',
-    '[
-  {
-    "q": "什么是积分（credits），我如何获得？",
-    "a": "积分是平台的标准计量单位，用于 AI 对话、图片生成、视频生成等功能。你可以通过以下方式获取积分：\n订阅会员后每月自动到账（有效期 30 天）；\n每周一自动发放每周积分（有效期 7 天）；\n成功邀请用户注册后获取邀请奖励（有效期 30 天）；\n使用平台功能可获得探索使用奖励（有效期 30 天）；\n也可直接充值购买积分（永久有效）。"
-  },
-  {
-    "q": "积分在使用过程中如何扣除？",
-    "a": "积分的具体消耗以功能价格表为准。系统将优先扣除更快到期的积分，以最大程度保障你的积分使用权益。"
-  },
-  {
-    "q": "订阅是如何运作的？",
-    "a": "订阅后立即生效，每月自动发放对应积分（有效期 30 天）。到期后需重新购买，暂不支持自动续费。升级套餐时，旧套餐剩余权益将在当前周期内继续有效。"
-  },
-  {
-    "q": "订阅会自动续费吗？",
-    "a": "目前暂不支持自动续费。订阅到期后需手动重新购买，到期前系统会发送提醒通知。"
-  },
-  {
-    "q": "充值积分有有效期吗？",
-    "a": "充值购买的积分有效期为 2 年，到期自动清零。订阅赠送的月度积分有效期为 30 天，每周积分有效期为 7 天，奖励积分有效期为 30 天。系统优先消耗更快到期的积分，保障你的权益。"
-  },
-  {
-    "q": "如何修改或取消订阅？",
-    "a": "你可以随时在「设置 → 订阅」页面管理订阅。取消后，当前订阅周期内权益仍然有效，周期结束后不再续期。"
-  },
-  {
-    "q": "如何申请退款？",
-    "a": "如果你在最近一次付款后未有任何使用行为，可在购买后 7 天内联系客服申请全额退款。因系统问题导致的失败操作将自动退还对应积分。"
-  }
-]',
-    NULL,
-    'json',
-    '会员与积分常见问题',
-    '定价页展示的 FAQ 列表，JSON 数组，每项包含 q（问题）和 a（答案）',
-    TRUE,
-    TRUE
-);
-
-
 -- ==================== 积分充值套餐 ====================
 
 CREATE TABLE credit_package (
@@ -797,3 +682,33 @@ COMMENT ON COLUMN credit_redeem_code.status IS '状态：UNUSED=未使用, REDEE
 COMMENT ON COLUMN credit_redeem_code.expires_at IS '过期时间，NULL 表示永不过期';
 COMMENT ON COLUMN credit_redeem_code.redeemed_by_user_id IS '兑换者用户 ID';
 COMMENT ON COLUMN credit_redeem_code.redeemed_at IS '兑换时间';
+
+-- AI 调用用量记录表
+-- 与 credit_transaction 通过 credit_tx_id 关联
+-- usage: 标准化用量（jsonb），raw_usage: 供应商原始用量（jsonb）
+CREATE TABLE IF NOT EXISTS ai_usage_record (
+    id              BIGSERIAL    PRIMARY KEY,
+    user_id         BIGINT       NOT NULL,
+    model_id        BIGINT,
+    capability      VARCHAR(32)  NOT NULL,
+    quota_type      SMALLINT     NOT NULL DEFAULT 0,
+    cost_yuan       NUMERIC(14,6),
+    credit_amount   BIGINT,
+    credit_tx_id    BIGINT,
+    usage           JSONB,
+    raw_usage       JSONB,
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_air_user_id     ON ai_usage_record (user_id);
+CREATE INDEX idx_air_model_id    ON ai_usage_record (model_id);
+CREATE INDEX idx_air_capability  ON ai_usage_record (capability);
+CREATE INDEX idx_air_create_time ON ai_usage_record (create_time);
+
+COMMENT ON TABLE  ai_usage_record                IS 'AI 调用用量记录';
+COMMENT ON COLUMN ai_usage_record.quota_type     IS '0=TOKEN 1=PER_USE 2=PER_SEC 3=PER_UNIT';
+COMMENT ON COLUMN ai_usage_record.cost_yuan      IS '本次实际成本（元）';
+COMMENT ON COLUMN ai_usage_record.credit_amount  IS '扣减积分数';
+COMMENT ON COLUMN ai_usage_record.credit_tx_id   IS '关联 credit_transaction.id';
+COMMENT ON COLUMN ai_usage_record.usage          IS '标准化用量 jsonb，按 quota_type 解释';
+COMMENT ON COLUMN ai_usage_record.raw_usage      IS '供应商原始 usage 字段，原样存储';

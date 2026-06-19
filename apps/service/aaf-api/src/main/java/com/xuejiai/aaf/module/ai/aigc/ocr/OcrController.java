@@ -13,6 +13,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.ocr.vo.OcrResult;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.vo.OcrTask;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OcrController {
 
-    private final OcrService ocrService;
+    private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
     private final OperatorContext operatorContext;
 
@@ -60,8 +61,9 @@ public class OcrController {
                         dto.imageWidth(),
                         dto.imageHeight());
 
-        // 积分预检 + 结算由 @AiCredit 切面自动完成
-        return Result.success(ocrService.recognize(model, request));
+        // 积分预检 + 结算由 OcrServiceDecorator 装饰器统一处理
+        return Result.success(
+                aiServiceRegistry.get(OcrService.class, model).recognize(model, request));
     }
 
     @Operation(summary = "OCR 流式识别（SSE）")
@@ -90,7 +92,8 @@ public class OcrController {
         Thread.startVirtualThread(
                 () -> {
                     try {
-                        ocrService
+                        aiServiceRegistry
+                                .get(OcrService.class, model)
                                 .streamRecognize(model, request)
                                 .blockingForEach(
                                         chunk ->

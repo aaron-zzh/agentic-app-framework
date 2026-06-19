@@ -25,7 +25,6 @@ import com.alibaba.dashscope.common.MultiModalMessage;
 import com.alibaba.dashscope.common.Role;
 import com.alibaba.dashscope.utils.Constants;
 
-import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
@@ -47,7 +46,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>所有分支均同步调用，由上层 {@code @Async} 包装为非阻塞任务。 不支持的参数字段在对应分支中静默忽略。
  */
 @Slf4j
-@Service
+@Service("dashScopeImageGenerationService")
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
 public class DashScopeImageGenerationService implements ImageGenerationService {
 
@@ -66,7 +65,6 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult generate(AiModel model, ImageRequest req) {
         String modelStr = stripNamespace(req.getModelId());
         log.info("[DashScopeImage] 生成: model={}", modelStr);
@@ -103,7 +101,6 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult imageToImage(AiModel model, ImageEditRequest req) {
         String modelStr =
                 req.getModelId() != null ? stripNamespace(req.getModelId()) : "qwen-image-2.0-pro";
@@ -119,16 +116,10 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult editImage(AiModel model, ImageEditRequest req) {
         return imageToImage(model, req);
     }
 
-    /**
-     * 带多张参考图的生成/编辑（供 AigcTaskExecutor 直接调用）。
-     *
-     * @param isPresetSize true 表示 size 是档位字符串（1K/2K），false 表示像素字符串
-     */
     /** {@link #generateWithImages} 的 ImageRequest 重载。 */
     public ImageResult generateWithImages(ImageRequest req) {
         return generateWithImages(
@@ -141,8 +132,7 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
                 req.getSizePreset() != null);
     }
 
-    /** 供 AigcTaskExecutor 调用，携带 AiModel 供 @AiCredit 切面结算。 */
-    @AiCredit(precheck = false)
+    /** 供 AigcTaskExecutor 调用，携带 AiModel 用于装饰器积分结算。 */
     public ImageResult generateWithImages(AiModel model, ImageRequest req) {
         return generateWithImages(req);
     }

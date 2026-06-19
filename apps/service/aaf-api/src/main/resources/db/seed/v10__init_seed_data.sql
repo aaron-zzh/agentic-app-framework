@@ -356,15 +356,17 @@ UPDATE sys_profile_dimension SET enum_options = '["高","中","低"]' WHERE code
 
 
 
--- ==================== 资源类权益定义 ====================
+-- ==================== 权益定义 ====================
 
 INSERT INTO billing_entitlement_def (code, name, type, unit, description)
 VALUES
-('kb_storage',      '知识库存储',   'COUNTABLE', 'GB',  '知识库可用存储空间上限'),
-('image_storage',   '图像存储',     'COUNTABLE', '张',  '图像素材库存储数量上限'),
-('agent_count',     'Agent 数量',   'COUNTABLE', '个',  '可创建的 Agent 数量上限'),
-('workflow_count',  '工作流数量',   'COUNTABLE', '个',  '可创建的工作流数量上限')
-ON CONFLICT DO NOTHING;
+    ('storage',           '存储空间',       'COUNTABLE', 'GB', '平台通用存储空间，含知识库文件、上传素材等'),
+    ('kb_count',          '知识库数量上限', 'COUNTABLE', '个', '最多可创建的知识库数量'),
+    ('workflow_count',    '工作流数量上限', 'COUNTABLE', '个', '最多可创建的工作流数量'),
+    ('agent_count',       'Agent 数量上限', 'COUNTABLE', '个', '最多可创建的 Agent 数量'),
+    ('member_count',      '团队成员数上限', 'COUNTABLE', '人', '团队最多可添加的成员数'),
+    ('max_parallel_task', '最大并行任务数', 'COUNTABLE', '个', '同一时刻最多并行运行的任务数')
+ON CONFLICT (code) DO NOTHING;
 
 -- ==================== AI 业务动作目录 ====================
 
@@ -470,26 +472,45 @@ ON CONFLICT (tool_name) DO UPDATE SET
 
 -- ==================== 订阅套餐 ====================
 
-INSERT INTO billing_subscription_plan (code, name, duration_days, price, market_price, monthly_credits, status, sort)
+INSERT INTO billing_subscription_plan (code, name, duration_days, price, market_price, monthly_credits, status, sort, ext)
 VALUES
-    ('FREE', '免费套餐', 0,  0,    0,     0,    'ENABLED', 0),
-    ('PRO',  '专业版',   30, 2900, 3900,  500,  'ENABLED', 1),
-    ('TEAM', '团队版',   30, 9900, 12900, 2000, 'ENABLED', 2)
+    ('FREE', '免费',   0,  0,    0,     0,    'ENABLED', 0, '{"tagline":"个人探索，零门槛开始"}'),
+    ('PRO',  '高级',   30, 2900, 3900,  500,  'ENABLED', 1, '{"tagline":"解锁更多能力，适合个人进阶"}'),
+    ('TEAM', '专业',   30, 9900, 12900, 2000, 'ENABLED', 2, '{"tagline":"团队协作，共享资源与权限"}')
 ON CONFLICT DO NOTHING;
 
--- ==================== FREE 套餐权益挂接 ====================
+-- ==================== 套餐×权益规则 ====================
 
+-- FREE
 INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
-SELECT p.id, e.id, v.quota, v.reset_cycle, 0
+SELECT p.id, e.id, v.quota, 'NONE', 0
 FROM billing_subscription_plan p
 CROSS JOIN (VALUES
-    ('kb_storage',     1,    'NONE'),
-    ('image_storage',  100,  'NONE'),
-    ('agent_count',    3,    'NONE'),
-    ('workflow_count', 5,    'NONE')
-) AS v(code, quota, reset_cycle)
+    ('storage',           1),
+    ('kb_count',          1),
+    ('workflow_count',    3),
+    ('agent_count',       2),
+    ('member_count',      1),
+    ('max_parallel_task', 2)
+) AS v(code, quota)
 JOIN billing_entitlement_def e ON e.code = v.code AND e.deleted = FALSE
 WHERE p.code = 'FREE' AND p.deleted = FALSE
+ON CONFLICT DO NOTHING;
+
+-- PRO
+INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
+SELECT p.id, e.id, v.quota, 'NONE', 0
+FROM billing_subscription_plan p
+CROSS JOIN (VALUES
+    ('storage',           10),
+    ('kb_count',          3),
+    ('workflow_count',    20),
+    ('agent_count',       5),
+    ('member_count',      10),
+    ('max_parallel_task', 6)
+) AS v(code, quota)
+JOIN billing_entitlement_def e ON e.code = v.code AND e.deleted = FALSE
+WHERE p.code = 'PRO' AND p.deleted = FALSE
 ON CONFLICT DO NOTHING;
 
 
@@ -658,8 +679,11 @@ VALUES
 ('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1),
 ('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1),
 -- 视频生成
-('qwen:happyhorse-1.0-i2v',        'HappyHorse',          'qwen', 'DASHSCOPE',    'happyhorse-1.0-i2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 0),
-('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 351, true, null, null, null, 0),
+('qwen:happyhorse-1.0-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-i2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3),
+('qwen:happyhorse-1.0-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-t2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3),
+('qwen:happyhorse-1.0-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-r2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3),
+('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3),
+('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0),
 -- 重排序
 ('qwen:qwen3-rerank',              'GTE Rerank v2',       'qwen', 'DASHSCOPE',    'qwen3-rerank',                   'https://dashscope.aliyuncs.com', 'RERANK',     null, 360, true,  null,  null, null, 0),
 -- 语音识别（ASR）
@@ -668,7 +692,7 @@ VALUES
 ('qwen:cosyvoice-v3-flash',        'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3-flash',             'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  null,  null, null, 0),
 ('qwen:cosyvoice-v3-plus',         'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3-plus',              'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  null,  null, null, 0),
 -- 音乐生成
-('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, null, 0),
+('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, 0.002, 2),
 -- 全模态实时
 ('qwen:qwen3-omni-flash-realtime', 'Qwen3 Omni Flash',    'qwen', 'DASHSCOPE',    'qwen-omni-flash-realtime',       'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true, null, null, null, 0),
 ('qwen:qwen3.5-omni-plus-realtime','Qwen3.5 Omni Plus',   'qwen', 'DASHSCOPE',    'qwen3.5-omni-plus-realtime',     'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true, null, null, null, 0),
@@ -684,6 +708,56 @@ VALUES
     ('SYSTEM', NULL, 'IMAGE_GEN', '["openai:dall-e-3"]'),
     ('SYSTEM', NULL, 'OCR',       '["qwen:qwen3.5-ocr"]')
 ON CONFLICT ON CONSTRAINT uq_model_preference DO NOTHING;
+
+-- 分级价格（PER_UNIT 模型，params_config 存原价，折扣在运营层处理）
+UPDATE ai_model
+SET params_config = '{
+  "video": {
+    "pricing": [
+      {"resolution": "720p",  "pricePerSecond": 0.9},
+      {"resolution": "1080p", "pricePerSecond": 1.6}
+    ]
+  }
+}'
+WHERE model_id IN ('qwen:happyhorse-1.0-i2v', 'qwen:happyhorse-1.0-t2v', 'qwen:happyhorse-1.0-r2v', 'qwen:happyhorse-1.0-video-edit');
+
+-- HappyHorse 通用视频配置（t2v / i2v / r2v / video-edit 共享）
+UPDATE ai_model
+SET video_config = '{
+  "resolutions": ["720p", "1080p"],
+  "ratios": ["16:9", "9:16", "1:1"],
+  "durations": [3, 5, 10, 15],
+  "maxDuration": 15,
+  "seed": true,
+  "watermark": true,
+  "audioSetting": ["auto", "origin"],
+  "generateAudio": false,
+  "promptExtend": false,
+  "maxReferenceImages": 9,
+  "maxReferenceVideos": null,
+  "maxReferenceAudios": null,
+  "modes": ["t2v", "i2v", "r2v", "video-edit"]
+}'
+WHERE model_id IN ('qwen:happyhorse-1.0-i2v', 'qwen:happyhorse-1.0-t2v', 'qwen:happyhorse-1.0-r2v', 'qwen:happyhorse-1.0-video-edit');
+
+-- Doubao Seedance 视频配置
+UPDATE ai_model
+SET video_config = '{
+  "resolutions": null,
+  "ratios": ["16:9", "9:16", "1:1", "4:3", "3:4"],
+  "durations": [5, 10],
+  "maxDuration": 10,
+  "seed": false,
+  "watermark": true,
+  "audioSetting": null,
+  "generateAudio": true,
+  "promptExtend": false,
+  "maxReferenceImages": 1,
+  "maxReferenceVideos": 1,
+  "maxReferenceAudios": 1,
+  "modes": ["t2v", "i2v", "r2v", "video-edit"]
+}'
+WHERE model_id = 'volcengine:doubao-seedance-2-0-260128';
 
 
 

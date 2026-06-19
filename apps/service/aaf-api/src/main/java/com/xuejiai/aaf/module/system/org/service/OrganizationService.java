@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.org.domain.OrgMember;
 import com.xuejiai.aaf.module.system.org.domain.Organization;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
@@ -32,6 +34,8 @@ public class OrganizationService {
 
     private final OrganizationRepository orgRepository;
     private final OrgMemberRepository memberRepository;
+    private final EntitlementChecker entitlementChecker;
+    private final OperatorContext operatorContext;
 
     /** 获取用户所属的所有组织 */
     public List<OrganizationVO> listByUser(Long userId) {
@@ -122,6 +126,9 @@ public class OrganizationService {
         if (memberRepository.existsByOrgIdAndUserIdAndDeletedFalse(orgId, dto.userId())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "用户已是组织成员");
         }
+        operatorContext
+                .currentOwnerId()
+                .ifPresent(uid -> entitlementChecker.checkAndConsume(uid, "member_count", 1));
         var member = new OrgMember();
         member.setOrgId(orgId);
         member.setUserId(dto.userId());
@@ -165,6 +172,9 @@ public class OrganizationService {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不能移除组织所有者");
         }
         memberRepository.deleteById(member.getId());
+        operatorContext
+                .currentOwnerId()
+                .ifPresent(uid -> entitlementChecker.consume(uid, "member_count", -1));
     }
 
     // ==================== 私有方法 ====================

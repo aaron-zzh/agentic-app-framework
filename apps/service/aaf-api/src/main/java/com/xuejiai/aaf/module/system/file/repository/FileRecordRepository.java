@@ -16,4 +16,9 @@ public interface FileRecordRepository
         extends JpaRepository<FileRecord, Long>, JpaSpecificationExecutor<FileRecord> {
 
     Optional<FileRecord> findByKey(String key);
+
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT COALESCE(SUM(f.size), 0) FROM FileRecord f WHERE f.uploaderId = :uploaderId AND f.deleted = false")
+    long sumSizeByUploaderId(
+            @org.springframework.data.repository.query.Param("uploaderId") Long uploaderId);
 }

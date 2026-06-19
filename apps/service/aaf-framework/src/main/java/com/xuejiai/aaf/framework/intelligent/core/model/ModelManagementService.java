@@ -16,6 +16,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageConfig;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoConfig;
 
 import lombok.RequiredArgsConstructor;
 
@@ -99,5 +100,21 @@ public class ModelManagementService {
     public ImageConfig resolveImageConfig(String modelId) {
         var model = configCacheManager.getAiModelByModelId(modelId);
         return model != null ? model.getImageConfigParsed() : null;
+    }
+
+    /** 解析模型的 VideoConfig，走缓存，解析失败返回 null。 */
+    public VideoConfig resolveVideoConfig(String modelId) {
+        var model = configCacheManager.getAiModelByModelId(modelId);
+        return model != null ? model.getVideoConfigParsed() : null;
+    }
+
+    /**
+     * 解析模型的 params_config 为指定类型，走缓存，解析失败返回 null。
+     *
+     * <p>用于 chat/ocr/speech 等能力：{@code resolveParamsConfig(modelId, ChatConfig.class)}
+     */
+    public <T> T resolveParamsConfig(String modelId, Class<T> type) {
+        var model = configCacheManager.getAiModelByModelId(modelId);
+        return model != null ? model.getParamsConfigParsed(type) : null;
     }
 }

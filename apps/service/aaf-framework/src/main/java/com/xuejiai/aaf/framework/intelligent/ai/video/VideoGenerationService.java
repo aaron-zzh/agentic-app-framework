@@ -1,8 +1,11 @@
 package com.xuejiai.aaf.framework.intelligent.ai.video;
 
 import java.util.List;
+import java.util.Map;
 
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
@@ -21,6 +24,32 @@ public interface VideoGenerationService extends AiCapability {
     }
 
     /**
+     * 按单元估算积分预检费用（PER_UNIT）。
+     *
+     * <p>单价基准为 {@code model.modelPrice}，按分辨率乘以倍率系数：720p=1x，1080p=2x，4k=4x。 无法识别分辨率时退回 1x。
+     */
+    @Override
+    default long estimateCost(AiModel model, Object req, int markupRate) {
+        if (model == null || model.getModelPrice() == null) return 1;
+        double resolutionMultiplier = 1.0;
+        if (req instanceof VideoRequest vr && vr.resolution() != null) {
+            resolutionMultiplier =
+                    switch (vr.resolution().toLowerCase()) {
+                        case "1080p" -> 2.0;
+                        case "4k" -> 4.0;
+                        default -> 1.0;
+                    };
+        }
+        return Math.max(
+                1,
+                Math.round(
+                        model.getModelPrice().doubleValue()
+                                * resolutionMultiplier
+                                * AiCreditGuard.YUAN_TO_CREDIT
+                                * markupRate));
+    }
+
+    /**
      * 统一提交视频生成任务，返回 taskId。
      *
      * <ul>
@@ -29,37 +58,57 @@ public interface VideoGenerationService extends AiCapability {
      *   <li>否则 → t2v（文生视频）
      * </ul>
      */
+    /**
+     * 统一提交视频生成任务，返回 taskId。
+     *
+     * <p>路由完全基于业务意图（{@link VideoRequest#imageMode()}）：
+     *
+     * <ul>
+     *   <li>{@code null} / {@code T2V} → 文生视频
+     *   <li>{@code FIRST_FRAME} → 图生视频（i2v，imageUrl 为首帧）
+     *   <li>{@code REFERENCE} → 参考生视频（r2v，优先取 referenceImageUrls，单张取 imageUrl）
+     * </ul>
+     */
     default String submit(VideoRequest request) {
-        if (request.referenceImageUrls() != null && !request.referenceImageUrls().isEmpty()) {
-            return submitReferenceToVideo(
-                    new ReferenceToVideoRequest(
-                            request.prompt(),
-                            request.referenceImageUrls(),
-                            request.model(),
-                            request.resolution(),
-                            request.ratio(),
-                            request.duration(),
-                            request.seed()));
-        }
-        if (request.imageUrl() != null) {
-            return submitImageToVideo(
-                    new ImageToVideoRequest(
-                            request.prompt(),
-                            request.imageUrl(),
-                            request.model(),
-                            request.resolution(),
-                            request.duration(),
-                            request.seed()));
-        }
-        return submitTextToVideo(
-                new TextToVideoRequest(
-                        request.prompt(),
-                        null,
-                        request.resolution(),
-                        request.ratio(),
-                        request.duration(),
-                        request.seed(),
-                        null));
+        return switch (request.imageMode() != null
+                ? request.imageMode()
+                : VideoRequest.ImageMode.T2V) {
+            case FIRST_FRAME ->
+                    submitImageToVideo(
+                            new ImageToVideoRequest(
+                                    request.prompt(),
+                                    request.imageUrl(),
+                                    request.model(),
+                                    request.resolution(),
+                                    request.duration(),
+                                    request.seed()));
+            case REFERENCE -> {
+                var refs =
+                        request.referenceImageUrls() != null
+                                        && !request.referenceImageUrls().isEmpty()
+                                ? request.referenceImageUrls()
+                                : List.of(request.imageUrl());
+                yield submitReferenceToVideo(
+                        new ReferenceToVideoRequest(
+                                request.prompt(),
+                                refs,
+                                request.model(),
+                                request.resolution(),
+                                request.ratio(),
+                                request.duration(),
+                                request.seed()));
+            }
+            case T2V ->
+                    submitTextToVideo(
+                            new TextToVideoRequest(
+                                    request.prompt(),
+                                    null,
+                                    request.resolution(),
+                                    request.ratio(),
+                                    request.duration(),
+                                    request.seed(),
+                                    null));
+        };
     }
 
     /** 提交文生视频任务，返回 taskId。 */
@@ -82,11 +131,7 @@ public interface VideoGenerationService extends AiCapability {
     /**
      * 统一视频生成请求。
      *
-     * <ul>
-     *   <li>有 referenceImageUrls → 参考生视频（r2v）
-     *   <li>有 imageUrl → 图生视频（i2v）
-     *   <li>否则 → 文生视频（t2v）
-     * </ul>
+     * <p>路由完全由 {@code imageMode} 决定，调用方必须显式传入意图，不依赖字段是否为空推断。
      */
     record VideoRequest(
             String prompt,
@@ -98,7 +143,16 @@ public interface VideoGenerationService extends AiCapability {
             String resolution,
             String ratio,
             Integer duration,
-            Integer seed) {}
+            Integer seed,
+            /** 单张图片时的业务意图：T2V（默认，文生视频）、FIRST_FRAME（首帧，走 i2v）、REFERENCE（参考图，走 r2v）。 */
+            ImageMode imageMode) {
+
+        public enum ImageMode {
+            T2V,
+            FIRST_FRAME,
+            REFERENCE
+        }
+    }
 
     /** 文生视频请求。 */
     record TextToVideoRequest(
@@ -150,7 +204,31 @@ public interface VideoGenerationService extends AiCapability {
             String origPrompt,
             String submitTime,
             String endTime,
-            Integer duration) {
+            Integer duration,
+            /** 实际生成分辨率，如 "720p"/"1080p"，供 PER_UNIT 结算使用。 */
+            String resolution)
+            implements AiUsage {
+
+        /** 兼容旧调用（无 resolution）。 */
+        public VideoTaskResult(
+                String taskId,
+                TaskStatus status,
+                String videoUrl,
+                String origPrompt,
+                String submitTime,
+                String endTime,
+                Integer duration) {
+            this(taskId, status, videoUrl, origPrompt, submitTime, endTime, duration, null);
+        }
+
+        @Override
+        public Map<String, Object> standardUsage() {
+            var map = new java.util.HashMap<String, Object>();
+            map.put("count", 1);
+            if (duration != null) map.put("duration", duration);
+            if (resolution != null) map.put("resolution", resolution);
+            return map;
+        }
 
         public enum TaskStatus {
             PENDING,

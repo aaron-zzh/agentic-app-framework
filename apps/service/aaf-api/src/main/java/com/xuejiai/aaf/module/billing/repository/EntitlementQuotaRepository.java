@@ -14,6 +14,13 @@ public interface EntitlementQuotaRepository extends JpaRepository<EntitlementQuo
 
     List<EntitlementQuota> findByUserId(Long userId);
 
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT q FROM EntitlementQuota q JOIN EntitlementDef d ON q.entId = d.id "
+                    + "WHERE q.userId = :userId AND d.code = :code AND q.deleted = false")
+    Optional<EntitlementQuota> findByUserIdAndEntCode(
+            @org.springframework.data.repository.query.Param("userId") Long userId,
+            @org.springframework.data.repository.query.Param("code") String code);
+
     /** 查找需要重置的额度（next_reset_at <= 当前时间） */
     List<EntitlementQuota> findByNextResetAtLessThanEqual(LocalDateTime now);
 }

@@ -10,10 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAsset;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.MediaAssetGroup;
@@ -44,7 +45,7 @@ public class MediaAssetService {
     private final MediaAssetRepository assetRepository;
     private final MediaAssetVariantRepository variantRepository;
     private final MediaAssetGroupRepository groupRepository;
-    private final ImageServiceFactory imageServiceFactory;
+    private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
     private final FileService fileService;
 
@@ -251,8 +252,8 @@ public class MediaAssetService {
                         CapabilityRoutingContext.of(
                                 userId, CapabilityRoutingContext.CAP_IMAGE_GEN, explicitModelId));
         var result =
-                imageServiceFactory
-                        .getSyncService(model)
+                aiServiceRegistry
+                        .get(ImageGenerationService.class, model)
                         .generate(
                                 model,
                                 new ImageRequest(

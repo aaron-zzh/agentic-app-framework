@@ -28,6 +28,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.access.FieldAccessSupport;
 import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
@@ -75,6 +76,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
 
     @Autowired(required = false)
     private ObjectProvider<FieldAccessSupport> fieldAccessSupport;
+
+    @Autowired(required = false)
+    private EntitlementChecker entitlementChecker;
 
     @PersistenceContext private EntityManager entityManager;
 
@@ -272,8 +276,10 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /** 创建。返回的 VO 已应用字段级权限过滤。 */
     @Transactional
     public V create(C request) {
+        checkEntitlement(1);
         E entity = toEntity(request);
         getRepository().save(entity);
+        consumeEntitlement(1);
         return applyFieldAccess(toVO(entity), "read");
     }
 
@@ -307,6 +313,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     public void delete(Long id) {
         E entity = requireEntity(id);
         getRepository().delete(entity);
+        consumeEntitlement(-1); // 归还额度
     }
 
     /**
@@ -361,6 +368,33 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /** 实体名称，用于错误提示。子类可覆写。 */
     protected String entityName() {
         return "记录";
+    }
+
+    /**
+     * 权益编码。子类覆写后，create 自动扣减、delete 自动归还。
+     *
+     * <p>示例：{@code return "workflow_count";}
+     *
+     * @return 权益编码，null 表示不校验
+     */
+    protected String entitlementCode() {
+        return null;
+    }
+
+    private void checkEntitlement(long cost) {
+        var code = entitlementCode();
+        if (code == null || entitlementChecker == null || operatorContext == null) return;
+        var userId = operatorContext.currentOwnerId().orElse(null);
+        if (userId == null) return;
+        entitlementChecker.check(userId, code, cost);
+    }
+
+    private void consumeEntitlement(long delta) {
+        var code = entitlementCode();
+        if (code == null || entitlementChecker == null || operatorContext == null) return;
+        var userId = operatorContext.currentOwnerId().orElse(null);
+        if (userId == null) return;
+        entitlementChecker.consume(userId, code, delta);
     }
 
     /** 字段集转换。子类可覆写以提供 list/detail/picker 等不同 VO。 */

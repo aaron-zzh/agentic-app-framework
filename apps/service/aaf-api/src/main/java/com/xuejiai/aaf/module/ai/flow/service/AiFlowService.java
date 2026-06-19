@@ -54,6 +54,11 @@ public class AiFlowService
     }
 
     @Override
+    protected String entitlementCode() {
+        return "workflow_count";
+    }
+
+    @Override
     protected AiFlowDefinitionVO toVO(AiFlowDefinition e) {
         var vo = new AiFlowDefinitionVO();
         vo.setId(e.getId());

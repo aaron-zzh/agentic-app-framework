@@ -22,8 +22,8 @@ public interface OcrService extends AiCapability {
     }
 
     /** 供实现类回退到 AiCapability 默认估算逻辑（Java 不允许跨层 super 调用）。 */
-    default long defaultEstimateCost(AiModel model, Object[] args, int markupRate) {
-        return AiCapability.super.estimateCost(model, args, markupRate);
+    default long defaultEstimateCost(AiModel model, Object req, int markupRate) {
+        return AiCapability.super.estimateCost(model, req, markupRate);
     }
 
     /**

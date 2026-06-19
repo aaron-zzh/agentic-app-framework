@@ -7,11 +7,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.xuejiai.aaf.common.enums.chat.ParticipantTypeEnum;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
 import com.xuejiai.aaf.module.chat.conversation.repository.ConversationParticipantRepository;
-import com.xuejiai.aaf.module.chat.enums.ParticipantType;
 import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
 import com.xuejiai.aaf.module.chat.message.repository.ConversationMessageRepository;
 import com.xuejiai.aaf.module.chat.message.vo.MessageCreateDTO;
@@ -125,7 +125,7 @@ public class MessageCrudService
                                     "senderId", vo.senderId(),
                                     "content", vo.content() != null ? vo.content() : ""));
             participantRepository.findByConversationIdAndLeftAtIsNull(vo.conversationId()).stream()
-                    .filter(p -> p.getParticipantType() == ParticipantType.HUMAN)
+                    .filter(p -> p.getParticipantType() == ParticipantTypeEnum.HUMAN)
                     .filter(p -> !p.getParticipantId().equals(vo.senderId())) // 不推给自己
                     .forEach(
                             p -> {

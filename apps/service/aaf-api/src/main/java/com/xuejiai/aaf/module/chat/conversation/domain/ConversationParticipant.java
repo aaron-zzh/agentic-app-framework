@@ -5,9 +5,8 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.xuejiai.aaf.module.chat.enums.ParticipantLeftReason;
-import com.xuejiai.aaf.module.chat.enums.ParticipantRole;
-import com.xuejiai.aaf.module.chat.enums.ParticipantType;
+import com.xuejiai.aaf.common.enums.chat.ParticipantRoleEnum;
+import com.xuejiai.aaf.common.enums.chat.ParticipantTypeEnum;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,11 +43,11 @@ public class ConversationParticipant {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "participant_type", nullable = false, length = 16)
-    private ParticipantType participantType;
+    private ParticipantTypeEnum participantType;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 16)
-    private ParticipantRole role = ParticipantRole.MEMBER;
+    private ParticipantRole role = ParticipantRoleEnum.MEMBER;
 
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt = LocalDateTime.now();

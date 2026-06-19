@@ -1,6 +1,10 @@
 package com.xuejiai.aaf.framework.intelligent.ai.music;
 
+import java.util.Map;
+
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
@@ -19,6 +23,25 @@ public interface MusicGenerationService extends AiCapability {
     @Override
     default String bizName() {
         return "音乐生成";
+    }
+
+    /**
+     * 按秒估算积分预检费用。
+     *
+     * <p>百炼音乐模型请求参数不含时长，生成时长由模型决定（通常 30 秒左右）。 预检阶段保守估算 30 秒，结算时按 {@link MusicResult#duration()}
+     * 实际秒数扣减。
+     */
+    @Override
+    default long estimateCost(AiModel model, Object req, int markupRate) {
+        if (model == null || model.getModelPrice() == null) return 1;
+        int estimatedSec = 30;
+        return Math.max(
+                1,
+                Math.round(
+                        model.getModelPrice().doubleValue()
+                                * estimatedSec
+                                * AiCreditGuard.YUAN_TO_CREDIT
+                                * markupRate));
     }
 
     /** 提交音乐生成任务（非流式），返回生成结果。 */
@@ -49,5 +72,12 @@ public interface MusicGenerationService extends AiCapability {
             /** 采样率。 */
             Integer sampleRate,
             /** 声道数。 */
-            Integer channels) {}
+            Integer channels)
+            implements AiUsage {
+
+        @Override
+        public Map<String, Object> standardUsage() {
+            return Map.of("duration", duration != null ? duration : 0);
+        }
+    }
 }

@@ -27,6 +27,7 @@ export interface CreditTransactionVO {
   category?: string
   /** 业务备注，优先于 source 展示 */
   remark?: string
+  bizType?: string
   bizId: string
   createTime: string
 }

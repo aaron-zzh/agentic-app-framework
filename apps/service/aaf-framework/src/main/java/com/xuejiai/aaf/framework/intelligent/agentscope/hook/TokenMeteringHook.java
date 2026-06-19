@@ -5,12 +5,14 @@
  */
 package com.xuejiai.aaf.framework.intelligent.agentscope.hook;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.token.TokenMeteringService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
@@ -56,7 +58,7 @@ public class TokenMeteringHook implements Hook {
                         usage.getInputTokens(),
                         usage.getOutputTokens(),
                         usageId);
-                settle(userId, usage.getInputTokens() + usage.getOutputTokens(), usageId);
+                settle(userId, usage.getInputTokens(), usage.getOutputTokens());
             }
         }
         return Mono.just(event);
@@ -67,15 +69,20 @@ public class TokenMeteringHook implements Hook {
         if (guard == null) return;
         Long userId = operatorContext.currentOwnerId().orElse(null);
         if (userId == null) return;
-        guard.precheck(userId, "agentscope");
+        guard.precheck(userId, "agentscope", AiCreditGuard.INESTIMABLE_COST);
     }
 
-    private void settle(Long userId, long totalTokens, String usageId) {
+    private void settle(Long userId, long inputTokens, long outputTokens) {
         var guard = creditGuard.getIfAvailable();
-        if (guard == null) {
-            return;
-        }
-        guard.settle(userId, "agentscope", totalTokens, usageId);
+        if (guard == null) return;
+        AiUsage usage =
+                new AiUsage() {
+                    @Override
+                    public Map<String, Object> standardUsage() {
+                        return Map.of("inputTokens", inputTokens, "outputTokens", outputTokens);
+                    }
+                };
+        guard.settleByUsage(userId, null, usage, "agentscope", null);
     }
 
     @Override

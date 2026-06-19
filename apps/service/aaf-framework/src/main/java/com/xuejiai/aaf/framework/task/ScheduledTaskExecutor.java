@@ -253,7 +253,7 @@ public class ScheduledTaskExecutor {
 
         var now = LocalDateTime.now();
         try {
-            // 用户任务：注入归属者上下文，供 @AiCredit 等切面取到用户 ID
+            // 用户任务：注入归属者上下文
             if (def.ownerId() != null) {
                 TaskExecutionContextHolder.set(def.ownerId());
             }

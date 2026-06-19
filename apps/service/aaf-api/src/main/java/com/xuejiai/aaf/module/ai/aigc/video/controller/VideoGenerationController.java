@@ -10,10 +10,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.intelligent.ai.video.DashScopeVideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.*;
-import com.xuejiai.aaf.framework.intelligent.ai.video.VideoServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 
@@ -35,7 +36,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class VideoGenerationController {
 
-    private final VideoServiceFactory videoServiceFactory;
+    private final AiServiceRegistry aiServiceRegistry;
+    private final DashScopeVideoGenerationService dashScopeVideoService;
     private final CapabilityRouter capabilityRouter;
     private final OperatorContext operatorContext;
     private final SystemConfigService systemConfigService;
@@ -51,7 +53,10 @@ public class VideoGenerationController {
                 CapabilityRoutingContext.of(
                         userId, CapabilityRoutingContext.CAP_VIDEO_GEN, dto.model());
         var aiModel = capabilityRouter.resolve(ctx);
-        var service = videoServiceFactory.getService(aiModel);
+        var service =
+                aiServiceRegistry.get(
+                        com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.class,
+                        aiModel);
         var request =
                 new TextToVideoRequest(
                         dto.prompt(),
@@ -82,7 +87,13 @@ public class VideoGenerationController {
                         dto.resolution(),
                         dto.duration(),
                         dto.seed());
-        return Result.success(videoServiceFactory.getService(aiModel).submitImageToVideo(request));
+        return Result.success(
+                aiServiceRegistry
+                        .get(
+                                com.xuejiai.aaf.framework.intelligent.ai.video
+                                        .VideoGenerationService.class,
+                                aiModel)
+                        .submitImageToVideo(request));
     }
 
     @Operation(summary = "视频编辑")
@@ -104,7 +115,13 @@ public class VideoGenerationController {
                         dto.resolution(),
                         dto.audioSetting(),
                         dto.seed());
-        return Result.success(videoServiceFactory.getService(aiModel).submitVideoEdit(request));
+        return Result.success(
+                aiServiceRegistry
+                        .get(
+                                com.xuejiai.aaf.framework.intelligent.ai.video
+                                        .VideoGenerationService.class,
+                                aiModel)
+                        .submitVideoEdit(request));
     }
 
     /** 判断是否开启 mock 并返回 video 类型的固定 URL，未开启时返回 null。 */
@@ -123,7 +140,7 @@ public class VideoGenerationController {
     @Operation(summary = "查询视频任务状态")
     @GetMapping("/task/{taskId}")
     public Result<VideoTaskResult> queryTask(@PathVariable String taskId) {
-        return Result.success(videoServiceFactory.getQueryService().query(taskId));
+        return Result.success(dashScopeVideoService.query(taskId));
     }
 
     // === DTO Records ===
@@ -179,7 +196,10 @@ public class VideoGenerationController {
                         userId, CapabilityRoutingContext.CAP_VIDEO_GEN, dto.model());
         var aiModel = capabilityRouter.resolve(ctx);
 
-        var service = videoServiceFactory.getService(aiModel);
+        var service =
+                aiServiceRegistry.get(
+                        com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.class,
+                        aiModel);
         if (!(service
                 instanceof
                 com.xuejiai.aaf.framework.intelligent.ai.video.DoubaoVideoGenerationService
@@ -189,8 +209,7 @@ public class VideoGenerationController {
 
         return Result.success(
                 doubao.submitRich(
-                        aiModel.effectiveApiKey(),
-                        aiModel.getModelName(),
+                        aiModel,
                         dto.prompt(),
                         dto.referenceImages(),
                         dto.referenceVideos(),

@@ -691,7 +691,6 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('credit_transaction_source', '订阅套餐',     'subscribe',          2,  'primary'),
 ('credit_transaction_source', '注册赠送',     'register_gift',      3,  'info'),
 ('credit_transaction_source', '兑换码',       'redeem_code',        4,  'info'),
-('credit_transaction_source', '权益补充',     'entitlement_refill', 5,  'warning'),
 ('credit_transaction_source', '管理员调整',   'admin_adjust',       6,  'danger'),
 ('credit_transaction_source', '周期奖励',     'periodic_reward',    7,  'info'),
 ('credit_transaction_source', 'AI 能力消费',  'ai_consume',         8,  'default'),
@@ -718,6 +717,18 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('credit_transaction_category', '工具调用',     'tool',        11, 'default'),
 ('credit_transaction_category', '权益补充',     'entitlement', 12, 'default'),
 ('credit_transaction_category', '其他',         'other',       13, 'default')
+ON CONFLICT DO NOTHING;
+
+-- credit_biz_type 积分流水业务表标识（与 biz_id 组合定位具体业务记录）
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('积分流水业务类型', 'credit_biz_type', 0, 'biz_type 确定去哪张表，biz_id 确定具体行')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('credit_biz_type', 'AIGC 任务', 'AIGC_TASK',   1, 'default'),
+('credit_biz_type', '工具调用',  'TOOL_CALL',   2, 'default'),
+('credit_biz_type', '权益补充',  'ENTITLEMENT', 3, 'default'),
+('credit_biz_type', 'AI 用量',   'AI_USAGE',    4, 'default')
 ON CONFLICT DO NOTHING;
 
 

@@ -4,9 +4,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
+import com.xuejiai.aaf.common.enums.chat.MessageContentTypeEnum;
+import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
-import com.xuejiai.aaf.module.chat.enums.MessageContentType;
-import com.xuejiai.aaf.module.chat.enums.MessageSenderType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -41,7 +41,7 @@ public class ConversationMessage extends BaseEntity {
     /** 发送方类型 */
     @Enumerated(EnumType.STRING)
     @Column(name = "sender_type", nullable = false, length = 16)
-    private MessageSenderType senderType = MessageSenderType.HUMAN;
+    private MessageSenderTypeEnum senderType = MessageSenderTypeEnum.HUMAN;
 
     /** LLM 角色（user / assistant / system / tool） */
     @Column(name = "role", nullable = false, length = 20)
@@ -54,7 +54,7 @@ public class ConversationMessage extends BaseEntity {
     /** 内容类型 */
     @Enumerated(EnumType.STRING)
     @Column(name = "content_type", nullable = false, length = 20)
-    private MessageContentType contentType = MessageContentType.TEXT;
+    private MessageContentType contentType = MessageContentTypeEnum.TEXT;
 
     /** 结构化载荷（tool_call / file 元数据等） */
     @JdbcTypeCode(SqlTypes.JSON)

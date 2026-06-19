@@ -20,7 +20,6 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.storage.StorageService;
@@ -72,12 +71,14 @@ public class AigcTaskService
     private final AigcTaskMapper taskMapper;
     private final StorageService storageService;
     private final MediaAssetService mediaAssetService;
-    private final ImageServiceFactory imageServiceFactory;
     private final CapabilityRouter capabilityRouter;
     private final AigcTaskExecutor taskExecutor;
     private final AiCreditGuard creditGuard;
     private final SystemConfigService systemConfigService;
     private final ObjectMapper objectMapper;
+    private final com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager configCacheManager;
+    private final com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry
+            aiServiceRegistry;
 
     // ========== BaseCrudService 必须实现 ==========
 
@@ -134,19 +135,19 @@ public class AigcTaskService
 
     @Transactional
     public Long submitImageTask(Long userId, ImageTaskRequest req) {
-        creditGuard.precheck(userId, "image-gen");
         long t0 = System.currentTimeMillis();
         var ctx =
                 CapabilityRoutingContext.of(
                         userId, CapabilityRoutingContext.CAP_IMAGE_GEN, req.model());
         var resolvedAiModel = capabilityRouter.resolve(ctx);
-        // 用模型单价估算本次花费，精确拦截余额不足
-        int markup = 10; // 与 DefaultAiCreditGuard 保持一致的默认倍率
-        long estimatedCost = 1;
-        if (resolvedAiModel.getModelPrice() != null) {
-            estimatedCost =
-                    Math.max(1, Math.round(resolvedAiModel.getModelPrice().doubleValue() * markup));
-        }
+        // 委托 AiCapability 默认估算逻辑（与装饰器 creditCall 保持一致）
+        long estimatedCost =
+                aiServiceRegistry
+                        .get(
+                                com.xuejiai.aaf.framework.intelligent.ai.image
+                                        .ImageGenerationService.class,
+                                resolvedAiModel)
+                        .estimateCost(resolvedAiModel, req, creditGuard.getMarkupRate());
         creditGuard.precheck(userId, "image-gen", estimatedCost);
         log.debug("[submitImageTask] resolve 耗时: {}ms", System.currentTimeMillis() - t0);
         String resolvedModel = resolvedAiModel.getModelId();
@@ -183,14 +184,38 @@ public class AigcTaskService
 
     @Transactional
     public Long submitVideoTask(Long userId, String prompt, String model, Long projectId) {
-        var task = buildTask(userId, TYPE_VIDEO, prompt, model, null, projectId);
+        var ctx =
+                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_VIDEO_GEN, model);
+        var resolvedModel = capabilityRouter.resolve(ctx);
+        String resolvedModelId = resolvedModel.getModelId();
+
+        var task =
+                buildTask(
+                        userId,
+                        TYPE_VIDEO,
+                        prompt,
+                        resolvedModelId,
+                        resolvedModel.getDisplayName(),
+                        projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
         if (isMockEnabled()) {
             mockComplete(task, "video");
             return task.getId();
         }
-        log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), model);
+
+        final Long taskId = task.getId();
+        final String mockUrl = null;
+        org.springframework.transaction.support.TransactionSynchronizationManager
+                .registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                taskExecutor.submitVideoAsync(
+                                        taskId, prompt, resolvedModelId, mockUrl);
+                            }
+                        });
+        log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), resolvedModelId);
         return task.getId();
     }
 
@@ -221,7 +246,18 @@ public class AigcTaskService
             String lyrics,
             String gender,
             Long projectId) {
-        creditGuard.precheck(userId, "music-gen");
+        var resolvedModel = configCacheManager.getAiModelByModelId(model);
+        var musicReq =
+                new com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService
+                        .MusicRequest(prompt, lyrics, gender, "mp3");
+        long estimatedCost =
+                aiServiceRegistry
+                        .get(
+                                com.xuejiai.aaf.framework.intelligent.ai.music
+                                        .MusicGenerationService.class,
+                                resolvedModel)
+                        .estimateCost(resolvedModel, musicReq, creditGuard.getMarkupRate());
+        creditGuard.precheck(userId, "music-gen", estimatedCost);
         var task = buildTask(userId, TYPE_MUSIC, prompt, model, null, projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
@@ -254,7 +290,7 @@ public class AigcTaskService
     @Transactional
     public Long submitVoiceTask(
             Long userId, String text, String voice, String model, Long projectId) {
-        creditGuard.precheck(userId, "voice-gen");
+        creditGuard.precheck(userId, "voice-gen", AiCreditGuard.INESTIMABLE_COST);
         if (text == null || text.isBlank()) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "配音文本不能为空");
         }

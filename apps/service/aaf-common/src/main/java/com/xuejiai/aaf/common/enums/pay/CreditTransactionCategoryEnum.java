@@ -25,7 +25,7 @@ public enum CreditTransactionCategoryEnum implements ArrayValuable<String> {
     ENTITLEMENT("entitlement", "权益补充"),
     OTHER("other", "其他");
 
-    /** 编译期常量，供 {@code @AiCredit(capability = ...)} 注解属性使用。 */
+    /** 编译期常量，供积分能力标识使用。 */
     public static final String CHAT_CODE = "chat";
 
     public static final String IMAGE_GEN_CODE = "image_gen";

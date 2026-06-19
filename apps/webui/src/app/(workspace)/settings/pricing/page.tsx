@@ -70,6 +70,17 @@ function PlanCard({
       {/* 套餐名 */}
       <div className="mb-4">
         <p className="font-semibold text-base text-muted-foreground">{plan.name}</p>
+        {plan.ext &&
+          (() => {
+            try {
+              const e = JSON.parse(plan.ext)
+              return e.tagline ? (
+                <p className="mt-0.5 text-muted-foreground/70 text-xs">{e.tagline}</p>
+              ) : null
+            } catch {
+              return null
+            }
+          })()}
       </div>
 
       {/* 价格 */}

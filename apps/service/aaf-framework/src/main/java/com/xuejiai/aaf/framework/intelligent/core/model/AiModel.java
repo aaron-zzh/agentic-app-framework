@@ -13,6 +13,7 @@ import org.hibernate.type.SqlTypes;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageConfig;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoConfig;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -209,6 +210,20 @@ public class AiModel extends BaseEntity {
     @Column(name = "image_config", columnDefinition = "jsonb")
     private String imageConfig;
 
+    /** 视频生成能力配置（JSON）。 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "video_config", columnDefinition = "jsonb")
+    private String videoConfig;
+
+    /**
+     * 其余能力公用配置容器（chat/ocr/speech 等），参数多时再拆独立字段。
+     *
+     * <p>结构示例：{@code {"chat": {...}, "ocr": {...}}}
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "params_config", columnDefinition = "jsonb")
+    private String paramsConfig;
+
     /** 是否支持指定能力 */
     public boolean hasCapability(String capability) {
         return capabilities != null && capabilities.contains(capability);
@@ -244,6 +259,24 @@ public class AiModel extends BaseEntity {
     /** 解析 imageConfig JSONB 为 {@link ImageConfig}，字段为空或解析失败返回 null。 */
     public ImageConfig getImageConfigParsed() {
         return JsonUtils.parseObjectQuietly(imageConfig, ImageConfig.class);
+    }
+
+    /** 解析 videoConfig JSONB 为 {@link VideoConfig}，字段为空或解析失败返回 null。 */
+    public VideoConfig getVideoConfigParsed() {
+        return JsonUtils.parseObjectQuietly(videoConfig, VideoConfig.class);
+    }
+
+    /**
+     * 解析 paramsConfig JSONB 为指定类型，字段为空或解析失败返回 null。
+     *
+     * <p>用于 chat/ocr/speech 等能力的配置读取，示例：
+     *
+     * <pre>{@code
+     * model.getParamsConfigParsed(ChatConfig.class)
+     * }</pre>
+     */
+    public <T> T getParamsConfigParsed(Class<T> type) {
+        return JsonUtils.parseObjectQuietly(paramsConfig, type);
     }
 
     private boolean hasText(String value) {

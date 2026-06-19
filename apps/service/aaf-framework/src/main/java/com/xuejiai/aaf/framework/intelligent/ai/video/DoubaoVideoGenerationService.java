@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>支持模型：doubao-seedance-2-0-260128 等 seedance 系列。
  */
 @Slf4j
-@Service
+@Service("doubaoVideoGenerationService")
 public class DoubaoVideoGenerationService implements VideoGenerationService {
 
     private static final String SUBMIT_URL =
@@ -120,8 +120,7 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
     /**
      * 扩展提交：支持参考图、参考视频、参考音频同时传入（doubao-seedance 专属能力）。
      *
-     * @param apiKey 火山方舟 API Key
-     * @param model 模型名
+     * @param model 已 resolve 的 AiModel（用于取 modelName + videoConfig 校验）
      * @param prompt 文字描述
      * @param referenceImages 参考图 URL 列表（可为 null）
      * @param referenceVideos 参考视频 URL 列表（可为 null）
@@ -131,8 +130,7 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
      * @param generateAudio 是否生成配套音频
      */
     public String submitRich(
-            String apiKey,
-            String model,
+            com.xuejiai.aaf.framework.intelligent.core.model.AiModel model,
             String prompt,
             List<String> referenceImages,
             List<String> referenceVideos,
@@ -140,45 +138,17 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
             String ratio,
             Integer duration,
             boolean generateAudio) {
-        var content = new ArrayList<Map<String, Object>>();
-        content.add(Map.of("type", "text", "text", prompt));
-        if (referenceImages != null) {
-            for (var url : referenceImages) {
-                content.add(
-                        Map.of(
-                                "type",
-                                "image_url",
-                                "image_url",
-                                Map.of("url", url),
-                                "role",
-                                "reference_image"));
-            }
-        }
-        if (referenceVideos != null) {
-            for (var url : referenceVideos) {
-                content.add(
-                        Map.of(
-                                "type",
-                                "video_url",
-                                "video_url",
-                                Map.of("url", url),
-                                "role",
-                                "reference_video"));
-            }
-        }
-        if (referenceAudios != null) {
-            for (var url : referenceAudios) {
-                content.add(
-                        Map.of(
-                                "type",
-                                "audio_url",
-                                "audio_url",
-                                Map.of("url", url),
-                                "role",
-                                "reference_audio"));
-            }
-        }
-        return doSubmit(apiKey, model, content, ratio, duration, generateAudio);
+        var params =
+                com.xuejiai.aaf.framework.intelligent.ai.video.vo.SeedanceParams.of(
+                        model,
+                        prompt,
+                        referenceImages,
+                        referenceVideos,
+                        referenceAudios,
+                        ratio,
+                        duration,
+                        generateAudio);
+        return doSubmitBody(model.effectiveApiKey(), params.modelName(), params.toBody());
     }
 
     @Override
@@ -266,6 +236,33 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
             case "cancelled" -> VideoTaskResult.TaskStatus.CANCELED;
             default -> VideoTaskResult.TaskStatus.UNKNOWN;
         };
+    }
+
+    /** 直接发送已构建好的完整请求体（供 SeedanceParams 使用）。 */
+    private String doSubmitBody(String apiKey, String modelName, Map<String, Object> body) {
+        try {
+            var json = objectMapper.writeValueAsString(body);
+            var httpRequest =
+                    HttpRequest.newBuilder()
+                            .uri(URI.create(SUBMIT_URL))
+                            .header("Content-Type", "application/json")
+                            .header("Authorization", "Bearer " + (apiKey != null ? apiKey : ""))
+                            .POST(HttpRequest.BodyPublishers.ofString(json))
+                            .build();
+            var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            var root = objectMapper.readTree(response.body());
+            if (root.has("error")) {
+                throw new RuntimeException(
+                        "doubao-seedance 任务提交失败: " + root.get("error").path("message").asText());
+            }
+            var taskId = root.path("id").asText();
+            log.info("[doubao-seedance] 任务提交成功: model={}, taskId={}", modelName, taskId);
+            return taskId;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("doubao-seedance 任务提交失败: " + e.getMessage(), e);
+        }
     }
 
     /** 标准接口 4 个方法通过 model 字符串无法取到 apiKey，返回 null 由调用方保证已在 AiModel 上配置。 */

@@ -6,9 +6,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
+import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
+import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
-import com.xuejiai.aaf.module.chat.enums.ConversationStatus;
-import com.xuejiai.aaf.module.chat.enums.ConversationType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,14 +34,14 @@ public class Conversation extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 16)
-    private ConversationType type = ConversationType.AI;
+    private ConversationTypeEnum type = ConversationTypeEnum.AI;
 
     @Column(name = "title", length = 200)
     private String title;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
-    private ConversationStatus status = ConversationStatus.ACTIVE;
+    private ConversationStatusEnum status = ConversationStatusEnum.ACTIVE;
 
     @Column(name = "creator_id", nullable = false)
     private Long creatorId;

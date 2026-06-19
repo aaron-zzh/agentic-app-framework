@@ -15,7 +15,6 @@ public enum CreditTransactionSourceEnum implements ArrayValuable<String> {
     SUBSCRIBE("subscribe", "订阅套餐发放"),
     REGISTER_GIFT("register_gift", "注册赠送"),
     REDEEM_CODE("redeem_code", "兑换码兑换"),
-    ENTITLEMENT_REFILL("entitlement_refill", "权益自动补充"),
     ADMIN_ADJUST("admin_adjust", "管理员手动调整"),
     PERIODIC_REWARD("periodic_reward", "周期性奖励"),
     AI_CONSUME("ai_consume", "AI 能力消费"),

@@ -5,7 +5,7 @@
  * 路由：/dev/examples/ocr
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -63,12 +63,17 @@ export default function OcrExamplePage() {
   const [result, setResult] = useState<OcrRecognizeResult | null>(null)
   const [previewUrl, setPreviewUrl] = useState("")
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null)
-  const [mousePos, setMousePos] = useState<{ cx: number; cy: number; ix: number; iy: number } | null>(null)
+  const [mousePos, setMousePos] = useState<{
+    cx: number
+    cy: number
+    ix: number
+    iy: number
+  } | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
   /** 解析 ocrResult 并在 canvas 上绘制检测框（坐标基于原图尺寸） */
-  function drawBoxes(ocrResultJson: string | null) {
+  const drawBoxes = useCallback((ocrResultJson: string | null) => {
     const canvas = canvasRef.current
     const img = imgRef.current
     if (!canvas || !img) return
@@ -97,7 +102,10 @@ export default function OcrExamplePage() {
       if (items.length === 0) return
 
       // 坐标基于原图尺寸，按 object-contain 映射到容器
-      const scale = Math.min(img.clientWidth / img.naturalWidth, img.clientHeight / img.naturalHeight)
+      const scale = Math.min(
+        img.clientWidth / img.naturalWidth,
+        img.clientHeight / img.naturalHeight
+      )
       const offsetX = (img.clientWidth - img.naturalWidth * scale) / 2
       const offsetY = (img.clientHeight - img.naturalHeight * scale) / 2
 
@@ -110,7 +118,12 @@ export default function OcrExamplePage() {
           corners = (item.box as number[][]).map(([x, y]) => [x, y])
         } else if (item.location) {
           const [x1, y1, x2, y2, x3, y3, x4, y4] = item.location
-          corners = [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
+          corners = [
+            [x1, y1],
+            [x2, y2],
+            [x3, y3],
+            [x4, y4]
+          ]
         } else continue
 
         ctx.beginPath()
@@ -122,13 +135,14 @@ export default function OcrExamplePage() {
         ctx.closePath()
         ctx.stroke()
       }
-    } catch { /* 格式不符跳过 */ }
-  }
+    } catch {
+      /* 格式不符跳过 */
+    }
+  }, [])
 
   useEffect(() => {
     if (result) drawBoxes(result.ocrResult)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result])
+  }, [result, drawBoxes])
 
   function applyPreset(preset: (typeof PRESETS)[number]) {
     setImageUrl(preset.url)
@@ -168,7 +182,8 @@ export default function OcrExamplePage() {
           支持通用识别、多语言、信息抽取、表格/文档解析等任务，需配置 DASHSCOPE_API_KEY
         </TypographyMuted>
         <TypographyMuted className="text-xs">
-          图像限制：BMP / JPEG / PNG / TIFF / WEBP / HEIC 格式，URL 方式单张 ≤ 20MB，宽高比 ≤ 200:1，分辨率建议 ≤ 8K。文字过小或分辨率低时可能产生幻觉。
+          图像限制：BMP / JPEG / PNG / TIFF / WEBP / HEIC 格式，URL 方式单张 ≤ 20MB，宽高比 ≤
+          200:1，分辨率建议 ≤ 8K。文字过小或分辨率低时可能产生幻觉。
         </TypographyMuted>
       </div>
 
@@ -204,7 +219,11 @@ export default function OcrExamplePage() {
 
             <div className="space-y-1">
               <Label>识别任务</Label>
-              <Select value={task} onValueChange={(v) => setTask(v ?? "TEXT_RECOGNITION")} items={TASK_OPTIONS}>
+              <Select
+                value={task}
+                onValueChange={(v) => setTask(v ?? "TEXT_RECOGNITION")}
+                items={TASK_OPTIONS}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -241,6 +260,8 @@ export default function OcrExamplePage() {
                 </Label>
                 {/* 预览图 + canvas 叠加检测框 */}
                 <div
+                  role="img"
+                  aria-label="待识别图像预览"
                   className="relative max-h-64 w-full overflow-hidden rounded-md border"
                   onMouseMove={(e) => {
                     if (!imageSize) return
@@ -249,7 +270,10 @@ export default function OcrExamplePage() {
                     const rect = e.currentTarget.getBoundingClientRect()
                     const cx = e.clientX - rect.left
                     const cy = e.clientY - rect.top
-                    const scale = Math.min(img.clientWidth / imageSize.width, img.clientHeight / imageSize.height)
+                    const scale = Math.min(
+                      img.clientWidth / imageSize.width,
+                      img.clientHeight / imageSize.height
+                    )
                     const offsetX = (img.clientWidth - imageSize.width * scale) / 2
                     const offsetY = (img.clientHeight - imageSize.height * scale) / 2
                     const ix = Math.round((cx - offsetX) / scale)
@@ -274,12 +298,9 @@ export default function OcrExamplePage() {
                       setImageSize(null)
                     }}
                   />
-                  <canvas
-                    ref={canvasRef}
-                    className="pointer-events-none absolute inset-0"
-                  />
+                  <canvas ref={canvasRef} className="pointer-events-none absolute inset-0" />
                   {mousePos && (
-                    <div className="pointer-events-none absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-white text-xs">
+                    <div className="pointer-events-none absolute right-1 bottom-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-white text-xs">
                       容器({mousePos.cx},{mousePos.cy}) 图({mousePos.ix},{mousePos.iy})
                     </div>
                   )}

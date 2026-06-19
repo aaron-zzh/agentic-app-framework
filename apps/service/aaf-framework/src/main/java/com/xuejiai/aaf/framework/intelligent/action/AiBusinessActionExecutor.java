@@ -4,7 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.tool.ToolPermissionChecker;
 import com.xuejiai.aaf.framework.engine.tool.ToolRiskLevel;
 import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
@@ -25,7 +25,7 @@ public class AiBusinessActionExecutor {
     private final PermissionExecutionService permissionExecutionService;
     private final ToolPermissionChecker permissionChecker;
     private final OperatorContext operatorContext;
-    private final org.springframework.beans.factory.ObjectProvider<CreditService> creditService;
+    private final org.springframework.beans.factory.ObjectProvider<AiCreditGuard> creditService;
     private final org.springframework.beans.factory.ObjectProvider<ConfidenceGate> confidenceGate;
 
     public AiBusinessActionResult execute(AiBusinessActionRequest request) {
@@ -185,12 +185,8 @@ public class AiBusinessActionExecutor {
         if (cost <= 0) {
             return;
         }
-        credit.spend(
-                userId,
-                cost,
-                // source 记录具体操作路径（entitySlug.action），用于行为追踪，不走枚举
-                "ACTION:%s.%s".formatted(adapter.entitySlug(), action.action()),
-                entry.entitlementCode());
+        credit.settleFixed(
+                userId, cost, entry.entitlementCode() != null ? entry.entitlementCode() : "action");
     }
 
     private long estimateCost(String expression) {

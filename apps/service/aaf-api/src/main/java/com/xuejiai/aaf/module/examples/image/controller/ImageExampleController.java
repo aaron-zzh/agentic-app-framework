@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageProcessService;
+import com.xuejiai.aaf.framework.intelligent.ai.image.process.ImageProcessService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 import com.xuejiai.aaf.module.examples.image.service.ImageExampleService;
 

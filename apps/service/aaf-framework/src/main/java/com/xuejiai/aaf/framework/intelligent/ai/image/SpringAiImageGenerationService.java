@@ -9,7 +9,6 @@ import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
@@ -22,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /** 基于动态构建的 OpenAI 兼容 ImageModel 的文生图实现，支持多供应商（OpenAI / N1N 等）。 */
 @Slf4j
-@Service
+@Service("springAiImageGenerationService")
 @RequiredArgsConstructor
 public class SpringAiImageGenerationService implements ImageGenerationService {
 
@@ -33,7 +32,6 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
     private final AiProperties aiProperties;
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult generate(AiModel model, ImageRequest request) {
         var aiModel =
                 modelRepository.findByModelIdAndEnabledTrue(request.getModelId()).orElse(null);
@@ -148,7 +146,6 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
 
     /** 图像编辑：调用 /v1/images/edits（multipart/form-data，OpenAI 标准格式）。 */
     @Override
-    @AiCredit(precheck = false)
     public ImageResult imageToImage(AiModel model, ImageEditRequest req) {
         String modelId = req.getModelId();
         var aiModel = modelRepository.findByModelIdAndEnabledTrue(modelId).orElseThrow();
@@ -265,7 +262,6 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
     }
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult editImage(AiModel model, ImageEditRequest request) {
         return imageToImage(model, request);
     }

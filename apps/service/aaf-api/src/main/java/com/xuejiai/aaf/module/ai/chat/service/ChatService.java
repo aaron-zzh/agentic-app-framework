@@ -7,15 +7,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
+import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
+import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
 import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
 import com.xuejiai.aaf.module.chat.conversation.repository.ConversationRepository;
-import com.xuejiai.aaf.module.chat.enums.ConversationStatus;
-import com.xuejiai.aaf.module.chat.enums.ConversationType;
-import com.xuejiai.aaf.module.chat.enums.MessageSenderType;
 import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
 import com.xuejiai.aaf.module.chat.message.repository.ConversationMessageRepository;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
@@ -48,7 +48,7 @@ public class ChatService {
         var conv = new Conversation();
         conv.setTitle(dto.title());
         conv.setType(parseType(dto.type()));
-        conv.setStatus(ConversationStatus.ACTIVE);
+        conv.setStatus(ConversationStatusEnum.ACTIVE);
         conv.setCreatorId(userId);
         conv.setThreadId(java.util.UUID.randomUUID().toString());
         conversationRepository.save(conv);
@@ -120,7 +120,7 @@ public class ChatService {
     @Transactional
     public void archiveSession(Long sessionId) {
         var conv = requireConversation(sessionId);
-        conv.setStatus(ConversationStatus.ARCHIVED);
+        conv.setStatus(ConversationStatusEnum.ARCHIVED);
         conversationRepository.save(conv);
     }
 
@@ -285,24 +285,24 @@ public class ChatService {
     }
 
     /** 将字符串 senderType 转换为枚举，未知值降级为 HUMAN */
-    private MessageSenderType parseSenderType(String senderType) {
-        if (senderType == null) return MessageSenderType.HUMAN;
+    private MessageSenderTypeEnum parseSenderType(String senderType) {
+        if (senderType == null) return MessageSenderTypeEnum.HUMAN;
         return switch (senderType.toUpperCase()) {
-            case "AI", "ASSISTANT" -> MessageSenderType.ASSISTANT;
-            case "STAFF" -> MessageSenderType.STAFF;
-            case "BOT" -> MessageSenderType.BOT;
-            case "SYSTEM" -> MessageSenderType.SYSTEM;
-            default -> MessageSenderType.HUMAN;
+            case "AI", "ASSISTANT" -> MessageSenderTypeEnum.ASSISTANT;
+            case "STAFF" -> MessageSenderTypeEnum.STAFF;
+            case "BOT" -> MessageSenderTypeEnum.BOT;
+            case "SYSTEM" -> MessageSenderTypeEnum.SYSTEM;
+            default -> MessageSenderTypeEnum.HUMAN;
         };
     }
 
     /** 将字符串 type 转换为枚举，未知值降级为 AI */
-    private ConversationType parseType(String type) {
-        if (type == null) return ConversationType.AI;
+    private ConversationTypeEnum parseType(String type) {
+        if (type == null) return ConversationTypeEnum.AI;
         try {
-            return ConversationType.valueOf(type.toUpperCase());
+            return ConversationTypeEnum.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
-            return ConversationType.AI;
+            return ConversationTypeEnum.AI;
         }
     }
 

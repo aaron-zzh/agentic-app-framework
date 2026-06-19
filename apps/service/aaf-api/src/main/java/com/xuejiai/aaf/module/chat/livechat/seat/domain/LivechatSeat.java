@@ -2,8 +2,8 @@ package com.xuejiai.aaf.module.chat.livechat.seat.domain;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.xuejiai.aaf.common.enums.chat.SeatTypeEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
-import com.xuejiai.aaf.module.chat.enums.SeatType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,7 +29,7 @@ public class LivechatSeat extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "seat_type", nullable = false, length = 16)
-    private SeatType seatType = SeatType.HUMAN;
+    private SeatTypeEnum seatType = SeatTypeEnum.HUMAN;
 
     /** 关联用户 ID（人工坐席） */
     @Column(name = "user_id")

@@ -11,7 +11,6 @@ import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiEditParams;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiGenerateParams;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
@@ -32,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>路由到本服务的条件：模型 capabilities 含 IMAGE_GEN 且 provider = n1n（Gemini 系列）。
  */
 @Slf4j
-@Service
+@Service("geminiNativeImageGenerationService")
 @RequiredArgsConstructor
 public class GeminiNativeImageGenerationService implements ImageGenerationService {
 
@@ -41,7 +40,6 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
     private final ModelManagementService modelManagementService;
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult generate(AiModel model, ImageRequest request) {
         var aiModel = modelManagementService.getModel(request.getModelId());
         var config = modelManagementService.resolveImageConfig(request.getModelId());
@@ -61,7 +59,6 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
     }
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult imageToImage(AiModel model, ImageEditRequest request) {
         var aiModel = modelManagementService.getModel(request.getModelId());
         var config = modelManagementService.resolveImageConfig(request.getModelId());
@@ -80,7 +77,6 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
     }
 
     @Override
-    @AiCredit(precheck = false)
     public ImageResult editImage(AiModel model, ImageEditRequest request) {
         return imageToImage(model, request);
     }

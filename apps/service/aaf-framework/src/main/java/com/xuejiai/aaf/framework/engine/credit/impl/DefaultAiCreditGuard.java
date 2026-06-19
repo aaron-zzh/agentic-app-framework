@@ -4,12 +4,17 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
+import com.xuejiai.aaf.common.enums.ai.AiQuotaTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.engine.credit.AiUsageRecord;
+import com.xuejiai.aaf.framework.engine.credit.AiUsageRecordRepository;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.CreditLowEvent;
+import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 
@@ -19,23 +24,21 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AI 积分门控默认实现。
  *
- * <p>积分轨 fail-closed：userId=null 或余额 ≤ 0 时拒绝。 余额低于预警阈值时异步发 {@link CreditLowEvent}。
+ * <p>积分轨 fail-closed：userId=null 或余额 ≤ 0 时拒绝。余额低于预警阈值时异步发 {@link CreditLowEvent}。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DefaultAiCreditGuard implements AiCreditGuard {
 
-    /** 1元 = 100积分（积分单位为"分"） */
-    private static final double YUAN_TO_CREDIT = 100.0;
-
-    /** 模型价格单位：元/千token */
+    /** 模型价格单位：元/千 token */
     private static final double PER_K_TOKENS = 1000.0;
 
     private final CreditService creditService;
     private final SystemConfigService configService;
     private final ApplicationEventPublisher eventPublisher;
     private final ConfigCacheManager configCacheManager;
+    private final AiUsageRecordRepository usageRecordRepository;
 
     @Override
     public int getMarkupRate() {
@@ -43,18 +46,12 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     }
 
     @Override
-    public void precheck(Long userId, String capability) {
-        if (userId == null) {
-            throw new IllegalStateException("AI 门控：userId 为空，无法归账，拒绝调用 capability=" + capability);
-        }
+    public boolean hasBudget(Long userId, long estimatedCost) {
+        if (userId == null) return false;
         long balance = creditService.getBalance(userId);
-        if (balance <= 0) {
-            throw new InsufficientCreditsException(userId, balance);
-        }
-        long threshold = configService.getInteger(SysConfigKeys.Ai.CREDIT_WARN_THRESHOLD, 10);
-        if (balance <= threshold) {
-            eventPublisher.publishEvent(new CreditLowEvent(userId, balance, threshold));
-        }
+        long overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
+        long minRequired = estimatedCost > 0 ? estimatedCost : 1;
+        return balance + overdraft >= minRequired;
     }
 
     @Override
@@ -68,23 +65,87 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         if (balance + overdraft < minRequired) {
             throw new InsufficientCreditsException(userId, balance);
         }
-        long threshold = configService.getInteger(SysConfigKeys.Ai.CREDIT_WARN_THRESHOLD, 10);
-        if (balance <= threshold) {
-            eventPublisher.publishEvent(new CreditLowEvent(userId, balance, threshold));
-        }
+        checkLowBalance(userId, balance);
     }
 
     @Override
-    public void settle(Long userId, String capability, long actualCost) {
-        settle(userId, capability, actualCost, null);
+    public void settleByUsage(
+            Long userId, AiModel model, AiUsage usage, String capability, String remark) {
+        if (userId == null) return;
+        Long modelId = model != null ? model.getId() : null;
+        int quotaType = model != null && model.getQuotaType() != null ? model.getQuotaType() : 0;
+
+        long[] result = calcCost(model, usage, quotaType);
+        long creditCost = result[0];
+        double costYuan = Double.longBitsToDouble(result[1]);
+
+        Long creditTxId = doSpend(userId, creditCost, capability, remark);
+        if (creditTxId == null && creditCost > 0) return; // 扣减失败，不写用量记录
+
+        saveUsageRecord(
+                userId, modelId, capability, quotaType, creditCost, costYuan, creditTxId, usage);
     }
 
-    @Override
-    public void settle(Long userId, String capability, long actualCost, String bizId) {
-        var creditCost = fallbackCreditCost(actualCost);
-        if (userId == null || creditCost <= 0) return;
+    /** 按 quotaType 计算积分成本和元成本，返回 [creditCost, costYuanBits]。 */
+    private long[] calcCost(AiModel model, AiUsage usage, int quotaType) {
+        int markup = getMarkupRate();
+        Long modelId = model != null ? model.getId() : null;
+        AiQuotaTypeEnum type;
         try {
-            creditService.spend(userId, creditCost, capability, bizId);
+            type = AiQuotaTypeEnum.of(quotaType);
+        } catch (Exception e) {
+            type = AiQuotaTypeEnum.TOKEN;
+        }
+
+        return switch (type) {
+            case PER_USE, PER_UNIT -> {
+                long cost = AiCreditGuard.calcPerUseCost(model != null ? model.getModelPrice() : null, markup);
+                double yuan =
+                        model != null && model.getModelPrice() != null
+                                ? model.getModelPrice().doubleValue()
+                                : 0;
+                yield new long[] {cost, Double.doubleToLongBits(yuan)};
+            }
+            case PER_SEC -> {
+                int duration = Math.max(1, usage.duration());
+                double pricePerSec =
+                        model != null && model.getModelPrice() != null
+                                ? model.getModelPrice().doubleValue()
+                                : 0;
+                double yuan = pricePerSec * duration;
+                yield new long[] {
+                    Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
+                    Double.doubleToLongBits(yuan)
+                };
+            }
+            default -> {
+                long input = usage.inputTokens(), output = usage.outputTokens();
+                var prices = modelId != null ? getModelPrices(modelId) : null;
+                if (prices != null) {
+                    double yuan = (input * prices[0] + output * prices[1]) / PER_K_TOKENS;
+                    yield new long[] {
+                        Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
+                        Double.doubleToLongBits(yuan)
+                    };
+                }
+                yield new long[] {fallbackCreditCost(input + output), Double.doubleToLongBits(0)};
+            }
+        };
+    }
+
+    /** 扣积分，返回流水 ID；失败返回 null 并记录 warn。 */
+    private Long doSpend(Long userId, long creditCost, String capability, String remark) {
+        try {
+            long overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
+            return creditService.spend(
+                    userId,
+                    creditCost,
+                    CreditTransactionSourceEnum.AI_CONSUME.getCode(),
+                    capability, // category：AI 能力维度（ocr/chat/image_gen 等）
+                    null, // bizId：ai_usage_record.credit_tx_id 反向关联，此处无需重复存
+                    overdraft,
+                    remark,
+                    com.xuejiai.aaf.common.enums.pay.CreditBizTypeEnum.AI_USAGE.getCode());
         } catch (Exception e) {
             log.warn(
                     "AI 积分扣减失败: userId={}, capability={}, cost={}, err={}",
@@ -92,132 +153,52 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                     capability,
                     creditCost,
                     e.getMessage());
+            return null;
         }
     }
 
-    @Override
-    public void settleByModel(
-            Long userId, Long modelId, long inputTokens, long outputTokens, String bizId) {
-        settleByModel(userId, modelId, inputTokens, outputTokens, bizId, null);
-    }
-
-    @Override
-    public void settleByModel(
+    /** 写 AiUsageRecord，失败不影响结算。 */
+    private void saveUsageRecord(
             Long userId,
             Long modelId,
-            long inputTokens,
-            long outputTokens,
-            String bizId,
-            String remark) {
-        if (userId == null) return;
-        int markup = configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 10);
-        long creditCost;
-        if (modelId != null) {
-            var prices = getModelPrices(modelId);
-            if (prices != null) {
-                double cost =
-                        (inputTokens * prices[0] + outputTokens * prices[1])
-                                / PER_K_TOKENS
-                                * YUAN_TO_CREDIT
-                                * markup;
-                creditCost = Math.max(1, Math.round(cost));
-                log.info(
-                        "AI token 计费: cap={}, userId={}, modelId={}, inTokens={}, outTokens={}, "
-                                + "inPricePerK={}, outPricePerK={}, markup={}, rawCost={}, creditCost={}",
-                        bizId,
-                        userId,
-                        modelId,
-                        inputTokens,
-                        outputTokens,
-                        prices[0],
-                        prices[1],
-                        markup,
-                        cost,
-                        creditCost);
-            } else {
-                creditCost = fallbackCreditCost(inputTokens + outputTokens);
-                log.info(
-                        "AI token 计费(降级-模型无单价): cap={}, userId={}, modelId={}, totalTokens={}, markup={}, creditCost={}",
-                        bizId,
-                        userId,
-                        modelId,
-                        inputTokens + outputTokens,
-                        markup,
-                        creditCost);
-            }
-        } else {
-            creditCost = fallbackCreditCost(inputTokens + outputTokens);
-            log.info(
-                    "AI token 计费(降级-无modelId): cap={}, userId={}, totalTokens={}, markup={}, creditCost={}",
-                    bizId,
-                    userId,
-                    inputTokens + outputTokens,
-                    markup,
-                    creditCost);
-        }
+            String capability,
+            int quotaType,
+            long creditCost,
+            double costYuan,
+            Long creditTxId,
+            AiUsage usage) {
         try {
-            long overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
-            creditService.spendAllowOverdraft(
-                    userId,
-                    creditCost,
-                    CreditTransactionSourceEnum.AI_CONSUME.getCode(),
-                    bizId, // category = bizId (capability)
-                    bizId,
-                    overdraft,
-                    remark);
+            var record = new AiUsageRecord();
+            record.setUserId(userId);
+            record.setModelId(modelId);
+            record.setCapability(capability);
+            record.setQuotaType((short) quotaType);
+            record.setCostYuan(java.math.BigDecimal.valueOf(costYuan));
+            record.setCreditAmount(creditCost);
+            record.setCreditTxId(creditTxId);
+            record.setUsage(JsonUtils.toJsonString(usage.standardUsage()));
+            record.setRawUsage(JsonUtils.toJsonString(usage.rawUsage()));
+            usageRecordRepository.save(record);
         } catch (Exception e) {
             log.warn(
-                    "AI 积分扣减失败: userId={}, modelId={}, cost={}, err={}",
+                    "写入 AiUsageRecord 失败（不影响结算）: userId={}, capability={}, err={}",
                     userId,
-                    modelId,
-                    creditCost,
+                    capability,
                     e.getMessage());
         }
     }
 
-    @Override
-    public void settlePerUse(Long userId, Long modelId, String bizId) {
-        settlePerUse(userId, modelId, bizId, null);
-    }
+    // ========== 私有工具方法 ==========
 
-    @Override
-    public void settlePerUse(Long userId, Long modelId, String bizId, String remark) {
-        if (userId == null) return;
-        int markup = configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 10);
-        long creditCost = 1;
-        if (modelId != null) {
-            var model = getAiModel(modelId);
-            if (model != null && model.getModelPrice() != null) {
-                creditCost =
-                        Math.max(
-                                1,
-                                Math.round(
-                                        model.getModelPrice().doubleValue()
-                                                * YUAN_TO_CREDIT
-                                                * markup));
-            }
-        }
-        try {
-            creditService.spendAllowOverdraft(
-                    userId,
-                    creditCost,
-                    CreditTransactionSourceEnum.AI_CONSUME.getCode(),
-                    bizId, // category = bizId (capability)
-                    bizId,
-                    0L,
-                    remark);
-        } catch (Exception e) {
-            log.warn(
-                    "按次积分扣减失败: userId={}, modelId={}, cost={}, err={}",
-                    userId,
-                    modelId,
-                    creditCost,
-                    e.getMessage());
+    private void checkLowBalance(Long userId, long balance) {
+        long threshold = configService.getInteger(SysConfigKeys.Ai.CREDIT_WARN_THRESHOLD, 10);
+        if (balance <= threshold) {
+            eventPublisher.publishEvent(new CreditLowEvent(userId, balance, threshold));
         }
     }
 
     private long fallbackCreditCost(long tokens) {
-        int markup = configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 10);
+        int markup = getMarkupRate();
         // 兜底单价 0.072 元/千token（参考 GPT-3.5 量级）
         return Math.max(1, Math.round(tokens * 0.072 / PER_K_TOKENS * YUAN_TO_CREDIT * markup));
     }
@@ -229,9 +210,5 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
             model.getInputPricePerK() != null ? model.getInputPricePerK().doubleValue() : 0.036,
             model.getOutputPricePerK() != null ? model.getOutputPricePerK().doubleValue() : 0.108
         };
-    }
-
-    private AiModel getAiModel(Long modelId) {
-        return configCacheManager.getAiModel(modelId);
     }
 }

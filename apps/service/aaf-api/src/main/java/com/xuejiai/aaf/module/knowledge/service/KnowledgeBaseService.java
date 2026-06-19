@@ -11,6 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeBase;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeBaseRepository;
@@ -37,6 +39,8 @@ public class KnowledgeBaseService {
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeDocumentRepository knowledgeDocumentRepository;
     private final EntityManager entityManager;
+    private final EntitlementChecker entitlementChecker;
+    private final OperatorContext operatorContext;
 
     /**
      * 创建知识库
@@ -46,6 +50,9 @@ public class KnowledgeBaseService {
      */
     @Transactional
     public KnowledgeBaseVO create(CreateKnowledgeBaseRequest req) {
+        operatorContext
+                .currentOwnerId()
+                .ifPresent(uid -> entitlementChecker.checkAndConsume(uid, "kb_count", 1));
         var entity = new KnowledgeBase();
         entity.setName(req.name());
         entity.setDescription(req.description());
@@ -105,6 +112,9 @@ public class KnowledgeBaseService {
     @Transactional
     public void delete(Long id) {
         knowledgeBaseRepository.deleteById(id);
+        operatorContext
+                .currentOwnerId()
+                .ifPresent(uid -> entitlementChecker.consume(uid, "kb_count", -1));
     }
 
     /**

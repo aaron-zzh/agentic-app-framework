@@ -45,6 +45,10 @@ public class CreditTransaction extends BaseEntity {
     @Column(name = "category", length = 32)
     private String category;
 
+    /** 业务表标识，与 bizId 组合定位具体业务记录，如 AIGC_TASK / TOOL_CALL_AUDIT */
+    @Column(name = "biz_type", length = 64)
+    private String bizType;
+
     /** 业务单号 */
     @Column(name = "biz_id", length = 64)
     private String bizId;

@@ -66,6 +66,7 @@ public class AuthService {
     private final CreditService creditService;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
+    private final com.xuejiai.aaf.module.billing.service.SubscriptionService subscriptionService;
 
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
@@ -524,6 +525,11 @@ public class AuthService {
                     String.valueOf(userId));
         } catch (Exception e) {
             log.warn("注册赠积分失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
+        }
+        try {
+            subscriptionService.subscribe(userId, "FREE", null);
+        } catch (Exception e) {
+            log.warn("注册分配免费套餐失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
         }
     }
 

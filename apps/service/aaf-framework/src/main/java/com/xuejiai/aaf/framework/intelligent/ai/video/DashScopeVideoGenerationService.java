@@ -4,9 +4,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +12,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.HappyhorseParams;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,13 +26,14 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li>happyhorse-1.0-t2v — 文生视频
  *   <li>happyhorse-1.0-i2v — 图生视频（首帧）
+ *   <li>happyhorse-1.0-r2v — 参考生视频（多图）
  *   <li>happyhorse-1.0-video-edit — 视频编辑
  * </ul>
  *
  * <p>wan2.x 系列请使用 {@link WanxVideoGenerationService}。
  */
 @Slf4j
-@Service
+@Service("dashScopeVideoGenerationService")
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
 public class DashScopeVideoGenerationService implements VideoGenerationService {
 
@@ -50,53 +52,76 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
 
     @Override
     public String submitTextToVideo(TextToVideoRequest request) {
-        var model =
-                request.resolvedModel() != null
-                        ? request.resolvedModel().getModelName()
-                        : "happyhorse-1.0-t2v";
-        var input = Map.<String, Object>of("prompt", request.prompt());
-        var parameters = buildT2vParameters(request);
-        return doSubmit(model, input, parameters);
+        var model = request.resolvedModel();
+        var req =
+                new VideoRequest(
+                        request.prompt(),
+                        null,
+                        null,
+                        model != null ? model.getModelId() : null,
+                        request.resolution(),
+                        request.ratio(),
+                        request.duration(),
+                        request.seed(),
+                        null);
+        var params =
+                HappyhorseParams.of(
+                        req, model != null ? model : placeholderModel("happyhorse-1.0-t2v"));
+        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
     }
 
     @Override
     public String submitImageToVideo(ImageToVideoRequest request) {
-        var model = request.model() != null ? request.model() : "happyhorse-1.0-i2v";
-        var media = List.of(Map.of("type", "first_frame", "url", request.firstFrameUrl()));
-        var input = new HashMap<String, Object>();
-        if (request.prompt() != null) input.put("prompt", request.prompt());
-        input.put("media", media);
-        var parameters = buildI2vParameters(request);
-        return doSubmit(model, input, parameters);
+        var req =
+                new VideoRequest(
+                        request.prompt(),
+                        request.firstFrameUrl(),
+                        null,
+                        request.model(),
+                        request.resolution(),
+                        null,
+                        request.duration(),
+                        request.seed(),
+                        VideoRequest.ImageMode.FIRST_FRAME);
+        var params =
+                HappyhorseParams.of(
+                        req,
+                        placeholderModel(
+                                request.model() != null ? request.model() : "happyhorse-1.0-i2v"));
+        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
     }
 
     @Override
     public String submitReferenceToVideo(ReferenceToVideoRequest request) {
-        var model = request.model() != null ? request.model() : "happyhorse-1.0-r2v";
-        var mediaList = new ArrayList<Map<String, String>>();
-        for (var imgUrl : request.referenceImageUrls()) {
-            mediaList.add(Map.of("type", "reference_image", "url", imgUrl));
-        }
-        var input = new HashMap<String, Object>();
-        input.put("prompt", request.prompt());
-        input.put("media", mediaList);
-        var parameters = buildR2vParameters(request);
-        return doSubmit(model, input, parameters);
+        var req =
+                new VideoRequest(
+                        request.prompt(),
+                        null,
+                        request.referenceImageUrls(),
+                        request.model(),
+                        request.resolution(),
+                        request.ratio(),
+                        request.duration(),
+                        request.seed(),
+                        VideoRequest.ImageMode.REFERENCE);
+        var params =
+                HappyhorseParams.of(
+                        req,
+                        placeholderModel(
+                                request.model() != null ? request.model() : "happyhorse-1.0-r2v"));
+        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
     }
 
     @Override
     public String submitVideoEdit(VideoEditApiRequest request) {
-        var model = request.model() != null ? request.model() : "happyhorse-1.0-video-edit";
-        var mediaList = new ArrayList<Map<String, String>>();
-        mediaList.add(Map.of("type", "video", "url", request.videoUrl()));
-        if (request.referenceImageUrls() != null) {
-            for (var imgUrl : request.referenceImageUrls()) {
-                mediaList.add(Map.of("type", "reference_image", "url", imgUrl));
-            }
-        }
-        var input = Map.<String, Object>of("prompt", request.prompt(), "media", mediaList);
-        var parameters = buildEditParameters(request);
-        return doSubmit(model, input, parameters);
+        var params =
+                HappyhorseParams.ofEdit(
+                        request,
+                        placeholderModel(
+                                request.model() != null
+                                        ? request.model()
+                                        : "happyhorse-1.0-video-edit"));
+        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
     }
 
     @Override
@@ -119,12 +144,22 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
             var endTime = output.has("end_time") ? output.get("end_time").asText() : null;
 
             Integer duration = null;
-            if (root.has("usage") && root.get("usage").has("duration")) {
-                duration = root.get("usage").get("duration").asInt();
+            String resolution = null;
+            if (root.has("usage")) {
+                var usage = root.get("usage");
+                if (usage.has("duration")) duration = usage.get("duration").asInt();
+                if (usage.has("SR")) resolution = usage.get("SR").asInt() + "p";
             }
 
             return new VideoTaskResult(
-                    taskId, status, videoUrl, origPrompt, submitTime, endTime, duration);
+                    taskId,
+                    status,
+                    videoUrl,
+                    origPrompt,
+                    submitTime,
+                    endTime,
+                    duration,
+                    resolution);
         } catch (Exception e) {
             log.error("[HappyHorse] 查询任务失败: taskId={}", taskId, e);
             return new VideoTaskResult(
@@ -170,44 +205,6 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
         }
     }
 
-    private Map<String, Object> buildT2vParameters(TextToVideoRequest request) {
-        var params = new HashMap<String, Object>();
-        if (request.resolution() != null) params.put("resolution", request.resolution());
-        if (request.ratio() != null) params.put("ratio", request.ratio());
-        if (request.duration() != null) params.put("duration", request.duration());
-        if (request.seed() != null) params.put("seed", request.seed());
-        params.put("watermark", false);
-        return params;
-    }
-
-    private Map<String, Object> buildI2vParameters(ImageToVideoRequest request) {
-        var params = new HashMap<String, Object>();
-        if (request.resolution() != null) params.put("resolution", request.resolution());
-        if (request.duration() != null) params.put("duration", request.duration());
-        if (request.seed() != null) params.put("seed", request.seed());
-        params.put("watermark", false);
-        return params;
-    }
-
-    private Map<String, Object> buildR2vParameters(ReferenceToVideoRequest request) {
-        var params = new HashMap<String, Object>();
-        if (request.resolution() != null) params.put("resolution", request.resolution());
-        if (request.ratio() != null) params.put("ratio", request.ratio());
-        if (request.duration() != null) params.put("duration", request.duration());
-        if (request.seed() != null) params.put("seed", request.seed());
-        params.put("watermark", false);
-        return params;
-    }
-
-    private Map<String, Object> buildEditParameters(VideoEditApiRequest request) {
-        var params = new HashMap<String, Object>();
-        if (request.resolution() != null) params.put("resolution", request.resolution());
-        if (request.audioSetting() != null) params.put("audio_setting", request.audioSetting());
-        if (request.seed() != null) params.put("seed", request.seed());
-        params.put("watermark", false);
-        return params;
-    }
-
     private VideoTaskResult.TaskStatus parseStatus(String status) {
         return switch (status) {
             case "PENDING" -> VideoTaskResult.TaskStatus.PENDING;
@@ -217,5 +214,12 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
             case "CANCELED" -> VideoTaskResult.TaskStatus.CANCELED;
             default -> VideoTaskResult.TaskStatus.UNKNOWN;
         };
+    }
+
+    /** 当调用方未传 resolvedModel 时，用模型名构建最小占位 AiModel（无 videoConfig，跳过校验）。 */
+    private AiModel placeholderModel(String modelName) {
+        var m = new AiModel();
+        m.setModelName(modelName);
+        return m;
     }
 }

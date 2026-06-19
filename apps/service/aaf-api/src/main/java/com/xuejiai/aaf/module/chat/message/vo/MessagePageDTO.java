@@ -1,8 +1,7 @@
 package com.xuejiai.aaf.module.chat.message.vo;
 
+import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 import com.xuejiai.aaf.common.model.PageParam;
-import com.xuejiai.aaf.module.chat.enums.MessageContentType;
-import com.xuejiai.aaf.module.chat.enums.MessageSenderType;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -22,7 +21,7 @@ public class MessagePageDTO extends PageParam {
     private Long conversationId;
 
     @Schema(description = "发送方类型")
-    private MessageSenderType senderType;
+    private MessageSenderTypeEnum senderType;
 
     @Schema(description = "内容类型")
     private MessageContentType contentType;

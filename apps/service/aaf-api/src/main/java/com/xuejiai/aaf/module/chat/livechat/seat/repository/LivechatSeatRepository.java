@@ -7,7 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
-import com.xuejiai.aaf.module.chat.enums.SeatType;
+import com.xuejiai.aaf.common.enums.chat.SeatTypeEnum;
+
 import com.xuejiai.aaf.module.chat.livechat.seat.domain.LivechatSeat;
 
 /**
@@ -22,7 +23,7 @@ public interface LivechatSeatRepository
 
     Optional<LivechatSeat> findByAssistantId(Long assistantId);
 
-    List<LivechatSeat> findBySeatTypeAndStatus(SeatType seatType, String status);
+    List<LivechatSeat> findBySeatTypeAndStatus(SeatTypeEnum seatType, String status);
 
     // ========== 坐席分配场景查询 ==========
 

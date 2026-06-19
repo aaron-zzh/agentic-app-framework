@@ -45,7 +45,7 @@ public class ResilientChatService {
      */
     public ChatResponse call(List<Message> messages, CapabilityRoutingContext ctx) {
         var ownerId = billingOwnerId(ctx.userId());
-        creditGuard.precheck(ownerId, ctx.capability());
+        creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
         var model = capabilityRouter.resolve(ctx);
         try {
             var response = doCall(messages, model.getModelId());
@@ -75,7 +75,7 @@ public class ResilientChatService {
         long startedAt = System.currentTimeMillis();
         var ownerId = billingOwnerId(ctx.userId());
         // 1. 积分/配额预检，不足则抛异常
-        creditGuard.precheck(ownerId, ctx.capability());
+        creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
         // 2. 路由决策链：显式 modelId → 编排引擎 → AI 辅助 → 用户偏好 → 系统默认 → yaml 兜底
         var model = capabilityRouter.resolve(ctx);
         long routedAt = System.currentTimeMillis();

@@ -17,12 +17,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.storage.FileVO;
 import com.xuejiai.aaf.framework.storage.OssStorageService;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.framework.storage.StsCredentials;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
+import com.xuejiai.aaf.module.system.file.vo.FileConfirmDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordVO;
 
@@ -44,6 +46,7 @@ public class FileController {
     private final FileService fileService;
     private final StorageService storageService;
     private final FileRecordService fileRecordService;
+    private final OperatorContext operatorContext;
 
     /** OSS 类型时非空，其他存储类型为 null */
     @Autowired(required = false)
@@ -72,14 +75,40 @@ public class FileController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/upload")
     public Result<FileVO> upload(@RequestParam("file") MultipartFile file) {
-        return Result.success(fileService.upload(file));
+        var vo = fileService.upload(file);
+        var uploaderId = operatorContext.currentOwnerId().orElse(null);
+        fileRecordService.save(
+                vo.key(),
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize(),
+                uploaderId);
+        return Result.success(vo);
     }
 
     @Operation(summary = "上传图片（自动生成缩略图）")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/upload-image")
     public Result<FileVO> uploadImage(@RequestParam("file") MultipartFile file) {
-        return Result.success(fileService.uploadImage(file));
+        var vo = fileService.uploadImage(file);
+        var uploaderId = operatorContext.currentOwnerId().orElse(null);
+        fileRecordService.save(
+                vo.key(),
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize(),
+                uploaderId);
+        return Result.success(vo);
+    }
+
+    @Operation(summary = "前端直传完成确认（预签名/STS 分片上传后调用）")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/confirm")
+    public Result<Void> confirm(@Validated @RequestBody FileConfirmDTO dto) {
+        var uploaderId = operatorContext.currentOwnerId().orElse(null);
+        fileRecordService.save(
+                dto.key(), dto.originalName(), dto.mimeType(), dto.size(), uploaderId);
+        return Result.success();
     }
 
     @Operation(summary = "删除文件")

@@ -13,10 +13,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.BatchGenerationTask;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.BatchGenerationTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationSubmitDTO;
@@ -44,7 +45,7 @@ public class BatchGenerationService {
     private final BatchGenerationTaskRepository taskRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final ImageServiceFactory imageServiceFactory;
+    private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
 
     /**
@@ -202,7 +203,7 @@ public class BatchGenerationService {
                                 width != null ? width : 1024,
                                 height != null ? height : 1024,
                                 "url");
-                imageServiceFactory.getSyncService(model).generate(model, request);
+                aiServiceRegistry.get(ImageGenerationService.class, model).generate(model, request);
                 log.debug("批量生成成功: prompt={}, attempt={}", prompt, attempt);
                 return true;
             } catch (Exception e) {

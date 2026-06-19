@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>happyhorse 系列请使用 {@link DashScopeVideoGenerationService}。
  */
 @Slf4j
-@Service
+@Service("wanxVideoGenerationService")
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
 public class WanxVideoGenerationService implements VideoGenerationService {
 

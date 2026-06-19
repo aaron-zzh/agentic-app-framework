@@ -1,8 +1,8 @@
 package com.xuejiai.aaf.module.chat.conversation.vo;
 
+import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
+import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
 import com.xuejiai.aaf.common.model.PageParam;
-import com.xuejiai.aaf.module.chat.enums.ConversationStatus;
-import com.xuejiai.aaf.module.chat.enums.ConversationType;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -19,10 +19,10 @@ import lombok.EqualsAndHashCode;
 public class ConversationPageDTO extends PageParam {
 
     @Schema(description = "会话类型")
-    private ConversationType type;
+    private ConversationTypeEnum type;
 
     @Schema(description = "状态")
-    private ConversationStatus status;
+    private ConversationStatusEnum status;
 
     @Schema(description = "创建者 ID")
     private Long creatorId;

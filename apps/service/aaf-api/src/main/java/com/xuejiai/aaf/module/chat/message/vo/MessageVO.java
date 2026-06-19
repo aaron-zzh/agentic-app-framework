@@ -2,8 +2,7 @@ package com.xuejiai.aaf.module.chat.message.vo;
 
 import java.time.LocalDateTime;
 
-import com.xuejiai.aaf.module.chat.enums.MessageContentType;
-import com.xuejiai.aaf.module.chat.enums.MessageSenderType;
+import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -17,7 +16,7 @@ public record MessageVO(
         @Schema(description = "ID") Long id,
         @Schema(description = "会话 ID") Long conversationId,
         @Schema(description = "发送方 ID") String senderId,
-        @Schema(description = "发送方类型") MessageSenderType senderType,
+        @Schema(description = "发送方类型") MessageSenderTypeEnum senderType,
         @Schema(description = "LLM 角色") String role,
         @Schema(description = "消息内容") String content,
         @Schema(description = "内容类型") MessageContentType contentType,

@@ -91,70 +91,17 @@ public class CreditServiceImpl implements CreditService {
                 expireAt);
     }
 
-    /** 消费积分——按批次优先扣减（最快到期的批次优先，永久积分最后）。 */
     @Override
     @Transactional
-    public void spend(Long userId, long amount, String source, String bizId) {
-        spendInternal(userId, amount, source, null, bizId, 0L);
-    }
-
-    @Override
-    @Transactional
-    public void spend(Long userId, long amount, String source, String category, String bizId) {
-        spendInternal(userId, amount, source, category, bizId, 0L);
-    }
-
-    @Override
-    @Transactional
-    public void spendAllowOverdraft(
-            Long userId, long amount, String source, String bizId, long overdraftLimit) {
-        spendInternal(userId, amount, source, null, bizId, overdraftLimit);
-    }
-
-    @Override
-    @Transactional
-    public void spendAllowOverdraft(
-            Long userId,
-            long amount,
-            String source,
-            String category,
-            String bizId,
-            long overdraftLimit) {
-        spendInternal(userId, amount, source, category, bizId, overdraftLimit, null);
-    }
-
-    @Override
-    @Transactional
-    public void spendAllowOverdraft(
+    public Long spend(
             Long userId,
             long amount,
             String source,
             String category,
             String bizId,
             long overdraftLimit,
-            String remark) {
-        spendInternal(userId, amount, source, category, bizId, overdraftLimit, remark);
-    }
-
-    /** 内部扣减实现，overdraftLimit=0 表示不允许透支 */
-    private void spendInternal(
-            Long userId,
-            long amount,
-            String source,
-            String category,
-            String bizId,
-            long overdraftLimit) {
-        spendInternal(userId, amount, source, category, bizId, overdraftLimit, null);
-    }
-
-    private void spendInternal(
-            Long userId,
-            long amount,
-            String source,
-            String category,
-            String bizId,
-            long overdraftLimit,
-            String remark) {
+            String remark,
+            String bizType) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "消费金额必须大于 0");
         }
@@ -167,17 +114,15 @@ public class CreditServiceImpl implements CreditService {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分余额不足");
         }
 
-        // 按批次优先扣减（余额可能不够，批次扣完为止）
-        var batches = transactionRepository.findActiveBatchesByAccountId(account.getId());
+        // 按批次优先扣减（最快到期的批次优先）
         long remaining = amount;
-        for (var batch : batches) {
+        for (var batch : transactionRepository.findActiveBatchesByAccountId(account.getId())) {
             if (remaining <= 0) break;
             long deduct = Math.min(batch.getRemain(), remaining);
             batch.setRemain(batch.getRemain() - deduct);
             transactionRepository.save(batch);
             remaining -= deduct;
         }
-        // remaining > 0 说明进入透支区间，批次已清空，余额直接扣负
 
         account.setBalance(account.getBalance() - amount);
         account.setTotalSpent(account.getTotalSpent() + amount);
@@ -190,17 +135,20 @@ public class CreditServiceImpl implements CreditService {
         tx.setBalanceAfter(account.getBalance());
         tx.setSource(source);
         tx.setCategory(category);
+        tx.setBizType(bizType);
         tx.setBizId(bizId);
         tx.setRemark(remark);
         tx.setRemain(0L);
-        transactionRepository.save(tx);
+        Long txId = transactionRepository.save(tx).getId();
 
         log.info(
-                "积分消费: userId={}, amount={}, source={}, balanceAfter={}",
+                "积分消费: userId={}, amount={}, source={}, bizType={}, balanceAfter={}",
                 userId,
                 amount,
                 source,
+                bizType,
                 account.getBalance());
+        return txId;
     }
 
     @Override

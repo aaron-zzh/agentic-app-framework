@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.xuejiai.aaf.framework.engine.credit.AiCredit;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>非流式模式：同步阻塞返回完整音频 URL。
  */
 @Slf4j
-@Service
+@Service("dashScopeMusicGenerationService")
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
 public class DashScopeMusicGenerationService implements MusicGenerationService {
 
@@ -43,7 +42,6 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
     }
 
     @Override
-    @AiCredit(precheck = false)
     public MusicResult generate(AiModel model, MusicRequest request) {
         try {
             var body = buildRequestBody(request);

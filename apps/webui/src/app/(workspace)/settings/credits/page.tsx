@@ -100,8 +100,13 @@ function InfoTip({ text }: { text: string }) {
 
 // ─── 流水条目 ────────────────────────────────────────────────────────────────
 
-
-function TxRow({ tx, getTypeLabel, getTypeColor, getSourceLabel, getCategoryLabel }: {
+function TxRow({
+  tx,
+  getTypeLabel,
+  getTypeColor,
+  getSourceLabel,
+  getCategoryLabel
+}: {
   tx: CreditTransactionVO
   getTypeLabel: (v: string) => string
   getTypeColor: (v: string) => string
@@ -118,14 +123,17 @@ function TxRow({ tx, getTypeLabel, getTypeColor, getSourceLabel, getCategoryLabe
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <p className="font-medium">{tx.remark || getSourceLabel(tx.source) || tx.source}</p>
-            <span className={cn(
-              "rounded px-1.5 py-0.5 text-xs",
-              typeColor === "success" && "bg-emerald-100 text-emerald-700",
-              typeColor === "danger" && "bg-orange-100 text-orange-700",
-              typeColor === "warning" && "bg-yellow-100 text-yellow-700",
-              typeColor === "info" && "bg-blue-100 text-blue-700",
-              !["success","danger","warning","info"].includes(typeColor) && "bg-muted text-muted-foreground"
-            )}>
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-xs",
+                typeColor === "success" && "bg-emerald-100 text-emerald-700",
+                typeColor === "danger" && "bg-orange-100 text-orange-700",
+                typeColor === "warning" && "bg-yellow-100 text-yellow-700",
+                typeColor === "info" && "bg-blue-100 text-blue-700",
+                !["success", "danger", "warning", "info"].includes(typeColor) &&
+                  "bg-muted text-muted-foreground"
+              )}
+            >
               {typeLabel}
             </span>
             {tx.category && (
@@ -281,7 +289,16 @@ export default function CreditsPage() {
         ) : filtered.length === 0 ? (
           <p className="py-12 text-center text-muted-foreground text-sm">暂无记录</p>
         ) : (
-          filtered.map((tx) => <TxRow key={tx.id} tx={tx} getTypeLabel={getTypeLabel} getTypeColor={getTypeColor} getSourceLabel={getSourceLabel} getCategoryLabel={getCategoryLabel} />)
+          filtered.map((tx) => (
+            <TxRow
+              key={tx.id}
+              tx={tx}
+              getTypeLabel={getTypeLabel}
+              getTypeColor={getTypeColor}
+              getSourceLabel={getSourceLabel}
+              getCategoryLabel={getCategoryLabel}
+            />
+          ))
         )}
       </div>
 

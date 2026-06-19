@@ -14,15 +14,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
+import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.VideoRequest;
-import com.xuejiai.aaf.framework.intelligent.ai.video.VideoServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.image.service.AiImageService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
+import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,8 +38,8 @@ public class ContentGenerationTool {
     private static final String IMAGE_TOOL = "generateImage";
     private static final String VIDEO_TOOL = "generateVideo";
 
-    private final AiImageService aiImageService;
-    private final VideoServiceFactory videoServiceFactory;
+    private final AigcTaskService aigcTaskService;
+    private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
     private final MediaAssetService mediaAssetService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
@@ -59,18 +61,34 @@ public class ContentGenerationTool {
                         IMAGE_TOOL, safety.code(), safety.message(), safety.reviewId());
             }
             var userId = operatorContext.currentOwnerId().orElseThrow();
-            var imageId =
-                    aiImageService.draw(
+            var taskId =
+                    aigcTaskService.submitImageTask(
                             userId,
-                            request.prompt(),
-                            request.width(),
-                            request.height(),
-                            request.model());
+                            new ImageTaskRequest(
+                                    request.prompt(),
+                                    request.model(),
+                                    request.width() != null ? request.width() : 1024,
+                                    request.height() != null ? request.height() : 1024,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    request.prompt(),
+                                    null,
+                                    null,
+                                    null));
             return asJson(
                     ToolCallResult.success(
                             IMAGE_TOOL,
                             objectMapper.writeValueAsString(
-                                    Map.of("imageId", imageId, "status", "PENDING"))));
+                                    Map.of("imageId", taskId, "status", "PENDING"))));
         } catch (Exception ex) {
             return asJson(ToolCallResult.error(IMAGE_TOOL, "GENERATION_ERROR", ex.getMessage()));
         }
@@ -98,7 +116,7 @@ public class ContentGenerationTool {
                     CapabilityRoutingContext.of(
                             userId, CapabilityRoutingContext.CAP_VIDEO_GEN, request.model());
             var aiModel = capabilityRouter.resolve(ctx);
-            var service = videoServiceFactory.getService(aiModel);
+            var service = aiServiceRegistry.get(VideoGenerationService.class, aiModel);
 
             var taskId =
                     service.submit(
@@ -110,7 +128,8 @@ public class ContentGenerationTool {
                                     request.resolution(),
                                     request.ratio(),
                                     request.duration(),
-                                    request.seed()));
+                                    request.seed(),
+                                    null));
 
             // 自动保存到素材库（视频为异步任务，先记录 taskId）
             try {

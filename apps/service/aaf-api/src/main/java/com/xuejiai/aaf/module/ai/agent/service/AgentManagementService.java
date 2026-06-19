@@ -8,12 +8,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinitionRepository;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentFactory;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionRun;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionRunRepository;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.agent.vo.*;
 
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,8 @@ public class AgentManagementService {
     private final AgentDefinitionRepository agentRepo;
     private final AgentFactory agentFactory;
     private final ExecutionRunRepository executionRunRepo;
+    private final EntitlementChecker entitlementChecker;
+    private final OperatorContext operatorContext;
 
     /**
      * 创建 Agent。
@@ -40,6 +44,9 @@ public class AgentManagementService {
      */
     @Transactional
     public AgentVO create(AgentCreateDTO dto) {
+        operatorContext
+                .currentOwnerId()
+                .ifPresent(uid -> entitlementChecker.checkAndConsume(uid, "agent_count", 1));
         var definition = new AgentDefinition();
         definition.setName(dto.name());
         definition.setDescription(dto.description());
@@ -138,6 +145,9 @@ public class AgentManagementService {
                                                 GlobalErrorCode.NOT_FOUND, "Agent 不存在"));
         entity.setStatus("archived");
         agentRepo.save(entity);
+        operatorContext
+                .currentOwnerId()
+                .ifPresent(uid -> entitlementChecker.consume(uid, "agent_count", -1));
     }
 
     /**

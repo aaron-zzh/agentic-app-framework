@@ -11,8 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.enums.OverLimitAction;
-import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
-import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogEntry;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
@@ -47,7 +46,7 @@ public class ToolPermissionGuard {
     private final AssistantPermissionEvaluator assistantPermEval;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
     private final ObjectMapper objectMapper;
-    private final ObjectProvider<CreditService> creditService;
+    private final ObjectProvider<AiCreditGuard> creditService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final ObjectProvider<ConfidenceGate> confidenceGate;
     private final AccessDecisionService accessDecisionService;
@@ -240,7 +239,7 @@ public class ToolPermissionGuard {
                     try {
                         output = delegate.call(arguments);
                     } catch (com.xuejiai.aaf.common.exception.InsufficientCreditsException e) {
-                        // @AiCredit 切面积分不足时转结构化结果，供 LLM 感知并告知用户
+                        // 积分不足时转结构化结果，供 LLM 感知并告知用户
                         yield asJson(ToolCallResult.insufficientCredits(toolName, "ai_credit", 0));
                     }
                     if (isSuccessfulOutput(output)) {
@@ -441,11 +440,10 @@ public class ToolPermissionGuard {
             return;
         }
         try {
-            credit.spend(
+            credit.settleFixed(
                     userId,
                     cost,
-                    CreditTransactionSourceEnum.TOOL_CONSUME.getCode(),
-                    entry.entitlementCode());
+                    entry.entitlementCode() != null ? entry.entitlementCode() : "tool");
         } catch (Exception ex) {
             log.warn(
                     "工具扣费失败，已完成调用不回滚: tool={}, userId={}, cost={}, err={}",

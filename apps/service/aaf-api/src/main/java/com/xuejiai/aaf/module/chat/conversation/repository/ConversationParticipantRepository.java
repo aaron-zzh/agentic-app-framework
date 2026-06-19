@@ -5,8 +5,8 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.xuejiai.aaf.common.enums.chat.ParticipantTypeEnum;
 import com.xuejiai.aaf.module.chat.conversation.domain.ConversationParticipant;
-import com.xuejiai.aaf.module.chat.enums.ParticipantType;
 
 /**
  * 会话参与方 Repository。
@@ -26,5 +26,5 @@ public interface ConversationParticipantRepository
             Long conversationId, String participantId);
 
     List<ConversationParticipant> findByParticipantIdAndParticipantTypeAndLeftAtIsNull(
-            String participantId, ParticipantType participantType);
+            String participantId, ParticipantTypeEnum participantType);
 }

@@ -17,8 +17,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
-import com.xuejiai.aaf.framework.intelligent.ai.image.DashScopeImageGenerationService;
-import com.xuejiai.aaf.framework.intelligent.ai.image.ImageServiceFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
+import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyAsyncImageService;
+import com.xuejiai.aaf.framework.intelligent.ai.image.decorator.ImageGenServiceDecorator;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
@@ -27,6 +28,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService.MusicRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
+import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
@@ -54,14 +56,16 @@ public class AigcTaskExecutor {
     private final AigcTaskMapper taskMapper;
     private final StorageService storageService;
     private final MediaAssetService mediaAssetService;
-    private final ImageServiceFactory imageServiceFactory;
+    private final AiServiceRegistry aiServiceRegistry;
     private final ObjectMapper objectMapper;
     private final AiCreditGuard creditGuard;
     private final ConfigCacheManager configCacheManager;
-    private final MusicGenerationService musicGenerationService;
     private final Model3dGenerationService model3dGenerationService;
     private final ObjectProvider<SpeechService> speechServiceProvider;
     private final jakarta.persistence.EntityManager entityManager;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MidjourneyAsyncImageService midjourneyAsyncImageService;
 
     private static final String STATUS_RUNNING = "RUNNING";
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -93,10 +97,30 @@ public class AigcTaskExecutor {
                 // Mock 模式：跳过真实 API，直接构造结果
                 result = new ImageResult(mockUrl, null, modelId);
             } else {
-                var svc = imageServiceFactory.getSyncService(modelId);
+                // Midjourney 走异步提交，等待任务完成后再拉取结果
+                if (aiModel != null
+                        && aiModel.effectiveProviderType()
+                                == com.xuejiai.aaf.framework.intelligent.core.model
+                                        .AiModelProviderType.MIDJOURNEY
+                        && midjourneyAsyncImageService != null) {
+                    var req =
+                            new com.xuejiai.aaf.framework.intelligent.ai.image
+                                    .AsyncImageGenerationService.AsyncImageRequest(prompt, modelId);
+                    String mjTaskId = midjourneyAsyncImageService.submitTask(req);
+                    // taskId 格式：{modelId}:{mjTaskId}，供查询时找回模型配置
+                    task.setTaskId(modelId + ":" + mjTaskId);
+                    task.setStatus("PENDING");
+                    taskRepo.save(task);
+                    log.info(
+                            "[AigcTaskExecutor] Midjourney 任务提交: taskId={}, mjTaskId={}",
+                            taskId,
+                            mjTaskId);
+                    return;
+                }
+                var svc = aiServiceRegistry.get(ImageGenerationService.class, aiModel);
                 if (p.getImageUrls() != null && !p.getImageUrls().isEmpty()) {
-                    if (svc instanceof DashScopeImageGenerationService ds) {
-                        result = ds.generateWithImages(aiModel, p);
+                    if (svc instanceof ImageGenServiceDecorator creditSvc) {
+                        result = creditSvc.generateWithImages(aiModel, p);
                     } else {
                         result =
                                 svc.imageToImage(
@@ -376,9 +400,11 @@ public class AigcTaskExecutor {
             if (mockUrl != null && !mockUrl.isBlank()) {
                 ossUrl = mockUrl;
             } else {
+                var aiModel = configCacheManager.getAiModelByModelId(task.getModelName());
                 var result =
-                        musicGenerationService.generate(
-                                null, new MusicRequest(prompt, lyrics, gender, "mp3"));
+                        aiServiceRegistry
+                                .get(MusicGenerationService.class, aiModel)
+                                .generate(aiModel, new MusicRequest(prompt, lyrics, gender, "mp3"));
                 task.setResultUrl(result.audioUrl());
                 ossUrl = uploadAudioToOss(result.audioUrl(), task.getId());
             }
@@ -525,7 +551,7 @@ public class AigcTaskExecutor {
         }
     }
 
-    /** 3D 模型生成异步执行（提交后轮询直到完成，最多等待 10 分钟）。 */
+    /** 3D 模型生成异步执行（提交到第三方后立即返回，由 {@code Model3dTaskSyncJob} 轮询结果）。 */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitModel3dSync(Long taskId, String prompt, String mockUrl) {
@@ -535,112 +561,82 @@ public class AigcTaskExecutor {
             task.setStatus("RUNNING");
             taskRepo.save(task);
 
-            String ossUrl;
             if (mockUrl != null && !mockUrl.isBlank()) {
-                ossUrl = mockUrl;
-            } else {
-                // 提交到第三方，拿到外部 taskId
-                String thirdTaskId =
-                        model3dGenerationService.submitTextTo3d(
-                                new TextTo3dRequest(prompt, null, null));
-                task.setTaskId(thirdTaskId);
+                // Mock 模式：直接完成
+                task.setOssUrl(mockUrl);
+                task.setStatus("SUCCESS");
+                task.setUpdateTime(LocalDateTime.now());
                 taskRepo.save(task);
-                log.info(
-                        "[submitModel3dSync] 任务已提交: taskId={}, thirdTaskId={}",
-                        taskId,
-                        thirdTaskId);
-
-                // 轮询结果，每 10 秒一次，最多 180 次 = 30 分钟
-                com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService
-                                .Model3dTaskResult
-                        result = null;
-                for (int i = 0; i < 180; i++) {
-                    Thread.sleep(10000);
-                    result = model3dGenerationService.query(thirdTaskId);
-                    if ((i + 1) % 6 == 0) {
-                        log.info(
-                                "[submitModel3dSync] 轮询中: taskId={}, status={}, elapsed={}min",
-                                taskId,
-                                result.status(),
-                                (i + 1) / 6);
-                    }
-                    if (result.status()
-                                    == com.xuejiai.aaf.framework.intelligent.ai.model3d
-                                            .Model3dGenerationService.Model3dTaskResult.TaskStatus
-                                            .SUCCEEDED
-                            || result.status()
-                                    == com.xuejiai.aaf.framework.intelligent.ai.model3d
-                                            .Model3dGenerationService.Model3dTaskResult.TaskStatus
-                                            .FAILED) {
-                        break;
-                    }
-                }
-
-                if (result == null
-                        || result.status()
-                                != com.xuejiai.aaf.framework.intelligent.ai.model3d
-                                        .Model3dGenerationService.Model3dTaskResult.TaskStatus
-                                        .SUCCEEDED) {
-                    throw new RuntimeException(
-                            "3D 生成失败或超时: status=" + (result != null ? result.status() : "null"));
-                }
-
-                String sourceUrl =
-                        result.modelUrl() != null ? result.modelUrl() : result.baseModelUrl();
-                ossUrl = uploadModel3dToOss(sourceUrl, task.getId());
-                task.setResultUrl(sourceUrl);
+                eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+                return;
             }
 
-            task.setOssUrl(ossUrl);
-            task.setStatus("SUCCESS");
+            // 提交到第三方，拿到外部 taskId，后续由定时 Job 轮询
+            String thirdTaskId =
+                    model3dGenerationService.submitTextTo3d(
+                            new TextTo3dRequest(prompt, null, null));
+            task.setTaskId(thirdTaskId);
+            task.setStatus("PENDING");
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
-
-            // 写入素材库
-            try {
-                var dto =
-                        new SaveFromGenerationDTO(
-                                prompt != null
-                                        ? prompt.substring(0, Math.min(prompt.length(), 40))
-                                        : "AI 3D模型",
-                                MediaAssetType.MODEL_3D,
-                                ossUrl,
-                                null,
-                                "{\"prompt\":\"%s\",\"model\":\"%s\"}"
-                                        .formatted(
-                                                task.getPrompt() != null
-                                                        ? task.getPrompt().replace("\"", "'")
-                                                        : "",
-                                                task.getModel() != null ? task.getModel() : ""),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true,
-                                task.getModelName(),
-                                task.getProvider(),
-                                task.getProjectId());
-                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            } catch (Exception e) {
-                log.warn("[submitModel3dSync] 写入素材库失败: taskId={}", taskId, e);
-            }
-
-            log.info("[submitModel3dSync] 3D 生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
+            log.info("[submitModel3dSync] 任务已提交: taskId={}, thirdTaskId={}", taskId, thirdTaskId);
         } catch (Exception e) {
-            log.error("[submitModel3dSync] 生成失败: taskId={}", taskId, e);
+            log.error("[submitModel3dSync] 提交失败: taskId={}", taskId, e);
             task.setStatus("FAIL");
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
+            try {
+                eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
+            } catch (Exception ignored) {
+            }
         }
+    }
+
+    /** 视频生成异步执行（提交到第三方后立即返回，由 {@code VideoTaskSyncJob} 轮询结果）。 */
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void submitVideoAsync(Long taskId, String prompt, String modelId, String mockUrl) {
+        var task = taskRepo.findById(taskId).orElse(null);
+        if (task == null) return;
         try {
-            eventService.push(
-                    task.getUserId(),
-                    "SUCCESS".equals(task.getStatus()) ? EVENT_COMPLETED : EVENT_FAILED,
-                    toVO(task));
+            task.setStatus("RUNNING");
+            taskRepo.save(task);
+
+            if (mockUrl != null && !mockUrl.isBlank()) {
+                task.setOssUrl(mockUrl);
+                task.setStatus("SUCCESS");
+                task.setUpdateTime(LocalDateTime.now());
+                taskRepo.save(task);
+                eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+                return;
+            }
+
+            var aiModel = configCacheManager.getAiModelByModelId(modelId);
+            var svc =
+                    aiServiceRegistry.get(
+                            com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService
+                                    .class,
+                            aiModel);
+            var request =
+                    new com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService
+                            .TextToVideoRequest(prompt, aiModel, null, null, null, null, null);
+            String thirdTaskId = svc.submitTextToVideo(request);
+            task.setTaskId(thirdTaskId);
+            task.setStatus("PENDING");
+            task.setUpdateTime(LocalDateTime.now());
+            taskRepo.save(task);
+            log.info("[submitVideoAsync] 任务已提交: taskId={}, thirdTaskId={}", taskId, thirdTaskId);
         } catch (Exception e) {
-            log.debug("[submitModel3dSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
+            log.error("[submitVideoAsync] 提交失败: taskId={}", taskId, e);
+            task.setStatus("FAIL");
+            task.setErrorMsg(e.getMessage());
+            task.setUpdateTime(LocalDateTime.now());
+            taskRepo.save(task);
+            try {
+                eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
+            } catch (Exception ignored) {
+            }
         }
     }
 
