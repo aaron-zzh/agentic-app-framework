@@ -1,6 +1,7 @@
 "use client"
 
 import { Check } from "lucide-react"
+import Link from "next/link"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -258,10 +259,45 @@ export default function PricingPage() {
                 </span>
               </button>
               {openFaq === i && (
-                <p className="border-t px-5 py-4 text-muted-foreground text-sm">{item.a}</p>
+                <p className="whitespace-pre-line border-t px-5 py-4 text-muted-foreground text-sm">
+                  {item.a}
+                </p>
               )}
             </div>
           ))}
+        </div>
+
+        {/* 免责声明与联系方式 */}
+        <div className="mt-10 space-y-4 rounded-xl border bg-muted/30 px-5 py-6">
+          <h3 className="font-semibold text-base">免责声明与联系方式</h3>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            💬 如有关于<span className="font-medium text-foreground">订阅或积分</span>
+            的问题，欢迎通过邮箱{" "}
+            <Link
+              href="mailto:service@xuejiai.com"
+              className="font-medium text-primary hover:underline"
+            >
+              service@xuejiai.com
+            </Link>{" "}
+            或微信 <span className="font-medium text-foreground">Aaron-ZZH</span> 联系我们，也可前往{" "}
+            <Link href="/contact" className="font-medium text-primary hover:underline">
+              联系我们
+            </Link>{" "}
+            页面留言。
+          </p>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            ⚠️ AAF 会根据产品优化与用户体验需要，不断调整功能、价格、订阅方案及积分政策。
+            上述内容仅供参考，可能会在提前通知或不提前通知的情况下进行变更。
+            如出现争议或不一致情况，以{" "}
+            <Link href="/terms" className="font-medium text-primary hover:underline">
+              使用条款
+            </Link>
+            、
+            <Link href="/privacy" className="font-medium text-primary hover:underline">
+              隐私政策
+            </Link>
+            、系统记录与实际账单数据为准。
+          </p>
         </div>
       </div>
     </div>
