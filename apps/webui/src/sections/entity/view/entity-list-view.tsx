@@ -20,6 +20,7 @@ import type { EntityDef } from "@/features/entity-engine/types"
 import { paths } from "@/lib/constants/paths"
 import { useUIStore } from "@/lib/store/ui-store"
 import { Toolbar } from "@/sections/layout/Toolbar"
+import { getListToolbarExtra } from "../list-toolbar-extras"
 import { RecordPanel } from "../RecordPanel"
 
 interface Props {
@@ -33,6 +34,7 @@ export function EntityListView({ entity, view }: Props) {
   const close = useUIStore((s) => s.closeRecordPanel)
   const pathname = usePathname()
   const canCreate = entity.access?.create !== false
+  const extraAction = getListToolbarExtra(entity.slug)
 
   // viewSettings 状态提升到此层，同时传给 Toolbar（读写）和 ViewEngine（只读）
   // 用 useEffect 在客户端加载，避免 SSR hydration mismatch
@@ -52,13 +54,18 @@ export function EntityListView({ entity, view }: Props) {
       <CustomBreadcrumbs
         links={[{ name: "首页", href: paths.workspace.root }, { name: entity.label }]}
         action={
-          canCreate ? (
-            <Link
-              href={`${pathname}/new`}
-              className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-            >
-              + 创建
-            </Link>
+          extraAction || canCreate ? (
+            <div className="flex items-center gap-2">
+              {extraAction}
+              {canCreate && (
+                <Link
+                  href={`${pathname}/new`}
+                  className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
+                >
+                  + 创建
+                </Link>
+              )}
+            </div>
           ) : undefined
         }
         className="mb-4"
