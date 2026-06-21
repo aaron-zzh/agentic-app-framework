@@ -56,12 +56,12 @@ describe("authApi", () => {
     })
   })
 
-  it("sendCode 应发送正确的 type 参数", async () => {
+  it("sendEmailCode 应发送正确的 type 参数", async () => {
     mockRequest.mockResolvedValueOnce(undefined)
 
-    await authApi.sendCode("a@b.com", "reset")
+    await authApi.sendEmailCode("a@b.com", "reset")
 
-    expect(mockRequest).toHaveBeenCalledWith("/auth/send-code", {
+    expect(mockRequest).toHaveBeenCalledWith("/auth/send-email-code", {
       method: "POST",
       body: JSON.stringify({ email: "a@b.com", type: "reset" })
     })

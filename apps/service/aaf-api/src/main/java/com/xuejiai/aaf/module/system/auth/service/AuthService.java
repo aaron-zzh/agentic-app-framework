@@ -161,8 +161,8 @@ public class AuthService {
 
     /** 邮箱验证码注册（无需密码，验证通过直接登录） */
     @Transactional
-    public AuthLoginVO registerByCode(
-            RegisterByCodeDTO dto, String deviceId, String sourceApp, String registerIp) {
+    public AuthLoginVO registerByEmail(
+            RegisterByEmailDTO dto, String deviceId, String sourceApp, String registerIp) {
         validateCode(dto.email(), "register", dto.code());
         if (userRepository.findByEmail(dto.email()).isPresent()) {
             throw exception(AUTH_EMAIL_ALREADY_REGISTERED);
@@ -190,8 +190,8 @@ public class AuthService {
 
     // ==================== 验证码 ====================
 
-    /** 发送验证码 */
-    public void sendCode(SendCodeDTO dto) {
+    /** 发送邮箱验证码 */
+    public void sendEmailCode(SendEmailCodeDTO dto) {
         // 频率限制：同邮箱1分钟内不重复发送
         String lockKey = VERIFY_CODE_LOCK_PREFIX + dto.type() + ":" + dto.email();
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
@@ -279,8 +279,8 @@ public class AuthService {
 
     // ==================== 验证码登录 ====================
 
-    /** 邮箱+验证码登录 */
-    public AuthLoginVO loginByCode(LoginByCodeDTO dto, String deviceId) {
+    /** 邮箱+验证码登录（不存在不会自动注册，由前端引导跳到「邮箱验证码注册」流程） */
+    public AuthLoginVO loginByEmail(LoginByEmailDTO dto, String deviceId) {
         validateCode(dto.email(), "login", dto.code());
         User user =
                 userRepository

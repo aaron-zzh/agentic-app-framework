@@ -9,8 +9,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { FieldText } from "@/components/form/field-text"
@@ -47,9 +47,11 @@ type VerifyForm = z.infer<typeof verifySchema>
 // ==================== 邮箱密码注册面板 ====================
 
 function PasswordRegisterPanel({
-  onSuccess
+  onSuccess,
+  initialEmail
 }: {
   onSuccess: (accessToken: string, refreshToken: string) => void
+  initialEmail?: string
 }) {
   const [step, setStep] = useState<"register" | "verify">("register")
   const [email, setEmail] = useState("")
@@ -58,7 +60,12 @@ function PasswordRegisterPanel({
 
   const registerMethods = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: "", password: "", confirmPassword: "", nickname: "" }
+    defaultValues: {
+      email: initialEmail ?? "",
+      password: "",
+      confirmPassword: "",
+      nickname: ""
+    }
   })
 
   const verifyMethods = useForm<VerifyForm>({
@@ -182,8 +189,10 @@ function PasswordRegisterPanel({
 
 // ==================== 注册页主体 ====================
 
-export default function RegisterPage() {
+function RegisterPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialEmail = searchParams.get("email") ?? undefined
   const { setTokens, setUser } = useAuthStore()
 
   async function handleSuccess(accessToken: string, refreshToken: string) {
@@ -206,7 +215,7 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <PasswordRegisterPanel onSuccess={handleSuccess} />
+      <PasswordRegisterPanel onSuccess={handleSuccess} initialEmail={initialEmail} />
 
       <p className="text-center text-muted-foreground text-sm">
         已有账号？{" "}
@@ -215,5 +224,14 @@ export default function RegisterPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  // useSearchParams 需要 Suspense 边界才能在 build 时静态化通过
+  return (
+    <Suspense fallback={null}>
+      <RegisterPageInner />
+    </Suspense>
   )
 }

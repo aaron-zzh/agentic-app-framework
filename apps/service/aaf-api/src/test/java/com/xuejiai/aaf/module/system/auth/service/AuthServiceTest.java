@@ -37,7 +37,7 @@ import com.xuejiai.aaf.module.brokerage.service.BrokerageService;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.auth.vo.AuthLoginDTO;
 import com.xuejiai.aaf.module.system.auth.vo.LoginByPhoneDTO;
-import com.xuejiai.aaf.module.system.auth.vo.SendCodeDTO;
+import com.xuejiai.aaf.module.system.auth.vo.SendEmailCodeDTO;
 import com.xuejiai.aaf.module.system.contact.repository.ContactRepository;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
 import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
@@ -114,14 +114,14 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 有效邮箱 When sendCode Then 验证码存入 Redis 并发送邮件")
+    @DisplayName("Given 有效邮箱 When sendEmailCode Then 验证码存入 Redis 并发送邮件")
     void should_store_code_in_redis_and_send_email_when_send_code() {
         stubVerifyCodeConfig();
         // 准备参数
-        var dto = new SendCodeDTO("test@example.com", "register");
+        var dto = new SendEmailCodeDTO("test@example.com", "register");
 
         // 调用
-        authService.sendCode(dto);
+        authService.sendEmailCode(dto);
 
         // 断言：验证码存入 Redis（5分钟）
         verify(valueOps)
@@ -141,11 +141,11 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given MessageService 发送失败 When sendCode Then 抛 AUTH_VERIFY_CODE_SEND_FAILED 并释放限频锁")
+    @DisplayName("Given MessageService 发送失败 When sendEmailCode Then 抛 AUTH_VERIFY_CODE_SEND_FAILED 并释放限频锁")
     void should_throw_business_error_and_release_lock_when_email_send_fails() {
         stubVerifyCodeConfig();
         // 准备参数
-        var dto = new SendCodeDTO("test@example.com", "login");
+        var dto = new SendEmailCodeDTO("test@example.com", "login");
 
         // mock 邮件同步发送失败
         org.mockito.Mockito.doThrow(
@@ -155,7 +155,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
                 .sendSync(any());
 
         // 调用 + 断言：抛出 AUTH_VERIFY_CODE_SEND_FAILED 业务异常（前端可识别错误码并提示）
-        assertThatThrownBy(() -> authService.sendCode(dto))
+        assertThatThrownBy(() -> authService.sendEmailCode(dto))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCodeConstants.AUTH_VERIFY_CODE_SEND_FAILED.code());

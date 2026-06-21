@@ -188,10 +188,10 @@ ON CONFLICT DO NOTHING;
 -- ==================== 验证码场景字典 ====================
 
 INSERT INTO sys_dict_type (name, type, status, remark) VALUES
-('验证码场景', 'sys_verify_code_type', 0, '对应 SendCodeDTO.type，用于发送验证码接口')
+('验证码场景', 'sys_verify_code_type', 0, '对应 SendEmailCodeDTO.type，用于发送邮箱验证码接口')
 ON CONFLICT DO NOTHING;
 
--- sys_verify_code_type 验证码场景（与 SendCodeDTO.type 正则约束一致）
+-- sys_verify_code_type 验证码场景（与 SendEmailCodeDTO.type 正则约束一致）
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_verify_code_type', '注册',     'register', 1, 'primary'),
 ('sys_verify_code_type', '登录',     'login',    2, 'success'),

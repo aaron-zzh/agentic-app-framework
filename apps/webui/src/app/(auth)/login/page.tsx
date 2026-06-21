@@ -22,6 +22,7 @@ import { Form } from "@/components/form/form"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ApiError } from "@/lib/api/errors"
 import { authApi } from "@/lib/api/rest/user/auth"
 import { setAxiosAuth } from "@/lib/auth/utils"
 import { paths } from "@/lib/constants/paths"
@@ -86,6 +87,8 @@ function CodeLoginPanel({
   const [step, setStep] = useState<"email" | "code">("email")
   const [email, setEmail] = useState("")
   const [countdown, setCountdown] = useState(0)
+  /** 后端返回 AUTH_LOGIN_BAD_CREDENTIALS（code=1000000，邮箱未注册）时切到 true，引导跳到注册流程 */
+  const [notRegistered, setNotRegistered] = useState(false)
   const captchaVerifyParamRef = useRef<string>("")
 
   const emailMethods = useForm<CodeLoginForm>({
@@ -106,7 +109,7 @@ function CodeLoginPanel({
   }, [countdown])
 
   async function sendCode(emailVal: string, captchaParam?: string) {
-    await authApi.sendCode(emailVal, "login", captchaParam)
+    await authApi.sendEmailCode(emailVal, "login", captchaParam)
     setCountdown(60)
     notify.success("验证码已发送，请查收邮件")
   }
@@ -141,9 +144,16 @@ function CodeLoginPanel({
 
   async function onVerify(data: CodeVerifyForm) {
     try {
-      const result = await authApi.loginByCode(email, data.code)
+      const result = await authApi.loginByEmail(email, data.code)
       onSuccess(result.accessToken, result.refreshToken)
     } catch (err) {
+      // 后端：邮箱不存在 → AUTH_LOGIN_BAD_CREDENTIALS (1000000)；
+      // 与手机验证码登录不同，邮箱端不自动注册，由前端引导跳「邮箱验证码注册」流程
+      if (err instanceof ApiError && err.code === 1000000) {
+        setNotRegistered(true)
+        codeMethods.setError("root", { message: "该邮箱尚未注册" })
+        return
+      }
       const msg = err instanceof Error ? err.message : "验证失败，请重试"
       codeMethods.setError("root", { message: msg })
       notify.error(msg)
@@ -156,6 +166,7 @@ function CodeLoginPanel({
       // 重新发送也走相同的 ESA 流程：用户点按钮触发；
       // 此处直接调用，沿用同一份 captchaVerifyParam（若已失效后端会拒绝，提示用户回到上一步重新滑动）
       await sendCode(email, captcha.enabled ? captchaVerifyParamRef.current : undefined)
+      setNotRegistered(false)
     } catch (err) {
       notify.error(err instanceof Error ? err.message : "重新发送失败，请重试")
     } finally {
@@ -179,20 +190,39 @@ function CodeLoginPanel({
             {codeMethods.formState.errors.root?.message ?? " "}
           </p>
 
-          <Button
-            type="submit"
-            className="h-11 w-full"
-            disabled={codeMethods.formState.isSubmitting}
-          >
-            {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
-          </Button>
+          {notRegistered ? (
+            <div className="space-y-3 rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-sm dark:border-amber-700/40 dark:bg-amber-950/30">
+              <p className="text-foreground">
+                邮箱 <span className="font-medium">{email}</span> 尚未注册，是否使用此邮箱立即注册？
+              </p>
+              <Button
+                type="button"
+                className="h-10 w-full"
+                nativeButton={false}
+                render={<Link href={`${paths.auth.register}?email=${encodeURIComponent(email)}`} />}
+              >
+                立即注册
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="submit"
+              className="h-11 w-full"
+              disabled={codeMethods.formState.isSubmitting}
+            >
+              {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
+            </Button>
+          )}
         </Form>
 
         <div className="flex items-center justify-between text-sm">
           <button
             type="button"
             className="text-muted-foreground hover:text-primary"
-            onClick={() => setStep("email")}
+            onClick={() => {
+              setStep("email")
+              setNotRegistered(false)
+            }}
           >
             修改邮箱
           </button>

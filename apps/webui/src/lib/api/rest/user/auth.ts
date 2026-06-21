@@ -40,15 +40,15 @@ export const authApi = {
     })
   },
 
-  registerByCode(email: string, code: string, nickname?: string) {
-    return request<LoginResult>("/auth/register-by-code", {
+  registerByEmail(email: string, code: string, nickname?: string) {
+    return request<LoginResult>("/auth/register-by-email", {
       method: "POST",
       body: JSON.stringify({ email, code, nickname })
     })
   },
 
-  sendCode(email: string, type: "register" | "reset" | "login", captchaVerifyParam?: string) {
-    return request<void>("/auth/send-code", {
+  sendEmailCode(email: string, type: "register" | "reset" | "login", captchaVerifyParam?: string) {
+    return request<void>("/auth/send-email-code", {
       method: "POST",
       body: JSON.stringify({ email, type }),
       headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
@@ -77,8 +77,8 @@ export const authApi = {
     })
   },
 
-  loginByCode(email: string, code: string) {
-    return request<LoginResult>("/auth/login-by-code", {
+  loginByEmail(email: string, code: string) {
+    return request<LoginResult>("/auth/login-by-email", {
       method: "POST",
       body: JSON.stringify({ email, code })
     })

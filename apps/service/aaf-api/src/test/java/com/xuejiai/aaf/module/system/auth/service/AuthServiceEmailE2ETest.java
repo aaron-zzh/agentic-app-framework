@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.xuejiai.aaf.module.system.auth.vo.SendCodeDTO;
+import com.xuejiai.aaf.module.system.auth.vo.SendEmailCodeDTO;
 
 /**
  * 邮件发送端到端测试。
@@ -41,8 +41,8 @@ class AuthServiceEmailE2ETest {
         if (testEmail == null || testEmail.isBlank()) {
             throw new IllegalStateException("请在 .env 中配置 TEST_EMAIL 或 EMAIL_FROM");
         }
-        var dto = new SendCodeDTO(testEmail, "register");
-        authService.sendCode(dto);
+        var dto = new SendEmailCodeDTO(testEmail, "register");
+        authService.sendEmailCode(dto);
         // 去收件箱查看邮件样式，验证码同时打印在日志中
     }
 }

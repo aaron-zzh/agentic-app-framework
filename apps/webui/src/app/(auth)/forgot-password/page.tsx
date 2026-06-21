@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
 
   async function onSendCode(data: EmailForm) {
     try {
-      await authApi.sendCode(
+      await authApi.sendEmailCode(
         data.email,
         "reset",
         captcha.enabled ? captchaVerifyParamRef.current : undefined

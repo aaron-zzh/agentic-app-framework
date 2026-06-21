@@ -7,7 +7,7 @@ import com.xuejiai.aaf.common.enums.ArrayValuable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-/** 验证码场景枚举，对应字典 sys_verify_code_type，值与 SendCodeDTO.type 正则约束一致。 */
+/** 验证码场景枚举，对应字典 sys_verify_code_type，值与 SendEmailCodeDTO.type 正则约束一致。 */
 @Getter
 @AllArgsConstructor
 public enum VerifyCodeTypeEnum implements ArrayValuable<String> {

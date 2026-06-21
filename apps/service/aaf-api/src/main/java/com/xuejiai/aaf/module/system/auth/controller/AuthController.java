@@ -114,14 +114,14 @@ public class AuthController {
     }
 
     @Operation(summary = "邮箱验证码注册（无需密码）")
-    @PostMapping("/register-by-code")
-    public Result<AuthLoginVO> registerByCode(
-            @Valid @RequestBody RegisterByCodeDTO dto,
+    @PostMapping("/register-by-email")
+    public Result<AuthLoginVO> registerByEmail(
+            @Valid @RequestBody RegisterByEmailDTO dto,
             @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
             @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
             jakarta.servlet.http.HttpServletRequest request,
             HttpServletResponse response) {
-        var vo = authService.registerByCode(dto, deviceId, sourceApp, getClientIp(request));
+        var vo = authService.registerByEmail(dto, deviceId, sourceApp, getClientIp(request));
         writeTokenCookie(response, vo.accessToken());
         return Result.success(vo);
     }
@@ -137,14 +137,14 @@ public class AuthController {
         return Result.success(vo);
     }
 
-    @Operation(summary = "发送验证码")
-    @PostMapping("/send-code")
-    public Result<Void> sendCode(
-            @Valid @RequestBody SendCodeDTO dto,
+    @Operation(summary = "发送邮箱验证码")
+    @PostMapping("/send-email-code")
+    public Result<Void> sendEmailCode(
+            @Valid @RequestBody SendEmailCodeDTO dto,
             @RequestHeader(value = EsaCaptchaVerifier.HEADER_NAME, required = false)
                     String captchaVerifyParam) {
-        esaCaptchaVerifier.verify(captchaVerifyParam, "send-code");
-        authService.sendCode(dto);
+        esaCaptchaVerifier.verify(captchaVerifyParam, "send-email-code");
+        authService.sendEmailCode(dto);
         return Result.success();
     }
 
@@ -159,13 +159,13 @@ public class AuthController {
         return Result.success();
     }
 
-    @Operation(summary = "手机验证码登录")
-    @PostMapping("/login-by-code")
-    public Result<AuthLoginVO> loginByCode(
-            @Valid @RequestBody LoginByCodeDTO dto,
+    @Operation(summary = "邮箱验证码登录")
+    @PostMapping("/login-by-email")
+    public Result<AuthLoginVO> loginByEmail(
+            @Valid @RequestBody LoginByEmailDTO dto,
             @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
             HttpServletResponse response) {
-        var vo = authService.loginByCode(dto, deviceId);
+        var vo = authService.loginByEmail(dto, deviceId);
         writeTokenCookie(response, vo.accessToken());
         return Result.success(vo);
     }

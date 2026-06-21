@@ -37,7 +37,7 @@ class EsaCaptchaVerifierTest {
             EsaCaptchaVerifier verifier =
                     new EsaCaptchaVerifier(new EsaCaptchaProperties(false, "header-required"));
 
-            verifier.verify("", "send-code");
+            verifier.verify("", "send-email-code");
             verifier.verify("  ", "send-sms-code");
         }
     }
