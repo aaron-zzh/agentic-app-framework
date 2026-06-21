@@ -52,13 +52,12 @@ public class CreditRechargePayHandler implements PaySuccessHandler {
                 .ifPresentOrElse(
                         pkg -> {
                             long total = pkg.getCredits() + pkg.getBonusCredits();
-                            creditService.earnBatch(
+                            // 充值积分有效期 2 年，与 RechargeService 走同一条路径（CreditService.earn）
+                            creditService.earn(
                                     bizOrder.getUserId(),
                                     total,
                                     "CREDIT_PACKAGE",
-                                    bizOrder.getOrderNo(),
-                                    null,
-                                    null);
+                                    bizOrder.getOrderNo());
                             log.info(
                                     "[CreditRechargePayHandler] 积分发放: userId={}, credits={}, pkg={}",
                                     bizOrder.getUserId(),

@@ -44,21 +44,21 @@ public class AutodevDocController {
     }
 
     @Operation(summary = "新建文档（写入本地文件 + 数据库）")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping
     public Result<AutodevDoc> create(@Valid @RequestBody AutodevDocCreateDTO dto) {
         return Result.success(docService.create(dto));
     }
 
     @Operation(summary = "更新文档内容（同步写回本地文件）")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PutMapping("/{id}")
     public Result<AutodevDoc> update(@PathVariable Long id, @RequestBody String content) {
         return Result.success(docService.update(id, content));
     }
 
     @Operation(summary = "触发全量文档导入")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/import")
     public Result<Integer> importDocs() {
         return Result.success(importService.importAll());

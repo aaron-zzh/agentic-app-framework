@@ -192,6 +192,11 @@ public class AuthService {
 
     /** 发送邮箱验证码 */
     public void sendEmailCode(SendEmailCodeDTO dto) {
+        // reset 类型：邮箱必须已注册，否则无法重置
+        if ("reset".equals(dto.type())
+                && !userRepository.existsByEmail(dto.email())) {
+            throw exception(AUTH_EMAIL_NOT_REGISTERED);
+        }
         // 频率限制：同邮箱1分钟内不重复发送
         String lockKey = VERIFY_CODE_LOCK_PREFIX + dto.type() + ":" + dto.email();
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
@@ -254,7 +259,8 @@ public class AuthService {
                                 systemConfigService.getInteger("security.verify_code_expire", 5)));
         redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
         log.info("【手机验证码】手机号={}, 类型={}, 验证码={}", dto.phone(), dto.type(), code);
-        // 同步发送短信验证码——SmsChannelSender 内部用 templateCode（register/login/reset）查 sys_sms_template 解析厂商模板
+        // 同步发送短信验证码——SmsChannelSender 内部用 templateCode（register/login/reset）查 sys_sms_template
+        // 解析厂商模板
         // 失败立即向前端报错，避免用户陷入"发了没收到 + 限频不能重试"死循环
         try {
             messageService.sendSync(
@@ -323,13 +329,14 @@ public class AuthService {
         }
         // 新手机号 → 自动注册分支
         phoneRegisterRateLimiter.checkBeforeRegister(registerIp);
-        User user = autoRegisterByPhone(dto.phone(), sourceApp, registerIp);
+        User user = autoRegisterByPhone(dto.phone(), sourceApp, registerIp, dto.referrerCode());
         phoneRegisterRateLimiter.recordRegister(registerIp);
         return generateTokensWithSession(user, deviceId, true);
     }
 
-    /** 复用原 registerByPhone 副作用顺序：建用户 → 默认角色 → 注册积分 → Contact → 分销 → 钉钉。 */
-    private User autoRegisterByPhone(String phone, String sourceApp, String registerIp) {
+    /** 复用原 registerByPhone 副作用顺序：建用户 → 默认角色 → 注册积分 → Contact → 绑推荐人 → 分销 → 钉钉。 */
+    private User autoRegisterByPhone(
+            String phone, String sourceApp, String registerIp, String referrerCode) {
         var user = new User();
         user.setPhone(phone);
         user.setUsername(generateUsername(phone));
@@ -344,6 +351,7 @@ public class AuthService {
         assignDefaultRole(user.getId());
         grantRegistrationCredits(user.getId());
         Long contactId = createContactForUser(user);
+        bindReferrerIfPresent(contactId, referrerCode);
         brokerageService.tryEnableBrokerage(contactId, "REGISTER");
         notifyDingtalkNewUser(user);
         return user;
@@ -446,7 +454,12 @@ public class AuthService {
     /** OAuth 回调登录 */
     @Transactional
     public AuthLoginVO oauthLogin(
-            String provider, String code, String deviceId, String sourceApp, String registerIp) {
+            String provider,
+            String code,
+            String deviceId,
+            String sourceApp,
+            String registerIp,
+            String referrerCode) {
         OAuthClient client = findOAuthClient(provider);
         OAuthUserInfo userInfo;
         try {
@@ -468,7 +481,7 @@ public class AuthService {
                             .orElseThrow(() -> exception(USER_NOT_FOUND));
             updateOAuthToken(oauthOpt.get(), userInfo);
         } else {
-            user = createOAuthUser(userInfo, sourceApp, registerIp);
+            user = createOAuthUser(userInfo, sourceApp, registerIp, referrerCode);
             createOAuthBinding(user.getId(), userInfo);
         }
 
@@ -519,7 +532,8 @@ public class AuthService {
                 .orElseThrow(() -> exception(OAUTH_PROVIDER_NOT_CONFIGURED));
     }
 
-    private User createOAuthUser(OAuthUserInfo userInfo, String sourceApp, String registerIp) {
+    private User createOAuthUser(
+            OAuthUserInfo userInfo, String sourceApp, String registerIp, String referrerCode) {
         var user = new User();
         user.setUsername(userInfo.provider() + "_" + userInfo.providerUserId());
         user.setNickname(
@@ -535,6 +549,10 @@ public class AuthService {
         userRepository.save(user);
         assignDefaultRole(user.getId());
         grantRegistrationCredits(user.getId());
+        // OAuth 注册补齐 contact + 邀请绑定 + 分销资格初始化（与邮箱/手机注册保持对称）
+        Long contactId = createContactForUser(user);
+        bindReferrerIfPresent(contactId, referrerCode);
+        brokerageService.tryEnableBrokerage(contactId, "REGISTER");
         return user;
     }
 
@@ -690,11 +708,13 @@ public class AuthService {
 
     private void grantRegistrationCredits(Long userId) {
         try {
-            creditService.earn(
+            creditService.earnBatch(
                     userId,
                     50,
+                    "MANUAL",
                     CreditTransactionSourceEnum.REGISTER_GIFT.getCode(),
-                    String.valueOf(userId));
+                    String.valueOf(userId),
+                    java.time.LocalDateTime.now().plusDays(365));
         } catch (Exception e) {
             log.warn("注册赠积分失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
         }

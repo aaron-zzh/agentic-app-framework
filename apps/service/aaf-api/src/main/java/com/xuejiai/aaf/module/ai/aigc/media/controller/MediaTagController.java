@@ -13,12 +13,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 素材标签管理接口。
  *
  * @author AaronZZH & Kiro
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 素材标签")
 @RestController
 @RequestMapping("/api/aigc/tags")

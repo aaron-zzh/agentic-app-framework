@@ -13,6 +13,8 @@ import com.xuejiai.aaf.module.ai.aigc.voice.vo.AiClonedVoiceVO;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * 声音复刻接口。
@@ -27,6 +29,7 @@ import lombok.RequiredArgsConstructor;
  *
  * @author AaronZZH
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "声音复刻")
 @RestController
 @RequestMapping("/api/aigc/cloned-voices")

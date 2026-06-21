@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API Key 管理组件——列表 + 生成按钮。
  * 可嵌入用户设置页或用户详情页。
  */
@@ -55,8 +55,8 @@ export function ApiKeyList({ userId: _userId }: ApiKeyListProps) {
       toast.success("API Key 已删除")
       setDeleteTarget(null)
       queryClient.invalidateQueries({ queryKey: ["api-keys"] })
-    } catch (err) {
-      toast.error(`删除失败: ${err instanceof Error ? err.message : "未知错误"}`)
+    } catch {
+      // 错误由 backend-client 拦截器统一处理
     }
   }
 

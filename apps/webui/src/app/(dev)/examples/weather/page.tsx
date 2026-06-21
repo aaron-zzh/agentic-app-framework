@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { buildApiUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
 
 // ─── 类型定义 ────────────────────────────────────────────────────────────────
@@ -205,10 +204,9 @@ export default function WeatherPage() {
   }
 
   // 进页面自动 IP 定位，失败回退到默认坐标（北京）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 仅挂载时执行一次
   useEffect(() => {
     locateByIp(true).catch(() => query())
-    // 仅在挂载时执行一次
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const rt = data?.result.realtime

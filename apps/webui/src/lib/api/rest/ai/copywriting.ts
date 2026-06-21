@@ -9,6 +9,8 @@ export interface CopywritingGenerateRequest {
   translateTo?: string
   referenceAnalysis?: string
   userNotes?: string
+  /** 参考图片 fileKey 列表（OSS 内部 key，由后端解析为签名 URL 传给视觉模型） */
+  referenceImageKeys?: string[]
 }
 
 export interface CopywritingRewriteRequest {

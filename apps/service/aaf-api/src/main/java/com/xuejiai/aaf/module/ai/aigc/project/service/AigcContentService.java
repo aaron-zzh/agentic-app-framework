@@ -59,11 +59,6 @@ public class AigcContentService
     }
 
     @Override
-    protected String entitySlug() {
-        return "aigc-content";
-    }
-
-    @Override
     protected AigcContentVO toVO(AigcContent e) {
         var vo = new AigcContentVO();
         vo.setId(e.getId());

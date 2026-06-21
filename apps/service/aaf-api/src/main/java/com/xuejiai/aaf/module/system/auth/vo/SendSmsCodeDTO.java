@@ -16,7 +16,7 @@ public record SendSmsCodeDTO(
                 String phone,
         @NotBlank(message = "类型不能为空")
                 @Pattern(
-                        regexp = "^(register|login|reset)$",
-                        message = "类型必须为 register/login/reset")
-                @Schema(description = "验证码类型")
+                        regexp = "^(register|login|reset|bind)$",
+                        message = "类型必须为 register/login/reset/bind")
+                @Schema(description = "验证码类型：register/login/reset/bind")
                 String type) {}

@@ -101,6 +101,9 @@ public class CreditRedeemCodeService
         if ("MEMBERSHIP".equals(dto.type()) && dto.planId() == null) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "会员码必须指定套餐 planId");
         }
+        if (!"MEMBERSHIP".equals(dto.type()) && (dto.creditAmount() == null || dto.creditAmount() < 1)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分码的积分数量需 ≥ 1");
+        }
         var rawCode = CreditRedeemSecurityUtil.randomSecret("CRED-", 24);
         var code = new CreditRedeemCode();
         code.setCodeHash(CreditRedeemSecurityUtil.sha256(rawCode));
@@ -170,7 +173,7 @@ public class CreditRedeemCodeService
                 userId,
                 code.getCreditAmount(),
                 code.getBatchType(),
-                "REDEEM_CODE",
+                "redeem_code",
                 code.getCodePrefix(),
                 null);
         notifyDingtalk(

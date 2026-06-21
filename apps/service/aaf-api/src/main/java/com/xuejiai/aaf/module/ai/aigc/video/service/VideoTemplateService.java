@@ -84,11 +84,6 @@ public class VideoTemplateService
     }
 
     @Override
-    protected String entitySlug() {
-        return "video-template";
-    }
-
-    @Override
     protected String entityName() {
         return "视频模板";
     }

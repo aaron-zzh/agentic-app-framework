@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.dict.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/dict-data")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class DictDataController
         extends BaseCrudController<
                 DictData, DictDataVO, DictDataCreateDTO, DictDataUpdateDTO, PageParam> {

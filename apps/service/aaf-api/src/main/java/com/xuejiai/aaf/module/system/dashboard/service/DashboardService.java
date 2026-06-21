@@ -280,15 +280,157 @@ public class DashboardService {
             case "chart" -> queryChart(config, userId);
             case "list" -> queryList(config, userId);
             case "progress" -> queryProgress(config);
+            case "billing" -> queryBilling(config, userId);
             default -> throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "未知组件类型: " + type);
         };
+    }
+
+    /**
+     * billing 复合 widget 路由：按 {@code config.component} 分发到具体查询函数。
+     *
+     * <p>component 取值与前端 {@code BillingWidget} 分发分支保持一致：
+     *
+     * <ul>
+     *   <li>{@code overview} → 积分总览
+     *   <li>{@code expenses-category} → 消耗分类
+     *   <li>{@code transaction-list} → 流水列表（支持 config.limit）
+     *   <li>{@code multi-series-chart} → 30 天多系列图
+     * </ul>
+     */
+    private Object queryBilling(Map<String, Object> config, Long userId) {
+        var component = (String) config.get("component");
+        if (component == null || component.isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "billing widget 缺少 component");
+        }
+        return switch (component) {
+            case "overview" -> queryBillingOverview(userId);
+            case "expenses-category" -> queryBillingCategory(userId);
+            case "transaction-list" -> queryBillingTransactions(config, userId);
+            case "multi-series-chart" -> queryBillingMultiSeries(userId);
+            default ->
+                    throw new BusinessException(
+                            GlobalErrorCode.BAD_REQUEST, "未知 billing 组件: " + component);
+        };
+    }
+
+    // ==================== 个人积分仪表盘数据查询 ====================
+
+    /** 30 天窗口的起始 timestamp（含今日）。 */
+    private static final String WINDOW_30D = "(CURRENT_DATE - INTERVAL '29 days')";
+
+    /**
+     * billing-overview：积分总览 = 当前余额 + 30 天累计 EARN + 30 天累计 SPEND + 30 天每日时序。
+     *
+     * <p>userId=null 时（管理员视角）按全局聚合，userId 非空按用户过滤。
+     */
+    private Object queryBillingOverview(Long userId) {
+        // 余额 = balance + frozen，credit_account 表自带 user_id
+        var balance =
+                jdbcTemplate.queryForObject(
+                        "SELECT COALESCE(SUM(ca.balance + ca.frozen), 0) FROM credit_account ca"
+                                + " WHERE ca.deleted = false"
+                                + userFilter("ca", userId),
+                        Long.class);
+        var monthEarn = sumByTypeWithin30d(userId, "EARN");
+        var monthSpend = sumByTypeWithin30d(userId, "SPEND");
+        var earnTrend = trendByTypeWithin30d(userId, "EARN");
+        var spendTrend = trendByTypeWithin30d(userId, "SPEND");
+
+        return Map.of(
+                "balance", balance == null ? 0L : balance,
+                "monthEarn", monthEarn,
+                "monthSpend", monthSpend,
+                "earnTrend", earnTrend,
+                "spendTrend", spendTrend);
+    }
+
+    /** billing-category：30 天 SPEND 按 biz_type 分组聚合（通过 account JOIN 用户过滤）。 */
+    private Object queryBillingCategory(Long userId) {
+        var sql =
+                """
+                SELECT COALESCE(ct.biz_type, 'OTHER') AS biz_type, SUM(ct.amount) AS total
+                FROM credit_transaction ct
+                JOIN credit_account ca ON ca.id = ct.account_id AND ca.deleted = false
+                WHERE ct.deleted = false AND ct.type = 'SPEND'
+                  AND ct.create_time >= %s%s
+                GROUP BY COALESCE(ct.biz_type, 'OTHER')
+                ORDER BY total DESC
+                LIMIT 8
+                """
+                        .formatted(WINDOW_30D, userFilter("ca", userId));
+        var rows = jdbcTemplate.queryForList(sql);
+        return Map.of("categories", rows);
+    }
+
+    /** billing-transactions：最近 N 条流水（默认 10），按时间降序。 */
+    private Object queryBillingTransactions(Map<String, Object> config, Long userId) {
+        int limit = 10;
+        var raw = config.get("limit");
+        if (raw instanceof Number n) {
+            limit = Math.min(Math.max(n.intValue(), 1), 50);
+        }
+        var sql =
+                """
+                SELECT ct.id, ct.type, ct.amount, ct.balance_after,
+                       ct.biz_type, ct.batch_type, ct.create_time, ct.remark
+                FROM credit_transaction ct
+                JOIN credit_account ca ON ca.id = ct.account_id AND ca.deleted = false
+                WHERE ct.deleted = false%s
+                ORDER BY ct.create_time DESC
+                LIMIT %d
+                """
+                        .formatted(userFilter("ca", userId), limit);
+        var rows = jdbcTemplate.queryForList(sql);
+        return Map.of("items", rows);
+    }
+
+    /** billing-multi-series：30 天每日 EARN vs SPEND 双系列。 */
+    private Object queryBillingMultiSeries(Long userId) {
+        return Map.of(
+                "earn", trendByTypeWithin30d(userId, "EARN"),
+                "spend", trendByTypeWithin30d(userId, "SPEND"));
+    }
+
+    /** 工具方法：30 天窗口内某 type 的累计金额（amount 列恒为正，方向由 type 决定）。 */
+    private long sumByTypeWithin30d(Long userId, String type) {
+        var sql =
+                """
+                SELECT COALESCE(SUM(ct.amount), 0)
+                FROM credit_transaction ct
+                JOIN credit_account ca ON ca.id = ct.account_id AND ca.deleted = false
+                WHERE ct.deleted = false AND ct.type = ?
+                  AND ct.create_time >= %s%s
+                """
+                        .formatted(WINDOW_30D, userFilter("ca", userId));
+        var v = jdbcTemplate.queryForObject(sql, Long.class, type);
+        return v == null ? 0L : v;
+    }
+
+    /** 工具方法：30 天窗口内按日聚合的时序点（缺日补 0）。 */
+    private List<Map<String, Object>> trendByTypeWithin30d(Long userId, String type) {
+        var sql =
+                """
+                SELECT TO_CHAR(d.day, 'MM-DD') AS time,
+                       COALESCE(SUM(ct.amount), 0) AS value
+                FROM generate_series(%s, CURRENT_DATE, INTERVAL '1 day') AS d(day)
+                LEFT JOIN credit_transaction ct
+                       ON ct.deleted = false AND ct.type = ?
+                      AND DATE(ct.create_time) = d.day
+                LEFT JOIN credit_account ca
+                       ON ca.id = ct.account_id AND ca.deleted = false
+                WHERE 1 = 1%s
+                GROUP BY d.day
+                ORDER BY d.day
+                """
+                        .formatted(WINDOW_30D, userFilter("ca", userId));
+        return jdbcTemplate.queryForList(sql, type);
     }
 
     /** counter：COUNT 或 SUM(field)，userId!=null 时加用户过滤 */
     private Object queryCounter(Map<String, Object> config, Long userId) {
         var entity = (String) config.get("entity");
         if (entity != null && entity.startsWith("@")) {
-            return queryPresetMetric(entity, userId);
+            return Map.of("value", queryPresetMetric(entity, userId));
         }
         var safeEntity = sanitizeIdentifier(entity);
         var aggregation = (String) config.getOrDefault("aggregation", "count");
@@ -301,7 +443,7 @@ public class DashboardService {
                         : "SELECT COALESCE(SUM(%s), 0) FROM %s WHERE deleted = false%s"
                                 .formatted(
                                         sanitizeIdentifier((String) field), safeEntity, userFilter);
-        return jdbcTemplate.queryForObject(sql, Long.class);
+        return Map.of("value", jdbcTemplate.queryForObject(sql, Long.class));
     }
 
     /**

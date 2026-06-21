@@ -27,12 +27,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 统一任务接口——提交生成任务、订阅实时事件、查询任务列表。
  *
  * @author AaronZZH
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 统一任务")
 @RestController
 @RequestMapping("/api/aigc/tasks")
@@ -92,7 +95,7 @@ public class AigcTaskController
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         Long taskId =
                 switch (dto.type().toUpperCase()) {
-                    case "IMAGE" -> {
+                    case "IMAGE", "IMAGE_GEN" -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         String imageUrl = toString(p.get("imageUrl"));
                         @SuppressWarnings("unchecked")
@@ -125,7 +128,7 @@ public class AigcTaskController
                                         null,
                                         dto.projectId()));
                     }
-                    case "VIDEO" -> {
+                    case "VIDEO", "VIDEO_GEN" -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         yield taskService.submitVideoTask(
                                 userId,

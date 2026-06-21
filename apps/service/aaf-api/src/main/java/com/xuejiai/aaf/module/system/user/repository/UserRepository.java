@@ -19,9 +19,14 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     Optional<User> findByContactId(Long contactId);
 
+    /** 批量按 contact_id 查询用户（用于"我邀请的好友"等聚合场景）。 */
+    List<User> findByContactIdIn(java.util.Collection<Long> contactIds);
+
     Optional<User> findByUsername(String username);
 
     boolean existsByUsername(String username);
+
+    boolean existsByEmail(String email);
 
     Optional<User> findByEmail(String email);
 

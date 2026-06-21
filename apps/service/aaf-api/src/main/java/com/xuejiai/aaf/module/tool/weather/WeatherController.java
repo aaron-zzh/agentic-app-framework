@@ -16,17 +16,15 @@ import com.xuejiai.aaf.module.tool.weather.vo.CaiyunWeatherResponse;
 import com.xuejiai.aaf.module.tool.weather.vo.WeatherByIpResult;
 
 import jakarta.servlet.http.HttpServletRequest;
-import tools.jackson.databind.JsonNode;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 天气查询 REST 接口——供前端页面直接调用。
  *
- * <p>统一使用项目标准 {@link Result} 包装，前端通过 {@code backendApi} 直连。
- * 综合接口反序列化为强类型 {@link CaiyunWeatherResponse}（对照彩云 v2.6 文档完整建模）；
- * 行政区划接口字段较少且与天气主链路无关，暂用 {@link JsonNode} 直传。
+ * <p>统一使用项目标准 {@link Result} 包装，前端通过 {@code backendApi} 直连。 综合接口反序列化为强类型 {@link
+ * CaiyunWeatherResponse}（对照彩云 v2.6 文档完整建模）； 行政区划接口字段较少且与天气主链路无关，暂用 {@link JsonNode} 直传。
  */
 @Slf4j
 @RestController
@@ -57,11 +55,9 @@ public class WeatherController {
     /**
      * 按客户端 IP 自动定位查天气。
      *
-     * <p>用于免授权场景（用户首次进页面、或拒绝浏览器 geolocation 时降级）。
-     * 链路：HTTP IP → ip2region → Area → 中心点经纬度 → 彩云综合接口。
+     * <p>用于免授权场景（用户首次进页面、或拒绝浏览器 geolocation 时降级）。 链路：HTTP IP → ip2region → Area → 中心点经纬度 → 彩云综合接口。
      *
-     * <p>返回结构封装了「IP / 可读地址 / 经纬度 / 天气」四要素，前端无需再调 {@code /location}
-     * 做逆地理编码。
+     * <p>返回结构封装了「IP / 可读地址 / 经纬度 / 天气」四要素，前端无需再调 {@code /location} 做逆地理编码。
      *
      * @param ip 可选，指定 IP（调试用），不传则取 X-Forwarded-For / X-Real-IP / RemoteAddr
      * @param request 用于获取真实客户端 IP
@@ -74,8 +70,7 @@ public class WeatherController {
         if (IpUtils.isInternalIp(resolveIp)) {
             log.info("[Weather] 跳过内网 IP 定位: ip={}", resolveIp);
             throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST,
-                    "IP（" + resolveIp + "）为内网地址，请手动选择城市或传 ip 参数");
+                    GlobalErrorCode.BAD_REQUEST, "IP（" + resolveIp + "）为内网地址，请手动选择城市或传 ip 参数");
         }
 
         Integer areaId = IpUtils.getAreaId(resolveIp);
@@ -84,8 +79,7 @@ public class WeatherController {
         if (coord == null) {
             log.info("[Weather] IP 无法定位: ip={}", resolveIp);
             throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST,
-                    "无法根据 IP 定位（IP=" + resolveIp + "），请手动选择城市或输入坐标");
+                    GlobalErrorCode.BAD_REQUEST, "无法根据 IP 定位（IP=" + resolveIp + "），请手动选择城市或输入坐标");
         }
         String json = weatherClient.weather(coord[0], coord[1], 7, 24);
         CaiyunWeatherResponse weather = JsonUtils.parseObject(json, CaiyunWeatherResponse.class);

@@ -66,6 +66,26 @@
     "zh": "中文",
     "en": "English"
   },
+  "userAvatarPopover": {
+    "upgradeButton": "🚀 Upgrade Plan",
+    "viewUsage": "View Usage",
+    "manageAccount": "Manage Account",
+    "feedback": "Feedback",
+    "logout": "Sign Out",
+    "language": "Language",
+    "rechargeTitle": "Click to recharge",
+    "weeklyRefresh": "Resets every Monday 00:00",
+    "creditGroups": {
+      "MEMBER": "Member Credits",
+      "WEEKLY": "Weekly Credits",
+      "REWARD": "Reward Credits"
+    },
+    "creditChildren": {
+      "SUBSCRIPTION": "Plan",
+      "TOPUP": "Top Up",
+      "MANUAL": "Extra"
+    }
+  },
   "i18nExamples": {
     "title": "i18n / Internationalization",
     "subtitle": "Language switching powered by next-intl",

@@ -17,8 +17,10 @@ import lombok.extern.slf4j.Slf4j;
  * <p>提供两种发送模式：
  *
  * <ul>
- *   <li>{@link #send(MessageRequest)}：异步发送（写日志后发布事件，由 {@code MessageSendListener} 异步执行）。 适用于通知、营销邮件、批量推送等无需即时反馈的场景。
- *   <li>{@link #sendSync(MessageRequest)}：同步发送（直接调用 ChannelSender，失败抛出异常）。 适用于验证码、关键交易通知等需要将发送结果即时反馈给前端的场景。
+ *   <li>{@link #send(MessageRequest)}：异步发送（写日志后发布事件，由 {@code MessageSendListener} 异步执行）。
+ *       适用于通知、营销邮件、批量推送等无需即时反馈的场景。
+ *   <li>{@link #sendSync(MessageRequest)}：同步发送（直接调用 ChannelSender，失败抛出异常）。
+ *       适用于验证码、关键交易通知等需要将发送结果即时反馈给前端的场景。
  * </ul>
  */
 @Slf4j
@@ -98,13 +100,8 @@ public class MessageService {
                 logWriter.markResult(
                         prepared.logId(), false, e.getMessage(), ProviderResponse.empty());
             }
-            log.error(
-                    "消息同步发送失败: channel={}, error={}",
-                    request.channel(),
-                    e.getMessage(),
-                    e);
-            throw new MessageSendException(
-                    "消息发送失败: " + e.getMessage(), request.channel(), e);
+            log.error("消息同步发送失败: channel={}, error={}", request.channel(), e.getMessage(), e);
+            throw new MessageSendException("消息发送失败: " + e.getMessage(), request.channel(), e);
         }
     }
 
@@ -136,9 +133,7 @@ public class MessageService {
                             .findByCode(channelSpecificCode)
                             .or(() -> templateProvider.findByCode(templateCode))
                             .orElseThrow(
-                                    () ->
-                                            new IllegalArgumentException(
-                                                    "消息模板不存在: " + templateCode));
+                                    () -> new IllegalArgumentException("消息模板不存在: " + templateCode));
             content = templateEngine.render(templateInfo.content(), request.variables());
             subject = request.subject() != null ? request.subject() : templateInfo.subject();
         }

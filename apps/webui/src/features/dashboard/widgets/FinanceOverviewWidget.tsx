@@ -1,19 +1,61 @@
 /**
- * FinanceOverviewWidget——总余额 + 收入/支出 tabs + 渐变折线图
+ * FinanceOverviewWidget——积分总览（接 useWidgetData 真实数据）。
+ *
+ * <p>展示当前积分余额 + 30 天获取/消耗 tabs + 渐变折线图。
+ * 操作按钮替换为：兑换码 / 充值 / 邀请赚积分。
+ *
+ * @author AaronZZH &amp; Kiro
  */
 
 "use client"
 
-import { ArrowDownLeft, ArrowUpRight, Info, Plus, TrendingDown, TrendingUp } from "lucide-react"
+import { Gift, Info, Plus, Ticket, TrendingDown, TrendingUp } from "lucide-react"
+import Link from "next/link"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RedeemCodeButton } from "@/features/billing/components/RedeemCodeButton"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
-import type { TrendPoint } from "@/lib/api/rest/dashboard/stats"
+import { cn } from "@/lib/utils/cn"
+import { WIDGET_CARD_CLASS } from "./_shared/styles"
 
-function GradientLineChart({ data }: { data: TrendPoint[] }) {
+export interface BillingTrendPoint {
+  time: string
+  value: number
+}
+
+export interface BillingOverviewData {
+  /** 当前总积分（balance + frozen） */
+  balance: number
+  /** 30 天累计获取 */
+  monthEarn: number
+  /** 30 天累计消耗 */
+  monthSpend: number
+  /** 30 天每日获取时序 */
+  earnTrend: BillingTrendPoint[]
+  /** 30 天每日消耗时序 */
+  spendTrend: BillingTrendPoint[]
+}
+
+interface FinanceOverviewWidgetProps {
+  data?: BillingOverviewData
+}
+
+const EMPTY_DATA: BillingOverviewData = {
+  balance: 0,
+  monthEarn: 0,
+  monthSpend: 0,
+  earnTrend: [],
+  spendTrend: []
+}
+
+function formatCredit(value: number): string {
+  return `${new Intl.NumberFormat("zh-CN").format(value)} 积分`
+}
+
+function GradientLineChart({ data, color }: { data: BillingTrendPoint[]; color: string }) {
   const option: EChartsOption = {
     tooltip: { trigger: "axis", axisPointer: { type: "cross" } },
     grid: { left: "3%", right: "4%", bottom: "3%", containLabel: true },
@@ -33,103 +75,128 @@ function GradientLineChart({ data }: { data: TrendPoint[] }) {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(99,102,241,0.4)" },
-              { offset: 1, color: "rgba(99,102,241,0)" }
+              { offset: 0, color: `${color}66` },
+              { offset: 1, color: `${color}00` }
             ]
           }
         },
-        lineStyle: { color: "rgb(99,102,241)", width: 2 },
-        itemStyle: { color: "rgb(99,102,241)" }
+        lineStyle: { color, width: 2 },
+        itemStyle: { color }
       }
     ]
   }
   return <BaseChart option={option} className="h-[220px] w-full" />
 }
 
-const TABS = [
-  {
-    value: "income",
-    label: "Income",
-    percent: 8.2,
-    total: 9990,
-    data: [5, 31, 33, 50, 99, 76, 72, 76, 89]
-  },
-  {
-    value: "expenses",
-    label: "Expenses",
-    percent: -6.6,
-    total: 1989,
-    data: [10, 41, 35, 51, 49, 62, 69, 91, 148]
-  }
-]
+export function FinanceOverviewWidget({ data }: FinanceOverviewWidgetProps) {
+  const [activeTab, setActiveTab] = useState<"earn" | "spend">("earn")
+  const d = data ?? EMPTY_DATA
+  const earnPct =
+    d.monthEarn > 0 && d.monthSpend > 0
+      ? Number((((d.monthEarn - d.monthSpend) / d.monthSpend) * 100).toFixed(1))
+      : 0
+  const spendPct =
+    d.monthEarn > 0 && d.monthSpend > 0
+      ? Number((((d.monthSpend - d.monthEarn) / d.monthEarn) * 100).toFixed(1))
+      : 0
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value)
-}
-
-export function FinanceOverviewWidget() {
-  const [activeTab, setActiveTab] = useState("income")
-  const current = TABS.find((t) => t.value === activeTab) ?? TABS[0]
-  const chartData: TrendPoint[] = MONTHS.map((m, i) => ({ time: m, value: current.data[i] }))
+  const tabs = [
+    {
+      value: "earn" as const,
+      label: "本月获取",
+      icon: TrendingUp,
+      iconBg: "bg-emerald-100 text-emerald-700",
+      total: d.monthEarn,
+      percent: earnPct,
+      data: d.earnTrend,
+      color: "#059669"
+    },
+    {
+      value: "spend" as const,
+      label: "本月消耗",
+      icon: TrendingDown,
+      iconBg: "bg-orange-100 text-orange-700",
+      total: d.monthSpend,
+      percent: spendPct,
+      data: d.spendTrend,
+      color: "#ea580c"
+    }
+  ]
 
   return (
-    <Card>
+    <Card className={cn(WIDGET_CARD_CLASS)}>
       <CardContent className="p-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-1 flex items-center gap-1 text-muted-foreground text-sm">
-              Total balance
+              当前积分余额
               <Info className="h-3.5 w-3.5" />
             </div>
-            <p className="font-bold text-3xl">{formatCurrency(49990)}</p>
+            <p className="font-bold text-3xl">{formatCredit(d.balance)}</p>
           </div>
-          <div className="flex gap-3">
-            <Button variant="secondary" className="gap-1.5">
-              <ArrowUpRight className="h-4 w-4" /> Send
+          <div className="flex flex-wrap gap-3">
+            <RedeemCodeButton
+              trigger={
+                <Button variant="secondary" className="gap-1.5">
+                  <Ticket className="h-4 w-4" /> 兑换码
+                </Button>
+              }
+            />
+            <Button
+              variant="secondary"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href="/settings/pricing" />}
+            >
+              <Plus className="h-4 w-4" /> 充值
             </Button>
-            <Button variant="secondary" className="gap-1.5">
-              <Plus className="h-4 w-4" /> Add card
-            </Button>
-            <Button variant="secondary" className="gap-1.5">
-              <ArrowDownLeft className="h-4 w-4" /> Request
+            <Button
+              variant="secondary"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href="/settings/invite" />}
+            >
+              <Gift className="h-4 w-4" /> 邀请
             </Button>
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "earn" | "spend")}>
           <TabsList className="mb-6 h-20! w-full rounded-2xl p-1.5">
-            {TABS.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value} className="flex-1 rounded-xl">
-                <div className="flex w-full items-center gap-3 text-left">
-                  <div
-                    className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-full sm:flex ${tab.value === "income" ? "bg-primary/10 text-primary" : "bg-orange-100 text-orange-600"}`}
-                  >
-                    {tab.value === "income" ? (
-                      <TrendingUp className="h-4 w-4" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4" />
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <TabsTrigger key={tab.value} value={tab.value} className="flex-1 rounded-xl">
+                  <div className="flex w-full items-center gap-3 text-left">
+                    <div
+                      className={cn(
+                        "hidden h-9 w-9 shrink-0 items-center justify-center rounded-full sm:flex",
+                        tab.iconBg
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="mb-0.5 text-muted-foreground text-xs">{tab.label}</p>
+                      <p className="font-bold text-xl">{formatCredit(tab.total)}</p>
+                    </div>
+                    {tab.percent !== 0 && (
+                      <Badge
+                        variant={tab.percent >= 0 ? "default" : "destructive"}
+                        className="ml-auto text-xs"
+                      >
+                        {tab.percent > 0 ? "+" : ""}
+                        {tab.percent}%
+                      </Badge>
                     )}
                   </div>
-                  <div>
-                    <p className="mb-0.5 text-muted-foreground text-xs">{tab.label}</p>
-                    <p className="font-bold text-xl">{formatCurrency(tab.total)}</p>
-                  </div>
-                  <Badge
-                    variant={tab.percent >= 0 ? "default" : "destructive"}
-                    className="ml-auto text-xs"
-                  >
-                    {tab.percent > 0 ? "+" : ""}
-                    {tab.percent}%
-                  </Badge>
-                </div>
-              </TabsTrigger>
-            ))}
+                </TabsTrigger>
+              )
+            })}
           </TabsList>
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <TabsContent key={tab.value} value={tab.value}>
-              <GradientLineChart data={chartData} />
+              <GradientLineChart data={tab.data} color={tab.color} />
             </TabsContent>
           ))}
         </Tabs>

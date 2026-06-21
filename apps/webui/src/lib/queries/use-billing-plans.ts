@@ -12,6 +12,16 @@ export function useSubscriptionPlans() {
   })
 }
 
+export function useCurrentSubscription() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return useQuery({
+    queryKey: ["billing", "subscription", "current"],
+    queryFn: billingPlansApi.getCurrentSubscription,
+    staleTime: 60 * 1000,
+    enabled: isAuthenticated
+  })
+}
+
 export function useCreditPackages() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return useQuery({
@@ -26,11 +36,13 @@ export function useSubscribe() {
   return useMutation({
     mutationFn: ({
       planCode,
-      billingCycle
+      billingCycle,
+      channelCode
     }: {
       planCode: string
       billingCycle: "monthly" | "yearly"
-    }) => billingPlansApi.subscribe(planCode, billingCycle)
+      channelCode: string
+    }) => billingPlansApi.subscribe(planCode, billingCycle, channelCode)
   })
 }
 
@@ -38,5 +50,15 @@ export function usePurchaseCredits() {
   return useMutation({
     mutationFn: ({ packageId, channelCode }: { packageId: string; channelCode?: string }) =>
       billingPlansApi.purchaseCredits(packageId, channelCode)
+  })
+}
+
+export function useEntitlementQuotas() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return useQuery({
+    queryKey: ["billing", "entitlement", "quotas"],
+    queryFn: billingPlansApi.getEntitlementQuotas,
+    staleTime: 60 * 1000,
+    enabled: isAuthenticated
   })
 }

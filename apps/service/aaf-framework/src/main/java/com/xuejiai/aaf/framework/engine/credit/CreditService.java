@@ -48,6 +48,40 @@ public interface CreditService {
             String remark,
             String bizType);
 
+    /**
+     * 退还此前已扣减的积分（写反向 EARN 流水，不还原原批次 remain）。
+     *
+     * <p>语义：
+     *
+     * <ul>
+     *   <li>仅对 type=SPEND 的流水有效，其他类型返回 null
+     *   <li>幂等：若该 creditTxId 已被退还过，再次调用返回 null
+     *   <li>退还的积分有效期取继承策略——同账户最近到期批次的 expire_at；无活跃批次则 30 天
+     *   <li>原扣款流水的 remain 不还原（作为已发生事实保留），保证审计可溯
+     * </ul>
+     *
+     * @param creditTxId 原扣款流水 ID
+     * @param reason 退还原因（写入 remark）
+     * @return 退还流水 ID；找不到原流水或非 SPEND 类型或已退过返回 null
+     */
+    Long refund(Long creditTxId, String reason);
+
+    /**
+     * 订阅升级三笔流水结算：清零旧 SUBSCRIPTION 批次（EXPIRE）→ 发新月度积分（EARN）→ 继承已用 SPEND。
+     *
+     * <p>设计见 docs/design/apps/service/membership-completion.md F2 章节。
+     *
+     * <p>典型场景："旧月度 200 已消耗 100，升级到月度 400" → 升级后 balance=300（总额 400 - 已消耗 100）。
+     *
+     * @param userId 用户 ID
+     * @param newAmount 新套餐月度积分总额
+     * @param newSubId 新订阅 ID（用于流水 biz_id）
+     * @param newExpireAt 新批次过期时间（典型为 now + 30 天）
+     * @return 三笔流水的结算结果
+     */
+    UpgradeSettlement settleSubscriptionUpgrade(
+            Long userId, long newAmount, Long newSubId, LocalDateTime newExpireAt);
+
     /** 冻结积分（预扣） */
     void freeze(Long userId, long amount, String bizId);
 

@@ -125,7 +125,7 @@ export default function AigcNewProjectPage() {
             <div className="flex items-center justify-between">
               <Label htmlFor="prompt">提示词</Label>
               <PromptTemplateDialog
-                type={type === "SHORT_VIDEO" || type === "VIDEO_DRAMA" ? "VIDEO" : "IMAGE"}
+                type={type === "SHORT_VIDEO" || type === "VIDEO_DRAMA" ? "VIDEO_GEN" : "IMAGE_GEN"}
                 onSelect={(p) => setPrompt(p)}
                 scope="PROJECT"
               />

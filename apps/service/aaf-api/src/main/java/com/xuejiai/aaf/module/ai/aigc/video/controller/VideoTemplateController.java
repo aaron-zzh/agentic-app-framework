@@ -13,12 +13,15 @@ import com.xuejiai.aaf.module.ai.aigc.video.vo.VideoTemplateVO;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 视频模板接口。
  *
  * @author AaronZZH & Kiro
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 视频模板")
 @RestController
 @RequestMapping("/api/aigc/video/templates")

@@ -19,7 +19,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -50,10 +49,9 @@ public abstract class BaseEntity implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 乐观锁版本号 */
-    @Version
+    /** 版本号（递增） */
     @Column(name = "version", nullable = false)
-    private Integer version;
+    private Integer version = 0;
 
     /** 所属组织 ID */
     @Column(name = "org_id")

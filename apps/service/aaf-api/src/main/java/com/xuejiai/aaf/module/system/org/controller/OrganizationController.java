@@ -57,7 +57,7 @@ public class OrganizationController {
     }
 
     @Operation(summary = "创建组织")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<OrganizationVO> create(@Validated @RequestBody OrganizationCreateDTO request) {
@@ -66,7 +66,7 @@ public class OrganizationController {
     }
 
     @Operation(summary = "更新组织")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PutMapping("/{id}")
     public Result<OrganizationVO> update(
             @PathVariable Long id, @Validated @RequestBody OrganizationUpdateDTO request) {
@@ -74,7 +74,7 @@ public class OrganizationController {
     }
 
     @Operation(summary = "删除组织")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         organizationService.delete(id);
@@ -90,7 +90,7 @@ public class OrganizationController {
     }
 
     @Operation(summary = "添加组织成员")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/{orgId}/members")
     @ResponseStatus(HttpStatus.CREATED)
     public Result<OrgMemberVO> addMember(
@@ -99,7 +99,7 @@ public class OrganizationController {
     }
 
     @Operation(summary = "修改成员角色")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PutMapping("/{orgId}/members/{memberId}/role")
     public Result<OrgMemberVO> updateMemberRole(
             @PathVariable Long orgId,
@@ -109,7 +109,7 @@ public class OrganizationController {
     }
 
     @Operation(summary = "移除组织成员")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @DeleteMapping("/{orgId}/members/{userId}")
     public Result<Void> removeMember(@PathVariable Long orgId, @PathVariable Long userId) {
         organizationService.removeMember(orgId, userId);

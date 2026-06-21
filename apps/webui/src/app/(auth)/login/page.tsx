@@ -15,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { ConsentDialog } from "@/components/common/ConsentDialog"
 import { TermsConsentCheckbox } from "@/components/common/TermsConsentCheckbox"
 import { FieldOtp } from "@/components/form/field-otp"
 import { FieldText } from "@/components/form/field-text"
@@ -23,12 +24,15 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApiError } from "@/lib/api/errors"
+import { type LegalDocument, legalApi } from "@/lib/api/rest/legal"
 import { authApi } from "@/lib/api/rest/user/auth"
-import { setAxiosAuth } from "@/lib/auth/utils"
+import { clearAxiosAuth, setAxiosAuth } from "@/lib/auth/utils"
+import { APP } from "@/lib/config"
 import { paths } from "@/lib/constants/paths"
 import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
+import { clearRefCode, readRefCode } from "@/lib/utils/ref-code"
 import { LoginSuccessOverlay } from "./LoginSuccessOverlay"
 
 // ==================== 密码登录表单 ====================
@@ -334,7 +338,9 @@ function PhoneLoginPanel({
   async function onVerify(data: PhoneVerifyForm) {
     if (!termsAgreed) return
     try {
-      const result = await authApi.loginByPhone(phone, data.code)
+      const result = await authApi.loginByPhone(phone, data.code, readRefCode())
+      // 仅新用户注册场景下清除 refCode，避免老用户登录把别人的 refCode 错误清掉
+      if (result.isNewUser) clearRefCode()
       onSuccess(result.accessToken, result.refreshToken, result.isNewUser)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "验证失败，请重试"
@@ -519,6 +525,7 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const { setTokens, setUser } = useAuthStore()
   const [successUser, setSuccessUser] = useState<string | null>(null)
+  const [pendingConsent, setPendingConsent] = useState<LegalDocument[] | null>(null)
   const pendingAuthRef = useRef<{
     accessToken: string
     refreshToken: string
@@ -547,6 +554,9 @@ function LoginContent() {
    * isAuthenticated 立刻 router.replace，把动画抢跑卸载。
    *
    * 新用户首次通过手机号登录即注册时，isNewUser=true，动画结束后给出欢迎引导。
+   *
+   * 合规检查：me 之后立即查询 /legal/consent/pending；若有未同意的最新版本，
+   * 先弹出 ConsentDialog 强制确认，确认后再继续动画 → 进入工作区。
    */
   async function handleLoginSuccess(
     accessToken: string,
@@ -556,8 +566,36 @@ function LoginContent() {
     setAxiosAuth(accessToken)
     const { user } = await authApi.me()
     pendingAuthRef.current = { accessToken, refreshToken, user, isNewUser: !!isNewUser }
+
+    // 检查是否有未同意的法律文档（服务条款 / 隐私政策更新）
+    try {
+      const pending = await legalApi.pending()
+      if (pending.count > 0) {
+        setPendingConsent(pending.items)
+        return
+      }
+    } catch {
+      // 接口异常不阻塞登录流程，记录到控制台即可
+    }
+
     setSuccessUser(user.nickname || user.username || "")
   }
+
+  /** 用户在 ConsentDialog 中全部同意后回调 */
+  const handleConsentConfirmed = useCallback(() => {
+    setPendingConsent(null)
+    const pending = pendingAuthRef.current
+    if (!pending) return
+    setSuccessUser(pending.user.nickname || pending.user.username || "")
+  }, [])
+
+  /** 用户在 ConsentDialog 中点"不同意，退出登录" */
+  const handleConsentDecline = useCallback(() => {
+    setPendingConsent(null)
+    pendingAuthRef.current = null
+    clearAxiosAuth()
+    notify.info("您未同意必要条款，已取消本次登录")
+  }, [])
 
   const handleOverlayDone = useCallback(() => {
     const pending = pendingAuthRef.current
@@ -570,7 +608,7 @@ function LoginContent() {
     setUser(pending.user)
     router.push(redirectTo)
     if (pending.isNewUser) {
-      notify.success("欢迎加入 AAF！请前往个人中心完善资料", {
+      notify.success("欢迎！请前往个人中心完善资料", {
         action: {
           label: "去完善",
           onClick: () => router.push(paths.workspace.settingsProfile)
@@ -591,13 +629,20 @@ function LoginContent() {
 
   return (
     <div className="w-full max-w-sm space-y-6">
+      {pendingConsent && pendingConsent.length > 0 && (
+        <ConsentDialog
+          items={pendingConsent}
+          onAllConfirmed={handleConsentConfirmed}
+          onDecline={handleConsentDecline}
+        />
+      )}
       {successUser !== null ? (
         <LoginSuccessOverlay username={successUser} onDone={handleOverlayDone} />
       ) : (
         <>
           <div>
             <h2 className="font-bold text-2xl">登录</h2>
-            <p className="mt-1 text-muted-foreground text-sm">登录你的 AAF 账号</p>
+            <p className="mt-1 text-muted-foreground text-sm">登录你的 {APP.name} 账号</p>
           </div>
 
           <Tabs defaultValue="password">

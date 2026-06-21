@@ -8,9 +8,10 @@
  */
 import type { Metadata } from "next"
 import { ViewTransitions } from "next-view-transitions"
+import { APP } from "@/lib/config"
 
 export const metadata: Metadata = {
-  title: "Next.js 特性演示 | AAF",
+  title: `Next.js 特性演示 | ${APP.name}`,
   description:
     "演示 Next.js App Router 核心特性：Route Groups、View Transitions、Streaming/Suspense、Server Actions"
 }

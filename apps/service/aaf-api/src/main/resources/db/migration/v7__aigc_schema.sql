@@ -337,6 +337,7 @@ CREATE TABLE aigc_task (
     error_msg         TEXT,
     project_id        BIGINT,
     asset_id          BIGINT,
+    credit_tx_id      BIGINT,
     owner_id          BIGINT,
     create_by         BIGINT,
     create_by_type    VARCHAR(16),
@@ -362,9 +363,11 @@ COMMENT ON COLUMN aigc_task.result_url IS '第三方服务商返回的原始结�
 COMMENT ON COLUMN aigc_task.oss_url IS '转存至自有 OSS 后的访问 URL';
 COMMENT ON COLUMN aigc_task.error_msg IS '失败时的错误信息';
 COMMENT ON COLUMN aigc_task.asset_id IS '生成完成后关联的 media_asset ID';
+COMMENT ON COLUMN aigc_task.credit_tx_id IS '关联 credit_transaction.id，settleByUsage 成功时回填；failTask 时若非空触发退还';
 CREATE INDEX idx_aigc_task_user_id   ON aigc_task (user_id);
 CREATE INDEX idx_aigc_task_status    ON aigc_task (status);
 CREATE INDEX idx_aigc_task_project_id ON aigc_task (project_id) WHERE project_id IS NOT NULL;
+CREATE INDEX idx_aigc_task_credit_tx ON aigc_task (credit_tx_id) WHERE credit_tx_id IS NOT NULL;
 
 -- ============================================================
 -- 素材元素分组（角色/场景/道具等主题）
@@ -909,16 +912,11 @@ CREATE TABLE ai_digital_avatar (
     remark           VARCHAR(255)
 );
 
-COMMENT ON TABLE  ai_digital_avatar                IS '数字人形象——存储用户上传的形象图片及检测状态';
-COMMENT ON COLUMN ai_digital_avatar.name           IS '形象名称，用户自定义';
-COMMENT ON COLUMN ai_digital_avatar.image_url      IS '形象图片公网 URL，作为 wan2.2-s2v 的 image_url 输入';
-COMMENT ON COLUMN ai_digital_avatar.source_asset_id IS '图片对应的 media_asset.id，NULL 表示直接传 URL';
-COMMENT ON COLUMN ai_digital_avatar.detect_status  IS '图片合规检测状态：PENDING=待检测 PASSED=通过 FAILED=未通过';
-COMMENT ON COLUMN ai_digital_avatar.detect_reason  IS '检测失败原因描述';
-COMMENT ON COLUMN ai_digital_avatar.default_voice  IS '默认绑定的克隆音色名称（ai_cloned_voice.voice），生成视频时自动带入';
-COMMENT ON COLUMN ai_digital_avatar.user_id        IS '所属用户 ID';
+COMMENT ON TABLE  ai_digital_avatar               IS '数字人形象——存储用户上传的形象图片及检测状态';
+COMMENT ON COLUMN ai_digital_avatar.detect_status IS '图片合规检测状态：PENDING=待检测 PASSED=通过 FAILED=未通过';
+COMMENT ON COLUMN ai_digital_avatar.default_voice IS '默认绑定的克隆音色名称';
+COMMENT ON COLUMN ai_digital_avatar.user_id       IS '所属用户 ID';
 
 CREATE INDEX idx_digital_avatar_user_id       ON ai_digital_avatar (user_id);
 CREATE INDEX idx_digital_avatar_detect_status ON ai_digital_avatar (detect_status);
-
 

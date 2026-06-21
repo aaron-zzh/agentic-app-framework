@@ -72,11 +72,6 @@ public class AigcProjectService
     }
 
     @Override
-    protected String entitySlug() {
-        return "aigc-project";
-    }
-
-    @Override
     protected AigcProjectVO toVO(AigcProject e) {
         var vo = new AigcProjectVO();
         vo.setId(e.getId());

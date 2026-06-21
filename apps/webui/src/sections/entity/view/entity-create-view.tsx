@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EntityCreateView——实体新建视图
  * @author AaronZZH & Kiro
  *
@@ -40,7 +40,7 @@ export function EntityCreateView({ entity }: Props) {
           router.replace(paths.workspace.module(entity.slug))
         }
       },
-      onError: (err) => toast.error(err.message ?? "创建失败")
+      onError: () => {}
     })
   }
 

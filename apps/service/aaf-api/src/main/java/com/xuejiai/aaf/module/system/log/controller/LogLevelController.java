@@ -30,7 +30,7 @@ public class LogLevelController {
 
     /** 获取当前所有 logger 级别。 */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Map<String, String>> getLevels() {
         var configs = loggingSystem.getLoggerConfigurations();
         var result =
@@ -44,7 +44,7 @@ public class LogLevelController {
 
     /** 动态调整日志级别。 */
     @PutMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> setLevel(@RequestBody LogLevelDTO dto) {
         loggingSystem.setLogLevel(dto.loggerName(), LogLevel.valueOf(dto.level().toUpperCase()));
         return Result.success(null);

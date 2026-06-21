@@ -32,18 +32,24 @@ export const authApi = {
     })
   },
 
-  register(email: string, password: string, nickname?: string, captchaVerifyParam?: string) {
+  register(
+    email: string,
+    password: string,
+    nickname?: string,
+    captchaVerifyParam?: string,
+    referrerCode?: string
+  ) {
     return request<void>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, nickname }),
+      body: JSON.stringify({ email, password, nickname, referrerCode }),
       headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
     })
   },
 
-  registerByEmail(email: string, code: string, nickname?: string) {
+  registerByEmail(email: string, code: string, nickname?: string, referrerCode?: string) {
     return request<LoginResult>("/auth/register-by-email", {
       method: "POST",
-      body: JSON.stringify({ email, code, nickname })
+      body: JSON.stringify({ email, code, nickname, referrerCode })
     })
   },
 
@@ -55,7 +61,11 @@ export const authApi = {
     })
   },
 
-  sendSmsCode(phone: string, type: "register" | "login", captchaVerifyParam?: string) {
+  sendSmsCode(
+    phone: string,
+    type: "register" | "login" | "reset" | "bind",
+    captchaVerifyParam?: string
+  ) {
     return request<void>("/auth/send-sms-code", {
       method: "POST",
       body: JSON.stringify({ phone, type }),
@@ -63,17 +73,17 @@ export const authApi = {
     })
   },
 
-  loginByPhone(phone: string, code: string) {
+  loginByPhone(phone: string, code: string, referrerCode?: string) {
     return request<LoginResult>("/auth/login-by-phone", {
       method: "POST",
-      body: JSON.stringify({ phone, code })
+      body: JSON.stringify({ phone, code, referrerCode })
     })
   },
 
-  verifyEmail(email: string, code: string) {
+  verifyEmail(email: string, code: string, referrerCode?: string) {
     return request<LoginResult>("/auth/verify-email", {
       method: "POST",
-      body: JSON.stringify({ email, code })
+      body: JSON.stringify({ email, code, referrerCode })
     })
   },
 
@@ -88,6 +98,13 @@ export const authApi = {
     return request<void>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify({ email, code, newPassword })
+    })
+  },
+
+  resetPasswordByPhone(phone: string, code: string, newPassword: string) {
+    return request<void>("/auth/reset-password-by-phone", {
+      method: "POST",
+      body: JSON.stringify({ phone, code, newPassword })
     })
   },
 
@@ -113,10 +130,10 @@ export const authApi = {
     return request<string>(`/auth/oauth/${provider}/url?state=${encodeURIComponent(state)}`)
   },
 
-  oauthCallback(provider: string, code: string) {
+  oauthCallback(provider: string, code: string, referrerCode?: string) {
     return request<LoginResult>(`/auth/oauth/${provider}/callback`, {
       method: "POST",
-      body: JSON.stringify({ code, deviceId: getDeviceId() })
+      body: JSON.stringify({ code, deviceId: getDeviceId(), referrerCode })
     })
   }
 }

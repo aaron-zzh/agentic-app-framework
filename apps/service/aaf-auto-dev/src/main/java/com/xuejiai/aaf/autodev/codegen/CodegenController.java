@@ -24,7 +24,7 @@ public class CodegenController {
     private final CodegenService codegenService;
 
     @Operation(summary = "生成 CRUD 代码并写入文件")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/generate")
     public Result<List<GeneratedFile>> generate(@Valid @RequestBody EntityDefDTO def) {
         return Result.success(codegenService.generate(def));
@@ -37,7 +37,7 @@ public class CodegenController {
     }
 
     @Operation(summary = "预览生成结果（不写入文件）")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/preview")
     public Result<List<GeneratedFile>> preview(@Valid @RequestBody EntityDefDTO def) {
         return Result.success(codegenService.preview(def));

@@ -26,7 +26,7 @@ public class ReconcileController {
     private final ReconcileService reconcileService;
 
     @Operation(summary = "执行对账")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping
     public Result<ReconcileRecordVO> reconcile(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,

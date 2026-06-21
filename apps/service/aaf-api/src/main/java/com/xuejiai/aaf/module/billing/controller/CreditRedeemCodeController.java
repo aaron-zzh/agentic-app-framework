@@ -47,7 +47,7 @@ public class CreditRedeemCodeController
 
     /** 管理员创建兑换码，返回唯一一次可见的明文。 */
     @Operation(summary = "创建兑换码（返回明文，仅一次）")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/generate")
     public Result<String> generate(@Valid @RequestBody CreditRedeemCodeCreateDTO dto) {
         return Result.success(redeemCodeService.createAndReturnRawCode(dto));
@@ -55,7 +55,7 @@ public class CreditRedeemCodeController
 
     /** 管理员批量创建兑换码，返回 Excel 文件下载。 */
     @Operation(summary = "批量创建兑换码（最多 500 个），返回 Excel")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/generate-batch")
     public org.springframework.http.ResponseEntity<byte[]> generateBatch(
             @Valid @RequestBody CreditRedeemCodeCreateDTO dto,

@@ -11,6 +11,8 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ProgressWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import { useWidgetData } from "@/lib/queries/use-dashboard"
+import { cn } from "@/lib/utils/cn"
+import { WIDGET_CARD_CLASS } from "./_shared/styles"
 
 interface ProgressWidgetProps {
   widgetId: string
@@ -24,7 +26,7 @@ export function ProgressWidget({ widgetId, title, config, refreshInterval }: Pro
 
   if (isLoading) {
     return (
-      <Card className="h-full">
+      <Card className={cn("h-full", WIDGET_CARD_CLASS)}>
         <CardHeader>
           <Skeleton className="h-4 w-24" />
         </CardHeader>
@@ -40,7 +42,7 @@ export function ProgressWidget({ widgetId, title, config, refreshInterval }: Pro
   const percent = target > 0 ? Math.round((current / target) * 100) : 0
 
   return (
-    <Card className="h-full">
+    <Card className={cn("h-full", WIDGET_CARD_CLASS)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-medium text-sm">
           <Target className="h-4 w-4 text-muted-foreground" />

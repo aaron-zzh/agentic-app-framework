@@ -19,6 +19,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * 图像编辑接口（图生图 / 局部编辑）。
@@ -27,6 +29,7 @@ import lombok.RequiredArgsConstructor;
  *
  * @author AaronZZH & Kiro
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "图像生成")
 @RestController
 @RequestMapping("/api/system/images")

@@ -55,6 +55,7 @@ export function FieldSelect({
               value={field.value ?? ""}
               onValueChange={(v) => field.onChange(v ?? "")}
               disabled={disabled}
+              items={options}
             >
               <SelectTrigger id={name} className="w-full" aria-invalid={!!error}>
                 <SelectValue placeholder={placeholder ?? "请选择"} />

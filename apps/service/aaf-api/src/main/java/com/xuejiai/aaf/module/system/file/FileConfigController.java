@@ -42,14 +42,14 @@ public class FileConfigController {
     }
 
     @Operation(summary = "创建文件存储配置")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping
     public Result<FileConfigVO> create(@Validated @RequestBody FileConfigCreateDTO req) {
         return Result.success(fileConfigService.create(req));
     }
 
     @Operation(summary = "更新文件存储配置")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PutMapping("/{id}")
     public Result<FileConfigVO> update(
             @PathVariable Long id, @Validated @RequestBody FileConfigUpdateDTO req) {
@@ -57,7 +57,7 @@ public class FileConfigController {
     }
 
     @Operation(summary = "删除文件存储配置")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         fileConfigService.delete(id);
@@ -65,7 +65,7 @@ public class FileConfigController {
     }
 
     @Operation(summary = "设为主配置")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PutMapping("/{id}/master")
     public Result<Void> setMaster(@PathVariable Long id) {
         fileConfigService.setMaster(id);

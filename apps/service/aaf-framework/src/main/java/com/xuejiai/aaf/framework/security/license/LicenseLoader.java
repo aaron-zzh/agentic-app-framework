@@ -42,13 +42,13 @@ public class LicenseLoader {
 
     // RSA 2048 公钥（与 BootstrapLicenseTool 生成的密钥对配套，运行工具后更新）
     static final String PUBLIC_KEY_PEM =
-            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqJ22Rvvmw7B3z7U5vFKb"
-                    + "MZm2Pf0ioN2HhrtI0u69huBL32twjglO9faCBDA3X/sCTc7aZ5qBDVl5f6UYT8iK"
-                    + "7+2QhFTuIRjLKG4x9maMJqwE4SGf8VPcAmxjXCmg4mlMnb7ulejL7H/mqqWeM9QX"
-                    + "nJTuOo2Ds+9ISjUEfHv9TfA71oTPAQUch7otyaIOGWuANutni/Dz7X8Ng82ovfu9"
-                    + "0kiHtPeWXnOWF+6YvQ7OL5eAyCg0qldFXVJJDnrtLTsbzZFGOCx51CxmTP9+rH0f"
-                    + "8d493P6yjihbbPy9DS4qIBpv8uqSB/3M46v1S/5yA3V9QfOpenFqiif9gTi0+lmvg"
-                    + "QIDAQAB";
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjX7kNbyPNeOOYFkdoDo7"
+                    + "lnaUMaBALdWj/58m3FWNUpITcwgzTt2A645zsDy0RFFAk0/xs3+/Xv0c2LTvl6SR"
+                    + "syxaOdmR+tCPLh03OiR2pOsYvi0PdyJDKIYWWiEyrTDteoJ/J1XTT4dkEV7yEmJL"
+                    + "YtgbawpqSJeCqWA0CmqhXzJesNzdSm+VMcjajQ4lsy5hQgx/wk4hOz8iUhah41KU"
+                    + "GqRLGTCqxzqh93dqvzQvyYlVGth7xYVz7kSZZiOEa0CcXVkfwjAmIkJdfm/SyfXY"
+                    + "F54KapJyveC+Ejv16LRKY7wixHOZYQ6jwqt1B3SUVIql9UgU/PfR0JFhv08I4YJQ"
+                    + "oQIDAQAB";
 
     @EventListener(ApplicationStartedEvent.class)
     public void loadLicense() {

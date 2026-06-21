@@ -10,4 +10,5 @@ import jakarta.validation.constraints.NotBlank;
  */
 public record OAuthCallbackDTO(
         @Schema(description = "OAuth 授权码") @NotBlank String code,
-        @Schema(description = "设备 ID") String deviceId) {}
+        @Schema(description = "设备 ID") String deviceId,
+        @Schema(description = "邀请码（可选，仅 OAuth 首次注册时绑定推荐人）") String referrerCode) {}

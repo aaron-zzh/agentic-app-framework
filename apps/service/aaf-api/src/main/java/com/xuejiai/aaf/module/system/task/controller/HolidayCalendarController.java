@@ -39,7 +39,7 @@ public class HolidayCalendarController {
     }
 
     @Operation(summary = "添加排除日期")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping
     public Result<SysHolidayCalendar> add(@RequestBody AddExcludeDateDTO dto) {
         return Result.success(
@@ -47,7 +47,7 @@ public class HolidayCalendarController {
     }
 
     @Operation(summary = "删除排除日期")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         calendarService.delete(id);

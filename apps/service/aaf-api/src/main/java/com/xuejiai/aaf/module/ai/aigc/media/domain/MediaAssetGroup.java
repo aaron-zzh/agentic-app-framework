@@ -26,7 +26,7 @@ public class MediaAssetGroup {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Version private Integer version = 0;
+    private Integer version = 0;
 
     /** 组名，由 prompt 截取或文件名生成 */
     @Column(nullable = false, length = 200)

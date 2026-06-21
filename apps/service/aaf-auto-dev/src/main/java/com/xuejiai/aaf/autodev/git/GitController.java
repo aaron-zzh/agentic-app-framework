@@ -25,7 +25,7 @@ public class GitController {
     private final CiCdService ciCdService;
 
     @Operation(summary = "提交文件")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/commit")
     public Result<String> commit(@RequestBody CommitRequest request) {
         return Result.success(gitService.commit(request.message(), request.files()));
@@ -44,7 +44,7 @@ public class GitController {
     }
 
     @Operation(summary = "创建分支")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/branch")
     public Result<Void> createBranch(@RequestBody BranchRequest request) {
         gitService.createBranch(request.name());
@@ -52,7 +52,7 @@ public class GitController {
     }
 
     @Operation(summary = "创建 Pull Request")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/pr")
     public Result<String> createPR(@RequestBody PullRequestRequest request) {
         var url =
@@ -73,7 +73,7 @@ public class GitController {
     // ===== CI/CD =====
 
     @Operation(summary = "触发 CI Pipeline")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/ci/trigger")
     public Result<Long> triggerCi(@RequestBody CiTriggerRequest request) {
         var runId =
@@ -95,7 +95,7 @@ public class GitController {
     }
 
     @Operation(summary = "触发部署")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/ci/deploy")
     public Result<Long> deploy(@RequestBody DeployRequest request) {
         var runId = ciCdService.triggerDeploy(request.environment(), request.ref());

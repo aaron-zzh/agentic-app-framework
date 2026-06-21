@@ -124,7 +124,10 @@ class MessageServiceSendSyncTest {
         // 断言：日志标记 FAILED 含错误信息（让上层可定位）
         verify(logWriter)
                 .markResult(
-                        eq(99L), eq(false), eq("SMTP connection timeout"), any(ProviderResponse.class));
+                        eq(99L),
+                        eq(false),
+                        eq("SMTP connection timeout"),
+                        any(ProviderResponse.class));
     }
 
     @Test

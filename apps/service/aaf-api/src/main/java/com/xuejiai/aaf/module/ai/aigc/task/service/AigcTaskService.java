@@ -420,41 +420,29 @@ public class AigcTaskService
             return;
         }
         task.setResultUrl(resultUrl);
-        String ossUrl = uploadFile(resultUrl, task.getType(), task.getId());
+
+        // Step 1: 3D 任务先结算积分（settle 必须在 OSS 上传前，便于 OSS 失败时通过 credit_tx_id 退还）
+        if (TYPE_MODEL3D.equals(task.getType())) {
+            Long creditTxId = settleModel3d(task, thirdTaskId);
+            if (creditTxId != null) {
+                task.setCreditTxId(creditTxId);
+                taskRepo.save(task);
+            }
+        }
+
+        // Step 2: OSS 上传——失败时转 failTask 触发退还
+        String ossUrl;
+        try {
+            ossUrl = uploadFileStrict(resultUrl, task.getType(), task.getId());
+        } catch (Exception e) {
+            log.error("[completeTask] OSS 上传失败，转 failTask: taskId={}", task.getId(), e);
+            failTask(thirdTaskId, "OSS 上传失败: " + e.getMessage());
+            return;
+        }
         task.setOssUrl(ossUrl);
         task.setStatus(STATUS_SUCCESS);
         taskRepo.save(task);
         saveToMediaAsset(task, ossUrl);
-
-        // 3D 任务：从 task.params 读 source/textureQuality 结算积分
-        if (TYPE_MODEL3D.equals(task.getType())) {
-            try {
-                var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
-                Map<String, Object> p =
-                        task.getParams() != null
-                                ? JsonUtils.parseObject(
-                                        task.getParams(),
-                                        new TypeReference<Map<String, Object>>() {})
-                                : Map.of();
-                String source = p.containsKey("source") ? (String) p.get("source") : "text";
-                String texture =
-                        p.containsKey("textureQuality") ? (String) p.get("textureQuality") : "none";
-                var usage =
-                        new Model3dGenerationService.Model3dTaskResult(
-                                thirdTaskId, null, null, null, null, null, source, texture);
-                log.info(
-                        "[completeTask] 3D 积分结算: taskId={}, source={}, texture={}",
-                        task.getId(),
-                        source,
-                        texture);
-                creditGuard.settleByUsage(task.getUserId(), aiModel, usage, "model3d-gen", "3D 生成");
-            } catch (Exception e) {
-                log.warn(
-                        "[completeTask] 3D 积分结算失败: taskId={}, err={}",
-                        task.getId(),
-                        e.getMessage());
-            }
-        }
 
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
@@ -468,22 +456,70 @@ public class AigcTaskService
             return;
         }
         task.setResultUrl(result.getVideoUrl());
-        String ossUrl = uploadFile(result.getVideoUrl(), task.getType(), task.getId());
+
+        // Step 1: settle 在前——按实际 duration + resolution 结算积分，并回填 credit_tx_id
+        Long creditTxId = null;
+        try {
+            var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
+            creditTxId =
+                    creditGuard.settleByUsageReturningTxId(
+                            task.getUserId(), aiModel, result, "video-gen", "视频生成");
+        } catch (Exception e) {
+            log.warn("[completeTask] 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
+        }
+        if (creditTxId != null) {
+            task.setCreditTxId(creditTxId);
+        }
+        taskRepo.save(task);
+
+        // Step 2: OSS 上传——失败时转 failTask 触发退还
+        String ossUrl;
+        try {
+            ossUrl = uploadFileStrict(result.getVideoUrl(), task.getType(), task.getId());
+        } catch (Exception e) {
+            log.error("[completeTask] OSS 上传失败，转 failTask: taskId={}", task.getId(), e);
+            failTask(thirdTaskId, "OSS 上传失败: " + e.getMessage());
+            return;
+        }
         task.setOssUrl(ossUrl);
         task.setStatus(STATUS_SUCCESS);
         taskRepo.save(task);
         saveToMediaAsset(task, ossUrl);
 
-        // 按实际 duration + resolution 结算积分
-        try {
-            var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
-            creditGuard.settleByUsage(task.getUserId(), aiModel, result, "video-gen", "视频生成");
-        } catch (Exception e) {
-            log.warn("[completeTask] 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
-        }
-
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
+    }
+
+    /**
+     * 3D 任务积分结算：从 task.params 读 source/textureQuality，按实际参数结算并返回 creditTxId。
+     *
+     * @return 写入的 creditTxId；结算失败返回 null
+     */
+    private Long settleModel3d(AigcTask task, String thirdTaskId) {
+        try {
+            var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
+            Map<String, Object> p =
+                    task.getParams() != null
+                            ? JsonUtils.parseObject(
+                                    task.getParams(), new TypeReference<Map<String, Object>>() {})
+                            : Map.of();
+            String source = p.containsKey("source") ? (String) p.get("source") : "text";
+            String texture =
+                    p.containsKey("textureQuality") ? (String) p.get("textureQuality") : "none";
+            var usage =
+                    new Model3dGenerationService.Model3dTaskResult(
+                            thirdTaskId, null, null, null, null, null, source, texture);
+            log.info(
+                    "[completeTask] 3D 积分结算: taskId={}, source={}, texture={}",
+                    task.getId(),
+                    source,
+                    texture);
+            return creditGuard.settleByUsageReturningTxId(
+                    task.getUserId(), aiModel, usage, "model3d-gen", "3D 生成");
+        } catch (Exception e) {
+            log.warn("[completeTask] 3D 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
+            return null;
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -494,6 +530,27 @@ public class AigcTaskService
             log.warn("[failTask] 任务不存在: thirdTaskId={}", thirdTaskId);
             return;
         }
+
+        // 关键：若已扣过积分，则触发退还（写反向 EARN 流水）
+        if (task.getCreditTxId() != null) {
+            try {
+                Long refundTxId =
+                        creditGuard.refund(task.getCreditTxId(), "AIGC 任务失败自动退还: " + errorMsg);
+                if (refundTxId != null) {
+                    log.info(
+                            "[failTask] 积分已退还: taskId={}, originalTxId={}, refundTxId={}",
+                            task.getId(),
+                            task.getCreditTxId(),
+                            refundTxId);
+                }
+            } catch (Exception e) {
+                log.warn(
+                        "[failTask] 积分退还失败（不影响任务状态）: taskId={}, err={}",
+                        task.getId(),
+                        e.getMessage());
+            }
+        }
+
         task.setStatus(STATUS_FAIL);
         task.setErrorMsg(errorMsg);
         taskRepo.save(task);
@@ -544,6 +601,18 @@ public class AigcTaskService
         } catch (Exception e) {
             log.warn("[uploadFile] 上传文件失败，回退使用原始 URL: taskId={}, url={}", taskId, url, e);
             return url;
+        }
+    }
+
+    /** 严格上传：失败时直接抛异常（不回退原始 URL），用于 completeTask 触发"OSS 失败 → failTask → 退还"路径。 */
+    private String uploadFileStrict(String url, String type, Long taskId) {
+        String ext = guessExtension(url, type);
+        String path = "aigc/%s/%s.%s".formatted(type.toLowerCase(), UUID.randomUUID(), ext);
+        try {
+            return fileService.uploadFromUrl(url, path, guessContentType(type), null);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "AIGC 任务 OSS 上传失败: taskId=" + taskId + ", url=" + url, e);
         }
     }
 

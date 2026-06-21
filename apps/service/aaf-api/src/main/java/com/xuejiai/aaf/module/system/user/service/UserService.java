@@ -398,6 +398,37 @@ public class UserService {
         return getProfile(userId);
     }
 
+    /**
+     * 绑定手机号（验证码校验 + 手机号唯一性）。
+     *
+     * <p>校验逻辑：1) 短信验证码（key=sms_verify_code:bind:{phone}）必须正确； 2) 目标手机号不能已被其他账户绑定。
+     *
+     * @param userId 当前用户 ID
+     * @param phone 目标手机号
+     * @param code 短信验证码（已由调用方通过 redis 校验，此方法只负责业务校验）
+     */
+    @Transactional
+    public UserProfileVO bindPhone(Long userId, String phone) {
+        var user = requireUser(userId);
+        // 同一手机号已绑定自己，幂等返回
+        if (phone.equals(user.getPhone())) {
+            return getProfile(userId);
+        }
+        // 手机号不能被其他账户占用
+        userRepository
+                .findByPhone(phone)
+                .ifPresent(
+                        other -> {
+                            if (!other.getId().equals(userId)) {
+                                throw new BusinessException(
+                                        GlobalErrorCode.BAD_REQUEST, "该手机号已被其他账户绑定");
+                            }
+                        });
+        user.setPhone(phone);
+        userRepository.save(user);
+        return getProfile(userId);
+    }
+
     // ==================== 内部方法 ====================
 
     private static final Long ADMIN_USER_ID = 1L;

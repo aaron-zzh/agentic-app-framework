@@ -11,6 +11,7 @@
  */
 
 import Link from "next/link"
+import { APP } from "@/lib/config"
 import { $url } from "@/lib/utils"
 import { cn } from "@/lib/utils/cn"
 
@@ -36,8 +37,8 @@ export function Brand({ collapsed, size = "md", href = "/", className }: BrandPr
   return (
     <Link href={href} className={cn("flex items-center gap-2", className)}>
       {/* biome-ignore lint/performance/noImgElement: logo 小图标无需 next/image 优化 */}
-      <img src={$url.cdn("/logo/logo.png")} alt="AAF" className={cn("shrink-0", s.icon)} />
-      {!collapsed && <span className={cn("font-bold", s.text)}>AAF</span>}
+      <img src={$url.cdn("/logo/logo.png")} alt={APP.name} className={cn("shrink-0", s.icon)} />
+      {!collapsed && <span className={cn("font-bold", s.text)}>{APP.name}</span>}
     </Link>
   )
 }

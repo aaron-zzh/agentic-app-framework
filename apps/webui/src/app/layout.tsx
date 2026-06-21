@@ -3,8 +3,9 @@ import Script from "next/script"
 import { NextIntlClientProvider } from "next-intl"
 import { getLocale, getMessages } from "next-intl/server"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
-
+import { RefCodeCapture } from "@/components/common/RefCodeCapture"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { APP } from "@/lib/config"
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
 import { QueryProvider } from "@/providers/QueryProvider"
 import { ServiceWorkerRegister } from "@/providers/ServiceWorkerRegister"
@@ -13,21 +14,15 @@ import { ToastProvider } from "@/providers/ToastProvider"
 
 import "./global.css"
 
-const APP_NAME = "AAF"
-const APP_DEFAULT_TITLE = "AAF - Agentic App Framework"
-const APP_TITLE_TEMPLATE = "%s - AAF"
-const APP_DESCRIPTION = "多智能体应用开发框架"
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aaf.xuejiai.com"
-
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  applicationName: APP_NAME,
+  metadataBase: new URL(APP.siteUrl),
+  applicationName: APP.name,
   title: {
-    default: APP_DEFAULT_TITLE,
-    template: APP_TITLE_TEMPLATE
+    default: APP.defaultTitle,
+    template: APP.titleTemplate
   },
-  description: APP_DESCRIPTION,
-  manifest: "/manifest.json",
+  description: APP.description,
+  manifest: "/manifest.webmanifest",
   keywords: ["AI", "多智能体", "工作流", "知识库", "Agentic App Framework", "AAF"],
   authors: [{ name: "AaronZZH" }],
   icons: {
@@ -37,37 +32,37 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: APP_NAME
+    title: APP.name
   },
   formatDetection: {
     telephone: false
   },
   openGraph: {
     type: "website",
-    siteName: APP_NAME,
+    siteName: APP.name,
     title: {
-      default: APP_DEFAULT_TITLE,
-      template: APP_TITLE_TEMPLATE
+      default: APP.defaultTitle,
+      template: APP.titleTemplate
     },
-    description: APP_DESCRIPTION,
-    url: SITE_URL,
+    description: APP.description,
+    url: APP.siteUrl,
     locale: "zh_CN",
     images: [
       {
         url: "/assets/images/ogimage.jpg",
         width: 1200,
         height: 630,
-        alt: APP_DEFAULT_TITLE
+        alt: APP.defaultTitle
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
     title: {
-      default: APP_DEFAULT_TITLE,
-      template: APP_TITLE_TEMPLATE
+      default: APP.defaultTitle,
+      template: APP.titleTemplate
     },
-    description: APP_DESCRIPTION,
+    description: APP.description,
     images: ["/assets/images/ogimage.jpg"]
   }
 }
@@ -113,6 +108,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <TooltipProvider>
                 <NuqsAdapter>{children}</NuqsAdapter>
                 <ToastProvider />
+                {/* 进入站点即捕获 ?refCode= 写入 sessionStorage，供注册流程读取 */}
+                <RefCodeCapture />
               </TooltipProvider>
             </QueryProvider>
             <ServiceWorkerRegister />

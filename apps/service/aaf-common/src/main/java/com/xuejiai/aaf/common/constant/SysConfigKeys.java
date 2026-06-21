@@ -84,7 +84,17 @@ public final class SysConfigKeys {
         public static final String WEEKLY_GRANT_ENABLED = "member.weekly_grant_enabled"; // 每周积分发放开关
         public static final String CREDIT_EXPIRE_ENABLED =
                 "member.credit_expire_enabled"; // 积分过期清理开关
+        public static final String EXPIRY_REMINDER_DAYS =
+                "member.expiry_reminder_days"; // 订阅到期提醒提前天数
         public static final String FAQ = "member.faq"; // 会员与积分常见问题（JSON 数组）
+    }
+
+    /** 联系方式配置 */
+    public static final class Contact {
+
+        private Contact() {}
+
+        public static final String WECHAT_QR_IMAGE = "contact.wechat_qr_image"; // 微信客服二维码图片 URL
     }
 
     /** AIGC 通用配置 */

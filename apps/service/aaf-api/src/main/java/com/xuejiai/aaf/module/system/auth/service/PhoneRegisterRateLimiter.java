@@ -14,8 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 手机号自动注册的 IP 风控（固定窗口计数器）。
  *
- * <p>规则：同 IP 1 小时内"登录即注册"分支创建用户不超过 {@link #MAX_REGISTER_PER_HOUR} 次，超出抛
- * {@link com.xuejiai.aaf.module.system.ErrorCodeConstants#AUTH_REGISTER_IP_RATE_LIMIT}。
+ * <p>规则：同 IP 1 小时内"登录即注册"分支创建用户不超过 {@link #MAX_REGISTER_PER_HOUR} 次，超出抛 {@link
+ * com.xuejiai.aaf.module.system.ErrorCodeConstants#AUTH_REGISTER_IP_RATE_LIMIT}。
  *
  * <p>计数策略：
  *
@@ -35,12 +35,16 @@ public class PhoneRegisterRateLimiter {
 
     private static final String KEY_PREFIX = "phone_register_ip_limit:";
     private static final Duration WINDOW = Duration.ofHours(1);
+
     /** 阈值：同 IP 1 小时内自动注册次数上限 */
     static final int MAX_REGISTER_PER_HOUR = 10;
 
     private final StringRedisTemplate redisTemplate;
 
-    /** 注册前校验。超阈值抛 {@link com.xuejiai.aaf.module.system.ErrorCodeConstants#AUTH_REGISTER_IP_RATE_LIMIT}。 */
+    /**
+     * 注册前校验。超阈值抛 {@link
+     * com.xuejiai.aaf.module.system.ErrorCodeConstants#AUTH_REGISTER_IP_RATE_LIMIT}。
+     */
     public void checkBeforeRegister(String ip) {
         if (ip == null || ip.isBlank()) return; // IP 缺失时不做风控
         String key = KEY_PREFIX + ip;

@@ -18,7 +18,14 @@ import { WorkspaceLayout } from "@/sections/layout/WorkspaceLayout"
 // 注册默认字段组件（实体注册已在 entities/index.ts side effect 中完成）
 registerDefaultComponents()
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({
+  children,
+  modal
+}: {
+  children: React.ReactNode
+  /** parallel route slot：用于拦截路由弹窗（如 /settings/invite 在原页面背景之上以弹窗形式打开） */
+  modal: React.ReactNode
+}) {
   return (
     <MotionLazy>
       <Suspense>
@@ -26,6 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </Suspense>
       <AuthProvider>
         <WorkspaceLayout>{children}</WorkspaceLayout>
+        {modal}
       </AuthProvider>
     </MotionLazy>
   )

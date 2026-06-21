@@ -21,8 +21,6 @@ public class McpServer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Version
     @Column(nullable = false)
     private Integer version;
 

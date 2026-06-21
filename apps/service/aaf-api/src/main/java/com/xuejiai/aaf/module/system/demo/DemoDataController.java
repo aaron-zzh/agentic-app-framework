@@ -29,7 +29,7 @@ public class DemoDataController {
 
     @Operation(summary = "加载演示数据")
     @PostMapping("/load")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> load() {
         demoDataService.load();
         return Result.success();
@@ -37,7 +37,7 @@ public class DemoDataController {
 
     @Operation(summary = "清理演示数据")
     @DeleteMapping("/clean")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> clean() {
         demoDataService.clean();
         return Result.success();

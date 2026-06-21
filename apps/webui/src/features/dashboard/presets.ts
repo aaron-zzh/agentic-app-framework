@@ -1,6 +1,13 @@
 /**
- * 仪表盘预设模板——运营/技术/财务三套预设布局
- * @author AaronZZH & Kiro
+ * 仪表盘预设模板——**仅用于 `/examples/dashboard` 演示页**。
+ *
+ * 真实业务（`DashboardView`、`ApplyPresetDialog`）的预设来源是后端
+ * `GET /api/system/dashboards/presets`（数据由 v10__stats_views.sql seed 到 sys_dashboard_preset）。
+ *
+ * 修改 dashboard 预设布局应改 v10 seed / 通过 admin 后台改 sys_dashboard_preset 表，
+ * 不要在此文件维护——本文件不再作为接口失败的兜底。
+ *
+ * @author AaronZZH &amp; Kiro
  */
 
 import type { DashboardWidgetVO } from "@/lib/api/rest/dashboard/dashboard"
@@ -247,25 +254,10 @@ const personalPreset: DashboardPreset = {
   refreshInterval: 300,
   widgets: [
     {
-      id: "personal-shortcuts",
-      type: "shortcut",
-      title: "快捷入口",
-      position: { x: 0, y: 0, w: 12, h: 3 },
-      config: {
-        type: "shortcut",
-        items: [
-          { label: "AI 创作", href: "/aigc", icon: "sparkles" },
-          { label: "素材库", href: "/aigc/assets", icon: "image" },
-          { label: "知识库", href: "/knowledge", icon: "database" },
-          { label: "设置", href: "/settings", icon: "settings" }
-        ]
-      }
-    },
-    {
       id: "personal-credits",
       type: "counter",
       title: "积分余额",
-      position: { x: 0, y: 3, w: 3, h: 2 },
+      position: { x: 0, y: 0, w: 3, h: 2 },
       config: {
         type: "counter",
         entity: "@total_credit",
@@ -278,7 +270,7 @@ const personalPreset: DashboardPreset = {
       id: "personal-assets",
       type: "counter",
       title: "我的素材",
-      position: { x: 3, y: 3, w: 3, h: 2 },
+      position: { x: 3, y: 0, w: 3, h: 2 },
       config: {
         type: "counter",
         entity: "media_asset",
@@ -291,7 +283,7 @@ const personalPreset: DashboardPreset = {
       id: "personal-aigc-tasks",
       type: "counter",
       title: "生成任务",
-      position: { x: 6, y: 3, w: 3, h: 2 },
+      position: { x: 6, y: 0, w: 3, h: 2 },
       config: {
         type: "counter",
         entity: "aigc_task",
@@ -304,7 +296,7 @@ const personalPreset: DashboardPreset = {
       id: "personal-knowledge",
       type: "counter",
       title: "知识库数量",
-      position: { x: 9, y: 3, w: 3, h: 2 },
+      position: { x: 9, y: 0, w: 3, h: 2 },
       config: {
         type: "counter",
         entity: "ai_knowledge_base",
@@ -314,30 +306,47 @@ const personalPreset: DashboardPreset = {
       }
     },
     {
-      id: "personal-task-trend",
-      type: "echarts",
-      title: "生成任务趋势",
-      position: { x: 0, y: 5, w: 8, h: 4 },
+      id: "personal-shortcuts",
+      type: "shortcut",
+      title: "快捷入口",
+      position: { x: 0, y: 2, w: 12, h: 2 },
       config: {
-        type: "echarts",
-        statsType: "trend",
-        chartType: "bar",
-        metric: "aigc_task",
-        period: "day"
+        type: "shortcut",
+        items: [
+          { label: "AI 创作", href: "/aigc", icon: "sparkles" },
+          { label: "素材库", href: "/aigc/assets", icon: "image" },
+          { label: "知识库", href: "/knowledge", icon: "database" },
+          { label: "设置", href: "/settings", icon: "settings" }
+        ]
       }
     },
     {
-      id: "personal-credit-trend",
-      type: "echarts",
-      title: "积分消耗趋势",
-      position: { x: 8, y: 5, w: 4, h: 4 },
-      config: {
-        type: "echarts",
-        statsType: "trend",
-        chartType: "line",
-        metric: "credit_cost",
-        period: "day"
-      }
+      id: "personal-billing-overview",
+      type: "billing",
+      title: "积分总览",
+      position: { x: 0, y: 4, w: 12, h: 7 },
+      config: { type: "billing", component: "overview" }
+    },
+    {
+      id: "personal-billing-multi-series",
+      type: "billing",
+      title: "30 天积分动态",
+      position: { x: 0, y: 11, w: 8, h: 6 },
+      config: { type: "billing", component: "multi-series-chart" }
+    },
+    {
+      id: "personal-billing-category",
+      type: "billing",
+      title: "积分消耗分类",
+      position: { x: 8, y: 11, w: 4, h: 6 },
+      config: { type: "billing", component: "expenses-category" }
+    },
+    {
+      id: "personal-billing-transactions",
+      type: "billing",
+      title: "积分流水",
+      position: { x: 0, y: 17, w: 12, h: 6 },
+      config: { type: "billing", component: "transaction-list", limit: 10 }
     }
   ]
 }

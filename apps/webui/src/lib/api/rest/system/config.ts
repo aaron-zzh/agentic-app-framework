@@ -2,7 +2,7 @@ import { request } from "../entity/crud"
 
 export interface SystemConfigVO {
   id: number
-  key: string
+  configKey: string
   name: string
   description?: string
   value: string | null
@@ -11,6 +11,7 @@ export interface SystemConfigVO {
   category: string
   visible: boolean
   editable: boolean
+  updateTime?: string
 }
 
 export const systemConfigApi = {
@@ -26,5 +27,12 @@ export const systemConfigApi = {
     request<void>(`/system/configs`, {
       method: "PUT",
       body: JSON.stringify({ key, value })
-    })
+    }),
+
+  /**
+   * 按 key 查询公开配置项 value（无需登录）
+   *
+   * <p>仅后端白名单中的 key 可访问；非白名单 key 返回 404。
+   */
+  getPublic: (key: string) => request<string>(`/public/system/configs/${encodeURIComponent(key)}`)
 }

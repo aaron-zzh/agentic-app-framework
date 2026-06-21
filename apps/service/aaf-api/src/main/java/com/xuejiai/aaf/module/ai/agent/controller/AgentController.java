@@ -62,7 +62,7 @@ public class AgentController {
 
     @Operation(summary = "启用/禁用 Agent")
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam String status) {
         agentService.updateStatus(id, status);
         return Result.success();

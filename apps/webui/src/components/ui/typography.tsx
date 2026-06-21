@@ -2,7 +2,7 @@
  * Typography——排版原语组件
  * @author AaronZZH & Kiro
  *
- * 基于 shadcn/ui 官方 Typography 示例，针对 AAF 管理后台场景调整：
+ * 基于 shadcn/ui 官方 Typography 示例：
  * - 去掉 scroll-m-20（文章锚点，管理后台不需要）
  * - 字号比官方文章示例更紧凑（管理后台密度更高）
  * - 颜色使用语义 token，适配亮/暗主题

@@ -10,6 +10,7 @@ import { Suspense, useEffect, useRef, useState } from "react"
 import { authApi } from "@/lib/api/rest/user/auth"
 import { paths } from "@/lib/constants/paths"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { clearRefCode, readRefCode } from "@/lib/utils/ref-code"
 
 function OAuthCallbackContent() {
   const router = useRouter()
@@ -40,8 +41,10 @@ function OAuthCallbackContent() {
     sessionStorage.removeItem("oauth-state")
 
     authApi
-      .oauthCallback(provider, code)
+      .oauthCallback(provider, code, readRefCode())
       .then(async (result) => {
+        // OAuth 回调成功后清除 refCode（不区分新老用户：OAuth 老用户登录时无害，新用户已绑定）
+        clearRefCode()
         setTokens(result.accessToken, result.refreshToken)
         const { user } = await authApi.me()
         setUser(user)

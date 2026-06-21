@@ -105,12 +105,6 @@ public class GenerationTemplateService
                 .build();
     }
 
-    /** 数据权限由 sys_data_access_rule 表声明式配置驱动，entitySlug = "generation-template"。 不在代码里硬编码权限逻辑。 */
-    @Override
-    protected String entitySlug() {
-        return "generation-template";
-    }
-
     @Override
     protected String entityName() {
         return "参数模板";

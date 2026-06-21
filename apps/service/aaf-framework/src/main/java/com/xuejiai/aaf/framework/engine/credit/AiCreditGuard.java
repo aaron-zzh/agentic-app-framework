@@ -85,4 +85,28 @@ public interface AiCreditGuard {
      * @param remark 积分流水备注
      */
     void settleByUsage(Long userId, AiModel model, AiUsage usage, String capability, String remark);
+
+    /**
+     * 按 {@link AiUsage} 结算并返回写入的 CreditTransaction ID（用于业务方回填关联字段）。
+     *
+     * <p>默认实现委托 {@link #settleByUsage(Long, AiModel, AiUsage, String, String)} 并返回 {@code null}（不知道
+     * ID）。 实现类可覆写以返回真实流水 ID（如 AIGC 任务回填 {@code aigc_task.credit_tx_id}）。
+     */
+    default Long settleByUsageReturningTxId(
+            Long userId, AiModel model, AiUsage usage, String capability, String remark) {
+        settleByUsage(userId, model, usage, capability, remark);
+        return null;
+    }
+
+    /**
+     * 退还此前已扣减的积分（写反向 EARN 流水）。
+     *
+     * <p>典型场景：AIGC 任务 settleByUsage 后才发现失败（OSS 上传失败、内容审核拦截）， 通过 {@code aigc_task.credit_tx_id}
+     * 触发退还。详见 membership-completion.md F3 章节。
+     *
+     * @param creditTxId 原扣款流水 ID（来自 settleByUsageReturningTxId 返回值或 ai_usage_record.credit_tx_id）
+     * @param reason 退还原因，写入退还流水 remark
+     * @return 退还流水 ID；找不到原流水或非 SPEND 类型或已退过返回 null
+     */
+    Long refund(Long creditTxId, String reason);
 }

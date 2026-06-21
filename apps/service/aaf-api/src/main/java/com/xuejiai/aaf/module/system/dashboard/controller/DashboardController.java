@@ -46,7 +46,7 @@ import lombok.RequiredArgsConstructor;
 public class DashboardController {
 
     private static final Set<String> ADMIN_ROLES =
-            Set.of("ROLE_admin", "ROLE_super_admin", "ROLE_org_admin");
+            Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN");
 
     private final DashboardService dashboardService;
     private final OperatorContext operatorContext;

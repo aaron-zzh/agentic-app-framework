@@ -26,8 +26,11 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcShotVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /** AIGC 分镜接口。 */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 分镜")
 @RestController
 @RequestMapping("/api/aigc/shots")

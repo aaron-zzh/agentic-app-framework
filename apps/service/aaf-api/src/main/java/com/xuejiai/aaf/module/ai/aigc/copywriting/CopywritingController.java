@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.copywriting;
 
+import java.util.List;
+
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,8 +16,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /** 文案生成接口（SSE 流式）。 */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "文案生成")
 @RestController
 @RequestMapping("/api/aigc/copywriting")
@@ -32,7 +37,8 @@ public class CopywritingController {
             String length,
             String translateTo,
             String referenceAnalysis,
-            String userNotes) {}
+            String userNotes,
+            List<String> referenceImageKeys) {}
 
     public record RewriteRequest(@NotBlank String content, String modelId) {}
 
@@ -50,7 +56,8 @@ public class CopywritingController {
                         req.length(),
                         req.translateTo(),
                         req.referenceAnalysis(),
-                        req.userNotes()));
+                        req.userNotes(),
+                        req.referenceImageKeys()));
     }
 
     @Operation(summary = "流式改写文案")

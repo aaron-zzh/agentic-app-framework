@@ -61,7 +61,7 @@ public class EntitlementController {
     }
 
     /** 手动触发周期重置（供定时任务或管理后台调用） */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/reset-expired")
     public Result<Integer> resetExpired() {
         return Result.success(entitlementService.resetExpiredQuotas());

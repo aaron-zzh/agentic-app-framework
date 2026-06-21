@@ -174,7 +174,7 @@ export function useOssUpload(options: OssUploadOptions = {}) {
           // 记录失败不阻断上传结果
         }
 
-        return { url, name: compressed.name, size: compressed.size, width, height }
+        return { url, key, name: compressed.name, size: compressed.size, width, height }
       } finally {
         setUploading(false)
         abortRef.current = null

@@ -13,12 +13,15 @@ import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 生成历史接口。
  *
  * @author AaronZZH & Kiro
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 生成历史")
 @RestController
 @RequestMapping("/api/aigc/history")

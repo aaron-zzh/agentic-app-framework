@@ -30,8 +30,11 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcTrackVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /** AIGC 时间轴接口。 */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 时间轴")
 @RestController
 @RequestMapping("/api/aigc/timelines")

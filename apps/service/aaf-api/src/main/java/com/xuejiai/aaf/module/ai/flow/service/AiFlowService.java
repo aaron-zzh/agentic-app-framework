@@ -49,11 +49,6 @@ public class AiFlowService
     }
 
     @Override
-    protected String entitySlug() {
-        return "ai-flow";
-    }
-
-    @Override
     protected String entitlementCode() {
         return "workflow_count";
     }

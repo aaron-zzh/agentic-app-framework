@@ -27,6 +27,7 @@ public interface ErrorCodeConstants {
     ErrorCode AUTH_EMAIL_NOT_VERIFIED = ErrorCode.of(1_000_007, "邮箱未验证");
     ErrorCode AUTH_REGISTER_IP_RATE_LIMIT = ErrorCode.of(1_000_009, "注册过于频繁，请稍后再试");
     ErrorCode AUTH_VERIFY_CODE_SEND_FAILED = ErrorCode.of(1_000_010, "验证码发送失败，请稍后重试");
+    ErrorCode AUTH_EMAIL_NOT_REGISTERED = ErrorCode.of(1_000_011, "该邮箱尚未注册");
 
     // ========== USER 模块 1_001_000 ==========
     ErrorCode USER_NOT_FOUND = ErrorCode.of(1_001_000, "用户不存在");

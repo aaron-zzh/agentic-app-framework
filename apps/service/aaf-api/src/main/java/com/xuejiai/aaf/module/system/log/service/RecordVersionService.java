@@ -31,31 +31,28 @@ public class RecordVersionService {
     /** 创建版本快照 */
     @Transactional
     public RecordVersion createSnapshot(String entityType, Long entityId, String data) {
-        // 获取当前最大版本号
-        int nextVersion =
+        int nextVerNumber =
                 recordVersionRepository
-                        .findTopByEntityTypeAndEntityIdOrderByVersionDesc(entityType, entityId)
-                        .map(v -> v.getVersion() + 1)
+                        .findTopByEntityTypeAndEntityIdOrderByVerNumberDesc(entityType, entityId)
+                        .map(v -> v.getVerNumber() + 1)
                         .orElse(1);
 
         var version = new RecordVersion();
         version.setEntityType(entityType);
         version.setEntityId(entityId);
-        version.setVersion(nextVersion);
+        version.setVerNumber(nextVerNumber);
         version.setData(data);
-        // createBy 由 JPA Auditing 自动填充
 
         var saved = recordVersionRepository.save(version);
 
-        // 超出上限时清理最早的版本
         long count = recordVersionRepository.countByEntityTypeAndEntityId(entityType, entityId);
         if (count > maxPerRecord) {
             var all =
-                    recordVersionRepository.findByEntityTypeAndEntityIdOrderByVersionDesc(
+                    recordVersionRepository.findByEntityTypeAndEntityIdOrderByVerNumberDesc(
                             entityType, entityId);
-            int cutoffVersion = all.get(maxPerRecord - 1).getVersion();
-            recordVersionRepository.deleteByEntityTypeAndEntityIdAndVersionLessThanEqual(
-                    entityType, entityId, cutoffVersion - 1);
+            int cutoff = all.get(maxPerRecord - 1).getVerNumber();
+            recordVersionRepository.deleteByEntityTypeAndEntityIdAndVerNumberLessThanEqual(
+                    entityType, entityId, cutoff - 1);
         }
 
         return saved;
@@ -64,15 +61,15 @@ public class RecordVersionService {
     /** 获取版本列表 */
     @Transactional(readOnly = true)
     public List<RecordVersion> listVersions(String entityType, Long entityId) {
-        return recordVersionRepository.findByEntityTypeAndEntityIdOrderByVersionDesc(
+        return recordVersionRepository.findByEntityTypeAndEntityIdOrderByVerNumberDesc(
                 entityType, entityId);
     }
 
     /** 获取指定版本的快照数据 */
     @Transactional(readOnly = true)
-    public String getVersionData(String entityType, Long entityId, Integer version) {
+    public String getVersionData(String entityType, Long entityId, Integer verNumber) {
         return recordVersionRepository
-                .findByEntityTypeAndEntityIdAndVersion(entityType, entityId, version)
+                .findByEntityTypeAndEntityIdAndVerNumber(entityType, entityId, verNumber)
                 .map(RecordVersion::getData)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "版本不存在"));
     }

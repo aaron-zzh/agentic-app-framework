@@ -41,8 +41,8 @@ public class IpUtils {
     }
 
     /**
-     * 判断是否为内网 / 回环 / 链路本地等本地 IP，需要在调用 ip2region 前前置识别，避免走查询拿到
-     * {@code "0|0|内网IP|内网IP"} 这类非数字 region 字符串。
+     * 判断是否为内网 / 回环 / 链路本地等本地 IP，需要在调用 ip2region 前前置识别，避免走查询拿到 {@code "0|0|内网IP|内网IP"} 这类非数字 region
+     * 字符串。
      *
      * <p>覆盖范围：
      *
@@ -78,8 +78,8 @@ public class IpUtils {
     /**
      * 查询 IP 对应的区域 ID。
      *
-     * <p>项目用的 ip2region xdb 返回 4 段 region 字符串：{@code country|province|city|isp}（如
-     * {@code "中国|山东省|济南市|联通"}）。本方法解析后按「省+市」反查 {@link AreaUtils#findCity}，得到 area.csv 中对应的 id。
+     * <p>项目用的 ip2region xdb 返回 4 段 region 字符串：{@code country|province|city|isp}（如 {@code
+     * "中国|山东省|济南市|联通"}）。本方法解析后按「省+市」反查 {@link AreaUtils#findCity}，得到 area.csv 中对应的 id。
      *
      * <p>非中国 IP / 内网 IP / xdb 返回非预期格式时返回 null。
      *
@@ -155,8 +155,7 @@ public class IpUtils {
     /**
      * 查询 IP 对应行政区中心点经纬度。
      *
-     * <p>从匹配的 Area 节点开始向上找祖先，取首个含坐标的节点（区县→市→省→国家）。
-     * 国外 IP 或无坐标数据时返回 null（"全球"/"中国"根节点未配置坐标，不会作为兜底）。
+     * <p>从匹配的 Area 节点开始向上找祖先，取首个含坐标的节点（区县→市→省→国家）。 国外 IP 或无坐标数据时返回 null（"全球"/"中国"根节点未配置坐标，不会作为兜底）。
      *
      * @param ip IPv4 地址
      * @return [longitude, latitude]，无法定位返回 null

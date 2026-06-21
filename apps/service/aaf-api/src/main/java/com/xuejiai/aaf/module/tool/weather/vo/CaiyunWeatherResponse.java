@@ -7,9 +7,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * 彩云天气 v2.6 综合接口（{@code /weather}）响应 DTO。
  *
- * <p>对照彩云官方文档完整建模，所有字段保持 vendor 命名（snake_case 通过 {@link JsonProperty} 映射）。
- * 用作 vendor adapter 层的反序列化目标——上层（Controller / Tool / Service）可在此基础上裁剪或转换为
- * 业务 VO。
+ * <p>对照彩云官方文档完整建模，所有字段保持 vendor 命名（snake_case 通过 {@link JsonProperty} 映射）。 用作 vendor adapter
+ * 层的反序列化目标——上层（Controller / Tool / Service）可在此基础上裁剪或转换为 业务 VO。
  *
  * <p>字段在不同套餐下可能为 {@code null}（如 minutely / alert 仅企业套餐返回），所有字段统一使用包装类型。
  *
@@ -45,20 +44,17 @@ public record CaiyunWeatherResponse(
 
     /** 风：speed 单位由 unit 参数决定（metric=km/h，metric:v2=m/s，imperial=mph） */
     public record Wind(
-            @JsonProperty("speed") Double speed,
-            @JsonProperty("direction") Double direction) {}
+            @JsonProperty("speed") Double speed, @JsonProperty("direction") Double direction) {}
 
     /** AQI 双数值（chn=国标，usa=美标） */
-    public record AqiPair(
-            @JsonProperty("chn") Double chn, @JsonProperty("usa") Double usa) {}
+    public record AqiPair(@JsonProperty("chn") Double chn, @JsonProperty("usa") Double usa) {}
 
     /** AQI 文字描述双语言 */
-    public record AqiDescPair(
-            @JsonProperty("chn") String chn, @JsonProperty("usa") String usa) {}
+    public record AqiDescPair(@JsonProperty("chn") String chn, @JsonProperty("usa") String usa) {}
 
     /**
-     * 生活指数项。{@code index} 在实况返回 number，在 daily 返回 string，统一用 String 反序列化
-     * （Jackson 默认允许 number→string 强转）。
+     * 生活指数项。{@code index} 在实况返回 number，在 daily 返回 string，统一用 String 反序列化 （Jackson 默认允许
+     * number→string 强转）。
      */
     public record LifeIndexItem(
             @JsonProperty("index") String index, @JsonProperty("desc") String desc) {}
@@ -89,8 +85,7 @@ public record CaiyunWeatherResponse(
             @JsonProperty("location") String location,
             @JsonProperty("request_status") String requestStatus) {}
 
-    public record Adcode(
-            @JsonProperty("adcode") Long adcode, @JsonProperty("name") String name) {}
+    public record Adcode(@JsonProperty("adcode") Long adcode, @JsonProperty("name") String name) {}
 
     // ─── realtime ────────────────────────────────────────────────────────────
 
@@ -259,8 +254,7 @@ public record CaiyunWeatherResponse(
             @JsonProperty("date") String date, @JsonProperty("value") String value) {}
 
     public record DailyAirQuality(
-            @JsonProperty("aqi") List<DailyAqi> aqi,
-            @JsonProperty("pm25") List<DailyRange> pm25) {}
+            @JsonProperty("aqi") List<DailyAqi> aqi, @JsonProperty("pm25") List<DailyRange> pm25) {}
 
     public record DailyAqi(
             @JsonProperty("date") String date,

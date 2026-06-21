@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+export { BillingWidget } from "./BillingWidget"
 export { ChartWidget } from "./ChartWidget"
 export { CounterWidget } from "./CounterWidget"
 export { EChartsWidget } from "./EChartsWidget"

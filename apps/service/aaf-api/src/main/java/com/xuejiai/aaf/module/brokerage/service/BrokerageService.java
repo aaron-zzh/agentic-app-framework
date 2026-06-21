@@ -9,9 +9,15 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import tools.jackson.databind.JsonNode;
+
+import com.xuejiai.aaf.common.util.JsonUtils;
+
 import com.xuejiai.aaf.common.enums.brokerage.BrokerageRecordStatusEnum;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.billing.repository.CreditGrantRuleRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
+import com.xuejiai.aaf.module.billing.service.CreditGrantService;
 import com.xuejiai.aaf.module.brokerage.domain.BrokerageRecord;
 import com.xuejiai.aaf.module.brokerage.domain.BrokerageRule;
 import com.xuejiai.aaf.module.brokerage.domain.BrokerageUser;
@@ -44,6 +50,11 @@ public class BrokerageService {
     private final BrokerageInviteCodeRepository inviteCodeRepository;
     private final SystemConfigService systemConfigService;
     private final StringRedisTemplate redisTemplate;
+    private final CreditGrantService creditGrantService;
+    private final CreditGrantRuleRepository creditGrantRuleRepository;
+
+    /** INVITE 规则默认每人最多奖励次数（ext.maxInvites 缺失时兜底） */
+    private static final int DEFAULT_MAX_INVITES = 20;
 
     /**
      * 触发佣金计算。
@@ -262,6 +273,7 @@ public class BrokerageService {
             bindReferrer(contactId, invite.getContactId());
             invite.setUsedCount(invite.getUsedCount() + 1);
             inviteCodeRepository.save(invite);
+            grantInviteRewardIfPossible(invite.getContactId(), contactId, invite.getUsedCount());
             return;
         }
         // 再尝试直接解析为 contactId（兼容链接 ?ref=123 形式）
@@ -270,6 +282,64 @@ public class BrokerageService {
             bindReferrer(contactId, referrerContactId);
         } catch (NumberFormatException ignored) {
             log.warn("邀请码无效，跳过绑定: code={}", inviteCode);
+        }
+    }
+
+    /**
+     * 在邀请码绑定成功后，按 credit_grant_rule.INVITE 给推荐人发放注册奖励积分。
+     *
+     * <p>规则： 1) 用 ext.maxInvites（默认 20）做发放上限——超过则不再发放； 2) bizId="INVITE_"+inviteeContactId
+     * 用于幂等溯源，前端可按此查询每个被邀请人的奖励金额； 3) 找不到推荐人 user 或规则被禁用时静默跳过，不影响主绑定流程。
+     *
+     * <p>实名风控不在此处守门：积分是站内代币，发放无门槛；推荐人的实名校验在提现接口 (AAF-098) 处统一拦截，符合"出钱时实名"的行业共识。
+     */
+    private void grantInviteRewardIfPossible(
+            Long referrerContactId, Long inviteeContactId, int newUsedCount) {
+        try {
+            int maxInvites = readMaxInvites();
+            if (newUsedCount > maxInvites) {
+                log.info(
+                        "邀请奖励已达上限，跳过发放: referrerContactId={}, used={}, max={}",
+                        referrerContactId,
+                        newUsedCount,
+                        maxInvites);
+                return;
+            }
+            var referrerUser = userRepository.findByContactId(referrerContactId).orElse(null);
+            if (referrerUser == null) {
+                log.warn("推荐人无对应 user，跳过邀请奖励: contactId={}", referrerContactId);
+                return;
+            }
+            String bizId = "INVITE_" + inviteeContactId;
+            creditGrantService.grant(referrerUser.getId(), "INVITE", bizId);
+        } catch (Exception e) {
+            // 不影响绑定推荐人主流程
+            log.warn(
+                    "发放邀请注册奖励失败: referrerContactId={}, inviteeContactId={}",
+                    referrerContactId,
+                    inviteeContactId,
+                    e);
+        }
+    }
+
+    /** 读取 credit_grant_rule.INVITE.ext.maxInvites，缺失/异常时兜底默认值 */
+    private int readMaxInvites() {
+        var rule = creditGrantRuleRepository.findByCodeAndStatus("INVITE", "ENABLED").orElse(null);
+        if (rule == null || rule.getExt() == null || rule.getExt().isBlank()) {
+            return DEFAULT_MAX_INVITES;
+        }
+        try {
+            JsonNode node = JsonUtils.readTree(rule.getExt());
+            JsonNode maxNode = node.get("maxInvites");
+            return maxNode != null && maxNode.canConvertToInt()
+                    ? maxNode.asInt()
+                    : DEFAULT_MAX_INVITES;
+        } catch (Exception e) {
+            log.warn(
+                    "解析 credit_grant_rule.INVITE.ext 失败，使用默认 maxInvites={}",
+                    DEFAULT_MAX_INVITES,
+                    e);
+            return DEFAULT_MAX_INVITES;
         }
     }
 

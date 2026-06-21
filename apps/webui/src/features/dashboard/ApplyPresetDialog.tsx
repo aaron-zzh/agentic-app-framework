@@ -20,7 +20,6 @@ import {
 import type { DashboardPresetVO, DashboardWidgetVO } from "@/lib/api/rest/dashboard/dashboard"
 import { usePresets } from "@/lib/queries/use-dashboard"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { dashboardPresets } from "./presets"
 
 interface ApplyPresetDialogProps {
   onApply: (widgets: DashboardWidgetVO[], refreshInterval?: number) => void
@@ -31,29 +30,19 @@ export function ApplyPresetDialog({ onApply }: ApplyPresetDialogProps) {
   const userRoles = useAuthStore((s) => s.user?.roles)
   const isAdmin = userRoles?.some((r) => ["admin", "super_admin", "org_admin"].includes(r)) ?? false
 
-  // 优先用接口数据，接口失败降级到本地硬编码
-  const presets: DashboardPresetVO[] = remotePresets
-    ? remotePresets
-    : dashboardPresets
-        .filter((p) => !p.adminOnly || isAdmin)
-        .map((p, i) => ({
-          id: String(i),
-          presetKey: p.key,
-          name: p.name,
-          description: p.description,
-          adminOnly: p.adminOnly ?? false,
-          refreshInterval: p.refreshInterval,
-          widgets: p.widgets,
-          sortOrder: i
-        }))
+  // 仅使用后端预设；接口失败/未就绪时列表为空，弹窗显示空状态
+  const presets: DashboardPresetVO[] = remotePresets ?? []
 
   const visiblePresets = isAdmin ? presets : presets.filter((p) => !p.adminOnly)
 
   const [selected, setSelected] = useState(visiblePresets[0]?.presetKey ?? "")
   const [open, setOpen] = useState(false)
 
+  // remotePresets 异步加载完后，若 selected 仍为空则自动选中第一项
+  const effectiveSelected = selected || visiblePresets[0]?.presetKey || ""
+
   function handleApply() {
-    const preset = visiblePresets.find((p) => p.presetKey === selected)
+    const preset = visiblePresets.find((p) => p.presetKey === effectiveSelected)
     if (!preset) return
     onApply(preset.widgets, preset.refreshInterval)
     setOpen(false)
@@ -72,29 +61,35 @@ export function ApplyPresetDialog({ onApply }: ApplyPresetDialogProps) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>应用预设布局</DialogTitle>
-          <DialogDescription>选择一套预设，当前布局将被替换（保存后生效）</DialogDescription>
+          <DialogDescription>选择一套预设，当前布局将被替换并自动保存</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          {visiblePresets.map((preset) => (
-            <button
-              key={preset.presetKey}
-              type="button"
-              onClick={() => setSelected(preset.presetKey)}
-              className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent data-[selected=true]:border-primary data-[selected=true]:bg-primary/5"
-              data-selected={selected === preset.presetKey}
-            >
-              <p className="font-medium text-sm">{preset.name}</p>
-              <p className="text-muted-foreground text-xs">{preset.description}</p>
-            </button>
-          ))}
+          {visiblePresets.length === 0 ? (
+            <p className="py-6 text-center text-muted-foreground text-sm">暂无可用预设</p>
+          ) : (
+            visiblePresets.map((preset) => (
+              <button
+                key={preset.presetKey}
+                type="button"
+                onClick={() => setSelected(preset.presetKey)}
+                className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent data-[selected=true]:border-primary data-[selected=true]:bg-primary/5"
+                data-selected={effectiveSelected === preset.presetKey}
+              >
+                <p className="font-medium text-sm">{preset.name}</p>
+                <p className="text-muted-foreground text-xs">{preset.description}</p>
+              </button>
+            ))
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             取消
           </Button>
-          <Button onClick={handleApply}>应用</Button>
+          <Button onClick={handleApply} disabled={visiblePresets.length === 0}>
+            应用
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

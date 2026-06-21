@@ -30,7 +30,7 @@ const MOCK_PAGES: Array<{
   status: "draft" | "published"
   updatedAt: string
 }> = [
-  { id: "1", title: "AAF 产品首页", slug: "home", status: "published", updatedAt: "2026-05-19" },
+  { id: "1", title: "产品首页", slug: "home", status: "published", updatedAt: "2026-05-19" },
   { id: "2", title: "定价页", slug: "pricing", status: "draft", updatedAt: "2026-05-18" }
 ]
 

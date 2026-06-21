@@ -15,12 +15,15 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 3D 模型生成接口（支持百炼 Tripo + Meshy）。
  *
  * @author AaronZZH & Kiro
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 3D 模型")
 @RestController
 @RequestMapping("/api/aigc/model3d")

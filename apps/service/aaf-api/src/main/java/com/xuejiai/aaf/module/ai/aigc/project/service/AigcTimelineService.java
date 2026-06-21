@@ -65,11 +65,6 @@ public class AigcTimelineService
     }
 
     @Override
-    protected String entitySlug() {
-        return "aigc-timeline";
-    }
-
-    @Override
     protected AigcTimelineVO toVO(AigcTimeline e) {
         var vo = new AigcTimelineVO();
         vo.setId(e.getId());

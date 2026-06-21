@@ -316,7 +316,7 @@ export function GenerationPanel() {
     if (!prompt.trim()) return
     const vp = videoParams
     const submitParams: Record<string, unknown> = {
-      imageMode: videoMode,
+      ...(videoMode !== "EDIT" && { imageMode: videoMode }),
       ...(vp.resolution && { resolution: vp.resolution }),
       ...(vp.ratio && { ratio: vp.ratio }),
       ...(vp.duration != null && { duration: vp.duration }),
@@ -347,7 +347,7 @@ export function GenerationPanel() {
           setOpen(false)
           toast.success("视频生成任务已提交")
         },
-        onError: (err) => toast.error((err as Error).message ?? "提交失败")
+        onError: () => {}
       }
     )
   }
@@ -374,7 +374,7 @@ export function GenerationPanel() {
           setOpen(false)
           toast.success(isVoice ? "配音生成任务已提交" : "音乐生成任务已提交")
         },
-        onError: (err) => toast.error((err as Error).message ?? "提交失败")
+        onError: () => {}
       }
     )
   }

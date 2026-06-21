@@ -112,11 +112,6 @@ public class DataAccessService
     }
 
     @Override
-    protected String entitySlug() {
-        return "data-access-rule";
-    }
-
-    @Override
     protected String permissionCode(String action) {
         return "system:data-access-rule:manage";
     }

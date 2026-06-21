@@ -27,4 +27,13 @@ public interface CreditTransactionRepository extends JpaRepository<CreditTransac
     @Query(
             "SELECT t.batchType, SUM(t.remain) FROM CreditTransaction t WHERE t.accountId = :accountId AND t.remain > 0 AND t.deleted = false GROUP BY t.batchType")
     List<Object[]> sumRemainByBatchType(Long accountId);
+
+    /**
+     * 检查指定原扣款流水是否已写过退还流水（幂等保护）。
+     *
+     * <p>退还流水定义：type=EARN AND source=REFUND_SOURCE_TAG AND bizId=String.valueOf(原扣款流水 ID)。
+     */
+    @Query(
+            "SELECT COUNT(t) > 0 FROM CreditTransaction t WHERE t.type = com.xuejiai.aaf.framework.engine.credit.CreditTransactionType.EARN AND t.source = :refundSource AND t.bizId = :originalTxIdStr AND t.deleted = false")
+    boolean existsRefundForOriginalTx(String refundSource, String originalTxIdStr);
 }

@@ -15,6 +15,7 @@ export type WidgetType =
   | "shortcut"
   | "custom"
   | "finance"
+  | "billing"
 
 /** Widget 位置（react-grid-layout 格式） */
 export interface WidgetPosition {
@@ -99,6 +100,14 @@ export interface FinanceWidgetConfig {
     | "transaction-list"
 }
 
+/** Billing Widget 配置——个人积分仪表盘专属组件，从后端拉真实数据。 */
+export interface BillingWidgetConfig {
+  type: "billing"
+  component: "overview" | "multi-series-chart" | "expenses-category" | "transaction-list"
+  /** transactions 列表条数（仅 transaction-list 用），默认 10，上限 50 */
+  limit?: number
+}
+
 export type WidgetConfig =
   | CounterWidgetConfig
   | ChartWidgetConfig
@@ -108,6 +117,7 @@ export type WidgetConfig =
   | CustomWidgetConfig
   | EChartsWidgetConfig
   | FinanceWidgetConfig
+  | BillingWidgetConfig
 
 /** 仪表盘 Widget */
 export interface DashboardWidgetVO {
@@ -158,6 +168,8 @@ export interface WidgetDataVO {
   trend?: number
   /** 时序短点数组（counter 类用），用于右下角 sparkline；少于 2 点时不渲染 */
   sparkline?: number[]
+  /** 复杂 widget（如 billing）专用——后端返回的扩展数据 Map，字段由 widget component 自行解释 */
+  data?: Record<string, unknown>
 }
 
 export interface DashboardPresetMutateData {

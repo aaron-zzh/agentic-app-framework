@@ -15,4 +15,6 @@ public interface SystemConfigRepository extends JpaRepository<SystemConfig, Long
     Optional<SystemConfig> findByConfigKeyAndDeletedFalse(String configKey);
 
     List<SystemConfig> findByCategoryAndDeletedFalse(String category);
+
+    List<SystemConfig> findByDeletedFalse();
 }

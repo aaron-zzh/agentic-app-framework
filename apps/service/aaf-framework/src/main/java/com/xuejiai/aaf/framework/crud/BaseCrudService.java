@@ -278,6 +278,10 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     public V create(C request) {
         checkEntitlement(1);
         E entity = toEntity(request);
+        // 自动填充数据归属者（ownerId 不为空时保留业务层显式设置的值）
+        if (entity.getOwnerId() == null && operatorContext != null) {
+            operatorContext.currentOwnerId().ifPresent(entity::setOwnerId);
+        }
         getRepository().save(entity);
         consumeEntitlement(1);
         return applyFieldAccess(toVO(entity), "read");
@@ -467,10 +471,19 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return "%s:%s:%s".formatted(permissionModule(), permissionResource(), action.trim());
     }
 
-    /** 查询窗口实体标识。子类可覆写为稳定 entitySlug。 */
+    /** 查询窗口实体标识。默认从实体类名推导（AigcTask → aigc-task），子类可覆写。 */
     protected String entitySlug() {
-        var slug = entityName().trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "-");
-        return slug.isBlank() ? "entity" : slug;
+        var type =
+                org.springframework.core.GenericTypeResolver.resolveTypeArguments(
+                        getClass(), BaseCrudService.class);
+        if (type == null || type.length == 0) {
+            return entityName().trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "-");
+        }
+        // CamelCase → kebab-case: AigcTask → aigc-task
+        return type[0]
+                .getSimpleName()
+                .replaceAll("([a-z])([A-Z])", "$1-$2")
+                .toLowerCase(Locale.ROOT);
     }
 
     /** 查询窗口 token 校验。为空时允许直接详情查询；有值时必须匹配当前用户、实体、字段集、权限版本与窗口 ID。 */

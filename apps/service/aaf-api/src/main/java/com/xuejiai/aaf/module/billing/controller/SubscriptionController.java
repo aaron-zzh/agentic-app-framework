@@ -8,14 +8,17 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.billing.domain.EntitlementDef;
+import com.xuejiai.aaf.module.billing.domain.Subscription;
 import com.xuejiai.aaf.module.billing.domain.SubscriptionPlan;
 import com.xuejiai.aaf.module.billing.repository.EntitlementDefRepository;
 import com.xuejiai.aaf.module.billing.repository.PlanEntitlementRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.service.SubscriptionService;
+import com.xuejiai.aaf.module.billing.vo.DowngradeDTO;
 import com.xuejiai.aaf.module.billing.vo.SubscribeDTO;
 import com.xuejiai.aaf.module.billing.vo.SubscriptionPlanVO;
 import com.xuejiai.aaf.module.billing.vo.SubscriptionVO;
+import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,15 +79,55 @@ public class SubscriptionController {
                 entVOs);
     }
 
-    /** 购买/升级订阅 */
+    /**
+     * 购买/升级订阅。
+     *
+     * <p>路由逻辑（在 {@link SubscriptionService#subscribe} 内实现）：
+     *
+     * <ul>
+     *   <li>无生效订阅 → 新购
+     *   <li>同价位 → 续费
+     *   <li>升级 → 自动转 {@link SubscriptionService#upgrade} 流程
+     *   <li>降级 → 拒绝（提示使用 /downgrade 接口）
+     * </ul>
+     */
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/subscribe")
-    public Result<Long> subscribe(
+    public Result<PayOrderVO> subscribe(
             @RequestParam(required = false) Long userId, @Valid @RequestBody SubscribeDTO dto) {
-        var recordId =
+        var payOrder =
                 subscriptionService.subscribe(
                         ownerId(userId), dto.planCode(), dto.channelCode(), dto.isYearly());
-        return Result.success(recordId);
+        return Result.success(payOrder);
+    }
+
+    /**
+     * 取消订阅：仅记 cancelled_at + auto_renew=false。
+     *
+     * <p>当前周期权益保留至 end_at；不退款；不清除 pending_plan_id。订阅 status 仍为 ACTIVE 直到自然到期。
+     */
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/cancel")
+    public Result<SubscriptionVO> cancel(@RequestParam(required = false) Long userId) {
+        var sub = subscriptionService.cancel(ownerId(userId));
+        return Result.success(toSubscriptionVO(sub));
+    }
+
+    /** 降级排队：在当前周期 end_at 到期时切换到目标套餐。降级请求不付钱、不发积分、不动权益。 */
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/downgrade")
+    public Result<SubscriptionVO> downgrade(
+            @RequestParam(required = false) Long userId, @Valid @RequestBody DowngradeDTO dto) {
+        var sub = subscriptionService.downgrade(ownerId(userId), dto.planCode(), dto.isYearly());
+        return Result.success(toSubscriptionVO(sub));
+    }
+
+    /** 撤销已申请的降级：清除 pending_plan_id + pending_yearly。 */
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/pending")
+    public Result<SubscriptionVO> cancelPending(@RequestParam(required = false) Long userId) {
+        var sub = subscriptionService.cancelPending(ownerId(userId));
+        return Result.success(toSubscriptionVO(sub));
     }
 
     /** 获取当前订阅 */
@@ -94,15 +137,32 @@ public class SubscriptionController {
         if (sub == null) {
             return Result.success(null);
         }
+        return Result.success(toSubscriptionVO(sub));
+    }
+
+    /** 转换 Subscription → VO，包含 plan/pendingPlan 关联信息。 */
+    private SubscriptionVO toSubscriptionVO(Subscription sub) {
         var plan = planRepository.findById(sub.getPlanId()).orElse(null);
-        return Result.success(
-                new SubscriptionVO(
-                        sub.getId(),
-                        plan != null ? plan.getCode() : null,
-                        plan != null ? plan.getName() : null,
-                        sub.getStartAt(),
-                        sub.getEndAt(),
-                        sub.getStatus()));
+        String pendingPlanCode = null;
+        if (sub.getPendingPlanId() != null) {
+            pendingPlanCode =
+                    planRepository
+                            .findById(sub.getPendingPlanId())
+                            .map(SubscriptionPlan::getCode)
+                            .orElse(null);
+        }
+        return new SubscriptionVO(
+                sub.getId(),
+                plan != null ? plan.getCode() : null,
+                plan != null ? plan.getName() : null,
+                sub.getStartAt(),
+                sub.getEndAt(),
+                sub.getStatus(),
+                sub.getAutoRenew(),
+                sub.getCancelledAt(),
+                pendingPlanCode,
+                sub.getPendingYearly(),
+                sub.getLastReminderAt());
     }
 
     private Long ownerId(Long fallbackUserId) {

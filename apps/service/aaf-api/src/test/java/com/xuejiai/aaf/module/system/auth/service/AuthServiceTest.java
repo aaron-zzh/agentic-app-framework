@@ -141,7 +141,8 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given MessageService 发送失败 When sendEmailCode Then 抛 AUTH_VERIFY_CODE_SEND_FAILED 并释放限频锁")
+    @DisplayName(
+            "Given MessageService 发送失败 When sendEmailCode Then 抛 AUTH_VERIFY_CODE_SEND_FAILED 并释放限频锁")
     void should_throw_business_error_and_release_lock_when_email_send_fails() {
         stubVerifyCodeConfig();
         // 准备参数
@@ -180,7 +181,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         // 调用
         var result =
                 authService.loginByPhone(
-                        new LoginByPhoneDTO(phone, "123456"), "device-1", "web", "1.2.3.4");
+                        new LoginByPhoneDTO(phone, "123456", null), "device-1", "web", "1.2.3.4");
 
         // 断言
         assertThat(result.accessToken()).isEqualTo("access-token");
@@ -190,7 +191,8 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         verify(phoneRegisterRateLimiter, never()).checkBeforeRegister(anyString());
         verify(phoneRegisterRateLimiter, never()).recordRegister(anyString());
         // 不应触发自动注册副作用
-        verify(creditService, never()).earn(any(), org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString());
+        verify(creditService, never())
+                .earn(any(), org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString());
         verify(brokerageService, never()).tryEnableBrokerage(any(), anyString());
     }
 
@@ -216,7 +218,10 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         // 调用
         var result =
                 authService.loginByPhone(
-                        new LoginByPhoneDTO(phone, "123456"), "device-1", "uniapp", "1.2.3.4");
+                        new LoginByPhoneDTO(phone, "123456", null),
+                        "device-1",
+                        "uniapp",
+                        "1.2.3.4");
 
         // 断言：返回标记为新用户
         assertThat(result.isNewUser()).isTrue();
@@ -258,7 +263,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         assertThatThrownBy(
                         () ->
                                 authService.loginByPhone(
-                                        new LoginByPhoneDTO(phone, "123456"),
+                                        new LoginByPhoneDTO(phone, "123456", null),
                                         "device-1",
                                         "web",
                                         "1.2.3.4"))
@@ -272,7 +277,8 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 同 IP 1 小时已注册 10 次 When loginByPhone 自动注册 Then 抛出 AUTH_REGISTER_IP_RATE_LIMIT")
+    @DisplayName(
+            "Given 同 IP 1 小时已注册 10 次 When loginByPhone 自动注册 Then 抛出 AUTH_REGISTER_IP_RATE_LIMIT")
     void should_throw_when_ip_register_limit_exceeded() {
         // 准备参数
         var phone = "13800138003";
@@ -290,7 +296,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         assertThatThrownBy(
                         () ->
                                 authService.loginByPhone(
-                                        new LoginByPhoneDTO(phone, "123456"),
+                                        new LoginByPhoneDTO(phone, "123456", null),
                                         "device-1",
                                         "web",
                                         ip))
@@ -301,7 +307,8 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         // 风控触发后，不应进入注册副作用
         verify(userRepository, never()).save(any(User.class));
         verify(phoneRegisterRateLimiter, never()).recordRegister(anyString());
-        verify(creditService, never()).earn(any(), org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString());
+        verify(creditService, never())
+                .earn(any(), org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString());
     }
 
     @Test
@@ -316,7 +323,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
 
         // 调用
         authService.loginByPhone(
-                new LoginByPhoneDTO(phone, "123456"), "device-1", "web", "1.2.3.4");
+                new LoginByPhoneDTO(phone, "123456", null), "device-1", "web", "1.2.3.4");
 
         // 断言：风控不被调用
         verify(phoneRegisterRateLimiter, never()).checkBeforeRegister(anyString());
@@ -337,7 +344,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         assertThatThrownBy(
                         () ->
                                 authService.loginByPhone(
-                                        new LoginByPhoneDTO(phone, "123456"),
+                                        new LoginByPhoneDTO(phone, "123456", null),
                                         "device-1",
                                         "web",
                                         "1.2.3.4"))
@@ -360,7 +367,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         assertThatThrownBy(
                         () ->
                                 authService.loginByPhone(
-                                        new LoginByPhoneDTO(phone, "123456"),
+                                        new LoginByPhoneDTO(phone, "123456", null),
                                         "device-1",
                                         "web",
                                         "1.2.3.4"))

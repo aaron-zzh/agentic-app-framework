@@ -14,6 +14,7 @@ import { Form } from "@/components/form/form"
 import { schemaUtils } from "@/components/form/schema-utils"
 import { Button } from "@/components/ui/button"
 import { leadApi } from "@/lib/api/rest/lead/lead"
+import { APP } from "@/lib/config"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 
 /** 反馈类型——提交时存到 lead.subject 字段，便于管理端筛选 */
@@ -61,7 +62,7 @@ export default function FeedbackPage() {
       <header className="text-center">
         <h1 className="font-bold text-3xl tracking-tight md:text-4xl">用户反馈</h1>
         <p className="mx-auto mt-3 max-w-xl text-muted-foreground text-sm md:text-base">
-          您的每一条反馈都会让 AAF 变得更好。Bug、建议、体验问题都欢迎告诉我们。
+          您的每一条反馈都会让 {APP.name} 变得更好。Bug、建议、体验问题都欢迎告诉我们。
         </p>
       </header>
 

@@ -30,9 +30,9 @@ public class RecordVersion extends BaseEntity {
     @Column(name = "entity_id", nullable = false)
     private Long entityId;
 
-    /** 版本号（递增） */
-    @Column(name = "version", nullable = false)
-    private Integer version;
+    /** 业务版本号（递增） */
+    @Column(name = "ver_number", nullable = false)
+    private Integer verNumber;
 
     /** 快照数据（完整 JSON） */
     @JdbcTypeCode(SqlTypes.JSON)

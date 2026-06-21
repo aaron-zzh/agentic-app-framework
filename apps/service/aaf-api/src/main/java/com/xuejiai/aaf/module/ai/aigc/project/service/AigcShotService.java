@@ -50,11 +50,6 @@ public class AigcShotService
     }
 
     @Override
-    protected String entitySlug() {
-        return "aigc-shot";
-    }
-
-    @Override
     protected AigcShotVO toVO(AigcShot e) {
         var vo = new AigcShotVO();
         vo.setId(e.getId());

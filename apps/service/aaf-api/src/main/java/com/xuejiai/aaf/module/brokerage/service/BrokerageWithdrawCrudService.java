@@ -14,6 +14,8 @@ import com.xuejiai.aaf.module.brokerage.repository.BrokerageWithdrawRepository;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageWithdrawDTO;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageWithdrawPageParam;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageWithdrawVO;
+import com.xuejiai.aaf.module.system.notify.service.NotificationService;
+import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +33,8 @@ public class BrokerageWithdrawCrudService
 
     private final BrokerageWithdrawRepository brokerageWithdrawRepository;
     private final BrokerageUserRepository brokerageUserRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Override
     protected JpaRepository<BrokerageWithdraw, Long> getRepository() {
@@ -93,8 +97,45 @@ public class BrokerageWithdrawCrudService
             if (dto.status() == BrokerageWithdrawStatusEnum.APPROVED
                     || dto.status() == BrokerageWithdrawStatusEnum.REJECTED) {
                 e.setAuditTime(java.time.LocalDateTime.now());
+                sendAuditNotification(e, dto.status(), dto.auditReason());
             }
         }
+    }
+
+    /**
+     * 审核通过/驳回时给申请人发站内消息。
+     *
+     * <p>反查 contactId → userId；用户不存在则跳过通知（提现记录通常对应有效用户，但保留容错）。
+     */
+    private void sendAuditNotification(
+            BrokerageWithdraw e, BrokerageWithdrawStatusEnum status, String auditReason) {
+        var userOpt = userRepository.findByContactId(e.getContactId());
+        if (userOpt.isEmpty()) return;
+
+        String amount = String.format("¥%.2f", e.getAmount() / 100.0);
+        String title;
+        String body;
+        if (status == BrokerageWithdrawStatusEnum.APPROVED) {
+            title = "提现申请已通过";
+            body =
+                    String.format(
+                            "您的提现申请（%s）已审核通过，款项将在 1-3 个工作日内打款。", amount);
+        } else {
+            title = "提现申请已驳回";
+            String reason =
+                    auditReason != null && !auditReason.isBlank()
+                            ? "原因：" + auditReason
+                            : "请联系客服了解详情。";
+            body = String.format("您的提现申请（%s）未通过审核。%s", amount, reason);
+        }
+        notificationService.send(
+                userOpt.get().getId(),
+                "BROKERAGE_WITHDRAW",
+                title,
+                body,
+                "/settings/withdraw",
+                "BROKERAGE_WITHDRAW",
+                e.getId());
     }
 
     @Override

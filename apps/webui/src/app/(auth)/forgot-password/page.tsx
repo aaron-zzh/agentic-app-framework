@@ -1,7 +1,6 @@
 /**
- * 忘记密码页——发送验证码 + 重置密码
- * 生产/测试环境接入阿里云 ESA AI 验证码（NEXT_PUBLIC_CAPTCHA_ENABLED=true 时启用）：
- *   - 发送验证码按钮（防止刷邮件、枚举邮箱）
+ * 忘记密码页——支持邮箱和手机号两种方式重置密码
+ * 自动识别输入内容：邮箱发邮件验证码，手机号发短信验证码
  * @author AaronZZH & Kiro
  */
 
@@ -22,8 +21,18 @@ import { paths } from "@/lib/constants/paths"
 import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
 
-const emailSchema = z.object({
-  email: z.string().min(1, "请输入邮箱").email("邮箱格式不正确")
+/** 判断是手机号还是邮箱 */
+function detectInputType(value: string): "phone" | "email" | "unknown" {
+  if (/^1[3-9]\d{9}$/.test(value)) return "phone"
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "email"
+  return "unknown"
+}
+
+const accountSchema = z.object({
+  account: z
+    .string()
+    .min(1, "请输入邮箱或手机号")
+    .refine((v) => detectInputType(v) !== "unknown", "请输入有效的邮箱或手机号")
 })
 
 const resetSchema = z
@@ -37,19 +46,20 @@ const resetSchema = z
     path: ["confirmPassword"]
   })
 
-type EmailForm = z.infer<typeof emailSchema>
+type AccountForm = z.infer<typeof accountSchema>
 type ResetForm = z.infer<typeof resetSchema>
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
-  const [step, setStep] = useState<"email" | "reset">("email")
-  const [email, setEmail] = useState("")
+  const [step, setStep] = useState<"account" | "reset">("account")
+  const [account, setAccount] = useState("")
+  const [accountType, setAccountType] = useState<"email" | "phone">("email")
   const captchaVerifyParamRef = useRef<string>("")
   const submitRef = useRef<(() => void) | null>(null)
 
-  const emailMethods = useForm<EmailForm>({
-    resolver: zodResolver(emailSchema),
-    defaultValues: { email: "" }
+  const accountMethods = useForm<AccountForm>({
+    resolver: zodResolver(accountSchema),
+    defaultValues: { account: "" }
   })
 
   const resetMethods = useForm<ResetForm>({
@@ -66,19 +76,29 @@ export default function ForgotPasswordPage() {
     }
   })
 
-  async function onSendCode(data: EmailForm) {
+  async function onSendCode(data: AccountForm) {
+    const type = detectInputType(data.account) as "email" | "phone"
     try {
-      await authApi.sendEmailCode(
-        data.email,
-        "reset",
-        captcha.enabled ? captchaVerifyParamRef.current : undefined
-      )
-      setEmail(data.email)
+      if (type === "phone") {
+        await authApi.sendSmsCode(
+          data.account,
+          "reset",
+          captcha.enabled ? captchaVerifyParamRef.current : undefined
+        )
+      } else {
+        await authApi.sendEmailCode(
+          data.account,
+          "reset",
+          captcha.enabled ? captchaVerifyParamRef.current : undefined
+        )
+      }
+      setAccount(data.account)
+      setAccountType(type)
       setStep("reset")
-      notify.success("验证码已发送，请查收邮件")
+      notify.success(type === "phone" ? "短信验证码已发送" : "验证码已发送，请查收邮件")
     } catch (err) {
       const msg = err instanceof Error ? err.message : "发送失败，请重试"
-      emailMethods.setError("root", { message: msg })
+      accountMethods.setError("root", { message: msg })
       notify.error(msg)
     } finally {
       captchaVerifyParamRef.current = ""
@@ -86,11 +106,16 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  submitRef.current = emailMethods.handleSubmit(onSendCode)
+  submitRef.current = accountMethods.handleSubmit(onSendCode)
 
   async function onReset(data: ResetForm) {
     try {
-      await authApi.resetPassword(email, data.code, data.newPassword)
+      if (accountType === "phone") {
+        await authApi.resetPasswordByPhone(account, data.code, data.newPassword)
+      } else {
+        await authApi.resetPassword(account, data.code, data.newPassword)
+      }
+      notify.success("密码重置成功，请重新登录")
       router.push(paths.auth.login)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "重置失败，请重试"
@@ -100,15 +125,16 @@ export default function ForgotPasswordPage() {
   }
 
   if (step === "reset") {
+    const hint = accountType === "phone" ? `短信已发送至 ${account}` : `验证码已发送至 ${account}`
     return (
       <div className="w-full max-w-sm space-y-6">
         <div>
           <h2 className="font-bold text-2xl">重置密码</h2>
-          <p className="mt-1 text-muted-foreground text-sm">验证码已发送至 {email}</p>
+          <p className="mt-1 text-muted-foreground text-sm">{hint}</p>
         </div>
 
         <Form methods={resetMethods} onSubmit={onReset}>
-          <FieldOtp name="code" length={6} />
+          <FieldOtp name="code" length={6} autoSubmit />
           <FieldText name="newPassword" label="新密码" type="password" placeholder="至少 6 位" />
           <FieldText
             name="confirmPassword"
@@ -139,26 +165,26 @@ export default function ForgotPasswordPage() {
     <div className="w-full max-w-sm space-y-6">
       <div>
         <h2 className="font-bold text-2xl">忘记密码</h2>
-        <p className="mt-1 text-muted-foreground text-sm">输入邮箱接收验证码</p>
+        <p className="mt-1 text-muted-foreground text-sm">输入邮箱或手机号接收验证码</p>
       </div>
 
-      <Form methods={emailMethods} onSubmit={captcha.enabled ? undefined : onSendCode}>
-        <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
+      <Form methods={accountMethods} onSubmit={captcha.enabled ? undefined : onSendCode}>
+        <FieldText name="account" label="邮箱 / 手机号" placeholder="your@email.com 或 138xxxx" />
 
         {captcha.enabled && <div id="forgot-password-captcha" />}
 
         <p
-          className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${emailMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
+          className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${accountMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
         >
-          {emailMethods.formState.errors.root?.message ?? " "}
+          {accountMethods.formState.errors.root?.message ?? " "}
         </p>
         <Button
           id="forgot-password-send-btn"
           type={captcha.buttonType}
           className="w-full"
-          disabled={emailMethods.formState.isSubmitting}
+          disabled={accountMethods.formState.isSubmitting}
         >
-          {emailMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
+          {accountMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
         </Button>
       </Form>
 

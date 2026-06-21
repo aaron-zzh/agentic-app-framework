@@ -91,6 +91,9 @@ public class SystemConfigService {
     // ── 查询 ──────────────────────────────────────────────────
 
     public List<SystemConfig> listByCategory(String category) {
+        if (category == null || "*".equals(category)) {
+            return configRepository.findByDeletedFalse();
+        }
         return configRepository.findByCategoryAndDeletedFalse(category);
     }
 

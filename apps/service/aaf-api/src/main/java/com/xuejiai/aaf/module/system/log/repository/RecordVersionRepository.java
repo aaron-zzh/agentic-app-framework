@@ -15,21 +15,21 @@ import com.xuejiai.aaf.module.system.log.domain.RecordVersion;
 public interface RecordVersionRepository extends JpaRepository<RecordVersion, Long> {
 
     /** 按实体查询版本列表（版本号降序） */
-    List<RecordVersion> findByEntityTypeAndEntityIdOrderByVersionDesc(
+    List<RecordVersion> findByEntityTypeAndEntityIdOrderByVerNumberDesc(
             String entityType, Long entityId);
 
     /** 查询指定版本 */
-    Optional<RecordVersion> findByEntityTypeAndEntityIdAndVersion(
-            String entityType, Long entityId, Integer version);
+    Optional<RecordVersion> findByEntityTypeAndEntityIdAndVerNumber(
+            String entityType, Long entityId, Integer verNumber);
 
     /** 查询当前最大版本号 */
-    Optional<RecordVersion> findTopByEntityTypeAndEntityIdOrderByVersionDesc(
+    Optional<RecordVersion> findTopByEntityTypeAndEntityIdOrderByVerNumberDesc(
             String entityType, Long entityId);
 
     /** 统计实体的版本数量 */
     long countByEntityTypeAndEntityId(String entityType, Long entityId);
 
     /** 删除最早的版本（用于超出 maxPerRecord 时清理） */
-    void deleteByEntityTypeAndEntityIdAndVersionLessThanEqual(
-            String entityType, Long entityId, Integer version);
+    void deleteByEntityTypeAndEntityIdAndVerNumberLessThanEqual(
+            String entityType, Long entityId, Integer verNumber);
 }

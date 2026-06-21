@@ -28,6 +28,7 @@ import {
   FileText,
   FlaskConical,
   FolderOpen,
+  Gift,
   GitBranch,
   GitPullRequest,
   Globe,
@@ -134,7 +135,9 @@ export function AppSidebar() {
   const { data: menus, isLoading, isError } = useUserMenus()
   const { data: license } = useLicenseStatus()
   const userRoles = useAuthStore((s) => s.user?.roles)
-  const hasOfficial = license?.features?.includes("official-console") ?? false
+  const hasOfficial =
+    (license?.features?.includes("official-console") ?? false) &&
+    (userRoles?.includes("SUPER_ADMIN") ?? false)
 
   /** 过滤静态 fallback 中需要特定角色的菜单项 */
   const filterByRole = useCallback(
@@ -162,9 +165,7 @@ export function AppSidebar() {
     <aside
       className={cn(
         "relative flex shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200",
-        sidebarOpen
-          ? "w-(--layout-sidebar-width)"
-          : "w-(--layout-sidebar-collapsed-width)"
+        sidebarOpen ? "w-(--layout-sidebar-width)" : "w-(--layout-sidebar-collapsed-width)"
       )}
     >
       {/* 边缘折叠按钮 */}
@@ -202,6 +203,18 @@ export function AppSidebar() {
 
       {/* 固定设置入口 */}
       <div className="border-t px-2 py-2">
+        <Link
+          href="/settings/invite"
+          className={cn(
+            "mb-1 flex w-full items-center gap-2 rounded-md py-1.5 text-amber-500 text-sm transition-colors hover:bg-amber-500/10",
+            !sidebarOpen && "justify-center px-2"
+          )}
+          style={sidebarOpen ? { paddingLeft: 8, paddingRight: 8 } : undefined}
+          title={!sidebarOpen ? "邀请奖励" : undefined}
+        >
+          <Gift className="size-4 shrink-0" />
+          {sidebarOpen && <span className="flex-1 truncate">邀请奖励</span>}
+        </Link>
         <Link
           href="/settings"
           className={cn(

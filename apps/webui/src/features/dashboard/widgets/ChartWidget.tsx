@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ChartWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import { useWidgetData } from "@/lib/queries/use-dashboard"
+import { cn } from "@/lib/utils/cn"
+import { WIDGET_CARD_CLASS } from "./_shared/styles"
 
 interface ChartWidgetProps {
   widgetId: string
@@ -23,7 +25,7 @@ export function ChartWidget({ widgetId, title, config, refreshInterval }: ChartW
 
   if (isLoading) {
     return (
-      <Card className="h-full">
+      <Card className={cn("h-full", WIDGET_CARD_CLASS)}>
         <CardHeader>
           <Skeleton className="h-4 w-24" />
         </CardHeader>
@@ -35,7 +37,7 @@ export function ChartWidget({ widgetId, title, config, refreshInterval }: ChartW
   }
 
   return (
-    <Card className="h-full">
+    <Card className={cn("h-full", WIDGET_CARD_CLASS)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-medium text-sm">
           <BarChart3 className="h-4 w-4 text-muted-foreground" />

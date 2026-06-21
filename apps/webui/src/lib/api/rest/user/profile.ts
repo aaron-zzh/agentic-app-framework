@@ -36,7 +36,10 @@ export const profileApi = {
   update: (data: ProfileUpdateReq) => backendApi.put<ProfileVO>("/system/user/profile", data),
 
   changePassword: (data: ChangePasswordReq) =>
-    backendApi.put<void>("/system/user/profile/password", data)
+    backendApi.put<void>("/system/user/profile/password", data),
+
+  bindPhone: (phone: string, code: string) =>
+    backendApi.put<ProfileVO>("/system/user/profile/phone", { phone, code })
 }
 
 export const profileQueries = {

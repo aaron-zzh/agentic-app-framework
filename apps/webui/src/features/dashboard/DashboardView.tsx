@@ -31,9 +31,9 @@ import {
 import { useAuthStore } from "@/lib/store/auth-store"
 import { AddWidgetDialog } from "./AddWidgetDialog"
 import { ApplyPresetDialog } from "./ApplyPresetDialog"
-import { dashboardPresets } from "./presets"
 import { WidgetEditDialog } from "./WidgetEditDialog"
 import {
+  BillingWidget,
   ChartWidget,
   CounterWidget,
   EChartsWidget,
@@ -95,6 +95,15 @@ function renderWidget(widget: DashboardWidgetVO, refreshInterval?: number) {
       return <ShortcutWidget title={title} config={config} />
     case "finance":
       return <FinanceWidget title={title} config={config} />
+    case "billing":
+      return (
+        <BillingWidget
+          widgetId={id}
+          title={title}
+          config={config}
+          refreshInterval={refreshInterval}
+        />
+      )
     default:
       return (
         <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
@@ -174,15 +183,12 @@ export function DashboardView() {
     ? dashboardList.find((d) => d.id === activeDashboardId)
     : (dashboard ?? undefined)
 
-  /** 默认 widgets：优先用接口预设，失败降级到前端硬编码 */
+  /** 默认 widgets：取后端预设（personal / admin），接口未就绪时返回空数组（页面显示空白由父级处理） */
   const defaultPresetKey = isAdmin ? "admin" : "personal"
   const defaultWidgets: DashboardWidgetVO[] = (() => {
-    if (remotePresets) {
-      const preset = remotePresets.find((p) => p.presetKey === defaultPresetKey) ?? remotePresets[0]
-      return preset?.widgets ?? []
-    }
-    const local = dashboardPresets.find((p) => p.key === defaultPresetKey) ?? dashboardPresets[0]
-    return local?.widgets ?? []
+    if (!remotePresets) return []
+    const preset = remotePresets.find((p) => p.presetKey === defaultPresetKey) ?? remotePresets[0]
+    return preset?.widgets ?? []
   })()
   const widgets =
     localWidgets ?? (activeDashboard?.widgets?.length ? activeDashboard.widgets : defaultWidgets)
@@ -208,10 +214,16 @@ export function DashboardView() {
     setEditing(false)
   }, [])
 
-  const saveLayout = useCallback(() => {
-    if (!activeDashboard || !localWidgets) return
+  const saveLayout = useCallback(async () => {
+    if (!localWidgets) return
+    let dashboardId = activeDashboard?.id
+    if (!dashboardId) {
+      // 用户还没有仪表盘，自动创建一个默认仪表盘
+      const created = await createMutation.mutateAsync({ name: "我的仪表盘" })
+      dashboardId = created.id
+    }
     saveMutation.mutate(
-      { id: activeDashboard.id, layout: localWidgets },
+      { id: dashboardId, layout: localWidgets },
       {
         onSuccess: () => {
           setLocalWidgets(null)
@@ -219,7 +231,7 @@ export function DashboardView() {
         }
       }
     )
-  }, [activeDashboard, localWidgets, saveMutation])
+  }, [activeDashboard, localWidgets, saveMutation, createMutation])
 
   const handleLayoutChange = useCallback(
     (layout: Layout[]) => {
@@ -242,9 +254,24 @@ export function DashboardView() {
     setLocalWidgets((prev) => [...(prev ?? []), newWidget])
   }, [])
 
-  const handleApplyPreset = useCallback((widgets: DashboardWidgetVO[]) => {
-    setLocalWidgets(widgets)
-  }, [])
+  const handleApplyPreset = useCallback(
+    (widgets: DashboardWidgetVO[]) => {
+      setLocalWidgets(widgets)
+      // 应用预设后自动保存
+      if (activeDashboard) {
+        saveMutation.mutate(
+          { id: activeDashboard.id, layout: widgets },
+          {
+            onSuccess: () => {
+              setLocalWidgets(null)
+              setEditing(false)
+            }
+          }
+        )
+      }
+    },
+    [activeDashboard, saveMutation]
+  )
 
   const handleRemoveWidget = useCallback((widgetId: string) => {
     setLocalWidgets((prev) => (prev ?? []).filter((w) => w.id !== widgetId))
@@ -449,7 +476,7 @@ export function DashboardView() {
           layouts={layouts}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480 }}
           cols={{ lg: 12, md: 9, sm: 6, xs: 3 }}
-          rowHeight={80}
+          rowHeight={64}
           isDraggable={editing}
           isResizable={editing}
           onLayoutChange={handleLayoutChange}

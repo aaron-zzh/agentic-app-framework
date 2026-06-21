@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 菜单管理页面——树形表格展示 + CRUD
  * @author AaronZZH & Kiro
  */
@@ -153,7 +153,7 @@ function MenuTreeRow({
         toast.success("删除成功")
         setDeleteOpen(false)
       },
-      onError: (err) => toast.error(`删除失败: ${err.message}`)
+      onError: () => {}
     })
   }, [menu, deleteMutation])
 
@@ -306,7 +306,7 @@ function MenuFormDialog({
             toast.success("更新成功")
             onOpenChange(false)
           },
-          onError: (err) => toast.error(`更新失败: ${err.message}`)
+          onError: () => {}
         }
       )
     } else {
@@ -315,7 +315,7 @@ function MenuFormDialog({
           toast.success("创建成功")
           onOpenChange(false)
         },
-        onError: (err) => toast.error(`创建失败: ${err.message}`)
+        onError: () => {}
       })
     }
   }, [

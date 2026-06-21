@@ -14,7 +14,8 @@ public enum CreditBizTypeEnum implements ArrayValuable<String> {
     AIGC_TASK("AIGC_TASK", "AIGC 任务"),
     TOOL_CALL("TOOL_CALL", "工具调用"),
     ENTITLEMENT("ENTITLEMENT", "权益补充"),
-    AI_USAGE("AI_USAGE", "AI 用量");
+    AI_USAGE("AI_USAGE", "AI 用量"),
+    SUBSCRIPTION_UPGRADE("SUBSCRIPTION_UPGRADE", "订阅升级");
 
     private final String code;
     private final String label;

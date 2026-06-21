@@ -2,7 +2,6 @@ package com.xuejiai.aaf.config;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -44,8 +43,7 @@ public class GlobalExceptionHandler {
                 org.springframework.security.oauth2.server.resource.authentication
                                 .JwtAuthenticationToken
                         jwtAuth) {
-            jwtRoles =
-                    String.valueOf(jwtAuth.getToken().getClaimAsStringList("roles"));
+            jwtRoles = String.valueOf(jwtAuth.getToken().getClaimAsStringList("roles"));
         }
         log.warn(
                 "[AccessDenied] {} {} principal={} authorities={} jwtRoles={} reason={}",
@@ -66,13 +64,13 @@ public class GlobalExceptionHandler {
         return Result.error(429, e.getMessage());
     }
 
-    /** 乐观锁冲突（数据已被其他人修改） */
-    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public Result<?> handleOptimisticLock(ObjectOptimisticLockingFailureException e) {
-        log.info("乐观锁冲突: {}", e.getMessage());
-        return Result.error(409, "数据已被修改，请刷新后重试");
-    }
+    // 乐观锁冲突处理（暂未启用 @Version，预留供未来手动实现乐观锁时使用）
+    // @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    // @ResponseStatus(HttpStatus.CONFLICT)
+    // public Result<?> handleOptimisticLock(ObjectOptimisticLockingFailureException e) {
+    //     log.info("乐观锁冲突: {}", e.getMessage());
+    //     return Result.error(409, "数据已被修改，请刷新后重试");
+    // }
 
     /** 积分余额不足 */
     @ExceptionHandler(InsufficientCreditsException.class)

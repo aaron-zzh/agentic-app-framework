@@ -14,6 +14,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * 语音接口（STT）。
@@ -23,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
  * @author AaronZZH & Kiro
  */
 @Slf4j
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "语音服务")
 @RestController
 @RequestMapping("/api/voice")

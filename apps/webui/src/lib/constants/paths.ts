@@ -15,6 +15,7 @@
 
 export const paths = {
   root: "/",
+  feedback: "/feedback",
   auth: {
     login: "/login",
     register: "/register",
@@ -29,6 +30,7 @@ export const paths = {
     settings: "/settings",
     settingsProfile: "/settings/profile",
     settingsCredits: "/settings/credits",
+    settingsPricing: "/settings/pricing",
     settingsNotifications: "/settings/notifications",
     notifications: "/notifications",
     todos: "/todos",

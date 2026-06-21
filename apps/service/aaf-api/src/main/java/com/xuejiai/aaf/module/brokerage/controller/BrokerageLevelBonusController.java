@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.brokerage.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/brokerage/level-bonuses")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class BrokerageLevelBonusController
         extends BaseCrudController<
                 BrokerageLevelBonus,

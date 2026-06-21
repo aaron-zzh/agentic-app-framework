@@ -75,14 +75,14 @@ public class ApiKeyController {
 
     /** 管理员：查看所有 Key。 */
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public List<ApiKeyVO> listAll() {
         return repository.findAllByOrderByCreatedAtDesc().stream().map(this::toVO).toList();
     }
 
     /** 管理员：禁用 Key。 */
     @PostMapping("/admin/{id}/disable")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public void disable(@PathVariable Long id) {
         var key = repository.findById(id).orElseThrow();
         key.setEnabled(false);
@@ -91,7 +91,7 @@ public class ApiKeyController {
 
     /** 管理员：启用 Key。 */
     @PostMapping("/admin/{id}/enable")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public void enable(@PathVariable Long id) {
         var key = repository.findById(id).orElseThrow();
         key.setEnabled(true);

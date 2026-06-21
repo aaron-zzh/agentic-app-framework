@@ -10,13 +10,14 @@ import {
   Bell,
   Building2,
   CreditCard,
+  Gift,
   Globe,
   Key,
-  Link2,
   LogOut,
   Shield,
   Ticket,
-  User
+  User,
+  Wallet
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -37,7 +38,6 @@ const NAV_GROUPS: {
     items: [
       { label: "编辑资料", href: "/settings/profile", icon: User },
       { label: "通知设置", href: "/settings/notifications", icon: Bell },
-      { label: "社交链接", href: "/settings/socials", icon: Link2 },
       { label: "安全设置", href: "/settings/security", icon: Shield }
     ]
   },
@@ -45,7 +45,9 @@ const NAV_GROUPS: {
     label: "计费",
     items: [
       { label: "积分详情", href: "/settings/credits", icon: CreditCard },
-      { label: "价格套餐", href: "/settings/pricing", icon: Ticket }
+      { label: "会员套餐", href: "/settings/pricing", icon: Ticket },
+      { label: "邀请奖励", href: "/settings/invite", icon: Gift },
+      { label: "佣金提现", href: "/settings/withdraw", icon: Wallet }
     ]
   },
   {

@@ -18,4 +18,5 @@ public record LoginByPhoneDTO(
         @NotBlank(message = "验证码不能为空")
                 @Size(min = 6, max = 6, message = "验证码为 6 位")
                 @Schema(description = "验证码")
-                String code) {}
+                String code,
+        @Schema(description = "邀请码（可选，仅手机号首次注册时绑定推荐人）") String referrerCode) {}

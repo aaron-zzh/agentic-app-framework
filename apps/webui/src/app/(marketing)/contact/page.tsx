@@ -16,6 +16,7 @@ import { Form } from "@/components/form/form"
 import { schemaUtils } from "@/components/form/schema-utils"
 import { Button } from "@/components/ui/button"
 import { leadApi } from "@/lib/api/rest/lead/lead"
+import { CONTACT } from "@/lib/config"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 
 const schema = z.object({
@@ -29,8 +30,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 const CONTACT_CHANNELS = [
-  { icon: Mail, label: "邮箱", value: "service@xuejiai.com" },
-  { icon: MessageCircle, label: "微信", value: "Aaron-ZZH" },
+  { icon: Mail, label: "邮箱", value: CONTACT.email },
+  { icon: MessageCircle, label: "微信", value: CONTACT.wechatId },
   { icon: Phone, label: "电话", value: "工作日 09:00-18:00" },
   { icon: Globe, label: "Github", value: "github.com/aaron-zzh/agentic-app-framework" }
 ]

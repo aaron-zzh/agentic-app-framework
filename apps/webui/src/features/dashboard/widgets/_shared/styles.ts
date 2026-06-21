@@ -40,111 +40,117 @@ export interface CardStyle {
 /** 兜底色——配置项 color 缺失或未知时使用。 */
 export const DEFAULT_CARD_COLOR: CardColor = "mint"
 
+/**
+ * Dashboard widget 容器统一样式：去掉默认 ring 边框，改用柔和 box-shadow + 悬停轻微抬升。
+ * 用法：`<Card className={cn("h-full", WIDGET_CARD_CLASS)}>`
+ */
+export const WIDGET_CARD_CLASS = "ring-0 shadow-sm hover:shadow-md transition-shadow border-0"
+
 export const CARD_COLOR_STYLES: Record<CardColor, CardStyle> = {
   mint: {
-    gradient: "bg-gradient-to-br from-emerald-50 to-emerald-100/80",
-    fg: "text-emerald-900",
+    gradient: "bg-gradient-to-br from-emerald-100 to-emerald-300",
+    fg: "text-emerald-950",
     iconBg: "bg-emerald-200/60",
     iconFg: "text-emerald-700",
     sparklineColor: "rgb(5 150 105)",
-    trendColor: "text-emerald-700"
+    trendColor: "text-emerald-800"
   },
   lavender: {
-    gradient: "bg-gradient-to-br from-violet-50 to-violet-100/80",
-    fg: "text-violet-900",
+    gradient: "bg-gradient-to-br from-violet-100 to-violet-300",
+    fg: "text-violet-950",
     iconBg: "bg-violet-200/60",
     iconFg: "text-violet-700",
     sparklineColor: "rgb(124 58 237)",
-    trendColor: "text-violet-700"
+    trendColor: "text-violet-800"
   },
   sand: {
-    gradient: "bg-gradient-to-br from-amber-50 to-amber-100/80",
-    fg: "text-amber-900",
+    gradient: "bg-gradient-to-br from-amber-100 to-amber-300",
+    fg: "text-amber-950",
     iconBg: "bg-amber-200/60",
     iconFg: "text-amber-700",
     sparklineColor: "rgb(217 119 6)",
-    trendColor: "text-amber-700"
+    trendColor: "text-amber-800"
   },
   coral: {
-    gradient: "bg-gradient-to-br from-orange-50 to-orange-100/80",
-    fg: "text-orange-900",
+    gradient: "bg-gradient-to-br from-orange-100 to-orange-300",
+    fg: "text-orange-950",
     iconBg: "bg-orange-200/60",
     iconFg: "text-orange-700",
     sparklineColor: "rgb(234 88 12)",
-    trendColor: "text-orange-700"
+    trendColor: "text-orange-800"
   },
   sky: {
-    gradient: "bg-gradient-to-br from-sky-50 to-sky-100/80",
-    fg: "text-sky-900",
+    gradient: "bg-gradient-to-br from-sky-100 to-sky-300",
+    fg: "text-sky-950",
     iconBg: "bg-sky-200/60",
     iconFg: "text-sky-700",
     sparklineColor: "rgb(2 132 199)",
-    trendColor: "text-sky-700"
+    trendColor: "text-sky-800"
   },
   rose: {
-    gradient: "bg-gradient-to-br from-rose-50 to-rose-100/80",
-    fg: "text-rose-900",
+    gradient: "bg-gradient-to-br from-rose-100 to-rose-300",
+    fg: "text-rose-950",
     iconBg: "bg-rose-200/60",
     iconFg: "text-rose-700",
     sparklineColor: "rgb(225 29 72)",
-    trendColor: "text-rose-700"
+    trendColor: "text-rose-800"
   },
   // ── 现有 preset 已用的色名 alias ──
   blue: {
-    gradient: "bg-gradient-to-br from-blue-50 to-blue-100/80",
-    fg: "text-blue-900",
+    gradient: "bg-gradient-to-br from-blue-100 to-blue-300",
+    fg: "text-blue-950",
     iconBg: "bg-blue-200/60",
     iconFg: "text-blue-700",
     sparklineColor: "rgb(37 99 235)",
-    trendColor: "text-blue-700"
+    trendColor: "text-blue-800"
   },
   green: {
-    gradient: "bg-gradient-to-br from-green-50 to-green-100/80",
-    fg: "text-green-900",
+    gradient: "bg-gradient-to-br from-green-100 to-green-300",
+    fg: "text-green-950",
     iconBg: "bg-green-200/60",
     iconFg: "text-green-700",
     sparklineColor: "rgb(22 163 74)",
-    trendColor: "text-green-700"
+    trendColor: "text-green-800"
   },
   yellow: {
-    gradient: "bg-gradient-to-br from-yellow-50 to-yellow-100/80",
-    fg: "text-yellow-900",
+    gradient: "bg-gradient-to-br from-yellow-100 to-yellow-300",
+    fg: "text-yellow-950",
     iconBg: "bg-yellow-200/60",
     iconFg: "text-yellow-700",
     sparklineColor: "rgb(202 138 4)",
-    trendColor: "text-yellow-700"
+    trendColor: "text-yellow-800"
   },
   purple: {
-    gradient: "bg-gradient-to-br from-purple-50 to-purple-100/80",
-    fg: "text-purple-900",
+    gradient: "bg-gradient-to-br from-purple-100 to-purple-300",
+    fg: "text-purple-950",
     iconBg: "bg-purple-200/60",
     iconFg: "text-purple-700",
     sparklineColor: "rgb(147 51 234)",
-    trendColor: "text-purple-700"
+    trendColor: "text-purple-800"
   },
   orange: {
-    gradient: "bg-gradient-to-br from-orange-50 to-orange-100/80",
-    fg: "text-orange-900",
+    gradient: "bg-gradient-to-br from-orange-100 to-orange-300",
+    fg: "text-orange-950",
     iconBg: "bg-orange-200/60",
     iconFg: "text-orange-700",
     sparklineColor: "rgb(234 88 12)",
-    trendColor: "text-orange-700"
+    trendColor: "text-orange-800"
   },
   red: {
-    gradient: "bg-gradient-to-br from-red-50 to-red-100/80",
-    fg: "text-red-900",
+    gradient: "bg-gradient-to-br from-red-100 to-red-300",
+    fg: "text-red-950",
     iconBg: "bg-red-200/60",
     iconFg: "text-red-700",
     sparklineColor: "rgb(220 38 38)",
-    trendColor: "text-red-700"
+    trendColor: "text-red-800"
   },
   pink: {
-    gradient: "bg-gradient-to-br from-pink-50 to-pink-100/80",
-    fg: "text-pink-900",
+    gradient: "bg-gradient-to-br from-pink-100 to-pink-300",
+    fg: "text-pink-950",
     iconBg: "bg-pink-200/60",
     iconFg: "text-pink-700",
     sparklineColor: "rgb(219 39 119)",
-    trendColor: "text-pink-700"
+    trendColor: "text-pink-800"
   }
 }
 

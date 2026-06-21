@@ -5,6 +5,7 @@
 
 "use client"
 
+import { Filter } from "lucide-react"
 import { useMemo } from "react"
 import type { FunnelStage } from "@/lib/api/rest/dashboard/stats"
 import { BaseChart, type EChartsOption } from "./BaseChart"
@@ -36,6 +37,17 @@ export function FunnelChart({ data, title, className }: FunnelChartProps) {
     }),
     [data, title]
   )
+
+  if (!data.length) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center gap-2 text-muted-foreground ${className ?? "h-full min-h-[200px] w-full"}`}
+      >
+        <Filter className="h-10 w-10 opacity-20" />
+        <span className="text-sm">暂无数据</span>
+      </div>
+    )
+  }
 
   return <BaseChart option={option} className={className} />
 }

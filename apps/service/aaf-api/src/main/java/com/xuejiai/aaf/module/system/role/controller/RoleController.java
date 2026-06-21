@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.system.role.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/roles")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class RoleController
         extends BaseCrudController<Role, RoleVO, RoleCreateDTO, RoleUpdateDTO, RolePageParam> {
 

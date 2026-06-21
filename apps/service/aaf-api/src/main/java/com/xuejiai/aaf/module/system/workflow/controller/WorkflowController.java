@@ -133,7 +133,7 @@ public class WorkflowController {
 
     @Operation(summary = "部署流程定义")
     @PostMapping("/definitions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<String> deploy(@Validated @RequestBody WorkflowDeployDTO dto) {
         return Result.success(workflowService.deployDefinition(dto));
     }

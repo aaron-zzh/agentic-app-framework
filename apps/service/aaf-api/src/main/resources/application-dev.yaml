@@ -64,6 +64,9 @@ aaf:
   license:
     signing:
       private-key-file: ${AAF_LICENSE_KEY_FILE:~/.aaf/signing.key}
+    identity:
+      checksum-salt: ${AAF_LICENSE_CHECKSUM_SALT:aaf-license-user:v1:}
+      seed-salt: ${AAF_LICENSE_SEED_SALT:aaf-license-seed:v1:}
 
 # 示例模块开启后存在 ReActAgent Bean（supervisorAgent 等），可派生 AgentRunner，
 # 因此 dev 下启用 AgentScope A2A Server 暴露 AgentCard（card 内容见 application.yaml）。

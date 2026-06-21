@@ -103,7 +103,7 @@ function ConfigItem({
   onSave: (key: string) => void
   isSaving: boolean
 }) {
-  const draft = drafts[cfg.key] ?? ""
+  const draft = drafts[cfg.configKey] ?? ""
   const current = cfg.value ?? cfg.defaultValue ?? ""
   const dirty = draft !== current
 
@@ -114,12 +114,16 @@ function ConfigItem({
         {cfg.description && (
           <div className="mt-0.5 text-muted-foreground text-xs">{cfg.description}</div>
         )}
-        <div className="mt-0.5 font-mono text-muted-foreground/50 text-xs">{cfg.key}</div>
+        <div className="mt-0.5 font-mono text-muted-foreground/50 text-xs">{cfg.configKey}</div>
       </div>
       <div className="flex items-center gap-2">
-        <ConfigField config={cfg} draft={draft} onChange={(val) => onDraftChange(cfg.key, val)} />
+        <ConfigField
+          config={cfg}
+          draft={draft}
+          onChange={(val) => onDraftChange(cfg.configKey, val)}
+        />
         {cfg.editable && cfg.valueType !== "boolean" && dirty && (
-          <Button size="sm" onClick={() => onSave(cfg.key)} disabled={isSaving}>
+          <Button size="sm" onClick={() => onSave(cfg.configKey)} disabled={isSaving}>
             保存
           </Button>
         )}
@@ -145,7 +149,7 @@ function CategorySection({
         <div className="grid grid-cols-2 gap-3">
           {shortConfigs.map((cfg) => (
             <ConfigItem
-              key={cfg.key}
+              key={cfg.configKey}
               cfg={cfg}
               drafts={drafts}
               onDraftChange={onDraftChange}
@@ -160,7 +164,7 @@ function CategorySection({
         <div className="space-y-3">
           {longConfigs.map((cfg) => (
             <ConfigItem
-              key={cfg.key}
+              key={cfg.configKey}
               cfg={cfg}
               drafts={drafts}
               onDraftChange={onDraftChange}
@@ -201,7 +205,7 @@ export function SystemConfigSettings() {
   if (configs.length > 0 && Object.keys(drafts).length === 0) {
     const initial: Record<string, string> = {}
     configs.forEach((cfg) => {
-      initial[cfg.key] = cfg.value ?? cfg.defaultValue ?? ""
+      initial[cfg.configKey] = cfg.value ?? cfg.defaultValue ?? ""
     })
     setDrafts(initial)
   }
@@ -284,7 +288,7 @@ export function SystemConfigSettings() {
               configs={grouped[currentCategory]}
               drafts={drafts}
               onDraftChange={(key, val) => {
-                const cfg = configs.find((c) => c.key === key)
+                const cfg = configs.find((c) => c.configKey === key)
                 if (cfg?.valueType === "boolean") {
                   handleBooleanChange(key, val)
                 } else {

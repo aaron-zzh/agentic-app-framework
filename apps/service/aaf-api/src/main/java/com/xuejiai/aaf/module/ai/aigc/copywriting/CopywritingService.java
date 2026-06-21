@@ -1,21 +1,28 @@
 package com.xuejiai.aaf.module.ai.aigc.copywriting;
 
+import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletionException;
 
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.content.Media;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MimeType;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
+import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,15 +38,17 @@ public class CopywritingService {
     private final ResilientChatService chatService;
     private final OperatorContext operatorContext;
     private final SystemConfigService systemConfigService;
+    private final VisionMediaResolver visionMediaResolver;
 
     /**
      * 流式生成文案。
      *
-     * @param modelId 显式指定模型（null 则路由决策）
+     * @param modelId 显式指定模型（null 则路由决策；附带参考图时路由会优先选 VISION 模型）
      * @param type 文案类型（oral / xiaohongshu）
      * @param topic 主题或关键词
      * @param template 模板名（可为空）
      * @param length 长度（short / medium / long）
+     * @param referenceImageKeys 参考图 fileKey 列表（OSS 内部 key），可为空；非空时模型按图理解风格、配色、构图
      * @return 文字 token 流
      */
     public Flux<String> generate(
@@ -50,28 +59,50 @@ public class CopywritingService {
             String length,
             String translateTo,
             String referenceAnalysis,
-            String userNotes) {
+            String userNotes,
+            List<String> referenceImageKeys) {
         if (isMockEnabled()) return mockTextStream();
         Long userId = operatorContext.currentUserId().orElse(null);
-        var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
+
+        // 解析参考图：fileKey → 签名 GET URL + mimeType
+        List<VisionAttachment> attachments = visionMediaResolver.resolve(referenceImageKeys);
+        List<Media> media =
+                attachments.stream()
+                        .map(
+                                att ->
+                                        new Media(
+                                                MimeType.valueOf(att.mimeType()),
+                                                URI.create(att.signedUrl())))
+                        .toList();
+
+        // 构造路由上下文：有参考图时设 hasImage=true，让选择器优先选 VISION 模型
+        Map<String, Object> features = null;
+        if (!media.isEmpty()) {
+            features = new HashMap<>();
+            features.put(CapabilityRoutingContext.FEATURE_HAS_IMAGE, true);
+        }
+        var ctx =
+                new CapabilityRoutingContext(
+                        userId, CapabilityRoutingContext.CAP_CHAT, modelId, null, features);
+
+        // 构造 UserMessage：纯文本走 String 构造器；含参考图走 builder（带 media）
+        String prompt =
+                buildGeneratePrompt(
+                        type, topic, template, length, translateTo, referenceAnalysis, userNotes);
+        UserMessage userMessage =
+                media.isEmpty()
+                        ? new UserMessage(prompt)
+                        : UserMessage.builder().text(prompt).media(media).build();
+
         var messages =
-                List.<Message>of(
-                        new SystemMessage(CopywritingConstants.SYS_GENERATE),
-                        new UserMessage(
-                                buildGeneratePrompt(
-                                        type,
-                                        topic,
-                                        template,
-                                        length,
-                                        translateTo,
-                                        referenceAnalysis,
-                                        userNotes)));
+                List.<Message>of(new SystemMessage(CopywritingConstants.SYS_GENERATE), userMessage);
         log.info(
-                "[文案生成] type={}, length={}, translateTo={}, modelId={}",
+                "[文案生成] type={}, length={}, translateTo={}, modelId={}, refImageCount={}",
                 type,
                 length,
                 translateTo,
-                modelId);
+                modelId,
+                media.size());
         return chatService.stream(messages, ctx)
                 .onErrorContinue(
                         com.openai.errors.OpenAIInvalidDataException.class,

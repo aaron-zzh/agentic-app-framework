@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 实体定义管理页面——无代码编辑器 v0.1（Monaco JSON 编辑）
  * @author AaronZZH & Kiro
  */
@@ -76,7 +76,7 @@ export default function EntitiesPage() {
                 setSelected(record)
                 setIsNew(false)
               },
-              onError: (err) => toast.error(`创建失败: ${err.message}`)
+              onError: () => {}
             }
           )
         } else if (selected) {
@@ -84,7 +84,7 @@ export default function EntitiesPage() {
             { id: selected.id, data: { slug, config } },
             {
               onSuccess: () => toast.success("保存成功"),
-              onError: (err) => toast.error(`保存失败: ${err.message}`)
+              onError: () => {}
             }
           )
         }

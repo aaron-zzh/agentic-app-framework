@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.core.decorator;
 import java.util.function.Supplier;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.engine.credit.CreditCallContext;
 import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
@@ -51,12 +52,18 @@ public abstract class AbstractAiServiceDecorator<T extends AiCapability> impleme
     /**
      * 同步调用模板：precheck（含 estimateCost 精确预估）→ call → settleByUsage。
      *
+     * <p>结算成功后，将写入的 creditTxId 通过 {@link CreditCallContext} 暴露给同线程调用方（如
+     * AigcTaskExecutor.submitSync）， 便于业务侧回填 {@code aigc_task.credit_tx_id} 用于后续失败退还。
+     *
      * @param model 已解析的模型（用于积分结算）
      * @param precheck 是否执行前置余额预检
      * @param req 本次调用的请求对象，传给 {@code delegate.estimateCost} 做精确预估；precheck=false 时传 null 即可
      * @param call 实际业务调用
      */
     protected <R> R creditCall(AiModel model, boolean precheck, Object req, Supplier<R> call) {
+        // 0. 清除上次调用残留的 creditTxId，避免污染本次回填
+        CreditCallContext.clear();
+
         // 1. 从安全上下文取当前用户 ID（积分归账依据）
         Long userId = operatorContext.currentOwnerId().orElse(null);
 
@@ -74,12 +81,16 @@ public abstract class AbstractAiServiceDecorator<T extends AiCapability> impleme
         R result = call.get();
 
         // 4. 调用成功后结算：结果若实现了 AiUsage 接口，直接读取标准化用量
-        //    creditGuard.settleByUsage(AiUsage) 内部按 model.quotaType 决定结算方式
+        //    creditGuard.settleByUsage 内部按 model.quotaType 决定结算方式
         //    结算失败仅 warn，不回滚已完成的 AI 调用
         try {
             AiUsage usage = result instanceof AiUsage u ? u : AiUsage.empty();
-            creditGuard.settleByUsage(
-                    userId, model, usage, capability(), delegate.bizRemark(usage));
+            Long creditTxId =
+                    creditGuard.settleByUsageReturningTxId(
+                            userId, model, usage, capability(), delegate.bizRemark(usage));
+            if (creditTxId != null) {
+                CreditCallContext.setLastCreditTxId(creditTxId);
+            }
         } catch (Exception e) {
             log.warn(
                     "积分结算失败，不回滚已完成调用: capability={}, userId={}, err={}",

@@ -116,17 +116,24 @@ export function CounterWidget({ widgetId, title, config, refreshInterval }: Coun
         styles.gradient
       )}
     >
+      {/* 装饰层：shape-square 点阵 SVG，占满卡片，低 opacity 不抢主体 */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-left-bottom bg-no-repeat opacity-25"
+        style={{
+          backgroundImage: "url(/assets/images/svg/shape-square.svg)",
+          backgroundSize: "70%"
+        }}
+      />
+
       <div className="relative flex h-full flex-col p-4">
-        {/* 顶部：图标徽章 + 趋势 */}
+        {/* 顶部：图标 + 趋势 */}
         <div className="flex items-start justify-between gap-2">
-          <div
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm",
-              styles.iconBg
-            )}
-          >
-            <Icon className={cn("h-5 w-5", styles.iconFg)} />
-          </div>
+          <Icon
+            className={cn("h-8 w-8 shrink-0", styles.iconFg)}
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           {trend !== undefined && (
             <div className={cn("flex items-center gap-0.5 font-medium text-xs", styles.trendColor)}>
               {isPositive ? (

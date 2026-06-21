@@ -77,7 +77,7 @@ SELECT 'credit_account', id FROM inserted;
 -- 为测试账户补充 EARN 流水，使 /api/credits/groups 能正确汇总分组余额
 WITH inserted AS (
     INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
-    SELECT ca.id, 'EARN', 999, 999, 'MANUAL', 'MANUAL', 999, false
+    SELECT ca.id, 'EARN', 999, 999, 'manual', 'MANUAL', 999, false
     FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
     WHERE u.username = 'admin'
       AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN')
@@ -88,7 +88,7 @@ SELECT 'credit_transaction', id FROM inserted;
 
 WITH inserted AS (
     INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
-    SELECT ca.id, 'EARN', 50, 50, 'MANUAL', 'SUBSCRIPTION', 50, false
+    SELECT ca.id, 'EARN', 50, 50, 'manual', 'SUBSCRIPTION', 50, false
     FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
     WHERE u.username = 'user1'
       AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN')
@@ -99,7 +99,7 @@ SELECT 'credit_transaction', id FROM inserted;
 
 WITH inserted AS (
     INSERT INTO credit_transaction (account_id, type, amount, balance_after, source, batch_type, remain, deleted)
-    SELECT ca.id, 'EARN', 30, 30, 'MANUAL', 'SUBSCRIPTION', 30, false
+    SELECT ca.id, 'EARN', 30, 30, 'manual', 'SUBSCRIPTION', 30, false
     FROM credit_account ca JOIN sys_user u ON ca.user_id = u.id
     WHERE u.username = 'user2'
       AND NOT EXISTS (SELECT 1 FROM credit_transaction ct WHERE ct.account_id = ca.id AND ct.type = 'EARN')

@@ -23,6 +23,8 @@ interface AigcStore {
   copywritingLength: "short" | "medium" | "long"
   /** 文案模型 */
   copywritingModel: string
+  /** 文案生成参考图（用于视觉理解辅助生成）：key 透传给后端，url 用于前端缩略图预览 */
+  copywritingReferenceImages: Array<{ key: string; url: string; name: string }>
   /** 当前预览的素材 */
   previewAsset: MediaAssetVO | null
   /** 预览素材列表（用于导航） */
@@ -99,6 +101,9 @@ interface AigcStore {
   setCopywritingTranslateTo: (lang: string) => void
   setCopywritingLength: (length: "short" | "medium" | "long") => void
   setCopywritingModel: (model: string) => void
+  addCopywritingReferenceImage: (image: { key: string; url: string; name: string }) => void
+  removeCopywritingReferenceImage: (key: string) => void
+  clearCopywritingReferenceImages: () => void
   setPreviewAsset: (asset: MediaAssetVO | null) => void
   setPreviewList: (list: MediaAssetVO[]) => void
   navigatePreview: (direction: 1 | -1) => void
@@ -144,6 +149,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   copywritingTranslateTo: "",
   copywritingLength: "medium",
   copywritingModel: "",
+  copywritingReferenceImages: [],
   previewAsset: null,
   previewList: [],
   referenceAssets: [],
@@ -182,6 +188,18 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   setCopywritingTranslateTo: (lang) => set({ copywritingTranslateTo: lang }),
   setCopywritingLength: (length) => set({ copywritingLength: length }),
   setCopywritingModel: (model) => set({ copywritingModel: model }),
+  addCopywritingReferenceImage: (image) =>
+    set((state) => {
+      // 上限 4 张：避免视觉 token 占用过大
+      if (state.copywritingReferenceImages.length >= 4) return state
+      if (state.copywritingReferenceImages.some((img) => img.key === image.key)) return state
+      return { copywritingReferenceImages: [...state.copywritingReferenceImages, image] }
+    }),
+  removeCopywritingReferenceImage: (key) =>
+    set((state) => ({
+      copywritingReferenceImages: state.copywritingReferenceImages.filter((img) => img.key !== key)
+    })),
+  clearCopywritingReferenceImages: () => set({ copywritingReferenceImages: [] }),
   setPreviewAsset: (asset) => set({ previewAsset: asset }),
   setPreviewList: (list) => set({ previewList: list }),
   navigatePreview: (direction) =>

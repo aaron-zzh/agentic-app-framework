@@ -66,6 +66,26 @@
     "zh": "中文",
     "en": "English"
   },
+  "userAvatarPopover": {
+    "upgradeButton": "🚀 升级套餐",
+    "viewUsage": "查看用量",
+    "manageAccount": "管理账户",
+    "feedback": "反馈",
+    "logout": "退出登录",
+    "language": "语言",
+    "rechargeTitle": "点击充值",
+    "weeklyRefresh": "每周一 00:00 刷新",
+    "creditGroups": {
+      "MEMBER": "会员积分",
+      "WEEKLY": "每周积分",
+      "REWARD": "奖励积分"
+    },
+    "creditChildren": {
+      "SUBSCRIPTION": "套餐",
+      "TOPUP": "购买积分",
+      "MANUAL": "额外"
+    }
+  },
   "i18nExamples": {
     "title": "i18n / 国际化",
     "subtitle": "基于 next-intl 的语言切换功能",

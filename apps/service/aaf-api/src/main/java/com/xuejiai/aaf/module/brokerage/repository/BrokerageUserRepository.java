@@ -1,7 +1,10 @@
 package com.xuejiai.aaf.module.brokerage.repository;
 
+import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,6 +18,13 @@ public interface BrokerageUserRepository
         extends JpaRepository<BrokerageUser, Long>, JpaSpecificationExecutor<BrokerageUser> {
 
     Optional<BrokerageUser> findByContactId(Long contactId);
+
+    /** 分页查询 referrerContactId 推荐的所有下级（用于"我邀请的好友"列表）。 */
+    Page<BrokerageUser> findByReferrerContactIdOrderByReferrerBindTimeDesc(
+            Long referrerContactId, Pageable pageable);
+
+    /** 一次性获取 referrerContactId 推荐的全部下级 contactId（无分页时使用）。 */
+    List<BrokerageUser> findByReferrerContactId(Long referrerContactId);
 
     /** 原子增加冻结金额（佣金冻结时） */
     @Modifying

@@ -12,7 +12,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum SubscriptionOperationEnum implements ArrayValuable<String> {
     NEW("NEW", "新购"),
-    RENEW("RENEW", "续费");
+    RENEW("RENEW", "续费"),
+    UPGRADE("UPGRADE", "升级");
 
     private final String code;
     private final String label;

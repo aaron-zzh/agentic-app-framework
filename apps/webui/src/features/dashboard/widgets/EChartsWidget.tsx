@@ -14,6 +14,8 @@ import { FunnelChart, RetentionChart, TrendChart } from "@/features/stats/charts
 import type { EChartsWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import type { FunnelStage, TrendPoint } from "@/lib/api/rest/dashboard/stats"
 import { useStatsFunnel, useStatsRetention, useStatsTrend } from "@/lib/queries/use-stats"
+import { cn } from "@/lib/utils/cn"
+import { WIDGET_CARD_CLASS } from "./_shared/styles"
 
 interface EChartsWidgetProps {
   widgetId: string
@@ -72,7 +74,7 @@ export function EChartsWidget({
   const [isMock, setIsMock] = useState(false)
 
   return (
-    <Card className="flex h-full flex-col">
+    <Card className={cn("flex h-full flex-col", WIDGET_CARD_CLASS)}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 font-medium text-sm">
           <Activity className="h-4 w-4 text-muted-foreground" />

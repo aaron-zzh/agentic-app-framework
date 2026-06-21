@@ -248,8 +248,9 @@ public class AuthController {
             @RequestParam String code,
             @RequestParam(defaultValue = "web") String deviceId,
             jakarta.servlet.http.HttpServletRequest request) {
+        // 服务端重定向场景下没有前端 sessionStorage，refCode 走前端 callback 路径
         AuthLoginVO vo =
-                authService.oauthLogin(provider, code, deviceId, "web", getClientIp(request));
+                authService.oauthLogin(provider, code, deviceId, "web", getClientIp(request), null);
         // 重定向到前端登录页，携带 token 参数
         String redirectUrl =
                 frontendUrl
@@ -270,7 +271,12 @@ public class AuthController {
         String deviceId = dto.deviceId() != null ? dto.deviceId() : "web";
         return Result.success(
                 authService.oauthLogin(
-                        provider, dto.code(), deviceId, sourceApp, getClientIp(request)));
+                        provider,
+                        dto.code(),
+                        deviceId,
+                        sourceApp,
+                        getClientIp(request),
+                        dto.referrerCode()));
     }
 
     @Operation(summary = "绑定第三方账号")

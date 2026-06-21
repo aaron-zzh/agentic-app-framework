@@ -51,6 +51,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
+import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { cn } from "@/lib/utils/cn"
 import { DataTablePagination } from "./DataTablePagination"
 
@@ -71,6 +72,8 @@ interface DataTableProps<TData> {
   wordWrap?: boolean
   columnFreeze?: "none" | "first" | "first-two"
   actionColumnFixed?: boolean
+  /** 整行拖到对话的 item 描述，有值时整行可拖放到聊天 */
+  rowDragItem?: (row: TData) => { id: string; title: string; entity: string }
 }
 
 /** 计算左固定列 id 列表 */
@@ -109,7 +112,8 @@ export function DataTable<TData>({
   onPageSizeChange,
   wordWrap = false,
   columnFreeze = "none",
-  actionColumnFixed = true
+  actionColumnFixed = true,
+  rowDragItem
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -241,6 +245,7 @@ export function DataTable<TData>({
                         wordWrap={wordWrap}
                         columnFreeze={columnFreeze}
                         onRowClick={onRowClick}
+                        rowDragItem={rowDragItem}
                       />
                     ))
                 )}
@@ -353,7 +358,8 @@ function DraggableRow<TData>({
   dense,
   wordWrap,
   columnFreeze,
-  onRowClick
+  onRowClick,
+  rowDragItem
 }: {
   row: Row<TData>
   draggable: boolean
@@ -361,6 +367,7 @@ function DraggableRow<TData>({
   wordWrap: boolean
   columnFreeze: "none" | "first" | "first-two"
   onRowClick?: (row: TData) => void
+  rowDragItem?: (row: TData) => { id: string; title: string; entity: string }
 }) {
   const id = (row.original as Record<string, unknown>).id as string
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -370,13 +377,33 @@ function DraggableRow<TData>({
     ? { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
     : undefined
 
+  const dragItem = rowDragItem?.(row.original)
+  const {
+    ref: semanticRef,
+    listeners: semanticListeners,
+    attributes: semanticAttributes
+  } = useSemanticDraggable({
+    id: `row-${id}`,
+    disabled: !dragItem,
+    item: {
+      type: "record",
+      id: dragItem?.id ?? "",
+      title: dragItem?.title ?? "",
+      semantics: { componentName: "ListView", entity: dragItem?.entity ?? "" }
+    }
+  })
+
   return (
     <TableRow
-      ref={draggable ? setNodeRef : undefined}
+      ref={(node) => {
+        if (draggable) setNodeRef(node)
+        if (dragItem) (semanticRef as React.RefCallback<HTMLElement>)(node)
+      }}
       style={style}
       data-state={row.getIsSelected() && "selected"}
       className="group cursor-pointer"
       onClick={() => onRowClick?.(row.original)}
+      {...(dragItem ? { ...semanticAttributes, ...semanticListeners } : {})}
     >
       {row.getVisibleCells().map((cell) => (
         <DataTableCell

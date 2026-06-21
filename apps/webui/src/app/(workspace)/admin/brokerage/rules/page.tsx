@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 佣金规则配置页——规则列表 + 会员等级加成。
  * 手写表格与弹窗表单，复用底层通用 CRUD hooks（useCrudList/Create/Update/Delete）。
  * @author AaronZZH & Kiro
@@ -227,7 +227,7 @@ function RuleSection() {
         toast.success(editingId != null ? "规则已更新" : "规则已创建")
         setOpen(false)
       },
-      onError: (err: Error) => toast.error(err.message ?? "操作失败")
+      onError: () => {}
     }
     if (editingId != null) {
       update({ id: editingId, data }, handlers)
@@ -242,7 +242,7 @@ function RuleSection() {
       { id: rule.id },
       {
         onSuccess: () => toast.success("规则已删除"),
-        onError: (err) => toast.error(err.message ?? "删除失败")
+        onError: () => {}
       }
     )
   }
@@ -583,7 +583,7 @@ function BonusSection() {
         toast.success(editingId != null ? "加成已更新" : "加成已创建")
         setOpen(false)
       },
-      onError: (err: Error) => toast.error(err.message ?? "操作失败")
+      onError: () => {}
     }
     if (editingId != null) {
       update({ id: editingId, data }, handlers)
@@ -598,7 +598,7 @@ function BonusSection() {
       { id: bonus.id },
       {
         onSuccess: () => toast.success("已删除"),
-        onError: (err) => toast.error(err.message ?? "删除失败")
+        onError: () => {}
       }
     )
   }

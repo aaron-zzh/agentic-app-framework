@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ListWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import { useWidgetData } from "@/lib/queries/use-dashboard"
+import { cn } from "@/lib/utils/cn"
+import { WIDGET_CARD_CLASS } from "./_shared/styles"
 
 interface ListWidgetProps {
   widgetId: string
@@ -23,7 +25,7 @@ export function ListWidget({ widgetId, title, config, refreshInterval }: ListWid
 
   if (isLoading) {
     return (
-      <Card className="h-full">
+      <Card className={cn("h-full", WIDGET_CARD_CLASS)}>
         <CardHeader>
           <Skeleton className="h-4 w-24" />
         </CardHeader>
@@ -39,7 +41,7 @@ export function ListWidget({ widgetId, title, config, refreshInterval }: ListWid
   const items = data?.items ?? []
 
   return (
-    <Card className="h-full overflow-hidden">
+    <Card className={cn("h-full overflow-hidden", WIDGET_CARD_CLASS)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-medium text-sm">
           <List className="h-4 w-4 text-muted-foreground" />

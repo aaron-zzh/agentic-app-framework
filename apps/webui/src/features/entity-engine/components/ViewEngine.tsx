@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ViewEngine 核心渲染器——根据 URL 参数选择视图渲染器
  * @author AaronZZH & Kiro
  *
@@ -181,7 +181,7 @@ function ConnectedFormView({
       { id: recordId, data: values },
       {
         onSuccess: () => toast.success(`${entity.label}已保存`),
-        onError: (err) => toast.error(err.message ?? "保存失败")
+        onError: () => {}
       }
     )
   }

@@ -75,4 +75,12 @@ public class AigcTask extends BaseEntity {
     /** 所属项目 ID，NULL 表示全局任务 */
     @Column(name = "project_id")
     private Long projectId;
+
+    /**
+     * 关联积分流水 ID，settleByUsage 成功时回填。
+     *
+     * <p>失败回调（failTask）若非空触发退还（CreditService.refund），见 membership-completion.md F3。
+     */
+    @Column(name = "credit_tx_id")
+    private Long creditTxId;
 }

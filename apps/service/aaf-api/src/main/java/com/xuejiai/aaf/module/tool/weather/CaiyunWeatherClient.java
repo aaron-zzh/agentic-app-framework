@@ -83,8 +83,8 @@ public class CaiyunWeatherClient {
     /**
      * 行政区划查询（经纬度→省市区），仅支持中国大陆。
      *
-     * <p>使用 v3 签名鉴权（{@code x-cy-app-key} header + 签名），与 v2.6 综合接口共用 sign 方法，
-     * 仅 host 不同。控制台开启「强制签名」后 token 模式会被拒绝（403）。
+     * <p>使用 v3 签名鉴权（{@code x-cy-app-key} header + 签名），与 v2.6 综合接口共用 sign 方法， 仅 host 不同。控制台开启「强制签名」后
+     * token 模式会被拒绝（403）。
      *
      * @return 原始 JSON，含 admins 数组（省/市/区）
      */
@@ -126,8 +126,8 @@ public class CaiyunWeatherClient {
     /**
      * v3 接口签名版 GET。
      *
-     * <p>与 v2.6 接口共用签名公式（{@code method:path:query:appKey:nonce:timestamp}），区别在于：
-     * v3 host 为 {@code singer.caiyunhub.com}，且 appKey 通过 {@code x-cy-app-key} header 传递（v2.6 拼在 path 内）。
+     * <p>与 v2.6 接口共用签名公式（{@code method:path:query:appKey:nonce:timestamp}），区别在于： v3 host 为 {@code
+     * singer.caiyunhub.com}，且 appKey 通过 {@code x-cy-app-key} header 传递（v2.6 拼在 path 内）。
      */
     private String getV3Signed(String path, Map<String, String> query) {
         try {

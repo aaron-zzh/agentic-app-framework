@@ -158,11 +158,6 @@ public class DeveloperSubscriptionPlanCrudService
     }
 
     @Override
-    protected String entitySlug() {
-        return "developer-subscription-plan";
-    }
-
-    @Override
     protected String permissionModule() {
         return "developer";
     }

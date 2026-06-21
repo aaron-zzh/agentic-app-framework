@@ -12,7 +12,7 @@ import {
   Sparkles
 } from "lucide-react"
 import type { ReactNode } from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,9 +30,14 @@ import { cn } from "@/lib/utils/cn"
 
 export function LicensePlanBadge({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const { data: license } = useLicenseStatus()
-  const isPremium = license ? license.tier !== "free" : false
+  const isPremium = mounted && license ? license.tier !== "free" : false
   const tier = isPremium ? license?.tier || "Pro" : "体验版"
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <>

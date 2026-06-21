@@ -53,7 +53,7 @@ export default function VoiceGenerationPage() {
       setText("")
       toast.success("配音生成任务已提交")
     },
-    onError: (err) => toast.error((err as Error).message ?? "提交失败")
+    onError: () => {}
   })
 
   useAigcTaskStream({

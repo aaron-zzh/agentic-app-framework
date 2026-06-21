@@ -28,7 +28,7 @@ export function createQueryClient(): QueryClient {
         }
       },
       mutations: {
-        retry: 1
+        retry: 0
       }
     }
   })

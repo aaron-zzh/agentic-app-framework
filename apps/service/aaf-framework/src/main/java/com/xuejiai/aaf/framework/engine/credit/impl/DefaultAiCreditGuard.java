@@ -83,7 +83,13 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     @Override
     public void settleByUsage(
             Long userId, AiModel model, AiUsage usage, String capability, String remark) {
-        if (userId == null) return;
+        settleByUsageReturningTxId(userId, model, usage, capability, remark);
+    }
+
+    @Override
+    public Long settleByUsageReturningTxId(
+            Long userId, AiModel model, AiUsage usage, String capability, String remark) {
+        if (userId == null) return null;
         Long modelId = model != null ? model.getId() : null;
         int quotaType = model != null && model.getQuotaType() != null ? model.getQuotaType() : 0;
 
@@ -105,7 +111,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 creditCost);
 
         Long creditTxId = doSpend(userId, creditCost, capability, remark);
-        if (creditTxId == null && creditCost > 0) return; // 扣减失败，不写用量记录
+        if (creditTxId == null && creditCost > 0) return null; // 扣减失败，不写用量记录
 
         saveUsageRecord(
                 userId, modelId, capability, quotaType, creditCost, costYuan, creditTxId, usage);
@@ -117,6 +123,18 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 creditCost,
                 String.format("%.6f", costYuan),
                 creditTxId);
+        return creditTxId;
+    }
+
+    @Override
+    public Long refund(Long creditTxId, String reason) {
+        if (creditTxId == null) return null;
+        try {
+            return creditService.refund(creditTxId, reason);
+        } catch (Exception e) {
+            log.warn("[refund] 积分退还失败: creditTxId={}, err={}", creditTxId, e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -129,10 +147,9 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
      *   <li>覆盖系统调用开销（哪怕真实成本只有 0.0001 元）
      * </ul>
      *
-     * <p><b>批量场景注意</b>：若一次调用产生多次 settle（如知识库批量 embedding 1000 段），
-     * 每段 token 极少时单段成本 &lt; 1 积分会触发兜底，累计虚高。 <b>调用方必须把 usage 聚合后再调用一次 settleByUsage</b>，
-     * 而不是每个元素调一次。chat 流式已正确实现（{@code ResilientChatService.withStreamUsage} 在 onComplete
-     * 一次性聚合发事件）。
+     * <p><b>批量场景注意</b>：若一次调用产生多次 settle（如知识库批量 embedding 1000 段）， 每段 token 极少时单段成本 &lt; 1
+     * 积分会触发兜底，累计虚高。 <b>调用方必须把 usage 聚合后再调用一次 settleByUsage</b>， 而不是每个元素调一次。chat 流式已正确实现（{@code
+     * ResilientChatService.withStreamUsage} 在 onComplete 一次性聚合发事件）。
      */
     private long[] calcCost(AiModel model, AiUsage usage, int quotaType) {
         int markup = getMarkupRate();

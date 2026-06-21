@@ -15,13 +15,12 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 
 /**
- * {@code @PreAuthorize} 中 {@code hasRole(...)} / {@code hasAnyRole(...)} 的角色字面量必须全大写 +
- * 下划线。
+ * {@code @PreAuthorize} 中 {@code hasRole(...)} / {@code hasAnyRole(...)} 的角色字面量必须全大写 + 下划线。
  *
  * <p>背景：JWT 中的 role code 经 {@code SecurityConfig#toRoleAuthority} 处理时强制 {@code
  * toUpperCase().replace('-', '_')}，最终 authority 形如 {@code ROLE_SUPER_ADMIN}。 Spring Security 的
- * {@code hasRole('xxx')} 仅会前缀拼接为 {@code ROLE_xxx} 不做大小写转换， 因此注解里写小写（如
- * {@code hasRole('super_admin')}）会与 token authority 不匹配，导致拥有该角色的用户被 403。
+ * {@code hasRole('xxx')} 仅会前缀拼接为 {@code ROLE_xxx} 不做大小写转换， 因此注解里写小写（如 {@code
+ * hasRole('super_admin')}）会与 token authority 不匹配，导致拥有该角色的用户被 403。
  *
  * <p>示例：
  *
@@ -100,6 +99,7 @@ class PreAuthorizeRoleCaseTest {
                     .areAnnotatedWith(PREAUTHORIZE)
                     .should(HAVE_UPPERCASE_ROLE_LITERALS)
                     .as("@PreAuthorize 中 hasRole/hasAnyRole 的角色字面量必须为大写 + 下划线")
-                    .because("Spring Security hasRole 不做大小写转换，与 toRoleAuthority toUpperCase 后的"
-                            + " authority 必须严格一致，否则授权失败");
+                    .because(
+                            "Spring Security hasRole 不做大小写转换，与 toRoleAuthority toUpperCase 后的"
+                                    + " authority 必须严格一致，否则授权失败");
 }

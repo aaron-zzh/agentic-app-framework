@@ -5,6 +5,7 @@
 
 "use client"
 
+import { TrendingUp } from "lucide-react"
 import { useMemo } from "react"
 import { BaseChart, type EChartsOption } from "./BaseChart"
 
@@ -64,6 +65,17 @@ export function MultiSeriesLineChart({
     }),
     [categories, series, title, yAxisName, dataZoom]
   )
+
+  if (!series.length || !categories.length) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center gap-2 text-muted-foreground ${className ?? "h-full min-h-[200px] w-full"}`}
+      >
+        <TrendingUp className="h-10 w-10 opacity-20" />
+        <span className="text-sm">暂无数据</span>
+      </div>
+    )
+  }
 
   return <BaseChart option={option} className={className ?? "h-full min-h-[200px] w-full"} />
 }

@@ -58,9 +58,9 @@ public class StatsController {
                         .anyMatch(
                                 a ->
                                         java.util.Set.of(
-                                                        "ROLE_admin",
-                                                        "ROLE_super_admin",
-                                                        "ROLE_org_admin")
+                                                        "ROLE_ADMIN",
+                                                        "ROLE_SUPER_ADMIN",
+                                                        "ROLE_ORG_ADMIN")
                                                 .contains(a.getAuthority()));
     }
 

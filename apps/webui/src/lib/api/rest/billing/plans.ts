@@ -62,18 +62,44 @@ export interface PayOrderVO {
   codeUrl?: string
 }
 
+/** 当前订阅信息 */
+export interface SubscriptionVO {
+  id: number
+  planCode: string | null
+  planName: string | null
+  startAt: string
+  endAt: string | null
+  status: string
+}
+
+/** 用户权益额度 */
+export interface EntitlementQuotaVO {
+  id: number
+  code: string | null
+  name: string | null
+  type: "BOOLEAN" | "COUNTABLE" | null
+  unit: string | null
+  total: number
+  used: number
+  remain: number
+  nextResetAt: string | null
+}
+
 export const billingPlansApi = {
   /** 获取所有启用的订阅套餐（含权益列表） */
   getPlans: () => request<SubscriptionPlanVO[]>("/billing/subscription/plans"),
 
+  /** 获取当前用户的有效订阅，无订阅返回 null */
+  getCurrentSubscription: () => request<SubscriptionVO | null>("/billing/subscription/current"),
+
   /** 获取积分充值套餐列表 */
   getCreditPackages: () => request<CreditPackageVO[]>("/billing/credit-packages"),
 
-  /** 购买订阅套餐 */
-  subscribe: (planCode: string, billingCycle: "monthly" | "yearly") =>
-    request<{ orderNo: string }>("/billing/subscribe", {
+  /** 购买订阅套餐，返回支付单（免费套餐直接激活返回 null） */
+  subscribe: (planCode: string, billingCycle: "monthly" | "yearly", channelCode: string) =>
+    request<PayOrderVO | null>("/billing/subscription/subscribe", {
       method: "POST",
-      body: JSON.stringify({ planCode, billingCycle })
+      body: JSON.stringify({ planCode, billingCycle, channelCode })
     }),
 
   /** 购买积分套餐，返回支付单（含 codeUrl） */
@@ -81,5 +107,8 @@ export const billingPlansApi = {
     request<PayOrderVO>("/billing/credit-packages/purchase", {
       method: "POST",
       body: JSON.stringify({ packageId, channelCode: channelCode ?? "MOCK" })
-    })
+    }),
+
+  /** 获取当前用户所有权益额度 */
+  getEntitlementQuotas: () => request<EntitlementQuotaVO[]>("/billing/entitlement/quotas")
 }

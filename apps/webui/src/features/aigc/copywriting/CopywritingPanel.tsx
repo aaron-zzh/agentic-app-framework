@@ -16,6 +16,7 @@ import { useAigcStore } from "../store"
 import { CopywritingEditor } from "./CopywritingEditor"
 import { CopywritingHeader } from "./CopywritingHeader"
 import { CopywritingParamsBar } from "./CopywritingParamsBar"
+import { CopywritingReferenceImages } from "./CopywritingReferenceImages"
 import type { CopywritingAction } from "./types"
 import { useCopywriting } from "./use-copywriting"
 import { usePanelResize } from "./use-panel-resize"
@@ -144,11 +145,14 @@ export function CopywritingPanel({ actions, projectId }: Props) {
                 onBack={() => setViralStep(viralStep === 3 ? 2 : 1)}
               />
             ) : (
-              <CopywritingEditor
-                value={content}
-                onChange={setContent}
-                editorRef={streamingEditorRef}
-              />
+              <>
+                <CopywritingReferenceImages />
+                <CopywritingEditor
+                  value={content}
+                  onChange={setContent}
+                  editorRef={streamingEditorRef}
+                />
+              </>
             )}
           </div>
 

@@ -27,8 +27,11 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /** AIGC 创作项目接口。 */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 创作项目")
 @RestController
 @RequestMapping("/api/aigc/projects")

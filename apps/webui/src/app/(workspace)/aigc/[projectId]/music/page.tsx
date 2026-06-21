@@ -54,7 +54,7 @@ export default function MusicGenerationPage() {
       setLyrics("")
       toast.success("音乐生成任务已提交")
     },
-    onError: (err) => toast.error((err as Error).message ?? "提交失败")
+    onError: () => {}
   })
 
   useAigcTaskStream({

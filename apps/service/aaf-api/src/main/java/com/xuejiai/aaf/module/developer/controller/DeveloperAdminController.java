@@ -34,7 +34,7 @@ public class DeveloperAdminController {
     private final DeveloperSubscriptionService subscriptionService;
 
     @Operation(summary = "生成开发者 Token 兑换码")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/redeem-codes")
     public Result<DeveloperRedeemCodeCreateVO> createRedeemCode(
             @Valid @RequestBody DeveloperRedeemCodeCreateDTO dto) {
@@ -42,7 +42,7 @@ public class DeveloperAdminController {
     }
 
     @Operation(summary = "为指定用户开通或调整开发者订阅")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/accounts/{userId}/subscribe")
     public Result<Long> subscribeUser(
             @PathVariable Long userId, @Valid @RequestBody DeveloperSubscribeDTO dto) {

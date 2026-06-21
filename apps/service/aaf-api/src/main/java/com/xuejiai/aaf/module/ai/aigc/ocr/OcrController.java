@@ -20,12 +20,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * OCR 文字识别接口。
  *
  * <p>积分预检与结算由 {@link com.xuejiai.aaf.framework.engine.credit.AiCreditAspect} 切面统一处理。
  */
+@FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "OCR 文字识别")
 @RestController
 @RequestMapping("/api/ai/ocr")

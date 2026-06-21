@@ -180,8 +180,7 @@ public class SecurityConfig {
                                         .hasRole("ADMIN")
                                         .anyRequest()
                                         .authenticated())
-                .exceptionHandling(
-                        ex -> ex.accessDeniedHandler(accessDeniedHandler))
+                .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler))
                 .oauth2ResourceServer(
                         oauth2 ->
                                 oauth2.jwt(

@@ -21,6 +21,7 @@ export function useCopywriting(projectId?: number) {
   const translateTo = useAigcStore((s) => s.copywritingTranslateTo)
   const length = useAigcStore((s) => s.copywritingLength)
   const model = useAigcStore((s) => s.copywritingModel)
+  const referenceImages = useAigcStore((s) => s.copywritingReferenceImages)
 
   const [generating, setGenerating] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
@@ -79,7 +80,9 @@ export function useCopywriting(projectId?: number) {
         template,
         length,
         translateTo: translateTo || undefined,
-        modelId: model || undefined
+        modelId: model || undefined,
+        referenceImageKeys:
+          referenceImages.length > 0 ? referenceImages.map((img) => img.key) : undefined
       },
       {
         onChunk: (chunk) => {

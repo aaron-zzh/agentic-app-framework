@@ -69,11 +69,6 @@ public class AigcStoryboardService
     }
 
     @Override
-    protected String entitySlug() {
-        return "aigc-storyboard";
-    }
-
-    @Override
     protected AigcStoryboardVO toVO(AigcStoryboard e) {
         var vo = new AigcStoryboardVO();
         vo.setId(e.getId());

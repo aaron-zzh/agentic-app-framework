@@ -90,7 +90,7 @@ export default function AigcThreeDPage() {
       setPrompt("")
       toast.success("3D 生成任务已提交")
     },
-    onError: (err) => toast.error((err as Error).message ?? "提交失败")
+    onError: () => {}
   })
 
   useAigcTaskStream({

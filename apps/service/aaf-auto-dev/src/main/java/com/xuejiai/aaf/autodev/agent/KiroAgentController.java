@@ -69,7 +69,7 @@ public class KiroAgentController {
     // ========== 端点 ==========
 
     @Operation(summary = "启动 Kiro Agent 运行")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/run")
     public SseEmitter run(
             @RequestBody @Valid KiroRunRequest request,

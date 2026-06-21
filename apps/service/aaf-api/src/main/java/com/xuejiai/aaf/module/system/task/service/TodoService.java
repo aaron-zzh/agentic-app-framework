@@ -100,11 +100,6 @@ public class TodoService
         return "待办";
     }
 
-    @Override
-    protected String entitySlug() {
-        return "todo";
-    }
-
     /** 查询指定实体的待办列表（ActivityStream 用） */
     public List<TodoVO> listByEntity(String sourceEntity, Long sourceId) {
         Specification<Todo> spec =

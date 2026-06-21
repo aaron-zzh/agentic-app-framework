@@ -25,14 +25,14 @@ public class CreditTokenRuleController {
     private final CreditTokenRuleService ruleService;
 
     @Operation(summary = "创建规则")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping
     public Result<CreditTokenRuleVO> create(@Valid @RequestBody CreditTokenRuleDTO dto) {
         return Result.success(ruleService.create(dto));
     }
 
     @Operation(summary = "更新规则")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PutMapping("/{id}")
     public Result<CreditTokenRuleVO> update(
             @PathVariable Long id, @Valid @RequestBody CreditTokenRuleDTO dto) {
@@ -40,7 +40,7 @@ public class CreditTokenRuleController {
     }
 
     @Operation(summary = "删除规则")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         ruleService.delete(id);

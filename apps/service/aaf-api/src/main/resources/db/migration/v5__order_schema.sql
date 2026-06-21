@@ -436,6 +436,11 @@ CREATE TABLE billing_subscription (
     status          VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE',
     source_id       BIGINT,
     last_credit_issued_at TIMESTAMP(6),
+    auto_renew            BOOLEAN      NOT NULL DEFAULT TRUE,
+    cancelled_at          TIMESTAMP(6),
+    pending_plan_id       BIGINT,
+    pending_yearly        BOOLEAN      NOT NULL DEFAULT FALSE,
+    last_reminder_at      TIMESTAMP(6),
     owner_id        BIGINT,
     create_by       BIGINT,
     create_by_type  VARCHAR(16),
@@ -451,6 +456,11 @@ CREATE TABLE billing_subscription (
 COMMENT ON TABLE billing_subscription IS '用户订阅实例';
 COMMENT ON COLUMN billing_subscription.status IS 'ACTIVE/EXPIRED/CANCELLED';
 COMMENT ON COLUMN billing_subscription.last_credit_issued_at IS '上次月度积分发放时间';
+COMMENT ON COLUMN billing_subscription.auto_renew       IS '自动续费意图位：FALSE=用户已取消，到期不续费';
+COMMENT ON COLUMN billing_subscription.cancelled_at     IS '用户主动取消时间；NULL=未取消。取消后 status 仍 ACTIVE 直到 end_at';
+COMMENT ON COLUMN billing_subscription.pending_plan_id  IS '排队待切换的下一套餐 ID（降级用）；end_at 到期时若非空，自动激活该套餐';
+COMMENT ON COLUMN billing_subscription.pending_yearly   IS '排队待切换是否年付（与 pending_plan_id 配套）';
+COMMENT ON COLUMN billing_subscription.last_reminder_at IS '最近一次到期前提醒发送时间，幂等防止重复发送';
 
 CREATE INDEX idx_subscription_user ON billing_subscription(user_id, status) WHERE deleted = FALSE;
 
@@ -706,6 +716,8 @@ CREATE TABLE IF NOT EXISTS ai_usage_record (
     credit_tx_id    BIGINT,
     usage           JSONB,
     raw_usage       JSONB,
+    client_ip       VARCHAR(64),
+    user_agent      VARCHAR(255),
     create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -720,4 +732,6 @@ COMMENT ON COLUMN ai_usage_record.cost_yuan      IS '本次实际成本（元）
 COMMENT ON COLUMN ai_usage_record.credit_amount  IS '扣减积分数';
 COMMENT ON COLUMN ai_usage_record.credit_tx_id   IS '关联 credit_transaction.id';
 COMMENT ON COLUMN ai_usage_record.usage          IS '标准化用量 jsonb，按 quota_type 解释';
+COMMENT ON COLUMN ai_usage_record.client_ip      IS '调用方 IP，用于事后审计与防刷分析';
+COMMENT ON COLUMN ai_usage_record.user_agent     IS '调用方 UA，用于事后审计与防刷分析';
 COMMENT ON COLUMN ai_usage_record.raw_usage      IS '供应商原始 usage 字段，原样存储';

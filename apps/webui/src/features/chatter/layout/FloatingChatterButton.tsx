@@ -20,7 +20,7 @@ import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 
-const BUTTON_SIZE = 100
+const BUTTON_SIZE = 140
 const DRAG_THRESHOLD = 5
 
 /** CHAT 节流键：sessionStorage（同 tab 内不重复） */
@@ -101,14 +101,20 @@ export function FloatingChatterButton(props: FloatingChatterButtonProps) {
       onPointerCancel={handlePointerUp}
       onClick={handleClick}
       style={{ right: buttonPos.right, bottom: buttonPos.bottom }}
-      className="fixed z-50 flex size-[100px] cursor-pointer touch-none select-none items-center justify-center text-primary"
+      className="fixed z-50 flex size-[140px] cursor-pointer touch-none select-none items-center justify-center text-primary"
       aria-label={open ? "关闭助理" : "打开助理"}
     >
       <span
         data-state={open ? "open" : "closed"}
         className="absolute transition-all data-[state=open]:rotate-90 data-[state=closed]:scale-100 data-[state=open]:scale-0"
       >
-        <LottieIcon name="robot" width={100} height={100} loop={false} playOnHover />
+        <LottieIcon
+          name="robot"
+          width={BUTTON_SIZE}
+          height={BUTTON_SIZE}
+          loop={false}
+          playOnHover
+        />
       </span>
       <span
         data-state={open ? "open" : "closed"}

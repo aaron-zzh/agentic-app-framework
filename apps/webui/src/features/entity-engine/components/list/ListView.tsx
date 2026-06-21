@@ -8,7 +8,6 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { paths } from "@/lib/constants/paths"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { useUIStore } from "@/lib/store/ui-store"
@@ -147,6 +146,13 @@ export function ListView({
       wordWrap={viewSettings?.wordWrap ?? false}
       columnFreeze={viewSettings?.columnFreeze ?? "none"}
       actionColumnFixed={viewSettings?.actionColumnFixed ?? true}
+      rowDragItem={(row) => {
+        const r = row as Record<string, unknown>
+        const id = r.id as string
+        if (!id) return undefined as never
+        const title = (r.name ?? r.title ?? id) as string
+        return { id, title: `${entity.label}: ${title}`, entity: entity.slug }
+      }}
       onRowClick={(row) => {
         const id = row.id as string
         if (!id) return
@@ -171,7 +177,7 @@ export function ListView({
 function RowActions({
   row,
   entitySlug,
-  entityLabel,
+  entityLabel: _entityLabel,
   queryToken
 }: {
   row: Record<string, unknown>
@@ -181,30 +187,9 @@ function RowActions({
 }) {
   const router = useRouter()
   const id = row.id as string
-  const title = (row.name ?? row.title ?? id) as string
-
-  const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
-    id: `row-${entitySlug}-${id}`,
-    item: {
-      type: "record",
-      id,
-      title: `${entityLabel}: ${title}`,
-      semantics: { componentName: "ListView", entity: entitySlug }
-    }
-  })
 
   return (
     <div className="flex items-center gap-1">
-      <span
-        ref={ref}
-        {...listeners}
-        {...attributes}
-        className="cursor-grab rounded px-1 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
-        style={{ opacity: isDragging ? 0.5 : 1 }}
-        title="拖放到对话"
-      >
-        ⋮⋮
-      </span>
       <button
         type="button"
         className="rounded px-2 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"

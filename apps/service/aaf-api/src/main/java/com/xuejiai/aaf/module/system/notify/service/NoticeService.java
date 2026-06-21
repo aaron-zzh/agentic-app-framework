@@ -93,11 +93,6 @@ public class NoticeService
         return "通知公告";
     }
 
-    @Override
-    protected String entitySlug() {
-        return "notice";
-    }
-
     /** 发布公告 */
     @Transactional
     public NoticeVO publish(Long id) {

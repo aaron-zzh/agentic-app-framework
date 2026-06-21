@@ -374,3 +374,118 @@ CREATE INDEX IF NOT EXISTS idx_ai_workflow_run_stats
 --
 -- 清理过期数据（每日执行）:
 --   SELECT cleanup_aigc_task_trend_stats(30);
+
+
+
+-- =====================================================
+-- 仪表盘预设模板 (Dashboard Presets)
+-- =====================================================
+-- 与统计视图同主题归档：8 个内置预设包含的 widget 配置消费上面的统计视图与
+-- 预聚合表，故 preset 数据在此一并初始化。
+--
+-- 布局已应用紧凑化调整：
+--   * personal / admin / brokerage / marketing 的 counter 卡片高度 h:3 → h:2
+--   * personal preset 顺序：counter 顶部 → shortcut 中间 → echarts 底部
+-- 重新初始化数据库时直接拿到最终态布局，无需后续 update 迁移。
+
+INSERT INTO sys_dashboard_preset (preset_key, name, description, admin_only, refresh_interval, sort_order, widgets)
+VALUES
+
+-- 1. 个人工作台（普通用户默认）—— counter 顶 / shortcut 金刚区 / echarts
+('personal', '个人工作台', '快捷入口、积分余额、AI 创作统计', FALSE, 300, 0,
+'[
+  {"id":"personal-credits","type":"counter","title":"积分余额","position":{"x":0,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@total_credit","aggregation":"count","icon":"credit-card","color":"yellow"}},
+  {"id":"personal-assets","type":"counter","title":"我的素材","position":{"x":3,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"media_asset","aggregation":"count","icon":"image","color":"purple"}},
+  {"id":"personal-aigc-tasks","type":"counter","title":"生成任务","position":{"x":6,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"aigc_task","aggregation":"count","icon":"wand-2","color":"blue"}},
+  {"id":"personal-knowledge","type":"counter","title":"知识库数量","position":{"x":9,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"ai_knowledge_base","aggregation":"count","icon":"database","color":"green"}},
+  {"id":"personal-shortcuts","type":"shortcut","title":"快捷入口","position":{"x":0,"y":2,"w":12,"h":2},"config":{"type":"shortcut","items":[{"label":"AI 创作","href":"/aigc","icon":"sparkles"},{"label":"素材库","href":"/aigc/assets","icon":"image"},{"label":"知识库","href":"/knowledge","icon":"database"},{"label":"设置","href":"/settings","icon":"settings"}]}},
+  {"id":"personal-billing-overview","type":"billing","title":"积分总览","position":{"x":0,"y":4,"w":8,"h":7},"config":{"type":"billing","component":"overview"}},
+  {"id":"personal-billing-category","type":"billing","title":"积分消耗分类","position":{"x":8,"y":4,"w":4,"h":7},"config":{"type":"billing","component":"expenses-category"}},
+  {"id":"personal-billing-multi-series","type":"billing","title":"30 天积分动态","position":{"x":0,"y":11,"w":12,"h":6},"config":{"type":"billing","component":"multi-series-chart"}},
+  {"id":"personal-billing-transactions","type":"billing","title":"积分流水","position":{"x":0,"y":17,"w":12,"h":6},"config":{"type":"billing","component":"transaction-list","limit":10}}
+]'),
+
+-- 2. 运营总览（管理员默认）—— 8 counter 紧凑 + 2 echarts
+('admin', '运营总览', '注册用户、付费会员、订单、积分等核心运营指标', TRUE, 300, 1,
+'[
+  {"id":"admin-user-count","type":"counter","title":"注册用户","position":{"x":0,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@user_count","aggregation":"count","icon":"users","color":"blue"}},
+  {"id":"admin-paid-member","type":"counter","title":"付费会员","position":{"x":3,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@paid_member","aggregation":"count","icon":"badge-check","color":"yellow"}},
+  {"id":"admin-order-count","type":"counter","title":"订单数","position":{"x":6,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@order_count","aggregation":"count","icon":"receipt","color":"green"}},
+  {"id":"admin-order-amount","type":"counter","title":"订单总额（分）","position":{"x":9,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@order_amount","aggregation":"sum","icon":"credit-card","color":"purple"}},
+  {"id":"admin-total-credit","type":"counter","title":"积分总量","position":{"x":0,"y":2,"w":3,"h":2},"config":{"type":"counter","entity":"@total_credit","aggregation":"sum","icon":"credit-card","color":"orange"}},
+  {"id":"admin-spent-credit","type":"counter","title":"已消耗积分","position":{"x":3,"y":2,"w":3,"h":2},"config":{"type":"counter","entity":"@spent_credit","aggregation":"sum","icon":"credit-card","color":"red"}},
+  {"id":"admin-aigc-task","type":"counter","title":"AIGC 任务数","position":{"x":6,"y":2,"w":3,"h":2},"config":{"type":"counter","entity":"aigc_task","aggregation":"count","icon":"wand-2","color":"blue"}},
+  {"id":"admin-kb-count","type":"counter","title":"知识库数量","position":{"x":9,"y":2,"w":3,"h":2},"config":{"type":"counter","entity":"ai_knowledge_base","aggregation":"count","icon":"database","color":"green"}},
+  {"id":"admin-dau-trend","type":"echarts","title":"DAU 趋势","position":{"x":0,"y":4,"w":6,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"line","metric":"dau","period":"day"}},
+  {"id":"admin-revenue-trend","type":"echarts","title":"收入趋势","position":{"x":6,"y":4,"w":6,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"bar","metric":"revenue","period":"day"}}
+]'),
+
+-- 3. 运营仪表盘
+('operations', '运营仪表盘', 'DAU/MAU 趋势、用户漏斗、留存率分析', TRUE, 60, 2,
+'[
+  {"id":"ops-dau-trend","type":"echarts","title":"DAU 趋势","position":{"x":0,"y":0,"w":6,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"line","metric":"dau","period":"day"}},
+  {"id":"ops-mau-trend","type":"echarts","title":"MAU 趋势","position":{"x":6,"y":0,"w":6,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"bar","metric":"mau","period":"month"}},
+  {"id":"ops-funnel","type":"echarts","title":"用户行为漏斗","position":{"x":0,"y":4,"w":6,"h":4},"config":{"type":"echarts","statsType":"funnel"}},
+  {"id":"ops-retention","type":"echarts","title":"用户留存率","position":{"x":6,"y":4,"w":6,"h":4},"config":{"type":"echarts","statsType":"retention"}}
+]'),
+
+-- 4. 技术仪表盘
+('tech', '技术仪表盘', 'API 调用量、错误率、响应时间监控', TRUE, 30, 3,
+'[
+  {"id":"tech-api-calls","type":"echarts","title":"API 调用量","position":{"x":0,"y":0,"w":8,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"line","metric":"api_calls","period":"hour"}},
+  {"id":"tech-error-rate","type":"echarts","title":"错误率","position":{"x":8,"y":0,"w":4,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"bar","metric":"error_rate","period":"hour"}},
+  {"id":"tech-latency","type":"echarts","title":"平均响应时间","position":{"x":0,"y":4,"w":6,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"line","metric":"avg_latency","period":"hour"}},
+  {"id":"tech-active-users","type":"counter","title":"在线用户","position":{"x":6,"y":4,"w":3,"h":2},"config":{"type":"counter","entity":"@user_count","aggregation":"count","icon":"users","color":"blue"}},
+  {"id":"tech-uptime","type":"progress","title":"系统可用率","position":{"x":9,"y":4,"w":3,"h":2},"config":{"type":"progress","label":"可用率","current":99.9,"target":100}}
+]'),
+
+-- 5. 财务仪表盘
+('finance', '财务仪表盘', '收入趋势、订阅转化、Token 消耗', TRUE, 300, 4,
+'[
+  {"id":"fin-revenue","type":"echarts","title":"收入趋势","position":{"x":0,"y":0,"w":8,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"bar","metric":"revenue","period":"day"}},
+  {"id":"fin-conversion","type":"echarts","title":"订阅转化漏斗","position":{"x":8,"y":0,"w":4,"h":4},"config":{"type":"echarts","statsType":"funnel"}},
+  {"id":"fin-token-usage","type":"echarts","title":"Token 消耗趋势","position":{"x":0,"y":4,"w":6,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"line","metric":"token_usage","period":"day"}},
+  {"id":"fin-arpu","type":"echarts","title":"ARPU 趋势","position":{"x":6,"y":4,"w":6,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"line","metric":"arpu","period":"month"}}
+]'),
+
+-- 6. 金融仪表盘
+('banking', '金融仪表盘', '账户余额、收支趋势、支出分类、近期交易', TRUE, 300, 5,
+'[
+  {"id":"bank-overview","type":"finance","title":"总览","position":{"x":0,"y":0,"w":8,"h":7},"config":{"type":"finance","component":"overview"}},
+  {"id":"bank-current-balance","type":"finance","title":"当前余额","position":{"x":8,"y":0,"w":4,"h":4},"config":{"type":"finance","component":"card-carousel"}},
+  {"id":"bank-balance-stats","type":"finance","title":"Balance statistics","position":{"x":0,"y":7,"w":8,"h":6},"config":{"type":"finance","component":"multi-series-chart"}},
+  {"id":"bank-expenses","type":"finance","title":"Expenses categories","position":{"x":8,"y":4,"w":4,"h":6},"config":{"type":"finance","component":"expenses-category"}},
+  {"id":"bank-transactions","type":"finance","title":"Recent transitions","position":{"x":0,"y":13,"w":8,"h":5},"config":{"type":"finance","component":"transaction-list"}}
+]'),
+
+-- 7. 分销仪表盘
+('brokerage', '分销仪表盘', '分销员规模、佣金发放趋势、提现状态、邀请来源构成', TRUE, 300, 6,
+'[
+  {"id":"bkr-total-brokers","type":"counter","title":"分销员总数","position":{"x":0,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@brokerage_broker_count","aggregation":"count","icon":"users","color":"blue"}},
+  {"id":"bkr-month-amount","type":"counter","title":"本月佣金发放（分）","position":{"x":3,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@brokerage_month_amount","aggregation":"sum","icon":"percent","color":"green"}},
+  {"id":"bkr-pending-withdraw","type":"counter","title":"待审核提现","position":{"x":6,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@brokerage_pending_withdraw","aggregation":"count","icon":"banknote","color":"orange"}},
+  {"id":"bkr-invite-binds","type":"counter","title":"邀请绑定总次数","position":{"x":9,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@brokerage_invite_binds","aggregation":"count","icon":"link","color":"purple"}},
+  {"id":"bkr-amount-trend","type":"echarts","title":"佣金发放趋势（按业务类型）","position":{"x":0,"y":2,"w":8,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"bar","metric":"brokerage_amount","period":"day","stacked":true}},
+  {"id":"bkr-broker-trend","type":"echarts","title":"新增分销员趋势","position":{"x":8,"y":2,"w":4,"h":4},"config":{"type":"echarts","statsType":"trend","chartType":"line","metric":"brokerage_new_broker","period":"day"}},
+  {"id":"bkr-status-pie","type":"echarts","title":"佣金流水状态分布","position":{"x":0,"y":6,"w":4,"h":4},"config":{"type":"echarts","statsType":"distribution","chartType":"pie","metric":"brokerage_record_status"}},
+  {"id":"bkr-biz-pie","type":"echarts","title":"佣金来源构成","position":{"x":4,"y":6,"w":4,"h":4},"config":{"type":"echarts","statsType":"distribution","chartType":"pie","metric":"brokerage_biz_type"}},
+  {"id":"bkr-withdraw-pie","type":"echarts","title":"提现状态分布","position":{"x":8,"y":6,"w":4,"h":4},"config":{"type":"echarts","statsType":"distribution","chartType":"pie","metric":"brokerage_withdraw_status"}}
+]'),
+
+-- 8. 营销看板——访客线索 (ops_guest_lead) 多渠道指标可视化
+--    数据源：ops_guest_lead 表（VISIT/CHAT/NEWSLETTER/CONTACT/FEEDBACK 5 个 channel）+ DashboardService 中的 @lead_xxx 预定义指标
+--    注：lead 数据量级较小，直接 GROUP BY 即可，不建预聚合视图
+('marketing', '营销看板', '访客访问、对话意向、邮箱订阅、联系留言、用户反馈等多渠道指标', TRUE, 300, 7,
+'[
+  {"id":"mkt-total","type":"counter","title":"线索总数","position":{"x":0,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"ops_guest_lead","aggregation":"count","icon":"users","color":"blue"}},
+  {"id":"mkt-visit","type":"counter","title":"访客访问","position":{"x":3,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@lead_visit","aggregation":"count","icon":"globe","color":"cyan"}},
+  {"id":"mkt-chat","type":"counter","title":"对话意向","position":{"x":6,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@lead_chat","aggregation":"count","icon":"message-circle","color":"green"}},
+  {"id":"mkt-newsletter","type":"counter","title":"邮箱订阅","position":{"x":9,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@lead_newsletter","aggregation":"count","icon":"mail","color":"yellow"}},
+  {"id":"mkt-contact","type":"counter","title":"联系留言","position":{"x":0,"y":2,"w":3,"h":2},"config":{"type":"counter","entity":"@lead_contact","aggregation":"count","icon":"phone","color":"purple"}},
+  {"id":"mkt-feedback","type":"counter","title":"用户反馈","position":{"x":3,"y":2,"w":3,"h":2},"config":{"type":"counter","entity":"@lead_feedback","aggregation":"count","icon":"message-square","color":"orange"}},
+  {"id":"mkt-channel-dist","type":"chart","title":"渠道分布","position":{"x":6,"y":2,"w":6,"h":4},"config":{"type":"chart","entity":"ops_guest_lead","xField":"channel","yField":"id"}},
+  {"id":"mkt-status-dist","type":"chart","title":"处理状态分布","position":{"x":0,"y":6,"w":6,"h":4},"config":{"type":"chart","entity":"ops_guest_lead","xField":"status","yField":"id"}},
+  {"id":"mkt-recent-leads","type":"list","title":"最近线索（10 条）","position":{"x":6,"y":6,"w":6,"h":4},"config":{"type":"list","entity":"ops_guest_lead","columns":["id","channel","email","region","create_time"],"limit":10}}
+]')
+
+ON CONFLICT DO NOTHING;
