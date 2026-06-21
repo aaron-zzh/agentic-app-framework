@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { systemConfigApi } from "@/lib/api/rest/system/config"
 
 /** FAQ 条目类型 */
@@ -13,6 +13,28 @@ export function useSystemConfigs(category: string) {
     queryKey: ["system-configs", category],
     queryFn: () => systemConfigApi.listByCategory(category),
     staleTime: 10 * 60 * 1000
+  })
+}
+
+/** 查询全部系统配置（管理后台用） */
+export function useAllSystemConfigs() {
+  return useQuery({
+    queryKey: ["system-configs", "*"],
+    queryFn: () => systemConfigApi.listAll(),
+    staleTime: 5 * 60 * 1000
+  })
+}
+
+/** 更新系统配置 */
+export function useUpdateSystemConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) =>
+      systemConfigApi.update(key, value),
+    onSuccess: () => {
+      // 清除所有分类缓存
+      queryClient.invalidateQueries({ queryKey: ["system-configs"] })
+    }
   })
 }
 

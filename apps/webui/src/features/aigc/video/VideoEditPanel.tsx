@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
-import { useVideoEdit } from "@/lib/queries/use-video-generation"
+import { useGenerateVideo } from "@/lib/queries/use-image-generation"
 
 interface VideoEditPanelProps {
   videoUrl?: string
@@ -24,13 +24,13 @@ export function VideoEditPanel({ videoUrl = "" }: VideoEditPanelProps) {
   const [endTime, setEndTime] = useState("00:10")
   const [subtitle, setSubtitle] = useState("")
   const [format, setFormat] = useState("mp4")
-  const videoEdit = useVideoEdit()
+  const videoEdit = useGenerateVideo()
 
   function handleSubmit() {
     if (!videoUrl) return
     videoEdit.mutate({
       prompt: subtitle || "视频编辑",
-      videoUrl,
+      imageMode: "T2V",
       resolution: format === "gif" ? "480p" : "1080p"
     })
   }

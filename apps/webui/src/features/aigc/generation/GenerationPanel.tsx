@@ -15,9 +15,19 @@ import { toast } from "sonner"
 import { ModelParamsBar } from "@/components/common/ModelParamsBar"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import type { VideoConfig } from "@/lib/api/rest/ai/ai-model"
 import { request } from "@/lib/api/rest/entity/crud"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
@@ -28,6 +38,163 @@ import { buildFinalPrompt, PromptInput } from "./PromptInput"
 import { PromptTemplateDialog } from "./PromptTemplateDialog"
 import { ReferenceDropZone } from "./ReferenceDropZone"
 import { RoleSelector } from "./RoleSelector"
+
+// ── 视频模式定义 ──────────────────────────────────────────────────
+type VideoImageMode = "T2V" | "FIRST_FRAME" | "REFERENCE" | "EDIT"
+
+const VIDEO_MODES: { mode: VideoImageMode; label: string; configKey: string }[] = [
+  { mode: "T2V", label: "文生视频", configKey: "t2v" },
+  { mode: "FIRST_FRAME", label: "图生视频", configKey: "i2v" },
+  { mode: "REFERENCE", label: "多图参考", configKey: "r2v" },
+  { mode: "EDIT", label: "视频编辑", configKey: "video-edit" }
+]
+
+/** 视频专属参数状态 */
+interface VideoParams {
+  resolution: string
+  ratio: string
+  duration: number | undefined
+  seed: number | undefined
+  promptExtend: boolean
+  generateAudio: boolean
+  audioSetting: string
+  referenceVideoUrl: string
+}
+
+function initVideoParams(): VideoParams {
+  return {
+    resolution: "",
+    ratio: "",
+    duration: undefined,
+    seed: undefined,
+    promptExtend: false,
+    generateAudio: false,
+    audioSetting: "",
+    referenceVideoUrl: ""
+  }
+}
+
+/** 通用带标签 Select（视频参数栏内部复用） */
+function VP({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string
+  value: string
+  options: (string | number)[]
+  onChange: (v: string) => void
+}) {
+  const strOptions = options.map(String)
+  return (
+    <Select value={value} onValueChange={(v) => v && onChange(v)}>
+      <SelectTrigger className="h-8 w-[120px] text-xs">
+        <span className="shrink-0 text-muted-foreground">{label}</span>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {strOptions.map((o) => (
+          <SelectItem key={o} value={o}>
+            {o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/** 视频专属参数栏：根据 videoConfig 动态显示 */
+function VideoParamsBar({
+  config,
+  params,
+  onChange
+}: {
+  config: VideoConfig | undefined
+  params: VideoParams
+  onChange: (patch: Partial<VideoParams>) => void
+}) {
+  if (!config) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {config.resolutions?.length && (
+        <VP
+          label="分辨率"
+          value={params.resolution || config.resolutions[0]}
+          options={config.resolutions}
+          onChange={(v) => onChange({ resolution: v })}
+        />
+      )}
+      {config.ratios?.length && (
+        <VP
+          label="比例"
+          value={params.ratio || config.ratios[0]}
+          options={config.ratios}
+          onChange={(v) => onChange({ ratio: v })}
+        />
+      )}
+      {config.durations?.length && (
+        <VP
+          label="时长"
+          value={params.duration != null ? String(params.duration) : String(config.durations[0])}
+          options={config.durations}
+          onChange={(v) => onChange({ duration: Number(v) })}
+        />
+      )}
+      {config.audioSetting?.length && (
+        <VP
+          label="音频"
+          value={params.audioSetting || config.audioSetting[0]}
+          options={config.audioSetting}
+          onChange={(v) => onChange({ audioSetting: v })}
+        />
+      )}
+      {config.seed && (
+        <Input
+          type="number"
+          min={0}
+          max={2147483647}
+          value={params.seed && params.seed > 0 ? params.seed : ""}
+          onChange={(e) => onChange({ seed: e.target.value ? Number(e.target.value) : undefined })}
+          placeholder="Seed"
+          className="h-8 w-[110px] text-xs"
+        />
+      )}
+      {config.promptExtend && (
+        <div className="flex items-center gap-1.5">
+          <Switch
+            id="video-prompt-extend"
+            checked={params.promptExtend}
+            onCheckedChange={(v) => onChange({ promptExtend: v })}
+            className="h-4 w-7"
+          />
+          <Label
+            htmlFor="video-prompt-extend"
+            className="cursor-pointer text-muted-foreground text-xs"
+          >
+            智能改写
+          </Label>
+        </div>
+      )}
+      {config.generateAudio && (
+        <div className="flex items-center gap-1.5">
+          <Switch
+            id="video-generate-audio"
+            checked={params.generateAudio}
+            onCheckedChange={(v) => onChange({ generateAudio: v })}
+            className="h-4 w-7"
+          />
+          <Label
+            htmlFor="video-generate-audio"
+            className="cursor-pointer text-muted-foreground text-xs"
+          >
+            生成音频
+          </Label>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function GenerationPanel() {
   const open = useAigcStore((s) => s.generationPanelOpen)
@@ -51,6 +218,20 @@ export function GenerationPanel() {
   const negativePrompt = useAigcStore((s) => s.negativePrompt)
   const setNegativePrompt = useAigcStore((s) => s.setNegativePrompt)
   const referenceAssets = useAigcStore((s) => s.referenceAssets)
+  const clearReferenceAssets = useAigcStore((s) => s.clearReferenceAssets)
+
+  // ── 视频模式状态 ──
+  const videoConfig: VideoConfig | undefined = currentModel?.videoConfig
+  const availableVideoModes = VIDEO_MODES.filter((m) => videoConfig?.modes?.includes(m.configKey))
+  const [videoMode, setVideoMode] = useState<VideoImageMode>("T2V")
+  const [videoParams, setVideoParams] = useState<VideoParams>(initVideoParams)
+  const patchVideoParams = (patch: Partial<VideoParams>) =>
+    setVideoParams((prev) => ({ ...prev, ...patch }))
+
+  function handleVideoModeChange(mode: VideoImageMode) {
+    setVideoMode(mode)
+    clearReferenceAssets()
+  }
 
   const isEditMode = !isVideo && !!currentModel?.imageConfig?.edit && referenceAssets.length > 0
   const promptMaxLength = currentModel?.contextWindow
@@ -124,6 +305,52 @@ export function GenerationPanel() {
     mutationFn: (body: object) =>
       request<number>("/aigc/tasks/submit", { method: "POST", body: JSON.stringify(body) })
   })
+
+  /** 视频生成提交 */
+  const videoGenerate = useMutation({
+    mutationFn: (body: object) =>
+      request<number>("/aigc/tasks/submit", { method: "POST", body: JSON.stringify(body) })
+  })
+
+  function handleGenerateVideo() {
+    if (!prompt.trim()) return
+    const vp = videoParams
+    const submitParams: Record<string, unknown> = {
+      imageMode: videoMode,
+      ...(vp.resolution && { resolution: vp.resolution }),
+      ...(vp.ratio && { ratio: vp.ratio }),
+      ...(vp.duration != null && { duration: vp.duration }),
+      ...(vp.seed != null && vp.seed > 0 && { seed: vp.seed }),
+      ...(videoConfig?.promptExtend && { promptExtend: vp.promptExtend }),
+      ...(videoConfig?.generateAudio && { generateAudio: vp.generateAudio }),
+      ...(vp.audioSetting && { audioSetting: vp.audioSetting })
+    }
+    if (videoMode === "FIRST_FRAME" && referenceAssets[0]?.url) {
+      submitParams.imageUrl = referenceAssets[0].url
+    } else if (videoMode === "REFERENCE" && referenceAssets.length > 0) {
+      submitParams.referenceImageUrls = referenceAssets.map((a) => a.url).filter(Boolean)
+    } else if (videoMode === "EDIT" && vp.referenceVideoUrl) {
+      submitParams.referenceVideoUrls = [vp.referenceVideoUrl]
+    }
+    videoGenerate.mutate(
+      {
+        type: "VIDEO_GEN",
+        prompt: prompt.trim(),
+        projectId: projectId ?? null,
+        model: modelId,
+        params: submitParams
+      },
+      {
+        onSuccess: (taskId) => {
+          addPendingTask({ id: taskId, prompt, type: "VIDEO_GEN", modelId })
+          setPrompt("")
+          setOpen(false)
+          toast.success("视频生成任务已提交")
+        },
+        onError: (err) => toast.error((err as Error).message ?? "提交失败")
+      }
+    )
+  }
 
   /** 配音文本是否超出长度上限（仅配音类型校验） */
   const voiceOverLimit = generationType === "VOICE" && prompt.length > VOICE_TEXT_MAX_LEN
@@ -236,10 +463,10 @@ export function GenerationPanel() {
             </div>
 
             {/* 参考素材拖入区 */}
-            {!isAudioType && (
+            {!isAudioType && !isVideo && (
               <ReferenceDropZone
                 max={
-                  !isVideo && currentModel?.imageConfig?.edit
+                  currentModel?.imageConfig?.edit
                     ? (currentModel.imageConfig.edit.maxInputImages ?? 1)
                     : 16
                 }
@@ -247,7 +474,33 @@ export function GenerationPanel() {
               />
             )}
 
-            {/* Prompt 输入 */}
+            {/* 视频：模式切换 + 对应输入区 */}
+            {isVideo && availableVideoModes.length > 1 && (
+              <div className="flex gap-1">
+                {availableVideoModes.map(({ mode, label }) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => handleVideoModeChange(mode)}
+                    className={`rounded-md px-3 py-1 text-xs transition-colors ${videoMode === mode ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {isVideo && videoMode === "FIRST_FRAME" && <ReferenceDropZone max={1} />}
+            {isVideo && videoMode === "REFERENCE" && (
+              <ReferenceDropZone max={videoConfig?.maxReferenceImages ?? 4} />
+            )}
+            {isVideo && videoMode === "EDIT" && (
+              <Input
+                value={videoParams.referenceVideoUrl}
+                onChange={(e) => patchVideoParams({ referenceVideoUrl: e.target.value })}
+                placeholder="输入参考视频 URL..."
+                className="h-8 text-xs"
+              />
+            )}
             <div className="flex min-h-0 flex-1 flex-col gap-1">
               {referenceAssets.length > 0 && isEditMode && (
                 <span className="flex w-fit items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600/80 text-xs">
@@ -311,13 +564,23 @@ export function GenerationPanel() {
                     onChange={(id) => setModelId(id)}
                     className="h-8 w-[180px] text-xs"
                   />
-                  {/* 参数控件——根据模型配置动态渲染 */}
-                  <ModelParamsBar
-                    model={currentModel}
-                    params={params}
-                    onChangeParams={onChangeParams}
-                    isEditMode={isEditMode}
-                  />
+                  {/* 视频专属参数 */}
+                  {isVideo && (
+                    <VideoParamsBar
+                      config={videoConfig}
+                      params={videoParams}
+                      onChange={patchVideoParams}
+                    />
+                  )}
+                  {/* 图像参数控件——根据模型配置动态渲染 */}
+                  {!isVideo && (
+                    <ModelParamsBar
+                      model={currentModel}
+                      params={params}
+                      onChangeParams={onChangeParams}
+                      isEditMode={isEditMode}
+                    />
+                  )}
                 </div>
 
                 <RoleSelector value={agentRole} onChange={setAgentRole} />
@@ -325,12 +588,16 @@ export function GenerationPanel() {
                 <Button
                   size="sm"
                   disabled={
-                    generateImage.isPending || !prompt.trim() || prompt.length > promptMaxLength
+                    isVideo
+                      ? videoGenerate.isPending || !prompt.trim()
+                      : generateImage.isPending || !prompt.trim() || prompt.length > promptMaxLength
                   }
-                  onClick={handleGenerate}
+                  onClick={isVideo ? handleGenerateVideo : handleGenerate}
                   className="bg-linear-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600"
                 >
-                  {generateImage.isPending ? "生成中..." : "生成"}
+                  {(isVideo ? videoGenerate.isPending : generateImage.isPending)
+                    ? "生成中..."
+                    : "生成"}
                 </Button>
               </div>
             </div>

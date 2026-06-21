@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.module.system.auth.captcha.EsaCaptchaVerifier;
 import com.xuejiai.aaf.module.system.auth.service.AuthService;
 import com.xuejiai.aaf.module.system.auth.vo.*;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
@@ -38,6 +39,7 @@ public class AuthController {
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final Environment environment;
+    private final EsaCaptchaVerifier esaCaptchaVerifier;
 
     @Value("${aaf.app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
@@ -47,12 +49,14 @@ public class AuthController {
             UserService userService,
             UserRoleRepository userRoleRepository,
             RoleRepository roleRepository,
-            Environment environment) {
+            Environment environment,
+            EsaCaptchaVerifier esaCaptchaVerifier) {
         this.authService = authService;
         this.userService = userService;
         this.userRoleRepository = userRoleRepository;
         this.roleRepository = roleRepository;
         this.environment = environment;
+        this.esaCaptchaVerifier = esaCaptchaVerifier;
     }
 
     /** 当前用户信息（含角色 code 列表） */
@@ -87,7 +91,10 @@ public class AuthController {
     public Result<AuthLoginVO> login(
             @Valid @RequestBody AuthLoginDTO dto,
             @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            @RequestHeader(value = EsaCaptchaVerifier.HEADER_NAME, required = false)
+                    String captchaVerifyParam,
             HttpServletResponse response) {
+        esaCaptchaVerifier.verify(captchaVerifyParam, "login");
         var vo = authService.login(dto, deviceId);
         writeTokenCookie(response, vo.accessToken());
         return Result.success(vo);
@@ -98,7 +105,10 @@ public class AuthController {
     public Result<Void> register(
             @Valid @RequestBody RegisterDTO dto,
             @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
+            @RequestHeader(value = EsaCaptchaVerifier.HEADER_NAME, required = false)
+                    String captchaVerifyParam,
             jakarta.servlet.http.HttpServletRequest request) {
+        esaCaptchaVerifier.verify(captchaVerifyParam, "register");
         authService.register(dto, sourceApp, getClientIp(request));
         return Result.success();
     }
@@ -129,12 +139,27 @@ public class AuthController {
 
     @Operation(summary = "发送验证码")
     @PostMapping("/send-code")
-    public Result<Void> sendCode(@Valid @RequestBody SendCodeDTO dto) {
+    public Result<Void> sendCode(
+            @Valid @RequestBody SendCodeDTO dto,
+            @RequestHeader(value = EsaCaptchaVerifier.HEADER_NAME, required = false)
+                    String captchaVerifyParam) {
+        esaCaptchaVerifier.verify(captchaVerifyParam, "send-code");
         authService.sendCode(dto);
         return Result.success();
     }
 
-    @Operation(summary = "邮箱验证码登录")
+    @Operation(summary = "发送手机验证码")
+    @PostMapping("/send-sms-code")
+    public Result<Void> sendSmsCode(
+            @Valid @RequestBody SendSmsCodeDTO dto,
+            @RequestHeader(value = EsaCaptchaVerifier.HEADER_NAME, required = false)
+                    String captchaVerifyParam) {
+        esaCaptchaVerifier.verify(captchaVerifyParam, "send-sms-code");
+        authService.sendSmsCode(dto);
+        return Result.success();
+    }
+
+    @Operation(summary = "手机验证码登录")
     @PostMapping("/login-by-code")
     public Result<AuthLoginVO> loginByCode(
             @Valid @RequestBody LoginByCodeDTO dto,
@@ -145,10 +170,30 @@ public class AuthController {
         return Result.success(vo);
     }
 
+    @Operation(summary = "手机验证码登录（不存在则自动注册）")
+    @PostMapping("/login-by-phone")
+    public Result<AuthLoginVO> loginByPhone(
+            @Valid @RequestBody LoginByPhoneDTO dto,
+            @RequestHeader(value = "X-Device-Id", defaultValue = "web") String deviceId,
+            @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
+            jakarta.servlet.http.HttpServletRequest request,
+            HttpServletResponse response) {
+        var vo = authService.loginByPhone(dto, deviceId, sourceApp, getClientIp(request));
+        writeTokenCookie(response, vo.accessToken());
+        return Result.success(vo);
+    }
+
     @Operation(summary = "忘记密码")
     @PostMapping("/reset-password")
     public Result<Void> resetPassword(@Valid @RequestBody ResetPasswordDTO dto) {
         authService.resetPassword(dto);
+        return Result.success();
+    }
+
+    @Operation(summary = "手机验证码重置密码")
+    @PostMapping("/reset-password-by-phone")
+    public Result<Void> resetPasswordByPhone(@Valid @RequestBody ResetPasswordByPhoneDTO dto) {
+        authService.resetPasswordByPhone(dto);
         return Result.success();
     }
 

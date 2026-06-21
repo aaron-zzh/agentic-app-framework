@@ -11,7 +11,7 @@ import java.util.List;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,13 +27,12 @@ public class ShortTermMemoryService {
     private static final int MAX_MESSAGES = 50;
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
 
     /** 追加消息到对话上下文 */
     public void append(String conversationId, MemoryMessage message) {
         var key = KEY_PREFIX + conversationId;
         try {
-            var json = objectMapper.writeValueAsString(message);
+            var json = JsonUtils.toJsonString(message);
             redisTemplate.opsForList().rightPush(key, json);
             // 保持滑动窗口
             redisTemplate.opsForList().trim(key, -MAX_MESSAGES, -1);
@@ -70,7 +69,7 @@ public class ShortTermMemoryService {
 
     private MemoryMessage deserialize(String json) {
         try {
-            return objectMapper.readValue(json, MemoryMessage.class);
+            return JsonUtils.parseObject(json, MemoryMessage.class);
         } catch (Exception e) {
             log.warn("记忆反序列化失败: {}", e.getMessage());
             return new MemoryMessage("system", "error", null);

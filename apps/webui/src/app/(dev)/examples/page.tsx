@@ -74,6 +74,16 @@ const EXAMPLES = [
       { title: "PDF 预览", href: "/examples/pdf", desc: "PDF.js 文档预览" },
       { title: "国际化 i18n", href: "/examples/i18n", desc: "next-intl 多语言切换" }
     ]
+  },
+  {
+    category: "支付",
+    items: [
+      {
+        title: "扫码支付",
+        href: "/examples/qr-pay",
+        desc: "微信/支付宝二维码支付，渠道切换 + 状态轮询"
+      }
+    ]
   }
 ]
 

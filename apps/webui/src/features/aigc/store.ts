@@ -104,6 +104,7 @@ interface AigcStore {
   navigatePreview: (direction: 1 | -1) => void
   addReferenceAsset: (asset: MediaAssetVO) => void
   removeReferenceAsset: (id: number) => void
+  clearReferenceAssets: () => void
   addStoryboardAsset: (asset: MediaAssetVO) => void
   removeStoryboardAsset: (id: number) => void
   toggleFileFilter: () => void
@@ -199,6 +200,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
     }),
   removeReferenceAsset: (id) =>
     set((state) => ({ referenceAssets: state.referenceAssets.filter((a) => a.id !== id) })),
+  clearReferenceAssets: () => set({ referenceAssets: [] }),
   addStoryboardAsset: (asset) =>
     set((state) => {
       if (state.storyboardAssets.some((a) => a.id === asset.id)) return state

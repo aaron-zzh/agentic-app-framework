@@ -139,6 +139,9 @@ COMMENT ON TABLE pay_order IS '支付订单';
 COMMENT ON COLUMN pay_order.amount IS '支付金额（分）';
 COMMENT ON COLUMN pay_order.status IS '0=等待支付 10=支付成功 30=已关闭';
 
+ALTER TABLE pay_order ADD COLUMN IF NOT EXISTS code_url VARCHAR(512);
+COMMENT ON COLUMN pay_order.code_url IS '扫码支付 URL（wx_native=code_url，alipay_qr=qr_code），前端渲染二维码';
+
 CREATE UNIQUE INDEX uk_pay_order_merchant_no ON pay_order(merchant_order_no) WHERE deleted = FALSE;
 CREATE INDEX idx_pay_order_user ON pay_order(user_id) WHERE deleted = FALSE;
 
@@ -461,6 +464,7 @@ CREATE TABLE subscription_record (
     user_id         BIGINT       NOT NULL,
     plan_id         BIGINT       NOT NULL,
     operation       VARCHAR(16)  NOT NULL,
+    yearly          BOOLEAN      NOT NULL DEFAULT FALSE,
     pay_order_id    BIGINT,
     pay_price       BIGINT       NOT NULL,
     pay_status      VARCHAR(16)  NOT NULL DEFAULT 'UNPAID',
@@ -480,6 +484,7 @@ CREATE TABLE subscription_record (
 COMMENT ON TABLE subscription_record IS '订阅购买流水';
 COMMENT ON COLUMN subscription_record.operation IS 'NEW/RENEW';
 COMMENT ON COLUMN subscription_record.pay_status IS 'UNPAID/PAID';
+COMMENT ON COLUMN subscription_record.yearly IS '是否年付';
 
 CREATE INDEX idx_subscription_record_user ON subscription_record(user_id) WHERE deleted = FALSE;
 
@@ -652,6 +657,8 @@ CREATE TABLE credit_redeem_code
     code_prefix           VARCHAR(20)              NOT NULL,
     credit_amount         BIGINT                   NOT NULL,
     batch_type            VARCHAR(20)              NOT NULL DEFAULT 'REWARD',
+    type                  VARCHAR(20)              NOT NULL DEFAULT 'CREDIT',
+    plan_id               BIGINT,
     status                VARCHAR(20)              NOT NULL DEFAULT 'UNUSED',
     expires_at            TIMESTAMP,
     redeemed_by_user_id   BIGINT,
@@ -678,6 +685,8 @@ COMMENT ON COLUMN credit_redeem_code.code_hash IS '兑换码 SHA-256 哈希，�
 COMMENT ON COLUMN credit_redeem_code.code_prefix IS '兑换码前缀展示（如 CRED-XXXXX...），用于管理界面识别';
 COMMENT ON COLUMN credit_redeem_code.credit_amount IS '可兑换积分数量';
 COMMENT ON COLUMN credit_redeem_code.batch_type IS '积分批次类型：SUBSCRIPTION/TOPUP/REWARD/WEEKLY/MANUAL';
+COMMENT ON COLUMN credit_redeem_code.type IS '兑换码类型：CREDIT=积分码, MEMBERSHIP=会员码';
+COMMENT ON COLUMN credit_redeem_code.plan_id IS '会员套餐 ID（type=MEMBERSHIP 时必填）';
 COMMENT ON COLUMN credit_redeem_code.status IS '状态：UNUSED=未使用, REDEEMED=已兑换, EXPIRED=已过期';
 COMMENT ON COLUMN credit_redeem_code.expires_at IS '过期时间，NULL 表示永不过期';
 COMMENT ON COLUMN credit_redeem_code.redeemed_by_user_id IS '兑换者用户 ID';

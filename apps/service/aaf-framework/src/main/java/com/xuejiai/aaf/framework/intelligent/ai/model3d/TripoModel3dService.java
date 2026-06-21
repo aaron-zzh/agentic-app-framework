@@ -12,10 +12,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 基于阿里云百炼 Tripo 3D 模型生成实现。
@@ -38,7 +38,6 @@ public class TripoModel3dService implements Model3dGenerationService {
 
     private final String apiKey;
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public TripoModel3dService(@Value("${spring.ai.dashscope.api-key:}") String apiKey) {
         this.apiKey = apiKey;
@@ -84,7 +83,7 @@ public class TripoModel3dService implements Model3dGenerationService {
                             .GET()
                             .build();
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
             var output = root.get("output");
 
             var status = parseStatus(output.get("task_status").asText());
@@ -123,7 +122,7 @@ public class TripoModel3dService implements Model3dGenerationService {
             body.put("input", input);
             if (!parameters.isEmpty()) body.put("parameters", parameters);
 
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var httpRequest =
                     HttpRequest.newBuilder()
                             .uri(URI.create(SUBMIT_URL))
@@ -134,7 +133,7 @@ public class TripoModel3dService implements Model3dGenerationService {
                             .build();
 
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
 
             if (root.has("code")) {
                 var errMsg = root.get("message").asText();

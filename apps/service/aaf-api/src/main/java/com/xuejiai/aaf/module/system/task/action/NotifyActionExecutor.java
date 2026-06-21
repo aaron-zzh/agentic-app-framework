@@ -2,8 +2,7 @@ package com.xuejiai.aaf.module.system.task.action;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import com.xuejiai.aaf.module.system.task.domain.ScheduledTask;
 
@@ -17,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 public class NotifyActionExecutor implements ScheduledActionExecutor {
 
     private final NotificationService notificationService;
-    private final ObjectMapper objectMapper;
 
     @Override
     public String actionType() {
@@ -27,7 +25,7 @@ public class NotifyActionExecutor implements ScheduledActionExecutor {
     @Override
     public void execute(ScheduledTask task) {
         try {
-            var config = objectMapper.readTree(task.getActionConfig());
+            var config = JsonUtils.readTree(task.getActionConfig());
             var userId = config.get("userId").asLong();
             var title = config.get("title").asText();
             var content = config.get("content").asText();

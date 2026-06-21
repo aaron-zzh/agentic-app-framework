@@ -9,8 +9,6 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.framework.engine.tool.ToolResolver;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 
@@ -30,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 public class McpToolService {
 
     private final ToolResolver toolResolver;
-    private final ObjectMapper objectMapper;
 
     /**
      * 为 Agent 构建工具集。
@@ -45,7 +42,7 @@ public class McpToolService {
         var toolNames = parseList(definition.getTools());
         var callbacks = toolResolver.resolveForAgent(definition.getId(), toolNames);
         for (var callback : callbacks) {
-            toolkit.registerTool(new ToolCallbackAgentTool(callback, objectMapper));
+            toolkit.registerTool(new ToolCallbackAgentTool(callback));
             log.debug(
                     "Toolkit 注册工具: {} [agentId={}]",
                     callback.getToolDefinition().name(),

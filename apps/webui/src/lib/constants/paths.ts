@@ -28,6 +28,7 @@ export const paths = {
     record: (slug: string, id: string) => `/module/${slug}/${id}`,
     settings: "/settings",
     settingsProfile: "/settings/profile",
+    settingsCredits: "/settings/credits",
     settingsNotifications: "/settings/notifications",
     notifications: "/notifications",
     todos: "/todos",

@@ -5,7 +5,9 @@ import java.util.List;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * JSON 工具类——统一 JsonMapper 实例，避免散落 new JsonMapper()。
@@ -74,5 +76,29 @@ public class JsonUtils {
             log.error("JSON 数组反序列化失败: {}", text, e);
             throw new RuntimeException(e);
         }
+    }
+
+    /** 解析 JSON 树（用于处理结构不固定的 HTTP 响应） */
+    public static JsonNode readTree(String json) {
+        try {
+            return jsonMapper.readTree(json);
+        } catch (Exception e) {
+            log.error("JSON readTree 失败: {}", json, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static ObjectNode createObjectNode() {
+        return jsonMapper.createObjectNode();
+    }
+
+    /** 对象类型转换（如 Map → POJO） */
+    public static <T> T convertValue(Object value, Class<T> clazz) {
+        return jsonMapper.convertValue(value, clazz);
+    }
+
+    /** 对象类型转换（泛型版） */
+    public static <T> T convertValue(Object value, TypeReference<T> typeRef) {
+        return jsonMapper.convertValue(value, typeRef);
     }
 }

@@ -14,9 +14,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
@@ -25,6 +23,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /** 从对话文本中抽取结构化记忆原子和关系。 被 Agent 调用时触发，属于认知层 Agentic 能力。 */
 @Slf4j
@@ -36,7 +35,6 @@ public class MemoryExtractionService {
     private final EmbeddingService embeddingService;
     private final AtomMemoryEngine atomEngine;
     private final MemoryDeduplicationService deduplicationService;
-    private final ObjectMapper objectMapper;
 
     private static final String EXTRACTION_PROMPT =
             """
@@ -217,13 +215,13 @@ public class MemoryExtractionService {
                     json.contains("{")
                             ? json.substring(json.indexOf('{'), json.lastIndexOf('}') + 1)
                             : json;
-            var map = objectMapper.readValue(cleaned, new TypeReference<Map<String, Object>>() {});
+            var map = JsonUtils.parseObject(cleaned, new TypeReference<Map<String, Object>>() {});
 
             var atomsRaw =
-                    objectMapper.convertValue(
+                    JsonUtils.convertValue(
                             map.get("atoms"), new TypeReference<List<Map<String, Object>>>() {});
             var relationsRaw =
-                    objectMapper.convertValue(
+                    JsonUtils.convertValue(
                             map.get("relations"),
                             new TypeReference<List<Map<String, Object>>>() {});
 

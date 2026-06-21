@@ -328,7 +328,7 @@ CREATE TABLE ai_token_usage (
     user_id           BIGINT       NOT NULL,
     usage_id          VARCHAR(64)  NOT NULL,
     conversation_id   BIGINT,
-    model_id          BIGINT       NOT NULL REFERENCES ai_model(id),
+    model_id          BIGINT       REFERENCES ai_model(id),
     prompt_tokens     BIGINT       NOT NULL,
     completion_tokens BIGINT       NOT NULL,
     total_tokens      BIGINT       NOT NULL,
@@ -337,6 +337,7 @@ CREATE TABLE ai_token_usage (
 
 COMMENT ON TABLE ai_token_usage IS 'Token 用量记录（计费真理源）：扣费/额度核算以本表为准，ai_llm_call_log 仅为调用明细日志、不参与扣费';
 COMMENT ON COLUMN ai_token_usage.usage_id IS '用量流水号，用于关联 credit_transaction.biz_id';
+COMMENT ON COLUMN ai_token_usage.model_id IS '模型 DB 主键（FK → ai_model.id）；AgentScope 等链路无法可靠传递 modelId 时允许为空，等 v2 SDK 迁移后回收';
 CREATE UNIQUE INDEX uk_ai_token_usage_usage_id ON ai_token_usage (usage_id);
 CREATE INDEX idx_ai_token_usage_user_created  ON ai_token_usage (user_id, created_at);
 CREATE INDEX idx_ai_token_usage_model_created ON ai_token_usage (model_id, created_at);

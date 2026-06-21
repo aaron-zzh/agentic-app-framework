@@ -7,8 +7,7 @@ import org.springframework.ai.openai.OpenAiImageOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
@@ -24,8 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 @Service("springAiImageGenerationService")
 @RequiredArgsConstructor
 public class SpringAiImageGenerationService implements ImageGenerationService {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final DynamicImageModelFactory imageModelFactory;
     private final AiModelRepository modelRepository;
@@ -251,10 +248,10 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
         return apiKey != null ? apiKey : "";
     }
 
-    private com.fasterxml.jackson.databind.JsonNode parseJson(String json) {
+    private tools.jackson.databind.JsonNode parseJson(String json) {
         if (json == null || json.isBlank()) return null;
         try {
-            return MAPPER.readTree(json);
+            return JsonUtils.readTree(json);
         } catch (Exception e) {
             log.warn("[SpringAiImage] JSON 解析失败: {}", e.getMessage());
             return null;

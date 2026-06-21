@@ -18,7 +18,7 @@ export interface FieldTextProps {
   label?: string
   description?: string
   placeholder?: string
-  type?: "text" | "email" | "password"
+  type?: "text" | "email" | "password" | "tel" | "url" | "number"
   className?: string
   disabled?: boolean
   autoComplete?: string

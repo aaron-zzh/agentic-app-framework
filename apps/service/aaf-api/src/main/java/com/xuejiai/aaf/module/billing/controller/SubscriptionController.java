@@ -82,7 +82,8 @@ public class SubscriptionController {
     public Result<Long> subscribe(
             @RequestParam(required = false) Long userId, @Valid @RequestBody SubscribeDTO dto) {
         var recordId =
-                subscriptionService.subscribe(ownerId(userId), dto.planCode(), dto.channelCode());
+                subscriptionService.subscribe(
+                        ownerId(userId), dto.planCode(), dto.channelCode(), dto.isYearly());
         return Result.success(recordId);
     }
 

@@ -5,22 +5,23 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { backendApi } from "../backend-client"
 
-/** 个人资料 */
+/** 个人资料（与后端 UserProfileVO 对齐：id/username/nickname/avatar/email/phone/createTime） */
 export interface ProfileVO {
   id: string
+  username: string
   email: string
   nickname: string
   avatar?: string
   phone?: string
-  bio?: string
+  createTime?: string
 }
 
-/** 更新个人资料请求 */
+/** 更新个人资料请求（与后端 UserProfileUpdateDTO 对齐：仅 nickname/avatar/email/phone） */
 export interface ProfileUpdateReq {
   nickname?: string
   avatar?: string
+  email?: string
   phone?: string
-  bio?: string
 }
 
 /** 修改密码请求 */

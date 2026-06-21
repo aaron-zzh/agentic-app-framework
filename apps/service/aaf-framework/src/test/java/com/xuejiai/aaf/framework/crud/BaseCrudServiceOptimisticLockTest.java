@@ -114,7 +114,7 @@ class BaseCrudServiceOptimisticLockTest extends BaseMockitoUnitTest {
 
         when(repo.findOne(any(Specification.class))).thenReturn(Optional.of(entity));
         // 模拟 Hibernate 检测到 version 冲突时抛出异常
-        when(repo.save(any()))
+        when(repo.save(any(StubEntity.class)))
                 .thenThrow(new ObjectOptimisticLockingFailureException(StubEntity.class, 1L));
 
         assertThatThrownBy(() -> service.update(1L, new StubUpdateDTO("新名称")))
@@ -132,7 +132,7 @@ class BaseCrudServiceOptimisticLockTest extends BaseMockitoUnitTest {
         entity.setVersion(1);
 
         when(repo.findOne(any(Specification.class))).thenReturn(Optional.of(entity));
-        when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(repo.save(any(StubEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var vo = service.update(1L, new StubUpdateDTO("新名称"));
 

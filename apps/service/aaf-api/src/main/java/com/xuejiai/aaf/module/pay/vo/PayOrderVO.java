@@ -15,4 +15,6 @@ public record PayOrderVO(
         LocalDateTime expireTime,
         LocalDateTime successTime,
         Long refundAmount,
-        LocalDateTime createTime) {}
+        LocalDateTime createTime,
+        /** 扫码支付二维码 URL（wx_native/alipay_qr 时有值） */
+        String codeUrl) {}

@@ -9,9 +9,7 @@ import org.springframework.ai.tool.definition.DefaultToolDefinition;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
@@ -30,6 +28,7 @@ import io.agentscope.core.tool.ToolSuspendException;
 import io.agentscope.core.tool.Toolkit;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.type.TypeReference;
 
 /** 将 AgentScope 的 AgentTool 包装进 AAF 统一工具治理链。 */
 @Component
@@ -40,7 +39,6 @@ public class AgentScopeToolGovernanceService {
 
     private final ToolPermissionGuard toolPermissionGuard;
     private final ToolRegistry toolRegistry;
-    private final ObjectMapper objectMapper;
     private final AgentRunEventPublisher agentRunEventPublisher;
 
     public void apply(Toolkit toolkit, AgentDefinition definition) {
@@ -201,13 +199,12 @@ public class AgentScopeToolGovernanceService {
                 }
                 var output = resultText(result);
                 if (output.startsWith("Error:")) {
-                    return objectMapper.writeValueAsString(
+                    return JsonUtils.toJsonString(
                             ToolCallResult.error(
                                     delegate.getName(), "AGENTSCOPE_TOOL_ERROR", output));
                 }
-                return objectMapper.writeValueAsString(
-                        ToolCallResult.success(
-                                delegate.getName(), objectMapper.writeValueAsString(result)));
+                return JsonUtils.toJsonString(
+                        ToolCallResult.success(delegate.getName(), JsonUtils.toJsonString(result)));
             } catch (ToolSuspendException ex) {
                 throw ex;
             } catch (Exception ex) {
@@ -220,23 +217,21 @@ public class AgentScopeToolGovernanceService {
 
     private String inputSchema(AgentTool tool) {
         try {
-            return objectMapper.writeValueAsString(tool.getParameters());
+            return JsonUtils.toJsonString(tool.getParameters());
         } catch (Exception ex) {
             return "{\"type\":\"object\"}";
         }
     }
 
-    private String arguments(ToolCallParam param)
-            throws com.fasterxml.jackson.core.JsonProcessingException {
-        return objectMapper.writeValueAsString(param == null ? Map.of() : param.getInput());
+    private String arguments(ToolCallParam param) {
+        return JsonUtils.toJsonString(param == null ? Map.of() : param.getInput());
     }
 
-    private Map<String, Object> parseArguments(String arguments)
-            throws com.fasterxml.jackson.core.JsonProcessingException {
+    private Map<String, Object> parseArguments(String arguments) {
         if (arguments == null || arguments.isBlank()) {
             return Map.of();
         }
-        return objectMapper.readValue(arguments, MAP_TYPE);
+        return JsonUtils.parseObject(arguments, MAP_TYPE);
     }
 
     private boolean shouldSuspend(String output) {
@@ -244,7 +239,7 @@ public class AgentScopeToolGovernanceService {
             return false;
         }
         try {
-            var result = objectMapper.readValue(output, ToolCallDispatcher.ToolCallResult.class);
+            var result = JsonUtils.parseObject(output, ToolCallDispatcher.ToolCallResult.class);
             return !result.success()
                     && result.recoverable()
                     && (result.pendingApproval() || result.resume() != null);

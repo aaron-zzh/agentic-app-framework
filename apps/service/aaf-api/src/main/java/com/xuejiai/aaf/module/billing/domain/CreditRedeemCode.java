@@ -38,6 +38,14 @@ public class CreditRedeemCode extends BaseEntity {
     @Column(name = "batch_type", nullable = false, length = 20)
     private String batchType = "REWARD";
 
+    /** 兑换码类型：CREDIT=积分码 / MEMBERSHIP=会员码 */
+    @Column(name = "type", nullable = false, length = 20)
+    private String type = "CREDIT";
+
+    /** 会员套餐 ID（type=MEMBERSHIP 时必填） */
+    @Column(name = "plan_id")
+    private Long planId;
+
     /** 状态：UNUSED / REDEEMED / EXPIRED */
     @Column(name = "status", nullable = false, length = 20)
     private String status = "UNUSED";

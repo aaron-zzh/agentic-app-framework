@@ -201,7 +201,7 @@ CREATE TABLE generation_template (
     org_id            BIGINT,
     workspace_id      BIGINT,
     name              VARCHAR(100)   NOT NULL,
-    type              VARCHAR(30)    NOT NULL DEFAULT 'IMAGE',
+    type              VARCHAR(30)    NOT NULL DEFAULT 'IMAGE_GEN',
     category          VARCHAR(50),
     prompt            TEXT           NOT NULL,
     negative_prompt   TEXT,

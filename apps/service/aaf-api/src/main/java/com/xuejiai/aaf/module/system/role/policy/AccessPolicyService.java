@@ -15,24 +15,22 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.access.PolicyEngine;
 import com.xuejiai.aaf.framework.security.access.PolicyInput;
 import com.xuejiai.aaf.framework.security.access.PolicyResult;
 
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.JsonNode;
 
 @Service
 @RequiredArgsConstructor
 public class AccessPolicyService implements PolicyEngine {
 
     private final AccessPolicyRepository repository;
-    private final ObjectMapper objectMapper;
     private final PermissionVersionService versionService;
     private final SpelExpressionParser expressionParser = new SpelExpressionParser();
     private final ConcurrentHashMap<String, Expression> expressionCache = new ConcurrentHashMap<>();
@@ -193,7 +191,7 @@ public class AccessPolicyService implements PolicyEngine {
         var expression = policy.getConditionJson().trim();
         try {
             if (expression.startsWith("{") || expression.startsWith("[")) {
-                return matchesCondition(objectMapper.readTree(expression), context);
+                return matchesCondition(JsonUtils.readTree(expression), context);
             }
             var cacheKey = versionService.policyVersion() + ":" + cacheOwner.getId();
             var compiled =

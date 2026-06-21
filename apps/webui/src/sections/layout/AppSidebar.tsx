@@ -12,6 +12,7 @@ import { isExternalLink } from "@aaf/core"
 import { useBoolean } from "@aaf/hooks"
 import {
   BadgeCheck,
+  Banknote,
   BarChart2,
   BarChart3,
   BookOpen,
@@ -19,6 +20,7 @@ import {
   Box,
   CheckSquare,
   ChevronDown,
+  ClipboardList,
   Clock,
   Cpu,
   CreditCard,
@@ -31,16 +33,19 @@ import {
   Globe,
   Image,
   LayoutDashboard,
+  LayoutTemplate,
   type LucideIcon,
   Mail,
   Menu,
   MessageSquare,
   Package,
+  Percent,
   Receipt,
   ScrollText,
   Settings,
   Shield,
   ShoppingCart,
+  SlidersHorizontal,
   Sparkles,
   Ticket,
   Trash2,
@@ -59,7 +64,6 @@ import { useUserMenus } from "@/lib/queries/use-menus"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useUIStore } from "@/lib/store/ui-store"
 import { cn } from "@/lib/utils/cn"
-import { LicensePlanBadge } from "./LicensePlanBadge"
 import {
   buildNavConfig,
   buildNavFromApi,
@@ -106,9 +110,15 @@ const ICON_MAP: Record<string, LucideIcon> = {
   menu: Menu,
   database: Database,
   "wand-2": Wand2,
+  // 分销
+  percent: Percent,
+  banknote: Banknote,
   // 系统
   cpu: Cpu,
-  "flask-conical": FlaskConical
+  "flask-conical": FlaskConical,
+  "sliders-horizontal": SlidersHorizontal,
+  "layout-template": LayoutTemplate,
+  "clipboard-list": ClipboardList
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {
@@ -151,10 +161,10 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        "relative flex shrink-0 flex-col border-r bg-sidebar transition-[width] duration-200",
+        "relative flex shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200",
         sidebarOpen
-          ? "w-[var(--layout-sidebar-width)]"
-          : "w-[var(--layout-sidebar-collapsed-width)]"
+          ? "w-(--layout-sidebar-width)"
+          : "w-(--layout-sidebar-collapsed-width)"
       )}
     >
       {/* 边缘折叠按钮 */}
@@ -170,12 +180,12 @@ export function AppSidebar() {
       </button>
 
       {/* Brand */}
-      <div className="flex h-[var(--layout-header-height)] items-center px-4">
+      <div className="flex h-(--layout-header-height) items-center px-4">
         <Brand collapsed={!sidebarOpen} href="/dashboard" />
       </div>
 
       {/* 导航 */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav className="flex-1 overflow-y-auto px-4 py-2">
         {isLoading && !navConfig ? (
           <NavSkeleton collapsed={!sidebarOpen} />
         ) : (
@@ -190,7 +200,22 @@ export function AppSidebar() {
         )}
       </nav>
 
-      <LicensePlanBadge collapsed={!sidebarOpen} />
+      {/* 固定设置入口 */}
+      <div className="border-t px-2 py-2">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex w-full items-center gap-2 rounded-md py-1.5 text-muted-foreground text-sm transition-colors hover:bg-sidebar-accent hover:text-foreground",
+            pathname.startsWith("/settings") && "bg-primary/10 font-medium text-primary",
+            !sidebarOpen && "justify-center px-2"
+          )}
+          style={sidebarOpen ? { paddingLeft: 8, paddingRight: 8 } : undefined}
+          title={!sidebarOpen ? "设置" : undefined}
+        >
+          <Settings className="size-4 shrink-0" />
+          {sidebarOpen && <span className="flex-1 truncate">设置</span>}
+        </Link>
+      </div>
     </aside>
   )
 }
@@ -300,7 +325,7 @@ function NavItemRow({
   const hasChildren = !collapsed && item.children && item.children.length > 0
 
   const itemClass = cn(
-    "flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
+    "flex w-full items-center gap-2 rounded-md py-1.5 text-sm transition-colors hover:bg-sidebar-accent hover:text-foreground",
     isActive && "bg-primary/10 font-medium text-primary",
     item.disabled && "pointer-events-none opacity-50",
     collapsed && "justify-center px-2"

@@ -49,8 +49,6 @@ export interface RichTextEditorProps {
   mode?: EditorMode
   /** 初始值的格式（不传则与 mode 一致） */
   initialValueMode?: EditorMode
-  /** 图片上传端点（document preset 用） */
-  uploadEndpoint?: string
   /** mention 用户搜索（chatter preset 用） */
   onMentionSearch?: (query: string) => Promise<MentionUser[]>
   /** 允许用户拖拽调整编辑器高度 */

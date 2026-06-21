@@ -14,8 +14,7 @@ import type { ReactNode } from "react"
 import { useCallback, useEffect, useRef } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { FloatingChatterButton } from "@/features/chatter/layout/FloatingChatterButton"
-import { GlobalChatter } from "@/features/chatter/layout/GlobalChatter"
+import { FloatingChatter } from "@/features/chatter/layout/FloatingChatter"
 import { GlobalDndContext } from "@/features/dnd/GlobalDndContext"
 import { entityRegistry } from "@/features/entity-engine/lib/registry"
 import type { EntityDef } from "@/features/entity-engine/types"
@@ -30,8 +29,6 @@ interface WorkspaceLayoutProps {
 
 export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const open = useChatterStore((s) => s.open)
-  const currentPageId = useChatterStore((s) => s.currentPageId)
-  const getConfig = useChatterStore((s) => s.getConfig)
   const layoutOverride = useChatterStore((s) => s.layoutOverride)
   const mainPanelRef = useRef<PanelImperativeHandle>(null)
 
@@ -47,10 +44,6 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
         // 后端不可用时静默降级，使用硬编码定义
       })
   }, [])
-
-  const config = currentPageId
-    ? getConfig(currentPageId)
-    : { preset: "ai" as const, open: false, agentRole: "default-generalist" }
 
   // layoutOverride 优先，未声明时默认 dialog（浮动）
   const isPanelMode = (layoutOverride ?? "dialog") === "panel"
@@ -107,17 +100,13 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
               )}
             </ResizablePanelGroup>
           ) : (
-            <main className="flex flex-1 flex-col overflow-y-auto">
-              {children}
-              {/* dialog 模式：只保留浮动触发按钮，Chatter 由 GlobalChatter 统一管理 */}
-              <FloatingChatterButton preset={config.preset} agentRole={config.agentRole} />
-            </main>
+            <main className="flex flex-1 flex-col overflow-y-auto">{children}</main>
           )}
         </div>
       </div>
 
-      {/* 单例 GlobalChatter，挂在布局根部确保跨页面存活 */}
-      <GlobalChatter />
+      {/* 单例浮动 AI 助理（按钮 + GlobalChatter），按钮仅在 dialog 模式渲染 */}
+      <FloatingChatter availableModes={["panel", "page"]} />
     </GlobalDndContext>
   )
 }

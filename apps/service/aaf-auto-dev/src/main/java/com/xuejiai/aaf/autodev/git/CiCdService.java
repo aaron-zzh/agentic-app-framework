@@ -13,19 +13,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
 
 /** CI/CD 集成服务——触发 Pipeline、查询状态、处理 Webhook、触发部署。 */
 @Slf4j
 @Service
 public class CiCdService {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
 
     @Value("${aaf.autodev.github.token:}")
@@ -39,7 +38,7 @@ public class CiCdService {
 
     /** 触发 GitHub Actions workflow */
     public Long triggerWorkflow(String workflowFile, String ref, Map<String, String> inputs) {
-        var inputsJson = inputs != null ? MAPPER.valueToTree(inputs).toString() : "{}";
+        var inputsJson = inputs != null ? JsonUtils.toJsonString(inputs) : "{}";
         var payload =
                 """
                 {"ref":"%s","inputs":%s}"""
@@ -75,7 +74,7 @@ public class CiCdService {
         try {
             var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                var json = MAPPER.readTree(response.body());
+                var json = JsonUtils.readTree(response.body());
                 var status = new BuildStatus();
                 status.setRunId(runId);
                 status.setStatus(json.get("status").asText());
@@ -145,7 +144,7 @@ public class CiCdService {
             Thread.sleep(2000); // 等待 GitHub 创建 context
             var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                var runs = MAPPER.readTree(response.body()).get("workflow_runs");
+                var runs = JsonUtils.readTree(response.body()).get("workflow_runs");
                 if (runs.isArray() && !runs.isEmpty()) {
                     return runs.get(0).get("id").asLong();
                 }

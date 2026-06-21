@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,7 +38,6 @@ public class DashScopeAvatarVideoService implements AvatarVideoService {
 
     private final String apiKey;
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DashScopeAvatarVideoService(@Value("${spring.ai.dashscope.api-key:}") String apiKey) {
         this.apiKey = apiKey;
@@ -111,7 +110,7 @@ public class DashScopeAvatarVideoService implements AvatarVideoService {
                             .GET()
                             .build();
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
             var output = root.get("output");
 
             var status = parseStatus(output.get("task_status").asText());
@@ -133,9 +132,9 @@ public class DashScopeAvatarVideoService implements AvatarVideoService {
 
     // ===== 内部方法 =====
 
-    private com.fasterxml.jackson.databind.JsonNode post(String url, Object body, boolean async)
+    private tools.jackson.databind.JsonNode post(String url, Object body, boolean async)
             throws Exception {
-        var json = objectMapper.writeValueAsString(body);
+        var json = JsonUtils.toJsonString(body);
         var builder =
                 HttpRequest.newBuilder()
                         .uri(URI.create(url))
@@ -146,7 +145,7 @@ public class DashScopeAvatarVideoService implements AvatarVideoService {
         }
         var request = builder.POST(HttpRequest.BodyPublishers.ofString(json)).build();
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        var root = objectMapper.readTree(response.body());
+        var root = JsonUtils.readTree(response.body());
 
         if (response.statusCode() != 200 || root.has("code")) {
             var msg = root.has("message") ? root.get("message").asText() : response.body();

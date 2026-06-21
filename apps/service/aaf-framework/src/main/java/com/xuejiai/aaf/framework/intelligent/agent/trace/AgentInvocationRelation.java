@@ -13,7 +13,9 @@ import lombok.Setter;
 @RelationshipProperties
 public class AgentInvocationRelation {
 
-    @RelationshipId @GeneratedValue private Long id;
+    @RelationshipId
+    @GeneratedValue
+    private String id;
 
     /** 调用次数（聚合） */
     private int count;

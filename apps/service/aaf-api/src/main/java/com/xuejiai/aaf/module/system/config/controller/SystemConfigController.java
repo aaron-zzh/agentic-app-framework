@@ -38,14 +38,14 @@ public class SystemConfigController {
 
     /** 按分类查询配置列表（敏感配置 value 返回 null） */
     @GetMapping
-    @PreAuthorize("hasRole('super_admin')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public Result<List<SystemConfigVO>> list(@RequestParam(required = false) String category) {
         return Result.success(apiService.listByCategory(category != null ? category : "*"));
     }
 
     /** 更新配置值 */
     @PutMapping
-    @PreAuthorize("hasRole('super_admin')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public Result<Void> update(@Valid @RequestBody SystemConfigUpdateDTO dto) {
         configService.set(dto.key(), dto.value());
         return Result.success(null);
@@ -53,14 +53,14 @@ public class SystemConfigController {
 
     /** 创建配置项 */
     @PostMapping
-    @PreAuthorize("hasRole('super_admin')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public Result<SystemConfigVO> create(@Valid @RequestBody SystemConfigCreateDTO dto) {
         return Result.success(apiService.create(dto));
     }
 
     /** 删除配置项 */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('super_admin')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public Result<Void> delete(@PathVariable Long id) {
         apiService.delete(id);
         return Result.success(null);
@@ -68,7 +68,7 @@ public class SystemConfigController {
 
     /** 刷新指定配置缓存 */
     @PostMapping("/refresh")
-    @PreAuthorize("hasRole('super_admin')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public Result<Void> refresh(@RequestParam String key) {
         configService.evict(key);
         return Result.success(null);
@@ -76,7 +76,7 @@ public class SystemConfigController {
 
     /** 刷新所有配置缓存 */
     @PostMapping("/refresh-all")
-    @PreAuthorize("hasRole('super_admin')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public Result<Void> refreshAll() {
         configService.evictAll();
         return Result.success(null);

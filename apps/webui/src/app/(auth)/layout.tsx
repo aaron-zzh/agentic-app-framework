@@ -1,6 +1,6 @@
 /**
  * 认证布局——全屏背景虚化 + 中央亚克力卡片
- * 浮动助理由根 layout 的 FloatingAssistant 统一提供
+ * 浮动助理由 marketing/workspace 布局的 FloatingChatter 统一提供
  * @author AaronZZH & Kiro
  */
 

@@ -9,13 +9,12 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * Midjourney 异步图像生成服务（通过 mj-proxy 兼容代理）。
@@ -33,7 +32,6 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
 
     private final ModelManagementService modelManagementService;
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public String submitTask(AsyncImageRequest request) {
@@ -44,9 +42,9 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
         var body = new java.util.LinkedHashMap<String, Object>();
         body.put("prompt", request.prompt());
         try {
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var resp = post(baseUrl, apiKey, "/submit/imagine", json);
-            String taskId = objectMapper.readTree(resp).path("result").asText(null);
+            String taskId = JsonUtils.readTree(resp).path("result").asText(null);
             if (taskId == null || taskId.isBlank()) {
                 throw new RuntimeException("Midjourney 任务提交失败: " + resp);
             }
@@ -73,7 +71,7 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
 
         try {
             var resp = get(baseUrl, apiKey, "/task/" + mjTaskId + "/fetch");
-            var node = objectMapper.readTree(resp);
+            var node = JsonUtils.readTree(resp);
             String status = node.path("status").asText("UNKNOWN");
             return switch (status) {
                 case "SUCCESS" -> {
@@ -106,9 +104,9 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
         body.put("prompt", prompt);
         if (base64Images != null && !base64Images.isEmpty()) body.put("base64Array", base64Images);
         try {
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var resp = post(baseUrl, apiKey, "/submit/imagine", json);
-            var node = objectMapper.readTree(resp);
+            var node = JsonUtils.readTree(resp);
             if (!List.of("1", "21", "22").contains(node.path("code").asText())) {
                 throw new RuntimeException("Midjourney 提交失败: " + node.path("description").asText());
             }
@@ -127,10 +125,10 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
         var model = modelManagementService.getModel(modelId);
         try {
             var body = Map.of("taskId", taskId, "customId", customId);
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var resp =
                     post(model.effectiveBaseUrl(), model.effectiveApiKey(), "/submit/action", json);
-            var node = objectMapper.readTree(resp);
+            var node = JsonUtils.readTree(resp);
             if (!List.of("1", "21", "22").contains(node.path("code").asText())) {
                 throw new RuntimeException(
                         "Midjourney action 失败: " + node.path("description").asText());
@@ -148,14 +146,14 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
         var model = modelManagementService.getModel(modelId);
         try {
             var body = Map.of("ids", taskIds);
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var resp =
                     post(
                             model.effectiveBaseUrl(),
                             model.effectiveApiKey(),
                             "/task/list-by-condition",
                             json);
-            return objectMapper.readValue(resp, new TypeReference<List<MjTaskStatus>>() {});
+            return JsonUtils.parseObject(resp, new TypeReference<List<MjTaskStatus>>() {});
         } catch (Exception e) {
             throw new RuntimeException("Midjourney 批量查询失败: " + e.getMessage(), e);
         }

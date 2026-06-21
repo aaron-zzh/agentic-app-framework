@@ -2,7 +2,7 @@
  * Field.Upload——RHF 图片/文件上传控件
  * @author AaronZZH & Kiro
  *
- * 集成 useFormImageUpload，支持单文件/多文件、图像压缩、OSS 直传
+ * 集成 useFormFileUpload，支持单文件/多文件、图像压缩、后端直传（local/s3/oss）
  *
  * @example
  * ```tsx
@@ -17,8 +17,8 @@ import { useRef } from "react"
 import { Controller, useFormContext } from "react-hook-form"
 
 import { Label } from "@/components/ui/label"
-import { useFormImageUpload } from "@/lib/hooks/use-form-image-upload"
-import type { ImageUploadOptions } from "@/lib/hooks/use-image-upload"
+import type { FileUploadOptions } from "@/lib/hooks/use-file-upload"
+import { useFormFileUpload } from "@/lib/hooks/use-form-file-upload"
 import { cn } from "@/lib/utils/cn"
 
 export interface FieldUploadProps {
@@ -35,10 +35,12 @@ export interface FieldUploadProps {
   placeholder?: string
   className?: string
   disabled?: boolean
-  /** 图像上传配置 */
-  imageOptions?: ImageUploadOptions
-  /** 上传后获取图片尺寸 */
+  /** 文件上传配置（图片压缩参数等） */
+  imageOptions?: FileUploadOptions
+  /** 上传后获取图片尺寸（仅图片文件触发） */
   onImageLoad?: (width: number, height: number) => void
+  /** 上传成功立即回调（单文件场景），可在此同步后端/全局 store 实现"上传即生效" */
+  onUploaded?: (result: { url: string; key?: string; name: string; size: number }) => void
 }
 
 export function FieldUpload({
@@ -52,7 +54,8 @@ export function FieldUpload({
   className,
   disabled,
   imageOptions,
-  onImageLoad
+  onImageLoad,
+  onUploaded
 }: FieldUploadProps) {
   const { control } = useFormContext()
   const {
@@ -63,7 +66,13 @@ export function FieldUpload({
     onDelete,
     onRemove,
     onRemoveAll
-  } = useFormImageUpload({ name, multiple, imageOptions, onImageLoad })
+  } = useFormFileUpload({
+    name,
+    multiple,
+    fileOptions: imageOptions,
+    onImageLoad,
+    onUploaded
+  })
 
   const isDisabled = disabled || uploadDisabled
 

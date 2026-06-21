@@ -28,9 +28,9 @@ public interface AiCreditGuard {
         return Math.max(1, Math.round(modelPrice.doubleValue() * YUAN_TO_CREDIT * markupRate));
     }
 
-    /** 获取当前积分倍率（从 sys_config 读取）。默认返回 10，实现类从配置中心读取实际值。 */
+    /** 获取当前积分倍率（从 sys_config 读取）。默认返回 5，实现类从配置中心读取实际值。 */
     default int getMarkupRate() {
-        return 10;
+        return 5;
     }
 
     /**

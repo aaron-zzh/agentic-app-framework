@@ -7,8 +7,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
@@ -33,7 +32,6 @@ import reactor.core.publisher.Flux;
 @RequiredArgsConstructor
 public class AgUiStreamHandler {
 
-    private final ObjectMapper objectMapper;
     private final AgentRunEventPublisher agentRunEventPublisher;
 
     /**
@@ -157,7 +155,7 @@ public class AgUiStreamHandler {
 
     private void sendEvent(SseEmitter emitter, AgUiEvent event) {
         try {
-            var json = objectMapper.writeValueAsString(event);
+            var json = JsonUtils.toJsonString(event);
             synchronized (emitter) {
                 emitter.send(SseEmitter.event().data(json));
             }

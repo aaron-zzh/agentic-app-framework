@@ -86,21 +86,6 @@ public class FileController {
         return Result.success(vo);
     }
 
-    @Operation(summary = "上传图片（自动生成缩略图）")
-    @PreAuthorize("isAuthenticated()")
-    @PostMapping("/upload-image")
-    public Result<FileVO> uploadImage(@RequestParam("file") MultipartFile file) {
-        var vo = fileService.uploadImage(file);
-        var uploaderId = operatorContext.currentOwnerId().orElse(null);
-        fileRecordService.save(
-                vo.key(),
-                file.getOriginalFilename(),
-                file.getContentType(),
-                file.getSize(),
-                uploaderId);
-        return Result.success(vo);
-    }
-
     @Operation(summary = "前端直传完成确认（预签名/STS 分片上传后调用）")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/confirm")
@@ -113,8 +98,8 @@ public class FileController {
 
     @Operation(summary = "删除文件")
     @PreAuthorize("isAuthenticated()")
-    @DeleteMapping("/{key}")
-    public Result<Void> delete(@PathVariable String key) {
+    @DeleteMapping
+    public Result<Void> delete(@RequestParam String key) {
         fileService.delete(key);
         return Result.success();
     }

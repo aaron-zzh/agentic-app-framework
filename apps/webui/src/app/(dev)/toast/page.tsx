@@ -7,6 +7,7 @@
  */
 
 import { toast } from "sonner"
+import { LottieIcon } from "@/components/animate/LottieIcon"
 import { ComponentBox, ComponentLayout } from "@/components/common/ComponentLayout"
 import { Button } from "@/components/ui/button"
 import { notify } from "@/lib/notification"
@@ -174,6 +175,88 @@ export default function ToastPage() {
                 }
               >
                 Error + 不关闭 + 重试
+              </Button>
+            </ComponentBox>
+          )
+        },
+        {
+          name: "Lottie Toast",
+          description:
+            "用 toast.custom() 自定义整个 toast，内嵌 Lottie 动画。当前用占位动画，替换 name 即可。",
+          component: (
+            <ComponentBox>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  toast.custom((id) => (
+                    <div className="flex w-72 items-center gap-3 rounded-lg bg-background px-3">
+                      <LottieIcon name="success" width={48} height={48} loop={false} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm">操作成功</p>
+                        <p className="truncate text-muted-foreground text-xs">文件已上传到知识库</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-lg text-muted-foreground leading-none hover:text-foreground"
+                        onClick={() => toast.dismiss(id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                }
+              >
+                成功 Toast
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  toast.custom((id) => (
+                    <div className="flex w-72 items-center gap-3 rounded-lg border-destructive/30 bg-background px-3">
+                      <LottieIcon name="error" width={48} height={48} loop={false} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-destructive text-sm">操作失败</p>
+                        <p className="truncate text-muted-foreground text-xs">
+                          网络连接超时，请重试
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-lg text-muted-foreground leading-none hover:text-foreground"
+                        onClick={() => toast.dismiss(id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                }
+              >
+                失败 Toast
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  toast.custom((id) => (
+                    <div className="flex w-72 items-center gap-3 rounded-lg border-yellow-500/30 bg-background px-3">
+                      <LottieIcon name="warning" width={48} height={48} loop />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm">注意</p>
+                        <p className="truncate text-muted-foreground text-xs">
+                          此操作不可撤销，请谨慎
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-lg text-muted-foreground leading-none hover:text-foreground"
+                        onClick={() => toast.dismiss(id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                }
+              >
+                警告 Toast
               </Button>
             </ComponentBox>
           )

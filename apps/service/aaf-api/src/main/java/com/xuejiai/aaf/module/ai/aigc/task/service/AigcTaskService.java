@@ -1,17 +1,17 @@
 package com.xuejiai.aaf.module.ai.aigc.task.service;
 
-import java.io.InputStream;
-import java.net.URI;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -19,10 +19,18 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
+import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService;
+import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
+import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
-import com.xuejiai.aaf.framework.storage.StorageService;
+import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
@@ -33,9 +41,13 @@ import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
+import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * AIGC 统一任务服务——汇聚图像/视频/3D 模型/音乐四类生成任务，统一管理状态流转和 OSS 存储。
@@ -69,16 +81,15 @@ public class AigcTaskService
     private final AigcTaskRepository taskRepo;
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
-    private final StorageService storageService;
+    private final FileUploadService fileService;
     private final MediaAssetService mediaAssetService;
     private final CapabilityRouter capabilityRouter;
     private final AigcTaskExecutor taskExecutor;
     private final AiCreditGuard creditGuard;
     private final SystemConfigService systemConfigService;
-    private final ObjectMapper objectMapper;
-    private final com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager configCacheManager;
-    private final com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry
-            aiServiceRegistry;
+    private final ConfigCacheManager configCacheManager;
+    private final AiServiceRegistry aiServiceRegistry;
+    private final Model3dGenerationService model3dGenerationService;
 
     // ========== BaseCrudService 必须实现 ==========
 
@@ -112,7 +123,7 @@ public class AigcTaskService
     @Override
     protected Specification<AigcTask> buildSpec(AigcTaskPageDTO dto) {
         return (root, query, cb) -> {
-            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            var predicates = new ArrayList<Predicate>();
             if (dto.getUserId() != null)
                 predicates.add(cb.equal(root.get("userId"), dto.getUserId()));
             if (dto.getType() != null) predicates.add(cb.equal(root.get("type"), dto.getType()));
@@ -120,9 +131,7 @@ public class AigcTaskService
                 predicates.add(cb.equal(root.get("status"), dto.getStatus()));
             if (dto.getProjectId() != null)
                 predicates.add(cb.equal(root.get("projectId"), dto.getProjectId()));
-            return predicates.isEmpty()
-                    ? null
-                    : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            return predicates.isEmpty() ? null : cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
@@ -143,11 +152,19 @@ public class AigcTaskService
         // 委托 AiCapability 默认估算逻辑（与装饰器 creditCall 保持一致）
         long estimatedCost =
                 aiServiceRegistry
-                        .get(
-                                com.xuejiai.aaf.framework.intelligent.ai.image
-                                        .ImageGenerationService.class,
-                                resolvedAiModel)
+                        .get(ImageGenerationService.class, resolvedAiModel)
                         .estimateCost(resolvedAiModel, req, creditGuard.getMarkupRate());
+        log.debug(
+                "[submitImageTask] 估算积分: userId={}, model={}, modelPrice={}, quotaType={},"
+                        + " imageCount={}, quality={}, markup={}, estimatedCost={}",
+                userId,
+                resolvedAiModel.getModelId(),
+                resolvedAiModel.getModelPrice(),
+                resolvedAiModel.getQuotaType(),
+                req.imageCount(),
+                req.quality(),
+                creditGuard.getMarkupRate(),
+                estimatedCost);
         creditGuard.precheck(userId, "image-gen", estimatedCost);
         log.debug("[submitImageTask] resolve 耗时: {}ms", System.currentTimeMillis() - t0);
         String resolvedModel = resolvedAiModel.getModelId();
@@ -167,14 +184,13 @@ public class AigcTaskService
         final Long taskId = task.getId();
         final String prompt = req.prompt();
         final String mockUrl = isMockEnabled() ? getMockValue("image") : null;
-        org.springframework.transaction.support.TransactionSynchronizationManager
-                .registerSynchronization(
-                        new org.springframework.transaction.support.TransactionSynchronization() {
-                            @Override
-                            public void afterCommit() {
-                                taskExecutor.submitSync(taskId, prompt, resolvedModel, mockUrl);
-                            }
-                        });
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        taskExecutor.submitSync(taskId, prompt, resolvedModel, mockUrl);
+                    }
+                });
         log.debug(
                 "[submitImageTask] 总耗时: {}ms, taskId={}",
                 System.currentTimeMillis() - t0,
@@ -183,20 +199,41 @@ public class AigcTaskService
     }
 
     @Transactional
-    public Long submitVideoTask(Long userId, String prompt, String model, Long projectId) {
+    public Long submitVideoTask(Long userId, VideoTaskRequest req) {
         var ctx =
-                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_VIDEO_GEN, model);
+                CapabilityRoutingContext.of(
+                        userId, CapabilityRoutingContext.CAP_VIDEO_GEN, req.model());
         var resolvedModel = capabilityRouter.resolve(ctx);
         String resolvedModelId = resolvedModel.getModelId();
+
+        // 构造 VideoRequest 用于 estimateCost precheck
+        var imageModeEnum =
+                req.imageMode() != null ? VideoRequest.ImageMode.valueOf(req.imageMode()) : null;
+        var videoReq =
+                new VideoRequest(
+                        req.prompt(),
+                        req.imageUrl(),
+                        req.referenceImageUrls(),
+                        resolvedModelId,
+                        req.resolution(),
+                        req.ratio(),
+                        req.duration(),
+                        req.seed(),
+                        imageModeEnum);
+        var svc = aiServiceRegistry.get(VideoGenerationService.class, resolvedModel);
+        long estimatedCost = svc.estimateCost(resolvedModel, videoReq, creditGuard.getMarkupRate());
+        creditGuard.precheck(userId, "video-gen", estimatedCost);
 
         var task =
                 buildTask(
                         userId,
                         TYPE_VIDEO,
-                        prompt,
+                        req.prompt(),
                         resolvedModelId,
                         resolvedModel.getDisplayName(),
-                        projectId);
+                        req.projectId());
+        task.setParams(req.toParamsJson());
+
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
         if (isMockEnabled()) {
@@ -205,37 +242,73 @@ public class AigcTaskService
         }
 
         final Long taskId = task.getId();
-        final String mockUrl = null;
-        org.springframework.transaction.support.TransactionSynchronizationManager
-                .registerSynchronization(
-                        new org.springframework.transaction.support.TransactionSynchronization() {
-                            @Override
-                            public void afterCommit() {
-                                taskExecutor.submitVideoAsync(
-                                        taskId, prompt, resolvedModelId, mockUrl);
-                            }
-                        });
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        taskExecutor.submitVideoAsync(taskId, req.prompt(), resolvedModelId, null);
+                    }
+                });
         log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), resolvedModelId);
         return task.getId();
     }
 
     @Transactional
-    public Long submit3dTask(Long userId, String prompt, String model, Long projectId) {
-        var task = buildTask(userId, TYPE_MODEL3D, prompt, model, null, projectId);
+    public Long submit3dTask(
+            Long userId,
+            String prompt,
+            String model,
+            String source,
+            String textureQuality,
+            Long projectId) {
+        // 路由模型
+        var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_MODEL_3D, model);
+        var resolvedModel = capabilityRouter.resolve(ctx);
+        String resolvedModelId = resolvedModel.getModelId();
+
+        // 按 source + textureQuality 估算积分并预检
+        var req = buildModel3dRequest(prompt, source, textureQuality);
+        long estimatedCost =
+                model3dGenerationService.estimateCost(
+                        resolvedModel, req, creditGuard.getMarkupRate());
+        creditGuard.precheck(userId, "model3d-gen", estimatedCost);
+
+        var task =
+                buildTask(
+                        userId,
+                        TYPE_MODEL3D,
+                        prompt,
+                        resolvedModelId,
+                        resolvedModel.getDisplayName(),
+                        projectId);
+        // 存 source/textureQuality 供完成时结算
+        var paramsMap = new java.util.HashMap<String, Object>();
+        paramsMap.put("source", source != null ? source : "text");
+        paramsMap.put("textureQuality", textureQuality != null ? textureQuality : "none");
+        task.setParams(JsonUtils.toJsonString(paramsMap));
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String mockUrl3d = isMockEnabled() ? getMockValue("model3d") : null;
-        org.springframework.transaction.support.TransactionSynchronizationManager
-                .registerSynchronization(
-                        new org.springframework.transaction.support.TransactionSynchronization() {
-                            @Override
-                            public void afterCommit() {
-                                taskExecutor.submitModel3dSync(taskId, prompt, mockUrl3d);
-                            }
-                        });
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        taskExecutor.submitModel3dSync(taskId, prompt, mockUrl3d);
+                    }
+                });
         return task.getId();
+    }
+
+    /** 根据 source 构造对应请求对象，用于 estimateCost。 */
+    private Object buildModel3dRequest(String prompt, String source, String textureQuality) {
+        String tex = textureQuality != null ? textureQuality : "none";
+        return switch (source != null ? source : "text") {
+            case "image" -> new Model3dGenerationService.ImageTo3dRequest(null, tex, null);
+            case "multi" -> new Model3dGenerationService.MultiImageTo3dRequest(null, tex, null);
+            default -> new Model3dGenerationService.TextTo3dRequest(prompt, tex, null);
+        };
     }
 
     @Transactional
@@ -247,15 +320,10 @@ public class AigcTaskService
             String gender,
             Long projectId) {
         var resolvedModel = configCacheManager.getAiModelByModelId(model);
-        var musicReq =
-                new com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService
-                        .MusicRequest(prompt, lyrics, gender, "mp3");
+        var musicReq = new MusicGenerationService.MusicRequest(prompt, lyrics, gender, "mp3");
         long estimatedCost =
                 aiServiceRegistry
-                        .get(
-                                com.xuejiai.aaf.framework.intelligent.ai.music
-                                        .MusicGenerationService.class,
-                                resolvedModel)
+                        .get(MusicGenerationService.class, resolvedModel)
                         .estimateCost(resolvedModel, musicReq, creditGuard.getMarkupRate());
         creditGuard.precheck(userId, "music-gen", estimatedCost);
         var task = buildTask(userId, TYPE_MUSIC, prompt, model, null, projectId);
@@ -265,15 +333,14 @@ public class AigcTaskService
         final Long taskId = task.getId();
         final String resolvedGender = gender != null ? gender : "female";
         final String mockUrlMusic = isMockEnabled() ? getMockValue("audio") : null;
-        org.springframework.transaction.support.TransactionSynchronizationManager
-                .registerSynchronization(
-                        new org.springframework.transaction.support.TransactionSynchronization() {
-                            @Override
-                            public void afterCommit() {
-                                taskExecutor.submitMusicSync(
-                                        taskId, prompt, lyrics, resolvedGender, mockUrlMusic);
-                            }
-                        });
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        taskExecutor.submitMusicSync(
+                                taskId, prompt, lyrics, resolvedGender, mockUrlMusic);
+                    }
+                });
         return task.getId();
     }
 
@@ -290,7 +357,6 @@ public class AigcTaskService
     @Transactional
     public Long submitVoiceTask(
             Long userId, String text, String voice, String model, Long projectId) {
-        creditGuard.precheck(userId, "voice-gen", AiCreditGuard.INESTIMABLE_COST);
         if (text == null || text.isBlank()) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "配音文本不能为空");
         }
@@ -299,31 +365,54 @@ public class AigcTaskService
                     GlobalErrorCode.BAD_REQUEST, "配音文本不能超过 " + VOICE_TEXT_MAX_LEN + " 字");
         }
 
-        var task = buildTask(userId, TYPE_VOICE, text, model, null, projectId);
+        // 通过 CapabilityRouter 解析模型（显式指定 → 用户偏好 → 系统默认）
+        var ctx =
+                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_SPEECH_TTS, model);
+        var resolvedModel = capabilityRouter.resolve(ctx);
+        String resolvedModelId = resolvedModel.getModelId();
+
+        // precheck：通过 estimateCost 精确预估（SpeechService 按字符数计算）
+        long estimatedCost =
+                aiServiceRegistry
+                        .get(SpeechService.class, resolvedModel)
+                        .estimateCost(resolvedModel, text, creditGuard.getMarkupRate());
+        creditGuard.precheck(userId, "voice-gen", estimatedCost);
+
+        var task =
+                buildTask(
+                        userId,
+                        TYPE_VOICE,
+                        text,
+                        resolvedModelId,
+                        resolvedModel.getDisplayName(),
+                        projectId);
         if (voice != null && !voice.isBlank()) {
-            task.setParams(JsonUtils.toJsonString(java.util.Map.of("voice", voice)));
+            task.setParams(JsonUtils.toJsonString(Map.of("voice", voice)));
         }
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String mockUrlVoice = isMockEnabled() ? getMockValue("audio") : null;
-        org.springframework.transaction.support.TransactionSynchronizationManager
-                .registerSynchronization(
-                        new org.springframework.transaction.support.TransactionSynchronization() {
-                            @Override
-                            public void afterCommit() {
-                                taskExecutor.submitVoiceSync(taskId, text, voice, mockUrlVoice);
-                            }
-                        });
-        log.info("[submitVoiceTask] 配音生成任务已创建: taskId={}, voice={}", task.getId(), voice);
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        taskExecutor.submitVoiceSync(taskId, text, voice, mockUrlVoice);
+                    }
+                });
+        log.info(
+                "[submitVoiceTask] 配音生成任务已创建: taskId={}, model={}, voice={}",
+                task.getId(),
+                resolvedModelId,
+                voice);
         return task.getId();
     }
 
     // ========== 任务完成/失败回调 ==========
 
-    @Transactional(
-            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    /** 图片/3D 等非视频任务完成时，直接传入 resultUrl，无需 VideoTaskResult。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeTask(String thirdTaskId, String resultUrl) {
         var task = taskRepo.findByTaskId(thirdTaskId).orElse(null);
         if (task == null) {
@@ -331,17 +420,73 @@ public class AigcTaskService
             return;
         }
         task.setResultUrl(resultUrl);
-        String ossUrl = uploadToOss(resultUrl, task.getType(), task.getId());
+        String ossUrl = uploadFile(resultUrl, task.getType(), task.getId());
         task.setOssUrl(ossUrl);
         task.setStatus(STATUS_SUCCESS);
         taskRepo.save(task);
         saveToMediaAsset(task, ossUrl);
+
+        // 3D 任务：从 task.params 读 source/textureQuality 结算积分
+        if (TYPE_MODEL3D.equals(task.getType())) {
+            try {
+                var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
+                Map<String, Object> p =
+                        task.getParams() != null
+                                ? JsonUtils.parseObject(
+                                        task.getParams(),
+                                        new TypeReference<Map<String, Object>>() {})
+                                : Map.of();
+                String source = p.containsKey("source") ? (String) p.get("source") : "text";
+                String texture =
+                        p.containsKey("textureQuality") ? (String) p.get("textureQuality") : "none";
+                var usage =
+                        new Model3dGenerationService.Model3dTaskResult(
+                                thirdTaskId, null, null, null, null, null, source, texture);
+                log.info(
+                        "[completeTask] 3D 积分结算: taskId={}, source={}, texture={}",
+                        task.getId(),
+                        source,
+                        texture);
+                creditGuard.settleByUsage(task.getUserId(), aiModel, usage, "model3d-gen", "3D 生成");
+            } catch (Exception e) {
+                log.warn(
+                        "[completeTask] 3D 积分结算失败: taskId={}, err={}",
+                        task.getId(),
+                        e.getMessage());
+            }
+        }
+
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
     }
 
-    @Transactional(
-            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void completeTask(String thirdTaskId, VideoTaskResult result) {
+        var task = taskRepo.findByTaskId(thirdTaskId).orElse(null);
+        if (task == null) {
+            log.warn("[completeTask] 任务不存在: thirdTaskId={}", thirdTaskId);
+            return;
+        }
+        task.setResultUrl(result.getVideoUrl());
+        String ossUrl = uploadFile(result.getVideoUrl(), task.getType(), task.getId());
+        task.setOssUrl(ossUrl);
+        task.setStatus(STATUS_SUCCESS);
+        taskRepo.save(task);
+        saveToMediaAsset(task, ossUrl);
+
+        // 按实际 duration + resolution 结算积分
+        try {
+            var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
+            creditGuard.settleByUsage(task.getUserId(), aiModel, result, "video-gen", "视频生成");
+        } catch (Exception e) {
+            log.warn("[completeTask] 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
+        }
+
+        eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+        log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failTask(String thirdTaskId, String errorMsg) {
         if (thirdTaskId == null) return;
         var task = taskRepo.findByTaskId(thirdTaskId).orElse(null);
@@ -391,17 +536,13 @@ public class AigcTaskService
         return task;
     }
 
-    private String uploadToOss(String url, String type, Long taskId) {
+    private String uploadFile(String url, String type, Long taskId) {
         try {
             String ext = guessExtension(url, type);
-            String filename = "aigc/%s/%s.%s".formatted(type.toLowerCase(), UUID.randomUUID(), ext);
-            String contentType = guessContentType(type);
-            try (InputStream is = URI.create(url).toURL().openStream()) {
-                String key = storageService.upload(is, filename, contentType);
-                return storageService.getUrl(key);
-            }
+            String path = "aigc/%s/%s.%s".formatted(type.toLowerCase(), UUID.randomUUID(), ext);
+            return fileService.uploadFromUrl(url, path, guessContentType(type), null);
         } catch (Exception e) {
-            log.warn("[uploadToOss] 上传 OSS 失败，回退使用原始 URL: taskId={}, url={}", taskId, url, e);
+            log.warn("[uploadFile] 上传文件失败，回退使用原始 URL: taskId={}, url={}", taskId, url, e);
             return url;
         }
     }
@@ -415,7 +556,7 @@ public class AigcTaskService
                             ossUrl,
                             null,
                             JsonUtils.toJsonString(
-                                    java.util.Map.of(
+                                    Map.of(
                                             "prompt",
                                                     task.getPrompt() != null
                                                             ? task.getPrompt()
@@ -498,9 +639,7 @@ public class AigcTaskService
         var json = systemConfigService.getString(SysConfigKeys.Aigc.MOCK_DATA);
         if (json == null || json.isBlank()) return "";
         try {
-            var map =
-                    objectMapper.readValue(
-                            json, new TypeReference<java.util.Map<String, String>>() {});
+            var map = JsonUtils.parseObject(json, new TypeReference<Map<String, String>>() {});
             return map.getOrDefault(typeKey, "");
         } catch (Exception e) {
             log.warn("[getMockValue] 解析 aigc.mock_data 失败: {}", e.getMessage());

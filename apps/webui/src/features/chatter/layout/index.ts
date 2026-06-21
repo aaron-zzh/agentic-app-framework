@@ -1,5 +1,6 @@
 export { ChatterLayout } from "./ChatterLayout"
 export { ChatterPanel } from "./ChatterPanel"
+export { FloatingChatter } from "./FloatingChatter"
 export { FloatingChatterButton } from "./FloatingChatterButton"
 export { GlobalChatter } from "./GlobalChatter"
 export { GlobalChatterDialog } from "./GlobalChatterDialog"

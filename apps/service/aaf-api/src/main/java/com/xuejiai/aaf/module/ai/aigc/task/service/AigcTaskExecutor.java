@@ -1,18 +1,14 @@
 package com.xuejiai.aaf.module.ai.aigc.task.service;
 
-import java.net.URI;
-import java.net.URL;
 import java.time.LocalDateTime;
-import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
@@ -24,12 +20,11 @@ import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService;
-import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService.TextTo3dRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService.MusicRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
-import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
@@ -37,6 +32,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
+import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,14 +50,12 @@ public class AigcTaskExecutor {
     private final AigcTaskRepository taskRepo;
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
-    private final StorageService storageService;
+    private final FileUploadService fileService;
     private final MediaAssetService mediaAssetService;
     private final AiServiceRegistry aiServiceRegistry;
-    private final ObjectMapper objectMapper;
     private final AiCreditGuard creditGuard;
     private final ConfigCacheManager configCacheManager;
     private final Model3dGenerationService model3dGenerationService;
-    private final ObjectProvider<SpeechService> speechServiceProvider;
     private final jakarta.persistence.EntityManager entityManager;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -158,15 +152,21 @@ public class AigcTaskExecutor {
                                     ? result.urls().get(0)
                                     : null);
             if (firstUrl != null) {
+                String ext = guessImageExt(firstUrl);
+                String path =
+                        "aigc/%s/%s.%s"
+                                .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
                 // 判断是 b64 还是 url：b64 不含 http 且较长，或以 data: 开头
                 if (firstUrl.startsWith("data:")
                         || (!firstUrl.startsWith("http") && firstUrl.length() > 200)) {
-                    ossUrl = uploadB64ToOss(firstUrl, task.getType(), task.getId());
+                    ossUrl = fileService.uploadFromBase64(firstUrl, path, null);
                 } else {
-                    ossUrl = uploadToOss(firstUrl, task.getType(), task.getId());
+                    ossUrl = fileService.uploadFromUrl(firstUrl, path, "image/" + ext, null);
                 }
             } else if (result.b64Json() != null) {
-                ossUrl = uploadB64ToOss(result.b64Json(), task.getType(), task.getId());
+                String path =
+                        "aigc/%s/%s.png".formatted(task.getType().toLowerCase(), UUID.randomUUID());
+                ossUrl = fileService.uploadFromBase64(result.b64Json(), path, null);
             } else {
                 throw new IllegalStateException(
                         "图片生成结果为空: taskId="
@@ -199,9 +199,16 @@ public class AigcTaskExecutor {
             if (extraUrls != null && extraUrls.size() > 1) {
                 for (int i = 1; i < extraUrls.size(); i++) {
                     try {
+                        String extraUrl = extraUrls.get(i);
+                        String ext = guessImageExt(extraUrl);
+                        String path =
+                                "aigc/%s/%s.%s"
+                                        .formatted(
+                                                task.getType().toLowerCase(),
+                                                UUID.randomUUID(),
+                                                ext);
                         String extra =
-                                uploadToOss(
-                                        extraUrls.get(i), task.getType(), task.getId() * 1000L + i);
+                                fileService.uploadFromUrl(extraUrl, path, "image/" + ext, null);
                         saveExtraAsset(
                                 task,
                                 extra,
@@ -230,55 +237,6 @@ public class AigcTaskExecutor {
                     toVO(task));
         } catch (Exception e) {
             log.debug("[submitSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
-        }
-    }
-
-    private String uploadToOss(String url, String type, Long taskId) {
-        try {
-            // 解析 URL 路径部分取扩展名，签名参数不干扰；取不到则按类型降级
-            String ext = "png";
-            try {
-                String path = new URI(url).getPath();
-                int dot = path.lastIndexOf('.');
-                String e = (dot >= 0) ? path.substring(dot + 1) : "";
-                if (!e.isEmpty() && e.length() <= 5) ext = e;
-            } catch (Exception ignore) {
-            }
-            // UUID 保证唯一，不依赖 taskId 或 URL 中的任何信息
-            String filename = "aigc/%s/%s.%s".formatted(type.toLowerCase(), UUID.randomUUID(), ext);
-            var input = new URL(url).openStream();
-            String key = storageService.upload(input, filename, "image/" + ext);
-            return storageService.getUrl(key);
-        } catch (Exception e) {
-            log.warn("[uploadToOss] 上传失败: url={}", url, e);
-            return url;
-        }
-    }
-
-    private String uploadB64ToOss(String b64, String type, Long taskId) {
-        try {
-            // 剥离 data URL 前缀：data:image/png;base64,xxx
-            String mime = "image/png";
-            String ext = "png";
-            String data = b64;
-            if (b64 != null && b64.startsWith("data:")) {
-                int comma = b64.indexOf(',');
-                if (comma > 0) {
-                    String header = b64.substring(5, comma); // image/png;base64
-                    mime = header.contains(";") ? header.substring(0, header.indexOf(';')) : header;
-                    ext = mime.contains("/") ? mime.substring(mime.indexOf('/') + 1) : "png";
-                    if (ext.equals("jpeg")) ext = "jpg";
-                    data = b64.substring(comma + 1);
-                }
-            }
-            byte[] bytes = Base64.getDecoder().decode(data);
-            String filename = "aigc/%s/%d.%s".formatted(type.toLowerCase(), taskId, ext);
-            String key =
-                    storageService.upload(new java.io.ByteArrayInputStream(bytes), filename, mime);
-            return storageService.getUrl(key);
-        } catch (Exception e) {
-            log.warn("[uploadB64ToOss] 上传失败: taskId={}", taskId, e);
-            throw new IllegalStateException("图片上传 OSS 失败: taskId=" + taskId, e);
         }
     }
 
@@ -316,7 +274,7 @@ public class AigcTaskExecutor {
                             ossUrl,
                             null,
                             JsonUtils.toJsonString(
-                                    java.util.Map.of(
+                                    Map.of(
                                             "prompt",
                                                     task.getPrompt() != null
                                                             ? task.getPrompt()
@@ -363,7 +321,7 @@ public class AigcTaskExecutor {
                             ossUrl,
                             null,
                             JsonUtils.toJsonString(
-                                    java.util.Map.of(
+                                    Map.of(
                                             "prompt",
                                                     task.getPrompt() != null
                                                             ? task.getPrompt()
@@ -406,7 +364,8 @@ public class AigcTaskExecutor {
                                 .get(MusicGenerationService.class, aiModel)
                                 .generate(aiModel, new MusicRequest(prompt, lyrics, gender, "mp3"));
                 task.setResultUrl(result.audioUrl());
-                ossUrl = uploadAudioToOss(result.audioUrl(), task.getId());
+                String path = "aigc/music/%s.mp3".formatted(UUID.randomUUID());
+                ossUrl = fileService.uploadFromUrl(result.audioUrl(), path, "audio/mpeg", null);
             }
             task.setOssUrl(ossUrl);
             task.setStatus("SUCCESS");
@@ -461,7 +420,7 @@ public class AigcTaskExecutor {
         }
     }
 
-    /** 配音生成异步执行（TTS 非流式，阻塞合成完整音频后上传 OSS）。 */
+    /** 配音生成异步执行（TTS 非流式，阻塞合成完整音频后上传存储）。 */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitVoiceSync(Long taskId, String text, String voice, String mockUrl) {
@@ -475,16 +434,20 @@ public class AigcTaskExecutor {
             if (mockUrl != null && !mockUrl.isBlank()) {
                 ossUrl = mockUrl;
             } else {
-                var speechService = speechServiceProvider.getIfAvailable();
-                if (speechService == null) {
-                    throw new IllegalStateException("配音服务未启用，请配置 spring.ai.dashscope.api-key");
+                var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
+                if (aiModel == null) {
+                    throw new IllegalStateException("配音模型未配置: " + task.getModel());
                 }
-
-                byte[] audio = speechService.synthesize(text, voice);
+                var result =
+                        aiServiceRegistry
+                                .get(SpeechService.class, aiModel)
+                                .synthesize(aiModel, text, voice);
+                byte[] audio = result.audio();
                 if (audio == null || audio.length == 0) {
                     throw new IllegalStateException("配音合成结果为空: taskId=" + taskId);
                 }
-                ossUrl = uploadAudioBytesToOss(audio, task.getId());
+                String path = "aigc/voice/%s.mp3".formatted(UUID.randomUUID());
+                ossUrl = fileService.uploadFromBytes(audio, path, "audio/mpeg", null);
             }
 
             task.setResultUrl(ossUrl);
@@ -503,8 +466,7 @@ public class AigcTaskExecutor {
                                 ossUrl,
                                 null,
                                 JsonUtils.toJsonString(
-                                        java.util.Map.of(
-                                                "text", text, "voice", voice != null ? voice : "")),
+                                        Map.of("text", text, "voice", voice != null ? voice : "")),
                                 null,
                                 null,
                                 null,
@@ -537,20 +499,6 @@ public class AigcTaskExecutor {
         }
     }
 
-    /** 将 TTS 合成的音频字节（MP3）上传 OSS，返回可访问 URL。 */
-    private String uploadAudioBytesToOss(byte[] audio, Long taskId) {
-        try {
-            String filename = "aigc/voice/%s.mp3".formatted(UUID.randomUUID());
-            String key =
-                    storageService.upload(
-                            new java.io.ByteArrayInputStream(audio), filename, "audio/mpeg");
-            return storageService.getUrl(key);
-        } catch (Exception e) {
-            log.warn("[uploadAudioBytesToOss] 上传失败: taskId={}", taskId, e);
-            throw new IllegalStateException("配音上传 OSS 失败: taskId=" + taskId, e);
-        }
-    }
-
     /** 3D 模型生成异步执行（提交到第三方后立即返回，由 {@code Model3dTaskSyncJob} 轮询结果）。 */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -562,7 +510,6 @@ public class AigcTaskExecutor {
             taskRepo.save(task);
 
             if (mockUrl != null && !mockUrl.isBlank()) {
-                // Mock 模式：直接完成
                 task.setOssUrl(mockUrl);
                 task.setStatus("SUCCESS");
                 task.setUpdateTime(LocalDateTime.now());
@@ -571,15 +518,43 @@ public class AigcTaskExecutor {
                 return;
             }
 
-            // 提交到第三方，拿到外部 taskId，后续由定时 Job 轮询
+            // 从 task.params 读 source/textureQuality
+            Map<String, Object> p =
+                    task.getParams() != null
+                            ? JsonUtils.parseObject(
+                                    task.getParams(),
+                                    new tools.jackson.core.type.TypeReference<
+                                            Map<String, Object>>() {})
+                            : Map.of();
+            String source = p.containsKey("source") ? (String) p.get("source") : "text";
+            String textureQuality =
+                    p.containsKey("textureQuality") ? (String) p.get("textureQuality") : null;
+
+            // 按 source 路由提交方法
             String thirdTaskId =
-                    model3dGenerationService.submitTextTo3d(
-                            new TextTo3dRequest(prompt, null, null));
+                    switch (source) {
+                        case "image" ->
+                                model3dGenerationService.submitImageTo3d(
+                                        new Model3dGenerationService.ImageTo3dRequest(
+                                                null, textureQuality, null));
+                        case "multi" ->
+                                model3dGenerationService.submitMultiImageTo3d(
+                                        new Model3dGenerationService.MultiImageTo3dRequest(
+                                                null, textureQuality, null));
+                        default ->
+                                model3dGenerationService.submitTextTo3d(
+                                        new Model3dGenerationService.TextTo3dRequest(
+                                                prompt, textureQuality, null));
+                    };
             task.setTaskId(thirdTaskId);
             task.setStatus("PENDING");
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
-            log.info("[submitModel3dSync] 任务已提交: taskId={}, thirdTaskId={}", taskId, thirdTaskId);
+            log.info(
+                    "[submitModel3dSync] 任务已提交: taskId={}, thirdTaskId={}, source={}",
+                    taskId,
+                    thirdTaskId,
+                    source);
         } catch (Exception e) {
             log.error("[submitModel3dSync] 提交失败: taskId={}", taskId, e);
             task.setStatus("FAIL");
@@ -618,10 +593,85 @@ public class AigcTaskExecutor {
                             com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService
                                     .class,
                             aiModel);
-            var request =
-                    new com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService
-                            .TextToVideoRequest(prompt, aiModel, null, null, null, null, null);
-            String thirdTaskId = svc.submitTextToVideo(request);
+
+            // 从 task.params 反序列化视频参数
+            Map<String, Object> p =
+                    task.getParams() != null
+                            ? JsonUtils.parseObject(
+                                    task.getParams(),
+                                    new tools.jackson.core.type.TypeReference<
+                                            Map<String, Object>>() {})
+                            : Map.of();
+
+            String imageModeStr = p.containsKey("imageMode") ? (String) p.get("imageMode") : "T2V";
+            var imageModeEnum = VideoRequest.ImageMode.valueOf(imageModeStr);
+
+            // Seedance rich（有 referenceVideoUrls/referenceAudioUrls）：volcengine provider 调用
+            // submitRich
+            @SuppressWarnings("unchecked")
+            List<String> referenceVideoUrls =
+                    p.get("referenceVideoUrls") instanceof List<?> l
+                            ? l.stream().map(Object::toString).toList()
+                            : null;
+            @SuppressWarnings("unchecked")
+            List<String> referenceAudioUrls =
+                    p.get("referenceAudioUrls") instanceof List<?> l
+                            ? l.stream().map(Object::toString).toList()
+                            : null;
+
+            boolean isVolcengine =
+                    aiModel != null
+                            && aiModel.effectiveProviderType()
+                                    == com.xuejiai.aaf.framework.intelligent.core.model
+                                            .AiModelProviderType.VOLCENGINE;
+            boolean hasRichMedia =
+                    (referenceVideoUrls != null && !referenceVideoUrls.isEmpty())
+                            || (referenceAudioUrls != null && !referenceAudioUrls.isEmpty());
+
+            String thirdTaskId;
+            if (isVolcengine
+                    && hasRichMedia
+                    && svc
+                            instanceof
+                            com.xuejiai.aaf.framework.intelligent.ai.video
+                                            .DoubaoVideoGenerationService
+                                    doubao) {
+                @SuppressWarnings("unchecked")
+                List<String> referenceImages =
+                        p.get("referenceImageUrls") instanceof List<?> l
+                                ? l.stream().map(Object::toString).toList()
+                                : null;
+                boolean generateAudio = Boolean.TRUE.equals(p.get("generateAudio"));
+                thirdTaskId =
+                        doubao.submitRich(
+                                aiModel,
+                                prompt,
+                                referenceImages,
+                                referenceVideoUrls,
+                                referenceAudioUrls,
+                                (String) p.get("ratio"),
+                                toParamInt(p.get("duration")),
+                                generateAudio);
+            } else {
+                @SuppressWarnings("unchecked")
+                List<String> referenceImageUrls =
+                        p.get("referenceImageUrls") instanceof List<?> l
+                                ? l.stream().map(Object::toString).toList()
+                                : null;
+                var request =
+                        new VideoRequest(
+                                prompt,
+                                (String) p.get("imageUrl"),
+                                referenceImageUrls,
+                                modelId,
+                                (String) p.get("resolution"),
+                                (String) p.get("ratio"),
+                                toParamInt(p.get("duration")),
+                                toParamInt(p.get("seed")),
+                                imageModeEnum);
+                thirdTaskId = svc.submit(request);
+            }
+
             task.setTaskId(thirdTaskId);
             task.setStatus("PENDING");
             task.setUpdateTime(LocalDateTime.now());
@@ -640,27 +690,14 @@ public class AigcTaskExecutor {
         }
     }
 
-    private String uploadModel3dToOss(String url, Long taskId) {
+    private static Integer toParamInt(Object val) {
+        if (val == null) return null;
+        if (val instanceof Integer i) return i;
+        if (val instanceof Number n) return n.intValue();
         try {
-            String filename = "aigc/model3d/%s.glb".formatted(UUID.randomUUID());
-            var input = new URL(url).openStream();
-            String key = storageService.upload(input, filename, "model/gltf-binary");
-            return storageService.getUrl(key);
+            return Integer.parseInt(val.toString());
         } catch (Exception e) {
-            log.warn("[uploadModel3dToOss] 上传失败，回退原始 URL: taskId={}", taskId, e);
-            return url;
-        }
-    }
-
-    private String uploadAudioToOss(String url, Long taskId) {
-        try {
-            String filename = "aigc/music/%s.mp3".formatted(UUID.randomUUID());
-            var input = new URL(url).openStream();
-            String key = storageService.upload(input, filename, "audio/mpeg");
-            return storageService.getUrl(key);
-        } catch (Exception e) {
-            log.warn("[uploadAudioToOss] 上传失败，回退原始 URL: taskId={}", taskId, e);
-            return url;
+            return null;
         }
     }
 
@@ -669,7 +706,7 @@ public class AigcTaskExecutor {
         try {
             ImageRequest req =
                     paramsJson != null
-                            ? objectMapper.readValue(paramsJson, ImageRequest.class)
+                            ? JsonUtils.parseObject(paramsJson, ImageRequest.class)
                             : new ImageRequest();
             req.setPrompt(prompt);
             req.setModelId(modelId);
@@ -679,16 +716,27 @@ public class AigcTaskExecutor {
         }
     }
 
-    private String resolveBizName(String taskType) {
-        if (taskType == null) return null;
-        return switch (taskType) {
-            case "IMAGE" -> "图像生成";
-            case "VIDEO" -> "视频生成";
-            case "MODEL_3D" -> "3D 生成";
-            case "MUSIC" -> "音乐生成";
-            case "VOICE" -> "语音合成";
-            default -> null;
-        };
+    /** 从 URL 或 data URL 中推断图片扩展名，取不到则返回 {@code png}。 */
+    private String guessImageExt(String url) {
+        if (url == null) return "png";
+        if (url.startsWith("data:")) {
+            // data:image/webp;base64,...
+            int slash = url.indexOf('/');
+            int semi = url.indexOf(';');
+            if (slash > 0 && semi > slash) {
+                String ext = url.substring(slash + 1, semi);
+                return ext.equals("jpeg") ? "jpg" : ext;
+            }
+            return "png";
+        }
+        try {
+            String path = new java.net.URI(url).getPath();
+            int dot = path.lastIndexOf('.');
+            String ext = dot >= 0 ? path.substring(dot + 1) : "";
+            return (!ext.isEmpty() && ext.length() <= 5) ? ext : "png";
+        } catch (Exception e) {
+            return "png";
+        }
     }
 
     private AigcTaskVO toVO(AigcTask task) {

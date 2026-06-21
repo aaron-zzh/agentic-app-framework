@@ -18,6 +18,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { mediaAssetApi } from "@/lib/api/rest/media/media-asset"
+import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "../store"
 import type { MediaAssetVO } from "../types"
@@ -70,6 +71,7 @@ export function AssetGroupCard({
   }
 
   const { addPendingTask, completePendingTask, failPendingTask, removePendingTask } = useAigcStore()
+  const { upload } = useFileUpload()
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -108,22 +110,17 @@ export function AssetGroupCard({
       // 直接把临时 asset 写入（completePendingTask 第三参）让卡片立即显示真图
       completePendingTask(tempId, localUrl, tempAsset)
 
-      const form = new FormData()
-      form.append("file", file)
-      backendApi
-        .post<{ url: string }>("/system/files/upload-image", form, {
-          headers: { "Content-Type": undefined }
-        })
-        .then(async (res) => {
+      upload(file)
+        .then(async (result) => {
           const asset = await backendApi.post<MediaAssetVO>("/aigc/assets", {
             name: file.name,
             type: "IMAGE",
-            url: res.url,
-            thumbnailUrl: res.url,
-            size: file.size,
+            url: result.url,
+            thumbnailUrl: result.url,
+            size: result.size,
             groupId
           })
-          completePendingTask(tempId, res.url, asset)
+          completePendingTask(tempId, result.url, asset)
           URL.revokeObjectURL(localUrl)
           setTimeout(() => {
             removePendingTask(tempId)

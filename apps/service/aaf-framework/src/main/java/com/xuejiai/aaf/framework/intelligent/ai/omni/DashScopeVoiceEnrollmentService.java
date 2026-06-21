@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,7 +32,6 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
 
     private final String apiKey;
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DashScopeVoiceEnrollmentService(
             @Value("${spring.ai.dashscope.api-key:}") String apiKey) {
@@ -43,8 +42,7 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
     public String createVoice(CreateVoiceRequest request) {
         try {
             var input =
-                    objectMapper
-                            .createObjectNode()
+                    JsonUtils.createObjectNode()
                             .put("action", "create")
                             .put("target_model", request.targetModel())
                             .put("preferred_name", request.preferredName());
@@ -56,7 +54,7 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
                 input.put("language", request.language());
             }
 
-            var body = objectMapper.createObjectNode().put("model", ENROLLMENT_MODEL);
+            var body = JsonUtils.createObjectNode().put("model", ENROLLMENT_MODEL);
             body.set("input", input);
 
             var root = post(body.toString());
@@ -77,12 +75,11 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
     public List<VoiceInfo> listVoices(int pageIndex, int pageSize) {
         try {
             var input =
-                    objectMapper
-                            .createObjectNode()
+                    JsonUtils.createObjectNode()
                             .put("action", "list")
                             .put("page_index", pageIndex)
                             .put("page_size", pageSize);
-            var body = objectMapper.createObjectNode().put("model", ENROLLMENT_MODEL);
+            var body = JsonUtils.createObjectNode().put("model", ENROLLMENT_MODEL);
             body.set("input", input);
 
             var root = post(body.toString());
@@ -108,8 +105,8 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
     @Override
     public void deleteVoice(String voice) {
         try {
-            var input = objectMapper.createObjectNode().put("action", "delete").put("voice", voice);
-            var body = objectMapper.createObjectNode().put("model", ENROLLMENT_MODEL);
+            var input = JsonUtils.createObjectNode().put("action", "delete").put("voice", voice);
+            var body = JsonUtils.createObjectNode().put("model", ENROLLMENT_MODEL);
             body.set("input", input);
 
             post(body.toString());
@@ -121,7 +118,7 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
         }
     }
 
-    private com.fasterxml.jackson.databind.JsonNode post(String json) throws Exception {
+    private tools.jackson.databind.JsonNode post(String json) throws Exception {
         var request =
                 HttpRequest.newBuilder()
                         .uri(URI.create(API_URL))
@@ -131,7 +128,7 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
                         .build();
 
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        var root = objectMapper.readTree(response.body());
+        var root = JsonUtils.readTree(response.body());
 
         if (response.statusCode() != 200) {
             var msg = root.has("message") ? root.get("message").asText() : response.body();

@@ -22,6 +22,7 @@ export { useChatterLayoutPreference, useTaskBoard } from "./hooks"
 export {
   ChatterLayout as ChatterLayoutContainer,
   ChatterPanel,
+  FloatingChatter,
   FloatingChatterButton,
   GlobalChatter,
   GlobalChatterDialog

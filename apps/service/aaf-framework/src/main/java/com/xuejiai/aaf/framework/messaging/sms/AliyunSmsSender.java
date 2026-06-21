@@ -5,7 +5,9 @@ import java.util.Map;
 import com.aliyun.dysmsapi20170525.Client;
 import com.aliyun.dysmsapi20170525.models.SendSmsRequest;
 import com.aliyun.teaopenapi.models.Config;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.messaging.ProviderResponse;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,9 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AliyunSmsSender implements SmsSender {
 
+    private static final String PROVIDER = "aliyun";
+
     private final Client client;
     private final String signName;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AliyunSmsSender(SmsProperties.AliyunConfig config) {
         this.signName = config.signName();
@@ -32,9 +35,9 @@ public class AliyunSmsSender implements SmsSender {
     }
 
     @Override
-    public void send(String phone, String templateCode, Map<String, String> params) {
+    public ProviderResponse send(String phone, String templateCode, Map<String, String> params) {
         try {
-            var paramsJson = objectMapper.writeValueAsString(params);
+            var paramsJson = JsonUtils.toJsonString(params);
             var request =
                     new SendSmsRequest()
                             .setPhoneNumbers(phone)
@@ -42,15 +45,22 @@ public class AliyunSmsSender implements SmsSender {
                             .setTemplateCode(templateCode)
                             .setTemplateParam(paramsJson);
             var response = client.sendSms(request);
-            if (!"OK".equals(response.getBody().getCode())) {
+            var body = response.getBody();
+            if (!"OK".equals(body.getCode())) {
                 log.error(
                         "阿里云短信发送失败: sign={}, code={}, message={}",
                         signName,
-                        response.getBody().getCode(),
-                        response.getBody().getMessage());
-                throw new RuntimeException("短信发送失败: " + response.getBody().getMessage());
+                        body.getCode(),
+                        body.getMessage());
+                throw new RuntimeException("短信发送失败: " + body.getMessage());
             }
-            log.info("阿里云短信发送成功: phone={}, template={}", phone, templateCode);
+            log.info(
+                    "阿里云短信发送成功: phone={}, template={}, bizId={}",
+                    phone,
+                    templateCode,
+                    body.getBizId());
+            return new ProviderResponse(
+                    PROVIDER, body.getBizId(), body.getCode(), body.getMessage());
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

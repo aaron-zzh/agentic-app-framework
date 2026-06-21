@@ -45,14 +45,14 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.984 0.005 256);
+  --sidebar-foreground: oklch(0.3 0.012 256);
+  --sidebar-primary: oklch(0.205 0.01 256);
+  --sidebar-primary-foreground: oklch(0.984 0.005 256);
+  --sidebar-accent: oklch(0.955 0.008 256);
+  --sidebar-accent-foreground: oklch(0.205 0.01 256);
+  --sidebar-border: oklch(0.918 0.008 256);
+  --sidebar-ring: oklch(0.708 0.01 256);
 }
 
 .dark {
@@ -325,5 +325,22 @@
   }
   100% {
     background-position: 0% 50%;
+  }
+}
+
+/* ─── OTP 验证码 caret 闪烁动画（input-otp fake caret） ─────────────── */
+@theme inline {
+  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  50% {
+    opacity: 0;
   }
 }

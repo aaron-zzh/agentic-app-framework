@@ -54,7 +54,7 @@ public class ConversationMessage extends BaseEntity {
     /** 内容类型 */
     @Enumerated(EnumType.STRING)
     @Column(name = "content_type", nullable = false, length = 20)
-    private MessageContentType contentType = MessageContentTypeEnum.TEXT;
+    private MessageContentTypeEnum contentType = MessageContentTypeEnum.TEXT;
 
     /** 结构化载荷（tool_call / file 元数据等） */
     @JdbcTypeCode(SqlTypes.JSON)

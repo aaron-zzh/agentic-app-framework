@@ -9,6 +9,8 @@ export interface LoginResult {
   accessToken: string
   refreshToken: string
   userId: string
+  /** 是否为新用户（首次通过手机号登录即注册） */
+  isNewUser?: boolean
 }
 
 export interface UserInfo {
@@ -30,10 +32,11 @@ export const authApi = {
     })
   },
 
-  register(email: string, password: string, nickname?: string) {
+  register(email: string, password: string, nickname?: string, captchaVerifyParam?: string) {
     return request<void>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, nickname })
+      body: JSON.stringify({ email, password, nickname }),
+      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
     })
   },
 
@@ -44,10 +47,26 @@ export const authApi = {
     })
   },
 
-  sendCode(email: string, type: "register" | "reset" | "login") {
+  sendCode(email: string, type: "register" | "reset" | "login", captchaVerifyParam?: string) {
     return request<void>("/auth/send-code", {
       method: "POST",
-      body: JSON.stringify({ email, type })
+      body: JSON.stringify({ email, type }),
+      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
+    })
+  },
+
+  sendSmsCode(phone: string, type: "register" | "login", captchaVerifyParam?: string) {
+    return request<void>("/auth/send-sms-code", {
+      method: "POST",
+      body: JSON.stringify({ phone, type }),
+      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
+    })
+  },
+
+  loginByPhone(phone: string, code: string) {
+    return request<LoginResult>("/auth/login-by-phone", {
+      method: "POST",
+      body: JSON.stringify({ phone, code })
     })
   },
 

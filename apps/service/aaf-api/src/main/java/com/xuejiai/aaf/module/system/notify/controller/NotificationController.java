@@ -14,10 +14,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
@@ -44,7 +43,6 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final OperatorContext operatorContext;
     private final WebSocketSessionManager sessionManager;
-    private final ObjectMapper objectMapper;
 
     @Operation(summary = "分页查询通知")
     @GetMapping
@@ -87,7 +85,7 @@ public class NotificationController {
         String body = dto != null && dto.body() != null ? dto.body() : "这是一条测试推送消息";
         try {
             var payload =
-                    objectMapper.writeValueAsString(
+                    JsonUtils.toJsonString(
                             java.util.Map.of(
                                     "type", "notification",
                                     "notificationType", "system",

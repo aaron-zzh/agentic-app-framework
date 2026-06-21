@@ -19,9 +19,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
+import com.xuejiai.aaf.common.util.NicknameGenerator;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
+import com.xuejiai.aaf.framework.messaging.MessageSendException;
 import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -52,6 +54,8 @@ public class AuthService {
 
     private static final String VERIFY_CODE_PREFIX = "verify_code:";
     private static final String VERIFY_CODE_LOCK_PREFIX = "verify_code_lock:";
+    private static final String SMS_VERIFY_CODE_PREFIX = "sms_verify_code:";
+    private static final String SMS_VERIFY_CODE_LOCK_PREFIX = "sms_verify_code_lock:";
 
     private final UserRepository userRepository;
     private final UserOauthRepository userOauthRepository;
@@ -67,6 +71,10 @@ public class AuthService {
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final com.xuejiai.aaf.module.billing.service.SubscriptionService subscriptionService;
+    private final com.xuejiai.aaf.module.brokerage.service.BrokerageService brokerageService;
+    private final com.xuejiai.aaf.module.system.contact.repository.ContactRepository
+            contactRepository;
+    private final PhoneRegisterRateLimiter phoneRegisterRateLimiter;
 
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
@@ -120,8 +128,8 @@ public class AuthService {
         User user = new User();
         user.setEmail(dto.email());
         user.setUsername(generateUsername(dto.email()));
+        user.setNickname(dto.nickname() != null ? dto.nickname() : NicknameGenerator.generate());
         user.setPassword(passwordEncoder.encode(dto.password()));
-        user.setNickname(dto.nickname() != null ? dto.nickname() : dto.email().split("@")[0]);
         user.setEmailVerified(false);
         user.setSourceApp(sourceApp);
         user.setSourceChannel("local");
@@ -142,7 +150,12 @@ public class AuthService {
                         .orElseThrow(() -> exception(USER_NOT_FOUND));
         user.setEmailVerified(true);
         userRepository.save(user);
+        assignDefaultRole(user.getId());
         grantRegistrationCredits(user.getId());
+        Long contactId = createContactForUser(user);
+        bindReferrerIfPresent(contactId, dto.referrerCode());
+        brokerageService.tryEnableBrokerage(contactId, "REGISTER");
+        notifyDingtalkNewUser(user);
         return generateTokensWithSession(user, deviceId);
     }
 
@@ -157,16 +170,21 @@ public class AuthService {
         var user = new User();
         user.setEmail(dto.email());
         user.setUsername(generateUsername(dto.email()));
+        user.setNickname(dto.nickname() != null ? dto.nickname() : NicknameGenerator.generate());
         user.setPassword(
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
-        user.setNickname(dto.nickname() != null ? dto.nickname() : dto.email().split("@")[0]);
         user.setEmailVerified(true);
         user.setSourceApp(sourceApp);
         user.setSourceChannel("local");
         user.setRegisterIp(registerIp);
         user.setRegisterLocation(resolveLocation(registerIp));
         userRepository.save(user);
+        assignDefaultRole(user.getId());
         grantRegistrationCredits(user.getId());
+        Long contactId = createContactForUser(user);
+        bindReferrerIfPresent(contactId, dto.referrerCode());
+        brokerageService.tryEnableBrokerage(contactId, "REGISTER");
+        notifyDingtalkNewUser(user);
         return generateTokensWithSession(user, deviceId);
     }
 
@@ -190,19 +208,73 @@ public class AuthService {
                                 systemConfigService.getInteger("security.verify_code_expire", 5)));
         redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
         log.info("【验证码】邮箱={}, 类型={}, 验证码={}", dto.email(), dto.type(), code);
-        // 发送验证码邮件
+        // 同步发送验证码邮件——失败立即向前端报错，避免用户陷入"发了没收到 + 限频不能重试"死循环
         var templateCode = "auth.verify_code." + dto.type();
-        messageService.send(
-                new MessageRequest(
-                        MessageChannel.EMAIL,
-                        templateCode,
-                        List.of(dto.email()),
-                        Map.of(
-                                "code",
-                                code,
-                                "expireMinutes",
-                                systemConfigService.getInteger("security.verify_code_expire", 5)),
-                        null));
+        try {
+            messageService.sendSync(
+                    new MessageRequest(
+                            MessageChannel.EMAIL,
+                            templateCode,
+                            List.of(dto.email()),
+                            Map.of(
+                                    "code",
+                                    code,
+                                    "expireMinutes",
+                                    systemConfigService.getInteger(
+                                            "security.verify_code_expire", 5)),
+                            null));
+        } catch (MessageSendException e) {
+            // 发送失败：释放限频锁 + 清理已写入的验证码，让用户立即重试
+            redisTemplate.delete(lockKey);
+            redisTemplate.delete(codeKey);
+            log.warn(
+                    "邮箱验证码发送失败: email={}, type={}, error={}",
+                    dto.email(),
+                    dto.type(),
+                    e.getMessage());
+            throw exception(AUTH_VERIFY_CODE_SEND_FAILED);
+        }
+    }
+
+    /** 发送手机验证码 */
+    public void sendSmsCode(SendSmsCodeDTO dto) {
+        // 频率限制：同手机号1分钟内不重复发送
+        String lockKey = SMS_VERIFY_CODE_LOCK_PREFIX + dto.type() + ":" + dto.phone();
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
+            throw exception(AUTH_VERIFY_CODE_RATE_LIMIT);
+        }
+        String code = generateCode();
+        String codeKey = SMS_VERIFY_CODE_PREFIX + dto.type() + ":" + dto.phone();
+        redisTemplate
+                .opsForValue()
+                .set(
+                        codeKey,
+                        code,
+                        Duration.ofMinutes(
+                                systemConfigService.getInteger("security.verify_code_expire", 5)));
+        redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
+        log.info("【手机验证码】手机号={}, 类型={}, 验证码={}", dto.phone(), dto.type(), code);
+        // 同步发送短信验证码——SmsChannelSender 内部用 templateCode（register/login/reset）查 sys_sms_template 解析厂商模板
+        // 失败立即向前端报错，避免用户陷入"发了没收到 + 限频不能重试"死循环
+        try {
+            messageService.sendSync(
+                    new MessageRequest(
+                            MessageChannel.SMS,
+                            dto.type(),
+                            List.of(dto.phone()),
+                            Map.of("code", code),
+                            null));
+        } catch (MessageSendException e) {
+            // 发送失败：释放限频锁 + 清理已写入的验证码，让用户立即重试
+            redisTemplate.delete(lockKey);
+            redisTemplate.delete(codeKey);
+            log.warn(
+                    "短信验证码发送失败: phone={}, type={}, error={}",
+                    dto.phone(),
+                    dto.type(),
+                    e.getMessage());
+            throw exception(AUTH_VERIFY_CODE_SEND_FAILED);
+        }
     }
 
     // ==================== 验证码登录 ====================
@@ -223,6 +295,60 @@ public class AuthService {
         return generateTokensWithSession(user, deviceId);
     }
 
+    /**
+     * 手机号+验证码"登录即注册"。
+     *
+     * <p>校验短信验证码后，若手机号已存在则走原有登录流程；不存在则先做 IP 风控，通过后自动创建用户、分配默认角色、发放注册积分、建 Contact、激活分销并通知钉钉。
+     *
+     * @param dto 登录请求（手机号 + 验证码）
+     * @param deviceId 设备 ID
+     * @param sourceApp 来源 App（web/uniapp/api），仅自动注册分支使用
+     * @param registerIp 客户端 IP，用于风控和注册地址解析，仅自动注册分支使用
+     * @return 登录结果，{@code isNewUser=true} 表示本次自动创建了用户
+     */
+    @Transactional
+    public AuthLoginVO loginByPhone(
+            LoginByPhoneDTO dto, String deviceId, String sourceApp, String registerIp) {
+        validateSmsCode(dto.phone(), "login", dto.code());
+        var existing = userRepository.findByPhone(dto.phone());
+        if (existing.isPresent()) {
+            User user = existing.get();
+            checkLocked(user);
+            if (!user.isActive()) {
+                throw exception(AUTH_LOGIN_USER_DISABLED);
+            }
+            user.recordLoginSuccess(null);
+            userRepository.save(user);
+            return generateTokensWithSession(user, deviceId, false);
+        }
+        // 新手机号 → 自动注册分支
+        phoneRegisterRateLimiter.checkBeforeRegister(registerIp);
+        User user = autoRegisterByPhone(dto.phone(), sourceApp, registerIp);
+        phoneRegisterRateLimiter.recordRegister(registerIp);
+        return generateTokensWithSession(user, deviceId, true);
+    }
+
+    /** 复用原 registerByPhone 副作用顺序：建用户 → 默认角色 → 注册积分 → Contact → 分销 → 钉钉。 */
+    private User autoRegisterByPhone(String phone, String sourceApp, String registerIp) {
+        var user = new User();
+        user.setPhone(phone);
+        user.setUsername(generateUsername(phone));
+        user.setPassword(
+                passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
+        user.setNickname(NicknameGenerator.generate());
+        user.setSourceApp(sourceApp);
+        user.setSourceChannel("local");
+        user.setRegisterIp(registerIp);
+        user.setRegisterLocation(resolveLocation(registerIp));
+        userRepository.save(user);
+        assignDefaultRole(user.getId());
+        grantRegistrationCredits(user.getId());
+        Long contactId = createContactForUser(user);
+        brokerageService.tryEnableBrokerage(contactId, "REGISTER");
+        notifyDingtalkNewUser(user);
+        return user;
+    }
+
     // ==================== 忘记密码 ====================
 
     /** 重置密码 */
@@ -232,6 +358,18 @@ public class AuthService {
         User user =
                 userRepository
                         .findByEmail(dto.email())
+                        .orElseThrow(() -> exception(USER_NOT_FOUND));
+        user.changePassword(passwordEncoder, dto.newPassword());
+        userRepository.save(user);
+    }
+
+    /** 手机号+验证码 重置密码 */
+    @Transactional
+    public void resetPasswordByPhone(ResetPasswordByPhoneDTO dto) {
+        validateSmsCode(dto.phone(), "reset", dto.code());
+        User user =
+                userRepository
+                        .findByPhone(dto.phone())
                         .orElseThrow(() -> exception(USER_NOT_FOUND));
         user.changePassword(passwordEncoder, dto.newPassword());
         userRepository.save(user);
@@ -384,7 +522,8 @@ public class AuthService {
     private User createOAuthUser(OAuthUserInfo userInfo, String sourceApp, String registerIp) {
         var user = new User();
         user.setUsername(userInfo.provider() + "_" + userInfo.providerUserId());
-        user.setNickname(userInfo.username() != null ? userInfo.username() : user.getUsername());
+        user.setNickname(
+                userInfo.username() != null ? userInfo.username() : NicknameGenerator.generate());
         user.setAvatar(userInfo.avatar());
         user.setPassword(
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
@@ -393,7 +532,10 @@ public class AuthService {
         user.setSourceChannel(userInfo.provider());
         user.setRegisterIp(registerIp);
         user.setRegisterLocation(resolveLocation(registerIp));
-        return userRepository.save(user);
+        userRepository.save(user);
+        assignDefaultRole(user.getId());
+        grantRegistrationCredits(user.getId());
+        return user;
     }
 
     private void createOAuthBinding(Long userId, OAuthUserInfo userInfo) {
@@ -450,6 +592,15 @@ public class AuthService {
         redisTemplate.delete(key);
     }
 
+    private void validateSmsCode(String phone, String type, String code) {
+        String key = SMS_VERIFY_CODE_PREFIX + type + ":" + phone;
+        String stored = redisTemplate.opsForValue().get(key);
+        if (stored == null || !stored.equals(code)) {
+            throw exception(AUTH_VERIFY_CODE_INVALID);
+        }
+        redisTemplate.delete(key);
+    }
+
     private void sendVerifyCode(String email, String type) {
         String code = generateCode();
         String codeKey = VERIFY_CODE_PREFIX + type + ":" + email;
@@ -497,11 +648,19 @@ public class AuthService {
     }
 
     private AuthLoginVO generateTokensWithSession(User user, String deviceId) {
+        return generateTokensWithSession(user, deviceId, false);
+    }
+
+    private AuthLoginVO generateTokensWithSession(User user, String deviceId, boolean isNewUser) {
         String accessToken = jwtUtils.generateToken(user.getId(), getRoleCodes(user.getId()));
         String refreshToken = jwtUtils.generateRefreshToken(user.getId());
         jwtUtils.saveSession(user.getId(), deviceId, refreshToken);
         return new AuthLoginVO(
-                user.getId(), accessToken, refreshToken, jwtUtils.getAccessTokenExpiresTime());
+                user.getId(),
+                accessToken,
+                refreshToken,
+                jwtUtils.getAccessTokenExpiresTime(),
+                isNewUser);
     }
 
     private List<String> getRoleCodes(Long userId) {
@@ -516,6 +675,19 @@ public class AuthService {
     }
 
     /** 注册赠积分（赠送数量固定 50，不可配置） */
+    /** 为新用户分配默认角色（member），角色不存在时静默跳过。 */
+    private void assignDefaultRole(Long userId) {
+        roleRepository
+                .findByCodeAndDeletedFalse("member")
+                .ifPresent(
+                        role -> {
+                            var ur = new UserRole();
+                            ur.setUserId(userId);
+                            ur.setRoleId(role.getId());
+                            userRoleRepository.save(ur);
+                        });
+    }
+
     private void grantRegistrationCredits(Long userId) {
         try {
             creditService.earn(
@@ -548,6 +720,76 @@ public class AuthService {
         } catch (Exception e) {
             log.warn("IP 地址解析失败: {}", ip);
             return null;
+        }
+    }
+
+    /**
+     * 注册时为用户创建 Contact 并关联 user.contact_id。
+     *
+     * <p>Contact 是分销绑定的主体，注册验证通过后同步创建。 已存在则复用（幂等）。
+     */
+    private Long createContactForUser(User user) {
+        if (user.getContactId() != null) {
+            return user.getContactId();
+        }
+        try {
+            var contact = new com.xuejiai.aaf.module.system.contact.domain.Contact();
+            contact.setName(user.getNickname() != null ? user.getNickname() : user.getUsername());
+            contact.setEmail(user.getEmail());
+            contact.setPhone(user.getPhone());
+            contact.setType(com.xuejiai.aaf.common.enums.sys.ContactTypeEnum.PERSON);
+            contact.setSource(com.xuejiai.aaf.common.enums.sys.ContactSourceEnum.REGISTER);
+            contact.setStatus(com.xuejiai.aaf.common.enums.sys.ContactStatusEnum.ACTIVE);
+            contactRepository.save(contact);
+            user.setContactId(contact.getId());
+            userRepository.save(user);
+            return contact.getId();
+        } catch (Exception e) {
+            log.warn("注册创建 Contact 失败，不影响注册流程: userId={}", user.getId(), e);
+            return null;
+        }
+    }
+
+    /** 注册时绑定分销推荐关系（静默失败，不影响注册） */
+    private void bindReferrerIfPresent(Long contactId, String referrerCode) {
+        if (contactId == null || referrerCode == null || referrerCode.isBlank()) {
+            return;
+        }
+        try {
+            brokerageService.bindReferrerByCode(contactId, referrerCode);
+        } catch (Exception e) {
+            log.warn("绑定推荐人失败，不影响注册流程: contactId={}, code={}", contactId, referrerCode, e);
+        }
+    }
+
+    /** 新用户注册成功后推送钉钉群通知（静默失败，不影响注册流程） */
+    private void notifyDingtalkNewUser(User user) {
+        try {
+            // 注册方式判断：优先显示手机号（手机注册），否则显示邮箱（邮箱注册）
+            String contactLabel;
+            String contactValue;
+            if (user.getPhone() != null && !user.getPhone().isBlank()) {
+                contactLabel = "手机号";
+                contactValue = user.getPhone();
+            } else {
+                contactLabel = "邮箱";
+                contactValue = user.getEmail() != null ? user.getEmail() : "-";
+            }
+            messageService.send(
+                    MessageRequest.direct(
+                            MessageChannel.DINGTALK,
+                            "新用户注册",
+                            "**新用户注册** \n\n> 昵称："
+                                    + user.getNickname()
+                                    + "  \n> "
+                                    + contactLabel
+                                    + "："
+                                    + contactValue
+                                    + "  \n> 时间："
+                                    + java.time.LocalDateTime.now(),
+                            List.of("all")));
+        } catch (Exception e) {
+            log.warn("钉钉新用户注册通知失败，不影响注册流程: userId={}", user.getId(), e);
         }
     }
 }

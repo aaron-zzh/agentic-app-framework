@@ -33,6 +33,8 @@ interface ChatterStore {
   mode: "dialog" | "panel" | "page"
   /** 页面声明的布局覆盖（panel/dialog），null 表示使用默认 dialog */
   layoutOverride: ChatterLayout | null
+  /** 浮动按钮位置（距视口右、底的 px），用户可拖动调整 */
+  buttonPos: { right: number; bottom: number }
 
   setCurrentPage: (pageId: string) => void
   setOpen: (open: boolean) => void
@@ -40,6 +42,7 @@ interface ChatterStore {
   setConfig: (pageId: string, config: Partial<ChatterPageConfig>) => void
   getConfig: (pageId: string) => ChatterPageConfig
   setLayoutOverride: (layout: ChatterLayout | null) => void
+  setButtonPos: (pos: { right: number; bottom: number }) => void
   /** 全局 DnD 落下时写入，Chatter 消费后清空 */
   pendingDropItem: ChatterDropItem | null
   setPendingDropItem: (item: ChatterDropItem | null) => void
@@ -58,6 +61,7 @@ export const useChatterStore = create<ChatterStore>()(
       open: false,
       mode: "dialog",
       layoutOverride: null,
+      buttonPos: { right: 20, bottom: 20 },
       pendingDropItem: null,
 
       setCurrentPage: (pageId) => set({ currentPageId: pageId }),
@@ -89,12 +93,13 @@ export const useChatterStore = create<ChatterStore>()(
       },
 
       setLayoutOverride: (layout) => set({ layoutOverride: layout }),
+      setButtonPos: (pos) => set({ buttonPos: pos }),
       setPendingDropItem: (item) => set({ pendingDropItem: item })
     }),
     {
       name: "aaf-chatter-config",
-      // 只持久化 configs，不持久化 open（每次打开页面默认关闭）
-      partialize: (state) => ({ configs: state.configs })
+      // 只持久化 configs 和 buttonPos，不持久化 open（每次打开页面默认关闭）
+      partialize: (state) => ({ configs: state.configs, buttonPos: state.buttonPos })
     }
   )
 )

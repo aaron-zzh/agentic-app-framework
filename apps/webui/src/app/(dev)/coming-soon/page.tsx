@@ -1,12 +1,15 @@
 /**
- * Coming Soon——即将上线页面
+ * Coming Soon——即将上线页面（含邮箱订阅入口）
  */
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { type FormEvent, useEffect, useState } from "react"
+import { toast } from "sonner"
 
+import { leadApi } from "@/lib/api/rest/lead/lead"
 import { $url } from "@/lib/utils"
+import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 
 const TARGET_DATE = new Date("2026-08-20T20:30:00")
 
@@ -34,9 +37,31 @@ function getRemaining(target: Date) {
 
 export default function ComingSoonPage() {
   const countdown = useCountdown(TARGET_DATE)
+  const [email, setEmail] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleSubscribe = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    setSubmitting(true)
+    try {
+      await leadApi.create({
+        anonymousId: getOrCreateAnonymousId(),
+        channel: "NEWSLETTER",
+        email: email.trim()
+      })
+      setSubmitted(true)
+      toast.success("订阅成功，上线时第一时间通知您")
+    } catch {
+      toast.error("订阅失败，请稍后再试")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-8 p-6 pt-20 text-center">
+    <main className="flex flex-1 flex-col items-center justify-center gap-8 p-6 pt-40 text-center">
       <div>
         <h1 className="font-bold text-3xl">即将上线！</h1>
         <p className="mt-2 text-muted-foreground">我们正在努力开发中，敬请期待。</p>
@@ -76,19 +101,30 @@ export default function ComingSoonPage() {
       )}
 
       {/* 邮件订阅 */}
-      <div className="flex w-full max-w-md gap-2">
-        <input
-          type="email"
-          placeholder="输入邮箱，获取上线通知"
-          className="flex-1 rounded-md border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-        />
-        <button
-          type="button"
-          className="shrink-0 rounded-md bg-primary px-5 py-2.5 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-        >
-          通知我
-        </button>
-      </div>
+      {submitted ? (
+        <p className="text-muted-foreground text-sm">
+          已记录您的邮箱：<span className="font-medium text-foreground">{email}</span>
+        </p>
+      ) : (
+        <form onSubmit={handleSubscribe} className="flex w-full max-w-md gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="输入邮箱，获取上线通知"
+            required
+            disabled={submitting}
+            className="flex-1 rounded-md border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={submitting}
+            className="shrink-0 rounded-md bg-primary px-5 py-2.5 font-medium text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-60"
+          >
+            {submitting ? "提交中..." : "通知我"}
+          </button>
+        </form>
+      )}
     </main>
   )
 }

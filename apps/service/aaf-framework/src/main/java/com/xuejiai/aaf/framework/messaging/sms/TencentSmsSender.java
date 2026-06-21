@@ -6,11 +6,15 @@ import com.tencentcloudapi.common.Credential;
 import com.tencentcloudapi.sms.v20210111.SmsClient;
 import com.tencentcloudapi.sms.v20210111.models.SendSmsRequest;
 
+import com.xuejiai.aaf.framework.messaging.ProviderResponse;
+
 import lombok.extern.slf4j.Slf4j;
 
 /** 腾讯云短信发送器。 */
 @Slf4j
 public class TencentSmsSender implements SmsSender {
+
+    private static final String PROVIDER = "tencent";
 
     private final SmsClient client;
     private final String appId;
@@ -24,7 +28,7 @@ public class TencentSmsSender implements SmsSender {
     }
 
     @Override
-    public void send(String phone, String templateCode, Map<String, String> params) {
+    public ProviderResponse send(String phone, String templateCode, Map<String, String> params) {
         try {
             var request = new SendSmsRequest();
             request.setSmsSdkAppId(appId);
@@ -39,7 +43,13 @@ public class TencentSmsSender implements SmsSender {
                 log.error("腾讯云短信发送失败: code={}, message={}", status.getCode(), status.getMessage());
                 throw new RuntimeException("短信发送失败: " + status.getMessage());
             }
-            log.info("腾讯云短信发送成功: phone={}, template={}", phone, templateCode);
+            log.info(
+                    "腾讯云短信发送成功: phone={}, template={}, serialNo={}",
+                    phone,
+                    templateCode,
+                    status.getSerialNo());
+            return new ProviderResponse(
+                    PROVIDER, status.getSerialNo(), status.getCode(), status.getMessage());
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

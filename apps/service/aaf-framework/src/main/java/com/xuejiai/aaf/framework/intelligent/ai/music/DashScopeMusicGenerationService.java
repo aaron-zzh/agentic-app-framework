@@ -11,12 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 基于阿里云百炼 fun-music-v1 HTTP API 的音乐生成实现。
@@ -34,7 +33,6 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
 
     private final String apiKey;
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DashScopeMusicGenerationService(
             @Value("${spring.ai.dashscope.api-key:}") String apiKey) {
@@ -44,8 +42,8 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
     @Override
     public MusicResult generate(AiModel model, MusicRequest request) {
         try {
-            var body = buildRequestBody(request);
-            var json = objectMapper.writeValueAsString(body);
+            var body = buildRequestBody(model, request);
+            var json = JsonUtils.toJsonString(body);
 
             var httpRequest =
                     HttpRequest.newBuilder()
@@ -56,7 +54,7 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
                             .build();
 
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
 
             if (root.has("code")) {
                 var errMsg = root.has("message") ? root.get("message").asText() : "未知错误";
@@ -71,9 +69,15 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
         }
     }
 
-    private Map<String, Object> buildRequestBody(MusicRequest request) {
+    private Map<String, Object> buildRequestBody(AiModel model, MusicRequest request) {
         var body = new HashMap<String, Object>();
-        body.put("model", DEFAULT_MODEL);
+        String modelName =
+                (model != null
+                                && org.springframework.util.StringUtils.hasText(
+                                        model.getModelName()))
+                        ? model.getModelName()
+                        : DEFAULT_MODEL;
+        body.put("model", modelName);
 
         var input = new HashMap<String, Object>();
         if (request.lyrics() != null) {

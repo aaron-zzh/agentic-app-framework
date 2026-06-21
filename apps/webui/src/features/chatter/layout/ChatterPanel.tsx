@@ -29,6 +29,8 @@ interface ChatterPanelProps {
   sessionId?: string
   modelId?: string
   onModelChange?: (modelId: string, model: AiModelVO) => void
+  /** 是否显示模型选择器（未登录 guest preset 应传 false） */
+  showModelSelector?: boolean
 }
 
 export function ChatterPanel({
@@ -38,7 +40,8 @@ export function ChatterPanel({
   onAttachmentAdd,
   sessionId,
   modelId,
-  onModelChange
+  onModelChange,
+  showModelSelector
 }: ChatterPanelProps) {
   const { tasks, progress, isLoading, recovered, dismissRecovery } = useTaskBoard(sessionId)
 
@@ -66,6 +69,7 @@ export function ChatterPanel({
           onAttachmentRemove={onAttachmentRemove}
           modelId={modelId}
           onModelChange={onModelChange}
+          showModelSelector={showModelSelector}
         />
       </DroppableComposer>
     </div>

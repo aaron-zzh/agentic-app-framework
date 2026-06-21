@@ -7,6 +7,12 @@ import com.alibaba.dashscope.aigc.videosynthesis.VideoSynthesis;
 import com.alibaba.dashscope.aigc.videosynthesis.VideoSynthesisParam;
 import com.alibaba.dashscope.utils.Constants;
 
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.ImageToVideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.ReferenceToVideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.TextToVideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoEditApiRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -39,20 +45,20 @@ public class WanxVideoGenerationService implements VideoGenerationService {
 
     @Override
     public String submitTextToVideo(TextToVideoRequest request) {
-        var model = request.resolvedModel().getModelName();
-        var apiKey = request.resolvedModel().effectiveApiKey();
+        var model = request.getResolvedModel().getModelName();
+        var apiKey = request.getResolvedModel().effectiveApiKey();
 
         var paramBuilder =
                 VideoSynthesisParam.builder()
                         .apiKey(apiKey)
                         .model(model)
-                        .prompt(request.prompt())
+                        .prompt(request.getPrompt())
                         .watermark(false);
 
-        if (request.resolution() != null) paramBuilder.resolution(request.resolution());
-        if (request.ratio() != null) paramBuilder.ratio(request.ratio());
-        if (request.duration() != null) paramBuilder.duration(request.duration());
-        if (request.promptExtend() != null) paramBuilder.promptExtend(request.promptExtend());
+        if (request.getResolution() != null) paramBuilder.resolution(request.getResolution());
+        if (request.getRatio() != null) paramBuilder.ratio(request.getRatio());
+        if (request.getDuration() != null) paramBuilder.duration(request.getDuration());
+        if (request.getPromptExtend() != null) paramBuilder.promptExtend(request.getPromptExtend());
 
         try {
             var result = videoSynthesis.asyncCall(paramBuilder.build());

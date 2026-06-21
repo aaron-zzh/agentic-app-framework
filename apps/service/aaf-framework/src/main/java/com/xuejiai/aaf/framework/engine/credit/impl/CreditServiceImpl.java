@@ -142,10 +142,11 @@ public class CreditServiceImpl implements CreditService {
         Long txId = transactionRepository.save(tx).getId();
 
         log.info(
-                "积分消费: userId={}, amount={}, source={}, bizType={}, balanceAfter={}",
+                "积分消费: userId={}, amount={}, source={}, category={}, bizType={}, balanceAfter={}",
                 userId,
                 amount,
                 source,
+                category,
                 bizType,
                 account.getBalance());
         return txId;

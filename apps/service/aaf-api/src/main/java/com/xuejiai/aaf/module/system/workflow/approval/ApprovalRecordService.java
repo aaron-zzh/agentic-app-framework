@@ -6,8 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +23,6 @@ public class ApprovalRecordService {
 
     private final ApprovalRecordRepository approvalRecordRepository;
     private final ApprovalCommentRepository approvalCommentRepository;
-    private final ObjectMapper objectMapper;
 
     /**
      * 记录审批操作。
@@ -144,8 +142,8 @@ public class ApprovalRecordService {
     private String toJson(List<String> list) {
         if (list == null || list.isEmpty()) return "[]";
         try {
-            return objectMapper.writeValueAsString(list);
-        } catch (JsonProcessingException e) {
+            return JsonUtils.toJsonString(list);
+        } catch (Exception e) {
             return "[]";
         }
     }

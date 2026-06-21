@@ -6,11 +6,10 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageDirectionEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.service.ChannelAdapter;
 
@@ -27,8 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class WebhookChannelAdapter implements ChannelAdapter {
 
-    private final ObjectMapper objectMapper;
-
     @Override
     public ChannelTypeEnum channelType() {
         return ChannelTypeEnum.WEBHOOK;
@@ -37,7 +34,7 @@ public class WebhookChannelAdapter implements ChannelAdapter {
     @Override
     public UnifiedMessage receive(String rawPayload) {
         try {
-            var root = objectMapper.readTree(rawPayload);
+            var root = JsonUtils.readTree(rawPayload);
             var eventType = root.path("event_type").asText("unknown");
             var source = root.path("source").asText("external");
             var content = root.path("data").toString();

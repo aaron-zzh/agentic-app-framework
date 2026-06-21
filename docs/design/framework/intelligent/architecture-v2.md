@@ -901,3 +901,56 @@ PostgreSQL 是 source of truth，Neo4j 承担**关系遍历 / 多跳 / 拓扑分
 | 用户画像图 `(:User)-[:PREFERS]->(:Entity)` · `(:User)-[:HAS_TRAIT]->(:Trait)` | `ai_memory_atom`（画像类）/ Personalization | 偏好/情绪/关系画像遍历，供前注意分流与个性化 | 候选 |
 
 > 「候选」项需先确认确有多跳/拓扑查询需求再落地；否则保持 PG（依赖关系用 TEXT/JSONB + JOIN 已够）。所有图均为 PG 派生投影，异步幂等同步。
+
+## v2 迁移待办：计费链路收尾事项
+
+> v1 时代发现但**故意延后**到 v2 重构时一并修复的 AI 计费链路问题。在 v1（`Hook` + `PreReasoningEvent` / `PostCallEvent`）下做这些修复将在 v2 全部作废，故先按"症状容错"处理，根因修在 v2 落地。
+> 来源：v0.x 期间 chat 计费日志/流水接线工作的现场结论（2026-06）。
+
+### 背景
+
+v1 AgentScope 链路（`AssistantScopeRuntime` / `AgentScopeRuntime` + `TokenMeteringHook`）在结算时 **modelId 全程为 null**：
+
+- `TokenMeteringHook` 调 `meteringService.record(userId, null, ...)` 落 `ai_token_usage` 时被 NOT NULL + FK 拦截 → 计费真理源缺数据
+- 同时调 `creditGuard.settleByUsage(userId, null, ...)` → `DefaultAiCreditGuard.calcCost` 走兜底单价 0.072 元/千 token → **不论真实模型是 GPT-4o / DeepSeek / Qwen-Max 都按同一价扣**，金额不准
+
+根因是 v1 Hook 接口拿不到当前 LLM 调用的 `Model` 实例，反查需要 ThreadLocal/全局 Map 跨"构建期 → 运行期"传递，方案不干净。
+
+### v1 时代的容错（已在 v0.x 落地，保留至 v2）
+
+- **`ai_token_usage.model_id` 改可空**（直接改 `v2__ai_schema.sql` 建表语句）：让 AgentScope 路径至少能写入 token 用量记录，model_id 留 NULL；v2 SDK 迁移后能可靠拿到 modelId 时回收 NOT NULL 约束
+- **`TokenUsageRecord.modelId` 注解去 `nullable = false`**：与迁移一致
+- **`TokenMeteringHook` 透传 `conversationId`**：从 `AgentRunContextHolder` 取，提升可观测性
+- **capability 仍硬编码 `"agentscope"`**：未拆 chat / vision
+
+### v2 迁移时必须补齐的根因修复
+
+按 v2 `MiddlewareBase`（5 挂点：`onAgent` / `onReasoning` / `onActing` / `onModelCall` / `onSystemPrompt`）改造 `TokenMeteringHook` → `TokenMeteringMiddleware`，关键差异：
+
+- **modelId 透传**：`onModelCall` 的 `ModelCallInput.model()` 直接给 `Model` 实例。从中提取 modelId 字符串 → 反查 `ai_model.id`（Long）→ 传入 `creditGuard.settleByUsage(userId, model, ...)`，让 `calcCost` 走真实价格而非 0.072 兜底。
+- **vision / chat 自动拆分**：`onAgent` 的 `msgs: List<Msg>`（或 `onReasoning` 的 `messages: List<Msg>`）遍历 `ContentBlock`，命中 `ImageBlock` / `VideoBlock` / `AudioBlock` 或图像/视频类的 `DataBlock` 即按对应能力拆分（vision / 多模态），否则 `chat`。与 SpringAI 路径在 `credit_transaction.category` 上保持口径统一。
+- **per-call 上下文用官方 `RuntimeContext`**：替代 v1 的 `AgentRunContextHolder` ThreadLocal 槽位。v2 `ReActAgent` **完全无状态**（change-log A.6），per-call 状态封装在 `CallExecution` 对象、经 **Reactor Context** 在调用链上透传——同实例并发服务多 `(userId, sessionId)` 安全。`userId` / `sessionId` / `sessionKey` 走 `RuntimeContext`，middleware 内 `agent.getRuntimeContext()` 读写；modelId 不进 `RuntimeContext`，在 `onModelCall` 处直接从 `ModelCallInput.model()` 取。
+- **precheck 与 settle 接同一个 capability**：`onAgent` 入口做 precheck（已知 messages 即可识别 vision），`onModelCall` 出口做 settle，二者用同一字符串。
+
+### 落地时的关联清理
+
+- `AiCreditGuard.precheck` / `settleByUsage` 入参不变（已是 `(userId, capability, ...)` 形态），只换调用方
+- `DefaultAiCreditGuard.fallbackCreditCost` 兜底逻辑保留作"AgentScope 配置错误模型时的最后防线"，正常路径不应再触发
+- `ai_token_usage.model_id` 是否回收 NOT NULL 约束：评估 v2 落地后是否还存在 modelId 拿不到的边缘场景；若彻底无，重新加约束以恢复"计费真理源"强语义
+- `TokenUsageEvent` v1 监听器（`TokenUsageEventListener`、`TokenMeteringService.onTokenUsage`）仍服务 SpringAI 直连路径，**保留**——v2 迁移只动 AgentScope 那一支
+- 把 capability 从 `"agentscope"` 改为 `"chat"` / `"vision"` 后，引擎归属信息改放在 `credit_transaction.remark` 或新增 `engine` 元数据字段（与 SpringAI 路径区分）
+
+### 验收标准
+
+| 项 | 期望 |
+|---|---|
+| AgentScope 路径 `credit_transaction.category` | `chat` 或 `vision`，不再是 `agentscope` |
+| AgentScope 路径 `credit_transaction.amount` | 按 `ai_model.input_price_per_k` / `output_price_per_k` 真实算，不走 0.072 兜底 |
+| `ai_token_usage.model_id` | 非 null，对得上 `ai_model.id` |
+| `ai_usage_record.model_id` | 同上 |
+| 多模态对话（含图像消息） | capability 落 `vision`，扣分按 vision 模型价格 |
+| INFO 日志 | `AgentScope 计费结算: ... capability=vision modelId=...` 可见 |
+
+### 落地节奏
+
+随 v2 主干迁移（`Hook` → `Middleware`、`AssistantScopeRuntime` 重写为 `HarnessAgent` builder）一次到位，**不单独立 PR**。本节作为 v2 迁移的 sub-checklist。

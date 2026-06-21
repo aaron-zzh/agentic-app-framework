@@ -50,7 +50,8 @@ public record ImageResult(
 
     @Override
     public Map<String, Object> standardUsage() {
-        // 图像生成按次计费（PER_USE），token 字段通常为 0
-        return Map.of("inputTokens", inputTokens, "outputTokens", outputTokens, "count", 1);
+        int imageCount = (urls != null && !urls.isEmpty()) ? urls.size() : 1;
+        return Map.of(
+                "inputTokens", inputTokens, "outputTokens", outputTokens, "count", imageCount);
     }
 }

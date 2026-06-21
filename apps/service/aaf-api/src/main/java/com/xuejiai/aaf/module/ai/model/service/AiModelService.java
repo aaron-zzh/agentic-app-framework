@@ -16,10 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProvider;
@@ -33,6 +31,7 @@ import com.xuejiai.aaf.module.ai.model.vo.AiModelVO;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.JsonNode;
 
 /**
  * AI 模型管理 Service。
@@ -46,7 +45,6 @@ public class AiModelService {
     private final AiModelRepository repository;
     private final AiModelProviderRepository providerRepository;
     private final DynamicChatClientFactory chatClientFactory;
-    private final ObjectMapper objectMapper;
 
     /**
      * 创建模型
@@ -268,6 +266,7 @@ public class AiModelService {
                 m.getSortOrder(),
                 m.getRemark(),
                 m.getImageConfig() != null ? m.getImageConfig().toString() : null,
+                m.getVideoConfig(),
                 m.getCreateTime(),
                 m.getUpdateTime());
     }
@@ -294,7 +293,7 @@ public class AiModelService {
 
     private List<JsonNode> readImportItems(MultipartFile file) {
         try {
-            var root = objectMapper.readTree(file.getInputStream());
+            var root = JsonUtils.readTree(new String(file.getInputStream().readAllBytes()));
             var data = root.isArray() ? root : root.get("data");
             if (data == null || !data.isArray()) {
                 throw exception(ErrorCodeConstants.AI_MODEL_IMPORT_INVALID);
@@ -452,7 +451,7 @@ public class AiModelService {
     private String copy(JsonNode node) {
         if (node == null || node.isNull()) return null;
         try {
-            return objectMapper.writeValueAsString(node);
+            return JsonUtils.toJsonString(node);
         } catch (Exception e) {
             return null;
         }

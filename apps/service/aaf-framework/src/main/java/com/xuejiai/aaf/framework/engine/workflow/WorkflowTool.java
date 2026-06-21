@@ -4,14 +4,14 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 工作流工具——将工作流注册为 Agent 可调用的工具。
@@ -32,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 public class WorkflowTool {
 
     private final WorkflowEngine workflowEngine;
-    private final ObjectMapper objectMapper;
 
     /**
      * 启动工作流。
@@ -81,10 +80,8 @@ public class WorkflowTool {
         if (variables != null && !variables.isBlank()) {
             try {
                 var parsed =
-                        objectMapper.readValue(
-                                variables,
-                                new com.fasterxml.jackson.core.type.TypeReference<
-                                        Map<String, Object>>() {});
+                        JsonUtils.parseObject(
+                                variables, new TypeReference<Map<String, Object>>() {});
                 vars.putAll(parsed);
             } catch (Exception e) {
                 log.warn("流程变量解析失败，忽略: {}", variables);

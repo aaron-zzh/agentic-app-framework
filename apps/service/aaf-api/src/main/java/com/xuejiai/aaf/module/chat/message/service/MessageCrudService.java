@@ -5,10 +5,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.enums.chat.ParticipantTypeEnum;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
 import com.xuejiai.aaf.module.chat.conversation.repository.ConversationParticipantRepository;
@@ -42,7 +41,6 @@ public class MessageCrudService
     private final ConversationMessageRepository messageRepository;
     private final ConversationParticipantRepository participantRepository;
     private final WebSocketSessionManager wsSessionManager;
-    private final ObjectMapper objectMapper;
 
     @Override
     protected JpaRepository<ConversationMessage, Long> getRepository() {
@@ -117,7 +115,7 @@ public class MessageCrudService
     private void pushToParticipants(MessageVO vo) {
         try {
             var payload =
-                    objectMapper.writeValueAsString(
+                    JsonUtils.toJsonString(
                             java.util.Map.of(
                                     "type", "im_message",
                                     "conversationId", vo.conversationId(),

@@ -15,6 +15,8 @@ import { NotificationIcon } from "./icons"
 interface Props {
   notification: NotificationItemType
   onRead?: (id: number) => void
+  /** 点击带 relatedUrl 的通知后关闭外层抽屉，避免 Sheet 遮罩盖住目标页 */
+  onClose?: () => void
 }
 
 /** 按通知类型决定 action 标签 */
@@ -33,9 +35,10 @@ function actionLabel(type: string): string {
   }
 }
 
-export function NotificationItem({ notification, onRead }: Props) {
+export function NotificationItem({ notification, onRead, onClose }: Props) {
   const handleClick = () => {
     onRead?.(notification.id)
+    onClose?.()
   }
 
   const inner = (

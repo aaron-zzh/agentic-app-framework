@@ -84,8 +84,16 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
             wxRequest.setAmount(amountInfo);
 
             var response = wxPayService.unifiedOrderV3(tradeType, wxRequest);
-            // 微信统一下单返回预支付信息（prepay_id / code_url 等），非同步成功
-            return new PayResult(true, request.outTradeNo(), null, response.toString());
+            // wx_native 返回 code_url（扫码 URL），其他返回 prepay_id
+            String codeUrl = null;
+            String channelOrderNo = null;
+            if (TradeTypeEnum.NATIVE.equals(tradeType)) {
+                codeUrl = response.getCodeUrl();
+            } else {
+                channelOrderNo = response.getPrepayId();
+            }
+            return new PayResult(
+                    true, request.outTradeNo(), channelOrderNo, response.toString(), codeUrl);
         } catch (WxPayException e) {
             log.error("微信支付下单失败: outTradeNo={}, error={}", request.outTradeNo(), e.getMessage());
             return new PayResult(false, request.outTradeNo(), null, e.getMessage());

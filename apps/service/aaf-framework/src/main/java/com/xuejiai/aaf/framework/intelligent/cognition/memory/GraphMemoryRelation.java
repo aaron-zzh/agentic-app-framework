@@ -18,7 +18,9 @@ import lombok.Setter;
 @RelationshipProperties
 public class GraphMemoryRelation {
 
-    @RelationshipId @GeneratedValue private Long id;
+    @RelationshipId
+    @GeneratedValue
+    private String id;
 
     /** 关系类型描述（如 "认识"、"参与"、"属于"） */
     private String relationType;

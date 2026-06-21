@@ -14,11 +14,11 @@ import com.dingtalk.open.app.api.OpenDingTalkStreamClientBuilder;
 import com.dingtalk.open.app.api.message.GenericOpenDingTalkEvent;
 import com.dingtalk.open.app.api.security.AuthClientCredential;
 import com.dingtalk.open.app.stream.protocol.event.EventAckStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageDirectionEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.channel.config.BotChannelProperties;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.service.ChannelAdapter;
@@ -41,7 +41,6 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
 
     private final BotChannelProperties properties;
     private final RestClient.Builder restClientBuilder;
-    private final ObjectMapper objectMapper;
     private final ChannelMessageRouter router;
 
     /** 应用启动后自动启动 Stream 长连接 */
@@ -102,7 +101,7 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
     @Override
     public UnifiedMessage receive(String rawPayload) {
         try {
-            var root = objectMapper.readTree(rawPayload);
+            var root = JsonUtils.readTree(rawPayload);
             var msgType = root.path("msgtype").asText("text");
             var senderId =
                     root.path("senderStaffId").asText(root.path("senderId").asText("unknown"));

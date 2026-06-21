@@ -17,6 +17,8 @@ import com.xuejiai.aaf.module.system.user.vo.UserSimpleVO;
  */
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
 
+    Optional<User> findByContactId(Long contactId);
+
     Optional<User> findByUsername(String username);
 
     boolean existsByUsername(String username);

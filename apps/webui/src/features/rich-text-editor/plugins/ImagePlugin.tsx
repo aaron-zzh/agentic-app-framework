@@ -1,8 +1,8 @@
 /**
- * ImagePlugin——图片粘贴/拖拽上传（使用通用 useImageUpload hook）
+ * ImagePlugin——图片粘贴/拖拽上传（使用通用 useFileUpload hook）
  * @author AaronZZH & Kiro
  *
- * 图片自动压缩 + 预签名 OSS 直传
+ * 自动压缩 + 后端直传（aaf.storage.type 决定本地/S3/OSS；NEXT_PUBLIC_UPLOAD_MODE=oss 时切到 OSS STS 分片直传）
  */
 
 "use client"
@@ -10,23 +10,17 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
 import { $insertNodes, COMMAND_PRIORITY_HIGH, PASTE_COMMAND } from "lexical"
 import { useCallback, useEffect } from "react"
-import { type ImageUploadOptions, useImageUpload } from "@/lib/hooks/use-image-upload"
+import { type FileUploadOptions, useFileUpload } from "@/lib/hooks/use-file-upload"
 import { $createImageNode } from "../nodes/ImageNode"
 
 interface ImagePluginProps {
-  /** 图像上传配置（压缩参数、上传端点等） */
-  imageOptions?: ImageUploadOptions
-  /** 兼容旧接口：直传上传端点 */
-  uploadEndpoint?: string
+  /** 文件上传配置（图片压缩参数等） */
+  imageOptions?: FileUploadOptions
 }
 
-export function ImagePlugin({ imageOptions, uploadEndpoint }: ImagePluginProps) {
+export function ImagePlugin({ imageOptions }: ImagePluginProps) {
   const [editor] = useLexicalComposerContext()
-  const { upload } = useImageUpload({
-    usePresign: !uploadEndpoint,
-    uploadEndpoint: uploadEndpoint ?? "/api/upload",
-    ...imageOptions
-  })
+  const { upload } = useFileUpload(imageOptions)
 
   const handleImageInsert = useCallback(
     async (file: File) => {

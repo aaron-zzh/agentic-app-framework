@@ -42,7 +42,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
 
     @Override
     public int getMarkupRate() {
-        return configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 10);
+        return configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 5);
     }
 
     @Override
@@ -62,8 +62,20 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         long balance = creditService.getBalance(userId);
         long overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
         long minRequired = estimatedCost > 0 ? estimatedCost : 1;
-        if (balance + overdraft < minRequired) {
-            throw new InsufficientCreditsException(userId, balance);
+        boolean ok = balance + overdraft >= minRequired;
+        log.debug(
+                "AI 积分预检: userId={}, capability={}, balance={}, overdraft={}, estimatedCost={},"
+                        + " minRequired={}, markup={}, ok={}",
+                userId,
+                capability,
+                balance,
+                overdraft,
+                estimatedCost,
+                minRequired,
+                getMarkupRate(),
+                ok);
+        if (!ok) {
+            throw new InsufficientCreditsException(userId, balance, minRequired, overdraft);
         }
         checkLowBalance(userId, balance);
     }
@@ -79,14 +91,49 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         long creditCost = result[0];
         double costYuan = Double.longBitsToDouble(result[1]);
 
+        log.info(
+                "AI 结算明细: userId={}, capability={}, modelId={}, quotaType={}, in={}, out={},"
+                        + " yuan={}, markup={}, credit={}",
+                userId,
+                capability,
+                model != null ? model.getModelId() : null,
+                quotaType,
+                usage.inputTokens(),
+                usage.outputTokens(),
+                String.format("%.6f", costYuan),
+                getMarkupRate(),
+                creditCost);
+
         Long creditTxId = doSpend(userId, creditCost, capability, remark);
         if (creditTxId == null && creditCost > 0) return; // 扣减失败，不写用量记录
 
         saveUsageRecord(
                 userId, modelId, capability, quotaType, creditCost, costYuan, creditTxId, usage);
+        log.info(
+                "AI 积分扣减成功: userId={}, capability={}, modelId={}, credit={}, yuan={}, txId={}",
+                userId,
+                capability,
+                model != null ? model.getModelId() : null,
+                creditCost,
+                String.format("%.6f", costYuan),
+                creditTxId);
     }
 
-    /** 按 quotaType 计算积分成本和元成本，返回 [creditCost, costYuanBits]。 */
+    /**
+     * 按 quotaType 计算积分成本和元成本，返回 [creditCost, costYuanBits]。
+     *
+     * <p><b>关于 {@code Math.max(1, ...)} 兜底：</b>每次结算至少扣 1 积分，作用：
+     *
+     * <ul>
+     *   <li>避免 {@code credit_transaction} 表出现 amount=0 的脏流水
+     *   <li>覆盖系统调用开销（哪怕真实成本只有 0.0001 元）
+     * </ul>
+     *
+     * <p><b>批量场景注意</b>：若一次调用产生多次 settle（如知识库批量 embedding 1000 段），
+     * 每段 token 极少时单段成本 &lt; 1 积分会触发兜底，累计虚高。 <b>调用方必须把 usage 聚合后再调用一次 settleByUsage</b>，
+     * 而不是每个元素调一次。chat 流式已正确实现（{@code ResilientChatService.withStreamUsage} 在 onComplete
+     * 一次性聚合发事件）。
+     */
     private long[] calcCost(AiModel model, AiUsage usage, int quotaType) {
         int markup = getMarkupRate();
         Long modelId = model != null ? model.getId() : null;
@@ -98,13 +145,28 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         }
 
         return switch (type) {
-            case PER_USE, PER_UNIT -> {
-                long cost = AiCreditGuard.calcPerUseCost(model != null ? model.getModelPrice() : null, markup);
+            case PER_USE -> {
+                long cost =
+                        AiCreditGuard.calcPerUseCost(
+                                model != null ? model.getModelPrice() : null, markup);
                 double yuan =
                         model != null && model.getModelPrice() != null
                                 ? model.getModelPrice().doubleValue()
                                 : 0;
                 yield new long[] {cost, Double.doubleToLongBits(yuan)};
+            }
+            case PER_UNIT -> {
+                // 按单元计费（如图像按张、视频按分辨率），从 usage.count() 读实际单元数
+                int unitCount = usage.count();
+                double unitPrice =
+                        model != null && model.getModelPrice() != null
+                                ? model.getModelPrice().doubleValue()
+                                : 0.04;
+                double yuan = unitPrice * unitCount;
+                yield new long[] {
+                    Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
+                    Double.doubleToLongBits(yuan)
+                };
             }
             case PER_SEC -> {
                 int duration = Math.max(1, usage.duration());

@@ -12,7 +12,6 @@
  *   userId="user-1"
  *   userName="张三"
  *   preset="document"
- *   uploadEndpoint="/api/upload"
  * />
  * ```
  */
@@ -50,7 +49,6 @@ export interface CollaborativeEditorProps {
   userName: string
   preset?: PresetName
   placeholder?: string
-  uploadEndpoint?: string
   onMentionSearch?: (query: string) => Promise<MentionUser[]>
 }
 
@@ -60,7 +58,6 @@ export function CollaborativeEditor({
   userName,
   preset: presetName = "document",
   placeholder = "输入内容...",
-  uploadEndpoint,
   onMentionSearch
 }: CollaborativeEditorProps) {
   const preset = presets[presetName]
@@ -100,9 +97,7 @@ export function CollaborativeEditor({
     <div className="rounded-md border">
       <LexicalComposer initialConfig={initialConfig}>
         {/* 工具栏 */}
-        {preset.showToolbar && (
-          <ToolbarPlugin features={preset.toolbarFeatures} uploadEndpoint={uploadEndpoint} />
-        )}
+        {preset.showToolbar && <ToolbarPlugin features={preset.toolbarFeatures} />}
 
         {/* 编辑区 */}
         <div className="relative" ref={(el) => setAnchorElem(el)}>
@@ -132,7 +127,7 @@ export function CollaborativeEditor({
         {/* 其他插件 */}
         <ListPlugin />
         <LinkPlugin />
-        {preset.image && <ImagePlugin uploadEndpoint={uploadEndpoint} />}
+        {preset.image && <ImagePlugin />}
         {preset.mention && <MentionPlugin onSearch={onMentionSearch} />}
         {preset.slashMenu && <SlashMenuPlugin />}
         {preset.draggable && anchorElem && <DraggableBlockPlugin anchorElem={anchorElem} />}

@@ -11,8 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -38,7 +37,6 @@ public class DashScopeRerankService implements RerankService {
     private final CapabilityRouter capabilityRouter;
     private final AiModelRepository modelRepository;
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DashScopeRerankService(
             @Value("${spring.ai.dashscope.api-key:}") String fallbackApiKey,
@@ -61,7 +59,7 @@ public class DashScopeRerankService implements RerankService {
             var key =
                     aiModel.effectiveApiKey() != null ? aiModel.effectiveApiKey() : fallbackApiKey;
             var body =
-                    objectMapper.writeValueAsString(
+                    JsonUtils.toJsonString(
                             java.util.Map.of(
                                     "model", modelName,
                                     "input",
@@ -79,7 +77,7 @@ public class DashScopeRerankService implements RerankService {
                             .POST(HttpRequest.BodyPublishers.ofString(body))
                             .build();
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            var json = objectMapper.readTree(response.body());
+            var json = JsonUtils.readTree(response.body());
             var results = json.path("output").path("results");
             return java.util.stream.StreamSupport.stream(results.spliterator(), false)
                     .map(

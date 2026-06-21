@@ -28,9 +28,9 @@ public class GenerationTemplate extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    /** 模板类型：IMAGE / VIDEO / COPYWRITING */
+    /** 模板类型：IMAGE_GEN / VIDEO_GEN / COPYWRITING */
     @Column(name = "type", length = 30)
-    private String type = "IMAGE";
+    private String type = "IMAGE_GEN";
 
     /** 模板分类 */
     @Column(name = "category", length = 50)

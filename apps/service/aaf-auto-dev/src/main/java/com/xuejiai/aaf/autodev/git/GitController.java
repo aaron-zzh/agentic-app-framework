@@ -6,13 +6,12 @@ import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import com.xuejiai.aaf.common.model.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.JsonNode;
 
 /** Git + CI/CD 操作接口。 */
 @Tag(name = "Git & CI/CD")

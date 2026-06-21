@@ -1,8 +1,15 @@
 package com.xuejiai.aaf.framework.intelligent.ai.model3d;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
+import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
 /**
@@ -16,6 +23,65 @@ public interface Model3dGenerationService extends AiCapability {
     default String capability() {
         return CapabilityRoutingContext.CAP_MODEL_3D;
     }
+
+    /**
+     * 从模型 params_config 的 pricing 矩阵按 source + textureQuality 查价格。
+     *
+     * <p>params_config 格式：
+     *
+     * <pre>{"pricing":[{"source":"text","texture":"none","price":2.1}, ...]}</pre>
+     *
+     * <p>source 取自 req 类型：TextTo3dRequest→text，ImageTo3dRequest→image，MultiImageTo3dRequest→multi。
+     */
+    @Override
+    default long estimateCost(AiModel model, Object req, int markupRate) {
+        String source =
+                switch (req) {
+                    case TextTo3dRequest ignored -> "text";
+                    case ImageTo3dRequest ignored -> "image";
+                    case MultiImageTo3dRequest ignored -> "multi";
+                    default -> "text";
+                };
+        String texture =
+                switch (req) {
+                    case TextTo3dRequest r ->
+                            r.textureQuality() != null ? r.textureQuality() : "none";
+                    case ImageTo3dRequest r ->
+                            r.textureQuality() != null ? r.textureQuality() : "none";
+                    case MultiImageTo3dRequest r ->
+                            r.textureQuality() != null ? r.textureQuality() : "none";
+                    default -> "none";
+                };
+
+        double price = lookupPrice(model, source, texture);
+        return Math.max(1, Math.round(price * AiCreditGuard.YUAN_TO_CREDIT * markupRate));
+    }
+
+    /** 从 params_config 查价格，找不到时兜底用 model_price。 */
+    private static double lookupPrice(AiModel model, String source, String texture) {
+        if (model == null) return 2.1;
+        var pc = model.getParamsConfigParsed(Model3dParamsConfig.class);
+        if (pc != null && pc.pricing() != null) {
+            return pc.pricing().stream()
+                    .filter(e -> source.equals(e.source()) && texture.equals(e.texture()))
+                    .mapToDouble(e -> e.price().doubleValue())
+                    .findFirst()
+                    .orElseGet(
+                            () ->
+                                    model.getModelPrice() != null
+                                            ? model.getModelPrice().doubleValue()
+                                            : 2.1);
+        }
+        return model.getModelPrice() != null ? model.getModelPrice().doubleValue() : 2.1;
+    }
+
+    /** 3D 模型 params_config 结构。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Model3dParamsConfig(List<Model3dPricingEntry> pricing) {}
+
+    /** 定价矩阵条目。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Model3dPricingEntry(String source, String texture, BigDecimal price) {}
 
     /** 文生 3D，返回 taskId。 */
     String submitTextTo3d(TextTo3dRequest request);
@@ -58,7 +124,32 @@ public interface Model3dGenerationService extends AiCapability {
             String baseModelUrl,
             /** 渲染预览图 URL */
             String thumbnailUrl,
-            String prompt) {
+            String prompt,
+            /** 来源：text / image / multi */
+            String source,
+            /** 贴图质量：none / standard / detailed */
+            String textureQuality)
+            implements AiUsage {
+
+        /** 兼容旧调用（无 source/textureQuality）。 */
+        public Model3dTaskResult(
+                String taskId,
+                TaskStatus status,
+                String modelUrl,
+                String baseModelUrl,
+                String thumbnailUrl,
+                String prompt) {
+            this(taskId, status, modelUrl, baseModelUrl, thumbnailUrl, prompt, null, null);
+        }
+
+        @Override
+        public Map<String, Object> standardUsage() {
+            var map = new java.util.HashMap<String, Object>();
+            map.put("count", 1);
+            if (source != null) map.put("source", source);
+            if (textureQuality != null) map.put("textureQuality", textureQuality);
+            return map;
+        }
 
         public enum TaskStatus {
             PENDING,

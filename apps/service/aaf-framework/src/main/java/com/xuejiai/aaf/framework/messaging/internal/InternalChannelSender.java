@@ -5,6 +5,7 @@ import java.util.Map;
 
 import com.xuejiai.aaf.framework.messaging.ChannelSender;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.ProviderResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -20,7 +21,7 @@ public class InternalChannelSender implements ChannelSender {
     }
 
     @Override
-    public void send(
+    public ProviderResponse send(
             List<String> recipients,
             String subject,
             String content,
@@ -35,5 +36,6 @@ public class InternalChannelSender implements ChannelSender {
                             .body(content)
                             .build());
         }
+        return ProviderResponse.empty();
     }
 }

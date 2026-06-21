@@ -24,7 +24,46 @@ export interface NotifyOptions {
   id?: string | number
 }
 
+import { createElement } from "react"
 import { toast } from "sonner"
+import { LottieIcon } from "@/components/animate/LottieIcon"
+
+// 构建统一样式的 custom toast 节点
+function makeLottieToast(
+  lottieName: string,
+  msg: string,
+  opts: ReturnType<typeof toOpts> | undefined,
+  loop = false,
+  titleClass = ""
+) {
+  return (id: string | number) =>
+    createElement(
+      "div",
+      { className: "flex w-72 items-center gap-3 rounded-lg bg-background px-3" },
+      createElement(LottieIcon, { name: lottieName, width: 48, height: 48, loop }),
+      createElement(
+        "div",
+        { className: "flex-1 min-w-0" },
+        createElement("p", { className: `font-medium text-sm ${titleClass}` }, msg),
+        opts?.description
+          ? createElement(
+              "p",
+              { className: "text-muted-foreground text-xs truncate" },
+              opts.description
+            )
+          : null
+      ),
+      createElement(
+        "button",
+        {
+          type: "button",
+          className: "text-muted-foreground hover:text-foreground text-lg leading-none",
+          onClick: () => toast.dismiss(id)
+        },
+        "×"
+      )
+    )
+}
 
 function toOpts(opts?: NotifyOptions) {
   if (!opts) return undefined
@@ -39,9 +78,12 @@ function toOpts(opts?: NotifyOptions) {
 }
 
 export const notify = {
-  success: (msg: string, opts?: NotifyOptions) => toast.success(msg, toOpts(opts)),
-  error: (msg: string, opts?: NotifyOptions) => toast.error(msg, toOpts(opts)),
-  warning: (msg: string, opts?: NotifyOptions) => toast.warning(msg, toOpts(opts)),
+  success: (msg: string, opts?: NotifyOptions) =>
+    toast.custom(makeLottieToast("success", msg, toOpts(opts)), toOpts(opts)),
+  error: (msg: string, opts?: NotifyOptions) =>
+    toast.custom(makeLottieToast("error", msg, toOpts(opts)), toOpts(opts)),
+  warning: (msg: string, opts?: NotifyOptions) =>
+    toast.custom(makeLottieToast("warning", msg, toOpts(opts), true), toOpts(opts)),
   info: (msg: string, opts?: NotifyOptions) => toast.info(msg, toOpts(opts)),
   loading: (msg: string, opts?: NotifyOptions) => toast.loading(msg, toOpts(opts)),
   promise: <T>(

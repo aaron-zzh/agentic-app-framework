@@ -17,18 +17,45 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
+import type { DashboardPresetVO, DashboardWidgetVO } from "@/lib/api/rest/dashboard/dashboard"
+import { usePresets } from "@/lib/queries/use-dashboard"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { dashboardPresets } from "./presets"
 
 interface ApplyPresetDialogProps {
-  onApply: (presetKey: string) => void
+  onApply: (widgets: DashboardWidgetVO[], refreshInterval?: number) => void
 }
 
 export function ApplyPresetDialog({ onApply }: ApplyPresetDialogProps) {
-  const [selected, setSelected] = useState(dashboardPresets[0].key)
+  const { data: remotePresets } = usePresets()
+  const userRoles = useAuthStore((s) => s.user?.roles)
+  const isAdmin = userRoles?.some((r) => ["admin", "super_admin", "org_admin"].includes(r)) ?? false
+
+  // 优先用接口数据，接口失败降级到本地硬编码
+  const presets: DashboardPresetVO[] = remotePresets
+    ? remotePresets
+    : dashboardPresets
+        .filter((p) => !p.adminOnly || isAdmin)
+        .map((p, i) => ({
+          id: String(i),
+          presetKey: p.key,
+          name: p.name,
+          description: p.description,
+          adminOnly: p.adminOnly ?? false,
+          refreshInterval: p.refreshInterval,
+          widgets: p.widgets,
+          sortOrder: i
+        }))
+
+  const visiblePresets = isAdmin ? presets : presets.filter((p) => !p.adminOnly)
+
+  const [selected, setSelected] = useState(visiblePresets[0]?.presetKey ?? "")
   const [open, setOpen] = useState(false)
 
   function handleApply() {
-    onApply(selected)
+    const preset = visiblePresets.find((p) => p.presetKey === selected)
+    if (!preset) return
+    onApply(preset.widgets, preset.refreshInterval)
     setOpen(false)
   }
 
@@ -49,13 +76,13 @@ export function ApplyPresetDialog({ onApply }: ApplyPresetDialogProps) {
         </DialogHeader>
 
         <div className="space-y-2">
-          {dashboardPresets.map((preset) => (
+          {visiblePresets.map((preset) => (
             <button
-              key={preset.key}
+              key={preset.presetKey}
               type="button"
-              onClick={() => setSelected(preset.key)}
+              onClick={() => setSelected(preset.presetKey)}
               className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent data-[selected=true]:border-primary data-[selected=true]:bg-primary/5"
-              data-selected={selected === preset.key}
+              data-selected={selected === preset.presetKey}
             >
               <p className="font-medium text-sm">{preset.name}</p>
               <p className="text-muted-foreground text-xs">{preset.description}</p>

@@ -57,4 +57,20 @@ public class MessageLog extends BaseEntity {
     /** 实际发送时间 */
     @Column(name = "send_time")
     private LocalDateTime sendTime;
+
+    /** 厂商标识（aliyun/tencent 等），站内信渠道留空 */
+    @Column(name = "provider", length = 20)
+    private String provider;
+
+    /** 厂商响应请求 ID（如阿里云 BizId） */
+    @Column(name = "api_request_id", length = 128)
+    private String apiRequestId;
+
+    /** 厂商响应码（如 OK / IS_OUT_OF_SERVICE） */
+    @Column(name = "api_code", length = 64)
+    private String apiCode;
+
+    /** 厂商响应描述 */
+    @Column(name = "api_msg", length = 512)
+    private String apiMsg;
 }

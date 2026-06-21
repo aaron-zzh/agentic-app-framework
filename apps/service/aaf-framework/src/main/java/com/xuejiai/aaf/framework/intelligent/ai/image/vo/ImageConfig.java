@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image.vo;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,8 @@ public record ImageConfig(
      * @param seed 是否支持随机种子
      * @param promptExtend 是否支持提示词智能扩写
      * @param negativePrompt 是否支持反向提示词
+     * @param qualityPricing 按画质分级单价（元/张），key=quality值，如 {"standard":0.04,"hd":0.08}； null
+     *     表示不分质量，统一用 model.modelPrice
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ImageModeConfig(
@@ -44,7 +47,8 @@ public record ImageConfig(
             List<String> contentModeration,
             Boolean seed,
             Boolean promptExtend,
-            Boolean negativePrompt) {
+            Boolean negativePrompt,
+            Map<String, BigDecimal> qualityPricing) {
 
         public boolean supportsSeed() {
             return Boolean.TRUE.equals(seed);

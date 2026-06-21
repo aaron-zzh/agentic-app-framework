@@ -6,11 +6,10 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
 import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
-import org.springframework.data.jpa.repository.Query;
-
 import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
 
 /**
@@ -41,5 +40,7 @@ public interface ConversationRepository
 
     /** 按状态+类型+更新时间查询（超时处理） */
     List<Conversation> findByStatusAndTypeAndUpdateTimeBefore(
-            ConversationStatusEnum status, ConversationTypeEnum type, LocalDateTime updateTimeBefore);
+            ConversationStatusEnum status,
+            ConversationTypeEnum type,
+            LocalDateTime updateTimeBefore);
 }

@@ -31,5 +31,6 @@ public record AiModelVO(
         @Schema(description = "排序", example = "100") Integer sortOrder,
         @Schema(description = "备注") String remark,
         @Schema(description = "图像生成能力配置（JSON）") @JsonRawValue String imageConfig,
+        @Schema(description = "视频生成能力配置（JSON）") @JsonRawValue String videoConfig,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {}

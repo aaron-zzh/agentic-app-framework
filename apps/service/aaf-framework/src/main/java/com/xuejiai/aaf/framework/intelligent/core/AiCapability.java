@@ -23,6 +23,15 @@ public interface AiCapability {
     }
 
     /**
+     * 生成动态积分流水备注（含本次调用用量信息），写入 remark 字段供用户查看。
+     *
+     * <p>默认返回 {@link #bizName()}，子类可覆写加入动态信息（如 "图像生成 ×4 张"）。
+     */
+    default String bizRemark(AiUsage usage) {
+        return bizName();
+    }
+
+    /**
      * 估算本次调用的积分预检费用。
      *
      * <p>默认按 quotaType 分支：

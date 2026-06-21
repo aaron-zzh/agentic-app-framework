@@ -15,7 +15,9 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
+import { fromEntityDef, useCrudUpdate } from "@/lib/api/rest/crud"
 import type { PageResult } from "@/lib/api/rest/entity/crud"
 import { paths } from "@/lib/constants/paths"
 import { useEntityDetail } from "@/lib/queries/use-entity-detail"
@@ -159,7 +161,7 @@ function ConnectedListView({
   )
 }
 
-/** 表单视图——连接数据层 */
+/** 表单视图——连接数据层（仅编辑模式；新建走独立路由 EntityCreateView） */
 function ConnectedFormView({
   entity,
   recordId,
@@ -170,10 +172,30 @@ function ConnectedFormView({
   queryToken?: string
 }) {
   const { data, isLoading } = useEntityDetail(entity, recordId, { queryToken })
+  const resource = fromEntityDef(entity)
+  const { mutate: update, isPending: updating } = useCrudUpdate(resource)
+
+  const handleSubmit = (values: Record<string, unknown>) => {
+    if (!recordId) return
+    update(
+      { id: recordId, data: values },
+      {
+        onSuccess: () => toast.success(`${entity.label}已保存`),
+        onError: (err) => toast.error(err.message ?? "保存失败")
+      }
+    )
+  }
+
   return (
     <div className="space-y-4">
       <RecordWindowPager entity={entity} recordId={recordId} queryToken={queryToken} />
-      <FormView key={recordId} entity={entity} data={data ?? undefined} loading={isLoading} />
+      <FormView
+        key={recordId}
+        entity={entity}
+        data={data ?? undefined}
+        loading={isLoading || updating}
+        onSubmit={handleSubmit}
+      />
       {entity.workflow && recordId && (
         <EntityApproval config={entity.workflow} entityId={recordId} currentUserId="current-user" />
       )}

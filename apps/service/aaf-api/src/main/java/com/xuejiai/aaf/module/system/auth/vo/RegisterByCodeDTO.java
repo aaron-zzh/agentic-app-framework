@@ -8,4 +8,5 @@ import jakarta.validation.constraints.NotBlank;
 public record RegisterByCodeDTO(
         @NotBlank @Email @Schema(description = "邮箱") String email,
         @NotBlank @Schema(description = "验证码") String code,
-        @Schema(description = "昵称") String nickname) {}
+        @Schema(description = "昵称") String nickname,
+        @Schema(description = "邀请码（可选）") String referrerCode) {}

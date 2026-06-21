@@ -8,8 +8,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantService;
 import com.xuejiai.aaf.framework.security.access.AccessContext;
@@ -47,7 +46,6 @@ public class ChatOrchestrationService {
     private final AssistantService assistantService;
     private final ServicePermissionChecker permissionChecker;
     private final ResilientChatService chatLlm;
-    private final ObjectMapper objectMapper;
 
     private static final long SSE_TIMEOUT = 5 * 60 * 1000L;
 
@@ -211,10 +209,8 @@ public class ChatOrchestrationService {
         var start = text.indexOf('[');
         var end = text.lastIndexOf(']');
         if (start < 0 || end < 0) return List.of();
-        var mapper = objectMapper;
-        return mapper.readValue(
-                text.substring(start, end + 1),
-                new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        return JsonUtils.parseObject(
+                text.substring(start, end + 1), new tools.jackson.core.type.TypeReference<>() {});
     }
 
     // ── 静态默认建议（按 agentId 分类，AI 生成失败时兜底） ──────────────────────
@@ -249,10 +245,9 @@ public class ChatOrchestrationService {
             var start = text.indexOf('[');
             var end = text.lastIndexOf(']');
             if (start >= 0 && end > start) {
-                var mapper = objectMapper;
-                return mapper.readValue(
+                return JsonUtils.parseObject(
                         text.substring(start, end + 1),
-                        new com.fasterxml.jackson.core.type.TypeReference<>() {});
+                        new tools.jackson.core.type.TypeReference<>() {});
             }
         } catch (Exception e) {
             log.debug("欢迎页建议生成失败，使用默认值: {}", e.getMessage());

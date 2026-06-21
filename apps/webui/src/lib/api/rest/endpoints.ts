@@ -80,6 +80,11 @@ export const restEndpoints = {
     subscriptions: "/subscriptions",
     subscriptionIds: "/subscriptions/ids"
   },
+  pay: {
+    orders: "/pay/orders",
+    order: (id: string | number) => `/pay/orders/${id}`,
+    recharge: "/pay/orders/recharge"
+  },
   dashboard: {
     dashboards: "/system/dashboards",
     dashboard: (id: string) => `/system/dashboards/${id}`,

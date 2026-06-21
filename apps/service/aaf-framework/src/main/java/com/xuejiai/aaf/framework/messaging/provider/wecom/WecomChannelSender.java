@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import com.xuejiai.aaf.framework.integration.wecom.WecomClient;
 import com.xuejiai.aaf.framework.messaging.ChannelSender;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.ProviderResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,11 +31,12 @@ public class WecomChannelSender implements ChannelSender {
     }
 
     @Override
-    public void send(
+    public ProviderResponse send(
             List<String> recipients,
             String subject,
             String content,
             Map<String, Object> variables) {
         wecomClient.sendMarkdown(recipients, content);
+        return ProviderResponse.of("wecom");
     }
 }

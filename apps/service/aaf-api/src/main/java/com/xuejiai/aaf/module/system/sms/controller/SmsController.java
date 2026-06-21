@@ -17,12 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
-import com.xuejiai.aaf.module.system.sms.domain.SmsLog;
+import com.xuejiai.aaf.module.system.notify.domain.MessageLog;
+import com.xuejiai.aaf.module.system.notify.repository.MessageLogRepository;
 import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
-import com.xuejiai.aaf.module.system.sms.repository.SmsLogRepository;
 import com.xuejiai.aaf.module.system.sms.repository.SmsTemplateRepository;
-import com.xuejiai.aaf.module.system.sms.service.SmsService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +35,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 短信管理接口（模板管理 + 日志查询 + 测试发送 + 厂商回调）。
  *
+ * <p>短信发送统一走 {@link MessageService} 主链路，日志记录在 sys_message_log（filter channel='SMS'）。
+ *
  * @author AaronZZH & Kiro
  */
 @Slf4j
@@ -43,11 +46,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class SmsController {
 
+    private static final String CHANNEL_SMS = MessageChannel.SMS.name();
+
     private final SmsTemplateRepository templateRepository;
     private final MessageService messageService;
-    private final SmsLogRepository smsLogRepository;
-
-    private final SmsService smsService;
+    private final MessageLogRepository messageLogRepository;
 
     // ── 模板管理 ──────────────────────────────────────────────
 
@@ -101,13 +104,14 @@ public class SmsController {
     // ── 日志查询 ──────────────────────────────────────────────
 
     @GetMapping("/logs")
-    public Result<PageResult<SmsLog>> listLogs(
+    public Result<PageResult<MessageLog>> listLogs(
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
         var page =
-                smsLogRepository.findAll(
+                messageLogRepository.findByChannelAndDeletedFalse(
+                        CHANNEL_SMS,
                         PageRequest.of(
-                                pageNo - 1, pageSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+                                pageNo - 1, pageSize, Sort.by(Sort.Direction.DESC, "createTime")));
         return Result.success(new PageResult<>(page.getContent(), page.getTotalElements()));
     }
 
@@ -123,19 +127,14 @@ public class SmsController {
     public Result<String> testSend(@Valid @RequestBody SmsTestSendDTO dto) {
         var variables =
                 dto.params() == null
-                        ? java.util.Map.<String, Object>of()
+                        ? Map.<String, Object>of()
                         : dto.params().entrySet().stream()
                                 .collect(
                                         java.util.stream.Collectors.toMap(
-                                                java.util.Map.Entry::getKey,
-                                                e -> (Object) e.getValue()));
+                                                Map.Entry::getKey, e -> (Object) e.getValue()));
         messageService.send(
-                new com.xuejiai.aaf.framework.messaging.MessageRequest(
-                        com.xuejiai.aaf.framework.messaging.MessageChannel.SMS,
-                        dto.code(),
-                        java.util.List.of(dto.phone()),
-                        variables,
-                        null));
+                new MessageRequest(
+                        MessageChannel.SMS, dto.code(), List.of(dto.phone()), variables, null));
         return Result.success("发送成功（异步）");
     }
 
@@ -144,9 +143,9 @@ public class SmsController {
     /** 阿里云短信状态回调。 阿里云配置回调地址：POST /api/system/sms/callback/aliyun */
     @PostMapping("/callback/aliyun")
     public Result<Void> aliyunCallback(@RequestBody String body) {
-        // 阿里云回调为 JSON
-        // 数组，格式：[{"phone_number":"...","send_time":"...","err_code":"...","err_msg":"...","biz_id":"...","out_id":"..."}]
-        // 目前仅记录日志，后续可解析更新 sys_sms_log 状态
+        // 阿里云回调为 JSON 数组：
+        // [{"phone_number":"...","send_time":"...","err_code":"...","err_msg":"...","biz_id":"...","out_id":"..."}]
+        // 目前仅记录日志，后续可解析后按 biz_id 反查 sys_message_log 更新最终状态
         return Result.success(null);
     }
 
@@ -173,7 +172,7 @@ public class SmsController {
      * 测试发送请求。
      *
      * @param phone 手机号（11位）
-     * @param code 业务场景编码（对应 sys_sms_template.code，如 AUTH_LOGIN）
+     * @param code 业务场景编码（对应 sys_sms_template.code，如 register/login）
      * @param params 模板变量，如 {"code":"1234"}
      */
     public record SmsTestSendDTO(

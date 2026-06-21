@@ -15,9 +15,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
@@ -25,6 +23,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 记忆编码决策：对每条新事实，LLM 决定 ADD / UPDATE / DELETE / NONE。
@@ -48,7 +47,6 @@ public class MemoryDeduplicationService {
     private final AtomMemoryEngine atomEngine;
     private final EmbeddingService embeddingService;
     private final ResilientChatService chatService;
-    private final ObjectMapper objectMapper;
 
     private static final String DECISION_PROMPT =
             """
@@ -187,7 +185,7 @@ public class MemoryDeduplicationService {
                             ? json.substring(json.indexOf('{'), json.lastIndexOf('}') + 1)
                             : json;
             var map =
-                    objectMapper.readValue(
+                    JsonUtils.parseObject(
                             cleaned, new TypeReference<java.util.Map<String, Object>>() {});
             var action = Action.valueOf(((String) map.getOrDefault("action", "ADD")).toUpperCase());
             var targetId = map.get("target_id") != null ? map.get("target_id").toString() : null;

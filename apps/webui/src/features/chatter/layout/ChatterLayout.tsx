@@ -25,6 +25,8 @@ interface ChatterLayoutProps {
   title?: string
   dialogWidth?: number
   dialogHeight?: number
+  /** dialog 模式右下锚点（距视口右、底的 px），默认 { right: 96, bottom: 96 } */
+  dialogAnchor?: { right: number; bottom: number }
   children: ReactNode
 }
 
@@ -36,6 +38,7 @@ function DraggableDialog({
   title,
   dialogWidth = 380,
   dialogHeight = 560,
+  anchor = { right: 96, bottom: 96 },
   children
 }: {
   open?: boolean
@@ -44,6 +47,7 @@ function DraggableDialog({
   title?: string
   dialogWidth?: number
   dialogHeight?: number
+  anchor?: { right: number; bottom: number }
   children: ReactNode
 }) {
   const [pos, setPos] = useState({ x: 0, y: 0 })
@@ -100,8 +104,14 @@ function DraggableDialog({
 
   return (
     <div
-      className="fixed right-24 bottom-24 z-50 flex flex-col overflow-hidden rounded-xl shadow-xl outline-hidden [background:linear-gradient(135deg,color-mix(in_oklch,var(--color-violet-500)_6%,transparent),transparent_50%,color-mix(in_oklch,var(--color-indigo-500)_6%,transparent)),var(--color-popover)]"
-      style={{ width: size.w, height: size.h, transform: `translate(${pos.x}px, ${pos.y}px)` }}
+      className="fixed z-50 flex flex-col overflow-hidden rounded-xl shadow-xl outline-hidden [background:linear-gradient(135deg,color-mix(in_oklch,var(--color-violet-500)_6%,transparent),transparent_50%,color-mix(in_oklch,var(--color-indigo-500)_6%,transparent)),var(--color-popover)]"
+      style={{
+        right: anchor.right,
+        bottom: anchor.bottom,
+        width: size.w,
+        height: size.h,
+        transform: `translate(${pos.x}px, ${pos.y}px)`
+      }}
     >
       {/* 标题栏：拖拽 + 操作按钮 */}
       <div
@@ -202,6 +212,7 @@ export function ChatterLayout({
   title,
   dialogWidth,
   dialogHeight,
+  dialogAnchor,
   children
 }: ChatterLayoutProps) {
   if (layout === "dialog") {
@@ -213,6 +224,7 @@ export function ChatterLayout({
         title={title}
         dialogWidth={dialogWidth}
         dialogHeight={dialogHeight}
+        anchor={dialogAnchor}
       >
         {children}
       </DraggableDialog>

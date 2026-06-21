@@ -50,8 +50,13 @@ function PlanCard({
 }) {
   const price = billingCycle === "yearly" ? plan.yearlyPrice : plan.price
   const isFree = plan.price === 0
-  const yearlyDiscount =
-    plan.price > 0 ? Math.round((1 - plan.yearlyPrice / (plan.price * 12)) * 100) : 0
+
+  // 相对"100积分/元"基准的综合折扣（月付 or 年付）
+  const effectiveMonthlyPrice = billingCycle === "yearly" ? plan.yearlyPrice / 12 : plan.price
+  const creditDiscount =
+    plan.price > 0 && plan.monthlyCredits > 0
+      ? Math.round((effectiveMonthlyPrice / (plan.monthlyCredits / 100)) * 10) / 10
+      : null
 
   return (
     <div
@@ -60,10 +65,10 @@ function PlanCard({
         PLAN_ACCENT[plan.code] ?? "border-border"
       ].join(" ")}
     >
-      {/* 折扣徽标 */}
-      {billingCycle === "yearly" && yearlyDiscount > 0 && (
+      {/* 折扣徽标：年付时统一展示"年付8折" */}
+      {billingCycle === "yearly" && !isFree && (
         <span className="absolute -top-3 right-4 rounded-full bg-amber-500 px-3 py-0.5 font-semibold text-white text-xs">
-          积分 {(1 - yearlyDiscount / 100).toFixed(1)}折
+          年付8折
         </span>
       )}
 
@@ -111,6 +116,11 @@ function PlanCard({
             {plan.monthlyCredits.toLocaleString()} 🪙
           </span>
           <span className="text-muted-foreground"> 每月到账</span>
+          {creditDiscount !== null && creditDiscount < 0.95 && (
+            <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-600 text-xs dark:bg-amber-950/30">
+              {creditDiscount.toFixed(1)}折
+            </span>
+          )}
         </p>
       )}
 

@@ -36,6 +36,7 @@ export function useSubscribe() {
 
 export function usePurchaseCredits() {
   return useMutation({
-    mutationFn: (packageId: string) => billingPlansApi.purchaseCredits(packageId)
+    mutationFn: ({ packageId, channelCode }: { packageId: string; channelCode?: string }) =>
+      billingPlansApi.purchaseCredits(packageId, channelCode)
   })
 }

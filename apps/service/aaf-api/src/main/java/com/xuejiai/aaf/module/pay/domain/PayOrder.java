@@ -63,4 +63,8 @@ public class PayOrder extends BaseEntity {
     /** 已退款金额（分） */
     @Column(name = "refund_amount", nullable = false)
     private Long refundAmount = 0L;
+
+    /** 扫码支付 URL（wx_native=code_url, alipay_qr=qr_code），前端渲染二维码 */
+    @Column(name = "code_url", length = 512)
+    private String codeUrl;
 }

@@ -62,7 +62,7 @@ public final class SysConfigKeys {
         public static final String FREE_ASSISTANT_CREDIT_CAP =
                 "ai.free_assistant_credit_cap"; // 免费助理虚拟用户预算上限（积分）
         public static final String TOKEN_MARKUP_RATE =
-                "ai.token_markup_rate"; // Token 计费加价倍数（相对供应商成本，默认10倍）
+                "ai.token_markup_rate"; // Token 计费加价倍数（相对供应商成本，默认5倍）
     }
 
     /** 品牌配置 */

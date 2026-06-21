@@ -48,7 +48,11 @@ public class OssStorageService implements StorageService {
     @Override
     public String upload(InputStream input, String filename, String contentType) {
         var key = buildKey(filename);
-        ossClient.putObject(props.bucketName(), key, input);
+        var meta = new com.aliyun.oss.model.ObjectMetadata();
+        if (contentType != null && !contentType.isBlank()) {
+            meta.setContentType(contentType);
+        }
+        ossClient.putObject(props.bucketName(), key, input, meta);
         return key;
     }
 
@@ -77,6 +81,15 @@ public class OssStorageService implements StorageService {
         var request =
                 new GeneratePresignedUrlRequest(
                         props.bucketName(), key, com.aliyun.oss.HttpMethod.PUT);
+        request.setExpiration(new Date(System.currentTimeMillis() + expiry.toMillis()));
+        return ossClient.generatePresignedUrl(request).toString();
+    }
+
+    @Override
+    public String getPresignedDownloadUrl(String key, Duration expiry) {
+        var request =
+                new GeneratePresignedUrlRequest(
+                        props.bucketName(), key, com.aliyun.oss.HttpMethod.GET);
         request.setExpiration(new Date(System.currentTimeMillis() + expiry.toMillis()));
         return ossClient.generatePresignedUrl(request).toString();
     }
@@ -110,7 +123,8 @@ public class OssStorageService implements StorageService {
                     cred.getExpiration(),
                     props.bucketName(),
                     props.endpoint(),
-                    region);
+                    region,
+                    props.urlPrefix());
         } catch (ClientException e) {
             throw new StorageException("获取 STS 临时凭证失败: " + e.getErrMsg(), e);
         }

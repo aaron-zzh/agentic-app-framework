@@ -9,8 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiEditParams;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.GeminiGenerateParams;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
@@ -34,8 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 @Service("geminiNativeImageGenerationService")
 @RequiredArgsConstructor
 public class GeminiNativeImageGenerationService implements ImageGenerationService {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final ModelManagementService modelManagementService;
 
@@ -145,7 +142,7 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
             }
             int inputTokens = 0, outputTokens = 0;
             try {
-                var root = MAPPER.readTree(response);
+                var root = JsonUtils.readTree(response);
                 var usage = root.path("usageMetadata");
                 inputTokens = usage.path("promptTokenCount").asInt(0);
                 outputTokens = usage.path("candidatesTokenCount").asInt(0);
@@ -162,7 +159,7 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
 
     private String extractB64(String responseBody) {
         try {
-            var node = MAPPER.readTree(responseBody);
+            var node = JsonUtils.readTree(responseBody);
             var parts = node.path("candidates").get(0).path("content").path("parts");
             for (var part : parts) {
                 var inlineData = part.path("inlineData");

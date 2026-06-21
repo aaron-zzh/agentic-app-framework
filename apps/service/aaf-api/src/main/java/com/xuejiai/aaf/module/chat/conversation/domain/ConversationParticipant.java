@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.xuejiai.aaf.common.enums.chat.ParticipantLeftReasonEnum;
 import com.xuejiai.aaf.common.enums.chat.ParticipantRoleEnum;
 import com.xuejiai.aaf.common.enums.chat.ParticipantTypeEnum;
 
@@ -47,7 +48,7 @@ public class ConversationParticipant {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 16)
-    private ParticipantRole role = ParticipantRoleEnum.MEMBER;
+    private ParticipantRoleEnum role = ParticipantRoleEnum.MEMBER;
 
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt = LocalDateTime.now();
@@ -58,7 +59,7 @@ public class ConversationParticipant {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "left_reason", length = 32)
-    private ParticipantLeftReason leftReason;
+    private ParticipantLeftReasonEnum leftReason;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")

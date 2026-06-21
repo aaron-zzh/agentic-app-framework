@@ -9,10 +9,9 @@ import java.net.http.HttpResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,8 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class PullRequestService {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Value("${aaf.autodev.github.token:}")
     private String githubToken;
@@ -62,7 +59,7 @@ public class PullRequestService {
                         GlobalErrorCode.INTERNAL_SERVER_ERROR,
                         "创建 PR 失败: HTTP %d - %s".formatted(response.statusCode(), response.body()));
             }
-            var json = MAPPER.readTree(response.body());
+            var json = JsonUtils.readTree(response.body());
             var prUrl = json.get("html_url").asText();
             log.info("PR 创建成功：{}", prUrl);
             return prUrl;

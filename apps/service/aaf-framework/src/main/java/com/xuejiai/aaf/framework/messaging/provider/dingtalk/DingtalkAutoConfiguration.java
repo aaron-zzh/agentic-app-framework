@@ -6,9 +6,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.framework.messaging.ChannelSender;
+
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 钉钉渠道自动配置。

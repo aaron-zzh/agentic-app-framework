@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.system.role.service;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.intelligent.action.BaseCrudEntityActionAdapter;
 import com.xuejiai.aaf.module.system.role.domain.Role;
@@ -20,8 +18,8 @@ public class RoleAiActionAdapter
 
     private final RoleService roleService;
 
-    public RoleAiActionAdapter(ObjectMapper objectMapper, RoleService roleService) {
-        super(objectMapper, RoleCreateDTO.class, RoleUpdateDTO.class, RolePageParam.class);
+    public RoleAiActionAdapter(RoleService roleService) {
+        super(RoleCreateDTO.class, RoleUpdateDTO.class, RolePageParam.class);
         this.roleService = roleService;
     }
 

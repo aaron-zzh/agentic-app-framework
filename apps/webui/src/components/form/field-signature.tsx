@@ -13,10 +13,9 @@ import { Label } from "@/components/ui/label"
 interface FieldSignatureProps {
   name: string
   label?: string
-  value?: string // fileId 或 data URL
+  value?: string // data URL
   onChange?: (value: string) => void
   disabled?: boolean
-  uploadEndpoint?: string
   width?: number
   height?: number
 }
@@ -27,7 +26,6 @@ export function FieldSignature({
   value,
   onChange,
   disabled,
-  uploadEndpoint,
   width: _width = 400,
   height = 160
 }: FieldSignatureProps) {
@@ -98,27 +96,13 @@ export function FieldSignature({
     onChange?.("")
   }, [onChange])
 
-  const confirm = useCallback(async () => {
+  const confirm = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || !signed) return
-    const dataUrl = canvas.toDataURL("image/png")
-
-    if (uploadEndpoint) {
-      // 上传到服务器
-      const blob = await (await fetch(dataUrl)).blob()
-      const form = new FormData()
-      form.append("file", blob, "signature.png")
-      try {
-        const res = await fetch(uploadEndpoint, { method: "POST", body: form })
-        const json = await res.json()
-        onChange?.(json.data?.fileId ?? dataUrl)
-      } catch {
-        onChange?.(dataUrl)
-      }
-    } else {
-      onChange?.(dataUrl)
-    }
-  }, [signed, uploadEndpoint, onChange])
+    // 签名以 data URL 形式提交；如需上传到对象存储，由外层在表单提交时
+    // 把 dataURL 转 Blob 后走 useFileUpload 统一接口（POST /api/system/files/upload）
+    onChange?.(canvas.toDataURL("image/png"))
+  }, [signed, onChange])
 
   // 已有签名：显示图片
   if (value && !signed) {

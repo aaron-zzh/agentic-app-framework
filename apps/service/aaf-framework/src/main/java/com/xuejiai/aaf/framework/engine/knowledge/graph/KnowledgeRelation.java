@@ -18,7 +18,9 @@ import lombok.Setter;
 @NoArgsConstructor
 public class KnowledgeRelation {
 
-    @RelationshipId @GeneratedValue private Long id;
+    @RelationshipId
+    @GeneratedValue
+    private String id;
 
     /** 关系类型（如 IS_A / PART_OF / WORKS_AT 等） */
     private String type;

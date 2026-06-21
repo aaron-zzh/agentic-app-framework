@@ -4,13 +4,13 @@ import java.util.Map;
 
 import org.springframework.ai.tool.ToolCallback;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.AgentTool;
 import io.agentscope.core.tool.ToolCallParam;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * ToolCallback → AgentScope AgentTool 正向适配器。
@@ -31,11 +31,9 @@ public class ToolCallbackAgentTool implements AgentTool {
 
     private final ToolCallback callback;
     private final Map<String, Object> parameters;
-    private final ObjectMapper objectMapper;
 
-    public ToolCallbackAgentTool(ToolCallback callback, ObjectMapper objectMapper) {
+    public ToolCallbackAgentTool(ToolCallback callback) {
         this.callback = callback;
-        this.objectMapper = objectMapper;
         this.parameters = parseSchema(callback.getToolDefinition().inputSchema());
     }
 
@@ -60,7 +58,7 @@ public class ToolCallbackAgentTool implements AgentTool {
                 () -> {
                     var arguments =
                             param != null && param.getInput() != null
-                                    ? objectMapper.writeValueAsString(param.getInput())
+                                    ? JsonUtils.toJsonString(param.getInput())
                                     : "{}";
                     var result = callback.call(arguments);
                     return ToolResultBlock.text(result != null ? result : "");
@@ -72,7 +70,7 @@ public class ToolCallbackAgentTool implements AgentTool {
             return Map.of("type", "object", "properties", Map.of());
         }
         try {
-            return objectMapper.readValue(inputSchema, MAP_TYPE);
+            return JsonUtils.parseObject(inputSchema, MAP_TYPE);
         } catch (Exception e) {
             return Map.of("type", "object", "properties", Map.of());
         }

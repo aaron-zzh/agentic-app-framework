@@ -17,10 +17,10 @@
 
 "use client"
 
-import OSS from "ali-oss"
+import type OSSType from "ali-oss"
 import { useCallback, useRef, useState } from "react"
 import { backendRequest } from "@/lib/api/rest/backend-client"
-import { compressImage, type ImageUploadOptions, type UploadResult } from "./use-image-upload"
+import { compressImage, type FileUploadOptions, type UploadResult } from "./use-file-upload"
 
 // ─── 类型 ────────────────────────────────────────────────────────────────────
 
@@ -32,11 +32,13 @@ interface StsCredentials {
   bucket: string
   endpoint: string
   region: string
+  /** 对象访问 URL 前缀（可空，自定义域名 / CDN 场景使用），为空时回退 https://<bucket>.<endpoint>/<key> */
+  urlPrefix?: string | null
 }
 
 export interface OssUploadOptions
   extends Pick<
-    ImageUploadOptions,
+    FileUploadOptions,
     "maxWidth" | "maxHeight" | "quality" | "outputFormat" | "skipCompressBelow"
   > {
   /** 分片上传阈值（字节），超过此大小使用分片上传，默认 5MB */
@@ -108,9 +110,10 @@ export function useOssUpload(options: OssUploadOptions = {}) {
           bitmap.close()
         }
 
-        // 3. 获取 STS 凭证
+        // 3. 获取 STS 凭证 + 动态加载 OSS SDK（避免 SSR 静态分析触发 Node-only 依赖如 proxy-agent）
         const cred = await getCredentials()
-        const client = new OSS({
+        const { default: OSS } = await import("ali-oss")
+        const client: OSSType = new OSS({
           region: cred.region,
           accessKeyId: cred.accessKeyId,
           accessKeySecret: cred.accessKeySecret,
@@ -151,7 +154,26 @@ export function useOssUpload(options: OssUploadOptions = {}) {
         }
 
         setProgress(100)
-        const url = `https://${cred.bucket}.${cred.endpoint}/${key}`
+        // 优先使用自定义域名/CDN 前缀，回退 OSS 原生域名
+        const url = cred.urlPrefix
+          ? `${cred.urlPrefix.replace(/\/$/, "")}/${key}`
+          : `https://${cred.bucket}.${cred.endpoint}/${key}`
+
+        // 6. 通知后端记录文件元数据到 sys_file
+        try {
+          await backendRequest("/api/system/files/confirm", {
+            method: "POST",
+            data: {
+              key,
+              originalName: compressed.name,
+              mimeType: compressed.type,
+              size: compressed.size
+            }
+          })
+        } catch (_e) {
+          // 记录失败不阻断上传结果
+        }
+
         return { url, name: compressed.name, size: compressed.size, width, height }
       } finally {
         setUploading(false)

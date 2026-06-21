@@ -6,9 +6,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.system.auth.vo.FieldAccessVO;
 import com.xuejiai.aaf.module.system.entity.vo.EntityAccessVO;
 import com.xuejiai.aaf.module.system.role.domain.Permission;
@@ -16,6 +14,7 @@ import com.xuejiai.aaf.module.system.role.repository.PermissionRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 权限计算服务。
@@ -29,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 public class PermissionService {
 
     private final PermissionRepository permissionRepository;
-    private final ObjectMapper objectMapper;
 
     /** 计算用户对指定实体的权限：查询用户所有角色 → 合并角色下所有权限 → 返回 EntityAccess */
     public EntityAccessVO getEntityAccess(Long userId, String entitySlug) {
@@ -61,7 +59,7 @@ public class PermissionService {
         }
         try {
             Map<String, FieldAccessVO> fields =
-                    objectMapper.readValue(
+                    JsonUtils.parseObject(
                             fieldAccessJson, new TypeReference<Map<String, FieldAccessVO>>() {});
             for (var entry : fields.entrySet()) {
                 merged.merge(

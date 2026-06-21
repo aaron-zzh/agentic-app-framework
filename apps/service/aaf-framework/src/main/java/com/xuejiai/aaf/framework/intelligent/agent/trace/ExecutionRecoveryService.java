@@ -7,8 +7,6 @@ import java.util.Optional;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.AgentCheckpointService;
 
 import lombok.RequiredArgsConstructor;
@@ -28,7 +26,6 @@ public class ExecutionRecoveryService {
     private final ExecutionRunRepository runRepository;
     private final ExecutionStepRepository stepRepository;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
 
     /** 可恢复的执行状态。 */
     public record RecoverableState(

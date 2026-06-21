@@ -11,30 +11,10 @@ import { Loader2, Plus, Upload, X } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { API_ORIGIN } from "@/lib/api/config"
-import { backendApi } from "@/lib/api/rest/backend-client"
+import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "../store"
 import type { MediaAssetVO } from "../types"
-
-async function uploadImageFile(file: File): Promise<MediaAssetVO> {
-  const form = new FormData()
-  form.append("file", file)
-  const res = await backendApi.post<{ url: string; id?: number; name?: string }>(
-    "/system/files/upload-image",
-    form,
-    // 删除全局 Content-Type，让 axios 自动为 FormData 设置 multipart/form-data; boundary=...
-    { headers: { "Content-Type": undefined } }
-  )
-  // 构造一个临时的 MediaAssetVO 用于展示
-  const fullUrl = res.url.startsWith("http") ? res.url : `${API_ORIGIN}${res.url}`
-  return {
-    id: res.id ?? Date.now(),
-    name: file.name,
-    type: "IMAGE",
-    url: fullUrl,
-    thumbnailUrl: fullUrl
-  } as unknown as MediaAssetVO
-}
 
 export function ReferenceDropZone({
   max = 16,
@@ -50,6 +30,20 @@ export function ReferenceDropZone({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
+  const { upload } = useFileUpload()
+
+  /** 上传单个文件并构造临时 MediaAssetVO 用于展示 */
+  async function uploadImageFile(file: File): Promise<MediaAssetVO> {
+    const result = await upload(file)
+    const fullUrl = result.url.startsWith("http") ? result.url : `${API_ORIGIN}${result.url}`
+    return {
+      id: Date.now(),
+      name: file.name,
+      type: "IMAGE",
+      url: fullUrl,
+      thumbnailUrl: fullUrl
+    } as unknown as MediaAssetVO
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return

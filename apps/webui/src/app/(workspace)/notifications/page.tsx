@@ -5,6 +5,7 @@
 
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
@@ -166,6 +167,7 @@ export default function NotificationsPage() {
                     item={item}
                     selected={selectedIds.has(item.id)}
                     onToggle={() => toggleSelect(item.id)}
+                    onRead={(id) => markRead([id])}
                   />
                 ))}
               </ul>
@@ -177,15 +179,49 @@ export default function NotificationsPage() {
   )
 }
 
+/** 按通知类型决定跳转 aria-label */
+function actionLabel(type: string): string {
+  switch (type) {
+    case "mention":
+      return "查看评论"
+    case "approval":
+      return "去审批"
+    case "task":
+      return "查看任务"
+    case "change":
+      return "查看变更"
+    default:
+      return "查看详情"
+  }
+}
+
 function NotificationRow({
   item,
   selected,
-  onToggle
+  onToggle,
+  onRead
 }: {
   item: NotificationItem
   selected: boolean
   onToggle: () => void
+  onRead?: (id: number) => void
 }) {
+  const handleNavigate = () => {
+    if (!item.isRead) onRead?.(item.id)
+  }
+
+  const titleEl = (
+    <p
+      className={cn(
+        "text-sm",
+        !item.isRead && "font-medium",
+        item.relatedUrl && "text-blue-600 dark:text-blue-400"
+      )}
+    >
+      {item.title}
+    </p>
+  )
+
   return (
     <li
       className={cn(
@@ -202,11 +238,35 @@ function NotificationRow({
       />
       <NotificationIcon type={item.type} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <p className={cn("text-sm", !item.isRead && "font-medium")}>{item.title}</p>
-          <Badge variant="outline" className="shrink-0 text-[10px]">
-            {TYPE_LABELS[item.type] ?? item.type}
-          </Badge>
+        <div className="flex items-center justify-between gap-2">
+          {item.relatedUrl ? (
+            <Link
+              href={item.relatedUrl}
+              onClick={handleNavigate}
+              className="min-w-0 flex-1 hover:underline"
+            >
+              {titleEl}
+            </Link>
+          ) : (
+            <div className="min-w-0 flex-1">{titleEl}</div>
+          )}
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="outline" className="text-[10px]">
+              {TYPE_LABELS[item.type] ?? item.type}
+            </Badge>
+            {item.relatedUrl && (
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={item.relatedUrl} onClick={handleNavigate} />}
+                aria-label={actionLabel(item.type)}
+                className="h-6 px-2 text-xs"
+              >
+                {actionLabel(item.type)}
+              </Button>
+            )}
+          </div>
         </div>
         {item.body && <p className="mt-0.5 text-muted-foreground text-xs">{item.body}</p>}
         <p className="mt-1 text-muted-foreground text-xs">{formatTimeAgo(item.createTime)}</p>

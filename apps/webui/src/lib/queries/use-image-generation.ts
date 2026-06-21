@@ -66,14 +66,61 @@ export function useGenerateImage() {
   })
 }
 
-/** 提交视频生成任务 */
+/** 视频生成模式 */
+export type VideoImageMode = "T2V" | "FIRST_FRAME" | "REFERENCE"
+
+export interface GenerateVideoParams {
+  prompt: string
+  model?: string
+  projectId?: number | null
+  resolution?: string
+  duration?: number
+  ratio?: string
+  seed?: number
+  /** 生成模式：T2V（文生视频）/ FIRST_FRAME（图生视频）/ REFERENCE（参考图生视频） */
+  imageMode?: VideoImageMode
+  imageUrl?: string
+  referenceImageUrls?: string[]
+  referenceVideoUrls?: string[]
+  referenceAudioUrls?: string[]
+  audioSetting?: string
+  promptExtend?: boolean
+  generateAudio?: boolean
+}
+
+/** 提交视频生成任务，返回统一任务 ID */
 export function useGenerateVideo() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (params: { prompt: string; model?: string }) =>
+    mutationFn: (params: GenerateVideoParams) =>
       request<number>("/aigc/tasks/submit", {
         method: "POST",
-        body: JSON.stringify({ type: "VIDEO", prompt: params.prompt, model: params.model }),
+        body: JSON.stringify({
+          type: "VIDEO",
+          prompt: params.prompt,
+          model: params.model,
+          projectId: params.projectId ?? null,
+          params: {
+            ...(params.resolution ? { resolution: params.resolution } : {}),
+            ...(params.duration ? { duration: params.duration } : {}),
+            ...(params.ratio ? { ratio: params.ratio } : {}),
+            ...(params.seed ? { seed: params.seed } : {}),
+            ...(params.imageMode ? { imageMode: params.imageMode } : {}),
+            ...(params.imageUrl ? { imageUrl: params.imageUrl } : {}),
+            ...(params.referenceImageUrls?.length
+              ? { referenceImageUrls: params.referenceImageUrls }
+              : {}),
+            ...(params.referenceVideoUrls?.length
+              ? { referenceVideoUrls: params.referenceVideoUrls }
+              : {}),
+            ...(params.referenceAudioUrls?.length
+              ? { referenceAudioUrls: params.referenceAudioUrls }
+              : {}),
+            ...(params.audioSetting ? { audioSetting: params.audioSetting } : {}),
+            ...(params.promptExtend !== undefined ? { promptExtend: params.promptExtend } : {}),
+            ...(params.generateAudio !== undefined ? { generateAudio: params.generateAudio } : {})
+          }
+        }),
         headers: { "Content-Type": "application/json" }
       }),
     onSuccess: () => {

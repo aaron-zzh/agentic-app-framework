@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.billing.repository.EntitlementQuotaRepository;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
 import com.xuejiai.aaf.module.system.file.repository.FileRecordRepository;
@@ -30,6 +31,14 @@ public class FileRecordService {
 
     private final FileRecordRepository fileRecordRepository;
     private final EntitlementQuotaRepository entitlementQuotaRepository;
+    private final StorageService storageService;
+
+    /** 按存储 key 删除文件记录（同时归还存储配额，预留扩展点）。 */
+    @Transactional
+    public void deleteByKey(String key) {
+        if (key == null || key.isBlank()) return;
+        fileRecordRepository.deleteByKey(key);
+    }
 
     /** 保存文件记录（统一收口）。 上传成功后调此方法落库，同时校验存储配额。 */
     @Transactional
@@ -75,6 +84,7 @@ public class FileRecordService {
         return new FileRecordVO(
                 entity.getId(),
                 entity.getKey(),
+                storageService.getUrl(entity.getKey()),
                 entity.getOriginalName(),
                 entity.getMimeType(),
                 entity.getSize(),

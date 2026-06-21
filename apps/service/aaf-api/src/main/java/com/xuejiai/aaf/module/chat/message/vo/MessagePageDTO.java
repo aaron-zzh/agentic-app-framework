@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.chat.message.vo;
 
+import com.xuejiai.aaf.common.enums.chat.MessageContentTypeEnum;
 import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 import com.xuejiai.aaf.common.model.PageParam;
 
@@ -24,5 +25,5 @@ public class MessagePageDTO extends PageParam {
     private MessageSenderTypeEnum senderType;
 
     @Schema(description = "内容类型")
-    private MessageContentType contentType;
+    private MessageContentTypeEnum contentType;
 }

@@ -66,8 +66,15 @@ public class AafAguiConfiguration {
             AguiMvcController aguiMvcController,
             AguiProperties props,
             AguiRequestProcessor aafAguiRequestProcessor,
-            Session agentScopeSession) {
+            Session agentScopeSession,
+            org.springframework.data.redis.core.StringRedisTemplate redisTemplate,
+            com.xuejiai.aaf.framework.security.OperatorContext operatorContext) {
         return new AafAguiRestController(
-                aguiMvcController, props, aafAguiRequestProcessor, agentScopeSession);
+                aguiMvcController,
+                props,
+                aafAguiRequestProcessor,
+                agentScopeSession,
+                redisTemplate,
+                operatorContext);
     }
 }

@@ -7,14 +7,13 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeSegment;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeSegmentRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /** 知识库导入/导出服务——支持 Excel 和 JSON 批量操作。 */
 @Slf4j
@@ -23,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 public class KnowledgeImportExportService {
 
     private final KnowledgeSegmentRepository segmentRepo;
-    private final ObjectMapper objectMapper;
 
     /** JSON 批量导出知识库段落 */
     public List<Map<String, Object>> exportAsJson(Long knowledgeBaseId) {
@@ -42,8 +40,9 @@ public class KnowledgeImportExportService {
     public int importFromJson(Long knowledgeBaseId, Long documentId, InputStream inputStream) {
         try {
             var items =
-                    objectMapper.readValue(
-                            inputStream, new TypeReference<List<Map<String, String>>>() {});
+                    JsonUtils.parseObject(
+                            new String(inputStream.readAllBytes()),
+                            new TypeReference<List<Map<String, String>>>() {});
             int count = 0;
             for (var item : items) {
                 var content = item.get("content");

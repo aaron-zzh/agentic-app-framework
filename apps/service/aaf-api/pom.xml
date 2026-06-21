@@ -155,6 +155,10 @@
 		<!-- 微信公众号/小程序 SDK -->
 		<dependency>
 			<groupId>com.github.binarywang</groupId>
+			<artifactId>weixin-java-pay</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.binarywang</groupId>
 			<artifactId>weixin-java-mp</artifactId>
 		</dependency>
 		<dependency>

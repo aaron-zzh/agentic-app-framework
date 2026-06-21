@@ -3,8 +3,7 @@ package com.xuejiai.aaf.module.system.task.action;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.system.task.domain.ScheduledTask;
 
 import lombok.RequiredArgsConstructor;
@@ -20,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 public class WebhookActionExecutor implements ScheduledActionExecutor {
 
     private final RestClient.Builder restClientBuilder;
-    private final ObjectMapper objectMapper;
 
     @Override
     public String actionType() {
@@ -30,7 +28,7 @@ public class WebhookActionExecutor implements ScheduledActionExecutor {
     @Override
     public void execute(ScheduledTask task) {
         try {
-            var config = objectMapper.readTree(task.getActionConfig());
+            var config = JsonUtils.readTree(task.getActionConfig());
             var url = config.get("url").asText();
             var method = config.has("method") ? config.get("method").asText() : "POST";
             var body = config.has("body") ? config.get("body").asText("") : "";

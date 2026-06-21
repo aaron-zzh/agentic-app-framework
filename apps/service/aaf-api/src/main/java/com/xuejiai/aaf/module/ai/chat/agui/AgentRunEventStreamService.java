@@ -10,8 +10,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEvent;
 
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,6 @@ public class AgentRunEventStreamService {
         NAMED
     }
 
-    private final ObjectMapper objectMapper;
     private final Map<String, List<Target>> emitters = new ConcurrentHashMap<>();
 
     private record Target(SseEmitter emitter, Format format) {}
@@ -64,7 +62,7 @@ public class AgentRunEventStreamService {
                     target.format() == Format.AGUI_CUSTOM
                             ? Map.of("type", "CUSTOM", "name", "agent-context", "value", event)
                             : event;
-            var json = objectMapper.writeValueAsString(payload);
+            var json = JsonUtils.toJsonString(payload);
             synchronized (target.emitter()) {
                 var frame =
                         target.format() == Format.AGUI_CUSTOM

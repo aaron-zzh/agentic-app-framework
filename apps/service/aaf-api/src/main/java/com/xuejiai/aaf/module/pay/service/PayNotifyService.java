@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.BizOrderStatusEnum;
+import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.MessageRequest;
+import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.pay.domain.PayNotifyTask;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.repository.PayNotifyTaskRepository;
@@ -29,13 +32,16 @@ public class PayNotifyService {
     private final BizOrderService bizOrderService;
     private final PayNotifyTaskRepository taskRepository;
     private final Map<String, PaySuccessHandler> handlers;
+    private final MessageService messageService;
 
     public PayNotifyService(
             BizOrderService bizOrderService,
             PayNotifyTaskRepository taskRepository,
-            List<PaySuccessHandler> handlerList) {
+            List<PaySuccessHandler> handlerList,
+            MessageService messageService) {
         this.bizOrderService = bizOrderService;
         this.taskRepository = taskRepository;
+        this.messageService = messageService;
         this.handlers =
                 handlerList.stream()
                         .collect(
@@ -113,6 +119,7 @@ public class PayNotifyService {
                         "[PayNotifyService] 通知成功: taskId={}, type={}",
                         task.getId(),
                         task.getBizOrderType());
+                notifyDingtalkPaySuccess(task);
             }
         } catch (Exception e) {
             task.setResponse(
@@ -138,5 +145,26 @@ public class PayNotifyService {
             }
         }
         taskRepository.save(task);
+    }
+
+    /** 支付成功后推送钉钉群通知（静默失败，不影响支付流程） */
+    private void notifyDingtalkPaySuccess(PayNotifyTask task) {
+        try {
+            var bizOrder = bizOrderService.findByPayOrderId(task.getPayOrderId());
+            String subject = bizOrder != null ? bizOrder.getSubject() : "-";
+            messageService.send(
+                    MessageRequest.direct(
+                            MessageChannel.DINGTALK,
+                            "支付成功",
+                            "**支付成功** \n\n> 支付单："
+                                    + task.getPayOrderId()
+                                    + "  \n> 商品："
+                                    + subject
+                                    + "  \n> 时间："
+                                    + LocalDateTime.now(),
+                            List.of("all")));
+        } catch (Exception e) {
+            log.warn("钉钉支付成功通知失败: payOrderId={}", task.getPayOrderId(), e);
+        }
     }
 }

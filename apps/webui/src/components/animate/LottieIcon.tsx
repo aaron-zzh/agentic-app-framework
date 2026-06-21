@@ -42,19 +42,26 @@ export function LottieIcon({
   onComplete,
   onLoopComplete
 }: LottieIconProps) {
-  const containerRef = useRef<HTMLButtonElement>(null)
+  const containerRef = useRef<HTMLSpanElement>(null)
   const animationRef = useRef<AnimationItem | null>(null)
+  const onCompleteRef = useRef(onComplete)
+  const onLoopCompleteRef = useRef(onLoopComplete)
 
-  const stableOnComplete = useCallback(() => onComplete?.(), [onComplete])
-  const stableOnLoopComplete = useCallback(() => onLoopComplete?.(), [onLoopComplete])
+  // 始终保持 ref 最新，不触发 effect 重跑
+  onCompleteRef.current = onComplete
+  onLoopCompleteRef.current = onLoopComplete
+
+  const stableOnComplete = useCallback(() => onCompleteRef.current?.(), [])
+  const stableOnLoopComplete = useCallback(() => onLoopCompleteRef.current?.(), [])
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const path = name ? $url.cdn(`/assets/icons/lottie/${name}.json`) : undefined
+    let cancelled = false
 
     import("lottie-web").then(({ default: lottie }) => {
-      if (!containerRef.current) return
+      if (cancelled || !containerRef.current) return
       animationRef.current = lottie.loadAnimation({
         container: containerRef.current,
         renderer,
@@ -65,15 +72,17 @@ export function LottieIcon({
 
       const anim = animationRef.current
 
-      if (onComplete) anim.addEventListener("complete", stableOnComplete)
-      if (onLoopComplete) anim.addEventListener("loopComplete", stableOnLoopComplete)
+      if (onCompleteRef.current) anim.addEventListener("complete", stableOnComplete)
+      if (onLoopCompleteRef.current) anim.addEventListener("loopComplete", stableOnLoopComplete)
     })
 
     return () => {
+      cancelled = true
       const anim = animationRef.current
       if (anim) {
-        if (onComplete) anim.removeEventListener("complete", stableOnComplete)
-        if (onLoopComplete) anim.removeEventListener("loopComplete", stableOnLoopComplete)
+        if (onCompleteRef.current) anim.removeEventListener("complete", stableOnComplete)
+        if (onLoopCompleteRef.current)
+          anim.removeEventListener("loopComplete", stableOnLoopComplete)
         anim.destroy()
         animationRef.current = null
       }
@@ -85,8 +94,6 @@ export function LottieIcon({
     autoplay,
     playOnHover,
     renderer,
-    onComplete,
-    onLoopComplete,
     stableOnComplete,
     stableOnLoopComplete
   ])
@@ -105,17 +112,14 @@ export function LottieIcon({
   }
 
   return (
-    <button
+    <span
       ref={containerRef}
-      type="button"
-      aria-label={playOnHover ? "animation" : undefined}
+      aria-hidden="true"
       className={className}
       style={{
+        display: "inline-block",
         width,
         height,
-        background: "none",
-        border: "none",
-        padding: 0,
         cursor: playOnHover ? "pointer" : "default"
       }}
       onMouseEnter={playOnHover ? handleMouseEnter : undefined}

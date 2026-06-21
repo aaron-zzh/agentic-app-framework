@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.enums.stats.ReportTypeEnum;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.stats.service.BehaviorService;
 import com.xuejiai.aaf.module.stats.service.ReportService;
 import com.xuejiai.aaf.module.stats.service.StatsService;
@@ -45,19 +46,55 @@ public class StatsController {
     private final StatsService statsService;
     private final BehaviorService behaviorService;
     private final ReportService reportService;
+    private final OperatorContext operatorContext;
+
+    /** 判断当前用户是否为管理员 */
+    private boolean isAdmin() {
+        var auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication();
+        return auth != null
+                && auth.getAuthorities().stream()
+                        .anyMatch(
+                                a ->
+                                        java.util.Set.of(
+                                                        "ROLE_admin",
+                                                        "ROLE_super_admin",
+                                                        "ROLE_org_admin")
+                                                .contains(a.getAuthority()));
+    }
+
+    /** 当前用户的过滤 userId：管理员返回 null（全局），普通用户返回自己的 id */
+    private Long filterUserId() {
+        return isAdmin() ? null : operatorContext.currentUserId().orElse(null);
+    }
 
     // ========== 趋势统计 ==========
 
     @Operation(summary = "查询趋势数据")
     @GetMapping("/trend")
     public Result<TrendSeriesVO> queryTrend(@Validated TrendQueryDTO query) {
-        return Result.success(statsService.queryTrend(query));
+        var effectiveQuery =
+                new TrendQueryDTO(
+                        query.metric(),
+                        query.period(),
+                        query.startDate(),
+                        query.endDate(),
+                        filterUserId());
+        return Result.success(statsService.queryTrend(effectiveQuery));
     }
 
     @Operation(summary = "查询趋势数据（含环比）")
     @GetMapping("/trend/comparison")
     public Result<TrendSeriesVO> queryTrendWithComparison(@Validated TrendQueryDTO query) {
-        return Result.success(statsService.queryTrendWithComparison(query));
+        var effectiveQuery =
+                new TrendQueryDTO(
+                        query.metric(),
+                        query.period(),
+                        query.startDate(),
+                        query.endDate(),
+                        filterUserId());
+        return Result.success(statsService.queryTrendWithComparison(effectiveQuery));
     }
 
     // ========== 行为分析 ==========

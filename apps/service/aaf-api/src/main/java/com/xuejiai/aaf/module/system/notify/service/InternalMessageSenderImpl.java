@@ -6,8 +6,7 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessage;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessage.PushStrategy;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessageSender;
@@ -43,7 +42,6 @@ public class InternalMessageSenderImpl implements InternalMessageSender {
     private final NotificationRepository notificationRepository;
     private final WebSocketSessionManager wsSessionManager;
     private final SseSessionManager sseSessionManager;
-    private final ObjectMapper objectMapper;
 
     /** 消息类型 → 推送策略映射表。 未注册的类型默认走 ALL。 */
     private static final Map<String, PushStrategy> PUSH_STRATEGY =
@@ -83,7 +81,7 @@ public class InternalMessageSenderImpl implements InternalMessageSender {
 
         try {
             var payload =
-                    objectMapper.writeValueAsString(
+                    JsonUtils.toJsonString(
                             java.util.Map.of(
                                     "type",
                                     "notification",

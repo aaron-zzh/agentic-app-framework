@@ -8,8 +8,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.checkpoint.CheckpointStore;
 
 import lombok.RequiredArgsConstructor;
@@ -28,7 +27,6 @@ public class SessionRecoveryService {
     private static final String SESSION_KEY_PREFIX = "session:";
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
     private final CheckpointStore checkpointStore;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -47,7 +45,7 @@ public class SessionRecoveryService {
                 var json = redisTemplate.opsForValue().get(key);
                 if (json == null) continue;
 
-                var session = objectMapper.readValue(json, SessionManager.SessionState.class);
+                var session = JsonUtils.parseObject(json, SessionManager.SessionState.class);
                 if (session.getStatus() != SessionManager.SessionStatus.ACTIVE
                         && session.getStatus() != SessionManager.SessionStatus.PROCESSING) {
                     continue;

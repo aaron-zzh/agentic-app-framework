@@ -1,6 +1,10 @@
 /**
- * GlobalChatterDialog——可拖拽可 resize 的浮窗容器
- * drag 逻辑由外部（GlobalChatter）管理，此组件只负责定位、尺寸、resize
+ * GlobalChatterDialog——可 resize 浮窗容器
+ *
+ * 定位策略：弹窗右下角锚点由外部传入 anchor（来自 buttonPos + size + gap），
+ * 弹窗右边缘对齐按钮右边缘、底部位于按钮上方 GAP；
+ * 拖动 toolbar 直接驱动 buttonPos（在 GlobalChatter 中实现），
+ * 弹窗位置随 anchor 实时变化，无需独立的 transform 偏移层。
  *
  * @author AaronZZH & Kiro
  */
@@ -11,11 +15,12 @@ import { type ReactNode, useCallback, useRef, useState } from "react"
 
 interface GlobalChatterDialogProps {
   open: boolean
-  pos: { x: number; y: number }
+  /** 弹窗右下角对齐的视口边距（来自浮动按钮位置 + 间距） */
+  anchor: { right: number; bottom: number }
   children: ReactNode
 }
 
-export function GlobalChatterDialog({ open, pos, children }: GlobalChatterDialogProps) {
+export function GlobalChatterDialog({ open, anchor, children }: GlobalChatterDialogProps) {
   const [size, setSize] = useState({ w: 380, h: 560 })
   const resizeStart = useRef<{ mx: number; my: number; w: number; h: number } | null>(null)
 
@@ -42,8 +47,13 @@ export function GlobalChatterDialog({ open, pos, children }: GlobalChatterDialog
 
   return (
     <div
-      className="fixed right-24 bottom-24 z-50 flex flex-col overflow-hidden rounded-xl shadow-xl outline-hidden [background:linear-gradient(135deg,color-mix(in_oklch,var(--color-violet-500)_6%,transparent),transparent_50%,color-mix(in_oklch,var(--color-indigo-500)_6%,transparent)),var(--color-popover)]"
-      style={{ width: size.w, height: size.h, transform: `translate(${pos.x}px, ${pos.y}px)` }}
+      className="fixed z-50 flex flex-col overflow-hidden rounded-xl shadow-xl outline-hidden [background:linear-gradient(135deg,color-mix(in_oklch,var(--color-violet-500)_6%,transparent),transparent_50%,color-mix(in_oklch,var(--color-indigo-500)_6%,transparent)),var(--color-popover)]"
+      style={{
+        right: anchor.right,
+        bottom: anchor.bottom,
+        width: size.w,
+        height: size.h
+      }}
     >
       <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
 

@@ -12,7 +12,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class GenerationTemplatePageDTO extends PageParam {
 
-    @Schema(description = "模板类型：IMAGE / VIDEO / COPYWRITING")
+    @Schema(description = "模板类型：IMAGE_GEN / VIDEO_GEN / COPYWRITING")
     private String type;
 
     @Schema(description = "使用场景：GENERATION / PROJECT")

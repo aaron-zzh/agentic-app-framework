@@ -6,11 +6,11 @@ import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 循环节点——遍历列表变量，每项设置为 currentItem 供子流程使用。
@@ -32,8 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class IterationNode implements JavaDelegate {
 
-    private final ObjectMapper objectMapper;
-
     @Override
     public void execute(DelegateExecution execution) {
         var itemsJson = (String) execution.getVariable("items");
@@ -43,18 +41,18 @@ public class IterationNode implements JavaDelegate {
                         : 100;
 
         try {
-            List<Object> items = objectMapper.readValue(itemsJson, new TypeReference<>() {});
+            List<Object> items = JsonUtils.parseObject(itemsJson, new TypeReference<>() {});
             var limit = Math.min(items.size(), maxIterations);
             var results = new java.util.ArrayList<String>();
 
             for (int i = 0; i < limit; i++) {
                 var item = items.get(i);
-                execution.setVariable("currentItem", objectMapper.writeValueAsString(item));
+                execution.setVariable("currentItem", JsonUtils.toJsonString(item));
                 execution.setVariable("iterationIndex", i);
-                results.add(objectMapper.writeValueAsString(item));
+                results.add(JsonUtils.toJsonString(item));
             }
 
-            execution.setVariable("iterationResults", objectMapper.writeValueAsString(results));
+            execution.setVariable("iterationResults", JsonUtils.toJsonString(results));
             execution.setVariable("success", true);
         } catch (Exception e) {
             log.error("循环节点解析 items 失败", e);

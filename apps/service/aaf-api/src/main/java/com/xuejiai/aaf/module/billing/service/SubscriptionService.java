@@ -48,9 +48,20 @@ public class SubscriptionService implements PaySuccessHandler {
     private final EntitlementService entitlementService;
     private final CreditService creditService;
 
+    @org.springframework.context.annotation.Lazy
+    private final com.xuejiai.aaf.module.brokerage.service.BrokerageService brokerageService;
+
+    private final com.xuejiai.aaf.module.system.user.repository.UserRepository userRepository;
+
     /** 购买订阅：创建业务订单 + 支付单 */
     @Transactional
     public Long subscribe(Long userId, String planCode, String channelCode) {
+        return subscribe(userId, planCode, channelCode, false);
+    }
+
+    /** 购买订阅：创建业务订单 + 支付单（支持年付） */
+    @Transactional
+    public Long subscribe(Long userId, String planCode, String channelCode, boolean yearly) {
         var plan =
                 planRepository
                         .findByCode(planCode)
@@ -61,8 +72,12 @@ public class SubscriptionService implements PaySuccessHandler {
 
         // 免费套餐直接激活
         if (plan.getPrice() == 0) {
-            return activateSubscription(userId, plan.getId(), null);
+            return activateSubscription(userId, plan.getId(), null, false);
         }
+
+        // 年付价格 = 月付 * 12 * 0.8
+        long actualPrice = yearly ? Math.round(plan.getPrice() * 12 * 0.8) : plan.getPrice();
+        String planLabel = plan.getName() + (yearly ? "（年付）" : "（月付）");
 
         // 创建业务订单
         var bizOrder =
@@ -70,8 +85,8 @@ public class SubscriptionService implements PaySuccessHandler {
                         userId,
                         new BizOrderCreateDTO(
                                 BizOrderTypeEnum.SUBSCRIPTION.getCode(),
-                                "订阅 " + plan.getName(),
-                                plan.getPrice(),
+                                "订阅 " + planLabel,
+                                actualPrice,
                                 channelCode));
 
         // 创建支付单
@@ -79,9 +94,9 @@ public class SubscriptionService implements PaySuccessHandler {
                 payOrderService.create(
                         new PayOrderCreateDTO(
                                 bizOrder.orderNo(),
-                                "订阅 " + plan.getName(),
+                                "订阅 " + planLabel,
                                 null,
-                                plan.getPrice(),
+                                actualPrice,
                                 channelCode,
                                 userId));
 
@@ -94,8 +109,9 @@ public class SubscriptionService implements PaySuccessHandler {
         record.setPlanId(plan.getId());
         record.setOperation(SubscriptionOperationEnum.NEW.getCode());
         record.setPayOrderId(payOrder.id());
-        record.setPayPrice(plan.getPrice());
+        record.setPayPrice(actualPrice);
         record.setPayStatus("UNPAID");
+        record.setYearly(yearly);
         recordRepository.save(record);
 
         // MOCK 渠道同步成功时直接激活
@@ -123,7 +139,11 @@ public class SubscriptionService implements PaySuccessHandler {
             record.setPayStatus("PAID");
             record.setPayTime(LocalDateTime.now());
             recordRepository.save(record);
-            activateSubscription(userId, record.getPlanId(), record.getId());
+            activateSubscription(
+                    userId,
+                    record.getPlanId(),
+                    record.getId(),
+                    Boolean.TRUE.equals(record.getYearly()));
         }
     }
 
@@ -152,7 +172,7 @@ public class SubscriptionService implements PaySuccessHandler {
 
     // ===== 私有方法 =====
 
-    private Long activateSubscription(Long userId, Long planId, Long sourceId) {
+    public Long activateSubscription(Long userId, Long planId, Long sourceId, boolean yearly) {
         var plan =
                 planRepository
                         .findById(planId)
@@ -168,15 +188,15 @@ public class SubscriptionService implements PaySuccessHandler {
                             subscriptionRepository.save(old);
                         });
 
+        // 年付有效期 365 天，月付按套餐 durationDays
+        int durationDays = yearly ? 365 : plan.getDurationDays();
+
         // 创建新订阅
         var subscription = new Subscription();
         subscription.setUserId(userId);
         subscription.setPlanId(planId);
         subscription.setStartAt(LocalDateTime.now());
-        subscription.setEndAt(
-                plan.getDurationDays() > 0
-                        ? LocalDateTime.now().plusDays(plan.getDurationDays())
-                        : null);
+        subscription.setEndAt(durationDays > 0 ? LocalDateTime.now().plusDays(durationDays) : null);
         subscription.setStatus(SubscriptionStatusEnum.ACTIVE.getCode());
         subscription.setSourceId(sourceId);
         subscriptionRepository.save(subscription);
@@ -202,6 +222,24 @@ public class SubscriptionService implements PaySuccessHandler {
                 userId,
                 plan.getCode(),
                 subscription.getEndAt());
+
+        // 付费套餐激活后尝试自动开通分销资格（免费套餐 FREE 不触发）
+        if (plan.getPrice() > 0) {
+            try {
+                userRepository
+                        .findById(userId)
+                        .ifPresent(
+                                user -> {
+                                    if (user.getContactId() != null) {
+                                        brokerageService.tryEnableBrokerage(
+                                                user.getContactId(), "PAID");
+                                    }
+                                });
+            } catch (Exception e) {
+                log.warn("分销资格自动开通失败，不影响订阅流程: userId={}", userId, e);
+            }
+        }
+
         return subscription.getId();
     }
 }

@@ -37,7 +37,7 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
         var t = new GenerationTemplate();
         t.setId(id);
         t.setName("测试模板");
-        t.setType("IMAGE");
+        t.setType("IMAGE_GEN");
         t.setCategory("通用风格");
         t.setPrompt("photorealistic");
         t.setUserId(userId);
@@ -48,10 +48,11 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("Given 存在模板 When page(type+scope) Then 调用 repository 并返回结果")
     void should_return_page_when_query_by_type_and_scope() {
         var query = new GenerationTemplatePageDTO();
-        query.setType("IMAGE");
+        query.setType("IMAGE_GEN");
         query.setScope("PROJECT");
         query.setIsPublic(true);
         query.setPageNo(1);
@@ -69,6 +70,7 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("Given 模板存在且可访问 When getById Then 返回 VO")
     void should_return_vo_when_template_accessible() {
         var t = template(1L, 100L, false);
@@ -80,6 +82,7 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     @DisplayName("Given 模板不可见（数据权限过滤后为空）When getById Then 抛 404")
     void should_throw_404_when_template_not_visible() {
         // 数据权限规则过滤后 findOne 返回 empty（模拟无权限或不存在）

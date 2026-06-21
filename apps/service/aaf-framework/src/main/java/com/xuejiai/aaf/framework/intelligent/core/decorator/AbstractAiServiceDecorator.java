@@ -78,7 +78,8 @@ public abstract class AbstractAiServiceDecorator<T extends AiCapability> impleme
         //    结算失败仅 warn，不回滚已完成的 AI 调用
         try {
             AiUsage usage = result instanceof AiUsage u ? u : AiUsage.empty();
-            creditGuard.settleByUsage(userId, model, usage, capability(), bizName());
+            creditGuard.settleByUsage(
+                    userId, model, usage, capability(), delegate.bizRemark(usage));
         } catch (Exception e) {
             log.warn(
                     "积分结算失败，不回滚已完成调用: capability={}, userId={}, err={}",

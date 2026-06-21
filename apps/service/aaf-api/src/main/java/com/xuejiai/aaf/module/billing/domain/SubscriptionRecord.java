@@ -47,4 +47,8 @@ public class SubscriptionRecord extends BaseEntity {
     /** 支付时间 */
     @Column(name = "pay_time")
     private LocalDateTime payTime;
+
+    /** 是否年付 */
+    @Column(name = "yearly", nullable = false)
+    private Boolean yearly = false;
 }

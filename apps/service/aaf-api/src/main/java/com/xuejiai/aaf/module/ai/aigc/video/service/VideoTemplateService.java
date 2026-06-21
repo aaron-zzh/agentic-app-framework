@@ -1,77 +1,95 @@
 package com.xuejiai.aaf.module.ai.aigc.video.service;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.ai.aigc.video.domain.VideoTemplate;
 import com.xuejiai.aaf.module.ai.aigc.video.repository.VideoTemplateRepository;
+import com.xuejiai.aaf.module.ai.aigc.video.vo.VideoTemplateCreateDTO;
+import com.xuejiai.aaf.module.ai.aigc.video.vo.VideoTemplatePageDTO;
+import com.xuejiai.aaf.module.ai.aigc.video.vo.VideoTemplateUpdateDTO;
+import com.xuejiai.aaf.module.ai.aigc.video.vo.VideoTemplateVO;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
- * 视频模板服务。
+ * 视频模板 CRUD 服务。
  *
  * @author AaronZZH & Kiro
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
-public class VideoTemplateService {
+@Transactional(readOnly = true)
+public class VideoTemplateService
+        extends BaseCrudService<
+                VideoTemplate,
+                VideoTemplateVO,
+                VideoTemplateCreateDTO,
+                VideoTemplateUpdateDTO,
+                VideoTemplatePageDTO> {
 
     private final VideoTemplateRepository templateRepository;
 
-    /**
-     * 分页查询视频模板。
-     *
-     * @param type 模板类型（可选）
-     * @param pageable 分页参数
-     * @return 分页结果
-     */
-    @Transactional(readOnly = true)
-    public Page<VideoTemplate> page(String type, Pageable pageable) {
-        if (type != null) {
-            return templateRepository.findByType(type, pageable);
-        }
-        return templateRepository.findAll(pageable);
+    @Override
+    protected JpaRepository<VideoTemplate, Long> getRepository() {
+        return templateRepository;
     }
 
-    /**
-     * 获取模板详情。
-     *
-     * @param id 模板 ID
-     * @return 模板实体
-     */
-    @Transactional(readOnly = true)
-    public VideoTemplate getById(Long id) {
-        return templateRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "视频模板不存在"));
+    @Override
+    protected JpaSpecificationExecutor<VideoTemplate> getSpecExecutor() {
+        return templateRepository;
     }
 
-    /**
-     * 创建视频模板。
-     *
-     * @param template 模板实体
-     * @return 保存后的模板
-     */
-    @Transactional
-    public VideoTemplate create(VideoTemplate template) {
-        return templateRepository.save(template);
+    @Override
+    protected VideoTemplateVO toVO(VideoTemplate t) {
+        return new VideoTemplateVO(
+                t.getId(),
+                t.getName(),
+                t.getType(),
+                t.getParams(),
+                t.getPreviewUrl(),
+                t.getThumbnailUrl());
     }
 
-    /**
-     * 删除视频模板（软删除）。
-     *
-     * @param id 模板 ID
-     */
-    @Transactional
-    public void delete(Long id) {
-        var template = getById(id);
-        templateRepository.delete(template);
+    @Override
+    protected VideoTemplate toEntity(VideoTemplateCreateDTO dto) {
+        var entity = new VideoTemplate();
+        entity.setName(dto.name());
+        entity.setType(dto.type());
+        entity.setParams(dto.params());
+        entity.setPreviewUrl(dto.previewUrl());
+        entity.setThumbnailUrl(dto.thumbnailUrl());
+        return entity;
+    }
+
+    @Override
+    protected void updateEntity(VideoTemplate entity, VideoTemplateUpdateDTO dto) {
+        if (dto.name() != null) entity.setName(dto.name());
+        if (dto.type() != null) entity.setType(dto.type());
+        if (dto.params() != null) entity.setParams(dto.params());
+        if (dto.previewUrl() != null) entity.setPreviewUrl(dto.previewUrl());
+        if (dto.thumbnailUrl() != null) entity.setThumbnailUrl(dto.thumbnailUrl());
+    }
+
+    @Override
+    protected org.springframework.data.jpa.domain.Specification<VideoTemplate> buildSpec(
+            VideoTemplatePageDTO query) {
+        return SpecificationBuilder.<VideoTemplate>builder()
+                .eqIfPresent("type", query.getType())
+                .build();
+    }
+
+    @Override
+    protected String entitySlug() {
+        return "video-template";
+    }
+
+    @Override
+    protected String entityName() {
+        return "视频模板";
     }
 }

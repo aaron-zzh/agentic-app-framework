@@ -182,7 +182,7 @@ function RedeemButton() {
     setLoading(true)
     try {
       const amount = await creditsApi.redeem(code.trim())
-      toast.success(`兑换成功，获得 ${amount} 积分`)
+      toast.success(amount > 0 ? `兑换成功，获得 ${amount} 积分` : "兑换成功，会员已开通")
       setOpen(false)
       setCode("")
     } catch (e: unknown) {
@@ -209,7 +209,7 @@ function RedeemButton() {
             <DialogTitle className="text-center">兑换码</DialogTitle>
           </DialogHeader>
           <p className="text-center text-muted-foreground text-sm">
-            输入兑换码，兑换成功后积分将自动到账。
+            输入兑换码，可兑换积分或开通会员。
           </p>
           <div className="space-y-3 pt-2">
             <Input

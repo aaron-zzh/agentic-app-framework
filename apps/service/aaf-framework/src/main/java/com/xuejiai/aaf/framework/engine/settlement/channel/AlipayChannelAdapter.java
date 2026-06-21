@@ -70,7 +70,9 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
                                         GlobalErrorCode.BAD_REQUEST,
                                         "不支持的支付宝渠道: " + request.channelCode());
                     };
-            return new PayResult(true, request.outTradeNo(), null, body);
+            // alipay_qr 的 body 就是 qr_code URL，放进 codeUrl 透传给前端
+            String codeUrl = "alipay_qr".equals(request.channelCode()) ? body : null;
+            return new PayResult(true, request.outTradeNo(), null, body, codeUrl);
         } catch (AlipayApiException e) {
             log.error("支付宝下单失败: outTradeNo={}, error={}", request.outTradeNo(), e.getMessage());
             return new PayResult(false, request.outTradeNo(), null, e.getMessage());

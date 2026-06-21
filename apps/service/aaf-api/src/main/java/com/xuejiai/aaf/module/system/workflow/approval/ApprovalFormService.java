@@ -6,15 +6,13 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 审批表单模板服务——管理表单模板的 CRUD 和表单数据生成。
@@ -27,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 public class ApprovalFormService {
 
     private final ApprovalFormTemplateRepository templateRepository;
-    private final ObjectMapper objectMapper;
 
     /** 创建表单模板。 */
     @Transactional
@@ -72,17 +69,17 @@ public class ApprovalFormService {
     /** 解析模板字段定义。 */
     public List<ApprovalFormField> parseFields(ApprovalFormTemplate template) {
         try {
-            return objectMapper.readValue(
+            return JsonUtils.parseObject(
                     template.getFieldsJson(), new TypeReference<List<ApprovalFormField>>() {});
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "表单字段解析失败");
         }
     }
 
     private String toJson(List<ApprovalFormField> fields) {
         try {
-            return objectMapper.writeValueAsString(fields);
-        } catch (JsonProcessingException e) {
+            return JsonUtils.toJsonString(fields);
+        } catch (Exception e) {
             throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "表单字段序列化失败");
         }
     }

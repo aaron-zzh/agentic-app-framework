@@ -2,7 +2,7 @@
  * Livechat Feature——在线客服与聊天模块
  *
  * 基于 assistant-ui 统一架构，两种 runtime：
- * - AgUiChatProvider：AI 助理（AG-UI SSE 协议），供 chatter/FloatingAssistant 共用
+ * - AgUiChatProvider：AI 助理（AG-UI SSE 协议），供 chatter/FloatingChatter 共用
  * - LivechatProvider：人与人对话（WebSocket，含客服/IM/用户间聊天）
  *
  * @author AaronZZH & Kiro

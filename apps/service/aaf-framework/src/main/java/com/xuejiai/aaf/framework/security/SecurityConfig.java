@@ -160,6 +160,7 @@ public class SecurityConfig {
             AssistantAuthFilter assistantAuthFilter,
             SseTokenFilter sseTokenFilter,
             Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter,
+            LoggingAccessDeniedHandler accessDeniedHandler,
             org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
@@ -179,6 +180,8 @@ public class SecurityConfig {
                                         .hasRole("ADMIN")
                                         .anyRequest()
                                         .authenticated())
+                .exceptionHandling(
+                        ex -> ex.accessDeniedHandler(accessDeniedHandler))
                 .oauth2ResourceServer(
                         oauth2 ->
                                 oauth2.jwt(

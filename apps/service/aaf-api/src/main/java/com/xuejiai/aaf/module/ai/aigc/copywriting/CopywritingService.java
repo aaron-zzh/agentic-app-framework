@@ -8,12 +8,10 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -22,6 +20,7 @@ import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+import tools.jackson.core.type.TypeReference;
 
 /** 文案生成服务——通过 ResilientChatService 流式调用，模型由 CapabilityRouter 从 ai_model 表解析。 */
 @Slf4j
@@ -32,7 +31,6 @@ public class CopywritingService {
     private final ResilientChatService chatService;
     private final OperatorContext operatorContext;
     private final SystemConfigService systemConfigService;
-    private final ObjectMapper objectMapper;
 
     /**
      * 流式生成文案。
@@ -213,7 +211,7 @@ public class CopywritingService {
         if (json != null && !json.isBlank()) {
             try {
                 var map =
-                        objectMapper.readValue(
+                        JsonUtils.parseObject(
                                 json, new TypeReference<java.util.Map<String, String>>() {});
                 var val = map.get("text");
                 if (val != null && !val.isBlank()) mockText = val;

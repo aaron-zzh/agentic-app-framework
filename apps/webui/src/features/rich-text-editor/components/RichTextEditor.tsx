@@ -25,8 +25,8 @@
  * <RichTextEditor value="" onChange={(v) => { contentRef.current = v }} preset="richField" />
  * // 提交时读 contentRef.current
  *
- * // ✅ 文档编辑（含图片上传）
- * <RichTextEditor value={html} onChange={setHtml} preset="document" uploadEndpoint="/api/upload" />
+ * // ✅ 文档编辑（含图片上传——后端 /api/system/files/upload，OSS 模式见 NEXT_PUBLIC_UPLOAD_MODE）
+ * <RichTextEditor value={html} onChange={setHtml} preset="document" />
  *
  * // ✅ 评论输入（含 @mention）
  * <RichTextEditor value={html} onChange={setHtml} preset="chatter" onMentionSearch={searchUsers} />
@@ -72,7 +72,6 @@ export function RichTextEditor({
   preset: presetName = "richField",
   mode = "html",
   initialValueMode,
-  uploadEndpoint,
   onMentionSearch,
   resizable = false,
   fill = false,
@@ -107,7 +106,6 @@ export function RichTextEditor({
           fill={fill}
           noBorder={noBorder}
           className={className}
-          uploadEndpoint={uploadEndpoint}
           onMentionSearch={onMentionSearch}
           isInitialized={isInitialized}
         />
@@ -127,7 +125,6 @@ function EditorInner({
   minHeight,
   mode = "html",
   initialValueMode,
-  uploadEndpoint,
   onMentionSearch,
   fill,
   noBorder,
@@ -206,7 +203,6 @@ function EditorInner({
       {preset.showToolbar && !disabled && (
         <ToolbarPlugin
           features={preset.toolbarFeatures}
-          uploadEndpoint={uploadEndpoint}
           className={noBorder ? "rounded-none border-0 border-b" : undefined}
         />
       )}
@@ -248,7 +244,7 @@ function EditorInner({
       <ListPlugin />
       <LinkPlugin />
       {onChange && <OnChangePlugin onChange={onChange} mode={mode} />}
-      {preset.image && <ImagePlugin uploadEndpoint={uploadEndpoint} />}
+      {preset.image && <ImagePlugin />}
       {preset.mention && <MentionPlugin onSearch={onMentionSearch} />}
       {preset.slashMenu && !disabled && <SlashMenuPlugin />}
       {preset.draggable && !disabled && anchorElem && (

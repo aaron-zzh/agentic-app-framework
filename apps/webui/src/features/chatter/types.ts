@@ -60,6 +60,8 @@ export interface ChatterProps {
   dialogWidth?: number
   /** dialog 模式初始高度（px），默认 560 */
   dialogHeight?: number
+  /** dialog 模式右下锚点（距视口右、底的 px），默认 { right: 96, bottom: 96 } */
+  dialogAnchor?: { right: number; bottom: number }
   toolbar?: ReactNode
   onDrop?: (item: ChatterDropItem) => void
   sessionId?: string

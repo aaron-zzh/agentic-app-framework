@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.context.ApplicationEventPublisher;
@@ -24,11 +25,21 @@ import reactor.core.publisher.Flux;
  * 弹性对话服务：降级 + 计量 + 完整模型路由决策链。
  *
  * <p>模型选择优先级：显式指定 → 编排引擎 → AI辅助决策 → 用户偏好 → 系统默认 → yaml兜底
+ *
+ * <p>计费 capability 透传：路由层使用 {@code CapabilityRoutingContext.CAP_*}（大写），落库使用规范小写值（{@code chat} /
+ * {@code vision}）。本服务自动检测消息内容（含图像 Media → {@code vision}），并通过 {@link TokenUsageEvent#capability}
+ * 字段把规范化值透传给 计费监听器。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ResilientChatService {
+
+    /** 计费 capability 规范小写值——纯文本对话。 */
+    private static final String BILLING_CAP_CHAT = "chat";
+
+    /** 计费 capability 规范小写值——含图像理解的多模态对话。 */
+    private static final String BILLING_CAP_VISION = "vision";
 
     private final DynamicChatClientFactory clientFactory;
     private final CapabilityRouter capabilityRouter;
@@ -47,13 +58,14 @@ public class ResilientChatService {
         var ownerId = billingOwnerId(ctx.userId());
         creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
         var model = capabilityRouter.resolve(ctx);
+        var billingCapability = detectBillingCapability(messages);
         try {
             var response = doCall(messages, model.getModelId());
-            publishUsage(response, ownerId, model.getId());
+            publishUsage(response, ownerId, model.getId(), billingCapability);
             return response;
         } catch (Exception e) {
             log.warn("主模型 [{}] 调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
-            return callFallback(messages, model, ownerId);
+            return callFallback(messages, model, ownerId, billingCapability);
         }
     }
 
@@ -78,21 +90,34 @@ public class ResilientChatService {
         creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
         // 2. 路由决策链：显式 modelId → 编排引擎 → AI 辅助 → 用户偏好 → 系统默认 → yaml 兜底
         var model = capabilityRouter.resolve(ctx);
+        // 3. 自动识别落库 capability（vision/chat），与路由层 ctx.capability() 解耦
+        var billingCapability = detectBillingCapability(messages);
         long routedAt = System.currentTimeMillis();
-        log.info("[流式计时] 路由完成 model={} 预检+路由耗时={}ms", model.getModelId(), routedAt - startedAt);
+        log.info(
+                "[流式计时] 路由完成 model={} billingCapability={} 预检+路由耗时={}ms",
+                model.getModelId(),
+                billingCapability,
+                routedAt - startedAt);
         try {
-            // 3. 从 DynamicChatClientFactory 取 ChatClient（Caffeine 缓存）并发起流式调用
+            // 4. 从 DynamicChatClientFactory 取 ChatClient（Caffeine 缓存）并发起流式调用
             return logTiming(
-                    withStreamUsage(doStream(messages, model.getModelId()), ownerId, model.getId()),
+                    withStreamUsage(
+                            doStream(messages, model.getModelId()),
+                            ownerId,
+                            model.getId(),
+                            billingCapability),
                     model.getModelId(),
                     routedAt);
         } catch (Exception e) {
             log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
-            // 4. 主模型失败时降级到 fallbackModelId
+            // 5. 主模型失败时降级到 fallbackModelId
             var fallback = resolveFallback(model);
             return logTiming(
                     withStreamUsage(
-                            doStream(messages, fallback.getModelId()), ownerId, fallback.getId()),
+                            doStream(messages, fallback.getModelId()),
+                            ownerId,
+                            fallback.getId(),
+                            billingCapability),
                     fallback.getModelId(),
                     routedAt);
         }
@@ -142,10 +167,11 @@ public class ResilientChatService {
                 CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId));
     }
 
-    private ChatResponse callFallback(List<Message> messages, AiModel model, Long userId) {
+    private ChatResponse callFallback(
+            List<Message> messages, AiModel model, Long userId, String billingCapability) {
         var fallback = resolveFallback(model);
         var response = doCall(messages, fallback.getModelId());
-        publishUsage(response, userId, fallback.getId());
+        publishUsage(response, userId, fallback.getId(), billingCapability);
         return response;
     }
 
@@ -162,18 +188,22 @@ public class ResilientChatService {
         return modelRepository.findByModelId(model.getFallbackModelId()).orElse(model);
     }
 
-    private void publishUsage(ChatResponse response, Long userId, Long modelId) {
+    private void publishUsage(ChatResponse response, Long userId, Long modelId, String capability) {
         if (response == null
                 || response.getMetadata() == null
                 || response.getMetadata().getUsage() == null) return;
         var usage = response.getMetadata().getUsage();
         eventPublisher.publishEvent(
                 new TokenUsageEvent(
-                        userId, modelId, usage.getPromptTokens(), usage.getCompletionTokens()));
+                        userId,
+                        modelId,
+                        usage.getPromptTokens(),
+                        usage.getCompletionTokens(),
+                        capability));
     }
 
     private Flux<ChatResponse> withStreamUsage(
-            Flux<ChatResponse> stream, Long userId, Long modelId) {
+            Flux<ChatResponse> stream, Long userId, Long modelId, String capability) {
         var promptTokens = new AtomicLong();
         var completionTokens = new AtomicLong();
         return stream.doOnNext(
@@ -197,12 +227,32 @@ public class ResilientChatService {
                                                 userId,
                                                 modelId,
                                                 promptTokens.get(),
-                                                completionTokens.get()));
+                                                completionTokens.get(),
+                                                capability));
                             }
                         });
     }
 
     private Long billingOwnerId(Long fallbackUserId) {
         return operatorContext.currentOwnerId().orElse(fallbackUserId);
+    }
+
+    /**
+     * 自动识别计费 capability：消息中含图像 Media 即 {@link #BILLING_CAP_VISION}，否则 {@link #BILLING_CAP_CHAT}。
+     *
+     * <p>用于落库 {@code credit_transaction.category}，与路由层 {@code ctx.capability()}（大写常量）解耦。 仅扫描 {@link
+     * UserMessage}，因为 system / assistant 消息按惯例不含图像附件。
+     */
+    private static String detectBillingCapability(List<Message> messages) {
+        if (messages == null || messages.isEmpty()) return BILLING_CAP_CHAT;
+        for (var msg : messages) {
+            if (msg instanceof UserMessage um) {
+                var media = um.getMedia();
+                if (media != null && !media.isEmpty()) {
+                    return BILLING_CAP_VISION;
+                }
+            }
+        }
+        return BILLING_CAP_CHAT;
     }
 }

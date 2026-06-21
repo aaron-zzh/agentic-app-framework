@@ -7,17 +7,16 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.system.workflow.domain.ArchiveRule;
 import com.xuejiai.aaf.module.system.workflow.repository.ArchiveRuleRepository;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 数据归档服务：手动归档/恢复 + 定时自动归档。
@@ -31,7 +30,6 @@ public class ArchiveService {
 
     private final ArchiveRuleRepository ruleRepository;
     private final EntityManager entityManager;
-    private final ObjectMapper objectMapper;
 
     /** 实体标识 → 表名映射 */
     private static final Map<String, String> ENTITY_TABLE_MAP =
@@ -122,7 +120,7 @@ public class ArchiveService {
     private String buildWhereClause(ArchiveRule rule) {
         try {
             var condition =
-                    objectMapper.readValue(
+                    JsonUtils.parseObject(
                             rule.getCondition(), new TypeReference<Map<String, String>>() {});
             var field = condition.get("field");
             var operator = condition.get("operator");

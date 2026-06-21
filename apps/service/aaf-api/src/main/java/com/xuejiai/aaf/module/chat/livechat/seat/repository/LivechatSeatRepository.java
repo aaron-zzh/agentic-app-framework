@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.common.enums.chat.SeatTypeEnum;
-
 import com.xuejiai.aaf.module.chat.livechat.seat.domain.LivechatSeat;
 
 /**

@@ -15,6 +15,7 @@ import { SceneLayout } from "@/components/r3f/SceneLayout"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
@@ -70,6 +71,7 @@ export default function AigcThreeDPage() {
   const routeParams = useParams()
   const projectId = routeParams.projectId ? Number(routeParams.projectId) : null
   const [prompt, setPrompt] = useState("")
+  const [textureQuality, setTextureQuality] = useState<"none" | "standard" | "detailed">("none")
   const [tasks, setTasks] = useState<TaskItem[]>([])
 
   const { mutate: submit, isPending } = useMutation({
@@ -79,7 +81,8 @@ export default function AigcThreeDPage() {
         body: JSON.stringify({
           type: "MODEL_3D",
           prompt: prompt.trim(),
-          projectId: projectId ?? null
+          projectId: projectId ?? null,
+          params: { source: "text", textureQuality }
         })
       }),
     onSuccess: (taskId) => {
@@ -135,14 +138,38 @@ export default function AigcThreeDPage() {
                 />
                 <p className="text-right text-muted-foreground text-xs">{prompt.length}/3000</p>
               </div>
-              <Button
-                className="gap-2 self-end"
-                disabled={isPending || !prompt.trim()}
-                onClick={() => submit()}
-              >
-                <Layers className="size-4" />
-                {isPending ? "提交中..." : "生成 3D 模型"}
-              </Button>
+              <div className="flex items-center gap-4">
+                <div className="space-y-1">
+                  <Label className="text-muted-foreground text-xs">贴图质量</Label>
+                  <Select
+                    value={textureQuality}
+                    onValueChange={(v) => v && setTextureQuality(v as typeof textureQuality)}
+                  >
+                    <SelectTrigger className="h-8 w-36 text-xs">
+                      <span>
+                        {textureQuality === "none"
+                          ? "无贴图 ¥2.1+"
+                          : textureQuality === "standard"
+                            ? "标清贴图 ¥2.8+"
+                            : "高清贴图 ¥3.5+"}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">无贴图 ¥2.1起</SelectItem>
+                      <SelectItem value="standard">标清贴图 ¥2.8起</SelectItem>
+                      <SelectItem value="detailed">高清贴图 ¥3.5起</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  className="ml-auto gap-2"
+                  disabled={isPending || !prompt.trim()}
+                  onClick={() => submit()}
+                >
+                  <Layers className="size-4" />
+                  {isPending ? "提交中..." : "生成 3D 模型"}
+                </Button>
+              </div>
             </Card>
 
             {/* 任务列表 */}

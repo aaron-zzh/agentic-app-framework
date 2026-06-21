@@ -13,8 +13,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.omni.OmniRealtimeService;
 import com.xuejiai.aaf.framework.intelligent.ai.omni.OmniRealtimeService.OmniSession;
 import com.xuejiai.aaf.framework.intelligent.ai.omni.OmniRealtimeService.SessionConfig;
@@ -56,7 +55,6 @@ import lombok.extern.slf4j.Slf4j;
 public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectProvider<OmniRealtimeService> omniRealtimeServiceProvider;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final Map<String, OmniSession> sessionMap = new ConcurrentHashMap<>();
 
@@ -102,7 +100,7 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
         if (omniSession == null) return;
 
         try {
-            var node = objectMapper.readTree(message.getPayload());
+            var node = JsonUtils.readTree(message.getPayload());
             var type = node.has("type") ? node.get("type").asText() : "";
 
             switch (type) {
@@ -134,7 +132,7 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
             map.put("type", event.type());
             if (event.text() != null) map.put("text", event.text());
             if (event.audioData() != null) map.put("audioData", event.audioData());
-            var json = objectMapper.writeValueAsString(map);
+            var json = JsonUtils.toJsonString(map);
             wsSession.sendMessage(new TextMessage(json));
         } catch (Exception e) {
             log.error("推送 Omni 事件失败: sessionId={}", wsSession.getId(), e);

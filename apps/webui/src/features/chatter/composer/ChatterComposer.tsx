@@ -26,25 +26,20 @@ interface ChatterComposerProps {
   onAttachmentRemove: (index: number) => void
   modelId?: string
   onModelChange?: (modelId: string, model: AiModelVO) => void
+  /** 是否显示模型选择器，默认 true；未登录场景应传 false */
+  showModelSelector?: boolean
 }
 
 export function ChatterComposer({
   attachments,
   onAttachmentRemove,
   modelId,
-  onModelChange
+  onModelChange,
+  showModelSelector = true
 }: ChatterComposerProps) {
   const api = useAui()
   const [waveformCtx, setWaveformCtx] = useState<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const {
-    options,
-    modelId: selectedModelId,
-    setModelId
-  } = useModelSelector("CHAT", {
-    value: modelId,
-    onChange: onModelChange
-  })
 
   const handleVoiceResult = useCallback(
     (text: string) => {
@@ -92,7 +87,9 @@ export function ChatterComposer({
               <PlusIcon className="size-4" />
             </Button>
 
-            <ModelSelector options={options} value={selectedModelId} onChange={setModelId} />
+            {showModelSelector && (
+              <ModelSelectorSlot modelId={modelId} onModelChange={onModelChange} />
+            )}
           </div>
 
           {/* 右：3D波形（语音激活时）+ 麦克风 + 发送/停止 */}
@@ -124,4 +121,25 @@ export function ChatterComposer({
       </div>
     </ComposerPrimitive.Root>
   )
+}
+
+/**
+ * 模型选择槽——仅在需要展示时渲染，避免未登录场景调用 /ai/models 触发 401
+ */
+function ModelSelectorSlot({
+  modelId,
+  onModelChange
+}: {
+  modelId?: string
+  onModelChange?: (modelId: string, model: AiModelVO) => void
+}) {
+  const {
+    options,
+    modelId: selectedModelId,
+    setModelId
+  } = useModelSelector("CHAT", {
+    value: modelId,
+    onChange: onModelChange
+  })
+  return <ModelSelector options={options} value={selectedModelId} onChange={setModelId} />
 }

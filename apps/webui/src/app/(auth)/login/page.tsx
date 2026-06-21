@@ -1,6 +1,9 @@
 /**
- * 登录页——账号/邮箱密码登录 + 第三方 OAuth 入口
- * 生产/测试环境接入阿里云 ESA AI 验证码（NEXT_PUBLIC_CAPTCHA_ENABLED=true 时启用）
+ * 登录页——密码登录 / 验证码登录（Tab 切换）+ 第三方 OAuth 入口
+ * 生产/测试环境接入阿里云 ESA AI 验证码（NEXT_PUBLIC_CAPTCHA_ENABLED=true 时启用）：
+ *   - 密码登录：登录按钮
+ *   - 邮箱验证码登录：发送验证码按钮
+ *   - 手机验证码登录：发送验证码按钮
  * @author AaronZZH & Kiro
  */
 
@@ -9,20 +12,25 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense, useEffect, useRef } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { TermsConsentCheckbox } from "@/components/common/TermsConsentCheckbox"
+import { FieldOtp } from "@/components/form/field-otp"
 import { FieldText } from "@/components/form/field-text"
 import { Form } from "@/components/form/form"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { authApi } from "@/lib/api/rest/user/auth"
+import { setAxiosAuth } from "@/lib/auth/utils"
 import { paths } from "@/lib/constants/paths"
+import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
-import { useAuthStore } from "@/lib/store/auth-store"
+import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
+import { LoginSuccessOverlay } from "./LoginSuccessOverlay"
 
-const CAPTCHA_ENABLED = process.env.NEXT_PUBLIC_CAPTCHA_ENABLED === "true"
-const CAPTCHA_SCENE_ID = process.env.NEXT_PUBLIC_CAPTCHA_SCENE_ID ?? ""
+// ==================== 密码登录表单 ====================
 
 const loginSchema = z.object({
   username: z
@@ -39,52 +47,367 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-/** 登录页主体，需包在 Suspense 内（useSearchParams 要求） */
-function LoginContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { setTokens, setUser } = useAuthStore()
+// ==================== 验证码登录表单 ====================
+
+const codeLoginSchema = z.object({
+  email: z.string().min(1, "请输入邮箱").email("邮箱格式不正确")
+})
+
+const codeVerifySchema = z.object({
+  code: z.string().min(1, "请输入验证码").length(6, "验证码为 6 位数字")
+})
+
+type CodeLoginForm = z.infer<typeof codeLoginSchema>
+type CodeVerifyForm = z.infer<typeof codeVerifySchema>
+
+// ==================== 手机验证码登录表单 ====================
+
+const phoneLoginSchema = z.object({
+  phone: z
+    .string()
+    .min(1, "请输入手机号")
+    .regex(/^1[3-9]\d{9}$/, "手机号格式不正确")
+})
+
+const phoneVerifySchema = z.object({
+  code: z.string().min(1, "请输入验证码").length(6, "验证码为 6 位数字")
+})
+
+type PhoneLoginForm = z.infer<typeof phoneLoginSchema>
+type PhoneVerifyForm = z.infer<typeof phoneVerifySchema>
+
+// ==================== 验证码登录子组件 ====================
+
+function CodeLoginPanel({
+  onSuccess
+}: {
+  onSuccess: (accessToken: string, refreshToken: string, isNewUser?: boolean) => void
+}) {
+  const [step, setStep] = useState<"email" | "code">("email")
+  const [email, setEmail] = useState("")
+  const [countdown, setCountdown] = useState(0)
   const captchaVerifyParamRef = useRef<string>("")
+
+  const emailMethods = useForm<CodeLoginForm>({
+    resolver: zodResolver(codeLoginSchema),
+    defaultValues: { email: "" }
+  })
+
+  const codeMethods = useForm<CodeVerifyForm>({
+    resolver: zodResolver(codeVerifySchema),
+    defaultValues: { code: "" }
+  })
+
+  // 倒计时
+  useEffect(() => {
+    if (countdown <= 0) return
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown])
+
+  async function sendCode(emailVal: string, captchaParam?: string) {
+    await authApi.sendCode(emailVal, "login", captchaParam)
+    setCountdown(60)
+    notify.success("验证码已发送，请查收邮件")
+  }
+
+  async function onSendCode(data: CodeLoginForm) {
+    try {
+      await sendCode(data.email, captcha.enabled ? captchaVerifyParamRef.current : undefined)
+      setEmail(data.email)
+      setStep("code")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "发送失败，请重试"
+      emailMethods.setError("root", { message: msg })
+      notify.error(msg)
+    } finally {
+      captchaVerifyParamRef.current = ""
+      captcha.reset()
+    }
+  }
+
+  // 拿最新提交闭包，ESA 验证通过后调用
   const submitRef = useRef<(() => void) | null>(null)
+  submitRef.current = emailMethods.handleSubmit(onSendCode)
 
-  // 处理后端 OAuth 重定向回来的 token 参数
+  const captcha = useEsaCaptcha({
+    elementId: "email-code-captcha",
+    buttonId: "email-code-send-btn",
+    onVerified: (param) => {
+      captchaVerifyParamRef.current = param
+      submitRef.current?.()
+    }
+  })
+
+  async function onVerify(data: CodeVerifyForm) {
+    try {
+      const result = await authApi.loginByCode(email, data.code)
+      onSuccess(result.accessToken, result.refreshToken)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "验证失败，请重试"
+      codeMethods.setError("root", { message: msg })
+      notify.error(msg)
+    }
+  }
+
+  async function onResend() {
+    if (countdown > 0) return
+    try {
+      // 重新发送也走相同的 ESA 流程：用户点按钮触发；
+      // 此处直接调用，沿用同一份 captchaVerifyParam（若已失效后端会拒绝，提示用户回到上一步重新滑动）
+      await sendCode(email, captcha.enabled ? captchaVerifyParamRef.current : undefined)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "重新发送失败，请重试")
+    } finally {
+      captchaVerifyParamRef.current = ""
+      captcha.reset()
+    }
+  }
+
+  if (step === "code") {
+    return (
+      <div className="space-y-5">
+        <p className="text-muted-foreground text-sm">
+          验证码已发送至 <span className="font-medium text-foreground">{email}</span>
+        </p>
+        <Form methods={codeMethods} onSubmit={onVerify} className="space-y-5">
+          <FieldOtp name="code" length={6} autoSubmit />
+
+          <p
+            className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${codeMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
+          >
+            {codeMethods.formState.errors.root?.message ?? " "}
+          </p>
+
+          <Button
+            type="submit"
+            className="h-11 w-full"
+            disabled={codeMethods.formState.isSubmitting}
+          >
+            {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
+          </Button>
+        </Form>
+
+        <div className="flex items-center justify-between text-sm">
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-primary"
+            onClick={() => setStep("email")}
+          >
+            修改邮箱
+          </button>
+          <button
+            type="button"
+            className={`${countdown > 0 ? "cursor-not-allowed text-muted-foreground" : "text-primary hover:underline"}`}
+            disabled={countdown > 0}
+            onClick={onResend}
+          >
+            {countdown > 0 ? `重新发送 (${countdown}s)` : "重新发送"}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Form
+      methods={emailMethods}
+      onSubmit={captcha.enabled ? undefined : onSendCode}
+      className="space-y-5"
+    >
+      <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
+
+      {captcha.enabled && <div id="email-code-captcha" />}
+
+      <p
+        className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${emailMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
+      >
+        {emailMethods.formState.errors.root?.message ?? " "}
+      </p>
+
+      <Button
+        id="email-code-send-btn"
+        type={captcha.buttonType}
+        className="h-11 w-full"
+        disabled={emailMethods.formState.isSubmitting}
+      >
+        {emailMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
+      </Button>
+    </Form>
+  )
+}
+
+// ==================== 手机验证码登录子组件 ====================
+
+function PhoneLoginPanel({
+  onSuccess
+}: {
+  onSuccess: (accessToken: string, refreshToken: string, isNewUser?: boolean) => void
+}) {
+  const [step, setStep] = useState<"phone" | "code">("phone")
+  const [phone, setPhone] = useState("")
+  const [countdown, setCountdown] = useState(0)
+  const [termsAgreed, setTermsAgreed] = useState(false)
+  const captchaVerifyParamRef = useRef<string>("")
+
+  const phoneMethods = useForm<PhoneLoginForm>({
+    resolver: zodResolver(phoneLoginSchema),
+    defaultValues: { phone: "" }
+  })
+
+  const codeMethods = useForm<PhoneVerifyForm>({
+    resolver: zodResolver(phoneVerifySchema),
+    defaultValues: { code: "" }
+  })
+
+  // 倒计时
   useEffect(() => {
-    const accessToken = searchParams.get("accessToken")
-    const refreshToken = searchParams.get("refreshToken")
-    if (!accessToken || !refreshToken) return
+    if (countdown <= 0) return
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown])
 
-    setTokens(accessToken, refreshToken)
-    authApi.me().then(({ user }) => {
-      setUser(user)
-      router.replace(searchParams.get("redirect") || paths.workspace.root)
-    })
-  }, [searchParams, setTokens, setUser, router])
+  async function sendCode(phoneVal: string, captchaParam?: string) {
+    await authApi.sendSmsCode(phoneVal, "login", captchaParam)
+    setCountdown(60)
+    notify.success("验证码已发送，请查收短信")
+  }
 
-  // 初始化阿里云 ESA AI 验证码
-  useEffect(() => {
-    if (!CAPTCHA_ENABLED || typeof window === "undefined") return
-    if (!window.initAliyunCaptcha) return
+  async function onSendCode(data: PhoneLoginForm) {
+    if (!termsAgreed) return
+    try {
+      await sendCode(data.phone, captcha.enabled ? captchaVerifyParamRef.current : undefined)
+      setPhone(data.phone)
+      setStep("code")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "发送失败，请重试"
+      phoneMethods.setError("root", { message: msg })
+      notify.error(msg)
+    } finally {
+      captchaVerifyParamRef.current = ""
+      captcha.reset()
+    }
+  }
 
-    window.initAliyunCaptcha({
-      SceneId: CAPTCHA_SCENE_ID,
-      mode: "popup",
-      element: "#captcha-element",
-      button: "#login-btn",
-      success: (captchaVerifyParam: string) => {
-        // 按钮被拦截，验证成功回调 success，然后执行 authApi.login（带captchaVerifyParam）
-        captchaVerifyParamRef.current = captchaVerifyParam
-        submitRef.current?.()
-      },
-      fail: (_result: unknown) => {
-        // console.error("验证码验证失败", result)
-      },
-      getInstance: (instance: unknown) => {
-        window.__aliyunCaptchaInstance = instance
-      },
-      server: ["captcha-esa-open.aliyuncs.com", "captcha-esa-open-b.aliyuncs.com"],
-      slideStyle: { width: 360, height: 40 }
-    })
-  }, [])
+  const submitRef = useRef<(() => void) | null>(null)
+  submitRef.current = phoneMethods.handleSubmit(onSendCode)
+
+  const captcha = useEsaCaptcha({
+    elementId: "phone-code-captcha",
+    buttonId: "phone-code-send-btn",
+    onVerified: (param) => {
+      captchaVerifyParamRef.current = param
+      submitRef.current?.()
+    }
+  })
+
+  async function onVerify(data: PhoneVerifyForm) {
+    if (!termsAgreed) return
+    try {
+      const result = await authApi.loginByPhone(phone, data.code)
+      onSuccess(result.accessToken, result.refreshToken, result.isNewUser)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "验证失败，请重试"
+      codeMethods.setError("root", { message: msg })
+      notify.error(msg)
+    }
+  }
+
+  async function onResend() {
+    if (countdown > 0 || !termsAgreed) return
+    try {
+      await sendCode(phone, captcha.enabled ? captchaVerifyParamRef.current : undefined)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "重新发送失败，请重试")
+    } finally {
+      captchaVerifyParamRef.current = ""
+      captcha.reset()
+    }
+  }
+
+  if (step === "code") {
+    return (
+      <div className="space-y-5">
+        <p className="text-muted-foreground text-sm">
+          验证码已发送至 <span className="font-medium text-foreground">{phone}</span>
+        </p>
+        <Form methods={codeMethods} onSubmit={onVerify} className="space-y-5">
+          <FieldOtp name="code" length={6} autoSubmit />
+
+          <p
+            className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${codeMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
+          >
+            {codeMethods.formState.errors.root?.message ?? " "}
+          </p>
+
+          <Button
+            type="submit"
+            className="h-11 w-full"
+            disabled={codeMethods.formState.isSubmitting || !termsAgreed}
+          >
+            {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
+          </Button>
+        </Form>
+
+        <div className="flex items-center justify-between text-sm">
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-primary"
+            onClick={() => setStep("phone")}
+          >
+            修改手机号
+          </button>
+          <button
+            type="button"
+            className={`${countdown > 0 || !termsAgreed ? "cursor-not-allowed text-muted-foreground" : "text-primary hover:underline"}`}
+            disabled={countdown > 0 || !termsAgreed}
+            onClick={onResend}
+          >
+            {countdown > 0 ? `重新发送 (${countdown}s)` : "重新发送"}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Form
+      methods={phoneMethods}
+      onSubmit={captcha.enabled ? undefined : onSendCode}
+      className="space-y-5"
+    >
+      <FieldText name="phone" label="手机号" type="tel" placeholder="请输入手机号" />
+
+      {captcha.enabled && <div id="phone-code-captcha" />}
+
+      <TermsConsentCheckbox checked={termsAgreed} onCheckedChange={setTermsAgreed} />
+
+      <p
+        className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${phoneMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
+      >
+        {phoneMethods.formState.errors.root?.message ?? " "}
+      </p>
+
+      <Button
+        id="phone-code-send-btn"
+        type={captcha.buttonType}
+        className="h-11 w-full"
+        disabled={phoneMethods.formState.isSubmitting || !termsAgreed}
+      >
+        {phoneMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
+      </Button>
+    </Form>
+  )
+}
+
+// ==================== 密码登录子组件 ====================
+
+function PasswordLoginPanel({
+  onSuccess
+}: {
+  onSuccess: (accessToken: string, refreshToken: string, isNewUser?: boolean) => void
+}) {
+  const captchaVerifyParamRef = useRef<string>("")
 
   const methods = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -95,34 +418,137 @@ function LoginContent() {
     formState: { isSubmitting, errors }
   } = methods
 
-  // 绑定提交函数供验证码 success 回调调用
-  // 点登录 → 弹验证码 → 验证通过 → 提交表单
-  submitRef.current = methods.handleSubmit(onSubmit)
-
   async function onSubmit(data: LoginForm) {
     try {
-      // 验证码启用时，captchaVerifyParam 由 ESA 边缘节点验签（附在请求头中）
       const result = await authApi.login(
         data.username,
         data.password,
-        CAPTCHA_ENABLED ? captchaVerifyParamRef.current : undefined
+        captcha.enabled ? captchaVerifyParamRef.current : undefined
       )
-      // console.log("verifyCode", result.verifyCode) // == 'T001' 成功
-      setTokens(result.accessToken, result.refreshToken)
-      const { user } = await authApi.me()
-      setUser(user)
-      router.push(searchParams.get("redirect") || paths.workspace.root)
+      onSuccess(result.accessToken, result.refreshToken)
     } catch (err) {
-      // 表单内展示（可修正的输入错误）+ toast 兜底（网络超时等也能感知）
       const msg = err instanceof Error ? err.message : "登录失败，请重试"
       methods.setError("root", { message: msg })
       notify.error(msg)
     } finally {
-      // 验证码一次性，用完重置
       captchaVerifyParamRef.current = ""
-      ;(window.__aliyunCaptchaInstance as { refresh?: () => void })?.refresh?.()
+      captcha.reset()
     }
   }
+
+  const submitRef = useRef<(() => void) | null>(null)
+  submitRef.current = methods.handleSubmit(onSubmit)
+
+  const captcha = useEsaCaptcha({
+    elementId: "password-login-captcha",
+    buttonId: "password-login-btn",
+    onVerified: (param) => {
+      captchaVerifyParamRef.current = param
+      submitRef.current?.()
+    }
+  })
+
+  return (
+    <Form methods={methods} onSubmit={captcha.enabled ? undefined : onSubmit} className="space-y-5">
+      <FieldText name="username" label="账号/邮箱" type="text" placeholder="用户名或邮箱" />
+      <FieldText name="password" label="密码" type="password" placeholder="输入密码" />
+
+      <div className="mb-0 flex justify-end">
+        <Link
+          href={paths.auth.forgotPassword}
+          className="text-muted-foreground text-sm hover:text-primary"
+        >
+          忘记密码？
+        </Link>
+      </div>
+
+      {captcha.enabled && <div id="password-login-captcha" />}
+
+      <p
+        className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${errors.root ? "opacity-100" : "opacity-0"}`}
+      >
+        {errors.root?.message ?? " "}
+      </p>
+
+      <Button
+        id="password-login-btn"
+        type={captcha.buttonType}
+        className="h-11 w-full"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? "登录中..." : "登录"}
+      </Button>
+    </Form>
+  )
+}
+
+// ==================== 登录页主体 ====================
+
+function LoginContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { setTokens, setUser } = useAuthStore()
+  const [successUser, setSuccessUser] = useState<string | null>(null)
+  const pendingAuthRef = useRef<{
+    accessToken: string
+    refreshToken: string
+    user: AuthUser
+    isNewUser: boolean
+  } | null>(null)
+  const redirectTo = searchParams.get("redirect") || paths.workspace.root
+
+  // 处理后端 OAuth 重定向回来的 token 参数
+  useEffect(() => {
+    const accessToken = searchParams.get("accessToken")
+    const refreshToken = searchParams.get("refreshToken")
+    if (!accessToken || !refreshToken) return
+
+    setTokens(accessToken, refreshToken)
+    authApi.me().then(({ user }) => {
+      setUser(user)
+      router.replace(redirectTo)
+    })
+  }, [searchParams, setTokens, setUser, router, redirectTo])
+
+  /**
+   * 登录成功处理：
+   * 先用临时 axios header 拉取用户信息并暂存，展示 LoginSuccessOverlay 动画；
+   * 动画结束时（handleOverlayDone）再写入 store —— 避免 GuestGuard 监听到
+   * isAuthenticated 立刻 router.replace，把动画抢跑卸载。
+   *
+   * 新用户首次通过手机号登录即注册时，isNewUser=true，动画结束后给出欢迎引导。
+   */
+  async function handleLoginSuccess(
+    accessToken: string,
+    refreshToken: string,
+    isNewUser?: boolean
+  ) {
+    setAxiosAuth(accessToken)
+    const { user } = await authApi.me()
+    pendingAuthRef.current = { accessToken, refreshToken, user, isNewUser: !!isNewUser }
+    setSuccessUser(user.nickname || user.username || "")
+  }
+
+  const handleOverlayDone = useCallback(() => {
+    const pending = pendingAuthRef.current
+    if (!pending) {
+      router.push(redirectTo)
+      return
+    }
+    pendingAuthRef.current = null
+    setTokens(pending.accessToken, pending.refreshToken)
+    setUser(pending.user)
+    router.push(redirectTo)
+    if (pending.isNewUser) {
+      notify.success("欢迎加入 AAF！请前往个人中心完善资料", {
+        action: {
+          label: "去完善",
+          onClick: () => router.push(paths.workspace.settingsProfile)
+        },
+        duration: 8000
+      })
+    }
+  }, [router, redirectTo, setTokens, setUser])
 
   async function handleOAuth(provider: string) {
     try {
@@ -135,75 +561,64 @@ function LoginContent() {
 
   return (
     <div className="w-full max-w-sm space-y-6">
-      <div>
-        <h2 className="font-bold text-2xl">登录</h2>
-        <p className="mt-1 text-muted-foreground text-sm">输入账号或邮箱登录系统</p>
-      </div>
+      {successUser !== null ? (
+        <LoginSuccessOverlay username={successUser} onDone={handleOverlayDone} />
+      ) : (
+        <>
+          <div>
+            <h2 className="font-bold text-2xl">登录</h2>
+            <p className="mt-1 text-muted-foreground text-sm">登录你的 AAF 账号</p>
+          </div>
 
-      {/* 启用 ESA 验证码时，禁止 form 原生 submit（避免 captchaVerifyParam 为空就先发请求）
-          提交由 ESA success 回调独占触发（captchaVerifyParamRef 赋值后再调 submitRef.current）*/}
-      <Form
-        methods={methods}
-        onSubmit={CAPTCHA_ENABLED ? undefined : onSubmit}
-        className="space-y-5"
-      >
-        <FieldText name="username" label="账号/邮箱" type="text" placeholder="用户名或邮箱" />
-        <FieldText name="password" label="密码" type="password" placeholder="输入密码" />
+          <Tabs defaultValue="password">
+            <TabsList className="w-full">
+              <TabsTrigger value="password" className="flex-1">
+                密码登录
+              </TabsTrigger>
+              <TabsTrigger value="email" className="flex-1">
+                邮箱验证码
+              </TabsTrigger>
+              <TabsTrigger value="phone" className="flex-1">
+                手机验证码
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="password" className="pt-4">
+              <PasswordLoginPanel onSuccess={handleLoginSuccess} />
+            </TabsContent>
+            <TabsContent value="email" className="pt-4">
+              <CodeLoginPanel onSuccess={handleLoginSuccess} />
+            </TabsContent>
+            <TabsContent value="phone" className="pt-4">
+              <PhoneLoginPanel onSuccess={handleLoginSuccess} />
+            </TabsContent>
+          </Tabs>
 
-        <div className="mb-0 flex justify-end">
-          <Link
-            href={paths.auth.forgotPassword}
-            className="text-muted-foreground text-sm hover:text-primary"
-          >
-            忘记密码？
-          </Link>
-        </div>
+          <Separator />
 
-        {/* 验证码挂载点（弹出式，仅启用时渲染） */}
-        {CAPTCHA_ENABLED && <div id="captcha-element" />}
+          {/* 第三方登录 */}
+          <div className="space-y-3">
+            <p className="text-center text-muted-foreground text-sm">其他登录方式</p>
+            <div className="flex justify-center gap-4">
+              <Button variant="outline" size="icon" onClick={() => handleOAuth("wechat")}>
+                <WechatIcon />
+              </Button>
+              <Button variant="outline" size="icon" onClick={() => handleOAuth("wecom")}>
+                <WecomIcon />
+              </Button>
+              <Button variant="outline" size="icon" onClick={() => handleOAuth("dingtalk")}>
+                <DingtalkIcon />
+              </Button>
+            </div>
+          </div>
 
-        {/* 接口级错误——始终占位避免抖动，有错时淡入 */}
-        <p
-          className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${errors.root ? "opacity-100" : "opacity-0"}`}
-        >
-          {errors.root?.message ?? " "}
-        </p>
-
-        {/* ESA 启用时改为 button 类型，禁止 form 原生提交，由 ESA SDK 拦截点击并触发验证 */}
-        <Button
-          id="login-btn"
-          type={CAPTCHA_ENABLED ? "button" : "submit"}
-          className="h-11 w-full"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "登录中..." : "登录"}
-        </Button>
-      </Form>
-
-      <Separator />
-
-      {/* 第三方登录 */}
-      <div className="space-y-3">
-        <p className="text-center text-muted-foreground text-sm">其他登录方式</p>
-        <div className="flex justify-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => handleOAuth("wechat")}>
-            <WechatIcon />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => handleOAuth("wecom")}>
-            <WecomIcon />
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => handleOAuth("dingtalk")}>
-            <DingtalkIcon />
-          </Button>
-        </div>
-      </div>
-
-      <p className="text-center text-muted-foreground text-sm">
-        还没有账号？{" "}
-        <Link href={paths.auth.register} className="text-primary hover:underline">
-          立即注册
-        </Link>
-      </p>
+          <p className="text-center text-muted-foreground text-sm">
+            还没有账号？{" "}
+            <Link href={paths.auth.register} className="text-primary hover:underline">
+              立即注册
+            </Link>
+          </p>
+        </>
+      )}
     </div>
   )
 }

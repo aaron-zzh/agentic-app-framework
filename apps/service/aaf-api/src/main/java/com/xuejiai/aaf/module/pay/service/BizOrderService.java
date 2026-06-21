@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.enums.pay.BizOrderStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.MessageRequest;
+import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.pay.domain.BizOrder;
 import com.xuejiai.aaf.module.pay.domain.BizOrderItem;
 import com.xuejiai.aaf.module.pay.repository.BizOrderItemRepository;
@@ -18,14 +21,17 @@ import com.xuejiai.aaf.module.pay.repository.BizOrderRepository;
 import com.xuejiai.aaf.module.pay.vo.*;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** 业务订单服务 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BizOrderService {
 
     private final BizOrderRepository bizOrderRepository;
     private final BizOrderItemRepository itemRepository;
+    private final MessageService messageService;
 
     /** 创建业务订单（含明细行） */
     @Transactional
@@ -52,7 +58,9 @@ public class BizOrderService {
                 itemRepository.save(item);
             }
         }
-        return toVO(order);
+        var vo = toVO(order);
+        notifyDingtalkNewOrder(order);
+        return vo;
     }
 
     /** 关联支付单 */
@@ -129,5 +137,29 @@ public class BizOrderService {
                 i.getQuantity(),
                 i.getUnitPrice(),
                 i.getTotalPrice());
+    }
+
+    /** 下订单成功后推送钉钉群通知（静默失败，不影响下单流程） */
+    private void notifyDingtalkNewOrder(BizOrder order) {
+        try {
+            messageService.send(
+                    MessageRequest.direct(
+                            MessageChannel.DINGTALK,
+                            "新订单",
+                            "**新订单** \n\n> 订单号："
+                                    + order.getOrderNo()
+                                    + "  \n> 类型："
+                                    + order.getOrderType()
+                                    + "  \n> 商品："
+                                    + order.getSubject()
+                                    + "  \n> 金额："
+                                    + order.getTotalAmount()
+                                    + " 分"
+                                    + "  \n> 时间："
+                                    + order.getCreateTime(),
+                            List.of("all")));
+        } catch (Exception e) {
+            log.warn("钉钉新订单通知失败，不影响下单流程: orderId={}", order.getId(), e);
+        }
     }
 }

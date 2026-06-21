@@ -7,6 +7,8 @@ public record CreditRedeemCodeVO(
         String codePrefix,
         Long creditAmount,
         String batchType,
+        String type,
+        Long planId,
         String status,
         LocalDateTime expiresAt,
         Long redeemedByUserId,

@@ -8,14 +8,12 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
-import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.VideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
@@ -44,12 +42,11 @@ public class ContentGenerationTool {
     private final MediaAssetService mediaAssetService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final OperatorContext operatorContext;
-    private final ObjectMapper objectMapper;
 
     @Tool(description = "生成图片。参数为 JSON：prompt 必填，width/height/model 可选。")
     public String generateImage(@ToolParam(description = "图片生成 JSON 参数") String requestJson) {
         try {
-            var request = objectMapper.readValue(requestJson, ImageGenerateRequest.class);
+            var request = JsonUtils.parseObject(requestJson, ImageGenerateRequest.class);
             var safety =
                     review(
                             IMAGE_TOOL,
@@ -87,7 +84,7 @@ public class ContentGenerationTool {
             return asJson(
                     ToolCallResult.success(
                             IMAGE_TOOL,
-                            objectMapper.writeValueAsString(
+                            JsonUtils.toJsonString(
                                     Map.of("imageId", taskId, "status", "PENDING"))));
         } catch (Exception ex) {
             return asJson(ToolCallResult.error(IMAGE_TOOL, "GENERATION_ERROR", ex.getMessage()));
@@ -99,7 +96,7 @@ public class ContentGenerationTool {
                     "生成视频。参数为 JSON：prompt 必填，imageUrl/referenceImageUrls/model/resolution/ratio/duration/seed 可选。")
     public String generateVideo(@ToolParam(description = "视频生成 JSON 参数") String requestJson) {
         try {
-            var request = objectMapper.readValue(requestJson, VideoGenerateRequest.class);
+            var request = JsonUtils.parseObject(requestJson, VideoGenerateRequest.class);
             var safety =
                     review(
                             VIDEO_TOOL,
@@ -158,8 +155,7 @@ public class ContentGenerationTool {
             return asJson(
                     ToolCallResult.success(
                             VIDEO_TOOL,
-                            objectMapper.writeValueAsString(
-                                    Map.of("taskId", taskId, "status", "PENDING"))));
+                            JsonUtils.toJsonString(Map.of("taskId", taskId, "status", "PENDING"))));
         } catch (Exception ex) {
             return asJson(ToolCallResult.error(VIDEO_TOOL, "GENERATION_ERROR", ex.getMessage()));
         }
@@ -191,8 +187,8 @@ public class ContentGenerationTool {
 
     private String asJson(ToolCallResult result) {
         try {
-            return objectMapper.writeValueAsString(result);
-        } catch (JsonProcessingException ex) {
+            return JsonUtils.toJsonString(result);
+        } catch (Exception ex) {
             return "{\"success\":false,\"code\":\"TOOL_RESULT_SERIALIZE_ERROR\",\"message\":\"工具结果序列化失败\"}";
         }
     }

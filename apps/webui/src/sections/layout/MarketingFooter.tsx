@@ -27,7 +27,8 @@ const footerGroups = [
     links: [
       { label: "团队", href: "/about" },
       { label: "博客", href: "/blog" },
-      { label: "联系我们", href: "/contact" }
+      { label: "联系我们", href: "/contact" },
+      { label: "用户反馈", href: "/feedback" }
     ]
   }
 ]
@@ -36,7 +37,7 @@ const footerGroups = [
 export function MarketingFooter() {
   return (
     <footer className="border-t bg-muted/30">
-      <div className="mx-auto max-w-[var(--layout-marketing-max-width)] px-6 py-12">
+      <div className="mx-auto max-w-(--layout-marketing-max-width) px-6 pt-12 pb-6">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div>
             <span className="font-bold text-lg">AAF</span>

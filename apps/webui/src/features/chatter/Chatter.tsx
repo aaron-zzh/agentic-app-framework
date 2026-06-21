@@ -122,6 +122,7 @@ export function Chatter(props: ChatterProps) {
         onLayoutChange={onLayoutChange}
         dialogWidth={props.dialogWidth}
         dialogHeight={props.dialogHeight}
+        dialogAnchor={props.dialogAnchor}
         title={preset === "guest" ? "AI 客服" : preset === "livechat" ? "客服" : "AI 助理"}
       >
         <ChatterPanel
@@ -142,6 +143,7 @@ export function Chatter(props: ChatterProps) {
           sessionId={props.sessionId}
           modelId={modelId}
           onModelChange={setModelId}
+          showModelSelector={preset !== "guest" && preset !== "livechat"}
         />
       </ChatterLayout>
     </ChatterRuntime>

@@ -9,10 +9,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLog;
 import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLogger;
@@ -37,7 +36,6 @@ public class WorkflowAgUiService {
 
     private final WorkflowEngine workflowEngine;
     private final WorkflowExecutionLogger executionLogger;
-    private final ObjectMapper objectMapper;
     private final AiFlowDefinitionRepository flowRepository;
     private final OperatorContext operatorContext;
 
@@ -202,7 +200,7 @@ public class WorkflowAgUiService {
                             "completedNodes", completedNodes,
                             "processInstanceId", processInstanceId);
             var stateDeltaJson =
-                    objectMapper.writeValueAsString(
+                    JsonUtils.toJsonString(
                             Map.of(
                                     "type", "STATE_DELTA",
                                     "runId", runId,
@@ -220,7 +218,7 @@ public class WorkflowAgUiService {
                         AgUiEvent.toolCallArgs(
                                 runId,
                                 toolCallId,
-                                objectMapper.writeValueAsString(
+                                JsonUtils.toJsonString(
                                         Map.of(
                                                 "taskId", currentTask.taskId(),
                                                 "taskName", currentTask.name(),
@@ -256,7 +254,7 @@ public class WorkflowAgUiService {
 
     private void sendEvent(SseEmitter emitter, AgUiEvent event) {
         try {
-            var json = objectMapper.writeValueAsString(event);
+            var json = JsonUtils.toJsonString(event);
             emitter.send(SseEmitter.event().data(json));
         } catch (IOException e) {
             log.debug("工作流 AG-UI SSE 发送失败: {}", e.getMessage());

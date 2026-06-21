@@ -16,4 +16,5 @@ public record RegisterDTO(
                 String email,
         @NotBlank(message = "密码不能为空") @Length(min = 8, max = 32, message = "密码长度为 8-32 位")
                 String password,
-        String nickname) {}
+        String nickname,
+        @Schema(description = "邀请码（可选）") String referrerCode) {}

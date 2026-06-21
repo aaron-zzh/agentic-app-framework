@@ -33,7 +33,7 @@ import {
 } from "lexical"
 import { Sparkles } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
-import { useImageUpload } from "@/lib/hooks/use-image-upload"
+import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { cn } from "@/lib/utils/cn"
 import { $createImageNode } from "../nodes/ImageNode"
 import { OPEN_AI_WRITE_COMMAND } from "./AIWritePlugin"
@@ -63,13 +63,11 @@ interface ToolbarPluginProps {
     | "ai"
     | "image"
   )[]
-  /** 图片上传接口 */
-  uploadEndpoint?: string
   /** 根容器额外 className */
   className?: string
 }
 
-export function ToolbarPlugin({ features, uploadEndpoint, className }: ToolbarPluginProps) {
+export function ToolbarPlugin({ features, className }: ToolbarPluginProps) {
   const [editor] = useLexicalComposerContext()
   const [state, setState] = useState<ToolbarState>({
     bold: false,
@@ -326,7 +324,7 @@ export function ToolbarPlugin({ features, uploadEndpoint, className }: ToolbarPl
       )}
 
       {/* 图片 */}
-      {features.includes("image") && <ImageUploadButton uploadEndpoint={uploadEndpoint} />}
+      {features.includes("image") && <ImageUploadButton />}
 
       {/* AI 写作 */}
       {features.includes("ai") && (
@@ -379,13 +377,10 @@ function Divider() {
   return <div className="mx-0.5 h-4 w-px bg-border" />
 }
 
-/** 图片上传按钮——点击触发文件选择（使用通用 useImageUpload） */
-function ImageUploadButton({ uploadEndpoint }: { uploadEndpoint?: string }) {
+/** 图片上传按钮——点击触发文件选择（使用通用 useFileUpload） */
+function ImageUploadButton() {
   const [editor] = useLexicalComposerContext()
-  const { upload } = useImageUpload({
-    usePresign: !uploadEndpoint,
-    uploadEndpoint: uploadEndpoint ?? "/api/upload"
-  })
+  const { upload } = useFileUpload()
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

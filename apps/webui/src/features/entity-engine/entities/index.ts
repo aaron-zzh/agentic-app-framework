@@ -193,6 +193,7 @@ export const sampleEntities: EntityDef[] = [documentEntity, userEntity, taskEnti
 import { entityRegistry } from "../lib/registry"
 import { aigcEntities } from "./aigc-entities"
 import { billingEntities } from "./billing-entities"
+import { brokerageEntities } from "./brokerage-entities"
 
 /** 幂等守卫：防止多次 import 导致重复注册 */
 let _registered = false
@@ -201,4 +202,5 @@ if (!_registered) {
   entityRegistry.registerAll(sampleEntities)
   entityRegistry.registerAll(billingEntities)
   entityRegistry.registerAll(aigcEntities)
+  entityRegistry.registerAll(brokerageEntities)
 }

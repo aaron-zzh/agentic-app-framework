@@ -12,11 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.channel.domain.WebhookConfig;
 import com.xuejiai.aaf.module.channel.domain.WebhookLog;
 import com.xuejiai.aaf.module.channel.repository.WebhookConfigRepository;
@@ -40,7 +39,6 @@ public class WebhookService {
     private final WebhookConfigRepository configRepository;
     private final WebhookLogRepository logRepository;
     private final RestClient.Builder restClientBuilder;
-    private final ObjectMapper objectMapper;
     private final ChannelMessageRouter router;
 
     // ==================== 配置管理 ====================
@@ -167,7 +165,7 @@ public class WebhookService {
         webhookLog.setPushTime(LocalDateTime.now());
         try {
             var body =
-                    objectMapper.writeValueAsString(
+                    JsonUtils.toJsonString(
                             Map.of(
                                     "event_type", eventType,
                                     "timestamp", System.currentTimeMillis(),

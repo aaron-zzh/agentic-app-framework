@@ -8,11 +8,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
@@ -44,7 +42,6 @@ public class BatchGenerationService {
 
     private final BatchGenerationTaskRepository taskRepository;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
     private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
 
@@ -64,8 +61,8 @@ public class BatchGenerationService {
         task.setCompletedCount(0);
         task.setFailedCount(0);
         try {
-            task.setParams(objectMapper.writeValueAsString(dto));
-        } catch (JsonProcessingException e) {
+            task.setParams(JsonUtils.toJsonString(dto));
+        } catch (Exception e) {
             throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, "参数序列化失败");
         }
         task = taskRepository.save(task);
@@ -154,8 +151,8 @@ public class BatchGenerationService {
 
         BatchGenerationSubmitDTO dto;
         try {
-            dto = objectMapper.readValue(task.getParams(), BatchGenerationSubmitDTO.class);
-        } catch (JsonProcessingException e) {
+            dto = JsonUtils.parseObject(task.getParams(), BatchGenerationSubmitDTO.class);
+        } catch (Exception e) {
             task.setStatus(BatchTaskStatus.FAILED);
             taskRepository.save(task);
             return;

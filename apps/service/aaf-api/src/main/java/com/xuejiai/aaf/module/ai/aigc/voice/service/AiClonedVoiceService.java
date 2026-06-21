@@ -109,7 +109,7 @@ public class AiClonedVoiceService
         // TTS 类型：生成示例音频并上传 OSS
         if (isTts) {
             try {
-                byte[] audioBytes = speechService.synthesize("你好，这是我的专属声音。", voice);
+                byte[] audioBytes = speechService.synthesize(null, "你好，这是我的专属声音。", voice).audio();
                 String key =
                         storageService.upload(
                                 new java.io.ByteArrayInputStream(audioBytes),

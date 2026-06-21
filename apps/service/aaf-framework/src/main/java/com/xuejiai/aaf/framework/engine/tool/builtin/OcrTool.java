@@ -4,9 +4,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.OcrService;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.vo.OcrRequest;
@@ -35,14 +33,13 @@ public class OcrTool {
     private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
     private final OperatorContext operatorContext;
-    private final ObjectMapper objectMapper;
 
     @Tool(
             description =
                     "从图像中提取文字或结构化信息（OCR）。参数为 JSON：imageUrl 必填；task 可选，可选值：TEXT_RECOGNITION/KEY_INFORMATION_EXTRACTION/TABLE_PARSING/DOCUMENT_PARSING/FORMULA_RECOGNITION/MULTI_LAN；prompt 可选，自定义提示词。")
     public String recognizeOcr(@ToolParam(description = "OCR 识别 JSON 参数") String requestJson) {
         try {
-            var req = objectMapper.readValue(requestJson, OcrToolRequest.class);
+            var req = JsonUtils.parseObject(requestJson, OcrToolRequest.class);
 
             // 走模型决策链
             Long userId = operatorContext.currentOwnerId().orElse(null);
@@ -62,7 +59,7 @@ public class OcrTool {
             return asJson(
                     ToolCallResult.success(
                             TOOL_NAME,
-                            objectMapper.writeValueAsString(
+                            JsonUtils.toJsonString(
                                     new OcrToolResponse(result.text(), result.ocrResult()))));
         } catch (Exception e) {
             log.error("OCR 工具调用失败: {}", e.getMessage(), e);
@@ -72,8 +69,8 @@ public class OcrTool {
 
     private String asJson(ToolCallResult result) {
         try {
-            return objectMapper.writeValueAsString(result);
-        } catch (JsonProcessingException e) {
+            return JsonUtils.toJsonString(result);
+        } catch (Exception e) {
             return "{\"success\":false,\"code\":\"TOOL_RESULT_SERIALIZE_ERROR\"}";
         }
     }

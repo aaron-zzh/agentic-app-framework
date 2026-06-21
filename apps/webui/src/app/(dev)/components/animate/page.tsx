@@ -10,6 +10,7 @@ import {
   AnimateBorder,
   MotionContainer,
   MotionViewport,
+  RoseCurveLoader,
   transitionTap,
   varBounce,
   varFade,
@@ -106,6 +107,68 @@ export default function AnimateDemoPage() {
           >
             🎯
           </m.div>
+        </div>
+      </section>
+
+      {/* Rose Curve Loader */}
+      <section className="space-y-6">
+        <div>
+          <h2 className="font-semibold text-lg">RoseCurveLoader（玫瑰曲线加载）</h2>
+          <p className="mt-1 text-muted-foreground text-sm">
+            基于 r = a·cos(5t) 极坐标方程，五瓣玫瑰线 + 粒子尾迹 + 呼吸缩放 + 慢速旋转。纯
+            SVG，无依赖。
+          </p>
+        </div>
+
+        {/* 纯色模式 */}
+        <div className="space-y-2">
+          <p className="font-medium text-sm">纯色</p>
+          <div className="flex flex-wrap items-end gap-8">
+            <div className="flex flex-col items-center gap-2">
+              <RoseCurveLoader size={40} />
+              <span className="text-muted-foreground text-xs">40px</span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <RoseCurveLoader size={80} />
+              <span className="text-muted-foreground text-xs">80px 默认</span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <RoseCurveLoader size={80} className="text-primary" />
+              <span className="text-muted-foreground text-xs">text-primary</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 渐变光效模式 */}
+        <div className="space-y-2">
+          <p className="font-medium text-sm">渐变光效</p>
+          <div className="flex flex-wrap items-end gap-6">
+            {/* 默认紫→青 */}
+            <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-950 p-5">
+              <RoseCurveLoader size={80} gradient />
+              <span className="text-slate-400 text-xs">默认（紫→青）</span>
+            </div>
+            {/* 默认 + glow */}
+            <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-950 p-5">
+              <RoseCurveLoader size={80} gradient glow />
+              <span className="text-slate-400 text-xs">渐变 + glow</span>
+            </div>
+            {/* 自定义金→橙 */}
+            <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-950 p-5">
+              <RoseCurveLoader size={80} gradient={{ from: "#fbbf24", to: "#f43f5e" }} glow />
+              <span className="text-slate-400 text-xs">金→玫红 + glow</span>
+            </div>
+            {/* 绿→蓝 */}
+            <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-950 p-5">
+              <RoseCurveLoader size={80} gradient={{ from: "#34d399", to: "#6366f1" }} glow />
+              <span className="text-slate-400 text-xs">翠绿→靛蓝 + glow</span>
+            </div>
+            {/* 大尺寸 */}
+            <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-950 p-5">
+              <RoseCurveLoader size={120} gradient glow />
+              <span className="text-slate-400 text-xs">120px + glow</span>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -5,16 +5,34 @@
 
 "use client"
 
-import { GripVertical, LayoutDashboard, Pencil, Save, X } from "lucide-react"
+import { GripVertical, LayoutDashboard, Pencil, Plus, Save, Trash2, X } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
 import { type Layout, Responsive, WidthProvider } from "react-grid-layout"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { DashboardWidgetVO, WidgetType } from "@/lib/api/rest/dashboard/dashboard"
-import { useDashboard, useSaveDashboardLayout } from "@/lib/queries/use-dashboard"
+import type { DashboardVO, DashboardWidgetVO, WidgetType } from "@/lib/api/rest/dashboard/dashboard"
+import {
+  useCreateDashboard,
+  useDashboard,
+  useDashboardList,
+  useDeleteDashboard,
+  usePresets,
+  useRenameDashboard,
+  useSaveDashboardLayout
+} from "@/lib/queries/use-dashboard"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { AddWidgetDialog } from "./AddWidgetDialog"
 import { ApplyPresetDialog } from "./ApplyPresetDialog"
 import { dashboardPresets } from "./presets"
+import { WidgetEditDialog } from "./WidgetEditDialog"
 import {
   ChartWidget,
   CounterWidget,
@@ -133,16 +151,42 @@ function createDefaultWidget(type: WidgetType): DashboardWidgetVO {
 
 export function DashboardView() {
   const { data: dashboard, isLoading } = useDashboard()
+  const { data: remotePresets } = usePresets()
+  const { data: dashboardList = [] } = useDashboardList()
   const saveMutation = useSaveDashboardLayout()
+  const createMutation = useCreateDashboard()
+  const renameMutation = useRenameDashboard()
+  const deleteMutation = useDeleteDashboard()
+
   const [editing, setEditing] = useState(false)
   const [localWidgets, setLocalWidgets] = useState<DashboardWidgetVO[] | null>(null)
+  // 当前选中的仪表盘 id，null 表示默认
+  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null)
+  const [newName, setNewName] = useState("")
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
 
-  /** 当前展示的 widgets（编辑模式用本地状态，否则用服务端数据；服务端无数据时用默认预设兜底） */
-  const defaultWidgets = (dashboardPresets.find((p) => p.key === "banking") ?? dashboardPresets[0])
-    .widgets
-  const widgets = localWidgets ?? (dashboard?.layout?.length ? dashboard.layout : defaultWidgets)
+  const userRoles = useAuthStore((s) => s.user?.roles)
+  const isAdmin = userRoles?.some((r) => ["admin", "super_admin", "org_admin"].includes(r)) ?? false
 
-  /** react-grid-layout 的 layouts 数据 */
+  // 当前激活的仪表盘
+  const activeDashboard: DashboardVO | undefined = activeDashboardId
+    ? dashboardList.find((d) => d.id === activeDashboardId)
+    : (dashboard ?? undefined)
+
+  /** 默认 widgets：优先用接口预设，失败降级到前端硬编码 */
+  const defaultPresetKey = isAdmin ? "admin" : "personal"
+  const defaultWidgets: DashboardWidgetVO[] = (() => {
+    if (remotePresets) {
+      const preset = remotePresets.find((p) => p.presetKey === defaultPresetKey) ?? remotePresets[0]
+      return preset?.widgets ?? []
+    }
+    const local = dashboardPresets.find((p) => p.key === defaultPresetKey) ?? dashboardPresets[0]
+    return local?.widgets ?? []
+  })()
+  const widgets =
+    localWidgets ?? (activeDashboard?.widgets?.length ? activeDashboard.widgets : defaultWidgets)
+
   const layouts = useMemo(() => {
     const lg: Layout[] = widgets.map((w) => ({
       i: w.id,
@@ -154,23 +198,20 @@ export function DashboardView() {
     return { lg }
   }, [widgets])
 
-  /** 进入编辑模式 */
   const startEditing = useCallback(() => {
-    setLocalWidgets(dashboard?.layout ?? [])
+    setLocalWidgets(activeDashboard?.widgets ?? [])
     setEditing(true)
-  }, [dashboard])
+  }, [activeDashboard])
 
-  /** 取消编辑 */
   const cancelEditing = useCallback(() => {
     setLocalWidgets(null)
     setEditing(false)
   }, [])
 
-  /** 保存布局 */
   const saveLayout = useCallback(() => {
-    if (!dashboard || !localWidgets) return
+    if (!activeDashboard || !localWidgets) return
     saveMutation.mutate(
-      { id: dashboard.id, layout: localWidgets },
+      { id: activeDashboard.id, layout: localWidgets },
       {
         onSuccess: () => {
           setLocalWidgets(null)
@@ -178,9 +219,8 @@ export function DashboardView() {
         }
       }
     )
-  }, [dashboard, localWidgets, saveMutation])
+  }, [activeDashboard, localWidgets, saveMutation])
 
-  /** 布局变更回调 */
   const handleLayoutChange = useCallback(
     (layout: Layout[]) => {
       if (!editing || !localWidgets) return
@@ -194,22 +234,65 @@ export function DashboardView() {
     [editing, localWidgets]
   )
 
-  /** 添加 Widget */
-  const handleAddWidget = useCallback((type: WidgetType) => {
-    const newWidget = createDefaultWidget(type)
+  const handleAddWidget = useCallback((partial: Partial<DashboardWidgetVO>) => {
+    const type = partial.type ?? "counter"
+    const newWidget = partial.config
+      ? ({ ...createDefaultWidget(type), ...partial } as DashboardWidgetVO)
+      : createDefaultWidget(type)
     setLocalWidgets((prev) => [...(prev ?? []), newWidget])
   }, [])
 
-  /** 应用预设 */
-  const handleApplyPreset = useCallback((presetKey: string) => {
-    const preset = dashboardPresets.find((p) => p.key === presetKey)
-    if (preset) setLocalWidgets(preset.widgets)
+  const handleApplyPreset = useCallback((widgets: DashboardWidgetVO[]) => {
+    setLocalWidgets(widgets)
   }, [])
 
-  /** 删除 Widget */
   const handleRemoveWidget = useCallback((widgetId: string) => {
     setLocalWidgets((prev) => (prev ?? []).filter((w) => w.id !== widgetId))
   }, [])
+
+  const [editingWidget, setEditingWidget] = useState<DashboardWidgetVO | null>(null)
+
+  const handleEditWidget = useCallback((updated: DashboardWidgetVO) => {
+    setLocalWidgets((prev) => (prev ?? []).map((w) => (w.id === updated.id ? updated : w)))
+  }, [])
+
+  // 新建仪表盘
+  const handleCreate = useCallback(() => {
+    if (!newName.trim()) return
+    createMutation.mutate(
+      { name: newName.trim() },
+      {
+        onSuccess: (created) => {
+          setNewName("")
+          setActiveDashboardId(created.id)
+        }
+      }
+    )
+  }, [newName, createMutation])
+
+  // 确认重命名
+  const handleRename = useCallback(
+    (id: string) => {
+      if (!renameValue.trim()) return
+      renameMutation.mutate(
+        { id, name: renameValue.trim() },
+        { onSuccess: () => setRenamingId(null) }
+      )
+    },
+    [renameValue, renameMutation]
+  )
+
+  // 删除仪表盘
+  const handleDelete = useCallback(
+    (id: string) => {
+      deleteMutation.mutate(id, {
+        onSuccess: () => {
+          if (activeDashboardId === id) setActiveDashboardId(null)
+        }
+      })
+    },
+    [activeDashboardId, deleteMutation]
+  )
 
   if (isLoading) {
     return (
@@ -218,7 +301,6 @@ export function DashboardView() {
           <Skeleton className="h-7 w-32" />
           <Skeleton className="h-8 w-24" />
         </div>
-        {/* 模拟两行大图表 + 右侧小卡片的布局 */}
         <div className="grid grid-cols-12 gap-4">
           <Skeleton className="col-span-8 h-56 rounded-xl" />
           <Skeleton className="col-span-4 h-56 rounded-xl" />
@@ -233,31 +315,126 @@ export function DashboardView() {
   return (
     <div className="flex flex-1 flex-col overflow-auto p-6 pb-10">
       {/* 顶部工具栏 */}
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="flex items-center gap-2 font-bold text-xl">
-          <LayoutDashboard className="size-5" />
-          工作台
-        </h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        {/* 左侧：仪表盘选择器 */}
         <div className="flex items-center gap-2">
-          {editing ? (
-            <>
-              <ApplyPresetDialog onApply={handleApplyPreset} />
-              <AddWidgetDialog onAdd={handleAddWidget} />
-              <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                <X className="mr-1 h-4 w-4" />
-                取消
+          <LayoutDashboard className="size-5 shrink-0" />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" className="h-8 gap-1 px-1 font-bold text-xl">
+                  {activeDashboard?.name ?? "工作台"}
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start" className="w-56">
+              {dashboardList.map((d) =>
+                renamingId === d.id ? (
+                  <div key={d.id} className="flex items-center gap-1 px-2 py-1">
+                    <Input
+                      autoFocus
+                      className="h-6 text-sm"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRename(d.id)
+                        if (e.key === "Escape") setRenamingId(null)
+                      }}
+                    />
+                    <Button size="sm" className="h-6 px-2" onClick={() => handleRename(d.id)}>
+                      确定
+                    </Button>
+                  </div>
+                ) : (
+                  <DropdownMenuItem
+                    key={d.id}
+                    className="group flex items-center justify-between"
+                    onSelect={() => {
+                      setActiveDashboardId(d.id)
+                      setLocalWidgets(null)
+                      setEditing(false)
+                    }}
+                  >
+                    <span
+                      className={activeDashboard?.id === d.id ? "font-medium text-primary" : ""}
+                    >
+                      {d.name}
+                    </span>
+                    {isAdmin && (
+                      <span className="ml-2 hidden gap-1 group-hover:flex">
+                        <button
+                          type="button"
+                          className="rounded p-0.5 hover:bg-accent"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setRenamingId(d.id)
+                            setRenameValue(d.name)
+                          }}
+                        >
+                          <Pencil className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded p-0.5 text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(d.id)
+                          }}
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                )
+              )}
+              <DropdownMenuSeparator />
+              {/* 新建仪表盘（仅管理员） */}
+              {isAdmin && (
+                <div className="flex items-center gap-1 px-2 py-1">
+                  <Input
+                    placeholder="新建仪表盘..."
+                    className="h-6 text-sm"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                  />
+                  <Button
+                    size="sm"
+                    className="h-6 px-2"
+                    disabled={!newName.trim() || createMutation.isPending}
+                    onClick={handleCreate}
+                  >
+                    <Plus className="size-3" />
+                  </Button>
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* 右侧：编辑工具栏（仅管理员） */}
+        <div className="flex items-center gap-2">
+          {isAdmin &&
+            (editing ? (
+              <>
+                <ApplyPresetDialog onApply={handleApplyPreset} />
+                <AddWidgetDialog onAdd={handleAddWidget} />
+                <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                  <X className="mr-1 h-4 w-4" />
+                  取消
+                </Button>
+                <Button size="sm" onClick={saveLayout} disabled={saveMutation.isPending}>
+                  <Save className="mr-1 h-4 w-4" />
+                  保存
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" onClick={startEditing}>
+                <Pencil className="mr-1 h-4 w-4" />
+                编辑布局
               </Button>
-              <Button size="sm" onClick={saveLayout} disabled={saveMutation.isPending}>
-                <Save className="mr-1 h-4 w-4" />
-                保存
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" size="sm" onClick={startEditing}>
-              <Pencil className="mr-1 h-4 w-4" />
-              编辑布局
-            </Button>
-          )}
+            ))}
         </div>
       </div>
 
@@ -285,20 +462,38 @@ export function DashboardView() {
                   <span className="drag-handle cursor-grab">
                     <GripVertical className="h-4 w-4 text-muted-foreground" />
                   </span>
-                  <button
-                    type="button"
-                    className="rounded p-0.5 hover:bg-destructive/10"
-                    onClick={() => handleRemoveWidget(widget.id)}
-                  >
-                    <X className="h-3 w-3 text-destructive" />
-                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      className="rounded p-0.5 hover:bg-accent"
+                      onClick={() => setEditingWidget(widget)}
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-0.5 hover:bg-destructive/10"
+                      onClick={() => handleRemoveWidget(widget.id)}
+                    >
+                      <X className="h-3 w-3 text-destructive" />
+                    </button>
+                  </div>
                 </div>
               )}
-              {renderWidget(widget, dashboard?.refreshInterval)}
+              {renderWidget(widget, activeDashboard?.refreshInterval)}
             </div>
           ))}
         </ResponsiveGridLayout>
       )}
+
+      <WidgetEditDialog
+        widget={editingWidget}
+        open={editingWidget !== null}
+        onOpenChange={(v) => {
+          if (!v) setEditingWidget(null)
+        }}
+        onSave={handleEditWidget}
+      />
     </div>
   )
 }

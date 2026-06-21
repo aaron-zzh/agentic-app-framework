@@ -7,15 +7,13 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.type.SqlTypes;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import tools.jackson.core.type.TypeReference;
 
 /** 开发文档实体（对应 autodev_doc 表，docs/ 目录同步专用）。 */
 @Getter
@@ -46,13 +44,11 @@ public class AutodevDoc extends BaseEntity {
     @Column(name = "front_matter", columnDefinition = "JSONB")
     private String frontMatterJson;
 
-    @Transient private static final ObjectMapper MAPPER = new ObjectMapper();
-
     public Map<String, Object> getFrontMatter() {
         if (frontMatterJson == null || frontMatterJson.isBlank()) return Map.of();
         try {
-            return MAPPER.readValue(frontMatterJson, new TypeReference<>() {});
-        } catch (JsonProcessingException e) {
+            return JsonUtils.parseObject(frontMatterJson, new TypeReference<>() {});
+        } catch (Exception e) {
             return Map.of();
         }
     }
@@ -63,8 +59,8 @@ public class AutodevDoc extends BaseEntity {
             return;
         }
         try {
-            this.frontMatterJson = MAPPER.writeValueAsString(fm);
-        } catch (JsonProcessingException e) {
+            this.frontMatterJson = JsonUtils.toJsonString(fm);
+        } catch (Exception e) {
             this.frontMatterJson = null;
         }
     }

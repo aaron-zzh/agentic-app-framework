@@ -65,6 +65,8 @@
 		<aliyun-imageenhan.version>1.0.13</aliyun-imageenhan.version>
 		<!-- 可观测性 -->
 		<sentry.version>8.41.0</sentry.version>
+		<!-- JSON Schema -->
+		<jsonschema-generator.version>5.0.0</jsonschema-generator.version>
 		<!-- 测试 -->
 		<archunit.version>1.4.2</archunit.version>
 		<instancio.version>5.4.0</instancio.version>
@@ -432,6 +434,18 @@
 				<groupId>org.instancio</groupId>
 				<artifactId>instancio-junit</artifactId>
 				<version>${instancio.version}</version>
+			</dependency>
+
+			<!-- ==================== JSON Schema（统一版本避免冲突） ==================== -->
+			<dependency>
+				<groupId>com.github.victools</groupId>
+				<artifactId>jsonschema-generator</artifactId>
+				<version>${jsonschema-generator.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.victools</groupId>
+				<artifactId>jsonschema-module-jackson</artifactId>
+				<version>${jsonschema-generator.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

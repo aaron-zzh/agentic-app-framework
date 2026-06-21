@@ -20,10 +20,13 @@ public interface ErrorCodeConstants {
     ErrorCode AUTH_LOGIN_USER_DISABLED = ErrorCode.of(1_000_001, "登录失败，账号被禁用");
     ErrorCode AUTH_TOKEN_EXPIRED = ErrorCode.of(1_000_002, "Token 无效或已过期");
     ErrorCode AUTH_EMAIL_ALREADY_REGISTERED = ErrorCode.of(1_000_003, "该邮箱已注册");
+    ErrorCode AUTH_PHONE_ALREADY_REGISTERED = ErrorCode.of(1_000_008, "该手机号已注册");
     ErrorCode AUTH_VERIFY_CODE_INVALID = ErrorCode.of(1_000_004, "验证码无效或已过期");
     ErrorCode AUTH_VERIFY_CODE_RATE_LIMIT = ErrorCode.of(1_000_005, "发送过于频繁，请稍后再试");
     ErrorCode AUTH_USER_LOCKED = ErrorCode.of(1_000_006, "账号已锁定，请稍后再试");
     ErrorCode AUTH_EMAIL_NOT_VERIFIED = ErrorCode.of(1_000_007, "邮箱未验证");
+    ErrorCode AUTH_REGISTER_IP_RATE_LIMIT = ErrorCode.of(1_000_009, "注册过于频繁，请稍后再试");
+    ErrorCode AUTH_VERIFY_CODE_SEND_FAILED = ErrorCode.of(1_000_010, "验证码发送失败，请稍后重试");
 
     // ========== USER 模块 1_001_000 ==========
     ErrorCode USER_NOT_FOUND = ErrorCode.of(1_001_000, "用户不存在");

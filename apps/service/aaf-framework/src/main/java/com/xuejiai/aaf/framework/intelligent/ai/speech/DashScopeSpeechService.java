@@ -14,6 +14,8 @@ import com.alibaba.dashscope.audio.asr.recognition.RecognitionParam;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisParam;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesizer;
 
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -92,15 +94,33 @@ public class DashScopeSpeechService implements SpeechService {
         }
     }
 
-    /** ASR 流式：音频字节流 → 实时句子流。 使用 Recognition.streamCall(param, Flowable<ByteBuffer>)，每个完整句子推送一次。 */
+    /**
+     * ASR 流式：音频字节流 → 实时识别帧流。
+     *
+     * <p>计费策略：fun-asr-realtime 不下发 isCompleteResult 帧，usage 随 sentenceEnd 帧累计上报（duration
+     * 为会话开始至当前帧的累计秒数，非增量）。本方法的推送策略：
+     *
+     * <ul>
+     *   <li>sentenceEnd 帧若携带 usage，**立即**推一帧 {@link AsrResult#ofUsage(int)} 给上层，使 handler 侧可以在
+     *       WebSocket 关闭前就拿到最新真实 duration，避免"流结束才推 usage"导致的关闭竞态
+     *   <li>流正常完成或异常退出时再补推一次最大累计值，覆盖极少数 usage 不在 sentenceEnd 上的情况
+     * </ul>
+     *
+     * <p>由于上层 handler 对 usage 帧采用"取 max + 关闭时一次结算"模式，多次推送 usage 帧不会造成重复扣费。
+     *
+     * <p>SDK 单位说明：{@link
+     * com.alibaba.dashscope.audio.asr.recognition.RecognitionUsage#getDuration()} 返回的是秒（已和
+     * fun-asr-realtime 实测对齐），而 {@link AsrResult#ofUsage(int)} 入参约定为毫秒，故此处推送时统一乘以 1000 做转换。
+     */
     @Override
-    public Flux<String> transcribeStream(Flux<byte[]> audioStream, String language) {
+    public Flux<AsrResult> transcribeStream(Flux<byte[]> audioStream, String language) {
         return Flux.create(
                 sink -> {
                     Recognition recognizer = new Recognition();
+                    // DashScope 在多帧上累计上报 duration（秒），取最大值即总用量
+                    int[] maxDurationSecs = {0};
                     try {
                         var param = buildAsrParam(language, "pcm");
-                        // 将 Reactor Flux<byte[]> 转为 RxJava Flowable<ByteBuffer>
                         io.reactivex.Flowable<ByteBuffer> audioFlowable =
                                 io.reactivex.Flowable.create(
                                         (io.reactivex.FlowableEmitter<ByteBuffer> emitter) ->
@@ -116,37 +136,77 @@ public class DashScopeSpeechService implements SpeechService {
                                 .streamCall(param, audioFlowable)
                                 .blockingForEach(
                                         result -> {
+                                            var usage = result.getUsage();
+                                            if (log.isDebugEnabled()) {
+                                                log.debug(
+                                                        "ASR 帧: complete={}, sentenceEnd={},"
+                                                                + " hasUsage={}, durationSecs={}",
+                                                        result.isCompleteResult(),
+                                                        result.isSentenceEnd(),
+                                                        usage != null,
+                                                        usage != null ? usage.getDuration() : null);
+                                            }
+                                            // 任意帧上的 usage 都做累计，避免依赖 isCompleteResult
+                                            if (usage != null && usage.getDuration() != null) {
+                                                int v = usage.getDuration();
+                                                if (v > maxDurationSecs[0]) maxDurationSecs[0] = v;
+                                            }
                                             if (result.isSentenceEnd()) {
                                                 String text = result.getSentence().getText();
                                                 if (text != null && !text.isBlank()) {
-                                                    sink.next(text);
+                                                    sink.next(AsrResult.ofText(text));
+                                                }
+                                                // sentenceEnd 帧若携带 usage 立即外推，让 handler
+                                                // 在关闭前拿到真实累计 duration，规避兜底竞态
+                                                if (usage != null && usage.getDuration() != null) {
+                                                    sink.next(
+                                                            AsrResult.ofUsage(
+                                                                    usage.getDuration() * 1000));
                                                 }
                                             }
                                         });
-                        sink.complete();
                     } catch (Exception e) {
                         log.error("ASR 流式识别失败", e);
+                        // 异常路径同样推送已累计的用量，由上游决定是否结算
+                        emitUsageIfAny(sink, maxDurationSecs[0]);
                         sink.error(e);
-                    } finally {
                         recognizer.getDuplexApi().close(1000, "done");
+                        return;
                     }
+                    // 正常完成：补推一次累计用量（兜底极少数 usage 不在 sentenceEnd 帧的情况）后 complete
+                    emitUsageIfAny(sink, maxDurationSecs[0]);
+                    sink.complete();
+                    recognizer.getDuplexApi().close(1000, "done");
                 },
                 FluxSink.OverflowStrategy.BUFFER);
     }
 
+    /** 累计 duration > 0 时向 sink 推送一帧计费用量。 */
+    private static void emitUsageIfAny(FluxSink<AsrResult> sink, int durationSecs) {
+        if (durationSecs > 0) {
+            sink.next(AsrResult.ofUsage(durationSecs * 1000));
+        }
+    }
+
     // ========== TTS ==========
 
-    /** TTS 非流式：阻塞等待完整音频返回。 */
+    /** TTS 非流式：阻塞等待完整音频返回，携带字符数用量。 */
     @Override
-    public byte[] synthesize(String text, String voice) {
+    public SynthesisResult synthesize(AiModel model, String text, String voice) {
         text = cleanText(text);
-        var param = buildTtsParam(voice);
+        int charCount = text.length();
+        String modelName =
+                (model != null && StringUtils.hasText(model.getModelName()))
+                        ? model.getModelName()
+                        : DEFAULT_TTS_MODEL;
+        var param = buildTtsParam(modelName, voice);
         var synthesizer = new SpeechSynthesizer(param, null);
         try {
             var buf = synthesizer.call(text);
-            return buf != null ? buf.array() : new byte[0];
+            byte[] audio = buf != null ? buf.array() : new byte[0];
+            return new SynthesisResult(audio, charCount);
         } catch (Exception e) {
-            log.error("TTS 合成失败: voice={}", voice, e);
+            log.error("TTS 合成失败: model={}, voice={}", modelName, voice, e);
             throw new RuntimeException("语音合成失败: " + e.getMessage(), e);
         } finally {
             synthesizer.getDuplexApi().close(1000, "done");
@@ -159,7 +219,7 @@ public class DashScopeSpeechService implements SpeechService {
         final String cleanedText = cleanText(text);
         return Flux.create(
                 sink -> {
-                    var synthesizer = new SpeechSynthesizer(buildTtsParam(voice), null);
+                    var synthesizer = new SpeechSynthesizer(buildTtsParam(null, voice), null);
                     try {
                         synthesizer
                                 .callAsFlowable(cleanedText)
@@ -184,7 +244,7 @@ public class DashScopeSpeechService implements SpeechService {
     public Flux<byte[]> synthesizeStream(Flux<String> textStream, String voice) {
         return Flux.create(
                 sink -> {
-                    var synthesizer = new SpeechSynthesizer(buildTtsParam(voice), null);
+                    var synthesizer = new SpeechSynthesizer(buildTtsParam(null, voice), null);
                     try {
                         io.reactivex.Flowable<String> textFlowable =
                                 io.reactivex.Flowable.create(
@@ -242,13 +302,10 @@ public class DashScopeSpeechService implements SpeechService {
         };
     }
 
-    private SpeechSynthesisParam buildTtsParam(String voice) {
+    private SpeechSynthesisParam buildTtsParam(String modelName, String voice) {
         String v = StringUtils.hasText(voice) ? voice : defaultVoice;
-        return SpeechSynthesisParam.builder()
-                .apiKey(apiKey)
-                .model(DEFAULT_TTS_MODEL)
-                .voice(v)
-                .build();
+        String m = StringUtils.hasText(modelName) ? modelName : DEFAULT_TTS_MODEL;
+        return SpeechSynthesisParam.builder().apiKey(apiKey).model(m).voice(v).build();
     }
 
     /** 清理 TTS 输入文本：去除不可打印控制字符、合并多余空白，保留换行作为句间停顿 */

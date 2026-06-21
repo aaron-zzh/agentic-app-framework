@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,7 +30,6 @@ public class MeshyModel3dService implements Model3dGenerationService {
 
     private final String apiKey;
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MeshyModel3dService(@Value("${aaf.ai.meshy.api-key:}") String apiKey) {
         this.apiKey = apiKey;
@@ -80,7 +79,7 @@ public class MeshyModel3dService implements Model3dGenerationService {
                             .GET()
                             .build();
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
 
             var status = parseStatus(root.get("status").asText());
             var modelUrl =
@@ -103,7 +102,7 @@ public class MeshyModel3dService implements Model3dGenerationService {
 
     private String doSubmit(String path, HashMap<String, Object> body) {
         try {
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var httpRequest =
                     HttpRequest.newBuilder()
                             .uri(URI.create(BASE_URL + path))
@@ -113,7 +112,7 @@ public class MeshyModel3dService implements Model3dGenerationService {
                             .build();
 
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
 
             if (root.has("result")) {
                 var taskId = root.get("result").asText();

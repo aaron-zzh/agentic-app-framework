@@ -11,11 +11,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.system.entity.domain.EntityDef;
 import com.xuejiai.aaf.module.system.entity.repository.EntityDefRepository;
 import com.xuejiai.aaf.module.system.entity.vo.CustomFieldAddDTO;
@@ -26,6 +24,7 @@ import com.xuejiai.aaf.module.system.entity.vo.EntityDefVO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 实体定义业务逻辑。
@@ -40,7 +39,6 @@ public class EntityDefService {
 
     private final EntityDefRepository entityDefRepository;
     private final JdbcTemplate jdbcTemplate;
-    private final ObjectMapper objectMapper;
 
     /** 字段类型 → DDL 类型映射 */
     private static final Map<String, String> TYPE_MAPPING =
@@ -268,7 +266,7 @@ public class EntityDefService {
     @SuppressWarnings("unchecked")
     private List<Map<String, String>> parseFields(String config) {
         try {
-            var map = objectMapper.readValue(config, new TypeReference<Map<String, Object>>() {});
+            var map = JsonUtils.parseObject(config, new TypeReference<Map<String, Object>>() {});
             var fields = map.get("fields");
             if (fields instanceof List<?> list) {
                 return list.stream().map(item -> (Map<String, String>) item).toList();
@@ -291,7 +289,7 @@ public class EntityDefService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> parseConfig(String config) {
         try {
-            return objectMapper.readValue(config, new TypeReference<Map<String, Object>>() {});
+            return JsonUtils.parseObject(config, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "config JSON 解析失败");
         }
@@ -309,7 +307,7 @@ public class EntityDefService {
 
     private String toJson(Object obj) {
         try {
-            return objectMapper.writeValueAsString(obj);
+            return JsonUtils.toJsonString(obj);
         } catch (Exception e) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "JSON 序列化失败");
         }

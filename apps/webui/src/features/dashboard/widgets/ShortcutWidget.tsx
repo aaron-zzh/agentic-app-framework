@@ -7,7 +7,7 @@
 
 import { Zap } from "lucide-react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ShortcutWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 
@@ -28,16 +28,17 @@ export function ShortcutWidget({ title, config }: ShortcutWidgetProps) {
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
           {config.items.map((item) => (
-            <Button
+            <Link
               key={item.href}
-              variant="outline"
-              size="sm"
-              nativeButton={false}
-              render={<Link href={item.href} />}
-              className="justify-start"
+              href={item.href}
+              className={buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "justify-start"
+              })}
             >
               {item.label}
-            </Button>
+            </Link>
           ))}
         </div>
       </CardContent>

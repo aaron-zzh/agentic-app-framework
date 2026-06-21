@@ -12,6 +12,7 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.protection.RateLimit;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
@@ -19,6 +20,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -81,6 +83,7 @@ public class AigcTaskController
      */
     @Operation(summary = "提交 AIGC 生成任务")
     @PostMapping("/submit")
+    @RateLimit(limit = 10, windowSeconds = 60, message = "任务提交过于频繁，请稍后再试")
     public Result<Long> submit(@Valid @RequestBody SubmitTaskDTO dto) {
         Long userId =
                 operatorContext
@@ -122,12 +125,37 @@ public class AigcTaskController
                                         null,
                                         dto.projectId()));
                     }
-                    case "VIDEO" ->
-                            taskService.submitVideoTask(
-                                    userId, dto.prompt(), dto.model(), dto.projectId());
-                    case "MODEL_3D" ->
-                            taskService.submit3dTask(
-                                    userId, dto.prompt(), dto.model(), dto.projectId());
+                    case "VIDEO" -> {
+                        var p = dto.params() != null ? dto.params() : Map.of();
+                        yield taskService.submitVideoTask(
+                                userId,
+                                new VideoTaskRequest(
+                                        dto.prompt(),
+                                        dto.model(),
+                                        dto.projectId(),
+                                        toString(p.get("resolution")),
+                                        toInt(p.get("duration")),
+                                        toString(p.get("ratio")),
+                                        toInt(p.get("seed")),
+                                        toString(p.get("imageMode")),
+                                        toString(p.get("imageUrl")),
+                                        toStringList(p.get("referenceImageUrls")),
+                                        toStringList(p.get("referenceVideoUrls")),
+                                        toStringList(p.get("referenceAudioUrls")),
+                                        toString(p.get("audioSetting")),
+                                        toBoolean(p.get("promptExtend")),
+                                        toBoolean(p.get("generateAudio"))));
+                    }
+                    case "MODEL_3D" -> {
+                        var p = dto.params() != null ? dto.params() : Map.of();
+                        yield taskService.submit3dTask(
+                                userId,
+                                dto.prompt(),
+                                dto.model(),
+                                toString(p.get("source")),
+                                toString(p.get("textureQuality")),
+                                dto.projectId());
+                    }
                     case "MUSIC" -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         yield taskService.submitMusicTask(
@@ -203,5 +231,18 @@ public class AigcTaskController
         if (val == null) return null;
         if (val instanceof Boolean b) return b;
         return Boolean.parseBoolean(val.toString());
+    }
+
+    private static Boolean toBoolean(Object val) {
+        return toBool(val);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> toStringList(Object val) {
+        if (val == null) return null;
+        if (val instanceof List<?> list) {
+            return list.stream().filter(e -> e != null).map(Object::toString).toList();
+        }
+        return null;
     }
 }

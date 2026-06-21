@@ -14,7 +14,6 @@ import {
   Key,
   Link2,
   LogOut,
-  Settings,
   Shield,
   Ticket,
   User
@@ -26,6 +25,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"
+import { LicensePlanBadge } from "@/sections/layout/LicensePlanBadge"
 
 // ─── 导航配置（对标参考：General / Billing / Notifications / Social Links / Security）
 
@@ -53,7 +53,6 @@ const NAV_GROUPS: {
     items: [
       { label: "API 密钥", href: "/settings/api-keys", icon: Key },
       { label: "组织管理", href: "/settings/organization", icon: Building2 },
-      { label: "系统设置", href: "/settings/system/model", icon: Settings },
       { label: "授权委托", href: "/settings/delegation", icon: Globe }
     ]
   }
@@ -78,7 +77,7 @@ function SettingsSidebar() {
   }
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-1 py-6 pr-4">
+    <aside className="flex h-full w-56 shrink-0 flex-col gap-1 py-6 pr-4">
       {/* 用户信息 */}
       <div className="mb-4 flex items-center gap-3 px-2">
         <Avatar className="size-9">
@@ -88,7 +87,7 @@ function SettingsSidebar() {
       </div>
 
       {/* 导航分组 */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto">
         {NAV_GROUPS.map((group, gi) => (
           <div key={gi} className={gi > 0 ? "pt-3" : ""}>
             {group.label && (
@@ -139,6 +138,11 @@ function SettingsSidebar() {
           <LogOut className="size-4" />
           退出登录
         </Button>
+
+        {/* 框架版本 / 授权——置于退出登录之后 */}
+        <div className="pt-2">
+          <LicensePlanBadge collapsed={false} />
+        </div>
       </div>
     </aside>
   )
@@ -148,7 +152,7 @@ function SettingsSidebar() {
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-full">
       <SettingsSidebar />
       <Separator orientation="vertical" className="h-auto" />
       <main className="flex-1 overflow-auto">{children}</main>

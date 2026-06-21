@@ -5,8 +5,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatRunRequest;
@@ -31,7 +30,6 @@ public class UserChatHandler {
 
     private final ChatService chatService;
     private final ChatWebSocketHandler webSocketHandler;
-    private final ObjectMapper objectMapper;
 
     /**
      * 处理用户间聊天请求
@@ -67,7 +65,7 @@ public class UserChatHandler {
                                             Long.valueOf(sessionId),
                                             "user",
                                             content);
-                            var json = objectMapper.writeValueAsString(saved);
+                            var json = JsonUtils.toJsonString(saved);
                             webSocketHandler.broadcast(Long.valueOf(sessionId), json);
                         }
 
@@ -90,7 +88,7 @@ public class UserChatHandler {
 
     private void sendEvent(SseEmitter emitter, AgUiEvent event) {
         try {
-            var json = objectMapper.writeValueAsString(event);
+            var json = JsonUtils.toJsonString(event);
             emitter.send(SseEmitter.event().data(json));
         } catch (Exception e) {
             log.debug("SSE 发送失败: {}", e.getMessage());

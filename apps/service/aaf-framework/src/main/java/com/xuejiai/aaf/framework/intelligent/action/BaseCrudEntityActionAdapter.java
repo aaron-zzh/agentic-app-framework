@@ -6,12 +6,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.BatchReadRequest;
 import com.xuejiai.aaf.framework.crud.CrudIdsRequest;
@@ -21,17 +20,12 @@ public abstract class BaseCrudEntityActionAdapter<
                 E extends BaseEntity, V, C, U, P extends PageParam>
         implements EntityActionAdapter {
 
-    private final ObjectMapper objectMapper;
     private final Class<C> createType;
     private final Class<U> updateType;
     private final Class<P> pageParamType;
 
     protected BaseCrudEntityActionAdapter(
-            ObjectMapper objectMapper,
-            Class<C> createType,
-            Class<U> updateType,
-            Class<P> pageParamType) {
-        this.objectMapper = objectMapper;
+            Class<C> createType, Class<U> updateType, Class<P> pageParamType) {
         this.createType = createType;
         this.updateType = updateType;
         this.pageParamType = pageParamType;
@@ -107,15 +101,15 @@ public abstract class BaseCrudEntityActionAdapter<
     }
 
     protected P toPageParam(Map<String, Object> params) {
-        return objectMapper.convertValue(params, pageParamType);
+        return JsonUtils.convertValue(params, pageParamType);
     }
 
     protected C toCreate(Map<String, Object> params) {
-        return objectMapper.convertValue(payload(params), createType);
+        return JsonUtils.convertValue(payload(params), createType);
     }
 
     protected U toUpdate(Map<String, Object> params) {
-        return objectMapper.convertValue(payloadWithoutId(params), updateType);
+        return JsonUtils.convertValue(payloadWithoutId(params), updateType);
     }
 
     private Object payload(Map<String, Object> params) {

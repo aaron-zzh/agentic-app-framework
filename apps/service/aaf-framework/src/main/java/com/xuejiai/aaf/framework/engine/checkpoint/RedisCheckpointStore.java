@@ -8,7 +8,7 @@ import java.util.Optional;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,12 +26,11 @@ public class RedisCheckpointStore implements CheckpointStore {
     private static final String KEY_PREFIX = "checkpoint:";
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
 
     @Override
     public void save(CheckpointEntry entry) {
         try {
-            var json = objectMapper.writeValueAsString(entry);
+            var json = JsonUtils.toJsonString(entry);
             var key = KEY_PREFIX + entry.ownerId();
             redisTemplate.opsForHash().put(key, entry.id(), json);
             // 设置 TTL
@@ -82,7 +81,7 @@ public class RedisCheckpointStore implements CheckpointStore {
 
     private Optional<CheckpointEntry> deserialize(String json) {
         try {
-            return Optional.of(objectMapper.readValue(json, CheckpointEntry.class));
+            return Optional.of(JsonUtils.parseObject(json, CheckpointEntry.class));
         } catch (Exception e) {
             log.warn("Checkpoint 反序列化失败", e);
             return Optional.empty();

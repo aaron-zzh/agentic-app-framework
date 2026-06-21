@@ -53,6 +53,12 @@ interface ChatterToolbarProps {
   toolbar?: ReactNode
   /** dialog 模式下拖拽 props，挂到 toolbar 根 div 实现拖拽浮窗 */
   dragProps?: React.HTMLAttributes<HTMLDivElement>
+  /**
+   * 当前布局支持的非 dialog 模式（按钮是否显示）。
+   * 未指定时默认 panel/page 都可用——保持现有行为；
+   * 公开页等没有 panel-slot/page-slot 的布局应明确传入空数组或子集。
+   */
+  availableModes?: ("panel" | "page")[]
 }
 
 const FALLBACK_ROLES = [
@@ -91,7 +97,8 @@ export function ChatterToolbar({
   onTargetChange,
   onNewSession,
   toolbar,
-  dragProps
+  dragProps,
+  availableModes = ["panel", "page"]
 }: ChatterToolbarProps) {
   const targets = getAvailableTargets(preset)
   const showRoleSelector = target.type === "ai"
@@ -102,6 +109,8 @@ export function ChatterToolbar({
   const isFloating = layoutOverride === null
   const isPanelMode = layoutOverride === "panel"
   const isPageMode = layoutOverride === "page"
+  const canPanel = availableModes.includes("panel")
+  const canPage = availableModes.includes("page")
   const hasVoice = preset === "ai" || preset === "kiro"
   const router = useRouter()
 
@@ -194,29 +203,33 @@ export function ChatterToolbar({
         {/* dialog 模式：嵌入侧边 + 全屏 + 关闭 */}
         {isFloating && (
           <>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="嵌入侧边"
-              onClick={() => {
-                setMode("panel")
-                setLayoutOverride("panel")
-                setOpen(true)
-              }}
-            >
-              <PanelRight className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="全屏对话"
-              onClick={() => {
-                setMode("page")
-                setOpen(true)
-              }}
-            >
-              <Maximize2 className="size-3.5" />
-            </Button>
+            {canPanel && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="嵌入侧边"
+                onClick={() => {
+                  setMode("panel")
+                  setLayoutOverride("panel")
+                  setOpen(true)
+                }}
+              >
+                <PanelRight className="size-3.5" />
+              </Button>
+            )}
+            {canPage && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="全屏对话"
+                onClick={() => {
+                  setMode("page")
+                  setOpen(true)
+                }}
+              >
+                <Maximize2 className="size-3.5" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon-sm" aria-label="关闭" onClick={() => setOpen(false)}>
               <X className="size-3.5" />
             </Button>
@@ -231,23 +244,26 @@ export function ChatterToolbar({
             </Button>
           ) : (
             <>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="全屏对话"
-                onClick={() => {
-                  setMode("page")
-                  setOpen(true)
-                }}
-              >
-                <Maximize2 className="size-3.5" />
-              </Button>
+              {canPage && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="全屏对话"
+                  onClick={() => {
+                    setMode("page")
+                    setOpen(true)
+                  }}
+                >
+                  <Maximize2 className="size-3.5" />
+                </Button>
+              )}
               {isPanelMode && (
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label="切换为浮动"
                   onClick={() => {
+                    setMode("dialog")
                     setLayoutOverride(null)
                     setOpen(false)
                   }}

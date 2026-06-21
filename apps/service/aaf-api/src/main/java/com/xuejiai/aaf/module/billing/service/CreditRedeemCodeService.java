@@ -11,6 +11,9 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.MessageRequest;
+import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.billing.domain.CreditRedeemCode;
 import com.xuejiai.aaf.module.billing.repository.CreditRedeemCodeRepository;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodeCreateDTO;
@@ -18,8 +21,10 @@ import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodePageParam;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodeVO;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-/** 积分兑换码 CRUD 服务。 */
+/** 兑换码 CRUD 服务（支持积分码与会员码）。 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -33,6 +38,8 @@ public class CreditRedeemCodeService
 
     private final CreditRedeemCodeRepository redeemCodeRepository;
     private final CreditService creditService;
+    private final SubscriptionService subscriptionService;
+    private final MessageService messageService;
 
     @Override
     protected JpaRepository<CreditRedeemCode, Long> getRepository() {
@@ -51,6 +58,8 @@ public class CreditRedeemCodeService
                 e.getCodePrefix(),
                 e.getCreditAmount(),
                 e.getBatchType(),
+                e.getType(),
+                e.getPlanId(),
                 e.getStatus(),
                 e.getExpiresAt(),
                 e.getRedeemedByUserId(),
@@ -66,9 +75,10 @@ public class CreditRedeemCodeService
         code.setCodeHash(CreditRedeemSecurityUtil.sha256(rawCode));
         code.setCodePrefix(rawCode.substring(0, 10) + "...");
         code.setCreditAmount(dto.creditAmount());
+        code.setBatchType(dto.batchType() != null ? dto.batchType() : "REWARD");
+        code.setType(dto.type() != null ? dto.type() : "CREDIT");
+        code.setPlanId(dto.planId());
         code.setExpiresAt(dto.expiresAt());
-        code.setRemark(dto.remark());
-        // rawCode 存到 remark 临时字段返回给调用方（仅创建时可见）
         code.setRemark(dto.remark());
         return code;
     }
@@ -82,18 +92,23 @@ public class CreditRedeemCodeService
 
     @Override
     protected String entityName() {
-        return "积分兑换码";
+        return "兑换码";
     }
 
     /** 创建兑换码并返回明文（仅此时可见）。 */
     @Transactional
     public String createAndReturnRawCode(CreditRedeemCodeCreateDTO dto) {
+        if ("MEMBERSHIP".equals(dto.type()) && dto.planId() == null) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "会员码必须指定套餐 planId");
+        }
         var rawCode = CreditRedeemSecurityUtil.randomSecret("CRED-", 24);
         var code = new CreditRedeemCode();
         code.setCodeHash(CreditRedeemSecurityUtil.sha256(rawCode));
         code.setCodePrefix(rawCode.substring(0, 10) + "...");
         code.setCreditAmount(dto.creditAmount());
         code.setBatchType(dto.batchType() != null ? dto.batchType() : "REWARD");
+        code.setType(dto.type() != null ? dto.type() : "CREDIT");
+        code.setPlanId(dto.planId());
         code.setExpiresAt(dto.expiresAt());
         code.setRemark(dto.remark());
         redeemCodeRepository.save(code);
@@ -113,8 +128,12 @@ public class CreditRedeemCodeService
         return results;
     }
 
-    /** 用户兑换积分码。 */
+    /** 用户兑换码（积分码或会员码）。 */
     @Transactional
+    @com.xuejiai.aaf.framework.logging.OperationLog(
+            module = "兑换码",
+            type = com.xuejiai.aaf.framework.logging.OperationType.OTHER,
+            description = "兑换码兑换")
     public long redeem(Long userId, String rawCode) {
         var code =
                 redeemCodeRepository
@@ -133,6 +152,20 @@ public class CreditRedeemCodeService
         code.setStatus("REDEEMED");
         code.setRedeemedByUserId(userId);
         code.setRedeemedAt(LocalDateTime.now());
+
+        if ("MEMBERSHIP".equals(code.getType())) {
+            subscriptionService.activateSubscription(userId, code.getPlanId(), null, false);
+            notifyDingtalk(
+                    "会员兑换",
+                    "**会员兑换** \n\n> 用户ID："
+                            + userId
+                            + "  \n> 兑换码："
+                            + code.getCodePrefix()
+                            + "  \n> 时间："
+                            + code.getRedeemedAt());
+            return 0L;
+        }
+
         creditService.earnBatch(
                 userId,
                 code.getCreditAmount(),
@@ -140,6 +173,27 @@ public class CreditRedeemCodeService
                 "REDEEM_CODE",
                 code.getCodePrefix(),
                 null);
+        notifyDingtalk(
+                "积分兑换",
+                "**积分兑换** \n\n> 用户ID："
+                        + userId
+                        + "  \n> 兑换码："
+                        + code.getCodePrefix()
+                        + "  \n> 积分："
+                        + code.getCreditAmount()
+                        + "  \n> 时间："
+                        + code.getRedeemedAt());
         return code.getCreditAmount();
+    }
+
+    /** 推送钉钉群通知（静默失败，不影响兑换流程） */
+    private void notifyDingtalk(String subject, String content) {
+        try {
+            messageService.send(
+                    MessageRequest.direct(
+                            MessageChannel.DINGTALK, subject, content, java.util.List.of("all")));
+        } catch (Exception e) {
+            log.warn("钉钉通知发送失败: subject={}", subject, e);
+        }
     }
 }

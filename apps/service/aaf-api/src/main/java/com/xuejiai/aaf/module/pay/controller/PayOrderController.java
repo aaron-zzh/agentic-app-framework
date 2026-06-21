@@ -9,6 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.engine.settlement.channel.AlipayChannelAdapter;
+import com.xuejiai.aaf.framework.engine.settlement.channel.WxPayChannelAdapter;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
@@ -36,9 +38,9 @@ public class PayOrderController {
     private final BizOrderService bizOrderService;
     private final PayNotifyService payNotifyService;
     private final OperatorContext operatorContext;
-
-    /** bizOrderType → handler，启动时自动注册所有 PaySuccessHandler Bean */
     private final Map<String, PaySuccessHandler> handlers;
+    private final WxPayChannelAdapter wxPayAdapter;
+    private final AlipayChannelAdapter alipayAdapter;
 
     public PayOrderController(
             PayOrderService payOrderService,
@@ -46,7 +48,9 @@ public class PayOrderController {
             BizOrderService bizOrderService,
             PayNotifyService payNotifyService,
             OperatorContext operatorContext,
-            List<PaySuccessHandler> handlerList) {
+            List<PaySuccessHandler> handlerList,
+            java.util.Optional<WxPayChannelAdapter> wxPayAdapter,
+            java.util.Optional<AlipayChannelAdapter> alipayAdapter) {
         this.payOrderService = payOrderService;
         this.rechargeService = rechargeService;
         this.bizOrderService = bizOrderService;
@@ -57,6 +61,8 @@ public class PayOrderController {
                         .collect(
                                 Collectors.toMap(
                                         PaySuccessHandler::bizOrderType, Function.identity()));
+        this.wxPayAdapter = wxPayAdapter.orElse(null);
+        this.alipayAdapter = alipayAdapter.orElse(null);
         log.info("PaySuccessHandler 注册完成: {}", this.handlers.keySet());
     }
 
@@ -92,6 +98,74 @@ public class PayOrderController {
     @GetMapping("/{id}")
     public Result<PayOrderVO> getById(@PathVariable Long id) {
         return Result.success(payOrderService.getById(id));
+    }
+
+    /**
+     * 微信支付异步回调（带验签）。
+     *
+     * <p>微信会推送到此端点，须校验签名后才能标记支付成功。 配置：在微信商户平台填写 notifyUrl =
+     * https://your-domain/api/pay/orders/notify/wx
+     */
+    @Operation(summary = "微信支付回调")
+    @PostMapping("/notify/wx")
+    public org.springframework.http.ResponseEntity<Map<String, String>> notifyWx(
+            @RequestBody String body,
+            @RequestHeader(value = "Wechatpay-Timestamp", required = false) String timestamp,
+            @RequestHeader(value = "Wechatpay-Nonce", required = false) String nonce,
+            @RequestHeader(value = "Wechatpay-Signature", required = false) String signature,
+            @RequestHeader(value = "Wechatpay-Serial", required = false) String serial) {
+        if (wxPayAdapter == null) {
+            return org.springframework.http.ResponseEntity.status(500)
+                    .body(Map.of("code", "FAIL", "message", "微信支付未配置"));
+        }
+        try {
+            var header = new com.github.binarywang.wxpay.bean.notify.SignatureHeader();
+            header.setTimeStamp(timestamp);
+            header.setNonce(nonce);
+            header.setSignature(signature);
+            header.setSerial(serial);
+            var notifyResult = wxPayAdapter.parseOrderNotify(body, header);
+            var decryptResult = notifyResult.getResult();
+            if ("SUCCESS".equals(decryptResult.getTradeState())) {
+                var payOrderId =
+                        payOrderService.handleWxNotify(
+                                decryptResult.getOutTradeNo(), decryptResult.getTransactionId());
+                if (payOrderId != null) {
+                    payNotifyService.onPaySuccess(payOrderId);
+                }
+            }
+            return org.springframework.http.ResponseEntity.ok(
+                    Map.of("code", "SUCCESS", "message", "成功"));
+        } catch (Exception e) {
+            log.error("微信回调处理失败", e);
+            return org.springframework.http.ResponseEntity.status(500)
+                    .body(Map.of("code", "FAIL", "message", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "支付宝支付回调")
+    @PostMapping("/notify/alipay")
+    public String notifyAlipay(@RequestParam Map<String, String> params) {
+        if (alipayAdapter == null) return "fail";
+        try {
+            if (!alipayAdapter.verifyNotify(params)) {
+                log.warn("支付宝回调验签失败");
+                return "fail";
+            }
+            if ("TRADE_SUCCESS".equals(params.get("trade_status"))
+                    || "TRADE_FINISHED".equals(params.get("trade_status"))) {
+                var payOrderId =
+                        payOrderService.handleAlipayNotify(
+                                params.get("out_trade_no"), params.get("trade_no"));
+                if (payOrderId != null) {
+                    payNotifyService.onPaySuccess(payOrderId);
+                }
+            }
+            return "success";
+        } catch (Exception e) {
+            log.error("支付宝回调处理失败", e);
+            return "fail";
+        }
     }
 
     private Long ownerId(Long fallbackUserId) {

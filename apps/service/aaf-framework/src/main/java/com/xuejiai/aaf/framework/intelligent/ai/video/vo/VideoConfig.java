@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.ai.video.vo;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -22,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * @param maxReferenceVideos 最多参考视频数量（seedance 专属），null 表示不支持
  * @param maxReferenceAudios 最多参考音频数量（seedance 专属），null 表示不支持
  * @param modes 支持的生成模式列表，如 ["t2v","i2v","r2v","video-edit"]
+ * @param pricing 分级价格（按分辨率），null 表示用 model_price 统一计费
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record VideoConfig(
@@ -37,7 +39,12 @@ public record VideoConfig(
         Integer maxReferenceImages,
         Integer maxReferenceVideos,
         Integer maxReferenceAudios,
-        List<String> modes) {
+        List<String> modes,
+        List<PricingTier> pricing) {
+
+    /** 按分辨率的单价配置。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PricingTier(String resolution, BigDecimal pricePerSecond) {}
 
     public boolean supportsSeed() {
         return Boolean.TRUE.equals(seed);

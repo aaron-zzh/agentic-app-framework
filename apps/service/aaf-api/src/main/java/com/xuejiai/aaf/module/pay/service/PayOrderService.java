@@ -9,11 +9,14 @@ import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
+import com.xuejiai.aaf.framework.engine.settlement.channel.BrokerageBalanceChannelAdapter;
+import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
 import com.xuejiai.aaf.module.pay.domain.PayOrder;
 import com.xuejiai.aaf.module.pay.repository.PayOrderRepository;
 import com.xuejiai.aaf.module.pay.vo.PayNotifyDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
+import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,11 @@ public class PayOrderService {
 
     private final PayOrderRepository payOrderRepository;
     private final SettlementEngine settlementEngine;
+
+    @org.springframework.context.annotation.Lazy
+    private final BrokerageUserRepository brokerageUserRepository;
+
+    private final UserRepository userRepository;
 
     /** 创建支付单并发起支付 */
     @Transactional
@@ -40,6 +48,11 @@ public class PayOrderService {
         order.setExpireTime(LocalDateTime.now().plusMinutes(30));
         payOrderRepository.save(order);
 
+        // 余额支付：先扣余额，再标记成功
+        if (BrokerageBalanceChannelAdapter.CHANNEL_CODE.equals(dto.channelCode())) {
+            return handleBalancePayment(order, dto);
+        }
+
         // 调用结算引擎发起支付
         var result =
                 settlementEngine.charge(
@@ -51,16 +64,79 @@ public class PayOrderService {
                                 null));
 
         if (result.success()) {
-            // 模拟支付等同步成功场景：直接标记支付成功
             order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
             order.setChannelOrderNo(result.channelOrderNo());
             order.setSuccessTime(LocalDateTime.now());
+        }
+        if (result.codeUrl() != null) {
+            order.setCodeUrl(result.codeUrl());
         }
         payOrderRepository.save(order);
         return toVO(order);
     }
 
-    /** 支付回调处理，返回支付单 ID（供上层触发业务逻辑） */
+    /** 余额支付：原子扣减 brokerage_user.balance，成功后标记支付单 */
+    private PayOrderVO handleBalancePayment(PayOrder order, PayOrderCreateDTO dto) {
+        // 通过 user_id 找到 contact_id
+        var user = userRepository.findById(dto.userId()).orElse(null);
+        if (user == null || user.getContactId() == null) {
+            order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
+            payOrderRepository.save(order);
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "用户未关联联系人，无法使用余额支付");
+        }
+        // 校验并原子扣减余额
+        var bu = brokerageUserRepository.findByContactId(user.getContactId()).orElse(null);
+        if (bu == null || bu.getBalance() < dto.amount()) {
+            order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
+            payOrderRepository.save(order);
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST,
+                    "分销余额不足，当前余额: " + (bu == null ? 0 : bu.getBalance()) + " 分");
+        }
+        int updated = brokerageUserRepository.reduceBalance(user.getContactId(), dto.amount());
+        if (updated == 0) {
+            order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
+            payOrderRepository.save(order);
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "余额扣减失败，请重试");
+        }
+        // 标记支付成功
+        order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
+        order.setChannelOrderNo("BAL_" + dto.merchantOrderNo());
+        order.setSuccessTime(LocalDateTime.now());
+        payOrderRepository.save(order);
+        return toVO(order);
+    }
+
+    /** 微信真实回调处理（已验签），返回 payOrderId */
+    @Transactional
+    public Long handleWxNotify(String outTradeNo, String channelOrderNo) {
+        return markSuccess(outTradeNo, channelOrderNo);
+    }
+
+    /** 支付宝真实回调处理（已验签），返回 payOrderId */
+    @Transactional
+    public Long handleAlipayNotify(String outTradeNo, String tradeNo) {
+        return markSuccess(outTradeNo, tradeNo);
+    }
+
+    private Long markSuccess(String merchantOrderNo, String channelOrderNo) {
+        var order = payOrderRepository.findByMerchantOrderNo(merchantOrderNo).orElse(null);
+        if (order == null) {
+            log.warn("支付回调：找不到支付单, merchantOrderNo={}", merchantOrderNo);
+            return null;
+        }
+        if (order.getStatus().equals(PayOrderStatusEnum.SUCCESS.getCode())) {
+            log.info("支付单已成功，忽略重复回调: merchantOrderNo={}", merchantOrderNo);
+            return order.getId();
+        }
+        order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
+        order.setChannelOrderNo(channelOrderNo);
+        order.setSuccessTime(LocalDateTime.now());
+        payOrderRepository.save(order);
+        return order.getId();
+    }
+
+    /** 支付回调处理（Mock 渠道，返回支付单 ID） */
     @Transactional
     public Long handleNotify(PayNotifyDTO dto) {
         var order =
@@ -125,6 +201,7 @@ public class PayOrderService {
                 o.getExpireTime(),
                 o.getSuccessTime(),
                 o.getRefundAmount(),
-                o.getCreateTime());
+                o.getCreateTime(),
+                o.getCodeUrl());
     }
 }

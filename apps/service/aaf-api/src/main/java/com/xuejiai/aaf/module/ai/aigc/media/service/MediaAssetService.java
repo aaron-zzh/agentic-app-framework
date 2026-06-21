@@ -28,6 +28,7 @@ import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaAssetUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaAssetVO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.RegenerateRequest;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
+import com.xuejiai.aaf.module.system.file.service.FileRecordService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +49,7 @@ public class MediaAssetService {
     private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
     private final FileService fileService;
+    private final FileRecordService fileRecordService;
 
     /**
      * 分页查询素材。
@@ -180,12 +182,13 @@ public class MediaAssetService {
         assetRepository.delete(asset);
     }
 
-    /** 静默删除文件，失败不影响主流程 */
+    /** 静默删除文件（物理存储 + sys_file 记录），失败不影响主流程 */
     private void deleteFileQuietly(String url) {
         if (url == null || url.isBlank()) return;
         try {
             var key = url.replaceFirst("^https?://[^/]+/", "");
             fileService.delete(key);
+            fileRecordService.deleteByKey(key);
         } catch (Exception e) {
             log.warn("删除素材文件失败，忽略: url={}, err={}", url, e.getMessage());
         }

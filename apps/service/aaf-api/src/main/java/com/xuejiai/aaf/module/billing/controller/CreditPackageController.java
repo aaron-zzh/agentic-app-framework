@@ -63,7 +63,8 @@ public class CreditPackageController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/purchase")
     @Transactional
-    public Result<Map<String, String>> purchase(@RequestBody Map<String, String> body) {
+    public Result<com.xuejiai.aaf.module.pay.vo.PayOrderVO> purchase(
+            @RequestBody Map<String, String> body) {
         String packageIdStr = body.get("packageId");
         if (packageIdStr == null || packageIdStr.isBlank()) {
             return Result.error(400, "packageId 不能为空");
@@ -79,7 +80,7 @@ public class CreditPackageController {
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "套餐不存在"));
 
-        String channelCode = "MOCK";
+        String channelCode = body.getOrDefault("channelCode", "MOCK");
 
         // 创建业务订单，通过 BizOrderItem 携带套餐 ID 供 handler 使用
         var bizOrder =
@@ -111,11 +112,11 @@ public class CreditPackageController {
 
         bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
 
-        // MOCK 渠道：同步触发支付成功回调（积分发放由 CreditRechargePayHandler 处理）
+        // 同步成功（MOCK/余额支付）：立即触发通知
         if (payOrderService.isSuccess(payOrder.id())) {
             payNotifyService.onPaySuccess(payOrder.id());
         }
 
-        return Result.success(Map.of("orderNo", bizOrder.orderNo()));
+        return Result.success(payOrder);
     }
 }

@@ -29,19 +29,19 @@ describe("dashboardApi", () => {
   })
 
   it("get 应请求 GET /dashboards/:id", async () => {
-    mockRequest.mockResolvedValueOnce({ id: "d1", name: "test", layout: [] })
+    mockRequest.mockResolvedValueOnce({ id: "d1", name: "test", widgets: [] })
     await dashboardApi.get("d1")
     expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/d1")
   })
 
   it("getDefault 应请求 GET /dashboards/default", async () => {
-    mockRequest.mockResolvedValueOnce({ id: "default", name: "默认", layout: [] })
+    mockRequest.mockResolvedValueOnce({ id: "default", name: "默认", widgets: [] })
     await dashboardApi.getDefault()
     expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/default")
   })
 
   it("create 应发送 POST /dashboards", async () => {
-    mockRequest.mockResolvedValueOnce({ id: "new", name: "新仪表盘", layout: [] })
+    mockRequest.mockResolvedValueOnce({ id: "new", name: "新仪表盘", widgets: [] })
     await dashboardApi.create({ name: "新仪表盘", shared: true })
     expect(mockRequest).toHaveBeenCalledWith("/system/dashboards", {
       method: "POST",

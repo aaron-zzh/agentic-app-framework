@@ -39,9 +39,8 @@ public class TokenUsageRecord {
     /** 会话 ID（FK → conversation.id，允许为空） */
     @Column private Long conversationId;
 
-    /** 模型 DB 主键（FK → ai_model.id） */
-    @Column(nullable = false)
-    private Long modelId;
+    /** 模型 DB 主键（FK → ai_model.id）；AgentScope 等链路无法可靠传递 modelId 时允许为空 */
+    @Column private Long modelId;
 
     /** 输入 Token 数 */
     @Column(nullable = false)

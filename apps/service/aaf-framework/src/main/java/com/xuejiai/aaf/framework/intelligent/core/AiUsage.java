@@ -66,6 +66,12 @@ public interface AiUsage {
         return v instanceof String s ? s : null;
     }
 
+    /** 本次调用的单元数（按张/按次等），默认 1。 */
+    default int count() {
+        Object v = standardUsage().get("count");
+        return v instanceof Number n ? Math.max(1, n.intValue()) : 1;
+    }
+
     /** 空用量（结果类未实现 AiUsage 时的兜底）。 */
     static AiUsage empty() {
         return new AiUsage() {};

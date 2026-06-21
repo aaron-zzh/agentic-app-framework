@@ -1,19 +1,19 @@
 /**
- * Upload——文件上传组件（拖拽 + 点击 + 预览 + 图像压缩 + OSS 直传）
+ * Upload——文件上传组件（拖拽 + 点击 + 预览 + 图像压缩 + 后端直传）
  * @author AaronZZH & Kiro
  *
- * 图像文件自动走 useImageUpload（压缩 + 预签名上传）
- * 非图像文件走普通上传
+ * 图像文件自动走 useFileUpload（压缩 + 后端直传）
+ * 非图像文件直接走 useFileUpload 上传（不压缩）
  */
 
 "use client"
 
 import { useCallback, useRef, useState } from "react"
 import {
-  type ImageUploadOptions,
+  type FileUploadOptions,
   type UploadResult,
-  useImageUpload
-} from "@/lib/hooks/use-image-upload"
+  useFileUpload
+} from "@/lib/hooks/use-file-upload"
 
 export interface UploadFile {
   file: File
@@ -48,7 +48,7 @@ interface UploadProps {
   /** 自动上传（选择后立即上传），默认 true */
   autoUpload?: boolean
   /** 图像上传配置 */
-  imageOptions?: ImageUploadOptions
+  imageOptions?: FileUploadOptions
 }
 
 /** 文件上传组件 */
@@ -68,14 +68,7 @@ export function Upload({
 }: UploadProps) {
   const [dragActive, setDragActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const {
-    upload: uploadImage,
-    uploading,
-    progress
-  } = useImageUpload({
-    usePresign: true,
-    ...imageOptions
-  })
+  const { upload: uploadImage, uploading, progress } = useFileUpload(imageOptions)
 
   const processFiles = useCallback(
     async (fileList: FileList) => {
@@ -240,15 +233,14 @@ export function UploadAvatar({
   value?: string
   onChange?: (url: string, file: File) => void
   disabled?: boolean
-  imageOptions?: ImageUploadOptions
+  imageOptions?: FileUploadOptions
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState(value)
-  const { upload, uploading } = useImageUpload({
+  const { upload, uploading } = useFileUpload({
     maxWidth: 512,
     maxHeight: 512,
     quality: 0.85,
-    usePresign: true,
     ...imageOptions
   })
 

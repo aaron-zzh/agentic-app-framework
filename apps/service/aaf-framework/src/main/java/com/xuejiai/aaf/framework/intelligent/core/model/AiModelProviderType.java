@@ -20,7 +20,8 @@ public enum AiModelProviderType implements ArrayValuable<String> {
     OLLAMA("OLLAMA", "Ollama"),
     DASHSCOPE("DASHSCOPE", "阿里云百炼"),
     VOLCENGINE("VOLCENGINE", "火山引擎方舟"),
-    MIDJOURNEY("MIDJOURNEY", "Midjourney（mj-proxy 兼容代理）");
+    MIDJOURNEY("MIDJOURNEY", "Midjourney（mj-proxy 兼容代理）"),
+    MESHY("MESHY", "Meshy（3D 模型生成）");
 
     private final String code;
     private final String description;

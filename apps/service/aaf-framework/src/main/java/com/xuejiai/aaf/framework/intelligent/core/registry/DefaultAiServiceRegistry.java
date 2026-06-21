@@ -12,6 +12,9 @@ import com.xuejiai.aaf.framework.intelligent.ai.music.decorator.MusicServiceDeco
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.OcrService;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.OcrServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.decorator.OcrServiceDecorator;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechServiceFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.decorator.SpeechServiceDecorator;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoServiceFactory;
 import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
@@ -37,6 +40,7 @@ public class DefaultAiServiceRegistry implements AiServiceRegistry {
     private final VideoServiceFactory videoServiceFactory;
     private final OcrServiceFactory ocrServiceFactory;
     private final MusicServiceFactory musicServiceFactory;
+    private final SpeechServiceFactory speechServiceFactory;
     private final AiCreditGuard creditGuard;
     private final OperatorContext operatorContext;
 
@@ -62,6 +66,10 @@ public class DefaultAiServiceRegistry implements AiServiceRegistry {
         if (type == MusicGenerationService.class) {
             var raw = musicServiceFactory.getService(model);
             return (T) new MusicServiceDecorator(raw, creditGuard, operatorContext);
+        }
+        if (type == SpeechService.class) {
+            var raw = speechServiceFactory.getService(model);
+            return (T) new SpeechServiceDecorator(raw, creditGuard, operatorContext);
         }
 
         throw new IllegalArgumentException("AiServiceRegistry 未注册能力类型: " + type.getSimpleName());

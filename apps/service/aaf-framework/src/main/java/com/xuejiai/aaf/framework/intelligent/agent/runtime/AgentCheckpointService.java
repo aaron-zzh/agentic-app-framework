@@ -12,7 +12,7 @@ import java.util.Map;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +40,6 @@ public class AgentCheckpointService {
     private static final long BASE_DELAY_MS = 1000;
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
 
     /**
      * 保存检查点。
@@ -52,7 +51,7 @@ public class AgentCheckpointService {
     public void saveCheckpoint(String executionId, int step, ExecutionState state) {
         try {
             state.setCurrentStep(step);
-            var json = objectMapper.writeValueAsString(state);
+            var json = JsonUtils.toJsonString(state);
             redisTemplate.opsForValue().set(KEY_PREFIX + executionId, json, CHECKPOINT_TTL);
         } catch (Exception e) {
             log.warn("检查点保存失败 [{}]: {}", executionId, e.getMessage());
@@ -69,7 +68,7 @@ public class AgentCheckpointService {
         try {
             var json = redisTemplate.opsForValue().get(KEY_PREFIX + executionId);
             if (json != null) {
-                return objectMapper.readValue(json, ExecutionState.class);
+                return JsonUtils.parseObject(json, ExecutionState.class);
             }
         } catch (Exception e) {
             log.warn("检查点恢复失败 [{}]: {}", executionId, e.getMessage());

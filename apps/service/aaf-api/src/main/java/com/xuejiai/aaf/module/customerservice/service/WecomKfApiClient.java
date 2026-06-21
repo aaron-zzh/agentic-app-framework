@@ -44,7 +44,9 @@ public class WecomKfApiClient {
                                 properties.getCorpId(),
                                 properties.getAppSecret())
                         .retrieve()
-                        .body(Map.class);
+                        .body(
+                                new org.springframework.core.ParameterizedTypeReference<
+                                        Map<String, Object>>() {});
         if (result != null && (int) result.getOrDefault("errcode", -1) == 0) {
             accessToken = (String) result.get("access_token");
             int expiresIn = (int) result.get("expires_in");
@@ -85,6 +87,8 @@ public class WecomKfApiClient {
                 .uri("/cgi-bin/kf/send_msg?access_token={token}", getAccessToken())
                 .body(request)
                 .retrieve()
-                .body(Map.class);
+                .body(
+                        new org.springframework.core.ParameterizedTypeReference<
+                                Map<String, Object>>() {});
     }
 }

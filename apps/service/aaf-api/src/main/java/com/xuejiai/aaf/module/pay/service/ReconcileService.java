@@ -11,12 +11,10 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.common.enums.pay.ReconcileDiffTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.ReconcileStatusEnum;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.settlement.PayChannelAdapter;
 import com.xuejiai.aaf.module.pay.domain.PayOrder;
 import com.xuejiai.aaf.module.pay.domain.ReconcileRecord;
@@ -37,7 +35,6 @@ public class ReconcileService {
     private final List<PayChannelAdapter> adapters;
     private final PayOrderRepository payOrderRepository;
     private final ReconcileRecordRepository reconcileRecordRepository;
-    private final ObjectMapper objectMapper;
 
     /** 执行指定日期和渠道的对账 */
     @Transactional
@@ -127,8 +124,8 @@ public class ReconcileService {
         record.setTotalRefund(0L);
         record.setTotalFee(0L);
         try {
-            record.setDiffDetails(diffs.isEmpty() ? null : objectMapper.writeValueAsString(diffs));
-        } catch (JsonProcessingException e) {
+            record.setDiffDetails(diffs.isEmpty() ? null : JsonUtils.toJsonString(diffs));
+        } catch (Exception e) {
             record.setDiffDetails(diffs.toString());
         }
         reconcileRecordRepository.save(record);

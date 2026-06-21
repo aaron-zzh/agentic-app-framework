@@ -12,11 +12,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageDirectionEnum;
 import com.xuejiai.aaf.common.enums.channel.MessageTypeEnum;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.channel.config.BotChannelProperties;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.service.ChannelAdapter;
@@ -39,7 +38,6 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
 
     private final BotChannelProperties properties;
     private final RestClient.Builder restClientBuilder;
-    private final ObjectMapper objectMapper;
 
     @Override
     public ChannelTypeEnum channelType() {
@@ -49,7 +47,7 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
     @Override
     public UnifiedMessage receive(String rawPayload) {
         try {
-            var root = objectMapper.readTree(rawPayload);
+            var root = JsonUtils.readTree(rawPayload);
 
             // 飞书 URL 验证（challenge 机制）
             if (root.has("challenge")) {
@@ -79,7 +77,7 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
 
             // 解析消息内容
             var contentStr = msgNode.path("content").asText("{}");
-            var contentNode = objectMapper.readTree(contentStr);
+            var contentNode = JsonUtils.readTree(contentStr);
             var text = contentNode.path("text").asText("").strip();
 
             // 去掉 @机器人 的前缀

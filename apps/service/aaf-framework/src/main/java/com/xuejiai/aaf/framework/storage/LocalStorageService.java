@@ -80,6 +80,12 @@ public class LocalStorageService implements StorageService {
         throw new UnsupportedOperationException("本地存储不支持预签名上传");
     }
 
+    @Override
+    public String getPresignedDownloadUrl(String key, Duration expiry) {
+        // 本地存储无签名概念，直接返回普通 URL；调用方需保证该 URL 公网可访问
+        return getUrl(key);
+    }
+
     private String extractExtension(String filename) {
         var dot = filename.lastIndexOf('.');
         return dot >= 0 ? filename.substring(dot) : "";

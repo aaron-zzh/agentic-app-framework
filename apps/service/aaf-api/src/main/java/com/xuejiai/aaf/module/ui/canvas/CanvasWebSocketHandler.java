@@ -13,7 +13,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 public class CanvasWebSocketHandler extends BinaryWebSocketHandler {
 
     private static final String ROOM_ATTR = "room";
-
-    private final ObjectMapper objectMapper;
 
     /** 房间 → 连接集合 */
     private final ConcurrentHashMap<String, Set<WebSocketSession>> rooms =
@@ -109,7 +107,7 @@ public class CanvasWebSocketHandler extends BinaryWebSocketHandler {
 
         try {
             var json =
-                    objectMapper.writeValueAsString(
+                    JsonUtils.toJsonString(
                             java.util.Map.of("type", "presence", "count", members.size()));
             var msg = new TextMessage(json);
             for (var peer : members) {

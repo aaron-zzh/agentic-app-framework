@@ -9,11 +9,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.system.log.event.EntityChangeEvent;
 import com.xuejiai.aaf.module.system.workflow.domain.AutomationLog;
 import com.xuejiai.aaf.module.system.workflow.domain.AutomationRule;
@@ -26,6 +24,7 @@ import com.xuejiai.aaf.module.system.workflow.vo.AutomationRuleVO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 自动化规则服务：规则 CRUD + 触发执行 + 日志记录。
@@ -40,7 +39,6 @@ public class AutomationService {
     private final AutomationRuleRepository ruleRepository;
     private final AutomationLogRepository logRepository;
     private final WorkflowService workflowService;
-    private final ObjectMapper objectMapper;
 
     // ========== 规则 CRUD ==========
 
@@ -163,7 +161,7 @@ public class AutomationService {
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> parseActions(String actionsJson) {
         try {
-            return objectMapper.readValue(actionsJson, new TypeReference<>() {});
+            return JsonUtils.parseObject(actionsJson, new TypeReference<>() {});
         } catch (Exception e) {
             return List.of();
         }

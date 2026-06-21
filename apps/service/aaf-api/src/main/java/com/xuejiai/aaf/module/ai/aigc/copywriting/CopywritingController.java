@@ -6,8 +6,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +23,6 @@ import reactor.core.publisher.Flux;
 public class CopywritingController {
 
     private final CopywritingService copywritingService;
-    private final ObjectMapper objectMapper;
 
     public record GenerateRequest(
             @NotBlank String topic,
@@ -83,8 +81,8 @@ public class CopywritingController {
 
     private String toJson(String token) {
         try {
-            return objectMapper.writeValueAsString(token);
-        } catch (JsonProcessingException e) {
+            return JsonUtils.toJsonString(token);
+        } catch (Exception e) {
             return "\"\"";
         }
     }

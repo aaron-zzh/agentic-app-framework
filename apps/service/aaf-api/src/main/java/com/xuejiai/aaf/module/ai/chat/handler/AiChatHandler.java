@@ -11,8 +11,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
@@ -47,7 +46,6 @@ public class AiChatHandler {
     private final ChatService chatService;
     private final AgentRunEventStreamService agentRunEventStreamService;
     private final AgentRunEventPublisher agentRunEventPublisher;
-    private final ObjectMapper objectMapper;
 
     /**
      * 处理 AI 对话请求
@@ -132,7 +130,7 @@ public class AiChatHandler {
 
     private void sendErrorAndComplete(SseEmitter emitter, String runId, Exception e) {
         try {
-            var json = objectMapper.writeValueAsString(AgUiEvent.runError(runId, e.getMessage()));
+            var json = JsonUtils.toJsonString(AgUiEvent.runError(runId, e.getMessage()));
             emitter.send(SseEmitter.event().data(json));
         } catch (Exception ignored) {
         }

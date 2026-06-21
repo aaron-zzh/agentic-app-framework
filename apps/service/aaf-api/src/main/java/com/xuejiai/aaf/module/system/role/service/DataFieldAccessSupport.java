@@ -8,15 +8,14 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.access.FieldAccessSupport;
 import com.xuejiai.aaf.module.system.auth.vo.FieldAccessVO;
 import com.xuejiai.aaf.module.system.role.domain.Permission;
 import com.xuejiai.aaf.module.system.role.repository.PermissionRepository;
 
 import lombok.RequiredArgsConstructor;
+import tools.jackson.core.type.TypeReference;
 
 /** 基于 sys_permission.field_access 的字段级权限裁剪支持。 */
 @Service
@@ -25,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 public class DataFieldAccessSupport implements FieldAccessSupport {
 
     private final PermissionRepository permissionRepository;
-    private final ObjectMapper objectMapper;
 
     @Override
     public Set<String> hiddenFields(String entitySlug, Long userId, String action) {
@@ -40,7 +38,7 @@ public class DataFieldAccessSupport implements FieldAccessSupport {
             }
             try {
                 Map<String, FieldAccessVO> parsed =
-                        objectMapper.readValue(
+                        JsonUtils.parseObject(
                                 permission.getFieldAccess(), new TypeReference<>() {});
                 parsed.forEach(
                         (field, access) ->

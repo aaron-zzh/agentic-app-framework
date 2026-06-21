@@ -30,10 +30,24 @@ public class TokenUsageEventListener {
     @Async
     @EventListener
     public void onTokenUsage(TokenUsageEvent event) {
-        if (event.userId() == null) return;
+        if (event.userId() == null) {
+            log.debug("TokenUsageEvent userId 为空，跳过结算: {}", event);
+            return;
+        }
         var model = event.modelId() != null ? configCacheManager.getAiModel(event.modelId()) : null;
         final long input = event.promptTokens();
         final long output = event.completionTokens();
+        // capability 由发布方传入（chat / vision 等规范小写值），缺省回退到 "chat"
+        final String capability = event.capability() != null ? event.capability() : "chat";
+        log.info(
+                "Chat 计费结算: userId={}, modelId={}, capability={}, promptTokens={},"
+                        + " completionTokens={}, usageId={}",
+                event.userId(),
+                event.modelId(),
+                capability,
+                input,
+                output,
+                event.usageId());
         AiUsage usage =
                 new AiUsage() {
                     @Override
@@ -41,6 +55,6 @@ public class TokenUsageEventListener {
                         return Map.of("inputTokens", input, "outputTokens", output);
                     }
                 };
-        creditGuard.settleByUsage(event.userId(), model, usage, "chat", null);
+        creditGuard.settleByUsage(event.userId(), model, usage, capability, null);
     }
 }

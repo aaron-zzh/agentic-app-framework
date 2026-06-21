@@ -4,14 +4,13 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.module.system.task.domain.ScheduledTask;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 工作流动作执行器——定时触发 Flowable 工作流实例。
@@ -92,7 +91,6 @@ import lombok.extern.slf4j.Slf4j;
 public class WorkflowActionExecutor implements ScheduledActionExecutor {
 
     private final WorkflowEngine workflowEngine;
-    private final ObjectMapper objectMapper;
 
     @Override
     public String actionType() {
@@ -103,7 +101,7 @@ public class WorkflowActionExecutor implements ScheduledActionExecutor {
     public void execute(ScheduledTask task) {
         try {
             var config =
-                    objectMapper.readValue(
+                    JsonUtils.parseObject(
                             task.getActionConfig(), new TypeReference<Map<String, Object>>() {});
 
             var processKey = (String) config.get("processKey");

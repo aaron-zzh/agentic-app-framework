@@ -11,10 +11,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
@@ -34,6 +31,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 行级数据权限服务。
@@ -57,7 +56,6 @@ public class DataAccessService
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper;
     private final DataAccessRuleCache ruleCache;
     private final PermissionVersionService versionService;
 
@@ -161,7 +159,7 @@ public class DataAccessService
         return (root, query, cb) -> {
             try {
                 var predicate =
-                        buildPredicate(objectMapper.readTree(domainJson), root, cb, userContext);
+                        buildPredicate(JsonUtils.readTree(domainJson), root, cb, userContext);
                 return predicate == null ? cb.disjunction() : predicate;
             } catch (Exception e) {
                 log.warn("解析缓存的数据权限规则失败, entitySlug={}: {}", entitySlug, e.getMessage());
@@ -215,7 +213,7 @@ public class DataAccessService
     private boolean matchesRole(DataAccessRule rule, Set<String> userRoleCodes) {
         try {
             List<String> ruleRoles =
-                    objectMapper.readValue(rule.getRoles(), new TypeReference<>() {});
+                    JsonUtils.parseObject(rule.getRoles(), new TypeReference<>() {});
             return ruleRoles.stream().anyMatch(userRoleCodes::contains);
         } catch (Exception e) {
             log.warn("解析规则 roles 失败, ruleId={}: {}", rule.getId(), e.getMessage());
@@ -238,7 +236,7 @@ public class DataAccessService
         var denyNodes = new java.util.ArrayList<JsonNode>();
         for (var rule : matchedRules) {
             try {
-                var node = objectMapper.readTree(rule.getCondition());
+                var node = JsonUtils.readTree(rule.getCondition());
                 if ("deny".equals(rule.getEffect())) {
                     denyNodes.add(node);
                 } else {
@@ -252,16 +250,16 @@ public class DataAccessService
             return "{\"deny_all\":true}";
         }
 
-        var root = objectMapper.createObjectNode();
-        var and = objectMapper.createArrayNode();
-        var or = objectMapper.createObjectNode();
-        var allow = objectMapper.createArrayNode();
+        var root = JsonUtils.createObjectNode();
+        var and = root.arrayNode();
+        var or = JsonUtils.createObjectNode();
+        var allow = or.arrayNode();
         allowNodes.forEach(allow::add);
         or.set("or", allow);
         and.add(or);
         denyNodes.forEach(
                 deny -> {
-                    var not = objectMapper.createObjectNode();
+                    var not = JsonUtils.createObjectNode();
                     not.set("not", deny);
                     and.add(not);
                 });
@@ -285,8 +283,7 @@ public class DataAccessService
             CriteriaBuilder cb,
             Map<String, Object> userContext) {
         try {
-            return buildPredicate(
-                    objectMapper.readTree(rule.getCondition()), root, cb, userContext);
+            return buildPredicate(JsonUtils.readTree(rule.getCondition()), root, cb, userContext);
         } catch (Exception e) {
             log.warn("解析规则条件失败, ruleId={}: {}", rule.getId(), e.getMessage());
             return null;

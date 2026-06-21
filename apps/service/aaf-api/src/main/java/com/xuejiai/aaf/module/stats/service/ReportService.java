@@ -45,7 +45,7 @@ public class ReportService {
                                 metric -> metric,
                                 metric ->
                                         statsService.queryTrendPoints(
-                                                metric, period, range[0], range[1])));
+                                                metric, period, range[0], range[1], null)));
     }
 
     /** CSV 导出：写入指定输出流。 */

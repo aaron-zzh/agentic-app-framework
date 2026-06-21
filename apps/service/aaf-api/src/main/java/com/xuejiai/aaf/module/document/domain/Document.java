@@ -6,15 +6,13 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 文档实体。
@@ -31,8 +29,6 @@ import lombok.Setter;
         sql =
                 "UPDATE doc_document SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Document extends BaseEntity {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Column(name = "title", nullable = false, length = 200)
     private String title;
@@ -71,8 +67,8 @@ public class Document extends BaseEntity {
     public Map<String, Object> getFrontMatter() {
         if (frontMatterJson == null || frontMatterJson.isBlank()) return Map.of();
         try {
-            return MAPPER.readValue(frontMatterJson, new TypeReference<>() {});
-        } catch (JsonProcessingException e) {
+            return JsonUtils.parseObject(frontMatterJson, new TypeReference<>() {});
+        } catch (Exception e) {
             return Map.of();
         }
     }
@@ -84,8 +80,8 @@ public class Document extends BaseEntity {
             return;
         }
         try {
-            this.frontMatterJson = MAPPER.writeValueAsString(frontMatter);
-        } catch (JsonProcessingException e) {
+            this.frontMatterJson = JsonUtils.toJsonString(frontMatter);
+        } catch (Exception e) {
             this.frontMatterJson = null;
         }
     }

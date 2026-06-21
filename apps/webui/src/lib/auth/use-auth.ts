@@ -25,6 +25,18 @@ export function useAuth() {
   const clearAuth = useAuthStore((state) => state.clearAuth)
   const qc = useQueryClient()
 
+  /** 强制刷新当前登录用户信息（GET /auth/me），把后端最新字段同步进 auth store */
+  const refreshUser = useCallback(async () => {
+    if (isMockAuthEnabled()) {
+      setUser(mockedUser)
+      return
+    }
+    const info = await authApi.me()
+    setUser({ ...info.user, roles: info.roles } as AuthUser)
+    // 顺手让 ["auth", "me"] 缓存失效，下次组件订阅时自动拿到最新
+    qc.invalidateQueries({ queryKey: ["auth", "me"] })
+  }, [qc, setUser])
+
   /** 校验当前 token 有效性，并拉取最新用户信息 */
   const checkAuth = useCallback(async () => {
     if (isMockAuthEnabled()) {
@@ -89,6 +101,7 @@ export function useAuth() {
     user,
     isChecking,
     checkAuth,
+    refreshUser,
     login,
     logout
   }

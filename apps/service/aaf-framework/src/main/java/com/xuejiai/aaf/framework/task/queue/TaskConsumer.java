@@ -61,6 +61,7 @@ public class TaskConsumer {
         if (executor != null) executor.shutdownNow();
     }
 
+    @SuppressWarnings("unchecked")
     private void pollLoop() {
         var timeout = taskProperties.getQueue().getPollTimeout();
         var consecutiveErrors = new AtomicInteger(0);

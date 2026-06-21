@@ -16,11 +16,10 @@ import com.alibaba.dashscope.aigc.multimodalconversation.OcrOptions;
 import com.alibaba.dashscope.common.MultiModalMessage;
 import com.alibaba.dashscope.common.Role;
 import com.alibaba.dashscope.utils.Constants;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonObject;
 
 import com.xuejiai.aaf.common.exception.ExceptionUtil;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.AiErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.vo.OcrRequest;
@@ -32,6 +31,7 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import io.reactivex.Flowable;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 基于百炼 DashScope SDK 的 OCR 服务实现。
@@ -48,18 +48,15 @@ public class DashScopeOcrService implements OcrService {
     }
 
     private final String apiKey;
-    private final ObjectMapper objectMapper;
     private final AiCreditGuard creditGuard;
     private final OperatorContext operatorContext;
     private final MultiModalConversation multiModalConv = new MultiModalConversation();
 
     public DashScopeOcrService(
             @Value("${spring.ai.dashscope.api-key:}") String apiKey,
-            ObjectMapper objectMapper,
             AiCreditGuard creditGuard,
             OperatorContext operatorContext) {
         this.apiKey = apiKey;
-        this.objectMapper = objectMapper;
         this.creditGuard = creditGuard;
         this.operatorContext = operatorContext;
     }
@@ -88,13 +85,18 @@ public class DashScopeOcrService implements OcrService {
             long cost =
                     Math.max(
                             1,
-                            Math.round(token * pricePerK / 1000.0 * AiCreditGuard.YUAN_TO_CREDIT * markupRate));
+                            Math.round(
+                                    token
+                                            * pricePerK
+                                            / 1000.0
+                                            * AiCreditGuard.YUAN_TO_CREDIT
+                                            * markupRate));
             log.debug(
                     "OCR 积分预估: {}x{} -> imageToken={}, pricePerK={}, markupRate={}, estimatedCost={}",
                     request.imageWidth(),
                     request.imageHeight(),
                     token,
-                    pricePerK,
+                    String.format("%.6f", pricePerK),
                     markupRate,
                     cost);
             return cost;
@@ -186,9 +188,9 @@ public class DashScopeOcrService implements OcrService {
                                                 return r;
                                             })
                                     .toList();
-                    ocrResultJson = objectMapper.writeValueAsString(simplified);
+                    ocrResultJson = JsonUtils.toJsonString(simplified);
                 } else {
-                    ocrResultJson = objectMapper.writeValueAsString(ocrResultRaw);
+                    ocrResultJson = JsonUtils.toJsonString(ocrResultRaw);
                 }
             }
 
@@ -327,7 +329,7 @@ public class DashScopeOcrService implements OcrService {
                 && request.resultSchema() != null) {
             JsonObject gsonSchema;
             try {
-                gsonSchema = toGsonObject(objectMapper.readTree(request.resultSchema()));
+                gsonSchema = toGsonObject(JsonUtils.readTree(request.resultSchema()));
             } catch (Exception e) {
                 throw ExceptionUtil.exception(AiErrorCode.OCR_RESULT_SCHEMA_INVALID);
             }
@@ -351,7 +353,7 @@ public class DashScopeOcrService implements OcrService {
 
     private JsonObject toGsonObject(JsonNode node) {
         JsonObject obj = new JsonObject();
-        node.fields().forEachRemaining(e -> obj.addProperty(e.getKey(), e.getValue().asText()));
+        node.properties().forEach(e -> obj.addProperty(e.getKey(), e.getValue().asText()));
         return obj;
     }
 

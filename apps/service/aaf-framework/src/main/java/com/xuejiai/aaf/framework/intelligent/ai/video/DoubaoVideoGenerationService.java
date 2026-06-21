@@ -11,7 +11,12 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.ImageToVideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.ReferenceToVideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.TextToVideoRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoEditApiRequest;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,47 +40,49 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
             "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/";
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ========== VideoGenerationService 标准接口适配 ==========
 
     @Override
     public String submitTextToVideo(TextToVideoRequest request) {
         var apiKey =
-                request.resolvedModel() != null ? request.resolvedModel().effectiveApiKey() : null;
+                request.getResolvedModel() != null
+                        ? request.getResolvedModel().effectiveApiKey()
+                        : null;
         var model =
-                request.resolvedModel() != null
-                        ? request.resolvedModel().getModelName()
+                request.getResolvedModel() != null
+                        ? request.getResolvedModel().getModelName()
                         : "doubao-seedance-2-0-260128";
         List<Map<String, Object>> content =
-                List.of(Map.of("type", "text", "text", request.prompt()));
-        return doSubmit(apiKey, model, content, request.ratio(), request.duration(), false);
+                List.of(Map.of("type", "text", "text", request.getPrompt()));
+        return doSubmit(apiKey, model, content, request.getRatio(), request.getDuration(), false);
     }
 
     @Override
     public String submitImageToVideo(ImageToVideoRequest request) {
-        var apiKey = resolveApiKey(request.model());
-        var model = request.model() != null ? request.model() : "doubao-seedance-2-0-260128";
+        var apiKey = resolveApiKey(request.getModel());
+        var model = request.getModel() != null ? request.getModel() : "doubao-seedance-2-0-260128";
         var content = new ArrayList<Map<String, Object>>();
-        if (request.prompt() != null) content.add(Map.of("type", "text", "text", request.prompt()));
+        if (request.getPrompt() != null)
+            content.add(Map.of("type", "text", "text", request.getPrompt()));
         content.add(
                 Map.of(
                         "type",
                         "image_url",
                         "image_url",
-                        Map.of("url", request.firstFrameUrl()),
+                        Map.of("url", request.getFirstFrameUrl()),
                         "role",
                         "reference_image"));
-        return doSubmit(apiKey, model, content, null, request.duration(), false);
+        return doSubmit(apiKey, model, content, null, request.getDuration(), false);
     }
 
     @Override
     public String submitReferenceToVideo(ReferenceToVideoRequest request) {
-        var apiKey = resolveApiKey(request.model());
-        var model = request.model() != null ? request.model() : "doubao-seedance-2-0-260128";
+        var apiKey = resolveApiKey(request.getModel());
+        var model = request.getModel() != null ? request.getModel() : "doubao-seedance-2-0-260128";
         var content = new ArrayList<Map<String, Object>>();
-        content.add(Map.of("type", "text", "text", request.prompt()));
-        for (var imgUrl : request.referenceImageUrls()) {
+        content.add(Map.of("type", "text", "text", request.getPrompt()));
+        for (var imgUrl : request.getReferenceImageUrls()) {
             content.add(
                     Map.of(
                             "type",
@@ -85,25 +92,25 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
                             "role",
                             "reference_image"));
         }
-        return doSubmit(apiKey, model, content, request.ratio(), request.duration(), false);
+        return doSubmit(apiKey, model, content, request.getRatio(), request.getDuration(), false);
     }
 
     @Override
     public String submitVideoEdit(VideoEditApiRequest request) {
-        var apiKey = resolveApiKey(request.model());
-        var model = request.model() != null ? request.model() : "doubao-seedance-2-0-260128";
+        var apiKey = resolveApiKey(request.getModel());
+        var model = request.getModel() != null ? request.getModel() : "doubao-seedance-2-0-260128";
         var content = new ArrayList<Map<String, Object>>();
-        content.add(Map.of("type", "text", "text", request.prompt()));
+        content.add(Map.of("type", "text", "text", request.getPrompt()));
         content.add(
                 Map.of(
                         "type",
                         "video_url",
                         "video_url",
-                        Map.of("url", request.videoUrl()),
+                        Map.of("url", request.getVideoUrl()),
                         "role",
                         "reference_video"));
-        if (request.referenceImageUrls() != null) {
-            for (var imgUrl : request.referenceImageUrls()) {
+        if (request.getReferenceImageUrls() != null) {
+            for (var imgUrl : request.getReferenceImageUrls()) {
                 content.add(
                         Map.of(
                                 "type",
@@ -171,7 +178,7 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
                             .GET()
                             .build();
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
 
             var status = parseStatus(root.path("status").asText());
             var videoUrl = root.path("content").path(0).path("video_url").path("url").asText(null);
@@ -201,7 +208,7 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
             if (duration != null) body.put("duration", duration);
             if (generateAudio) body.put("generate_audio", true);
 
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var httpRequest =
                     HttpRequest.newBuilder()
                             .uri(URI.create(SUBMIT_URL))
@@ -211,7 +218,7 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
                             .build();
 
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
 
             if (root.has("error")) {
                 var errMsg = root.get("error").path("message").asText("未知错误");
@@ -241,7 +248,7 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
     /** 直接发送已构建好的完整请求体（供 SeedanceParams 使用）。 */
     private String doSubmitBody(String apiKey, String modelName, Map<String, Object> body) {
         try {
-            var json = objectMapper.writeValueAsString(body);
+            var json = JsonUtils.toJsonString(body);
             var httpRequest =
                     HttpRequest.newBuilder()
                             .uri(URI.create(SUBMIT_URL))
@@ -250,7 +257,7 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
                             .POST(HttpRequest.BodyPublishers.ofString(json))
                             .build();
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            var root = objectMapper.readTree(response.body());
+            var root = JsonUtils.readTree(response.body());
             if (root.has("error")) {
                 throw new RuntimeException(
                         "doubao-seedance 任务提交失败: " + root.get("error").path("message").asText());

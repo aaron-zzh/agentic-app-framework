@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,6 @@ public class SessionManager {
     private static final Duration SESSION_TTL = Duration.ofHours(24);
 
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
 
     /** 活跃会话缓存 */
     private final Map<String, SessionState> activeSessions = new ConcurrentHashMap<>();
@@ -78,7 +77,7 @@ public class SessionManager {
 
     private void persist(SessionState session) {
         try {
-            var json = objectMapper.writeValueAsString(session);
+            var json = JsonUtils.toJsonString(session);
             redisTemplate.opsForValue().set(KEY_PREFIX + session.getSessionId(), json, SESSION_TTL);
         } catch (Exception e) {
             log.warn("会话持久化失败: {}", e.getMessage());
@@ -89,7 +88,7 @@ public class SessionManager {
         try {
             var json = redisTemplate.opsForValue().get(KEY_PREFIX + sessionId);
             if (json != null) {
-                var session = objectMapper.readValue(json, SessionState.class);
+                var session = JsonUtils.parseObject(json, SessionState.class);
                 activeSessions.put(sessionId, session);
                 return Optional.of(session);
             }

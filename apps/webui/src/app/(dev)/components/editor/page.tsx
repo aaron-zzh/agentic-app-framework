@@ -75,7 +75,6 @@ export default function EditorPage() {
                 onChange={() => {}}
                 placeholder="支持图片上传（工具栏 🖼 或粘贴/拖拽）..."
                 preset="document"
-                uploadEndpoint="/api/upload"
               />
             </div>
           )

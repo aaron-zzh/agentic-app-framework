@@ -123,13 +123,13 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
         </TabsList>
 
         <TabsContent value="all" className="flex-1 overflow-y-auto">
-          <NotificationList items={allItems} onRead={(id) => markRead([id])} />
+          <NotificationList items={allItems} onRead={(id) => markRead([id])} onClose={onClose} />
         </TabsContent>
         <TabsContent value="unread" className="flex-1 overflow-y-auto">
-          <NotificationList items={unreadItems} onRead={(id) => markRead([id])} />
+          <NotificationList items={unreadItems} onRead={(id) => markRead([id])} onClose={onClose} />
         </TabsContent>
         <TabsContent value="read" className="flex-1 overflow-y-auto">
-          <NotificationList items={readItems} />
+          <NotificationList items={readItems} onClose={onClose} />
         </TabsContent>
       </Tabs>
 
@@ -149,10 +149,12 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 
 function NotificationList({
   items,
-  onRead
+  onRead,
+  onClose
 }: {
   items: NotificationItemType[]
   onRead?: (id: number) => void
+  onClose?: () => void
 }) {
   if (!items || items.length === 0) {
     return <p className="p-8 text-center text-muted-foreground text-sm">暂无通知</p>
@@ -160,7 +162,7 @@ function NotificationList({
   return (
     <ul>
       {items.map((item) => (
-        <NotificationItem key={item.id} notification={item} onRead={onRead} />
+        <NotificationItem key={item.id} notification={item} onRead={onRead} onClose={onClose} />
       ))}
     </ul>
   )

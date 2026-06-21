@@ -39,11 +39,11 @@ public class StatsService {
                         query.metric(),
                         query.period(),
                         query.effectiveStartDate(),
-                        query.effectiveEndDate());
+                        query.effectiveEndDate(),
+                        query.userId());
         var categories = points.stream().map(TrendPointVO::time).toList();
         var data = points.stream().map(TrendPointVO::value).toList();
 
-        // 异常检测：最后一个点与前一个点比较
         detectAnomaly(query.metric(), points);
 
         return new TrendSeriesVO(
@@ -52,12 +52,12 @@ public class StatsService {
 
     /** 查询趋势数据点列表。 */
     public List<TrendPointVO> queryTrendPoints(
-            String metric, StatPeriodEnum period, LocalDate start, LocalDate end) {
+            String metric, StatPeriodEnum period, LocalDate start, LocalDate end, Long userId) {
         var startTime = start.atStartOfDay();
         var endTime = end.atTime(LocalTime.MAX);
         var trunc = period.toDateTrunc();
 
-        var sql = buildMetricSql(metric, trunc);
+        var sql = buildMetricSql(metric, trunc, userId);
         return jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> new TrendPointVO(rs.getString("time_bucket"), rs.getLong("value")),
@@ -72,13 +72,15 @@ public class StatsService {
                         query.metric(),
                         query.period(),
                         query.effectiveStartDate(),
-                        query.effectiveEndDate());
+                        query.effectiveEndDate(),
+                        query.userId());
 
-        // 计算环比区间（同等长度的前一段）
         long days = query.effectiveEndDate().toEpochDay() - query.effectiveStartDate().toEpochDay();
         var prevStart = query.effectiveStartDate().minusDays(days + 1);
         var prevEnd = query.effectiveStartDate().minusDays(1);
-        var previous = queryTrendPoints(query.metric(), query.period(), prevStart, prevEnd);
+        var previous =
+                queryTrendPoints(
+                        query.metric(), query.period(), prevStart, prevEnd, query.userId());
 
         var categories = current.stream().map(TrendPointVO::time).toList();
         return new TrendSeriesVO(
@@ -92,7 +94,8 @@ public class StatsService {
 
     // ========== 内部方法 ==========
 
-    private String buildMetricSql(String metric, String trunc) {
+    private String buildMetricSql(String metric, String trunc, Long userId) {
+        String userFilter = userId != null ? " AND user_id = " + userId : "";
         return switch (metric) {
             case "dau" ->
                     """
@@ -128,6 +131,23 @@ public class StatsService {
                     GROUP BY time_bucket ORDER BY time_bucket
                     """
                             .formatted(trunc);
+            case "aigc_task" ->
+                    """
+                    SELECT date_trunc('%s', create_time) AS time_bucket, COUNT(*) AS value
+                    FROM aigc_task WHERE deleted = false%s AND create_time BETWEEN ? AND ?
+                    GROUP BY time_bucket ORDER BY time_bucket
+                    """
+                            .formatted(trunc, userFilter);
+            case "credit_cost" ->
+                    """
+                    SELECT date_trunc('%s', ct.create_time) AS time_bucket,
+                           COALESCE(SUM(ct.amount), 0) AS value
+                    FROM credit_transaction ct
+                    JOIN credit_account ca ON ca.id = ct.account_id AND ca.deleted = FALSE
+                    WHERE ct.type = 'SPEND'%s AND ct.create_time BETWEEN ? AND ?
+                    GROUP BY time_bucket ORDER BY time_bucket
+                    """
+                            .formatted(trunc, userFilter.replace("user_id", "ca.user_id"));
             default -> throw new IllegalArgumentException("不支持的指标: " + metric);
         };
     }

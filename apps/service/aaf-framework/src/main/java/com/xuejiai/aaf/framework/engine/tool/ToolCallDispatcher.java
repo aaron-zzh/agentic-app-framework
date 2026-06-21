@@ -6,8 +6,7 @@ import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
@@ -36,7 +35,6 @@ public class ToolCallDispatcher {
     private final ObjectProvider<AiCreditGuard> creditService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final ObjectProvider<ConfidenceGate> confidenceGate;
-    private final ObjectMapper objectMapper;
 
     /** 执行工具调用（无权限检查，Agent 内部同包调用）。 */
     ToolCallResult dispatch(String functionName, String arguments) {
@@ -355,9 +353,9 @@ public class ToolCallDispatcher {
             return ToolCallResult.success(functionName, result);
         }
         try {
-            var node = objectMapper.readTree(result);
+            var node = JsonUtils.readTree(result);
             if (node.has("success") && node.has("code") && node.has("message")) {
-                return objectMapper.treeToValue(node, ToolCallResult.class);
+                return JsonUtils.convertValue(node, ToolCallResult.class);
             }
         } catch (Exception ignored) {
             // 普通文本结果按成功处理。
@@ -370,12 +368,12 @@ public class ToolCallDispatcher {
             return null;
         }
         try {
-            var node = objectMapper.readTree(arguments);
+            var node = JsonUtils.readTree(arguments);
             if (node.hasNonNull("prompt")) {
                 return node.get("prompt").asText();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asText());
                 return nested.hasNonNull("prompt") ? nested.get("prompt").asText() : null;
             }
         } catch (Exception ignored) {
@@ -389,12 +387,12 @@ public class ToolCallDispatcher {
             return null;
         }
         try {
-            var node = objectMapper.readTree(arguments);
+            var node = JsonUtils.readTree(arguments);
             if (node.hasNonNull(field) && node.get(field).isNumber()) {
                 return node.get(field).asDouble();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asText());
                 return nested.hasNonNull(field) && nested.get(field).isNumber()
                         ? nested.get(field).asDouble()
                         : null;
@@ -410,12 +408,12 @@ public class ToolCallDispatcher {
             return defaultValue;
         }
         try {
-            var node = objectMapper.readTree(arguments);
+            var node = JsonUtils.readTree(arguments);
             if (node.hasNonNull(field) && node.get(field).isBoolean()) {
                 return node.get(field).asBoolean();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asText());
                 return nested.hasNonNull(field) && nested.get(field).isBoolean()
                         ? nested.get(field).asBoolean()
                         : defaultValue;

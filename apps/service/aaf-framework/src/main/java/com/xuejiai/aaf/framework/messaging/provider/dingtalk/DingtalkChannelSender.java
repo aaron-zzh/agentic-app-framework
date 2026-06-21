@@ -10,13 +10,13 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.framework.messaging.ChannelSender;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
+import com.xuejiai.aaf.framework.messaging.ProviderResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 钉钉机器人渠道发送器。
@@ -37,7 +37,7 @@ public class DingtalkChannelSender implements ChannelSender {
     }
 
     @Override
-    public void send(
+    public ProviderResponse send(
             List<String> recipients,
             String subject,
             String content,
@@ -63,6 +63,7 @@ public class DingtalkChannelSender implements ChannelSender {
                     .retrieve()
                     .toBodilessEntity();
             log.info("钉钉消息发送成功: subject={}", subject);
+            return ProviderResponse.of("dingtalk");
         } catch (Exception e) {
             log.error("钉钉消息发送失败: subject={}", subject, e);
             throw new RuntimeException("钉钉消息发送失败", e);

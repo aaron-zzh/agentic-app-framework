@@ -6,11 +6,11 @@ import java.util.List;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /** 实体关系抽取服务，通过 LLM 从文本中抽取三元组并存入 Neo4j */
 @Slf4j
@@ -21,7 +21,6 @@ public class EntityExtractionService {
     private final ChatClient.Builder chatClientBuilder;
     private final GraphService graphService;
     private final KnowledgeEntityRepository entityRepository;
-    private final ObjectMapper objectMapper;
 
     /** 从文本中抽取实体关系三元组 */
     public List<ExtractedTriple> extract(String text, Long knowledgeBaseId, Long documentId) {
@@ -37,7 +36,7 @@ public class EntityExtractionService {
                         .content();
 
         try {
-            return objectMapper.readValue(content, new TypeReference<>() {});
+            return JsonUtils.parseObject(content, new TypeReference<>() {});
         } catch (Exception e) {
             log.warn("LLM 返回内容解析失败，原始内容: {}", content, e);
             return List.of();

@@ -6,9 +6,7 @@ import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionRequest;
 import com.xuejiai.aaf.framework.engine.meta.ExecutionDispatcher.ExecutionTarget;
@@ -18,6 +16,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 工作流 Agent 节点——通过元引擎 ExecutionDispatcher 调度 Agent 执行。
@@ -45,7 +44,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AgentNode implements JavaDelegate {
 
     private final ExecutionDispatcher dispatcher;
-    private final ObjectMapper objectMapper;
     private final AgentRunEventPublisher agentRunEventPublisher;
 
     @Override
@@ -121,7 +119,7 @@ public class AgentNode implements JavaDelegate {
         }
         try {
             Map<String, String> mapping =
-                    objectMapper.readValue(inputMapping, new TypeReference<>() {});
+                    JsonUtils.parseObject(inputMapping, new TypeReference<>() {});
             var sb = new StringBuilder();
             mapping.forEach(
                     (key, varName) -> {
@@ -145,10 +143,9 @@ public class AgentNode implements JavaDelegate {
         }
         try {
             Map<String, String> mapping =
-                    objectMapper.readValue(outputMapping, new TypeReference<>() {});
+                    JsonUtils.parseObject(outputMapping, new TypeReference<>() {});
             // 尝试将 output 解析为 JSON 对象
-            Map<String, Object> outputObj =
-                    objectMapper.readValue(output, new TypeReference<>() {});
+            Map<String, Object> outputObj = JsonUtils.parseObject(output, new TypeReference<>() {});
             mapping.forEach(
                     (outputKey, varName) -> {
                         var value = outputObj.get(outputKey);

@@ -51,6 +51,17 @@ export interface CreditPackageVO {
   recommended: boolean
 }
 
+/** 支付订单（与后端 PayOrderVO 对应） */
+export interface PayOrderVO {
+  id: number
+  merchantOrderNo: string
+  amount: number
+  /** 0=待支付 10=成功 30=已关闭 */
+  status: number
+  channelCode: string
+  codeUrl?: string
+}
+
 export const billingPlansApi = {
   /** 获取所有启用的订阅套餐（含权益列表） */
   getPlans: () => request<SubscriptionPlanVO[]>("/billing/subscription/plans"),
@@ -65,10 +76,10 @@ export const billingPlansApi = {
       body: JSON.stringify({ planCode, billingCycle })
     }),
 
-  /** 购买积分套餐 */
-  purchaseCredits: (packageId: string) =>
-    request<{ orderNo: string }>("/billing/credit-packages/purchase", {
+  /** 购买积分套餐，返回支付单（含 codeUrl） */
+  purchaseCredits: (packageId: string, channelCode?: string) =>
+    request<PayOrderVO>("/billing/credit-packages/purchase", {
       method: "POST",
-      body: JSON.stringify({ packageId })
+      body: JSON.stringify({ packageId, channelCode: channelCode ?? "MOCK" })
     })
 }

@@ -10,10 +10,12 @@ import jakarta.validation.constraints.NotNull;
 /** 趋势查询请求。 */
 @Schema(description = "趋势查询参数")
 public record TrendQueryDTO(
-        @NotNull @Schema(description = "指标名：dau/mau/messages/tokens/revenue") String metric,
+        @NotNull @Schema(description = "指标名：dau/mau/messages/tokens/revenue/aigc_task/credit_cost")
+                String metric,
         @NotNull @Schema(description = "时间粒度") StatPeriodEnum period,
         @Schema(description = "开始日期（不传时按粒度自动推算）") LocalDate startDate,
-        @Schema(description = "结束日期（不传时为今天）") LocalDate endDate) {
+        @Schema(description = "结束日期（不传时为今天）") LocalDate endDate,
+        @Schema(description = "用户 ID 过滤，null=全局（管理员）") Long userId) {
 
     /** 返回有效的开始日期：未传时按粒度推算默认范围。 */
     public LocalDate effectiveStartDate() {

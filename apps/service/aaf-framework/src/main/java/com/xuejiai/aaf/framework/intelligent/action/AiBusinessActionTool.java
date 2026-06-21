@@ -4,8 +4,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,7 +15,6 @@ public class AiBusinessActionTool {
 
     private final AiBusinessActionExecutor executor;
     private final EntityActionRegistry registry;
-    private final ObjectMapper objectMapper;
 
     @Tool(description = "代表当前用户执行已开放实体的受控业务动作。")
     public String executeBusinessAction(
@@ -25,8 +23,8 @@ public class AiBusinessActionTool {
                                     "JSON 请求，包含 action、entity、params，可选 sessionId/confidence/verifiable")
                     String requestJson) {
         try {
-            var request = objectMapper.readValue(requestJson, AiBusinessActionRequest.class);
-            return objectMapper.writeValueAsString(executor.execute(request));
+            var request = JsonUtils.parseObject(requestJson, AiBusinessActionRequest.class);
+            return JsonUtils.toJsonString(executor.execute(request));
         } catch (Exception ex) {
             return errorJson(ex);
         }
@@ -35,17 +33,17 @@ public class AiBusinessActionTool {
     @Tool(description = "查询当前 AI 可调用的业务实体与动作清单。")
     public String listBusinessActions() {
         try {
-            return objectMapper.writeValueAsString(AiBusinessActionResult.success(registry.list()));
-        } catch (JsonProcessingException ex) {
+            return JsonUtils.toJsonString(AiBusinessActionResult.success(registry.list()));
+        } catch (Exception ex) {
             return errorJson(ex);
         }
     }
 
     private String errorJson(Exception ex) {
         try {
-            return objectMapper.writeValueAsString(
+            return JsonUtils.toJsonString(
                     AiBusinessActionResult.failure("ACTION_ERROR", ex.getMessage()));
-        } catch (JsonProcessingException ignored) {
+        } catch (Exception ignored) {
             return "{\"success\":false,\"code\":\"ACTION_ERROR\",\"message\":\"Action failed\"}";
         }
     }

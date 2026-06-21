@@ -51,4 +51,17 @@ public interface StorageService {
      * @return 预签名 PUT URL
      */
     String getPresignedUploadUrl(String key, Duration expiry);
+
+    /**
+     * 获取预签名下载 URL（GET）。
+     *
+     * <p>供外部服务（如 AI 视觉模型）从私有桶按 URL 直接读取文件，不依赖公开访问或 CDN。
+     *
+     * <p>OSS 实现走原生 OSS 域名签名直链，绕过可能存在的 CDN 防盗链；本地/通用实现回退为 {@link #getUrl(String)}。
+     *
+     * @param key 文件 key
+     * @param expiry 有效期，建议 1 小时（视觉模型典型调用 < 1 分钟，留余量给重试）
+     * @return 带签名参数的可公网下载 URL
+     */
+    String getPresignedDownloadUrl(String key, Duration expiry);
 }

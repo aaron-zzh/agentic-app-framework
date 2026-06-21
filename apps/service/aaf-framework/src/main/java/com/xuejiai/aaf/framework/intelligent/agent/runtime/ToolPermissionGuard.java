@@ -7,10 +7,8 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.xuejiai.aaf.common.enums.OverLimitAction;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogEntry;
@@ -45,7 +43,6 @@ public class ToolPermissionGuard {
     private final OperatorContext operatorContext;
     private final AssistantPermissionEvaluator assistantPermEval;
     private final ObjectProvider<ToolCatalogProvider> toolCatalogProvider;
-    private final ObjectMapper objectMapper;
     private final ObjectProvider<AiCreditGuard> creditService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final ObjectProvider<ConfidenceGate> confidenceGate;
@@ -299,8 +296,8 @@ public class ToolPermissionGuard {
 
     private String asJson(ToolCallResult result) {
         try {
-            return objectMapper.writeValueAsString(result);
-        } catch (JsonProcessingException ex) {
+            return JsonUtils.toJsonString(result);
+        } catch (Exception ex) {
             return "{\"success\":false,\"code\":\"TOOL_RESULT_SERIALIZE_ERROR\",\"message\":\"工具结果序列化失败\"}";
         }
     }
@@ -470,7 +467,7 @@ public class ToolPermissionGuard {
             return true;
         }
         try {
-            var node = objectMapper.readTree(output);
+            var node = JsonUtils.readTree(output);
             return !node.has("success") || node.get("success").asBoolean();
         } catch (Exception ignored) {
             return true;
@@ -482,12 +479,12 @@ public class ToolPermissionGuard {
             return null;
         }
         try {
-            var node = objectMapper.readTree(arguments);
+            var node = JsonUtils.readTree(arguments);
             if (node.hasNonNull("prompt")) {
                 return node.get("prompt").asText();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asText());
                 return nested.hasNonNull("prompt") ? nested.get("prompt").asText() : null;
             }
         } catch (Exception ignored) {
@@ -501,12 +498,12 @@ public class ToolPermissionGuard {
             return null;
         }
         try {
-            var node = objectMapper.readTree(arguments);
+            var node = JsonUtils.readTree(arguments);
             if (node.hasNonNull(field) && node.get(field).isNumber()) {
                 return node.get(field).asDouble();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asText());
                 return nested.hasNonNull(field) && nested.get(field).isNumber()
                         ? nested.get(field).asDouble()
                         : null;
@@ -522,12 +519,12 @@ public class ToolPermissionGuard {
             return defaultValue;
         }
         try {
-            var node = objectMapper.readTree(arguments);
+            var node = JsonUtils.readTree(arguments);
             if (node.hasNonNull(field) && node.get(field).isBoolean()) {
                 return node.get(field).asBoolean();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = objectMapper.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asText());
                 return nested.hasNonNull(field) && nested.get(field).isBoolean()
                         ? nested.get(field).asBoolean()
                         : defaultValue;

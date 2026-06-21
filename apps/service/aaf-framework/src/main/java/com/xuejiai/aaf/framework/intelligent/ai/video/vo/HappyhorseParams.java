@@ -7,7 +7,6 @@ import java.util.Map;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService.*;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 
 /**
@@ -34,30 +33,31 @@ public final class HappyhorseParams {
 
     private HappyhorseParams(VideoRequest req, AiModel model) {
         this.modelName = model.getModelName();
-        this.prompt = req.prompt();
-        this.imageMode = req.imageMode() != null ? req.imageMode() : VideoRequest.ImageMode.T2V;
-        this.imageUrl = req.imageUrl();
-        this.referenceImageUrls = req.referenceImageUrls();
-        this.resolution = req.resolution();
-        this.ratio = req.ratio();
-        this.duration = req.duration();
-        this.seed = req.seed();
+        this.prompt = req.getPrompt();
+        this.imageMode =
+                req.getImageMode() != null ? req.getImageMode() : VideoRequest.ImageMode.T2V;
+        this.imageUrl = req.getImageUrl();
+        this.referenceImageUrls = req.getReferenceImageUrls();
+        this.resolution = req.getResolution();
+        this.ratio = req.getRatio();
+        this.duration = req.getDuration();
+        this.seed = req.getSeed();
         this.audioSetting = null; // VideoRequest 暂无 audioSetting，video-edit 通过扩展字段传入
         this.videoUrl = null;
     }
 
     private HappyhorseParams(VideoEditApiRequest req, AiModel model) {
-        this.modelName = model != null ? model.getModelName() : req.model();
-        this.prompt = req.prompt();
+        this.modelName = model != null ? model.getModelName() : req.getModel();
+        this.prompt = req.getPrompt();
         this.imageMode = VideoRequest.ImageMode.T2V; // video-edit 不走 imageMode 路由
         this.imageUrl = null;
-        this.referenceImageUrls = req.referenceImageUrls();
-        this.videoUrl = req.videoUrl();
-        this.resolution = req.resolution();
+        this.referenceImageUrls = req.getReferenceImageUrls();
+        this.videoUrl = req.getVideoUrl();
+        this.resolution = req.getResolution();
         this.ratio = null;
         this.duration = null;
-        this.seed = req.seed();
-        this.audioSetting = req.audioSetting();
+        this.seed = req.getSeed();
+        this.audioSetting = req.getAudioSetting();
     }
 
     /** 从统一视频请求构建，会依据 VideoConfig 校验。 */

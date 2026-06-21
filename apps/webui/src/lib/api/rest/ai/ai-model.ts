@@ -44,6 +44,33 @@ export interface ImageConfig {
   edit?: ImageModeConfig
 }
 
+/**
+ * 视频生成能力配置——对应后端 VideoConfig，字段存在即支持该参数。
+ * 与后端 ai_model.video_config JSONB 字段保持一致。
+ */
+export interface VideoConfig {
+  /** 支持的分辨率列表，如 ["720p","1080p"]；null 表示不限 */
+  resolutions?: string[] | null
+  /** 支持的宽高比列表，如 ["16:9","9:16","1:1"] */
+  ratios?: string[] | null
+  /** 支持的时长档位（秒），如 [3,5,10,15] */
+  durations?: number[] | null
+  maxDuration?: number | null
+  seed?: boolean | null
+  /** true=强制水印无法关闭，false=可开关 */
+  watermark?: boolean | null
+  /** 音频控制选项，如 ["auto","origin"] */
+  audioSetting?: string[] | null
+  /** 是否支持生成配套音频（Seedance 专属） */
+  generateAudio?: boolean | null
+  promptExtend?: boolean | null
+  maxReferenceImages?: number | null
+  maxReferenceVideos?: number | null
+  maxReferenceAudios?: number | null
+  /** 支持的生成模式，如 ["t2v","i2v","r2v","video-edit"] */
+  modes?: string[] | null
+}
+
 export interface AiModelVO {
   id: number
   modelId: string
@@ -54,6 +81,7 @@ export interface AiModelVO {
   enabled: boolean
   contextWindow?: number
   imageConfig?: ImageConfig
+  videoConfig?: VideoConfig
 }
 
 /** 获取已启用的图像生成模型列表 */

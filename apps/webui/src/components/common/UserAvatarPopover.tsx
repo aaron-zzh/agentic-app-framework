@@ -164,7 +164,7 @@ export function UserAvatarPopover() {
               variant="secondary"
               className="w-full rounded-full"
               nativeButton={false}
-              render={<Link href={paths.workspace.settingsProfile} />}
+              render={<Link href={paths.workspace.settingsCredits} />}
             >
               查看用量
             </Button>

@@ -7,12 +7,12 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 工作流工具注册器——将 {@link WorkflowTool}（AgentScope @Tool）适配为 Spring AI {@link ToolCallback} 并注册进 {@link
@@ -25,7 +25,6 @@ public class WorkflowToolCallbackRegistrar {
 
     private final WorkflowTool workflowTool;
     private final ToolRegistry toolRegistry;
-    private final ObjectMapper objectMapper;
 
     @EventListener(ApplicationReadyEvent.class)
     public void register() {
@@ -54,12 +53,10 @@ public class WorkflowToolCallbackRegistrar {
                     @Override
                     public String call(String arguments) {
                         try {
-                            var om = objectMapper;
                             var map =
-                                    om.readValue(
+                                    JsonUtils.parseObject(
                                             arguments,
-                                            new com.fasterxml.jackson.core.type.TypeReference<
-                                                    java.util.Map<String, String>>() {});
+                                            new TypeReference<java.util.Map<String, String>>() {});
                             return workflowTool.startWorkflow(
                                     map.get("process_key"),
                                     map.get("description"),

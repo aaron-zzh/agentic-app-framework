@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.chat.message.vo;
 
+import com.xuejiai.aaf.common.enums.chat.MessageContentTypeEnum;
 import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,7 +22,7 @@ public record MessageCreateDTO(
                 MessageSenderTypeEnum senderType,
         @Schema(description = "LLM 角色（user/assistant/system/tool）") String role,
         @Schema(description = "消息内容") String content,
-        @Schema(description = "内容类型") MessageContentType contentType,
+        @Schema(description = "内容类型") MessageContentTypeEnum contentType,
         @Schema(description = "结构化载荷 JSON") String payload,
         @Schema(description = "引用消息 ID") Long replyToId,
         @Schema(description = "是否内部可见") Boolean isInternal,

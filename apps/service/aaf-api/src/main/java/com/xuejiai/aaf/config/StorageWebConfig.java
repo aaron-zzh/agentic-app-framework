@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.config;
 
+import java.nio.file.Path;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -28,7 +30,11 @@ public class StorageWebConfig implements WebMvcConfigurer {
         String urlPrefix = local.urlPrefix();
         String path =
                 urlPrefix.startsWith("http") ? java.net.URI.create(urlPrefix).getPath() : urlPrefix;
-        registry.addResourceHandler(path + "/**")
-                .addResourceLocations("file:" + local.basePath() + "/");
+        // 用 Path.toUri() 生成跨平台标准 file URI（Windows 下避免反斜杠混入 "file:" 后导致解析异常）
+        String location = Path.of(local.basePath()).toAbsolutePath().toUri().toString();
+        if (!location.endsWith("/")) {
+            location = location + "/";
+        }
+        registry.addResourceHandler(path + "/**").addResourceLocations(location);
     }
 }

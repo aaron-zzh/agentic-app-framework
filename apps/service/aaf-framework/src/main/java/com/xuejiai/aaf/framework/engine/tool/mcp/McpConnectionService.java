@@ -7,8 +7,7 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.DefaultToolDefinition;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 
 import io.agentscope.core.tool.mcp.McpClientBuilder;
@@ -16,6 +15,7 @@ import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.agentscope.core.tool.mcp.McpTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * MCP 动态连接服务——连接外部 MCP Server，拉取工具列表，注册进 ToolRegistry。
@@ -28,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 public class McpConnectionService {
 
     private final ToolRegistry toolRegistry;
-    private final ObjectMapper objectMapper;
 
     /** serverName → McpClientWrapper */
     private final Map<String, McpClientWrapper> activeClients = new ConcurrentHashMap<>();
@@ -65,7 +64,7 @@ public class McpConnectionService {
             for (var tool : tools) {
                 var params = McpTool.convertMcpSchemaToParameters(tool.inputSchema(), null);
                 var mcpTool = new McpTool(tool.name(), tool.description(), params, client);
-                var callback = new McpToolCallback(mcpTool, objectMapper);
+                var callback = new McpToolCallback(mcpTool);
                 toolRegistry.register(callback, ToolRegistry.SOURCE_MCP);
             }
             log.info("MCP Server [{}] 注册 {} 个工具", serverName, tools.size());
@@ -115,16 +114,14 @@ public class McpConnectionService {
 
         private final McpTool mcpTool;
         private final org.springframework.ai.tool.definition.ToolDefinition definition;
-        private final ObjectMapper objectMapper;
 
-        McpToolCallback(McpTool mcpTool, ObjectMapper objectMapper) {
+        McpToolCallback(McpTool mcpTool) {
             this.mcpTool = mcpTool;
-            this.objectMapper = objectMapper;
             this.definition =
                     DefaultToolDefinition.builder()
                             .name(mcpTool.getName())
                             .description(mcpTool.getDescription())
-                            .inputSchema(schemaToString(mcpTool.getParameters(), objectMapper))
+                            .inputSchema(schemaToString(mcpTool.getParameters()))
                             .build();
         }
 
@@ -137,10 +134,8 @@ public class McpConnectionService {
         public String call(String arguments) {
             try {
                 var input =
-                        objectMapper.readValue(
-                                arguments,
-                                new com.fasterxml.jackson.core.type.TypeReference<
-                                        Map<String, Object>>() {});
+                        JsonUtils.parseObject(
+                                arguments, new TypeReference<Map<String, Object>>() {});
                 var param = io.agentscope.core.tool.ToolCallParam.builder().input(input).build();
                 var result = mcpTool.callAsync(param).block();
                 return result != null ? result.toString() : "";
@@ -149,9 +144,9 @@ public class McpConnectionService {
             }
         }
 
-        private static String schemaToString(Map<String, Object> schema, ObjectMapper om) {
+        private static String schemaToString(Map<String, Object> schema) {
             try {
-                return om.writeValueAsString(schema);
+                return JsonUtils.toJsonString(schema);
             } catch (Exception e) {
                 return "{\"type\":\"object\"}";
             }

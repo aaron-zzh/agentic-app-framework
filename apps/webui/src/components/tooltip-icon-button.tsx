@@ -1,6 +1,5 @@
 "use client"
 
-import { Slot } from "radix-ui"
 import type { ComponentPropsWithRef, RefObject } from "react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -34,7 +33,7 @@ export const TooltipIconButton = ({
             />
           }
         >
-          <Slot.Slottable>{children}</Slot.Slottable>
+          {children}
           <span className="aui-sr-only sr-only">{tooltip}</span>
         </TooltipTrigger>
         <TooltipContent side={side}>{tooltip}</TooltipContent>

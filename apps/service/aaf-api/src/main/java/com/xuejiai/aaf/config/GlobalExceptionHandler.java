@@ -16,6 +16,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.protection.RateLimitExceededException;
 import com.xuejiai.aaf.framework.security.license.LicenseRequiredException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,9 +31,39 @@ public class GlobalExceptionHandler {
     /** 权限不足 */
     @ExceptionHandler(AuthorizationDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public Result<?> handleAccessDenied(AuthorizationDeniedException e) {
-        log.info("权限不足: {}", e.getMessage());
+    public Result<?> handleAccessDenied(
+            AuthorizationDeniedException e, HttpServletRequest request) {
+        var auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication();
+        String principal = auth == null ? "<null>" : String.valueOf(auth.getName());
+        String authorities = auth == null ? "<null>" : String.valueOf(auth.getAuthorities());
+        String jwtRoles = "<not-jwt>";
+        if (auth
+                instanceof
+                org.springframework.security.oauth2.server.resource.authentication
+                                .JwtAuthenticationToken
+                        jwtAuth) {
+            jwtRoles =
+                    String.valueOf(jwtAuth.getToken().getClaimAsStringList("roles"));
+        }
+        log.warn(
+                "[AccessDenied] {} {} principal={} authorities={} jwtRoles={} reason={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                principal,
+                authorities,
+                jwtRoles,
+                e.getMessage());
         return Result.error(GlobalErrorCode.FORBIDDEN);
+    }
+
+    /** 限流触发 */
+    @ExceptionHandler(RateLimitExceededException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public Result<?> handleRateLimit(RateLimitExceededException e) {
+        log.info("限流触发: {}", e.getMessage());
+        return Result.error(429, e.getMessage());
     }
 
     /** 乐观锁冲突（数据已被其他人修改） */
@@ -47,7 +78,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InsufficientCreditsException.class)
     @ResponseStatus(HttpStatus.PAYMENT_REQUIRED)
     public Result<?> handleInsufficientCredits(InsufficientCreditsException e) {
-        log.info("积分余额不足: userId={}, balance={}", e.getUserId(), e.getBalance());
+        long shortBy = Math.max(0, e.getEstimatedCost() - e.getBalance() - e.getOverdraft());
+        log.info(
+                "积分余额不足: userId={}, balance={}, estimatedCost={}, overdraft={}, shortBy={}",
+                e.getUserId(),
+                e.getBalance(),
+                e.getEstimatedCost(),
+                e.getOverdraft(),
+                shortBy);
         return Result.error(402, "积分余额不足，请充值后继续使用");
     }
 

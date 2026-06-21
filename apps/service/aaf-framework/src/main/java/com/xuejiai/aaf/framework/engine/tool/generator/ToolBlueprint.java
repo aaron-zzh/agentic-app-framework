@@ -2,7 +2,7 @@ package com.xuejiai.aaf.framework.engine.tool.generator;
 
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -28,8 +28,6 @@ public class ToolBlueprint {
         SHARED
     }
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     /** 从 LLM JSON 输出解析。 */
     @SuppressWarnings("unchecked")
     public static ToolBlueprint parse(String json) {
@@ -38,7 +36,7 @@ public class ToolBlueprint {
             if (cleaned.startsWith("```")) {
                 cleaned = cleaned.replaceAll("```json?\\s*", "").replaceAll("```\\s*$", "").strip();
             }
-            var map = MAPPER.readValue(cleaned, Map.class);
+            var map = JsonUtils.parseObject(cleaned, Map.class);
             var blueprint = new ToolBlueprint();
             blueprint.setName((String) map.get("name"));
             blueprint.setDescription((String) map.get("description"));

@@ -29,6 +29,12 @@ public class Area {
     /** 类型，见 {@link AreaTypeEnum} */
     private Integer type;
 
+    /** 中心点经度（来自高德行政区中心，仅中国大陆有数据；国外节点为 null） */
+    private Double longitude;
+
+    /** 中心点纬度（来自高德行政区中心，仅中国大陆有数据；国外节点为 null） */
+    private Double latitude;
+
     @JsonManagedReference private Area parent;
 
     @JsonBackReference private List<Area> children;
