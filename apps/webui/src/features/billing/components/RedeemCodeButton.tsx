@@ -42,17 +42,19 @@ export function RedeemCodeButton({ trigger }: RedeemCodeButtonProps) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="contents">
-        {trigger ?? (
+      {trigger
+        ? <span onClick={() => setOpen(true)} className="contents">{trigger}</span>
+        : (
           <Button
             variant="outline"
             size="sm"
             className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
+            onClick={() => setOpen(true)}
           >
             兑换码
           </Button>
-        )}
-      </button>
+        )
+      }
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="p-8 sm:max-w-md">

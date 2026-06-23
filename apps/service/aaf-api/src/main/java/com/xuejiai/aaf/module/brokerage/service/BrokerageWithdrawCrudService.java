@@ -117,9 +117,7 @@ public class BrokerageWithdrawCrudService
         String body;
         if (status == BrokerageWithdrawStatusEnum.APPROVED) {
             title = "提现申请已通过";
-            body =
-                    String.format(
-                            "您的提现申请（%s）已审核通过，款项将在 1-3 个工作日内打款。", amount);
+            body = String.format("您的提现申请（%s）已审核通过，款项将在 1-3 个工作日内打款。", amount);
         } else {
             title = "提现申请已驳回";
             String reason =

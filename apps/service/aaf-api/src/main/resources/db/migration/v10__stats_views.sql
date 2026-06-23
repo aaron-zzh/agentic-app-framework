@@ -14,24 +14,22 @@
 CREATE VIEW v_ai_tool_usage_stats AS
 SELECT
     tcl.tool_name,
-    tcl.tool_type,                              -- FUNCTION/MCP/HTTP/SCRIPT/WORKFLOW/AGENT
-    tcl.caller_type,                            -- AGENT/WORKFLOW/SKILL/DIRECT
+    tcl.tool_source,
     DATE_TRUNC('day', tcl.create_time)          AS stat_date,
     COUNT(*)                                    AS total_calls,
-    COUNT(CASE WHEN tcl.status = 'SUCCESS'  THEN 1 END) AS success_count,
-    COUNT(CASE WHEN tcl.status = 'FAILED'   THEN 1 END) AS failed_count,
-    COUNT(CASE WHEN tcl.status = 'TIMEOUT'  THEN 1 END) AS timeout_count,
-    COUNT(CASE WHEN tcl.status = 'REJECTED' THEN 1 END) AS rejected_count,
+    COUNT(CASE WHEN tcl.status = 'COMPLETED' THEN 1 END) AS success_count,
+    COUNT(CASE WHEN tcl.status = 'ERROR'     THEN 1 END) AS failed_count,
     CASE
         WHEN COUNT(*) > 0
-        THEN ROUND(COUNT(CASE WHEN tcl.status = 'SUCCESS' THEN 1 END) * 100.0 / COUNT(*), 2)
+        THEN ROUND(COUNT(CASE WHEN tcl.status = 'COMPLETED' THEN 1 END) * 100.0 / COUNT(*), 2)
         ELSE 0
     END                                         AS success_rate,
     AVG(tcl.duration_ms)                        AS avg_duration_ms,
     MAX(tcl.duration_ms)                        AS max_duration_ms
 FROM ai_tool_call_log tcl
-WHERE tcl.create_time >= CURRENT_DATE - INTERVAL '90 days'  -- 只看近 90 天，避免全表扫
-GROUP BY tcl.tool_name, tcl.tool_type, tcl.caller_type, DATE_TRUNC('day', tcl.create_time);
+WHERE tcl.create_time >= CURRENT_DATE - INTERVAL '90 days'
+  AND tcl.deleted = FALSE
+GROUP BY tcl.tool_name, tcl.tool_source, DATE_TRUNC('day', tcl.create_time);
 
 COMMENT ON VIEW v_ai_tool_usage_stats IS 'AI 工具调用分布统计（按工具/类型/来源/天）';
 
@@ -331,7 +329,7 @@ CREATE INDEX IF NOT EXISTS idx_todo_stats
     ON sys_todo (create_time, category, status) WHERE deleted = FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_ai_tool_call_log_stats
-    ON ai_tool_call_log (tool_name, tool_type, status, create_time);
+    ON ai_tool_call_log (tool_name, tool_source, status, create_time);
 
 CREATE INDEX IF NOT EXISTS idx_ai_skill_trigger_stats
     ON ai_skill_trigger_log (skill_id, status, create_time);

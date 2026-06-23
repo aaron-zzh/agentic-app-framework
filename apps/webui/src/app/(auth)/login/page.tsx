@@ -211,7 +211,7 @@ function CodeLoginPanel({
           ) : (
             <Button
               type="submit"
-              className="h-11 w-full"
+              className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
               disabled={codeMethods.formState.isSubmitting}
             >
               {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
@@ -262,7 +262,7 @@ function CodeLoginPanel({
       <Button
         id="email-code-send-btn"
         type={captcha.buttonType}
-        className="h-11 w-full"
+        className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
         disabled={emailMethods.formState.isSubmitting}
       >
         {emailMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
@@ -378,7 +378,7 @@ function PhoneLoginPanel({
 
           <Button
             type="submit"
-            className="h-11 w-full"
+            className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
             disabled={codeMethods.formState.isSubmitting || !termsAgreed}
           >
             {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
@@ -427,7 +427,7 @@ function PhoneLoginPanel({
       <Button
         id="phone-code-send-btn"
         type={captcha.buttonType}
-        className="h-11 w-full"
+        className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
         disabled={phoneMethods.formState.isSubmitting || !termsAgreed}
       >
         {phoneMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
@@ -509,7 +509,7 @@ function PasswordLoginPanel({
       <Button
         id="password-login-btn"
         type={captcha.buttonType}
-        className="h-11 w-full"
+        className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
         disabled={isSubmitting}
       >
         {isSubmitting ? "登录中..." : "登录"}
@@ -606,7 +606,10 @@ function LoginContent() {
     pendingAuthRef.current = null
     setTokens(pending.accessToken, pending.refreshToken)
     setUser(pending.user)
-    router.push(redirectTo)
+    const dest = redirectTo.startsWith("/studio")
+      ? `${redirectTo.split("?")[0]}?welcome=1`
+      : redirectTo
+    router.push(dest)
     if (pending.isNewUser) {
       notify.success("欢迎！请前往个人中心完善资料", {
         action: {
@@ -642,7 +645,7 @@ function LoginContent() {
         <>
           <div>
             <h2 className="font-bold text-2xl">登录</h2>
-            <p className="mt-1 text-muted-foreground text-sm">登录你的 {APP.name} 账号</p>
+            <p className="mt-1 text-muted-foreground text-sm">驾驶舱待命，欢迎归来</p>
           </div>
 
           <Tabs defaultValue="password">
@@ -668,9 +671,9 @@ function LoginContent() {
             </TabsContent>
           </Tabs>
 
-          <Separator />
+          {/* <Separator /> */}
 
-          {/* 第三方登录 */}
+          {/* 第三方登录（暂时隐藏）
           <div className="space-y-3">
             <p className="text-center text-muted-foreground text-sm">其他登录方式</p>
             <div className="flex justify-center gap-4">
@@ -685,6 +688,7 @@ function LoginContent() {
               </Button>
             </div>
           </div>
+          */}
 
           <p className="text-center text-muted-foreground text-sm">
             还没有账号？{" "}

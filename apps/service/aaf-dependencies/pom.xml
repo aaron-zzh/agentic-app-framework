@@ -51,8 +51,8 @@
 		<pdfbox.version>3.0.4</pdfbox.version>
 		<poi.version>5.4.1</poi.version>
 		<jsoup.version>1.18.3</jsoup.version>
-		<!-- AgentScope -->
-		<agentscope.version>1.1.0-RC2</agentscope.version>
+		<!-- AgentScope（2.0+ 用 agentscope-harness 作为核心入口） -->
+		<agentscope.version>2.0.0-RC4</agentscope.version>
 		<!-- A2A -->
 		<spring-ai-a2a.version>0.2.0</spring-ai-a2a.version>
 		<a2a-java-sdk.version>0.3.3.Final</a2a-java-sdk.version>
@@ -123,6 +123,64 @@
 			</dependency>
 
 			<!-- ==================== Web / API ==================== -->
+			<!-- ===== AgentScope 2.0+：核心仅保留 agentscope-harness ===== -->
+			<!-- harness 自动传递 agentscope-core，HarnessAgent 是推荐入口 -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-harness</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+
+			<!-- AG-UI 协议官方扩展：自动扫描 Agent Bean 并暴露 /agui/run/{agentId} -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-agui-spring-boot-starter</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+
+			<!-- ===== 可选扩展（需要的模块再 declare、不写版本号） ===== -->
+			<!-- Skill 仓库（AAF 用 PostgreSQL，对齐 ai_skill_definition；MySQL/Git 版本暂不引入） -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-skill-postgresql-repository</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<!-- Redis 后端：AgentStateStore + BaseStore + Sandbox 共用 -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-redis</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<!-- OSS 后端：AgentStateStore + BaseStore，对接阿里云 OSS / S3 兼容存储 -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-oss</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<!-- Channel 公共接口：HarnessGateway 接入消息通道的基础抽象 -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-channel-common</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<!-- Channel 具体实现（按需启用，默认仅声明版本） -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-channel-dingtalk</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-channel-feishu</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-channel-wecom</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+
+			<!-- ===== 以下 1.x 旧依赖按官方 2.0 升级指南注释（保留备查） =====
 			<dependency>
 				<groupId>io.agentscope</groupId>
 				<artifactId>agentscope-spring-boot-starter</artifactId>
@@ -131,11 +189,6 @@
 			<dependency>
 				<groupId>io.agentscope</groupId>
 				<artifactId>agentscope-a2a-spring-boot-starter</artifactId>
-				<version>${agentscope.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>io.agentscope</groupId>
-				<artifactId>agentscope-agui-spring-boot-starter</artifactId>
 				<version>${agentscope.version}</version>
 			</dependency>
 			<dependency>
@@ -153,6 +206,8 @@
 				<artifactId>agentscope-extensions-session-redis</artifactId>
 				<version>${agentscope.version}</version>
 			</dependency>
+			===== -->
+
 
 			<!-- OkHttp/Okio 版本统一：
 			     agentscope-core 和 dashscope-sdk 均传递依赖 okhttp，版本混用导致

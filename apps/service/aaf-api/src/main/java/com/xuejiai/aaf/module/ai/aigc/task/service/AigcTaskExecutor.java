@@ -795,7 +795,6 @@ public class AigcTaskExecutor {
      *   <li>装饰器 settle 已执行但还未来得及写到 task（罕见）→ 从 ThreadLocal 兜底取值
      * </ul>
      */
-
     private void refundIfSettled(AigcTask task, String reason) {
         Long creditTxId = task.getCreditTxId();
         if (creditTxId == null) {

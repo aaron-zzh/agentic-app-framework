@@ -14,6 +14,8 @@ import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.protection.RateLimit;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
@@ -27,8 +29,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 统一任务接口——提交生成任务、订阅实时事件、查询任务列表。
@@ -50,6 +50,18 @@ public class AigcTaskController
     @Override
     protected BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> getService() {
         return taskService;
+    }
+
+    // BE-8 数据隔离：override 单条查询，加 ownership 校验（跨用户返回 404 防探测）
+    @Override
+    @Operation(summary = "查询任务详情（含 ownership 校验）")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}")
+    public Result<AigcTaskVO> get(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @RequestParam(required = false) String queryToken,
+            @RequestParam(defaultValue = "detail") String fieldSet) {
+        return Result.success(taskService.getByIdOwned(id));
     }
 
     /** 屏蔽创建——任务通过 /submit 提交 */

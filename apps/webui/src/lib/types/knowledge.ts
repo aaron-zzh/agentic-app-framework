@@ -38,6 +38,19 @@ export interface KnowledgeBaseStats {
   totalSize: number
 }
 
+/** 知识库段落（分块） */
+export interface KnowledgeSegment {
+  id: string
+  documentId: string
+  knowledgeBaseId: string
+  content: string
+  position: number
+  wordCount: number
+  enabled: boolean
+  createTime: string
+  updateTime: string
+}
+
 /** 创建知识库入参 */
 export interface CreateKnowledgeBaseInput {
   name: string

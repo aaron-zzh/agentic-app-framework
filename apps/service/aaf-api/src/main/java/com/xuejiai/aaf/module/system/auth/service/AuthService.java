@@ -193,8 +193,7 @@ public class AuthService {
     /** 发送邮箱验证码 */
     public void sendEmailCode(SendEmailCodeDTO dto) {
         // reset 类型：邮箱必须已注册，否则无法重置
-        if ("reset".equals(dto.type())
-                && !userRepository.existsByEmail(dto.email())) {
+        if ("reset".equals(dto.type()) && !userRepository.existsByEmail(dto.email())) {
             throw exception(AUTH_EMAIL_NOT_REGISTERED);
         }
         // 频率限制：同邮箱1分钟内不重复发送

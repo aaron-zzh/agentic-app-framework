@@ -256,7 +256,8 @@ public class SubscriptionService implements PaySuccessHandler {
      * <p>差价公式：{@code payable = max(0, newPrice - oldPrice * remainingDays / totalDays)}。
      */
     @Transactional
-    public PayOrderVO upgrade(Long userId, String newPlanCode, String channelCode, boolean newYearly) {
+    public PayOrderVO upgrade(
+            Long userId, String newPlanCode, String channelCode, boolean newYearly) {
         var oldSub =
                 subscriptionRepository
                         .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())

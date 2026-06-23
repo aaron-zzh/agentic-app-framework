@@ -22,6 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.ai.skill.SkillService;
 import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class CopywritingService {
     private final OperatorContext operatorContext;
     private final SystemConfigService systemConfigService;
     private final VisionMediaResolver visionMediaResolver;
+    private final SkillService skillService;
 
     /**
      * 流式生成文案。
@@ -85,17 +87,21 @@ public class CopywritingService {
                 new CapabilityRoutingContext(
                         userId, CapabilityRoutingContext.CAP_CHAT, modelId, null, features);
 
-        // 构造 UserMessage：纯文本走 String 构造器；含参考图走 builder（带 media）
+        // 按 skill code 动态加载系统提示词；有则用，无则用内置常量
+        String systemPrompt = resolveSystemPrompt(type);
+        boolean hasSkillPrompt = !CopywritingConstants.SYS_GENERATE.equals(systemPrompt);
+
+        // 构造 UserMessage：有 skill 系统提示词时只传主题+长度+翻译，不注入格式规则
         String prompt =
                 buildGeneratePrompt(
-                        type, topic, template, length, translateTo, referenceAnalysis, userNotes);
+                        type, topic, template, length, translateTo, referenceAnalysis, userNotes, hasSkillPrompt);
         UserMessage userMessage =
                 media.isEmpty()
                         ? new UserMessage(prompt)
                         : UserMessage.builder().text(prompt).media(media).build();
 
         var messages =
-                List.<Message>of(new SystemMessage(CopywritingConstants.SYS_GENERATE), userMessage);
+                List.<Message>of(new SystemMessage(systemPrompt), userMessage);
         log.info(
                 "[文案生成] type={}, length={}, translateTo={}, modelId={}, refImageCount={}",
                 type,
@@ -179,35 +185,45 @@ public class CopywritingService {
             String length,
             String translateTo,
             String referenceAnalysis,
-            String userNotes) {
-        String typeName = "oral".equals(type) ? "口播" : "小红书";
+            String userNotes,
+            boolean hasSkillPrompt) {
         String lengthDesc =
                 switch (length != null ? length : "medium") {
                     case "short" -> "短篇（200字以内）";
-                    case "long" -> "长篇（500字以上）";
+                    case "long" -> "长篇（优先保证内容完整，不超过3000字）";
                     default -> "中篇（200-500字）";
                 };
         var sb = new StringBuilder();
-        sb.append("请生成一篇").append(typeName).append("文案。\n");
-        sb.append("主题：").append(topic).append("\n");
-        if ("oral".equals(type)) {
-            sb.append("格式要求：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构，自然流畅，适合视频配音。\n");
+
+        if (hasSkillPrompt) {
+            // 有 skill 系统提示词：只传主题+长度+翻译，格式规则由系统提示词决定
+            sb.append("主题：").append(topic).append("\n");
+            sb.append("长度要求：").append(lengthDesc);
         } else {
-            sb.append("格式要求：活泼有趣，多用 emoji，有吸引力的标题，直接输出纯文本，不要使用 Markdown 语法。\n");
+            // 回退到内置逻辑（oral/xiaohongshu）
+            String typeName = "oral".equals(type) ? "口播" : "小红书";
+            sb.append("请生成一篇").append(typeName).append("文案。\n");
+            sb.append("主题：").append(topic).append("\n");
+            if ("oral".equals(type)) {
+                sb.append("格式要求：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构，自然流畅，适合视频配音。\n");
+            } else {
+                sb.append("格式要求：活泼有趣，多用 emoji，有吸引力的标题，直接输出纯文本，不要使用 Markdown 语法。\n");
+            }
+            if (template != null && !template.isBlank()) {
+                String templateLabel =
+                        switch (template) {
+                            case "product-launch" -> "新品上市";
+                            case "promotion" -> "促销活动";
+                            case "brand-story" -> "品牌故事";
+                            case "tutorial" -> "教程攻略";
+                            case "review" -> "测评分享";
+                            default -> template;
+                        };
+                sb.append("风格模板：").append(templateLabel).append("\n");
+            }
+            sb.append("长度要求：").append(lengthDesc);
         }
-        if (template != null && !template.isBlank()) {
-            String templateLabel =
-                    switch (template) {
-                        case "product-launch" -> "新品上市";
-                        case "promotion" -> "促销活动";
-                        case "brand-story" -> "品牌故事";
-                        case "tutorial" -> "教程攻略";
-                        case "review" -> "测评分享";
-                        default -> template;
-                    };
-            sb.append("风格模板：").append(templateLabel).append("\n");
-        }
-        sb.append("长度要求：").append(lengthDesc);
+
         if (translateTo != null && !translateTo.isBlank()) {
             String langName =
                     switch (translateTo) {
@@ -227,6 +243,22 @@ public class CopywritingService {
             sb.append("\n\n创作要求补充：\n").append(userNotes);
         }
         return sb.toString();
+    }
+
+    /**
+     * 按 skill code（type）加载系统提示词：
+     * 优先从 ai_skill_definition 按 code 查；未配置则回退到内置常量。
+     */
+    private String resolveSystemPrompt(String type) {
+        if (type != null && !type.isBlank()) {
+            String prompt = skillService.getSystemPromptByCode(type);
+            if (prompt != null && !prompt.isBlank()) {
+                log.debug("[文案生成] 使用 skill[{}] 的系统提示词", type);
+                return prompt;
+            }
+        }
+        log.debug("[文案生成] skill[{}] 未配置系统提示词，回退到内置常量", type);
+        return CopywritingConstants.SYS_GENERATE;
     }
 
     // ========== Mock 辅助方法 ==========

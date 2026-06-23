@@ -16,18 +16,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProvider;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelCreateDTO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelImportResultVO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelUpdateDTO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelVO;
+import com.xuejiai.aaf.module.ai.model.vo.PublicModelPricingVO;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 import lombok.RequiredArgsConstructor;
@@ -45,6 +49,7 @@ public class AiModelService {
     private final AiModelRepository repository;
     private final AiModelProviderRepository providerRepository;
     private final DynamicChatClientFactory chatClientFactory;
+    private final SystemConfigService configService;
 
     /**
      * 创建模型
@@ -168,6 +173,94 @@ public class AiModelService {
 
     public List<AiModelVO> listEnabledByCapability(String capability) {
         return listEnabledByCapabilities(List.of(capability));
+    }
+
+    /**
+     * 用户侧模型公开定价列表（已乘加价倍率，以积分为单位）。
+     *
+     * <p>所有已启用模型均返回，各计费类型规则：
+     *
+     * <ul>
+     *   <li>quotaType=0（TOKEN）：inputCreditPerK = inputPricePerK × 1000 × YUAN_TO_CREDIT × markup /
+     *       1000
+     *   <li>quotaType=1（PER_USE）：creditPerUse = modelPrice × YUAN_TO_CREDIT × markup
+     *   <li>quotaType=2（PER_SEC）：creditPerSec = modelPrice × YUAN_TO_CREDIT × markup
+     *   <li>quotaType=3（PER_UNIT）：creditPerUnit = modelPrice × YUAN_TO_CREDIT × markup
+     * </ul>
+     */
+    public List<PublicModelPricingVO> listPublicPricing() {
+        int markup = configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 5);
+        return repository.findByEnabledTrueOrderBySortOrder().stream()
+                .map(m -> toPricingVO(m, markup))
+                .toList();
+    }
+
+    private PublicModelPricingVO toPricingVO(AiModel m, int markup) {
+        short quotaType = m.getQuotaType() != null ? m.getQuotaType() : 0;
+        Long inputCreditPerK = null;
+        Long outputCreditPerK = null;
+        Long creditPerUse = null;
+        Long creditPerSec = null;
+        Long creditPerUnit = null;
+
+        switch (quotaType) {
+            case 1 -> // PER_USE
+                    creditPerUse = AiCreditGuard.calcPerUseCost(m.getModelPrice(), markup);
+            case 2 -> // PER_SEC
+                    creditPerSec =
+                            m.getModelPrice() != null
+                                    ? Math.max(
+                                            1,
+                                            Math.round(
+                                                    m.getModelPrice().doubleValue()
+                                                            * AiCreditGuard.YUAN_TO_CREDIT
+                                                            * markup))
+                                    : null;
+            case 3 -> // PER_UNIT
+                    creditPerUnit =
+                            m.getModelPrice() != null
+                                    ? Math.max(
+                                            1,
+                                            Math.round(
+                                                    m.getModelPrice().doubleValue()
+                                                            * AiCreditGuard.YUAN_TO_CREDIT
+                                                            * markup))
+                                    : null;
+            default -> { // TOKEN
+                if (m.getInputPricePerK() != null) {
+                    // 每千 token：inputPricePerK（元/千token）× YUAN_TO_CREDIT × markup
+                    inputCreditPerK =
+                            Math.max(
+                                    1,
+                                    Math.round(
+                                            m.getInputPricePerK().doubleValue()
+                                                    * AiCreditGuard.YUAN_TO_CREDIT
+                                                    * markup));
+                }
+                if (m.getOutputPricePerK() != null) {
+                    outputCreditPerK =
+                            Math.max(
+                                    1,
+                                    Math.round(
+                                            m.getOutputPricePerK().doubleValue()
+                                                    * AiCreditGuard.YUAN_TO_CREDIT
+                                                    * markup));
+                }
+            }
+        }
+
+        return new PublicModelPricingVO(
+                m.getModelId(),
+                m.getDisplayName(),
+                m.getProvider(),
+                m.getCapabilities(),
+                quotaType,
+                inputCreditPerK,
+                outputCreditPerK,
+                creditPerUse,
+                creditPerSec,
+                creditPerUnit,
+                markup);
     }
 
     public List<AiModelVO> listEnabledByCapabilities(List<String> capabilities) {

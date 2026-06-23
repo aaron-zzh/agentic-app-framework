@@ -13,13 +13,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import tools.jackson.databind.JsonNode;
-
-import com.xuejiai.aaf.common.util.JsonUtils;
-
+import com.xuejiai.aaf.common.enums.sys.ContactSourceEnum;
+import com.xuejiai.aaf.common.enums.sys.ContactStatusEnum;
+import com.xuejiai.aaf.common.enums.sys.ContactTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
@@ -38,17 +38,14 @@ import com.xuejiai.aaf.module.brokerage.vo.BrokerageInviteRewardConfigVO;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageInvitedUserVO;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageWithdrawVO;
 import com.xuejiai.aaf.module.brokerage.vo.WithdrawApplyDTO;
-import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import com.xuejiai.aaf.module.system.contact.domain.Contact;
 import com.xuejiai.aaf.module.system.contact.repository.ContactRepository;
+import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
-import com.xuejiai.aaf.common.enums.sys.ContactSourceEnum;
-import com.xuejiai.aaf.common.enums.sys.ContactStatusEnum;
-import com.xuejiai.aaf.common.enums.sys.ContactTypeEnum;
-
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 当前用户视角的邀请奖励服务（user-facing）。
@@ -127,8 +124,8 @@ public class BrokerageMeService {
      * maxInvites 视为已发放（i 从 0 起算），否则计为 0。该口径是简化实现，避免 N+1 查询 credit_transaction； 长期可在 framework 层
      * CreditTransactionRepository 增加 findByAccountIdAndBizId 后改为精确反查。
      *
-     * <p>使用写事务（覆盖类级 {@code readOnly = true}）：因为内部调用 {@code requireContactId} 可能为缺联系人的
-     * 用户兜底创建 Contact（管理员场景）。
+     * <p>使用写事务（覆盖类级 {@code readOnly = true}）：因为内部调用 {@code requireContactId} 可能为缺联系人的 用户兜底创建
+     * Contact（管理员场景）。
      */
     @Transactional
     public PageResult<BrokerageInvitedUserVO> listMyInvitedUsers(
@@ -267,9 +264,7 @@ public class BrokerageMeService {
                 currentUserId,
                 "BROKERAGE_WITHDRAW",
                 "提现申请已提交",
-                String.format(
-                        "您的提现申请（¥%.2f）已提交，预计 1-3 个工作日内审核完成。",
-                        dto.amount() / 100.0),
+                String.format("您的提现申请（¥%.2f）已提交，预计 1-3 个工作日内审核完成。", dto.amount() / 100.0),
                 "/settings/withdraw",
                 "BROKERAGE_WITHDRAW",
                 withdraw.getId());
@@ -366,10 +361,7 @@ public class BrokerageMeService {
                     MessageRequest.direct(
                             MessageChannel.DINGTALK, "新提现申请", content, List.of("all")));
         } catch (Exception e) {
-            log.warn(
-                    "钉钉新提现申请通知失败，不影响申请流程: withdrawId={}",
-                    withdraw.getId(),
-                    e);
+            log.warn("钉钉新提现申请通知失败，不影响申请流程: withdrawId={}", withdraw.getId(), e);
         }
     }
 
@@ -441,9 +433,9 @@ public class BrokerageMeService {
     /**
      * 取当前用户的 contactId；如果用户尚未绑定联系人则懒创建。
      *
-     * <p>普通用户在注册流程中（{@code AuthService.createContactForUser}）已自动创建 Contact，
-     * 因此通常 {@code user.contactId} 不会为 null。但管理员账号可能由初始化 SQL / 后台直接创建， 不走注册流程，{@code
-     * contactId} 为 NULL。本方法在此场景下为其兜底创建 Contact， 保证邀请码 / 邀请历史等接口对所有已登录用户可用。
+     * <p>普通用户在注册流程中（{@code AuthService.createContactForUser}）已自动创建 Contact， 因此通常 {@code
+     * user.contactId} 不会为 null。但管理员账号可能由初始化 SQL / 后台直接创建， 不走注册流程，{@code contactId} 为
+     * NULL。本方法在此场景下为其兜底创建 Contact， 保证邀请码 / 邀请历史等接口对所有已登录用户可用。
      *
      * <p>该方法使用调用方所在事务（{@code @Transactional}），创建失败会回滚整个调用。
      */

@@ -9,13 +9,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * 语音接口（STT）。

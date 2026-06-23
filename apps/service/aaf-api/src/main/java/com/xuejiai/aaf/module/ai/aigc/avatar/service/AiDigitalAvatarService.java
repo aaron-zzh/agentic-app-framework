@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.avatar.domain.AiDigitalAvatar;
 import com.xuejiai.aaf.module.ai.aigc.avatar.repository.AiDigitalAvatarRepository;
 import com.xuejiai.aaf.module.ai.aigc.avatar.vo.AiDigitalAvatarCreateDTO;
@@ -32,6 +33,7 @@ public class AiDigitalAvatarService
     private static final String STATUS_PENDING = "PENDING";
 
     private final AiDigitalAvatarRepository avatarRepository;
+    @org.springframework.beans.factory.annotation.Autowired private OperatorContext operatorContext;
 
     @Override
     protected JpaRepository<AiDigitalAvatar, Long> getRepository() {
@@ -65,6 +67,7 @@ public class AiDigitalAvatarService
         entity.setSourceAssetId(dto.sourceAssetId());
         entity.setDefaultVoice(dto.defaultVoice());
         entity.setDetectStatus(STATUS_PENDING);
+        entity.setUserId(operatorContext.currentUserId().orElseThrow());
         return entity;
     }
 
@@ -77,7 +80,10 @@ public class AiDigitalAvatarService
 
     @Override
     protected Specification<AiDigitalAvatar> buildSpec(AiDigitalAvatarPageDTO dto) {
+        // BE-8 数据隔离：强制按当前 userId 过滤
+        Long currentUserId = operatorContext.currentUserId().orElseThrow();
         return SpecificationBuilder.<AiDigitalAvatar>builder()
+                .eqIfPresent("userId", currentUserId)
                 .eqIfPresent("detectStatus", dto.getDetectStatus())
                 .build();
     }

@@ -14,6 +14,7 @@ import com.xuejiai.aaf.module.ai.model.vo.AiModelCreateDTO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelImportResultVO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelUpdateDTO;
 import com.xuejiai.aaf.module.ai.model.vo.AiModelVO;
+import com.xuejiai.aaf.module.ai.model.vo.PublicModelPricingVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,6 +56,12 @@ public class AiModelController {
             return Result.success(aiModelService.listEnabledByCapabilities(capabilities));
         }
         return Result.success(aiModelService.listEnabled());
+    }
+
+    @Operation(summary = "用户侧模型定价列表（积分/次，已含加价倍率，无需权限）")
+    @GetMapping("/public-pricing")
+    public Result<List<PublicModelPricingVO>> publicPricing() {
+        return Result.success(aiModelService.listPublicPricing());
     }
 
     @Operation(summary = "上传 JSON 导入模型")

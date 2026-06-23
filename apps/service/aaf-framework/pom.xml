@@ -123,17 +123,65 @@
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
 		</dependency>
+		<!-- ===== AgentScope 2.0+ ===== -->
+		<!-- 核心：HarnessAgent（自动传递 agentscope-core） -->
 		<dependency>
 			<groupId>io.agentscope</groupId>
-			<artifactId>agentscope-spring-boot-starter</artifactId>
+			<artifactId>agentscope-harness</artifactId>
+			<exclusions>
+				<!-- 排除 Jackson 2.x 的 jsonschema（Spring AI 需要 5.0.0/Jackson 3.x） -->
+				<exclusion>
+					<groupId>com.github.victools</groupId>
+					<artifactId>jsonschema-generator</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.github.victools</groupId>
+					<artifactId>jsonschema-module-jackson</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
+		<!-- AG-UI 协议官方扩展：starter 自动暴露 /agui/run/{agentId} 端点 -->
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-agui-spring-boot-starter</artifactId>
+		</dependency>
+		<!-- 可选扩展（按需启用） -->
+		<!-- Skill PostgreSQL 仓库：与 AAF ai_skill_definition 表对接 -->
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-skill-postgresql-repository</artifactId>
+		</dependency>
+		<!-- Redis BaseStore：harness 线程队列/元数据后端 -->
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-redis</artifactId>
+		</dependency>
+		<!-- OSS BaseStore：大对象（生成内容快照）后端 -->
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-oss</artifactId>
+		</dependency>
+		<!-- Channel 公共接口（HarnessGateway 用） -->
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-channel-common</artifactId>
+		</dependency>
+
+		<!-- DashScope SDK：HarnessAgent 默认 model provider 之一 -->
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>dashscope-sdk-java</artifactId>
 		</dependency>
+		<!-- 响应式：agentscope-core 的 Mono/Flux 流 -->
 		<dependency>
 			<groupId>io.projectreactor</groupId>
 			<artifactId>reactor-core</artifactId>
+		</dependency>
+
+		<!-- ===== 以下 1.x 旧依赖暂保留注释，避免 1.0 集成代码误编译 =====
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-spring-boot-starter</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>io.agentscope</groupId>
@@ -144,10 +192,6 @@
 					<artifactId>slf4j-jboss-logmanager</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>io.agentscope</groupId>
-			<artifactId>agentscope-agui-spring-boot-starter</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>io.agentscope</groupId>
@@ -162,6 +206,7 @@
 			<groupId>io.agentscope</groupId>
 			<artifactId>agentscope-extensions-session-redis</artifactId>
 		</dependency>
+		===== -->
 
 		<!-- 图数据库 -->
 		<dependency>
@@ -270,5 +315,22 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- 排除 1.x agentscope 集成代码（保留源码不删除，仅不参与 2.0+ 编译） -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<!-- 1.0 AgentScope 集成（runtime/hook/memory/session/tool/knowledge/a2a） -->
+						<exclude>com/xuejiai/aaf/framework/intelligent/agentscope/**</exclude>
+						<exclude>com/xuejiai/aaf/framework/intelligent/assistant/a2a/**</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>

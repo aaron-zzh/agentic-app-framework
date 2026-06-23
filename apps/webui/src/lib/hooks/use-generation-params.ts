@@ -35,7 +35,7 @@ function defaultsFromModel(model: AiModelVO | undefined): GenerationParams {
   if (isVideo) return { aspectRatio: "9:16", videoDuration: "5s" }
 
   const cfg: ImageConfig | undefined = model.imageConfig
-  if (!cfg) return { aspectRatio: "1:1", resolution: "2K" }
+  if (!cfg) return { aspectRatio: "1:1", imageCount: 1 }
 
   const modeConfig: ImageModeConfig | undefined = cfg.generate
   const p: GenerationParams = {}

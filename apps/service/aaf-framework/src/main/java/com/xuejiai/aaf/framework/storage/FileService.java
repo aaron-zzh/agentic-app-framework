@@ -64,9 +64,39 @@ public class FileService {
      * @return 存储后的可访问 URL
      */
     public String uploadFromUrl(String url, String path, String contentType) {
-        try (var is = URI.create(url).toURL().openStream()) {
-            String key = storageService.upload(is, path, contentType);
-            return storageService.getUrl(key);
+        try {
+            // 跟随重定向（picsum 等服务会 302 跳转）
+            java.net.HttpURLConnection conn =
+                    (java.net.HttpURLConnection) URI.create(url).toURL().openConnection();
+            conn.setInstanceFollowRedirects(true);
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(30_000);
+            conn.connect();
+            // 手动处理最多 5 次重定向（HTTPS→HTTP 等跨协议情况 HttpURLConnection 不自动跟随）
+            int maxRedirects = 5;
+            while (maxRedirects-- > 0) {
+                int code = conn.getResponseCode();
+                if (code == java.net.HttpURLConnection.HTTP_MOVED_PERM
+                        || code == java.net.HttpURLConnection.HTTP_MOVED_TEMP
+                        || code == 307 || code == 308) {
+                    String location = conn.getHeaderField("Location");
+                    conn.disconnect();
+                    conn = (java.net.HttpURLConnection)
+                            URI.create(location).toURL().openConnection();
+                    conn.setInstanceFollowRedirects(true);
+                    conn.setConnectTimeout(10_000);
+                    conn.setReadTimeout(30_000);
+                    conn.connect();
+                } else {
+                    break;
+                }
+            }
+            try (var is = conn.getInputStream()) {
+                String key = storageService.upload(is, path, contentType);
+                return storageService.getUrl(key);
+            } finally {
+                conn.disconnect();
+            }
         } catch (IOException e) {
             throw new StorageException("从 URL 上传文件失败: " + url, e);
         }

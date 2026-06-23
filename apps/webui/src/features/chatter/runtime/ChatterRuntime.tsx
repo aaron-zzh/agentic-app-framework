@@ -20,12 +20,16 @@ import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 /** 构建对话端点 URL：kiro 走独立端点，AI 走 /agui/runs */
-function buildAguiUrl(target: ChatterTarget): string {
+function buildAguiUrl(target: ChatterTarget, isAuthenticated: boolean): string {
   if (target.type === "kiro") {
     return buildApiUrl("/autodev/kiro/run")
   }
-  const agentId = target.agentRole ?? "default"
-  return buildApiUrl(`/agui/runs/${agentId}`)
+  // 已登录：后端通过 token 识别用户，不需要 agentId 路径参数
+  if (isAuthenticated) {
+    return buildApiUrl("/agui/run")
+  }
+  const agentId = target.agentRole ?? "customer-service"
+  return buildApiUrl(`/agui/run/${agentId}`)
 }
 
 interface ChatterRuntimeProps {
@@ -50,16 +54,18 @@ export function ChatterRuntime({ target, sessionId, modelId, children }: Chatter
   const pageConfig = currentPageId ? configs[currentPageId] : undefined
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
-  const aguiUrl = useMemo(() => buildAguiUrl(target), [target])
+  const aguiUrl = useMemo(() => buildAguiUrl(target, isAuthenticated), [target, isAuthenticated])
 
   const initialState = useMemo(
     () => ({
       pageId: currentPageId,
       preset: pageConfig?.preset,
-      agentRole: target.agentRole ?? pageConfig?.agentRole,
+      // 已登录走 /agui/run，后端自动选 agent，不传 agentRole 避免找不到
+      ...(isAuthenticated ? {} : { agentRole: target.agentRole ?? pageConfig?.agentRole }),
+      assistantId: target.assistantId,
       ...(modelId ? { modelId } : {})
     }),
-    [target.agentRole, pageConfig, currentPageId, modelId]
+    [target.agentRole, target.assistantId, pageConfig, currentPageId, modelId, isAuthenticated]
   )
 
   // onNewThread 行为：

@@ -12,9 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { GenerationHistoryItem } from "@/lib/api/rest/ai/generation-history"
 import { useGenerationHistory } from "@/lib/queries/use-generation-history"
-import { useAuthStore } from "@/lib/store/auth-store"
-import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "../store"
+import { cn } from "@/lib/utils/index"
 
 interface GenerationHistoryProps {
   className?: string
@@ -60,10 +59,7 @@ export function GenerationHistory({ className }: GenerationHistoryProps) {
   const [collapsed, setCollapsed] = useState(true)
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all")
 
-  const userId = useAuthStore((s) => s.user?.id) ?? ""
-
   const { data, isLoading } = useGenerationHistory(
-    userId,
     0,
     20,
     typeFilter === "all" ? undefined : typeFilter

@@ -184,6 +184,19 @@
 			</resource>
 		</resources>
 		<plugins>
+			<!-- 排除 1.x agentscope 集成代码（保留源码不删除，仅不参与 2.0+ 编译） -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>com/xuejiai/aaf/module/ai/agui/**</exclude>
+						<exclude>com/xuejiai/aaf/module/ai/a2a/**</exclude>
+						<exclude>com/xuejiai/aaf/module/examples/agentscope/**</exclude>
+						<exclude>com/xuejiai/aaf/module/system/workflow/agui/**</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>

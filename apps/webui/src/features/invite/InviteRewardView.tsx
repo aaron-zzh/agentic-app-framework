@@ -57,7 +57,7 @@ export function InviteRewardView({ variant = "page" }: InviteRewardViewProps) {
       {/* 标题 */}
       <div className="mb-6 flex items-center justify-center gap-2 text-center">
         <Gift className="size-6 text-amber-400" aria-hidden />
-        <h1 className="font-semibold text-2xl">邀请赢积分</h1>
+        <h1 className="font-semibold text-2xl">邀请赚积分</h1>
       </div>
 
       {/* 两块奖励卡片 */}

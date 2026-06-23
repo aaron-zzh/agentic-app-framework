@@ -34,12 +34,6 @@ import {
   ContextMenuTrigger
 } from "@/components/ui/context-menu"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -55,37 +49,20 @@ function FileAreaHeader({ onClose }: { onClose?: () => void }) {
   const fileZoom = useAigcStore((s) => s.fileZoom)
   const setFileZoom = useAigcStore((s) => s.setFileZoom)
   const setGenerationPanelOpen = useAigcStore((s) => s.setGenerationPanelOpen)
-  const setCopywritingPanelOpen = useAigcStore((s) => s.setCopywritingPanelOpen)
 
   return (
     <div className="flex shrink-0 items-center justify-between border-border/50 border-b px-3 py-2">
       <span className="font-medium text-muted-foreground text-xs">素材区</span>
       <div className="flex items-center gap-1">
-        {/* 生成下拉按钮 */}
-        <DropdownMenu>
-          <DropdownMenuTrigger className="group/button inline-flex h-6 shrink-0 select-none items-center justify-center gap-1 rounded-lg px-1.5 text-muted-foreground text-xs outline-none transition-all hover:bg-accent hover:text-foreground focus-visible:ring-2">
-            <Plus className="size-3.5" />
-            添加
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem onClick={() => setGenerationPanelOpen(true)}>
-              <Sparkles className="mr-2 size-3.5" />
-              生成图像
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCopywritingPanelOpen(true)}>
-              <PenLine className="mr-2 size-3.5" />
-              生成文案
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <Video className="mr-2 size-3.5" />
-              生成视频
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <Music className="mr-2 size-3.5" />
-              生成音乐
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* 添加：直接打开生成面板 */}
+        <button
+          type="button"
+          onClick={() => setGenerationPanelOpen(true)}
+          className="group/button inline-flex h-6 shrink-0 select-none items-center justify-center gap-1 rounded-lg px-1.5 text-muted-foreground text-xs outline-none transition-all hover:bg-accent hover:text-foreground focus-visible:ring-2"
+        >
+          <Plus className="size-3.5" />
+          添加
+        </button>
         {/* <span className="text-muted-foreground text-xs">只展示未分配</span>
         <Switch
           checked={fileFilterUnassigned}
@@ -177,13 +154,18 @@ export function PreviewPanel({
   const storyboardPanelOpen = useAigcStore((s) => s.storyboardPanelOpen)
   const setStoryboardPanelOpen = useAigcStore((s) => s.setStoryboardPanelOpen)
   const params = useParams()
-  const projectId = params.projectId ? Number(params.projectId) : null
+  const projectId = params.projectId
+    ? Number(params.projectId)
+    : params.id
+      ? Number(params.id)
+      : null
 
   // 切换项目时清空预览素材
   const setPreviewAsset = useAigcStore((s) => s.setPreviewAsset)
-  const prevProjectId = useRef(params.projectId)
-  if (prevProjectId.current !== params.projectId) {
-    prevProjectId.current = params.projectId
+  const _routeKey = params.projectId ?? params.id
+  const prevProjectId = useRef(_routeKey)
+  if (prevProjectId.current !== _routeKey) {
+    prevProjectId.current = _routeKey
     setPreviewAsset(null)
   }
 

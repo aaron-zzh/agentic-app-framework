@@ -17,7 +17,7 @@
 
 "use client"
 
-import { Clock, LayoutDashboard, Navigation, Terminal } from "lucide-react"
+import { Clock, LayoutDashboard, Navigation, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
@@ -112,10 +112,10 @@ export function CommandPalette({
         if (!v) onClose()
       }}
       title="命令面板"
-      description="搜索页面、记录或执行命令。输入 > 进入命令模式。"
+      description="搜索页面、记录或执行命令。"
     >
       <CommandInput
-        placeholder={isCommandMode ? "输入命令..." : "搜索页面、记录、命令...（> 进入命令模式）"}
+        placeholder={isCommandMode ? "输入命令..." : "搜索页面、记录、命令..."}
         value={query}
         onValueChange={setQuery}
       />
@@ -128,7 +128,7 @@ export function CommandPalette({
             <CommandGroup key={group} heading={group}>
               {cmds.map((cmd) => (
                 <CommandItem key={cmd.id} onSelect={() => executeCommand(cmd)}>
-                  <Terminal className="text-muted-foreground" />
+                  <Zap className="text-muted-foreground" />
                   <span>{cmd.label}</span>
                 </CommandItem>
               ))}
@@ -187,7 +187,7 @@ export function CommandPalette({
                   <CommandGroup key={group} heading={group}>
                     {cmds.map((cmd) => (
                       <CommandItem key={cmd.id} onSelect={() => executeCommand(cmd)}>
-                        <Terminal className="text-muted-foreground" />
+                        <Zap className="text-muted-foreground" />
                         <span>{cmd.label}</span>
                       </CommandItem>
                     ))}

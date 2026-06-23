@@ -110,6 +110,21 @@ public class GenerationTemplateService
         return "参数模板";
     }
 
+    /** 按用户分页查询（/me 端点强制 userId 过滤）。 */
+    public com.xuejiai.aaf.common.model.PageResult<GenerationTemplateVO> pageByUser(
+            Long userId, GenerationTemplatePageDTO query) {
+        var spec = buildSpec(query).and((root, q, cb) -> cb.equal(root.get("userId"), userId));
+        var pageReq =
+                org.springframework.data.domain.PageRequest.of(
+                        Math.max(query.getPageNo() - 1, 0),
+                        query.getPageSize() > 0 ? query.getPageSize() : 20,
+                        org.springframework.data.domain.Sort.by(
+                                org.springframework.data.domain.Sort.Direction.DESC, "updateTime"));
+        var page = templateRepository.findAll(spec, pageReq);
+        return new com.xuejiai.aaf.common.model.PageResult<>(
+                page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+    }
+
     /** 增加使用计数。 */
     @Transactional
     public GenerationTemplateVO incrementUsage(Long id) {

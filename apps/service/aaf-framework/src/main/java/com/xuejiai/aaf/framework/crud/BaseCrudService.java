@@ -98,6 +98,60 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     protected abstract void updateEntity(E entity, U updateDTO);
 
     /**
+     * 提取实体的 owner userId，用于 ownership 校验。
+     *
+     * <p>v0.2 (N1)：默认返回 null = 不做 ownership 校验（公开资源、字典、模板等）。 业务子类按需 override：
+     *
+     * <pre>{@code
+     * @Override
+     * protected Long extractOwnerId(MyEntity e) {
+     *     return e.getUserId();
+     * }
+     * }</pre>
+     *
+     * 配合 {@link #enforceOwnership(BaseEntity)} 在自定义 getByIdOwned/updateOwned/deleteOwned 中使用。
+     */
+    protected Long extractOwnerId(E entity) {
+        return null;
+    }
+
+    /**
+     * 校验当前登录用户对实体的所有权。
+     *
+     * <p>当 {@link #extractOwnerId(BaseEntity)} 返回 non-null 且不等于当前用户时，抛出 {@link
+     * BusinessException}({@link GlobalErrorCode#NOT_FOUND})——使用 NOT_FOUND 而非 FORBIDDEN
+     * 防探测，攻击者无法通过返回码差异识别资源是否存在。
+     *
+     * <p>extractOwnerId 返回 null 时直接放行（视为公开资源）。
+     */
+    protected void enforceOwnership(E entity) {
+        Long ownerId = extractOwnerId(entity);
+        if (ownerId == null) return;
+        if (operatorContext == null) return; // 测试场景或非 web 上下文
+        Long currentUserId = operatorContext.currentUserId().orElse(null);
+        if (currentUserId == null || !ownerId.equals(currentUserId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, entityName() + "不存在");
+        }
+    }
+
+    /**
+     * 按 ID 查询并校验 ownership——配合 {@link #extractOwnerId} 使用。
+     *
+     * <p>取代业务子类自写的 getByIdOwned 样板代码：跨用户访问返回 NOT_FOUND，符合数据隔离防探测语义。
+     */
+    public V getByIdOwned(Long id) {
+        var entity =
+                getRepository()
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, entityName() + "不存在"));
+        enforceOwnership(entity);
+        return applyFieldAccess(toVO(entity), "read");
+    }
+
+    /**
      * 构建业务查询条件，默认无条件。
      *
      * <p>只处理页面筛选、搜索等业务参数；分页和排序由 {@link PageParam#toPageable(Sort)} 处理， 行级数据权限由 {@link
@@ -480,8 +534,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
             return entityName().trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "-");
         }
         // CamelCase → kebab-case: AigcTask → aigc-task
-        return type[0]
-                .getSimpleName()
+        return type[0].getSimpleName()
                 .replaceAll("([a-z])([A-Z])", "$1-$2")
                 .toLowerCase(Locale.ROOT);
     }

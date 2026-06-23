@@ -89,7 +89,7 @@ export function ProjectDocPanel({ open, onOpenChange }: Props) {
         onOpenChange(v)
       }}
     >
-      <SheetContent side="left" className="!w-[60vw] !max-w-[60vw] flex flex-col p-0">
+      <SheetContent side="left" className="w-[60vw]! max-w-[60vw]! flex flex-col p-0">
         <SheetHeader className="border-b px-4 py-3">
           <SheetTitle className="text-sm">项目规范</SheetTitle>
         </SheetHeader>

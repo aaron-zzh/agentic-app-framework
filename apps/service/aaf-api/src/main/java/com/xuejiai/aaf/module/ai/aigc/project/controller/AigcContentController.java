@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcContent;
 import com.xuejiai.aaf.module.ai.aigc.project.service.AigcContentService;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcContentAssetVO;
@@ -25,8 +27,6 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcContentVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /** AIGC 内容产出接口。 */
 @FeatureRequired(LicenseFeature.Codes.AIGC)

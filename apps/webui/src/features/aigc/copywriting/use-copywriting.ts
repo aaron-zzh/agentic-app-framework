@@ -39,9 +39,10 @@ export function useCopywriting(projectId?: number) {
   const createDoc = useCreateDocument()
   const linkDoc = useLinkProjectDoc()
 
-  // 切换类型时重置向导和已保存状态
+  // 切换类型时重置向导、已保存状态、编辑器内容
   useEffect(() => {
     setSaved(false)
+    streamingEditorRef.current?.done("")
     if (type !== "viral") {
       setViralStep(1)
       setViralSource("")

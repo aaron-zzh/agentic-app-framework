@@ -21,11 +21,23 @@ export interface AgentSuggestion {
   label?: string
 }
 
+/** AIGC 异步任务卡片（通过 ui_block CustomEvent 写入） */
+export interface AigcTaskCard {
+  taskId: number
+  mediaType: "image" | "video" | "music"
+  status: "PENDING" | "SUCCESS" | "FAIL"
+  prompt: string
+  message: string
+  /** 完成后的媒体 URL */
+  url?: string
+}
+
 interface AgentRunState {
   phase: AgentRunPhase
   activeTool: string | null
   entries: AgentRunEntry[]
   suggestions: AgentSuggestion[]
+  aigcTasks: AigcTaskCard[]
   startRun: () => void
   finishRun: () => void
   errorRun: (message?: string) => void
@@ -33,6 +45,8 @@ interface AgentRunState {
   endTool: () => void
   pushEntry: (entry: AgentRunEntry) => void
   setSuggestions: (suggestions: AgentSuggestion[]) => void
+  pushAigcTask: (card: AigcTaskCard) => void
+  updateAigcTask: (taskId: number, patch: Partial<AigcTaskCard>) => void
 }
 
 const MAX_ENTRIES = 50
@@ -47,6 +61,7 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   activeTool: null,
   entries: [],
   suggestions: [],
+  aigcTasks: [],
   startRun: () => set({ phase: "running", activeTool: null, entries: [], suggestions: [] }),
   finishRun: () => set({ phase: "finished", activeTool: null }),
   errorRun: (message) =>
@@ -66,5 +81,10 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
     })),
   endTool: () => set({ activeTool: null }),
   pushEntry: (entry) => set((s) => ({ entries: append(s.entries, entry) })),
-  setSuggestions: (suggestions) => set({ suggestions })
+  setSuggestions: (suggestions) => set({ suggestions }),
+  pushAigcTask: (card) => set((s) => ({ aigcTasks: [...s.aigcTasks, card] })),
+  updateAigcTask: (taskId, patch) =>
+    set((s) => ({
+      aigcTasks: s.aigcTasks.map((t) => (t.taskId === taskId ? { ...t, ...patch } : t))
+    }))
 }))

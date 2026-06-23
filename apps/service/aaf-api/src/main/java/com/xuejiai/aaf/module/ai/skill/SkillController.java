@@ -38,7 +38,18 @@ public class SkillController
         return skillService;
     }
 
-    @Operation(summary = "查询技能列表", description = "按 ownerId 筛选（全局 + 私有），不传则查全部")
+    @Operation(
+            summary = "查询激活技能列表",
+            description = "支持按 category 过滤；activeOnly 默认 true 仅返回激活技能；按 priority 降序")
+    @GetMapping("/active")
+    public Result<List<SkillVO>> listActive(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false, defaultValue = "true") Boolean activeOnly) {
+        return Result.success(
+                skillService.listByCategory(category, Boolean.TRUE.equals(activeOnly)));
+    }
+
+    @Operation(summary = "查询技能列表（按 owner）", description = "按 ownerId 筛选（全局 + 私有），不传则查全部")
     @GetMapping("/by-owner")
     public Result<List<SkillVO>> listByOwner(@RequestParam(required = false) Long ownerId) {
         return Result.success(skillService.list(ownerId));

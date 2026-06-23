@@ -27,7 +27,7 @@ export default function InviteInterceptModal() {
   return (
     <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl border-amber-500/30 bg-gradient-to-b from-amber-500/5 via-popover to-popover p-6 sm:max-w-2xl">
-        <DialogTitle className="sr-only">邀请赢积分</DialogTitle>
+        <DialogTitle className="sr-only">邀请赚积分</DialogTitle>
         <InviteRewardView variant="dialog" />
       </DialogContent>
     </Dialog>

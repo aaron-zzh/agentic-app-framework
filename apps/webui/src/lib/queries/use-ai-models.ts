@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query"
 import {
   type AiModelVO,
   listImageModels,
+  listPublicPricing,
   listTextModels,
-  listVideoModels
+  listVideoModels,
+  type PublicModelPricingVO
 } from "@/lib/api/rest/ai/ai-model"
 import { request } from "@/lib/api/rest/entity/crud"
 
@@ -27,5 +29,14 @@ export function useAiModels(capability: string) {
     queryFn: () => fetchModelsByCapability(capability),
     enabled: !!capability,
     staleTime: 5 * 60 * 1000
+  })
+}
+
+/** 用户侧模型定价列表（积分/次，含加价倍率，10 分钟缓存） */
+export function useModelPricing() {
+  return useQuery<PublicModelPricingVO[]>({
+    queryKey: ["ai", "models", "public-pricing"],
+    queryFn: listPublicPricing,
+    staleTime: 10 * 60 * 1000
   })
 }

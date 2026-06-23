@@ -29,30 +29,16 @@ const AGENTS = [
   {
     id: "supervisor",
     label: "Supervisor",
-    desc: "多智能体协作",
-    hint: "多 Agent 协作处理",
-    defaultMsg: "从技术、商业、用户体验三个角度分析 AI 助手的价值"
+    desc: "主 Agent 委托子 Agent 处理日程",
+    hint: "多 Agent 协作",
+    defaultMsg: "帮我查询明天的可用时间，并安排一个下午 2 点的会议"
   },
   {
     id: "pipeline",
     label: "Pipeline",
-    desc: "顺序管道",
-    hint: "依次处理",
-    defaultMsg: "依次完成：总结、翻译成英文、润色这段话：AI 是未来的核心生产力"
-  },
-  {
-    id: "debate",
-    label: "MsgHub 辩论",
-    desc: "多 Agent 辩论",
-    hint: "正反辩论",
-    defaultMsg: "正方和反方分别阐述：AI 是否会取代人类工作"
-  },
-  {
-    id: "session-chat",
-    label: "Session 持久化",
-    desc: "跨请求记忆",
-    hint: "先记住名字，再第二条消息提问验证记忆",
-    defaultMsg: "我叫张三，请记住我的名字"
+    desc: "自然语言 → SQL 生成 → 质量评分",
+    hint: "多 Agent 串联",
+    defaultMsg: "查询所有年龄大于 30 岁的用户姓名和邮箱"
   },
   {
     id: "mcp-tool",
@@ -60,20 +46,6 @@ const AGENTS = [
     desc: "需配置 MCP Server URL",
     hint: "调用外部 MCP 工具",
     defaultMsg: "帮我查询当前天气"
-  },
-  {
-    id: "rag-chat",
-    label: "RAG 知识库",
-    desc: "需 DashScope Embedding",
-    hint: "从知识库检索回答",
-    defaultMsg: "AAF 框架有哪些核心能力？"
-  },
-  {
-    id: "plan-chat",
-    label: "Plan 任务规划",
-    desc: "⚠️ 暂不可用（Jackson 兼容性）",
-    hint: "PlanNotebook 内置工具依赖 victools，与 Jackson 3.x 不兼容，待 agentscope 升级修复",
-    defaultMsg: "帮我规划一个 30 天学习 AI 框架的计划"
   }
 ]
 
@@ -105,12 +77,7 @@ export default function AgentScopeExamplePage() {
     setMessages((prev) => [...prev, { role: "user", content: userMsg }])
     setLoading(true)
     try {
-      const body =
-        selectedId === "debate"
-          ? { topic: userMsg, rounds: 2 }
-          : selectedId === "session-chat"
-            ? { sessionId: "demo-session", input: userMsg }
-            : { input: userMsg }
+      const body = { input: userMsg }
       const res = await request<string | Record<string, unknown>>(
         `/examples/agentscope/${selectedId}`,
         {
@@ -119,11 +86,7 @@ export default function AgentScopeExamplePage() {
         }
       )
       const content =
-        typeof res === "string"
-          ? res
-          : selectedId === "session-chat" && "reply" in res
-            ? `${res.reply}\n\n---\n📋 会话状态：${res.isNew ? "新建" : "已恢复"} | 历史消息数：${res.historyMessages}`
-            : JSON.stringify(res, null, 2)
+        typeof res === "string" ? res : JSON.stringify(res, null, 2)
       setMessages((prev) => [...prev, { role: "assistant", content: content ?? "(无回复)" }])
       // 每2次触发5秒冷却
       sendCountRef.current += 1

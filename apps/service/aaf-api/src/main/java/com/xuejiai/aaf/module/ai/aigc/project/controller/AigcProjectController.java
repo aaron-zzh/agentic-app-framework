@@ -7,13 +7,17 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectService;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCreateDTO;
@@ -25,10 +29,9 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /** AIGC 创作项目接口。 */
 @FeatureRequired(LicenseFeature.Codes.AIGC)
@@ -55,6 +58,39 @@ public class AigcProjectController
                     AigcProjectPageDTO>
             getService() {
         return service;
+    }
+
+    // BE-8 数据隔离：override 单条查询，加 ownership 校验（跨用户返回 404 防探测）
+    @Override
+    @Operation(summary = "查询项目详情（含 ownership 校验）")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}")
+    public Result<AigcProjectVO> get(
+            @Parameter(description = "记录 ID") @PathVariable Long id,
+            @RequestParam(required = false) String queryToken,
+            @RequestParam(defaultValue = "detail") String fieldSet) {
+        return Result.success(service.getByIdOwned(id));
+    }
+
+    // BE-8 数据隔离：override 更新，加 ownership 校验（跨用户返回 404 防探测）
+    @Override
+    @Operation(summary = "更新项目（含 ownership 校验）")
+    @PreAuthorize("isAuthenticated()")
+    @PutMapping("/{id}")
+    public Result<AigcProjectVO> update(
+            @Parameter(description = "记录 ID") @PathVariable Long id,
+            @RequestBody AigcProjectUpdateDTO request) {
+        return Result.success(service.updateOwned(id, request));
+    }
+
+    // BE-8 数据隔离：override 删除，加 ownership 校验（跨用户返回 404 防探测）
+    @Override
+    @Operation(summary = "删除项目（含 ownership 校验）")
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@Parameter(description = "记录 ID") @PathVariable Long id) {
+        service.deleteOwned(id);
+        return Result.success();
     }
 
     @Operation(summary = "项目概览统计")

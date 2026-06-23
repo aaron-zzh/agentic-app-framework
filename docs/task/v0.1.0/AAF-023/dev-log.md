@@ -157,3 +157,14 @@
 > - AgentScope `agentscope-a2a-spring-boot-starter` 引入（补全远程 A2A 调用）
 
 > **沉淀**：代码引入了 `AgentRuntime` 接口层，比文档原设计（AgentFactory 直接构建 ReActAgent）更好——实现了框架无关抽象，切换底层 Agent 框架只需替换 Bean。文档已同步更新。
+
+
+## D 步骤：ai_llm_call_log + ai_tool_call_log token 粒度持久化
+
+✅ 2026-06-22 — developer-service
+
+- 新增 `CallLogMiddleware`（onModelCall 拦截 `ModelCallEndEvent` → `ai_llm_call_log`；onActing 写工具入参 → `ai_tool_call_log`，`ToolCallEndEvent` 更新 status=COMPLETED）
+- 新增 `AiLlmCallLog` / `AiToolCallLog` JPA entity + Repository（`module.chat.calllog`）
+- Flyway `v11__call_log_schema.sql`：两表 + 索引（conv/thread/time）
+- `ContentCreationAgentFactory.registerInfrastructure` 注册 `CallLogMiddleware`（与 JdbcTemplate 共用）
+- `pnpm nx build service` BUILD SUCCESS（46.9s，6 模块全绿）

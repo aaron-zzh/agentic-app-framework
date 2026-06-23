@@ -233,7 +233,7 @@ export function ModelParamsBar({
         <SizeControl cfg={cfg} modeConfig={modeConfig} params={params} onChange={onChangeParams} />
       )}
 
-      {/* 无 imageConfig 降级：比例 + 分辨率 */}
+      {/* 无 imageConfig 降级：比例 + 数量 */}
       {!isVideo && !cfg && (
         <>
           <P
@@ -243,11 +243,12 @@ export function ModelParamsBar({
             onChange={(v) => onChangeParams({ aspectRatio: v })}
           />
           <P
-            label="分辨率"
-            value={params.resolution ?? "2K"}
-            options={["1K", "2K", "4K"]}
-            onChange={(v) => onChangeParams({ resolution: v })}
-            className="h-8 w-[110px] text-xs"
+            label="张数"
+            value={String(params.imageCount ?? 1)}
+            options={["1", "2", "4"]}
+            onChange={(v) => onChangeParams({ imageCount: Number(v) })}
+            labelMap={{ "1": "1 张", "2": "2 张", "4": "4 张" }}
+            className="h-8 w-[90px] text-xs"
           />
         </>
       )}

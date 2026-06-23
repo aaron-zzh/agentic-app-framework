@@ -245,7 +245,11 @@ export function GenerationPanel() {
   const generateImage = useGenerateImage()
   const addPendingTask = useAigcStore((s) => s.addPendingTask)
   const routeParams = useParams()
-  const projectId = routeParams.projectId ? Number(routeParams.projectId) : null
+  const projectId = routeParams.projectId
+    ? Number(routeParams.projectId)
+    : routeParams.id
+      ? Number(routeParams.id)
+      : null
 
   function handleGenerate() {
     if (!prompt.trim()) return

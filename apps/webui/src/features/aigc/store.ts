@@ -13,8 +13,8 @@ interface AigcStore {
   copywritingPanelOpen: boolean
   /** 文案内容 */
   copywritingContent: string
-  /** 文案生成类型：oral=口播 xiaohongshu=小红书 viral=爆款复制 */
-  copywritingType: "oral" | "xiaohongshu" | "viral"
+  /** 文案生成类型：oral=口播 xiaohongshu=小红书 viral=爆款复制，或任意 skill code */
+  copywritingType: string
   /** 文案生成模板 */
   copywritingTemplate: string
   /** 文案生成语言/翻译目标 */
@@ -96,7 +96,7 @@ interface AigcStore {
   setAgentRole: (roleId: string) => void
   setCopywritingPanelOpen: (open: boolean) => void
   setCopywritingContent: (content: string) => void
-  setCopywritingType: (type: "oral" | "xiaohongshu" | "viral") => void
+  setCopywritingType: (type: string) => void
   setCopywritingTemplate: (template: string) => void
   setCopywritingTranslateTo: (lang: string) => void
   setCopywritingLength: (length: "short" | "medium" | "long") => void

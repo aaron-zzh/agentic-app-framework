@@ -176,8 +176,8 @@ export function ChatterToolbar({
                 <SelectValue>{currentRole?.name}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {roles.map((r) => (
-                  <SelectItem key={r.roleId} value={r.roleId}>
+                {roles.map((r, i) => (
+                  <SelectItem key={r.roleId ?? i} value={r.roleId}>
                     <span className="flex items-center gap-2">
                       <Avatar className="size-5">
                         <AvatarImage src={r.avatar} />
@@ -224,6 +224,7 @@ export function ChatterToolbar({
                 aria-label="全屏对话"
                 onClick={() => {
                   setMode("page")
+                  setLayoutOverride("page")
                   setOpen(true)
                 }}
               >
@@ -239,7 +240,11 @@ export function ChatterToolbar({
         {/* panel/page 模式操作按钮 */}
         {!isFloating &&
           (isPageMode ? (
-            <Button variant="ghost" size="icon-sm" aria-label="返回" onClick={() => router.back()}>
+            <Button variant="ghost" size="icon-sm" aria-label="返回" onClick={() => {
+              setMode("dialog")
+              setLayoutOverride(null)
+              setOpen(true)
+            }}>
               <X className="size-3.5" />
             </Button>
           ) : (
@@ -251,6 +256,7 @@ export function ChatterToolbar({
                   aria-label="全屏对话"
                   onClick={() => {
                     setMode("page")
+                    setLayoutOverride("page")
                     setOpen(true)
                   }}
                 >

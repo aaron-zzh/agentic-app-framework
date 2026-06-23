@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.GenerationTemplate;
 import com.xuejiai.aaf.module.ai.aigc.image.service.GenerationTemplateService;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateCreateDTO;
@@ -15,8 +17,6 @@ import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 参数模板接口。

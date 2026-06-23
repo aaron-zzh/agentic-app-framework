@@ -91,6 +91,10 @@ public class AigcTaskService
     private final AiServiceRegistry aiServiceRegistry;
     private final Model3dGenerationService model3dGenerationService;
 
+    // BE-8 数据隔离：注入 OperatorContext
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.xuejiai.aaf.framework.security.OperatorContext operatorContext;
+
     // ========== BaseCrudService 必须实现 ==========
 
     @Override
@@ -122,10 +126,15 @@ public class AigcTaskService
 
     @Override
     protected Specification<AigcTask> buildSpec(AigcTaskPageDTO dto) {
+        // BE-8 数据隔离：强制按当前 userId 过滤
+        Long currentUserId = operatorContext.currentUserId().orElse(null);
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();
-            if (dto.getUserId() != null)
+            if (currentUserId != null) {
+                predicates.add(cb.equal(root.get("userId"), currentUserId));
+            } else if (dto.getUserId() != null) {
                 predicates.add(cb.equal(root.get("userId"), dto.getUserId()));
+            }
             if (dto.getType() != null) predicates.add(cb.equal(root.get("type"), dto.getType()));
             if (dto.getStatus() != null)
                 predicates.add(cb.equal(root.get("status"), dto.getStatus()));
@@ -140,7 +149,16 @@ public class AigcTaskService
         return "AIGC任务";
     }
 
-    // ========== 提交任务 ==========
+    /** BE-8 数据隔离：单条查询后校验 ownership，跨用户返回 404 防探测。 */
+    public AigcTaskVO getByIdOwned(Long id) {
+        var entity = requireEntity(id);
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        if (!entity.getUserId().equals(userId)) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.NOT_FOUND, "任务不存在");
+        }
+        return toVO(entity);
+    }
 
     @Transactional
     public Long submitImageTask(Long userId, ImageTaskRequest req) {

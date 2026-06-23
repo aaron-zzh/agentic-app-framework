@@ -16,6 +16,7 @@ public class PayNotifyTask {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(name = "version", nullable = false)
     private Integer version = 0;
 

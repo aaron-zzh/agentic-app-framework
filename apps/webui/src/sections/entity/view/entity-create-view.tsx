@@ -1,4 +1,4 @@
-﻿/**
+/**
  * EntityCreateView——实体新建视图
  * @author AaronZZH & Kiro
  *

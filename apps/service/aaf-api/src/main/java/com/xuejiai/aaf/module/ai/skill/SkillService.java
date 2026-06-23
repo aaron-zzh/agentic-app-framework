@@ -43,8 +43,10 @@ public class SkillService
     protected SkillVO toVO(SkillDefinition e) {
         return new SkillVO(
                 e.getId(),
+                e.getCode(),
                 e.getName(),
                 e.getDescription(),
+                e.getCategory(),
                 e.getAgentId(),
                 e.getTriggerIntent(),
                 e.getSystemPrompt(),
@@ -56,8 +58,10 @@ public class SkillService
     @Override
     protected SkillDefinition toEntity(SkillCreateDTO dto) {
         var entity = new SkillDefinition();
+        entity.setCode(dto.code());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
+        entity.setCategory(dto.category());
         entity.setAgentId(dto.agentId());
         entity.setTriggerIntent(dto.triggerIntent());
         entity.setSystemPrompt(dto.systemPrompt());
@@ -69,8 +73,10 @@ public class SkillService
 
     @Override
     protected void updateEntity(SkillDefinition entity, SkillUpdateDTO dto) {
+        if (dto.code() != null) entity.setCode(dto.code());
         if (dto.name() != null) entity.setName(dto.name());
         if (dto.description() != null) entity.setDescription(dto.description());
+        if (dto.category() != null) entity.setCategory(dto.category());
         if (dto.agentId() != null) entity.setAgentId(dto.agentId());
         if (dto.triggerIntent() != null) entity.setTriggerIntent(dto.triggerIntent());
         if (dto.systemPrompt() != null) entity.setSystemPrompt(dto.systemPrompt());
@@ -102,6 +108,31 @@ public class SkillService
     public List<SkillVO> list(Long ownerId) {
         var skills = ownerId != null ? repository.findGlobalOrOwned(ownerId) : repository.findAll();
         return skills.stream().map(this::toVO).toList();
+    }
+
+    /**
+     * 按 category 和 status 查询全局技能（前端 /studio/create/copy 等页面用）。
+     *
+     * @param category 技能分类（如 COPYWRITING/STRATEGY），null=不过滤
+     * @param activeOnly 仅返回 status='active' 的技能
+     * @return 按 priority 降序的技能列表
+     */
+    public List<SkillVO> listByCategory(String category, boolean activeOnly) {
+        var skills = repository.findByCategoryFilter(category, activeOnly);
+        return skills.stream().map(this::toVO).toList();
+    }
+
+    /**
+     * 按 code 查询技能的系统提示词，未找到返回 null。
+     *
+     * @param code skill code（如 voiceover/redbook）
+     * @return systemPrompt 或 null
+     */
+    public String getSystemPromptByCode(String code) {
+        if (code == null || code.isBlank()) return null;
+        return repository.findByCode(code)
+                .map(com.xuejiai.aaf.framework.engine.skill.SkillDefinition::getSystemPrompt)
+                .orElse(null);
     }
 
     @Transactional

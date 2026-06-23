@@ -98,3 +98,29 @@ export async function listVideoModels(): Promise<AiModelVO[]> {
 export async function listTextModels(): Promise<AiModelVO[]> {
   return request<AiModelVO[]>("/ai/models/enabled?capability=CHAT")
 }
+
+/** 用户侧模型公开定价 VO（积分，已含加价倍率） */
+export interface PublicModelPricingVO {
+  modelId: string
+  displayName: string
+  provider: string
+  capabilities: string
+  /** 计费类型：0=按量 1=按次 2=按秒 3=按单元 */
+  quotaType: 0 | 1 | 2 | 3
+  /** 积分/千token 输入（quotaType=0） */
+  inputCreditPerK?: number
+  /** 积分/千token 输出（quotaType=0） */
+  outputCreditPerK?: number
+  /** 积分/次（quotaType=1） */
+  creditPerUse?: number
+  /** 积分/秒（quotaType=2） */
+  creditPerSec?: number
+  /** 积分/单元（quotaType=3） */
+  creditPerUnit?: number
+  markupRate: number
+}
+
+/** 获取用户侧模型定价列表（积分/次，含倍率） */
+export async function listPublicPricing(): Promise<PublicModelPricingVO[]> {
+  return request<PublicModelPricingVO[]>("/ai/models/public-pricing")
+}

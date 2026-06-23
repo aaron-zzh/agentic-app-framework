@@ -8,19 +8,14 @@ import { generationHistoryApi } from "@/lib/api/rest/ai/generation-history"
 
 const KEYS = {
   all: ["generation-history"] as const,
-  list: (userId: string, page: number, type?: "image" | "video") =>
-    ["generation-history", userId, page, type] as const
+  list: (page: number, type?: "image" | "video") =>
+    ["generation-history", page, type] as const
 }
 
 /** 生成历史列表 */
-export function useGenerationHistory(
-  userId: string,
-  page = 0,
-  size = 20,
-  type?: "image" | "video"
-) {
+export function useGenerationHistory(page = 0, size = 20, type?: "image" | "video") {
   return useQuery({
-    queryKey: KEYS.list(userId, page, type),
-    queryFn: () => generationHistoryApi.list({ userId, page, size, type })
+    queryKey: KEYS.list(page, type),
+    queryFn: () => generationHistoryApi.list({ page, size, type })
   })
 }

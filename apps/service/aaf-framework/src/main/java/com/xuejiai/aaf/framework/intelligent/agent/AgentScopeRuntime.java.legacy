@@ -1,0 +1,97 @@
+package com.xuejiai.aaf.framework.intelligent.agent;
+
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+
+import com.xuejiai.aaf.framework.agentscope.model.ContentCreationModelFactory;
+import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;
+import com.xuejiai.aaf.framework.intelligent.core.agent.AgentRuntime;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
+
+import io.agentscope.core.tool.Toolkit;
+import io.agentscope.harness.agent.HarnessAgent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * 基于 AgentScope HarnessAgent 的 AgentRuntime 实现。
+ *
+ * <p>将 {@link AgentDefinition} 数据库配置转化为可执行的 {@link AgentExecutor}。
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class AgentScopeRuntime implements AgentRuntime {
+
+    private final AiModelRepository modelRepository;
+
+    @Override
+    public AgentExecutor create(AgentDefinition definition, List<String> tools) {
+        var model =
+                modelRepository
+                        .findById(definition.getModelId())
+                        .map(ContentCreationModelFactory::buildFromAiModel)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "AgentDefinition[%d] 引用的 modelId=%d 不存在"
+                                                        .formatted(
+                                                                definition.getId(),
+                                                                definition.getModelId())));
+
+        var toolkit = new Toolkit();
+        // TODO: 按 tools 列表动态注册工具（AAF-xxx #N）
+
+        var agent =
+                HarnessAgent.builder()
+                        .agentId("agent-" + definition.getId())
+                        .name(definition.getName())
+                        .model(model)
+                        .sysPrompt(
+                                definition.getSystemPrompt() != null
+                                        ? definition.getSystemPrompt()
+                                        : "你是一个智能助手。")
+                        .toolkit(toolkit)
+                        .maxIters(definition.getMaxIterations())
+                        .build();
+
+        log.info("[AgentScopeRuntime] 创建 Agent: id={} name={}", definition.getId(), definition.getName());
+        return new HarnessAgentExecutor(agent, definition.getName());
+    }
+
+    /** HarnessAgent 适配 AgentExecutor 接口。 */
+    private record HarnessAgentExecutor(HarnessAgent agent, String name) implements AgentExecutor {
+
+        @Override
+        public AgentResult execute(String input) {
+            try {
+                var msg = io.agentscope.core.message.Msg.builder()
+                        .name("user")
+                        .role(io.agentscope.core.message.MsgRole.USER)
+                        .textContent(input)
+                        .build();
+                var response = agent.call(msg).block();
+                var content = response != null ? response.getTextContent() : "";
+                return AgentResult.success(content != null ? content : "");
+            } catch (Exception e) {
+                return AgentResult.error(e.getMessage());
+            }
+        }
+
+        @Override
+        public void interrupt() {
+            agent.interrupt();
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public void reset() {
+            // HarnessAgent 无 reset 方法，依赖会话隔离保证状态不污染
+        }
+    }
+}

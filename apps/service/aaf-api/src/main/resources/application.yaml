@@ -236,6 +236,26 @@ aaf:
       app-key: ${CAIYUN_APP_KEY:}
       app-secret: ${CAIYUN_APP_SECRET:}
 
+  # AAF 内容创作 Agent（基于 agentscope 2.0 HarnessAgent）
+  agentscope:
+    content-creation:
+      enabled: true
+      main-agent-id: assistant
+      editor-agent-id: editor
+      max-iterations: 50
+      editor-max-iterations: 20
+      # dashscope:qwen-max | openai:gpt-4o | anthropic:claude-3-5-sonnet
+      model-id: ${AAF_AGENTSCOPE_MODEL_ID:dashscope:qwen-max}
+      fallback-model-id: ${AAF_AGENTSCOPE_FALLBACK_MODEL_ID:}
+      # none（本地文件系统，开发默认） | docker（每 session 一个容器，需要预先 docker pull）
+      sandbox-type: ${AAF_AGENTSCOPE_SANDBOX_TYPE:none}
+      sandbox-image: agentscope/coding-sandbox:latest
+      thread-model-call-budget: 200
+      global-model-call-limit: 5000
+      compaction-trigger-messages: 40
+      compaction-keep-messages: 15
+      enable-task-list: true
+
 # AgentScope AG-UI 配置
 agentscope:
   agui:
@@ -246,7 +266,7 @@ agentscope:
     emit-tool-call-args: true
     enable-reasoning: true
     enable-path-routing: true
-    default-agent-id: default
+    default-agent-id: content-creation
     agent-id-header: X-Agent-Id
     server-side-memory: true
     max-thread-sessions: 1000

@@ -14,6 +14,7 @@ import { defaultLocale, LOCALE_COOKIE, type Locale, locales } from "./i18n/confi
 
 /** 需要登录才能访问的路径前缀 */
 const PROTECTED_PATHS = [
+  "/studio",
   "/dashboard",
   "/module",
   "/settings",

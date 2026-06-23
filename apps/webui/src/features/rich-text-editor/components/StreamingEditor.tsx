@@ -36,6 +36,7 @@ interface StreamingEditorProps {
   onChange?: (value: string) => void
   placeholder?: string
   className?: string
+  preset?: import("../presets").PresetName
   ref?: React.Ref<StreamingEditorHandle>
 }
 
@@ -44,6 +45,7 @@ export function StreamingEditor({
   onChange,
   placeholder,
   className,
+  preset = "richField",
   ref
 }: StreamingEditorProps) {
   const [phase, setPhase] = useState<Phase>("idle")
@@ -92,7 +94,7 @@ export function StreamingEditor({
           ref={editorRef}
           value={value}
           onChange={onChange}
-          preset="richField"
+          preset={preset}
           mode="markdown"
           initialValueMode="markdown"
           placeholder={placeholder}

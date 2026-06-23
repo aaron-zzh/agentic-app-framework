@@ -4,6 +4,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.module.ai.aigc.voice.domain.AiClonedVoice;
 import com.xuejiai.aaf.module.ai.aigc.voice.service.AiClonedVoiceService;
 import com.xuejiai.aaf.module.ai.aigc.voice.vo.AiClonedVoiceCreateDTO;
@@ -13,8 +15,6 @@ import com.xuejiai.aaf.module.ai.aigc.voice.vo.AiClonedVoiceVO;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * 声音复刻接口。

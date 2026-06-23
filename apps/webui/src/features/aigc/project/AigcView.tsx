@@ -21,15 +21,15 @@ import { PreviewPanel } from "../preview/PreviewPanel"
 import { useAigcStore } from "../store"
 import type { MediaAssetType } from "../types"
 
-export function AigcView() {
+export function AigcView({ projectId: projectIdProp }: { projectId?: number } = {}) {
   const router = useRouter()
   const params = useParams()
-  const projectId = params?.projectId ? Number(params.projectId) : null
+  const projectId = projectIdProp ?? (params?.projectId ? Number(params.projectId) : null)
   const { data: project, isError } = useAigcProject(projectId)
 
   useEffect(() => {
-    if (isError) router.replace("/aigc")
-  }, [isError, router])
+    if (isError && !projectIdProp) router.replace("/aigc")
+  }, [isError, projectIdProp, router])
   // aigc 页面需要嵌入式对话面板
   // useChatterLayoutPreference("panel")
 

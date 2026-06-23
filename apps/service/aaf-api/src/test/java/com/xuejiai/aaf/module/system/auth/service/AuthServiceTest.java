@@ -239,7 +239,8 @@ class AuthServiceTest extends BaseMockitoUnitTest {
 
         // 断言：副作用全部执行
         verify(userRoleRepository).save(any()); // 默认角色分配
-        verify(creditService).earn(eq(99L), eq(50L), anyString(), anyString()); // 注册积分
+        verify(creditService)
+                .earnBatch(eq(99L), eq(50L), eq("MANUAL"), anyString(), anyString(), any()); // 注册积分
         verify(contactRepository).save(any()); // Contact 创建
         verify(brokerageService).tryEnableBrokerage(any(), eq("REGISTER")); // 分销激活
         verify(messageService).send(any(MessageRequest.class)); // 钉钉通知

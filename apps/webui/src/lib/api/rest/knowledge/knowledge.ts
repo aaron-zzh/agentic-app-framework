@@ -9,11 +9,13 @@ import type {
   KnowledgeBase,
   KnowledgeBaseStats,
   KnowledgeDocument,
+  KnowledgeSegment,
   SearchResponse
 } from "@/lib/types/knowledge"
 import { buildApiUrl } from "../../config"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult, request } from "../entity/crud"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 const API_PATH = "/knowledge-bases"
 
@@ -58,11 +60,48 @@ export const knowledgeApi = {
       body: JSON.stringify(params)
     }),
 
+  // ── Segment (分块) CRUD ────────────────────────────────────────────
+  /** 段落列表（按文档） */
+  segments: (kbId: string, documentId: string, page = 0, size = 20) =>
+    request<PageResult<KnowledgeSegment>>(
+      `${API_PATH}/${kbId}/segments?documentId=${documentId}&page=${page}&size=${size}`
+    ),
+
+  /** 创建段落 */
+  createSegment: (kbId: string, data: { documentId: string; content: string; position?: number }) =>
+    request<KnowledgeSegment>(`${API_PATH}/${kbId}/segments`, {
+      method: "POST",
+      body: JSON.stringify(data)
+    }),
+
+  /** 更新段落 */
+  updateSegment: (kbId: string, segmentId: string, data: { content: string }) =>
+    request<KnowledgeSegment>(`${API_PATH}/${kbId}/segments/${segmentId}`, {
+      method: "PUT",
+      body: JSON.stringify(data)
+    }),
+
+  /** 删除段落 */
+  deleteSegment: (kbId: string, segmentId: string) =>
+    request<void>(`${API_PATH}/${kbId}/segments/${segmentId}`, { method: "DELETE" }),
+
+  /** 切换段落启用状态 */
+  toggleSegment: (kbId: string, segmentId: string, enabled: boolean) =>
+    request<void>(`${API_PATH}/${kbId}/segments/${segmentId}/enabled?enabled=${enabled}`, {
+      method: "PATCH"
+    }),
+
   /** 上传文档 */
   uploadDocument: (id: string, file: File, onProgress?: (pct: number) => void) => {
     return new Promise<KnowledgeDocument>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      xhr.open("POST", buildApiUrl(`${API_PATH}/${id}/documents`))
+      xhr.open("POST", buildApiUrl(`${API_PATH}/${id}/documents/batch`))
+
+      // 从 auth-store 读取 token 并注入 Authorization header
+      const { accessToken } = useAuthStore.getState()
+      if (accessToken) {
+        xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
+      }
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
@@ -73,16 +112,18 @@ export const knowledgeApi = {
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           const json = JSON.parse(xhr.responseText)
-          resolve(json.data as KnowledgeDocument)
+          // batch 接口返回 List，取第一个
+          const data = Array.isArray(json.data) ? json.data[0] : json.data
+          resolve(data as KnowledgeDocument)
         } else {
-          reject(new Error(`上传失败: ${xhr.statusText}`))
+          reject(new Error(`上传失败: ${xhr.status} ${xhr.statusText}`))
         }
       }
 
       xhr.onerror = () => reject(new Error("网络错误"))
 
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("files", file)
       xhr.send(formData)
     })
   }

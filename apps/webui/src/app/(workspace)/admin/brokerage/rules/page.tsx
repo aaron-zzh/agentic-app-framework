@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 佣金规则配置页——规则列表 + 会员等级加成。
  * 手写表格与弹窗表单，复用底层通用 CRUD hooks（useCrudList/Create/Update/Delete）。
  * @author AaronZZH & Kiro

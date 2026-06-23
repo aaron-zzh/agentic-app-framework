@@ -50,6 +50,7 @@ jobs:
           tags: ${{ env.ACR_REGISTRY }}/webui:latest
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+            NEXT_PUBLIC_TLDRAW_LICENSE_KEY=${{ secrets.TLDRAW_LICENSE_KEY }}
             NEXT_PUBLIC_ASSETS_URL=${{ env.NEXT_PUBLIC_ASSETS_URL }}
             NEXT_PUBLIC_CAPTCHA_ENABLED=${{ env.NEXT_PUBLIC_CAPTCHA_ENABLED }}
             NEXT_PUBLIC_CAPTCHA_REGION=${{ env.NEXT_PUBLIC_CAPTCHA_REGION }}

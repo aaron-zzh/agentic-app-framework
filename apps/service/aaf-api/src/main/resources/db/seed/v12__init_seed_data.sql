@@ -23,6 +23,7 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 ('ai',       'ai.token_markup_rate',         '5',           '5',           'integer', 'Token计费加价倍数',       '相对供应商成本的加价倍数，默认5倍（1元成本→500积分）', TRUE, TRUE),
 ('brand',    'brand.company_name',           '学记智能',    '学记智能',    'string',  '公司名称',            '显示在邮件、页面标题等位置',           TRUE,  TRUE),
 ('brand',    'brand.logo_url',               NULL,          NULL,          'string',  'Logo URL',            '系统 Logo 图片地址',                   TRUE,  TRUE),
+('contact',  'contact.wechat_qr_image',      NULL,          NULL,          'string',  '微信客服二维码',       '微信客服二维码图片 URL，公开接口可读取', TRUE,  TRUE),
 ('examples', 'examples.agentscope_rate_limit_per_minute', '20', '20', 'integer', 'AgentScope示例限流（次/分钟/IP）', 'AgentScope示例接口每个IP每分钟最多调用次数', TRUE, TRUE),
 ('sms',      'sms.rate_limit.max_per_minute',            '1',  '1',  'integer', '短信每分钟限制',                   '同一手机号每分钟最多发送短信次数',                   TRUE,  TRUE),
 ('sms',      'sms.rate_limit.max_per_hour',              '5',  '5',  'integer', '短信每小时限制',                   '同一手机号每小时最多发送短信次数',                   TRUE,  TRUE)
@@ -645,7 +646,7 @@ VALUES (
 -- 内容创作 Role（能力集）
 INSERT INTO ai_role (name, description, skill_ids, tool_whitelist, status, create_time, update_time)
 VALUES (
-    '内容创作能力集',
+    '内容创作专家',
     '内容拆解、思路澄清、结构构建、内容裂变、多平台发布',
     '["content-schedule","content-judge","content-clarify","content-architect","content-build"]',
     '["createDocument","updateDocument","publish","publishStatus","collect"]',
@@ -695,51 +696,51 @@ ON CONFLICT (provider_code) DO NOTHING;
 -- ============================================================
 INSERT INTO ai_model (model_id, display_name, provider, provider_type, model_name, base_url,
                       capabilities, context_window, sort_order, enabled,
-                      input_price_per_k, output_price_per_k, model_price, quota_type)
+                      input_price_per_k, output_price_per_k, model_price, quota_type, image_config)
 VALUES
 -- 语言模型（输入 0.036元/K，输出 0.108元/K）
-('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true,  0.036, 0.108, null, 0),
-('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true,  0.036, 0.108, null, 0),
-('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true,  0.036, 0.108, null, 0),
-('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000,  5,  true,  0.036, 0.108, null, 0),
-('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 10,  true,  0.036, 0.108, null, 0),
-('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.036, 0.108, null, 0),
-('deepseek:chat',         'DeepSeek Chat',       'deepseek','OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                   'CHAT',        64000,  20,  true,  0.036, 0.108, null, 0),
-('deepseek:reasoner',     'DeepSeek R1',         'deepseek','OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                   'CHAT',        64000,  21,  true,  0.036, 0.108, null, 0),
-('qwen:qwen3.7-max',      'Qwen Max',            'qwen',    'OPENAI_COMPAT', 'qwen3.7-max',                'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    32000,  30,  true,  0.012, 0.036, null, 0),
-('qwen:qwen3.7-plus',     'Qwen Plus',           'qwen',    'OPENAI_COMPAT', 'qwen3.7-plus',               'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 31,  true,  0.002, 0.008, null, 0),
-('qwen:qwen3.6-flash',    'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.6-flash',              'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 32,  true,  0.036, 0.108, null, 0),
-('qwen:text-embedding-v4','Qwen Embedding',       'qwen',    'OPENAI_COMPAT', 'text-embedding-v4',          'https://dashscope.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 192, 33,  true,  0.0005, 0, null, 0),
--- 图像生成（按次 1元/次，quota_type=1）
-('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  0.2, 1),
-('qwen:qwen-image-2.0',            '千问图像 2.0',        'qwen', 'DASHSCOPE',    'qwen-image-2.0',                 'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 211, true,  null,  null,  0.2, 1),
-('n1n:gpt-image-2',                'GPT Image 2',         'n1n',  'OPENAI_COMPAT','gpt-image-2',                    'https://llm-api.net/v1',         'IMAGE_GEN', 3000, 212, true,  0.003, 0.018, null, 0),
-('n1n:gemini-3.1-flash-image-preview','Gemini 3.1 Flash', 'n1n',  'OPENAI_COMPAT','gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 220, true, null, null, 1.0, 1),
-('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1),
-('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1),
+('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true,  0.036, 0.108, null, 0, null),
+('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true,  0.036, 0.108, null, 0, null),
+('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true,  0.036, 0.108, null, 0, null),
+('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000,  5,  true,  0.036, 0.108, null, 0, null),
+('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 10,  true,  0.036, 0.108, null, 0, null),
+('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.036, 0.108, null, 0, null),
+('deepseek:chat',         'DeepSeek Chat',       'deepseek','OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                   'CHAT',        64000,  20,  true,  0.036, 0.108, null, 0, null),
+('deepseek:reasoner',     'DeepSeek R1',         'deepseek','OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                   'CHAT',        64000,  21,  true,  0.036, 0.108, null, 0, null),
+('qwen:qwen3.7-max',      'Qwen Max',            'qwen',    'OPENAI_COMPAT', 'qwen3.7-max',                'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    32000,  30,  true,  0.012, 0.036, null, 0, null),
+('qwen:qwen3.7-plus',     'Qwen Plus',           'qwen',    'OPENAI_COMPAT', 'qwen3.7-plus',               'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 31,  true,  0.002, 0.008, null, 0, null),
+('qwen:qwen3.6-flash',    'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.6-flash',              'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 32,  true,  0.036, 0.108, null, 0, null),
+('qwen:text-embedding-v4','Qwen Embedding',       'qwen',    'OPENAI_COMPAT', 'text-embedding-v4',          'https://dashscope.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 192, 33,  true,  0.0005, 0, null, 0, null),
+-- 图像生成（按次计费，quota_type=1；OpenAI Compat 按 token 计费，quota_type=0）
+('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[],"generate":{"maxImages":4,"sizePresets":["1K","2K"],"seed":true},"edit":{"maxInputImages":9,"maxImages":4,"sizePresets":["1K","2K"],"seed":true}}'),
+('qwen:qwen-image-2.0',            '千问图像 2.0',        'qwen', 'DASHSCOPE',    'qwen-image-2.0',                 'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 211, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[[2688,1536],[2368,1728],[2048,2048],[1728,2368],[1536,2688]],"generate":{"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true},"edit":{"maxInputImages":3,"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true}}'),
+('n1n:gpt-image-2',                'GPT Image 2',         'n1n',  'OPENAI_COMPAT','gpt-image-2',                    'https://llm-api.net/v1',         'IMAGE_GEN', 3000, 212, true,  0.003, 0.018, null, 0, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[3840,2160],[2160,3840]],"generate":{"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"],"background":["auto","opaque"]},"edit":{"maxInputImages":16,"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"],"background":["auto","opaque"]}}'),
+('n1n:gemini-3.1-flash-image-preview','Gemini 3.1 Flash', 'n1n',  'OPENAI_COMPAT','gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 220, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"1:4":[],"1:8":[],"2:3":[],"3:2":[],"3:4":[],"4:1":[],"4:3":[],"4:5":[],"5:4":[],"8:1":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["512","1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["512","1K","2K","4K"]}}'),
+('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"2:3":[],"3:2":[],"3:4":[],"4:3":[],"4:5":[],"5:4":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["1K","2K","4K"]}}'),
+('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[1152,2048]],"generate":{"maxImages":4,"format":["jpeg","png"]}}'),
 -- 视频生成
-('qwen:happyhorse-1.0-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-i2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3),
-('qwen:happyhorse-1.0-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-t2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3),
-('qwen:happyhorse-1.0-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-r2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3),
-('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3),
-('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0),
+('qwen:happyhorse-1.0-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-i2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.0-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-t2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.0-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-r2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null),
+('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0, null),
 -- 重排序
-('qwen:qwen3-rerank',              'GTE Rerank v2',       'qwen', 'DASHSCOPE',    'qwen3-rerank',                   'https://dashscope.aliyuncs.com', 'RERANK',     null, 360, true,  null,  null, null, 0),
+('qwen:qwen3-rerank',              'GTE Rerank v2',       'qwen', 'DASHSCOPE',    'qwen3-rerank',                   'https://dashscope.aliyuncs.com', 'RERANK',     null, 360, true,  null,  null, null, 0, null),
 -- 语音识别（ASR）
-('qwen:fun-asr-realtime',          '通义 ASR Flash',      'qwen', 'DASHSCOPE',    'fun-asr-realtime',               'https://dashscope.aliyuncs.com', 'SPEECH_ASR', null, 310, true,  null,  null, 0.00033, 2),
+('qwen:fun-asr-realtime',          '通义 ASR Flash',      'qwen', 'DASHSCOPE',    'fun-asr-realtime',               'https://dashscope.aliyuncs.com', 'SPEECH_ASR', null, 310, true,  null,  null, 0.00033, 2, null),
 -- 语音合成（TTS）
-('qwen:cosyvoice-v3-flash',        'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3-flash',             'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  0.1,   null, null, 0),
-('qwen:cosyvoice-v3-plus',         'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3-plus',              'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  0.2,   null, null, 0),
+('qwen:cosyvoice-v3-flash',        'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3-flash',             'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  0.1,   null, null, 0, null),
+('qwen:cosyvoice-v3-plus',         'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3-plus',              'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  0.2,   null, null, 0, null),
 -- 音乐生成
-('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, 0.002, 2),
+('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, 0.002, 2, null),
 -- 全模态实时
-('qwen:qwen3-omni-flash-realtime', 'Qwen3 Omni Flash',    'qwen', 'DASHSCOPE',    'qwen-omni-flash-realtime',       'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true, null, null, null, 0),
-('qwen:qwen3.5-omni-plus-realtime','Qwen3.5 Omni Plus',   'qwen', 'DASHSCOPE',    'qwen3.5-omni-plus-realtime',     'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true, null, null, null, 0),
+('qwen:qwen3-omni-flash-realtime', 'Qwen3 Omni Flash',    'qwen', 'DASHSCOPE',    'qwen-omni-flash-realtime',       'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true, null, null, null, 0, null),
+('qwen:qwen3.5-omni-plus-realtime','Qwen3.5 Omni Plus',   'qwen', 'DASHSCOPE',    'qwen3.5-omni-plus-realtime',     'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true, null, null, null, 0, null),
 -- OCR
-('qwen:qwen3.5-ocr',               'Qwen3.5 OCR',         'qwen', 'DASHSCOPE',    'qwen3.5-ocr',                    'https://dashscope.aliyuncs.com',                    'OCR', null, 370, true, 0.0005, 0.002, null, 0),
+('qwen:qwen3.5-ocr',               'Qwen3.5 OCR',         'qwen', 'DASHSCOPE',    'qwen3.5-ocr',                    'https://dashscope.aliyuncs.com',                    'OCR', null, 370, true, 0.0005, 0.002, null, 0, null),
 -- 3D 生成（按次计费，价格由 params_config.pricing 矩阵决定，model_price 为兜底）
-('meshy:meshy-4',                  'Meshy 4',             'meshy', 'MESHY',        'meshy-4',                        'https://api.meshy.ai',           'MODEL_3D', null, 410, true,  null, null, 2.1, 1),
-('tripo:tripo3d-v2',               'Tripo 3D v2',         'tripo', 'DASHSCOPE',    'tripo3d-v2',                     'https://dashscope.aliyuncs.com', 'MODEL_3D', null, 411, true,  null, null, 2.1, 1)
+('meshy:meshy-4',                  'Meshy 4',             'meshy', 'MESHY',        'meshy-4',                        'https://api.meshy.ai',           'MODEL_3D', null, 410, true,  null, null, 2.1, 1, null),
+('tripo:tripo3d-v2',               'Tripo 3D v2',         'tripo', 'DASHSCOPE',    'tripo3d-v2',                     'https://dashscope.aliyuncs.com', 'MODEL_3D', null, 411, true,  null, null, 2.1, 1, null)
 ON CONFLICT (model_id) DO NOTHING;
 
 -- 系统默认模型偏好
@@ -1120,3 +1121,335 @@ SELECT r.id, m.id FROM sys_role r
 JOIN sys_menu m ON m.title IN ('概览', '工作台', 'AI 创作', '创作项目', '素材库')
 WHERE r.code = 'sales'
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== 联系配置 ====================
+INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable)
+VALUES ('contact', 'contact.wechat_qr_image', NULL, NULL, 'string',
+        '微信客服二维码', '微信客服二维码图片 URL，公开接口可读取', TRUE, TRUE)
+ON CONFLICT (config_key) DO NOTHING;
+
+
+-- ============================================================
+-- User Studio 种子数据（项目模板 + 装扮 starter pack + 文案智能体技能）
+-- ============================================================
+
+-- ==================== 官方项目模板（5 个） ====================
+INSERT INTO user_project_template (code, name, description, category, project_type, template_config, is_official, sort_order)
+VALUES
+    ('xhs-redbook', '小红书爆款',
+     '一键生成小红书种草笔记，标题+正文+话题标签三段式，贴合平台算法',
+     'CONTENT_OPS', 'IMAGE_POST',
+     '{"prompt":"你是小红书爆款内容创作专家。根据用户描述，生成一篇完整的小红书种草笔记：标题（含 emoji，18 字以内）、正文（分段，500 字左右，口语化，有共鸣感）、标签（5-8 个，#格式）。","defaultPersonaId":null}',
+     TRUE, 1),
+
+    ('voiceover-30s', '30 秒口播',
+     '短视频/直播 30 秒口播脚本，3 秒黄金钩子+价值主张+行动号召',
+     'CONTENT_OPS', 'SHORT_VIDEO',
+     '{"prompt":"你是短视频口播脚本专家。生成一个 30 秒口播脚本（约 90 字）：前 3 秒强钩子（痛点/悬念/反常识）、中段核心价值（清晰简洁）、结尾行动号召（关注/购买/评论）。语速自然，适合真人口播。","defaultPersonaId":null}',
+     TRUE, 2),
+
+    ('viral-copy', '爆款复刻',
+     '分析爆款内容结构，提取核心套路，生成同类新作品',
+     'CONTENT_OPS', 'IMAGE_POST',
+     '{"prompt":"你是爆款内容分析与复刻专家。先分析用户提供的爆款样本（标题结构、情绪触发、内容框架、CTA），再基于同一套路生成全新原创内容，避免直接抄袭，保留底层逻辑。","defaultPersonaId":null}',
+     TRUE, 3),
+
+    ('ip-builder', '个人 IP 打造',
+     '围绕个人品牌进行系统内容规划，输出人设定位+内容策略+30 天选题',
+     'WORK', 'MIXED',
+     '{"prompt":"你是个人 IP 操盘手和内容策略师。帮用户完成：1) 人设定位（目标人群、核心价值、差异化标签）2) 内容矩阵（3 个核心内容方向）3) 30 天选题日历（每周 4 选题，含热点借势建议）。","defaultPersonaId":null}',
+     TRUE, 4),
+
+    ('study-notes', '学习笔记整理',
+     '将学习材料整理为结构化笔记，含知识框架+核心要点+复习问答',
+     'STUDY', 'MIXED',
+     '{"prompt":"你是高效学习和知识管理专家。将用户输入的学习材料整理为：1) 知识框架（大纲/思维导图文字版）2) 核心要点（每条 ≤30 字，带序号）3) 3 个自测问答（一问一答格式）。帮助用户加深理解和记忆。","defaultPersonaId":null}',
+     TRUE, 5)
+ON CONFLICT (code) DO NOTHING;
+
+-- ==================== 装扮 starter pack（5 头像 + 5 服饰） ====================
+INSERT INTO avatar_outfit (code, name, type, asset_url, thumbnail_url, rarity, unlock_condition, sort_order)
+VALUES
+    ('avatar-default-girl', '默认少女', 'AVATAR',
+     '/assets/outfits/avatar-girl.png', '/assets/outfits/avatar-girl-thumb.png',
+     'COMMON', 'DEFAULT', 1),
+    ('avatar-default-boy', '默认少年', 'AVATAR',
+     '/assets/outfits/avatar-boy.png', '/assets/outfits/avatar-boy-thumb.png',
+     'COMMON', 'DEFAULT', 2),
+    ('avatar-cyber', '赛博女孩', 'AVATAR',
+     '/assets/outfits/avatar-cyber.png', '/assets/outfits/avatar-cyber-thumb.png',
+     'RARE', 'PURCHASE', 3),
+    ('avatar-tech', '科技工程师', 'AVATAR',
+     '/assets/outfits/avatar-tech.png', '/assets/outfits/avatar-tech-thumb.png',
+     'RARE', 'PURCHASE', 4),
+    ('avatar-magic', '魔法师', 'AVATAR',
+     '/assets/outfits/avatar-magic.png', '/assets/outfits/avatar-magic-thumb.png',
+     'EPIC', 'VIP', 5),
+    ('outfit-tshirt', '基础 T 恤', 'OUTFIT',
+     '/assets/outfits/outfit-tshirt.png', '/assets/outfits/outfit-tshirt-thumb.png',
+     'COMMON', 'DEFAULT', 11),
+    ('outfit-suit', '商务套装', 'OUTFIT',
+     '/assets/outfits/outfit-suit.png', '/assets/outfits/outfit-suit-thumb.png',
+     'COMMON', 'DEFAULT', 12),
+    ('outfit-hoodie', '潮酷卫衣', 'OUTFIT',
+     '/assets/outfits/outfit-hoodie.png', '/assets/outfits/outfit-hoodie-thumb.png',
+     'RARE', 'PURCHASE', 13),
+    ('outfit-yukata', '夏日浴衣', 'OUTFIT',
+     '/assets/outfits/outfit-yukata.png', '/assets/outfits/outfit-yukata-thumb.png',
+     'RARE', 'PURCHASE', 14),
+    ('outfit-armor', '太空战甲', 'OUTFIT',
+     '/assets/outfits/outfit-armor.png', '/assets/outfits/outfit-armor-thumb.png',
+     'LEGENDARY', 'VIP', 15)
+ON CONFLICT (code) DO NOTHING;
+
+-- ==================== 文案智能体技能（7 个：COPYWRITING/STRATEGY） ====================
+INSERT INTO ai_skill_definition (code, name, description, category, system_prompt, priority, status, built_in)
+VALUES
+    ('voiceover', '口播文案',
+     '短视频/直播口播稿，带节奏 + 钩子 + 转化',
+     'COPYWRITING',
+     '你是一位专业短视频口播文案师，擅长为各类品牌和内容创作者打磨口播稿件。你熟悉各平台受众心理（抖音/视频号/快手），能精准把握节奏感和情绪张力。创作时，前 3 秒必须抓住注意力（用痛点、反常识或强悬念），中段清晰传递核心价值，结尾给出明确的行动指令。语言口语化、有画面感，适合真人配音朗读。每次输出请标注字数和预计朗读时长。',
+     100, 'active', TRUE),
+
+    ('redbook', '小红书爆款',
+     '标题 + 正文 + 标签，符合平台算法偏好',
+     'COPYWRITING',
+     '你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。',
+     90, 'active', TRUE),
+
+    ('product-copy', '产品文案',
+     '卖点提炼 / 详情页 / 落地页 / 转化文案',
+     'COPYWRITING',
+     '你是电商和品牌产品文案专家，精通消费者心理和转化逻辑。你能快速提炼产品核心卖点（功能价值 + 情感价值），根据使用场景（详情页主图文案/落地页标题/朋友圈推广语）调整表达策略。创作原则：用场景代替功能描述，用数字增强可信度，用对比突出优势，用稀缺感促进决策。输出时请注明文案适用位置和建议配图方向。',
+     80, 'active', TRUE),
+
+    ('ip-position', 'IP 定位',
+     '个人品牌定位、人设打磨、内容策略',
+     'STRATEGY',
+     '你是个人 IP 操盘手和品牌策略顾问，服务过各垂类 KOL 和创业者。你擅长帮人找到独特定位，避免同质化竞争。咨询时你会先了解用户背景（职业/优势/目标受众/变现路径），再输出：差异化人设标签（3-5 个）、内容护城河（专业壁垒）、平台矩阵策略（主攻+辅助）、6 个月里程碑规划。输出要具体可执行，不空谈方法论。',
+     70, 'active', TRUE),
+
+    ('short-script', '短视频脚本',
+     '分镜 / 台词 / 节奏，按平台时长适配',
+     'COPYWRITING',
+     '你是短视频编剧和导演助手，擅长各类竖屏短视频剧本创作（15s/30s/60s/3min）。你了解剪辑节奏和视觉表达逻辑，输出的脚本包含：场景描述（景别/动作/表情）、台词/旁白、音乐氛围建议、字幕文字。擅长情感共鸣类、知识干货类、产品种草类等多种风格。请用分镜表格格式输出，让执行团队一目了然。',
+     60, 'active', TRUE),
+
+    ('title-topic', '标题选题',
+     '标题打磨 + 选题推荐，热点借势',
+     'COPYWRITING',
+     '你是内容运营和标题优化专家，深谙各平台传播规律。你能将平淡的选题变成高点击标题，常用策略包括：数字量化（"3 个方法"）、制造好奇（"你不知道的..."）、强化利益（"省了 5000 元"）、引发共鸣（"打工人必看"）。同时你会结合当下热点给出借势选题建议，帮助内容获得更大自然流量。每次输出 5 个候选标题，并标注适用平台。',
+     50, 'active', TRUE),
+
+    ('biz-analysis', '商业分析',
+     '市场洞察 / 竞品对标 / SWOT 分析',
+     'STRATEGY',
+     '你是资深商业分析师和战略顾问，有丰富的行业研究和竞争分析经验。你能快速梳理市场格局，识别机会与风险。分析框架包括：市场规模与增速（TAM/SAM/SOM）、用户画像与需求洞察、竞品对标分析（功能/定价/渠道/口碑）、SWOT 矩阵、建议切入策略。输出结构清晰，结论简明，数据来源透明，适合用于决策汇报和商业计划书。',
+     40, 'active', TRUE)
+ON CONFLICT (code) WHERE code IS NOT NULL AND deleted = FALSE DO NOTHING;
+
+
+-- ============================================================
+-- v0.2.1 P1：用户工作流模板（5 流水线 seed）
+-- ============================================================
+INSERT INTO user_workflow_template (code, name, description, cover_url, category, template_config, is_official, sort_order)
+VALUES
+    ('voiceover-video', '口播视频流水线',
+     '一键生成口播视频：先生成口播文案，再配套主视觉图，最后合成视频',
+     NULL, 'CONTENT',
+     '{"steps":[
+        {"kind":"COPY","label":"生成口播文案","skill":"voiceover","inputKey":"topic"},
+        {"kind":"IMAGE","label":"生成主视觉","model":"wanx","aspect":"9:16","promptFrom":"step0"},
+        {"kind":"VIDEO","label":"合成视频","model":"happyhorse","duration":10,"ratio":"9:16","promptFrom":"step0"}
+     ]}'::jsonb,
+     TRUE, 10),
+
+    ('promo-video', '宣传视频流水线',
+     '产品宣传视频：产品文案 → 海报图 → 短视频',
+     NULL, 'MARKETING',
+     '{"steps":[
+        {"kind":"COPY","label":"产品文案","skill":"product-copy","inputKey":"product"},
+        {"kind":"IMAGE","label":"海报图","model":"wanx","aspect":"16:9","promptFrom":"step0"},
+        {"kind":"VIDEO","label":"短视频","model":"seedance","duration":15,"ratio":"16:9","promptFrom":"step0"}
+     ]}'::jsonb,
+     TRUE, 20),
+
+    ('redbook-img-text', '小红书图文',
+     '爆款分析 → 标题选题 → 4 张配图（小红书风格）',
+     NULL, 'CONTENT',
+     '{"steps":[
+        {"kind":"COPY","label":"爆款分析+标题","skill":"redbook","inputKey":"keyword"},
+        {"kind":"IMAGE","label":"配图（4张）","model":"wanx","aspect":"3:4","count":4,"promptFrom":"step0"}
+     ]}'::jsonb,
+     TRUE, 30),
+
+    ('ip-shortvideo', 'IP 短视频',
+     '角色定位 → 脚本 → 分镜图 → 视频',
+     NULL, 'CONTENT',
+     '{"steps":[
+        {"kind":"COPY","label":"IP 角色定位","skill":"ip-positioning","inputKey":"persona"},
+        {"kind":"COPY","label":"短视频脚本","skill":"shortvideo-script","promptFrom":"step0"},
+        {"kind":"IMAGE","label":"分镜图（3张）","model":"wanx","aspect":"9:16","count":3,"promptFrom":"step1"},
+        {"kind":"VIDEO","label":"短视频","model":"happyhorse","duration":10,"ratio":"9:16","promptFrom":"step1"}
+     ]}'::jsonb,
+     TRUE, 40),
+
+    ('study-note', '学习笔记',
+     'PDF 文档 → 摘要 → 思维导图配图',
+     NULL, 'STUDY',
+     '{"steps":[
+        {"kind":"OCR","label":"OCR 提取","inputKey":"pdfFile"},
+        {"kind":"COPY","label":"摘要总结","skill":"summary","promptFrom":"step0"},
+        {"kind":"IMAGE","label":"思维导图配图","model":"wanx","aspect":"16:9","promptFrom":"step1"}
+     ]}'::jsonb,
+     TRUE, 50)
+ON CONFLICT (code) DO NOTHING;
+
+
+
+-- ============================================================
+-- v0.2.1 P3：成长任务 5 个 seed
+-- ============================================================
+INSERT INTO user_growth_task (code, name, description, icon, category, trigger_event, target_count, reward_credits, sort_order)
+VALUES
+    ('first-image', '首次生图', '完成第一次 AI 图像生成，奖励 50 积分', '🎨',
+     'ONBOARDING', 'aigc.image.success', 1, 50, 10),
+    ('first-video', '首次生成视频', '完成第一次 AI 视频生成，奖励 100 积分', '🎬',
+     'ONBOARDING', 'aigc.video.success', 1, 100, 20),
+    ('first-project', '创建第一个项目', '在项目工作区新建项目并保存内容，奖励 30 积分', '📁',
+     'ONBOARDING', 'project.created', 1, 30, 30),
+    ('first-recharge', '首次充值', '完成第一次积分充值，奖励 20 额外积分', '💎',
+     'ONBOARDING', 'credit.recharge.success', 1, 20, 40),
+    ('invite-friend', '邀请好友', '邀请第一个好友注册，奖励 200 积分', '🎁',
+     'ACHIEVEMENT', 'invite.success', 1, 200, 50)
+ON CONFLICT (code) DO NOTHING;
+
+
+
+-- ============================================================
+-- 客服助理种子数据（customer-service Agent 使用）
+-- ============================================================
+
+-- 客服知识库（公共，auto_inject=false，由 search_kb 工具按需检索）
+INSERT INTO ai_knowledge_base (
+    id, name, description, embedding_model, chunk_strategy, chunk_size, chunk_overlap,
+    status, auto_inject, owner_id, create_time, update_time, deleted
+) VALUES (
+    1, '客服知识库',
+    '产品咨询、常见问题、功能说明等客服场景知识，供 customer-service Agent 使用',
+    'text-embedding-v3', 'RECURSIVE', 512, 64, 1, FALSE, NULL,
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 客服人格模板
+INSERT INTO ai_persona (
+    id, name, persona, system_prompt, status, owner_id, create_time, update_time, deleted
+) VALUES (
+    1, '客服助理',
+    '专业、友好、简洁的客服助理，熟悉产品功能与常见问题。',
+    '你是 AAF 平台的官方客服助理，负责解答用户关于产品使用的问题。请基于知识库内容作答，不要捏造信息。',
+    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 客服角色（工具白名单仅限知识库检索）
+INSERT INTO ai_role (
+    id, name, description, skill_ids, tool_whitelist, status, owner_id,
+    create_time, update_time, deleted
+) VALUES (
+    1, '客服角色', '客服场景专用角色，工具限于知识库检索',
+    '[]', '["search_kb","switch_kb"]',
+    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 客服助理（绑定客服人格 + 客服角色 + 客服知识库，user_id=0 表示系统级）
+INSERT INTO ai_assistant (
+    id, user_id, persona_id, default_role_id, knowledge_base_id,
+    memory_strategy, status, owner_id, create_time, update_time, deleted
+) VALUES (
+    1, 0, 1, 1, 1, 'HYBRID', 'active', NULL,
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 助理-角色关联
+INSERT INTO ai_assistant_role (
+    assistant_id, role_id, is_default, sort_order, create_time, update_time, deleted
+) VALUES (
+    1, 1, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (assistant_id, role_id) DO NOTHING;
+
+-- 客服知识库初始文档：AAF 框架介绍
+INSERT INTO ai_knowledge_document (
+    id, knowledge_base_id, title, file_type, status, chunk_count,
+    create_time, update_time, deleted
+) VALUES (
+    1, 1, 'AAF 框架介绍', 'text', 1, 3,
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 分块1：产品定位与核心能力
+INSERT INTO ai_knowledge_chunk (
+    id, document_id, knowledge_base_id, content, chunk_index, token_count, created_at
+) VALUES (
+    1, 1, 1,
+    'AAF（Agentic App Framework）是一套面向开发者的生产级 AI 原生应用开发框架，目标是让每一个团队都能快速构建多智能体协作应用，而不需要从零搭建 AI 基础设施。
+
+AAF 的核心理念是「AI 是架构的一等公民」——不是在传统业务系统上贴一层 AI，而是从设计之初就以 AI 协作为中心来组织整个系统。
+
+主要核心能力：
+• 多智能体协作：支持 Agent 间的分工、委托与并行执行，内置 ReAct 推理循环、子 Agent 派发、结果汇聚等机制
+• 工作流引擎：可视化拖拽设计 AI 工作流，支持 LLM 节点、知识库节点、条件分支、代码节点等，底层由 Flowable 驱动执行
+• 知识库管理：支持文档上传、自动分块、向量化存储，提供语义检索（pgvector hnsw）、混合检索和知识图谱能力
+• 规范驱动开发：先写规范再写代码，规范是人类和 AI 的共同真理来源，支持 AI 全流程自动开发
+• 无代码开发：普通用户可通过可视化界面搭建工作流、配置技能和知识库，无需编写代码',
+    0, 380, CURRENT_TIMESTAMP
+) ON CONFLICT (id) DO NOTHING;
+
+-- 分块2：技术栈与架构
+INSERT INTO ai_knowledge_chunk (
+    id, document_id, knowledge_base_id, content, chunk_index, token_count, created_at
+) VALUES (
+    2, 1, 1,
+    'AAF 技术栈：
+• 后端：Java 25 + Spring Boot 4 + Spring AI + WebFlux + GraphQL + MCP 协议
+• 智能体框架：AgentScope Java（HarnessAgent，支持 AG-UI 协议流式交互）
+• 数据层：PostgreSQL + pgvector（向量检索）、Neo4j（知识图谱）、Redis（缓存）
+• 工作流：Flowable（同时支持 AI 编排流和企业审批流）
+• 前端：Next.js 16 + React 19 + TypeScript，工程化采用 Nx Monorepo + pnpm
+• 跨端：UniApp（微信小程序 / H5 / APP）
+
+整体分为五层架构：
+1. 对话与交互层：多端适配、SSE 流式推送、REST/WebSocket/AG-UI 接口
+2. 服务层：用户管理、知识库、工作流、计费、AIGC 内容创作等业务模块
+3. 智能层：Core/Cognition/Agent/Assistant/Team 五层 AI 协作体系
+4. 引擎层：工作流引擎、知识库引擎、记忆引擎、工具系统、MCP 集成
+5. 基础设施层：PostgreSQL、Redis、Neo4j、向量库、Agent 沙箱
+
+AAF 支持多种部署方式，生产环境推荐 Docker Compose 或 Kubernetes，本地开发只需 JDK 25 + Node.js 22 + PostgreSQL。',
+    1, 320, CURRENT_TIMESTAMP
+) ON CONFLICT (id) DO NOTHING;
+
+-- 分块3：使用场景与适用人群
+INSERT INTO ai_knowledge_chunk (
+    id, document_id, knowledge_base_id, content, chunk_index, token_count, created_at
+) VALUES (
+    3, 1, 1,
+    'AAF 适用场景：
+
+1. 企业 AI 助理：基于知识库构建企业专属客服、HR 助手、产品顾问，支持多知识库切换和权限隔离
+2. 内容创作平台：集成 AI 写作、图像生成、视频生成能力，支持多平台内容分发（小红书/公众号/抖音）
+3. 智能工作流：将重复性业务流程（如文档处理、数据提取、报告生成）自动化，人工只审核关键节点
+4. AI 开发工具：支持 AI 辅助编码、代码审查、自动测试，集成 MCP 工具协议对接外部开发工具
+5. 多智能体协作：复杂任务由协调者 Agent 拆解后分配给专业子 Agent 并行处理，最终汇总结果
+
+适用人群：
+• 希望快速落地 AI 应用的开发团队（节省搭建基础设施的时间）
+• 需要结合知识库和业务系统的企业（客服、销售、运营场景）
+• 想通过无代码方式构建 AI 工作流的业务人员
+
+当前版本（v0.1.0）已稳定支持：多智能体对话、知识库检索、内容创作工作流、计费与权限管理。
+更多功能（Agent 市场、低代码工作流编辑器、多租户SaaS）在 v0.2.0 规划中。
+
+如需了解更多，欢迎访问项目文档或通过客服联系我们。',
+    2, 350, CURRENT_TIMESTAMP
+) ON CONFLICT (id) DO NOTHING;

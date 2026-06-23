@@ -6,5 +6,4 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import com.xuejiai.aaf.module.ai.aigc.avatar.domain.AiDigitalAvatar;
 
 public interface AiDigitalAvatarRepository
-        extends JpaRepository<AiDigitalAvatar, Long>,
-                JpaSpecificationExecutor<AiDigitalAvatar> {}
+        extends JpaRepository<AiDigitalAvatar, Long>, JpaSpecificationExecutor<AiDigitalAvatar> {}

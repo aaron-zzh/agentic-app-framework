@@ -18,6 +18,8 @@ export interface ChatterTarget {
   type: "ai" | "kiro" | "user"
   agentRole?: string
   userId?: string
+  /** 指定助理 ID（对应后端 Long，由 ConversationContextResolver 从 forwardedProps 读取） */
+  assistantId?: number
 }
 
 /** 拖放数据项 */

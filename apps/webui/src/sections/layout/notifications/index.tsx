@@ -30,7 +30,7 @@ import { useAuthStore } from "@/lib/store/auth-store"
 import { CountBadge } from "./count-badge"
 import { NotificationItem } from "./notification-item"
 
-export function NotificationDrawer() {
+export function NotificationDrawer({ notificationsUrl }: { notificationsUrl?: string }) {
   const { data: countData } = useUnreadCount()
   const unreadCount = countData ?? 0
   const { value: open, setValue: setOpen, onFalse: onClose } = useBoolean()
@@ -78,13 +78,13 @@ export function NotificationDrawer() {
             {unreadCount > 0 ? `您有 ${unreadCount} 条未读消息` : "暂无未读消息"}
           </SheetDescription>
         </SheetHeader>
-        <NotificationPanel onClose={onClose} />
+        <NotificationPanel onClose={onClose} notificationsUrl={notificationsUrl} />
       </SheetContent>
     </Sheet>
   )
 }
 
-function NotificationPanel({ onClose }: { onClose: () => void }) {
+function NotificationPanel({ onClose, notificationsUrl }: { onClose: () => void; notificationsUrl?: string }) {
   const { data: all } = useNotifications()
   const { mutate: markRead } = useMarkRead()
 
@@ -138,7 +138,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
           variant="outline"
           className="w-full"
           nativeButton={false}
-          render={<Link href={paths.workspace.notifications} onClick={onClose} />}
+          render={<Link href={notificationsUrl ?? paths.workspace.notifications} onClick={onClose} />}
         >
           查看全部通知
         </Button>

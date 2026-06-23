@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.license.FeatureRequired;
+import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaTagService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaTagCreateDTO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaTagVO;
@@ -13,8 +15,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 
 /**
  * AIGC 素材标签管理接口。

@@ -70,7 +70,7 @@ export function ConsentDialog({ items, onAllConfirmed, onDecline }: ConsentDialo
         </div>
 
         {/* Single checkbox */}
-        <div className="flex items-center gap-2 px-6 py-5">
+        <div className="flex items-center gap-2 pl-10 py-5">
           <Checkbox
             id="consent-all"
             checked={agreed}

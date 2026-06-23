@@ -59,4 +59,12 @@ public class KnowledgeBase extends BaseEntity {
      */
     @Column(name = "status", nullable = false)
     private Integer status = CommonStatusEnum.ENABLE.getCode();
+
+    /**
+     * 是否自动注入。
+     *
+     * <p>true = Agent 启动时自动加载该知识库的 top 片段注入系统提示词（最多 3000 字符）； false = 仅支持 search_kb 工具检索。
+     */
+    @Column(name = "auto_inject", nullable = false)
+    private Boolean autoInject = false;
 }

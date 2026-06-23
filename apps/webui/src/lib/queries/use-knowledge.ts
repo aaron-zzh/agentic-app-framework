@@ -15,7 +15,9 @@ const KEYS = {
   stats: (id: string) => ["knowledge-bases", id, "stats"] as const,
   documents: (id: string, params: ListParams) =>
     ["knowledge-bases", id, "documents", params] as const,
-  graph: (id: string) => ["knowledge-bases", id, "graph"] as const
+  graph: (id: string) => ["knowledge-bases", id, "graph"] as const,
+  segments: (kbId: string, documentId: string) =>
+    ["knowledge-bases", kbId, "segments", documentId] as const
 }
 
 /** 知识库列表 */
@@ -93,6 +95,63 @@ export function useDeleteKnowledgeBase() {
     mutationFn: (id: string) => knowledgeApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.all })
+    }
+  })
+}
+
+
+/** 段落列表 */
+export function useKnowledgeSegments(kbId: string, documentId: string, enabled = true) {
+  return useQuery({
+    queryKey: KEYS.segments(kbId, documentId),
+    queryFn: () => knowledgeApi.segments(kbId, documentId),
+    enabled: enabled && !!kbId && !!documentId
+  })
+}
+
+/** 创建段落 */
+export function useCreateSegment(kbId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { documentId: string; content: string; position?: number }) =>
+      knowledgeApi.createSegment(kbId, data),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.segments(kbId, vars.documentId) })
+    }
+  })
+}
+
+/** 更新段落 */
+export function useUpdateSegment(kbId: string, documentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      knowledgeApi.updateSegment(kbId, id, { content }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.segments(kbId, documentId) })
+    }
+  })
+}
+
+/** 删除段落 */
+export function useDeleteSegment(kbId: string, documentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (segmentId: string) => knowledgeApi.deleteSegment(kbId, segmentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.segments(kbId, documentId) })
+    }
+  })
+}
+
+/** 切换段落启用 */
+export function useToggleSegment(kbId: string, documentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      knowledgeApi.toggleSegment(kbId, id, enabled),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.segments(kbId, documentId) })
     }
   })
 }

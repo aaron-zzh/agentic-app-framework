@@ -18,6 +18,10 @@ import lombok.Setter;
         indexes = {@Index(columnList = "triggerIntent"), @Index(columnList = "builtIn")})
 public class SkillDefinition extends BaseEntity {
 
+    /** 业务唯一码（用于前端 deep-link，如 ?skill=voiceover；nullable 容忍历史技能） */
+    @Column(length = 100, unique = true)
+    private String code;
+
     /** 显示名称 */
     @Column(nullable = false, length = 128)
     private String name;
@@ -25,6 +29,10 @@ public class SkillDefinition extends BaseEntity {
     /** 描述（用于意图匹配和展示） */
     @Column(length = 512)
     private String description;
+
+    /** 技能分类（如 COPYWRITING/STRATEGY/CODE/ANALYSIS，前端按此过滤展示） */
+    @Column(length = 50)
+    private String category;
 
     /** 绑定的 Agent ID（null 表示 Assistant 直接处理） */
     @Column private Long agentId;

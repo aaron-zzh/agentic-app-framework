@@ -145,7 +145,7 @@ export function useGenerate3d() {
   })
 }
 
-interface SaveFromGenerationParams {
+export interface SaveFromGenerationParams {
   url: string
   name?: string
   type?: "IMAGE" | "VIDEO" | "AUDIO" | "MODEL_3D"
@@ -153,16 +153,23 @@ interface SaveFromGenerationParams {
   generationParams?: string
   width?: number
   height?: number
+  /** 保存到指定项目，不传则保存到默认素材库 */
+  projectId?: number | null
 }
 
-/** 一键保存到素材库 */
+/** 一键保存到素材库（可选关联项目） */
 export function useSaveToAssetLibrary() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (params: SaveFromGenerationParams) =>
       request("/aigc/assets/save-from-generation", {
         method: "POST",
         body: JSON.stringify(params),
         headers: { "Content-Type": "application/json" }
-      })
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["media-assets"] })
+      queryClient.invalidateQueries({ queryKey: ["aigc-projects"] })
+    }
   })
 }

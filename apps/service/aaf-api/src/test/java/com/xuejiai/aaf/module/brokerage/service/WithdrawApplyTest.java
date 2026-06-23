@@ -15,6 +15,7 @@ import org.mockito.Mock;
 
 import com.xuejiai.aaf.common.enums.brokerage.BrokerageWithdrawTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.billing.repository.CreditGrantRuleRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
 import com.xuejiai.aaf.module.brokerage.domain.BrokerageUser;
@@ -23,6 +24,8 @@ import com.xuejiai.aaf.module.brokerage.repository.BrokerageRuleRepository;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageWithdrawRepository;
 import com.xuejiai.aaf.module.brokerage.vo.WithdrawApplyDTO;
+import com.xuejiai.aaf.module.system.contact.repository.ContactRepository;
+import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
@@ -41,6 +44,9 @@ class WithdrawApplyTest extends BaseMockitoUnitTest {
     @Mock private CreditGrantRuleRepository creditGrantRuleRepository;
     @Mock private BrokerageRuleRepository brokerageRuleRepository;
     @Mock private BrokerageWithdrawRepository brokerageWithdrawRepository;
+    @Mock private NotificationService notificationService;
+    @Mock private MessageService messageService;
+    @Mock private ContactRepository contactRepository;
 
     @InjectMocks private BrokerageMeService brokerageMeService;
 

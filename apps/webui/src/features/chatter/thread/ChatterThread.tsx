@@ -27,7 +27,10 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useMessage
+  groupPartByType,
+  useAuiState,
+  useMessage,
+  useVoiceState
 } from "@assistant-ui/react"
 import {
   ArrowDownIcon,
@@ -43,6 +46,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
 import { useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
 import { chatApi } from "@/lib/api/rest/ai/chat"
@@ -78,8 +82,14 @@ function ToolFallback({ toolName, status }: { toolName: string; status?: { type:
   )
 }
 
-/** 推理/思维链折叠块 */
-function ReasoningBlock({ text }: { text: string }) {
+/** 推理/思维链折叠块（支持流式 streaming 状态） */
+function ReasoningBlock({
+  streaming,
+  children
+}: {
+  streaming?: boolean
+  children: React.ReactNode
+}) {
   const [open, setOpen] = useState(false)
   return (
     <div className="my-2 rounded-lg border">
@@ -89,11 +99,43 @@ function ReasoningBlock({ text }: { text: string }) {
         onClick={() => setOpen((o) => !o)}
       >
         {open ? <ChevronDownIcon className="size-3" /> : <ChevronRightIcon className="size-3" />}
-        思考过程
+        <span className={cn("flex-1 text-left", streaming && "animate-pulse")}>
+          {streaming ? "思考中..." : "思考过程"}
+        </span>
       </button>
-      {open && (
-        <p className="whitespace-pre-wrap px-3 pb-2 text-muted-foreground text-xs italic">{text}</p>
-      )}
+      {open && <div className="px-3 pb-2">{children}</div>}
+    </div>
+  )
+}
+
+/** 工具调用分组折叠块 */
+function ToolGroupBlock({
+  count,
+  active,
+  children
+}: {
+  count: number
+  active: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(active)
+  // 运行时自动展开，完成后收起
+  useEffect(() => {
+    if (!active) setOpen(false)
+  }, [active])
+  return (
+    <div className="my-2 rounded-lg border">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground text-xs hover:bg-muted/50"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? <ChevronDownIcon className="size-3" /> : <ChevronRightIcon className="size-3" />}
+        <span className={cn("flex-1 text-left", active && "animate-pulse")}>
+          {active ? `正在调用 ${count} 个工具...` : `${count} 个工具调用`}
+        </span>
+      </button>
+      {open && <div className="px-2 pb-2">{children}</div>}
     </div>
   )
 }
@@ -200,18 +242,47 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-start">
       <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm">
-        {/* 消息内容：Markdown + 推理 + 工具调用 + Generative UI */}
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "text") return <MarkdownText />
-            if (part.type === "reasoning") return <ReasoningBlock text={part.text} />
-            if (part.type === "tool-call")
-              return part.toolUI ?? <ToolFallback toolName={part.toolName} status={part.status} />
-            if (part.type === "generative-ui")
-              return <MessagePrimitive.GenerativeUI components={{}} />
-            return null
+        {/* 消息内容：Markdown + 推理（Chain of Thought 分组折叠） + 工具调用 + Generative UI */}
+        <MessagePrimitive.GroupedParts
+          groupBy={groupPartByType({
+            reasoning: ["group-chainOfThought", "group-reasoning"],
+            "tool-call": ["group-chainOfThought", "group-tool"],
+          })}
+        >
+          {({ part, children }) => {
+            switch (part.type) {
+              case "group-chainOfThought":
+                return <div className="my-1">{children}</div>
+              case "group-reasoning": {
+                const streaming = part.status.type === "running"
+                return (
+                  <ReasoningBlock streaming={streaming}>
+                    {children}
+                  </ReasoningBlock>
+                )
+              }
+              case "group-tool":
+                return (
+                  <ToolGroupBlock
+                    count={part.indices.length}
+                    active={part.status.type === "running"}
+                  >
+                    {children}
+                  </ToolGroupBlock>
+                )
+              case "text":
+                return <MarkdownText />
+              case "reasoning":
+                return <span className="whitespace-pre-wrap text-muted-foreground text-xs italic">{part.text}</span>
+              case "tool-call":
+                return part.toolUI ?? <ToolFallback toolName={part.toolName} status={part.status} />
+              case "generative-ui":
+                return <MessagePrimitive.GenerativeUI components={{}} />
+              default:
+                return null
+            }
           }}
-        </MessagePrimitive.Parts>
+        </MessagePrimitive.GroupedParts>
 
         {/* 错误展示 */}
         <MessagePrimitive.Error>
@@ -331,6 +402,8 @@ function WelcomeScreen() {
 export function ChatterThread() {
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
+      {/* 通话中显示语音控制区——VoiceSection 在 ThreadPrimitive.Root 内读 thread，合法 */}
+      <VoiceSection />
       <ThreadPrimitive.Viewport className="relative min-h-0 flex-1 overflow-y-auto p-4">
         <ThreadPrimitive.Empty>
           <WelcomeScreen />
@@ -355,4 +428,25 @@ export function ChatterThread() {
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   )
+}
+
+
+/** 语音控制区——从 threads.main.voice 读取，不依赖 thread scope 的初始化时序 */
+function VoiceSection() {
+  const voice = useAuiState((s) => s.threads.main.voice)
+  const isActive = voice != null && voice.status.type !== "ended"
+  if (!isActive) return null
+  return (
+    <div className="flex flex-col items-center gap-2 border-b py-4">
+      <ActiveVoiceOrb />
+      <VoiceControl className="border-none py-0" />
+    </div>
+  )
+}
+
+/** 读取 voice 状态并传给 VoiceOrb（在 ThreadPrimitive.Root 内调用，context 合法） */
+function ActiveVoiceOrb() {
+  const voiceState = useVoiceState()
+  const state = deriveVoiceOrbState(voiceState)
+  return <VoiceOrb state={state} className="size-20" />
 }

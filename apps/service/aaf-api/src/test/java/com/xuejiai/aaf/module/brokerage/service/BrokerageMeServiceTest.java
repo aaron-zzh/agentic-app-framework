@@ -50,6 +50,7 @@ class BrokerageMeServiceTest extends BaseMockitoUnitTest {
     @Mock private SubscriptionRepository subscriptionRepository;
     @Mock private CreditGrantRuleRepository creditGrantRuleRepository;
     @Mock private BrokerageRuleRepository brokerageRuleRepository;
+
     @Mock
     private com.xuejiai.aaf.module.system.contact.repository.ContactRepository contactRepository;
 
@@ -88,7 +89,8 @@ class BrokerageMeServiceTest extends BaseMockitoUnitTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         // 兜底创建 Contact 时模拟 save 行为：分配 id 并回写
-        when(contactRepository.save(any(com.xuejiai.aaf.module.system.contact.domain.Contact.class)))
+        when(contactRepository.save(
+                        any(com.xuejiai.aaf.module.system.contact.domain.Contact.class)))
                 .thenAnswer(
                         inv -> {
                             var c =

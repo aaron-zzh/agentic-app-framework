@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 实体定义管理页面——无代码编辑器 v0.1（Monaco JSON 编辑）
  * @author AaronZZH & Kiro
  */

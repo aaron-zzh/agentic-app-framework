@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { backendClient } from "@/lib/api/rest/backend-client"
 import type { CreditPackageVO, PayOrderVO } from "@/lib/api/rest/billing/plans"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
+import { LottieDialog } from "@/components/common/LottieDialog"
 import { notify } from "@/lib/notification"
 import { useCreditPackages, usePurchaseCredits } from "@/lib/queries/use-billing-plans"
 
@@ -52,7 +53,7 @@ function PackageCard({
       type="button"
       onClick={onClick}
       className={[
-        "relative w-36 rounded-xl border p-4 text-left transition-all hover:border-primary/60",
+        "relative w-full rounded-xl border p-4 text-left transition-all hover:border-primary/60",
         selected ? "border-primary bg-primary/5 ring-2 ring-primary/40" : "border-border bg-card"
       ].join(" ")}
     >
@@ -140,6 +141,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "wx_native")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
+  const [contactOpen, setContactOpen] = useState(false)
 
   const groups = packages ? Array.from(new Set(packages.map((p) => p.group ?? "会员积分充值"))) : []
   const selectedPkg = packages?.find((p) => p.id === selectedId)
@@ -149,25 +151,26 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
       notify.error("请选择充值套餐")
       return
     }
-    purchase(
-      { packageId: selectedId, channelCode: channel },
-      {
-        onSuccess: (data) => {
-          if (data.status === 10) {
-            // 同步成功（MOCK/余额支付）
-            notify.success("充值成功！")
-            onSuccess?.()
-            onOpenChange(false)
-          } else if (data.codeUrl) {
-            // 需要扫码
-            setQrOrder(data)
-          } else {
-            notify.error("未获取到支付二维码，请检查渠道配置")
-          }
-        },
-        onError: () => notify.error("购买失败，请重试")
-      }
-    )
+    // 临时：在线支付开放前，引导联系客服
+    setContactOpen(true)
+    // TODO: 在线支付开放后取消注释
+    // purchase(
+    //   { packageId: selectedId, channelCode: channel },
+    //   {
+    //     onSuccess: (data) => {
+    //       if (data.status === 10) {
+    //         notify.success("充值成功！")
+    //         onSuccess?.()
+    //         onOpenChange(false)
+    //       } else if (data.codeUrl) {
+    //         setQrOrder(data)
+    //       } else {
+    //         notify.error("未获取到支付二维码，请检查渠道配置")
+    //       }
+    //     },
+    //     onError: () => notify.error("购买失败，请重试")
+    //   }
+    // )
   }
 
   const handleQrSuccess = () => {
@@ -180,19 +183,20 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
   const handleQrCancel = () => setQrOrder(null)
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) setQrOrder(null)
-        onOpenChange(v)
-      }}
-    >
-      <DialogContent className="flex max-h-[90vh] w-[50vw] max-w-none! flex-col gap-0 p-0">
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!v) setQrOrder(null)
+          onOpenChange(v)
+        }}
+      >
+      <DialogContent className="flex max-h-[90vh] w-[640px] max-w-none! flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle className="text-xl">积分充值</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-4">
+        <div className="flex-1 px-6 pb-4">
           {qrOrder ? (
             <QrStep
               order={qrOrder}
@@ -201,7 +205,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
               onCancel={handleQrCancel}
             />
           ) : isLoading ? (
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={`sk-${i}`} className="h-28 rounded-xl" />
               ))}
@@ -210,6 +214,18 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
             <p className="py-12 text-center text-muted-foreground">暂无可用套餐</p>
           ) : (
             <div className="space-y-6">
+              {/* 套餐列表 */}
+              <div className="grid grid-cols-3 gap-3">
+                {packages.map((pkg) => (
+                  <PackageCard
+                    key={pkg.id}
+                    pkg={pkg}
+                    selected={selectedId === pkg.id}
+                    onClick={() => setSelectedId(pkg.id)}
+                  />
+                ))}
+              </div>
+
               {/* 渠道选择 */}
               <div>
                 <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
@@ -232,27 +248,6 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
                   ))}
                 </div>
               </div>
-
-              {/* 套餐列表 */}
-              {groups.map((group) => (
-                <div key={group}>
-                  <p className="mb-3 text-center font-medium text-muted-foreground text-sm">
-                    {group}
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {packages
-                      .filter((p) => (p.group ?? "会员积分充值") === group)
-                      .map((pkg) => (
-                        <PackageCard
-                          key={pkg.id}
-                          pkg={pkg}
-                          selected={selectedId === pkg.id}
-                          onClick={() => setSelectedId(pkg.id)}
-                        />
-                      ))}
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>
@@ -276,5 +271,16 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
         )}
       </DialogContent>
     </Dialog>
+
+    <LottieDialog
+      open={contactOpen}
+      onOpenChange={setContactOpen}
+      icon="warning"
+      loop
+      title="联系客服充值"
+      description="在线支付即将开放，请扫码联系客服完成充值，客服将在 5 分钟内为您处理。"
+      confirmText="好的，我知道了"
+    />
+    </>
   )
 }

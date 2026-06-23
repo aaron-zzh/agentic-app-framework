@@ -8,9 +8,7 @@
 
 "use client"
 
-import { AuiIf, useVoiceState } from "@assistant-ui/react"
 import type { ReactNode } from "react"
-import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
 import { ChatterComposer } from "@/features/chatter/composer"
 import { DroppableComposer } from "@/features/chatter/dnd/DroppableComposer"
 import { useTaskBoard } from "@/features/chatter/hooks/use-task-board"
@@ -48,13 +46,6 @@ export function ChatterPanel({
   return (
     <div className="flex h-full flex-col">
       {toolbar}
-      {/* 通话中显示语音控制区（Orb 动画 + 控制栏） */}
-      <AuiIf condition={(s) => s.thread.voice != null && s.thread.voice.status.type !== "ended"}>
-        <div className="flex flex-col items-center gap-2 border-b py-4">
-          <ActiveVoiceOrb />
-          <VoiceControl className="border-none py-0" />
-        </div>
-      </AuiIf>
       {recovered && (
         <div className="px-3 pt-2">
           <RecoveryNotification taskCount={recovered.taskCount} onDismiss={dismissRecovery} />
@@ -76,9 +67,3 @@ export function ChatterPanel({
   )
 }
 
-/** 读取 voice 状态并传给 VoiceOrb */
-function ActiveVoiceOrb() {
-  const voiceState = useVoiceState()
-  const state = deriveVoiceOrbState(voiceState)
-  return <VoiceOrb state={state} className="size-20" />
-}

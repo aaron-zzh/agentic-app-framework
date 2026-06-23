@@ -11,17 +11,20 @@
 "use client"
 
 import { HttpAgent } from "@ag-ui/client"
-import { AssistantRuntimeProvider, type ThreadMessage, useVoiceControls } from "@assistant-ui/react"
+import { AssistantRuntimeProvider, Tools, type ThreadMessage, useAui, useVoiceControls } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
+import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
+import { aigcToolkit } from "../enhance/AigcGenerateToolUI"
 import { OmniVoiceAdapter } from "@/lib/voice/omni-voice-adapter"
 import { useAgentRunStore } from "./agent-run-store"
 
-const DEFAULT_AGENT_URL = buildApiUrl("/agui/runs")
+const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
 
 interface AgUiChatProviderProps {
   children: ReactNode
@@ -51,12 +54,39 @@ export function AgUiChatProvider({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialState 通过 initialStateKey 跟踪
   const agent = useMemo(
-    () => new HttpAgent({ url: url ?? DEFAULT_AGENT_URL, initialState }),
+    () =>
+      new HttpAgent({
+        url: url ?? DEFAULT_AGENT_URL,
+        initialState: { ...initialState, anonymousId: getOrCreateAnonymousId() }
+      }),
     [url, initialStateKey]
   )
 
   // 当前 threadId——由后端创建会话时生成，通过此状态传给 threadList 适配器
-  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(initialThreadId)
+  const THREAD_KEY = "aaf:chatter-thread-id"
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
+  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(() => {
+    // 优先用外部传入的 initialThreadId，其次从 sessionStorage 恢复
+    return initialThreadId ?? (typeof window !== "undefined" ? (sessionStorage.getItem(THREAD_KEY) ?? undefined) : undefined)
+  })
+
+  // threadId 变化时写入 sessionStorage
+  useEffect(() => {
+    if (currentThreadId) {
+      sessionStorage.setItem(THREAD_KEY, currentThreadId)
+    }
+  }, [currentThreadId])
+
+  // 已登录且无 threadId 时，自动创建一个新 session
+  useEffect(() => {
+    if (isAuthenticated && !currentThreadId) {
+      chatApi.createSession({ type: "ai" })
+        .then((session) => setCurrentThreadId(session.threadId))
+        .catch(() => { /* 静默失败 */ })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated])
 
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
   useEffect(() => {
@@ -70,6 +100,19 @@ export function AgUiChatProvider({
       onCustomEvent: ({ event }) => {
         if (event.name === "suggestions") {
           run.setSuggestions(event.value as { prompt: string; label?: string }[])
+          return
+        }
+        if (event.name === "ui_block") {
+          const value = event.value as Record<string, unknown> | undefined
+          if (value?.uiType === "aigc_task") {
+            run.pushAigcTask({
+              taskId: value.taskId as number,
+              mediaType: value.mediaType as "image" | "video" | "music",
+              status: (value.status as "PENDING") ?? "PENDING",
+              prompt: (value.prompt as string) ?? "",
+              message: (value.message as string) ?? "生成中…"
+            })
+          }
           return
         }
         if (event.name !== "agent-run") return
@@ -93,12 +136,9 @@ export function AgUiChatProvider({
     () => ({
       threadId: currentThreadId,
       onSwitchToNewThread: async () => {
-        if (onNewThread) {
-          await onNewThread()
-        } else {
-          const session = await chatApi.createSession({ type: "ai" })
-          setCurrentThreadId(session.threadId)
-        }
+        const session = await chatApi.createSession({ type: "ai" })
+        setCurrentThreadId(session.threadId)
+        await onNewThread?.()
       },
       onSwitchToThread: async (threadId: string) => {
         setCurrentThreadId(threadId)
@@ -132,18 +172,21 @@ export function AgUiChatProvider({
   // @ts-expect-error: @ag-ui/client 版本与 @assistant-ui/react-ag-ui 期望的 AbstractAgent 类型不匹配（pendingInterrupts），升级依赖后可移除
   const runtime = useAgUiRuntime({ agent, onError, adapters: { threadList, voice: voiceAdapter } })
 
-  // 初始线程恢复：挂载后切换到指定 threadId（匿名访客历史恢复）
+  const aui = useAui({ tools: Tools({ toolkit: aigcToolkit }) })
+
+  // 初始线程恢复：currentThreadId 就绪后切换（含从 sessionStorage 恢复 + 新建 session）
+  const switchedRef = useRef(false)
   useEffect(() => {
-    if (initialThreadId) {
-      runtime.threads.switchToThread(initialThreadId)
+    if (currentThreadId && !switchedRef.current) {
+      switchedRef.current = true
+      runtime.threads.switchToThread(currentThreadId)
     }
-    // 仅挂载时执行一次
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runtime.threads.switchToThread, initialThreadId])
+  }, [currentThreadId, runtime.threads])
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} aui={aui}>
       <VoiceCleanup />
+      <AigcTaskListener />
       {children}
     </AssistantRuntimeProvider>
   )
@@ -158,6 +201,39 @@ function VoiceCleanup() {
     },
     [disconnect]
   )
+  return null
+}
+
+/**
+ * 监听 AIGC 任务 SSE 完成事件，更新 agent-run-store 里的任务卡片状态。
+ * 只有 aigcTasks 里存在对应 taskId 时才处理（避免误更新其他页面的卡片）。
+ */
+function AigcTaskListener() {
+  const updateAigcTask = useAgentRunStore((s) => s.updateAigcTask)
+  const aigcTasks = useAgentRunStore((s) => s.aigcTasks)
+
+  useAigcTaskStream({
+    enabled: aigcTasks.length > 0,
+    onCompleted: useCallback(
+      (task) => {
+        updateAigcTask(task.id, {
+          status: "SUCCESS",
+          url: task.ossUrl ?? task.resultUrl,
+          message: "生成完成"
+        })
+      },
+      [updateAigcTask]
+    ),
+    onFailed: useCallback(
+      (task) => {
+        updateAigcTask(task.id, {
+          status: "FAIL",
+          message: task.errorMsg ?? "生成失败"
+        })
+      },
+      [updateAigcTask]
+    )
+  })
   return null
 }
 

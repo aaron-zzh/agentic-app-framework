@@ -34,9 +34,8 @@ import lombok.RequiredArgsConstructor;
 public class PublicSystemConfigController {
 
     /** 允许公开访问的 sys_config.config_key 集合 */
-    private static final Set<String> PUBLIC_KEYS = Set.of(
-            SysConfigKeys.Member.FAQ,
-            SysConfigKeys.Contact.WECHAT_QR_IMAGE);
+    private static final Set<String> PUBLIC_KEYS =
+            Set.of(SysConfigKeys.Member.FAQ, SysConfigKeys.Contact.WECHAT_QR_IMAGE);
 
     private final SystemConfigService configService;
 

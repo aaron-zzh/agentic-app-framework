@@ -111,14 +111,50 @@ public class AigcProjectService
 
     @Override
     protected Specification<AigcProject> buildSpec(AigcProjectPageDTO p) {
+        // BE-8 数据隔离：强制按当前 userId 过滤，防止跨用户读取
+        Long userId = operatorContext.currentUserId().orElseThrow();
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();
+            predicates.add(cb.equal(root.get("userId"), userId));
             if (p.getName() != null && !p.getName().isBlank())
                 predicates.add(cb.like(root.get("name"), "%" + p.getName() + "%"));
             if (p.getStatus() != null) predicates.add(cb.equal(root.get("status"), p.getStatus()));
             if (p.getType() != null) predicates.add(cb.equal(root.get("type"), p.getType()));
-            return predicates.isEmpty() ? null : cb.and(predicates.toArray(new Predicate[0]));
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    /** BE-8 数据隔离：单条查询后校验 ownership，跨用户返回 404 防探测。 */
+    public AigcProjectVO getByIdOwned(Long id) {
+        var entity = requireEntity(id);
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        if (!entity.getUserId().equals(userId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
+        }
+        return toVO(entity);
+    }
+
+    /** BE-8 数据隔离：更新前校验 ownership，跨用户返回 404 防探测。 */
+    @Transactional
+    public AigcProjectVO updateOwned(Long id, AigcProjectUpdateDTO dto) {
+        var entity = requireEntity(id);
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        if (!entity.getUserId().equals(userId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
+        }
+        updateEntity(entity, dto);
+        return toVO(entity);
+    }
+
+    /** BE-8 数据隔离：删除前校验 ownership，跨用户返回 404 防探测。 */
+    @Transactional
+    public void deleteOwned(Long id) {
+        var entity = requireEntity(id);
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        if (!entity.getUserId().equals(userId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
+        }
+        delete(id);
     }
 
     /** 获取项目概览统计（分镜板/时间轴/内容产出数量）。 */

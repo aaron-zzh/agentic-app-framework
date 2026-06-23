@@ -19,7 +19,6 @@ export interface GenerationHistoryItem {
 }
 
 interface HistoryParams {
-  userId: string
   page?: number
   size?: number
   type?: "image" | "video"
@@ -29,7 +28,6 @@ export const generationHistoryApi = {
   /** 获取生成历史列表 */
   list: (params: HistoryParams): Promise<PageResult<GenerationHistoryItem>> => {
     const query = new URLSearchParams({
-      userId: params.userId,
       page: String(params.page ?? 0),
       size: String(params.size ?? 20),
       ...(params.type && { type: params.type })

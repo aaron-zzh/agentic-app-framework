@@ -12,6 +12,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.omni.VoiceEnrollmentService;
 import com.xuejiai.aaf.framework.intelligent.ai.omni.VoiceEnrollmentService.CreateVoiceRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.CosyVoiceEnrollmentService;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.ai.aigc.voice.domain.AiClonedVoice;
 import com.xuejiai.aaf.module.ai.aigc.voice.repository.AiClonedVoiceRepository;
@@ -48,6 +49,7 @@ public class AiClonedVoiceService
     private final ConfigCacheManager configCacheManager;
     private final SpeechService speechService;
     private final StorageService storageService;
+    @org.springframework.beans.factory.annotation.Autowired private OperatorContext operatorContext;
 
     @Override
     protected JpaRepository<AiClonedVoice, Long> getRepository() {
@@ -105,6 +107,7 @@ public class AiClonedVoiceService
         entity.setPreferredName(dto.preferredName());
         entity.setTargetModel(dto.targetModel());
         entity.setSourceAssetId(dto.sourceAssetId());
+        entity.setUserId(operatorContext.currentUserId().orElseThrow());
 
         // TTS 类型：生成示例音频并上传 OSS
         if (isTts) {
@@ -144,10 +147,11 @@ public class AiClonedVoiceService
     @Override
     protected org.springframework.data.jpa.domain.Specification<AiClonedVoice> buildSpec(
             AiClonedVoicePageDTO dto) {
+        // BE-8 数据隔离：强制按当前 userId 过滤，忽略请求参数中的 userId
+        Long currentUserId = operatorContext.currentUserId().orElseThrow();
         return SpecificationBuilder.<AiClonedVoice>builder()
+                .eqIfPresent("userId", currentUserId)
                 .eqIfPresent("targetModel", dto.getTargetModel())
-                .eqIfPresent("userId", dto.getUserId())
                 .build();
     }
-
 }
