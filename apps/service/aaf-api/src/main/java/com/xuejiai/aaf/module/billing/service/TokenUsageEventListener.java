@@ -55,6 +55,6 @@ public class TokenUsageEventListener {
                         return Map.of("inputTokens", input, "outputTokens", output);
                     }
                 };
-        creditGuard.settleByUsage(event.userId(), model, usage, capability, null);
+        creditGuard.settleByUsage(event.userId(), model, usage, capability, "AI 对话");
     }
 }

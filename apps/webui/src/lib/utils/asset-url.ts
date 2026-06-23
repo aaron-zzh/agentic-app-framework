@@ -48,6 +48,34 @@ export function thumbUrl(path: string, params: ThumbParams = {}): string {
 }
 
 /**
+ * 对完整图片 URL 追加阿里云 OSS 图片处理参数（缩略图）。
+ * 适用于后端直接返回的 ossUrl / CDN URL 等动态素材地址。
+ *
+ * 通过 NEXT_PUBLIC_OSS_THUMB_DOMAIN 配置允许追加参数的域名（逗号分隔）。
+ * 未配置时对所有 http 图片 URL 追加（适合单一 CDN 环境）。
+ *
+ * - URL 已有查询参数：追加 `&x-oss-process=...`
+ * - URL 无查询参数：追加 `?x-oss-process=...`
+ * - 空值：返回空字符串
+ */
+const OSS_THUMB_DOMAINS = (process.env.NEXT_PUBLIC_OSS_THUMB_DOMAIN ?? "")
+  .split(",")
+  .filter(Boolean)
+
+export function ossThumb(url: string | null | undefined, params: ThumbParams = {}): string {
+  if (!url) return ""
+
+  // 配置了域名白名单时，只对匹配的域名追加参数
+  if (OSS_THUMB_DOMAINS.length > 0 && !OSS_THUMB_DOMAINS.some((d) => url.includes(d))) return url
+
+  const { width = 300, height = 300, mode = "fill", quality = 90 } = params
+  let process = `x-oss-process=image/resize,m_${mode},w_${width},h_${height}`
+  if (quality > 0 && quality < 100) process += `/quality,q_${quality}`
+
+  return url.includes("?") ? `${url}&${process}` : `${url}?${process}`
+}
+
+/**
  * 阿里云 OSS 视频封面截帧
  * @param path 视频路径
  * @param timeMs 截帧时间（毫秒），默认 1000ms

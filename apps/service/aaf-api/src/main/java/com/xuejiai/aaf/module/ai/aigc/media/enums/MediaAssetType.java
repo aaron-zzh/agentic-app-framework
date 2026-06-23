@@ -19,7 +19,8 @@ public enum MediaAssetType implements ArrayValuable<Integer> {
     VIDEO(2, "视频"),
     AUDIO(3, "音频"),
     MODEL_3D(4, "3D 模型"),
-    TEXT(5, "文案");
+    TEXT(5, "文案"),
+    MUSIC(6, "音乐");
 
     private final Integer type;
     private final String name;

@@ -70,7 +70,9 @@ public final class GeminiEditParams {
         parts.add(Map.of("text", prompt));
         for (String url : sourceUrls) {
             try {
+                log.info("[GeminiEditParams] 下载参考图: url={}", url);
                 byte[] bytes = URI.create(url).toURL().openStream().readAllBytes();
+                log.info("[GeminiEditParams] 参考图下载成功: size={}KB", bytes.length / 1024);
                 String b64 = Base64.getEncoder().encodeToString(bytes);
                 String mime = guessMime(url);
                 parts.add(Map.of("inline_data", Map.of("mime_type", mime, "data", b64)));

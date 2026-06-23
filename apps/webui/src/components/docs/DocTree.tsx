@@ -35,7 +35,7 @@ export function DocTree({ nodes, selectedId, onSelect, depth = 0, draggable }: D
     <ul className="space-y-0.5">
       {nodes.map((node) => (
         <li key={node.path}>
-          {node.isDir ? (
+          {node.isDirectory ? (
             <>
               <button
                 type="button"

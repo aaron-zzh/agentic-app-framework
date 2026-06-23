@@ -1,6 +1,8 @@
 /**
- * useAigcTaskStream——订阅 AIGC 任务事件流（SSE）
- * 一次连接监听当前用户所有任务的进度/完成/失败事件
+ * useAigcTaskStream——订阅 AIGC 任务事件流（SSE 单例）
+ *
+ * 全局共享一条 SSE 连接，多个组件订阅不会建立多条连接。
+ * 最后一个订阅者卸载时自动关闭连接。
  *
  * @author AaronZZH & Kiro
  */
@@ -33,85 +35,132 @@ export interface UseAigcTaskStreamOptions {
   onProgress?: (task: AigcTaskEvent) => void
   onCompleted?: (task: AigcTaskEvent) => void
   onFailed?: (task: AigcTaskEvent) => void
-  /** SSE 重连成功后回调，用于补查断连期间可能丢失的任务状态 */
   onReconnect?: () => void
-  /** 是否启用，默认 true */
   enabled?: boolean
 }
 
-/**
- * 订阅 AIGC 任务 SSE 事件流
- * 连接断开时自动重连（最多5次，指数退避）
- */
+// ─── 单例 SSE 管理 ───────────────────────────────────────────────────────────
+
+type Subscriber = Required<Omit<UseAigcTaskStreamOptions, "enabled" | "onReconnect">> & {
+  onReconnect?: () => void
+}
+
+let es: EventSource | null = null
+let retryCount = 0
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+let isFirstConnect = true
+const subscribers = new Set<Subscriber>()
+
+function emit(type: keyof Subscriber, task: AigcTaskEvent) {
+  for (const sub of subscribers) {
+    ;(sub[type] as ((t: AigcTaskEvent) => void) | undefined)?.(task)
+  }
+}
+
+function parse(e: MessageEvent): AigcTaskEvent | null {
+  try {
+    return JSON.parse(e.data)
+  } catch {
+    return null
+  }
+}
+
+function connect() {
+  const url = buildSseUrl("/aigc/tasks/stream")
+  const source = new EventSource(url, { withCredentials: true })
+  es = source
+
+  source.addEventListener("task.created", (e) => {
+    const t = parse(e)
+    if (t) emit("onCreated", t)
+  })
+  source.addEventListener("task.progress", (e) => {
+    const t = parse(e)
+    if (t) emit("onProgress", t)
+  })
+  source.addEventListener("task.completed", (e) => {
+    const t = parse(e)
+    if (t) emit("onCompleted", t)
+  })
+  source.addEventListener("task.failed", (e) => {
+    const t = parse(e)
+    if (t) emit("onFailed", t)
+  })
+
+  source.onopen = () => {
+    if (!isFirstConnect)
+      subscribers.forEach((s) => {
+        s.onReconnect?.()
+      })
+    isFirstConnect = false
+    retryCount = 0
+  }
+
+  source.onerror = () => {
+    source.close()
+    es = null
+    if (subscribers.size > 0 && retryCount < 5) {
+      const delay = Math.min(1000 * 2 ** retryCount, 30000)
+      retryCount++
+      retryTimer = setTimeout(connect, delay)
+    }
+  }
+}
+
+function ensureConnected() {
+  if (!es || es.readyState === EventSource.CLOSED) connect()
+}
+
+function disconnect() {
+  if (retryTimer) {
+    clearTimeout(retryTimer)
+    retryTimer = null
+  }
+  es?.close()
+  es = null
+  isFirstConnect = true
+  retryCount = 0
+}
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
+
 export function useAigcTaskStream(options: UseAigcTaskStreamOptions = {}) {
   const { onCreated, onProgress, onCompleted, onFailed, onReconnect, enabled = true } = options
-  const esRef = useRef<EventSource | null>(null)
-  const retryRef = useRef(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isFirstConnectRef = useRef(true)
 
-  const cbRef = useRef({ onCreated, onProgress, onCompleted, onFailed, onReconnect })
-  cbRef.current = { onCreated, onProgress, onCompleted, onFailed, onReconnect }
+  // 用 ref 稳定回调引用，避免 effect 重跑
+  const subRef = useRef<Subscriber>({
+    onCreated: onCreated ?? (() => {}),
+    onProgress: onProgress ?? (() => {}),
+    onCompleted: onCompleted ?? (() => {}),
+    onFailed: onFailed ?? (() => {}),
+    onReconnect
+  })
+  subRef.current = {
+    onCreated: onCreated ?? (() => {}),
+    onProgress: onProgress ?? (() => {}),
+    onCompleted: onCompleted ?? (() => {}),
+    onFailed: onFailed ?? (() => {}),
+    onReconnect
+  }
 
   useEffect(() => {
     if (!enabled) return
 
-    function connect() {
-      const url = buildSseUrl("/aigc/tasks/stream")
-      const es = new EventSource(url, { withCredentials: true })
-      esRef.current = es
-
-      const parse = (e: MessageEvent): AigcTaskEvent | null => {
-        try {
-          return JSON.parse(e.data)
-        } catch {
-          return null
-        }
-      }
-
-      es.addEventListener("task.created", (e) => {
-        const task = parse(e)
-        if (task) cbRef.current.onCreated?.(task)
-      })
-      es.addEventListener("task.progress", (e) => {
-        const task = parse(e)
-        if (task) cbRef.current.onProgress?.(task)
-      })
-      es.addEventListener("task.completed", (e) => {
-        const task = parse(e)
-        if (task) cbRef.current.onCompleted?.(task)
-      })
-      es.addEventListener("task.failed", (e) => {
-        const task = parse(e)
-        if (task) cbRef.current.onFailed?.(task)
-      })
-
-      es.onerror = () => {
-        es.close()
-        esRef.current = null
-        if (retryRef.current < 5) {
-          const delay = Math.min(1000 * 2 ** retryRef.current, 30000)
-          retryRef.current += 1
-          timerRef.current = setTimeout(connect, delay)
-        }
-      }
-
-      es.onopen = () => {
-        if (!isFirstConnectRef.current) {
-          // 重连成功，补查可能丢失的任务状态
-          cbRef.current.onReconnect?.()
-        }
-        isFirstConnectRef.current = false
-        retryRef.current = 0
-      }
+    // 注册一个稳定的代理订阅者（指向 ref，不会因回调变化而重新注册）
+    const proxy: Subscriber = {
+      onCreated: (t) => subRef.current.onCreated(t),
+      onProgress: (t) => subRef.current.onProgress(t),
+      onCompleted: (t) => subRef.current.onCompleted(t),
+      onFailed: (t) => subRef.current.onFailed(t),
+      onReconnect: () => subRef.current.onReconnect?.()
     }
 
-    connect()
+    subscribers.add(proxy)
+    ensureConnected()
 
     return () => {
-      esRef.current?.close()
-      esRef.current = null
-      if (timerRef.current) clearTimeout(timerRef.current)
+      subscribers.delete(proxy)
+      if (subscribers.size === 0) disconnect()
     }
   }, [enabled])
 }

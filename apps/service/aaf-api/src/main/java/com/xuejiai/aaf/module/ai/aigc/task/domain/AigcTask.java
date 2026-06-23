@@ -83,4 +83,8 @@ public class AigcTask extends BaseEntity {
      */
     @Column(name = "credit_tx_id")
     private Long creditTxId;
+
+    /** 技能专属系统提示词（来自 SkillDefinition.systemPrompt）。 执行时注入到 prompt 前置语境，用于引导 AI 以特定角色生成内容。 */
+    @Column(name = "system_prompt", columnDefinition = "TEXT")
+    private String systemPrompt;
 }

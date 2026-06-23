@@ -69,6 +69,25 @@ public class ResilientChatService {
         }
     }
 
+    /** 同步调用，带额外 ChatOptions（用于透传非标准参数如 enable_search）。 */
+    public ChatResponse call(
+            List<Message> messages,
+            CapabilityRoutingContext ctx,
+            org.springframework.ai.chat.prompt.ChatOptions options) {
+        var ownerId = billingOwnerId(ctx.userId());
+        creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
+        var model = capabilityRouter.resolve(ctx);
+        var billingCapability = detectBillingCapability(messages);
+        try {
+            var response = doCall(messages, model.getModelId(), options);
+            publishUsage(response, ownerId, model.getId(), billingCapability);
+            return response;
+        } catch (Exception e) {
+            log.warn("主模型 [{}] 调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
+            return callFallback(messages, model, ownerId, billingCapability);
+        }
+    }
+
     /**
      * 同步调用，简化入口（显式指定 modelId）。
      *
@@ -177,6 +196,17 @@ public class ResilientChatService {
 
     private ChatResponse doCall(List<Message> messages, String modelId) {
         return clientFactory.get(modelId).prompt(new Prompt(messages)).call().chatResponse();
+    }
+
+    private ChatResponse doCall(
+            List<Message> messages,
+            String modelId,
+            org.springframework.ai.chat.prompt.ChatOptions options) {
+        return clientFactory
+                .get(modelId)
+                .prompt(new Prompt(messages, options))
+                .call()
+                .chatResponse();
     }
 
     private Flux<ChatResponse> doStream(List<Message> messages, String modelId) {

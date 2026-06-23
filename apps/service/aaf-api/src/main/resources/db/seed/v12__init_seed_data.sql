@@ -1,4 +1,4 @@
--- ============================================================
+﻿-- ============================================================
 -- 生产必需种子数据（随应用一起部署，所有环境均执行）
 -- ============================================================
 
@@ -699,17 +699,17 @@ INSERT INTO ai_model (model_id, display_name, provider, provider_type, model_nam
                       input_price_per_k, output_price_per_k, model_price, quota_type, image_config)
 VALUES
 -- 语言模型（输入 0.036元/K，输出 0.108元/K）
-('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true,  0.036, 0.108, null, 0, null),
-('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true,  0.036, 0.108, null, 0, null),
-('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true,  0.036, 0.108, null, 0, null),
-('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000,  5,  true,  0.036, 0.108, null, 0, null),
-('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 10,  true,  0.036, 0.108, null, 0, null),
-('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.036, 0.108, null, 0, null),
-('deepseek:chat',         'DeepSeek Chat',       'deepseek','OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                   'CHAT',        64000,  20,  true,  0.036, 0.108, null, 0, null),
-('deepseek:reasoner',     'DeepSeek R1',         'deepseek','OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                   'CHAT',        64000,  21,  true,  0.036, 0.108, null, 0, null),
+-- ('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true,  0.036, 0.108, null, 0, null),
+('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true,  0.015, 0.05, null, 0, null),
+('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true,  0.015, 0.05, null, 0, null),
+-- ('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000,  5,  true,  0.036, 0.108, null, 0, null),
+('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 10,  true,  0.015, 0.04, null, 0, null),
+('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.015, 0.04, null, 0, null),
+-- ('deepseek:chat',         'DeepSeek Chat',       'deepseek','OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                   'CHAT',        64000,  20,  true,  0.036, 0.108, null, 0, null),
+-- ('deepseek:reasoner',     'DeepSeek R1',         'deepseek','OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                   'CHAT',        64000,  21,  true,  0.036, 0.108, null, 0, null),
 ('qwen:qwen3.7-max',      'Qwen Max',            'qwen',    'OPENAI_COMPAT', 'qwen3.7-max',                'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    32000,  30,  true,  0.012, 0.036, null, 0, null),
 ('qwen:qwen3.7-plus',     'Qwen Plus',           'qwen',    'OPENAI_COMPAT', 'qwen3.7-plus',               'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 31,  true,  0.002, 0.008, null, 0, null),
-('qwen:qwen3.6-flash',    'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.6-flash',              'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 32,  true,  0.036, 0.108, null, 0, null),
+-- ('qwen:qwen3.6-flash',    'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.6-flash',              'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 32,  true,  0.036, 0.108, null, 0, null),
 ('qwen:text-embedding-v4','Qwen Embedding',       'qwen',    'OPENAI_COMPAT', 'text-embedding-v4',          'https://dashscope.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 192, 33,  true,  0.0005, 0, null, 0, null),
 -- 图像生成（按次计费，quota_type=1；OpenAI Compat 按 token 计费，quota_type=0）
 ('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[],"generate":{"maxImages":4,"sizePresets":["1K","2K"],"seed":true},"edit":{"maxInputImages":9,"maxImages":4,"sizePresets":["1K","2K"],"seed":true}}'),
@@ -717,13 +717,13 @@ VALUES
 ('n1n:gpt-image-2',                'GPT Image 2',         'n1n',  'OPENAI_COMPAT','gpt-image-2',                    'https://llm-api.net/v1',         'IMAGE_GEN', 3000, 212, true,  0.003, 0.018, null, 0, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[3840,2160],[2160,3840]],"generate":{"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"],"background":["auto","opaque"]},"edit":{"maxInputImages":16,"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"],"background":["auto","opaque"]}}'),
 ('n1n:gemini-3.1-flash-image-preview','Gemini 3.1 Flash', 'n1n',  'OPENAI_COMPAT','gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 220, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"1:4":[],"1:8":[],"2:3":[],"3:2":[],"3:4":[],"4:1":[],"4:3":[],"4:5":[],"5:4":[],"8:1":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["512","1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["512","1K","2K","4K"]}}'),
 ('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"2:3":[],"3:2":[],"3:4":[],"4:3":[],"4:5":[],"5:4":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["1K","2K","4K"]}}'),
-('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[1152,2048]],"generate":{"maxImages":4,"format":["jpeg","png"]}}'),
+-- ('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[1152,2048]],"generate":{"maxImages":4,"format":["jpeg","png"]}}'),
 -- 视频生成
-('qwen:happyhorse-1.0-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-i2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.0-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-t2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.0-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.0-r2v',             'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://dashscope.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null),
-('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0, null),
+('qwen:happyhorse-1.1-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-i2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.1-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-t2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.1-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-r2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null),
+-- ('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0, null),
 -- 重排序
 ('qwen:qwen3-rerank',              'GTE Rerank v2',       'qwen', 'DASHSCOPE',    'qwen3-rerank',                   'https://dashscope.aliyuncs.com', 'RERANK',     null, 360, true,  null,  null, null, 0, null),
 -- 语音识别（ASR）
@@ -739,7 +739,7 @@ VALUES
 -- OCR
 ('qwen:qwen3.5-ocr',               'Qwen3.5 OCR',         'qwen', 'DASHSCOPE',    'qwen3.5-ocr',                    'https://dashscope.aliyuncs.com',                    'OCR', null, 370, true, 0.0005, 0.002, null, 0, null),
 -- 3D 生成（按次计费，价格由 params_config.pricing 矩阵决定，model_price 为兜底）
-('meshy:meshy-4',                  'Meshy 4',             'meshy', 'MESHY',        'meshy-4',                        'https://api.meshy.ai',           'MODEL_3D', null, 410, true,  null, null, 2.1, 1, null),
+-- ('meshy:meshy-4',                  'Meshy 4',             'meshy', 'MESHY',        'meshy-4',                        'https://api.meshy.ai',           'MODEL_3D', null, 410, true,  null, null, 2.1, 1, null),
 ('tripo:tripo3d-v2',               'Tripo 3D v2',         'tripo', 'DASHSCOPE',    'tripo3d-v2',                     'https://dashscope.aliyuncs.com', 'MODEL_3D', null, 411, true,  null, null, 2.1, 1, null)
 ON CONFLICT (model_id) DO NOTHING;
 
@@ -792,7 +792,7 @@ SET video_config = '{
     {"resolution": "1080p", "pricePerSecond": 1.6}
   ]
 }'
-WHERE model_id IN ('qwen:happyhorse-1.0-i2v', 'qwen:happyhorse-1.0-t2v', 'qwen:happyhorse-1.0-r2v', 'qwen:happyhorse-1.0-video-edit');
+WHERE model_id IN ('qwen:happyhorse-1.1-i2v', 'qwen:happyhorse-1.1-t2v', 'qwen:happyhorse-1.1-r2v', 'qwen:happyhorse-1.1-video-edit');
 
 -- Doubao Seedance 视频配置
 UPDATE ai_model
@@ -831,11 +831,11 @@ VALUES
 ('水墨国风建筑',      'IMAGE_GEN', '建筑',  '中国传统建筑，水墨风格，飞檐翘角，红墙绿瓦，云雾缭绕，诗意意境',                 '现代建筑，照片感',           true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 ('星空银河风景',      'IMAGE_GEN', '自然',  '夜空星河壮观，银河清晰，流星划过，山脉剪影，长曝光摄影风格，超写实',             '白天，城市灯光，模糊',       true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 -- ===== 图像编辑模板（需配合参考图使用）=====
-('水墨题诗',          'IMAGE_GEN', '图像编辑', '在画面右下角石板路旁、靠近树干根部的位置，以浅灰墨色手写体题写一首七言绝句，字体为行楷风格，笔触自然流畅、略带飞白，大小适中（约占画面高度1/10），与整体水墨淡雅氛围协调。诗文内容为："青石桥畔柳风轻， 素手拈花闭目听。 一水碧痕浮旧梦， 半篙烟雨入空舲。"诗句横向排列，四句分两行书写（前两句一行，后两句一行），末句"舲"字右下角钤一枚朱红小印，印文为"江南"二字篆书，尺寸约等于单字高度的1/3。', '低分辨率，低画质，文字模糊，扭曲', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('爆款文字渲染',      'IMAGE_GEN', '图像编辑', '在画面适当位置以醒目字体添加以下文字内容，文字与背景融合自然，字体样式与整体画面风格协调，确保文字清晰可读，不遮挡主体核心区域。文字内容：[请替换为你的文字]', '文字模糊，扭曲，难以辨认', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('风格迁移',          'IMAGE_GEN', '图像编辑', '将参考图中的主体保持不变，将整体画面风格转换为[请替换：水彩/油画/赛博朋克/动漫/写实摄影]风格，保留主体的形状、姿态和主要特征，调整色彩和纹理以匹配目标风格，使整体效果自然协调。', '风格不明显，主体变形，失真', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('局部修改',          'IMAGE_GEN', '图像编辑', '对参考图进行局部修改：[请替换具体修改要求，例如：将背景替换为日落海边场景 / 去除画面中的杂物 / 为人物换上红色连衣裙]，保持其他区域与原图完全一致，修改区域过渡自然。', '大幅改变主体，失真，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('场景扩充',          'IMAGE_GEN', '图像编辑', '基于参考图，向[请替换：左/右/上/下/四周]方向扩展画面，补全超出原图边界的场景内容，保持画面的光线、透视、风格与原图高度一致，新增区域与原图无缝融合。', '边界不自然，风格不统一，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('水墨题诗',          'IMAGE_GEN', '修图', '在画面右下角石板路旁、靠近树干根部的位置，以浅灰墨色手写体题写一首七言绝句，字体为行楷风格，笔触自然流畅、略带飞白，大小适中（约占画面高度1/10），与整体水墨淡雅氛围协调。诗文内容为："青石桥畔柳风轻， 素手拈花闭目听。 一水碧痕浮旧梦， 半篙烟雨入空舲。"诗句横向排列，四句分两行书写（前两句一行，后两句一行），末句"舲"字右下角钤一枚朱红小印，印文为"江南"二字篆书，尺寸约等于单字高度的1/3。', '低分辨率，低画质，文字模糊，扭曲', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('爆款文字渲染',      'IMAGE_GEN', '修图', '在画面适当位置以醒目字体添加以下文字内容，文字与背景融合自然，字体样式与整体画面风格协调，确保文字清晰可读，不遮挡主体核心区域。文字内容：[请替换为你的文字]', '文字模糊，扭曲，难以辨认', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('风格迁移',          'IMAGE_GEN', '修图', '将参考图中的主体保持不变，将整体画面风格转换为[请替换：水彩/油画/赛博朋克/动漫/写实摄影]风格，保留主体的形状、姿态和主要特征，调整色彩和纹理以匹配目标风格，使整体效果自然协调。', '风格不明显，主体变形，失真', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('局部修改',          'IMAGE_GEN', '修图', '对参考图进行局部修改：[请替换具体修改要求，例如：将背景替换为日落海边场景 / 去除画面中的杂物 / 为人物换上红色连衣裙]，保持其他区域与原图完全一致，修改区域过渡自然。', '大幅改变主体，失真，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('场景扩充',          'IMAGE_GEN', '修图', '基于参考图，向[请替换：左/右/上/下/四周]方向扩展画面，补全超出原图边界的场景内容，保持画面的光线、透视、风格与原图高度一致，新增区域与原图无缝融合。', '边界不自然，风格不统一，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 -- ===== 视频生成模板 =====
 ('城市延时摄影',      'VIDEO_GEN', '城市',  '城市街道延时摄影，车流光轨，霓虹闪烁，人流穿梭，动感十足，电影质感',             null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 ('自然风光流动',      'VIDEO_GEN', '自然',  '自然风光，流水潺潺，云彩流动，光影变换，宁静氛围，4K 超清',                      null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
@@ -847,18 +847,18 @@ VALUES
 ('产品详情页文案',   'COPYWRITING', '电商',     '请为以下产品写电商详情页文案，要求：标题突出核心卖点，分模块描述产品特点、使用场景、用户痛点解决方案，结尾引导购买，语言专业有说服力。产品：', null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 ('公众号推文开头',   'COPYWRITING', '内容营销', '请为以下主题写一个公众号推文开头，要求：用故事或问题引入，制造悬念，激发读者继续阅读的欲望，字数 100 字左右。主题：',              null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 -- ===== 图像：更多风格 =====
-('电影感胶片',      'IMAGE_GEN', '通用风格', 'cinematic film grain, anamorphic lens, golden hour, muted color palette, shallow depth of field', '模糊，低质量，噪点过重', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('水彩插画',        'IMAGE_GEN', '通用风格', 'watercolor illustration, soft edges, pastel tones, paper texture, hand-painted',                  '照片感，锐利，数字感',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('油画质感',        'IMAGE_GEN', '通用风格', 'oil painting, impressionist brushstrokes, rich textures, museum quality',                          '低质量，现代感，模糊',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('极简主义',        'IMAGE_GEN', '通用风格', 'minimalist composition, clean background, single subject, flat design, Bauhaus style',             '杂乱，过度装饰，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('电影感胶片',      'IMAGE_GEN', '通用', '电影胶片质感，变形镜头，黄金时刻光效，低饱和色调，浅景深虚化，写实摄影风格', '模糊，低质量，噪点过重', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('水彩插画',        'IMAGE_GEN', '通用', '水彩插画风格，柔和边缘，马卡龙色调，纸张纹理质感，手绘效果',                  '照片感，锐利，数字感',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('油画质感',        'IMAGE_GEN', '通用', '油画风格，印象派笔触，丰富肌理，博物馆级别品质',                              '低质量，现代感，模糊',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('极简主义',        'IMAGE_GEN', '通用', '极简构图，干净背景，单一主体，平面设计感，包豪斯风格',                         '杂乱，过度装饰，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 -- ===== 人像摄影 =====
-('商业人像',        'IMAGE_GEN', '人像摄影', 'professional portrait, studio lighting, white background, business attire, sharp eyes',            '变形，模糊，多人',       true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('时尚大片',        'IMAGE_GEN', '人像摄影', 'fashion editorial, high-end magazine, dramatic lighting, bold composition, luxury brand aesthetic', '普通，低质量，过时',     true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('街拍风格',        'IMAGE_GEN', '人像摄影', 'candid street photography, natural light, urban backdrop, authentic expression, reportage style',   '摆拍感，模糊，低质量',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('商业人像',        'IMAGE_GEN', '摄影', '专业商业人像，摄影棚打光，白色背景，商务着装，眼神清晰锐利',                   '变形，模糊，多人',       true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('时尚大片',        'IMAGE_GEN', '摄影', '时尚杂志大片风格，戏剧性光影，大胆构图，高端奢侈品牌质感',                     '普通，低质量，过时',     true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('街拍风格',        'IMAGE_GEN', '摄影', '街头抓拍风格，自然光，城市背景，真实表情，纪实摄影风格',                       '摆拍感，模糊，低质量',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 -- ===== 产品电商 =====
-('白底产品图',      'IMAGE_GEN', '产品电商', 'product photography, pure white background, studio lighting, commercial, high detail, e-commerce',  '杂乱背景，阴影过重，变形', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('场景产品图',      'IMAGE_GEN', '产品电商', 'lifestyle product shot, natural environment, contextual setting, warm tones, aspirational',         '白底，孤立感，低质量',    true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('科技产品风',      'IMAGE_GEN', '产品电商', 'tech product render, dark background, neon accent lighting, futuristic materials, 3D render quality','普通背景，低质量，模糊',  true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('白底产品图',      'IMAGE_GEN', '电商', '产品摄影，纯白背景，摄影棚打光，商业级品质，超高清细节，电商平台风格',          '杂乱背景，阴影过重，变形', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('场景产品图',      'IMAGE_GEN', '电商', '生活方式产品摄影，自然场景，情景化陈设，暖色调，富有向往感',                    '白底，孤立感，低质量',    true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('科技产品风',      'IMAGE_GEN', '电商', '科技产品渲染，深色背景，霓虹点缀光效，未来感材质，3D 渲染品质',                '普通背景，低质量，模糊',  true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 -- ===== 文案：口播 =====
 ('产品口播脚本',    'COPYWRITING', '口播', '开头3秒痛点钩子，中间产品解决方案，结尾限时优惠+行动号召，总字数≤200字',                              null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
 ('知识科普口播',    'COPYWRITING', '口播', '问题引入→核心知识点3条→实用建议，语言口语化，节奏明快，适合15-60秒短视频',                            null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
@@ -1453,3 +1453,24 @@ INSERT INTO ai_knowledge_chunk (
 如需了解更多，欢迎访问项目文档或通过客服联系我们。',
     2, 350, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO NOTHING;
+
+
+
+-- ============================================================
+-- 视频生成提示词模板——品牌 + 口播 两个分类
+-- ============================================================
+INSERT INTO generation_template (name, type, category, prompt, is_public, scope, user_id, create_time, update_time, version, deleted)
+VALUES
+('品牌产品展示',   'VIDEO_GEN', '品牌', '产品从白色极简背景中缓缓旋转呈现，光线从左上方打入，突出产品质感与细节，镜头缓慢推近，专业商业摄影风格，4K 画质',                                           TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('品牌故事开场',   'VIDEO_GEN', '品牌', '城市清晨，金色阳光透过落地窗照进现代办公室，一双手正在翻阅品牌产品，画面温暖有质感，慢动作，电影级调色',                                                    TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('品牌活动预热',   'VIDEO_GEN', '品牌', '动态粒子汇聚成品牌 Logo，背景为深邃星空，科技感强，配合节奏感强的光效闪烁，适合发布会倒计时开场',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('奢侈品广告大片', 'VIDEO_GEN', '品牌', '模特在巴黎街头行走，穿着精致服装，镜头以慢动作跟随，背景虚化，自然光线，胶片质感，高端时尚大片风格',                                                          TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('产品使用场景',   'VIDEO_GEN', '品牌', '用户在咖啡馆使用产品的自然场景，浅景深，暖色调，画面宁静舒适，真实生活感，手持镜头微微晃动',                                                                  TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('品牌环保理念',   'VIDEO_GEN', '品牌', '绿色森林中阳光穿透树叶，画面从自然切换到产品，传达可持续发展理念，色调清新自然，无人机俯拍与近景交替',                                                          TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('口播直播间开场', 'VIDEO_GEN', '口播', '主播站在整洁明亮的直播间，面对镜头微笑，背景有产品陈列，打光均匀，画面稳定，真实自然的对话感',                                                                  TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('产品开箱口播',   'VIDEO_GEN', '口播', '双手从精美包装盒中取出产品，动作流畅，特写镜头展示细节，背景简洁，自然光，ASMR 风格，聚焦产品质感',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('教程讲解口播',   'VIDEO_GEN', '口播', '讲师坐在桌前，正对镜头进行步骤演示，画面清晰，构图居中，背景为书架或白板，专业教学感，自然光补光',                                                              TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('户外实景口播',   'VIDEO_GEN', '口播', '博主在户外场景手持产品讲解，背景为自然风景，自然光线，轻微背景虚化，真实感强，竖屏构图适配手机观看',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('测评对比口播',   'VIDEO_GEN', '口播', '桌面上并排放置两款产品，手逐一指向展示差异，俯拍与正面切换，干净白色背景，专业测评风格，细节特写',                                                              TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
+('情感共鸣口播',   'VIDEO_GEN', '口播', '主人公坐在温馨室内，面向镜头真诚讲述，画面温暖，浅景深，背景灯光柔和，情感真实自然，适合故事型内容',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE)
+ON CONFLICT DO NOTHING;

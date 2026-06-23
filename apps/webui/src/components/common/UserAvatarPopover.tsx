@@ -2,7 +2,7 @@
 
 import { Coins, Gift, Globe, LogOut, MessageSquare, Settings, Star, Ticket } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useLocale, useTranslations } from "next-intl"
 import { useState, useTransition } from "react"
 import { AnimateBorder } from "@/components/animate"
@@ -45,7 +45,13 @@ export function UserAvatarPopover() {
   const { data: subscription } = useCurrentSubscription()
   const { logout, user } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  const isStudio = pathname.startsWith("/studio")
   const t = useTranslations("userAvatarPopover")
+
+  const pricingPath = isStudio ? paths.studio.mePricing : paths.workspace.settingsPricing
+  const creditsPath = isStudio ? paths.studio.meCredits : paths.workspace.settingsCredits
+  const profilePath = isStudio ? paths.studio.meAccount : paths.workspace.settingsProfile
 
   const displayName = user?.nickname || user?.username || "User"
   const email = user?.email
@@ -106,7 +112,7 @@ export function UserAvatarPopover() {
             {planName === "Free" && (
               <Button
                 nativeButton={false}
-                render={<Link href={paths.workspace.settingsPricing} />}
+                render={<Link href={pricingPath} />}
                 onClick={() => setOpen(false)}
                 className="mt-3 w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-white hover:opacity-90"
               >
@@ -169,7 +175,7 @@ export function UserAvatarPopover() {
               variant="secondary"
               className="w-full rounded-full"
               nativeButton={false}
-              render={<Link href={paths.workspace.settingsCredits} />}
+              render={<Link href={creditsPath} />}
               onClick={() => setOpen(false)}
             >
               {t("viewUsage")}
@@ -184,7 +190,7 @@ export function UserAvatarPopover() {
               variant="ghost"
               className="w-full justify-start gap-3 rounded-lg text-sidebar-foreground hover:text-foreground"
               nativeButton={false}
-              render={<Link href={paths.workspace.settingsProfile} />}
+              render={<Link href={profilePath} />}
             >
               <Settings className="size-4" /> {t("manageAccount")}
             </Button>

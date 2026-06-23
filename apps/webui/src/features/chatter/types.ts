@@ -65,6 +65,8 @@ export interface ChatterProps {
   /** dialog 模式右下锚点（距视口右、底的 px），默认 { right: 96, bottom: 96 } */
   dialogAnchor?: { right: number; bottom: number }
   toolbar?: ReactNode
+  /** 隐藏顶部工具栏（已有外部导航时使用） */
+  hideToolbar?: boolean
   onDrop?: (item: ChatterDropItem) => void
   sessionId?: string
   onSessionChange?: (sessionId: string) => void

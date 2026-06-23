@@ -94,7 +94,9 @@ export function AnimateBorder({
       />
 
       {/* 内容 */}
-      <div className={cn("relative z-10 flex items-center justify-center", rc)}>{children}</div>
+      <div className={cn("relative z-10 flex w-full items-center justify-center", rc)}>
+        {children}
+      </div>
     </div>
   )
 }

@@ -44,8 +44,10 @@ public class BuiltinSkillInitializer implements ApplicationRunner {
 
     private SkillDefinition toEntity(BuiltinSkills builtin) {
         var entity = new SkillDefinition();
+        entity.setCode(builtin.skillId);
         entity.setName(builtin.name);
         entity.setDescription(builtin.description);
+        entity.setCategory(builtin.category);
         // agentId 为 null（内置技能由 Assistant 直接处理）
         entity.setTriggerIntent(builtin.triggerIntent);
         entity.setSystemPrompt(builtin.systemPrompt);
@@ -57,8 +59,10 @@ public class BuiltinSkillInitializer implements ApplicationRunner {
     }
 
     private void updateEntity(SkillDefinition entity, BuiltinSkills builtin) {
+        entity.setCode(builtin.skillId);
         entity.setName(builtin.name);
         entity.setDescription(builtin.description);
+        entity.setCategory(builtin.category);
         entity.setTriggerIntent(builtin.triggerIntent);
         entity.setSystemPrompt(builtin.systemPrompt);
         entity.setSkillVersion(builtin.version);

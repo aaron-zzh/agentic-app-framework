@@ -89,7 +89,7 @@ export function ProjectDocPanel({ open, onOpenChange }: Props) {
         onOpenChange(v)
       }}
     >
-      <SheetContent side="left" className="w-[60vw]! max-w-[60vw]! flex flex-col p-0">
+      <SheetContent side="left" className="flex w-[60vw]! max-w-[60vw]! flex-col p-0">
         <SheetHeader className="border-b px-4 py-3">
           <SheetTitle className="text-sm">项目规范</SheetTitle>
         </SheetHeader>
@@ -241,7 +241,7 @@ function DocEditor({
   onCancel?: () => void
 }) {
   const isNew = !docId
-  const { data: doc, isLoading } = useDocument(isNew ? 0 : (docId ?? 0))
+  const { data: doc, isLoading } = useDocument(isNew ? null : (docId ?? null))
   const { mutate: updateDoc, isPending: saving } = useUpdateDocument()
 
   const [mode, setMode] = useState<"wysiwyg" | "markdown">("wysiwyg")
@@ -367,10 +367,7 @@ function DocEditor({
             key={editorKey}
             ref={editorRef}
             value={content}
-            onChange={(v) => {
-              setContent(v)
-              setDirty(true)
-            }}
+            onChange={() => setDirty(true)}
             preset="document"
             mode="html"
             initialValueMode={initMode}

@@ -151,6 +151,7 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
         onNewSession={() => setAttachments([])}
         dragProps={dialogDragProps}
         availableModes={availableModes}
+        hideRoleSwitch
       />
     )
 

@@ -7,11 +7,16 @@ import type { DocCreateParams, DocUpdateParams } from "@/lib/api/rest/system/doc
 import { documentApi } from "@/lib/api/rest/system/document"
 
 export const docKeys = {
+  list: ["docs", "list"] as const,
   tree: ["docs", "tree"] as const,
   detail: (id: number) => ["docs", id] as const,
   relations: (id: number) => ["docs", id, "relations"] as const,
   search: (q: string) => ["docs", "search", q] as const,
   published: ["docs", "published"] as const
+}
+
+export function useDocList() {
+  return useQuery({ queryKey: docKeys.list, queryFn: documentApi.list })
 }
 
 export function useDocTree() {
@@ -22,7 +27,7 @@ export function useDocument(id: number | null) {
   return useQuery({
     queryKey: docKeys.detail(id as number),
     queryFn: () => documentApi.get(id as number),
-    enabled: id != null
+    enabled: id != null && id > 0
   })
 }
 
@@ -96,6 +101,7 @@ export function useCreateDocument() {
   return useMutation({
     mutationFn: (params: DocCreateParams) => documentApi.create(params),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: docKeys.list })
       qc.invalidateQueries({ queryKey: docKeys.tree })
       qc.invalidateQueries({ queryKey: docKeys.published })
     }

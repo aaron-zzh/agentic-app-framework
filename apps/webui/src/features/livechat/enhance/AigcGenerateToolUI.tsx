@@ -1,4 +1,5 @@
 "use client"
+
 /**
  * AIGC 生成工具的内联 ToolUI——在对话气泡内渲染生成中占位和完成后的媒体内容
  *
@@ -6,9 +7,9 @@
  * 工具调用时显示占位骨架，任务完成后通过 useAigcTaskStream 更新为真实媒体
  */
 
-import { useCallback, useState } from "react"
 import { defineToolkit } from "@assistant-ui/react"
 import { ImageIcon, MusicIcon, VideoIcon } from "lucide-react"
+import { useCallback, useState } from "react"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 
 interface AigcToolResult {
@@ -62,7 +63,7 @@ function AigcTaskCard({ data }: { data: AigcToolResult }) {
   if (status === "SUCCESS" && url) {
     if (mediaType === "image") {
       return (
-        // biome-ignore lint/a11y/useAltText: 用户生成内容
+        // biome-ignore lint/performance/noImgElement: 生成结果图，无尺寸信息无法用 next/image
         <img
           src={url}
           alt={prompt}
@@ -73,11 +74,7 @@ function AigcTaskCard({ data }: { data: AigcToolResult }) {
     if (mediaType === "video") {
       return (
         // biome-ignore lint/a11y/useMediaCaption: 用户生成内容
-        <video
-          src={url}
-          controls
-          className="my-2 max-h-80 w-full rounded-lg shadow"
-        />
+        <video src={url} controls className="my-2 max-h-80 w-full rounded-lg shadow" />
       )
     }
     if (mediaType === "music") {

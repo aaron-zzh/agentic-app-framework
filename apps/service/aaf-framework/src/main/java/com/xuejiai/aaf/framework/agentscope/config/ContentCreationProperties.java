@@ -14,7 +14,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>所有字段都有合理默认值，除非环境特殊需求否则无需在 {@code application.yml} 中显式声明。
  */
-@ConfigurationProperties(prefix = "aaf.agentscope.content-creation")
+@ConfigurationProperties(prefix = "aaf.agentscope.assistant")
 public class ContentCreationProperties {
 
     /** 是否启用内容创作 Agent 自动装配。 */

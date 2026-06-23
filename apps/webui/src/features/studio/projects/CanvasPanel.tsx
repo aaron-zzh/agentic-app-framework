@@ -9,9 +9,11 @@
 
 "use client"
 
-import { Download } from "lucide-react"
+import { Download, Loader2, Wand2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useCallback, useState } from "react"
-import { type Editor, exportAs, Tldraw } from "tldraw"
+import { toast } from "sonner"
+import { type Editor, Tldraw } from "tldraw"
 import "tldraw/tldraw.css"
 import {
   DropdownMenu,
@@ -19,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
+import { useFileUpload } from "@/lib/hooks/use-file-upload"
 
 interface CanvasPanelProps {
   /** IndexedDB 持久化键，不传则不持久化 */
@@ -27,6 +30,9 @@ interface CanvasPanelProps {
 
 export function CanvasPanel({ persistenceKey }: CanvasPanelProps) {
   const [editor, setEditor] = useState<Editor | null>(null)
+  const [sendingToAi, setSendingToAi] = useState(false)
+  const router = useRouter()
+  const { upload } = useFileUpload()
 
   const handleMount = useCallback((e: Editor) => {
     setEditor(e)
@@ -36,9 +42,28 @@ export function CanvasPanel({ persistenceKey }: CanvasPanelProps) {
     async (format: "png" | "svg") => {
       if (!editor) return
       try {
-        const ids = Array.from(editor.getCurrentPageShapeIds())
+        const ids = [...editor.getCurrentPageShapeIds()]
         if (ids.length === 0) return
-        await exportAs(editor, ids, { format, background: true, padding: 32 })
+        if (format === "svg") {
+          const result = await editor.getSvgString(ids, { background: true, padding: 32 })
+          if (!result) return
+          const blob = new Blob([result.svg], { type: "image/svg+xml" })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = "canvas.svg"
+          a.click()
+          URL.revokeObjectURL(url)
+        } else {
+          const result = await editor.toImage(ids, { format: "png", background: true, padding: 32 })
+          if (!result) return
+          const url = URL.createObjectURL(result.blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = "canvas.png"
+          a.click()
+          URL.revokeObjectURL(url)
+        }
       } catch {
         // 导出失败静默处理
       }
@@ -46,15 +71,59 @@ export function CanvasPanel({ persistenceKey }: CanvasPanelProps) {
     [editor]
   )
 
+  /** 导出当前画布为 PNG → 上传后端 → 跳转图片 AI 编辑页 */
+  const handleSendToAi = useCallback(async () => {
+    if (!editor) return
+    const ids = [...editor.getCurrentPageShapeIds()]
+    if (ids.length === 0) {
+      toast.warning("画布为空，请先绘制内容")
+      return
+    }
+    setSendingToAi(true)
+    try {
+      const result = await editor.toImage(ids, { format: "jpeg", background: true, padding: 32 })
+      if (!result) throw new Error("export failed")
+      const file = new File([result.blob], "canvas.jpg", { type: "image/jpeg" })
+      const { url: uploadedUrl } = await upload(file)
+      const dest = new URL("/studio/create/image", window.location.origin)
+      dest.searchParams.set("refUrl", uploadedUrl)
+      dest.searchParams.set("prompt", "按照图片风格和内容进行 AI 编辑创作")
+      router.push(dest.pathname + dest.search)
+    } catch {
+      toast.error("上传失败，请重试")
+    } finally {
+      setSendingToAi(false)
+    }
+  }, [editor, upload, router])
+
   return (
     <div className="relative h-full w-full">
-      <Tldraw onMount={handleMount} persistenceKey={persistenceKey} licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY} />
+      <Tldraw
+        onMount={handleMount}
+        persistenceKey={persistenceKey}
+        licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY}
+      />
 
-      {/* 导出按钮 */}
       {editor && (
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute right-3 bottom-16 z-10 flex gap-2">
+          {/* AI 编辑按钮 */}
+          <button
+            type="button"
+            disabled={sendingToAi}
+            onClick={handleSendToAi}
+            className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-white text-xs shadow-sm transition-colors hover:bg-neutral-700 disabled:opacity-50"
+          >
+            {sendingToAi ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Wand2 className="size-3.5" />
+            )}
+            AI 编辑
+          </button>
+
+          {/* 导出按钮 */}
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-foreground/[0.08] bg-background/90 px-3 py-1.5 text-xs shadow-sm backdrop-blur transition-colors hover:bg-foreground/[0.04]">
+            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-white text-xs shadow-sm transition-colors hover:bg-neutral-700">
               <Download className="size-3.5" />
               导出
             </DropdownMenuTrigger>

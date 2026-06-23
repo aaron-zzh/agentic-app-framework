@@ -9,7 +9,9 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.document.domain.Document;
+import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.document.service.DocumentService;
 import com.xuejiai.aaf.module.document.vo.*;
 
@@ -28,9 +30,32 @@ import jakarta.validation.Valid;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final DocumentRepository documentRepository;
+    private final OperatorContext operatorContext;
 
-    public DocumentController(DocumentService documentService) {
+    public DocumentController(
+            DocumentService documentService,
+            DocumentRepository documentRepository,
+            OperatorContext operatorContext) {
         this.documentService = documentService;
+        this.documentRepository = documentRepository;
+        this.operatorContext = operatorContext;
+    }
+
+    @Operation(summary = "统计用户文档数量")
+    @GetMapping("/count")
+    public Result<Long> count() {
+        Long ownerId = operatorContext.currentUserId().orElse(null);
+        if (ownerId == null) return Result.success(0L);
+        return Result.success(documentRepository.countByOwnerIdAndStatus(ownerId, "active"));
+    }
+
+    @Operation(summary = "获取当前用户文档列表（不含正文）")
+    @GetMapping("/list")
+    public Result<List<DocListItemVO>> list() {
+        Long ownerId = operatorContext.currentUserId().orElse(null);
+        if (ownerId == null) return Result.success(List.of());
+        return Result.success(documentRepository.listByOwner(ownerId));
     }
 
     @Operation(summary = "获取文档树")

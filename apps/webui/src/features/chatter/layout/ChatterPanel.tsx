@@ -58,6 +58,13 @@ export function ChatterPanel({
         <ChatterComposer
           attachments={attachments}
           onAttachmentRemove={onAttachmentRemove}
+          onPasteText={onAttachmentAdd}
+          onAfterSend={() => {
+            // 发送后从后往前移除 text chip，避免 index 偏移
+            for (let i = attachments.length - 1; i >= 0; i--) {
+              if (attachments[i].type === "text") onAttachmentRemove(i)
+            }
+          }}
           modelId={modelId}
           onModelChange={onModelChange}
           showModelSelector={showModelSelector}
@@ -66,4 +73,3 @@ export function ChatterPanel({
     </div>
   )
 }
-

@@ -1,5 +1,4 @@
 export { AtMention } from "./AtMention"
-export { GenerationHistory } from "./GenerationHistory"
 export { GenerationPanel } from "./GenerationPanel"
 export { buildFinalPrompt, PromptInput } from "./PromptInput"
 export { PromptTemplateDialog } from "./PromptTemplateDialog"

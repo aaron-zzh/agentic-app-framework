@@ -2,6 +2,7 @@
 
 import QRCode from "qrcode"
 import { useEffect, useRef, useState } from "react"
+import { LottieDialog } from "@/components/common/LottieDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -9,7 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { backendClient } from "@/lib/api/rest/backend-client"
 import type { CreditPackageVO, PayOrderVO } from "@/lib/api/rest/billing/plans"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
-import { LottieDialog } from "@/components/common/LottieDialog"
 import { notify } from "@/lib/notification"
 import { useCreditPackages, usePurchaseCredits } from "@/lib/queries/use-billing-plans"
 
@@ -137,13 +137,12 @@ function QrStep({
 
 export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
   const { data: packages, isLoading } = useCreditPackages()
-  const { mutate: purchase, isPending } = usePurchaseCredits()
+  const { mutate: _purchase, isPending } = usePurchaseCredits()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "wx_native")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
 
-  const groups = packages ? Array.from(new Set(packages.map((p) => p.group ?? "会员积分充值"))) : []
   const selectedPkg = packages?.find((p) => p.id === selectedId)
 
   const handlePurchase = () => {
@@ -191,96 +190,96 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
           onOpenChange(v)
         }}
       >
-      <DialogContent className="flex max-h-[90vh] w-[640px] max-w-none! flex-col gap-0 p-0">
-        <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="text-xl">积分充值</DialogTitle>
-        </DialogHeader>
+        <DialogContent className="flex max-h-[90vh] w-[640px] max-w-none! flex-col gap-0 p-0">
+          <DialogHeader className="px-6 pt-6 pb-4">
+            <DialogTitle className="text-xl">积分充值</DialogTitle>
+          </DialogHeader>
 
-        <div className="flex-1 px-6 pb-4">
-          {qrOrder ? (
-            <QrStep
-              order={qrOrder}
-              channel={channel}
-              onSuccess={handleQrSuccess}
-              onCancel={handleQrCancel}
-            />
-          ) : isLoading ? (
-            <div className="grid grid-cols-3 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={`sk-${i}`} className="h-28 rounded-xl" />
-              ))}
-            </div>
-          ) : !packages?.length ? (
-            <p className="py-12 text-center text-muted-foreground">暂无可用套餐</p>
-          ) : (
-            <div className="space-y-6">
-              {/* 套餐列表 */}
+          <div className="flex-1 px-6 pb-4">
+            {qrOrder ? (
+              <QrStep
+                order={qrOrder}
+                channel={channel}
+                onSuccess={handleQrSuccess}
+                onCancel={handleQrCancel}
+              />
+            ) : isLoading ? (
               <div className="grid grid-cols-3 gap-3">
-                {packages.map((pkg) => (
-                  <PackageCard
-                    key={pkg.id}
-                    pkg={pkg}
-                    selected={selectedId === pkg.id}
-                    onClick={() => setSelectedId(pkg.id)}
-                  />
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={`sk-${i}`} className="h-28 rounded-xl" />
                 ))}
               </div>
-
-              {/* 渠道选择 */}
-              <div>
-                <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
-                <div className="flex gap-2">
-                  {CHANNELS.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => setChannel(c.value)}
-                      className={[
-                        "flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm transition-all",
-                        channel === c.value
-                          ? "border-primary bg-primary/5 font-medium text-primary"
-                          : "border-border hover:border-primary/40",
-                        c.devOnly ? "text-amber-600" : ""
-                      ].join(" ")}
-                    >
-                      {c.icon} {c.label}
-                    </button>
+            ) : !packages?.length ? (
+              <p className="py-12 text-center text-muted-foreground">暂无可用套餐</p>
+            ) : (
+              <div className="space-y-6">
+                {/* 套餐列表 */}
+                <div className="grid grid-cols-3 gap-3">
+                  {packages.map((pkg) => (
+                    <PackageCard
+                      key={pkg.id}
+                      pkg={pkg}
+                      selected={selectedId === pkg.id}
+                      onClick={() => setSelectedId(pkg.id)}
+                    />
                   ))}
                 </div>
+
+                {/* 渠道选择 */}
+                <div>
+                  <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
+                  <div className="flex gap-2">
+                    {CHANNELS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setChannel(c.value)}
+                        className={[
+                          "flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm transition-all",
+                          channel === c.value
+                            ? "border-primary bg-primary/5 font-medium text-primary"
+                            : "border-border hover:border-primary/40",
+                          c.devOnly ? "text-amber-600" : ""
+                        ].join(" ")}
+                      >
+                        {c.icon} {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
+            )}
+          </div>
+
+          {!qrOrder && (
+            <div className="flex items-center justify-between border-t px-6 py-4">
+              <p className="text-muted-foreground text-xs">*充值积分有效期 2 年，支付后不退不换</p>
+              <Button
+                size="lg"
+                className="min-w-32"
+                disabled={!selectedId || isPending}
+                onClick={handlePurchase}
+              >
+                {isPending
+                  ? "处理中..."
+                  : selectedPkg
+                    ? `去支付 ¥${(selectedPkg.price / 100).toFixed(0)}`
+                    : "去支付"}
+              </Button>
             </div>
           )}
-        </div>
+        </DialogContent>
+      </Dialog>
 
-        {!qrOrder && (
-          <div className="flex items-center justify-between border-t px-6 py-4">
-            <p className="text-muted-foreground text-xs">*充值积分有效期 2 年，支付后不退不换</p>
-            <Button
-              size="lg"
-              className="min-w-32"
-              disabled={!selectedId || isPending}
-              onClick={handlePurchase}
-            >
-              {isPending
-                ? "处理中..."
-                : selectedPkg
-                  ? `去支付 ¥${(selectedPkg.price / 100).toFixed(0)}`
-                  : "去支付"}
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-
-    <LottieDialog
-      open={contactOpen}
-      onOpenChange={setContactOpen}
-      icon="warning"
-      loop
-      title="联系客服充值"
-      description="在线支付即将开放，请扫码联系客服完成充值，客服将在 5 分钟内为您处理。"
-      confirmText="好的，我知道了"
-    />
+      <LottieDialog
+        open={contactOpen}
+        onOpenChange={setContactOpen}
+        icon="warning"
+        loop
+        title="联系客服充值"
+        description="在线支付即将开放，请扫码联系客服完成充值，客服将在 5 分钟内为您处理。"
+        confirmText="好的，我知道了"
+      />
     </>
   )
 }

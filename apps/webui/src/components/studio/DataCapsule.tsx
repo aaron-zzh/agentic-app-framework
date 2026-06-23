@@ -35,6 +35,8 @@ interface DataCapsuleProps {
   loading?: boolean
   /** 点击事件 */
   onClick?: () => void
+  /** 底部右侧操作区（如充值按钮） */
+  action?: React.ReactNode
   className?: string
 }
 
@@ -56,6 +58,7 @@ export function DataCapsule({
   tone = "default",
   loading,
   onClick,
+  action,
   className
 }: DataCapsuleProps) {
   const interactive = Boolean(onClick)
@@ -88,7 +91,7 @@ export function DataCapsule({
           <span className="text-muted-foreground text-xs">{label}</span>
         </div>
 
-        {/* 主：值 + 单位 + 趋势 */}
+        {/* 主：值 + 单位 + 趋势/操作 */}
         <div className="flex items-end justify-between gap-2">
           {loading ? (
             <span className="h-8 w-20 animate-pulse rounded bg-foreground/10" />
@@ -98,6 +101,7 @@ export function DataCapsule({
               {unit && <span className="text-muted-foreground text-xs">{unit}</span>}
             </div>
           )}
+          {action}
           {typeof delta === "number" && (
             <span
               className={cn(

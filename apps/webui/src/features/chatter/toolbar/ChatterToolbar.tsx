@@ -27,7 +27,6 @@ import {
   User,
   X
 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -51,14 +50,10 @@ interface ChatterToolbarProps {
   onTargetChange: (target: ChatterTarget) => void
   onNewSession?: () => void
   toolbar?: ReactNode
-  /** dialog 模式下拖拽 props，挂到 toolbar 根 div 实现拖拽浮窗 */
   dragProps?: React.HTMLAttributes<HTMLDivElement>
-  /**
-   * 当前布局支持的非 dialog 模式（按钮是否显示）。
-   * 未指定时默认 panel/page 都可用——保持现有行为；
-   * 公开页等没有 panel-slot/page-slot 的布局应明确传入空数组或子集。
-   */
   availableModes?: ("panel" | "page")[]
+  /** 隐藏 AI/Kiro 切换和角色选择器 */
+  hideRoleSwitch?: boolean
 }
 
 const FALLBACK_ROLES = [
@@ -98,7 +93,8 @@ export function ChatterToolbar({
   onNewSession,
   toolbar,
   dragProps,
-  availableModes = ["panel", "page"]
+  availableModes = ["panel", "page"],
+  hideRoleSwitch = false
 }: ChatterToolbarProps) {
   const targets = getAvailableTargets(preset)
   const showRoleSelector = target.type === "ai"
@@ -112,7 +108,6 @@ export function ChatterToolbar({
   const canPanel = availableModes.includes("panel")
   const canPage = availableModes.includes("page")
   const hasVoice = preset === "ai" || preset === "kiro"
-  const router = useRouter()
 
   const { data: assistants } = useAssistants()
   const roles = assistants
@@ -140,6 +135,8 @@ export function ChatterToolbar({
         <span className="flex-1 truncate font-medium text-sm">
           {currentRole?.name ?? "AI 助理"}
         </span>
+      ) : hideRoleSwitch ? (
+        <span className="flex-1" />
       ) : (
         <>
           <ToggleGroup
@@ -240,11 +237,16 @@ export function ChatterToolbar({
         {/* panel/page 模式操作按钮 */}
         {!isFloating &&
           (isPageMode ? (
-            <Button variant="ghost" size="icon-sm" aria-label="返回" onClick={() => {
-              setMode("dialog")
-              setLayoutOverride(null)
-              setOpen(true)
-            }}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="返回"
+              onClick={() => {
+                setMode("dialog")
+                setLayoutOverride(null)
+                setOpen(true)
+              }}
+            >
               <X className="size-3.5" />
             </Button>
           ) : (

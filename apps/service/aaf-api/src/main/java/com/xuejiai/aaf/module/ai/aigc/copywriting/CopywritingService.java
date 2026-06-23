@@ -94,14 +94,20 @@ public class CopywritingService {
         // 构造 UserMessage：有 skill 系统提示词时只传主题+长度+翻译，不注入格式规则
         String prompt =
                 buildGeneratePrompt(
-                        type, topic, template, length, translateTo, referenceAnalysis, userNotes, hasSkillPrompt);
+                        type,
+                        topic,
+                        template,
+                        length,
+                        translateTo,
+                        referenceAnalysis,
+                        userNotes,
+                        hasSkillPrompt);
         UserMessage userMessage =
                 media.isEmpty()
                         ? new UserMessage(prompt)
                         : UserMessage.builder().text(prompt).media(media).build();
 
-        var messages =
-                List.<Message>of(new SystemMessage(systemPrompt), userMessage);
+        var messages = List.<Message>of(new SystemMessage(systemPrompt), userMessage);
         log.info(
                 "[文案生成] type={}, length={}, translateTo={}, modelId={}, refImageCount={}",
                 type,
@@ -245,10 +251,7 @@ public class CopywritingService {
         return sb.toString();
     }
 
-    /**
-     * 按 skill code（type）加载系统提示词：
-     * 优先从 ai_skill_definition 按 code 查；未配置则回退到内置常量。
-     */
+    /** 按 skill code（type）加载系统提示词： 优先从 ai_skill_definition 按 code 查；未配置则回退到内置常量。 */
     private String resolveSystemPrompt(String type) {
         if (type != null && !type.isBlank()) {
             String prompt = skillService.getSystemPromptByCode(type);

@@ -21,21 +21,24 @@ import {
   Video,
   Wand2
 } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { useEffect } from "react"
+import { LottieIcon } from "@/components/animate"
+import { AnimateBorder } from "@/components/animate/animate-border"
+import { ModelSelector } from "@/components/common/ModelSelector"
+import { GlassCard, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ModelSelector } from "@/components/common/ModelSelector"
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
-import { useModelSelector } from "@/lib/hooks/use-model-selector"
-import { TRANSLATE_OPTIONS } from "@/features/aigc/copywriting/constants"
 import { CopywritingReferenceImages } from "@/features/aigc/copywriting/CopywritingReferenceImages"
+import { TRANSLATE_OPTIONS } from "@/features/aigc/copywriting/constants"
 import { useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
-import { StreamingEditor } from "@/features/rich-text-editor"
 import { useAigcStore } from "@/features/aigc/store"
-import { AnimateBorder } from "@/components/animate/animate-border"
-import { GlassCard, NeonChip } from "@/components/studio"
-import { cn } from "@/lib/utils/index"
+import { StreamingEditor } from "@/features/rich-text-editor"
+import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { type AiSkillVO, useAiSkills } from "@/lib/queries/use-ai-skills"
+import { cn } from "@/lib/utils/index"
 
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   voiceover: Mic,
@@ -82,13 +85,19 @@ function SkillItem({
       )}
     >
       <div className="flex items-center gap-3 p-4">
-        <div className={`flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.04] text-${tone}-300`}>
+        <div
+          className={`flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.04] text-${tone}-300`}
+        >
           <Icon className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate font-medium text-sm">{skill.name}</p>
-            {HOT_CODES.has(code) && <NeonChip tone="rose" size="sm">热</NeonChip>}
+            {HOT_CODES.has(code) && (
+              <NeonChip tone="rose" size="sm">
+                热
+              </NeonChip>
+            )}
           </div>
           <p className="text-muted-foreground text-xs leading-4">{skill.description ?? ""}</p>
         </div>
@@ -160,7 +169,9 @@ function SkillParamsBar() {
         </SelectTrigger>
         <SelectContent>
           {TRANSLATE_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -219,7 +230,7 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
             size="sm"
             disabled={generating}
             onClick={handleGenerate}
-            className="h-8 gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs hover:from-emerald-600 hover:to-teal-600"
+            className="h-8 gap-1 bg-linear-to-r from-emerald-500 to-teal-500 text-white text-xs hover:from-emerald-600 hover:to-teal-600"
           >
             <FileText className="size-3" />
             {generating ? "生成中..." : "生成"}
@@ -237,6 +248,29 @@ export default function StudioCreateCopyPage() {
   const type = useAigcStore((s) => s.copywritingType)
   const setType = useAigcStore((s) => s.setCopywritingType)
   const setContent = useAigcStore((s) => s.setCopywritingContent)
+
+  const searchParams = useSearchParams()
+
+  // 热点借势：从 query params 预填内容，选中第一个可用技能
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setter 稳定引用无需列入，仅响应 searchParams/技能列表变化
+  useEffect(() => {
+    // 技能选中：skillCode 参数直接选中
+    const skillCode = searchParams.get("skillCode")
+    if (skillCode && sorted.find((s) => s.code === skillCode)) {
+      setType(skillCode)
+    }
+    // 预填内容：sessionStorage 优先（长文），fallback 到 topic query
+    const stored = sessionStorage.getItem("aaf:launcher:prompt")
+    const topic = stored ?? searchParams.get("topic")
+    if (stored) sessionStorage.removeItem("aaf:launcher:prompt")
+    const notes = searchParams.get("notes")
+    if (!topic) return
+    const prefill = notes ? `${topic}\n\n创作建议：${notes}` : topic
+    setContent(prefill)
+    if (!type && !skillCode && sorted.length > 0) {
+      setType(sorted[0].code ?? "")
+    }
+  }, [searchParams, sorted.length, type])
 
   const selectedSkill = sorted.find((s) => s.code === type)
 
@@ -271,8 +305,8 @@ export default function StudioCreateCopyPage() {
         {selectedSkill ? (
           <CopywritingWorkspace skillName={selectedSkill.name} />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-            <Wand2 className="size-10 opacity-20" />
+          <div className="mb-20 flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+            <LottieIcon name="cat" width={180} height={180} loop />
             <p className="text-sm">选择左侧智能体开始创作</p>
           </div>
         )}

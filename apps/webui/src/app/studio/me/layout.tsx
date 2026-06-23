@@ -14,7 +14,6 @@ import {
   LogOut,
   Ticket,
   User,
-  Wallet,
   Zap
 } from "lucide-react"
 import Link from "next/link"
@@ -44,7 +43,7 @@ const NAV_GROUPS: {
       { label: "AI模型", href: "/studio/me/pricing", icon: Zap },
       { label: "积分详情", href: "/studio/me/credits", icon: CreditCard },
       { label: "会员套餐", href: "/studio/me/membership", icon: Ticket },
-      { label: "邀请赚积分", href: "/studio/me/invite", icon: Gift },
+      { label: "邀请赚积分", href: "/studio/me/invite", icon: Gift }
     ]
   }
 ]
@@ -62,7 +61,7 @@ function StudioMeSidebar() {
   }
 
   return (
-    <aside className="flex h-full w-52 shrink-0 flex-col gap-1 py-6 pr-4">
+    <aside className="flex h-full w-52 shrink-0 flex-col gap-1 px-4 py-6">
       {/* 用户信息 */}
       <div className="mb-4 flex items-center gap-3 px-2">
         <Avatar className="size-9">
@@ -79,7 +78,7 @@ function StudioMeSidebar() {
       {!isMember && (
         <Link
           href="/dashboard"
-          className="mb-3 flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 px-3 py-2 text-amber-500 text-xs font-medium hover:from-amber-500/15 hover:to-orange-500/15 transition-colors"
+          className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-orange-500/10 px-3 py-2 font-medium text-amber-500 text-xs transition-colors hover:from-amber-500/15 hover:to-orange-500/15"
         >
           <LayoutDashboard className="size-3.5 shrink-0" />
           <span className="flex-1">进入工作台</span>

@@ -17,8 +17,7 @@ import io.agentscope.core.tool.ToolParam;
 /**
  * 视频生成工具——异步模式，与 {@link GenerateImageTool} 同样的 ui_block 机制。
  *
- * <p>参数 requestJson 支持：prompt（必填）、imageUrl（参考图，可选）、
- * ratio（如 16:9）、duration（秒）、model（留空走系统默认）。
+ * <p>参数 requestJson 支持：prompt（必填）、imageUrl（参考图，可选）、 ratio（如 16:9）、duration（秒）、model（留空走系统默认）。
  */
 public class GenerateVideoTool {
 
@@ -51,8 +50,8 @@ public class GenerateVideoTool {
 
         try {
             Long taskId = taskSubmitter.apply(userId, requestJson);
-            return GenerateImageTool.buildUiBlockJson("video", taskId,
-                    GenerateImageTool.extractPrompt(requestJson));
+            return GenerateImageTool.buildUiBlockJson(
+                    "video", taskId, GenerateImageTool.extractPrompt(requestJson));
         } catch (Exception e) {
             log.warn("[GenerateVideoTool] 提交失败: {}", e.getMessage());
             return GenerateImageTool.errorJson(e.getMessage());

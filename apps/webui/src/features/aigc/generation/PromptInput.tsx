@@ -16,14 +16,18 @@ import { LexicalComposer } from "@lexical/react/LexicalComposer"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
 import { ContentEditable } from "@lexical/react/LexicalContentEditable"
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary"
+import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin"
 import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin"
 import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
+  COMMAND_PRIORITY_HIGH,
   DecoratorNode,
+  KEY_ENTER_COMMAND,
   type LexicalNode,
   type NodeKey,
+  PASTE_COMMAND,
   type SerializedLexicalNode
 } from "lexical"
 import { X } from "lucide-react"
@@ -93,6 +97,10 @@ export class ProjectPromptNode extends DecoratorNode<JSX.Element> {
   }
 
   getContent(): string {
+    return this.__content
+  }
+
+  override getTextContent(): string {
     return this.__content
   }
 
@@ -291,10 +299,13 @@ export interface PromptInputProps {
   dismissed?: boolean
   /** 移除状态变化回调（受控）；true=用户移除，false=用户恢复 */
   onDismissedChange?: (dismissed: boolean) => void
+  /** Enter（非 Shift）触发提交 */
+  onSubmit?: () => void
   /** 最大字数限制（0 = 不限制） */
   maxLength?: number
   className?: string
   minHeight?: number
+  maxHeight?: number
 }
 
 export function PromptInput({
@@ -304,9 +315,11 @@ export function PromptInput({
   projectPrompt = null,
   dismissed = false,
   onDismissedChange,
+  onSubmit,
   maxLength = 500,
   className,
-  minHeight = 100
+  minHeight = 100,
+  maxHeight
 }: PromptInputProps) {
   const [charCount, setCharCount] = useState(0)
   const handleDismiss = useCallback(() => {
@@ -331,7 +344,7 @@ export function PromptInput({
             contentEditable={
               <ContentEditable
                 className="h-full w-full overflow-y-auto px-3 py-2 text-sm outline-none"
-                style={{ minHeight }}
+                style={{ minHeight, maxHeight, overflowY: maxHeight ? "auto" : undefined }}
                 aria-label="提示词输入框"
               />
             }
@@ -373,9 +386,61 @@ export function PromptInput({
         <ExternalValuePlugin value={_value} />
         <CharCountPlugin onCount={setCharCount} />
         <ProjectPromptPlugin projectPrompt={activePrompt} onDismiss={handleDismiss} />
+        <PastePlugin />
+        <HistoryPlugin />
+        {onSubmit && <SubmitPlugin onSubmit={onSubmit} />}
       </div>
     </LexicalComposer>
   )
+}
+
+/** Enter（非 Shift）触发 onSubmit */
+function SubmitPlugin({ onSubmit }: { onSubmit: () => void }) {
+  const [editor] = useLexicalComposerContext()
+  useEffect(() => {
+    return editor.registerCommand(
+      KEY_ENTER_COMMAND,
+      (e: KeyboardEvent | null) => {
+        if (e?.shiftKey) return false
+        e?.preventDefault()
+        onSubmit()
+        return true
+      },
+      COMMAND_PRIORITY_HIGH
+    )
+  }, [editor, onSubmit])
+  return null
+}
+
+/** 粘贴长文本（≥200字）时折叠为 ProjectPromptNode chip */
+function PastePlugin() {
+  const [editor] = useLexicalComposerContext()
+  useEffect(() => {
+    return editor.registerCommand(
+      PASTE_COMMAND,
+      (e: ClipboardEvent | InputEvent | KeyboardEvent) => {
+        const text =
+          e instanceof ClipboardEvent ? (e.clipboardData?.getData("text/plain") ?? "") : ""
+        if (text.length < 200) return false
+        e.preventDefault()
+        editor.update(() => {
+          const root = $getRoot()
+          let firstPara = root.getFirstChild()
+          if (!firstPara) {
+            firstPara = $createParagraphNode()
+            root.append(firstPara)
+          }
+          const chip = $createProjectPromptNode(`${text.slice(0, 8)}…`, text)
+          // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph append
+          ;(firstPara as any).append(chip)
+          chip.selectNext()
+        })
+        return true
+      },
+      COMMAND_PRIORITY_HIGH
+    )
+  }, [editor])
+  return null
 }
 
 /**

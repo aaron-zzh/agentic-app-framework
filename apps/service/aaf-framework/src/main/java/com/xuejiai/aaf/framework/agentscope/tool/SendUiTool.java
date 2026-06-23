@@ -8,8 +8,6 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 向前端推送结构化 UI 块的工具。
@@ -33,7 +31,6 @@ public class SendUiTool {
 
     /** 工具结果中的标记键，供 UiEventMiddleware 识别 */
     public static final String UI_MARKER = "__ui__";
-
 
     @Tool(
             description =

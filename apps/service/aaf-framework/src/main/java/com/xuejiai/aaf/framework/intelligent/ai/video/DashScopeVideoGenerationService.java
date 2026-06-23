@@ -29,9 +29,9 @@ import lombok.extern.slf4j.Slf4j;
  * <p>支持模型（happyhorse 系列）：
  *
  * <ul>
- *   <li>happyhorse-1.0-t2v — 文生视频
- *   <li>happyhorse-1.0-i2v — 图生视频（首帧）
- *   <li>happyhorse-1.0-r2v — 参考生视频（多图）
+ *   <li>happyhorse-1.1-t2v — 文生视频
+ *   <li>happyhorse-1.1-i2v — 图生视频（首帧）
+ *   <li>happyhorse-1.1-r2v — 参考生视频（多图）
  *   <li>happyhorse-1.0-video-edit — 视频编辑
  * </ul>
  *
@@ -45,18 +45,31 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
     private static final String SUBMIT_URL =
             "https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis";
     private static final String QUERY_URL = "https://dashscope.aliyuncs.com/api/v1/tasks/";
+    private static final String VIDEO_PATH =
+            "/api/v1/services/aigc/video-generation/video-synthesis";
 
     private final String apiKey;
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository
+            modelRepository;
 
     public DashScopeVideoGenerationService(
-            @Value("${spring.ai.dashscope.api-key:}") String apiKey) {
+            @Value("${spring.ai.dashscope.api-key:}") String apiKey,
+            com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository modelRepository) {
         this.apiKey = apiKey;
+        this.modelRepository = modelRepository;
     }
 
     @Override
     public String submitTextToVideo(TextToVideoRequest request) {
-        var model = request.getResolvedModel();
+        var model =
+                request.getResolvedModel() != null
+                        ? request.getResolvedModel()
+                        : (request.getModel() != null
+                                ? modelRepository
+                                        .findByModelIdAndEnabledTrue(request.getModel())
+                                        .orElse(null)
+                                : null);
         var req =
                 new VideoRequest(
                         request.getPrompt(),
@@ -70,12 +83,23 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
                         null);
         var params =
                 HappyhorseParams.of(
-                        req, model != null ? model : placeholderModel("happyhorse-1.0-t2v"));
-        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
+                        req, model != null ? model : placeholderModel("happyhorse-1.1-t2v"));
+        return doSubmit(
+                params.modelName(),
+                params.toInput(),
+                params.toParameters(),
+                model != null ? model.effectiveBaseUrl() : null,
+                model != null ? model.effectiveApiKey() : null);
     }
 
     @Override
     public String submitImageToVideo(ImageToVideoRequest request) {
+        var aiModel =
+                request.getModel() != null
+                        ? modelRepository
+                                .findByModelIdAndEnabledTrue(request.getModel())
+                                .orElse(null)
+                        : null;
         var req =
                 new VideoRequest(
                         request.getPrompt(),
@@ -90,15 +114,28 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
         var params =
                 HappyhorseParams.of(
                         req,
-                        placeholderModel(
-                                request.getModel() != null
-                                        ? request.getModel()
-                                        : "happyhorse-1.0-i2v"));
-        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
+                        aiModel != null
+                                ? aiModel
+                                : placeholderModel(
+                                        request.getModel() != null
+                                                ? request.getModel()
+                                                : "happyhorse-1.1-i2v"));
+        return doSubmit(
+                params.modelName(),
+                params.toInput(),
+                params.toParameters(),
+                aiModel != null ? aiModel.effectiveBaseUrl() : null,
+                aiModel != null ? aiModel.effectiveApiKey() : null);
     }
 
     @Override
     public String submitReferenceToVideo(ReferenceToVideoRequest request) {
+        var aiModel =
+                request.getModel() != null
+                        ? modelRepository
+                                .findByModelIdAndEnabledTrue(request.getModel())
+                                .orElse(null)
+                        : null;
         var req =
                 new VideoRequest(
                         request.getPrompt(),
@@ -113,23 +150,43 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
         var params =
                 HappyhorseParams.of(
                         req,
-                        placeholderModel(
-                                request.getModel() != null
-                                        ? request.getModel()
-                                        : "happyhorse-1.0-r2v"));
-        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
+                        aiModel != null
+                                ? aiModel
+                                : placeholderModel(
+                                        request.getModel() != null
+                                                ? request.getModel()
+                                                : "happyhorse-1.1-r2v"));
+        return doSubmit(
+                params.modelName(),
+                params.toInput(),
+                params.toParameters(),
+                aiModel != null ? aiModel.effectiveBaseUrl() : null,
+                aiModel != null ? aiModel.effectiveApiKey() : null);
     }
 
     @Override
     public String submitVideoEdit(VideoEditApiRequest request) {
+        var aiModel =
+                request.getModel() != null
+                        ? modelRepository
+                                .findByModelIdAndEnabledTrue(request.getModel())
+                                .orElse(null)
+                        : null;
         var params =
                 HappyhorseParams.ofEdit(
                         request,
-                        placeholderModel(
-                                request.getModel() != null
-                                        ? request.getModel()
-                                        : "happyhorse-1.0-video-edit"));
-        return doSubmit(params.modelName(), params.toInput(), params.toParameters());
+                        aiModel != null
+                                ? aiModel
+                                : placeholderModel(
+                                        request.getModel() != null
+                                                ? request.getModel()
+                                                : "happyhorse-1.0-video-edit"));
+        return doSubmit(
+                params.modelName(),
+                params.toInput(),
+                params.toParameters(),
+                aiModel != null ? aiModel.effectiveBaseUrl() : null,
+                aiModel != null ? aiModel.effectiveApiKey() : null);
     }
 
     @Override
@@ -150,6 +207,7 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
             var origPrompt = output.has("orig_prompt") ? output.get("orig_prompt").asText() : null;
             var submitTime = output.has("submit_time") ? output.get("submit_time").asText() : null;
             var endTime = output.has("end_time") ? output.get("end_time").asText() : null;
+            var errorMessage = output.has("message") ? output.get("message").asText() : null;
 
             Integer duration = null;
             String resolution = null;
@@ -159,15 +217,18 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
                 if (usage.has("SR")) resolution = usage.get("SR").asInt() + "p";
             }
 
-            return new VideoTaskResult(
-                    taskId,
-                    status,
-                    videoUrl,
-                    origPrompt,
-                    submitTime,
-                    endTime,
-                    duration,
-                    resolution);
+            var result =
+                    new VideoTaskResult(
+                            taskId,
+                            status,
+                            videoUrl,
+                            origPrompt,
+                            submitTime,
+                            endTime,
+                            duration,
+                            resolution);
+            result.setErrorMessage(errorMessage);
+            return result;
         } catch (Exception e) {
             log.error("[HappyHorse] 查询任务失败: taskId={}", taskId, e);
             return new VideoTaskResult(
@@ -179,6 +240,15 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
 
     private String doSubmit(
             String model, Map<String, Object> input, Map<String, Object> parameters) {
+        return doSubmit(model, input, parameters, null, null);
+    }
+
+    private String doSubmit(
+            String model,
+            Map<String, Object> input,
+            Map<String, Object> parameters,
+            String baseUrl,
+            String overrideApiKey) {
         try {
             var body = new HashMap<String, Object>();
             body.put("model", model);
@@ -186,11 +256,18 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
             if (!parameters.isEmpty()) body.put("parameters", parameters);
 
             var json = JsonUtils.toJsonString(body);
+            var submitUrl =
+                    baseUrl != null
+                            ? baseUrl.replaceAll("/$", "")
+                                    + "/api/v1/services/aigc/video-generation/video-synthesis"
+                            : SUBMIT_URL;
+            var effectiveApiKey =
+                    (overrideApiKey != null && !overrideApiKey.isBlank()) ? overrideApiKey : apiKey;
             var httpRequest =
                     HttpRequest.newBuilder()
-                            .uri(URI.create(SUBMIT_URL))
+                            .uri(URI.create(submitUrl))
                             .header("Content-Type", "application/json")
-                            .header("Authorization", "Bearer " + apiKey)
+                            .header("Authorization", "Bearer " + effectiveApiKey)
                             .header("X-DashScope-Async", "enable")
                             .POST(HttpRequest.BodyPublishers.ofString(json))
                             .build();

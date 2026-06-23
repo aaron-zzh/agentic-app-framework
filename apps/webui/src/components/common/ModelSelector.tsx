@@ -34,6 +34,24 @@ interface ModelSelectorProps {
   className?: string
 }
 
+// 按 modelName 关键词匹配品牌图标（优先级从上到下，first match wins）
+const BRAND_ICON_RULES: [keyword: string, icon: string][] = [
+  ["happyhorse", "/assets/brand/happyhorse.png"],
+  ["qwen", "/assets/brand/qwen.png"],
+  ["claude", "/assets/brand/claude.svg"],
+  ["gemini", "/assets/brand/gemini.svg"],
+  ["gpt", "/assets/brand/chatgpt.svg"],
+  ["o1-", "/assets/brand/chatgpt.svg"],
+  ["o3-", "/assets/brand/chatgpt.svg"],
+  ["o4-", "/assets/brand/chatgpt.svg"]
+]
+
+function getBrandIcon(option: ModelOption): string | null {
+  // 用 modelName 匹配（最精准），fallback 到 modelId
+  const name = (option.meta.modelName ?? option.value).toLowerCase()
+  return BRAND_ICON_RULES.find(([kw]) => name.includes(kw))?.[1] ?? null
+}
+
 const PROVIDER_COLORS: Record<string, string> = {
   openai: "bg-black text-white",
   anthropic: "bg-orange-500 text-white",
@@ -42,11 +60,19 @@ const PROVIDER_COLORS: Record<string, string> = {
   qwen: "bg-violet-500 text-white",
   volcengine: "bg-blue-600 text-white",
   deepseek: "bg-sky-500 text-white",
-  xai: "bg-green-600 text-white"
+  xai: "bg-green-600 text-white",
+  happyhorse: "bg-cyan-500 text-white"
 }
 
 function ModelAvatar({ option }: { option: ModelOption }) {
   const provider = option.meta.provider ?? ""
+  const icon = getBrandIcon(option)
+  if (icon) {
+    return (
+      // biome-ignore lint/performance/noImgElement: brand icon, no Next.js Image needed for small avatars
+      <img src={icon} alt={provider} className="size-5 shrink-0 rounded-full object-contain" />
+    )
+  }
   const colorClass = PROVIDER_COLORS[provider] ?? "bg-slate-400 text-white"
   return (
     <span

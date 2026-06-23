@@ -182,7 +182,7 @@ export function AppSidebar() {
 
       {/* Brand */}
       <div className="flex h-(--layout-header-height) items-center px-4">
-        <Brand collapsed={!sidebarOpen} href="/dashboard" />
+        <Brand collapsed={!sidebarOpen} href="/" />
       </div>
 
       {/* 导航 */}

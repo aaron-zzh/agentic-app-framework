@@ -25,17 +25,16 @@ import com.xuejiai.aaf.framework.agentscope.runtime.AssistantContextLoader;
 import com.xuejiai.aaf.framework.agentscope.runtime.KbAutoInjectLoader;
 import com.xuejiai.aaf.framework.agentscope.runtime.PersonaContextLoader;
 import com.xuejiai.aaf.framework.agentscope.runtime.SkillContextLoader;
-import com.xuejiai.aaf.framework.agentscope.tool.GenerateImageTool;
-import com.xuejiai.aaf.framework.agentscope.tool.GenerateMusicTool;
-import com.xuejiai.aaf.framework.agentscope.tool.GenerateVideoTool;
-import com.xuejiai.aaf.framework.agentscope.tool.KnowledgeSearchTool;
-import com.xuejiai.aaf.framework.engine.knowledge.importer.ImporterFactory;
 import com.xuejiai.aaf.framework.agentscope.session.SessionAgentManager;
 import com.xuejiai.aaf.framework.agentscope.session.SessionStore;
 import com.xuejiai.aaf.framework.agentscope.session.tool.SessionsTool;
+import com.xuejiai.aaf.framework.agentscope.tool.GenerateImageTool;
+import com.xuejiai.aaf.framework.agentscope.tool.GenerateMusicTool;
+import com.xuejiai.aaf.framework.agentscope.tool.GenerateVideoTool;
 import com.xuejiai.aaf.framework.agentscope.tool.WeatherAgentTool;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
+import com.xuejiai.aaf.framework.engine.knowledge.importer.ImporterFactory;
 import com.xuejiai.aaf.framework.engine.knowledge.search.SimilaritySearchService;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
@@ -55,21 +54,20 @@ import io.agentscope.spring.boot.agui.common.AguiAgentId;
 /**
  * AAF AI 助理 Agent 自动装配。
  *
- * <p>注册后端点 {@code POST /api/agui/run/assistant}（默认）、{@code /api/agui/run/editor}、
- * {@code /api/agui/run/customer-service} 立即可用。
+ * <p>注册后端点 {@code POST /api/agui/run/assistant}（默认）、{@code /api/agui/run/editor}、 {@code
+ * /api/agui/run/customer-service} 立即可用。
  */
 @AutoConfiguration
 @ConditionalOnClass(io.agentscope.harness.agent.HarnessAgent.class)
 @ConditionalOnProperty(
-        prefix = "aaf.agentscope.content-creation",
+        prefix = "aaf.agentscope.assistant",
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)
 @EnableConfigurationProperties(ContentCreationProperties.class)
 public class AssistantAutoConfiguration {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(AssistantAutoConfiguration.class);
+    private static final Logger log = LoggerFactory.getLogger(AssistantAutoConfiguration.class);
 
     public AssistantAutoConfiguration(ContentCreationProperties props) {
         log.info(
@@ -278,6 +276,7 @@ public class AssistantAutoConfiguration {
      * 客服 Agent Bean —— prototype scope，未登录用户默认路由到此 Agent。
      *
      * <p>特点：
+     *
      * <ul>
      *   <li>只注册 {@code search_kb} 和 {@code switch_kb} 工具，专注知识库检索回答
      *   <li>自动注入 assistantId=1（客服助理）绑定的知识库背景知识
@@ -301,8 +300,13 @@ public class AssistantAutoConfiguration {
         var kbLoader = new KbAutoInjectLoader(services.jdbcTemplate());
         var kbContext = kbLoader.buildAutoInjectContext(null); // 公共知识库（owner_id IS NULL）
         return ContentCreationAgentFactory.createCustomerServiceAgent(
-                props, services, infra.baseStore(), resolvedModel,
-                assistantConfig.buildPromptSegment(), kbContext, aiProperties);
+                props,
+                services,
+                infra.baseStore(),
+                resolvedModel,
+                assistantConfig.buildPromptSegment(),
+                kbContext,
+                aiProperties);
     }
 
     /**

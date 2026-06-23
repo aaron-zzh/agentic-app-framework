@@ -25,5 +25,6 @@ public class CognitiveCycleExecutor {
         throw new UnsupportedOperationException("CognitiveCycleExecutor 待重新实现（v1 已归档）");
     }
 
-    public record CycleResult(String response, boolean success, Duration duration, int memoryItemsUsed) {}
+    public record CycleResult(
+            String response, boolean success, Duration duration, int memoryItemsUsed) {}
 }

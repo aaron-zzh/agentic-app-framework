@@ -13,7 +13,7 @@
 import type * as React from "react"
 import { cn } from "@/lib/utils/index"
 
-type GlassCardGlow = "none" | "accent" | "violet" | "cyan"
+type GlassCardGlow = "none" | "accent" | "violet" | "cyan" | "emerald" | "rose"
 
 interface GlassCardProps extends React.ComponentProps<"div"> {
   /** 光晕颜色：none 关闭，accent 跟随主题，violet/cyan 固定色 */
@@ -28,7 +28,10 @@ const GLOW_MAP: Record<GlassCardGlow, string> = {
     "before:bg-[radial-gradient(ellipse_at_top,_var(--color-primary)_0%,_transparent_60%)] before:opacity-[0.08]",
   violet:
     "before:bg-[radial-gradient(ellipse_at_top,_oklch(0.65_0.2_290)_0%,_transparent_60%)] before:opacity-[0.10]",
-  cyan: "before:bg-[radial-gradient(ellipse_at_top,_oklch(0.7_0.15_200)_0%,_transparent_60%)] before:opacity-[0.10]"
+  cyan: "before:bg-[radial-gradient(ellipse_at_top,_oklch(0.7_0.15_200)_0%,_transparent_60%)] before:opacity-[0.10]",
+  emerald:
+    "before:bg-[radial-gradient(ellipse_at_top,_oklch(0.7_0.15_150)_0%,_transparent_60%)] before:opacity-[0.10]",
+  rose: "before:bg-[radial-gradient(ellipse_at_top,_oklch(0.65_0.2_10)_0%,_transparent_60%)] before:opacity-[0.10]"
 }
 
 export function GlassCard({

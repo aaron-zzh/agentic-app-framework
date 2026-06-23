@@ -34,7 +34,7 @@ export interface FileUploadOptions {
   maxHeight?: number
   /** 图片压缩质量 0-1，默认 0.8 */
   quality?: number
-  /** 图片输出格式，默认 image/webp（不支持时回退 image/jpeg） */
+  /** 图片输出格式，默认 image/jpeg */
   outputFormat?: "image/webp" | "image/jpeg" | "image/png"
   /** 跳过图片压缩的文件大小阈值（字节），小于此值不压缩，默认 100KB */
   skipCompressBelow?: number
@@ -66,12 +66,6 @@ interface FileVO {
 
 // ─── 图像压缩 ───────────────────────────────────────────────────────────────
 
-function supportsWebp(): boolean {
-  if (typeof document === "undefined") return false
-  const canvas = document.createElement("canvas")
-  return canvas.toDataURL("image/webp").startsWith("data:image/webp")
-}
-
 /**
  * 客户端图像压缩——Canvas 缩放 + 质量压缩
  *
@@ -87,7 +81,7 @@ export async function compressImage(
   const {
     maxWidth = 1920,
     maxHeight = 1920,
-    quality = 0.8,
+    quality = 0.9,
     outputFormat,
     skipCompressBelow = 100 * 1024
   } = options
@@ -118,7 +112,7 @@ export async function compressImage(
   ctx.drawImage(bitmap, 0, 0, width, height)
   bitmap.close()
 
-  const format = outputFormat ?? (supportsWebp() ? "image/webp" : "image/jpeg")
+  const format = outputFormat ?? "image/jpeg"
   const blob = await canvas.convertToBlob({ type: format, quality })
 
   // 压缩后比原文件大则返回原文件
@@ -135,7 +129,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
   const {
     maxWidth = 1920,
     maxHeight = 1920,
-    quality = 0.8,
+    quality = 0.9,
     outputFormat,
     skipCompressBelow = 100 * 1024
   } = options

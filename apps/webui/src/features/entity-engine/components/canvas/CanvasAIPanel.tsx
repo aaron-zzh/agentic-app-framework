@@ -5,13 +5,17 @@
 
 "use client"
 
-import { LayoutGrid, Lightbulb, PenTool, Sparkles } from "lucide-react"
+import { ImagePlus, LayoutGrid, Lightbulb, Loader2, PenTool, Sparkles } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { toast } from "sonner"
 import type { Editor } from "tldraw"
 
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
+import { API_ORIGIN } from "@/lib/api/config"
+import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import type { EntityDef } from "@/lib/types/entity"
 
 interface CanvasAIPanelProps {
@@ -28,6 +32,29 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
   const [prompt, setPrompt] = useState("")
   const [loading, setLoading] = useState(false)
   const [_activeAction, _setActiveAction] = useState<AIAction | null>(null)
+  const router = useRouter()
+  const { upload, uploading } = useFileUpload()
+
+  /** 导出画布为 PNG → 上传 → 跳转到图像编辑页 */
+  const handleSendToImageEdit = async () => {
+    const shapeIds = editor.getCurrentPageShapeIds()
+    if (shapeIds.size === 0) {
+      toast.error("画布为空，请先添加内容")
+      return
+    }
+    setLoading(true)
+    try {
+      const { blob } = await editor.toImage([...shapeIds], { format: "png", background: true })
+      const file = new File([blob], "canvas-export.png", { type: "image/png" })
+      const result = await upload(file)
+      const url = result.url.startsWith("http") ? result.url : `${API_ORIGIN}${result.url}`
+      router.push(`/studio/create/image?refUrl=${encodeURIComponent(url)}`)
+    } catch {
+      toast.error("导出失败，请重试")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   /** AI 生成图表（描述→流程图/思维导图） */
   const handleGenerate = async () => {
@@ -146,6 +173,21 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
           disabled={loading}
         >
           <PenTool className="h-4 w-4" />
+        </Button>
+
+        {/* 发送到图像编辑 */}
+        <Button
+          variant="ghost"
+          size="sm"
+          title="导出画布作为参考图，发送到 AI 图像编辑"
+          onClick={handleSendToImageEdit}
+          disabled={loading || uploading}
+        >
+          {uploading || loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ImagePlus className="h-4 w-4" />
+          )}
         </Button>
       </div>
     </div>

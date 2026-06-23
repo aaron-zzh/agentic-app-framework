@@ -52,28 +52,78 @@ public class MediaAssetService {
     private final FileRecordService fileRecordService;
 
     /**
-     * 分页查询素材。
+     * 分页查询素材（支持动态筛选和排序）。
      *
-     * @param userId 用户 ID
+     * @param userId 用户 ID（只能查自己的）
      * @param type 素材类型（可选）
      * @param categoryId 分类 ID（可选）
-     * @param pageable 分页参数
-     * @return 分页结果
+     * @param projectId 项目 ID（可选）
+     * @param search 关键词搜索（可选，匹配 name/tags）
+     * @param aiGenerated AI 生成过滤（可选）
+     * @param sort 排序，格式 "field:asc|desc"，默认 createTime:desc
+     * @param pageable 分页（page/size）
      */
     @Transactional(readOnly = true)
     public Page<MediaAssetVO> page(
-            Long userId, MediaAssetType type, Long categoryId, Long projectId, Pageable pageable) {
-        Page<MediaAsset> page;
-        if (projectId != null) {
-            page = assetRepository.findByUserIdAndProjectId(userId, projectId, pageable);
-        } else if (type != null) {
-            page = assetRepository.findByUserIdAndType(userId, type, pageable);
-        } else if (categoryId != null) {
-            page = assetRepository.findByUserIdAndCategoryId(userId, categoryId, pageable);
-        } else {
-            page = assetRepository.findByUserId(userId, pageable);
+            Long userId,
+            MediaAssetType type,
+            Long categoryId,
+            Long projectId,
+            String search,
+            Boolean aiGenerated,
+            String sort,
+            Pageable pageable) {
+        // 解析 sort 参数，格式 "createTime:desc"
+        org.springframework.data.domain.Sort jpaSort = parseSort(sort);
+        Pageable pageableWithSort =
+                org.springframework.data.domain.PageRequest.of(
+                        pageable.getPageNumber(), pageable.getPageSize(), jpaSort);
+
+        org.springframework.data.jpa.domain.Specification<MediaAsset> spec =
+                (root, query, cb) -> {
+                    var predicates =
+                            new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+                    // 只查自己的
+                    predicates.add(cb.equal(root.get("userId"), userId));
+                    if (type != null) predicates.add(cb.equal(root.get("type"), type));
+                    if (categoryId != null)
+                        predicates.add(cb.equal(root.get("categoryId"), categoryId));
+                    if (projectId != null)
+                        predicates.add(cb.equal(root.get("projectId"), projectId));
+                    if (aiGenerated != null)
+                        predicates.add(cb.equal(root.get("aiGenerated"), aiGenerated));
+                    if (search != null && !search.isBlank()) {
+                        String like = "%" + search.toLowerCase() + "%";
+                        predicates.add(
+                                cb.or(
+                                        cb.like(cb.lower(root.get("name")), like),
+                                        cb.like(cb.lower(root.get("tags")), like)));
+                    }
+                    return cb.and(
+                            predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+                };
+        return assetRepository.findAll(spec, pageableWithSort).map(this::toVO);
+    }
+
+    /** 解析 "field:asc|desc" 格式的排序参数 */
+    private org.springframework.data.domain.Sort parseSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return org.springframework.data.domain.Sort.by(
+                    org.springframework.data.domain.Sort.Direction.DESC, "createTime");
         }
-        return page.map(this::toVO);
+        String[] parts = sort.split(":");
+        String field = parts[0].trim();
+        org.springframework.data.domain.Sort.Direction dir =
+                parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim())
+                        ? org.springframework.data.domain.Sort.Direction.ASC
+                        : org.springframework.data.domain.Sort.Direction.DESC;
+        // 白名单防止任意字段注入
+        field =
+                switch (field) {
+                    case "name", "size", "width", "height", "type" -> field;
+                    default -> "createTime";
+                };
+        return org.springframework.data.domain.Sort.by(dir, field);
     }
 
     /**
@@ -86,6 +136,12 @@ public class MediaAssetService {
     @Transactional(readOnly = true)
     public List<MediaAssetVO> search(Long userId, String keyword) {
         return assetRepository.searchByKeyword(userId, keyword).stream().map(this::toVO).toList();
+    }
+
+    /** 统计用户 AI 生成素材数量。 */
+    @Transactional(readOnly = true)
+    public long countAiGenerated(Long userId) {
+        return assetRepository.countByUserIdAndAiGenerated(userId, true);
     }
 
     /**

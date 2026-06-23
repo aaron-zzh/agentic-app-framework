@@ -6,23 +6,18 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import io.agentscope.core.ReActAgent;
-import io.agentscope.core.formatter.dashscope.DashScopeMultiAgentFormatter;
-import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
-import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
-import io.agentscope.core.tool.Toolkit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * AgentScope 综合示例服务（v2 兼容版）。
  *
- * <p>支持：① 基础聊天、② 工具调用、③ Supervisor、④ Pipeline、⑦ MCP。
- * 已移除：⑤ MsgHub、⑥ Session、⑧ RAG、⑨ Plan、⑩ TTS（v2 不再支持）。
+ * <p>支持：① 基础聊天、② 工具调用、③ Supervisor、④ Pipeline、⑦ MCP。 已移除：⑤ MsgHub、⑥ Session、⑧ RAG、⑨ Plan、⑩ TTS（v2
+ * 不再支持）。
  */
 @Slf4j
 @Service
@@ -83,8 +78,11 @@ public class AgentScopeExampleService {
     public Map<String, Object> pipelineRun(String userInput) {
         log.debug("Pipeline：{}", userInput);
         String sql = extractText(sqlGeneratorAgent.call(buildUserMsg(userInput)).block());
-        String score = extractText(
-                sqlRaterAgent.call(buildUserMsg("用户原始请求：" + userInput + "\n\n生成的 SQL：\n" + sql)).block());
+        String score =
+                extractText(
+                        sqlRaterAgent
+                                .call(buildUserMsg("用户原始请求：" + userInput + "\n\n生成的 SQL：\n" + sql))
+                                .block());
         return Map.of("input", userInput, "sql", sql, "score", score);
     }
 

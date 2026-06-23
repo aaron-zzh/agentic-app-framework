@@ -14,5 +14,7 @@ public interface MediaCategoryRepository extends JpaRepository<MediaCategory, Lo
 
     List<MediaCategory> findAllByOrderBySortOrder();
 
+    List<MediaCategory> findByOwnerIdOrderBySortOrder(Long ownerId);
+
     Optional<MediaCategory> findByName(String name);
 }

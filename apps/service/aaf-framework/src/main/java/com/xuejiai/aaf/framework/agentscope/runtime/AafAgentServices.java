@@ -4,11 +4,11 @@
  */
 package com.xuejiai.aaf.framework.agentscope.runtime;
 
-import com.xuejiai.aaf.framework.engine.knowledge.importer.ImporterFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
+import com.xuejiai.aaf.framework.engine.knowledge.importer.ImporterFactory;
 import com.xuejiai.aaf.framework.engine.knowledge.search.SimilaritySearchService;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.intelligent.ai.ocr.OcrServiceFactory;

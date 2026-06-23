@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.runtime.AafContextHolder;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
@@ -81,17 +80,18 @@ public class MemoryRecallTool {
                                                                     ? List.of()
                                                                     : a.getTags()))
                             .collect(Collectors.toList());
-            return JsonUtils.toJsonString(java.util.Map.of(
-                    "status",
-                    "ok",
-                    "userId",
-                    userId,
-                    "query",
-                    query,
-                    "topK",
-                    k,
-                    "atoms",
-                    simplified));
+            return JsonUtils.toJsonString(
+                    java.util.Map.of(
+                            "status",
+                            "ok",
+                            "userId",
+                            userId,
+                            "query",
+                            query,
+                            "topK",
+                            k,
+                            "atoms",
+                            simplified));
         } catch (Exception e) {
             log.error("[recall_memory] 检索失败 query='{}' userId={}", query, userId, e);
             return errorJson("检索失败：" + e.getMessage());

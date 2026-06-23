@@ -65,7 +65,8 @@ public final class ContentCreationModelFactory {
         var baseUrl = aiModel.effectiveBaseUrl();
 
         // yaml 兜底：模型级 key/url 为空时从 aaf.ai.models.{provider} 或 default 取
-        if (aiProperties != null && (apiKey == null || apiKey.isBlank() || baseUrl == null || baseUrl.isBlank())) {
+        if (aiProperties != null
+                && (apiKey == null || apiKey.isBlank() || baseUrl == null || baseUrl.isBlank())) {
             var models = aiProperties.getModels();
             var cfg = models.getOrDefault(aiModel.getProvider(), models.get("default"));
             if (cfg != null) {

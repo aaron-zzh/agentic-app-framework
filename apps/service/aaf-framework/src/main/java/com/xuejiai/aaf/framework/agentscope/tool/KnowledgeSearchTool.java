@@ -9,7 +9,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.runtime.AafContextHolder;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
@@ -83,12 +82,13 @@ public class KnowledgeSearchTool {
                             null,
                             null);
             List<SearchResult> results = searchService.search(request);
-            return JsonUtils.toJsonString(java.util.Map.of(
-                    "status", "ok",
-                    "kbId", kbId,
-                    "query", query,
-                    "topK", k,
-                    "results", results));
+            return JsonUtils.toJsonString(
+                    java.util.Map.of(
+                            "status", "ok",
+                            "kbId", kbId,
+                            "query", query,
+                            "topK", k,
+                            "results", results));
         } catch (Exception e) {
             log.error("[search_kb] 检索或序列化失败 query='{}' kbId={}", query, kbId, e);
             return errorJson("检索失败：" + e.getMessage());

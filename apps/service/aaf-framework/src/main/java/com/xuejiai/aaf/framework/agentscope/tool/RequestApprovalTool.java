@@ -10,7 +10,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.runtime.AafContextHolder;
 import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
@@ -106,17 +105,18 @@ public class RequestApprovalTool {
                 var maybe = approvalService.getResult(requestId);
                 if (maybe.isPresent()) {
                     var result = maybe.get();
-                    return JsonUtils.toJsonString(Map.of(
-                            "status",
-                            "ok",
-                            "decision",
-                            result.decision().name().toLowerCase(),
-                            "reason",
-                            result.reason() == null ? "" : result.reason(),
-                            "requestId",
-                            requestId,
-                            "action",
-                            action));
+                    return JsonUtils.toJsonString(
+                            Map.of(
+                                    "status",
+                                    "ok",
+                                    "decision",
+                                    result.decision().name().toLowerCase(),
+                                    "reason",
+                                    result.reason() == null ? "" : result.reason(),
+                                    "requestId",
+                                    requestId,
+                                    "action",
+                                    action));
                 }
                 try {
                     Thread.sleep(POLL_INTERVAL_MS);
@@ -128,17 +128,18 @@ public class RequestApprovalTool {
 
             // 超时——主动返回 timeout（HITL 服务侧也会同步标记）
             log.warn("[request_approval] 轮询超时 requestId={}", requestId);
-            return JsonUtils.toJsonString(Map.of(
-                    "status",
-                    "ok",
-                    "decision",
-                    Decision.TIMEOUT.name().toLowerCase(),
-                    "reason",
-                    "审批轮询超时（>" + (POLL_TIMEOUT_MS / 1000) + " 秒）",
-                    "requestId",
-                    requestId,
-                    "action",
-                    action));
+            return JsonUtils.toJsonString(
+                    Map.of(
+                            "status",
+                            "ok",
+                            "decision",
+                            Decision.TIMEOUT.name().toLowerCase(),
+                            "reason",
+                            "审批轮询超时（>" + (POLL_TIMEOUT_MS / 1000) + " 秒）",
+                            "requestId",
+                            requestId,
+                            "action",
+                            action));
         } catch (Exception e) {
             log.error("[request_approval] 审批失败 action={}", action, e);
             return errorJson("审批失败：" + e.getMessage());

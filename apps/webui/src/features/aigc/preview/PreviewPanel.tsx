@@ -18,10 +18,8 @@ import {
   PenLine,
   Plus,
   RefreshCw,
-  Sparkles,
   ThumbsUp,
   Trash2,
-  Video,
   X
 } from "lucide-react"
 import { useParams } from "next/navigation"

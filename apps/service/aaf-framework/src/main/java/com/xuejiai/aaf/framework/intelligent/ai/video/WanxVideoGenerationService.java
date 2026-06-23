@@ -73,7 +73,7 @@ public class WanxVideoGenerationService implements VideoGenerationService {
 
     @Override
     public String submitImageToVideo(ImageToVideoRequest request) {
-        throw new UnsupportedOperationException("wan2 图生视频暂未实现，请使用 happyhorse-1.0-i2v");
+        throw new UnsupportedOperationException("wan2 图生视频暂未实现，请使用 happyhorse-1.1-i2v");
     }
 
     @Override

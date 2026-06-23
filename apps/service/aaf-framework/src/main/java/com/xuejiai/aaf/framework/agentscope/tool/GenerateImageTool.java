@@ -10,21 +10,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
-
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ObjectNode;
 import com.xuejiai.aaf.framework.agentscope.runtime.AafContextHolder;
 
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 图像生成工具——异步模式。
  *
- * <p>提交任务后立即返回带 {@code __ui__:true} 标记的生成中卡片 JSON，
- * 由 {@link com.xuejiai.aaf.framework.agentscope.middleware.UiEventMiddleware} 检测后
- * 发出 {@code CustomEvent("ui_block")} 到前端 SSE 流，前端渲染生成状态卡片。
- * 任务完成后通过 AigcTaskEventService 的独立 SSE 推送更新。
+ * <p>提交任务后立即返回带 {@code __ui__:true} 标记的生成中卡片 JSON， 由 {@link
+ * com.xuejiai.aaf.framework.agentscope.middleware.UiEventMiddleware} 检测后 发出 {@code
+ * CustomEvent("ui_block")} 到前端 SSE 流，前端渲染生成状态卡片。 任务完成后通过 AigcTaskEventService 的独立 SSE 推送更新。
  *
  * <p>不轮询等待，不阻塞 Agent 推理循环。
  */
@@ -73,7 +70,7 @@ public class GenerateImageTool {
             node.put(SendUiTool.UI_MARKER, true);
             node.put("uiType", "aigc_task");
             node.put("taskId", taskId);
-            node.put("mediaType", mediaType);   // image / video / music
+            node.put("mediaType", mediaType); // image / video / music
             node.put("status", "PENDING");
             node.put("prompt", prompt != null ? prompt : "");
             node.put("message", mediaTypeLabel(mediaType) + "生成中，请稍候…");

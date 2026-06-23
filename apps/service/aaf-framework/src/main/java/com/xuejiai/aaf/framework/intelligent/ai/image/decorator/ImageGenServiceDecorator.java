@@ -60,6 +60,27 @@ public class ImageGenServiceDecorator extends AbstractAiServiceDecorator<ImageGe
         if (delegate instanceof DashScopeImageGenerationService ds) {
             return creditCall(model, false, () -> ds.generateWithImages(model, req));
         }
+        // 非 DashScope 模型：把 imageUrls 转为 ImageEditRequest 走图生图
+        if (req.getImageUrls() != null && !req.getImageUrls().isEmpty()) {
+            var editReq =
+                    new ImageEditRequest(
+                            req.getImageUrls().get(0),
+                            null,
+                            req.getPrompt(),
+                            null,
+                            req.getModelId(),
+                            req.getQuality(),
+                            req.getFormat(),
+                            req.getBackground(),
+                            req.getModeration(),
+                            req.getImageCount() > 1 ? req.getImageCount() : null,
+                            req.getImageUrls());
+            editReq.setWidth(req.getWidth());
+            editReq.setHeight(req.getHeight());
+            editReq.setSizePreset(req.getSizePreset());
+            editReq.setAspectRatio(req.getAspectRatio());
+            return creditCall(model, false, () -> delegate.imageToImage(model, editReq));
+        }
         return creditCall(model, false, () -> delegate.generate(model, req));
     }
 }

@@ -130,7 +130,9 @@ export default function WeatherToolPage() {
 
   // 进页面自动 IP 定位
   // biome-ignore lint/correctness/useExhaustiveDependencies: 仅挂载时执行一次
-  useEffect(() => { locateByIp() }, [])
+  useEffect(() => {
+    locateByIp()
+  }, [])
 
   const rt = data?.result.realtime
   const hourly = data?.result.hourly
@@ -142,7 +144,9 @@ export default function WeatherToolPage() {
         <Cloud className="size-5 text-sky-400" />
         <h1 className="font-semibold text-xl">
           实时天气
-          {cityName && <span className="ml-2 font-normal text-muted-foreground text-base">· {cityName}</span>}
+          {cityName && (
+            <span className="ml-2 font-normal text-base text-muted-foreground">· {cityName}</span>
+          )}
         </h1>
         <Button
           variant="outline"
@@ -185,16 +189,22 @@ export default function WeatherToolPage() {
           {/* 实况 */}
           <GlassCard glow="cyan">
             <GlassCardBody>
-              <div className="flex items-center gap-4 mb-4">
+              <div className="mb-4 flex items-center gap-4">
                 <span className="text-6xl">{skycon(rt.skycon).emoji}</span>
                 <div>
                   <p className="font-bold text-5xl">{rt.temperature}°C</p>
-                  <p className="text-muted-foreground">{skycon(rt.skycon).label} · {data?.result.forecast_keypoint}</p>
+                  <p className="text-muted-foreground">
+                    {skycon(rt.skycon).label} · {data?.result.forecast_keypoint}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <DataCapsule label="体感" value={`${rt.apparent_temperature}°C`} tone="cyan" />
-                <DataCapsule label="湿度" value={`${Math.round(rt.humidity * 100)}%`} tone="violet" />
+                <DataCapsule
+                  label="湿度"
+                  value={`${Math.round(rt.humidity * 100)}%`}
+                  tone="violet"
+                />
                 <DataCapsule label="风速" value={`${rt.wind.speed} km/h`} tone="default" />
                 <DataCapsule label="空气" value={rt.air_quality.description.chn} tone="emerald" />
               </div>
@@ -205,8 +215,9 @@ export default function WeatherToolPage() {
           {hourly && (
             <GlassCard glow="none">
               <GlassCardBody>
-                <p className="font-medium text-sm mb-3">
-                  逐小时 <span className="font-normal text-muted-foreground">{hourly.description}</span>
+                <p className="mb-3 font-medium text-sm">
+                  逐小时{" "}
+                  <span className="font-normal text-muted-foreground">{hourly.description}</span>
                 </p>
                 <div className="overflow-x-auto">
                   <div className="flex gap-2 pb-1" style={{ minWidth: "max-content" }}>
@@ -214,12 +225,17 @@ export default function WeatherToolPage() {
                       const sky = hourly.skycon[i]
                       const precip = hourly.precipitation[i]
                       return (
-                        <div key={t.datetime} className="flex flex-col items-center gap-1 rounded-xl bg-foreground/[0.04] px-3 py-2 text-center min-w-[52px]">
-                          <span className="text-muted-foreground text-xs">{fmtHour(t.datetime)}</span>
+                        <div
+                          key={t.datetime}
+                          className="flex min-w-[52px] flex-col items-center gap-1 rounded-xl bg-foreground/[0.04] px-3 py-2 text-center"
+                        >
+                          <span className="text-muted-foreground text-xs">
+                            {fmtHour(t.datetime)}
+                          </span>
                           <span className="text-xl">{sky ? skycon(sky.value).emoji : "—"}</span>
                           <span className="font-medium text-sm">{Math.round(t.value)}°</span>
                           {precip && precip.probability > 10 && (
-                            <span className="text-sky-400 text-[10px]">{precip.probability}%</span>
+                            <span className="text-[10px] text-sky-400">{precip.probability}%</span>
                           )}
                         </div>
                       )
@@ -234,14 +250,19 @@ export default function WeatherToolPage() {
           {daily && (
             <GlassCard glow="none">
               <GlassCardBody className="space-y-2">
-                <p className="font-medium text-sm mb-3">未来预报</p>
+                <p className="mb-3 font-medium text-sm">未来预报</p>
                 {daily.temperature.map((t, i) => {
                   const sky = daily.skycon_08h_20h[i]
                   return (
-                    <div key={t.date} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-foreground/[0.03]">
+                    <div
+                      key={t.date}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-foreground/[0.03]"
+                    >
                       <span className="w-24 text-muted-foreground text-xs">{fmtDate(t.date)}</span>
                       <span className="text-lg">{sky ? skycon(sky.value).emoji : "—"}</span>
-                      <span className="text-sm text-muted-foreground">{sky ? skycon(sky.value).label : "—"}</span>
+                      <span className="text-muted-foreground text-sm">
+                        {sky ? skycon(sky.value).label : "—"}
+                      </span>
                       <span className="ml-auto font-medium text-sm">
                         {Math.round(t.min)}° / {Math.round(t.max)}°
                       </span>

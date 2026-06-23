@@ -413,8 +413,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/tailwind-config
       '@ag-ui/client':
-        specifier: ^0.0.53
-        version: 0.0.53
+        specifier: ^0.0.57
+        version: 0.0.57
       '@assistant-ui/react':
         specifier: ^0.14.22
         version: 0.14.22(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
@@ -676,6 +676,9 @@ importers:
       y-websocket:
         specifier: ^3.0.0
         version: 3.0.0(yjs@13.6.30)
+      yet-another-react-lightbox:
+        specifier: ^3.32.0
+        version: 3.32.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       yjs:
         specifier: ^13.6.30
         version: 13.6.30
@@ -746,26 +749,14 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ag-ui/client@0.0.53':
-    resolution: {integrity: sha512-Mkup36KUp0KXy9v89QtAOWDUoh8H1s1Vgl4zvQv9HqXuAK1TkbtpXJHpbgZJXIxTqd54KT6yCurmC2UkOP7FDQ==}
-
   '@ag-ui/client@0.0.57':
     resolution: {integrity: sha512-Xap2alG9Z0/j5kb3x4D7oTpe2sw1dfrC9rgJJr2NZu5vKcm8dzIPNd31mF2B4zS3BKqYIu245yxKPhEtT30MHw==}
-
-  '@ag-ui/core@0.0.53':
-    resolution: {integrity: sha512-11UocR7fFdMWw503bWCX2IOK15vbWfxT11Mn9xOiPBVO/UVcn57ywGrlLL4UaBlPgmUTvuzr2yYR2ElSqiN2wQ==}
 
   '@ag-ui/core@0.0.57':
     resolution: {integrity: sha512-gho1OWjNE6E3Rl7ZEZ1wr2CEpUHjLFU0FqzCZZk439TicLu+BfLCMkMokB07bMGlRmbJ60hM6LW60iOVauCx+Q==}
 
-  '@ag-ui/encoder@0.0.53':
-    resolution: {integrity: sha512-bAOcfVdm6U4H6G6tW+DZfwPEQm1w/snVBTwaFn9nJcEMW69M7/HZuwvEc/7Zo0rK1jRL32N/j60PwTAeky19fw==}
-
   '@ag-ui/encoder@0.0.57':
     resolution: {integrity: sha512-ifD9NctR4xyPDR58xF9GK1bj/S8oECFkTeDfuYD8tXdbcOstIJ2TOqU2zhiCKnw7Vw+zR9Qv3TbsM9E7Gi9X3Q==}
-
-  '@ag-ui/proto@0.0.53':
-    resolution: {integrity: sha512-swjz22xWT8YUZt5OhmUwkARDQdwt8XM1hmGZbQrhRnNPXKwrKJX9ELlbnQ4iFUQIKkMWpphzE3vA3yNKs2bbKw==}
 
   '@ag-ui/proto@0.0.57':
     resolution: {integrity: sha512-pPENOZt0P6ibH8sCTgq05wLYXi5t3P9B5r/1bWYehXjUxtyOdnukSlWM++SsCIwUXsQdm/b3aBgGjEeTF7RenA==}
@@ -17332,6 +17323,20 @@ packages:
     resolution: {integrity: sha512-PtGEvEP30p7sbIBJKUBjUnqgTVOyMURc4dLo9iNyAJnNIEz9pm88cCXF21w94Kg3k6RXkeZh5DHOGS0qEONvNQ==}
     engines: {node: '>=12'}
 
+  yet-another-react-lightbox@3.32.0:
+    resolution: {integrity: sha512-FWODOMrE07i3O5MeWRcYlcnAUk518zkUYKAe307pVW5pkey3hKMcAIWn8yMIURzGvbd3m9eghWO9CocEZmQPIg==}
+    engines: {node: '>=14'}
+    peerDependencies:
+      '@types/react': ^19.0.0
+      '@types/react-dom': ^19.0.0
+      react: ^19.2.5
+      react-dom: ^19.2.5
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+
   yjs@13.6.30:
     resolution: {integrity: sha512-vv/9h42eCMC81ZHDFswuu/MKzkl/vyq1BhaNGfHyOonwlG4CJbQF4oiBBJPvfdeCt/PlVDWh7Nov9D34YY09uQ==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
@@ -17440,19 +17445,6 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ag-ui/client@0.0.53':
-    dependencies:
-      '@ag-ui/core': 0.0.53
-      '@ag-ui/encoder': 0.0.53
-      '@ag-ui/proto': 0.0.53
-      '@types/uuid': 10.0.0
-      compare-versions: 6.1.1
-      fast-json-patch: 3.1.1
-      rxjs: 7.8.1
-      untruncate-json: 0.0.1
-      uuid: 11.1.1
-      zod: 3.24.1
-
   '@ag-ui/client@0.0.57':
     dependencies:
       '@ag-ui/core': 0.0.57
@@ -17466,29 +17458,14 @@ snapshots:
       uuid: 11.1.1
       zod: 3.24.1
 
-  '@ag-ui/core@0.0.53':
-    dependencies:
-      zod: 3.24.1
-
   '@ag-ui/core@0.0.57':
     dependencies:
       zod: 3.24.1
-
-  '@ag-ui/encoder@0.0.53':
-    dependencies:
-      '@ag-ui/core': 0.0.53
-      '@ag-ui/proto': 0.0.53
 
   '@ag-ui/encoder@0.0.57':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@ag-ui/proto': 0.0.57
-
-  '@ag-ui/proto@0.0.53':
-    dependencies:
-      '@ag-ui/core': 0.0.53
-      '@bufbuild/protobuf': 2.12.0
-      '@protobuf-ts/protoc': 2.11.1
 
   '@ag-ui/proto@0.0.57':
     dependencies:
@@ -17538,7 +17515,7 @@ snapshots:
     dependencies:
       '@antfu/eslint-define-config': 1.23.0-2
       '@stylistic/eslint-plugin': 0.0.11(eslint@8.51.0)(typescript@6.0.3)
-      '@typescript-eslint/eslint-plugin': 6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/eslint-plugin': 6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)
       '@typescript-eslint/parser': 6.7.5(eslint@8.51.0)(typescript@6.0.3)
       eslint: 8.51.0
       eslint-config-flat-gitignore: 0.1.0
@@ -17552,8 +17529,8 @@ snapshots:
       eslint-plugin-no-only-tests: 3.4.0
       eslint-plugin-sort-keys: 2.3.5
       eslint-plugin-unicorn: 48.0.1(eslint@8.51.0)
-      eslint-plugin-unused-imports: 3.0.0(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3))(eslint@8.51.0)
-      eslint-plugin-vitest: 0.3.26(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)(vitest@4.1.6(@types/node@24.12.4)(@vitest/coverage-v8@3.1.0(vitest@4.1.6))(jsdom@25.0.0)(msw@2.14.6(@types/node@24.12.4)(typescript@6.0.3))(vite@5.2.8(@types/node@24.12.4)(less@4.5.1)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.47.1)))
+      eslint-plugin-unused-imports: 3.0.0(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)
+      eslint-plugin-vitest: 0.3.26(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)(vitest@4.1.6(@types/node@24.12.4)(@vitest/coverage-v8@3.1.0(vitest@4.1.6))(jsdom@25.0.0)(msw@2.14.6(@types/node@24.12.4)(typescript@6.0.3))(vite@5.2.8(@types/node@24.12.4)(less@4.5.1)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.47.1)))
       eslint-plugin-vue: 9.17.0(eslint@8.51.0)
       eslint-plugin-yml: 1.19.1(eslint@8.51.0)
       globals: 13.23.0
@@ -25532,7 +25509,7 @@ snapshots:
     dependencies:
       '@types/yargs-parser': 21.0.3
 
-  '@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3)':
+  '@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
       '@typescript-eslint/parser': 6.7.5(eslint@8.51.0)(typescript@6.0.3)
@@ -25541,7 +25518,7 @@ snapshots:
       '@typescript-eslint/utils': 6.7.5(eslint@8.51.0)(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 6.7.5
       debug: 4.4.3
-      eslint: 9.39.4(jiti@2.7.0)
+      eslint: 8.51.0
       graphemer: 1.4.0
       ignore: 5.3.2
       natural-compare: 1.4.0
@@ -29219,12 +29196,12 @@ snapshots:
       semver: 7.8.0
       strip-indent: 4.1.1
 
-  eslint-plugin-unused-imports@3.0.0(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3))(eslint@8.51.0):
+  eslint-plugin-unused-imports@3.0.0(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0):
     dependencies:
       eslint: 8.51.0
       eslint-rule-composer: 0.3.0
     optionalDependencies:
-      '@typescript-eslint/eslint-plugin': 6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/eslint-plugin': 6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)
 
   eslint-plugin-unused-imports@4.4.1(@typescript-eslint/eslint-plugin@8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0)):
     dependencies:
@@ -29232,12 +29209,12 @@ snapshots:
     optionalDependencies:
       '@typescript-eslint/eslint-plugin': 8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3)
 
-  eslint-plugin-vitest@0.3.26(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)(vitest@4.1.6(@types/node@24.12.4)(@vitest/coverage-v8@3.1.0(vitest@4.1.6))(jsdom@25.0.0)(msw@2.14.6(@types/node@24.12.4)(typescript@6.0.3))(vite@5.2.8(@types/node@24.12.4)(less@4.5.1)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.47.1))):
+  eslint-plugin-vitest@0.3.26(@typescript-eslint/eslint-plugin@6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)(vitest@4.1.6(@types/node@24.12.4)(@vitest/coverage-v8@3.1.0(vitest@4.1.6))(jsdom@25.0.0)(msw@2.14.6(@types/node@24.12.4)(typescript@6.0.3))(vite@5.2.8(@types/node@24.12.4)(less@4.5.1)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.47.1))):
     dependencies:
       '@typescript-eslint/utils': 7.1.1(eslint@8.51.0)(typescript@6.0.3)
       eslint: 8.51.0
     optionalDependencies:
-      '@typescript-eslint/eslint-plugin': 6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/eslint-plugin': 6.7.5(@typescript-eslint/parser@6.7.5(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3))(eslint@8.51.0)(typescript@6.0.3)
       vitest: 4.1.6(@types/node@24.12.4)(@vitest/coverage-v8@3.1.0(vitest@4.1.6))(jsdom@25.0.0)(msw@2.14.6(@types/node@24.12.4)(typescript@6.0.3))(vite@5.2.8(@types/node@24.12.4)(less@4.5.1)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.47.1))
     transitivePeerDependencies:
       - supports-color
@@ -37804,6 +37781,14 @@ snapshots:
     dependencies:
       buffer-crc32: 0.2.13
       pend: 1.2.0
+
+  yet-another-react-lightbox@3.32.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+    dependencies:
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    optionalDependencies:
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
 
   yjs@13.6.30:
     dependencies:

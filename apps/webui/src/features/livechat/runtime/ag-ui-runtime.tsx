@@ -11,17 +11,63 @@
 "use client"
 
 import { HttpAgent } from "@ag-ui/client"
-import { AssistantRuntimeProvider, Tools, type ThreadMessage, useAui, useVoiceControls } from "@assistant-ui/react"
+import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react"
+import {
+  AssistantRuntimeProvider,
+  type ThreadMessage,
+  Tools,
+  useAui,
+  useVoiceControls
+} from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
+import { backendApi } from "@/lib/api/rest/backend-client"
+
+/** 文件上传返回结构（com.xuejiai.aaf.framework.storage.FileVO） */
+interface FileVO {
+  url: string
+  key: string
+}
+
+/** 上传图片到 OSS，以 URL 形式发送给 LLM */
+class OssImageAttachmentAdapter implements AttachmentAdapter {
+  accept = "image/*"
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    return {
+      id: crypto.randomUUID(),
+      type: "image",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" }
+    }
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    const form = new FormData()
+    form.append("file", attachment.file)
+    const vo = await backendApi.post<FileVO>("/system/files/upload", form, {
+      headers: { "Content-Type": undefined as unknown as string }
+    })
+    return {
+      ...attachment,
+      status: { type: "complete" },
+      content: [{ type: "image", image: vo.url }]
+    }
+  }
+
+  async remove() {}
+}
+
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai/chat"
-import { useAuthStore } from "@/lib/store/auth-store"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
-import { aigcToolkit } from "../enhance/AigcGenerateToolUI"
+import { useAuthStore } from "@/lib/store/auth-store"
+import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 import { OmniVoiceAdapter } from "@/lib/voice/omni-voice-adapter"
+import { aigcToolkit } from "../enhance/AigcGenerateToolUI"
 import { useAgentRunStore } from "./agent-run-store"
 
 const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
@@ -53,14 +99,12 @@ export function AgUiChatProvider({
   const initialStateKey = JSON.stringify(initialState)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialState 通过 initialStateKey 跟踪
-  const agent = useMemo(
-    () =>
-      new HttpAgent({
-        url: url ?? DEFAULT_AGENT_URL,
-        initialState: { ...initialState, anonymousId: getOrCreateAnonymousId() }
-      }),
-    [url, initialStateKey]
-  )
+  const agent = useMemo(() => {
+    return new HttpAgent({
+      url: url ?? DEFAULT_AGENT_URL,
+      initialState: { ...initialState, anonymousId: getOrCreateAnonymousId() }
+    })
+  }, [url, initialStateKey])
 
   // 当前 threadId——由后端创建会话时生成，通过此状态传给 threadList 适配器
   const THREAD_KEY = "aaf:chatter-thread-id"
@@ -68,7 +112,12 @@ export function AgUiChatProvider({
 
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(() => {
     // 优先用外部传入的 initialThreadId，其次从 sessionStorage 恢复
-    return initialThreadId ?? (typeof window !== "undefined" ? (sessionStorage.getItem(THREAD_KEY) ?? undefined) : undefined)
+    return (
+      initialThreadId ??
+      (typeof window !== "undefined"
+        ? (sessionStorage.getItem(THREAD_KEY) ?? undefined)
+        : undefined)
+    )
   })
 
   // threadId 变化时写入 sessionStorage
@@ -79,13 +128,16 @@ export function AgUiChatProvider({
   }, [currentThreadId])
 
   // 已登录且无 threadId 时，自动创建一个新 session
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 仅响应登录态变化，避免 threadId 变化后循环创建
   useEffect(() => {
     if (isAuthenticated && !currentThreadId) {
-      chatApi.createSession({ type: "ai" })
+      chatApi
+        .createSession({ type: "ai" })
         .then((session) => setCurrentThreadId(session.threadId))
-        .catch(() => { /* 静默失败 */ })
+        .catch(() => {
+          /* 静默失败 */
+        })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
 
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
@@ -169,8 +221,12 @@ export function AgUiChatProvider({
     []
   )
 
-  // @ts-expect-error: @ag-ui/client 版本与 @assistant-ui/react-ag-ui 期望的 AbstractAgent 类型不匹配（pendingInterrupts），升级依赖后可移除
-  const runtime = useAgUiRuntime({ agent, onError, adapters: { threadList, voice: voiceAdapter } })
+  // HttpAgent@0.0.53 缺少 pendingInterrupts，已在上方通过 Object.defineProperty 补全
+  const runtime = useAgUiRuntime({
+    agent,
+    onError,
+    adapters: { threadList, voice: voiceAdapter, attachments: new OssImageAttachmentAdapter() }
+  })
 
   const aui = useAui({ tools: Tools({ toolkit: aigcToolkit }) })
 

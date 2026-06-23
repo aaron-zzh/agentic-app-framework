@@ -377,7 +377,7 @@ function RegisterPageInner() {
     setTokens(accessToken, refreshToken)
     const { user } = await authApi.me()
     setUser(user)
-    router.push(paths.workspace.root)
+    router.push("/studio/welcome")
   }
 
   return (

@@ -337,14 +337,17 @@ public class AigcTaskService
             String lyrics,
             String gender,
             Long projectId) {
-        var resolvedModel = configCacheManager.getAiModelByModelId(model);
+        var ctx =
+                CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_MUSIC_GEN, model);
+        var resolvedModel = capabilityRouter.resolve(ctx);
         var musicReq = new MusicGenerationService.MusicRequest(prompt, lyrics, gender, "mp3");
         long estimatedCost =
                 aiServiceRegistry
                         .get(MusicGenerationService.class, resolvedModel)
                         .estimateCost(resolvedModel, musicReq, creditGuard.getMarkupRate());
         creditGuard.precheck(userId, "music-gen", estimatedCost);
-        var task = buildTask(userId, TYPE_MUSIC, prompt, model, null, projectId);
+        var task =
+                buildTask(userId, TYPE_MUSIC, prompt, resolvedModel.getModelId(), null, projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
@@ -425,6 +428,122 @@ public class AigcTaskService
                 resolvedModelId,
                 voice);
         return task.getId();
+    }
+
+    // ========== 积分预估（不提交任务） ==========
+
+    /**
+     * 预估积分消耗——复用 submit 的路由+估算逻辑，不写库、不触发执行。
+     *
+     * @param userId 当前用户 ID
+     * @param type 任务类型（IMAGE/VIDEO/MODEL_3D/MUSIC/VOICE）
+     * @param model 指定模型（可空，空则走默认路由）
+     * @param params 任务参数（与 submit 相同结构）
+     * @return 预估积分消耗
+     */
+    public long estimateCredits(
+            Long userId, String type, String model, Map<String, Object> params) {
+        if (params == null) params = Map.of();
+        int markup = creditGuard.getMarkupRate();
+        return switch (type.toUpperCase()) {
+            case "IMAGE", "IMAGE_GEN" -> {
+                var ctx =
+                        CapabilityRoutingContext.of(
+                                userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
+                var resolvedModel = capabilityRouter.resolve(ctx);
+                int w = toInt(params.get("width"), 1024);
+                int h = toInt(params.get("height"), 1024);
+                var req =
+                        new ImageTaskRequest(
+                                "",
+                                resolvedModel.getModelId(),
+                                w,
+                                h,
+                                null,
+                                null,
+                                null,
+                                toInt(params.get("imageCount"), 1),
+                                null,
+                                toStr(params.get("quality")),
+                                toStr(params.get("format")),
+                                toStr(params.get("background")),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null);
+                yield aiServiceRegistry
+                        .get(ImageGenerationService.class, resolvedModel)
+                        .estimateCost(resolvedModel, req, markup);
+            }
+            case "VIDEO", "VIDEO_GEN" -> {
+                var ctx =
+                        CapabilityRoutingContext.of(
+                                userId, CapabilityRoutingContext.CAP_VIDEO_GEN, model);
+                var resolvedModel = capabilityRouter.resolve(ctx);
+                var videoReq =
+                        new com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest(
+                                "",
+                                null,
+                                null,
+                                resolvedModel.getModelId(),
+                                toStr(params.get("resolution")),
+                                toStr(params.get("ratio")),
+                                toInt(params.get("duration"), null),
+                                null,
+                                null);
+                yield aiServiceRegistry
+                        .get(VideoGenerationService.class, resolvedModel)
+                        .estimateCost(resolvedModel, videoReq, markup);
+            }
+            case "MODEL_3D" -> {
+                var ctx =
+                        CapabilityRoutingContext.of(
+                                userId, CapabilityRoutingContext.CAP_MODEL_3D, model);
+                var resolvedModel = capabilityRouter.resolve(ctx);
+                var req =
+                        buildModel3dRequest(
+                                "",
+                                toStr(params.get("source")),
+                                toStr(params.get("textureQuality")));
+                yield model3dGenerationService.estimateCost(resolvedModel, req, markup);
+            }
+            case "MUSIC" -> {
+                var resolvedModel = configCacheManager.getAiModelByModelId(model);
+                var req = new MusicGenerationService.MusicRequest("", null, null, "mp3");
+                yield aiServiceRegistry
+                        .get(MusicGenerationService.class, resolvedModel)
+                        .estimateCost(resolvedModel, req, markup);
+            }
+            case "VOICE" -> {
+                var ctx =
+                        CapabilityRoutingContext.of(
+                                userId, CapabilityRoutingContext.CAP_SPEECH_TTS, model);
+                var resolvedModel = capabilityRouter.resolve(ctx);
+                String text = toStr(params.get("text"));
+                yield aiServiceRegistry
+                        .get(SpeechService.class, resolvedModel)
+                        .estimateCost(resolvedModel, text != null ? text : "", markup);
+            }
+            default ->
+                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + type);
+        };
+    }
+
+    private static int toInt(Object val, Integer defaultVal) {
+        if (val == null) return defaultVal != null ? defaultVal : 0;
+        if (val instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(val.toString());
+        } catch (Exception e) {
+            return defaultVal != null ? defaultVal : 0;
+        }
+    }
+
+    private static String toStr(Object val) {
+        return val == null ? null : val.toString();
     }
 
     // ========== 任务完成/失败回调 ==========
@@ -589,6 +708,18 @@ public class AigcTaskService
 
     // ========== 内部工具方法 ==========
 
+    /** 为已创建任务设置技能 systemPrompt（Controller 提交任务后回写）。 忽略 taskId 不存在的情况（防御性处理）。 */
+    @Transactional
+    public void setSystemPrompt(Long taskId, String systemPrompt) {
+        if (taskId == null || systemPrompt == null || systemPrompt.isBlank()) return;
+        taskRepo.findById(taskId)
+                .ifPresent(
+                        task -> {
+                            task.setSystemPrompt(systemPrompt);
+                            taskRepo.save(task);
+                        });
+    }
+
     private AigcTask buildTask(
             Long userId,
             String type,
@@ -671,7 +802,7 @@ public class AigcTaskService
         return switch (type) {
             case TYPE_VIDEO -> MediaAssetType.VIDEO;
             case TYPE_MODEL3D -> MediaAssetType.MODEL_3D;
-            case TYPE_MUSIC -> MediaAssetType.AUDIO;
+            case TYPE_MUSIC -> MediaAssetType.MUSIC;
             case TYPE_VOICE -> MediaAssetType.AUDIO;
             default -> MediaAssetType.IMAGE;
         };

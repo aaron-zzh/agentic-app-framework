@@ -9,15 +9,15 @@
 
 "use client"
 
-import { MotionLazy } from "@/components/animate"
 import { ThemeProvider, useTheme } from "next-themes"
 import { Suspense, useCallback, useEffect, useRef } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { MotionLazy } from "@/components/animate"
 import { CommandPalette } from "@/components/common/CommandPalette"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { FloatingChatter } from "@/features/chatter/layout/FloatingChatter"
-import { StudioRouteSync, StudioSidebar, StudioTabBar, StudioTopbar } from "@/features/studio/shell"
+import { StudioRouteSync, StudioSidebar, StudioTopbar } from "@/features/studio/shell"
 import { SlotDevTrigger, SlotDock } from "@/features/studio/slots"
 import { AuthProvider } from "@/lib/auth/AuthProvider"
 import { commandRegistry, useCommandPalette } from "@/lib/hooks/use-command-palette"
@@ -163,10 +163,10 @@ function StudioContent({ children }: { children: React.ReactNode }) {
     return (
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <StudioTopbar />
-        <StudioTabBar />
+        {/* <StudioTabBar /> */}
         {/* page 模式：GlobalChatter portal 到此 slot，覆盖 main 区 */}
         <div className="relative min-h-0 flex-1">
-          <div id="chatter-page-slot" className="absolute inset-0 z-10" />
+          <div id="chatter-page-slot" className="absolute inset-0 z-10 bg-background" />
           {mainContent}
         </div>
       </div>
@@ -177,13 +177,9 @@ function StudioContent({ children }: { children: React.ReactNode }) {
     return (
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <StudioTopbar />
-        <StudioTabBar />
+        {/* <StudioTabBar /> */}
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 overflow-hidden">
-          <ResizablePanel
-            panelRef={mainPanelRef}
-            defaultSize={open ? "65%" : "100%"}
-            minSize="30%"
-          >
+          <ResizablePanel panelRef={mainPanelRef} defaultSize={open ? "65%" : "100%"} minSize="30%">
             <div className="flex h-full flex-col overflow-hidden">{mainContent}</div>
           </ResizablePanel>
           {open && (
@@ -210,7 +206,7 @@ function StudioContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-w-0 flex-1 flex-col">
       <StudioTopbar />
-      <StudioTabBar />
+      {/* <StudioTabBar /> */}
       {mainContent}
     </div>
   )

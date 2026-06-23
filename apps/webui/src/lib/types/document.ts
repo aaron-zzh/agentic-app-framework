@@ -7,8 +7,11 @@
 export interface DocTreeNode {
   id: number | null
   name: string
+  title: string | null
   path: string
-  isDir: boolean
+  isDirectory: boolean
+  docType: string | null
+  publish: string | null
   children: DocTreeNode[]
 }
 

@@ -73,7 +73,7 @@ export function SlotPanel({ slot }: { slot: SlotInstance }) {
     <div
       className={cn(
         "group relative shrink-0 overflow-hidden rounded-xl ring-1 ring-inset",
-        "bg-foreground/[0.025] backdrop-blur-md",
+        "bg-foreground/2.5 backdrop-blur-md",
         TONE_RING[def.tone]
       )}
       style={{ width: `${width}px` }}
@@ -81,13 +81,13 @@ export function SlotPanel({ slot }: { slot: SlotInstance }) {
       {/* 顶部光晕 */}
       <div
         className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b opacity-60",
+          "pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b opacity-60",
           TONE_GLOW[def.tone]
         )}
       />
 
       {/* 标题栏 */}
-      <div className="relative flex items-center justify-between border-foreground/[0.06] border-b px-3 py-2">
+      <div className="relative flex items-center justify-between border-foreground/6 border-b px-3 py-2">
         <div className="flex items-center gap-1.5">
           <Icon className="size-3.5 opacity-80" />
           <span className="font-medium text-xs">{def.title}</span>
@@ -95,7 +95,7 @@ export function SlotPanel({ slot }: { slot: SlotInstance }) {
         <button
           type="button"
           onClick={() => close(slot.id)}
-          className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+          className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-foreground/6 hover:text-foreground"
           aria-label="关闭面板"
         >
           <X className="size-3.5" />

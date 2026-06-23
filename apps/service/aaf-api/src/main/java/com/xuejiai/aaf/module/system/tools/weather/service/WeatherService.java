@@ -45,9 +45,7 @@ public class WeatherService {
         var vo = fetchWeather(city);
         // 写缓存
         try {
-            redisTemplate
-                    .opsForValue()
-                    .set(cacheKey, JsonUtils.toJsonString(vo), CACHE_TTL);
+            redisTemplate.opsForValue().set(cacheKey, JsonUtils.toJsonString(vo), CACHE_TTL);
         } catch (Exception e) {
             log.warn("写入天气缓存失败：{}", e.getMessage());
         }

@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
  * AgentScope 示例配置（v2 兼容版）。
  *
  * <p>覆盖可运行示例：
+ *
  * <ul>
  *   <li>① 基础聊天（basicChatAgent）
  *   <li>② 工具调用（toolCallingAgent）
@@ -52,7 +53,8 @@ public class AgentScopeExampleConfig {
     @Value("${aaf.examples.agentscope.langfuse.secret-key:}")
     private String langfuseSecretKey;
 
-    @Value("${aaf.examples.agentscope.langfuse.endpoint:https://cloud.langfuse.com/api/public/otel/v1/traces}")
+    @Value(
+            "${aaf.examples.agentscope.langfuse.endpoint:https://cloud.langfuse.com/api/public/otel/v1/traces}")
     private String langfuseEndpoint;
 
     @PostConstruct
@@ -61,21 +63,24 @@ public class AgentScopeExampleConfig {
             log.info("[Tracing] Langfuse 未配置，跳过 Tracing 初始化");
             return;
         }
-        String auth = Base64.getEncoder()
-                .encodeToString((langfusePublicKey + ":" + langfuseSecretKey).getBytes());
-        TelemetryTracer tracer = TelemetryTracer.builder()
-                .endpoint(langfuseEndpoint)
-                .addHeader("Authorization", "Basic " + auth)
-                .build();
+        String auth =
+                Base64.getEncoder()
+                        .encodeToString((langfusePublicKey + ":" + langfuseSecretKey).getBytes());
+        TelemetryTracer tracer =
+                TelemetryTracer.builder()
+                        .endpoint(langfuseEndpoint)
+                        .addHeader("Authorization", "Basic " + auth)
+                        .build();
         TracerRegistry.register(tracer);
         log.info("[Tracing] Langfuse Tracing 已启用，端点: {}", langfuseEndpoint);
     }
 
     @Bean("exampleDashScopeModel")
     public Model exampleDashScopeModel() {
-        String key = StringUtils.hasText(dashScopeApiKey)
-                ? dashScopeApiKey
-                : System.getenv("AI_DASHSCOPE_API_KEY");
+        String key =
+                StringUtils.hasText(dashScopeApiKey)
+                        ? dashScopeApiKey
+                        : System.getenv("AI_DASHSCOPE_API_KEY");
         return DashScopeChatModel.builder().apiKey(key).modelName("qwen-plus").build();
     }
 

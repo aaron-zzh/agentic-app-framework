@@ -146,7 +146,7 @@ aaf:
     default-models:
       CHAT: deepseek:chat
       IMAGE_GEN: qwen:wan2.7-image
-      VIDEO_GEN: qwen:happyhorse-1.0-i2v
+      VIDEO_GEN: qwen:happyhorse-1.1-i2v
       SPEECH_ASR: qwen:fun-asr-realtime
       SPEECH_TTS: qwen:cosyvoice-v3-flash
       MUSIC_GEN: qwen:fun-music-v1
@@ -238,7 +238,7 @@ aaf:
 
   # AAF 内容创作 Agent（基于 agentscope 2.0 HarnessAgent）
   agentscope:
-    content-creation:
+    assistant:
       enabled: true
       main-agent-id: assistant
       editor-agent-id: editor
@@ -266,7 +266,7 @@ agentscope:
     emit-tool-call-args: true
     enable-reasoning: true
     enable-path-routing: true
-    default-agent-id: content-creation
+    default-agent-id: assistant
     agent-id-header: X-Agent-Id
     server-side-memory: true
     max-thread-sessions: 1000

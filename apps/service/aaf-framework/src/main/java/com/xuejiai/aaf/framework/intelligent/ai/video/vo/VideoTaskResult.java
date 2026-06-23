@@ -26,7 +26,10 @@ public class VideoTaskResult implements AiUsage {
     /** 实际生成分辨率，如 "720p"/"1080p"，供 PER_UNIT 结算使用。 */
     private String resolution;
 
-    /** 兼容旧调用（无 resolution）。 */
+    /** 官方返回的错误信息（失败时填充）。 */
+    private String errorMessage;
+
+    /** 兼容旧调用（无 resolution / errorMessage）。 */
     public VideoTaskResult(
             String taskId,
             TaskStatus status,
@@ -35,7 +38,20 @@ public class VideoTaskResult implements AiUsage {
             String submitTime,
             String endTime,
             Integer duration) {
-        this(taskId, status, videoUrl, origPrompt, submitTime, endTime, duration, null);
+        this(taskId, status, videoUrl, origPrompt, submitTime, endTime, duration, null, null);
+    }
+
+    /** 兼容旧调用（有 resolution，无 errorMessage）。 */
+    public VideoTaskResult(
+            String taskId,
+            TaskStatus status,
+            String videoUrl,
+            String origPrompt,
+            String submitTime,
+            String endTime,
+            Integer duration,
+            String resolution) {
+        this(taskId, status, videoUrl, origPrompt, submitTime, endTime, duration, resolution, null);
     }
 
     @Override

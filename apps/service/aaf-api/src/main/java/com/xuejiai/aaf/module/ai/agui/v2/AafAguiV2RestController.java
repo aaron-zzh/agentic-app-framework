@@ -69,8 +69,10 @@ public class AafAguiV2RestController extends AguiRestController {
     private final OperatorContext operatorContext;
     private final ConversationContextResolver contextResolver;
     private final StringRedisTemplate redisTemplate;
+
     /** 访客（未登录）每个 anonymousId 最多允许的对话轮次 */
     private static final int GUEST_MAX_ROUNDS = 20;
+
     private final ExecutorService executor =
             Executors.newCachedThreadPool(
                     r -> {
@@ -160,15 +162,19 @@ public class AafAguiV2RestController extends AguiRestController {
         if (ctx.userId() == null) {
             resolvedAgentId = "customer-service";
             // 检查访客对话轮次（以 anonymousId 为 key，永久累计，超限拒绝）
-            String anonymousId = forwardedProps != null
-                    ? (String) forwardedProps.get("anonymousId") : null;
+            String anonymousId =
+                    forwardedProps != null ? (String) forwardedProps.get("anonymousId") : null;
             if (anonymousId != null && !anonymousId.isBlank()) {
                 String roundKey = "guest:agui:rounds:" + anonymousId;
                 Long rounds = redisTemplate.opsForValue().increment(roundKey);
                 if (rounds != null && rounds > GUEST_MAX_ROUNDS) {
                     log.info("[AAF-AGUI] 访客超出对话限制 anonymousId={} rounds={}", anonymousId, rounds);
                     SseEmitter limited = new SseEmitter(5_000L);
-                    sendErrorAndComplete(limited, threadId, runId, "访客对话次数已达上限（" + GUEST_MAX_ROUNDS + "轮），请注册后继续使用");
+                    sendErrorAndComplete(
+                            limited,
+                            threadId,
+                            runId,
+                            "访客对话次数已达上限（" + GUEST_MAX_ROUNDS + "轮），请注册后继续使用");
                     return limited;
                 }
             }

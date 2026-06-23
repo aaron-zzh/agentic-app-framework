@@ -13,16 +13,13 @@ import { ArrowLeft, FolderKanban, LayoutGrid, MessageSquare, PenSquare } from "l
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useState } from "react"
-import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
+import { GlowButton, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AigcView } from "@/features/aigc/project/AigcView"
 import { GlobalDndContext } from "@/features/dnd/GlobalDndContext"
 import { ProjectCanvas } from "@/features/studio/projects/ProjectCanvas"
-import {
-  useAigcProject,
-  useAigcProjectSummary
-} from "@/lib/queries/use-aigc-projects"
+import { useAigcProject, useAigcProjectSummary } from "@/lib/queries/use-aigc-projects"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { cn } from "@/lib/utils/index"
 
@@ -65,7 +62,9 @@ export default function StudioProjectDetailPage() {
         <FolderKanban className="size-12 opacity-30" />
         <p className="text-sm">项目不存在或已删除</p>
         <Link href="/studio/projects">
-          <GlowButton tone="ghost" size="sm">返回项目列表</GlowButton>
+          <GlowButton tone="ghost" size="sm">
+            返回项目列表
+          </GlowButton>
         </Link>
       </div>
     )
@@ -86,8 +85,12 @@ export default function StudioProjectDetailPage() {
             <div className="leading-tight">
               <h1 className="font-semibold text-base">{project.name}</h1>
               <div className="mt-0.5 flex items-center gap-2 text-muted-foreground text-xs">
-                <NeonChip tone="violet" size="sm">{project.type}</NeonChip>
-                <NeonChip tone="neutral" size="sm" dot>{project.status}</NeonChip>
+                <NeonChip tone="violet" size="sm">
+                  {project.type}
+                </NeonChip>
+                <NeonChip tone="neutral" size="sm" dot>
+                  {project.status}
+                </NeonChip>
                 {summary && (
                   <span className="text-muted-foreground/80">
                     {summary.contentCount} 内容 · {summary.assetCount} 资产

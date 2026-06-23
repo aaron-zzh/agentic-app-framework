@@ -41,7 +41,7 @@ export function SlotDevTrigger() {
         render={
           <button
             type="button"
-            className="fixed right-4 bottom-20 z-40 flex size-10 items-center justify-center rounded-full bg-amber-500/90 text-white shadow-amber-500/30 shadow-lg transition-transform hover:scale-105"
+            className="fixed bottom-20 left-20 z-40 flex size-10 items-center justify-center rounded-full bg-amber-500/90 text-white shadow-amber-500/30 shadow-lg transition-transform hover:scale-105"
             aria-label="演示触发器（开发期）"
           />
         }
@@ -49,7 +49,7 @@ export function SlotDevTrigger() {
         <Wand2 className="size-4" />
       </PopoverTrigger>
       <PopoverContent side="left" align="end" className="w-56 p-0">
-        <div className="border-foreground/[0.06] border-b px-3 py-2">
+        <div className="border-foreground/6 border-b px-3 py-2">
           <p className="font-medium text-xs">演示触发器</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             模拟后端 WS 推送动态面板（仅开发期）
@@ -61,7 +61,7 @@ export function SlotDevTrigger() {
               key={d.label}
               type="button"
               onClick={() => open({ panelType: d.panelType, payload: d.payload })}
-              className="block w-full px-3 py-1.5 text-left text-xs transition-colors hover:bg-foreground/[0.04]"
+              className="block w-full px-3 py-1.5 text-left text-xs transition-colors hover:bg-foreground/4"
             >
               {d.label}
             </button>

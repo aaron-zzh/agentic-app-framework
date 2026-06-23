@@ -93,6 +93,7 @@ interface SkillDefinitionRepository
      */
     @org.springframework.data.jpa.repository.Query(
             "SELECT s FROM SkillDefinition s WHERE s.ownerId IS NULL "
+                    + "AND s.category IS NOT NULL "
                     + "AND (:category IS NULL OR s.category = :category) "
                     + "AND (:activeOnly = false OR s.status = 'active') "
                     + "ORDER BY s.priority DESC")

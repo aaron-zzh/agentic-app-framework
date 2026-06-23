@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils/cn"
 function collectDevLogs(nodes: DocTreeNode[]): DocTreeNode[] {
   const result: DocTreeNode[] = []
   for (const node of nodes) {
-    if (!node.isDir && node.path.includes("dev-log")) {
+    if (!node.isDirectory && node.path.includes("dev-log")) {
       result.push(node)
     }
     if (node.children?.length) {

@@ -84,7 +84,13 @@ export function NotificationDrawer({ notificationsUrl }: { notificationsUrl?: st
   )
 }
 
-function NotificationPanel({ onClose, notificationsUrl }: { onClose: () => void; notificationsUrl?: string }) {
+function NotificationPanel({
+  onClose,
+  notificationsUrl
+}: {
+  onClose: () => void
+  notificationsUrl?: string
+}) {
   const { data: all } = useNotifications()
   const { mutate: markRead } = useMarkRead()
 
@@ -138,7 +144,9 @@ function NotificationPanel({ onClose, notificationsUrl }: { onClose: () => void;
           variant="outline"
           className="w-full"
           nativeButton={false}
-          render={<Link href={notificationsUrl ?? paths.workspace.notifications} onClick={onClose} />}
+          render={
+            <Link href={notificationsUrl ?? paths.workspace.notifications} onClick={onClose} />
+          }
         >
           查看全部通知
         </Button>

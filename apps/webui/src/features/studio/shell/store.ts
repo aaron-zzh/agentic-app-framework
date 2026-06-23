@@ -69,7 +69,14 @@ function genTabId(workspace: StudioWorkspace, uniqueKey?: string): string {
 
 const initialState = {
   tabs: [
-    { id: "home", workspace: "home" as StudioWorkspace, title: "首页", url: "/studio", scrollY: 0, pinned: true }
+    {
+      id: "home",
+      workspace: "home" as StudioWorkspace,
+      title: "首页",
+      url: "/studio",
+      scrollY: 0,
+      pinned: true
+    }
   ] as StudioTab[],
   activeId: "home" as string | null,
   sidebarCollapsed: true,

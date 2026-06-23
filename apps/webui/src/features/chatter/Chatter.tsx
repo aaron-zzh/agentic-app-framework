@@ -65,7 +65,17 @@ function resolveLayout(
 }
 
 export function Chatter(props: ChatterProps) {
-  const { preset, layout, persist, open, onOpenChange, onLayoutChange, toolbar, onDrop } = props
+  const {
+    preset,
+    layout,
+    persist,
+    open,
+    onOpenChange,
+    onLayoutChange,
+    toolbar,
+    onDrop,
+    hideToolbar
+  } = props
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const effectiveLayout = resolveLayout(layout, preset, isAuthenticated)
 
@@ -127,7 +137,7 @@ export function Chatter(props: ChatterProps) {
       >
         <ChatterPanel
           toolbar={
-            preset === "livechat" || preset === "guest" ? null : (
+            hideToolbar || preset === "livechat" || preset === "guest" ? null : (
               <ChatterToolbar
                 preset={preset}
                 target={target}

@@ -42,7 +42,7 @@ public class AiAutoConfiguration {
                                                 ? properties.getDefaultModel()
                                                 : "deepseek:chat",
                                 CapabilityRoutingContext.CAP_IMAGE_GEN, "qwen:wan2.7-image",
-                                CapabilityRoutingContext.CAP_VIDEO_GEN, "qwen:happyhorse-1.0-i2v",
+                                CapabilityRoutingContext.CAP_VIDEO_GEN, "qwen:happyhorse-1.1-i2v",
                                 CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen:fun-asr-realtime",
                                 CapabilityRoutingContext.CAP_SPEECH_TTS, "qwen:cosyvoice-v3-flash",
                                 CapabilityRoutingContext.CAP_MUSIC_GEN, "qwen:fun-music-v1",

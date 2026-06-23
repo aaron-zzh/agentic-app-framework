@@ -8,7 +8,6 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { SectionHaze } from "@/components/studio"
 import { $url } from "@/lib/utils"
 
 const WELCOME_KEY = "aaf:lastWelcomeAt"
@@ -18,14 +17,22 @@ export default function StudioWelcomePage() {
 
   useEffect(() => {
     localStorage.setItem(WELCOME_KEY, String(Date.now()))
-    const timer = setTimeout(() => router.replace("/studio"), 2500)
+    const timer = setTimeout(() => router.replace("/studio"), 3000)
     return () => clearTimeout(timer)
   }, [router])
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-background">
-      <SectionHaze variant="violet" className="opacity-60" />
-
+    <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_#1e1b4b_0%,_#0f172a_40%,_#020617_100%)]">
+      {/* 背景视频 */}
+      <video
+        className="absolute inset-0 size-full object-cover opacity-50"
+        src={$url.cdn("/assets/videos/welcome-bg.mp4")}
+        poster={$url.cdn("/assets/videos/welcome-bg.jpg")}
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
       <div className="relative flex size-[140px] items-center justify-center">
         <div className="animate-[pulse_2s_ease-in-out_infinite]">
           {/* biome-ignore lint/performance/noImgElement: welcome splash */}
@@ -37,14 +44,13 @@ export default function StudioWelcomePage() {
 
       <div className="mt-8 text-center">
         <h1 className="font-bold text-2xl tracking-tight">正在进入驾驶舱</h1>
-        <p className="mt-2 text-muted-foreground text-sm">AI 原生创作工作室</p>
       </div>
 
       {/* 进度条 */}
       <div className="relative mt-6 h-0.5 w-32 overflow-hidden rounded-full bg-foreground/10">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500"
-          style={{ animation: "welcomeProgress 2.5s linear forwards" }}
+          className="absolute inset-y-0 left-0 rounded-full bg-linear-to-r from-violet-500 to-cyan-500"
+          style={{ animation: "welcomeProgress 3s linear forwards" }}
         />
       </div>
       <style>{`@keyframes welcomeProgress { from { width: 0% } to { width: 100% } }`}</style>

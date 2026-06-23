@@ -29,6 +29,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * AIGC 统一任务接口——提交生成任务、订阅实时事件、查询任务列表。
@@ -37,6 +38,7 @@ import lombok.RequiredArgsConstructor;
  */
 @FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 统一任务")
+@Slf4j
 @RestController
 @RequestMapping("/api/aigc/tasks")
 @RequiredArgsConstructor
@@ -46,6 +48,7 @@ public class AigcTaskController
     private final AigcTaskService taskService;
     private final AigcTaskEventService eventService;
     private final OperatorContext operatorContext;
+    private final com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository taskRepository;
 
     @Override
     protected BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> getService() {
@@ -88,7 +91,37 @@ public class AigcTaskController
             String model,
             /** 所属项目 ID，null 表示全局任务 */
             Long projectId,
+            /** 技能专属系统提示词（来自 SkillDefinition），执行时注入到 prompt 语境 */
+            String systemPrompt,
             Map<String, Object> params) {}
+
+    /** 预估积分消耗——不提交任务，仅返回积分数。 */
+    @Operation(summary = "预估 AIGC 任务积分消耗")
+    @PostMapping("/estimate")
+    public Result<Long> estimate(@RequestBody SubmitTaskDTO dto) {
+        Long userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
+        try {
+            long credits =
+                    taskService.estimateCredits(
+                            userId,
+                            dto.type(),
+                            dto.model(),
+                            dto.params() != null ? dto.params() : java.util.Map.of());
+            return Result.success(credits);
+        } catch (Exception e) {
+            // 模型未配置、路由失败或参数不足时返回 null，前端显示"费用以后台为准"
+            log.debug(
+                    "[积分预估] 预估失败（忽略）: type={}, model={}, msg={}",
+                    dto.type(),
+                    dto.model(),
+                    e.getMessage());
+            return Result.success(null);
+        }
+    }
 
     /**
      * 提交生成任务（IMAGE / VIDEO / MODEL_3D）。
@@ -194,6 +227,10 @@ public class AigcTaskController
                             throw new BusinessException(
                                     GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + dto.type());
                 };
+        // 技能 systemPrompt 回写（不影响任务提交本身）
+        if (dto.systemPrompt() != null && !dto.systemPrompt().isBlank()) {
+            taskService.setSystemPrompt(taskId, dto.systemPrompt());
+        }
         return Result.success(taskId);
     }
 
@@ -211,6 +248,19 @@ public class AigcTaskController
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         return eventService.subscribe(userId);
+    }
+
+    /** 统计今日生成任务数。 */
+    @Operation(summary = "今日生成任务数")
+    @GetMapping("/today-count")
+    public Result<Long> todayCount() {
+        Long userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
+        var todayStart = java.time.LocalDate.now().atStartOfDay();
+        return Result.success(taskRepository.countByUserIdAndCreateTimeAfter(userId, todayStart));
     }
 
     /** 查询我的任务列表（分页）。 */

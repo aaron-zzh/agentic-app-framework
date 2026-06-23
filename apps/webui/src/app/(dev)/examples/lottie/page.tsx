@@ -216,6 +216,46 @@ export default function LottieDemoPage() {
           </p>
         </div>
 
+        {/* ── 所有图标总览 ── */}
+        <div>
+          <h2 className="mb-1 font-semibold text-lg">图标总览</h2>
+          <p className="mb-4 text-muted-foreground text-sm">
+            <code className="rounded bg-muted px-1 text-xs">/assets/icons/lottie/</code>{" "}
+            下所有可用动画，悬停预览播放。
+          </p>
+          <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5">
+            {[
+              "404",
+              "ai-processing",
+              "cat",
+              "confetti",
+              "dashboard",
+              "dashboard-1",
+              "design",
+              "dislike",
+              "error",
+              "lupuorrc",
+              "premium",
+              "robot",
+              "success",
+              "voice",
+              "warning"
+            ].map((name) => (
+              <div
+                key={name}
+                className="flex flex-col items-center gap-2 rounded-lg border p-4 hover:bg-muted/50"
+              >
+                <LottieIcon name={name} width={96} height={96} loop={false} playOnHover />
+                <span className="w-full truncate text-center font-mono text-muted-foreground text-xs">
+                  {name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
         {/* ── 基础能力 ── */}
         <div>
           <h2 className="mb-4 font-semibold text-lg">基础能力</h2>

@@ -4,6 +4,7 @@
  */
 
 import { create } from "zustand"
+import type { AiSkillVO } from "@/lib/queries/use-ai-skills"
 import type { MediaAssetVO } from "./types"
 
 interface AigcStore {
@@ -53,6 +54,8 @@ interface AigcStore {
     error?: string
     asset?: MediaAssetVO
   }>
+  /** 当前选中的技能（用于在 HomeChatLauncher 等入口附加 systemPrompt） */
+  selectedSkill: AiSkillVO | null
   /** 生成类型：image=AI生图 video=AI视频 */
   generationType: "IMAGE_GEN" | "VIDEO_GEN" | "VOICE" | "MUSIC"
   /** 视频时长（秒） */
@@ -92,6 +95,7 @@ interface AigcStore {
 
   setGenerationPanelOpen: (open: boolean) => void
   setStoryboardPanelOpen: (open: boolean) => void
+  setSelectedSkill: (skill: AiSkillVO | null) => void
   setGenerationType: (type: "IMAGE_GEN" | "VIDEO_GEN" | "VOICE" | "MUSIC") => void
   setAgentRole: (roleId: string) => void
   setCopywritingPanelOpen: (open: boolean) => void
@@ -140,6 +144,7 @@ interface AigcStore {
 
 export const useAigcStore = create<AigcStore>((set, _get) => ({
   generationPanelOpen: false,
+  selectedSkill: null,
   generationType: "IMAGE_GEN",
   videoDuration: "5s",
   copywritingPanelOpen: false,
@@ -179,6 +184,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
 
   setGenerationPanelOpen: (open) => set({ generationPanelOpen: open }),
   setStoryboardPanelOpen: (open) => set({ storyboardPanelOpen: open }),
+  setSelectedSkill: (skill) => set({ selectedSkill: skill }),
   setGenerationType: (type) => set({ generationType: type }),
   setAgentRole: (roleId) => set({ agentRole: roleId }),
   setCopywritingPanelOpen: (open) => set({ copywritingPanelOpen: open }),

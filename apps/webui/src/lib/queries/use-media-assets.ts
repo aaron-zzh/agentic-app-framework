@@ -51,6 +51,26 @@ export function useMediaAssetDetail(id: number | null) {
   })
 }
 
+/** 更新素材（名称/标签/分类） */
+export function useUpdateMediaAsset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...dto
+    }: {
+      id: number
+      name?: string
+      tags?: string
+      categoryId?: number | null
+    }) => mediaAssetApi.update(id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
+    }
+  })
+}
+
 /** 删除素材 */
 export function useDeleteMediaAsset() {
   const queryClient = useQueryClient()
@@ -90,6 +110,25 @@ export function useMediaCategories() {
     queryKey: KEYS.categories,
     queryFn: () => mediaAssetApi.getCategories(),
     staleTime: 5 * 60 * 1000
+  })
+}
+
+/** 创建分类 */
+export function useCreateCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (dto: { name: string; parentId?: number | null }) =>
+      mediaAssetApi.createCategory(dto),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEYS.categories })
+  })
+}
+
+/** 删除分类 */
+export function useDeleteCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => mediaAssetApi.deleteCategory(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEYS.categories })
   })
 }
 

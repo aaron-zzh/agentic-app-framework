@@ -5,7 +5,9 @@
 
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
+import { GlassCard } from "@/components/studio"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,8 +25,6 @@ import {
 import { cn } from "@/lib/utils/index"
 import { formatTimeAgo } from "@/lib/utils/time"
 import { NotificationIcon } from "@/sections/layout/notifications/icons"
-import Link from "next/link"
-import { GlassCard } from "@/components/studio"
 
 type Tab = "all" | "unread" | "read"
 
@@ -74,22 +74,33 @@ export default function StudioNotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6 space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 p-6">
       <h1 className="font-semibold text-xl">消息中心</h1>
 
       <Tabs
         value={activeTab}
-        onValueChange={(v) => { setActiveTab(v as Tab); setSelectedIds(new Set()) }}
+        onValueChange={(v) => {
+          setActiveTab(v as Tab)
+          setSelectedIds(new Set())
+        }}
       >
         <div className="flex items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="all">
               全部
-              {allItems.length > 0 && <Badge variant="secondary" className="ml-1.5 text-[10px]">{allItems.length}</Badge>}
+              {allItems.length > 0 && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px]">
+                  {allItems.length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="unread">
               未读
-              {unreadItems.length > 0 && <Badge className="ml-1.5 bg-blue-100 text-[10px] text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{unreadItems.length}</Badge>}
+              {unreadItems.length > 0 && (
+                <Badge className="ml-1.5 bg-blue-100 text-[10px] text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                  {unreadItems.length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="read">已读</TabsTrigger>
           </TabsList>
@@ -111,7 +122,9 @@ export default function StudioNotificationsPage() {
           <Empty className="py-12">
             <EmptyHeader>
               <EmptyTitle>暂无通知</EmptyTitle>
-              <EmptyDescription>{activeTab === "unread" ? "所有通知均已读" : "没有相关通知"}</EmptyDescription>
+              <EmptyDescription>
+                {activeTab === "unread" ? "所有通知均已读" : "没有相关通知"}
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
@@ -120,7 +133,9 @@ export default function StudioNotificationsPage() {
               <Checkbox
                 checked={allSelected}
                 indeterminate={someSelected}
-                onCheckedChange={() => setSelectedIds(allSelected ? new Set() : new Set(currentItems.map((n) => n.id)))}
+                onCheckedChange={() =>
+                  setSelectedIds(allSelected ? new Set() : new Set(currentItems.map((n) => n.id)))
+                }
                 aria-label="全选"
               />
               <span className="text-muted-foreground text-xs">
@@ -148,23 +163,56 @@ export default function StudioNotificationsPage() {
   )
 }
 
-function NotificationRow({ item, selected, onToggle, onRead }: {
-  item: NotificationItem; selected: boolean; onToggle: () => void; onRead?: (id: number) => void
+function NotificationRow({
+  item,
+  selected,
+  onToggle,
+  onRead
+}: {
+  item: NotificationItem
+  selected: boolean
+  onToggle: () => void
+  onRead?: (id: number) => void
 }) {
-  const handleNavigate = () => { if (!item.isRead) onRead?.(item.id) }
+  const handleNavigate = () => {
+    if (!item.isRead) onRead?.(item.id)
+  }
   const titleEl = (
-    <p className={cn("text-sm", !item.isRead && "font-medium", item.relatedUrl && "text-blue-600 dark:text-blue-400")}>
+    <p
+      className={cn(
+        "text-sm",
+        !item.isRead && "font-medium",
+        item.relatedUrl && "text-blue-600 dark:text-blue-400"
+      )}
+    >
       {item.title}
     </p>
   )
   return (
-    <li className={cn("flex items-start gap-3 border-b border-dashed px-4 py-3 last:border-0", !item.isRead && "bg-primary/5", selected && "bg-accent")}>
-      <Checkbox className="mt-1 shrink-0" checked={selected} onCheckedChange={onToggle} aria-label={`选择通知: ${item.title}`} />
+    <li
+      className={cn(
+        "flex items-start gap-3 border-b border-dashed px-4 py-3 last:border-0",
+        !item.isRead && "bg-primary/5",
+        selected && "bg-accent"
+      )}
+    >
+      <Checkbox
+        className="mt-1 shrink-0"
+        checked={selected}
+        onCheckedChange={onToggle}
+        aria-label={`选择通知: ${item.title}`}
+      />
       <NotificationIcon type={item.type} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           {item.relatedUrl ? (
-            <Link href={item.relatedUrl} onClick={handleNavigate} className="min-w-0 flex-1 hover:underline">{titleEl}</Link>
+            <Link
+              href={item.relatedUrl}
+              onClick={handleNavigate}
+              className="min-w-0 flex-1 hover:underline"
+            >
+              {titleEl}
+            </Link>
           ) : (
             <div className="min-w-0 flex-1">{titleEl}</div>
           )}

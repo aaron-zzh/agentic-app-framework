@@ -40,6 +40,12 @@ export const mediaAssetApi = {
   /** 获取单条素材详情 */
   getById: (id: number): Promise<MediaAssetVO> => backendApi.get<MediaAssetVO>(`${API_PATH}/${id}`),
 
+  /** 更新素材（名称/标签/分类） */
+  update: (
+    id: number,
+    dto: { name?: string; tags?: string; categoryId?: number | null }
+  ): Promise<MediaAssetVO> => backendApi.put<MediaAssetVO>(`${API_PATH}/${id}`, dto),
+
   /** 删除素材 */
   delete: (id: number): Promise<void> => backendApi.delete<void>(`${API_PATH}/${id}`),
 
@@ -54,6 +60,22 @@ export const mediaAssetApi = {
   /** 获取分类树 */
   getCategories: (): Promise<MediaCategoryVO[]> =>
     backendApi.get<MediaCategoryVO[]>("/aigc/categories"),
+
+  /** 创建分类 */
+  createCategory: (dto: {
+    name: string
+    parentId?: number | null
+    sortOrder?: number
+  }): Promise<MediaCategoryVO> => backendApi.post<MediaCategoryVO>("/aigc/categories", dto),
+
+  /** 更新分类 */
+  updateCategory: (
+    id: number,
+    dto: { name: string; parentId?: number | null; sortOrder?: number }
+  ): Promise<MediaCategoryVO> => backendApi.put<MediaCategoryVO>(`/aigc/categories/${id}`, dto),
+
+  /** 删除分类 */
+  deleteCategory: (id: number): Promise<void> => backendApi.delete<void>(`/aigc/categories/${id}`),
 
   /** 获取标签列表 */
   getTags: (): Promise<MediaTagVO[]> => backendApi.get<MediaTagVO[]>("/aigc/tags"),

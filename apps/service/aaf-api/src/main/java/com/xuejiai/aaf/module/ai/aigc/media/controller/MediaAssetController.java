@@ -44,13 +44,31 @@ public class MediaAssetController {
             @RequestParam(required = false) MediaAssetType type,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean aiGenerated,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(defaultValue = "createTime:desc") String sort) {
         Long userId = operatorContext.currentUserId().orElseThrow();
         var springPage =
-                assetService.page(userId, type, categoryId, projectId, PageRequest.of(page, size));
+                assetService.page(
+                        userId,
+                        type,
+                        categoryId,
+                        projectId,
+                        search,
+                        aiGenerated,
+                        sort,
+                        PageRequest.of(page, pageSize));
         return Result.success(
                 new PageResult<>(springPage.getContent(), springPage.getTotalElements()));
+    }
+
+    @Operation(summary = "统计 AI 生成素材数量")
+    @GetMapping("/ai-count")
+    public Result<Long> aiCount() {
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        return Result.success(assetService.countAiGenerated(userId));
     }
 
     @Operation(summary = "搜索素材")

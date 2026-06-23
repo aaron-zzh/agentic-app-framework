@@ -7,55 +7,54 @@
 
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
 import { CheckSquare, FolderKanban, Sparkles, Wallet } from "lucide-react"
-import { useMemo } from "react"
 import { DataCapsule } from "@/components/studio"
-import { useAigcProjects } from "@/lib/queries/use-aigc-projects"
+import { request } from "@/lib/api/rest/entity/crud"
 import { useCreditBalance } from "@/lib/queries/use-credits"
-import { useGenerationHistory } from "@/lib/queries/use-generation-history"
-import { useTodos } from "@/lib/queries/use-todos"
+
+function useTodayTaskCount() {
+  return useQuery({
+    queryKey: ["aigc", "tasks", "today-count"] as const,
+    queryFn: () => request<number>("/aigc/tasks/today-count")
+  })
+}
+
+function useAiAssetCount() {
+  return useQuery({
+    queryKey: ["aigc", "assets", "ai-count"] as const,
+    queryFn: () => request<number>("/aigc/assets/ai-count")
+  })
+}
+
+function useDocCount() {
+  return useQuery({
+    queryKey: ["docs", "count"] as const,
+    queryFn: () => request<number>("/docs/count")
+  })
+}
 
 export function HomeDataCapsules() {
-  const { data: projects, isLoading: projectsLoading } = useAigcProjects({ pageSize: 1 })
   const { data: balance, isLoading: balanceLoading } = useCreditBalance()
-
-  // 今日生成：拉最近 100 条，过滤 createTime 为今日
-  const { data: historyPage, isLoading: histLoading } = useGenerationHistory(0, 100)
-  const todayCount = useMemo(() => {
-    if (!historyPage) return 0
-    const todayStr = new Date().toDateString()
-    return (historyPage.list ?? []).filter((item) => {
-      try {
-        const t =
-          (item as { createTime?: string; createdAt?: string }).createTime ??
-          (item as { createdAt?: string }).createdAt ??
-          ""
-        return new Date(t).toDateString() === todayStr
-      } catch {
-        return false
-      }
-    }).length
-  }, [historyPage])
-
-  // 待办任务：未完成数
-  const { data: todosPage, isLoading: todosLoading } = useTodos({ status: "pending", pageSize: 1 })
-  const pendingTodos = todosPage?.total ?? 0
+  const { data: todayCount, isLoading: todayLoading } = useTodayTaskCount()
+  const { data: aiAssetCount, isLoading: aiAssetLoading } = useAiAssetCount()
+  const { data: docCount, isLoading: docLoading } = useDocCount()
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <DataCapsule
         label="今日生成"
-        value={todayCount}
+        value={todayCount ?? 0}
         unit="次"
-        loading={histLoading}
+        loading={todayLoading}
         icon={<Sparkles className="size-4" />}
         tone="violet"
       />
       <DataCapsule
-        label="作品总数"
-        value={projects?.total ?? 0}
+        label="AI 素材"
+        value={aiAssetCount ?? 0}
         unit="个"
-        loading={projectsLoading}
+        loading={aiAssetLoading}
         icon={<FolderKanban className="size-4" />}
         tone="cyan"
       />
@@ -67,10 +66,10 @@ export function HomeDataCapsules() {
         tone="amber"
       />
       <DataCapsule
-        label="待办任务"
-        value={pendingTodos}
-        unit="项"
-        loading={todosLoading}
+        label="我的文档"
+        value={docCount ?? 0}
+        unit="篇"
+        loading={docLoading}
         icon={<CheckSquare className="size-4" />}
         tone="emerald"
       />

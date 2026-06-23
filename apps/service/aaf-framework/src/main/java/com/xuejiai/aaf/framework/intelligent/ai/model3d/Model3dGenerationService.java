@@ -58,7 +58,7 @@ public interface Model3dGenerationService extends AiCapability {
     }
 
     /** 从 params_config 查价格，找不到时兜底用 model_price。 */
-    private static double lookupPrice(AiModel model, String source, String texture) {
+    static double lookupPrice(AiModel model, String source, String texture) {
         if (model == null) return 2.1;
         var pc = model.getParamsConfigParsed(Model3dParamsConfig.class);
         if (pc != null && pc.pricing() != null) {

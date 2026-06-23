@@ -39,7 +39,21 @@ const glowButtonVariants = cva(
         ),
         // 描边幽灵：边框 + hover 填光
         ghost:
-          "border-foreground/15 bg-transparent text-foreground hover:border-foreground/30 hover:bg-foreground/[0.04] active:translate-y-px"
+          "border-foreground/15 bg-transparent text-foreground hover:border-foreground/30 hover:bg-foreground/[0.04] active:translate-y-px",
+        // 翠绿
+        emerald: cn(
+          "text-white",
+          "bg-gradient-to-br from-[oklch(0.55_0.18_150)] to-[oklch(0.50_0.18_170)]",
+          "shadow-[0_0_0_1px_rgb(255_255_255_/_0.08)_inset,0_4px_16px_-4px_oklch(0.55_0.18_155_/_0.4)]",
+          "hover:brightness-110 active:translate-y-px"
+        ),
+        // 玫红
+        rose: cn(
+          "text-white",
+          "bg-gradient-to-br from-[oklch(0.60_0.22_10)] to-[oklch(0.55_0.22_350)]",
+          "shadow-[0_0_0_1px_rgb(255_255_255_/_0.08)_inset,0_4px_16px_-4px_oklch(0.58_0.22_5_/_0.4)]",
+          "hover:brightness-110 active:translate-y-px"
+        )
       },
       size: {
         sm: "h-8 px-3 text-[0.8rem]",

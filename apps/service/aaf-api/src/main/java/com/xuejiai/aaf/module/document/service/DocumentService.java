@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.document.domain.DocLink;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocLinkRepository;
@@ -31,6 +32,7 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final DocLinkRepository docLinkRepository;
     private final DocImportService docImportService;
+    private final OperatorContext operatorContext;
 
     /** SSE 订阅者（docId=0 表示全局订阅） */
     private final ConcurrentHashMap<Long, CopyOnWriteArrayList<SseEmitter>> subscribers =
@@ -39,15 +41,22 @@ public class DocumentService {
     public DocumentService(
             DocumentRepository documentRepository,
             DocLinkRepository docLinkRepository,
-            DocImportService docImportService) {
+            DocImportService docImportService,
+            OperatorContext operatorContext) {
         this.documentRepository = documentRepository;
         this.docLinkRepository = docLinkRepository;
         this.docImportService = docImportService;
+        this.operatorContext = operatorContext;
     }
 
-    /** 获取文档树（按 file_path 构建层级结构）。 */
+    /** 获取文档树（按当前用户 ownerId 过滤）。 */
     public List<DocTreeNodeVO> getTree() {
-        List<Document> docs = documentRepository.findByStatusOrderByFilePath("active");
+        Long ownerId = operatorContext.currentUserId().orElse(null);
+        List<Document> docs =
+                ownerId != null
+                        ? documentRepository.findByOwnerIdAndStatusOrderByCreateTimeDesc(
+                                ownerId, "active")
+                        : documentRepository.findByStatusOrderByFilePath("active");
         return buildTree(docs);
     }
 
@@ -121,12 +130,21 @@ public class DocumentService {
         doc.setContent(content);
         doc.setStatus("active");
         doc.setPublish(dto.publish() != null ? dto.publish() : "draft");
+        doc.setOwnerId(operatorContext.currentUserId().orElse(null));
         documentRepository.save(doc);
 
         // 提取链接关系
         docImportService.extractLinks();
 
-        return new DocTreeNodeVO(doc.getId(), doc.getTitle(), doc.getFilePath(), false, List.of());
+        return new DocTreeNodeVO(
+                doc.getId(),
+                doc.getTitle(),
+                doc.getTitle(),
+                doc.getFilePath(),
+                false,
+                doc.getDocType(),
+                doc.getPublish(),
+                List.of());
     }
 
     /** 订阅文档变更事件（SSE）。 */
@@ -284,7 +302,14 @@ public class DocumentService {
                                 k -> {
                                     var node =
                                             new DocTreeNodeVO(
-                                                    null, parts[idx], k, true, new ArrayList<>());
+                                                    null,
+                                                    parts[idx],
+                                                    null,
+                                                    k,
+                                                    true,
+                                                    null,
+                                                    null,
+                                                    new ArrayList<>());
                                     if (parentRef == null) roots.add(node);
                                     else parentRef.children().add(node);
                                     return node;
@@ -292,7 +317,16 @@ public class DocumentService {
                 parent = dir;
             }
 
-            var leaf = new DocTreeNodeVO(doc.getId(), doc.getTitle(), path, false, List.of());
+            var leaf =
+                    new DocTreeNodeVO(
+                            doc.getId(),
+                            doc.getTitle(),
+                            doc.getTitle(),
+                            path,
+                            false,
+                            doc.getDocType(),
+                            doc.getPublish(),
+                            List.of());
             if (parent != null) parent.children().add(leaf);
             else roots.add(leaf);
         }

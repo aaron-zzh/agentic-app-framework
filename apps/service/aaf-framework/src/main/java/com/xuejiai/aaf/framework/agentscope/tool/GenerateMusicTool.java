@@ -37,8 +37,7 @@ public class GenerateMusicTool {
     public String generate_music(
             @ToolParam(
                             name = "requestJson",
-                            description =
-                                    "JSON 参数，如 {\"prompt\":\"轻松愉快的钢琴曲，适合咖啡厅背景音乐\"}")
+                            description = "JSON 参数，如 {\"prompt\":\"轻松愉快的钢琴曲，适合咖啡厅背景音乐\"}")
                     String requestJson) {
         Long userId = AafContextHolder.userId();
         log.info("[GenerateMusicTool] userId={} requestJson={}", userId, requestJson);
@@ -49,8 +48,8 @@ public class GenerateMusicTool {
 
         try {
             Long taskId = taskSubmitter.apply(userId, requestJson);
-            return GenerateImageTool.buildUiBlockJson("music", taskId,
-                    GenerateImageTool.extractPrompt(requestJson));
+            return GenerateImageTool.buildUiBlockJson(
+                    "music", taskId, GenerateImageTool.extractPrompt(requestJson));
         } catch (Exception e) {
             log.warn("[GenerateMusicTool] 提交失败: {}", e.getMessage());
             return GenerateImageTool.errorJson(e.getMessage());

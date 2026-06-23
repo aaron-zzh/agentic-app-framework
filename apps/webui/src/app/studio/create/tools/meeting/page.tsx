@@ -11,10 +11,17 @@ import { useCallback, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { toast } from "sonner"
-import { GlassCard, GlassCardBody, GlassCardHeader, GlassCardTitle, GlowButton, SectionHaze } from "@/components/studio"
+import {
+  GlassCard,
+  GlassCardBody,
+  GlassCardHeader,
+  GlassCardTitle,
+  GlowButton,
+  SectionHaze
+} from "@/components/studio"
 import { Button } from "@/components/ui/button"
-import { RichTextEditor } from "@/features/rich-text-editor"
 import type { RichTextEditorHandle } from "@/features/rich-text-editor"
+import { RichTextEditor } from "@/features/rich-text-editor"
 import { buildWsUrl } from "@/lib/api/config"
 import { meetingApi } from "@/lib/api/rest/ai/meeting"
 import { documentApi } from "@/lib/api/rest/system/document"
@@ -56,7 +63,9 @@ export default function StudioToolsMeetingPage() {
     ws.onopen = async () => {
       setStatus("connected")
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } })
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: 16000, channelCount: 1 }
+        })
         streamRef.current = stream
         const audioCtx = new AudioContext({ sampleRate: 16000 })
         audioCtxRef.current = audioCtx
@@ -126,9 +135,7 @@ export default function StudioToolsMeetingPage() {
   }
 
   const handleSave = async () => {
-    const content = editMode
-      ? (editorRef.current?.getContent("markdown") ?? summary)
-      : summary
+    const content = editMode ? (editorRef.current?.getContent("markdown") ?? summary) : summary
     if (!content) return
     setSaving(true)
     try {
@@ -136,7 +143,7 @@ export default function StudioToolsMeetingPage() {
       // 取前 10 个非空白字符作为标题后缀
       const snippet = content.replace(/\s+/g, "").slice(0, 10)
       const title = `${date} ${snippet}`
-      await documentApi.create({ title, filePath: `/meeting/${date}`, docType: "meeting", content })
+      await documentApi.create({ title, filePath: "", docType: "meeting", content })
       toast.success("已保存为文档")
     } catch {
       toast.error("保存失败")
@@ -160,11 +167,19 @@ export default function StudioToolsMeetingPage() {
             {transcript && (
               <>
                 <GlowButton tone="ghost" size="sm" disabled={summarizing} onClick={handleSummarize}>
-                  {summarizing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {summarizing ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
                   {summarizing ? "整理中..." : "一键整理"}
                 </GlowButton>
                 <GlowButton tone="ghost" size="sm" disabled={saving} onClick={handleSave}>
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : <BookCheck className="size-4" />}
+                  {saving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <BookCheck className="size-4" />
+                  )}
                   {saving ? "保存中..." : "保存文档"}
                 </GlowButton>
               </>
@@ -175,7 +190,12 @@ export default function StudioToolsMeetingPage() {
                 开始录音
               </GlowButton>
             ) : (
-              <GlowButton tone="ghost" size="sm" onClick={handleStop} disabled={status === "connecting"}>
+              <GlowButton
+                tone="ghost"
+                size="sm"
+                onClick={handleStop}
+                disabled={status === "connecting"}
+              >
                 <MicOff className="size-4" />
                 {status === "connecting" ? "连接中..." : "停止录音"}
               </GlowButton>
@@ -195,11 +215,15 @@ export default function StudioToolsMeetingPage() {
             <div className="min-h-48 space-y-1">
               {lines.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  {status === "disconnected" ? "点击【开始录音】后实时显示识别内容..." : "等待识别..."}
+                  {status === "disconnected"
+                    ? "点击【开始录音】后实时显示识别内容..."
+                    : "等待识别..."}
                 </p>
               ) : (
                 lines.map((line, i) => (
-                  <p key={`${i}-${line.slice(0, 8)}`} className="text-sm leading-relaxed">{line}</p>
+                  <p key={`${i}-${line.slice(0, 8)}`} className="text-sm leading-relaxed">
+                    {line}
+                  </p>
                 ))
               )}
             </div>

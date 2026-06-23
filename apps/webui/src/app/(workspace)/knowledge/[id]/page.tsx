@@ -5,7 +5,20 @@
 
 "use client"
 
-import { ChevronDown, ChevronRight, Database, Edit2, FileText, HardDrive, Layers, Loader2, Plus, Save, Trash2, X } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronRight,
+  Database,
+  Edit2,
+  FileText,
+  HardDrive,
+  Layers,
+  Loader2,
+  Plus,
+  Save,
+  Trash2,
+  X
+} from "lucide-react"
 import { use, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +42,7 @@ import { DocumentUpload } from "@/features/knowledge/components/DocumentUpload"
 import { KnowledgeGraph } from "@/features/knowledge/components/KnowledgeGraph"
 import { KnowledgeSettings } from "@/features/knowledge/components/KnowledgeSettings"
 import { SearchTestPanel } from "@/features/knowledge/components/SearchTestPanel"
+import { notify } from "@/lib/notification"
 import {
   useCreateSegment,
   useDeleteSegment,
@@ -41,7 +55,6 @@ import {
   useUpdateSegment
 } from "@/lib/queries/use-knowledge"
 import type { KnowledgeDocument } from "@/lib/types/knowledge"
-import { notify } from "@/lib/notification"
 
 const STATUS_MAP: Record<
   string,
@@ -70,15 +83,23 @@ function SegmentRow({
   const { mutate: toggle } = useToggleSegment(kbId, documentId)
 
   function handleSave() {
-    update({ id: segment.id, content }, {
-      onSuccess: () => { setEditing(false); notify.success("已保存") }
-    })
+    update(
+      { id: segment.id, content },
+      {
+        onSuccess: () => {
+          setEditing(false)
+          notify.success("已保存")
+        }
+      }
+    )
   }
 
   return (
-    <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+    <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground text-xs">#{segment.position} · {segment.wordCount} 字</span>
+        <span className="text-muted-foreground text-xs">
+          #{segment.position} · {segment.wordCount} 字
+        </span>
         <div className="flex items-center gap-1.5">
           <Switch
             checked={segment.enabled}
@@ -87,19 +108,48 @@ function SegmentRow({
           />
           {editing ? (
             <>
-              <Button size="icon" variant="ghost" className="size-6" onClick={handleSave} disabled={updating}>
-                {updating ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                onClick={handleSave}
+                disabled={updating}
+              >
+                {updating ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Save className="size-3" />
+                )}
               </Button>
-              <Button size="icon" variant="ghost" className="size-6" onClick={() => { setEditing(false); setContent(segment.content) }}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                onClick={() => {
+                  setEditing(false)
+                  setContent(segment.content)
+                }}
+              >
                 <X className="size-3" />
               </Button>
             </>
           ) : (
             <>
-              <Button size="icon" variant="ghost" className="size-6" onClick={() => setEditing(true)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                onClick={() => setEditing(true)}
+              >
                 <Edit2 className="size-3" />
               </Button>
-              <Button size="icon" variant="ghost" className="size-6 text-destructive" onClick={() => del(segment.id)} disabled={deleting}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-6 text-destructive"
+                onClick={() => del(segment.id)}
+                disabled={deleting}
+              >
                 <Trash2 className="size-3" />
               </Button>
             </>
@@ -107,9 +157,13 @@ function SegmentRow({
         </div>
       </div>
       {editing ? (
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[80px] text-sm" />
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[80px] text-sm"
+        />
       ) : (
-        <p className="text-sm leading-relaxed line-clamp-3">{segment.content}</p>
+        <p className="line-clamp-3 text-sm leading-relaxed">{segment.content}</p>
       )}
     </div>
   )
@@ -128,20 +182,27 @@ function DocumentRow({ doc, kbId }: { doc: KnowledgeDocument; kbId: string }) {
 
   function handleAddSegment() {
     if (!newContent.trim()) return
-    createSeg({ documentId: doc.id, content: newContent.trim() }, {
-      onSuccess: () => { setAdding(false); setNewContent("") }
-    })
+    createSeg(
+      { documentId: doc.id, content: newContent.trim() },
+      {
+        onSuccess: () => {
+          setAdding(false)
+          setNewContent("")
+        }
+      }
+    )
   }
 
   return (
     <>
-      <TableRow
-        className="cursor-pointer hover:bg-muted/50"
-        onClick={() => setExpanded((v) => !v)}
-      >
+      <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => setExpanded((v) => !v)}>
         <TableCell>
           <span className="flex items-center gap-1.5 font-medium">
-            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+            {expanded ? (
+              <ChevronDown className="size-3.5" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
             {doc.name}
           </span>
         </TableCell>
@@ -158,7 +219,9 @@ function DocumentRow({ doc, kbId }: { doc: KnowledgeDocument; kbId: string }) {
           <TableCell colSpan={6} className="bg-muted/20 p-4">
             {segLoading ? (
               <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16" />
+                ))}
               </div>
             ) : (
               <div className="space-y-2">
@@ -176,15 +239,31 @@ function DocumentRow({ doc, kbId }: { doc: KnowledgeDocument; kbId: string }) {
                     />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={handleAddSegment} disabled={creating}>
-                        {creating ? <Loader2 className="size-3 animate-spin mr-1" /> : null}
+                        {creating ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
                         保存
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setAdding(false); setNewContent("") }}>取消</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setAdding(false)
+                          setNewContent("")
+                        }}
+                      >
+                        取消
+                      </Button>
                     </div>
                   </div>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setAdding(true) }}>
-                    <Plus className="size-3 mr-1" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAdding(true)
+                    }}
+                  >
+                    <Plus className="mr-1 size-3" />
                     添加分块
                   </Button>
                 )}
@@ -218,9 +297,15 @@ export default function KnowledgeDetailPage({ params }: { params: Promise<{ id: 
   }
 
   function handleSave() {
-    updateKb({ id, data: { name: editName, description: editDesc } }, {
-      onSuccess: () => { setEditing(false); notify.success("已保存") }
-    })
+    updateKb(
+      { id, data: { name: editName, description: editDesc } },
+      {
+        onSuccess: () => {
+          setEditing(false)
+          notify.success("已保存")
+        }
+      }
+    )
   }
 
   if (isLoading) {
@@ -228,7 +313,9 @@ export default function KnowledgeDetailPage({ params }: { params: Promise<{ id: 
       <PageContainer>
         <Skeleton className="mb-4 h-8 w-48" />
         <div className="grid gap-4 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={`sk-${i}`} className="h-24" />)}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={`sk-${i}`} className="h-24" />
+          ))}
         </div>
       </PageContainer>
     )
@@ -249,14 +336,25 @@ export default function KnowledgeDetailPage({ params }: { params: Promise<{ id: 
       {editing ? (
         <div className="mb-6 space-y-2">
           <div className="flex items-center gap-2">
-            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="text-xl font-bold h-10 w-80" />
+            <Input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="h-10 w-80 font-bold text-xl"
+            />
             <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="size-3 animate-spin mr-1" /> : null}
+              {saving ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
               保存
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setEditing(false)}>取消</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+              取消
+            </Button>
           </div>
-          <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="简介（可选）" className="max-w-lg" />
+          <Input
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            placeholder="简介（可选）"
+            className="max-w-lg"
+          />
         </div>
       ) : (
         <div className="mb-2 flex items-center gap-2">

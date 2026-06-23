@@ -43,32 +43,35 @@ import reactor.core.publisher.Flux;
  * </ul>
  *
  * <p>URL 来源：消息文本中内嵌的 http/https URL。
+ *
  * <p>文档解析：委托 {@link ImporterFactory}，复用知识库导入管道。
+ *
  * <p>无法解析的格式：在消息末尾追加提示文字，告知模型文件类型不支持。
  */
 public class FileProcessingMiddleware implements MiddlewareBase {
 
     private static final Logger log = LoggerFactory.getLogger(FileProcessingMiddleware.class);
 
-    /** 图片后缀（直接转 ImageBlock，交给视觉模型）*/
-    private static final Set<String> IMAGE_EXTS = Set.of("jpg", "jpeg", "png", "gif", "webp", "svg");
+    /** 图片后缀（直接转 ImageBlock，交给视觉模型） */
+    private static final Set<String> IMAGE_EXTS =
+            Set.of("jpg", "jpeg", "png", "gif", "webp", "svg");
 
-    /** 文档后缀（解析为文本）*/
-    private static final Set<String> DOC_EXTS = Set.of("pdf", "docx", "doc", "md", "txt", "html", "htm");
+    /** 文档后缀（解析为文本） */
+    private static final Set<String> DOC_EXTS =
+            Set.of("pdf", "docx", "doc", "md", "txt", "html", "htm");
 
     /** 消息文本中 URL 提取正则 */
-    private static final Pattern URL_PATTERN = Pattern.compile(
-            "https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern URL_PATTERN =
+            Pattern.compile(
+                    "https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+", Pattern.CASE_INSENSITIVE);
 
     private final ImporterFactory importerFactory;
     private final HttpClient httpClient;
 
     public FileProcessingMiddleware(ImporterFactory importerFactory) {
         this.importerFactory = importerFactory;
-        this.httpClient = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+        this.httpClient =
+                HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
     }
 
     @Override
@@ -119,19 +122,25 @@ public class FileProcessingMiddleware implements MiddlewareBase {
             String ext = extractExt(url);
             if (IMAGE_EXTS.contains(ext)) {
                 // 图片：直接加 ImageBlock（视觉模型原生支持）
-                newBlocks.add(ImageBlock.builder()
-                        .source(new URLSource(url))
-                        .build());
+                newBlocks.add(ImageBlock.builder().source(new URLSource(url)).build());
                 log.debug("[FileProcessing] 图片 URL 转 ImageBlock: {}", url);
             } else if (DOC_EXTS.contains(ext)) {
                 // 文档：下载后解析为文本
                 String docText = parseDocument(url, ext);
                 if (docText != null) {
-                    appendText.append("\n\n---\n📎 文件内容（").append(url).append("）：\n").append(docText);
+                    appendText
+                            .append("\n\n---\n📎 文件内容（")
+                            .append(url)
+                            .append("）：\n")
+                            .append(docText);
                     log.info("[FileProcessing] 文档解析成功: {} ({} 字符)", url, docText.length());
                 }
             } else if (!ext.isEmpty()) {
-                appendText.append("\n\n⚠️ 文件 ").append(url).append(" 格式（.").append(ext)
+                appendText
+                        .append("\n\n⚠️ 文件 ")
+                        .append(url)
+                        .append(" 格式（.")
+                        .append(ext)
                         .append("）暂不支持直接解析，请复制文本内容后粘贴到对话框。");
             }
         }
@@ -168,11 +177,13 @@ public class FileProcessingMiddleware implements MiddlewareBase {
                 log.debug("[FileProcessing] 无对应 importer: {}", ext);
                 return null;
             }
-            HttpRequest req = HttpRequest.newBuilder(URI.create(url))
-                    .GET()
-                    .header("User-Agent", "AAF/1.0")
-                    .build();
-            HttpResponse<InputStream> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofInputStream());
+            HttpRequest req =
+                    HttpRequest.newBuilder(URI.create(url))
+                            .GET()
+                            .header("User-Agent", "AAF/1.0")
+                            .build();
+            HttpResponse<InputStream> resp =
+                    httpClient.send(req, HttpResponse.BodyHandlers.ofInputStream());
             if (resp.statusCode() != 200) {
                 log.warn("[FileProcessing] 下载失败 url={} status={}", url, resp.statusCode());
                 return null;

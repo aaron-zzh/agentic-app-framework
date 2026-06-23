@@ -5,8 +5,9 @@
 
 "use client"
 
-import { ChevronLeft, ChevronRight, Layers, Search, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Layers, Plus, Search, X } from "lucide-react"
 import { useState } from "react"
+import { Lightbox, useLightbox } from "@/components/lightbox"
 import { SceneLayout } from "@/components/r3f/SceneLayout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,11 +24,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
+  useCreateCategory,
+  useDeleteCategory,
   useDeleteMediaAsset,
   useMediaAssetList,
   useMediaCategories,
-  useMediaTags,
-  useRegenerateAsset
+  useMediaTags
 } from "@/lib/queries/use-media-assets"
 import { cn } from "@/lib/utils/index"
 import type { MediaAssetType, MediaCategoryVO } from "../types"
@@ -37,11 +39,13 @@ import { AssetDetailDialog } from "./AssetDetailDialog"
 function CategoryTree({
   categories,
   selectedId,
-  onSelect
+  onSelect,
+  onDelete
 }: {
   categories: MediaCategoryVO[]
   selectedId: number | null
   onSelect: (id: number | null) => void
+  onDelete?: (id: number) => void
 }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -56,20 +60,38 @@ function CategoryTree({
         全部分类
       </button>
       {categories.map((cat) => (
-        <div key={cat.id}>
+        <div key={cat.id} className="group/cat relative">
           <button
             type="button"
             className={cn(
-              "w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted",
+              "w-full rounded-md px-2 py-1.5 pr-6 text-left text-sm transition-colors hover:bg-muted",
               selectedId === cat.id && "bg-muted font-medium"
             )}
             onClick={() => onSelect(cat.id)}
           >
             {cat.name}
           </button>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(cat.id)
+              }}
+              className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded p-0.5 text-muted-foreground opacity-60 hover:bg-destructive/10 hover:text-destructive hover:opacity-100 group-hover/cat:flex"
+              aria-label="删除分类"
+            >
+              <X className="size-3" />
+            </button>
+          )}
           {cat.children.length > 0 && (
             <div className="ml-3">
-              <CategoryTree categories={cat.children} selectedId={selectedId} onSelect={onSelect} />
+              <CategoryTree
+                categories={cat.children}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                onDelete={onDelete}
+              />
             </div>
           )}
         </div>
@@ -81,6 +103,7 @@ function CategoryTree({
 export function AssetLibrary() {
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<MediaAssetType | "ALL">("ALL")
+  const [sourceFilter, setSourceFilter] = useState<"ALL" | "AI" | "UPLOAD">("ALL")
   const [sort, setSort] = useState<"newest" | "oldest">("newest")
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [selectedTags, setSelectedTags] = useState<number[]>([])
@@ -89,9 +112,11 @@ export function AssetLibrary() {
   const [detailId, setDetailId] = useState<number | null>(null)
 
   const deleteMutation = useDeleteMediaAsset()
-  const regenerateMutation = useRegenerateAsset()
+  const createCategoryMutation = useCreateCategory()
+  const deleteCategoryMutation = useDeleteCategory()
   const { data: categories } = useMediaCategories()
   const { data: tags } = useMediaTags()
+  const [newCatName, setNewCatName] = useState("")
 
   const { data, isLoading } = useMediaAssetList({
     page,
@@ -99,24 +124,50 @@ export function AssetLibrary() {
     sort: sort === "newest" ? "createTime:desc" : "createTime:asc",
     search: search || undefined,
     ...(typeFilter !== "ALL" && { type: typeFilter }),
-    ...(categoryId && { categoryId })
+    ...(categoryId && { categoryId }),
+    ...(sourceFilter === "AI" && { aiGenerated: true }),
+    ...(sourceFilter === "UPLOAD" && { aiGenerated: false })
   })
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
+  const imageSlides = (data?.list ?? [])
+    .filter((a) => a.type === "IMAGE")
+    .map((a) => ({ src: a.url }))
+  const {
+    open: lbOpen,
+    index: lbIndex,
+    onOpen: openLb,
+    onClose: closeLb
+  } = useLightbox(imageSlides)
+
   function handleDelete(id: number) {
     setDeleteTarget(id)
-  }
-
-  function handleRegenerate(id: number) {
-    regenerateMutation.mutate({ assetId: id })
   }
 
   return (
     <SceneLayout>
       <div className="flex h-full flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
-          <h1 className="font-semibold text-lg">素材库</h1>
+          <Tabs
+            value={sourceFilter}
+            onValueChange={(v) => {
+              setSourceFilter(v as "ALL" | "AI" | "UPLOAD")
+              setPage(0)
+            }}
+          >
+            <TabsList className="h-8">
+              <TabsTrigger value="ALL" className="text-xs">
+                全部
+              </TabsTrigger>
+              <TabsTrigger value="AI" className="text-xs">
+                作品
+              </TabsTrigger>
+              <TabsTrigger value="UPLOAD" className="text-xs">
+                素材
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
           <div className="relative ml-auto w-64">
             <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
             <Input
@@ -156,6 +207,12 @@ export function AssetLibrary() {
               <TabsTrigger value="VIDEO" className="text-xs">
                 视频
               </TabsTrigger>
+              <TabsTrigger value="AUDIO" className="text-xs">
+                配音
+              </TabsTrigger>
+              <TabsTrigger value="MUSIC" className="text-xs">
+                音乐
+              </TabsTrigger>
               <TabsTrigger value="MODEL_3D" className="text-xs">
                 3D 模型
               </TabsTrigger>
@@ -163,7 +220,7 @@ export function AssetLibrary() {
           </Tabs>
           <Select value={sort} onValueChange={(v) => setSort(v as "newest" | "oldest")}>
             <SelectTrigger className="h-8 w-24 text-xs">
-              <SelectValue />
+              <SelectValue>{sort === "newest" ? "最新" : "最旧"}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">最新</SelectItem>
@@ -192,6 +249,7 @@ export function AssetLibrary() {
                     setCategoryId(id)
                     setPage(0)
                   }}
+                  onDelete={(id) => deleteCategoryMutation.mutate(id)}
                 />
               ) : (
                 <div className="flex flex-col gap-1">
@@ -200,6 +258,32 @@ export function AssetLibrary() {
                   <Skeleton className="h-7 w-full" />
                 </div>
               )}
+              {/* 新增分类 */}
+              <form
+                className="mt-2 flex gap-1"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const name = newCatName.trim()
+                  if (!name) return
+                  createCategoryMutation.mutate({ name }, { onSuccess: () => setNewCatName("") })
+                }}
+              >
+                <Input
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="新增分类..."
+                  className="h-7 text-xs"
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7 shrink-0"
+                  disabled={!newCatName.trim() || createCategoryMutation.isPending}
+                >
+                  <Plus className="size-3" />
+                </Button>
+              </form>
               {tags && tags.length > 0 && (
                 <div className="mt-4">
                   <p className="mb-2 font-medium text-muted-foreground text-xs">标签</p>
@@ -253,9 +337,13 @@ export function AssetLibrary() {
                       <AssetCard
                         key={asset.id}
                         asset={asset}
-                        onClick={() => setDetailId(asset.id)}
+                        onClick={
+                          asset.type === "IMAGE"
+                            ? () => openLb(asset.url)
+                            : () => setDetailId(asset.id)
+                        }
                         onDelete={() => handleDelete(asset.id)}
-                        onRegenerate={() => handleRegenerate(asset.id)}
+                        onPreview={() => setDetailId(asset.id)}
                       />
                     ))}
                   </div>
@@ -300,6 +388,8 @@ export function AssetLibrary() {
             if (!open) setDetailId(null)
           }}
         />
+
+        <Lightbox open={lbOpen} index={lbIndex} slides={imageSlides} close={closeLb} />
 
         <Dialog
           open={deleteTarget !== null}

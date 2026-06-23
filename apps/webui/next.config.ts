@@ -69,6 +69,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "**.aliyuncs.com" },
       { protocol: "https", hostname: "**.minio.io" },
+      { protocol: "http", hostname: "localhost" },
+      { protocol: "https", hostname: "cdn.aaronzzh.cn" },
       ...(process.env.NEXT_PUBLIC_ASSETS_URL
         ? [
             {

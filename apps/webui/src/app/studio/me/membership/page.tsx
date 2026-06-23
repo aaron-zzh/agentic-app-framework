@@ -8,22 +8,17 @@
 
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
-import {
-  GlassCard,
-  GlassCardBody,
-  NeonChip,
-  SectionHaze
-} from "@/components/studio"
+import { LottieIcon } from "@/components/animate"
+import { GlassCard, GlassCardBody, NeonChip, SectionHaze } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BillingCycleToggle } from "@/features/billing/components/BillingCycleToggle"
 import { PlanCard } from "@/features/billing/components/PlanCard"
 import { PricingFAQ } from "@/features/billing/components/PricingFAQ"
-import { useMemberFaq } from "@/lib/queries/use-system-config"
-import Link from "next/link"
 import { APP, CONTACT } from "@/lib/config"
-import { LottieIcon } from "@/components/animate"
 import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/queries/use-billing-plans"
+import { useMemberFaq } from "@/lib/queries/use-system-config"
 
 export default function StudioMeMembershipPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly")

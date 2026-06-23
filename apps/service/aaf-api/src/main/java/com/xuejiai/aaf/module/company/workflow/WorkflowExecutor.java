@@ -29,6 +29,7 @@ public class WorkflowExecutor {
         public static WorkflowResult success(Map<String, String> stepResults, String finalOutput) {
             return new WorkflowResult(true, stepResults, finalOutput, null);
         }
+
         public static WorkflowResult error(String error) {
             return new WorkflowResult(false, Map.of(), null, error);
         }

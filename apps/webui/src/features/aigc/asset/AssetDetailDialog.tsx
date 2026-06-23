@@ -5,6 +5,7 @@
 
 "use client"
 
+import { Lightbox, useLightbox } from "@/components/lightbox"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ModelViewer } from "@/features/aigc/three/ModelViewer"
@@ -26,6 +27,9 @@ interface AssetDetailDialogProps {
 
 /** 根据素材类型渲染预览区域 */
 function AssetPreview({ url, type, name }: { url: string; type: string; name: string }) {
+  const slides = [{ src: url }]
+  const { open, index, onOpen, onClose } = useLightbox(slides)
+
   if (type === "VIDEO") {
     return (
       <video controls src={url} className="size-full rounded-lg object-contain">
@@ -45,10 +49,14 @@ function AssetPreview({ url, type, name }: { url: string; type: string; name: st
   if (type === "MODEL_3D") {
     return <ModelViewer modelUrl={url} className="size-full rounded-lg" />
   }
-  // 默认图片
   return (
-    // biome-ignore lint/performance/noImgElement: 素材详情大图
-    <img src={url} alt={name} className="size-full object-contain" />
+    <>
+      <button type="button" className="size-full cursor-zoom-in" onClick={() => onOpen(url)}>
+        {/* biome-ignore lint/performance/noImgElement: 素材详情大图 */}
+        <img src={url} alt={name} className="size-full object-contain" />
+      </button>
+      <Lightbox open={open} index={index} slides={slides} close={onClose} />
+    </>
   )
 }
 
@@ -64,7 +72,7 @@ export function AssetDetailDialog({ assetId, open, onOpenChange }: AssetDetailDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-6xl!">
         <DialogHeader>
           <DialogTitle>{asset.name}</DialogTitle>
         </DialogHeader>
@@ -82,10 +90,10 @@ export function AssetDetailDialog({ assetId, open, onOpenChange }: AssetDetailDi
                   </p>
                 </div>
               )}
-              {params?.model && (
+              {asset?.modelName && (
                 <div>
                   <span className="text-muted-foreground">模型</span>
-                  <p>{params.model}</p>
+                  <p>{asset.modelName}</p>
                 </div>
               )}
               <div>

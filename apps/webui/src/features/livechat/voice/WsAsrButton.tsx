@@ -282,8 +282,8 @@ export function WsAsrButton({
         variant={recording ? "destructive" : "ghost"}
         size="icon"
         onClick={recording ? stop : start}
-        aria-label={recording ? "停止录音（或松开左 Alt）" : "语音输入（或长按左 Alt）"}
-        title={recording ? "停止录音" : "语音输入（长按左 Alt）"}
+        aria-label={recording ? "停止录音（或松开右 Ctrl）" : "语音输入（或长按右 Ctrl）"}
+        title={recording ? "停止录音" : "语音输入（长按右 Ctrl）"}
       >
         {recording ? <MicOff className="size-4" /> : <Mic className="size-4" />}
       </Button>

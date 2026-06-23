@@ -7,7 +7,7 @@
 
 "use client"
 
-import { ArrowUpRight, Cloud, FileText, ImageIcon, Lock, Mic, PenSquare, TrendingUp, User } from "lucide-react"
+import { ArrowUpRight, Cloud, FileText, Lock, Mic, PenSquare, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { GlassCard, NeonChip } from "@/components/studio"
 import { cn } from "@/lib/utils/index"
@@ -31,14 +31,14 @@ const TOOLS: Tool[] = [
     href: "/studio/create/draw",
     tone: "emerald"
   },
-  {
-    key: "logo",
-    title: "Logo 生成",
-    desc: "品牌 Logo / 头像 / Banner 快速生成",
-    icon: ImageIcon,
-    href: "/studio/create/image?preset=logo",
-    tone: "violet"
-  },
+  // {
+  //   key: "logo",
+  //   title: "Logo 生成",
+  //   desc: "品牌 Logo / 头像 / Banner 快速生成",
+  //   icon: ImageIcon,
+  //   href: "/studio/create/image?preset=logo",
+  //   tone: "violet"
+  // },
   {
     key: "ocr",
     title: "图片文字提取",
@@ -71,6 +71,14 @@ const TOOLS: Tool[] = [
     href: "/studio/create/tools/hot",
     tone: "cyan"
   }
+  // {
+  //   key: "model3d",
+  //   title: "3D 模型生成",
+  //   desc: "文字描述一键生成 3D 模型",
+  //   icon: Layers,
+  //   href: "/studio/create/tools/3d",
+  //   tone: "violet"
+  // }
 ]
 
 export default function StudioCreateToolsPage() {

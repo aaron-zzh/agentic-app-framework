@@ -11,7 +11,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.runtime.AafContextHolder;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
@@ -105,17 +104,18 @@ public class MemoryWriteTool {
                                 .toList());
             }
             var saved = memoryEngine.store(atom);
-            return JsonUtils.toJsonString(java.util.Map.of(
-                    "status",
-                    "ok",
-                    "saved",
-                    true,
-                    "atomId",
-                    saved.getId().toString(),
-                    "userId",
-                    userId,
-                    "scope",
-                    s));
+            return JsonUtils.toJsonString(
+                    java.util.Map.of(
+                            "status",
+                            "ok",
+                            "saved",
+                            true,
+                            "atomId",
+                            saved.getId().toString(),
+                            "userId",
+                            userId,
+                            "scope",
+                            s));
         } catch (Exception e) {
             log.error("[write_memory] 写入失败 userId={} scope={}", userId, s, e);
             return errorJson("写入失败：" + e.getMessage());

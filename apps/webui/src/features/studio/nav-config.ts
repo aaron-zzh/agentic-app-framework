@@ -21,6 +21,7 @@ import {
   Layers,
   type LucideIcon,
   Mic,
+  Music,
   Palette,
   Settings,
   Shapes,
@@ -31,12 +32,18 @@ import {
   User,
   Video,
   Wand2,
-  Workflow,
   Wrench,
   Zap
 } from "lucide-react"
 
-export type StudioWorkspace = "home" | "create" | "projects" | "assets" | "knowledge" | "me" | "tools"
+export type StudioWorkspace =
+  | "home"
+  | "create"
+  | "projects"
+  | "assets"
+  | "knowledge"
+  | "me"
+  | "tools"
 
 export interface StudioNavItem {
   /** 子菜单 key（用于路由拼接 + 状态） */
@@ -88,14 +95,10 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
       { key: "video", label: "视频", icon: Video, path: "/studio/create/video" },
       { key: "copy", label: "文案", icon: Wand2, path: "/studio/create/copy" },
       { key: "viral", label: "爆款", icon: Zap, path: "/studio/create/viral", badge: "热" },
-      {
-        key: "pipeline",
-        label: "工作流",
-        icon: Workflow,
-        path: "/studio/create/pipeline",
-        badge: "新"
-      },
-      { key: "tools", label: "工具箱", icon: Wrench, path: "/studio/create/tools", badge: "热"  }
+      // { key: "pipeline", label: "工作流", icon: Workflow, path: "/studio/create/pipeline", badge: "新" },
+      { key: "voice", label: "配音", icon: Mic, path: "/studio/create/voice" },
+      { key: "music", label: "音乐", icon: Music, path: "/studio/create/music" },
+      { key: "tools", label: "工具箱", icon: Wrench, path: "/studio/create/tools", badge: "新" }
     ]
   },
   {
@@ -119,7 +122,7 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
   },
   {
     workspace: "assets",
-    label: "资产",
+    label: "作品",
     icon: Images,
     path: "/studio/assets",
     children: [
@@ -155,7 +158,13 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     icon: User,
     path: "/studio/me",
     children: [
-      { key: "account", label: "账号", icon: CircleUser, path: "/studio/me/account", default: true },
+      {
+        key: "account",
+        label: "账号",
+        icon: CircleUser,
+        path: "/studio/me/account",
+        default: true
+      },
       { key: "membership", label: "会员", icon: CircleDollarSign, path: "/studio/me/membership" },
       { key: "credits", label: "积分", icon: Mic, path: "/studio/me/credits" },
       { key: "invite", label: "邀请", icon: Gift, path: "/studio/me/invite" },
@@ -184,7 +193,8 @@ export function resolveWorkspaceFromPath(pathname: string): StudioWorkspace | nu
   // 模板库归项目工作区
   if (segment === "templates") return "projects"
   // 工具箱路径归 tools 工作区
-  if (pathname.startsWith("/studio/create/tools") || pathname.startsWith("/studio/create/draw")) return "tools"
+  if (pathname.startsWith("/studio/create/tools") || pathname.startsWith("/studio/create/draw"))
+    return "tools"
   // chat 不归任何工作区（独立全屏）
   if (segment === "chat") return null
   const valid = STUDIO_NAV.find((w) => w.workspace === segment)

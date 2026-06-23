@@ -43,9 +43,9 @@ export const SLOT_REGISTRY: Record<SlotPanelType, SlotPanelDef> = {
   weather: {
     title: "实时天气",
     icon: Cloud,
-    defaultWidth: 280,
+    defaultWidth: 480,
     minWidth: 240,
-    maxWidth: 420,
+    maxWidth: 680,
     component: WeatherPanel,
     tone: "amber"
   },
@@ -61,18 +61,18 @@ export const SLOT_REGISTRY: Record<SlotPanelType, SlotPanelDef> = {
   notifications: {
     title: "通知",
     icon: Bell,
-    defaultWidth: 300,
+    defaultWidth: 320,
     minWidth: 240,
-    maxWidth: 420,
+    maxWidth: 480,
     component: NotificationPanel,
     tone: "rose"
   },
   credits: {
     title: "积分余额",
     icon: Coins,
-    defaultWidth: 240,
+    defaultWidth: 320,
     minWidth: 200,
-    maxWidth: 360,
+    maxWidth: 480,
     component: CreditsPanel,
     tone: "emerald"
   },

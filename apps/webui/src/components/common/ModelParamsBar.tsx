@@ -39,7 +39,7 @@ function P({
   options,
   onChange,
   labelMap,
-  className = "h-8 w-[120px] text-xs"
+  className = "h-8 w-full text-xs"
 }: {
   label: string
   value: string
@@ -52,7 +52,7 @@ function P({
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
       <SelectTrigger className={className}>
         <span className="shrink-0 text-muted-foreground">{label}</span>
-        <SelectValue />
+        <SelectValue>{labelMap?.[value] ?? value}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
@@ -86,7 +86,7 @@ function SizeControl({
         value={params.sizePreset ?? modeConfig.sizePresets[0]}
         options={modeConfig.sizePresets}
         onChange={(v) => onChange({ sizePreset: v })}
-        className="h-8 w-[110px] text-xs"
+        className="h-8 w-full text-xs"
       />
     )
     if (cfg.mode !== "ratio") return <>{presetEl}</>
@@ -108,7 +108,7 @@ function SizeControl({
     const fixedSizes = cfg.sizes as [number, number][]
     return (
       <Select value={params.fixedSize ?? ""} onValueChange={(v) => v && onChange({ fixedSize: v })}>
-        <SelectTrigger className="h-8 w-[160px] text-xs">
+        <SelectTrigger className="h-8 w-full text-xs">
           <span className="shrink-0 text-muted-foreground">尺寸</span>
           {params.fixedSize
             ? (() => {
@@ -182,7 +182,7 @@ function SizeControl({
           onChange({ aspectRatio: v, fixedSize: first ? `${first[0]}x${first[1]}` : undefined })
         }}
       >
-        <SelectTrigger className="h-8 w-[120px] text-xs">
+        <SelectTrigger className="h-8 w-full text-xs">
           <span className="shrink-0 text-muted-foreground">比例</span>
           <SelectValue />
         </SelectTrigger>
@@ -196,7 +196,7 @@ function SizeControl({
       </Select>
       {sizesForRatio.length > 0 && (
         <Select value={currentFixedSize} onValueChange={(v) => v && onChange({ fixedSize: v })}>
-          <SelectTrigger className="h-8 w-[120px] text-xs">
+          <SelectTrigger className="h-8 w-full text-xs">
             <span className="shrink-0 text-muted-foreground">尺寸</span>
             <SelectValue />
           </SelectTrigger>
@@ -224,10 +224,11 @@ export function ModelParamsBar({
   const cap = model.capabilities ?? ""
   const isVideo = cap.includes("VIDEO_GEN")
   const cfg = model.imageConfig
+  const vcfg = model.videoConfig
   const modeConfig = cfg ? (isEditMode ? cfg.edit : cfg.generate) : undefined
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2">
       {/* 图像尺寸 */}
       {!isVideo && cfg && (
         <SizeControl cfg={cfg} modeConfig={modeConfig} params={params} onChange={onChangeParams} />
@@ -248,28 +249,46 @@ export function ModelParamsBar({
             options={["1", "2", "4"]}
             onChange={(v) => onChangeParams({ imageCount: Number(v) })}
             labelMap={{ "1": "1 张", "2": "2 张", "4": "4 张" }}
-            className="h-8 w-[90px] text-xs"
+            className="h-8 w-full text-xs"
           />
         </>
       )}
 
-      {/* 视频：比例 + 时长 */}
+      {/* 视频：清晰度 + 时长 */}
       {isVideo && (
         <>
-          <P
-            label="比例"
-            value={params.aspectRatio ?? "9:16"}
-            options={["1:1", "9:16", "16:9", "4:3"]}
-            onChange={(v) => onChangeParams({ aspectRatio: v })}
-          />
-          <P
-            label="时长"
-            value={params.videoDuration ?? "5s"}
-            options={["5s", "10s", "15s", "30s"]}
-            onChange={(v) => onChangeParams({ videoDuration: v })}
-            labelMap={{ "5s": "5 秒", "10s": "10 秒", "15s": "15 秒", "30s": "30 秒" }}
-            className="h-8 w-[110px] text-xs"
-          />
+          {vcfg?.resolutions && vcfg.resolutions.length > 0 && (
+            <P
+              label="清晰度"
+              value={params.resolution ?? vcfg.resolutions[0]}
+              options={vcfg.resolutions}
+              onChange={(v) => onChangeParams({ resolution: v })}
+              labelMap={{ "720p": "720P", "1080p": "1080P", "720P": "720P", "1080P": "1080P" }}
+            />
+          )}
+          {(() => {
+            const durationOpts =
+              vcfg?.durations && vcfg.durations.length > 0
+                ? vcfg.durations.map((d) => `${d}s`)
+                : Array.from({ length: 14 }, (_, i) => `${i + 2}s`)
+            const defaultDuration = durationOpts[0] ?? "5s"
+            return (
+              <P
+                label="时长"
+                value={
+                  durationOpts.includes(params.videoDuration ?? "")
+                    ? (params.videoDuration ?? defaultDuration)
+                    : defaultDuration
+                }
+                options={durationOpts}
+                onChange={(v) => onChangeParams({ videoDuration: v })}
+                labelMap={Object.fromEntries(
+                  durationOpts.map((o) => [o, `${o.replace("s", "")} 秒`])
+                )}
+                className="h-8 w-full text-xs"
+              />
+            )
+          })()}
         </>
       )}
 
@@ -286,7 +305,7 @@ export function ModelParamsBar({
               `${i + 1} 张`
             ])
           )}
-          className="h-8 w-[90px] text-xs"
+          className="h-8 w-full text-xs"
         />
       )}
 
@@ -309,7 +328,7 @@ export function ModelParamsBar({
           options={modeConfig.format}
           onChange={(v) => onChangeParams({ format: v })}
           labelMap={Object.fromEntries(modeConfig.format.map((f) => [f, f.toUpperCase()]))}
-          className="h-8 w-[110px] text-xs"
+          className="h-8 w-full text-xs"
         />
       )}
 
@@ -321,7 +340,7 @@ export function ModelParamsBar({
           options={modeConfig.background}
           onChange={(v) => onChangeParams({ background: v })}
           labelMap={{ auto: "自动", transparent: "透明", opaque: "不透明" }}
-          className="h-8 w-[110px] text-xs"
+          className="h-8 w-full text-xs"
         />
       )}
 
@@ -345,7 +364,7 @@ export function ModelParamsBar({
           value={params.seed === 0 ? "" : (params.seed ?? "")}
           onChange={(e) => onChangeParams({ seed: e.target.value ? Number(e.target.value) : 0 })}
           placeholder="Seed"
-          className="h-8 w-[110px] text-xs"
+          className="h-8 w-full text-xs"
         />
       )}
 

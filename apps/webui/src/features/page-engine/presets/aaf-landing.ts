@@ -36,7 +36,7 @@ export const aafLandingPageDef: PageDef = {
             variant: "ghost",
             icon: "github"
           },
-          { label: "立即使用", href: "/studio?welcome=1", variant: "default" },
+          { label: "立即使用", href: "/studio/welcome", variant: "default" },
           { label: "功能演示", href: "/examples", variant: "outline" }
         ],
         backgroundType: "particles"

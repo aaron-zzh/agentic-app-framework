@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { useAuthStore } from "@/lib/store/auth-store"
 import type {
   CreateKnowledgeBaseInput,
   GraphData,
@@ -15,7 +16,6 @@ import type {
 import { buildApiUrl } from "../../config"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult, request } from "../entity/crud"
-import { useAuthStore } from "@/lib/store/auth-store"
 
 const API_PATH = "/knowledge-bases"
 

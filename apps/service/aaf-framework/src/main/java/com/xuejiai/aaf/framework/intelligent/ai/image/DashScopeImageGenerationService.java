@@ -67,7 +67,7 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     @Override
     public ImageResult generate(AiModel model, ImageRequest req) {
         String modelStr = stripNamespace(req.getModelId());
-        log.info("[DashScopeImage] 生成: model={}", modelStr);
+        log.info("[DashScopeImage] 开始生成: model={}", modelStr);
 
         if (modelStr.startsWith("wan2.")) {
             // wan2: size 优先用 sizePreset 档位（"1K"/"2K"/"4K"），否则用像素字符串

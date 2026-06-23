@@ -130,7 +130,8 @@ public class SkillService
      */
     public String getSystemPromptByCode(String code) {
         if (code == null || code.isBlank()) return null;
-        return repository.findByCode(code)
+        return repository
+                .findByCode(code)
                 .map(com.xuejiai.aaf.framework.engine.skill.SkillDefinition::getSystemPrompt)
                 .orElse(null);
     }

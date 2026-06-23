@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record DocTreeNodeVO(
         @Schema(description = "文档编号（目录节点为 null）") Long id,
         @Schema(description = "节点名称") String name,
+        @Schema(description = "标题") String title,
         @Schema(description = "路径") String path,
         @Schema(description = "是否为目录") boolean isDirectory,
+        @Schema(description = "文档类型：spec/design/task/guide/reference/explanation") String docType,
+        @Schema(description = "发布状态：draft/published") String publish,
         @Schema(description = "子节点") List<DocTreeNodeVO> children) {}

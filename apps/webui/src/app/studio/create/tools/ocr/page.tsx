@@ -18,7 +18,7 @@ const TASK_OPTIONS = [
   { value: "KEY_INFORMATION_EXTRACTION", label: "信息抽取" },
   { value: "TABLE_PARSING", label: "表格解析" },
   { value: "DOCUMENT_PARSING", label: "文档解析" },
-  { value: "FORMULA_RECOGNITION", label: "公式识别" },
+  { value: "FORMULA_RECOGNITION", label: "公式识别" }
 ]
 
 export default function OcrToolPage() {
@@ -68,12 +68,18 @@ export default function OcrToolPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* 左：上传 + 任务选择 */}
             <div className="space-y-4">
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFile}
+              />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || isLoading}
-                className="flex w-full flex-col items-center gap-3 rounded-xl border-2 border-foreground/[0.12] border-dashed p-8 transition-colors hover:border-foreground/[0.24] min-h-[240px] justify-center"
+                className="flex min-h-[240px] w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-foreground/[0.12] border-dashed p-8 transition-colors hover:border-foreground/[0.24]"
               >
                 {uploading ? (
                   <>
@@ -96,14 +102,21 @@ export default function OcrToolPage() {
                 <div className="flex items-center gap-3">
                   <select
                     value={task}
-                    onChange={e => setTask(e.target.value)}
+                    onChange={(e) => setTask(e.target.value)}
                     className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm"
                   >
-                    {TASK_OPTIONS.map(t => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
+                    {TASK_OPTIONS.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
                     ))}
                   </select>
-                  <GlowButton tone="violet" size="sm" disabled={isLoading} onClick={handleRecognize}>
+                  <GlowButton
+                    tone="violet"
+                    size="sm"
+                    disabled={isLoading}
+                    onClick={handleRecognize}
+                  >
                     {isLoading ? <Loader2 className="size-4 animate-spin" /> : "识别"}
                   </GlowButton>
                 </div>
@@ -120,7 +133,9 @@ export default function OcrToolPage() {
                     size="sm"
                     onClick={() => {
                       if (navigator.clipboard) {
-                        navigator.clipboard.writeText(ocrResult).then(() => notify.success("已复制"))
+                        navigator.clipboard
+                          .writeText(ocrResult)
+                          .then(() => notify.success("已复制"))
                       } else {
                         const el = document.createElement("textarea")
                         el.value = ocrResult
@@ -137,13 +152,15 @@ export default function OcrToolPage() {
                   </GlowButton>
                 )}
               </div>
-              <div className="flex-1 min-h-[240px] whitespace-pre-wrap rounded-xl bg-foreground/[0.02] p-4 text-sm leading-6 overflow-y-auto border border-foreground/[0.06]">
+              <div className="min-h-[240px] flex-1 overflow-y-auto whitespace-pre-wrap rounded-xl border border-foreground/[0.06] bg-foreground/[0.02] p-4 text-sm leading-6">
                 {isLoading ? (
                   <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
                     识别中...
                   </div>
-                ) : ocrResult ? ocrResult : (
+                ) : ocrResult ? (
+                  ocrResult
+                ) : (
                   <p className="text-muted-foreground text-sm">识别结果将在此显示</p>
                 )}
               </div>

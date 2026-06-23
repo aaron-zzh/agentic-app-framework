@@ -218,40 +218,17 @@ public class ChatOrchestrationService {
             Map.of(
                     "default",
                             List.of(
-                                    Map.of("prompt", "你能做什么？"),
-                                    Map.of("prompt", "帮我写一份报告"),
-                                    Map.of("prompt", "如何使用知识库？")),
+                                    Map.of("prompt", "帮我生成一段营销文案"),
+                                    Map.of("prompt", "用 AI 写一篇博客文章"),
+                                    Map.of("prompt", "如何用 AI 提升工作效率？")),
                     "kiro",
                             List.of(
-                                    Map.of("prompt", "帮我实现一个功能"),
-                                    Map.of("prompt", "分析这段代码"),
-                                    Map.of("prompt", "如何优化性能？")));
+                                    Map.of("prompt", "帮我生成一个 REST 接口"),
+                                    Map.of("prompt", "用 AI 分析并重构这段代码"),
+                                    Map.of("prompt", "自动生成单元测试")));
 
-    /** 欢迎页建议：先尝试 AI 生成，失败则返回静态默认 */
+    /** 欢迎页建议：直接返回静态默认值，不调 LLM（避免每次刷新页面消耗积分） */
     public List<Map<String, String>> getWelcomeSuggestions(String agentId, Long userId) {
-        try {
-            List<org.springframework.ai.chat.messages.Message> messages =
-                    List.of(
-                            new SystemMessage(
-                                    """
-                            你是一个 AI 助理。根据你的定位，生成3条用户初次见面时可能想问的问题。
-                            要求：简短精炼（10字以内），实用，用中文。
-                            只返回 JSON 数组，格式：[{"prompt":"问题1"},{"prompt":"问题2"},{"prompt":"问题3"}]
-                            不要任何多余内容。
-                            """),
-                            new UserMessage("当前 AI 助理角色：%s".formatted(agentId)));
-            var response = chatLlm.call(messages, null, userId);
-            var text = response.getResult().getOutput().getText().trim();
-            var start = text.indexOf('[');
-            var end = text.lastIndexOf(']');
-            if (start >= 0 && end > start) {
-                return JsonUtils.parseObject(
-                        text.substring(start, end + 1),
-                        new tools.jackson.core.type.TypeReference<>() {});
-            }
-        } catch (Exception e) {
-            log.debug("欢迎页建议生成失败，使用默认值: {}", e.getMessage());
-        }
         return DEFAULT_SUGGESTIONS.getOrDefault(agentId, DEFAULT_SUGGESTIONS.get("default"));
     }
 }

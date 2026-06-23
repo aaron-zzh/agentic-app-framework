@@ -33,9 +33,8 @@ import io.agentscope.core.tool.ToolSchemaModule;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Patched JsonSchemaUtils — 适配 jsonschema-generator 5.0.0 (Jackson 3.x) API。
- * 原版 agentscope-core RC4 jar 用 Jackson 2.x 编译，与 Spring Boot 4 + Spring AI 冲突。
- * 本类覆盖 jar 中同名类，解决 NoSuchMethodError。
+ * Patched JsonSchemaUtils — 适配 jsonschema-generator 5.0.0 (Jackson 3.x) API。 原版 agentscope-core RC4
+ * jar 用 Jackson 2.x 编译，与 Spring Boot 4 + Spring AI 冲突。 本类覆盖 jar 中同名类，解决 NoSuchMethodError。
  *
  * @hidden
  */

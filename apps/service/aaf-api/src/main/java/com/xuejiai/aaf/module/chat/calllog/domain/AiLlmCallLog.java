@@ -1,7 +1,7 @@
 package com.xuejiai.aaf.module.chat.calllog.domain;
 
-import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -102,5 +102,4 @@ public class AiLlmCallLog extends BaseEntity {
     /** 链路追踪 ID */
     @Column(name = "trace_id", length = 64)
     private String traceId;
-
 }

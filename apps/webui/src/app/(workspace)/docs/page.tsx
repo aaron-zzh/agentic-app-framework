@@ -38,14 +38,16 @@ import type { DocTreeNode } from "@/lib/types/document"
 import { DocCreateDialog } from "./DocCreateDialog"
 import { DocRelationGraph } from "./DocRelationGraph"
 
-/** 文档类型分组配置 */
+/** 文档类型分组配置（顺序决定展示顺序，other 兜底） */
 const DOC_TYPE_GROUPS = [
   { key: "spec", label: "规格" },
   { key: "design", label: "设计" },
   { key: "task", label: "任务" },
   { key: "guide", label: "指南" },
   { key: "reference", label: "参考" },
-  { key: "explanation", label: "说明" }
+  { key: "explanation", label: "说明" },
+  { key: "markdown", label: "文档" },
+  { key: "other", label: "其他" }
 ] as const
 
 type PublishTab = "all" | "draft" | "published"
@@ -79,10 +81,10 @@ export default function DocsPage() {
     const map = new Map<string, DocTreeNode[]>()
     function collect(nodes: DocTreeNode[]) {
       for (const node of nodes) {
-        if (node.isDir) {
+        if (node.isDirectory) {
           collect(node.children)
         } else if (node.id != null) {
-          const docType = inferDocType(node.path)
+          const docType = inferDocType(node)
           const list = map.get(docType) ?? []
           list.push(node)
           map.set(docType, list)
@@ -333,13 +335,16 @@ export default function DocsPage() {
   )
 }
 
-/** 从文件路径推断文档类型 */
-function inferDocType(path: string): string {
+/** 从节点推断文档类型：优先用后端返回的 docType，fallback 路径推断 */
+function inferDocType(node: DocTreeNode): string {
+  const known = ["spec", "design", "task", "guide", "reference", "explanation", "markdown"]
+  if (node.docType && known.includes(node.docType)) return node.docType
+  const path = node.path
   if (path.includes("/prd/") || path.includes("/spec/")) return "spec"
   if (path.includes("/design/")) return "design"
   if (path.includes("/task/")) return "task"
   if (path.includes("/guide/")) return "guide"
   if (path.includes("/reference/")) return "reference"
   if (path.includes("/explanation/")) return "explanation"
-  return "reference"
+  return "other"
 }

@@ -12,7 +12,6 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.tool.SendUiTool;
 
@@ -76,7 +75,8 @@ public class UiEventMiddleware implements MiddlewareBase {
                                 // 解析并发出 CustomEvent
                                 try {
                                     @SuppressWarnings("unchecked")
-                                    Map<String, Object> uiData = JsonUtils.parseObject(result, Map.class);
+                                    Map<String, Object> uiData =
+                                            JsonUtils.parseObject(result, Map.class);
                                     if (!Boolean.TRUE.equals(uiData.get(SendUiTool.UI_MARKER))) {
                                         return Flux.just(event);
                                     }

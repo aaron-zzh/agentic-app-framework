@@ -13,7 +13,7 @@ export function useCancelAigcTask() {
     mutationFn: (taskId: number) => request<void>(`/aigc/tasks/${taskId}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["aigc-tasks"] })
-      qc.invalidateQueries({ queryKey: ["generation-history"] })
+      qc.invalidateQueries({ queryKey: ["aigc", "tasks", "history"] })
     }
   })
 }

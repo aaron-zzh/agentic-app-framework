@@ -13,8 +13,8 @@
 import { Search } from "lucide-react"
 import { Brand } from "@/components/brand/Brand"
 import { UserAvatarPopover } from "@/components/common/UserAvatarPopover"
-import { ThemeToggle } from "@/sections/layout/HeaderActions"
 import { cn } from "@/lib/utils/index"
+import { ThemeToggle } from "@/sections/layout/HeaderActions"
 import { NotificationDrawer } from "@/sections/layout/notifications"
 
 export function StudioTopbar() {
@@ -40,14 +40,14 @@ export function StudioTopbar() {
           )
         }}
         className={cn(
-          "ml-auto flex h-9 w-full max-w-md items-center gap-2 rounded-lg border border-foreground/[0.08]",
-          "bg-foreground/[0.02] px-3 text-muted-foreground text-sm",
-          "hover:border-foreground/[0.15] hover:bg-foreground/[0.04]"
+          "ml-auto flex h-9 w-full max-w-md items-center gap-2 rounded-lg border border-foreground/8",
+          "bg-foreground/2 px-3 text-muted-foreground text-sm",
+          "hover:border-foreground/15 hover:bg-foreground/4"
         )}
       >
         <Search className="size-4" />
-        <span className="flex-1 text-left">搜索项目、资产、文档...</span>
-        <kbd className="hidden rounded bg-foreground/[0.06] px-1.5 py-0.5 font-mono text-[10px] sm:inline">
+        <span className="flex-1 text-left">搜索...</span>
+        <kbd className="hidden rounded bg-foreground/6 px-1.5 py-0.5 font-mono text-[10px] sm:inline">
           ⌘K
         </kbd>
       </button>

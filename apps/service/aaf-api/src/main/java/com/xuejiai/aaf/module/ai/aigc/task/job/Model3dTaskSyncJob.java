@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService.Model3dTaskResult.TaskStatus;
+import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 
@@ -25,6 +26,7 @@ public class Model3dTaskSyncJob {
     private final AigcTaskRepository taskRepo;
     private final AigcTaskService aigcTaskService;
     private final Model3dGenerationService model3dGenerationService;
+    private final PermissionExecutionService permissionExecutionService;
 
     @Scheduled(fixedDelay = 10_000)
     @Transactional
@@ -42,10 +44,16 @@ public class Model3dTaskSyncJob {
                     String modelUrl =
                             result.modelUrl() != null ? result.modelUrl() : result.baseModelUrl();
                     log.info("[Model3dSync] 任务完成: aigcTaskId={}, url={}", task.getId(), modelUrl);
-                    aigcTaskService.completeTask(thirdTaskId, modelUrl);
+                    permissionExecutionService.runAsOwner(
+                            task.getUserId(),
+                            "3D任务完成",
+                            () -> aigcTaskService.completeTask(thirdTaskId, modelUrl));
                 } else if (result.status() == TaskStatus.FAILED) {
                     log.warn("[Model3dSync] 任务失败: aigcTaskId={}", task.getId());
-                    aigcTaskService.failTask(thirdTaskId, "3D 生成失败");
+                    permissionExecutionService.runAsOwner(
+                            task.getUserId(),
+                            "3D任务失败",
+                            () -> aigcTaskService.failTask(thirdTaskId, "3D 生成失败"));
                 }
                 // 其他状态继续等待
             } catch (Exception e) {

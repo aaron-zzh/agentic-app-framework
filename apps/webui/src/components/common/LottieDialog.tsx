@@ -17,6 +17,7 @@
 
 "use client"
 
+import { LottieIcon } from "@/components/animate/LottieIcon"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -26,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { LottieIcon } from "@/components/animate/LottieIcon"
 
 interface LottieDialogProps {
   open: boolean
@@ -67,13 +67,9 @@ export function LottieDialog({
         <DialogHeader className="items-center">
           <LottieIcon name={icon} width={iconSize} height={iconSize} loop={loop} />
           <DialogTitle>{title}</DialogTitle>
-          {description && (
-            <DialogDescription>
-              {description}
-            </DialogDescription>
-          )}
+          {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <DialogFooter className="sm:justify-center gap-2">
+        <DialogFooter className="gap-2 sm:justify-center">
           {cancelText && (
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {cancelText}

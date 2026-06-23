@@ -4,7 +4,7 @@
  */
 
 /** 素材类型枚举 */
-export type MediaAssetType = "IMAGE" | "VIDEO" | "AUDIO" | "MODEL_3D"
+export type MediaAssetType = "IMAGE" | "VIDEO" | "AUDIO" | "MODEL_3D" | "TEXT" | "MUSIC"
 
 /** 素材资源 VO（对齐后端 MediaAssetVO） */
 export interface MediaAssetVO {

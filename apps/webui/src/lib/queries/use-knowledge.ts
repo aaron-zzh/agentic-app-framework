@@ -99,7 +99,6 @@ export function useDeleteKnowledgeBase() {
   })
 }
 
-
 /** 段落列表 */
 export function useKnowledgeSegments(kbId: string, documentId: string, enabled = true) {
   return useQuery({

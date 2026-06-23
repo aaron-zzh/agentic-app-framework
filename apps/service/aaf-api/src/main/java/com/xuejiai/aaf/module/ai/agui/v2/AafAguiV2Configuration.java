@@ -10,13 +10,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.runtime.ConversationContextResolver;
 import com.xuejiai.aaf.framework.agentscope.tool.GenerateImageTool;
 import com.xuejiai.aaf.framework.agentscope.tool.GenerateMusicTool;
 import com.xuejiai.aaf.framework.agentscope.tool.GenerateVideoTool;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
@@ -43,59 +43,72 @@ public class AafAguiV2Configuration {
             ThreadSessionManager threadSessionManager,
             AguiProperties props,
             OperatorContext operatorContext,
-            ConversationContextResolver contextResolver) {
+            ConversationContextResolver contextResolver,
+            org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate) {
         return new AafAguiV2RestController(
                 aguiMvcController,
                 aguiAgentRegistry,
                 threadSessionManager,
                 props,
                 operatorContext,
-                contextResolver);
+                contextResolver,
+                stringRedisTemplate);
     }
 
-    /**
-     * 图像生成工具 Bean——异步提交，返回 ui_block 卡片，不轮询等待。
-     */
+    /** 图像生成工具 Bean——异步提交，返回 ui_block 卡片，不轮询等待。 */
     @Bean
     public GenerateImageTool generateImageTool(AigcTaskService aigcTaskService) {
-        BiFunction<Long, String, Long> submitter = (userId, requestJson) ->
-                aigcTaskService.submitImageTask(userId, parseImageRequest(requestJson));
+        BiFunction<Long, String, Long> submitter =
+                (userId, requestJson) ->
+                        aigcTaskService.submitImageTask(userId, parseImageRequest(requestJson));
         return new GenerateImageTool(submitter);
     }
 
-    /**
-     * 视频生成工具 Bean——异步提交。
-     */
+    /** 视频生成工具 Bean——异步提交。 */
     @Bean
     public GenerateVideoTool generateVideoTool(AigcTaskService aigcTaskService) {
-        BiFunction<Long, String, Long> submitter = (userId, requestJson) -> {
-            JsonNode n = parseJson(requestJson);
-            String prompt = n.path("prompt").asText("");
-            if (prompt.isBlank()) throw new IllegalArgumentException("prompt 不能为空");
-            String model = nullIfBlank(n.path("model").asText(null));
-            String ratio = nullIfBlank(n.path("ratio").asText(null));
-            int duration = n.path("duration").asInt(5);
-            String imageUrl = nullIfBlank(n.path("imageUrl").asText(null));
-            var req = new VideoTaskRequest(prompt, model, null, null, duration,
-                    ratio, null, imageUrl != null ? "FIRST_FRAME" : "T2V",
-                    imageUrl, null, null, null, null, null, null);
-            return aigcTaskService.submitVideoTask(userId, req);
-        };
+        BiFunction<Long, String, Long> submitter =
+                (userId, requestJson) -> {
+                    JsonNode n = parseJson(requestJson);
+                    String prompt = n.path("prompt").asText("");
+                    if (prompt.isBlank()) throw new IllegalArgumentException("prompt 不能为空");
+                    String model = nullIfBlank(n.path("model").asText(null));
+                    String ratio = nullIfBlank(n.path("ratio").asText(null));
+                    int duration = n.path("duration").asInt(5);
+                    String imageUrl = nullIfBlank(n.path("imageUrl").asText(null));
+                    var req =
+                            new VideoTaskRequest(
+                                    prompt,
+                                    model,
+                                    null,
+                                    null,
+                                    duration,
+                                    ratio,
+                                    null,
+                                    imageUrl != null ? "FIRST_FRAME" : "T2V",
+                                    imageUrl,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null);
+                    return aigcTaskService.submitVideoTask(userId, req);
+                };
         return new GenerateVideoTool(submitter);
     }
 
-    /**
-     * 音乐生成工具 Bean——异步提交。
-     */
+    /** 音乐生成工具 Bean——异步提交。 */
     @Bean
     public GenerateMusicTool generateMusicTool(AigcTaskService aigcTaskService) {
-        BiFunction<Long, String, Long> submitter = (userId, requestJson) -> {
-            JsonNode n = parseJson(requestJson);
-            String prompt = n.path("prompt").asText("");
-            if (prompt.isBlank()) throw new IllegalArgumentException("prompt 不能为空");
-            String model = nullIfBlank(n.path("model").asText(null));
-            return aigcTaskService.submitMusicTask(userId, prompt, model, null, null, null);
-        };
+        BiFunction<Long, String, Long> submitter =
+                (userId, requestJson) -> {
+                    JsonNode n = parseJson(requestJson);
+                    String prompt = n.path("prompt").asText("");
+                    if (prompt.isBlank()) throw new IllegalArgumentException("prompt 不能为空");
+                    String model = nullIfBlank(n.path("model").asText(null));
+                    return aigcTaskService.submitMusicTask(userId, prompt, model, null, null, null);
+                };
         return new GenerateMusicTool(submitter);
     }
 
@@ -107,8 +120,26 @@ public class AafAguiV2Configuration {
         int height = n.path("height").asInt(1024);
         String model = nullIfBlank(n.path("model").asText(null));
         String aspectRatio = nullIfBlank(n.path("aspectRatio").asText(null));
-        return new ImageTaskRequest(prompt, model, width, height, null, null, null, 1,
-                null, null, null, null, null, null, aspectRatio, prompt, null, null, null);
+        return new ImageTaskRequest(
+                prompt,
+                model,
+                width,
+                height,
+                null,
+                null,
+                null,
+                1,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                aspectRatio,
+                prompt,
+                null,
+                null,
+                null);
     }
 
     private static JsonNode parseJson(String json) {

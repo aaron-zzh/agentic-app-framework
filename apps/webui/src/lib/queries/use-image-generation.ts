@@ -25,6 +25,8 @@ export interface GenerateImageParams {
   background?: string
   contentModeration?: string
   projectId?: number | null
+  /** 技能专属 system prompt，覆盖模型默认提示词 */
+  systemPrompt?: string
 }
 
 /** 提交图像生成任务，返回统一任务 ID */
@@ -40,6 +42,7 @@ export function useGenerateImage() {
           displayPrompt: params.displayPrompt,
           model: params.model,
           projectId: params.projectId ?? null,
+          systemPrompt: params.systemPrompt ?? null,
           params: {
             width: params.width ?? 1024,
             height: params.height ?? 1024,
@@ -86,6 +89,8 @@ export interface GenerateVideoParams {
   audioSetting?: string
   promptExtend?: boolean
   generateAudio?: boolean
+  /** 技能专属 system prompt，覆盖模型默认提示词 */
+  systemPrompt?: string
 }
 
 /** 提交视频生成任务，返回统一任务 ID */
@@ -100,6 +105,7 @@ export function useGenerateVideo() {
           prompt: params.prompt,
           model: params.model,
           projectId: params.projectId ?? null,
+          systemPrompt: params.systemPrompt ?? null,
           params: {
             ...(params.resolution ? { resolution: params.resolution } : {}),
             ...(params.duration ? { duration: params.duration } : {}),

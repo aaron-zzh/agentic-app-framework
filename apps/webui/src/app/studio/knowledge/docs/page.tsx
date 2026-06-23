@@ -1,26 +1,15 @@
 /**
- * /studio/knowledge/docs——文档管理（迁移自 workspace/docs，不 redirect）
- * 复用文档管理业务组件，外套 Studio 风格层
+ * /studio/knowledge/docs——文档管理
+ * 左侧分类树 + 右侧 DocEditor 内联编辑（复用 ProjectDocPanel 的 DocEditor 模式）
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { Bot, Edit, FileText, Plus, RefreshCw } from "lucide-react"
-import Link from "next/link"
-import { useCallback, useMemo, useState } from "react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import { toast } from "sonner"
-import {
-  GlassCard,
-  GlassCardBody,
-  GlassCardHeader,
-  GlassCardTitle,
-  GlowButton,
-  SectionHaze
-} from "@/components/studio"
+import { FileText, Loader2, Plus } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { SectionHaze } from "@/components/studio"
 import {
   Accordion,
   AccordionContent,
@@ -31,19 +20,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { KiroAgentDrawer } from "@/features/livechat/kiro/KiroAgentDrawer"
-import { paths } from "@/lib/constants/paths"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { RichTextEditorHandle } from "@/features/rich-text-editor"
+import { RichTextEditor } from "@/features/rich-text-editor"
+import type { DocListItem } from "@/lib/api/rest/system/document"
 import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import {
   docKeys,
-  useDocTree,
+  useCreateDocument,
+  useDocList,
   useDocument,
-  useImportDocs,
   usePublishDocument,
-  useUnpublishDocument
+  useUnpublishDocument,
+  useUpdateDocument
 } from "@/lib/queries/use-documents"
-import type { DocTreeNode } from "@/lib/types/document"
 
 const DOC_TYPE_GROUPS = [
   { key: "spec", label: "规格" },
@@ -51,105 +41,66 @@ const DOC_TYPE_GROUPS = [
   { key: "task", label: "任务" },
   { key: "guide", label: "指南" },
   { key: "reference", label: "参考" },
-  { key: "explanation", label: "说明" }
+  { key: "explanation", label: "说明" },
+  { key: "copywriting", label: "文案" }
 ] as const
 
 type PublishTab = "all" | "draft" | "published"
 
-/** 后端返回的 DocTreeNode 实际比共享类型宽（含 type/published/title），用扩展类型断言取 */
-type DocTreeNodeExt = DocTreeNode & { type?: string; published?: boolean; title?: string }
-/** 后端返回的 Document 实际比共享类型宽（含 published/type/path 兼容字段），用扩展类型断言取 */
-type DocumentExt = {
-  id: number
-  title: string
-  content: string | null
-  docType: string
-  publish: string
-  filePath: string
-  // 兼容老接口字段
-  type?: string
-  path?: string
-  published?: boolean
-}
-
-// 复用 workspace/docs/page.tsx 的核心业务逻辑，外壳用 Studio 风格
 export default function StudioKnowledgeDocsPage() {
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [kiroOpen, setKiroOpen] = useState(false)
-  const [contentTab, setContentTab] = useState("content")
+  const [selectedId, setSelectedId] = useState<number | "new" | null>(null)
   const [publishTab, setPublishTab] = useState<PublishTab>("all")
   const queryClient = useQueryClient()
 
-  const { data: tree, isLoading: treeLoading } = useDocTree()
-  const { data: doc, isLoading: docLoading } = useDocument(selectedId)
-  const { mutate: importDocs, isPending: importing } = useImportDocs()
-  const { mutate: publish } = usePublishDocument()
-  const { mutate: unpublish } = useUnpublishDocument()
+  const { data: list, isLoading: treeLoading } = useDocList()
+  const { mutate: createDocMutate, isPending: creating } = useCreateDocument()
 
-  useDocEvents(selectedId, () => {
-    queryClient.invalidateQueries({ queryKey: docKeys.tree })
-    if (selectedId) queryClient.invalidateQueries({ queryKey: docKeys.detail(selectedId) })
+  const createDoc = (
+    p: { title: string; content: string },
+    opts: { onSuccess: (doc: { id: number }) => void }
+  ) => createDocMutate({ title: p.title, content: p.content, filePath: "", docType: "guide" }, opts)
+
+  useDocEvents(typeof selectedId === "number" ? selectedId : null, () => {
+    queryClient.invalidateQueries({ queryKey: docKeys.list })
+    if (typeof selectedId === "number")
+      queryClient.invalidateQueries({ queryKey: docKeys.detail(selectedId) })
   })
 
-  // 按类型分组 + publishTab 过滤
   const grouped = useMemo(() => {
-    const allNodes = (tree ?? []).filter((n) => !n.isDir)
-    const ext = (n: DocTreeNode): DocTreeNodeExt => n as DocTreeNodeExt
+    const allNodes: DocListItem[] = []
+    function collect(nodes: DocListItem[]) {
+      for (const n of nodes) allNodes.push(n)
+    }
+    collect(list ?? [])
     const filtered = allNodes.filter((n) => {
-      const e = ext(n)
-      if (publishTab === "draft") return !e.published
-      if (publishTab === "published") return e.published
+      if (publishTab === "draft") return n.publish !== "published"
+      if (publishTab === "published") return n.publish === "published"
       return true
     })
-    return DOC_TYPE_GROUPS.map((g) => ({
+    const knownKeys = new Set(DOC_TYPE_GROUPS.map((g) => g.key as string))
+    const groups = DOC_TYPE_GROUPS.map((g) => ({
       ...g,
-      nodes: filtered.filter((n) => ext(n).type === g.key)
+      nodes: filtered.filter((n) => n.docType === g.key)
     })).filter((g) => g.nodes.length > 0)
-  }, [tree, publishTab])
-
-  const handleImport = useCallback(() => {
-    // mutate 的 variables 类型推断为 unknown，显式 undefined 转 never 避免 TS2554
-    ;(importDocs as (v: unknown, opts: { onSuccess: () => void; onError: () => void }) => void)(
-      undefined,
-      {
-        onSuccess: () => toast.success("文档导入成功"),
-        onError: () => toast.error("导入失败")
-      }
-    )
-  }, [importDocs])
-
-  // 标准化 doc 视图字段
-  const docExt = doc ? (doc as unknown as DocumentExt) : null
-  const isPublished = docExt ? Boolean(docExt.published) || docExt.publish === "published" : false
-  const docType = docExt?.docType ?? docExt?.type ?? ""
-  const docPath = docExt?.filePath ?? docExt?.path ?? ""
+    const others = filtered.filter((n) => !knownKeys.has(n.docType ?? ""))
+    if (others.length > 0)
+      groups.push({ key: "other" as never, label: "其他" as never, nodes: others })
+    return groups
+  }, [list, publishTab])
 
   return (
     <div className="relative h-full">
       <SectionHaze variant="blend" />
       <div className="relative flex h-full flex-col">
-        {/* 顶栏工具 */}
+        {/* 顶栏 */}
         <div className="flex items-center gap-2 border-foreground/[0.06] border-b px-4 py-3">
           <h2 className="font-medium">文档管理</h2>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="sm" disabled={importing} onClick={handleImport}>
-              <RefreshCw className={`mr-1.5 size-4 ${importing ? "animate-spin" : ""}`} />
-              同步
-            </Button>
-            <GlowButton tone="violet" size="sm">
-              <Plus className="size-4" />
-              新建
-            </GlowButton>
-            <Button variant="ghost" size="sm" onClick={() => setKiroOpen(true)}>
-              <Bot className="size-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* 发布状态过滤 */}
-        <div className="border-foreground/[0.04] border-b px-4 py-2">
-          <Tabs value={publishTab} onValueChange={(v) => setPublishTab(v as PublishTab)}>
-            <TabsList className="h-8">
+          <Tabs
+            value={publishTab}
+            onValueChange={(v) => setPublishTab(v as PublishTab)}
+            className="ml-2"
+          >
+            <TabsList className="h-7">
               <TabsTrigger value="all" className="h-6 text-xs">
                 全部
               </TabsTrigger>
@@ -161,12 +112,18 @@ export default function StudioKnowledgeDocsPage() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelectedId("new")}>
+              <Plus className="mr-1 size-4" />
+              新建
+            </Button>
+          </div>
         </div>
 
-        {/* 主体：左树 + 右内容 */}
+        {/* 主体 */}
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-          {/* 文档树 */}
-          <ResizablePanel defaultSize={30} minSize={20}>
+          {/* 左侧文档树 */}
+          <ResizablePanel defaultSize={28} minSize={20}>
             <div className="h-full overflow-y-auto p-3">
               {treeLoading ? (
                 <div className="space-y-2">
@@ -186,18 +143,17 @@ export default function StudioKnowledgeDocsPage() {
                       <AccordionContent>
                         <div className="space-y-0.5">
                           {g.nodes.map((node) => {
-                            const extNode = node as DocTreeNodeExt
-                            const nodeId = extNode.id ?? -1
+                            const nodeId = node.id ?? -1
                             return (
                               <button
-                                key={`doc-${node.path}`}
+                                key={`doc-${node.id}`}
                                 type="button"
                                 onClick={() => setSelectedId(nodeId)}
                                 className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-foreground/[0.05] ${selectedId === nodeId ? "bg-foreground/[0.08]" : ""}`}
                               >
                                 <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                                <span className="truncate">{extNode.title ?? extNode.name}</span>
-                                {!extNode.published && (
+                                <span className="truncate">{node.title}</span>
+                                {node.publish !== "published" && (
                                   <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
                                     草稿
                                   </Badge>
@@ -216,78 +172,195 @@ export default function StudioKnowledgeDocsPage() {
 
           <ResizableHandle />
 
-          {/* 内容区 */}
-          <ResizablePanel defaultSize={70}>
-            <div className="h-full overflow-y-auto p-4">
-              {!selectedId ? (
-                <div className="flex h-full items-center justify-center">
-                  <p className="text-muted-foreground text-sm">← 选择左侧文档查看内容</p>
+          {/* 右侧编辑区 */}
+          <ResizablePanel defaultSize={72}>
+            <div className="h-full overflow-hidden">
+              {selectedId === "new" ? (
+                <DocEditor
+                  createDoc={createDoc}
+                  creating={creating}
+                  onCreated={(id) => setSelectedId(id)}
+                  onCancel={() => setSelectedId(null)}
+                />
+              ) : selectedId ? (
+                <DocEditor key={selectedId} docId={selectedId} />
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+                  选择左侧文档
                 </div>
-              ) : docLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-8 w-48" />
-                  <Skeleton className="h-64" />
-                </div>
-              ) : docExt ? (
-                <GlassCard glow="none">
-                  <GlassCardHeader>
-                    <GlassCardTitle>{docExt.title}</GlassCardTitle>
-                    <div className="flex items-center gap-2">
-                      {isPublished ? (
-                        <GlowButton tone="violet" size="sm" onClick={() => unpublish(docExt.id)}>
-                          取消发布
-                        </GlowButton>
-                      ) : (
-                        <GlowButton tone="violet" size="sm" onClick={() => publish(docExt.id)}>
-                          发布
-                        </GlowButton>
-                      )}
-                      <Link href={paths.workspace.record("document", String(docExt.id))}>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="size-4" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </GlassCardHeader>
-                  <GlassCardBody>
-                    <Tabs value={contentTab} onValueChange={setContentTab}>
-                      <TabsList className="mb-4">
-                        <TabsTrigger value="content">内容</TabsTrigger>
-                        <TabsTrigger value="meta">元信息</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="content">
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {docExt.content ?? ""}
-                          </ReactMarkdown>
-                        </div>
-                      </TabsContent>
-                      <TabsContent value="meta">
-                        <dl className="space-y-3 text-sm">
-                          <div>
-                            <dt className="text-muted-foreground">类型</dt>
-                            <dd>{docType}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-muted-foreground">路径</dt>
-                            <dd className="font-mono text-xs">{docPath}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-muted-foreground">状态</dt>
-                            <dd>{isPublished ? "已发布" : "草稿"}</dd>
-                          </div>
-                        </dl>
-                      </TabsContent>
-                    </Tabs>
-                  </GlassCardBody>
-                </GlassCard>
-              ) : null}
+              )}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+    </div>
+  )
+}
 
-      <KiroAgentDrawer open={kiroOpen} onOpenChange={(o) => !o && setKiroOpen(false)} />
+/** 文档编辑器（与 ProjectDocPanel 的 DocEditor 同构） */
+function DocEditor({
+  docId,
+  createDoc,
+  creating,
+  onCreated,
+  onCancel
+}: {
+  docId?: number
+  createDoc?: (
+    p: { title: string; content: string },
+    opts: { onSuccess: (doc: { id: number }) => void }
+  ) => void
+  creating?: boolean
+  onCreated?: (docId: number) => void
+  onCancel?: () => void
+}) {
+  const isNew = !docId
+  const { data: doc, isLoading } = useDocument(isNew ? null : (docId ?? null))
+  const { mutate: updateDoc, isPending: saving } = useUpdateDocument()
+  const { mutate: publish } = usePublishDocument()
+  const { mutate: unpublish } = useUnpublishDocument()
+
+  const [mode, setMode] = useState<"wysiwyg" | "markdown">("wysiwyg")
+  const [editorKey, setEditorKey] = useState(0)
+  const [initMode, setInitMode] = useState<"html" | "markdown">("markdown")
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [dirty, setDirty] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<RichTextEditorHandle>(null)
+
+  useEffect(() => {
+    if (isNew) titleInputRef.current?.focus()
+  }, [isNew])
+
+  useEffect(() => {
+    if (doc) {
+      setTitle(doc.title ?? "")
+      setContent(doc.content ?? "")
+      setDirty(false)
+    }
+  }, [doc])
+
+  function handleModeChange(v: string) {
+    const newMode = v as "wysiwyg" | "markdown"
+    if (newMode === "markdown") {
+      const md = editorRef.current?.getContent("markdown") ?? content
+      setContent(md)
+    } else {
+      setInitMode("markdown")
+      setEditorKey((k) => k + 1)
+    }
+    setMode(newMode)
+  }
+
+  function handleSave() {
+    const saveContent =
+      mode === "wysiwyg" ? (editorRef.current?.getContent("markdown") ?? content) : content
+    if (isNew) {
+      if (!title.trim() || !createDoc) return
+      createDoc(
+        { title: title.trim(), content: saveContent },
+        { onSuccess: (created) => onCreated?.(created.id) }
+      )
+    } else {
+      updateDoc({ id: docId ?? 0, title, content: saveContent })
+      setDirty(false)
+    }
+  }
+
+  const isPublished = doc?.publish === "published"
+
+  if (!isNew && isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* 顶栏 */}
+      <div className="flex items-center gap-2 border-b px-4 py-2">
+        <input
+          ref={titleInputRef}
+          className="min-w-0 flex-1 bg-transparent font-medium text-sm outline-none placeholder:text-muted-foreground"
+          placeholder="文档标题..."
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value)
+            setDirty(true)
+          }}
+        />
+        {!isNew &&
+          doc &&
+          (isPublished ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => unpublish(doc.id)}
+            >
+              取消发布
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => publish(doc.id)}>
+              发布
+            </Button>
+          ))}
+        <Tabs value={mode} onValueChange={handleModeChange}>
+          <TabsList className="h-7">
+            <TabsTrigger value="wysiwyg" className="px-2 text-xs">
+              易读
+            </TabsTrigger>
+            <TabsTrigger value="markdown" className="px-2 text-xs">
+              Markdown
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {isNew && (
+          <Button variant="ghost" size="sm" className="text-xs" onClick={onCancel}>
+            取消
+          </Button>
+        )}
+        <Button
+          size="sm"
+          className="text-xs"
+          disabled={isNew ? !title.trim() || !!creating : !dirty || saving}
+          onClick={handleSave}
+        >
+          {(creating || saving) && <Loader2 className="mr-1 size-3 animate-spin" />}
+          保存
+        </Button>
+      </div>
+
+      {/* 内容区 */}
+      <div className="min-h-0 flex-1 overflow-auto">
+        {mode === "markdown" ? (
+          <textarea
+            className="h-full w-full resize-none bg-transparent p-3 font-mono text-sm outline-none"
+            value={content}
+            onChange={(e) => {
+              setContent(e.target.value)
+              setDirty(true)
+            }}
+            spellCheck={false}
+          />
+        ) : (
+          <RichTextEditor
+            key={editorKey}
+            ref={editorRef}
+            value={content}
+            onChange={() => setDirty(true)}
+            preset="document"
+            mode="html"
+            initialValueMode={initMode}
+            fill
+            noBorder
+            className="h-full"
+          />
+        )}
+      </div>
     </div>
   )
 }

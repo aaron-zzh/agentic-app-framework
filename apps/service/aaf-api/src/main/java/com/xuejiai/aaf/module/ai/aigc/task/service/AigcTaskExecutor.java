@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.engine.credit.CreditCallContext;
+import com.xuejiai.aaf.framework.intelligent.ai.image.AsyncImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyAsyncImageService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.decorator.ImageGenServiceDecorator;
@@ -23,8 +25,13 @@ import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.music.MusicGenerationService.MusicRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
+import com.xuejiai.aaf.framework.intelligent.ai.video.DoubaoVideoGenerationService;
+import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
+import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.framework.security.license.License;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
@@ -35,8 +42,10 @@ import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * AIGC 任务异步执行器。
@@ -57,7 +66,8 @@ public class AigcTaskExecutor {
     private final AiCreditGuard creditGuard;
     private final ConfigCacheManager configCacheManager;
     private final Model3dGenerationService model3dGenerationService;
-    private final jakarta.persistence.EntityManager entityManager;
+    private final EntityManager entityManager;
+    private final PermissionExecutionService permissionExecutionService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private MidjourneyAsyncImageService midjourneyAsyncImageService;
@@ -80,167 +90,81 @@ public class AigcTaskExecutor {
     public void submitSync(Long taskId, String prompt, String modelId, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
+        // @Async 子线程无 SecurityContext，显式设置用户上下文，确保积分结算能取到 userId
+        try (var ignored =
+                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
+                        task.getUserId(), "aigc-image-gen")) {
+            submitSyncInternal(task, taskId, prompt, modelId, mockUrl);
+        }
+    }
+
+    private void submitSyncInternal(
+            AigcTask task, Long taskId, String prompt, String modelId, String mockUrl) {
         try {
             task.setStatus(STATUS_RUNNING);
             taskRepo.save(task);
 
             var p = parseImageParams(prompt, modelId, task.getParams());
+            // 设置了技能时，将 systemPrompt 前置拼接到 prompt
+            if (task.getSystemPrompt() != null && !task.getSystemPrompt().isBlank()) {
+                p.setPrompt(task.getSystemPrompt() + "\n\n" + p.getPrompt());
+            }
             var aiModel = configCacheManager.getAiModelByModelId(normalizeModelId(modelId));
 
-            ImageResult result;
-            if (mockUrl != null && !mockUrl.isBlank()) {
-                // Mock 模式：跳过真实 API，直接构造结果
-                result = new ImageResult(mockUrl, null, modelId);
-            } else {
-                // Midjourney 走异步提交，等待任务完成后再拉取结果
-                if (aiModel != null
-                        && aiModel.effectiveProviderType()
-                                == com.xuejiai.aaf.framework.intelligent.core.model
-                                        .AiModelProviderType.MIDJOURNEY
-                        && midjourneyAsyncImageService != null) {
-                    var req =
-                            new com.xuejiai.aaf.framework.intelligent.ai.image
-                                    .AsyncImageGenerationService.AsyncImageRequest(prompt, modelId);
-                    String mjTaskId = midjourneyAsyncImageService.submitTask(req);
-                    // taskId 格式：{modelId}:{mjTaskId}，供查询时找回模型配置
-                    task.setTaskId(modelId + ":" + mjTaskId);
-                    task.setStatus("PENDING");
-                    taskRepo.save(task);
-                    log.info(
-                            "[AigcTaskExecutor] Midjourney 任务提交: taskId={}, mjTaskId={}",
-                            taskId,
-                            mjTaskId);
-                    return;
-                }
-                var svc = aiServiceRegistry.get(ImageGenerationService.class, aiModel);
-                if (p.getImageUrls() != null && !p.getImageUrls().isEmpty()) {
-                    if (svc instanceof ImageGenServiceDecorator creditSvc) {
-                        result = creditSvc.generateWithImages(aiModel, p);
-                    } else {
-                        result =
-                                svc.imageToImage(
-                                        aiModel,
-                                        new ImageEditRequest(
-                                                p.getImageUrls().get(0),
-                                                null,
-                                                prompt,
-                                                null,
-                                                modelId,
-                                                p.getQuality(),
-                                                p.getFormat(),
-                                                p.getBackground(),
-                                                p.getModeration(),
-                                                p.getImageCount() > 1 ? p.getImageCount() : null,
-                                                p.getImageUrls()) {
-                                            {
-                                                setWidth(p.getWidth());
-                                                setHeight(p.getHeight());
-                                                setSizePreset(p.getSizePreset());
-                                                setAspectRatio(p.getAspectRatio());
-                                            }
-                                        });
-                    }
-                } else {
-                    result = svc.generate(aiModel, p);
-                }
-            }
+            // ① 调用 AI 生成（Midjourney 异步提交后直接返回）
+            var result = doGenerateImage(task, p, aiModel, mockUrl, taskId, modelId);
+            if (result == null) return; // Midjourney 异步路径，任务转 PENDING
 
-            // 装饰器 settle 后通过 ThreadLocal 暴露 creditTxId，这里回填到任务实体
-            // 后续若 OSS 上传失败，catch 块据此触发 refund
-            Long creditTxId =
-                    com.xuejiai.aaf.framework.engine.credit.CreditCallContext.takeLastCreditTxId();
+            // ② 回填 creditTxId（装饰器 settle 后通过 ThreadLocal 暴露）
+            Long creditTxId = CreditCallContext.takeLastCreditTxId();
             if (creditTxId != null) {
                 task.setCreditTxId(creditTxId);
                 taskRepo.save(task);
             }
 
-            String ossUrl;
-            String firstUrl =
-                    result.url() != null
-                            ? result.url()
-                            : (result.urls() != null && !result.urls().isEmpty()
-                                    ? result.urls().get(0)
-                                    : null);
-            if (firstUrl != null) {
-                String ext = guessImageExt(firstUrl);
-                String path =
-                        "aigc/%s/%s.%s"
-                                .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
-                // 判断是 b64 还是 url：b64 不含 http 且较长，或以 data: 开头
-                if (firstUrl.startsWith("data:")
-                        || (!firstUrl.startsWith("http") && firstUrl.length() > 200)) {
-                    ossUrl = fileService.uploadFromBase64(firstUrl, path, null);
-                } else {
-                    ossUrl = fileService.uploadFromUrl(firstUrl, path, "image/" + ext, null);
-                }
-            } else if (result.b64Json() != null) {
-                String path =
-                        "aigc/%s/%s.png".formatted(task.getType().toLowerCase(), UUID.randomUUID());
-                ossUrl = fileService.uploadFromBase64(result.b64Json(), path, null);
-            } else {
-                throw new IllegalStateException(
-                        "图片生成结果为空: taskId="
-                                + taskId
-                                + ", model="
-                                + modelId
-                                + ", resultUrl="
-                                + result.url()
-                                + ", b64Json="
-                                + (result.b64Json() != null
-                                        ? "非空(len=" + result.b64Json().length() + ")"
-                                        : "null"));
-            }
+            // ③ OSS 上传第一张
+            log.debug(
+                    "[submitSync] 开始上传: taskId={}, resultUrl={}, b64={}",
+                    taskId,
+                    result.url(),
+                    result.b64Json() != null
+                            ? "非空(len=" + result.b64Json().length() + ")"
+                            : "null");
+            String ossUrl = uploadFirstImage(task, result, taskId, modelId);
             task.setResultUrl(ossUrl);
             task.setOssUrl(ossUrl);
             task.setStatus(STATUS_SUCCESS);
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
-            long groupId =
-                    saveToMediaAsset(
-                            task,
-                            ossUrl,
-                            p.getDisplayPrompt(),
-                            p.getSizePreset(),
-                            p.getWidth(),
-                            p.getHeight());
 
-            // 多图：从第二张起额外写入素材库，共享同一素材组
-            var extraUrls = result.urls();
-            if (extraUrls != null && extraUrls.size() > 1) {
-                for (int i = 1; i < extraUrls.size(); i++) {
-                    try {
-                        String extraUrl = extraUrls.get(i);
-                        String ext = guessImageExt(extraUrl);
-                        String path =
-                                "aigc/%s/%s.%s"
-                                        .formatted(
-                                                task.getType().toLowerCase(),
-                                                UUID.randomUUID(),
-                                                ext);
-                        String extra =
-                                fileService.uploadFromUrl(extraUrl, path, "image/" + ext, null);
-                        saveExtraAsset(
-                                task,
-                                extra,
-                                p.getSizePreset(),
-                                p.getWidth(),
-                                p.getHeight(),
-                                groupId);
-                    } catch (Exception e) {
-                        log.warn("[submitSync] 第{}张图上传失败: taskId={}", i + 1, taskId, e);
-                    }
-                }
-            }
+            // ④ 写素材库（需要用户上下文，runAsOwner 确保 ownerId 正确填充）
+            permissionExecutionService.runAsOwner(
+                    task.getUserId(),
+                    "图像素材保存",
+                    () -> {
+                        long groupId =
+                                saveToMediaAsset(
+                                        task,
+                                        ossUrl,
+                                        p.getDisplayPrompt(),
+                                        p.getSizePreset(),
+                                        p.getWidth(),
+                                        p.getHeight());
+                        saveExtraImages(task, result, p, groupId);
+                    });
 
             log.info("[submitSync] 任务完成: taskId={}, ossUrl={}", taskId, ossUrl);
         } catch (Exception e) {
             log.error("[submitSync] 生成失败: taskId={}", taskId, e);
-            // 若 svc.generate 已成功并扣过积分，但后续步骤（如 OSS 上传）失败，则退还
             refundIfSettled(task, e.getMessage());
             task.setStatus(STATUS_FAIL);
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
-            taskRepo.save(task);
+            try {
+                taskRepo.save(task);
+            } catch (Exception saveEx) {
+                log.error("[submitSync] 任务状态回写失败: taskId={}", taskId, saveEx);
+            }
         }
         try {
             eventService.push(
@@ -249,6 +173,123 @@ public class AigcTaskExecutor {
                     toVO(task));
         } catch (Exception e) {
             log.debug("[submitSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
+        }
+    }
+
+    /** 调用 AI 服务生成图像。Midjourney 异步路径返回 null（任务已转 PENDING）。 */
+    private ImageResult doGenerateImage(
+            AigcTask task,
+            ImageRequest p,
+            AiModel aiModel,
+            String mockUrl,
+            Long taskId,
+            String modelId) {
+        if (mockUrl != null && !mockUrl.isBlank()) {
+            return new ImageResult(mockUrl, null, modelId);
+        }
+        if (aiModel != null
+                && aiModel.effectiveProviderType() == AiModelProviderType.MIDJOURNEY
+                && midjourneyAsyncImageService != null) {
+            var req = new AsyncImageGenerationService.AsyncImageRequest(p.getPrompt(), modelId);
+            String mjTaskId = midjourneyAsyncImageService.submitTask(req);
+            task.setTaskId(modelId + ":" + mjTaskId);
+            task.setStatus("PENDING");
+            taskRepo.save(task);
+            log.info(
+                    "[AigcTaskExecutor] Midjourney 任务提交: taskId={}, mjTaskId={}", taskId, mjTaskId);
+            return null;
+        }
+        var svc = aiServiceRegistry.get(ImageGenerationService.class, aiModel);
+        log.info(
+                "[图片任务] modelId={}, imageUrls={}, prompt={}",
+                modelId,
+                p.getImageUrls(),
+                p.getPrompt() != null && p.getPrompt().length() > 50
+                        ? p.getPrompt().substring(0, 50) + "..."
+                        : p.getPrompt());
+        if (p.getImageUrls() != null && !p.getImageUrls().isEmpty()) {
+            if (svc instanceof ImageGenServiceDecorator creditSvc) {
+                return creditSvc.generateWithImages(aiModel, p);
+            }
+            return svc.imageToImage(
+                    aiModel,
+                    new ImageEditRequest(
+                            p.getImageUrls().get(0),
+                            null,
+                            p.getPrompt(),
+                            null,
+                            modelId,
+                            p.getQuality(),
+                            p.getFormat(),
+                            p.getBackground(),
+                            p.getModeration(),
+                            p.getImageCount() > 1 ? p.getImageCount() : null,
+                            p.getImageUrls()) {
+                        {
+                            setWidth(p.getWidth());
+                            setHeight(p.getHeight());
+                            setSizePreset(p.getSizePreset());
+                            setAspectRatio(p.getAspectRatio());
+                        }
+                    });
+        }
+        return svc.generate(aiModel, p);
+    }
+
+    /** 上传第一张图到 OSS，返回 ossUrl。 */
+    private String uploadFirstImage(
+            AigcTask task, ImageResult result, Long taskId, String modelId) {
+        String firstUrl =
+                result.url() != null
+                        ? result.url()
+                        : (result.urls() != null && !result.urls().isEmpty()
+                                ? result.urls().get(0)
+                                : null);
+        if (firstUrl != null) {
+            String ext = guessImageExt(firstUrl);
+            String path =
+                    "aigc/%s/%s.%s".formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
+            if (firstUrl.startsWith("data:")
+                    || (!firstUrl.startsWith("http") && firstUrl.length() > 200)) {
+                return fileService.uploadFromBase64(firstUrl, path, null);
+            }
+            return fileService.uploadFromUrl(firstUrl, path, "image/" + ext, null);
+        }
+        if (result.b64Json() != null) {
+            String path =
+                    "aigc/%s/%s.png".formatted(task.getType().toLowerCase(), UUID.randomUUID());
+            return fileService.uploadFromBase64(result.b64Json(), path, null);
+        }
+        throw new IllegalStateException(
+                "图片生成结果为空: taskId="
+                        + taskId
+                        + ", model="
+                        + modelId
+                        + ", resultUrl="
+                        + result.url()
+                        + ", b64Json="
+                        + (result.b64Json() != null
+                                ? "非空(len=" + result.b64Json().length() + ")"
+                                : "null"));
+    }
+
+    /** 上传并保存第 2～N 张额外图片到同一素材组。 */
+    private void saveExtraImages(AigcTask task, ImageResult result, ImageRequest p, long groupId) {
+        var extraUrls = result.urls();
+        if (extraUrls == null || extraUrls.size() <= 1) return;
+        for (int i = 1; i < extraUrls.size(); i++) {
+            try {
+                String extraUrl = extraUrls.get(i);
+                String ext = guessImageExt(extraUrl);
+                String path =
+                        "aigc/%s/%s.%s"
+                                .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
+                String extra = fileService.uploadFromUrl(extraUrl, path, "image/" + ext, null);
+                saveExtraAsset(
+                        task, extra, p.getSizePreset(), p.getWidth(), p.getHeight(), groupId);
+            } catch (Exception e) {
+                log.warn("[submitSync] 第{}张图上传失败: taskId={}", i + 1, task.getId(), e);
+            }
         }
     }
 
@@ -370,15 +411,13 @@ public class AigcTaskExecutor {
             if (mockUrl != null && !mockUrl.isBlank()) {
                 ossUrl = mockUrl;
             } else {
-                var aiModel = configCacheManager.getAiModelByModelId(task.getModelName());
+                var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
                 var result =
                         aiServiceRegistry
                                 .get(MusicGenerationService.class, aiModel)
                                 .generate(aiModel, new MusicRequest(prompt, lyrics, gender, "mp3"));
                 // 装饰器 settle 后回填 creditTxId 用于后续失败退还
-                Long creditTxId =
-                        com.xuejiai.aaf.framework.engine.credit.CreditCallContext
-                                .takeLastCreditTxId();
+                Long creditTxId = CreditCallContext.takeLastCreditTxId();
                 if (creditTxId != null) {
                     task.setCreditTxId(creditTxId);
                     taskRepo.save(task);
@@ -392,35 +431,45 @@ public class AigcTaskExecutor {
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // 写入素材库
-            try {
-                var dto =
-                        new SaveFromGenerationDTO(
-                                prompt != null
-                                        ? prompt.substring(0, Math.min(prompt.length(), 40))
-                                        : "AI音乐",
-                                MediaAssetType.AUDIO,
-                                ossUrl,
-                                null,
-                                "{\"prompt\":\"%s\",\"model\":\"%s\"}"
-                                        .formatted(
-                                                task.getPrompt() != null
-                                                        ? task.getPrompt().replace("\"", "'")
-                                                        : "",
-                                                task.getModel() != null ? task.getModel() : ""),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true,
-                                task.getModelName(),
-                                task.getProvider(),
-                                task.getProjectId());
-                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            } catch (Exception e) {
-                log.warn("[submitMusicSync] 写入素材库失败: taskId={}", taskId, e);
-            }
+            // 写入素材库（runAsOwner 确保异步线程中 ownerId 正确填充）
+            final String musicOssUrl = ossUrl;
+            permissionExecutionService.runAsOwner(
+                    task.getUserId(),
+                    "音乐素材保存",
+                    () -> {
+                        try {
+                            var dto =
+                                    new SaveFromGenerationDTO(
+                                            prompt != null
+                                                    ? prompt.substring(
+                                                            0, Math.min(prompt.length(), 40))
+                                                    : "AI音乐",
+                                            MediaAssetType.MUSIC,
+                                            musicOssUrl,
+                                            null,
+                                            "{\"prompt\":\"%s\",\"model\":\"%s\"}"
+                                                    .formatted(
+                                                            task.getPrompt() != null
+                                                                    ? task.getPrompt()
+                                                                            .replace("\"", "'")
+                                                                    : "",
+                                                            task.getModel() != null
+                                                                    ? task.getModel()
+                                                                    : ""),
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            true,
+                                            task.getModelName(),
+                                            task.getProvider(),
+                                            task.getProjectId());
+                            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+                        } catch (Exception e) {
+                            log.warn("[submitMusicSync] 写入素材库失败: taskId={}", taskId, e);
+                        }
+                    });
 
             log.info("[submitMusicSync] 音乐生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
         } catch (Exception e) {
@@ -464,9 +513,7 @@ public class AigcTaskExecutor {
                                 .get(SpeechService.class, aiModel)
                                 .synthesize(aiModel, text, voice);
                 // 装饰器 settle 后回填 creditTxId 用于后续失败退还
-                Long creditTxId =
-                        com.xuejiai.aaf.framework.engine.credit.CreditCallContext
-                                .takeLastCreditTxId();
+                Long creditTxId = CreditCallContext.takeLastCreditTxId();
                 if (creditTxId != null) {
                     task.setCreditTxId(creditTxId);
                     taskRepo.save(task);
@@ -485,30 +532,40 @@ public class AigcTaskExecutor {
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // 写入素材库（AUDIO 类型），用配音文本前 20 字命名
-            try {
-                String name = text.substring(0, Math.min(text.length(), 20));
-                var dto =
-                        new SaveFromGenerationDTO(
-                                name,
-                                MediaAssetType.AUDIO,
-                                ossUrl,
-                                null,
-                                JsonUtils.toJsonString(
-                                        Map.of("text", text, "voice", voice != null ? voice : "")),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true,
-                                task.getModelName(),
-                                task.getProvider(),
-                                task.getProjectId());
-                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            } catch (Exception e) {
-                log.warn("[submitVoiceSync] 写入素材库失败: taskId={}", taskId, e);
-            }
+            // 写入素材库（AUDIO 类型），用配音文本前 20 字命名（runAsOwner 确保 ownerId 正确填充）
+            final String voiceOssUrl = ossUrl;
+            permissionExecutionService.runAsOwner(
+                    task.getUserId(),
+                    "配音素材保存",
+                    () -> {
+                        try {
+                            String name = text.substring(0, Math.min(text.length(), 20));
+                            var dto =
+                                    new SaveFromGenerationDTO(
+                                            name,
+                                            MediaAssetType.AUDIO,
+                                            voiceOssUrl,
+                                            null,
+                                            JsonUtils.toJsonString(
+                                                    Map.of(
+                                                            "text",
+                                                            text,
+                                                            "voice",
+                                                            voice != null ? voice : "")),
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            true,
+                                            task.getModelName(),
+                                            task.getProvider(),
+                                            task.getProjectId());
+                            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+                        } catch (Exception e) {
+                            log.warn("[submitVoiceSync] 写入素材库失败: taskId={}", taskId, e);
+                        }
+                    });
 
             log.info("[submitVoiceSync] 配音生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
         } catch (Exception e) {
@@ -552,9 +609,7 @@ public class AigcTaskExecutor {
             Map<String, Object> p =
                     task.getParams() != null
                             ? JsonUtils.parseObject(
-                                    task.getParams(),
-                                    new tools.jackson.core.type.TypeReference<
-                                            Map<String, Object>>() {})
+                                    task.getParams(), new TypeReference<Map<String, Object>>() {})
                             : Map.of();
             String source = p.containsKey("source") ? (String) p.get("source") : "text";
             String textureQuality =
@@ -617,20 +672,14 @@ public class AigcTaskExecutor {
                 return;
             }
 
-            var aiModel = configCacheManager.getAiModelByModelId(normalizeModelId(modelId));
-            var svc =
-                    aiServiceRegistry.get(
-                            com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService
-                                    .class,
-                            aiModel);
+            var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
+            var svc = aiServiceRegistry.get(VideoGenerationService.class, aiModel);
 
             // 从 task.params 反序列化视频参数
             Map<String, Object> p =
                     task.getParams() != null
                             ? JsonUtils.parseObject(
-                                    task.getParams(),
-                                    new tools.jackson.core.type.TypeReference<
-                                            Map<String, Object>>() {})
+                                    task.getParams(), new TypeReference<Map<String, Object>>() {})
                             : Map.of();
 
             String imageModeStr = p.containsKey("imageMode") ? (String) p.get("imageMode") : "T2V";
@@ -651,9 +700,7 @@ public class AigcTaskExecutor {
 
             boolean isVolcengine =
                     aiModel != null
-                            && aiModel.effectiveProviderType()
-                                    == com.xuejiai.aaf.framework.intelligent.core.model
-                                            .AiModelProviderType.VOLCENGINE;
+                            && aiModel.effectiveProviderType() == AiModelProviderType.VOLCENGINE;
             boolean hasRichMedia =
                     (referenceVideoUrls != null && !referenceVideoUrls.isEmpty())
                             || (referenceAudioUrls != null && !referenceAudioUrls.isEmpty());
@@ -661,11 +708,7 @@ public class AigcTaskExecutor {
             String thirdTaskId;
             if (isVolcengine
                     && hasRichMedia
-                    && svc
-                            instanceof
-                            com.xuejiai.aaf.framework.intelligent.ai.video
-                                            .DoubaoVideoGenerationService
-                                    doubao) {
+                    && svc instanceof DoubaoVideoGenerationService doubao) {
                 @SuppressWarnings("unchecked")
                 List<String> referenceImages =
                         p.get("referenceImageUrls") instanceof List<?> l
@@ -798,8 +841,7 @@ public class AigcTaskExecutor {
     private void refundIfSettled(AigcTask task, String reason) {
         Long creditTxId = task.getCreditTxId();
         if (creditTxId == null) {
-            creditTxId =
-                    com.xuejiai.aaf.framework.engine.credit.CreditCallContext.takeLastCreditTxId();
+            creditTxId = CreditCallContext.takeLastCreditTxId();
         }
         if (creditTxId == null) return;
         try {

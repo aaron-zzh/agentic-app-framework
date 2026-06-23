@@ -29,8 +29,27 @@ public class TextToVideoRequest extends VideoBaseRequest {
             Integer duration,
             Integer seed,
             Boolean promptExtend) {
-        super(prompt, null, resolution, duration, seed);
+        super(
+                prompt,
+                resolvedModel != null ? resolvedModel.getModelId() : null,
+                resolution,
+                duration,
+                seed);
         this.resolvedModel = resolvedModel;
+        this.ratio = ratio;
+        this.promptExtend = promptExtend;
+    }
+
+    public TextToVideoRequest(
+            String prompt,
+            String modelId,
+            String resolution,
+            String ratio,
+            Integer duration,
+            Integer seed,
+            Boolean promptExtend) {
+        super(prompt, modelId, resolution, duration, seed);
+        this.resolvedModel = null;
         this.ratio = ratio;
         this.promptExtend = promptExtend;
     }

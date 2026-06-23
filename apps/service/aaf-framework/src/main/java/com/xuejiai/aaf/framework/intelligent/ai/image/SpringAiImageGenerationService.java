@@ -160,9 +160,20 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             for (int i = 0; i < srcUrls.size(); i++) {
                 byte[] bytes =
                         java.net.URI.create(srcUrls.get(i)).toURL().openStream().readAllBytes();
-                String fname = "image_" + i + ".png";
-                // OpenAI edits 接口：单图用 "image"，多图用 "image[]"
+                String srcUrl = srcUrls.get(i).split("\\?")[0].toLowerCase();
+                String ext =
+                        srcUrl.endsWith(".webp")
+                                ? "webp"
+                                : srcUrl.endsWith(".jpg") || srcUrl.endsWith(".jpeg")
+                                        ? "jpg"
+                                        : "png";
+                String mime =
+                        ext.equals("webp")
+                                ? "image/webp"
+                                : ext.equals("jpg") ? "image/jpeg" : "image/png";
+                String fname = "image_" + i + "." + ext;
                 String fieldName = srcUrls.size() == 1 ? "image" : "image[]";
+                var mediaType = org.springframework.http.MediaType.parseMediaType(mime);
                 multipart.part(
                         fieldName,
                         new org.springframework.core.io.ByteArrayResource(bytes) {
@@ -171,7 +182,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                                 return fname;
                             }
                         },
-                        org.springframework.http.MediaType.IMAGE_PNG);
+                        mediaType);
             }
             if (req.getMaskUrl() != null) {
                 byte[] maskBytes =

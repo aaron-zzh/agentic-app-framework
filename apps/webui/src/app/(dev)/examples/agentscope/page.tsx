@@ -85,8 +85,7 @@ export default function AgentScopeExamplePage() {
           body: JSON.stringify(body)
         }
       )
-      const content =
-        typeof res === "string" ? res : JSON.stringify(res, null, 2)
+      const content = typeof res === "string" ? res : JSON.stringify(res, null, 2)
       setMessages((prev) => [...prev, { role: "assistant", content: content ?? "(无回复)" }])
       // 每2次触发5秒冷却
       sendCountRef.current += 1

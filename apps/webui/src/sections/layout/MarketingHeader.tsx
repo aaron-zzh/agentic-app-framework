@@ -25,6 +25,7 @@ const navLinks = [
 export function MarketingHeader() {
   const isOffset = useScrollOffset()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const user = useAuthStore((s) => s.user)
 
   return (
     <header
@@ -51,7 +52,19 @@ export function MarketingHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {isAuthenticated ? (
-            <Button size="sm" nativeButton={false} render={<Link href={paths.workspace.root} />}>
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={
+                <Link
+                  href={
+                    user?.roles?.some((r) => r === "super_admin" || r === "admin")
+                      ? paths.workspace.root
+                      : paths.studio.welcome
+                  }
+                />
+              }
+            >
               进入工作区
             </Button>
           ) : (

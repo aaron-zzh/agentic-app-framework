@@ -8,6 +8,7 @@ import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult.TaskStatus;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
+import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 
@@ -28,6 +29,7 @@ public class VideoTaskSyncJob {
     private final AigcTaskService aigcTaskService;
     private final AiServiceRegistry aiServiceRegistry;
     private final ConfigCacheManager configCacheManager;
+    private final PermissionExecutionService permissionExecutionService;
 
     @Scheduled(fixedDelay = 15_000)
     @Transactional
@@ -51,14 +53,25 @@ public class VideoTaskSyncJob {
                             "[VideoSync] 任务完成: aigcTaskId={}, url={}",
                             task.getId(),
                             result.getVideoUrl());
-                    aigcTaskService.completeTask(thirdTaskId, result);
+                    permissionExecutionService.runAsOwner(
+                            task.getUserId(),
+                            "视频任务完成",
+                            () -> aigcTaskService.completeTask(thirdTaskId, result));
                 } else if (result.getStatus() == TaskStatus.FAILED
                         || result.getStatus() == TaskStatus.CANCELED) {
                     log.warn(
-                            "[VideoSync] 任务失败: aigcTaskId={}, status={}",
+                            "[VideoSync] 任务失败: aigcTaskId={}, status={}, msg={}",
                             task.getId(),
-                            result.getStatus());
-                    aigcTaskService.failTask(thirdTaskId, "视频生成失败: " + result.getStatus());
+                            result.getStatus(),
+                            result.getErrorMessage());
+                    final String reason =
+                            result.getErrorMessage() != null
+                                    ? result.getErrorMessage()
+                                    : "视频生成失败: " + result.getStatus();
+                    permissionExecutionService.runAsOwner(
+                            task.getUserId(),
+                            "视频任务失败",
+                            () -> aigcTaskService.failTask(thirdTaskId, reason));
                 }
                 // PENDING/RUNNING 继续等待
             } catch (Exception e) {

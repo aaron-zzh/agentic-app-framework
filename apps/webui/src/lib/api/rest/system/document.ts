@@ -8,10 +8,18 @@ import { request } from "../entity/crud"
 
 const BASE = "/docs"
 
+export interface DocListItem {
+  id: number
+  title: string
+  docType: string
+  publish: string
+  updateTime: string
+}
+
 /** 新建文档请求参数 */
 export interface DocCreateParams {
   title: string
-  filePath: string
+  filePath?: string
   docType: string
   content?: string
   publish?: string
@@ -26,6 +34,9 @@ export interface DocUpdateParams {
 }
 
 export const documentApi = {
+  /** 获取当前用户文档列表（不含正文） */
+  list: () => request<DocListItem[]>(`${BASE}/list`),
+
   /** 获取文档树 */
   tree: () => request<DocTreeNode[]>(`${BASE}/tree`),
 

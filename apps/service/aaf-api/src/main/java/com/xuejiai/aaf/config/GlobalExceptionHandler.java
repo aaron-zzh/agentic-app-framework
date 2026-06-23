@@ -172,6 +172,15 @@ public class GlobalExceptionHandler {
         // 浏览器刷新/关闭 tab 时 SSE 连接断开，属正常生命周期
     }
 
+    /** 文件下载等响应已设置非 JSON Content-Type 时，无法再写 JSON body */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotWritableException.class)
+    public ResponseEntity<Void> handleMessageNotWritable(
+            org.springframework.http.converter.HttpMessageNotWritableException e,
+            HttpServletRequest request) {
+        log.warn("响应写出失败（Content-Type 不兼容）: uri={}, err={}", request.getRequestURI(), e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+
     /** 兜底：未知异常 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Result<?>> handleException(Exception e, HttpServletRequest request) {

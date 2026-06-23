@@ -20,10 +20,10 @@ export default function NotFound() {
         </p>
       </div>
       <Link
-        href="/dashboard"
+        href="/studio"
         className="rounded-md bg-primary px-6 py-2 text-primary-foreground text-sm transition-colors hover:bg-primary/90"
       >
-        返回工作台
+        返回首页
       </Link>
     </div>
   )

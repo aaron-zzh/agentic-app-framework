@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.module.document.domain.Document;
+import com.xuejiai.aaf.module.document.vo.DocListItemVO;
 
 public interface DocumentRepository extends JpaRepository<Document, Long> {
 
@@ -15,7 +16,19 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findByStatusOrderByFilePath(String status);
 
+    List<Document> findByOwnerIdAndStatusOrderByCreateTimeDesc(Long ownerId, String status);
+
+    /** 查询用户文档列表（不含正文，只投影需要的字段） */
+    @Query(
+            "SELECT new com.xuejiai.aaf.module.document.vo.DocListItemVO(d.id, d.title, d.docType, d.publish, d.updateTime) "
+                    + "FROM Document d WHERE d.ownerId = :ownerId AND d.status = 'active' AND d.deleted = false "
+                    + "ORDER BY d.updateTime DESC")
+    List<DocListItemVO> listByOwner(@Param("ownerId") Long ownerId);
+
     List<Document> findByPublishOrderByUpdateTimeDesc(String publish);
+
+    /** 统计用户文档数量 */
+    long countByOwnerIdAndStatus(Long ownerId, String status);
 
     /** 全文检索（PostgreSQL tsvector） */
     @Query(

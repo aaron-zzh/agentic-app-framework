@@ -1,6 +1,5 @@
 export * from "./chat"
 export * from "./copywriting"
-export * from "./generation-history"
 export * from "./model3d-generation"
 export * from "./ocr"
 export * from "./task-board"

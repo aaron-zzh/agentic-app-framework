@@ -25,9 +25,9 @@ import {
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
+  groupPartByType,
   MessagePrimitive,
   ThreadPrimitive,
-  groupPartByType,
   useAuiState,
   useMessage,
   useVoiceState
@@ -246,7 +246,7 @@ function AssistantMessage() {
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
             reasoning: ["group-chainOfThought", "group-reasoning"],
-            "tool-call": ["group-chainOfThought", "group-tool"],
+            "tool-call": ["group-chainOfThought", "group-tool"]
           })}
         >
           {({ part, children }) => {
@@ -255,11 +255,7 @@ function AssistantMessage() {
                 return <div className="my-1">{children}</div>
               case "group-reasoning": {
                 const streaming = part.status.type === "running"
-                return (
-                  <ReasoningBlock streaming={streaming}>
-                    {children}
-                  </ReasoningBlock>
-                )
+                return <ReasoningBlock streaming={streaming}>{children}</ReasoningBlock>
               }
               case "group-tool":
                 return (
@@ -273,7 +269,11 @@ function AssistantMessage() {
               case "text":
                 return <MarkdownText />
               case "reasoning":
-                return <span className="whitespace-pre-wrap text-muted-foreground text-xs italic">{part.text}</span>
+                return (
+                  <span className="whitespace-pre-wrap text-muted-foreground text-xs italic">
+                    {part.text}
+                  </span>
+                )
               case "tool-call":
                 return part.toolUI ?? <ToolFallback toolName={part.toolName} status={part.status} />
               case "generative-ui":
@@ -324,7 +324,7 @@ function UserMessage() {
       {/* 普通展示态 */}
       <AuiIf condition={(s) => !s.composer.isEditing}>
         <div className="group relative max-w-[85%]">
-          <div className="rounded-2xl bg-primary px-3 py-2 text-primary-foreground text-sm">
+          <div className="rounded-2xl bg-foreground/10 px-3 py-2 text-sm dark:bg-foreground/15">
             <MessagePrimitive.Parts>
               {({ part }) => (part.type === "text" ? <span>{part.text}</span> : null)}
             </MessagePrimitive.Parts>
@@ -429,7 +429,6 @@ export function ChatterThread() {
     </ThreadPrimitive.Root>
   )
 }
-
 
 /** 语音控制区——从 threads.main.voice 读取，不依赖 thread scope 的初始化时序 */
 function VoiceSection() {

@@ -9,14 +9,14 @@
 
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { SectionHaze } from "@/components/studio"
 import {
   HomeChatLauncher,
   HomeDataCapsules,
-  HomeGrowthTasks,
-  HomeProjectGrid
+  HomeProjectGrid,
+  HomeRecentAssets
 } from "@/features/studio/home"
 
 const WELCOME_KEY = "aaf:lastWelcomeAt"
@@ -24,16 +24,14 @@ const WELCOME_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
 
 export default function StudioHomePage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
-    const forceWelcome = searchParams.get("welcome") === "1"
     const last = localStorage.getItem(WELCOME_KEY)
     const expired = !last || Date.now() - Number(last) > WELCOME_INTERVAL_MS
-    if (forceWelcome || expired) {
+    if (expired) {
       router.replace("/studio/welcome")
     }
-  }, [router, searchParams])
+  }, [router])
 
   return (
     <div className="relative">
@@ -42,12 +40,11 @@ export default function StudioHomePage() {
         <section className="space-y-4">
           <div>
             <h1 className="font-semibold text-2xl">欢迎回来 👋</h1>
-            <p className="text-muted-foreground text-sm">和助理说一句，让 AI 帮你完成创作</p>
           </div>
           <HomeDataCapsules />
         </section>
         <HomeChatLauncher />
-        <HomeGrowthTasks />
+        <HomeRecentAssets />
         <HomeProjectGrid />
       </div>
     </div>

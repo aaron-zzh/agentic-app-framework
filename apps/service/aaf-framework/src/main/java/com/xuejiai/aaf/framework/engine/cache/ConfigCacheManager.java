@@ -84,7 +84,23 @@ public class ConfigCacheManager {
                 aiModelIdIndex.computeIfAbsent(
                         modelId,
                         k -> aiModelRepository.findByModelId(k).map(AiModel::getId).orElse(null));
-        return id != null ? getAiModel(id) : null;
+        if (id == null) return null;
+        AiModel model = getAiModel(id);
+        // 校验一致性：DB 记录的 modelId 可能已变更，index 中的映射已过时
+        if (model != null && !modelId.equals(model.getModelId())) {
+            log.warn(
+                    "[ConfigCache] aiModelIdIndex 过时: key={} → id={} 实际modelId={}, 重建索引",
+                    modelId,
+                    id,
+                    model.getModelId());
+            aiModelIdIndex.remove(modelId);
+            Long freshId =
+                    aiModelRepository.findByModelId(modelId).map(AiModel::getId).orElse(null);
+            if (freshId == null) return null;
+            aiModelIdIndex.put(modelId, freshId);
+            return getAiModel(freshId);
+        }
+        return model;
     }
 
     public AgentDefinition getAgentDef(Long id) {

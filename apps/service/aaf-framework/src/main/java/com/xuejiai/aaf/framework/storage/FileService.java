@@ -78,11 +78,13 @@ public class FileService {
                 int code = conn.getResponseCode();
                 if (code == java.net.HttpURLConnection.HTTP_MOVED_PERM
                         || code == java.net.HttpURLConnection.HTTP_MOVED_TEMP
-                        || code == 307 || code == 308) {
+                        || code == 307
+                        || code == 308) {
                     String location = conn.getHeaderField("Location");
                     conn.disconnect();
-                    conn = (java.net.HttpURLConnection)
-                            URI.create(location).toURL().openConnection();
+                    conn =
+                            (java.net.HttpURLConnection)
+                                    URI.create(location).toURL().openConnection();
                     conn.setInstanceFollowRedirects(true);
                     conn.setConnectTimeout(10_000);
                     conn.setReadTimeout(30_000);
@@ -98,6 +100,7 @@ public class FileService {
                 conn.disconnect();
             }
         } catch (IOException e) {
+            log.error("[FileService] uploadFromUrl 失败: url={}, path={}", url, path, e);
             throw new StorageException("从 URL 上传文件失败: " + url, e);
         }
     }

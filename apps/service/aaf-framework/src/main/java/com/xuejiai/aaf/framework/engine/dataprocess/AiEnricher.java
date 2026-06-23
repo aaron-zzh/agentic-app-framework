@@ -65,7 +65,7 @@ public class AiEnricher implements ProcessingStep {
         var prompt = buildPrompt(config.getType(), text, config.getParams());
         var messages =
                 List.of((org.springframework.ai.chat.messages.Message) new UserMessage(prompt));
-        var response = chatService.call(messages, null, null);
+        var response = chatService.call(messages, (String) null, (Long) null);
         var result = response.getResult().getOutput().getText();
         item.put(config.getOutputField(), result != null ? result.trim() : "");
     }

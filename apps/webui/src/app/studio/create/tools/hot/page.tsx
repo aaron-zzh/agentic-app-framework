@@ -1,122 +1,116 @@
 /**
- * /studio/create/tools/hot——热点跟踪（v0.1 静态推荐位）
- * v0.2 将接入实时热榜 API
+ * /studio/create/tools/hot——热点跟踪（实时接口版）
+ * GET /api/aigc/trending → 20 条热点列表
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { ArrowUpRight, TrendingUp } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { ArrowUpRight, RefreshCw, TrendingUp } from "lucide-react"
 import Link from "next/link"
+import { LottieIcon } from "@/components/animate"
 import { GlassCard, GlassCardBody, NeonChip, SectionHaze } from "@/components/studio"
+import { backendRequest } from "@/lib/api/rest/backend-client"
 
-const STATIC_HOTSPOTS = [
-  {
-    id: 1,
-    title: "AI 绘画工具盘点：2026 最值得用的 10 款",
-    index: 9823,
-    platform: "小红书",
-    category: "短视频",
-    topic: "AI绘画工具盘点2026"
-  },
-  {
-    id: 2,
-    title: "品牌 Logo 设计趋势：极简风回归",
-    index: 8741,
-    platform: "微博",
-    category: "品牌",
-    topic: "Logo设计趋势极简风"
-  },
-  {
-    id: 3,
-    title: "短视频创作者如何用 AI 提升 10 倍产能",
-    index: 7652,
-    platform: "抖音",
-    category: "短视频",
-    topic: "AI提升短视频产能"
-  },
-  {
-    id: 4,
-    title: "大模型降价潮：GPT-5 发布后生态巨变",
-    index: 6934,
-    platform: "科技媒体",
-    category: "科技",
-    topic: "大模型降价潮"
-  },
-  {
-    id: 5,
-    title: "家庭 Vlog 爆款公式：这样拍流量涨 300%",
-    index: 5821,
-    platform: "小红书",
-    category: "生活",
-    topic: "家庭Vlog爆款公式"
-  }
-]
+interface TrendingItem {
+  rank: number
+  title: string
+  summary: string
+  tag: string
+  suggestion: string
+}
 
-const CATEGORY_TONE: Record<string, "violet" | "cyan" | "amber" | "rose" | "emerald"> = {
-  短视频: "violet",
-  品牌: "cyan",
+const TAG_TONE: Record<string, "violet" | "cyan" | "amber" | "rose" | "emerald"> = {
+  爆款: "rose",
+  上升: "emerald",
+  新闻: "cyan",
+  娱乐: "violet",
   科技: "amber",
-  生活: "emerald"
+  社会: "cyan"
 }
 
 export default function StudioToolsHotPage() {
+  const { data, isLoading, isFetching, refetch } = useQuery<TrendingItem[]>({
+    queryKey: ["trending"],
+    queryFn: () => backendRequest("/aigc/trending", { timeout: 120_000 }),
+    staleTime: 5 * 60 * 1000 // 5分钟缓存
+  })
+
+  const items = data ?? []
+
   return (
     <div className="relative mx-auto max-w-6xl p-6">
       <SectionHaze variant="violet" />
       <div className="relative space-y-6">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <TrendingUp className="size-5 text-cyan-400" />
             <h1 className="font-semibold text-xl">热点跟踪</h1>
           </div>
-          <NeonChip tone="cyan" size="sm">
-            v0.2 实时热点
-          </NeonChip>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
+          >
+            <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            刷新
+          </button>
         </div>
 
-        <p className="text-muted-foreground text-sm">
-          以下为编辑精选热点（v0.1 静态），点击借势创作文案。v0.2 将接入实时热榜 API。
-        </p>
+        <p className="text-muted-foreground text-sm">AI 实时搜索当前热点，点击借势创作文案</p>
+
+        {isLoading && (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={`sk-${i}`} className="h-16 animate-pulse rounded-xl bg-foreground/[0.04]" />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && items.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+            <LottieIcon name="cat" width={200} height={200} loop />
+            <p className="text-sm">暂无热点数据，请点击刷新重试</p>
+          </div>
+        )}
 
         <div className="space-y-3">
-          {STATIC_HOTSPOTS.map((item, idx) => (
-            <Link
-              key={item.id}
-              href={`/studio/create/copy?topic=${encodeURIComponent(item.topic)}`}
-              className="block focus-visible:outline-none"
-            >
-              <GlassCard interactive glow="none">
-                <GlassCardBody className="flex items-center gap-4">
-                  {/* 排名 */}
-                  <span
-                    className={`w-7 shrink-0 text-center font-bold text-lg tabular-nums ${idx < 3 ? "text-amber-400" : "text-muted-foreground/40"}`}
-                  >
-                    {idx + 1}
-                  </span>
+          {items.map((item, idx) => (
+            <GlassCard key={item.rank} glow="none">
+              <GlassCardBody className="flex items-start gap-4">
+                {/* 排名 */}
+                <span
+                  className={`w-7 shrink-0 pt-0.5 text-center font-bold text-lg tabular-nums ${idx < 3 ? "text-amber-400" : "text-muted-foreground/40"}`}
+                >
+                  {item.rank}
+                </span>
 
-                  {/* 内容 */}
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="font-medium text-sm">{item.title}</p>
-                    <div className="flex items-center gap-2">
-                      <NeonChip tone={CATEGORY_TONE[item.category] ?? "violet"} size="sm">
-                        {item.category}
-                      </NeonChip>
-                      <span className="text-muted-foreground text-xs">{item.platform}</span>
-                      <span className="text-muted-foreground text-xs tabular-nums">
-                        🔥 {item.index.toLocaleString()}
-                      </span>
-                    </div>
+                {/* 内容 */}
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="font-medium text-sm">{item.title}</p>
+                  <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
+                    {item.summary}
+                  </p>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <NeonChip tone={TAG_TONE[item.tag] ?? "violet"} size="sm">
+                      {item.tag}
+                    </NeonChip>
+                    <span className="text-muted-foreground/70 text-xs">{item.suggestion}</span>
                   </div>
+                </div>
 
-                  {/* 借势 CTA */}
-                  <div className="flex shrink-0 items-center gap-1 text-muted-foreground text-xs">
-                    <span>借势创作</span>
-                    <ArrowUpRight className="size-3.5" />
-                  </div>
-                </GlassCardBody>
-              </GlassCard>
-            </Link>
+                {/* 借势 CTA */}
+                <Link
+                  href={`/studio/create/copy?topic=${encodeURIComponent(item.title)}&notes=${encodeURIComponent(item.suggestion)}`}
+                  className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+                >
+                  <span>借势创作</span>
+                  <ArrowUpRight className="size-3.5" />
+                </Link>
+              </GlassCardBody>
+            </GlassCard>
           ))}
         </div>
       </div>

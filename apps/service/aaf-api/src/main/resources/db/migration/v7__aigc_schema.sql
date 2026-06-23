@@ -338,6 +338,7 @@ CREATE TABLE aigc_task (
     project_id        BIGINT,
     asset_id          BIGINT,
     credit_tx_id      BIGINT,
+    system_prompt     TEXT,
     owner_id          BIGINT,
     create_by         BIGINT,
     create_by_type    VARCHAR(16),

@@ -41,6 +41,13 @@ export const paths = {
     assets: "/aigc/assets",
     video: "/aigc/video"
   },
+  studio: {
+    welcome: "/studio/welcome",
+    me: "/studio/me",
+    mePricing: "/studio/me/membership",
+    meCredits: "/studio/me/credits",
+    meAccount: "/studio/me/account"
+  },
   admin: {
     demo: "/admin/demo"
   },

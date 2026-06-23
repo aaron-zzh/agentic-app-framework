@@ -59,7 +59,7 @@ function MobileSidebarContent() {
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">
       <div className="mb-4 px-4">
-        <Brand href="/dashboard" />
+        <Brand href="/" />
       </div>
       {navConfig.map((group: NavGroup) => (
         <div key={group.subheader} className="mb-3 px-2">

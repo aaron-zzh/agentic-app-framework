@@ -5,8 +5,6 @@
 
 // 素材库
 export { AssetLibrary } from "./asset/AssetLibrary"
-// 生成历史
-export { GenerationHistory } from "./generation/GenerationHistory"
 // 对话内联预览
 export { MediaPreviewCard } from "./preview/MediaPreviewCard"
 export { StyleAdjustDialog } from "./preview/StyleAdjustDialog"

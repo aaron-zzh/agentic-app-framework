@@ -8,7 +8,8 @@
 
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Fragment, useEffect, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
+import { CreditRechargeDialog } from "@/components/common/CreditRechargeDialog"
 import {
   DataCapsule,
   GlassCard,
@@ -22,8 +23,9 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreditRechargeDialog } from "@/components/common/CreditRechargeDialog"
 import { RedeemCodeButton } from "@/features/billing/components/RedeemCodeButton"
+import { ExpensesCategoryWidget } from "@/features/dashboard/widgets/ExpensesCategoryWidget"
+import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
 import { useDict } from "@/lib/hooks/use-dict"
 import { useCreditBalance, useCreditGroups, useCreditTransactions } from "@/lib/queries/use-credits"
 import { cn } from "@/lib/utils/cn"
@@ -64,8 +66,64 @@ export default function StudioMeCreditsPage() {
   const [tab, setTab] = useState<TabValue>("all")
   const [page, setPage] = useState(0)
   const { data: txPage, isLoading: txLoading } = useCreditTransactions(page)
+  // 拉取更多流水用于图表聚合（100 条，不影响分页流水）
+  const { data: chartTxPage } = useCreditTransactions(0, 100)
   const { getLabel: getTypeLabel, getColor: getTypeColor } = useDict("credit_transaction_type")
   const { getLabel: getSourceLabel } = useDict("credit_transaction_source")
+
+  // 近 14 天消耗趋势（从 chartTxPage 聚合）
+  const trendOption = useMemo<EChartsOption>(() => {
+    const spendTxs = (chartTxPage?.list ?? []).filter((tx) => tx.type === "SPEND")
+    const dayMap = new Map<string, number>()
+    for (const tx of spendTxs) {
+      const day = tx.createTime.slice(0, 10)
+      dayMap.set(day, (dayMap.get(day) ?? 0) + Math.abs(tx.amount))
+    }
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() - 13 + i)
+      return d.toISOString().slice(0, 10)
+    })
+    return {
+      tooltip: {
+        trigger: "axis",
+        formatter: (p: unknown) => {
+          const params = p as { name: string; value: number }[]
+          return `${params[0].name}<br/>消耗 ${params[0].value} 积分`
+        }
+      },
+      grid: { left: 40, right: 8, top: 8, bottom: 24 },
+      xAxis: { type: "category", data: days.map((d) => d.slice(5)), axisLabel: { fontSize: 10 } },
+      yAxis: {
+        type: "value",
+        axisLabel: { fontSize: 10 },
+        splitLine: { lineStyle: { opacity: 0.2 } }
+      },
+      series: [
+        {
+          type: "line",
+          smooth: true,
+          symbol: "none",
+          data: days.map((d) => dayMap.get(d) ?? 0),
+          areaStyle: { opacity: 0.15 },
+          lineStyle: { color: "#6366f1", width: 2 },
+          itemStyle: { color: "#6366f1" }
+        }
+      ]
+    }
+  }, [chartTxPage])
+
+  // 消费分类（bizType 聚合）
+  const spendCategories = useMemo(() => {
+    const bizMap = new Map<string, number>()
+    for (const tx of (chartTxPage?.list ?? []).filter((t) => t.type === "SPEND")) {
+      const key = tx.bizType ?? "OTHER"
+      bizMap.set(key, (bizMap.get(key) ?? 0) + Math.abs(tx.amount))
+    }
+    return Array.from(bizMap.entries())
+      .map(([biz_type, total]) => ({ biz_type, total }))
+      .sort((a, b) => b.total - a.total)
+  }, [chartTxPage])
 
   const transactions = txPage?.list ?? []
   const filtered = transactions.filter((tx) => {
@@ -73,6 +131,23 @@ export default function StudioMeCreditsPage() {
     if (tab === "spend") return tx.type === "SPEND"
     return true
   })
+
+  // 按 source + type + 日期 聚合，合并多条同类流水
+  const aggregated = (() => {
+    const map = new Map<string, { tx: (typeof filtered)[0]; count: number; total: number }>()
+    for (const tx of filtered) {
+      const day = tx.createTime.slice(0, 10)
+      const key = `${tx.source}|${tx.type}|${day}`
+      const existing = map.get(key)
+      if (existing) {
+        existing.count += 1
+        existing.total += tx.amount
+      } else {
+        map.set(key, { tx, count: 1, total: tx.amount })
+      }
+    }
+    return Array.from(map.values())
+  })()
 
   const totalBalance = mounted ? (groups ?? []).reduce((s, g) => s + g.remain, 0) : 0
   const frozen = mounted ? (balance?.frozen ?? 0) : 0
@@ -90,17 +165,17 @@ export default function StudioMeCreditsPage() {
 
         {/* 数据胶囊 */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="relative">
-            <DataCapsule
-              label="可用余额"
-              value={mounted ? totalBalance.toLocaleString() : "—"}
-              loading={grpLoading}
-              tone="amber"
-            />
-            <div className="absolute top-2 right-2">
-              <GlowButton tone="violet" size="sm" onClick={() => setRechargeOpen(true)}>充值</GlowButton>
-            </div>
-          </div>
+          <DataCapsule
+            label="可用余额"
+            value={mounted ? totalBalance.toLocaleString() : "—"}
+            loading={grpLoading}
+            tone="amber"
+            action={
+              <GlowButton tone="violet" size="sm" onClick={() => setRechargeOpen(true)}>
+                充值
+              </GlowButton>
+            }
+          />
           <DataCapsule
             label="冻结积分"
             value={mounted ? frozen.toLocaleString() : "—"}
@@ -119,6 +194,19 @@ export default function StudioMeCreditsPage() {
             loading={balLoading}
             tone="violet"
           />
+        </div>
+
+        {/* 消耗趋势 + 分类 */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <GlassCard glow="none">
+            <GlassCardHeader>
+              <GlassCardTitle>近 14 天消耗趋势</GlassCardTitle>
+            </GlassCardHeader>
+            <GlassCardBody>
+              <BaseChart option={trendOption} className="h-44 w-full" />
+            </GlassCardBody>
+          </GlassCard>
+          <ExpensesCategoryWidget categories={spendCategories} />
         </div>
 
         {/* 流水 */}
@@ -147,24 +235,29 @@ export default function StudioMeCreditsPage() {
                   <Skeleton key={`tx-${i}`} className="h-12" />
                 ))}
               </div>
-            ) : filtered.length === 0 ? (
+            ) : aggregated.length === 0 ? (
               <p className="py-8 text-center text-muted-foreground text-sm">暂无记录</p>
             ) : (
-              filtered.map((tx) => {
+              aggregated.map(({ tx, count, total }) => {
                 const isEarn = tx.type === "EARN"
                 const typeLabel = getTypeLabel(tx.type) || tx.type
                 const typeColor = getTypeColor(tx.type)
+                const sourceName =
+                  tx.remark ||
+                  getSourceLabel(tx.source) ||
+                  SOURCE_LABEL[tx.source] ||
+                  SOURCE_LABEL[tx.source?.toLowerCase()] ||
+                  "积分变动"
                 return (
-                  <Fragment key={tx.id}>
+                  <Fragment key={`${tx.source}|${tx.type}|${tx.createTime.slice(0, 10)}`}>
                     <div className="flex items-center justify-between py-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-sm">
-                            {tx.remark ||
-                              getSourceLabel(tx.source) ||
-                              SOURCE_LABEL[tx.source] ||
-                              SOURCE_LABEL[tx.source?.toLowerCase()] ||
-                              "积分变动"}
+                            {sourceName}
+                            {count > 1 && (
+                              <span className="ml-1 text-muted-foreground text-xs">× {count}</span>
+                            )}
                           </p>
                           <span
                             className={cn(
@@ -190,7 +283,7 @@ export default function StudioMeCreditsPage() {
                           isEarn ? "text-emerald-400" : "text-orange-400"
                         )}
                       >
-                        {isEarn ? `+${tx.amount}` : `-${Math.abs(tx.amount)}`}
+                        {isEarn ? `+${total}` : `-${Math.abs(total)}`}
                       </p>
                     </div>
                     <Separator className="opacity-40" />

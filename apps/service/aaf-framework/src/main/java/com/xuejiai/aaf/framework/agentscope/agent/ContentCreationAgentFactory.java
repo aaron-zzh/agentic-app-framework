@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.xuejiai.aaf.framework.agentscope.config.ContentCreationProperties;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.agentscope.middleware.CallLogMiddleware;
 import com.xuejiai.aaf.framework.agentscope.middleware.ConversationBridgeMiddleware;
 import com.xuejiai.aaf.framework.agentscope.middleware.FileProcessingMiddleware;
@@ -32,6 +31,7 @@ import com.xuejiai.aaf.framework.agentscope.tool.SendUiTool;
 import com.xuejiai.aaf.framework.agentscope.tool.SwitchKbTool;
 import com.xuejiai.aaf.framework.agentscope.tool.UpdatePersonaTool;
 import com.xuejiai.aaf.framework.agentscope.tool.WeatherAgentTool;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 
 import io.agentscope.core.tool.Toolkit;
@@ -138,7 +138,11 @@ public final class ContentCreationAgentFactory {
                         .model(model)
                         .sysPrompt(
                                 ContentCreationSystemPrompt.build(
-                                        workspaceDir, skillPrompt, personaPrompt, kbContext, assistantPrompt))
+                                        workspaceDir,
+                                        skillPrompt,
+                                        personaPrompt,
+                                        kbContext,
+                                        assistantPrompt))
                         .workspace(props.getWorkspaceRoot())
                         .toolkit(toolkit)
                         .maxIters(props.getMaxIterations())
@@ -229,24 +233,27 @@ public final class ContentCreationAgentFactory {
             String kbContext,
             AiProperties aiProperties) {
         var toolkit = new Toolkit();
-        toolkit.registerTool(new KnowledgeSearchTool(services.kbSearch(), services.embeddingService()));
+        toolkit.registerTool(
+                new KnowledgeSearchTool(services.kbSearch(), services.embeddingService()));
         toolkit.registerTool(new SwitchKbTool(services.jdbcTemplate()));
 
-        var model = resolvedModel != null
-                ? ContentCreationModelFactory.buildFromAiModel(resolvedModel, aiProperties)
-                : ContentCreationModelFactory.build(props);
+        var model =
+                resolvedModel != null
+                        ? ContentCreationModelFactory.buildFromAiModel(resolvedModel, aiProperties)
+                        : ContentCreationModelFactory.build(props);
 
         var sysPrompt = buildCustomerServicePrompt(assistantPrompt, kbContext);
 
-        var builder = HarnessAgent.builder()
-                .agentId("customer-service")
-                .name("AAF 客服助理")
-                .description("面向未登录用户的客服 Agent，基于知识库回答产品咨询")
-                .model(model)
-                .sysPrompt(sysPrompt)
-                .workspace(props.getWorkspaceRoot())
-                .toolkit(toolkit)
-                .maxIters(20);
+        var builder =
+                HarnessAgent.builder()
+                        .agentId("customer-service")
+                        .name("AAF 客服助理")
+                        .description("面向未登录用户的客服 Agent，基于知识库回答产品咨询")
+                        .model(model)
+                        .sysPrompt(sysPrompt)
+                        .workspace(props.getWorkspaceRoot())
+                        .toolkit(toolkit)
+                        .maxIters(20);
 
         applySandbox(builder, props);
         registerInfrastructure(builder, props, services, baseStore, null);

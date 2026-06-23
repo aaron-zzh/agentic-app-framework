@@ -21,8 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * AgentScope 示例接口（v2 兼容版）。
  *
- * <p>支持：① 基础聊天、② 工具调用、③ Supervisor、④ Pipeline、⑦ MCP。
- * 启用条件：{@code aaf.examples.agentscope.enabled=true}
+ * <p>支持：① 基础聊天、② 工具调用、③ Supervisor、④ Pipeline、⑦ MCP。 启用条件：{@code
+ * aaf.examples.agentscope.enabled=true}
  */
 @Slf4j
 @Tag(name = "AgentScope 示例")
@@ -69,7 +69,8 @@ public class AgentScopeExampleController {
 
     @Operation(summary = "④ Pipeline 顺序管道", description = "自然语言 → SQL 生成 → SQL 质量评分")
     @PostMapping("/pipeline")
-    public Result<Map<String, Object>> pipeline(@RequestBody ChatRequest req, HttpServletRequest http) {
+    public Result<Map<String, Object>> pipeline(
+            @RequestBody ChatRequest req, HttpServletRequest http) {
         checkRate(http);
         return Result.success(exampleService.pipelineRun(req.input()));
     }

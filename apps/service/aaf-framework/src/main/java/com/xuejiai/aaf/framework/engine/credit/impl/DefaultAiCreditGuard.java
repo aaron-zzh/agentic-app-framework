@@ -14,6 +14,8 @@ import com.xuejiai.aaf.framework.engine.credit.AiUsageRecord;
 import com.xuejiai.aaf.framework.engine.credit.AiUsageRecordRepository;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.CreditLowEvent;
+import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService;
+import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
@@ -154,6 +156,39 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     private long[] calcCost(AiModel model, AiUsage usage, int quotaType) {
         int markup = getMarkupRate();
         Long modelId = model != null ? model.getId() : null;
+
+        // 3D 任务按 source+textureQuality 矩阵定价，优先于 quotaType
+        if (usage instanceof Model3dGenerationService.Model3dTaskResult r3d) {
+            String src = r3d.source() != null ? r3d.source() : "text";
+            String tex = r3d.textureQuality() != null ? r3d.textureQuality() : "none";
+            double yuan = Model3dGenerationService.lookupPrice(model, src, tex);
+            return new long[] {
+                Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
+                Double.doubleToLongBits(yuan)
+            };
+        }
+
+        // 视频任务按 resolution+duration 矩阵定价，优先于 quotaType
+        if (usage instanceof VideoTaskResult vtr && vtr.getDuration() != null) {
+            var vc = model != null ? model.getVideoConfigParsed() : null;
+            int duration = Math.max(1, vtr.getDuration());
+            if (vc != null && vc.pricing() != null && !vc.pricing().isEmpty()) {
+                String res = vtr.getResolution() != null ? vtr.getResolution() : "720p";
+                final String resFinal = res;
+                double pricePerSec =
+                        vc.pricing().stream()
+                                .filter(t -> resFinal.equalsIgnoreCase(t.resolution()))
+                                .mapToDouble(t -> t.pricePerSecond().doubleValue())
+                                .findFirst()
+                                .orElse(vc.pricing().get(0).pricePerSecond().doubleValue());
+                double yuan = pricePerSec * duration;
+                return new long[] {
+                    Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
+                    Double.doubleToLongBits(yuan)
+                };
+            }
+        }
+
         AiQuotaTypeEnum type;
         try {
             type = AiQuotaTypeEnum.of(quotaType);

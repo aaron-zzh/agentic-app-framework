@@ -1,7 +1,5 @@
 package com.xuejiai.aaf.framework.intelligent.agent;
 
-import java.util.List;
-
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.core.agent.AgentExecutor;

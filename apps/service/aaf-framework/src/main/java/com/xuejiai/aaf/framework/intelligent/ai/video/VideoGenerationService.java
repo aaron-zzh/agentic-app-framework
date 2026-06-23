@@ -109,7 +109,7 @@ public interface VideoGenerationService extends AiCapability {
                     submitTextToVideo(
                             new TextToVideoRequest(
                                     request.getPrompt(),
-                                    null,
+                                    request.getModel(),
                                     request.getResolution(),
                                     request.getRatio(),
                                     request.getDuration(),

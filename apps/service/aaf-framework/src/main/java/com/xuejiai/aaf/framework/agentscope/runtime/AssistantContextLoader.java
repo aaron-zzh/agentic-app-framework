@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * 按 assistantId 加载 ai_assistant + ai_persona，生成注入系统提示词的助理配置段。
  *
  * <p>查询优先级：
+ *
  * <ol>
  *   <li>从 {@code ai_assistant} 读取 persona_id / knowledge_base_id / model_id
  *   <li>从 {@code ai_persona} 读取 system_prompt / persona 文本
@@ -61,7 +62,10 @@ public class AssistantContextLoader {
             log.debug("[AssistantContextLoader] assistantId={} 未找到", assistantId);
             return AssistantConfig.empty();
         } catch (Exception e) {
-            log.warn("[AssistantContextLoader] 加载失败 assistantId={}: {}", assistantId, e.getMessage());
+            log.warn(
+                    "[AssistantContextLoader] 加载失败 assistantId={}: {}",
+                    assistantId,
+                    e.getMessage());
             return AssistantConfig.empty();
         }
     }

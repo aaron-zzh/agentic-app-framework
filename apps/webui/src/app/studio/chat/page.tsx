@@ -56,7 +56,7 @@ export default function StudioChatPage() {
       )}
 
       <div className="min-h-0 flex-1">
-        <Chatter preset="ai" layout="page" agentRole={agentRole} persist />
+        <Chatter preset="ai" layout="page" agentRole={agentRole} persist hideToolbar />
       </div>
     </div>
   )

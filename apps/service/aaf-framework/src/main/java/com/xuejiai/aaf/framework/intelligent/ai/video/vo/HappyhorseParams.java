@@ -12,7 +12,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 /**
  * HappyHorse 系列模型 API 请求参数——从 {@link VideoRequest} + {@link VideoConfig} 构建，构造时完成校验。
  *
- * <p>覆盖模型：happyhorse-1.0-t2v / i2v / r2v / video-edit。
+ * <p>覆盖模型：happyhorse-1.1-t2v / i2v / r2v / video-edit。
  *
  * <p>{@link #toInput()} 生成 DashScope API 的 {@code input} 结构；{@link #toParameters()} 生成 {@code
  * parameters} 结构。
@@ -143,7 +143,7 @@ public final class HappyhorseParams {
     /** 生成 DashScope API {@code parameters} 结构。 */
     public Map<String, Object> toParameters() {
         var params = new HashMap<String, Object>();
-        if (resolution != null) params.put("resolution", resolution);
+        if (resolution != null) params.put("resolution", resolution.toUpperCase());
         if (ratio != null) params.put("ratio", ratio);
         if (duration != null) params.put("duration", duration);
         if (seed != null) params.put("seed", seed);
@@ -158,27 +158,56 @@ public final class HappyhorseParams {
 
     // ========== 内部 ==========
 
-    private List<Map<String, String>> buildMediaList() {
-        var list = new ArrayList<Map<String, String>>();
+    private List<Map<String, Object>> buildMediaList() {
+        var list = new ArrayList<Map<String, Object>>();
         if (videoUrl != null) {
-            // video-edit 模式
             list.add(Map.of("type", "video", "url", videoUrl));
             if (referenceImageUrls != null) {
                 for (var url : referenceImageUrls) {
-                    list.add(Map.of("type", "reference_image", "url", url));
+                    list.add(mediaItem("reference_image", url));
                 }
             }
         } else if (imageMode == VideoRequest.ImageMode.FIRST_FRAME && imageUrl != null) {
-            list.add(Map.of("type", "first_frame", "url", imageUrl));
+            list.add(mediaItem("first_frame", imageUrl));
         } else if (imageMode == VideoRequest.ImageMode.REFERENCE) {
             var refs =
                     referenceImageUrls != null && !referenceImageUrls.isEmpty()
                             ? referenceImageUrls
                             : (imageUrl != null ? List.of(imageUrl) : List.<String>of());
             for (var url : refs) {
-                list.add(Map.of("type", "reference_image", "url", url));
+                list.add(mediaItem("reference_image", url));
             }
         }
         return list;
+    }
+
+    /** 构建单个 media 条目：公网 URL 直接用 url 字段，否则下载转 base64。 */
+    private static Map<String, Object> mediaItem(String type, String url) {
+        if (isPublicUrl(url)) {
+            return Map.of("type", type, "url", url);
+        }
+        // 本地或内网 URL：下载后转 base64
+        try {
+            byte[] bytes = java.net.URI.create(url).toURL().openStream().readAllBytes();
+            String mime = guessMime(url);
+            String b64 = java.util.Base64.getEncoder().encodeToString(bytes);
+            return Map.of("type", type, "url", "data:" + mime + ";base64," + b64);
+        } catch (Exception e) {
+            // 下载失败降级用原始 URL
+            return Map.of("type", type, "url", url);
+        }
+    }
+
+    private static boolean isPublicUrl(String url) {
+        if (url == null) return false;
+        return !url.contains("localhost") && !url.contains("127.0.0.1") && !url.startsWith("file:");
+    }
+
+    private static String guessMime(String url) {
+        String lower = url.split("\\?")[0].toLowerCase();
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".gif")) return "image/gif";
+        return "image/png";
     }
 }
