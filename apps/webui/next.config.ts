@@ -29,17 +29,15 @@ const withSerwist = withSerwistInit({
 //   把 proxy-agent 这一族模块全部 alias 到一个空 stub（src/lib/stubs/empty-module.js）。
 //   编译期能解析 ✅，运行时永远不调用 ✅，stub 自身可被 new 调用作为兜底 ✅。
 //
-// 为什么需要正斜杠：
-//   Windows 下 Turbopack 不接受反斜杠绝对路径（报 "windows imports are not implemented yet"），
-//   path.resolve 在 Windows 给的是 `D:\code\...`，必须 .replace(/\\/g, "/") 转成 `D:/code/...`。
-const emptyModule = path.resolve(__dirname, "src/lib/stubs/empty-module.js").replace(/\\/g, "/")
-const proxyAgentStubs = {
-  "proxy-agent": emptyModule,
-  "https-proxy-agent": emptyModule,
-  "http-proxy-agent": emptyModule,
-  "socks-proxy-agent": emptyModule,
-  "pac-proxy-agent": emptyModule
-}
+// Turbopack resolveAlias 必须用相对路径（相对于 next.config.ts 所在目录）：
+//   - 绝对路径在 Docker 容器内被识别为 "server relative import"，Turbopack 尚不支持 → 报错
+//   - Next.js 16 `next build` 默认走 Turbopack，两套配置都必须生效
+// webpack alias 用 path.resolve 绝对路径（webpack 支持，本地和 CI 都正常）。
+const emptyModuleAbsolute = path.resolve(__dirname, "src/lib/stubs/empty-module.js")
+const emptyModuleRelative = "./src/lib/stubs/empty-module.js"
+const proxyAgentPackages = ["proxy-agent", "https-proxy-agent", "http-proxy-agent", "socks-proxy-agent", "pac-proxy-agent"]
+const proxyAgentStubsAbsolute = Object.fromEntries(proxyAgentPackages.map((p) => [p, emptyModuleAbsolute]))
+const proxyAgentStubsRelative = Object.fromEntries(proxyAgentPackages.map((p) => [p, emptyModuleRelative]))
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.0.*"], // 其他设备访问测试
@@ -48,9 +46,10 @@ const nextConfig: NextConfig = {
   // ⚠️ 关键点：Next.js 16 dev 默认走 Turbopack，下面的 webpack 配置在 dev 下完全不生效，
   // 必须用 turbopack.resolveAlias 才能在 dev 模式下命中 stub。
   turbopack: {
-    resolveAlias: proxyAgentStubs
+    // Turbopack resolveAlias 必须用相对路径，绝对路径会被识别为 server-relative import → 报错
+    resolveAlias: proxyAgentStubsRelative
   },
-  // webpack 配置仅用于 next build（生产构建仍是 webpack）
+  // webpack 配置：生产构建降级到 webpack 时仍然生效（用绝对路径，webpack 支持）
   webpack: (config) => {
     config.resolve.alias.canvas = false
     // ⚠️ 不能加 `if (!isServer)` 守卫——报错 trace 第一行是 [Client Component SSR]，
@@ -58,7 +57,7 @@ const nextConfig: NextConfig = {
     // 必须 server/client 两端都打 stub。
     config.resolve.alias = {
       ...config.resolve.alias,
-      ...proxyAgentStubs
+      ...proxyAgentStubsAbsolute
     }
     return config
   },

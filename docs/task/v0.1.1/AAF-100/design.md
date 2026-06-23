@@ -1,7 +1,7 @@
 # 设计：AAF-100 User Studio v0.1 MVP（接口契约 + 表结构）
 
 > 上游：[user-studio-mvp.md v0.2.0](../../../design/apps/webui/user-studio-mvp.md)
-> 任务：[tasks.md](./tasks.md) | 开发记录：[dev-log.md](./dev-log.md)
+> 任务：tasks.md（待创建）| 开发记录：dev-log.md（待创建）
 > 创建：2026-06-22 | 风险等级：🔴 高（5 张新表 + 数据隔离横切）
 
 ## 设计原则

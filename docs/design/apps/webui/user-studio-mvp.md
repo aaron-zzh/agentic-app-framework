@@ -17,7 +17,7 @@ changelog:
 
 > 上游：[user-studio.md](./user-studio.md)（产品定位与待对齐问题）
 > 关联：[directory-structure.md](./directory-structure.md) | [tech-stack.md](./tech-stack.md) | [interaction-modes.md](./interaction-modes.md)
-> 任务：[AAF-100](../../../task/v0.1.1/AAF-100/tasks.md)
+> 任务：AAF-100（tasks.md 待创建）
 
 ## 一句话定位
 
@@ -515,6 +515,6 @@ apps/webui/src/
 
 - 设计方案已 published（v0.2.0）
 - 任务编号 AAF-100，归 v0.1.1 迭代
-- 任务清单：[docs/task/v0.1.1/AAF-100/tasks.md](../../../task/v0.1.1/AAF-100/tasks.md)
+- 任务清单：docs/task/v0.1.1/AAF-100/tasks.md（待创建）
 - Sprint 1（外壳 + 首屏）立即启动，开发者加载 `.kiro/agents/developer-webui.json` 资源后开工
 - Sprint 3 涉及数据库新表 + 数据迁移 + 数据隔离横切，属 🔴 高风险，需 architect 出 design.md + Flyway 脚本评审
