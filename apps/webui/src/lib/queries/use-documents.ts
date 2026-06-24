@@ -58,6 +58,7 @@ export function useUpdateDocument() {
       documentApi.update(id, params),
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: docKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: docKeys.list })
       qc.invalidateQueries({ queryKey: docKeys.tree })
       qc.invalidateQueries({ queryKey: docKeys.published })
     }

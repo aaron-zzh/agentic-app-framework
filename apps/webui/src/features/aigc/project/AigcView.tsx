@@ -93,6 +93,8 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
       setTimeout(() => {
         removePendingTask(task.id)
         queryClient.invalidateQueries({ queryKey: ["media-assets"] })
+        queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
+        queryClient.invalidateQueries({ queryKey: ["credits", "balance"] })
       }, 1500)
     },
     onFailed: (task) => {
@@ -105,6 +107,8 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
     onReconnect: () => {
       // SSE 断连重连后，补查断连期间可能丢失的任务结果
       queryClient.invalidateQueries({ queryKey: ["media-assets"] })
+      queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
+      queryClient.invalidateQueries({ queryKey: ["credits", "balance"] })
     }
   })
 

@@ -125,6 +125,7 @@ export function AssetGroupCard({
           setTimeout(() => {
             removePendingTask(tempId)
             queryClient.invalidateQueries({ queryKey: ["media-assets"] })
+            queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
           }, 1500)
         })
         .catch(() => {
