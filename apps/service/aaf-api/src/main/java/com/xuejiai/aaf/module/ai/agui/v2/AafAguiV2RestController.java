@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.framework.agentscope.runtime.AafContextHolder;
+import com.xuejiai.aaf.framework.agentscope.runtime.AgentCapabilityContext;
 import com.xuejiai.aaf.framework.agentscope.runtime.ConversationContextResolver;
 import com.xuejiai.aaf.framework.protection.RateLimit;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -197,6 +198,8 @@ public class AafAguiV2RestController extends AguiRestController {
         executor.submit(
                 () -> {
                     AafContextHolder.set(ctx);
+                    // 按 agentId 设置积分结算分类，文案类 Agent 写 copywriting，其余写 chat
+                    AgentCapabilityContext.set(resolveCapability(resolvedAgentId));
                     Disposable subscription = null;
                     try {
                         AguiRequestProcessor.ProcessResult result =
@@ -258,6 +261,7 @@ public class AafAguiV2RestController extends AguiRestController {
                 () -> {
                     try {
                         AafContextHolder.clear();
+                        AgentCapabilityContext.clear();
                     } catch (Exception ignore) {
                     }
                 };
@@ -294,5 +298,17 @@ public class AafAguiV2RestController extends AguiRestController {
             } catch (Exception ignore) {
             }
         }
+    }
+
+    /**
+     * 按 agentId 映射积分结算 capability 分类。
+     * 文案类 Agent（content-creation 等）写 "copywriting"，其余默认写 "chat"。
+     */
+    private static String resolveCapability(String agentId) {
+        if (agentId == null) return "chat";
+        return switch (agentId) {
+            case "content-creation", "copywriting", "viral-copy" -> "copywriting";
+            default -> "chat";
+        };
     }
 }

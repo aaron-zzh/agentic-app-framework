@@ -23,6 +23,7 @@ public enum CreditTransactionCategoryEnum implements ArrayValuable<String> {
     AVATAR("avatar", "数字人视频"),
     TOOL("tool", "工具调用"),
     ENTITLEMENT("entitlement", "权益补充"),
+    COPYWRITING("copywriting", "文案生成"),
     OTHER("other", "其他");
 
     /** 编译期常量，供积分能力标识使用。 */

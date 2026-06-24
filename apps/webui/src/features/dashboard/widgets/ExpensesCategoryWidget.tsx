@@ -74,6 +74,7 @@ const BIZ_TYPE_META: Record<string, { label: string; icon: LucideIcon }> = {
   tool: { label: "工具调用", icon: Wrench },
   embedding: { label: "知识库", icon: Package },
   entitlement: { label: "权益补充", icon: Package },
+  copywriting: { label: "文案生成", icon: Wand2 },
   other: { label: "其他", icon: Package },
   // bizType 维度（兼容旧数据）
   AIGC_TASK: { label: "AI 创作", icon: Sparkles },

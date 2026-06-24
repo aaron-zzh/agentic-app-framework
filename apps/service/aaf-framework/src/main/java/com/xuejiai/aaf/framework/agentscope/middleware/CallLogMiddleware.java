@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.runtime.AafContextHolder;
+import com.xuejiai.aaf.framework.agentscope.runtime.AgentCapabilityContext;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
@@ -252,7 +253,9 @@ public class CallLogMiddleware implements MiddlewareBase {
                         }
                     };
 
-            creditGuard.settleByUsage(userId, aiModel, usage, "chat", "内容创作 Agent LLM 调用");
+            creditGuard.settleByUsage(userId, aiModel, usage,
+                    AgentCapabilityContext.get() != null ? AgentCapabilityContext.get() : "chat",
+                    "内容创作 Agent LLM 调用");
             log.debug(
                     "[CallLog] 积分结算完成 userId={} model={} in={} out={}",
                     userId,
