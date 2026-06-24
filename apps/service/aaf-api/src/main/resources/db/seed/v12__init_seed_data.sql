@@ -21,7 +21,7 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 ('ai',       'ai.credit_overdraft_limit',    '0',           '0',           'integer', '积分透支上限',             'token计费场景允许欠费的积分数，0=不允许透支',          TRUE,  TRUE),
 ('ai',       'ai.free_assistant_credit_cap', '100',         '100',         'integer', '免费助理虚拟用户预算上限', '免费助理入口绑定的系统虚拟用户每月积分预算上限',       TRUE,  TRUE),
 ('ai',       'ai.token_markup_rate',         '5',           '5',           'integer', 'Token计费加价倍数',       '相对供应商成本的加价倍数，默认5倍（1元成本→500积分）', TRUE, TRUE),
-('brand',    'brand.company_name',           '学记智能',    '学记智能',    'string',  '公司名称',            '显示在邮件、页面标题等位置',           TRUE,  TRUE),
+('brand',    'brand.company_name',           'XX智能',    'XX智能',    'string',  '公司名称',            '显示在邮件、页面标题等位置',           TRUE,  TRUE),
 ('brand',    'brand.logo_url',               NULL,          NULL,          'string',  'Logo URL',            '系统 Logo 图片地址',                   TRUE,  TRUE),
 ('contact',  'contact.wechat_qr_image',      NULL,          NULL,          'string',  '微信客服二维码',       '微信客服二维码图片 URL，公开接口可读取', TRUE,  TRUE),
 ('examples', 'examples.agentscope_rate_limit_per_minute', '20', '20', 'integer', 'AgentScope示例限流（次/分钟/IP）', 'AgentScope示例接口每个IP每分钟最多调用次数', TRUE, TRUE),
@@ -249,6 +249,7 @@ items (group_title, title, path, icon, sort_order, visible) AS (
     -- 系统
     ('系统',     '系统参数',   '/admin/system-config',        'sliders-horizontal',0,  true),
     ('系统',     '回收站',     '/trash',                      'trash-2',           1,  true),
+    ('系统',     '用户管理',   '/admin/users',                'users',             2,  true),
     ('系统',     '计划任务',   '/admin/scheduled-tasks',      'clock',             3,  true),
     ('系统',     '菜单管理',   '/admin/menus',                'menu',              4,  true),
     ('系统',     '预设管理',   '/system/dashboard-presets',   'layout-template',   5,  true),
@@ -510,7 +511,7 @@ INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refil
 SELECT p.id, e.id, v.quota, 'NONE', 0
 FROM billing_subscription_plan p
 CROSS JOIN (VALUES
-    ('storage',           10),
+    ('storage',           -1),
     ('kb_count',          3),
     ('workflow_count',    20),
     ('agent_count',       5),
@@ -526,7 +527,7 @@ INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refil
 SELECT p.id, e.id, v.quota, 'NONE', 0
 FROM billing_subscription_plan p
 CROSS JOIN (VALUES
-    ('storage',           50),
+    ('storage',           -1),
     ('kb_count',          10),
     ('workflow_count',    100),
     ('agent_count',       20),
@@ -542,7 +543,7 @@ INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refil
 SELECT p.id, e.id, v.quota, 'NONE', 0
 FROM billing_subscription_plan p
 CROSS JOIN (VALUES
-    ('storage',           100),
+    ('storage',           -1),
     ('kb_count',          50),
     ('workflow_count',    200),
     ('agent_count',       30),
@@ -719,10 +720,10 @@ VALUES
 ('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"2:3":[],"3:2":[],"3:4":[],"4:3":[],"4:5":[],"5:4":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["1K","2K","4K"]}}'),
 -- ('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[1152,2048]],"generate":{"maxImages":4,"format":["jpeg","png"]}}'),
 -- 视频生成
-('qwen:happyhorse-1.1-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-i2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.1-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-t2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.1-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-r2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.1-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-i2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.1-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-t2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.1-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-r2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null),
 -- ('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0, null),
 -- 重排序
 ('qwen:qwen3-rerank',              'GTE Rerank v2',       'qwen', 'DASHSCOPE',    'qwen3-rerank',                   'https://dashscope.aliyuncs.com', 'RERANK',     null, 360, true,  null,  null, null, 0, null),
@@ -788,8 +789,8 @@ SET video_config = '{
   "maxReferenceAudios": null,
   "modes": ["t2v", "i2v", "r2v", "video-edit"],
   "pricing": [
-    {"resolution": "720p",  "pricePerSecond": 0.9},
-    {"resolution": "1080p", "pricePerSecond": 1.6}
+    {"resolution": "720p",  "pricePerSecond": 0.6},
+    {"resolution": "1080p", "pricePerSecond": 0.8}
   ]
 }'
 WHERE model_id IN ('qwen:happyhorse-1.1-i2v', 'qwen:happyhorse-1.1-t2v', 'qwen:happyhorse-1.1-r2v', 'qwen:happyhorse-1.1-video-edit');
@@ -1044,7 +1045,7 @@ WHERE NOT EXISTS (
 INSERT INTO credit_grant_rule
     (code, name, amount, expire_days, trigger, status, ext, remark)
 VALUES
-    ('INVITE', '邀请注册奖励', 500, 30, 'EVENT', 'ENABLED',
+    ('INVITE', '邀请注册奖励', 200, 30, 'EVENT', 'ENABLED',
      '{"maxInvites": 20, "description": "好友通过邀请链接完成注册后发放"}'::jsonb,
      '邀请注册奖励：好友通过你的邀请链接完成注册后发放。积分有效期 30 天；每个用户最多可获得 20 次邀请奖励。')
 ON CONFLICT DO NOTHING;

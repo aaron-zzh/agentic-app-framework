@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -32,6 +33,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
+import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -53,8 +55,17 @@ public class AigcProjectService
     private final AigcContentRepository contentRepository;
     private final AigcProjectDocRepository projectDocRepository;
     private final DocumentRepository documentRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired private OperatorContext operatorContext;
+
+    @Override
+    public AigcProjectVO create(AigcProjectCreateDTO request) {
+        var vo = super.create(request);
+        operatorContext.currentUserId().ifPresent(
+                uid -> eventPublisher.publishEvent(new UserGrowthEvent(uid, "project.created")));
+        return vo;
+    }
 
     @Override
     protected JpaRepository<AigcProject, Long> getRepository() {

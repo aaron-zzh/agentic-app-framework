@@ -301,8 +301,7 @@ public class AafAguiV2RestController extends AguiRestController {
     }
 
     /**
-     * 按 agentId 映射积分结算 capability 分类。
-     * 文案类 Agent（content-creation 等）写 "copywriting"，其余默认写 "chat"。
+     * 按 agentId 映射积分结算 capability 分类。 文案类 Agent（content-creation 等）写 "copywriting"，其余默认写 "chat"。
      */
     private static String resolveCapability(String agentId) {
         if (agentId == null) return "chat";

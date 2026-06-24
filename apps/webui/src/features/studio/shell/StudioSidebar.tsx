@@ -14,7 +14,7 @@ import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { useWechatQrImage } from "@/lib/queries/use-system-config"
 import { cn } from "@/lib/utils/index"
-import { STUDIO_NAV, type StudioWorkspaceConfig } from "../nav-config"
+import { resolveWorkspaceFromPath, STUDIO_NAV, type StudioWorkspaceConfig } from "../nav-config"
 import { useStudioShell } from "./store"
 
 interface SidebarItemProps {
@@ -38,8 +38,7 @@ function WorkspaceItem({ config, active, collapsed, onOpen }: SidebarItemProps) 
           ? "flex-col items-center gap-1 px-1 py-2"
           : "flex-row items-center gap-3 px-3 py-2.5",
         "hover:bg-foreground/[0.04]",
-        active &&
-          "bg-foreground/[0.06] text-foreground shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.05)]",
+        active && "bg-foreground/[0.08] text-foreground ring-1 ring-foreground/[0.12]",
         !active && "text-muted-foreground hover:text-foreground"
       )}
     >
@@ -48,7 +47,7 @@ function WorkspaceItem({ config, active, collapsed, onOpen }: SidebarItemProps) 
           "flex shrink-0 items-center justify-center rounded-lg transition-all duration-200",
           collapsed ? "size-8" : "size-9",
           active
-            ? "bg-primary/15 text-primary shadow-[0_0_12px_-2px_var(--color-primary)]"
+            ? "text-primary"
             : "bg-foreground/[0.04] text-foreground/60 group-hover/ws:bg-foreground/[0.08]"
         )}
       >
@@ -73,15 +72,7 @@ export function StudioSidebar() {
   const { sidebarCollapsed, toggleSidebar, openTab } = useStudioShell()
 
   // 当前 active workspace（从 URL 反查）
-  const activeWorkspace = useMemo(() => {
-    const segments = pathname.split("/").filter(Boolean)
-    if (segments[0] !== "studio") return null
-    const seg = segments[1]
-    if (seg === "templates") return "projects"
-    // 工具箱路径归 tools workspace
-    if (seg === "create" && (segments[2] === "tools" || segments[2] === "draw")) return "tools"
-    return STUDIO_NAV.find((w) => w.workspace === seg)?.workspace ?? null
-  }, [pathname])
+  const activeWorkspace = useMemo(() => resolveWorkspaceFromPath(pathname), [pathname])
 
   const handleOpen = (config: StudioWorkspaceConfig) => {
     const defaultChild = config.children.find((c) => c.default) ?? config.children[0]

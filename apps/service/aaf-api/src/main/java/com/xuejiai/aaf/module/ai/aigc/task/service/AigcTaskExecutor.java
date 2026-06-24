@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -18,6 +19,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.image.AsyncImageGenerationServic
 import com.xuejiai.aaf.framework.intelligent.ai.image.ImageGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyAsyncImageService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.decorator.ImageGenServiceDecorator;
+import com.xuejiai.aaf.framework.intelligent.ai.image.process.ImageProcessService;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageEditRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageResult;
@@ -41,6 +43,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.system.file.service.FileUploadService;
+import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -68,9 +71,13 @@ public class AigcTaskExecutor {
     private final Model3dGenerationService model3dGenerationService;
     private final EntityManager entityManager;
     private final PermissionExecutionService permissionExecutionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private MidjourneyAsyncImageService midjourneyAsyncImageService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ImageProcessService imageProcessService;
 
     private static final String STATUS_RUNNING = "RUNNING";
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -154,6 +161,7 @@ public class AigcTaskExecutor {
                     });
 
             log.info("[submitSync] 任务完成: taskId={}, ossUrl={}", taskId, ossUrl);
+            eventPublisher.publishEvent(new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
         } catch (Exception e) {
             log.error("[submitSync] 生成失败: taskId={}", taskId, e);
             refundIfSettled(task, e.getMessage());
@@ -403,6 +411,20 @@ public class AigcTaskExecutor {
             Long taskId, String prompt, String lyrics, String gender, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
+        try (var ignored =
+                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
+                        task.getUserId(), "aigc-music-gen")) {
+            submitMusicSyncInternal(task, taskId, prompt, lyrics, gender, mockUrl);
+        }
+    }
+
+    private void submitMusicSyncInternal(
+            AigcTask task,
+            Long taskId,
+            String prompt,
+            String lyrics,
+            String gender,
+            String mockUrl) {
         try {
             task.setStatus("RUNNING");
             taskRepo.save(task);
@@ -496,6 +518,15 @@ public class AigcTaskExecutor {
     public void submitVoiceSync(Long taskId, String text, String voice, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
+        try (var ignored =
+                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
+                        task.getUserId(), "aigc-voice-gen")) {
+            submitVoiceSyncInternal(task, taskId, text, voice, mockUrl);
+        }
+    }
+
+    private void submitVoiceSyncInternal(
+            AigcTask task, Long taskId, String text, String voice, String mockUrl) {
         try {
             task.setStatus(STATUS_RUNNING);
             taskRepo.save(task);
@@ -816,6 +847,120 @@ public class AigcTaskExecutor {
         return taskMapper.toVO(task);
     }
 
+    /**
+     * 图像处理任务异步执行（SEGMENT_HD_BODY 等同步 SDK 调用，完成后直接存 OSS）。
+     *
+     * @param taskId 内部任务 ID
+     * @param imageUrl 待处理图像 URL
+     * @param method 处理方式，如 SEGMENT_HD_BODY
+     * @param mockUrl Mock 模式固定返回 URL，null 表示真实调用
+     */
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void submitImageProcessSync(
+            Long taskId, String imageUrl, String method, String mockUrl) {
+        var task = taskRepo.findById(taskId).orElse(null);
+        if (task == null) return;
+        try (var ignored =
+                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
+                        task.getUserId(), "aigc-image-process")) {
+            submitImageProcessSyncInternal(task, taskId, imageUrl, method, mockUrl);
+        }
+    }
+
+    private void submitImageProcessSyncInternal(
+            AigcTask task, Long taskId, String imageUrl, String method, String mockUrl) {
+        try {
+            task.setStatus(STATUS_RUNNING);
+            taskRepo.save(task);
+
+            String ossUrl;
+            if (mockUrl != null && !mockUrl.isBlank()) {
+                ossUrl = mockUrl;
+            } else {
+                if (imageProcessService == null) {
+                    throw new IllegalStateException("ImageProcessService 未配置，请检查阿里云 OSS 凭证");
+                }
+                var result =
+                        imageProcessService.process(
+                                new ImageProcessService.ProcessRequest(imageUrl, method));
+
+                // 异步模式（如 SEGMENT_HD_COMMON_IMAGE）：提交成功后转 PENDING，由轮询 Job 处理
+                if ("PENDING".equals(result.status())) {
+                    task.setTaskId(result.taskId());
+                    task.setStatus("PENDING");
+                    task.setUpdateTime(LocalDateTime.now());
+                    taskRepo.save(task);
+                    log.info(
+                            "[submitImageProcessSync] 异步任务已提交: taskId={}, jobId={}",
+                            taskId,
+                            result.taskId());
+                    return;
+                }
+
+                if (!"SUCCESS".equals(result.status())) {
+                    throw new IllegalStateException("图像处理失败: " + result.errorMessage());
+                }
+                String resultUrl = result.resultUrl();
+                String ext = guessImageExt(resultUrl);
+                String path = "aigc/image_process/%s.%s".formatted(UUID.randomUUID(), ext);
+                ossUrl = fileService.uploadFromUrl(resultUrl, path, "image/" + ext, null);
+            }
+
+            task.setResultUrl(ossUrl);
+            task.setOssUrl(ossUrl);
+            task.setStatus(STATUS_SUCCESS);
+            task.setUpdateTime(LocalDateTime.now());
+            taskRepo.save(task);
+
+            permissionExecutionService.runAsOwner(
+                    task.getUserId(),
+                    "图像处理素材保存",
+                    () -> {
+                        try {
+                            var dto =
+                                    new SaveFromGenerationDTO(
+                                            "AI处理-" + method + "-" + task.getId(),
+                                            MediaAssetType.IMAGE,
+                                            ossUrl,
+                                            null,
+                                            JsonUtils.toJsonString(
+                                                    Map.of(
+                                                            "imageUrl", imageUrl,
+                                                            "method", method)),
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            true,
+                                            task.getModelName(),
+                                            task.getProvider(),
+                                            task.getProjectId());
+                            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+                        } catch (Exception e) {
+                            log.warn("[submitImageProcessSync] 写入素材库失败: taskId={}", taskId, e);
+                        }
+                    });
+
+            log.info("[submitImageProcessSync] 图像处理完成: taskId={}, ossUrl={}", taskId, ossUrl);
+        } catch (Exception e) {
+            log.error("[submitImageProcessSync] 处理失败: taskId={}", taskId, e);
+            task.setStatus(STATUS_FAIL);
+            task.setErrorMsg(e.getMessage());
+            task.setUpdateTime(LocalDateTime.now());
+            taskRepo.save(task);
+        }
+        try {
+            eventService.push(
+                    task.getUserId(),
+                    STATUS_SUCCESS.equals(task.getStatus()) ? EVENT_COMPLETED : EVENT_FAILED,
+                    toVO(task));
+        } catch (Exception e) {
+            log.debug("[submitImageProcessSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
+        }
+    }
+
     /** 统一处理模型 ID 大小写与空白，确保与平台配置一致。 */
     private String normalizeModelId(String modelId) {
         long s = License.get().getCouplingSeed();
@@ -845,7 +990,7 @@ public class AigcTaskExecutor {
         }
         if (creditTxId == null) return;
         try {
-            Long refundTxId = creditGuard.refund(creditTxId, "AIGC 任务失败自动退还: " + reason);
+            Long refundTxId = creditGuard.refund(creditTxId, ("AIGC 任务失败自动退还: " + reason).substring(0, Math.min(200, ("AIGC 任务失败自动退还: " + reason).length())));
             if (refundTxId != null) {
                 log.info(
                         "[refundIfSettled] 积分已退还: taskId={}, originalTxId={}, refundTxId={}",

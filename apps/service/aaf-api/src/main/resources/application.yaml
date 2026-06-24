@@ -103,8 +103,8 @@ aaf:
       endpoint: ${OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
       bucket-name: ${OSS_BUCKET:}
       # 用于调用 STS 的 RAM 用户长期凭证（不是 STS 临时凭证）
-      access-key-id: ${OSS_ACCESS_KEY_ID:}
-      access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+      access-key-id: ${OSS_ACCESS_KEY_ID:dev-placeholder}
+      access-key-secret: ${OSS_ACCESS_KEY_SECRET:dev-placeholder}
       # RAM 角色 ARN：acs:ram::<uid>:role/<role-name>，前端直传分片必需
       role-arn: ${OSS_ROLE_ARN:}
       sts-endpoint: ${OSS_STS_ENDPOINT:sts.aliyuncs.com}

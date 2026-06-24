@@ -177,7 +177,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Void> handleMessageNotWritable(
             org.springframework.http.converter.HttpMessageNotWritableException e,
             HttpServletRequest request) {
-        log.warn("响应写出失败（Content-Type 不兼容）: uri={}, err={}", request.getRequestURI(), e.getMessage());
+        log.warn(
+                "响应写出失败（Content-Type 不兼容）: uri={}, err={}",
+                request.getRequestURI(),
+                e.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
 

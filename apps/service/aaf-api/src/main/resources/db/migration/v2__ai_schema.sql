@@ -237,6 +237,8 @@ CREATE TABLE ai_model (
     image_config        JSONB,
     video_config        JSONB,
     params_config       JSONB,
+    -- 供应商 QPS 限制，null 表示不限速；用于出站限流（令牌桶 capacity）
+    qps                 SMALLINT,
     CONSTRAINT fk_ai_model_provider FOREIGN KEY (provider_id) REFERENCES ai_model_provider(id)
 );
 

@@ -108,6 +108,14 @@
 			<artifactId>dysmsapi20170525</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>com.aliyun</groupId>
+			<artifactId>imageenhan20190930</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.aliyun</groupId>
+			<artifactId>imageseg20191230</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.tencentcloudapi</groupId>
 			<artifactId>tencentcloud-sdk-java-sms</artifactId>
 		</dependency>

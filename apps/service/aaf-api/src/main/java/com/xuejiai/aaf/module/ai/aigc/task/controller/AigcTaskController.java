@@ -223,6 +223,20 @@ public class AigcTaskController
                                 dto.model(),
                                 dto.projectId());
                     }
+                    case "IMAGE_PROCESS" -> {
+                        var p = dto.params() != null ? dto.params() : Map.of();
+                        // imageUrl 优先取 params.imageUrl，其次取 prompt（兼容直接传 URL 的场景）
+                        String imageUrl = toString(p.get("imageUrl"));
+                        if (imageUrl == null || imageUrl.isBlank()) {
+                            imageUrl = dto.prompt();
+                        }
+                        String method = toString(p.get("method"));
+                        if (method == null || method.isBlank()) {
+                            method = "SEGMENT_HD_COMMON_IMAGE";
+                        }
+                        yield taskService.submitImageProcessTask(
+                                userId, imageUrl, method, dto.projectId());
+                    }
                     default ->
                             throw new BusinessException(
                                     GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + dto.type());

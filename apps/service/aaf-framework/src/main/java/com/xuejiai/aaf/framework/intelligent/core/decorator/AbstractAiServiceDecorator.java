@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.core.decorator;
 
 import java.util.function.Supplier;
 
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.credit.CreditCallContext;
 import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
@@ -67,13 +68,17 @@ public abstract class AbstractAiServiceDecorator<T extends AiCapability> impleme
         // 1. 从安全上下文取当前用户 ID（积分归账依据）
         Long userId = operatorContext.currentOwnerId().orElse(null);
 
+        // 1.1 归一化 capability 为字典 code（小写、与 credit_transaction_category 字典对齐）
+        //     路由层的 capability() 是大写常量（如 IMAGE_GEN / SPEECH_TTS），不能直接落 category。
+        String category = CreditTransactionCategoryEnum.fromCapability(capability());
+
         // 2. [可选] 前置余额预检
         //    delegate 实现了 AiCapability.estimateCost，子类可覆写做精确预估
         //    （如 DashScopeOcrService 按图像尺寸估 token，VideoGenerationService 按分辨率估单元）
         //    estimatedCost=0 时 creditGuard.precheck 降级为"余额 > 0"保守检查
         if (precheck) {
             long estimated = delegate.estimateCost(model, req, creditGuard.getMarkupRate());
-            creditGuard.precheck(userId, capability(), estimated);
+            creditGuard.precheck(userId, category, estimated);
         }
 
         // 3. 执行真实 AI 调用（delegate 是无积分逻辑的原始服务实现）
@@ -87,14 +92,14 @@ public abstract class AbstractAiServiceDecorator<T extends AiCapability> impleme
             AiUsage usage = result instanceof AiUsage u ? u : AiUsage.empty();
             Long creditTxId =
                     creditGuard.settleByUsageReturningTxId(
-                            userId, model, usage, capability(), delegate.bizRemark(usage));
+                            userId, model, usage, category, delegate.bizRemark(usage));
             if (creditTxId != null) {
                 CreditCallContext.setLastCreditTxId(creditTxId);
             }
         } catch (Exception e) {
             log.warn(
                     "积分结算失败，不回滚已完成调用: capability={}, userId={}, err={}",
-                    capability(),
+                    category,
                     userId,
                     e.getMessage());
         }

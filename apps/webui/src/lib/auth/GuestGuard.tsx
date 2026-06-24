@@ -18,12 +18,17 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
   const { isAuthenticated, isChecking } = useAuth()
   const [checked, setChecked] = useState(false)
-  const redirectTo = searchParams.get("redirect") ?? paths.workspace.root
+  const redirectTo = searchParams.get("redirect") ?? paths.studio.welcome
 
   useEffect(() => {
-    if (isChecking) return
+    // isChecking 可能因页面跳转残留为 true，加 300ms 超时兜底
+    if (isChecking) {
+      const timeout = setTimeout(() => setChecked(true), 300)
+      return () => clearTimeout(timeout)
+    }
     if (isAuthenticated) {
-      router.replace(redirectTo)
+      const dest = redirectTo === paths.studio.welcome ? "/studio" : redirectTo
+      router.replace(dest)
     } else {
       setChecked(true)
     }

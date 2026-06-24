@@ -45,7 +45,7 @@ CREATE TABLE media_asset (
 
 COMMENT ON TABLE media_asset IS 'AIGC 素材库';
 COMMENT ON COLUMN media_asset.name IS '素材名称';
-COMMENT ON COLUMN media_asset.type IS '素材类型：IMAGE/VIDEO/AUDIO/MODEL_3D/TEXT';
+COMMENT ON COLUMN media_asset.type IS '素材类型：IMAGE/VIDEO/AUDIO/MODEL_3D/TEXT/MUSIC';
 COMMENT ON COLUMN media_asset.url IS '素材访问 URL';
 COMMENT ON COLUMN media_asset.thumbnail_url IS '缩略图 URL';
 COMMENT ON COLUMN media_asset.size IS '文件大小（字节）';

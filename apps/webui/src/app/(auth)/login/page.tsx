@@ -79,195 +79,195 @@ const phoneVerifySchema = z.object({
 type PhoneLoginForm = z.infer<typeof phoneLoginSchema>
 type PhoneVerifyForm = z.infer<typeof phoneVerifySchema>
 
-// ==================== 验证码登录子组件 ====================
+// ==================== 验证码登录子组件（预留，暂未挂载）====================
 
-function CodeLoginPanel({
-  onSuccess
-}: {
-  onSuccess: (accessToken: string, refreshToken: string, isNewUser?: boolean) => void
-}) {
-  const [step, setStep] = useState<"email" | "code">("email")
-  const [email, setEmail] = useState("")
-  const [countdown, setCountdown] = useState(0)
-  /** 后端返回 AUTH_LOGIN_BAD_CREDENTIALS（code=1000000，邮箱未注册）时切到 true，引导跳到注册流程 */
-  const [notRegistered, setNotRegistered] = useState(false)
-  const captchaVerifyParamRef = useRef<string>("")
+// function _CodeLoginPanel({
+//   onSuccess
+// }: {
+//   onSuccess: (accessToken: string, refreshToken: string, isNewUser?: boolean) => void
+// }) {
+//   const [step, setStep] = useState<"email" | "code">("email")
+//   const [email, setEmail] = useState("")
+//   const [countdown, setCountdown] = useState(0)
+//   /** 后端返回 AUTH_LOGIN_BAD_CREDENTIALS（code=1000000，邮箱未注册）时切到 true，引导跳到注册流程 */
+//   const [notRegistered, setNotRegistered] = useState(false)
+//   const captchaVerifyParamRef = useRef<string>("")
 
-  const emailMethods = useForm<CodeLoginForm>({
-    resolver: zodResolver(codeLoginSchema),
-    defaultValues: { email: "" }
-  })
+//   const emailMethods = useForm<CodeLoginForm>({
+//     resolver: zodResolver(codeLoginSchema),
+//     defaultValues: { email: "" }
+//   })
 
-  const codeMethods = useForm<CodeVerifyForm>({
-    resolver: zodResolver(codeVerifySchema),
-    defaultValues: { code: "" }
-  })
+//   const codeMethods = useForm<CodeVerifyForm>({
+//     resolver: zodResolver(codeVerifySchema),
+//     defaultValues: { code: "" }
+//   })
 
-  // 倒计时
-  useEffect(() => {
-    if (countdown <= 0) return
-    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
-    return () => clearTimeout(timer)
-  }, [countdown])
+//   // 倒计时
+//   useEffect(() => {
+//     if (countdown <= 0) return
+//     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
+//     return () => clearTimeout(timer)
+//   }, [countdown])
 
-  async function sendCode(emailVal: string, captchaParam?: string) {
-    await authApi.sendEmailCode(emailVal, "login", captchaParam)
-    setCountdown(60)
-    notify.success("验证码已发送，请查收邮件")
-  }
+//   async function sendCode(emailVal: string, captchaParam?: string) {
+//     await authApi.sendEmailCode(emailVal, "login", captchaParam)
+//     setCountdown(60)
+//     notify.success("验证码已发送，请查收邮件")
+//   }
 
-  async function onSendCode(data: CodeLoginForm) {
-    try {
-      await sendCode(data.email, captcha.enabled ? captchaVerifyParamRef.current : undefined)
-      setEmail(data.email)
-      setStep("code")
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "发送失败，请重试"
-      emailMethods.setError("root", { message: msg })
-      notify.error(msg)
-    } finally {
-      captchaVerifyParamRef.current = ""
-      captcha.reset()
-    }
-  }
+//   async function onSendCode(data: CodeLoginForm) {
+//     try {
+//       await sendCode(data.email, captcha.enabled ? captchaVerifyParamRef.current : undefined)
+//       setEmail(data.email)
+//       setStep("code")
+//     } catch (err) {
+//       const msg = err instanceof Error ? err.message : "发送失败，请重试"
+//       emailMethods.setError("root", { message: msg })
+//       notify.error(msg)
+//     } finally {
+//       captchaVerifyParamRef.current = ""
+//       captcha.reset()
+//     }
+//   }
 
-  // 拿最新提交闭包，ESA 验证通过后调用
-  const submitRef = useRef<(() => void) | null>(null)
-  submitRef.current = emailMethods.handleSubmit(onSendCode)
+//   // 拿最新提交闭包，ESA 验证通过后调用
+//   const submitRef = useRef<(() => void) | null>(null)
+//   submitRef.current = emailMethods.handleSubmit(onSendCode)
 
-  const captcha = useEsaCaptcha({
-    elementId: "email-code-captcha",
-    buttonId: "email-code-send-btn",
-    onVerified: (param) => {
-      captchaVerifyParamRef.current = param
-      submitRef.current?.()
-    }
-  })
+//   const captcha = useEsaCaptcha({
+//     elementId: "email-code-captcha",
+//     buttonId: "email-code-send-btn",
+//     onVerified: (param) => {
+//       captchaVerifyParamRef.current = param
+//       submitRef.current?.()
+//     }
+//   })
 
-  async function onVerify(data: CodeVerifyForm) {
-    try {
-      const result = await authApi.loginByEmail(email, data.code)
-      onSuccess(result.accessToken, result.refreshToken)
-    } catch (err) {
-      // 后端：邮箱不存在 → AUTH_LOGIN_BAD_CREDENTIALS (1000000)；
-      // 与手机验证码登录不同，邮箱端不自动注册，由前端引导跳「邮箱验证码注册」流程
-      if (err instanceof ApiError && err.code === 1000000) {
-        setNotRegistered(true)
-        codeMethods.setError("root", { message: "该邮箱尚未注册" })
-        return
-      }
-      const msg = err instanceof Error ? err.message : "验证失败，请重试"
-      codeMethods.setError("root", { message: msg })
-      notify.error(msg)
-    }
-  }
+//   async function onVerify(data: CodeVerifyForm) {
+//     try {
+//       const result = await authApi.loginByEmail(email, data.code)
+//       onSuccess(result.accessToken, result.refreshToken)
+//     } catch (err) {
+//       // 后端：邮箱不存在 → AUTH_LOGIN_BAD_CREDENTIALS (1000000)；
+//       // 与手机验证码登录不同，邮箱端不自动注册，由前端引导跳「邮箱验证码注册」流程
+//       if (err instanceof ApiError && err.code === 1000000) {
+//         setNotRegistered(true)
+//         codeMethods.setError("root", { message: "该邮箱尚未注册" })
+//         return
+//       }
+//       const msg = err instanceof Error ? err.message : "验证失败，请重试"
+//       codeMethods.setError("root", { message: msg })
+//       notify.error(msg)
+//     }
+//   }
 
-  async function onResend() {
-    if (countdown > 0) return
-    try {
-      // 重新发送也走相同的 ESA 流程：用户点按钮触发；
-      // 此处直接调用，沿用同一份 captchaVerifyParam（若已失效后端会拒绝，提示用户回到上一步重新滑动）
-      await sendCode(email, captcha.enabled ? captchaVerifyParamRef.current : undefined)
-      setNotRegistered(false)
-    } catch (err) {
-      notify.error(err instanceof Error ? err.message : "重新发送失败，请重试")
-    } finally {
-      captchaVerifyParamRef.current = ""
-      captcha.reset()
-    }
-  }
+//   async function onResend() {
+//     if (countdown > 0) return
+//     try {
+//       // 重新发送也走相同的 ESA 流程：用户点按钮触发；
+//       // 此处直接调用，沿用同一份 captchaVerifyParam（若已失效后端会拒绝，提示用户回到上一步重新滑动）
+//       await sendCode(email, captcha.enabled ? captchaVerifyParamRef.current : undefined)
+//       setNotRegistered(false)
+//     } catch (err) {
+//       notify.error(err instanceof Error ? err.message : "重新发送失败，请重试")
+//     } finally {
+//       captchaVerifyParamRef.current = ""
+//       captcha.reset()
+//     }
+//   }
 
-  if (step === "code") {
-    return (
-      <div className="space-y-5">
-        <p className="text-muted-foreground text-sm">
-          验证码已发送至 <span className="font-medium text-foreground">{email}</span>
-        </p>
-        <Form methods={codeMethods} onSubmit={onVerify} className="space-y-5">
-          <FieldOtp name="code" length={6} autoSubmit />
+//   if (step === "code") {
+//     return (
+//       <div className="space-y-5">
+//         <p className="text-muted-foreground text-sm">
+//           验证码已发送至 <span className="font-medium text-foreground">{email}</span>
+//         </p>
+//         <Form methods={codeMethods} onSubmit={onVerify} className="space-y-5">
+//           <FieldOtp name="code" length={6} autoSubmit />
 
-          <p
-            className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${codeMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
-          >
-            {codeMethods.formState.errors.root?.message ?? " "}
-          </p>
+//           <p
+//             className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${codeMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
+//           >
+//             {codeMethods.formState.errors.root?.message ?? " "}
+//           </p>
 
-          {notRegistered ? (
-            <div className="space-y-3 rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-sm dark:border-amber-700/40 dark:bg-amber-950/30">
-              <p className="text-foreground">
-                邮箱 <span className="font-medium">{email}</span> 尚未注册，是否使用此邮箱立即注册？
-              </p>
-              <Button
-                type="button"
-                className="h-10 w-full"
-                nativeButton={false}
-                render={<Link href={`${paths.auth.register}?email=${encodeURIComponent(email)}`} />}
-              >
-                立即注册
-              </Button>
-            </div>
-          ) : (
-            <Button
-              type="submit"
-              className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
-              disabled={codeMethods.formState.isSubmitting}
-            >
-              {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
-            </Button>
-          )}
-        </Form>
+//           {notRegistered ? (
+//             <div className="space-y-3 rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-sm dark:border-amber-700/40 dark:bg-amber-950/30">
+//               <p className="text-foreground">
+//                 邮箱 <span className="font-medium">{email}</span> 尚未注册，是否使用此邮箱立即注册？
+//               </p>
+//               <Button
+//                 type="button"
+//                 className="h-10 w-full"
+//                 nativeButton={false}
+//                 render={<Link href={`${paths.auth.register}?email=${encodeURIComponent(email)}`} />}
+//               >
+//                 立即注册
+//               </Button>
+//             </div>
+//           ) : (
+//             <Button
+//               type="submit"
+//               className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
+//               disabled={codeMethods.formState.isSubmitting}
+//             >
+//               {codeMethods.formState.isSubmitting ? "验证中..." : "登录"}
+//             </Button>
+//           )}
+//         </Form>
 
-        <div className="flex items-center justify-between text-sm">
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-primary"
-            onClick={() => {
-              setStep("email")
-              setNotRegistered(false)
-            }}
-          >
-            修改邮箱
-          </button>
-          <button
-            type="button"
-            className={`${countdown > 0 ? "cursor-not-allowed text-muted-foreground" : "text-primary hover:underline"}`}
-            disabled={countdown > 0}
-            onClick={onResend}
-          >
-            {countdown > 0 ? `重新发送 (${countdown}s)` : "重新发送"}
-          </button>
-        </div>
-      </div>
-    )
-  }
+//         <div className="flex items-center justify-between text-sm">
+//           <button
+//             type="button"
+//             className="text-muted-foreground hover:text-primary"
+//             onClick={() => {
+//               setStep("email")
+//               setNotRegistered(false)
+//             }}
+//           >
+//             修改邮箱
+//           </button>
+//           <button
+//             type="button"
+//             className={`${countdown > 0 ? "cursor-not-allowed text-muted-foreground" : "text-primary hover:underline"}`}
+//             disabled={countdown > 0}
+//             onClick={onResend}
+//           >
+//             {countdown > 0 ? `重新发送 (${countdown}s)` : "重新发送"}
+//           </button>
+//         </div>
+//       </div>
+//     )
+//   }
 
-  return (
-    <Form
-      methods={emailMethods}
-      onSubmit={captcha.enabled ? undefined : onSendCode}
-      className="space-y-5"
-    >
-      <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
+//   return (
+//     <Form
+//       methods={emailMethods}
+//       onSubmit={captcha.enabled ? undefined : onSendCode}
+//       className="space-y-5"
+//     >
+//       <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
 
-      {captcha.enabled && <div id="email-code-captcha" />}
+//       {captcha.enabled && <div id="email-code-captcha" />}
 
-      <p
-        className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${emailMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
-      >
-        {emailMethods.formState.errors.root?.message ?? " "}
-      </p>
+//       <p
+//         className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${emailMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
+//       >
+//         {emailMethods.formState.errors.root?.message ?? " "}
+//       </p>
 
-      <Button
-        id="email-code-send-btn"
-        type={captcha.buttonType}
-        className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
-        disabled={emailMethods.formState.isSubmitting}
-      >
-        {emailMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
-      </Button>
-    </Form>
-  )
-}
+//       <Button
+//         id="email-code-send-btn"
+//         type={captcha.buttonType}
+//         className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
+//         disabled={emailMethods.formState.isSubmitting}
+//       >
+//         {emailMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
+//       </Button>
+//     </Form>
+//   )
+// }
 
 // ==================== 手机验证码登录子组件 ====================
 
@@ -426,7 +426,17 @@ function PhoneLoginPanel({
         id="phone-code-send-btn"
         type={captcha.buttonType}
         className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
-        disabled={phoneMethods.formState.isSubmitting || !termsAgreed}
+        disabled={phoneMethods.formState.isSubmitting}
+        onClick={async (e) => {
+          e.preventDefault()
+          const valid = await phoneMethods.trigger("phone")
+          if (!valid) return
+          if (!termsAgreed) {
+            notify.warning("请先阅读并同意服务条款与隐私政策")
+            return
+          }
+          notify.info("手机验证码功能开发中，敬请期待")
+        }}
       >
         {phoneMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
       </Button>
@@ -643,7 +653,7 @@ function LoginContent() {
         <>
           <div>
             <h2 className="font-bold text-2xl">登录</h2>
-            <p className="mt-1 text-muted-foreground text-sm">驾驶舱待命，欢迎归来</p>
+            <p className="mt-1 text-muted-foreground text-sm">欢迎使用，AI 时代快人一步</p>
           </div>
 
           <Tabs defaultValue="password">
@@ -651,18 +661,12 @@ function LoginContent() {
               <TabsTrigger value="password" className="flex-1">
                 密码登录
               </TabsTrigger>
-              <TabsTrigger value="email" className="flex-1">
-                邮箱验证码
-              </TabsTrigger>
               <TabsTrigger value="phone" className="flex-1">
                 手机验证码
               </TabsTrigger>
             </TabsList>
             <TabsContent value="password" className="pt-4">
               <PasswordLoginPanel onSuccess={handleLoginSuccess} />
-            </TabsContent>
-            <TabsContent value="email" className="pt-4">
-              <CodeLoginPanel onSuccess={handleLoginSuccess} />
             </TabsContent>
             <TabsContent value="phone" className="pt-4">
               <PhoneLoginPanel onSuccess={handleLoginSuccess} />

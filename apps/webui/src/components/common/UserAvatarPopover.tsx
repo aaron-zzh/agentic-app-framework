@@ -77,7 +77,7 @@ export function UserAvatarPopover() {
           }
         >
           <AnimateBorder rounded="full" borderWidth={1.5} size={40} glowSize={60} duration={8}>
-            <Avatar className="!size-[36px] after:hidden">
+            <Avatar className="size-[36px]! after:hidden">
               <AvatarImage
                 src={src || $url.cdn("/assets/avatar/avatar.png")}
                 alt={displayName || "用户头像"}
@@ -114,7 +114,7 @@ export function UserAvatarPopover() {
                 nativeButton={false}
                 render={<Link href={pricingPath} />}
                 onClick={() => setOpen(false)}
-                className="mt-3 w-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-white hover:opacity-90"
+                className="mt-3 w-full rounded-full bg-linear-to-r from-amber-500 to-orange-500 font-semibold text-white hover:opacity-90"
               >
                 {t("upgradeButton")}
               </Button>

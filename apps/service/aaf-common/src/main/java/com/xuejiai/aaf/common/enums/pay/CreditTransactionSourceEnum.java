@@ -17,6 +17,7 @@ public enum CreditTransactionSourceEnum implements ArrayValuable<String> {
     REDEEM_CODE("redeem_code", "兑换码兑换"),
     ADMIN_ADJUST("admin_adjust", "管理员手动调整"),
     PERIODIC_REWARD("periodic_reward", "周期性奖励"),
+    GROWTH_TASK("growth_task", "成长任务奖励"),
     AI_CONSUME("ai_consume", "AI 能力消费"),
     TOOL_CONSUME("tool_consume", "工具调用消费"),
     OTHER("other", "其他");

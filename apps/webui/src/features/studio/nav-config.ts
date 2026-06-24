@@ -23,6 +23,7 @@ import {
   Mic,
   Music,
   Palette,
+  Scissors,
   Settings,
   Shapes,
   Sparkles,
@@ -96,9 +97,22 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
       { key: "copy", label: "文案", icon: Wand2, path: "/studio/create/copy" },
       { key: "viral", label: "爆款", icon: Zap, path: "/studio/create/viral", badge: "热" },
       // { key: "pipeline", label: "工作流", icon: Workflow, path: "/studio/create/pipeline", badge: "新" },
+      { key: "matting", label: "抠图", icon: Scissors, path: "/studio/create/matting" },
       { key: "voice", label: "配音", icon: Mic, path: "/studio/create/voice" },
       { key: "music", label: "音乐", icon: Music, path: "/studio/create/music" },
       { key: "tools", label: "工具箱", icon: Wrench, path: "/studio/create/tools", badge: "新" }
+    ]
+  },
+  {
+    workspace: "assets",
+    label: "作品",
+    icon: Images,
+    path: "/studio/assets",
+    children: [
+      { key: "works", label: "作品", icon: Images, path: "/studio/assets/works", default: true },
+      { key: "materials", label: "素材", icon: Box, path: "/studio/assets/materials" },
+      { key: "prompts", label: "提示词", icon: Tag, path: "/studio/assets/prompts" },
+      { key: "history", label: "任务历史", icon: History, path: "/studio/assets/history" }
     ]
   },
   {
@@ -118,18 +132,6 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
       { key: "draft", label: "草稿", icon: FileText, path: "/studio/projects?status=draft" },
       { key: "done", label: "已完成", icon: Star, path: "/studio/projects?status=done" },
       { key: "templates", label: "模板库", icon: Shapes, path: "/studio/templates" }
-    ]
-  },
-  {
-    workspace: "assets",
-    label: "作品",
-    icon: Images,
-    path: "/studio/assets",
-    children: [
-      { key: "works", label: "作品", icon: Images, path: "/studio/assets/works", default: true },
-      { key: "materials", label: "素材", icon: Box, path: "/studio/assets/materials" },
-      { key: "prompts", label: "提示词", icon: Tag, path: "/studio/assets/prompts" },
-      { key: "history", label: "任务历史", icon: History, path: "/studio/assets/history" }
     ]
   },
   {

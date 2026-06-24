@@ -71,8 +71,12 @@ public class AsrWebSocketHandler extends BinaryWebSocketHandler {
     /** ASR 模型 ID，对应 seed 中 fun-asr-realtime 的配置。 */
     private static final String ASR_MODEL_ID = "qwen:fun-asr-realtime";
 
-    /** 计费 capability，与 SpeechServiceDecorator 等保持一致，落 credit_transaction.category。 */
-    private static final String BILLING_CAPABILITY = "speech-asr";
+    /**
+     * 计费 capability，与字典 {@code credit_transaction_category} 的 value 对齐（下划线格式）。
+     *
+     * <p>历史曾用 {@code speech-asr}（中划线），不一致；统一改为 {@code speech_asr}。
+     */
+    private static final String BILLING_CAPABILITY = "speech_asr";
 
     /** PCM 16kHz mono 16bit 的字节率：16000 samples/s × 2 bytes/sample × 1 channel = 32000 B/s。 */
     private static final int PCM_BYTES_PER_SECOND = 32_000;

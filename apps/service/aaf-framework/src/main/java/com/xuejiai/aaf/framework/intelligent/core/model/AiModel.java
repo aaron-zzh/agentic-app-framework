@@ -224,6 +224,14 @@ public class AiModel extends BaseEntity {
     @Column(name = "params_config", columnDefinition = "jsonb")
     private String paramsConfig;
 
+    /**
+     * 供应商出站 QPS 限制，null 表示不限速。
+     *
+     * <p>用于后续在调用层（装饰器/执行器）按此值构造令牌桶，避免触发供应商限流。
+     */
+    @Column(name = "qps")
+    private Short qps;
+
     /** 是否支持指定能力 */
     public boolean hasCapability(String capability) {
         return capabilities != null && capabilities.contains(capability);

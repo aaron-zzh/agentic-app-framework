@@ -149,6 +149,12 @@ public class UserController {
         return Result.success();
     }
 
+    @Operation(summary = "下载导入模板")
+    @GetMapping("/import/template")
+    public void importTemplate(HttpServletResponse response) throws IOException {
+        ExcelUtils.write(response, "用户导入模板", "用户", UserImportVO.class, List.of());
+    }
+
     @Operation(summary = "导入用户", description = "上传 Excel 文件批量导入用户")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/import")

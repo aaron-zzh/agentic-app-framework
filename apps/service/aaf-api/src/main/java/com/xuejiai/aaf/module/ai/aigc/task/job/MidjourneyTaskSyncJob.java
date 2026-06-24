@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyAsyncImageService;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
+import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 
@@ -29,6 +30,7 @@ public class MidjourneyTaskSyncJob {
     private final AigcTaskRepository taskRepo;
     private final AigcTaskService aigcTaskService;
     private final ConfigCacheManager configCacheManager;
+    private final PermissionExecutionService permissionExecutionService;
 
     @Autowired(required = false)
     private MidjourneyAsyncImageService midjourneyService;
@@ -66,14 +68,24 @@ public class MidjourneyTaskSyncJob {
                                 "[MidjourneySync] 任务完成: aigcTaskId={}, url={}",
                                 task.getId(),
                                 result.imageUrl());
-                        aigcTaskService.completeTask(compositeTaskId, result.imageUrl());
+                        permissionExecutionService.runAsOwner(
+                                task.getUserId(),
+                                "Midjourney任务完成",
+                                () ->
+                                        aigcTaskService.completeTask(
+                                                compositeTaskId, result.imageUrl()));
                     }
                     case "FAILURE" -> {
                         log.warn(
                                 "[MidjourneySync] 任务失败: aigcTaskId={}, reason={}",
                                 task.getId(),
                                 result.failReason());
-                        aigcTaskService.failTask(compositeTaskId, result.failReason());
+                        permissionExecutionService.runAsOwner(
+                                task.getUserId(),
+                                "Midjourney任务失败",
+                                () ->
+                                        aigcTaskService.failTask(
+                                                compositeTaskId, result.failReason()));
                     }
                     default -> {} // IN_PROGRESS，继续等待
                 }

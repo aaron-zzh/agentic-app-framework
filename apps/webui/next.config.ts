@@ -35,9 +35,19 @@ const withSerwist = withSerwistInit({
 // webpack alias 用 path.resolve 绝对路径（webpack 支持，本地和 CI 都正常）。
 const emptyModuleAbsolute = path.resolve(__dirname, "src/lib/stubs/empty-module.js")
 const emptyModuleRelative = "./src/lib/stubs/empty-module.js"
-const proxyAgentPackages = ["proxy-agent", "https-proxy-agent", "http-proxy-agent", "socks-proxy-agent", "pac-proxy-agent"]
-const proxyAgentStubsAbsolute = Object.fromEntries(proxyAgentPackages.map((p) => [p, emptyModuleAbsolute]))
-const proxyAgentStubsRelative = Object.fromEntries(proxyAgentPackages.map((p) => [p, emptyModuleRelative]))
+const proxyAgentPackages = [
+  "proxy-agent",
+  "https-proxy-agent",
+  "http-proxy-agent",
+  "socks-proxy-agent",
+  "pac-proxy-agent",
+]
+const proxyAgentStubsAbsolute = Object.fromEntries(
+  proxyAgentPackages.map((p) => [p, emptyModuleAbsolute]),
+)
+const proxyAgentStubsRelative = Object.fromEntries(
+  proxyAgentPackages.map((p) => [p, emptyModuleRelative]),
+)
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.0.*"], // 其他设备访问测试

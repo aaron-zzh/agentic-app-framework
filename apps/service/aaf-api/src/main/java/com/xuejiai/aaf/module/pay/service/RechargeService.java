@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.pay.service;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,6 +11,7 @@ import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
+import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ public class RechargeService implements PaySuccessHandler {
     private final BizOrderService bizOrderService;
     private final PayOrderService payOrderService;
     private final CreditService creditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 延迟注入打破循环：PayNotifyService → RechargeService(handler) → PayNotifyService */
     @org.springframework.context.annotation.Lazy
@@ -75,5 +78,6 @@ public class RechargeService implements PaySuccessHandler {
                 bizOrder.getOrderNo());
         log.info(
                 "充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), bizOrder.getTotalAmount());
+        eventPublisher.publishEvent(new UserGrowthEvent(bizOrder.getUserId(), "credit.recharge.success"));
     }
 }

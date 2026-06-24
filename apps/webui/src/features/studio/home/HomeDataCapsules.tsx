@@ -51,8 +51,9 @@ export function HomeDataCapsules() {
           loading={todayLoading}
           icon={<Sparkles className="size-4" />}
           tone="violet"
-          action={<ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />}
-          className="[background-image:url('/assets/images/svg/shape-square.svg')] [background-repeat:repeat] [background-size:80px] [background-blend-mode:overlay] opacity-100"
+          action={
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          }
         />
       </Link>
       <Link href="/studio/assets/works" className="group">
@@ -63,8 +64,9 @@ export function HomeDataCapsules() {
           loading={aiAssetLoading}
           icon={<FolderKanban className="size-4" />}
           tone="cyan"
-          action={<ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />}
-          className="[background-image:url('/assets/images/svg/shape-square.svg')] [background-repeat:repeat] [background-size:80px] [background-blend-mode:overlay]"
+          action={
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          }
         />
       </Link>
       <Link href="/studio/me/credits" className="group">
@@ -74,8 +76,9 @@ export function HomeDataCapsules() {
           loading={balanceLoading}
           icon={<Wallet className="size-4" />}
           tone="amber"
-          action={<ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />}
-          className="[background-image:url('/assets/images/svg/shape-square.svg')] [background-repeat:repeat] [background-size:80px] [background-blend-mode:overlay]"
+          action={
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          }
         />
       </Link>
       <Link href="/studio/knowledge/docs" className="group">
@@ -86,8 +89,9 @@ export function HomeDataCapsules() {
           loading={docLoading}
           icon={<CheckSquare className="size-4" />}
           tone="emerald"
-          action={<ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />}
-          className="[background-image:url('/assets/images/svg/shape-square.svg')] [background-repeat:repeat] [background-size:80px] [background-blend-mode:overlay]"
+          action={
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          }
         />
       </Link>
     </div>

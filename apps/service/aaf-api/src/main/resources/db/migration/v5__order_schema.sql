@@ -59,7 +59,7 @@ CREATE TABLE credit_transaction (
     update_time     TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     delete_time     TIMESTAMP(6),
     deleted         BOOLEAN      NOT NULL DEFAULT FALSE,
-    remark          VARCHAR(255)
+    remark          VARCHAR(500)
 );
 
 COMMENT ON TABLE credit_transaction IS '积分流水记录';

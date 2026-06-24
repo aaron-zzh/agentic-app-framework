@@ -171,7 +171,7 @@ export function AssetLibrary() {
           <div className="relative ml-auto w-64">
             <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
             <Input
-              placeholder="搜索素材..."
+              placeholder="搜索..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value)

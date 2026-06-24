@@ -25,16 +25,15 @@ const navLinks = [
 export function MarketingHeader() {
   const isOffset = useScrollOffset()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const user = useAuthStore((s) => s.user)
 
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 flex h-[var(--layout-marketing-header-height)] items-center transition-all duration-200",
+        "sticky top-0 z-50 flex h-(--layout-marketing-header-height) items-center transition-all duration-200",
         isOffset ? "bg-background/80 shadow-sm backdrop-blur-md" : "bg-background/95 backdrop-blur"
       )}
     >
-      <div className="mx-auto flex w-full max-w-[var(--layout-marketing-max-width)] items-center justify-between px-6">
+      <div className="mx-auto flex w-full max-w-(--layout-marketing-max-width) items-center justify-between px-6">
         <Brand size="lg" />
 
         <nav className="hidden items-center gap-6 md:flex">
@@ -52,19 +51,7 @@ export function MarketingHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {isAuthenticated ? (
-            <Button
-              size="sm"
-              nativeButton={false}
-              render={
-                <Link
-                  href={
-                    user?.roles?.some((r) => r === "super_admin" || r === "admin")
-                      ? paths.workspace.root
-                      : paths.studio.welcome
-                  }
-                />
-              }
-            >
+            <Button size="sm" nativeButton={false} render={<Link href={paths.studio.welcome} />}>
               进入工作区
             </Button>
           ) : (

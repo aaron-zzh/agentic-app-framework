@@ -9,10 +9,13 @@
 
 services:
   postgres:
-    ports:
-      - "${DB_PORT:-5432}:5432"
+    ports: !reset []  # 生产不对外暴露
 
   redis:
+    ports: !reset []  # 生产不对外暴露
+
+  # Neo4j
+  neo4j:
     ports: !reset []  # 生产不对外暴露
 
   aaf-service:

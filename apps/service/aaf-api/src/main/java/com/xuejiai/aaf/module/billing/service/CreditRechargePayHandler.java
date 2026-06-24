@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.billing.service;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -8,6 +9,7 @@ import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.module.billing.repository.CreditPackageRepository;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
+import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ public class CreditRechargePayHandler implements PaySuccessHandler {
     private final BizOrderService bizOrderService;
     private final CreditPackageRepository creditPackageRepository;
     private final CreditService creditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public String bizOrderType() {
@@ -63,6 +66,8 @@ public class CreditRechargePayHandler implements PaySuccessHandler {
                                     bizOrder.getUserId(),
                                     total,
                                     pkg.getName());
+                            eventPublisher.publishEvent(
+                                    new UserGrowthEvent(bizOrder.getUserId(), "credit.recharge.success"));
                         },
                         () ->
                                 log.warn(

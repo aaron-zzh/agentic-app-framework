@@ -17,7 +17,6 @@ import {
   ArrowUp,
   ChevronDown,
   Image,
-  MessageCircle,
   Mic,
   Music,
   Plus,
@@ -38,7 +37,6 @@ import { ModelSelector } from "@/components/common/ModelSelector"
 import { GlassCard } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Skeleton } from "@/components/ui/skeleton"
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
 import { PromptInput } from "@/features/aigc/generation/PromptInput"
 import { SkillPickerContent } from "@/features/aigc/generation/SkillPicker"
@@ -53,7 +51,6 @@ import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { useAiSkills } from "@/lib/queries/use-ai-skills"
-import { useChatSessions } from "@/lib/queries/use-chat"
 import { useGenerateImage, useGenerateVideo } from "@/lib/queries/use-image-generation"
 import { cn } from "@/lib/utils"
 import { ImageUploadChip } from "./ImageUploadChip"
@@ -169,6 +166,7 @@ export function HomeChatLauncher() {
       (task: AigcTaskEvent) => {
         setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
         queryClient.invalidateQueries({ queryKey: ["media-assets"] })
+        queryClient.invalidateQueries({ queryKey: ["credits", "balance"] })
       },
       [queryClient]
     ),
@@ -181,7 +179,6 @@ export function HomeChatLauncher() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { upload, uploading, progress } = useFileUpload()
-  const { data: sessions, isLoading: sessionsLoading } = useChatSessions()
   const openSlot = useSlotStore((s) => s.openSlot)
 
   // 技能选择
@@ -268,7 +265,6 @@ export function HomeChatLauncher() {
       })
   })
 
-  const recentSessions = sessions?.slice(0, 3) ?? []
   const activeFeatureMeta = FEATURES.find((f) => f.key === activeFeature) ?? null
 
   const isImage = activeFeature === "image"
@@ -441,7 +437,7 @@ export function HomeChatLauncher() {
             </div>
 
             {/* ── 工具栏 ── */}
-            <div className="flex items-center gap-2 px-4 py-2.5">
+            <div className="flex items-center gap-2 px-4 pb-2.5">
               <div className="flex flex-1 items-center gap-1.5 overflow-x-auto">
                 {activeFeature === null ? (
                   /* 默认态：能力胶囊 */
@@ -718,48 +714,6 @@ export function HomeChatLauncher() {
                 </Button>
               </div>
             </div>
-
-            {/* ── 最近会话 ── */}
-            {(sessionsLoading || recentSessions.length > 0) && (
-              <div className="space-y-1.5 border-foreground/[0.06] border-t px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <p className="flex items-center gap-1 text-muted-foreground text-xs">
-                    <MessageCircle className="size-3" />
-                    最近会话
-                  </p>
-                  <Link href="/studio/chat" className="text-primary text-xs hover:underline">
-                    全部
-                  </Link>
-                </div>
-                {sessionsLoading ? (
-                  <div className="space-y-1.5">
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <Skeleton key={`s-${i}`} className="h-7 w-full" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex gap-2 overflow-x-auto pb-0.5">
-                    {recentSessions.map((s) => {
-                      const sessionId = (s as { id?: string | number }).id?.toString() ?? ""
-                      const title =
-                        (s as { title?: string; name?: string }).title ??
-                        (s as { name?: string }).name ??
-                        "未命名会话"
-                      return (
-                        <Link
-                          key={sessionId}
-                          href={`/studio/chat?sessionId=${encodeURIComponent(sessionId)}`}
-                          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-foreground/[0.06] bg-foreground/[0.02] px-3 py-1.5 text-xs transition-colors hover:bg-foreground/[0.06]"
-                        >
-                          <MessageCircle className="size-3 shrink-0 opacity-50" />
-                          <span className="max-w-[120px] truncate">{title}</span>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </GlassCard>
       </AnimateBorder>

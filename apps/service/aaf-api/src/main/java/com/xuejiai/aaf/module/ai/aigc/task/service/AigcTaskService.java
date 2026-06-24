@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -14,6 +15,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
@@ -43,6 +45,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
 import com.xuejiai.aaf.module.system.file.service.FileUploadService;
+import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +69,13 @@ public class AigcTaskService
     private static final String TYPE_MODEL3D = "MODEL_3D";
     private static final String TYPE_MUSIC = "MUSIC";
     private static final String TYPE_VOICE = "VOICE";
+    private static final String TYPE_IMAGE_PROCESS = "IMAGE_PROCESS";
+
+    /** 阿里云通用高清分割计费单价（元/次），0.007 元。 */
+    private static final double IMAGE_PROCESS_COMMON_PRICE_YUAN = 0.007;
+
+    /** 阿里云高清人体分割计费单价（元/次），0.007 元。 */
+    private static final double IMAGE_PROCESS_HD_BODY_PRICE_YUAN = 0.007;
 
     /** 配音文本最大长度（字） */
     private static final int VOICE_TEXT_MAX_LEN = 200;
@@ -90,6 +100,7 @@ public class AigcTaskService
     private final ConfigCacheManager configCacheManager;
     private final AiServiceRegistry aiServiceRegistry;
     private final Model3dGenerationService model3dGenerationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // BE-8 数据隔离：注入 OperatorContext
     @org.springframework.beans.factory.annotation.Autowired
@@ -183,7 +194,8 @@ public class AigcTaskService
                 req.quality(),
                 creditGuard.getMarkupRate(),
                 estimatedCost);
-        creditGuard.precheck(userId, "image-gen", estimatedCost);
+        creditGuard.precheck(
+                userId, CreditTransactionCategoryEnum.IMAGE_GEN.getCode(), estimatedCost);
         log.debug("[submitImageTask] resolve 耗时: {}ms", System.currentTimeMillis() - t0);
         String resolvedModel = resolvedAiModel.getModelId();
 
@@ -240,7 +252,7 @@ public class AigcTaskService
                         imageModeEnum);
         var svc = aiServiceRegistry.get(VideoGenerationService.class, resolvedModel);
         long estimatedCost = svc.estimateCost(resolvedModel, videoReq, creditGuard.getMarkupRate());
-        creditGuard.precheck(userId, "video-gen", estimatedCost);
+        creditGuard.precheck(userId, CreditTransactionCategoryEnum.VIDEO.getCode(), estimatedCost);
 
         var task =
                 buildTask(
@@ -289,7 +301,8 @@ public class AigcTaskService
         long estimatedCost =
                 model3dGenerationService.estimateCost(
                         resolvedModel, req, creditGuard.getMarkupRate());
-        creditGuard.precheck(userId, "model3d-gen", estimatedCost);
+        creditGuard.precheck(
+                userId, CreditTransactionCategoryEnum.MODEL_3D.getCode(), estimatedCost);
 
         var task =
                 buildTask(
@@ -345,7 +358,7 @@ public class AigcTaskService
                 aiServiceRegistry
                         .get(MusicGenerationService.class, resolvedModel)
                         .estimateCost(resolvedModel, musicReq, creditGuard.getMarkupRate());
-        creditGuard.precheck(userId, "music-gen", estimatedCost);
+        creditGuard.precheck(userId, CreditTransactionCategoryEnum.MUSIC.getCode(), estimatedCost);
         var task =
                 buildTask(userId, TYPE_MUSIC, prompt, resolvedModel.getModelId(), null, projectId);
         taskRepo.save(task);
@@ -397,7 +410,8 @@ public class AigcTaskService
                 aiServiceRegistry
                         .get(SpeechService.class, resolvedModel)
                         .estimateCost(resolvedModel, text, creditGuard.getMarkupRate());
-        creditGuard.precheck(userId, "voice-gen", estimatedCost);
+        creditGuard.precheck(
+                userId, CreditTransactionCategoryEnum.SPEECH_TTS.getCode(), estimatedCost);
 
         var task =
                 buildTask(
@@ -427,6 +441,60 @@ public class AigcTaskService
                 task.getId(),
                 resolvedModelId,
                 voice);
+        return task.getId();
+    }
+
+    /**
+     * 提交图像处理任务（如人像高清抠图 SEGMENT_HD_BODY）。
+     *
+     * <p>积分按 {@code IMAGE_PROCESS} 分类预检。计费标准：阿里云高清人体分割 0.007 元/次， 乘以系统加价倍率（默认 5x），向上取整为积分（100 积分 =
+     * 1 元），最低 1 积分。
+     *
+     * @param userId 用户 ID
+     * @param imageUrl 待处理图像 URL
+     * @param method 处理方式（如 SEGMENT_HD_BODY）
+     * @param projectId 所属项目 ID，可空
+     * @return 任务 ID
+     */
+    @Transactional
+    public Long submitImageProcessTask(
+            Long userId, String imageUrl, String method, Long projectId) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "图像 URL 不能为空");
+        }
+        if (method == null || method.isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "处理方式不能为空");
+        }
+
+        // 0.002~0.007 元/次 × 100 积分/元 × 加价倍率，向上取整，最低 1 积分
+        long estimatedCost =
+                Math.max(
+                        1L,
+                        (long)
+                                Math.ceil(
+                                        imageProcessPriceYuan(method)
+                                                * AiCreditGuard.YUAN_TO_CREDIT
+                                                * creditGuard.getMarkupRate()));
+        creditGuard.precheck(
+                userId, CreditTransactionCategoryEnum.IMAGE_PROCESS.getCode(), estimatedCost);
+
+        var task =
+                buildTask(
+                        userId, "IMAGE_PROCESS", imageUrl, "aliyun:imageseg", "阿里云图像处理", projectId);
+        task.setParams(JsonUtils.toJsonString(Map.of("imageUrl", imageUrl, "method", method)));
+        taskRepo.save(task);
+        eventService.push(userId, EVENT_CREATED, toVO(task));
+
+        final Long taskId = task.getId();
+        final String mockUrl = isMockEnabled() ? getMockValue("image") : null;
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        taskExecutor.submitImageProcessSync(taskId, imageUrl, method, mockUrl);
+                    }
+                });
+        log.info("[submitImageProcessTask] 图像处理任务已创建: taskId={}, method={}", task.getId(), method);
         return task.getId();
     }
 
@@ -527,6 +595,16 @@ public class AigcTaskService
                         .get(SpeechService.class, resolvedModel)
                         .estimateCost(resolvedModel, text != null ? text : "", markup);
             }
+            case "IMAGE_PROCESS" -> {
+                String method = toStr(params.get("method"));
+                yield Math.max(
+                        1L,
+                        (long)
+                                Math.ceil(
+                                        imageProcessPriceYuan(method)
+                                                * AiCreditGuard.YUAN_TO_CREDIT
+                                                * markup));
+            }
             default ->
                     throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + type);
         };
@@ -583,6 +661,10 @@ public class AigcTaskService
 
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
+        // 图片任务触发成长任务进度
+        if ("IMAGE_GEN".equals(task.getType()) || "IMAGE_EDIT".equals(task.getType())) {
+            eventPublisher.publishEvent(new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -600,7 +682,11 @@ public class AigcTaskService
             var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
             creditTxId =
                     creditGuard.settleByUsageReturningTxId(
-                            task.getUserId(), aiModel, result, "video-gen", "视频生成");
+                            task.getUserId(),
+                            aiModel,
+                            result,
+                            CreditTransactionCategoryEnum.VIDEO.getCode(),
+                            "视频生成");
         } catch (Exception e) {
             log.warn("[completeTask] 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
         }
@@ -625,6 +711,7 @@ public class AigcTaskService
 
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
+        eventPublisher.publishEvent(new UserGrowthEvent(task.getUserId(), "aigc.video.success"));
     }
 
     /**
@@ -652,7 +739,11 @@ public class AigcTaskService
                     source,
                     texture);
             return creditGuard.settleByUsageReturningTxId(
-                    task.getUserId(), aiModel, usage, "model3d-gen", "3D 生成");
+                    task.getUserId(),
+                    aiModel,
+                    usage,
+                    CreditTransactionCategoryEnum.MODEL_3D.getCode(),
+                    "3D 生成");
         } catch (Exception e) {
             log.warn("[completeTask] 3D 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
             return null;
@@ -672,7 +763,7 @@ public class AigcTaskService
         if (task.getCreditTxId() != null) {
             try {
                 Long refundTxId =
-                        creditGuard.refund(task.getCreditTxId(), "AIGC 任务失败自动退还: " + errorMsg);
+                        creditGuard.refund(task.getCreditTxId(), ("AIGC 任务失败自动退还: " + errorMsg).substring(0, Math.min(200, ("AIGC 任务失败自动退还: " + errorMsg).length())));
                 if (refundTxId != null) {
                     log.info(
                             "[failTask] 积分已退还: taskId={}, originalTxId={}, refundTxId={}",
@@ -720,6 +811,21 @@ public class AigcTaskService
                         });
     }
 
+    /**
+     * 按处理方式返回阿里云图像分割单价（元/次）。
+     *
+     * <ul>
+     *   <li>SEGMENT_HD_BODY — 0.007 元（高清人体分割）
+     *   <li>SEGMENT_COMMON_IMAGE 及其他 — 0.002 元（通用分割）
+     * </ul>
+     */
+    private double imageProcessPriceYuan(String method) {
+        if ("SEGMENT_HD_BODY".equals(method)) {
+            return IMAGE_PROCESS_HD_BODY_PRICE_YUAN;
+        }
+        return IMAGE_PROCESS_COMMON_PRICE_YUAN;
+    }
+
     private AigcTask buildTask(
             Long userId,
             String type,
@@ -729,6 +835,7 @@ public class AigcTaskService
             Long projectId) {
         var task = new AigcTask();
         task.setUserId(userId);
+        task.setOwnerId(userId);
         task.setType(type);
         task.setStatus(STATUS_PENDING);
         task.setPrompt(prompt);
@@ -773,7 +880,10 @@ public class AigcTaskService
                 try {
                     thumbnailUrl = fileService.generateVideoThumbnail(ossUrl);
                 } catch (Exception e) {
-                    log.warn("[saveToMediaAsset] 视频截帧失败（降级）: taskId={}, err={}", task.getId(), e.getMessage());
+                    log.warn(
+                            "[saveToMediaAsset] 视频截帧失败（降级）: taskId={}, err={}",
+                            task.getId(),
+                            e.getMessage());
                 }
             }
             var dto =

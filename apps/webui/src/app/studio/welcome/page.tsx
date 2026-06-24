@@ -43,7 +43,7 @@ export default function StudioWelcomePage() {
       </div>
 
       <div className="mt-8 text-center">
-        <h1 className="font-bold text-2xl tracking-tight">正在进入驾驶舱</h1>
+        <h1 className="font-bold text-2xl tracking-tight">加载中...</h1>
       </div>
 
       {/* 进度条 */}

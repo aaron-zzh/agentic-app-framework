@@ -155,7 +155,7 @@ export default function StudioMeCreditsPage() {
   const totalSpent = mounted ? (balance?.totalSpent ?? 0) : 0
 
   return (
-    <div className="relative mx-auto max-w-3xl p-6">
+    <div className="relative mx-auto max-w-6xl p-6">
       <SectionHaze variant="soft" />
       <div className="relative space-y-6">
         <div className="flex items-center justify-between">

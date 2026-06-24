@@ -37,6 +37,7 @@ interface DataCapsuleProps {
   onClick?: () => void
   /** 底部右侧操作区（如充值按钮） */
   action?: React.ReactNode
+  style?: React.CSSProperties
   className?: string
 }
 
@@ -59,6 +60,7 @@ export function DataCapsule({
   loading,
   onClick,
   action,
+  style,
   className
 }: DataCapsuleProps) {
   const interactive = Boolean(onClick)
@@ -73,26 +75,33 @@ export function DataCapsule({
       }
       interactive={interactive}
       onClick={onClick}
-      className={cn("min-h-[112px]", className)}
+      style={style}
+      className={cn("h-[112px]", className)}
     >
       <div className="flex h-full flex-col justify-between p-4">
-        {/* 头：图标 + label */}
-        <div className="flex items-center gap-2">
-          {icon && (
-            <span
-              className={cn(
-                "flex size-7 items-center justify-center rounded-lg bg-foreground/[0.04]",
-                TONE_ICON_MAP[tone]
-              )}
-            >
-              {icon}
-            </span>
-          )}
-          <span className="text-muted-foreground text-xs">{label}</span>
+        {/* 头：图标 + label + action（右上角） */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {icon && (
+              <span
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-lg bg-foreground/[0.04]",
+                  TONE_ICON_MAP[tone]
+                )}
+              >
+                {icon}
+              </span>
+            )}
+            <span className="text-muted-foreground text-xs">{label}</span>
+          </div>
+          {action}
         </div>
 
-        {/* 主：值 + 单位 + 趋势/操作 */}
-        <div className="flex items-end justify-between gap-2">
+        {/* 占位，将数字推到底部 */}
+        <div className="flex-1" />
+
+        {/* 主：值 + 单位 + 趋势 */}
+        <div className="flex items-end gap-2">
           {loading ? (
             <span className="h-8 w-20 animate-pulse rounded bg-foreground/10" />
           ) : (
@@ -101,7 +110,6 @@ export function DataCapsule({
               {unit && <span className="text-muted-foreground text-xs">{unit}</span>}
             </div>
           )}
-          {action}
           {typeof delta === "number" && (
             <span
               className={cn(

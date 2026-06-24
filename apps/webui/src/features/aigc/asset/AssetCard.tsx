@@ -10,7 +10,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
   ContextMenu,
@@ -23,14 +23,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Model3DPreview } from "@/features/aigc/three/Model3DPreview"
 import { useMediaCategories, useUpdateMediaAsset } from "@/lib/queries/use-media-assets"
 import type { MediaAssetType, MediaAssetVO, MediaCategoryVO } from "../types"
-
-function safeJsonParse<T>(str: string): T | null {
-  try {
-    return JSON.parse(str) as T
-  } catch {
-    return null
-  }
-}
 
 /** 按 type 返回对应生成界面路径 */
 function getGenerationPath(type: MediaAssetType): string {
@@ -93,10 +85,13 @@ export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProp
         <Popover>
           <PopoverTrigger
             render={
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-7 bg-black/50 text-white hover:bg-black/70"
+              <button
+                type="button"
+                className={buttonVariants({
+                  variant: "secondary",
+                  size: "icon",
+                  className: "size-7 bg-black/50 text-white hover:bg-black/70"
+                })}
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
               />
             }
@@ -193,10 +188,20 @@ export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProp
           {thumbnailOverlay}
         </div>
       ) : (
-        <button
-          type="button"
-          className="relative -mx-0 -mt-4 block aspect-square w-full overflow-hidden bg-muted"
+        // 注意：thumbnailOverlay 内含 Popover/Button 等 base-ui trigger（本身渲染为 <button>），
+        // 外层不能再用 <button>，否则 button 嵌套 button 触发 hydration error。
+        // 改用 div + role="button" + 键盘事件，保留 a11y。
+        <div
+          role="button"
+          tabIndex={0}
+          className="relative -mx-0 -mt-4 block aspect-square w-full cursor-pointer overflow-hidden bg-muted"
           onClick={onClick}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              onClick()
+            }
+          }}
         >
           {asset.type === "VIDEO" ? (
             <video
@@ -220,14 +225,22 @@ export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProp
             />
           )}
           {thumbnailOverlay}
-        </button>
+        </div>
       )}
-      <button
-        type="button"
+      {/* 底部信息区：因 is3D 分支内嵌 <Link>（即 <a>），不能用 <button> 外壳；统一用 div + role="button" */}
+      <div
+        role="button"
+        tabIndex={0}
         className="w-full cursor-pointer p-2 text-left hover:bg-muted/50"
         onClick={(e) => {
           e.stopPropagation()
           onPreview?.()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onPreview?.()
+          }
         }}
       >
         {is3D ? (
@@ -242,13 +255,9 @@ export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProp
           <p className="truncate font-medium text-sm">{asset.name}</p>
         )}
         <p className="text-[11px] text-muted-foreground">
-          {asset.generationParams
-            ? (safeJsonParse<{ model?: string }>(asset.generationParams)?.model ?? "")
-            : ""}
-          {asset.generationParams ? " · " : ""}
-          {new Date(asset.createTime).toLocaleDateString()}
+          {asset.modelName || ""} {new Date(asset.createTime).toLocaleDateString()}
         </p>
-      </button>
+      </div>
     </Card>
   )
 

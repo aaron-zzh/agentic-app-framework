@@ -386,3 +386,13 @@
     opacity: 0;
   }
 }
+
+/* 覆盖暗色模式下浏览器 autofill 绿色背景和边框 */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px hsl(240 4% 16%) inset;
+  -webkit-text-fill-color: var(--color-foreground);
+  border-color: var(--color-input);
+  outline: none;
+}

@@ -691,6 +691,7 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('credit_transaction_source', '订阅套餐',     'subscribe',          2,  'primary'),
 ('credit_transaction_source', '注册赠送',     'register_gift',      3,  'info'),
 ('credit_transaction_source', '兑换码',       'redeem_code',        4,  'info'),
+('credit_transaction_source', '成长任务奖励', 'growth_task',        5,  'success'),
 ('credit_transaction_source', '管理员调整',   'admin_adjust',       6,  'danger'),
 ('credit_transaction_source', '周期奖励',     'periodic_reward',    7,  'info'),
 ('credit_transaction_source', 'AI 能力消费',  'ai_consume',         8,  'default'),
@@ -705,18 +706,22 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('credit_transaction_category', '文本对话',     'chat',        1,  'primary'),
-('credit_transaction_category', '图像生成',     'image_gen',   2,  'success'),
-('credit_transaction_category', '图像编辑',     'image_edit',  3,  'success'),
-('credit_transaction_category', 'OCR 识别',     'ocr',         4,  'info'),
-('credit_transaction_category', '视频生成',     'video',       5,  'warning'),
-('credit_transaction_category', '语音合成',     'speech_tts',  6,  'info'),
-('credit_transaction_category', '语音识别',     'speech_asr',  7,  'info'),
-('credit_transaction_category', '向量嵌入',     'embedding',   8,  'default'),
-('credit_transaction_category', '3D 生成',      'model_3d',    9,  'default'),
-('credit_transaction_category', '数字人视频',   'avatar',      10, 'default'),
-('credit_transaction_category', '工具调用',     'tool',        11, 'default'),
-('credit_transaction_category', '权益补充',     'entitlement', 12, 'default'),
-('credit_transaction_category', '其他',         'other',       13, 'default')
+('credit_transaction_category', '视觉理解',     'vision',      2,  'primary'),
+('credit_transaction_category', '图像生成',     'image_gen',   3,  'success'),
+('credit_transaction_category', '图像编辑',     'image_edit',  4,  'success'),
+('credit_transaction_category', '图像处理',     'image_process', 5, 'success'),
+('credit_transaction_category', 'OCR 识别',     'ocr',         6,  'info'),
+('credit_transaction_category', '视频生成',     'video',       7,  'warning'),
+('credit_transaction_category', '语音合成',     'speech_tts',  8,  'info'),
+('credit_transaction_category', '语音识别',     'speech_asr',  9,  'info'),
+('credit_transaction_category', '向量嵌入',     'embedding',   10, 'default'),
+('credit_transaction_category', '3D 生成',      'model_3d',    11, 'default'),
+('credit_transaction_category', '数字人视频',   'avatar',      12, 'default'),
+('credit_transaction_category', '工具调用',     'tool',        13, 'default'),
+('credit_transaction_category', '权益补充',     'entitlement', 14, 'default'),
+('credit_transaction_category', '文案生成',     'copywriting', 15, 'primary'),
+('credit_transaction_category', '音乐生成',     'music',       16, 'default'),
+('credit_transaction_category', '其他',         'other',       17, 'default')
 ON CONFLICT DO NOTHING;
 
 -- credit_biz_type 积分流水业务表标识（与 biz_id 组合定位具体业务记录）

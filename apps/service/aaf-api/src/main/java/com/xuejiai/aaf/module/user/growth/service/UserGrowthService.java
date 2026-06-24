@@ -8,10 +8,12 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import com.xuejiai.aaf.module.user.growth.domain.UserGrowthProgress;
 import com.xuejiai.aaf.module.user.growth.domain.UserGrowthTask;
 import com.xuejiai.aaf.module.user.growth.repository.UserGrowthProgressRepository;
@@ -30,6 +32,7 @@ public class UserGrowthService {
     private final UserGrowthProgressRepository progressRepository;
     private final OperatorContext operatorContext;
     private final CreditService creditService;
+    private final NotificationService notificationService;
 
     /** 列出当前用户所有任务（合并任务定义 + 用户进度）。 */
     public List<UserGrowthTaskVO> listMyTasks() {
@@ -129,10 +132,15 @@ public class UserGrowthService {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "任务未完成或已领取");
         }
         if (task.getRewardCredits() != null && task.getRewardCredits() > 0) {
-            creditService.earn(userId, task.getRewardCredits(), "GROWTH_TASK", task.getCode());
+            creditService.earn(userId, task.getRewardCredits(), CreditTransactionSourceEnum.GROWTH_TASK.getCode(), task.getCode());
         }
         progress.setStatus("CLAIMED");
         progress.setClaimedTime(LocalDateTime.now());
         progressRepository.save(progress);
+        // WS 推送领取通知
+        notificationService.sendSystemNotification(
+                userId,
+                "任务奖励已到账",
+                "「" + task.getName() + "」完成奖励 +" + task.getRewardCredits() + " 积分，已存入账户");
     }
 }

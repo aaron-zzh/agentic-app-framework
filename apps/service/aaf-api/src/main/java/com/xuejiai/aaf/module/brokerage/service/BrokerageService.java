@@ -24,6 +24,7 @@ import com.xuejiai.aaf.module.brokerage.repository.BrokerageRecordRepository;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageRuleRepository;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
+import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,7 @@ public class BrokerageService {
     private final StringRedisTemplate redisTemplate;
     private final CreditGrantService creditGrantService;
     private final CreditGrantRuleRepository creditGrantRuleRepository;
+    private final NotificationService notificationService;
 
     /** INVITE 规则默认每人最多奖励次数（ext.maxInvites 缺失时兜底） */
     private static final int DEFAULT_MAX_INVITES = 20;
@@ -278,6 +280,9 @@ public class BrokerageService {
         try {
             Long referrerContactId = Long.parseLong(inviteCode);
             bindReferrer(contactId, referrerContactId);
+            // 补充邀请奖励：直接用 contactId 形式也应给推荐人发放奖励
+            int usedCount = brokerageUserRepository.findByReferrerContactId(referrerContactId).size();
+            grantInviteRewardIfPossible(referrerContactId, contactId, usedCount);
         } catch (NumberFormatException ignored) {
             log.warn("邀请码无效，跳过绑定: code={}", inviteCode);
         }
@@ -309,7 +314,13 @@ public class BrokerageService {
                 return;
             }
             String bizId = "INVITE_" + inviteeContactId;
-            creditGrantService.grant(referrerUser.getId(), "INVITE", bizId);
+            long granted = creditGrantService.grant(referrerUser.getId(), "INVITE", bizId);
+            if (granted > 0) {
+                notificationService.sendSystemNotification(
+                        referrerUser.getId(),
+                        "邀请奖励已到账",
+                        "好友通过你的邀请链接完成注册，+" + granted + " 积分已存入账户");
+            }
         } catch (Exception e) {
             // 不影响绑定推荐人主流程
             log.warn(

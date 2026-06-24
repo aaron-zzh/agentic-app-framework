@@ -7,7 +7,13 @@
  *   <li>{@code categories} — 后端 billing-category 返回的 {biz_type/total} 行</li>
  * </ul>
  *
- * <p>biz_type → 中文名 + 图标 的映射在本组件内置（默认覆盖 AAF 业务）。
+ * <p>biz_type → 中文名 + 图标 的解析：
+ * <ol>
+ *   <li>归一化 biz_type 为小写（兼容部分链路落库为大写 capability 常量，例如 IMAGE_GEN）</li>
+ *   <li>优先查字典 {@code credit_transaction_category} 取中文 label</li>
+ *   <li>字典未命中时回退本地映射 {@link #BIZ_TYPE_META}（覆盖未入字典的兼容值，如 vision）</li>
+ *   <li>仍未命中时显示原始值，不丢数据</li>
+ * </ol>
  *
  * @author AaronZZH &amp; Kiro
  */
@@ -28,6 +34,7 @@ import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
+import { useDict } from "@/lib/hooks/use-dict"
 import { cn } from "@/lib/utils/cn"
 import { WIDGET_CARD_CLASS } from "./_shared/styles"
 
@@ -60,23 +67,32 @@ const COLORS = [
   "#eab308"
 ]
 
-/** 业务类型 → 显示标签 + lucide 图标（同时支持 bizType 和 category 两套 key）。 */
+/**
+ * 业务类型 → 显示标签 + lucide 图标（fallback；优先级低于字典）。
+ *
+ * <p>Key 统一用小写，匹配前先做 toLowerCase 归一化。同时保留若干历史 bizType（旧链路落库为
+ * AIGC_TASK / TOOL_CALL 等大写驼峰），匹配时仍按原值比较。
+ */
 const BIZ_TYPE_META: Record<string, { label: string; icon: LucideIcon }> = {
-  // category 维度（后端 credit_transaction.category，优先匹配）
+  // 与字典 credit_transaction_category 对齐的小写 key（fallback）
   chat: { label: "AI 对话", icon: MessageSquare },
   image_gen: { label: "图像生成", icon: Sparkles },
   image_edit: { label: "图像编辑", icon: Wand2 },
+  image_process: { label: "图像处理", icon: Wand2 },
+  ocr: { label: "OCR 识别", icon: Wand2 },
+  vision: { label: "视觉识别", icon: Sparkles }, // 字典未收录的兼容值
   video: { label: "视频生成", icon: Video },
-  speech_tts: { label: "配音合成", icon: Bot },
+  speech_tts: { label: "语音合成", icon: Bot },
   speech_asr: { label: "语音识别", icon: Bot },
+  music: { label: "音乐生成", icon: Sparkles },
   model_3d: { label: "3D 生成", icon: Package },
-  avatar: { label: "数字人", icon: Bot },
+  avatar: { label: "数字人视频", icon: Bot },
   tool: { label: "工具调用", icon: Wrench },
-  embedding: { label: "知识库", icon: Package },
+  embedding: { label: "向量嵌入", icon: Package },
   entitlement: { label: "权益补充", icon: Package },
   copywriting: { label: "文案生成", icon: Wand2 },
   other: { label: "其他", icon: Package },
-  // bizType 维度（兼容旧数据）
+  // bizType 维度（保留原大写 key，兼容历史数据）
   AIGC_TASK: { label: "AI 创作", icon: Sparkles },
   AIGC_IMAGE: { label: "图像生成", icon: Sparkles },
   AIGC_VIDEO: { label: "视频生成", icon: Video },
@@ -89,21 +105,43 @@ const BIZ_TYPE_META: Record<string, { label: string; icon: LucideIcon }> = {
   OTHER: { label: "其他", icon: Package }
 }
 
-function bizMeta(bizType: string) {
-  return BIZ_TYPE_META[bizType] ?? { label: bizType || "其他", icon: Package }
-}
-
 export function ExpensesCategoryWidget({ title, series, categories }: ExpensesCategoryWidgetProps) {
+  // 字典：credit_transaction_category（label 即中文名，value 为小写 code）
+  const { getLabel: getDictLabel } = useDict("credit_transaction_category")
+
+  /**
+   * 解析单个 bizType：归一化 → 字典 label → 本地 fallback → 原值
+   * 同时返回用于查图标的小写归一化 key
+   */
+  const resolveMeta = useMemo(
+    () =>
+      (bizType: string): { label: string; icon: LucideIcon; iconKey: string } => {
+        const raw = bizType ?? ""
+        const lower = raw.toLowerCase()
+        // 1. 优先查字典（按归一化的小写 value）
+        const dictLabel = getDictLabel(lower)
+        // 2. 本地 fallback：先按小写 key，再按原始 key（兼容历史 bizType 大写驼峰）
+        const fallback = BIZ_TYPE_META[lower] ?? BIZ_TYPE_META[raw]
+        return {
+          label: dictLabel || fallback?.label || raw || "其他",
+          icon: fallback?.icon ?? Package,
+          iconKey: lower
+        }
+      },
+    [getDictLabel]
+  )
+
   // 优先用真实数据 categories（biz_type 形态），否则用 series（mock 形态）
   const items: CategoryItem[] = useMemo(() => {
     if (categories && categories.length > 0) {
       return categories.map((c) => {
-        const meta = bizMeta(c.biz_type)
-        return { label: meta.label, value: Number(c.total), icon: c.biz_type }
+        const meta = resolveMeta(c.biz_type)
+        // icon 字段保留归一化后的 iconKey，列表渲染时再解析图标
+        return { label: meta.label, value: Number(c.total), icon: meta.iconKey }
       })
     }
     return series ?? []
-  }, [categories, series])
+  }, [categories, series, resolveMeta])
 
   const option = useMemo<EChartsOption>(
     () => ({
@@ -148,7 +186,7 @@ export function ExpensesCategoryWidget({ title, series, categories }: ExpensesCa
               <BaseChart option={option} className="h-44 w-44 shrink-0" />
               <div className="grid flex-1 grid-cols-2 gap-2">
                 {items.map((item, i) => {
-                  const Icon = isBilling ? bizMeta(item.icon).icon : Package
+                  const Icon = isBilling ? (BIZ_TYPE_META[item.icon]?.icon ?? Package) : Package
                   return (
                     <div key={item.label} className="flex items-center gap-2">
                       <span

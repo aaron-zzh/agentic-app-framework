@@ -44,12 +44,14 @@ public class DictDataController
 
     @Operation(summary = "获取全部启用字典数据（前端启动时缓存用）")
     @GetMapping("/list-all-simple")
+    @PreAuthorize("isAuthenticated()")
     public Result<List<DictDataVO>> listAllSimple() {
         return Result.success(dictDataService.listAll());
     }
 
     @Operation(summary = "按字典类型查询数据列表")
     @GetMapping("/type/{dictType}")
+    @PreAuthorize("isAuthenticated()")
     public Result<List<DictDataVO>> listByType(@PathVariable String dictType) {
         return Result.success(dictDataService.listByType(dictType));
     }

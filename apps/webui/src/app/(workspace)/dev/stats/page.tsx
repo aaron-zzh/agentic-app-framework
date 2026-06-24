@@ -140,7 +140,11 @@ function BurndownChart({
 
 export default function DevStatsPage() {
   const qc = useQueryClient()
-  const { data: gitLog, isLoading: gitLoading, isFetching } = useQuery({
+  const {
+    data: gitLog,
+    isLoading: gitLoading,
+    isFetching
+  } = useQuery({
     queryKey: ["autodev-git", "log"],
     queryFn: () => request<GitLogEntry[]>("/autodev/git/log?limit=20")
   })

@@ -9,7 +9,7 @@ export function createQueryClient(): QueryClient {
         if (error instanceof ApiError && error.code === 403) {
           toast.error("权限不足，无法访问该资源")
           if (typeof window !== "undefined") {
-            window.location.href = "/dashboard"
+            window.location.href = "/studio"
           }
         }
       }

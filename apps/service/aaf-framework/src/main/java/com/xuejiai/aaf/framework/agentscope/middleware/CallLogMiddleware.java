@@ -253,7 +253,10 @@ public class CallLogMiddleware implements MiddlewareBase {
                         }
                     };
 
-            creditGuard.settleByUsage(userId, aiModel, usage,
+            creditGuard.settleByUsage(
+                    userId,
+                    aiModel,
+                    usage,
                     AgentCapabilityContext.get() != null ? AgentCapabilityContext.get() : "chat",
                     "内容创作 Agent LLM 调用");
             log.debug(

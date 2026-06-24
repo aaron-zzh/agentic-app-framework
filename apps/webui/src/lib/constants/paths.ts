@@ -49,7 +49,8 @@ export const paths = {
     meAccount: "/studio/me/account"
   },
   admin: {
-    demo: "/admin/demo"
+    demo: "/admin/demo",
+    users: "/admin/users"
   },
   docs: {
     root: "/docs",

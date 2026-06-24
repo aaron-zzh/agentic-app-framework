@@ -15,7 +15,7 @@ import { buildSseUrl } from "@/lib/api/config"
 export interface AigcTaskEvent {
   id: number
   userId: number
-  type: "IMAGE" | "VIDEO" | "MUSIC" | "MODEL_3D" | "VOICE"
+  type: "IMAGE" | "VIDEO" | "MUSIC" | "MODEL_3D" | "VOICE" | "IMAGE_PROCESS"
   status: "PENDING" | "RUNNING" | "SUCCESS" | "FAIL"
   provider?: string
   model?: string

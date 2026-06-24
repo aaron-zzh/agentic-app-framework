@@ -63,6 +63,7 @@
 		<dashscope-sdk-java.version>2.22.22</dashscope-sdk-java.version>
 		<!-- 阿里云图像处理 SDK -->
 		<aliyun-imageenhan.version>1.0.13</aliyun-imageenhan.version>
+		<aliyun-imageseg.version>3.0.1</aliyun-imageseg.version>
 		<!-- 可观测性 -->
 		<sentry.version>8.41.0</sentry.version>
 		<!-- JSON Schema -->
@@ -352,6 +353,11 @@
 				<groupId>com.aliyun</groupId>
 				<artifactId>imageenhan20190930</artifactId>
 				<version>${aliyun-imageenhan.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aliyun</groupId>
+				<artifactId>imageseg20191230</artifactId>
+				<version>${aliyun-imageseg.version}</version>
 			</dependency>
 
 			<!-- ==================== 安全 / 防护 ==================== -->

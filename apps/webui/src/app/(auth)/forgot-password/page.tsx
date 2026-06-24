@@ -183,6 +183,13 @@ export default function ForgotPasswordPage() {
           type={captcha.buttonType}
           className="w-full"
           disabled={accountMethods.formState.isSubmitting}
+          onClick={(e) => {
+            const val = accountMethods.getValues("account")
+            if (detectInputType(val) === "phone") {
+              e.preventDefault()
+              notify.info("手机验证码功能开发中，请使用邮箱重置密码")
+            }
+          }}
         >
           {accountMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
         </Button>

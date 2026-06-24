@@ -122,8 +122,18 @@ public class AuthService {
     /** 注册（发送验证码） */
     @Transactional
     public void register(RegisterDTO dto, String sourceApp, String registerIp) {
-        if (userRepository.findByEmail(dto.email()).isPresent()) {
-            throw exception(AUTH_EMAIL_ALREADY_REGISTERED);
+        var existing = userRepository.findByEmail(dto.email());
+        if (existing.isPresent()) {
+            if (Boolean.TRUE.equals(existing.get().getEmailVerified())) {
+                throw exception(AUTH_EMAIL_ALREADY_REGISTERED);
+            }
+            // 邮箱已存在但未验证：更新密码后重新发送验证码，允许用户重试
+            User user = existing.get();
+            user.setPassword(passwordEncoder.encode(dto.password()));
+            if (dto.nickname() != null) user.setNickname(dto.nickname());
+            userRepository.save(user);
+            sendVerifyCode(dto.email(), "register");
+            return;
         }
         User user = new User();
         user.setEmail(dto.email());

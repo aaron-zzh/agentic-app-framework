@@ -141,7 +141,7 @@ export function HomeRecentAssets() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-semibold text-base">最近生成</h2>
-          <p className="text-muted-foreground text-xs">AI 生成的图像、视频与音频素材</p>
+          <p className="pt-1 text-muted-foreground text-xs">AI 生成的图像、视频与音频素材</p>
         </div>
         <Link
           href="/studio/assets/works"

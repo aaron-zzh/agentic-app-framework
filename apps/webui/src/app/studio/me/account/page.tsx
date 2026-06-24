@@ -124,7 +124,7 @@ export default function StudioMeAccountPage() {
                   <Input value={profile?.email ?? ""} disabled className="bg-muted/40" />
                 </div>
 
-                <Field.Text name="phone" label="手机号" placeholder="选填" />
+                <Field.Text name="phone" label="手机号" disabled className="bg-muted/40" />
 
                 <div className="flex justify-end pt-2">
                   <GlowButton type="submit" tone="violet" disabled={updateProfile.isPending}>

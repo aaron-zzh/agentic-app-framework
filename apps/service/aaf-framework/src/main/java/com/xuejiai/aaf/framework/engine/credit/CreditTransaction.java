@@ -64,4 +64,8 @@ public class CreditTransaction extends BaseEntity {
     /** 本批次剩余可用量（EARN 时 = amount，消费后递减；SPEND/EXPIRE 时为 0） */
     @Column(name = "remain")
     private Long remain;
+
+    /** 备注 */
+    @Column(name = "remark", length = 500)
+    private String remark;
 }

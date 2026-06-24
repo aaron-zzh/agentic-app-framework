@@ -8,7 +8,7 @@
 
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   type FileUploadOptions,
   type UploadResult,
@@ -237,6 +237,10 @@ export function UploadAvatar({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState(value)
+  // 外部 value 变化时（如数据加载完成）同步更新预览
+  useEffect(() => {
+    if (value) setPreview(value)
+  }, [value])
   const { upload, uploading } = useFileUpload({
     maxWidth: 512,
     maxHeight: 512,

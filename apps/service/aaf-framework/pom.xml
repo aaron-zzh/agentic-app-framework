@@ -105,8 +105,17 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j_jdk17-core</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.aliyun</groupId>
 			<artifactId>imageenhan20190930</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.aliyun</groupId>
+			<artifactId>imageseg20191230</artifactId>
 			<optional>true</optional>
 		</dependency>
 

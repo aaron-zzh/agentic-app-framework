@@ -51,7 +51,7 @@ export function useEstimateAigcCredits({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, model, params: params ?? {} })
       }),
-    enabled: enabled && !!model,
+    enabled: enabled,
     staleTime: 30_000,
     retry: false
   })

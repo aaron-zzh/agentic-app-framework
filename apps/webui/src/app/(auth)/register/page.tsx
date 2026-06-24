@@ -211,7 +211,17 @@ function PhoneRegisterPanel({
         id="phone-register-send-btn"
         type={captcha.buttonType}
         className="h-11 w-full"
-        disabled={phoneMethods.formState.isSubmitting || !termsAgreed}
+        disabled={phoneMethods.formState.isSubmitting}
+        onClick={async (e) => {
+          e.preventDefault()
+          const valid = await phoneMethods.trigger("phone")
+          if (!valid) return
+          if (!termsAgreed) {
+            notify.warning("请先阅读并同意服务条款与隐私政策")
+            return
+          }
+          notify.info("手机验证码功能开发中，敬请期待")
+        }}
       >
         {phoneMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
       </Button>
@@ -271,7 +281,6 @@ function PasswordRegisterPanel({
     } catch (err) {
       const msg = err instanceof Error ? err.message : "注册失败，请重试"
       registerMethods.setError("root", { message: msg })
-      notify.error(msg)
     } finally {
       captchaVerifyParamRef.current = ""
       captcha.reset()
@@ -289,7 +298,6 @@ function PasswordRegisterPanel({
     } catch (err) {
       const msg = err instanceof Error ? err.message : "验证失败，请重试"
       verifyMethods.setError("root", { message: msg })
-      notify.error(msg)
     }
   }
 

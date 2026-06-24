@@ -77,7 +77,7 @@ function AuthButton() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   if (isAuthenticated) {
     return (
-      <Link href={paths.workspace.root}>
+      <Link href={paths.studio.welcome}>
         <Button variant="outline" size="sm">
           进入工作区
         </Button>

@@ -10,6 +10,7 @@ import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.OSSObject;
+import com.aliyun.oss.model.ProcessObjectRequest;
 import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.auth.sts.AssumeRoleRequest;
 import com.aliyuncs.auth.sts.AssumeRoleResponse;
@@ -170,14 +171,25 @@ public class OssStorageService implements StorageService {
             // OSS 视频截帧：t=0ms 第一帧，f=jpg，保持原始分辨率，m_fast 快速关键帧
             String process = "video/snapshot,t_0,f_jpg,w_0,h_0,m_fast";
             // base64 编码目标 key（OSS saveas 要求）
-            String targetBase64 = java.util.Base64.getUrlEncoder()
-                    .withoutPadding()
-                    .encodeToString(thumbKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            String fullProcess = process + "|sys/saveas,o_" + targetBase64
-                    + ",b_" + java.util.Base64.getUrlEncoder()
-                    .withoutPadding()
-                    .encodeToString(props.bucketName().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            ossClient.processObject(props.bucketName(), videoKey, fullProcess);
+            String targetBase64 =
+                    java.util.Base64.getUrlEncoder()
+                            .withoutPadding()
+                            .encodeToString(
+                                    thumbKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String fullProcess =
+                    process
+                            + "|sys/saveas,o_"
+                            + targetBase64
+                            + ",b_"
+                            + java.util.Base64.getUrlEncoder()
+                                    .withoutPadding()
+                                    .encodeToString(
+                                            props.bucketName()
+                                                    .getBytes(
+                                                            java.nio.charset.StandardCharsets
+                                                                    .UTF_8));
+            ossClient.processObject(
+                    new ProcessObjectRequest(props.bucketName(), videoKey, fullProcess));
             log.info("[OSS] 视频截帧完成: videoKey={}, thumbKey={}", videoKey, thumbKey);
             return thumbKey;
         } catch (Exception e) {

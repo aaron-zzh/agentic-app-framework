@@ -10,6 +10,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
@@ -56,7 +57,10 @@ public class ResilientChatService {
      */
     public ChatResponse call(List<Message> messages, CapabilityRoutingContext ctx) {
         var ownerId = billingOwnerId(ctx.userId());
-        creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
+        creditGuard.precheck(
+                ownerId,
+                CreditTransactionCategoryEnum.fromCapability(ctx.capability()),
+                AiCreditGuard.INESTIMABLE_COST);
         var model = capabilityRouter.resolve(ctx);
         var billingCapability = detectBillingCapability(messages);
         try {
@@ -75,7 +79,10 @@ public class ResilientChatService {
             CapabilityRoutingContext ctx,
             org.springframework.ai.chat.prompt.ChatOptions options) {
         var ownerId = billingOwnerId(ctx.userId());
-        creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
+        creditGuard.precheck(
+                ownerId,
+                CreditTransactionCategoryEnum.fromCapability(ctx.capability()),
+                AiCreditGuard.INESTIMABLE_COST);
         var model = capabilityRouter.resolve(ctx);
         var billingCapability = detectBillingCapability(messages);
         try {
@@ -106,7 +113,10 @@ public class ResilientChatService {
         long startedAt = System.currentTimeMillis();
         var ownerId = billingOwnerId(ctx.userId());
         // 1. 积分/配额预检，不足则抛异常
-        creditGuard.precheck(ownerId, ctx.capability(), AiCreditGuard.INESTIMABLE_COST);
+        creditGuard.precheck(
+                ownerId,
+                CreditTransactionCategoryEnum.fromCapability(ctx.capability()),
+                AiCreditGuard.INESTIMABLE_COST);
         // 2. 路由决策链：显式 modelId → 编排引擎 → AI 辅助 → 用户偏好 → 系统默认 → yaml 兜底
         var model = capabilityRouter.resolve(ctx);
         // 3. 自动识别落库 capability（vision/chat），与路由层 ctx.capability() 解耦

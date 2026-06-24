@@ -271,9 +271,17 @@ public class UserService {
                 .data(list)
                 .duplicateChecker(
                         row -> {
+                            // 优先用手机号作为账号
+                            String resolvedUsername =
+                                    (row.getPhone() != null && !row.getPhone().isBlank())
+                                            ? row.getPhone()
+                                            : row.getUsername();
+                            if (resolvedUsername == null || resolvedUsername.isBlank()) {
+                                return "用户名和手机号不能同时为空";
+                            }
                             if (!updateSupport
-                                    && userRepository.existsByUsername(row.getUsername())) {
-                                return "用户名 " + row.getUsername() + " 已存在";
+                                    && userRepository.existsByUsername(resolvedUsername)) {
+                                return "账号 " + resolvedUsername + " 已存在";
                             }
                             return null;
                         })
@@ -283,7 +291,19 @@ public class UserService {
     }
 
     private void saveImportRow(UserImportVO row) {
-        var existing = userRepository.findByUsername(row.getUsername());
+        // 手机号优先作为账号；密码规则：web4.0+手机后四位
+        String username =
+                (row.getPhone() != null && !row.getPhone().isBlank())
+                        ? row.getPhone()
+                        : row.getUsername();
+        String password =
+                (row.getPassword() != null && !row.getPassword().isBlank())
+                        ? row.getPassword()
+                        : (row.getPhone() != null && row.getPhone().length() >= 4)
+                                ? "web4.0" + row.getPhone().substring(row.getPhone().length() - 4)
+                                : systemConfigService.getString("user.default_password", "web4.0");
+
+        var existing = userRepository.findByUsername(username);
         if (existing.isPresent()) {
             var user = existing.get();
             if (row.getNickname() != null) user.setNickname(row.getNickname());
@@ -291,14 +311,13 @@ public class UserService {
             userRepository.save(user);
         } else {
             var user = new User();
-            user.setUsername(row.getUsername());
-            user.setNickname(row.getNickname() != null ? row.getNickname() : row.getUsername());
-            String pwd =
-                    row.getPassword() != null
-                            ? row.getPassword()
-                            : systemConfigService.getString("user.default_password", "123456");
-            user.changePassword(passwordEncoder, pwd);
+            user.setUsername(username);
+            user.setNickname(row.getNickname() != null ? row.getNickname() : NicknameGenerator.generate());
+            if (row.getPhone() != null) user.setPhone(row.getPhone());
+            user.changePassword(passwordEncoder, password);
             if (row.getStatus() != null) user.setStatus(row.getStatus());
+            // 导入用户无需邮箱验证（手机号账号）
+            user.setEmailVerified(true);
             userRepository.save(user);
         }
     }

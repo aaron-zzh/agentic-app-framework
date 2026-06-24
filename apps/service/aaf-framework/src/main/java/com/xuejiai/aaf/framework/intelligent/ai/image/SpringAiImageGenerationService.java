@@ -1,9 +1,21 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image;
 
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.openai.OpenAiImageOptions;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -17,6 +29,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
 
 /** 基于动态构建的 OpenAI 兼容 ImageModel 的文生图实现，支持多供应商（OpenAI / N1N 等）。 */
 @Slf4j
@@ -57,14 +70,12 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
     }
 
     /** GPT image 模型：直接 HTTP POST /images/generations（JSON body，支持全部参数） */
-    private ImageResult generateViaHttp(
-            ImageRequest request,
-            com.xuejiai.aaf.framework.intelligent.core.model.AiModel aiModel) {
+    private ImageResult generateViaHttp(ImageRequest request, AiModel aiModel) {
         String apiKey = resolveApiKey(aiModel);
         String baseUrl = aiModel.effectiveBaseUrl().replaceAll("/$", "");
         String modelName = aiModel.getModelName();
         try {
-            var body = new java.util.LinkedHashMap<String, Object>();
+            var body = new LinkedHashMap<String, Object>();
             body.put("model", modelName);
             body.put("prompt", request.getPrompt());
             if (request.getWidth() > 0 && request.getHeight() > 0)
@@ -85,17 +96,28 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
 
             // gpt-image-2 文生图走 /images/generations（官方接口规范）
             var response =
-                    RestClient.create()
+                    RestClient.builder()
+                            .requestFactory(
+                                    new HttpComponentsClientHttpRequestFactory(
+                                            HttpClients.custom()
+                                                    .setDefaultRequestConfig(
+                                                            RequestConfig.custom()
+                                                                    .setResponseTimeout(
+                                                                            120_000,
+                                                                            TimeUnit.MILLISECONDS)
+                                                                    .build())
+                                                    .build()))
+                            .build()
                             .post()
                             .uri(baseUrl + "/images/generations")
                             .header("Authorization", "Bearer " + apiKey)
-                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .contentType(MediaType.APPLICATION_JSON)
                             .body(body)
                             .retrieve()
                             .body(String.class);
 
             String b64 = null, url = null;
-            List<String> urls = new java.util.ArrayList<>();
+            List<String> urls = new ArrayList<>();
             var responseNode = parseJson(response);
             if (responseNode != null && responseNode.has("data")) {
                 for (var item : responseNode.get("data")) {
@@ -130,7 +152,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                             outputTokens);
         } catch (Exception e) {
             log.error("文生图失败(HTTP): modelId={}", request.getModelId(), e);
-            throw new RuntimeException("图像生成失败: " + e.getMessage(), e);
+            throw new RuntimeException("图像生成失败: " + friendlyMessage(e), e);
         }
     }
 
@@ -151,7 +173,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
         String modelName = aiModel.getModelName();
 
         try {
-            var multipart = new org.springframework.http.client.MultipartBodyBuilder();
+            var multipart = new MultipartBodyBuilder();
             multipart.part("model", modelName);
             multipart.part("prompt", req.getPrompt());
 
@@ -173,10 +195,10 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                                 : ext.equals("jpg") ? "image/jpeg" : "image/png";
                 String fname = "image_" + i + "." + ext;
                 String fieldName = srcUrls.size() == 1 ? "image" : "image[]";
-                var mediaType = org.springframework.http.MediaType.parseMediaType(mime);
+                var mediaType = MediaType.parseMediaType(mime);
                 multipart.part(
                         fieldName,
-                        new org.springframework.core.io.ByteArrayResource(bytes) {
+                        new ByteArrayResource(bytes) {
                             @Override
                             public String getFilename() {
                                 return fname;
@@ -189,13 +211,13 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                         java.net.URI.create(req.getMaskUrl()).toURL().openStream().readAllBytes();
                 multipart.part(
                         "mask",
-                        new org.springframework.core.io.ByteArrayResource(maskBytes) {
+                        new ByteArrayResource(maskBytes) {
                             @Override
                             public String getFilename() {
                                 return "mask.png";
                             }
                         },
-                        org.springframework.http.MediaType.IMAGE_PNG);
+                        MediaType.IMAGE_PNG);
             }
             if (req.getQuality() != null) multipart.part("quality", req.getQuality());
             if (req.getFormat() != null) multipart.part("output_format", req.getFormat());
@@ -206,7 +228,18 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             if (editSize != null) multipart.part("size", editSize.replace("*", "x"));
 
             var response =
-                    RestClient.create()
+                    RestClient.builder()
+                            .requestFactory(
+                                    new HttpComponentsClientHttpRequestFactory(
+                                            HttpClients.custom()
+                                                    .setDefaultRequestConfig(
+                                                            RequestConfig.custom()
+                                                                    .setResponseTimeout(
+                                                                            120_000,
+                                                                            TimeUnit.MILLISECONDS)
+                                                                    .build())
+                                                    .build()))
+                            .build()
                             .post()
                             .uri(baseUrl + "/images/edits")
                             .header("Authorization", "Bearer " + apiKey)
@@ -215,7 +248,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                             .body(String.class);
 
             String b64 = null, url = null;
-            List<String> urls = new java.util.ArrayList<>();
+            List<String> urls = new ArrayList<>();
             var responseNode = parseJson(response);
             if (responseNode != null && responseNode.has("data")) {
                 for (var item : responseNode.get("data")) {
@@ -245,11 +278,32 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                             outputTokens);
         } catch (Exception e) {
             log.error("[SpringAiImage] 图像编辑失败: modelId={}", modelId, e);
-            throw new RuntimeException("图像编辑失败: " + e.getMessage(), e);
+            throw new RuntimeException("图像编辑失败: " + friendlyMessage(e), e);
         }
     }
 
-    private String resolveApiKey(com.xuejiai.aaf.framework.intelligent.core.model.AiModel model) {
+    private static String friendlyMessage(Exception e) {
+        Throwable t = e;
+        while (t != null) {
+            String msg = t.getMessage() != null ? t.getMessage() : "";
+            if (t instanceof SocketTimeoutException
+                    || msg.contains("timed out")
+                    || msg.contains("timeout")
+                    || msg.contains("I/O error")) {
+                return "请求超时，请稍后重试";
+            }
+            if (t instanceof ConnectException || msg.contains("Connection refused")) {
+                return "无法连接到图像服务，请检查网络";
+            }
+            if (t instanceof UnknownHostException) {
+                return "域名解析失败，请检查网络连接";
+            }
+            t = t.getCause();
+        }
+        return e.getMessage();
+    }
+
+    private String resolveApiKey(AiModel model) {
         String apiKey = model.effectiveApiKey();
         if (apiKey == null || apiKey.isBlank()) {
             var models = aiProperties.getModels();
@@ -259,7 +313,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
         return apiKey != null ? apiKey : "";
     }
 
-    private tools.jackson.databind.JsonNode parseJson(String json) {
+    private JsonNode parseJson(String json) {
         if (json == null || json.isBlank()) return null;
         try {
             return JsonUtils.readTree(json);

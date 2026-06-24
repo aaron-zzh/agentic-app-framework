@@ -98,7 +98,7 @@ export function HomeProjectGrid({ className }: HomeProjectGridProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-semibold text-base">我的项目</h2>
-          <p className="text-muted-foreground text-xs">最近更新的创作项目</p>
+          <p className="pt-1 text-muted-foreground text-xs">最近更新的创作项目</p>
         </div>
         <Link href="/studio/projects/new">
           <GlowButton tone="violet" size="sm">
@@ -118,7 +118,7 @@ export function HomeProjectGrid({ className }: HomeProjectGridProps) {
         <GlassCard className="flex min-h-[180px] flex-col items-center justify-center gap-3 text-muted-foreground">
           <LottieIcon name="cat" width={120} height={120} loop />
           <Link href="/studio/projects/new">
-            <GlowButton tone="violet" size="sm">
+            <GlowButton tone="violet" size="sm" className="mb-10">
               <Plus className="size-4" />
               创建第一个项目
             </GlowButton>

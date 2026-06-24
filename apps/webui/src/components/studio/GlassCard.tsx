@@ -47,7 +47,7 @@ export function GlassCard({
       className={cn(
         "relative isolate overflow-hidden rounded-2xl bg-card text-card-foreground",
         "[box-shadow:var(--glass-card-shadow)]",
-        "dark:ring-1 dark:ring-foreground/[0.06]",
+        "dark:ring-1 dark:ring-foreground/6",
         // 顶部光晕层（伪元素）
         "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-z-10 before:h-32 before:content-['']",
         GLOW_MAP[glow],
@@ -56,8 +56,8 @@ export function GlassCard({
           "cursor-pointer transition-all duration-200",
           "hover:-translate-y-0.5",
           "hover:[--glass-card-shadow:0_6px_24px_-4px_rgb(0_0_0/0.16),0_2px_8px_0_rgb(0_0_0/0.10)]",
-          "dark:hover:ring-foreground/[0.12]",
-          "dark:hover:[--glass-card-shadow:inset_0_1px_0_0_var(--bg-glass-overlay-hover),inset_0_0_0_1px_var(--bg-glass-overlay),0_8px_24px_-8px_rgb(0_0_0_/_0.4)]"
+          "dark:hover:ring-foreground/12",
+          "dark:hover:[--glass-card-shadow:inset_0_1px_0_0_var(--bg-glass-overlay-hover),inset_0_0_0_1px_var(--bg-glass-overlay),0_8px_24px_-8px_rgb(0_0_0/0.4)]"
         ],
         className
       )}

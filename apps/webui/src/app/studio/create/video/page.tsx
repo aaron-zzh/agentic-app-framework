@@ -414,7 +414,7 @@ export default function StudioCreateVideoPage() {
                   {credits !== null && credits > 0 ? (
                     <span className="flex items-center gap-1">
                       <Coins className="size-3.5" />
-                      预估消耗 {credits} 积分
+                      预估 {credits} 积分
                     </span>
                   ) : (
                     "费用以后台为准"

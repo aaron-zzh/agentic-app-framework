@@ -83,7 +83,7 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
         <CommandInput
           value={keyword}
           onValueChange={setKeyword}
-          placeholder="搜索素材..."
+          placeholder="搜索..."
           className="h-8 text-xs"
         />
         <CommandList>
