@@ -7,7 +7,7 @@
 
 "use client"
 
-import { ChevronRight, ImageIcon, Music, Pause, Play } from "lucide-react"
+import { ChevronRight, ImageIcon, Music, Pause, Play, Video as VideoIcon } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRef, useState } from "react"
@@ -65,26 +65,45 @@ function AssetThumb({
       onClick={() => src && onOpenLightbox(asset.url ?? src)}
       className="group/thumb relative block aspect-square w-full overflow-hidden rounded-lg border border-foreground/[0.08] bg-foreground/[0.04] focus-visible:outline-none"
     >
-      {src ? (
-        isVideo ? (
+      {isVideo ? (
+        asset.thumbnailUrl ? (
           // biome-ignore lint/performance/noImgElement: video 缩略图
           <img
-            src={src}
+            src={asset.thumbnailUrl}
             alt={asset.name}
+            className="size-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
+          />
+        ) : asset.url ? (
+          // 无缩略图时用 video 元素静帧预览
+          <video
+            src={asset.url}
+            muted
+            preload="metadata"
             className="size-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
           />
         ) : (
-          <Image
-            src={src}
-            alt={asset.name}
-            width={112}
-            height={112}
-            className="size-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
-          />
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-foreground/30">
+            <VideoIcon className="size-6" />
+          </div>
         )
+      ) : src ? (
+        <Image
+          src={src}
+          alt={asset.name}
+          width={112}
+          height={112}
+          className="size-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
+        />
       ) : (
         <div className="flex h-full items-center justify-center text-foreground/20">
           <ImageIcon className="size-6" />
+        </div>
+      )}
+      {isVideo && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="flex size-7 items-center justify-center rounded-full bg-black/40 text-white">
+            <Play className="size-3.5 translate-x-0.5" />
+          </div>
         </div>
       )}
     </button>
