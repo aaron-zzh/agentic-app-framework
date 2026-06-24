@@ -94,8 +94,6 @@ services:
   aaf-webui:
     image: ${ACR_REGISTRY}/webui:${IMAGE_TAG:-latest}
     container_name: aaf-webui
-    environment:
-      NEXT_PUBLIC_API_URL: http://aaf-service:8080
     ports:
       - "3000:3000"
     depends_on:
