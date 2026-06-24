@@ -767,12 +767,21 @@ public class AigcTaskService
 
     private void saveToMediaAsset(AigcTask task, String ossUrl) {
         try {
+            // 视频类型：异步生成 OSS 截帧缩略图（仅 OSS 存储时有效，其他存储静默忽略）
+            String thumbnailUrl = null;
+            if (TYPE_VIDEO.equals(task.getType())) {
+                try {
+                    thumbnailUrl = fileService.generateVideoThumbnail(ossUrl);
+                } catch (Exception e) {
+                    log.warn("[saveToMediaAsset] 视频截帧失败（降级）: taskId={}, err={}", task.getId(), e.getMessage());
+                }
+            }
             var dto =
                     new SaveFromGenerationDTO(
                             "AI生成-" + task.getType() + "-" + task.getId(),
                             toMediaAssetType(task.getType()),
                             ossUrl,
-                            null,
+                            thumbnailUrl,
                             JsonUtils.toJsonString(
                                     Map.of(
                                             "prompt",

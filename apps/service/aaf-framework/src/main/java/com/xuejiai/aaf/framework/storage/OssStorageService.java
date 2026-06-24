@@ -137,4 +137,52 @@ public class OssStorageService implements StorageService {
                 "uploads/%d/%02d/%02d/%s%s",
                 date.getYear(), date.getMonthValue(), date.getDayOfMonth(), UUID.randomUUID(), ext);
     }
+
+    /**
+     * 从访问 URL 反推存储 key（去掉 urlPrefix）。
+     *
+     * @return key；无法解析时返回 null
+     */
+    public String urlToKey(String url) {
+        if (url == null) return null;
+        var prefix = props.urlPrefix();
+        if (prefix != null && !prefix.isBlank()) {
+            String base = prefix.endsWith("/") ? prefix : prefix + "/";
+            if (url.startsWith(base)) return url.substring(base.length());
+        }
+        // fallback：去掉 https://bucket.endpoint/ 前缀
+        String base = "https://" + props.bucketName() + "." + props.endpoint() + "/";
+        if (url.startsWith(base)) return url.substring(base.length());
+        return null;
+    }
+
+    /**
+     * 对 OSS 上已存在的视频 key 截取第一帧，另存为 jpg 缩略图，返回缩略图 key。
+     *
+     * <p>调用 OSS 数据处理接口持久化截帧结果，只产生一次处理费用，后续直接访问缩略图 URL。
+     *
+     * @param videoKey 视频对象 key，如 {@code aigc/video/xxx.mp4}
+     * @return 缩略图 key，如 {@code aigc/video/xxx_thumb.jpg}；失败时返回 null
+     */
+    public String generateVideoThumbnail(String videoKey) {
+        try {
+            String thumbKey = videoKey.replaceAll("\\.[^.]+$", "") + "_thumb.jpg";
+            // OSS 视频截帧：t=0ms 第一帧，f=jpg，保持原始分辨率，m_fast 快速关键帧
+            String process = "video/snapshot,t_0,f_jpg,w_0,h_0,m_fast";
+            // base64 编码目标 key（OSS saveas 要求）
+            String targetBase64 = java.util.Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(thumbKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String fullProcess = process + "|sys/saveas,o_" + targetBase64
+                    + ",b_" + java.util.Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(props.bucketName().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            ossClient.processObject(props.bucketName(), videoKey, fullProcess);
+            log.info("[OSS] 视频截帧完成: videoKey={}, thumbKey={}", videoKey, thumbKey);
+            return thumbKey;
+        } catch (Exception e) {
+            log.warn("[OSS] 视频截帧失败（降级为无缩略图）: videoKey={}, err={}", videoKey, e.getMessage());
+            return null;
+        }
+    }
 }

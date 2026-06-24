@@ -74,6 +74,16 @@ public class FileUploadService {
         return result;
     }
 
+    /**
+     * 为已上传的视频生成 OSS 截帧缩略图（仅 OSS 存储时有效）。
+     *
+     * @param videoUrl 视频访问 URL
+     * @return 缩略图访问 URL；不支持或失败时返回 null
+     */
+    public String generateVideoThumbnail(String videoUrl) {
+        return fileService.generateVideoThumbnail(videoUrl);
+    }
+
     // ========== 内部工具 ==========
 
     private void record(String path, String mimeType, long size, Long uploaderId) {

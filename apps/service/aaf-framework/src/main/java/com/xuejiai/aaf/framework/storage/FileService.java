@@ -148,4 +148,21 @@ public class FileService {
             throw new StorageException("base64 上传文件失败: path=" + path, e);
         }
     }
+
+    /**
+     * 对已上传的视频生成缩略图（仅 OSS 存储时有效，其他存储静默返回 null）。
+     *
+     * @param videoUrl 视频的访问 URL（用于反推 key）
+     * @return 缩略图访问 URL；不支持时返回 null
+     */
+    public String generateVideoThumbnail(String videoUrl) {
+        if (!(storageService instanceof OssStorageService oss)) {
+            return null;
+        }
+        // 从 URL 反推 key：去掉 urlPrefix 前缀
+        String key = oss.urlToKey(videoUrl);
+        if (key == null) return null;
+        String thumbKey = oss.generateVideoThumbnail(key);
+        return thumbKey != null ? oss.getUrl(thumbKey) : null;
+    }
 }
