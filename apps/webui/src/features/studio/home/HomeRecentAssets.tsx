@@ -122,7 +122,11 @@ export function HomeRecentAssets() {
     .filter((a) => (a.type === "IMAGE" || a.type === "VIDEO") && a.url)
     .map((a) =>
       a.type === "VIDEO"
-        ? { type: "video" as const, sources: [{ src: a.url as string, type: "video/mp4" }] }
+        ? {
+            type: "video" as const,
+            poster: a.url as string,
+            sources: [{ src: a.url as string, type: "video/mp4" }]
+          }
         : { src: a.url as string }
     )
 
