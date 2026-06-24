@@ -5,12 +5,13 @@
  */
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { AlertTriangle, Ban, CheckCircle2, GitCommit } from "lucide-react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { AlertTriangle, Ban, CheckCircle2, GitCommit, RefreshCw } from "lucide-react"
 import { useMemo } from "react"
 
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -138,7 +139,8 @@ function BurndownChart({
 }
 
 export default function DevStatsPage() {
-  const { data: gitLog, isLoading: gitLoading } = useQuery({
+  const qc = useQueryClient()
+  const { data: gitLog, isLoading: gitLoading, isFetching } = useQuery({
     queryKey: ["autodev-git", "log"],
     queryFn: () => request<GitLogEntry[]>("/autodev/git/log?limit=20")
   })
@@ -150,9 +152,20 @@ export default function DevStatsPage() {
 
   return (
     <PageContainer>
-      <div className="mb-4">
-        <h1 className="font-semibold text-lg">迭代统计</h1>
-        <p className="text-muted-foreground text-sm">v0.1.0 迭代概览</p>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="font-semibold text-lg">迭代统计</h1>
+          <p className="text-muted-foreground text-sm">v0.1.0 迭代概览</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isFetching}
+          onClick={() => qc.invalidateQueries({ queryKey: ["autodev-git"] })}
+        >
+          <RefreshCw className={`mr-1.5 size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+          刷新
+        </Button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
