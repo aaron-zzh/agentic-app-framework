@@ -24,7 +24,7 @@ import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import { buildWsUrl } from "@/lib/api/config"
 import { meetingApi } from "@/lib/api/rest/ai/meeting"
-import { documentApi } from "@/lib/api/rest/system/document"
+import { useCreateDocument } from "@/lib/queries/use-documents"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { float32ToPcm16 } from "@/lib/utils/audio"
 
@@ -36,7 +36,7 @@ export default function StudioToolsMeetingPage() {
   const [lines, setLines] = useState<string[]>([])
   const [summary, setSummary] = useState("")
   const [summarizing, setSummarizing] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const { mutate: createDoc, isPending: saving } = useCreateDocument()
   const [editMode, setEditMode] = useState(false)
   const editorRef = useRef<RichTextEditorHandle>(null)
 
@@ -134,22 +134,19 @@ export default function StudioToolsMeetingPage() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const content = editMode ? (editorRef.current?.getContent("markdown") ?? summary) : summary
     if (!content) return
-    setSaving(true)
-    try {
-      const date = new Date().toISOString().slice(0, 10)
-      // 取前 10 个非空白字符作为标题后缀
-      const snippet = content.replace(/\s+/g, "").slice(0, 10)
-      const title = `${date} ${snippet}`
-      await documentApi.create({ title, filePath: "", docType: "meeting", content })
-      toast.success("已保存为文档")
-    } catch {
-      toast.error("保存失败")
-    } finally {
-      setSaving(false)
-    }
+    const date = new Date().toISOString().slice(0, 10)
+    const snippet = content.replace(/\s+/g, "").slice(0, 10)
+    const title = `${date} ${snippet}`
+    createDoc(
+      { title, filePath: "", docType: "meeting", content },
+      {
+        onSuccess: () => toast.success("已保存为文档"),
+        onError: () => toast.error("保存失败")
+      }
+    )
   }
 
   const recording = status === "connected"
