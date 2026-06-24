@@ -115,12 +115,12 @@ export default function StudioMeCreditsPage() {
 
   // 消费分类（bizType 聚合）
   const spendCategories = useMemo(() => {
-    const bizMap = new Map<string, number>()
+    const catMap = new Map<string, number>()
     for (const tx of (chartTxPage?.list ?? []).filter((t) => t.type === "SPEND")) {
-      const key = tx.bizType ?? "OTHER"
-      bizMap.set(key, (bizMap.get(key) ?? 0) + Math.abs(tx.amount))
+      const key = tx.category ?? "other"
+      catMap.set(key, (catMap.get(key) ?? 0) + Math.abs(tx.amount))
     }
-    return Array.from(bizMap.entries())
+    return Array.from(catMap.entries())
       .map(([biz_type, total]) => ({ biz_type, total }))
       .sort((a, b) => b.total - a.total)
   }, [chartTxPage])

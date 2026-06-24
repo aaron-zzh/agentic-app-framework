@@ -60,10 +60,24 @@ const COLORS = [
   "#eab308"
 ]
 
-/** 业务类型 → 显示标签 + lucide 图标。 */
+/** 业务类型 → 显示标签 + lucide 图标（同时支持 bizType 和 category 两套 key）。 */
 const BIZ_TYPE_META: Record<string, { label: string; icon: LucideIcon }> = {
+  // category 维度（后端 credit_transaction.category，优先匹配）
+  chat: { label: "AI 对话", icon: MessageSquare },
+  image_gen: { label: "图像生成", icon: Sparkles },
+  image_edit: { label: "图像编辑", icon: Wand2 },
+  video: { label: "视频生成", icon: Video },
+  speech_tts: { label: "配音合成", icon: Bot },
+  speech_asr: { label: "语音识别", icon: Bot },
+  model_3d: { label: "3D 生成", icon: Package },
+  avatar: { label: "数字人", icon: Bot },
+  tool: { label: "工具调用", icon: Wrench },
+  embedding: { label: "知识库", icon: Package },
+  entitlement: { label: "权益补充", icon: Package },
+  other: { label: "其他", icon: Package },
+  // bizType 维度（兼容旧数据）
   AIGC_TASK: { label: "AI 创作", icon: Sparkles },
-  AIGC_IMAGE: { label: "图片生成", icon: Sparkles },
+  AIGC_IMAGE: { label: "图像生成", icon: Sparkles },
   AIGC_VIDEO: { label: "视频生成", icon: Video },
   TOOL_CALL_AUDIT: { label: "工具调用", icon: Wrench },
   TOOL_CALL: { label: "工具调用", icon: Wrench },
