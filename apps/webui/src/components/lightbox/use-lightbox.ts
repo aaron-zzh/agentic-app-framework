@@ -15,11 +15,13 @@ export function useLightbox(slides: Slide[]): UseLightboxReturn {
 
   const onOpen = useCallback(
     (slideUrl: string) => {
-      const found = slides.findIndex((slide) =>
-        (slide as { type?: string; poster?: string }).type === "video"
-          ? (slide as { poster?: string }).poster === slideUrl
-          : (slide as SlideImage).src === slideUrl
-      )
+      const found = slides.findIndex((slide) => {
+        if ((slide as { type?: string }).type === "video") {
+          const sources = (slide as { sources?: { src: string }[] }).sources
+          return sources?.[0]?.src === slideUrl
+        }
+        return (slide as SlideImage).src === slideUrl
+      })
       setIndex(found)
     },
     [slides]

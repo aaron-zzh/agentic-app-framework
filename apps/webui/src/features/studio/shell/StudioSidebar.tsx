@@ -92,7 +92,7 @@ export function StudioSidebar() {
     <aside
       data-collapsed={sidebarCollapsed}
       className={cn(
-        "relative flex h-screen flex-col border-foreground/[0.06] border-r bg-card/80 transition-[width]",
+        "relative flex h-screen flex-col border-foreground/6 border-r bg-card/80 transition-[width]",
         sidebarCollapsed ? "w-16" : "w-[180px]"
       )}
     >
@@ -100,7 +100,7 @@ export function StudioSidebar() {
       <button
         type="button"
         onClick={toggleSidebar}
-        className="absolute top-[calc(4rem/2)] -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-foreground/[0.08] bg-background text-muted-foreground shadow-sm hover:text-foreground"
+        className="absolute top-[calc(4rem/2)] -right-3 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-foreground/8 bg-background text-muted-foreground shadow-sm hover:text-foreground"
         aria-label={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
       >
         <ChevronDown
@@ -130,7 +130,7 @@ export function StudioSidebar() {
       </nav>
 
       {/* 底部邀请按钮 */}
-      <div className="border-foreground/[0.06] border-t p-2">
+      <div className="border-foreground/6 border-t p-2">
         {sidebarCollapsed ? (
           <div className="relative flex justify-center">
             {/* 占位保持高度 */}

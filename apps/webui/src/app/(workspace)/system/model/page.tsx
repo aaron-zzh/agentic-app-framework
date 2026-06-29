@@ -1,13 +1,22 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, Copy, Grid2X2, RefreshCw, Search, Sparkles, Table2 } from "lucide-react"
+import { ChevronDown, Copy, Grid2X2, Pencil, RefreshCw, Search, Sparkles, Table2 } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import type { PageResult } from "@/lib/api/types"
@@ -21,6 +30,8 @@ type PriceUnit = "M tokens" | "万字符" | "分钟" | "秒" | "次"
 
 interface ModelCard {
   id: string
+  /** 后端数据库主键（用于编辑/更新接口） */
+  numericId: number
   name: string
   modelName: string
   provider: string
@@ -33,6 +44,13 @@ interface ModelCard {
   outputPrice?: number
   cachePrice?: number
   modelPrice?: number
+  /** 后端原始 modelPrice（元），用于编辑表单回填，未经换算 */
+  rawModelPrice?: number
+  /** 后端原始 inputPricePerK / outputPricePerK（元/千 token），用于编辑表单回填 */
+  rawInputPricePerK?: number
+  rawOutputPricePerK?: number
+  /** 计费类型：0=按量 1=按次 2=按秒 3=按单元 */
+  quotaType: number
   /** 价格展示单位（如 "M tokens" / "万字符" / "分钟" / "次"），byVariant=true 时不展示具体单价 */
   priceUnit: PriceUnit
   /** 是否按规格计费（如视频生成有多档价格矩阵）。true 时仅显示"按规格计费"。 */
@@ -190,6 +208,7 @@ function adaptBackendModel(model: BackendAiModel): ModelCard {
   const pricing = derivePricing(model)
   return {
     id: model.modelId,
+    numericId: model.id,
     name: model.displayName || model.modelName,
     modelName: model.modelName,
     provider: model.provider,
@@ -201,6 +220,10 @@ function adaptBackendModel(model: BackendAiModel): ModelCard {
     inputPrice: pricing.inputPrice,
     outputPrice: pricing.outputPrice,
     modelPrice: pricing.modelPrice,
+    rawModelPrice: model.modelPrice != null ? Number(model.modelPrice) : undefined,
+    rawInputPricePerK: model.inputPricePerK != null ? Number(model.inputPricePerK) : undefined,
+    rawOutputPricePerK: model.outputPricePerK != null ? Number(model.outputPricePerK) : undefined,
+    quotaType: model.quotaType ?? 0,
     priceUnit: pricing.unit,
     byVariant: pricing.byVariant,
     billing: isByUnit ? "按次计费" : "按量计费",
@@ -309,11 +332,11 @@ export default function ModelManagementPage() {
 
   return (
     <PageContainer maxWidth={false} disablePadding>
-      <main className="min-h-[calc(100vh-var(--layout-header-height))] bg-[#f6f8fb] text-slate-950">
+      <main className="min-h-[calc(100vh-var(--layout-header-height))] bg-muted/30 text-foreground">
         <div className="grid min-h-[calc(100vh-var(--layout-header-height))] grid-cols-1 lg:grid-cols-[260px_1fr]">
-          <aside className="border-slate-200 border-r bg-white/70 px-4 py-5 lg:sticky lg:top-[var(--layout-header-height)] lg:h-[calc(100vh-var(--layout-header-height))] lg:overflow-y-auto">
+          <aside className="border-border border-r bg-card/70 px-4 py-5 lg:sticky lg:top-[var(--layout-header-height)] lg:h-[calc(100vh-var(--layout-header-height))] lg:overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="font-semibold text-lg">筛选</h2>
+              <h2 className="font-semibold text-lg text-foreground">筛选</h2>
               <Button variant="outline" size="sm" onClick={resetFilters}>
                 <RefreshCw className="size-4" />
                 重置
@@ -326,11 +349,11 @@ export default function ModelManagementPage() {
               onChange={setProvider}
             />
             <FilterGroup active={kind} title="模型类型" items={kindCounts} onChange={setKind} />
-            <section className="mt-6 border-slate-200 border-t pt-5">
+            <section className="mt-6 border-border border-t pt-5">
               <h3 className="mb-3 font-semibold text-base">标签</h3>
               <div className="flex flex-wrap gap-2">
                 {["对话", "工具", "识图", "绘画", "向量", "视频"].map((tag) => (
-                  <Badge key={tag} variant="outline" className="bg-white">
+                  <Badge key={tag} variant="outline" className="bg-card">
                     {tag}
                   </Badge>
                 ))}
@@ -350,16 +373,16 @@ export default function ModelManagementPage() {
               <div className="flex min-h-24 items-center justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="font-semibold text-2xl">全部供应商</h1>
-                    <Badge className="bg-slate-900/10 text-slate-700 hover:bg-slate-900/10">
+                    <h1 className="font-semibold text-2xl text-foreground">全部供应商</h1>
+                    <Badge className="bg-foreground/10 text-foreground/70 hover:bg-foreground/10">
                       Total {models.length} models
                     </Badge>
                   </div>
-                  <p className="mt-3 max-w-2xl text-slate-700">
+                  <p className="mt-3 max-w-2xl text-foreground/70">
                     查看所有可用的 AI 模型供应商，包括多家知名供应商和第三方聚合模型。
                   </p>
                 </div>
-                <div className="hidden h-20 w-20 place-items-center rounded-md bg-white/50 shadow-sm ring-1 ring-white/70 sm:grid">
+                <div className="hidden h-20 w-20 place-items-center rounded-md bg-background/50 shadow-sm ring-1 ring-background/70 sm:grid">
                   <Sparkles className="size-9 text-violet-600" />
                 </div>
               </div>
@@ -367,12 +390,12 @@ export default function ModelManagementPage() {
 
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="relative min-w-0 flex-1">
-                <Search className="absolute top-1/2 left-3 size-5 -translate-y-1/2 text-slate-500" />
+                <Search className="absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="模糊搜索模型名称"
-                  className="h-11 rounded-md border-slate-200 bg-white pl-10"
+                  className="h-11 rounded-md border-border bg-card pl-10"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -410,7 +433,7 @@ export default function ModelManagementPage() {
                 </Tooltip>
                 <Button
                   variant="outline"
-                  className="bg-white"
+                  className="bg-card"
                   onClick={() => setTableView((v) => !v)}
                 >
                   {tableView ? <Grid2X2 className="size-4" /> : <Table2 className="size-4" />}
@@ -461,12 +484,12 @@ function FilterGroup({
             className={cn(
               "flex h-11 w-full items-center justify-between rounded-md border px-3 font-medium text-sm transition",
               active === item.label
-                ? "border-transparent bg-slate-100 text-blue-700 shadow-sm"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                ? "border-transparent bg-muted text-primary shadow-sm"
+                : "border-border bg-card text-foreground hover:bg-muted/50"
             )}
           >
             <span className="truncate">{item.label}</span>
-            <span className="rounded-full bg-white px-2 py-0.5 text-slate-700 text-xs ring-1 ring-slate-200">
+            <span className="rounded-full bg-background px-2 py-0.5 text-muted-foreground text-xs ring-1 ring-border">
               {item.count}
             </span>
           </button>
@@ -475,7 +498,7 @@ function FilterGroup({
       {items.length > 4 && (
         <button
           type="button"
-          className="mt-3 flex w-full items-center justify-center gap-1 text-slate-500 text-sm hover:text-slate-800"
+          className="mt-3 flex w-full items-center justify-center gap-1 text-muted-foreground text-sm hover:text-foreground"
           onClick={() => setExpanded((value) => !value)}
         >
           <ChevronDown className={cn("size-4 transition", expanded && "rotate-180")} />
@@ -487,13 +510,15 @@ function FilterGroup({
 }
 
 function ModelCardItem({ model }: { model: ModelCard }) {
+  const [editOpen, setEditOpen] = useState(false)
+
   function handleCopy() {
     navigator.clipboard?.writeText(model.modelName)
     notify.success(`已复制：${model.modelName}`)
   }
 
   return (
-    <article className="flex min-h-56 flex-col rounded-md bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="flex min-h-56 flex-col rounded-md bg-card p-4 shadow-sm ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-md">
       {/* 图标 + 类型 badge 同行 */}
       <div className="mb-3 flex items-center justify-between">
         <div
@@ -504,7 +529,7 @@ function ModelCardItem({ model }: { model: ModelCard }) {
         >
           {providerMark(model.providerLabel)}
         </div>
-        <Badge variant="outline" className="bg-white text-xs">
+        <Badge variant="outline" className="bg-card text-xs">
           {model.kind}
         </Badge>
       </div>
@@ -519,7 +544,7 @@ function ModelCardItem({ model }: { model: ModelCard }) {
                 <button
                   type="button"
                   onClick={handleCopy}
-                  className="grid size-5 place-items-center rounded text-slate-400 hover:text-slate-600"
+                  className="grid size-5 place-items-center rounded text-muted-foreground hover:text-foreground"
                 >
                   <Copy className="size-3" />
                 </button>
@@ -528,11 +553,11 @@ function ModelCardItem({ model }: { model: ModelCard }) {
             <TooltipContent>复制模型 ID</TooltipContent>
           </Tooltip>
         </div>
-        <p className="text-slate-400 text-sm">{model.providerLabel}</p>
+        <p className="text-muted-foreground text-sm">{model.providerLabel}</p>
       </div>
 
       {/* 描述 */}
-      <p className="mb-3 line-clamp-3 flex-1 text-slate-600 text-sm">{model.description}</p>
+      <p className="mb-3 line-clamp-3 flex-1 text-muted-foreground text-sm">{model.description}</p>
 
       {/* 价格 */}
       <PriceBlock model={model} />
@@ -541,7 +566,7 @@ function ModelCardItem({ model }: { model: ModelCard }) {
       <div className="mt-3 flex items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
           {model.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="outline" className="bg-slate-50 font-normal text-xs">
+            <Badge key={tag} variant="outline" className="bg-muted font-normal text-xs">
               {tag}
             </Badge>
           ))}
@@ -552,26 +577,29 @@ function ModelCardItem({ model }: { model: ModelCard }) {
         </div>
       </div>
 
-      {/* 立即体验按钮 */}
+      {/* 编辑按钮 */}
       <button
         type="button"
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-slate-600 text-sm transition hover:bg-slate-50"
+        onClick={() => setEditOpen(true)}
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-border py-2 text-muted-foreground text-sm transition hover:bg-muted"
       >
-        <Sparkles className="size-3.5 text-violet-500" />
-        立即体验
+        <Pencil className="size-3.5" />
+        编辑
       </button>
+
+      <EditModelDialog key={editOpen ? "open" : "closed"} model={model} open={editOpen} onOpenChange={setEditOpen} />
     </article>
   )
 }
 
 function PriceBlock({ model }: { model: ModelCard }) {
   if (model.byVariant) {
-    return <p className="text-slate-500 text-xs">按规格计费</p>
+    return <p className="text-muted-foreground text-xs">按规格计费</p>
   }
   if (model.modelPrice !== undefined) {
     return (
-      <p className="text-slate-500 text-xs">
-        <span className="font-medium text-slate-700">
+      <p className="text-muted-foreground text-xs">
+        <span className="font-medium text-foreground">
           {formatPrice(model.modelPrice, model.priceUnit)}
         </span>
       </p>
@@ -581,23 +609,23 @@ function PriceBlock({ model }: { model: ModelCard }) {
   return (
     <div className="space-y-0.5 text-xs">
       {model.inputPrice !== undefined && (
-        <p className="text-slate-500">
+        <p className="text-muted-foreground">
           输入{" "}
-          <span className="font-medium text-slate-700">
+          <span className="font-medium text-foreground">
             {formatPrice(model.inputPrice, model.priceUnit)}
           </span>
         </p>
       )}
       {model.outputPrice !== undefined && (
-        <p className="text-slate-500">
+        <p className="text-muted-foreground">
           输出{" "}
-          <span className="font-medium text-slate-700">
+          <span className="font-medium text-foreground">
             {formatPrice(model.outputPrice, model.priceUnit)}
           </span>
         </p>
       )}
       {model.cachePrice !== undefined && (
-        <p className="text-slate-400">
+        <p className="text-muted-foreground/70">
           缓存命中{" "}
           <span className="font-medium">{formatPrice(model.cachePrice, model.priceUnit)}</span>
         </p>
@@ -608,8 +636,8 @@ function PriceBlock({ model }: { model: ModelCard }) {
 
 function ModelTable({ models }: { models: ModelCard[] }) {
   return (
-    <div className="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
-      <div className="grid grid-cols-[minmax(220px,1.4fr)_140px_110px_120px_120px] gap-3 border-slate-200 border-b px-4 py-3 font-medium text-slate-600 text-sm">
+    <div className="overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-border">
+      <div className="grid grid-cols-[minmax(220px,1.4fr)_140px_110px_120px_120px] gap-3 border-border border-b px-4 py-3 font-medium text-muted-foreground text-sm">
         <span>模型</span>
         <span>供应商</span>
         <span>类型</span>
@@ -619,11 +647,11 @@ function ModelTable({ models }: { models: ModelCard[] }) {
       {models.map((model) => (
         <div
           key={model.id}
-          className="grid grid-cols-[minmax(220px,1.4fr)_140px_110px_120px_120px] gap-3 border-slate-100 border-b px-4 py-3 text-sm last:border-b-0"
+          className="grid grid-cols-[minmax(220px,1.4fr)_140px_110px_120px_120px] gap-3 border-border/50 border-b px-4 py-3 text-sm last:border-b-0"
         >
           <div>
             <p className="font-medium">{model.name}</p>
-            <p className="truncate text-slate-500">{model.id}</p>
+            <p className="truncate text-muted-foreground">{model.id}</p>
           </div>
           <span>{model.providerLabel}</span>
           <span>{model.kind}</span>
@@ -632,5 +660,213 @@ function ModelTable({ models }: { models: ModelCard[] }) {
         </div>
       ))}
     </div>
+  )
+}
+
+
+interface EditModelForm {
+  displayName: string
+  baseUrl: string
+  apiKey: string
+  quotaType: string
+  inputPricePerK: string
+  outputPricePerK: string
+  modelPrice: string
+  enabled: boolean
+  remark: string
+}
+
+const QUOTA_TYPE_OPTIONS = [
+  { value: "0", label: "按量（token）" },
+  { value: "1", label: "按次" },
+  { value: "2", label: "按秒" },
+  { value: "3", label: "按单元（视频等）" }
+]
+
+function EditModelDialog({
+  model,
+  open,
+  onOpenChange
+}: {
+  model: ModelCard
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const queryClient = useQueryClient()
+  const [form, setForm] = useState<EditModelForm>({
+    displayName: model.name,
+    baseUrl: "",
+    apiKey: "",
+    quotaType: String(model.quotaType ?? 0),
+    inputPricePerK: model.rawInputPricePerK != null ? String(model.rawInputPricePerK) : "",
+    outputPricePerK: model.rawOutputPricePerK != null ? String(model.rawOutputPricePerK) : "",
+    modelPrice: model.rawModelPrice != null ? String(model.rawModelPrice) : "",
+    enabled: model.enabled,
+    remark: ""
+  })
+
+  const save = useMutation({
+    mutationFn: () => {
+      const qt = Number(form.quotaType)
+      return backendApi.request<BackendAiModel>({
+        url: `/ai/models/${model.numericId}`,
+        method: "PUT",
+        data: {
+          displayName: form.displayName || null,
+          baseUrl: form.baseUrl || null,
+          apiKey: form.apiKey || null,
+          quotaType: qt,
+          inputPricePerK: qt === 0 && form.inputPricePerK ? Number(form.inputPricePerK) : null,
+          outputPricePerK: qt === 0 && form.outputPricePerK ? Number(form.outputPricePerK) : null,
+          modelPrice: qt !== 0 && form.modelPrice ? Number(form.modelPrice) : null,
+          enabled: form.enabled,
+          remark: form.remark || null
+        }
+      })
+    },
+    onSuccess: () => {
+      notify.success("保存成功")
+      queryClient.invalidateQueries({ queryKey: ["ai-models", "preview"] })
+      onOpenChange(false)
+    }
+  })
+
+  function set<K extends keyof EditModelForm>(key: K, value: EditModelForm[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const qt = Number(form.quotaType)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>编辑模型 · {model.name}</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-1">
+          <div className="grid gap-1.5">
+            <Label htmlFor="em-displayName">显示名称</Label>
+            <Input
+              id="em-displayName"
+              value={form.displayName}
+              onChange={(e) => set("displayName", e.target.value)}
+              placeholder="显示名称"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="em-baseUrl">API 地址</Label>
+            <Input
+              id="em-baseUrl"
+              value={form.baseUrl}
+              onChange={(e) => set("baseUrl", e.target.value)}
+              placeholder="留空不修改"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="em-apiKey">API Key</Label>
+            <Input
+              id="em-apiKey"
+              type="password"
+              value={form.apiKey}
+              onChange={(e) => set("apiKey", e.target.value)}
+              placeholder="留空不修改"
+              autoComplete="new-password"
+            />
+          </div>
+
+          {/* 计费类型 */}
+          <div className="grid gap-1.5">
+            <Label>计费类型</Label>
+            <div className="flex flex-wrap gap-2">
+              {QUOTA_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => set("quotaType", opt.value)}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-sm transition",
+                    form.quotaType === opt.value
+                      ? "border-transparent bg-primary text-primary-foreground"
+                      : "border-border bg-muted/50 text-foreground hover:bg-muted"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 按量（token）：输入 + 输出价格 */}
+          {qt === 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="em-inputPrice">输入价格（元/千 token）</Label>
+                <Input
+                  id="em-inputPrice"
+                  type="number"
+                  value={form.inputPricePerK}
+                  onChange={(e) => set("inputPricePerK", e.target.value)}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="em-outputPrice">输出价格（元/千 token）</Label>
+                <Input
+                  id="em-outputPrice"
+                  type="number"
+                  value={form.outputPricePerK}
+                  onChange={(e) => set("outputPricePerK", e.target.value)}
+                  placeholder="0.000"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 按次 / 按秒 / 按单元：固定单价 */}
+          {qt !== 0 && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="em-modelPrice">
+                {qt === 1 ? "单价（元/次）" : qt === 2 ? "单价（元/秒）" : "单价（元/单元）"}
+              </Label>
+              <Input
+                id="em-modelPrice"
+                type="number"
+                value={form.modelPrice}
+                onChange={(e) => set("modelPrice", e.target.value)}
+                placeholder="0.000"
+              />
+            </div>
+          )}
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="em-remark">备注</Label>
+            <Input
+              id="em-remark"
+              value={form.remark}
+              onChange={(e) => set("remark", e.target.value)}
+              placeholder="备注信息"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch
+              id="em-enabled"
+              checked={form.enabled}
+              onCheckedChange={(v) => set("enabled", v)}
+            />
+            <Label htmlFor="em-enabled">启用</Label>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            {save.isPending ? "保存中…" : "保存"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

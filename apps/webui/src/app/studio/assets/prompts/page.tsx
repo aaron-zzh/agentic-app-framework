@@ -124,7 +124,7 @@ export default function StudioAssetsPromptsPage() {
       ) : (
         <div className="space-y-2">
           {prompts.map((p) => (
-            <GlassCard key={p.id} glow="none" className="border border-foreground/[0.06]">
+            <GlassCard key={p.id} glow="none" className="border border-foreground/6">
               <div className="flex items-start gap-3 p-4">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-sm">{p.name}</p>

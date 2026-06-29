@@ -57,6 +57,7 @@ public class ConversationContextResolver {
         Long assistantId = readLong(fp, "assistantId");
         Boolean enableThinking = readBoolean(fp, "enableThinking");
         Integer thinkingBudget = readInteger(fp, "thinkingBudget");
+        String modelId = readString(fp, "modelId");
 
         // forwardedProps 不全 → 查 conversation 表兜底
         if ((userId == null
@@ -100,7 +101,8 @@ public class ConversationContextResolver {
                 knowledgeBaseId,
                 threadId,
                 enableThinking,
-                thinkingBudget);
+                thinkingBudget,
+                modelId);
     }
 
     /** 用 JdbcTemplate 查 conversation 表（避免跨模块 JPA 依赖）。 */
@@ -167,6 +169,12 @@ public class ConversationContextResolver {
             }
         }
         return null;
+    }
+
+    private static String readString(Map<String, Object> map, String key) {
+        var v = map.get(key);
+        if (v == null) return null;
+        return v.toString().trim().isEmpty() ? null : v.toString().trim();
     }
 
     private record ConversationRow(

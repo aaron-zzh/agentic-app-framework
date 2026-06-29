@@ -93,7 +93,7 @@ export default function StudioKnowledgeDocsPage() {
       <SectionHaze variant="blend" />
       <div className="relative flex h-full flex-col">
         {/* 顶栏 */}
-        <div className="flex items-center gap-2 border-foreground/[0.06] border-b px-4 py-3">
+        <div className="flex items-center gap-2 border-foreground/6 border-b px-4 py-3">
           <h2 className="font-medium">文档管理</h2>
           <Tabs
             value={publishTab}
@@ -136,7 +136,7 @@ export default function StudioKnowledgeDocsPage() {
               ) : (
                 <Accordion multiple defaultValue={grouped.map((g) => g.key as string)}>
                   {grouped.map((g) => (
-                    <AccordionItem key={g.key} value={g.key} className="border-foreground/[0.06]">
+                    <AccordionItem key={g.key} value={g.key} className="border-foreground/6">
                       <AccordionTrigger className="py-2 text-muted-foreground text-xs hover:no-underline">
                         {g.label} ({g.nodes.length})
                       </AccordionTrigger>

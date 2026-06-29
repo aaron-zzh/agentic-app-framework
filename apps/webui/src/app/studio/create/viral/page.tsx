@@ -213,7 +213,7 @@ export default function StudioCreateViralPage() {
                       ? "border-amber-400/40 bg-amber-400/[0.06]"
                       : isDone
                         ? "border-emerald-400/30 bg-emerald-400/[0.04]"
-                        : "border-foreground/[0.06] hover:border-foreground/[0.12]"
+                        : "border-foreground/6 hover:border-foreground/[0.12]"
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -258,7 +258,7 @@ export default function StudioCreateViralPage() {
               value={viralContent}
               onChange={(e) => setViralContent(e.target.value)}
               placeholder="粘贴爆款文案、标题、视频文案或内容描述..."
-              className="h-[260px] resize-none overflow-y-auto bg-foreground/[0.02]"
+              className="h-[260px] resize-none overflow-y-auto bg-foreground/2"
               maxLength={3000}
             />
           )}
@@ -279,7 +279,7 @@ export default function StudioCreateViralPage() {
                 </GlowButton>
               )}
               {analysis && (
-                <div className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-xl bg-foreground/[0.02] p-4 text-sm leading-6">
+                <div className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-xl bg-foreground/2 p-4 text-sm leading-6">
                   {analysis}
                 </div>
               )}
@@ -292,7 +292,7 @@ export default function StudioCreateViralPage() {
               placeholder="请描述你的产品或需求，例如：我卖有机护肤品，目标用户是 25-35 岁都市女白领，希望风格轻松活泼..."
               value={userNotes}
               onChange={(e) => setUserNotes(e.target.value)}
-              className="min-h-32 bg-foreground/[0.02]"
+              className="min-h-32 bg-foreground/2"
             />
           )}
 
@@ -309,7 +309,7 @@ export default function StudioCreateViralPage() {
                 value={result}
                 onChange={(e) => setResult(e.target.value)}
                 placeholder="生成结果将在此显示，可手动调整..."
-                className="min-h-[200px] bg-foreground/[0.02]"
+                className="min-h-[200px] bg-foreground/2"
               />
               {result && (
                 <div className="flex items-center justify-between">
@@ -329,7 +329,7 @@ export default function StudioCreateViralPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between border-foreground/[0.06] border-t pt-3">
+          <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
             <GlowButton
               tone="ghost"
               size="sm"

@@ -47,7 +47,8 @@ public final class AafContextHolder {
             Long knowledgeBaseId,
             String threadId,
             Boolean enableThinking,
-            Integer thinkingBudget) {
+            Integer thinkingBudget,
+            String modelId) {
 
         /** 兼容旧构造器（不传思考模式参数）。 */
         public AafContext(
@@ -56,7 +57,7 @@ public final class AafContextHolder {
                 Long conversationId,
                 Long knowledgeBaseId,
                 String threadId) {
-            this(userId, assistantId, conversationId, knowledgeBaseId, threadId, null, null);
+            this(userId, assistantId, conversationId, knowledgeBaseId, threadId, null, null, null);
         }
     }
 
@@ -123,5 +124,11 @@ public final class AafContextHolder {
     public static int thinkingBudget() {
         var c = get();
         return (c != null && c.thinkingBudget() != null) ? c.thinkingBudget() : 8000;
+    }
+
+    /** 便捷方法：获取前端指定的 modelId（可空）。 */
+    public static String modelId() {
+        var c = get();
+        return c == null ? null : c.modelId();
     }
 }

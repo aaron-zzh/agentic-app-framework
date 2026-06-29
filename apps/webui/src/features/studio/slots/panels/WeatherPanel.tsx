@@ -23,7 +23,7 @@ export function WeatherPanel({ payload }: SlotPanelProps) {
         placeholder="城市"
         value={city}
         onChange={(e) => setCity(e.target.value)}
-        className="h-7 bg-foreground/[0.02] text-xs"
+        className="h-7 bg-foreground/2 text-xs"
       />
       {isLoading ? (
         <div className="space-y-2">

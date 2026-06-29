@@ -23,8 +23,11 @@ public class UserGrowthEventListener {
         try {
             userGrowthService.incrementProgressByEvent(event.userId(), event.eventCode());
         } catch (Exception e) {
-            log.warn("[UserGrowthEventListener] 推进进度失败: userId={}, event={}",
-                    event.userId(), event.eventCode(), e);
+            log.warn(
+                    "[UserGrowthEventListener] 推进进度失败: userId={}, event={}",
+                    event.userId(),
+                    event.eventCode(),
+                    e);
         }
     }
 }

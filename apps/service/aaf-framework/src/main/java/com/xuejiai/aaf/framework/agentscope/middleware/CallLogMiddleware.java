@@ -5,7 +5,6 @@
 package com.xuejiai.aaf.framework.agentscope.middleware;
 
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -72,6 +71,9 @@ public class CallLogMiddleware implements MiddlewareBase {
         String threadId = AafContextHolder.threadId();
         String modelName = input.model().getClass().getSimpleName();
 
+        // 通过 assistantId 提前查好 modelId（有缓存），避免 doOnNext 里重复查库
+        String resolvedModelId = resolveModelId(assistantId);
+
         return next.apply(input)
                 .doOnNext(
                         event -> {
@@ -92,7 +94,7 @@ public class CallLogMiddleware implements MiddlewareBase {
                                 // 积分结算：按 token 扣减
                                 settleCredits(
                                         userId,
-                                        modelName,
+                                        resolvedModelId,
                                         usage.getInputTokens(),
                                         usage.getOutputTokens());
                             }
@@ -219,54 +221,41 @@ public class CallLogMiddleware implements MiddlewareBase {
         }
     }
 
-    /** 按 token 结算积分——查 AiModel 取定价后调 settleByUsage。 */
-    private void settleCredits(Long userId, String modelName, int inputTokens, int outputTokens) {
+    /** 解析 modelId：优先用前端传入的 modelId，其次查 ai_assistant.model_id。 */
+    private String resolveModelId(Long assistantId) {
+        // 1. 前端显式指定（forwardedProps.modelId）
+        String ctxModelId = AafContextHolder.modelId();
+        if (ctxModelId != null && !ctxModelId.isBlank()) return ctxModelId;
+        // 2. 查 ai_assistant 默认模型
+        if (assistantId == null) return null;
+        try {
+            return jdbc.queryForObject(
+                    "SELECT model_id FROM ai_assistant WHERE id = ? AND deleted = false LIMIT 1",
+                    String.class, assistantId);
+        } catch (Exception e) {
+            log.debug("[CallLog] 查 assistant modelId 失败 assistantId={}: {}", assistantId, e.getMessage());
+            return null;
+        }
+    }
+
+    /** 按 token 结算积分——用 modelId 查 AiModel 定价后调 settleByUsage。 */
+    private void settleCredits(Long userId, String modelId, int inputTokens, int outputTokens) {
         if (userId == null || creditGuard == null) return;
         try {
-            // 按 modelName（类名）反查 modelId 太脆，直接用 AafContextHolder 里的 assistantId
-            // 对应模型；此处用 modelName 模糊查（class simple name → provider:modelName）
-            // 兜底逻辑：查不到则仍按 TOKEN 扣，但无定价（settleByUsage 内部兜底为 1积分/千token）
-            var aiModel =
-                    modelRepository
-                            .findByModelId(modelName)
-                            .or(
-                                    () ->
-                                            modelRepository
-                                                    .findByEnabledTrueOrderBySortOrder()
-                                                    .stream()
-                                                    .filter(
-                                                            m ->
-                                                                    m.getModelName() != null
-                                                                            && m.getModelName()
-                                                                                    .equalsIgnoreCase(
-                                                                                            modelName))
-                                                    .findFirst())
-                            .orElse(null);
-
+            var aiModel = modelId != null ? modelRepository.findByModelId(modelId).orElse(null) : null;
             final long in = inputTokens;
             final long out = outputTokens;
-            AiUsage usage =
-                    new AiUsage() {
-                        @Override
-                        public Map<String, Object> standardUsage() {
-                            return Map.of("inputTokens", in, "outputTokens", out);
-                        }
-                    };
-
-            creditGuard.settleByUsage(
-                    userId,
-                    aiModel,
-                    usage,
-                    AgentCapabilityContext.get() != null ? AgentCapabilityContext.get() : "chat",
-                    "内容创作 Agent LLM 调用");
-            log.debug(
-                    "[CallLog] 积分结算完成 userId={} model={} in={} out={}",
-                    userId,
-                    modelName,
-                    inputTokens,
-                    outputTokens);
+            AiUsage usage = new AiUsage() {
+                @Override
+                public java.util.Map<String, Object> standardUsage() {
+                    return java.util.Map.of("inputTokens", in, "outputTokens", out);
+                }
+            };
+            String capability = AgentCapabilityContext.get() != null ? AgentCapabilityContext.get() : "chat";
+            creditGuard.settleByUsage(userId, aiModel, usage, capability, "AI 对话");
+            log.debug("[CallLog] 积分结算完成 userId={} modelId={} in={} out={}", userId, modelId, inputTokens, outputTokens);
         } catch (Exception e) {
-            log.warn("[CallLog] 积分结算失败 userId={} model={}: {}", userId, modelName, e.getMessage());
+            log.warn("[CallLog] 积分结算失败 userId={} modelId={}: {}", userId, modelId, e.getMessage());
         }
     }
 

@@ -107,7 +107,6 @@ function PhoneRegisterPanel({
     } catch (err) {
       const msg = err instanceof Error ? err.message : "发送失败，请重试"
       phoneMethods.setError("root", { message: msg })
-      notify.error(msg)
     } finally {
       captchaVerifyParamRef.current = ""
       captcha.reset()
@@ -135,7 +134,6 @@ function PhoneRegisterPanel({
     } catch (err) {
       const msg = err instanceof Error ? err.message : "验证失败，请重试"
       codeMethods.setError("root", { message: msg })
-      notify.error(msg)
     }
   }
 
@@ -143,8 +141,7 @@ function PhoneRegisterPanel({
     if (countdown > 0 || !termsAgreed) return
     try {
       await sendCode(phone, captcha.enabled ? captchaVerifyParamRef.current : undefined)
-    } catch (err) {
-      notify.error(err instanceof Error ? err.message : "重新发送失败，请重试")
+    } catch (_err) {
     } finally {
       captchaVerifyParamRef.current = ""
       captcha.reset()
@@ -213,6 +210,7 @@ function PhoneRegisterPanel({
         className="h-11 w-full"
         disabled={phoneMethods.formState.isSubmitting}
         onClick={async (e) => {
+          if (captcha.enabled) return // 验证码模式由 captcha 触发，不拦截
           e.preventDefault()
           const valid = await phoneMethods.trigger("phone")
           if (!valid) return
@@ -220,7 +218,7 @@ function PhoneRegisterPanel({
             notify.warning("请先阅读并同意服务条款与隐私政策")
             return
           }
-          notify.info("手机验证码功能开发中，敬请期待")
+          void phoneMethods.handleSubmit(onSendCode)()
         }}
       >
         {phoneMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}

@@ -67,7 +67,8 @@ public class CreditRechargePayHandler implements PaySuccessHandler {
                                     total,
                                     pkg.getName());
                             eventPublisher.publishEvent(
-                                    new UserGrowthEvent(bizOrder.getUserId(), "credit.recharge.success"));
+                                    new UserGrowthEvent(
+                                            bizOrder.getUserId(), "credit.recharge.success"));
                         },
                         () ->
                                 log.warn(

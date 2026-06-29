@@ -6,7 +6,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Globe, Mail, MessageCircle, Phone } from "lucide-react"
+import { Mail, MessageCircle, Phone } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -32,8 +32,7 @@ type FormValues = z.infer<typeof schema>
 const CONTACT_CHANNELS = [
   { icon: Mail, label: "邮箱", value: CONTACT.email },
   { icon: MessageCircle, label: "微信", value: CONTACT.wechatId },
-  { icon: Phone, label: "电话", value: "工作日 09:00-18:00" },
-  { icon: Globe, label: "Github", value: "github.com/aaron-zzh/agentic-app-framework" }
+  { icon: Phone, label: "电话", value: "工作日 09:00-18:00" }
 ]
 
 export default function ContactPage() {

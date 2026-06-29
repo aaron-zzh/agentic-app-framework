@@ -49,10 +49,11 @@ function defaultsFromModel(model: AiModelVO | undefined): GenerationParams {
     const first = (cfg.sizes as Record<string, [number, number][]>)?.[p.aspectRatio]?.[0]
     if (first) p.fixedSize = `${first[0]}x${first[1]}`
   } else {
-    const fixed = cfg.sizes as [number, number][] | undefined
+    const fixed = cfg.sizes as (string | [number, number])[] | undefined
     if (fixed?.length) {
-      const mid = fixed[Math.floor(fixed.length / 2)]
-      p.fixedSize = `${mid[0]}x${mid[1]}`
+      // 优先选第一个非 auto 的尺寸作为默认值；若只有 auto 则用 auto
+      const mid = fixed.find((s) => s !== "auto") ?? fixed[0]
+      p.fixedSize = typeof mid === "string" ? mid : `${mid[0]}x${mid[1]}`
     }
   }
 
@@ -96,9 +97,10 @@ export function useGenerationParams(model: AiModelVO | undefined) {
   }
 
   /** 解析后的最终宽高 + sizePreset，直接传给后端 */
-  const resolvedSize: { width: number; height: number; sizePreset?: string } = (() => {
+  const resolvedSize: { width?: number; height?: number; sizePreset?: string } = (() => {
     if (params.sizePreset) return { width: 1024, height: 1024, sizePreset: params.sizePreset }
     if (params.fixedSize) {
+      if (params.fixedSize === "auto") return {}
       const [w, h] = params.fixedSize.split("x").map(Number)
       return { width: w || 1024, height: h || 1024 }
     }

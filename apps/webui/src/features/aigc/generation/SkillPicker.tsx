@@ -60,14 +60,14 @@ function SkillCard({
         "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
         selected
           ? "border-primary/40 bg-primary/10"
-          : "border-foreground/[0.06] bg-foreground/[0.02] hover:bg-foreground/[0.05]"
+          : "border-foreground/6 bg-foreground/2 hover:bg-foreground/5"
       )}
     >
       {/* 技能名首字作图标 */}
       <div
         className={cn(
           "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg font-semibold text-sm",
-          selected ? "bg-primary/20 text-primary" : "bg-foreground/[0.08] text-foreground/60"
+          selected ? "bg-primary/20 text-primary" : "bg-foreground/8 text-foreground/60"
         )}
       >
         {skill.name.slice(0, 1)}
@@ -120,7 +120,7 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
   return (
     <div className="flex flex-col">
       {/* 标题 */}
-      <div className="flex items-center justify-between border-foreground/[0.06] border-b px-4 py-3">
+      <div className="flex items-center justify-between border-foreground/6 border-b px-4 py-3">
         <span className="font-semibold text-sm">选择技能</span>
         {selectedSkill && (
           <button
@@ -137,7 +137,7 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
       </div>
 
       {/* 分类 Tab */}
-      <div className="flex gap-1 border-foreground/[0.06] border-b px-3 py-2">
+      <div className="flex gap-1 border-foreground/6 border-b px-3 py-2">
         {CATEGORY_TABS.map((tab) => (
           <button
             key={tab.key ?? "all"}
@@ -147,7 +147,7 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
               "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition-colors",
               activeCategory === tab.key
                 ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+                : "text-muted-foreground hover:bg-foreground/6 hover:text-foreground"
             )}
           >
             <tab.icon className="size-3" />

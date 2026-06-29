@@ -148,8 +148,11 @@ public class AigcTaskController
                                 p.get("imageUrls") instanceof List
                                         ? (List<String>) p.get("imageUrls")
                                         : (imageUrl != null ? List.of(imageUrl) : null);
-                        int w = toInt(p.get("width")) != null ? toInt(p.get("width")) : 1024;
-                        int h = toInt(p.get("height")) != null ? toInt(p.get("height")) : 1024;
+                        Integer wRaw = toInt(p.get("width"));
+                        Integer hRaw = toInt(p.get("height"));
+                        // 0 或未传均视为 auto，传 null 让后端用模型默认尺寸
+                        Integer w = (wRaw != null && wRaw > 0) ? wRaw : null;
+                        Integer h = (hRaw != null && hRaw > 0) ? hRaw : null;
                         yield taskService.submitImageTask(
                                 userId,
                                 new ImageTaskRequest(

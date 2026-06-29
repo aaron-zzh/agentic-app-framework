@@ -103,14 +103,14 @@ export default function Model3dToolPage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="描述你想要生成的 3D 模型（如：一只可爱的小猫，卡通风格）"
-              className="min-h-[100px] w-full resize-none rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] p-3 text-sm leading-6 outline-none placeholder:text-muted-foreground focus:border-violet-400/40"
+              className="min-h-[100px] w-full resize-none rounded-xl border border-foreground/8 bg-foreground/2 p-3 text-sm leading-6 outline-none placeholder:text-muted-foreground focus:border-violet-400/40"
               maxLength={3000}
             />
             <div className="flex items-center gap-3">
               <select
                 value={textureQuality}
                 onChange={(e) => setTextureQuality(e.target.value as TextureQuality)}
-                className="rounded-lg border border-foreground/[0.08] bg-background px-3 py-2 text-sm"
+                className="rounded-lg border border-foreground/8 bg-background px-3 py-2 text-sm"
               >
                 {TEXTURE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -149,7 +149,7 @@ export default function Model3dToolPage() {
               ) : (
                 <div
                   key={task.id}
-                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-foreground/[0.08] bg-foreground/[0.02] p-4 text-center"
+                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-foreground/8 bg-foreground/2 p-4 text-center"
                 >
                   {task.status === "FAIL" ? (
                     <>

@@ -191,6 +191,7 @@ export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProp
         // 注意：thumbnailOverlay 内含 Popover/Button 等 base-ui trigger（本身渲染为 <button>），
         // 外层不能再用 <button>，否则 button 嵌套 button 触发 hydration error。
         // 改用 div + role="button" + 键盘事件，保留 a11y。
+        // biome-ignore lint/a11y/useSemanticElements: 内部含 thumbnailOverlay（Popover/Button），不能嵌套 <button>
         <div
           role="button"
           tabIndex={0}
@@ -228,6 +229,7 @@ export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProp
         </div>
       )}
       {/* 底部信息区：因 is3D 分支内嵌 <Link>（即 <a>），不能用 <button> 外壳；统一用 div + role="button" */}
+      {/* biome-ignore lint/a11y/useSemanticElements: is3D 分支内含 <Link>（<a>），button 内嵌 a 违反 HTML 规范 */}
       <div
         role="button"
         tabIndex={0}

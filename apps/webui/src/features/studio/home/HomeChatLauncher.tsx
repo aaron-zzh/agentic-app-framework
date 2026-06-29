@@ -459,7 +459,7 @@ export function HomeChatLauncher() {
                           setActiveFeature(f.key)
                           setParamsOpen(false)
                         }}
-                        className="flex shrink-0 items-center gap-1 rounded-full border border-foreground/[0.08] px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+                        className="flex shrink-0 items-center gap-1 rounded-full border border-foreground/8 px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
                       >
                         <f.icon className="size-3" />
                         {f.label}
@@ -467,7 +467,7 @@ export function HomeChatLauncher() {
                     ))}
                     <Link
                       href="/studio/create"
-                      className="flex shrink-0 items-center gap-0.5 rounded-full border border-foreground/[0.08] px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+                      className="flex shrink-0 items-center gap-0.5 rounded-full border border-foreground/8 px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
                     >
                       更多
                       <Sparkles className="size-3" />
@@ -504,7 +504,7 @@ export function HomeChatLauncher() {
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={uploading}
-                          className="flex shrink-0 items-center gap-1 rounded-full border border-foreground/[0.08] px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
+                          className="flex shrink-0 items-center gap-1 rounded-full border border-foreground/8 px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
                         >
                           <Plus className="size-3" />
                           {uploading ? "上传中..." : "上传"}
@@ -526,7 +526,7 @@ export function HomeChatLauncher() {
                         options={imageOptions}
                         value={imageModelId}
                         onChange={(id) => setImageModelId(id)}
-                        className="h-7 shrink-0 gap-1 rounded-full border border-foreground/[0.08] px-2.5 text-muted-foreground text-xs hover:bg-foreground/[0.06]"
+                        className="h-7 shrink-0 gap-1 rounded-full border border-foreground/8 px-2.5 text-muted-foreground text-xs hover:bg-foreground/[0.06]"
                       />
                     )}
                     {activeFeatureMeta?.hasModel &&
@@ -546,7 +546,7 @@ export function HomeChatLauncher() {
                           className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
                             selectedVideoBrand === brand.provider
                               ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
-                              : "border-foreground/[0.08] text-muted-foreground hover:bg-foreground/[0.06]"
+                              : "border-foreground/8 text-muted-foreground hover:bg-foreground/6"
                           }`}
                         >
                           {brand.label}
@@ -564,7 +564,7 @@ export function HomeChatLauncher() {
                                 "flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors",
                                 selectedSkill
                                   ? "border-primary/40 bg-primary/10 text-primary"
-                                  : "border-foreground/[0.08] text-muted-foreground hover:bg-foreground/[0.06]"
+                                  : "border-foreground/8 text-muted-foreground hover:bg-foreground/6"
                               )}
                             />
                           }
@@ -588,7 +588,7 @@ export function HomeChatLauncher() {
                       <select
                         value={voiceId}
                         onChange={(e) => setVoiceId(e.target.value)}
-                        className="h-7 shrink-0 rounded-full border border-foreground/[0.08] bg-background px-2.5 text-muted-foreground text-xs"
+                        className="h-7 shrink-0 rounded-full border border-foreground/8 bg-background px-2.5 text-muted-foreground text-xs"
                       >
                         {VOICES.map((v) => (
                           <option key={v.value} value={v.value}>
@@ -603,7 +603,7 @@ export function HomeChatLauncher() {
                       <select
                         value={musicGender}
                         onChange={(e) => setMusicGender(e.target.value)}
-                        className="h-7 shrink-0 rounded-full border border-foreground/[0.08] bg-background px-2.5 text-muted-foreground text-xs"
+                        className="h-7 shrink-0 rounded-full border border-foreground/8 bg-background px-2.5 text-muted-foreground text-xs"
                       >
                         <option value="female">女声</option>
                         <option value="male">男声</option>
@@ -617,7 +617,7 @@ export function HomeChatLauncher() {
                           render={
                             <button
                               type="button"
-                              className="flex shrink-0 items-center gap-1 rounded-full border border-foreground/[0.08] px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
+                              className="flex shrink-0 items-center gap-1 rounded-full border border-foreground/8 px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
                             />
                           }
                         >

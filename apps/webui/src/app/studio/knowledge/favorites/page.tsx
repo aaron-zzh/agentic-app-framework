@@ -38,7 +38,7 @@ function FavoriteItem({ fav }: { fav: UserFavoriteVO }) {
   const href = TARGET_TYPE_HREF[fav.targetType]?.(fav.targetId)
 
   return (
-    <GlassCard glow="none" className="border border-foreground/[0.06]">
+    <GlassCard glow="none" className="border border-foreground/6">
       <div className="flex items-start gap-3 p-4">
         {fav.targetCoverUrl && (
           // biome-ignore lint/performance/noImgElement: 封面图

@@ -52,7 +52,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
         // 其他模型走 Spring AI
         var imageModel = imageModelFactory.get(request.getModelId());
         String sizeStr =
-                (request.getWidth() > 0 && request.getHeight() > 0)
+                (!request.isAutoSize() && request.getWidth() > 0 && request.getHeight() > 0)
                         ? request.getWidth() + "x" + request.getHeight()
                         : null;
         var optBuilder = OpenAiImageOptions.builder().responseFormat("url");
@@ -78,8 +78,18 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             var body = new LinkedHashMap<String, Object>();
             body.put("model", modelName);
             body.put("prompt", request.getPrompt());
-            if (request.getWidth() > 0 && request.getHeight() > 0)
-                body.put("size", request.getWidth() + "x" + request.getHeight());
+            if (!request.isAutoSize() && request.getWidth() > 0 && request.getHeight() > 0) {
+                // 对宽高取整为 16 的倍数，校验宽高比在 1:3 ~ 3:1 之间
+                int w = (request.getWidth() / 16) * 16;
+                int h = (request.getHeight() / 16) * 16;
+                double ratio = (double) w / h;
+                if (w > 0 && h > 0 && ratio >= 1.0 / 3 && ratio <= 3.0) {
+                    body.put("size", w + "x" + h);
+                } else {
+                    log.warn("[SpringAiImage] 无效尺寸 {}x{}，回退到 1024x1024", request.getWidth(), request.getHeight());
+                    body.put("size", "1024x1024");
+                }
+            }
             if (request.getQuality() != null) body.put("quality", request.getQuality());
             if (request.getFormat() != null) body.put("output_format", request.getFormat());
             if (request.getImageCount() > 1) body.put("n", request.getImageCount());

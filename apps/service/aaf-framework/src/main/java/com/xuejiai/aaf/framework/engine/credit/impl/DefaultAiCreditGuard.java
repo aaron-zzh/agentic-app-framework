@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.enums.ai.AiQuotaTypeEnum;
+import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
 import com.xuejiai.aaf.common.util.JsonUtils;
@@ -112,7 +113,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 getMarkupRate(),
                 creditCost);
 
-        Long creditTxId = doSpend(userId, creditCost, capability, remark);
+        Long creditTxId = doSpend(userId, creditCost, CreditTransactionCategoryEnum.fromCapability(capability), remark);
         if (creditTxId == null && creditCost > 0) return null; // 扣减失败，不写用量记录
 
         saveUsageRecord(
@@ -248,23 +249,23 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     }
 
     /** 扣积分，返回流水 ID；失败返回 null 并记录 warn。 */
-    private Long doSpend(Long userId, long creditCost, String capability, String remark) {
+    private Long doSpend(Long userId, long creditCost, String category, String remark) {
         try {
             long overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
             return creditService.spend(
                     userId,
                     creditCost,
                     CreditTransactionSourceEnum.AI_CONSUME.getCode(),
-                    capability, // category：AI 能力维度（ocr/chat/image_gen 等）
-                    null, // bizId：ai_usage_record.credit_tx_id 反向关联，此处无需重复存
+                    category,
+                    null,
                     overdraft,
                     remark,
                     com.xuejiai.aaf.common.enums.pay.CreditBizTypeEnum.AI_USAGE.getCode());
         } catch (Exception e) {
             log.warn(
-                    "AI 积分扣减失败: userId={}, capability={}, cost={}, err={}",
+                    "AI 积分扣减失败: userId={}, category={}, cost={}, err={}",
                     userId,
-                    capability,
+                    category,
                     creditCost,
                     e.getMessage());
             return null;

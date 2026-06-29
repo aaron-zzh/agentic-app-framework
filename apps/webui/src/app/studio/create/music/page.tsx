@@ -104,7 +104,7 @@ export default function MusicToolPage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="描述音乐风格、主题、情绪...（如：轻快的流行风格，关于夏天的歌曲）"
-              className="max-h-[200px] min-h-[80px] resize-none overflow-y-auto border-foreground/[0.08] bg-foreground/[0.02]"
+              className="max-h-[200px] min-h-[80px] resize-none overflow-y-auto border-foreground/8 bg-foreground/2"
               maxLength={3000}
             />
           </div>
@@ -121,7 +121,7 @@ export default function MusicToolPage() {
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
               placeholder="在此输入歌词..."
-              className="max-h-[200px] min-h-[80px] resize-none overflow-y-auto border-foreground/[0.08] bg-foreground/[0.02]"
+              className="max-h-[200px] min-h-[80px] resize-none overflow-y-auto border-foreground/8 bg-foreground/2"
               maxLength={3000}
             />
           </div>
@@ -132,7 +132,7 @@ export default function MusicToolPage() {
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value)}
-              className="w-full rounded-lg border border-foreground/[0.08] bg-background px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-foreground/8 bg-background px-3 py-2 text-sm"
             >
               {GENDERS.map((g) => (
                 <option key={g.value} value={g.value}>
@@ -143,7 +143,7 @@ export default function MusicToolPage() {
           </div>
 
           {/* 提交栏 */}
-          <div className="flex items-center justify-between border-foreground/[0.06] border-t pt-3">
+          <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
               <span>当前音色：</span>
               {selectedGender ? (

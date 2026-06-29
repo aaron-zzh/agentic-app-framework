@@ -12,10 +12,11 @@ interface UseModelSelectorOptions {
   value?: string
   onChange?: (modelId: string, model: AiModelVO) => void
   autoSelect?: boolean
+  defaultValue?: string
 }
 
 export function useModelSelector(capability: string, opts: UseModelSelectorOptions = {}) {
-  const { value, onChange, autoSelect = true } = opts
+  const { value, onChange, autoSelect = true, defaultValue } = opts
 
   const { data: allModels = [], isLoading } = useAiModels(capability)
 
@@ -47,14 +48,16 @@ export function useModelSelector(capability: string, opts: UseModelSelectorOptio
     [onChange, options]
   )
 
-  // 未选中时自动选第一个
+  // 未选中时自动选：优先 defaultValue，找不到则选第一个
   const firstOption = options[0]
+  const defaultOption = defaultValue ? options.find((o) => o.value === defaultValue) : undefined
   useEffect(() => {
-    if (autoSelect && !internalValue && firstOption) {
-      setInternalValue(firstOption.value)
-      onChange?.(firstOption.value, firstOption.meta)
+    if (autoSelect && !internalValue && (defaultOption ?? firstOption)) {
+      const target = defaultOption ?? firstOption
+      setInternalValue(target.value)
+      onChange?.(target.value, target.meta)
     }
-  }, [autoSelect, internalValue, firstOption, onChange])
+  }, [autoSelect, internalValue, defaultOption, firstOption, onChange])
 
   const currentModel = options.find((o) => o.value === modelId)?.meta
 

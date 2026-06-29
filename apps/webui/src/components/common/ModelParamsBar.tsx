@@ -105,24 +105,36 @@ function SizeControl({
   }
 
   if (cfg.mode === "fixed") {
-    const fixedSizes = cfg.sizes as [number, number][]
+    const fixedSizes = cfg.sizes as (string | [number, number])[]
     return (
       <Select value={params.fixedSize ?? ""} onValueChange={(v) => v && onChange({ fixedSize: v })}>
         <SelectTrigger className="h-8 w-full text-xs">
           <span className="shrink-0 text-muted-foreground">尺寸</span>
-          {params.fixedSize
-            ? (() => {
-                const [w, h] = params.fixedSize.split("x").map(Number)
-                return (
-                  <span className="truncate">
-                    {calcRatio(w, h)} {w}×{h}
-                  </span>
-                )
-              })()
-            : null}
+          {params.fixedSize === "auto" ? (
+            <span className="min-w-0 flex-1 truncate text-left">自动</span>
+          ) : params.fixedSize ? (
+            (() => {
+              const [w, h] = params.fixedSize.split("x").map(Number)
+              return (
+                <span className="min-w-0 flex-1 truncate text-left">
+                  {calcRatio(w, h)} {w}×{h}
+                </span>
+              )
+            })()
+          ) : null}
         </SelectTrigger>
         <SelectContent>
-          {fixedSizes.map(([w, h]) => {
+          {fixedSizes.map((item) => {
+            if (item === "auto") {
+              return (
+                <SelectItem key="auto" value="auto">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">自动</span>
+                  </span>
+                </SelectItem>
+              )
+            }
+            const [w, h] = item as [number, number]
             const ratio = calcRatio(w, h)
             const ms = 14
             const rw = w >= h ? ms : Math.round((ms * w) / h)
@@ -228,7 +240,7 @@ export function ModelParamsBar({
   const modeConfig = cfg ? (isEditMode ? cfg.edit : cfg.generate) : undefined
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
       {/* 图像尺寸 */}
       {!isVideo && cfg && (
         <SizeControl cfg={cfg} modeConfig={modeConfig} params={params} onChange={onChangeParams} />

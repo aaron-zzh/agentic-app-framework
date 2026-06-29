@@ -130,7 +130,7 @@ export default function StudioMeSettingsPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-[1fr_repeat(2,80px)] items-center gap-4 border-foreground/[0.06] border-b pb-2">
+                <div className="grid grid-cols-[1fr_repeat(2,80px)] items-center gap-4 border-foreground/6 border-b pb-2">
                   <span className="font-medium text-muted-foreground text-sm">类别</span>
                   {CHANNELS.map((ch) => (
                     <span
@@ -160,7 +160,7 @@ export default function StudioMeSettingsPage() {
                 ))}
 
                 {/* 免打扰 */}
-                <div className="space-y-3 border-foreground/[0.06] border-t pt-4">
+                <div className="space-y-3 border-foreground/6 border-t pt-4">
                   <p className="font-medium text-sm">免打扰时段</p>
                   <div className="flex items-center gap-3">
                     <div className="space-y-1">

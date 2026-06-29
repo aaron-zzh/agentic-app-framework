@@ -2,7 +2,7 @@
 
 /**
  * GuestGuard——仅允许未登录用户访问（登录/注册页）
- * 已登录时跳转到 returnTo 或工作区，避免闪烁。
+ * 已登录时跳转到 redirect 参数指定页，无参数时跳欢迎动画页。
  *
  * @author AaronZZH & Kiro
  */
@@ -16,23 +16,17 @@ import { useAuth } from "./use-auth"
 export function GuestGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { isAuthenticated, isChecking } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [checked, setChecked] = useState(false)
   const redirectTo = searchParams.get("redirect") ?? paths.studio.welcome
 
   useEffect(() => {
-    // isChecking 可能因页面跳转残留为 true，加 300ms 超时兜底
-    if (isChecking) {
-      const timeout = setTimeout(() => setChecked(true), 300)
-      return () => clearTimeout(timeout)
-    }
     if (isAuthenticated) {
-      const dest = redirectTo === paths.studio.welcome ? "/studio" : redirectTo
-      router.replace(dest)
+      router.replace(redirectTo)
     } else {
       setChecked(true)
     }
-  }, [isAuthenticated, isChecking, router, redirectTo])
+  }, [isAuthenticated, router, redirectTo])
 
   if (!checked) return <SplashScreen />
 

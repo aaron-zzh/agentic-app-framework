@@ -10,58 +10,50 @@
 
 "use client"
 
-import { CheckCircle2, FolderInput, Loader2, Music, XCircle } from "lucide-react"
-import { useState } from "react"
+import { CheckCircle2, Loader2, Music, Video, Wand2, XCircle } from "lucide-react"
+import VideoPlugin from "yet-another-react-lightbox/plugins/video"
 import { PendingOverlay } from "@/components/animate/PendingOverlay"
 import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio/GlassCard"
 import { GlowButton } from "@/components/studio/GlowButton"
 import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
-import type { SaveFromGenerationParams } from "@/lib/queries/use-image-generation"
-import { SaveToProjectDialog } from "./SaveToProjectDialog"
 
 interface GenerationResultCardProps {
   tasks: AigcTaskEvent[]
   mediaType: "IMAGE" | "VIDEO" | "AUDIO"
+  onRegenerate?: (task: AigcTaskEvent) => void
 }
 
-export function GenerationResultCard({ tasks, mediaType }: GenerationResultCardProps) {
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedAsset, setSelectedAsset] = useState<Omit<
-    SaveFromGenerationParams,
-    "projectId"
-  > | null>(null)
+export function GenerationResultCard({ tasks, mediaType, onRegenerate }: GenerationResultCardProps) {
 
-  const imageSlides = tasks
-    .filter((t) => t.status === "SUCCESS" && t.ossUrl && mediaType === "IMAGE")
-    .map((t) => ({ src: t.ossUrl as string }))
+  const slides = tasks
+    .filter((t) => t.status === "SUCCESS" && t.ossUrl && mediaType !== "AUDIO")
+    .map((t) =>
+      mediaType === "VIDEO"
+        ? {
+            type: "video" as const,
+            sources: [{ src: t.ossUrl as string, type: "video/mp4" }]
+          }
+        : { src: t.ossUrl as string }
+    )
 
   const {
     open: lightboxOpen,
     index: lightboxIndex,
     onOpen: openLightbox,
     onClose: closeLightbox
-  } = useLightbox(imageSlides)
+  } = useLightbox(slides)
 
-  const handleSaveToProject = (task: AigcTaskEvent) => {
-    setSelectedAsset({
-      url: task.ossUrl ?? task.resultUrl ?? "",
-      name: task.prompt?.slice(0, 40) ?? "生成作品",
-      type: mediaType,
-      thumbnailUrl: task.ossUrl ?? task.resultUrl ?? undefined
-    })
-    setDialogOpen(true)
-  }
 
   if (tasks.length === 0) return null
 
   return (
     <>
       <GlassCard glow="violet" className="overflow-hidden">
-        <div className="border-foreground/[0.06] border-b px-4 py-3">
+        <div className="border-foreground/6 border-b px-4 py-3">
           <p className="font-medium text-sm">生成结果</p>
         </div>
-        <div className="divide-y divide-foreground/[0.04]">
+        <div className="divide-y divide-foreground/4">
           {tasks.map((task) => (
             <div key={task.id} className="flex items-center gap-3 px-4 py-3">
               <TaskStatusIcon status={task.status} />
@@ -74,19 +66,23 @@ export function GenerationResultCard({ tasks, mediaType }: GenerationResultCardP
                 ) : (
                   <button
                     type="button"
-                    className="size-12 shrink-0 cursor-zoom-in overflow-hidden rounded-lg"
+                    className="flex size-12 shrink-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-lg bg-foreground/6"
                     onClick={() => openLightbox(task.ossUrl as string)}
                   >
-                    {/* biome-ignore lint/performance/noImgElement: 生成缩略图，无尺寸信息无法用 next/image */}
-                    <img
-                      src={task.ossUrl}
-                      alt={task.prompt ?? "生成结果"}
-                      className="size-full object-cover"
-                    />
+                    {mediaType === "VIDEO" ? (
+                      <Video className="size-6 text-violet-400" />
+                    ) : (
+                      /* biome-ignore lint/performance/noImgElement: 生成缩略图，无尺寸信息无法用 next/image */
+                      <img
+                        src={task.ossUrl}
+                        alt={task.prompt ?? "生成结果"}
+                        className="size-full object-cover"
+                      />
+                    )}
                   </button>
                 )
               ) : task.status === "FAIL" ? (
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.04] text-destructive/30 text-xs">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-foreground/4 text-destructive/30 text-xs">
                   {mediaType === "AUDIO" ? (
                     <Music className="size-5 opacity-30" />
                   ) : mediaType === "VIDEO" ? (
@@ -98,7 +94,7 @@ export function GenerationResultCard({ tasks, mediaType }: GenerationResultCardP
               ) : (
                 <div className="relative size-12 shrink-0 overflow-hidden rounded-lg">
                   {mediaType === "AUDIO" ? (
-                    <div className="flex size-full items-center justify-center bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15">
+                    <div className="flex size-full items-center justify-center bg-linear-to-br from-violet-500/15 to-fuchsia-500/15">
                       <Music className="size-5 animate-pulse text-violet-400" />
                     </div>
                   ) : (
@@ -117,15 +113,15 @@ export function GenerationResultCard({ tasks, mediaType }: GenerationResultCardP
                 </p>
               </div>
 
-              {task.status === "SUCCESS" && (
+              {(task.status === "SUCCESS" || task.status === "FAIL") && onRegenerate && (
                 <GlowButton
                   tone="ghost"
                   size="sm"
-                  onClick={() => handleSaveToProject(task)}
+                  onClick={() => onRegenerate(task)}
                   className="shrink-0 text-xs"
                 >
-                  <FolderInput className="size-3.5" />
-                  保存到项目
+                  <Wand2 className="size-3.5" />
+                  重新生成
                 </GlowButton>
               )}
             </div>
@@ -133,17 +129,15 @@ export function GenerationResultCard({ tasks, mediaType }: GenerationResultCardP
         </div>
       </GlassCard>
 
-      {/* Lightbox 图片预览 */}
+      {/* Lightbox 图片/视频预览 */}
       <Lightbox
         open={lightboxOpen}
         index={lightboxIndex}
-        slides={imageSlides}
+        slides={slides}
         close={closeLightbox}
+        plugins={mediaType === "VIDEO" ? [VideoPlugin] : []}
       />
 
-      {selectedAsset && (
-        <SaveToProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} asset={selectedAsset} />
-      )}
     </>
   )
 }

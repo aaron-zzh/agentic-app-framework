@@ -59,7 +59,7 @@ public class GenerationTemplateController
         query.setIsPublic(true);
         query.setPageNo(page + 1); // PageParam 是 1-based
         query.setPageSize(size);
-        return Result.success(templateService.page(query));
+        return Result.success(templateService.pagePublic(query));
     }
 
     /** 使用模板（增加使用计数）。 */

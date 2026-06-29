@@ -9,6 +9,7 @@
 
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef } from "react"
 import { buildSseUrl } from "@/lib/api/config"
 
@@ -126,6 +127,7 @@ function disconnect() {
 
 export function useAigcTaskStream(options: UseAigcTaskStreamOptions = {}) {
   const { onCreated, onProgress, onCompleted, onFailed, onReconnect, enabled = true } = options
+  const qc = useQueryClient()
 
   // 用 ref 稳定回调引用，避免 effect 重跑
   const subRef = useRef<Subscriber>({
@@ -138,8 +140,15 @@ export function useAigcTaskStream(options: UseAigcTaskStreamOptions = {}) {
   subRef.current = {
     onCreated: onCreated ?? (() => {}),
     onProgress: onProgress ?? (() => {}),
-    onCompleted: onCompleted ?? (() => {}),
-    onFailed: onFailed ?? (() => {}),
+    // 任务完成/失败后积分余额已变更，统一在此刷新，调用方无需关心
+    onCompleted: (t) => {
+      qc.invalidateQueries({ queryKey: ["credits", "groups"] })
+      onCompleted?.(t)
+    },
+    onFailed: (t) => {
+      qc.invalidateQueries({ queryKey: ["credits", "groups"] })
+      onFailed?.(t)
+    },
     onReconnect
   }
 

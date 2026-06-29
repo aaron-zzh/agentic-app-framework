@@ -22,7 +22,7 @@ export function AppHeader() {
   const isCommandOpen = cmdOpen || cmdManualOpen
 
   return (
-    <header className="flex h-[var(--layout-header-height)] shrink-0 items-center gap-2 border-b bg-background px-4">
+    <header className="flex h-(--layout-header-height) shrink-0 items-center gap-2 border-b bg-background px-4">
       {/* 左侧：侧边栏切换 + 功能图标组 */}
       <MobileNav />
       <WorkspaceSwitcher />

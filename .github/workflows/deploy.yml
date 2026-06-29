@@ -38,8 +38,8 @@ jobs:
           tags: ${{ env.ACR_REGISTRY }}/service:latest
           no-cache: true
 
-      - name: 加载前端构建变量（.env.prod）
-        run: grep -v '^\s*#' apps/webui/.env.prod | grep -v '^\s*$' >> $GITHUB_ENV
+      - name: 加载前端构建变量（.env.production）
+        run: grep -v '^\s*#' apps/webui/.env.production | grep -v '^\s*$' >> $GITHUB_ENV
 
       - name: 构建并推送前端镜像
         uses: docker/build-push-action@v6

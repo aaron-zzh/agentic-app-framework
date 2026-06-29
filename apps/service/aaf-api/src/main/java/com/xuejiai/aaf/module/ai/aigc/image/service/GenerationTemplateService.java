@@ -110,6 +110,20 @@ public class GenerationTemplateService
         return "参数模板";
     }
 
+    /** TODO 查询公开模板（绕过行级数据权限，直接按 is_public=true 过滤）。 */
+    public com.xuejiai.aaf.common.model.PageResult<GenerationTemplateVO> pagePublic(
+            GenerationTemplatePageDTO query) {
+        var spec = buildSpec(query);
+        var pageReq =
+                org.springframework.data.domain.PageRequest.of(
+                        Math.max(query.getPageNo() - 1, 0),
+                        query.getPageSize() > 0 ? query.getPageSize() : 100,
+                        org.springframework.data.domain.Sort.by("usageCount").descending());
+        var page = templateRepository.findAll(spec, pageReq);
+        return new com.xuejiai.aaf.common.model.PageResult<>(
+                page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+    }
+
     /** 按用户分页查询（/me 端点强制 userId 过滤）。 */
     public com.xuejiai.aaf.common.model.PageResult<GenerationTemplateVO> pageByUser(
             Long userId, GenerationTemplatePageDTO query) {

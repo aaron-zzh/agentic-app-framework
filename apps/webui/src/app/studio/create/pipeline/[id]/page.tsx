@@ -73,7 +73,7 @@ function StepCard({
     <div
       className={cn(
         "flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors",
-        "border-foreground/[0.08] bg-foreground/[0.02]"
+        "border-foreground/8 bg-foreground/2"
       )}
     >
       {/* Step 序号 */}
@@ -222,7 +222,7 @@ export default function StudioPipelineDetailPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="输入主题、产品名、关键词..."
-              className="min-h-[80px] resize-none border-foreground/[0.08] bg-foreground/[0.02]"
+              className="min-h-[80px] resize-none border-foreground/8 bg-foreground/2"
               disabled={running}
             />
             <GlowButton

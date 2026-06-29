@@ -7,21 +7,29 @@
 
 import { useQuery } from "@tanstack/react-query"
 import {
-  CheckCircle2,
   Image as ImageIcon,
   Loader2,
+  MoreHorizontal,
   RefreshCw,
   Trash2,
   Video,
   XCircle
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import VideoPlugin from "yet-another-react-lightbox/plugins/video"
+import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { type PageResult, request } from "@/lib/api/rest/entity/crud"
 import { useCancelAigcTask } from "@/lib/queries/use-cancel-aigc-task"
-import { useGenerateImage, useGenerateVideo } from "@/lib/queries/use-image-generation"
 
 // ─── 类型 ───────────────────────────────────────────────────────────────────
 
@@ -34,6 +42,7 @@ interface AigcTaskVO {
   provider: string
   ossUrl: string | null
   errorMsg: string | null
+  params: string | null
   createTime: string
 }
 
@@ -46,25 +55,30 @@ function useAigcTaskHistory(page = 1, size = 40) {
   })
 }
 
+// ─── 任务类型→创作页路由 ──────────────────────────────────────────────────────
+
+function getCreatePath(type: string): string {
+  if (type.includes("VIDEO")) return "/studio/create/video"
+  if (type === "MUSIC") return "/studio/create/music"
+  if (type === "VOICE") return "/studio/create/voice"
+  if (type === "MODEL_3D") return "/studio/create/tools/3d"
+  return "/studio/create/image"
+}
+
+function writeRegenerateSession(task: AigcTaskVO) {
+  const p = task.params ? (() => { try { return JSON.parse(task.params) } catch { return {} } })() : {}
+  sessionStorage.setItem("aaf:regenerate", JSON.stringify({
+    prompt: task.prompt,
+    model: task.model,
+    ...p,
+  }))
+}
+
 // ─── 任务卡片 ────────────────────────────────────────────────────────────────
 
-function TaskCard({ task }: { task: AigcTaskVO }) {
-  const retryImage = useGenerateImage()
-  const retryVideo = useGenerateVideo()
+function TaskCard({ task, onPreview }: { task: AigcTaskVO; onPreview: (url: string) => void }) {
+  const router = useRouter()
   const cancelTask = useCancelAigcTask()
-
-  const handleRetry = async () => {
-    try {
-      if (task.type.includes("VIDEO")) {
-        await retryVideo.mutateAsync({ prompt: task.prompt, model: task.model })
-      } else {
-        await retryImage.mutateAsync({ prompt: task.prompt, model: task.model })
-      }
-      toast.success("已重新提交任务")
-    } catch {
-      toast.error("重试失败")
-    }
-  }
 
   const handleDelete = () => {
     cancelTask.mutate(task.id, {
@@ -78,25 +92,26 @@ function TaskCard({ task }: { task: AigcTaskVO }) {
 
   return (
     <GlassCard glow="none" className="overflow-hidden">
-      {/* 缩略图 */}
-      <div className="relative aspect-square bg-foreground/[0.04]">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: 内部含 <button>，不能嵌套 <button> */}
+      {/* biome-ignore lint/a11y/useSemanticElements: 内部含 <button>，不能嵌套 <button> */}
+      <div
+        className="relative aspect-square bg-foreground/4"
+        role={task.ossUrl && !isFail ? "button" : undefined}
+        tabIndex={task.ossUrl && !isFail ? 0 : undefined}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button,[role=menuitem]")) return
+          task.ossUrl && !isFail && onPreview(task.ossUrl)
+        }}
+        onKeyDown={(e) => e.key === "Enter" && task.ossUrl && !isFail && onPreview(task.ossUrl)}
+        style={task.ossUrl && !isFail ? { cursor: "zoom-in" } : undefined}
+      >
         {task.ossUrl && !isFail ? (
           isVideo ? (
             <video
               src={task.ossUrl}
-              className="size-full object-cover"
+              className="pointer-events-none size-full object-cover"
               muted
               playsInline
-              onMouseOver={(e) => e.currentTarget.play()}
-              onFocus={(e) => e.currentTarget.play()}
-              onMouseOut={(e) => {
-                e.currentTarget.pause()
-                e.currentTarget.currentTime = 0
-              }}
-              onBlur={(e) => {
-                e.currentTarget.pause()
-                e.currentTarget.currentTime = 0
-              }}
             />
           ) : (
             // biome-ignore lint/performance/noImgElement: 缩略图
@@ -119,45 +134,45 @@ function TaskCard({ task }: { task: AigcTaskVO }) {
           </div>
         )}
 
-        {/* 成功状态角标 */}
-        {!isFail && task.status === "SUCCESS" && (
-          <div className="absolute top-1.5 right-1.5">
-            <CheckCircle2 className="size-4 text-emerald-400" />
+        {/* 成功/失败：三点菜单 */}
+        {(task.status === "SUCCESS" || isFail) && (
+          <div className="absolute top-1 right-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="flex size-6 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    writeRegenerateSession(task)
+                    router.push(getCreatePath(task.type))
+                  }}
+                >
+                  <RefreshCw className="mr-2 size-3.5" />
+                  重新生成
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); handleDelete() }}
+                  disabled={cancelTask.isPending}
+                >
+                  <Trash2 className="mr-2 size-3.5" />
+                  删除
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        )}
-
-        {/* 失败：右上角删除按钮 */}
-        {isFail && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={cancelTask.isPending}
-            className="absolute top-1.5 right-1.5 text-muted-foreground/60 hover:text-muted-foreground"
-          >
-            <Trash2 className="size-4" />
-          </button>
         )}
       </div>
 
       {/* 信息 */}
       <div className="space-y-1 p-2">
         <p className="line-clamp-2 text-xs leading-tight">{task.prompt || "—"}</p>
-        {isFail && (
-          <div className="space-y-1">
-            {task.errorMsg && (
-              <p className="line-clamp-1 text-[10px] text-rose-400">{task.errorMsg}</p>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 w-full gap-1 text-[10px]"
-              onClick={handleRetry}
-              disabled={retryImage.isPending || retryVideo.isPending}
-            >
-              <RefreshCw className="size-3" />
-              重试
-            </Button>
-          </div>
+        {isFail && task.errorMsg && (
+          <p className="line-clamp-1 text-[10px] text-rose-400">{task.errorMsg}</p>
         )}
       </div>
     </GlassCard>
@@ -169,6 +184,16 @@ function TaskCard({ task }: { task: AigcTaskVO }) {
 export default function StudioAssetsHistoryPage() {
   const { data, isLoading } = useAigcTaskHistory()
   const items = data?.list ?? []
+
+  const slides = items
+    .filter((t) => t.status === "SUCCESS" && t.ossUrl)
+    .map((t) =>
+      t.type.includes("VIDEO")
+        ? { type: "video" as const, sources: [{ src: t.ossUrl as string, type: "video/mp4" }] }
+        : { src: t.ossUrl as string }
+    )
+
+  const { open, index, onOpen, onClose } = useLightbox(slides)
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-6">
@@ -188,10 +213,12 @@ export default function StudioAssetsHistoryPage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard key={task.id} task={task} onPreview={onOpen} />
           ))}
         </div>
       )}
+
+      <Lightbox open={open} index={index} slides={slides} close={onClose} plugins={[VideoPlugin]} />
     </div>
   )
 }

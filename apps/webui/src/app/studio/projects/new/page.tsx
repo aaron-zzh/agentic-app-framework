@@ -124,8 +124,8 @@ export default function StudioProjectNewPage() {
                   className={cn(
                     "rounded-2xl border p-4 text-left transition-all",
                     selectedTemplate?.id === tpl.id
-                      ? "border-violet-400/40 bg-violet-400/[0.06]"
-                      : "border-foreground/[0.06] hover:border-foreground/[0.12]"
+                      ? "border-violet-400/40 bg-violet-400/6"
+                      : "border-foreground/6 hover:border-foreground/12"
                   )}
                 >
                   <p className="font-medium text-sm">{tpl.name}</p>

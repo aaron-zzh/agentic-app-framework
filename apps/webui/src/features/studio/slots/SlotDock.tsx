@@ -31,8 +31,8 @@ export function SlotDock() {
               <button
                 type="button"
                 className={cn(
-                  "pointer-events-auto rounded-l-md border border-foreground/[0.08] border-r-0",
-                  "bg-background/80 px-1 py-3 backdrop-blur transition-colors hover:bg-foreground/[0.06]"
+                  "pointer-events-auto rounded-l-md border border-foreground/8 border-r-0",
+                  "bg-background/80 px-1 py-3 backdrop-blur transition-colors hover:bg-foreground/6"
                 )}
                 aria-label="展开面板"
               />

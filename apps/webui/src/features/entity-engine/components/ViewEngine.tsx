@@ -135,7 +135,7 @@ function ConnectedListView({
   viewSettings?: ViewSettings
 }) {
   const [params, setParams] = useEntitySearchParams()
-  const serverPagination = viewSettings?.serverPagination ?? false
+  const serverPagination = viewSettings?.serverPagination ?? entity.listView.serverPagination ?? false
 
   const { data, isLoading, pagination, queryToken } = useEntityQueryWindow(entity, {
     // 服务端分页：传 page/pageSize；前端分页：传 pageSize=-1，由 /_query 返回过滤后的完整窗口

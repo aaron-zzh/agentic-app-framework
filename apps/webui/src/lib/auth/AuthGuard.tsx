@@ -16,17 +16,17 @@ import { useAuth } from "./use-auth"
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { isAuthenticated, isChecking } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    if (isChecking) return
     if (!isAuthenticated) {
+      // 未登录：跳转登录页，携带 redirect 参数以便登录后返回当前页
       router.replace(`${paths.auth.login}?redirect=${encodeURIComponent(pathname)}`)
     } else {
       setChecked(true)
     }
-  }, [isAuthenticated, isChecking, router, pathname])
+  }, [isAuthenticated, router, pathname])
 
   if (!checked) return <SplashScreen />
 

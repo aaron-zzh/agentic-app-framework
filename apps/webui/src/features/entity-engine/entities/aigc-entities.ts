@@ -49,6 +49,7 @@ export const aigcTaskEntity: EntityDef = {
     { type: "number", name: "projectId", label: "项目 ID", readOnly: true }
   ],
   listView: {
+    serverPagination: true,
     columns: ["userId", "type", "status", "provider", "model", "createTime"],
     defaultSort: "createTime:desc",
     filterableFields: ["type", "status"],

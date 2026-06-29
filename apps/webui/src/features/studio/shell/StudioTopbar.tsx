@@ -21,7 +21,7 @@ export function StudioTopbar() {
   return (
     <header
       className={cn(
-        "flex h-14 shrink-0 items-center gap-3 border-foreground/[0.06] border-b bg-background/60 backdrop-blur-md",
+        "flex h-14 shrink-0 items-center gap-3 border-foreground/6 border-b bg-background/60 backdrop-blur-md",
         "px-4"
       )}
     >

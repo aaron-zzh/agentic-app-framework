@@ -44,7 +44,7 @@ export function StudioTabBar() {
     <div
       data-slot="studio-tab-bar"
       className={cn(
-        "flex h-10 shrink-0 items-stretch gap-0.5 overflow-x-auto border-foreground/[0.06] border-b bg-background/40 px-2 backdrop-blur"
+        "flex h-10 shrink-0 items-stretch gap-0.5 overflow-x-auto border-foreground/6 border-b bg-background/40 px-2 backdrop-blur"
       )}
     >
       {tabsWithIcon.map((tab) => {

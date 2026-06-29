@@ -31,7 +31,7 @@ export function ProjectSummaryPanel({ payload }: SlotPanelProps) {
       <p className="text-muted-foreground text-xs">项目 ID: #{projectId}</p>
       <Link
         href={`/studio/projects/${projectId}`}
-        className="flex items-center justify-center gap-1 rounded border border-foreground/[0.08] bg-foreground/[0.02] px-2 py-1.5 text-xs transition-colors hover:bg-foreground/[0.06]"
+        className="flex items-center justify-center gap-1 rounded border border-foreground/8 bg-foreground/2 px-2 py-1.5 text-xs transition-colors hover:bg-foreground/[0.06]"
       >
         <ExternalLink className="size-3" />
         进入工作台

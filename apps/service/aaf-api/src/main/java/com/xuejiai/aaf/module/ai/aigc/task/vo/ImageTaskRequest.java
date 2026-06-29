@@ -15,8 +15,8 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 public record ImageTaskRequest(
         String prompt,
         String model,
-        int width,
-        int height,
+        @JsonInclude(JsonInclude.Include.NON_DEFAULT) Integer width,
+        @JsonInclude(JsonInclude.Include.NON_DEFAULT) Integer height,
         String negativePrompt,
         Integer seed,
         Boolean promptExtend,
@@ -37,8 +37,12 @@ public record ImageTaskRequest(
         /** 所属项目 ID */
         Long projectId) {
 
-    /** 序列化为 JSON 存入 aigc_task.params，供 AigcTaskExecutor 读取。 */
+    /** 序列化为 JSON 存入 aigc_task.params，供 AigcTaskExecutor 读取。width=null 时写入 autoSize=true。 */
     public String toParamsJson() {
-        return JsonUtils.toJsonString(this);
+        var node = (tools.jackson.databind.node.ObjectNode) JsonUtils.readTree(JsonUtils.toJsonString(this));
+        if (width == null || width == 0) {
+            node.put("autoSize", true);
+        }
+        return JsonUtils.toJsonString(node);
     }
 }

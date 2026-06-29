@@ -102,7 +102,7 @@ export default function VoiceToolPage() {
               onChange={(e) => setText(e.target.value)}
               maxLength={TEXT_MAX_LEN}
               placeholder="输入需要配音的文本内容（最多 200 字）..."
-              className="max-h-[200px] min-h-[120px] resize-none overflow-y-auto border-foreground/[0.08] bg-foreground/[0.02]"
+              className="max-h-[200px] min-h-[120px] resize-none overflow-y-auto border-foreground/8 bg-foreground/2"
             />
           </div>
 
@@ -112,7 +112,7 @@ export default function VoiceToolPage() {
             <select
               value={voice}
               onChange={(e) => setVoice(e.target.value)}
-              className="w-full rounded-lg border border-foreground/[0.08] bg-background px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-foreground/8 bg-background px-3 py-2 text-sm"
             >
               {VOICES.map((v) => (
                 <option key={v.value} value={v.value}>
@@ -123,7 +123,7 @@ export default function VoiceToolPage() {
           </div>
 
           {/* 提交栏 */}
-          <div className="flex items-center justify-between border-foreground/[0.06] border-t pt-3">
+          <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
               <span>当前音色：</span>
               {selectedVoice ? (

@@ -31,7 +31,7 @@ function OutfitShopCard({ outfit }: { outfit: AvatarOutfitVO }) {
   const purchase = usePurchaseOutfit()
 
   return (
-    <GlassCard glow="none" className="overflow-hidden border border-foreground/[0.06]">
+    <GlassCard glow="none" className="overflow-hidden border border-foreground/6">
       <div className="flex aspect-square items-center justify-center bg-foreground/[0.04]">
         {outfit.thumbnailUrl ? (
           // biome-ignore lint/performance/noImgElement: 装扮图
@@ -80,7 +80,7 @@ function InventoryCard({ item }: { item: UserAvatarInventoryVO }) {
       glow="none"
       className={cn(
         "overflow-hidden border",
-        item.equipped ? "border-violet-400/40" : "border-foreground/[0.06]"
+        item.equipped ? "border-violet-400/40" : "border-foreground/6"
       )}
     >
       <div className="flex aspect-square items-center justify-center bg-foreground/[0.04]">

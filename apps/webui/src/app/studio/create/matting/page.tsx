@@ -290,14 +290,14 @@ export default function MattingPage() {
                 value={imageUrl.startsWith("blob:") ? "" : imageUrl}
                 onChange={(e) => handleUrlChange(e.target.value)}
                 placeholder="粘贴图片 URL（https://...）"
-                className={`flex-1 rounded-lg border bg-foreground/[0.02] px-3 py-2 text-sm outline-none focus:border-primary/50 ${
-                  urlError ? "border-destructive" : "border-foreground/[0.08]"
+                className={`flex-1 rounded-lg border bg-foreground/2 px-3 py-2 text-sm outline-none focus:border-primary/50 ${
+                  urlError ? "border-destructive" : "border-foreground/8"
                 }`}
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-lg border border-foreground/[0.08] px-3 py-2 text-muted-foreground text-sm hover:bg-foreground/[0.04]"
+                className="flex items-center gap-1.5 rounded-lg border border-foreground/8 px-3 py-2 text-muted-foreground text-sm hover:bg-foreground/[0.04]"
               >
                 <Upload className="size-3.5" />
                 本地
@@ -367,10 +367,10 @@ export default function MattingPage() {
       {/* 结果列表（含分割线对比） */}
       {tasks.length > 0 && (
         <GlassCard glow="violet" className="overflow-hidden">
-          <div className="border-foreground/[0.06] border-b px-4 py-3">
+          <div className="border-foreground/6 border-b px-4 py-3">
             <p className="font-medium text-sm">抠图结果</p>
           </div>
-          <div className="divide-y divide-foreground/[0.04]">
+          <div className="divide-y divide-foreground/4">
             {tasks.map((task) => (
               <div key={task.id} className="space-y-3 p-4">
                 <div className="flex items-center justify-between gap-2 text-sm">
@@ -390,9 +390,10 @@ export default function MattingPage() {
                   {task.status === "SUCCESS" && task.ossUrl && (
                     <button
                       type="button"
-                      className="flex items-center gap-1 rounded-md border border-foreground/[0.08] px-2 py-1 text-muted-foreground text-xs hover:bg-foreground/[0.06] hover:text-foreground"
+                      className="flex items-center gap-1 rounded-md border border-foreground/8 px-2 py-1 text-muted-foreground text-xs hover:bg-foreground/[0.06] hover:text-foreground"
                       onClick={() => {
                         const url = task.ossUrl
+                        if (!url) return
                         toast.promise(
                           fetch(url)
                             .then((r) => r.blob())

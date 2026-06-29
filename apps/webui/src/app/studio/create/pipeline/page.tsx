@@ -59,7 +59,7 @@ function TemplateCard({ template }: { template: WorkflowTemplate }) {
               </p>
             )}
           </div>
-          <div className="flex items-center justify-between border-foreground/[0.06] border-t pt-3">
+          <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
             <span className="text-muted-foreground text-xs">
               {stepCount} 步骤 · {template.usageCount} 人用过
             </span>
@@ -96,7 +96,7 @@ export default function StudioPipelineListPage() {
             ))}
           </div>
         ) : templates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-foreground/[0.08] border-dashed py-12 text-center">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-foreground/8 border-dashed py-12 text-center">
             <Loader2 className="size-6 animate-spin opacity-40" />
             <p className="text-muted-foreground text-sm">暂无模板</p>
             <Link href="/studio/create">

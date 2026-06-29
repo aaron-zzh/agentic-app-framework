@@ -39,6 +39,8 @@ export interface ListViewConfig {
   columns: (string | ColumnDef)[]
   /** 默认排序："fieldName:asc|desc" */
   defaultSort?: string
+  /** 启用服务端分页（默认 false，false 时拉取全量窗口由前端分页） */
+  serverPagination?: boolean
   /** 可搜索字段 */
   searchableFields?: string[]
   /** 可筛选字段 */

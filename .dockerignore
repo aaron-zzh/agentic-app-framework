@@ -1,0 +1,39 @@
+# 依赖（构建时重新安装）
+node_modules
+**/node_modules
+
+# Next.js 构建缓存（关键：避免 read-only 错误 + 减小上下文）
+**/.next
+**/out
+
+# Java 构建产物
+**/target
+**/.mvn/wrapper/maven-wrapper.jar
+
+# IDE / 工具
+.idea
+.vscode
+.cursor
+.nx/cache
+.nx/workspace-data
+
+# 参考资料（不参与构建）
+tmp/
+io/
+logs/
+
+# 环境变量（敏感信息）
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production
+
+# Git
+.git
+.gitignore
+
+# 文档
+docs/
+README.md
+AGENTS.md
+CHANGELOG.md

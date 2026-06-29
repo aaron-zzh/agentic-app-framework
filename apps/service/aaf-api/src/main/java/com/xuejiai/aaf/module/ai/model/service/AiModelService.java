@@ -101,6 +101,8 @@ public class AiModelService {
         if (dto.contextWindow() != null) model.setContextWindow(dto.contextWindow());
         if (dto.inputPricePerK() != null) model.setInputPricePerK(dto.inputPricePerK());
         if (dto.outputPricePerK() != null) model.setOutputPricePerK(dto.outputPricePerK());
+        if (dto.modelPrice() != null) model.setModelPrice(dto.modelPrice());
+        if (dto.quotaType() != null) model.setQuotaType(dto.quotaType());
         if (dto.enabled() != null) model.setEnabled(dto.enabled());
         if (dto.fallbackModelId() != null) model.setFallbackModelId(dto.fallbackModelId());
         if (dto.sortOrder() != null) model.setSortOrder(dto.sortOrder());

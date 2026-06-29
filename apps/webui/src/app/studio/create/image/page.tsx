@@ -17,10 +17,11 @@
 import { Coins, Loader2, Plus, Sparkles, Wand2, X } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { ModelParamsBar } from "@/components/common/ModelParamsBar"
 import { ModelSelector } from "@/components/common/ModelSelector"
+import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -41,7 +42,9 @@ export default function StudioCreateImagePage() {
   const [prompt, setPrompt] = useState(() => searchParams.get("prompt") ?? "")
   const [recentTasks, setRecentTasks] = useState<AigcTaskEvent[]>([])
 
-  const { options, modelId, setModelId, currentModel } = useModelSelector("IMAGE_GEN")
+  const { options, modelId, setModelId, currentModel } = useModelSelector("IMAGE_GEN", {
+    defaultValue: "n1n:gpt-image-2"
+  })
   const { params, onChangeParams, resolvedSize } = useGenerationParams(currentModel)
   const generate = useGenerateImage()
 
@@ -54,6 +57,34 @@ export default function StudioCreateImagePage() {
   })
   const maxRefImages = currentModel?.imageConfig?.edit?.maxInputImages ?? 1
   const isEditMode = refImages.length > 0 && !!currentModel?.imageConfig?.edit
+  const refSlides = refImages.map((img) => ({ src: img.url }))
+  const { open: refOpen, index: refIndex, onOpen: openRefLightbox, onClose: closeRefLightbox } = useLightbox(refSlides)
+
+  // 从 sessionStorage 消费重新生成参数（一次性读取后删除）
+  useEffect(() => {
+    const raw = sessionStorage.getItem("aaf:regenerate")
+    if (!raw) return
+    sessionStorage.removeItem("aaf:regenerate")
+    try {
+      const data = JSON.parse(raw) as {
+        prompt?: string; model?: string
+        imageUrls?: string[]
+        width?: number; height?: number; autoSize?: boolean
+        quality?: string; format?: string; background?: string
+      }
+      if (data.prompt) setPrompt(data.prompt)
+      if (data.model) setModelId(data.model)
+      if (data.imageUrls?.[0]) setRefImages(data.imageUrls.map((url, i) => ({ url, name: `参考图${i + 1}` })))
+      const patch: Record<string, unknown> = {}
+      if (data.autoSize) patch.fixedSize = "auto"
+      else if (data.width && data.height) patch.fixedSize = `${data.width}x${data.height}`
+      if (data.quality) patch.quality = data.quality
+      if (data.format) patch.format = data.format
+      if (data.background) patch.background = data.background
+      if (Object.keys(patch).length) onChangeParams(patch)
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleRefFiles(files: FileList | null) {
     if (!files) return
@@ -137,7 +168,7 @@ export default function StudioCreateImagePage() {
         background: params.background,
         contentModeration: params.contentModeration
       })
-      toast.success(`任务已提交（#${taskId}），可在「资产-任务历史」查看进度`)
+      toast.success(`任务已提交（#${taskId}）`)
       setPrompt("")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "提交失败，请重试")
@@ -180,7 +211,12 @@ export default function StudioCreateImagePage() {
                   className="group relative size-14 overflow-hidden rounded-md border bg-muted"
                 >
                   {/* biome-ignore lint/performance/noImgElement: 动态参考图 */}
-                  <img src={img.url} alt={img.name} className="size-full object-cover" />
+                  <img
+                    src={img.url}
+                    alt={img.name}
+                    className="size-full cursor-zoom-in object-cover"
+                    onClick={() => openRefLightbox(img.url)}
+                  />
                   <button
                     type="button"
                     onClick={() => setRefImages((prev) => prev.filter((_, idx) => idx !== i))}
@@ -231,7 +267,7 @@ export default function StudioCreateImagePage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="例如：一只穿宇航服的猫漂浮在星空中，赛博朋克风格"
-              className="max-h-[240px] min-h-[120px] resize-none overflow-y-auto border-foreground/[0.08] bg-foreground/[0.02]"
+              className="max-h-[240px] min-h-[120px] resize-none overflow-y-auto border-foreground/8 bg-foreground/2"
             />
           </div>
 
@@ -258,7 +294,7 @@ export default function StudioCreateImagePage() {
           </div>
 
           {/* 提交栏 */}
-          <div className="flex items-center justify-between border-foreground/[0.06] border-t pt-3">
+          <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
             <div className="flex items-center gap-3 text-muted-foreground text-xs">
               <div className="flex items-center gap-2">
                 <span>当前模型：</span>
@@ -322,10 +358,18 @@ export default function StudioCreateImagePage() {
       </GlassCard>
 
       {/* #18 生成结果卡片 */}
-      <GenerationResultCard tasks={recentTasks} mediaType="IMAGE" />
+      <GenerationResultCard
+        tasks={recentTasks}
+        mediaType="IMAGE"
+        onRegenerate={(task) => {
+          if (task.prompt) setPrompt(task.prompt)
+          if (task.model) setModelId(task.model)
+          window.scrollTo({ top: 0, behavior: "smooth" })
+        }}
+      />
 
       {/* 提示卡：完整版引导 */}
-      <GlassCard glow="none" className="border border-foreground/[0.06]">
+      {/* <GlassCard glow="none" className="border border-foreground/6">
         <div className="flex items-start gap-3 p-4">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
             <Sparkles className="size-4" />
@@ -342,7 +386,9 @@ export default function StudioCreateImagePage() {
             </GlowButton>
           </Link>
         </div>
-      </GlassCard>
+      </GlassCard> */}
+
+      <Lightbox open={refOpen} index={refIndex} slides={refSlides} close={closeRefLightbox} />
     </div>
   )
 }

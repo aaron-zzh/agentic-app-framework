@@ -76,7 +76,7 @@ export function GlassCardHeader({ className, ...props }: React.ComponentProps<"d
   return (
     <div
       className={cn(
-        "flex items-start justify-between gap-3 border-foreground/[0.06] border-b px-5 py-4",
+        "flex items-start justify-between gap-3 border-foreground/6 border-b px-5 py-4",
         className
       )}
       {...props}

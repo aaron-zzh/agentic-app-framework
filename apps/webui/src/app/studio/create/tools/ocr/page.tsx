@@ -152,7 +152,7 @@ export default function OcrToolPage() {
                   </GlowButton>
                 )}
               </div>
-              <div className="min-h-[240px] flex-1 overflow-y-auto whitespace-pre-wrap rounded-xl border border-foreground/[0.06] bg-foreground/[0.02] p-4 text-sm leading-6">
+              <div className="min-h-[240px] flex-1 overflow-y-auto whitespace-pre-wrap rounded-xl border border-foreground/6 bg-foreground/2 p-4 text-sm leading-6">
                 {isLoading ? (
                   <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />

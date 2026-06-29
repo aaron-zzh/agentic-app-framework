@@ -519,8 +519,11 @@ public class AigcTaskService
                         CapabilityRoutingContext.of(
                                 userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
                 var resolvedModel = capabilityRouter.resolve(ctx);
-                int w = toInt(params.get("width"), 1024);
-                int h = toInt(params.get("height"), 1024);
+                int wRaw = toInt(params.get("width"), 0);
+                int hRaw = toInt(params.get("height"), 0);
+                // 0 或未传视为 auto，传 null 让后端用模型默认尺寸
+                Integer w = wRaw > 0 ? wRaw : null;
+                Integer h = hRaw > 0 ? hRaw : null;
                 var req =
                         new ImageTaskRequest(
                                 "",
@@ -663,7 +666,8 @@ public class AigcTaskService
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
         // 图片任务触发成长任务进度
         if ("IMAGE_GEN".equals(task.getType()) || "IMAGE_EDIT".equals(task.getType())) {
-            eventPublisher.publishEvent(new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
+            eventPublisher.publishEvent(
+                    new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
         }
     }
 
@@ -763,7 +767,14 @@ public class AigcTaskService
         if (task.getCreditTxId() != null) {
             try {
                 Long refundTxId =
-                        creditGuard.refund(task.getCreditTxId(), ("AIGC 任务失败自动退还: " + errorMsg).substring(0, Math.min(200, ("AIGC 任务失败自动退还: " + errorMsg).length())));
+                        creditGuard.refund(
+                                task.getCreditTxId(),
+                                ("AIGC 任务失败自动退还: " + errorMsg)
+                                        .substring(
+                                                0,
+                                                Math.min(
+                                                        200,
+                                                        ("AIGC 任务失败自动退还: " + errorMsg).length())));
                 if (refundTxId != null) {
                     log.info(
                             "[failTask] 积分已退还: taskId={}, originalTxId={}, refundTxId={}",
@@ -786,15 +797,29 @@ public class AigcTaskService
         log.info("[failTask] 任务失败: taskId={}, reason={}", task.getId(), errorMsg);
     }
 
-    // ========== 兼容旧分页查询（Controller 过渡用） ==========
+    // ========== 历史分页查询 ==========
 
+    /**
+     * 按用户 ID 分页查询任务历史，按创建时间倒序。
+     *
+     * <p>直接使用 Repository 派生查询，绕开 BaseCrud 的 RecordRule（L3 行级权限）链路， 避免因未配置 aigc-task 记录规则而导致结果为空的问题。
+     * ownership 隔离已由调用方（Controller）传入的 userId 保证。
+     */
     @Transactional(readOnly = true)
     public PageResult<AigcTaskVO> pageByUser(Long userId, int pageNo, int pageSize) {
-        var dto = new AigcTaskPageDTO();
-        dto.setUserId(userId);
-        dto.setPageNo(pageNo);
-        dto.setPageSize(pageSize);
-        return page(dto);
+        var pageable =
+                org.springframework.data.domain.PageRequest.of(
+                        Math.max(pageNo - 1, 0), pageSize > 0 ? pageSize : 20);
+        var page = taskRepo.findByUserIdOrderByCreateTimeDesc(userId, pageable);
+        return new PageResult<>(
+                page.getContent().stream().map(this::toVO).toList(),
+                page.getTotalElements(),
+                pageNo,
+                pageSize,
+                java.util.List.of(),
+                null,
+                null,
+                page.hasNext());
     }
 
     // ========== 内部工具方法 ==========

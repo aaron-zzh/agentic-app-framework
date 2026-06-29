@@ -27,18 +27,18 @@ export const aafLandingPageDef: PageDef = {
       id: "hero",
       type: "hero",
       props: {
-        title: "智能体应用开发框架",
-        subtitle: "一句话搭建企业级 AI 应用——多智能体 · 工作流 · 知识库 · 无代码，开箱即用。",
+        title: "Web 4.0 龙虾微醺局",
+        // subtitle: "一句话搭建企业级 AI 应用——多智能体 · 工作流 · 知识库 · 无代码，开箱即用。",
         buttons: [
-          {
-            label: "",
-            href: "https://github.com/aaron-zzh/agentic-app-framework",
-            variant: "ghost",
-            icon: "github"
-          },
+          // {
+          //   label: "",
+          //   href: "https://github.com/aaron-zzh/agentic-app-framework",
+          //   variant: "ghost",
+          //   icon: "github"
+          // },
           { label: "立即使用", href: "/studio/welcome", variant: "default" },
-          // { label: "注册账号", href: "/register", variant: "default" }
-          { label: "功能演示", href: "/examples", variant: "outline" }
+          { label: "注册账号", href: "/register", variant: "default" }
+          // { label: "功能演示", href: "/examples", variant: "outline" }
         ],
         backgroundType: "particles"
       },

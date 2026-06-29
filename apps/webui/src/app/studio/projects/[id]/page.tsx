@@ -74,7 +74,7 @@ export default function StudioProjectDetailPage() {
     <GlobalDndContext>
       <div className="flex h-full flex-col">
         {/* 项目头 */}
-        <header className="flex items-center justify-between gap-3 border-foreground/[0.06] border-b bg-background/40 px-6 py-3 backdrop-blur">
+        <header className="flex items-center justify-between gap-3 border-foreground/6 border-b bg-background/40 px-6 py-3 backdrop-blur">
           <div className="flex items-center gap-3">
             <Link
               href="/studio/projects"

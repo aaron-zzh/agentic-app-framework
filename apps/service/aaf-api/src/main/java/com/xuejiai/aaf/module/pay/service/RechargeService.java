@@ -78,6 +78,7 @@ public class RechargeService implements PaySuccessHandler {
                 bizOrder.getOrderNo());
         log.info(
                 "充值成功，积分入账: userId={}, amount={}", bizOrder.getUserId(), bizOrder.getTotalAmount());
-        eventPublisher.publishEvent(new UserGrowthEvent(bizOrder.getUserId(), "credit.recharge.success"));
+        eventPublisher.publishEvent(
+                new UserGrowthEvent(bizOrder.getUserId(), "credit.recharge.success"));
     }
 }

@@ -132,7 +132,11 @@ public class UserGrowthService {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "任务未完成或已领取");
         }
         if (task.getRewardCredits() != null && task.getRewardCredits() > 0) {
-            creditService.earn(userId, task.getRewardCredits(), CreditTransactionSourceEnum.GROWTH_TASK.getCode(), task.getCode());
+            creditService.earn(
+                    userId,
+                    task.getRewardCredits(),
+                    CreditTransactionSourceEnum.GROWTH_TASK.getCode(),
+                    task.getCode());
         }
         progress.setStatus("CLAIMED");
         progress.setClaimedTime(LocalDateTime.now());

@@ -10,6 +10,7 @@ import { useAuthStore } from "@/lib/store/auth-store"
 const BALANCE_KEY = ["credits", "balance"]
 const TRANSACTIONS_KEY = ["credits", "transactions"]
 const TOKEN_RULES_KEY = ["credits", "token-rules"]
+const GROUPS_KEY = ["credits", "groups"]
 
 /** 查询积分余额 */
 export function useCreditBalance() {
@@ -54,6 +55,7 @@ export function useCreateRecharge() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: BALANCE_KEY })
       qc.invalidateQueries({ queryKey: TRANSACTIONS_KEY })
+      qc.invalidateQueries({ queryKey: GROUPS_KEY })
     }
   })
 }

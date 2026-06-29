@@ -5,8 +5,10 @@
 
 "use client"
 
-import { ChevronLeft, ChevronRight, Layers, Plus, Search, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Layers, Plus, RefreshCw, Search, X } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
+import Video from "yet-another-react-lightbox/plugins/video"
 import { Lightbox, useLightbox } from "@/components/lightbox"
 import { SceneLayout } from "@/components/r3f/SceneLayout"
 import { Badge } from "@/components/ui/badge"
@@ -118,7 +120,7 @@ export function AssetLibrary() {
   const { data: tags } = useMediaTags()
   const [newCatName, setNewCatName] = useState("")
 
-  const { data, isLoading } = useMediaAssetList({
+  const { data, isLoading, refetch } = useMediaAssetList({
     page,
     pageSize: 20,
     sort: sort === "newest" ? "createTime:desc" : "createTime:asc",
@@ -131,15 +133,14 @@ export function AssetLibrary() {
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
-  const imageSlides = (data?.list ?? [])
-    .filter((a) => a.type === "IMAGE")
-    .map((a) => ({ src: a.url }))
-  const {
-    open: lbOpen,
-    index: lbIndex,
-    onOpen: openLb,
-    onClose: closeLb
-  } = useLightbox(imageSlides)
+  const slides = (data?.list ?? [])
+    .filter((a) => a.type === "IMAGE" || a.type === "VIDEO")
+    .map((a) =>
+      a.type === "VIDEO"
+        ? { type: "video" as const, sources: [{ src: a.url, type: "video/mp4" }] }
+        : { src: a.url }
+    )
+  const { open: lbOpen, index: lbIndex, onOpen: openLb, onClose: closeLb } = useLightbox(slides)
 
   function handleDelete(id: number) {
     setDeleteTarget(id)
@@ -149,6 +150,15 @@ export function AssetLibrary() {
     <SceneLayout>
       <div className="flex h-full flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0"
+            onClick={() => refetch().then(() => toast.success("已刷新"))}
+            title="刷新"
+          >
+            <RefreshCw className="size-4" />
+          </Button>
           <Tabs
             value={sourceFilter}
             onValueChange={(v) => {
@@ -338,7 +348,7 @@ export function AssetLibrary() {
                         key={asset.id}
                         asset={asset}
                         onClick={
-                          asset.type === "IMAGE"
+                          asset.type === "IMAGE" || asset.type === "VIDEO"
                             ? () => openLb(asset.url)
                             : () => setDetailId(asset.id)
                         }
@@ -389,7 +399,7 @@ export function AssetLibrary() {
           }}
         />
 
-        <Lightbox open={lbOpen} index={lbIndex} slides={imageSlides} close={closeLb} />
+        <Lightbox open={lbOpen} index={lbIndex} slides={slides} close={closeLb} plugins={[Video]} />
 
         <Dialog
           open={deleteTarget !== null}

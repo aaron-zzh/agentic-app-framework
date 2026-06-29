@@ -35,9 +35,9 @@ export interface ImageConfig {
   mode: "ratio" | "fixed"
   /**
    * ratio 模式：key 为比例字符串（如 "1:1"），value 为 [[w,h],...] 可选尺寸列表
-   * fixed 模式：[[w,h],...] 直接选像素
+   * fixed 模式：("auto" | [w,h])[]，"auto" 表示自动尺寸
    */
-  sizes?: Record<string, [number, number][]> | [number, number][]
+  sizes?: Record<string, [number, number][]> | (string | [number, number])[]
   /** 文生图参数配置（存在则支持文生图） */
   generate?: ImageModeConfig
   /** 图像编辑参数配置（存在则支持图像编辑） */

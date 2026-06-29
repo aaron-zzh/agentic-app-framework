@@ -35,7 +35,7 @@ function AssetThumb({
     return (
       <button
         type="button"
-        className="group/thumb relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-foreground/[0.08] bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15"
+        className="group/thumb relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-foreground/8 bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15"
         onClick={() => {
           const audio = audioRef.current
           if (!audio) return
@@ -63,7 +63,7 @@ function AssetThumb({
     <button
       type="button"
       onClick={() => src && onOpenLightbox(asset.url ?? src)}
-      className="group/thumb relative block aspect-square w-full overflow-hidden rounded-lg border border-foreground/[0.08] bg-foreground/[0.04] focus-visible:outline-none"
+      className="group/thumb relative block aspect-square w-full overflow-hidden rounded-lg border border-foreground/8 bg-foreground/[0.04] focus-visible:outline-none"
     >
       {isVideo ? (
         asset.thumbnailUrl ? (
@@ -124,7 +124,6 @@ export function HomeRecentAssets() {
       a.type === "VIDEO"
         ? {
             type: "video" as const,
-            poster: a.url as string,
             sources: [{ src: a.url as string, type: "video/mp4" }]
           }
         : { src: a.url as string }

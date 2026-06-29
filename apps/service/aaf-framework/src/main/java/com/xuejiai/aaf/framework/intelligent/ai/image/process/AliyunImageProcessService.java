@@ -96,11 +96,14 @@ public class AliyunImageProcessService implements ImageProcessService {
                                             .SegmentHDCommonImageAdvanceRequest()
                                     .setImageUrlObject(inputStream);
                     var resp = imagesegClient.segmentHDCommonImageAdvance(req, runtime);
-                    var data = resp.getBody().getData();
+                    var body = resp.getBody();
+                    var data = body.getData();
                     if (data == null || data.getImageUrl() == null) {
                         throw new IllegalStateException(
                                 "阿里云返回结果为空，请检查图片格式或账号权限（requestId="
-                                        + resp.getBody().getRequestId()
+                                        + body.getRequestId()
+                                        + ", message="
+                                        + body.getMessage()
                                         + "）");
                     }
                     var url = data.getImageUrl();
@@ -114,12 +117,11 @@ public class AliyunImageProcessService implements ImageProcessService {
                     var inputStream = URI.create(request.imageUrl()).toURL().openStream();
                     var req = new SegmentHDBodyAdvanceRequest().setImageURLObject(inputStream);
                     var resp = imagesegClient.segmentHDBodyAdvance(req, runtime);
-                    var data = resp.getBody().getData();
+                    var body = resp.getBody();
+                    var data = body.getData();
                     if (data == null || data.getImageURL() == null) {
                         throw new IllegalStateException(
-                                "阿里云返回结果为空，请检查图片格式或账号权限（requestId="
-                                        + resp.getBody().getRequestId()
-                                        + "）");
+                                "阿里云返回结果为空，请检查图片格式或账号权限（requestId=" + body.getRequestId() + "）");
                     }
                     var url = data.getImageURL();
                     log.info("人像高清抠图完成: url={}", url);

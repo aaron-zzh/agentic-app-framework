@@ -62,8 +62,12 @@ public class AigcProjectService
     @Override
     public AigcProjectVO create(AigcProjectCreateDTO request) {
         var vo = super.create(request);
-        operatorContext.currentUserId().ifPresent(
-                uid -> eventPublisher.publishEvent(new UserGrowthEvent(uid, "project.created")));
+        operatorContext
+                .currentUserId()
+                .ifPresent(
+                        uid ->
+                                eventPublisher.publishEvent(
+                                        new UserGrowthEvent(uid, "project.created")));
         return vo;
     }
 

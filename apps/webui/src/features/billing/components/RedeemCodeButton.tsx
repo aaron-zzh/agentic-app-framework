@@ -33,8 +33,8 @@ export function RedeemCodeButton({ trigger }: RedeemCodeButtonProps) {
       setOpen(false)
       setCode("")
       qc.invalidateQueries({ queryKey: ["credits"] })
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "兑换失败，请检查兑换码")
+    } catch (_e: unknown) {
+      // toast.error(e instanceof Error ? e.message : "兑换失败，请检查兑换码")
     } finally {
       setLoading(false)
     }

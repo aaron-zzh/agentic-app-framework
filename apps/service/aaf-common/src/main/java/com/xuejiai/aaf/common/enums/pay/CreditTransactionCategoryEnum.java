@@ -49,8 +49,8 @@ public enum CreditTransactionCategoryEnum implements ArrayValuable<String> {
      *   <li>{@code MUSIC_GEN} → {@code music}
      * </ul>
      *
-     * <p>其余 capability 路由 key toLowerCase 后即与字典 code 对齐（{@code IMAGE_GEN→image_gen}、
-     * {@code SPEECH_TTS→speech_tts}、{@code OCR→ocr} 等），无需别名。
+     * <p>其余 capability 路由 key toLowerCase 后即与字典 code 对齐（{@code IMAGE_GEN→image_gen}、 {@code
+     * SPEECH_TTS→speech_tts}、{@code OCR→ocr} 等），无需别名。
      */
     private static final Map<String, String> CAPABILITY_ALIAS =
             Map.of(
@@ -58,11 +58,11 @@ public enum CreditTransactionCategoryEnum implements ArrayValuable<String> {
                     "music_gen", "music");
 
     /**
-     * 把路由层 capability 翻译为流水分类 code（小写、与字典 {@code credit_transaction_category} 的
-     * value 对齐），用于落 {@code credit_transaction.category} 与 {@code ai_usage_record.capability}。
+     * 把路由层 capability 翻译为流水分类 code（小写、与字典 {@code credit_transaction_category} 的 value 对齐），用于落
+     * {@code credit_transaction.category} 与 {@code ai_usage_record.capability}。
      *
-     * <p>该方法是"路由 capability → 计费 category"的语义边界翻译，不是兼容层——路由 key 用大写常量
-     * （便于代码引用与 IDE 补全），流水落库用小写 code（与字典对齐，前端可查中文 label）。
+     * <p>该方法是"路由 capability → 计费 category"的语义边界翻译，不是兼容层——路由 key 用大写常量 （便于代码引用与 IDE 补全），流水落库用小写
+     * code（与字典对齐，前端可查中文 label）。
      *
      * <ul>
      *   <li>null / 空 → 返回 {@link #OTHER} 的 code

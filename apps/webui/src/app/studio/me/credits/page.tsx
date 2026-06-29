@@ -137,7 +137,8 @@ export default function StudioMeCreditsPage() {
     const map = new Map<string, { tx: (typeof filtered)[0]; count: number; total: number }>()
     for (const tx of filtered) {
       const day = tx.createTime.slice(0, 10)
-      const key = `${tx.source}|${tx.type}|${day}`
+      const isChat = (tx.category ?? "").toLowerCase() === "chat"
+      const key = isChat ? `chat|SPEND|${day}` : tx.id
       const existing = map.get(key)
       if (existing) {
         existing.count += 1
@@ -242,14 +243,16 @@ export default function StudioMeCreditsPage() {
                 const isEarn = tx.type === "EARN"
                 const typeLabel = getTypeLabel(tx.type) || tx.type
                 const typeColor = getTypeColor(tx.type)
-                const sourceName =
-                  tx.remark ||
-                  getSourceLabel(tx.source) ||
-                  SOURCE_LABEL[tx.source] ||
-                  SOURCE_LABEL[tx.source?.toLowerCase()] ||
-                  "积分变动"
+                const isChat = (tx.category ?? "").toLowerCase() === "chat"
+                const sourceName = isChat
+                  ? "AI 对话"
+                  : tx.remark ||
+                    getSourceLabel(tx.source) ||
+                    SOURCE_LABEL[tx.source] ||
+                    SOURCE_LABEL[tx.source?.toLowerCase()] ||
+                    "积分变动"
                 return (
-                  <Fragment key={`${tx.source}|${tx.type}|${tx.createTime.slice(0, 10)}`}>
+                  <Fragment key={`${isChat ? `chat|${tx.createTime.slice(0, 10)}` : tx.id}`}>
                     <div className="flex items-center justify-between py-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">

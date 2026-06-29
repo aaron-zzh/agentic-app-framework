@@ -9,6 +9,7 @@
  */
 
 import { useEffect } from "react"
+import { Button } from "@/components/ui/button"
 import { LottieIcon } from "@/components/animate/LottieIcon"
 
 interface LoginSuccessOverlayProps {
@@ -37,6 +38,14 @@ export function LoginSuccessOverlay({ username, onDone }: LoginSuccessOverlayPro
           {username && <p className="mt-2 text-muted-foreground text-sm">欢迎回来，{username}</p>}
         </div>
         <p className="text-muted-foreground text-xs">正在跳转…</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDone}
+          className="text-primary text-xs underline underline-offset-2"
+        >
+          立即跳转
+        </Button>
       </div>
     </div>
   )

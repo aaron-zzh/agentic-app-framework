@@ -58,7 +58,7 @@ export function HomeGrowthTasks() {
               <Link
                 key={t.id}
                 href="/studio/me/tasks"
-                className="flex items-center gap-2 rounded-lg border border-foreground/[0.08] bg-foreground/[0.02] px-3 py-2 transition-colors hover:bg-foreground/[0.06]"
+                className="flex items-center gap-2 rounded-lg border border-foreground/8 bg-foreground/2 px-3 py-2 transition-colors hover:bg-foreground/[0.06]"
               >
                 <span className="text-xl">{t.icon ?? "🏆"}</span>
                 <div className="min-w-0 flex-1">

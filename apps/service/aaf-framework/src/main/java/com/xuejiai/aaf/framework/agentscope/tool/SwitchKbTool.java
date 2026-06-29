@@ -70,7 +70,8 @@ public class SwitchKbTool {
                             knowledgeBaseId,
                             old.threadId(),
                             old.enableThinking(),
-                            old.thinkingBudget()));
+                            old.thinkingBudget(),
+                            old.modelId()));
         }
 
         log.info(

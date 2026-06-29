@@ -67,7 +67,7 @@ class AafContextHolderTest {
 
     @Test
     void enableThinking_trueWhenSet() {
-        var ctx = new AafContextHolder.AafContext(1L, null, null, null, "t1", true, 8000);
+        var ctx = new AafContextHolder.AafContext(1L, null, null, null, "t1", true, 8000, null);
         AafContextHolder.set(ctx);
         assertThat(AafContextHolder.enableThinking()).isTrue();
         assertThat(AafContextHolder.thinkingBudget()).isEqualTo(8000);
@@ -76,7 +76,7 @@ class AafContextHolderTest {
     @Test
     void thinkingBudget_defaultsTo8000WhenNotSet() {
         AafContextHolder.set(
-                new AafContextHolder.AafContext(1L, null, null, null, "t1", true, null));
+                new AafContextHolder.AafContext(1L, null, null, null, "t1", true, null, null));
         assertThat(AafContextHolder.thinkingBudget()).isEqualTo(8000);
     }
 

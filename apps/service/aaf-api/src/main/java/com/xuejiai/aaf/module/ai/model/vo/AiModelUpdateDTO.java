@@ -16,6 +16,8 @@ public record AiModelUpdateDTO(
         @Schema(description = "上下文窗口") Integer contextWindow,
         @Schema(description = "输入价格（每千 Token）") BigDecimal inputPricePerK,
         @Schema(description = "输出价格（每千 Token）") BigDecimal outputPricePerK,
+        @Schema(description = "按次/按秒/按单元固定单价") BigDecimal modelPrice,
+        @Schema(description = "计费类型：0=按量 1=按次 2=按秒 3=按单元") Short quotaType,
         @Schema(description = "是否启用") Boolean enabled,
         @Schema(description = "降级模型标识") String fallbackModelId,
         @Schema(description = "排序") Integer sortOrder,

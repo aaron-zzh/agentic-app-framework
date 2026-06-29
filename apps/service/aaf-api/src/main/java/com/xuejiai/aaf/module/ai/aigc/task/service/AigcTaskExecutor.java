@@ -161,7 +161,8 @@ public class AigcTaskExecutor {
                     });
 
             log.info("[submitSync] 任务完成: taskId={}, ossUrl={}", taskId, ossUrl);
-            eventPublisher.publishEvent(new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
+            eventPublisher.publishEvent(
+                    new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
         } catch (Exception e) {
             log.error("[submitSync] 生成失败: taskId={}", taskId, e);
             refundIfSettled(task, e.getMessage());
@@ -990,7 +991,13 @@ public class AigcTaskExecutor {
         }
         if (creditTxId == null) return;
         try {
-            Long refundTxId = creditGuard.refund(creditTxId, ("AIGC 任务失败自动退还: " + reason).substring(0, Math.min(200, ("AIGC 任务失败自动退还: " + reason).length())));
+            Long refundTxId =
+                    creditGuard.refund(
+                            creditTxId,
+                            ("AIGC 任务失败自动退还: " + reason)
+                                    .substring(
+                                            0,
+                                            Math.min(200, ("AIGC 任务失败自动退还: " + reason).length())));
             if (refundTxId != null) {
                 log.info(
                         "[refundIfSettled] 积分已退还: taskId={}, originalTxId={}, refundTxId={}",

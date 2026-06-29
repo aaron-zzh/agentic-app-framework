@@ -39,7 +39,7 @@ export default function StudioChatPage() {
     <div className="flex h-full flex-col">
       {/* 技能提示条 */}
       {skill && (
-        <div className="flex shrink-0 items-center gap-2 border-foreground/[0.06] border-b px-4 py-2">
+        <div className="flex shrink-0 items-center gap-2 border-foreground/6 border-b px-4 py-2">
           <span className="text-muted-foreground text-xs">当前技能：</span>
           <NeonChip tone="violet" size="sm">
             {skill.name}

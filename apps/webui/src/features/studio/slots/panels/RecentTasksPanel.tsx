@@ -69,7 +69,7 @@ export function RecentTasksPanel() {
       {tasks.map((t) => (
         <div
           key={t.id}
-          className="group flex items-center gap-2 rounded border border-foreground/[0.06] bg-foreground/[0.02] px-2 py-1.5"
+          className="group flex items-center gap-2 rounded border border-foreground/6 bg-foreground/2 px-2 py-1.5"
         >
           {t.status === "SUCCESS" ? (
             <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />

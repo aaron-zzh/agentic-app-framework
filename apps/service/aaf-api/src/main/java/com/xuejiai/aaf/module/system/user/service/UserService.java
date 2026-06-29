@@ -312,7 +312,8 @@ public class UserService {
         } else {
             var user = new User();
             user.setUsername(username);
-            user.setNickname(row.getNickname() != null ? row.getNickname() : NicknameGenerator.generate());
+            user.setNickname(
+                    row.getNickname() != null ? row.getNickname() : NicknameGenerator.generate());
             if (row.getPhone() != null) user.setPhone(row.getPhone());
             user.changePassword(passwordEncoder, password);
             if (row.getStatus() != null) user.setStatus(row.getStatus());

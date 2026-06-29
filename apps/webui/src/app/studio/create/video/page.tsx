@@ -16,9 +16,11 @@
 
 import { Coins, Film, ImagePlus, Loader2, Video, Wand2, X } from "lucide-react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { ModelParamsBar } from "@/components/common/ModelParamsBar"
+import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -46,7 +48,8 @@ const MODE_CONFIG_KEY: Record<VideoImageMode, string> = {
 }
 
 export default function StudioCreateVideoPage() {
-  const [prompt, setPrompt] = useState("")
+  const searchParams = useSearchParams()
+  const [prompt, setPrompt] = useState(() => searchParams.get("prompt") ?? "")
   const [mode, setMode] = useState<VideoImageMode>("T2V")
   const [recentTasks, setRecentTasks] = useState<AigcTaskEvent[]>([])
   const [selectedBrand, setSelectedBrand] = useState<string>("")
@@ -54,13 +57,46 @@ export default function StudioCreateVideoPage() {
   const [refPreview, setRefPreview] = useState<string | null>(null)
   const [lastFrameUrl, setLastFrameUrl] = useState<string | null>(null)
   const [lastFramePreview, setLastFramePreview] = useState<string | null>(null)
+  const refLightboxSlides = [
+    ...(refPreview ? [{ src: refPreview }] : []),
+    ...(lastFramePreview ? [{ src: lastFramePreview }] : []),
+  ]
+  const { open: refOpen, index: refIndex, onOpen: openRefLightbox, onClose: closeRefLightbox } = useLightbox(refLightboxSlides)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const lastFrameInputRef = useRef<HTMLInputElement>(null)
   const { upload, uploading } = useFileUpload()
 
-  const { options, modelId, setModelId, currentModel } = useModelSelector("VIDEO_GEN")
+  const { options, modelId, setModelId, currentModel } = useModelSelector("VIDEO_GEN", {
+    defaultValue: searchParams.get("model") ?? undefined
+  })
   const { params, onChangeParams } = useGenerationParams(currentModel)
   const generate = useGenerateVideo()
+
+  // 从 sessionStorage 消费重新生成参数（一次性读取后删除）
+  useEffect(() => {
+    const raw = sessionStorage.getItem("aaf:regenerate")
+    if (!raw) return
+    sessionStorage.removeItem("aaf:regenerate")
+    try {
+      const data = JSON.parse(raw) as {
+        prompt?: string; model?: string
+        imageUrls?: string[]
+        resolution?: string; videoDuration?: string; aspectRatio?: string
+      }
+      if (data.prompt) setPrompt(data.prompt)
+      if (data.model) setModelId(data.model)
+      if (data.imageUrls?.[0]) {
+        setRefImageUrl(data.imageUrls[0])
+        setRefPreview(data.imageUrls[0])
+      }
+      const patch: Record<string, unknown> = {}
+      if (data.resolution) patch.resolution = data.resolution
+      if (data.aspectRatio) patch.aspectRatio = data.aspectRatio
+      if (data.videoDuration) patch.videoDuration = data.videoDuration
+      if (Object.keys(patch).length) onChangeParams(patch)
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 从 options 提取品牌列表（按 provider 去重，用该 provider 代表模型的 displayName 作标签）
   const brands: { provider: string; label: string }[] = Array.from(
@@ -165,7 +201,7 @@ export default function StudioCreateVideoPage() {
         ratio: params.aspectRatio,
         resolution: params.resolution
       })
-      toast.success(`视频任务已提交（#${taskId}），可在「资产-任务历史」查看进度`)
+      toast.success(`视频任务已提交（#${taskId}）`)
       setPrompt("")
       setRefImageUrl(null)
       setRefPreview(null)
@@ -237,7 +273,12 @@ export default function StudioCreateVideoPage() {
                   {refPreview ? (
                     <div className="group relative size-14 overflow-hidden rounded-md border bg-muted">
                       {/* biome-ignore lint/performance/noImgElement: thumbnail */}
-                      <img src={refPreview} alt="首帧" className="size-full object-cover" />
+                      <img
+                        src={refPreview}
+                        alt="首帧"
+                        className="size-full cursor-zoom-in object-cover"
+                        onClick={() => openRefLightbox(refPreview)}
+                      />
                       <button
                         type="button"
                         onClick={() => {
@@ -292,7 +333,12 @@ export default function StudioCreateVideoPage() {
                     {lastFramePreview ? (
                       <div className="group relative size-14 overflow-hidden rounded-md border bg-muted">
                         {/* biome-ignore lint/performance/noImgElement: thumbnail */}
-                        <img src={lastFramePreview} alt="尾帧" className="size-full object-cover" />
+                        <img
+                          src={lastFramePreview}
+                          alt="尾帧"
+                          className="size-full cursor-zoom-in object-cover"
+                          onClick={() => openRefLightbox(lastFramePreview)}
+                        />
                         <button
                           type="button"
                           onClick={() => {
@@ -334,7 +380,7 @@ export default function StudioCreateVideoPage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="例如：一只海豚跃出海面，慢动作镜头，金色夕阳，电影感"
-              className="max-h-[240px] min-h-[120px] resize-none overflow-y-auto border-foreground/[0.08] bg-foreground/[0.02]"
+              className="max-h-[240px] min-h-[120px] resize-none overflow-y-auto border-foreground/8 bg-foreground/2"
             />
           </div>
 
@@ -351,7 +397,7 @@ export default function StudioCreateVideoPage() {
                     className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors ${
                       selectedBrand === brand.provider
                         ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
-                        : "border-foreground/[0.08] text-muted-foreground hover:bg-foreground/[0.06]"
+                        : "border-foreground/8 text-muted-foreground hover:bg-foreground/6"
                     }`}
                   >
                     {brand.label}
@@ -370,7 +416,7 @@ export default function StudioCreateVideoPage() {
           </div>
 
           {/* 提交栏 */}
-          <div className="flex items-center justify-between border-foreground/[0.06] border-t pt-3">
+          <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
             <div className="flex items-center gap-3 text-muted-foreground text-xs">
               <div className="flex items-center gap-2">
                 <span>当前模型：</span>
@@ -434,10 +480,18 @@ export default function StudioCreateVideoPage() {
       </GlassCard>
 
       {/* #18 生成结果卡片 */}
-      <GenerationResultCard tasks={recentTasks} mediaType="VIDEO" />
+      <GenerationResultCard
+        tasks={recentTasks}
+        mediaType="VIDEO"
+        onRegenerate={(task) => {
+          if (task.prompt) setPrompt(task.prompt)
+          if (task.model) setModelId(task.model)
+          window.scrollTo({ top: 0, behavior: "smooth" })
+        }}
+      />
 
       {/* 引导：进入项目工作台 */}
-      <GlassCard glow="none" className="border border-foreground/[0.06]">
+      <GlassCard glow="none" className="border border-foreground/6">
         <div className="flex items-start gap-3 p-4">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-400/10 text-violet-300">
             <Film className="size-4" />
@@ -453,6 +507,8 @@ export default function StudioCreateVideoPage() {
           </Link>
         </div>
       </GlassCard>
+
+      <Lightbox open={refOpen} index={refIndex} slides={refLightboxSlides} close={closeRefLightbox} />
     </div>
   )
 }
