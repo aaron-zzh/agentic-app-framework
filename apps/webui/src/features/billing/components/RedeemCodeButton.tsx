@@ -31,9 +31,13 @@ export function RedeemCodeButton({ trigger }: RedeemCodeButtonProps) {
       toast.success(amount > 0 ? `兑换成功，获得 ${amount} 积分` : "兑换成功，会员已开通")
       setOpen(false)
       setCode("")
+      // 积分码：刷新积分；会员码：刷新订阅 + 权益配额 + 用户信息
       qc.invalidateQueries({ queryKey: ["credits"] })
-    } catch (_e: unknown) {
-      // toast.error(e instanceof Error ? e.message : "兑换失败，请检查兑换码")
+      qc.invalidateQueries({ queryKey: ["billing", "subscription", "current"] })
+      qc.invalidateQueries({ queryKey: ["billing", "entitlement", "quotas"] })
+      qc.invalidateQueries({ queryKey: ["auth", "me"] })
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "兑换失败，请检查兑换码")
     } finally {
       setLoading(false)
     }

@@ -87,13 +87,13 @@ export function UserAvatarPopover() {
           </AnimateBorder>
         </PopoverTrigger>
 
-        <PopoverContent align="end" className="w-64 p-0" sideOffset={8}>
+        <PopoverContent align="end" className="w-72 p-0" sideOffset={8}>
           {/* 用户信息 */}
           <div className="px-5 pt-5 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground text-xl">{displayName || "User"}</span>
-                <span className="rounded-full border px-2 py-0.5 text-muted-foreground text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-bold text-foreground text-xl">{displayName || "User"}</span>
+                <span className="shrink-0 rounded-full border px-2 py-0.5 text-muted-foreground text-xs">
                   {planName}
                 </span>
               </div>
