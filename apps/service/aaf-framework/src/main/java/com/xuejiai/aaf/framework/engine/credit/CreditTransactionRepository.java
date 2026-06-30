@@ -13,9 +13,13 @@ public interface CreditTransactionRepository extends JpaRepository<CreditTransac
 
     Page<CreditTransaction> findByAccountId(Long accountId, Pageable pageable);
 
-    /** 查询账户下所有剩余量 > 0 的批次，按过期时间升序（NULL 排最后）。 用于 spend() 按批次优先扣减。 */
+    /**
+     * 查询账户下所有剩余量 > 0 的批次，按扣减优先级排序：
+     * 赠送/奖励类（REWARD/WEEKLY/MANUAL）优先于付费类（SUBSCRIPTION/TOPUP），同类内按过期时间升序（NULL 排最后）。 用于 spend()
+     * 按批次优先扣减。
+     */
     @Query(
-            "SELECT t FROM CreditTransaction t WHERE t.accountId = :accountId AND t.remain > 0 AND t.deleted = false ORDER BY t.expireAt ASC NULLS LAST")
+            "SELECT t FROM CreditTransaction t WHERE t.accountId = :accountId AND t.remain > 0 AND t.deleted = false ORDER BY CASE t.batchType WHEN 'REWARD' THEN 1 WHEN 'WEEKLY' THEN 2 WHEN 'MANUAL' THEN 3 WHEN 'SUBSCRIPTION' THEN 4 WHEN 'TOPUP' THEN 5 ELSE 6 END ASC, t.expireAt ASC NULLS LAST")
     List<CreditTransaction> findActiveBatchesByAccountId(Long accountId);
 
     /** 查询已过期且仍有剩余量的批次（供过期清理定时任务使用）。 */

@@ -137,15 +137,10 @@ public class AigcTaskService
 
     @Override
     protected Specification<AigcTask> buildSpec(AigcTaskPageDTO dto) {
-        // BE-8 数据隔离：强制按当前 userId 过滤
-        Long currentUserId = operatorContext.currentUserId().orElse(null);
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();
-            if (currentUserId != null) {
-                predicates.add(cb.equal(root.get("userId"), currentUserId));
-            } else if (dto.getUserId() != null) {
+            if (dto.getUserId() != null)
                 predicates.add(cb.equal(root.get("userId"), dto.getUserId()));
-            }
             if (dto.getType() != null) predicates.add(cb.equal(root.get("type"), dto.getType()));
             if (dto.getStatus() != null)
                 predicates.add(cb.equal(root.get("status"), dto.getStatus()));

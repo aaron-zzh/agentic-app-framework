@@ -66,7 +66,6 @@
       }
     }
   ],
-  "nxCloudId": "69f20b1c4d6f30222ee77b06",
   "analytics": false,
   "release": {
     "projects": ["core", "hooks"],

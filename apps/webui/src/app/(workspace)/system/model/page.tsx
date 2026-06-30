@@ -1,7 +1,16 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, Copy, Grid2X2, Pencil, RefreshCw, Search, Sparkles, Table2 } from "lucide-react"
+import {
+  ChevronDown,
+  Copy,
+  Grid2X2,
+  Pencil,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Table2
+} from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import { PageContainer } from "@/components/common/PageContainer"
@@ -336,7 +345,7 @@ export default function ModelManagementPage() {
         <div className="grid min-h-[calc(100vh-var(--layout-header-height))] grid-cols-1 lg:grid-cols-[260px_1fr]">
           <aside className="border-border border-r bg-card/70 px-4 py-5 lg:sticky lg:top-[var(--layout-header-height)] lg:h-[calc(100vh-var(--layout-header-height))] lg:overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="font-semibold text-lg text-foreground">筛选</h2>
+              <h2 className="font-semibold text-foreground text-lg">筛选</h2>
               <Button variant="outline" size="sm" onClick={resetFilters}>
                 <RefreshCw className="size-4" />
                 重置
@@ -587,7 +596,12 @@ function ModelCardItem({ model }: { model: ModelCard }) {
         编辑
       </button>
 
-      <EditModelDialog key={editOpen ? "open" : "closed"} model={model} open={editOpen} onOpenChange={setEditOpen} />
+      <EditModelDialog
+        key={editOpen ? "open" : "closed"}
+        model={model}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </article>
   )
 }
@@ -662,7 +676,6 @@ function ModelTable({ models }: { models: ModelCard[] }) {
     </div>
   )
 }
-
 
 interface EditModelForm {
   displayName: string

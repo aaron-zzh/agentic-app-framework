@@ -86,7 +86,10 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                 if (w > 0 && h > 0 && ratio >= 1.0 / 3 && ratio <= 3.0) {
                     body.put("size", w + "x" + h);
                 } else {
-                    log.warn("[SpringAiImage] 无效尺寸 {}x{}，回退到 1024x1024", request.getWidth(), request.getHeight());
+                    log.warn(
+                            "[SpringAiImage] 无效尺寸 {}x{}，回退到 1024x1024",
+                            request.getWidth(),
+                            request.getHeight());
                     body.put("size", "1024x1024");
                 }
             }

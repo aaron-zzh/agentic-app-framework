@@ -14,7 +14,7 @@
 
 "use client"
 
-import { Coins, Loader2, Plus, Sparkles, Wand2, X } from "lucide-react"
+import { Coins, Loader2, Plus, Sparkles, Wand2 } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -22,7 +22,7 @@ import { toast } from "sonner"
 import { ModelParamsBar } from "@/components/common/ModelParamsBar"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Lightbox, useLightbox } from "@/components/lightbox"
-import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
+import { GlassCard, GlowButton, NeonChip, ThumbnailPreview } from "@/components/studio"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -32,7 +32,7 @@ import { API_ORIGIN } from "@/lib/api/config"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
-import { useGenerationParams } from "@/lib/hooks/use-generation-params"
+import { type GenerationParams, useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { useGenerateImage } from "@/lib/queries/use-image-generation"
 import { cn } from "@/lib/utils/cn"
@@ -45,7 +45,8 @@ export default function StudioCreateImagePage() {
   const { options, modelId, setModelId, currentModel } = useModelSelector("IMAGE_GEN", {
     defaultValue: "n1n:gpt-image-2"
   })
-  const { params, onChangeParams, resolvedSize } = useGenerationParams(currentModel)
+  const { params, onChangeParams, setPendingOverride, resolvedSize } =
+    useGenerationParams(currentModel)
   const generate = useGenerateImage()
 
   // 参考图：本地 state，{ url, name } 列表
@@ -58,32 +59,56 @@ export default function StudioCreateImagePage() {
   const maxRefImages = currentModel?.imageConfig?.edit?.maxInputImages ?? 1
   const isEditMode = refImages.length > 0 && !!currentModel?.imageConfig?.edit
   const refSlides = refImages.map((img) => ({ src: img.url }))
-  const { open: refOpen, index: refIndex, onOpen: openRefLightbox, onClose: closeRefLightbox } = useLightbox(refSlides)
+  const {
+    open: refOpen,
+    index: refIndex,
+    onOpen: openRefLightbox,
+    onClose: closeRefLightbox
+  } = useLightbox(refSlides)
 
   // 从 sessionStorage 消费重新生成参数（一次性读取后删除）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount 时一次性读取 sessionStorage，依赖项均为稳定引用
   useEffect(() => {
     const raw = sessionStorage.getItem("aaf:regenerate")
     if (!raw) return
     sessionStorage.removeItem("aaf:regenerate")
     try {
       const data = JSON.parse(raw) as {
-        prompt?: string; model?: string
+        prompt?: string
+        model?: string
         imageUrls?: string[]
-        width?: number; height?: number; autoSize?: boolean
-        quality?: string; format?: string; background?: string
+        width?: number
+        height?: number
+        autoSize?: boolean
+        quality?: string
+        format?: string
+        background?: string
+        sizePreset?: string
       }
       if (data.prompt) setPrompt(data.prompt)
-      if (data.model) setModelId(data.model)
-      if (data.imageUrls?.[0]) setRefImages(data.imageUrls.map((url, i) => ({ url, name: `参考图${i + 1}` })))
-      const patch: Record<string, unknown> = {}
+      if (data.imageUrls?.[0])
+        setRefImages(data.imageUrls.map((url, i) => ({ url, name: `参考图${i + 1}` })))
+      const patch: Partial<GenerationParams> = {}
       if (data.autoSize) patch.fixedSize = "auto"
+      else if (data.sizePreset) patch.sizePreset = data.sizePreset
       else if (data.width && data.height) patch.fixedSize = `${data.width}x${data.height}`
       if (data.quality) patch.quality = data.quality
       if (data.format) patch.format = data.format
       if (data.background) patch.background = data.background
-      if (Object.keys(patch).length) onChangeParams(patch)
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      // 先 setPendingOverride 再 setModelId：模型 reset 时会自动合并，避免被覆盖
+      // 若 model 未变（与当前相同），pendingOverride 永远不会被消费，直接 onChangeParams
+      if (Object.keys(patch).length) {
+        if (data.model && data.model !== modelId) {
+          setPendingOverride(patch)
+        } else {
+          onChangeParams(patch)
+        }
+      }
+      if (data.model) setModelId(data.model)
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleRefFiles(files: FileList | null) {
@@ -206,25 +231,13 @@ export default function StudioCreateImagePage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {refImages.map((img, i) => (
-                <div
+                <ThumbnailPreview
                   key={`${img.url}-${i}`}
-                  className="group relative size-14 overflow-hidden rounded-md border bg-muted"
-                >
-                  {/* biome-ignore lint/performance/noImgElement: 动态参考图 */}
-                  <img
-                    src={img.url}
-                    alt={img.name}
-                    className="size-full cursor-zoom-in object-cover"
-                    onClick={() => openRefLightbox(img.url)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setRefImages((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
+                  src={img.url}
+                  alt={img.name}
+                  onPreview={() => openRefLightbox(img.url)}
+                  onRemove={() => setRefImages((prev) => prev.filter((_, idx) => idx !== i))}
+                />
               ))}
               {refImages.length < maxRefImages && (
                 <button

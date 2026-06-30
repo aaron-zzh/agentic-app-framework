@@ -8,6 +8,7 @@ import java.util.function.BiFunction;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -27,12 +28,7 @@ import io.agentscope.spring.boot.agui.common.ThreadSessionManager;
 import io.agentscope.spring.boot.agui.mvc.AguiMvcController;
 import io.agentscope.spring.boot.agui.mvc.AguiRestController;
 
-/**
- * AAF V2 AG-UI 配置：注册 {@link AafAguiV2RestController} 替换 starter 默认的 {@link AguiRestController}。
- *
- * <p>注：{@code agentscope-agui-spring-boot-starter} 的 AguiRestController 用
- * {@code @ConditionalOnMissingBean} 标注，所以我们提供同类型 Bean 即可让默认实现自动让位。
- */
+/** AG-UI 链路配置：注册 v2 Controller 及 AIGC 生成工具。 */
 @Configuration
 public class AafAguiV2Configuration {
 
@@ -44,7 +40,7 @@ public class AafAguiV2Configuration {
             AguiProperties props,
             OperatorContext operatorContext,
             ConversationContextResolver contextResolver,
-            org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate) {
+            StringRedisTemplate stringRedisTemplate) {
         return new AafAguiV2RestController(
                 aguiMvcController,
                 aguiAgentRegistry,

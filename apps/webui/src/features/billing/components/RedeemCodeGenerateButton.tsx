@@ -64,10 +64,16 @@ interface MembershipForm {
   remark: string
 }
 
+function nextMonthDateTimeLocal() {
+  const d = new Date()
+  d.setMonth(d.getMonth() + 1)
+  return d.toISOString().slice(0, 16)
+}
+
 const INIT_CREDIT: CreditForm = {
   creditAmount: "100",
   batchType: "REWARD",
-  expiresAt: "",
+  expiresAt: nextMonthDateTimeLocal(),
   count: "1",
   remark: ""
 }
@@ -250,7 +256,7 @@ export function RedeemCodeGenerateButton() {
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
-                  <Label>过期时间（留空=永不过期）</Label>
+                  <Label>过期时间（默认 1 个月）</Label>
                   <Input
                     type="datetime-local"
                     value={creditForm.expiresAt}
@@ -335,7 +341,7 @@ export function RedeemCodeGenerateButton() {
           </Tabs>
 
           <p className="rounded-md bg-amber-50 px-3 py-2 text-amber-700 text-xs dark:bg-amber-950/30 dark:text-amber-400">
-            ⚠️ 兑换码明文仅本次响应可见，后端只持久化哈希。批量生成将下载 Excel，请妥善保存。
+            ⚠️ 兑换码仅本次可见，批量生成将下载 Excel，请妥善保存。
           </p>
 
           <DialogFooter>

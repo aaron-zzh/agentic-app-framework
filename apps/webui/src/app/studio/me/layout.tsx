@@ -22,7 +22,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth/use-auth"
-import { useCurrentSubscription } from "@/lib/queries/use-billing-plans"
 import { $url } from "@/lib/utils"
 import { cn } from "@/lib/utils/index"
 
@@ -51,9 +50,7 @@ const NAV_GROUPS: {
 function StudioMeSidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, logout } = useAuth()
-  const { data: subscription } = useCurrentSubscription()
-  const isMember = subscription?.status === "ACTIVE" && subscription?.planCode !== "FREE"
+  const { user, logout, isAdmin } = useAuth()
 
   const handleLogout = async () => {
     await logout()
@@ -74,8 +71,8 @@ function StudioMeSidebar() {
         </div>
       </div>
 
-      {/* 非 member：升级引导跳转 dashboard */}
-      {!isMember && (
+      {/* 管理员：跳转工作台后台 */}
+      {isAdmin && (
         <Link
           href="/dashboard"
           className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-orange-500/10 px-3 py-2 font-medium text-amber-500 text-xs transition-colors hover:from-amber-500/15 hover:to-orange-500/15"

@@ -10,6 +10,7 @@
       "outputs": ["{projectRoot}/**/target"]
     },
     "serve": {
+      // "command": "node ../../scripts/mvnw.mjs spring-boot:run -f aaf-api/pom.xml",
       "command": "node ../../scripts/mvnw.mjs install -DskipTests -q && node ../../scripts/mvnw.mjs spring-boot:run -f aaf-api/pom.xml",
       "options": { "cwd": "apps/service" },
       "continuous": true

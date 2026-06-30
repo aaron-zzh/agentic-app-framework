@@ -14,14 +14,14 @@
 
 "use client"
 
-import { Coins, Film, ImagePlus, Loader2, Video, Wand2, X } from "lucide-react"
+import { Coins, Film, ImagePlus, Loader2, Video, Wand2 } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { ModelParamsBar } from "@/components/common/ModelParamsBar"
 import { Lightbox, useLightbox } from "@/components/lightbox"
-import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
+import { GlassCard, GlowButton, NeonChip, ThumbnailPreview } from "@/components/studio"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
@@ -59,9 +59,14 @@ export default function StudioCreateVideoPage() {
   const [lastFramePreview, setLastFramePreview] = useState<string | null>(null)
   const refLightboxSlides = [
     ...(refPreview ? [{ src: refPreview }] : []),
-    ...(lastFramePreview ? [{ src: lastFramePreview }] : []),
+    ...(lastFramePreview ? [{ src: lastFramePreview }] : [])
   ]
-  const { open: refOpen, index: refIndex, onOpen: openRefLightbox, onClose: closeRefLightbox } = useLightbox(refLightboxSlides)
+  const {
+    open: refOpen,
+    index: refIndex,
+    onOpen: openRefLightbox,
+    onClose: closeRefLightbox
+  } = useLightbox(refLightboxSlides)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const lastFrameInputRef = useRef<HTMLInputElement>(null)
   const { upload, uploading } = useFileUpload()
@@ -73,15 +78,19 @@ export default function StudioCreateVideoPage() {
   const generate = useGenerateVideo()
 
   // 从 sessionStorage 消费重新生成参数（一次性读取后删除）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount 时一次性读取 sessionStorage，依赖项均为稳定引用
   useEffect(() => {
     const raw = sessionStorage.getItem("aaf:regenerate")
     if (!raw) return
     sessionStorage.removeItem("aaf:regenerate")
     try {
       const data = JSON.parse(raw) as {
-        prompt?: string; model?: string
+        prompt?: string
+        model?: string
         imageUrls?: string[]
-        resolution?: string; videoDuration?: string; aspectRatio?: string
+        resolution?: string
+        videoDuration?: string
+        aspectRatio?: string
       }
       if (data.prompt) setPrompt(data.prompt)
       if (data.model) setModelId(data.model)
@@ -94,8 +103,10 @@ export default function StudioCreateVideoPage() {
       if (data.aspectRatio) patch.aspectRatio = data.aspectRatio
       if (data.videoDuration) patch.videoDuration = data.videoDuration
       if (Object.keys(patch).length) onChangeParams(patch)
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 从 options 提取品牌列表（按 provider 去重，用该 provider 代表模型的 displayName 作标签）
@@ -271,25 +282,15 @@ export default function StudioCreateVideoPage() {
                     }}
                   />
                   {refPreview ? (
-                    <div className="group relative size-14 overflow-hidden rounded-md border bg-muted">
-                      {/* biome-ignore lint/performance/noImgElement: thumbnail */}
-                      <img
-                        src={refPreview}
-                        alt="首帧"
-                        className="size-full cursor-zoom-in object-cover"
-                        onClick={() => openRefLightbox(refPreview)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRefPreview(null)
-                          setRefImageUrl(null)
-                        }}
-                        className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-secondary opacity-0 shadow transition-opacity group-hover:opacity-100"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
+                    <ThumbnailPreview
+                      src={refPreview}
+                      alt="首帧"
+                      onPreview={() => openRefLightbox(refPreview)}
+                      onRemove={() => {
+                        setRefPreview(null)
+                        setRefImageUrl(null)
+                      }}
+                    />
                   ) : (
                     <button
                       type="button"
@@ -331,25 +332,15 @@ export default function StudioCreateVideoPage() {
                       }}
                     />
                     {lastFramePreview ? (
-                      <div className="group relative size-14 overflow-hidden rounded-md border bg-muted">
-                        {/* biome-ignore lint/performance/noImgElement: thumbnail */}
-                        <img
-                          src={lastFramePreview}
-                          alt="尾帧"
-                          className="size-full cursor-zoom-in object-cover"
-                          onClick={() => openRefLightbox(lastFramePreview)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLastFramePreview(null)
-                            setLastFrameUrl(null)
-                          }}
-                          className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-secondary opacity-0 shadow transition-opacity group-hover:opacity-100"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </div>
+                      <ThumbnailPreview
+                        src={lastFramePreview}
+                        alt="尾帧"
+                        onPreview={() => openRefLightbox(lastFramePreview)}
+                        onRemove={() => {
+                          setLastFramePreview(null)
+                          setLastFrameUrl(null)
+                        }}
+                      />
                     ) : (
                       <button
                         type="button"
@@ -508,7 +499,12 @@ export default function StudioCreateVideoPage() {
         </div>
       </GlassCard>
 
-      <Lightbox open={refOpen} index={refIndex} slides={refLightboxSlides} close={closeRefLightbox} />
+      <Lightbox
+        open={refOpen}
+        index={refIndex}
+        slides={refLightboxSlides}
+        close={closeRefLightbox}
+      />
     </div>
   )
 }

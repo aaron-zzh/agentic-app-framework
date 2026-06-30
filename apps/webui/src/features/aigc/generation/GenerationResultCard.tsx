@@ -24,8 +24,11 @@ interface GenerationResultCardProps {
   onRegenerate?: (task: AigcTaskEvent) => void
 }
 
-export function GenerationResultCard({ tasks, mediaType, onRegenerate }: GenerationResultCardProps) {
-
+export function GenerationResultCard({
+  tasks,
+  mediaType,
+  onRegenerate
+}: GenerationResultCardProps) {
   const slides = tasks
     .filter((t) => t.status === "SUCCESS" && t.ossUrl && mediaType !== "AUDIO")
     .map((t) =>
@@ -43,7 +46,6 @@ export function GenerationResultCard({ tasks, mediaType, onRegenerate }: Generat
     onOpen: openLightbox,
     onClose: closeLightbox
   } = useLightbox(slides)
-
 
   if (tasks.length === 0) return null
 
@@ -137,7 +139,6 @@ export function GenerationResultCard({ tasks, mediaType, onRegenerate }: Generat
         close={closeLightbox}
         plugins={mediaType === "VIDEO" ? [VideoPlugin] : []}
       />
-
     </>
   )
 }

@@ -14,8 +14,7 @@ import { Input } from "@/components/ui/input"
 import { creditsApi } from "@/lib/api/rest/billing/credits"
 
 interface RedeemCodeButtonProps {
-  /** 触发按钮的自定义渲染，不传则用默认样式 */
-  trigger?: React.ReactNode
+  trigger?: (onClick: () => void) => React.ReactNode
 }
 
 export function RedeemCodeButton({ trigger }: RedeemCodeButtonProps) {
@@ -43,9 +42,7 @@ export function RedeemCodeButton({ trigger }: RedeemCodeButtonProps) {
   return (
     <>
       {trigger ? (
-        <button type="button" onClick={() => setOpen(true)} className="contents">
-          {trigger}
-        </button>
+        trigger(() => setOpen(true))
       ) : (
         <Button
           variant="outline"

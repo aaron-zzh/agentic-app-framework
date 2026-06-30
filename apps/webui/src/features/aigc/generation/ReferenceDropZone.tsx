@@ -116,15 +116,12 @@ export function ReferenceDropZone({
         <div className="flex flex-1 items-center">
           <div className="flex flex-wrap gap-2 pr-16">
             {referenceAssets.map((asset) => (
-              <div
-                key={asset.id}
-                className="group relative size-14 overflow-hidden rounded-md bg-muted"
-              >
+              <div key={asset.id} className="group relative size-14 rounded-md bg-muted">
                 {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
                 <img
                   src={asset.thumbnailUrl ?? asset.url ?? undefined}
                   alt={asset.name}
-                  className="size-full object-cover"
+                  className="size-full overflow-hidden rounded-md object-cover"
                 />
                 <button
                   type="button"

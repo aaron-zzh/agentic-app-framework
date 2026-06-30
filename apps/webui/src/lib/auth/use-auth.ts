@@ -100,6 +100,7 @@ export function useAuth() {
     accessToken,
     user,
     isChecking,
+    isAdmin: user?.roles?.some((r) => r === "admin" || r === "super_admin") ?? false,
     checkAuth,
     refreshUser,
     login,

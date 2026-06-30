@@ -68,11 +68,15 @@ export function CopywritingReferenceImages() {
       {images.map((img) => (
         <div
           key={img.key}
-          className="group relative size-14 overflow-hidden rounded-md border bg-muted"
+          className="group relative size-14 rounded-md border bg-muted"
           title={img.name}
         >
           {/* biome-ignore lint/performance/noImgElement: OSS 签名 URL 域名动态，使用 next/image 需配置 remotePatterns，缩略图无 LCP 影响 */}
-          <img src={img.url} alt={img.name} className="size-full object-cover" />
+          <img
+            src={img.url}
+            alt={img.name}
+            className="size-full overflow-hidden rounded-md object-cover"
+          />
           <Button
             type="button"
             size="icon-sm"

@@ -192,13 +192,14 @@
 			</resource>
 		</resources>
 		<plugins>
-			<!-- 排除 1.x agentscope 集成代码（保留源码不删除，仅不参与 2.0+ 编译） -->
+			<!-- 排除 1.x agentscope 集成代码（保留源码不删除，仅不参与 2.0+ 编译）
+			     注意：agui/v2/ 是 2.0 新实现，不排除 -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
 					<excludes>
-						<exclude>com/xuejiai/aaf/module/ai/agui/**</exclude>
+						<exclude>com/xuejiai/aaf/module/ai/agui/*.java</exclude>
 						<exclude>com/xuejiai/aaf/module/ai/a2a/**</exclude>
 						<exclude>com/xuejiai/aaf/module/examples/agentscope/**</exclude>
 						<exclude>com/xuejiai/aaf/module/system/workflow/agui/**</exclude>

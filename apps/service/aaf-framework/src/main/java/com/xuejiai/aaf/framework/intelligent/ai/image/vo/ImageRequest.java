@@ -23,8 +23,10 @@ public class ImageRequest {
     private String modelId;
     private int width = 1024;
     private int height = 1024;
+
     /** true 时忽略 width/height，由模型决定输出尺寸（对应前端 fixedSize="auto"）。 */
     private boolean autoSize = false;
+
     private String responseFormat = "url";
     private String negativePrompt;
     private int seed;

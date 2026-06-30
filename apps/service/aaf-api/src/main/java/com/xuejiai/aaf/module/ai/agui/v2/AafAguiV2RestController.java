@@ -40,25 +40,40 @@ import io.agentscope.spring.boot.agui.mvc.AguiRestController;
 import reactor.core.Disposable;
 
 /**
- * AAF 自定义 AG-UI REST 控制器——覆盖 starter 的 {@link AguiRestController}（{@code @ConditionalOnMissingBean}
- * 让默认实现自动让位）。
+ * AAF 自定义 AG-UI REST 控制器——覆盖 starter 的 {@link AguiRestController}。
  *
- * <p>核心增强：完整重写 starter 的处理流程，在 executor 任务内注入用户上下文，再调 {@link AguiRequestProcessor#process}。
+ * <h2>为什么必须覆盖</h2>
  *
- * <p>处理流程：
+ * <p>agentscope 本身支持通过 {@code RuntimeContext.builder().userId("xxx").build()} 向 agent 注入用户身份， 但
+ * AG-UI starter（{@link io.agentscope.core.agui.adapter.AguiAgentAdapter}）调用的是 {@code
+ * agent.stream(msgs, options)}，<b>没有传递 RuntimeContext</b>，用户上下文在桥接层被丢弃。 这是
+ * agentscope-agui-spring-boot-starter 2.0-RC4 的设计缺陷，尚未修复。
+ *
+ * <p>因此，如果直接使用 starter 默认的 {@link AguiRestController}，工具里调用 {@link AafContextHolder} 永远拿不到
+ * userId，知识库搜索、记忆读写、积分扣减全部失效。
+ *
+ * <p>本控制器通过在 executor 线程调 {@link AguiRequestProcessor#process} 之前先注入 {@link AafContextHolder}
+ * ThreadLocal，补齐 starter 遗漏的用户上下文传递。 待 starter 升级支持 RuntimeContext 传递后，可替换为官方方案并移除 ThreadLocal。
+ *
+ * <h2>AAF 增强功能</h2>
  *
  * <ol>
- *   <li>controller 线程：从 {@link OperatorContext}（JWT 过滤器已写入）拿当前 userId
- *   <li>从 {@link RunAgentInput#getForwardedProps()} 读 userId / conversationId / knowledgeBaseId /
- *       assistantId
- *   <li>调 {@link ConversationContextResolver} 用 threadId 查 {@code conversation} 表兜底
- *   <li>{@code executor.submit(() -> { AafContextHolder.set(ctx); processor.process(input); ... })}
- *       — 在 executor 同一线程里 set ThreadLocal 后调 starter 处理器，确保 reactor 串行链路里的工具能读到上下文
- *   <li>{@code emitter.onCompletion/onTimeout/onError} 钩子里 {@link AafContextHolder#clear} 防泄漏
+ *   <li><b>用户上下文注入</b>：从 JWT（{@link OperatorContext}）+ forwardedProps + conversation 表三路兜底， 写入
+ *       {@link AafContextHolder} ThreadLocal，供下游工具读取 userId / conversationId / knowledgeBaseId
+ *   <li><b>访客路由与限流</b>：未登录用户自动路由到 {@code customer-service} Agent， 并用 Redis 累计对话轮次，超过 {@value
+ *       #GUEST_MAX_ROUNDS} 轮拒绝
+ *   <li><b>积分结算分类</b>：按 agentId 写入 {@link AgentCapabilityContext}，区分 copywriting / chat
  * </ol>
  *
- * <p>注：本控制器不调 {@link AguiMvcController}，因为 starter 自己用了 executor，无法在它的任务前注入 ThreadLocal。 我们直接持有
- * processor + 自有 executor，等价复刻 starter 的处理逻辑。
+ * <h2>处理流程</h2>
+ *
+ * <ol>
+ *   <li>controller 线程捕获 userId（JWT 过滤器已写入 {@link OperatorContext}）
+ *   <li>解析完整上下文：forwardedProps 优先 → conversation 表兜底 → JWT 兜底
+ *   <li>未登录用户路由到 customer-service，检查访客轮次限制
+ *   <li>{@code executor.submit(() -> { AafContextHolder.set(ctx); processor.process(input); })}
+ *   <li>emitter 生命周期钩子里 {@link AafContextHolder#clear} 防 ThreadLocal 泄漏
+ * </ol>
  */
 public class AafAguiV2RestController extends AguiRestController {
 
@@ -66,6 +81,7 @@ public class AafAguiV2RestController extends AguiRestController {
 
     private final AguiRequestProcessor processor;
     private final AguiEventEncoder encoder = new AguiEventEncoder();
+
     private final long sseTimeout;
     private final OperatorContext operatorContext;
     private final ConversationContextResolver contextResolver;
@@ -154,6 +170,12 @@ public class AafAguiV2RestController extends AguiRestController {
         String threadId = input.getThreadId();
         String runId = input.getRunId();
 
+        log.debug(
+                "[AGUI-DEBUG] jwtUserId={} threadId={} forwardedProps.userId={}",
+                jwtUserId,
+                threadId,
+                forwardedProps != null ? forwardedProps.get("userId") : null);
+
         // 2. 解析完整上下文（forwardedProps 优先 → conversation 表兜底 → JWT 兜底）
         AafContextHolder.AafContext ctx =
                 contextResolver.resolve(threadId, forwardedProps, jwtUserId);
@@ -193,17 +215,18 @@ public class AafAguiV2RestController extends AguiRestController {
 
         // 3. 创建 SseEmitter
         SseEmitter emitter = new SseEmitter(sseTimeout);
+        final String finalAgentId = resolvedAgentId;
 
         // 4. 在自有 executor 内 set ThreadLocal → 调 processor → subscribe events
         executor.submit(
                 () -> {
                     AafContextHolder.set(ctx);
                     // 按 agentId 设置积分结算分类，文案类 Agent 写 copywriting，其余写 chat
-                    AgentCapabilityContext.set(resolveCapability(resolvedAgentId));
+                    AgentCapabilityContext.set(resolveCapability(finalAgentId));
                     Disposable subscription = null;
                     try {
                         AguiRequestProcessor.ProcessResult result =
-                                processor.process(input, headerAgentId, resolvedAgentId);
+                                processor.process(input, headerAgentId, finalAgentId);
 
                         emitter.onCompletion(
                                 () -> log.debug("[AAF-AGUI] SSE completed runId={}", runId));

@@ -97,14 +97,16 @@ export function AgUiChatProvider({
 }: AgUiChatProviderProps) {
   // 将 initialState 序列化为稳定字符串，避免每次渲染对象引用不同导致 agent 重建
   const initialStateKey = JSON.stringify(initialState)
+  const accessToken = useAuthStore((s) => s.accessToken)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialState 通过 initialStateKey 跟踪
   const agent = useMemo(() => {
     return new HttpAgent({
       url: url ?? DEFAULT_AGENT_URL,
-      initialState: { ...initialState, anonymousId: getOrCreateAnonymousId() }
+      initialState: { ...initialState, anonymousId: getOrCreateAnonymousId() },
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
     })
-  }, [url, initialStateKey])
+  }, [url, initialStateKey, accessToken])
 
   // 当前 threadId——由后端创建会话时生成，通过此状态传给 threadList 适配器
   const THREAD_KEY = "aaf:chatter-thread-id"

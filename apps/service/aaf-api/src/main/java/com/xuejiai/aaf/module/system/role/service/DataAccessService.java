@@ -209,7 +209,7 @@ public class DataAccessService
         try {
             List<String> ruleRoles =
                     JsonUtils.parseObject(rule.getRoles(), new TypeReference<>() {});
-            return ruleRoles.stream().anyMatch(userRoleCodes::contains);
+            return ruleRoles.stream().anyMatch(r -> "*".equals(r) || userRoleCodes.contains(r));
         } catch (Exception e) {
             log.warn("解析规则 roles 失败, ruleId={}: {}", rule.getId(), e.getMessage());
             return false;

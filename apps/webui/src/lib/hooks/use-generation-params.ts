@@ -10,7 +10,7 @@
  * <ModelParamsBar model={currentModel} params={params} onChangeParams={onChangeParams} />
  * generateImage.mutate({ model: modelId, ...params })
  */
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { AiModelVO, ImageConfig, ImageModeConfig } from "@/lib/api/rest/ai/ai-model"
 
 export interface GenerationParams {
@@ -86,14 +86,27 @@ function resolveSize(resolution: string, aspectRatio: string): { width: number; 
 
 export function useGenerationParams(model: AiModelVO | undefined) {
   const [params, setParams] = useState<GenerationParams>(() => defaultsFromModel(model))
+  // 模型切换后需要覆盖的参数（来自历史重新生成）
+  const pendingOverride = useRef<Partial<GenerationParams> | null>(null)
 
-  // 切换模型时 reset 参数
+  // 切换模型时 reset 参数，并合并 pendingOverride
   useEffect(() => {
-    setParams(defaultsFromModel(model))
+    const base = defaultsFromModel(model)
+    if (pendingOverride.current && model) {
+      setParams({ ...base, ...pendingOverride.current })
+      pendingOverride.current = null
+    } else {
+      setParams(base)
+    }
   }, [model])
 
   function onChangeParams(patch: Partial<GenerationParams>) {
     setParams((prev) => ({ ...prev, ...patch }))
+  }
+
+  /** 设置待覆盖参数，将在下次模型 reset 后合并（用于历史重新生成场景） */
+  function setPendingOverride(patch: Partial<GenerationParams>) {
+    pendingOverride.current = patch
   }
 
   /** 解析后的最终宽高 + sizePreset，直接传给后端 */
@@ -110,6 +123,7 @@ export function useGenerationParams(model: AiModelVO | undefined) {
   return {
     params,
     onChangeParams,
+    setPendingOverride,
     resolvedSize
   }
 }

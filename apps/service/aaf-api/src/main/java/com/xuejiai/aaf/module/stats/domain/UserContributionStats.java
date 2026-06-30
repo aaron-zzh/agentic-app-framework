@@ -20,12 +20,16 @@ import lombok.Getter;
 @Immutable
 @Subselect(
         """
-        SELECT user_id, user_name, email, register_time, last_login_time,
-               total_aigc_tasks, success_aigc_tasks,
-               image_tasks, video_tasks, model3d_tasks, music_tasks, voice_tasks,
-               credit_balance, total_earned_credits, total_spent_credits,
-               total_media_assets, total_todos, done_todos
-        FROM v_user_contribution_stats
+        SELECT s.user_id, s.user_name, s.email, s.register_time, s.last_login_time,
+               s.total_aigc_tasks, s.success_aigc_tasks,
+               s.image_tasks, s.video_tasks, s.model3d_tasks, s.music_tasks, s.voice_tasks,
+               s.credit_balance, s.total_earned_credits, s.total_spent_credits,
+               s.total_media_assets, s.total_todos, s.done_todos,
+               CASE WHEN u.phone IS NOT NULL
+                    THEN CONCAT(LEFT(u.phone, 3), '****', RIGHT(u.phone, 4))
+                    ELSE NULL END AS phone
+        FROM v_user_contribution_stats s
+        JOIN sys_user u ON u.id = s.user_id
         """)
 public class UserContributionStats {
 
@@ -83,4 +87,8 @@ public class UserContributionStats {
 
     @Column(name = "done_todos")
     private Long doneTodos;
+
+    /** 脱敏手机号，格式：138****8888 */
+    @Column(name = "phone")
+    private String phone;
 }

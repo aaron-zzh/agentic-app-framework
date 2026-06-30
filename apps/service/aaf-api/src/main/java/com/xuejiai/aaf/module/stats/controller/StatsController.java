@@ -17,9 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.enums.stats.ReportTypeEnum;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.stats.service.AnalyticsService;
 import com.xuejiai.aaf.module.stats.service.BehaviorService;
 import com.xuejiai.aaf.module.stats.service.ReportService;
 import com.xuejiai.aaf.module.stats.service.StatsService;
+import com.xuejiai.aaf.module.stats.vo.CreditRecordVO;
+import com.xuejiai.aaf.module.stats.vo.CreditsCategoryVO;
+import com.xuejiai.aaf.module.stats.vo.CreditsOverviewVO;
 import com.xuejiai.aaf.module.stats.vo.FunnelVO;
 import com.xuejiai.aaf.module.stats.vo.RetentionVO;
 import com.xuejiai.aaf.module.stats.vo.TrendQueryDTO;
@@ -46,6 +50,7 @@ public class StatsController {
     private final StatsService statsService;
     private final BehaviorService behaviorService;
     private final ReportService reportService;
+    private final AnalyticsService analyticsService;
     private final OperatorContext operatorContext;
 
     /** 判断当前用户是否为管理员 */
@@ -163,5 +168,28 @@ public class StatsController {
                 HttpHeaders.CONTENT_DISPOSITION,
                 "attachment; filename=report_%s_%s.pdf".formatted(type.getCode(), reportDate));
         reportService.exportPdf(type, reportDate, response.getOutputStream());
+    }
+
+    // ========== 积分消耗统计（credits-analytics 仪表盘） ==========
+
+    @Operation(summary = "积分消耗概览（余额/本月消耗/本月充值及环比）")
+    @GetMapping("/credits/overview")
+    public Result<CreditsOverviewVO> creditsOverview() {
+        return Result.success(analyticsService.creditsOverview());
+    }
+
+    @Operation(summary = "积分消耗分类分布（饼图数据）")
+    @GetMapping("/credits/by-category")
+    public Result<CreditsCategoryVO> creditsByCategory() {
+        return Result.success(analyticsService.creditsByCategory());
+    }
+
+    @Operation(summary = "积分流水分页（管理员视角）")
+    @GetMapping("/credits/records")
+    public Result<com.xuejiai.aaf.common.model.PageResult<CreditRecordVO>> creditsRecords(
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String type) {
+        return Result.success(analyticsService.creditsRecords(pageNo, pageSize, type));
     }
 }

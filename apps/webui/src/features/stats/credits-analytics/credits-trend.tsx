@@ -1,5 +1,6 @@
 /**
- * 积分消耗趋势图——多系列，支持日/月 + 柱状/折线切换
+ * 积分消耗趋势图——支持日/月 + 柱状/折线切换
+ * 数据来源：GET /api/stats/trend?metric=credit_cost
  * @author AaronZZH
  */
 
@@ -15,8 +16,9 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
-import { MOCK_TREND_DAILY, MOCK_TREND_MONTHLY } from "./_mock"
+import { useCreditsTrend } from "@/lib/queries/use-credits-analytics"
 
 const COLORS = ["#3b82f6", "#f59e0b", "#10b981"]
 
@@ -27,14 +29,21 @@ export function CreditsTrend() {
   const [range, setRange] = useState<Range>("monthly")
   const [chartType, setChartType] = useState<ChartType>("bar")
 
+  const period = range === "daily" ? "day" : "month"
+  const { data: trend, isLoading } = useCreditsTrend(period)
+
   const option = useMemo<EChartsOption>(() => {
+    const categories = trend?.categories ?? []
+    const series = trend?.series ?? []
+
     if (range === "daily") {
+      const data = series[0]?.data ?? []
       return {
         tooltip: { trigger: "axis" },
         grid: { left: "3%", right: "4%", bottom: "14%", containLabel: true },
         xAxis: {
           type: "category",
-          data: MOCK_TREND_DAILY.map((d) => d.time),
+          data: categories,
           axisLabel: { rotate: 45 }
         },
         yAxis: { type: "value", name: "积分" },
@@ -43,7 +52,7 @@ export function CreditsTrend() {
           {
             name: "日消耗",
             type: chartType,
-            data: MOCK_TREND_DAILY.map((d) => d.value),
+            data,
             smooth: true,
             showSymbol: false,
             itemStyle: { color: COLORS[0] },
@@ -55,29 +64,30 @@ export function CreditsTrend() {
 
     return {
       tooltip: { trigger: "axis" },
-      legend: { bottom: 0, data: MOCK_TREND_MONTHLY.series.map((s) => s.name) },
+      legend: { bottom: 0, data: series.map((s) => s.name) },
       grid: { left: "3%", right: "4%", bottom: "15%", containLabel: true },
-      xAxis: { type: "category", data: MOCK_TREND_MONTHLY.categories },
+      xAxis: { type: "category", data: categories },
       yAxis: { type: "value", name: "积分" },
-      series: MOCK_TREND_MONTHLY.series.map((s, i) => ({
+      series: series.map((s, i) => ({
         name: s.name,
         type: chartType,
         stack: chartType === "bar" ? "total" : undefined,
         data: s.data,
         smooth: true,
         showSymbol: false,
-        itemStyle: { color: COLORS[i] },
-        areaStyle: chartType === "line" ? { color: COLORS[i], opacity: 0.1 } : undefined
+        itemStyle: { color: COLORS[i % COLORS.length] },
+        areaStyle:
+          chartType === "line" ? { color: COLORS[i % COLORS.length], opacity: 0.1 } : undefined
       }))
     }
-  }, [range, chartType])
+  }, [trend, range, chartType])
 
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
         <div>
           <CardTitle>积分消耗趋势</CardTitle>
-          <p className="mt-1 text-muted-foreground text-sm">按服务类型分解的消耗走势</p>
+          <p className="mt-1 text-muted-foreground text-sm">按周期展示积分消耗走势</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border">
@@ -110,7 +120,11 @@ export function CreditsTrend() {
         </div>
       </CardHeader>
       <CardContent>
-        <BaseChart option={option} className="h-[320px] w-full" />
+        {isLoading ? (
+          <Skeleton className="h-[320px] w-full" />
+        ) : (
+          <BaseChart option={option} className="h-[320px] w-full" />
+        )}
       </CardContent>
     </Card>
   )

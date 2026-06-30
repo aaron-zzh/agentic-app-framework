@@ -204,12 +204,20 @@ public class CopywritingService {
         if (hasSkillPrompt) {
             // 有 skill 系统提示词：只传主题+长度+翻译，格式规则由系统提示词决定
             sb.append("主题：").append(topic).append("\n");
+            if (userNotes != null && !userNotes.isBlank()) {
+                sb.append("创作要求：").append(userNotes).append("\n");
+            }
             sb.append("长度要求：").append(lengthDesc);
         } else {
             // 回退到内置逻辑（oral/xiaohongshu）
             String typeName = "oral".equals(type) ? "口播" : "小红书";
             sb.append("请生成一篇").append(typeName).append("文案。\n");
-            sb.append("主题：").append(topic).append("\n");
+            if (userNotes != null && !userNotes.isBlank()) {
+                sb.append("创作主题：").append(userNotes).append("\n");
+                sb.append("参考以下爆款结构分析来组织内容：\n").append(topic).append("\n");
+            } else {
+                sb.append("主题：").append(topic).append("\n");
+            }
             if ("oral".equals(type)) {
                 sb.append("格式要求：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构，自然流畅，适合视频配音。\n");
             } else {
@@ -245,13 +253,10 @@ public class CopywritingService {
         if (referenceAnalysis != null && !referenceAnalysis.isBlank()) {
             sb.append("\n\n参考爆款结构分析：\n").append(referenceAnalysis);
         }
-        if (userNotes != null && !userNotes.isBlank()) {
-            sb.append("\n\n创作要求补充：\n").append(userNotes);
-        }
+        log.debug("[文案生成] 最终 prompt:\n{}", sb);
         return sb.toString();
     }
 
-    /** 按 skill code（type）加载系统提示词： 优先从 ai_skill_definition 按 code 查；未配置则回退到内置常量。 */
     private String resolveSystemPrompt(String type) {
         if (type != null && !type.isBlank()) {
             String prompt = skillService.getSystemPromptByCode(type);

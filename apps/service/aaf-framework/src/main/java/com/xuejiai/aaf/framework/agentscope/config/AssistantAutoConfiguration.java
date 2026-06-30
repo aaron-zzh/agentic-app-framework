@@ -50,6 +50,7 @@ import io.agentscope.harness.agent.filesystem.remote.store.BaseStore;
 import io.agentscope.harness.agent.gateway.ChannelManager;
 import io.agentscope.harness.agent.workspace.WorkspaceManager;
 import io.agentscope.spring.boot.agui.common.AguiAgentId;
+import io.micrometer.context.ThreadLocalAccessor;
 
 /**
  * AAF AI 助理 Agent 自动装配。
@@ -327,5 +328,36 @@ public class AssistantAutoConfiguration {
             log.warn("[ContentCreation] 六层模型决策链解析失败，将回退到 props.modelId: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * 注册 AafContextHolder 的 ThreadLocalAccessor，使 Reactor Hooks.enableAutomaticContextPropagation()
+     * 能在响应式链跨线程切换时自动传播 AafContext（userId、threadId 等），解决 boundedElastic 线程丢失上下文问题。
+     */
+    @Bean
+    public ThreadLocalAccessor<AafContextHolder.AafContext> aafContextThreadLocalAccessor() {
+        return new ThreadLocalAccessor<>() {
+            private static final String KEY = "aaf.context";
+
+            @Override
+            public Object key() {
+                return KEY;
+            }
+
+            @Override
+            public AafContextHolder.AafContext getValue() {
+                return AafContextHolder.get();
+            }
+
+            @Override
+            public void setValue(AafContextHolder.AafContext value) {
+                AafContextHolder.set(value);
+            }
+
+            @Override
+            public void reset() {
+                AafContextHolder.clear();
+            }
+        };
     }
 }

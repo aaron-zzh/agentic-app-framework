@@ -9,8 +9,8 @@
  */
 
 import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { LottieIcon } from "@/components/animate/LottieIcon"
+import { Button } from "@/components/ui/button"
 
 interface LoginSuccessOverlayProps {
   username?: string

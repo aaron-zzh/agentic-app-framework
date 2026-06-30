@@ -30,22 +30,19 @@ logging:
   level:
     org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
     org.springframework.web.filter.AbstractRequestLoggingFilter: DEBUG
-    # 关闭全局 Hibernate SQL（pay/task 轮询噪音太多），按模块开启
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
     com.xuejiai.aaf.module.ai: DEBUG
     com.xuejiai.aaf.module.system: DEBUG
     com.xuejiai.aaf.module.channel: DEBUG
-    # 客户端主动断开 SSE 连接时的正常异常，降为 WARN 避免日志噪音
     org.springframework.web.context.request.async: WARN
-    # Spring Boot 3.x 存在部分误报 WARN，屏蔽噪音
     org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
 
 aaf:
   demo:
     enabled: true  # dev 环境开启演示模式，暴露 /api/system/demo/load 和 /clean
   flyway:
-    clean-on-start: true # ⚠️ 仅 dev：启动时清库重建
+    clean-on-start: false # ⚠️ 仅 dev：启动时清库重建
   pay:
     # 开发环境启用模拟支付渠道；生产默认关闭（MockPayChannelAdapter @ConditionalOnProperty）
     mock:

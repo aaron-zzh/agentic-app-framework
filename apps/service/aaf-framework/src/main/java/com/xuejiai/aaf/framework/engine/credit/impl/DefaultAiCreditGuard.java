@@ -113,7 +113,12 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 getMarkupRate(),
                 creditCost);
 
-        Long creditTxId = doSpend(userId, creditCost, CreditTransactionCategoryEnum.fromCapability(capability), remark);
+        Long creditTxId =
+                doSpend(
+                        userId,
+                        creditCost,
+                        CreditTransactionCategoryEnum.fromCapability(capability),
+                        remark);
         if (creditTxId == null && creditCost > 0) return null; // 扣减失败，不写用量记录
 
         saveUsageRecord(

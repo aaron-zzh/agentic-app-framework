@@ -39,7 +39,9 @@ public record ImageTaskRequest(
 
     /** 序列化为 JSON 存入 aigc_task.params，供 AigcTaskExecutor 读取。width=null 时写入 autoSize=true。 */
     public String toParamsJson() {
-        var node = (tools.jackson.databind.node.ObjectNode) JsonUtils.readTree(JsonUtils.toJsonString(this));
+        var node =
+                (tools.jackson.databind.node.ObjectNode)
+                        JsonUtils.readTree(JsonUtils.toJsonString(this));
         if (width == null || width == 0) {
             node.put("autoSize", true);
         }

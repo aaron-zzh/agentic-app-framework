@@ -65,10 +65,10 @@ public class CallLogMiddleware implements MiddlewareBase {
             ModelCallInput input,
             Function<ModelCallInput, Flux<AgentEvent>> next) {
 
-        Long conversationId = AafContextHolder.conversationId();
         Long userId = AafContextHolder.userId();
-        Long assistantId = AafContextHolder.assistantId();
         String threadId = AafContextHolder.threadId();
+        Long conversationId = AafContextHolder.conversationId();
+        Long assistantId = AafContextHolder.assistantId();
         String modelName = input.model().getClass().getSimpleName();
 
         // 通过 assistantId 提前查好 modelId（有缓存），避免 doOnNext 里重复查库
@@ -110,9 +110,9 @@ public class CallLogMiddleware implements MiddlewareBase {
             ActingInput input,
             Function<ActingInput, Flux<AgentEvent>> next) {
 
-        Long conversationId = AafContextHolder.conversationId();
         Long userId = AafContextHolder.userId();
         String threadId = AafContextHolder.threadId();
+        Long conversationId = AafContextHolder.conversationId();
 
         List<ToolUseBlock> toolCalls = input.toolCalls();
         if (toolCalls != null) {
@@ -231,9 +231,13 @@ public class CallLogMiddleware implements MiddlewareBase {
         try {
             return jdbc.queryForObject(
                     "SELECT model_id FROM ai_assistant WHERE id = ? AND deleted = false LIMIT 1",
-                    String.class, assistantId);
+                    String.class,
+                    assistantId);
         } catch (Exception e) {
-            log.debug("[CallLog] 查 assistant modelId 失败 assistantId={}: {}", assistantId, e.getMessage());
+            log.debug(
+                    "[CallLog] 查 assistant modelId 失败 assistantId={}: {}",
+                    assistantId,
+                    e.getMessage());
             return null;
         }
     }
@@ -242,18 +246,26 @@ public class CallLogMiddleware implements MiddlewareBase {
     private void settleCredits(Long userId, String modelId, int inputTokens, int outputTokens) {
         if (userId == null || creditGuard == null) return;
         try {
-            var aiModel = modelId != null ? modelRepository.findByModelId(modelId).orElse(null) : null;
+            var aiModel =
+                    modelId != null ? modelRepository.findByModelId(modelId).orElse(null) : null;
             final long in = inputTokens;
             final long out = outputTokens;
-            AiUsage usage = new AiUsage() {
-                @Override
-                public java.util.Map<String, Object> standardUsage() {
-                    return java.util.Map.of("inputTokens", in, "outputTokens", out);
-                }
-            };
-            String capability = AgentCapabilityContext.get() != null ? AgentCapabilityContext.get() : "chat";
+            AiUsage usage =
+                    new AiUsage() {
+                        @Override
+                        public java.util.Map<String, Object> standardUsage() {
+                            return java.util.Map.of("inputTokens", in, "outputTokens", out);
+                        }
+                    };
+            String capability =
+                    AgentCapabilityContext.get() != null ? AgentCapabilityContext.get() : "chat";
             creditGuard.settleByUsage(userId, aiModel, usage, capability, "AI 对话");
-            log.debug("[CallLog] 积分结算完成 userId={} modelId={} in={} out={}", userId, modelId, inputTokens, outputTokens);
+            log.debug(
+                    "[CallLog] 积分结算完成 userId={} modelId={} in={} out={}",
+                    userId,
+                    modelId,
+                    inputTokens,
+                    outputTokens);
         } catch (Exception e) {
             log.warn("[CallLog] 积分结算失败 userId={} modelId={}: {}", userId, modelId, e.getMessage());
         }

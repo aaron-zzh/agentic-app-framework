@@ -9,9 +9,10 @@
 import { TrendingDown, TrendingUp } from "lucide-react"
 import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
+import { useCreditsOverview, useCreditsTrend } from "@/lib/queries/use-credits-analytics"
 import { cn } from "@/lib/utils/cn"
-import { MOCK_CREDITS_OVERVIEW, MOCK_TREND_DAILY } from "./_mock"
 
 interface StatCardProps {
   label: string
@@ -80,27 +81,48 @@ function StatCard({ label, value, unit = "积分", percent, chartData, chartColo
 
 /** 三张统计卡汇总 */
 export function CreditsStatCards() {
-  const dailyValues = MOCK_TREND_DAILY.map((d) => d.value)
+  const { data: overview, isLoading } = useCreditsOverview()
+  const { data: trend } = useCreditsTrend("day")
+
+  const dailyValues = trend?.series?.[0]?.data ?? []
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <Card key={i}>
+            <CardHeader className="pt-4 pb-1">
+              <Skeleton className="h-4 w-20" />
+            </CardHeader>
+            <CardContent className="space-y-3 pb-4">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-14 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <StatCard
         label="当前余额"
-        value={MOCK_CREDITS_OVERVIEW.balance}
+        value={overview?.balance ?? 0}
         chartData={dailyValues.map((v) => Math.floor(v * 0.6))}
         chartColor="#3b82f6"
       />
       <StatCard
         label="本月消耗"
-        value={MOCK_CREDITS_OVERVIEW.consumed}
-        percent={MOCK_CREDITS_OVERVIEW.consumedPercent}
+        value={overview?.monthConsumed ?? 0}
+        percent={overview?.consumedChangeRate}
         chartData={dailyValues}
         chartColor="#f59e0b"
       />
       <StatCard
         label="本月充值"
-        value={MOCK_CREDITS_OVERVIEW.recharged}
-        percent={MOCK_CREDITS_OVERVIEW.rechargedPercent}
+        value={overview?.monthRecharged ?? 0}
+        percent={overview?.rechargedChangeRate}
         chartData={dailyValues.map((v) => Math.floor(v * 1.5))}
         chartColor="#10b981"
       />

@@ -136,11 +136,11 @@ export function FinanceOverviewWidget({ data }: FinanceOverviewWidgetProps) {
           </div>
           <div className="flex flex-wrap gap-3">
             <RedeemCodeButton
-              trigger={
-                <Button variant="secondary" className="gap-1.5">
+              trigger={(onClick) => (
+                <Button variant="secondary" className="gap-1.5" onClick={onClick}>
                   <Ticket className="h-4 w-4" /> 兑换码
                 </Button>
-              }
+              )}
             />
             <Button
               variant="secondary"

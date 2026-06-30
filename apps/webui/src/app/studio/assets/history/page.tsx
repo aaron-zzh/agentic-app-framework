@@ -20,12 +20,11 @@ import { toast } from "sonner"
 import VideoPlugin from "yet-another-react-lightbox/plugins/video"
 import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio"
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { type PageResult, request } from "@/lib/api/rest/entity/crud"
@@ -66,12 +65,23 @@ function getCreatePath(type: string): string {
 }
 
 function writeRegenerateSession(task: AigcTaskVO) {
-  const p = task.params ? (() => { try { return JSON.parse(task.params) } catch { return {} } })() : {}
-  sessionStorage.setItem("aaf:regenerate", JSON.stringify({
-    prompt: task.prompt,
-    model: task.model,
-    ...p,
-  }))
+  const p = task.params
+    ? (() => {
+        try {
+          return JSON.parse(task.params)
+        } catch {
+          return {}
+        }
+      })()
+    : {}
+  sessionStorage.setItem(
+    "aaf:regenerate",
+    JSON.stringify({
+      prompt: task.prompt,
+      model: task.model,
+      ...p
+    })
+  )
 }
 
 // ─── 任务卡片 ────────────────────────────────────────────────────────────────
@@ -93,7 +103,6 @@ function TaskCard({ task, onPreview }: { task: AigcTaskVO; onPreview: (url: stri
   return (
     <GlassCard glow="none" className="overflow-hidden">
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 内部含 <button>，不能嵌套 <button> */}
-      {/* biome-ignore lint/a11y/useSemanticElements: 内部含 <button>，不能嵌套 <button> */}
       <div
         className="relative aspect-square bg-foreground/4"
         role={task.ossUrl && !isFail ? "button" : undefined}
@@ -156,7 +165,10 @@ function TaskCard({ task, onPreview }: { task: AigcTaskVO; onPreview: (url: stri
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
-                  onClick={(e) => { e.stopPropagation(); handleDelete() }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDelete()
+                  }}
                   disabled={cancelTask.isPending}
                 >
                   <Trash2 className="mr-2 size-3.5" />
