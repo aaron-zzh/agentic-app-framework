@@ -78,9 +78,7 @@ export const creditsAnalyticsApi = {
       pageSize: String(pageSize),
       ...(type ? { type } : {})
     })
-    return backendApi.get<PageResult<CreditRecordVO>>(
-      `/stats/credits/records?${params.toString()}`
-    )
+    return backendApi.get<PageResult<CreditRecordVO>>(`/stats/credits/records?${params.toString()}`)
   },
 
   /**

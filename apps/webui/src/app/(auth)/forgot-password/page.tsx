@@ -9,7 +9,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { FieldOtp } from "@/components/form/field-otp"
@@ -54,8 +54,6 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState<"account" | "reset">("account")
   const [account, setAccount] = useState("")
   const [accountType, setAccountType] = useState<"email" | "phone">("email")
-  const captchaVerifyParamRef = useRef<string>("")
-  const submitRef = useRef<(() => void) | null>(null)
 
   const accountMethods = useForm<AccountForm>({
     resolver: zodResolver(accountSchema),
@@ -69,44 +67,30 @@ export default function ForgotPasswordPage() {
 
   const captcha = useEsaCaptcha({
     elementId: "forgot-password-captcha",
-    buttonId: "forgot-password-send-btn",
-    onVerified: (param) => {
-      captchaVerifyParamRef.current = param
-      submitRef.current?.()
+    buttonId: "forgot-password-hidden-btn",
+    onVerified: async (param) => {
+      await accountMethods.handleSubmit(async (data) => {
+        const type = detectInputType(data.account) as "email" | "phone"
+        try {
+          if (type === "phone") {
+            await authApi.sendSmsCode(data.account, "reset", param || undefined)
+          } else {
+            await authApi.sendEmailCode(data.account, "reset", param || undefined)
+          }
+          setAccount(data.account)
+          setAccountType(type)
+          setStep("reset")
+          notify.success(type === "phone" ? "短信验证码已发送" : "验证码已发送，请查收邮件")
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "发送失败，请重试"
+          accountMethods.setError("root", { message: msg })
+          notify.error(msg)
+        } finally {
+          captcha.reset()
+        }
+      })()
     }
   })
-
-  async function onSendCode(data: AccountForm) {
-    const type = detectInputType(data.account) as "email" | "phone"
-    try {
-      if (type === "phone") {
-        await authApi.sendSmsCode(
-          data.account,
-          "reset",
-          captcha.enabled ? captchaVerifyParamRef.current : undefined
-        )
-      } else {
-        await authApi.sendEmailCode(
-          data.account,
-          "reset",
-          captcha.enabled ? captchaVerifyParamRef.current : undefined
-        )
-      }
-      setAccount(data.account)
-      setAccountType(type)
-      setStep("reset")
-      notify.success(type === "phone" ? "短信验证码已发送" : "验证码已发送，请查收邮件")
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "发送失败，请重试"
-      accountMethods.setError("root", { message: msg })
-      notify.error(msg)
-    } finally {
-      captchaVerifyParamRef.current = ""
-      captcha.reset()
-    }
-  }
-
-  submitRef.current = accountMethods.handleSubmit(onSendCode)
 
   async function onReset(data: ResetForm) {
     try {
@@ -168,21 +152,35 @@ export default function ForgotPasswordPage() {
         <p className="mt-1 text-muted-foreground text-sm">输入邮箱或手机号接收验证码</p>
       </div>
 
-      <Form methods={accountMethods} onSubmit={captcha.enabled ? undefined : onSendCode}>
+      <Form methods={accountMethods} onSubmit={undefined}>
         <FieldText name="account" label="邮箱 / 手机号" placeholder="your@email.com 或 138xxxx" />
 
+        {/* 验证码容器 + 隐藏触发按钮（SDK 绑定目标，用户不可见） */}
         {captcha.enabled && <div id="forgot-password-captcha" />}
+        <button
+          id="forgot-password-hidden-btn"
+          type="button"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+        />
 
         <p
           className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${accountMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
         >
           {accountMethods.formState.errors.root?.message ?? " "}
         </p>
+
+        {/* 真实用户按钮：先校验再触发验证码 */}
         <Button
-          id="forgot-password-send-btn"
-          type={captcha.buttonType}
+          type="button"
           className="w-full"
           disabled={accountMethods.formState.isSubmitting}
+          onClick={async () => {
+            const valid = await accountMethods.trigger("account")
+            if (!valid) return
+            captcha.trigger()
+          }}
         >
           {accountMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
         </Button>

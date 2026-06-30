@@ -2,20 +2,20 @@
 
 /**
  * 密码登录面板——账号/邮箱 + 密码
+ * 不含提交按钮和 captcha，由父层 LoginContent 统一持有。
+ * 通过 ref.triggerSubmit(captchaParam?) 触发提交。
  * @author AaronZZH & Kiro
  */
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
-import { useRef } from "react"
+import { type RefObject, useImperativeHandle } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { FieldText } from "@/components/form/field-text"
 import { Form } from "@/components/form/form"
-import { Button } from "@/components/ui/button"
 import { authApi } from "@/lib/api/rest/user/auth"
 import { paths } from "@/lib/constants/paths"
-import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
 
 const loginSchema = z.object({
@@ -33,54 +33,52 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+export interface PasswordLoginPanelRef {
+  /** 父层捕获 captcha 验证结果后调用，触发实际登录请求 */
+  triggerSubmit: (captchaParam?: string) => Promise<void>
+  /** 提交前校验表单，返回是否通过 */
+  validate: () => Promise<boolean>
+}
+
 export function PasswordLoginPanel({
-  onSuccess
+  onSuccess,
+  onError,
+  ref
 }: {
   onSuccess: (accessToken: string, refreshToken: string, isNewUser?: boolean) => void
+  onError?: () => void
+  ref?: RefObject<PasswordLoginPanelRef | null>
 }) {
-  const captchaVerifyParamRef = useRef<string>("")
-
   const methods = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: "", password: "" }
   })
 
   const {
-    formState: { isSubmitting, errors }
+    formState: { errors }
   } = methods
 
-  async function onSubmit(data: LoginForm) {
+  async function doSubmit(data: LoginForm, captchaParam?: string) {
     try {
-      const result = await authApi.login(
-        data.username,
-        data.password,
-        captcha.enabled ? captchaVerifyParamRef.current : undefined
-      )
+      const result = await authApi.login(data.username, data.password, captchaParam)
       onSuccess(result.accessToken, result.refreshToken)
     } catch (err) {
       const msg = err instanceof Error ? err.message : "登录失败，请重试"
       methods.setError("root", { message: msg })
       notify.error(msg)
-    } finally {
-      captchaVerifyParamRef.current = ""
-      captcha.reset()
+      onError?.()
     }
   }
 
-  const submitRef = useRef<(() => void) | null>(null)
-  submitRef.current = methods.handleSubmit(onSubmit)
-
-  const captcha = useEsaCaptcha({
-    elementId: "password-login-captcha",
-    buttonId: "password-login-btn",
-    onVerified: (param) => {
-      captchaVerifyParamRef.current = param
-      submitRef.current?.()
-    }
-  })
+  useImperativeHandle(ref, () => ({
+    triggerSubmit: async (captchaParam?: string) => {
+      await methods.handleSubmit((data) => doSubmit(data, captchaParam))()
+    },
+    validate: () => methods.trigger()
+  }))
 
   return (
-    <Form methods={methods} onSubmit={captcha.enabled ? undefined : onSubmit} className="space-y-5">
+    <Form methods={methods} onSubmit={undefined} className="space-y-5">
       <FieldText name="username" label="账号/邮箱" type="text" placeholder="用户名或邮箱" />
       <FieldText name="password" label="密码" type="password" placeholder="输入密码" />
 
@@ -93,22 +91,11 @@ export function PasswordLoginPanel({
         </Link>
       </div>
 
-      {captcha.enabled && <div id="password-login-captcha" />}
-
       <p
         className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${errors.root ? "opacity-100" : "opacity-0"}`}
       >
         {errors.root?.message ?? " "}
       </p>
-
-      <Button
-        id="password-login-btn"
-        type={captcha.buttonType}
-        className="h-11 w-full dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? "登录中..." : "登录"}
-      </Button>
     </Form>
   )
 }

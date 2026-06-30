@@ -10,7 +10,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense, useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { TermsConsentCheckbox } from "@/components/common/TermsConsentCheckbox"
@@ -74,7 +74,6 @@ function PhoneRegisterPanel({
   const [phone, setPhone] = useState("")
   const [countdown, setCountdown] = useState(0)
   const [termsAgreed, setTermsAgreed] = useState(false)
-  const captchaVerifyParamRef = useRef<string>("")
 
   const phoneMethods = useForm<PhoneRegisterForm>({
     resolver: zodResolver(phoneRegisterSchema),
@@ -98,30 +97,22 @@ function PhoneRegisterPanel({
     notify.success("验证码已发送，请查收短信")
   }
 
-  async function onSendCode(data: PhoneRegisterForm) {
-    if (!termsAgreed) return
-    try {
-      await sendCode(data.phone, captcha.enabled ? captchaVerifyParamRef.current : undefined)
-      setPhone(data.phone)
-      setStep("code")
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "发送失败，请重试"
-      phoneMethods.setError("root", { message: msg })
-    } finally {
-      captchaVerifyParamRef.current = ""
-      captcha.reset()
-    }
-  }
-
-  const submitRef = useRef<(() => void) | null>(null)
-  submitRef.current = phoneMethods.handleSubmit(onSendCode)
-
   const captcha = useEsaCaptcha({
     elementId: "phone-register-captcha",
-    buttonId: "phone-register-send-btn",
-    onVerified: (param) => {
-      captchaVerifyParamRef.current = param
-      submitRef.current?.()
+    buttonId: "phone-register-hidden-btn",
+    onVerified: async (param) => {
+      await phoneMethods.handleSubmit(async (data) => {
+        try {
+          await sendCode(data.phone, param || undefined)
+          setPhone(data.phone)
+          setStep("code")
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "发送失败，请重试"
+          phoneMethods.setError("root", { message: msg })
+        } finally {
+          captcha.reset()
+        }
+      })()
     }
   })
 
@@ -140,12 +131,8 @@ function PhoneRegisterPanel({
   async function onResend() {
     if (countdown > 0 || !termsAgreed) return
     try {
-      await sendCode(phone, captcha.enabled ? captchaVerifyParamRef.current : undefined)
-    } catch (_err) {
-    } finally {
-      captchaVerifyParamRef.current = ""
-      captcha.reset()
-    }
+      await sendCode(phone)
+    } catch (_err) {}
   }
 
   if (step === "code") {
@@ -191,34 +178,40 @@ function PhoneRegisterPanel({
   }
 
   return (
-    <Form
-      methods={phoneMethods}
-      onSubmit={captcha.enabled ? undefined : onSendCode}
-      className="space-y-5"
-    >
+    <Form methods={phoneMethods} onSubmit={undefined} className="space-y-5">
       <FieldText name="phone" label="手机号" type="tel" placeholder="请输入手机号" />
+
+      {/* 验证码容器 + 隐藏触发按钮（SDK 绑定目标，用户不可见） */}
       {captcha.enabled && <div id="phone-register-captcha" />}
+      <button
+        id="phone-register-hidden-btn"
+        type="button"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+      />
+
       <TermsConsentCheckbox checked={termsAgreed} onCheckedChange={setTermsAgreed} />
+
       <p
         className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${phoneMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
       >
         {phoneMethods.formState.errors.root?.message ?? " "}
       </p>
+
+      {/* 真实用户按钮：先校验再触发验证码 */}
       <Button
-        id="phone-register-send-btn"
-        type={captcha.buttonType}
+        type="button"
         className="h-11 w-full"
         disabled={phoneMethods.formState.isSubmitting}
-        onClick={async (e) => {
-          if (captcha.enabled) return // 验证码模式由 captcha 触发，不拦截
-          e.preventDefault()
+        onClick={async () => {
           const valid = await phoneMethods.trigger("phone")
           if (!valid) return
           if (!termsAgreed) {
             notify.warning("请先阅读并同意服务条款与隐私政策")
             return
           }
-          void phoneMethods.handleSubmit(onSendCode)()
+          captcha.trigger()
         }}
       >
         {phoneMethods.formState.isSubmitting ? "发送中..." : "发送验证码"}
@@ -238,8 +231,6 @@ function PasswordRegisterPanel({
 }) {
   const [step, setStep] = useState<"register" | "verify">("register")
   const [email, setEmail] = useState("")
-  const captchaVerifyParamRef = useRef<string>("")
-  const submitRef = useRef<(() => void) | null>(null)
 
   const registerMethods = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -258,39 +249,32 @@ function PasswordRegisterPanel({
 
   const captcha = useEsaCaptcha({
     elementId: "password-register-captcha",
-    buttonId: "password-register-btn",
-    onVerified: (param) => {
-      captchaVerifyParamRef.current = param
-      submitRef.current?.()
+    buttonId: "password-register-hidden-btn",
+    onVerified: async (param) => {
+      await registerMethods.handleSubmit(async (data) => {
+        try {
+          await authApi.register(
+            data.email,
+            data.password,
+            data.nickname || undefined,
+            param || undefined,
+            readRefCode()
+          )
+          setEmail(data.email)
+          setStep("verify")
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "注册失败，请重试"
+          registerMethods.setError("root", { message: msg })
+        } finally {
+          captcha.reset()
+        }
+      })()
     }
   })
-
-  async function onRegister(data: RegisterForm) {
-    try {
-      await authApi.register(
-        data.email,
-        data.password,
-        data.nickname || undefined,
-        captcha.enabled ? captchaVerifyParamRef.current : undefined,
-        readRefCode()
-      )
-      setEmail(data.email)
-      setStep("verify")
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "注册失败，请重试"
-      registerMethods.setError("root", { message: msg })
-    } finally {
-      captchaVerifyParamRef.current = ""
-      captcha.reset()
-    }
-  }
-
-  submitRef.current = registerMethods.handleSubmit(onRegister)
 
   async function onVerify(data: VerifyForm) {
     try {
       const result = await authApi.verifyEmail(email, data.code, readRefCode())
-      // 注册流程结束后清理 refCode，避免下次注册再被关联
       clearRefCode()
       onSuccess(result.accessToken, result.refreshToken)
     } catch (err) {
@@ -337,11 +321,7 @@ function PasswordRegisterPanel({
   }
 
   return (
-    <Form
-      methods={registerMethods}
-      onSubmit={captcha.enabled ? undefined : onRegister}
-      className="space-y-4"
-    >
+    <Form methods={registerMethods} onSubmit={undefined} className="space-y-4">
       <FieldText name="email" label="邮箱" type="email" placeholder="your@email.com" />
       <FieldText name="nickname" label="昵称" placeholder="可选" />
       <FieldText name="password" label="密码" type="password" placeholder="至少 8 位" />
@@ -352,18 +332,32 @@ function PasswordRegisterPanel({
         placeholder="再次输入密码"
       />
 
+      {/* 验证码容器 + 隐藏触发按钮（SDK 绑定目标，用户不可见） */}
       {captcha.enabled && <div id="password-register-captcha" />}
+      <button
+        id="password-register-hidden-btn"
+        type="button"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+      />
 
       <p
         className={`mb-1 min-h-[1.25rem] text-destructive text-sm transition-opacity duration-200 ${registerMethods.formState.errors.root ? "opacity-100" : "opacity-0"}`}
       >
         {registerMethods.formState.errors.root?.message ?? " "}
       </p>
+
+      {/* 真实用户按钮：先校验再触发验证码 */}
       <Button
-        id="password-register-btn"
-        type={captcha.buttonType}
+        type="button"
         className="h-11 w-full"
         disabled={registerMethods.formState.isSubmitting}
+        onClick={async () => {
+          const valid = await registerMethods.trigger(["email", "password", "confirmPassword"])
+          if (!valid) return
+          captcha.trigger()
+        }}
       >
         {registerMethods.formState.isSubmitting ? "注册中..." : "注册"}
       </Button>
@@ -378,6 +372,9 @@ function RegisterPageInner() {
   const searchParams = useSearchParams()
   const initialEmail = searchParams.get("email") ?? undefined
   const { setTokens, setUser } = useAuthStore()
+  // 受控 Tab：切换时卸载另一个面板，确保同一时刻只有一个 useEsaCaptcha 实例，
+  // 避免 ESA SDK 多实例绑定冲突（keepMounted 会导致两个实例同时初始化互相覆盖）
+  const [activeTab, setActiveTab] = useState<"phone" | "email">("phone")
 
   async function handleSuccess(accessToken: string, refreshToken: string) {
     setTokens(accessToken, refreshToken)
@@ -393,7 +390,7 @@ function RegisterPageInner() {
         <p className="mt-1 text-muted-foreground text-sm">创建你的 {APP.name} 账号</p>
       </div>
 
-      <Tabs defaultValue="phone">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "phone" | "email")}>
         <TabsList className="w-full">
           <TabsTrigger value="phone" className="flex-1">
             手机
@@ -402,11 +399,14 @@ function RegisterPageInner() {
             邮箱
           </TabsTrigger>
         </TabsList>
+        {/* 条件渲染而非 keepMounted：确保同一时刻只有一个 useEsaCaptcha 实例 */}
         <TabsContent value="phone" className="pt-4">
-          <PhoneRegisterPanel onSuccess={handleSuccess} />
+          {activeTab === "phone" && <PhoneRegisterPanel onSuccess={handleSuccess} />}
         </TabsContent>
         <TabsContent value="email" className="pt-4">
-          <PasswordRegisterPanel onSuccess={handleSuccess} initialEmail={initialEmail} />
+          {activeTab === "email" && (
+            <PasswordRegisterPanel onSuccess={handleSuccess} initialEmail={initialEmail} />
+          )}
         </TabsContent>
       </Tabs>
 
