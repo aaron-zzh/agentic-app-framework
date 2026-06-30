@@ -80,6 +80,7 @@ services:
       - ./logs/service:/app/logs
       - service_heap:/tmp/heap-dumps
       - /root/aaf/data/files:/data/files
+      - ${AAF_HOME:-/root/aaf/home}:/root/.aaf
     ports:
       - "8080:8080"
     depends_on:

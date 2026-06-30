@@ -104,7 +104,7 @@ jobs:
           username: ${{ secrets.ECS_USER }}
           key: ${{ secrets.ECS_SSH_KEY }}
           script: |
-            mkdir -p /root/aaf/ssl /root/aaf/logs/nginx /root/aaf/logs/service
+            mkdir -p /root/aaf/ssl /root/aaf/logs/nginx /root/aaf/logs/service /root/aaf/home
             chmod 777 /root/aaf/logs/service /root/aaf/logs/nginx
             cd /root/aaf
 
