@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { backendApi } from "@/lib/api/rest/backend-client"
+import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 
 export interface GrowthTaskVO {
   id: number
@@ -39,7 +40,7 @@ export function useClaimGrowthTask() {
     mutationFn: (taskId: number) => backendApi.post<void>(`/user/growth/tasks/${taskId}/claim`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEY })
-      qc.invalidateQueries({ queryKey: ["credits", "balance"] })
+      invalidateCreditQueries(qc)
     }
   })
 }

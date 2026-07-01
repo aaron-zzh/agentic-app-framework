@@ -1,16 +1,17 @@
 package com.xuejiai.aaf.module.pay.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
 import com.xuejiai.aaf.framework.engine.settlement.channel.BrokerageBalanceChannelAdapter;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
+import com.xuejiai.aaf.module.pay.ErrorCodeConstants;
 import com.xuejiai.aaf.module.pay.domain.PayOrder;
 import com.xuejiai.aaf.module.pay.repository.PayOrderRepository;
 import com.xuejiai.aaf.module.pay.vo.PayNotifyDTO;
@@ -63,7 +64,7 @@ public class PayOrderService {
                                 dto.channelCode(),
                                 null));
 
-        if (result.success()) {
+        if (result.status() == PayStatus.PAID) {
             order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
             order.setChannelOrderNo(result.channelOrderNo());
             order.setSuccessTime(LocalDateTime.now());
@@ -82,22 +83,22 @@ public class PayOrderService {
         if (user == null || user.getContactId() == null) {
             order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
             payOrderRepository.save(order);
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "用户未关联联系人，无法使用余额支付");
+            throw exception(ErrorCodeConstants.PAY_ORDER_USER_NOT_LINKED_CONTACT);
         }
         // 校验并原子扣减余额
         var bu = brokerageUserRepository.findByContactId(user.getContactId()).orElse(null);
         if (bu == null || bu.getBalance() < dto.amount()) {
             order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
             payOrderRepository.save(order);
-            throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST,
-                    "分销余额不足，当前余额: " + (bu == null ? 0 : bu.getBalance()) + " 分");
+            throw exception(
+                    ErrorCodeConstants.PAY_ORDER_BALANCE_INSUFFICIENT,
+                    bu == null ? 0 : bu.getBalance());
         }
         int updated = brokerageUserRepository.reduceBalance(user.getContactId(), dto.amount());
         if (updated == 0) {
             order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
             payOrderRepository.save(order);
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "余额扣减失败，请重试");
+            throw exception(ErrorCodeConstants.PAY_ORDER_BALANCE_DEDUCT_FAILED);
         }
         // 标记支付成功
         order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
@@ -142,14 +143,13 @@ public class PayOrderService {
         var order =
                 payOrderRepository
                         .findByMerchantOrderNo(dto.merchantOrderNo())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "支付单不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.PAY_ORDER_NOT_FOUND));
 
         // M28：无签名的结构化回调仅用于 Mock 渠道（开发/测试）；真实渠道须经渠道验签的原始回调确认，
         // 防止伪造未签名通知将任意真实订单标记为已付。真实渠道带签名回调端点为后续支付改造项。
         if (!com.xuejiai.aaf.framework.engine.settlement.MockPayChannelAdapter.CHANNEL_CODE.equals(
                 order.getChannelCode())) {
-            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "真实渠道回调须经验签，禁止未签名通知");
+            throw exception(ErrorCodeConstants.PAY_ORDER_NOTIFY_UNSIGNED_FORBIDDEN);
         }
 
         if (!order.getStatus().equals(PayOrderStatusEnum.WAITING.getCode())) {
@@ -183,8 +183,7 @@ public class PayOrderService {
         var order =
                 payOrderRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "支付单不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.PAY_ORDER_NOT_FOUND));
         return toVO(order);
     }
 

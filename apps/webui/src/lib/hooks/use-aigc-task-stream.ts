@@ -12,6 +12,7 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef } from "react"
 import { buildSseUrl } from "@/lib/api/config"
+import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 
 export interface AigcTaskEvent {
   id: number
@@ -142,11 +143,11 @@ export function useAigcTaskStream(options: UseAigcTaskStreamOptions = {}) {
     onProgress: onProgress ?? (() => {}),
     // 任务完成/失败后积分余额已变更，统一在此刷新，调用方无需关心
     onCompleted: (t) => {
-      qc.invalidateQueries({ queryKey: ["credits", "groups"] })
+      invalidateCreditQueries(qc)
       onCompleted?.(t)
     },
     onFailed: (t) => {
-      qc.invalidateQueries({ queryKey: ["credits", "groups"] })
+      invalidateCreditQueries(qc)
       onFailed?.(t)
     },
     onReconnect

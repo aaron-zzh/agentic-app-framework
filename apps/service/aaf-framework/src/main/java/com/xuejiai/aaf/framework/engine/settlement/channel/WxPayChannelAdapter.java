@@ -93,17 +93,24 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
                 channelOrderNo = response.getPrepayId();
             }
             return new PayResult(
-                    true, request.outTradeNo(), channelOrderNo, response.toString(), codeUrl);
+                    true,
+                    // wx_native 等渠道下单成功仅代表二维码/跳转链接生成成功，用户尚未支付
+                    PayStatus.UNPAID,
+                    request.outTradeNo(),
+                    channelOrderNo,
+                    response.toString(),
+                    codeUrl);
         } catch (WxPayException e) {
             log.error("微信支付下单失败: outTradeNo={}, error={}", request.outTradeNo(), e.getMessage());
-            return new PayResult(false, request.outTradeNo(), null, e.getMessage());
+            return new PayResult(
+                    false, PayStatus.UNPAID, request.outTradeNo(), null, e.getMessage());
         }
     }
 
     @Override
     public PayResult withdraw(WithdrawRequest request) {
         // 微信提现（企业付款）暂不实现，返回失败
-        return new PayResult(false, request.outTradeNo(), null, "微信提现暂未实现");
+        return new PayResult(false, PayStatus.UNPAID, request.outTradeNo(), null, "微信提现暂未实现");
     }
 
     @Override
@@ -129,16 +136,20 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
     }
 
     @Override
-    public PayStatus queryStatus(String outTradeNo) {
+    public QueryResult queryStatus(String outTradeNo) {
         try {
             WxPayOrderQueryV3Result result = wxPayService.queryOrderV3(null, outTradeNo);
             return switch (result.getTradeState()) {
-                case "SUCCESS" -> PayStatus.PAID;
-                case "CLOSED", "PAYERROR" -> PayStatus.CLOSED;
-                case "REFUND" -> PayStatus.REFUNDED;
-                default -> PayStatus.UNPAID;
+                case "SUCCESS" -> new QueryResult(PayStatus.PAID, result.getTransactionId());
+                case "CLOSED", "PAYERROR" -> new QueryResult(PayStatus.CLOSED);
+                case "REFUND" -> new QueryResult(PayStatus.REFUNDED);
+                default -> new QueryResult(PayStatus.UNPAID);
             };
         } catch (WxPayException e) {
+            // 订单不存在是明确的业务判定（非网关调用异常），区分对待以便提前关闭死单
+            if ("ORDER_NOT_EXIST".equals(e.getErrCode())) {
+                return new QueryResult(PayStatus.NOT_FOUND);
+            }
             log.warn("微信查询订单状态失败: outTradeNo={}", outTradeNo);
             return null;
         }

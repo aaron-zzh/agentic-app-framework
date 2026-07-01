@@ -44,14 +44,13 @@ public class DefaultSettlementEngine implements SettlementEngine {
     }
 
     @Override
-    public PayStatus queryStatus(String outTradeNo) {
-        for (var adapter : adapterMap.values()) {
-            var status = adapter.queryStatus(outTradeNo);
-            if (status != null) {
-                return status;
-            }
-        }
-        return PayStatus.UNPAID;
+    public QueryResult queryStatus(String channelCode, String outTradeNo) {
+        return getAdapter(channelCode).queryStatus(outTradeNo);
+    }
+
+    @Override
+    public boolean isChannelSupported(String channelCode) {
+        return adapterMap.containsKey(channelCode);
     }
 
     private PayChannelAdapter getAdapter(String channelCode) {

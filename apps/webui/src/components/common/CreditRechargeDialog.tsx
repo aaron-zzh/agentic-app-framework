@@ -1,5 +1,7 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
+import Image from "next/image"
 import QRCode from "qrcode"
 import { useEffect, useRef, useState } from "react"
 import { LottieDialog } from "@/components/common/LottieDialog"
@@ -7,19 +9,27 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { backendClient } from "@/lib/api/rest/backend-client"
+import { backendApi } from "@/lib/api/rest/backend-client"
 import type { CreditPackageVO, PayOrderVO } from "@/lib/api/rest/billing/plans"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
 import { notify } from "@/lib/notification"
 import { useCreditPackages, usePurchaseCredits } from "@/lib/queries/use-billing-plans"
+import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 
 const IS_DEV = process.env.NODE_ENV === "development"
 
-type Channel = "wx_native" | "alipay_qr" | "MOCK"
+type Channel = "wx_native" | "alipay_qr" | "MOCK" | "contact_service"
 
-const CHANNELS: { value: Channel; label: string; icon: string; devOnly?: boolean }[] = [
-  { value: "wx_native", label: "微信支付", icon: "💚" },
-  { value: "alipay_qr", label: "支付宝", icon: "💙" },
+const CHANNELS: {
+  value: Channel
+  label: string
+  icon?: string
+  iconUrl?: string
+  devOnly?: boolean
+}[] = [
+  { value: "wx_native", label: "微信支付", iconUrl: "/assets/brand/wechatpay.png" },
+  { value: "alipay_qr", label: "支付宝", iconUrl: "/assets/brand/alipay.png" },
+  { value: "contact_service", label: "联系客服", icon: "💬" },
   ...(IS_DEV ? [{ value: "MOCK" as Channel, label: "模拟（Dev）", icon: "🧪", devOnly: true }] : [])
 ]
 
@@ -99,11 +109,11 @@ function QrStep({
     // 每2秒轮询订单状态
     pollRef.current = setInterval(async () => {
       try {
-        const res = await backendClient.get<PayOrderVO>(restEndpoints.pay.order(order.id))
-        if (res.data.status === 10) {
+        const res = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(order.id))
+        if (res.status === 10) {
           clearInterval(pollRef.current ?? undefined)
           onSuccess()
-        } else if (res.data.status === 30) {
+        } else if (res.status === 30) {
           clearInterval(pollRef.current ?? undefined)
           notify.error("订单已关闭，请重新发起支付")
           onCancel()
@@ -136,8 +146,9 @@ function QrStep({
 }
 
 export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
+  const qc = useQueryClient()
   const { data: packages, isLoading } = useCreditPackages()
-  const { mutate: _purchase, isPending } = usePurchaseCredits()
+  const { mutate: purchase, isPending } = usePurchaseCredits()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "wx_native")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
@@ -150,30 +161,33 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
       notify.error("请选择充值套餐")
       return
     }
-    // 临时：在线支付开放前，引导联系客服
-    setContactOpen(true)
-    // TODO: 在线支付开放后取消注释
-    // purchase(
-    //   { packageId: selectedId, channelCode: channel },
-    //   {
-    //     onSuccess: (data) => {
-    //       if (data.status === 10) {
-    //         notify.success("充值成功！")
-    //         onSuccess?.()
-    //         onOpenChange(false)
-    //       } else if (data.codeUrl) {
-    //         setQrOrder(data)
-    //       } else {
-    //         notify.error("未获取到支付二维码，请检查渠道配置")
-    //       }
-    //     },
-    //     onError: () => notify.error("购买失败，请重试")
-    //   }
-    // )
+    // 联系客服渠道，直接弹窗提示
+    if (channel === "contact_service") {
+      setContactOpen(true)
+      return
+    }
+    purchase(
+      { packageId: selectedId, channelCode: channel },
+      {
+        onSuccess: (data) => {
+          if (data.status === 10) {
+            notify.success("充值成功！")
+            onSuccess?.()
+            onOpenChange(false)
+          } else if (data.codeUrl) {
+            setQrOrder(data)
+          } else {
+            notify.error("未获取到支付二维码，请检查渠道配置")
+          }
+        },
+        onError: () => notify.error("购买失败，请重试")
+      }
+    )
   }
 
   const handleQrSuccess = () => {
     notify.success("支付成功，积分已到账！")
+    invalidateCreditQueries(qc)
     onSuccess?.()
     onOpenChange(false)
     setQrOrder(null)
@@ -242,7 +256,18 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
                           c.devOnly ? "text-amber-600" : ""
                         ].join(" ")}
                       >
-                        {c.icon} {c.label}
+                        {c.iconUrl ? (
+                          <Image
+                            src={c.iconUrl}
+                            alt=""
+                            width={16}
+                            height={16}
+                            className="h-4 w-4"
+                          />
+                        ) : (
+                          c.icon
+                        )}{" "}
+                        {c.label}
                       </button>
                     ))}
                   </div>
@@ -277,7 +302,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
         icon="warning"
         loop
         title="联系客服充值"
-        description="在线支付即将开放，请扫码联系客服完成充值，客服将在 5 分钟内为您处理。"
+        description="请扫码联系客服完成充值，客服将在 5 分钟内为您处理。"
         confirmText="好的，我知道了"
       />
     </>

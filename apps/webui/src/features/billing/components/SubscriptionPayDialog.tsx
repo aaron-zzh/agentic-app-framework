@@ -1,23 +1,34 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
+import Image from "next/image"
 import QRCode from "qrcode"
 import { useEffect, useRef, useState } from "react"
+import { LottieDialog } from "@/components/common/LottieDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { backendClient } from "@/lib/api/rest/backend-client"
+import { backendApi } from "@/lib/api/rest/backend-client"
 import type { PayOrderVO } from "@/lib/api/rest/billing/plans"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
 import { notify } from "@/lib/notification"
 import { useSubscribe } from "@/lib/queries/use-billing-plans"
+import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 
 const IS_DEV = process.env.NODE_ENV === "development"
 
-type Channel = "wx_native" | "alipay_qr" | "MOCK"
+type Channel = "wx_native" | "alipay_qr" | "MOCK" | "contact_service"
 
-const CHANNELS: { value: Channel; label: string; icon: string; devOnly?: boolean }[] = [
-  { value: "wx_native", label: "微信支付", icon: "💚" },
-  { value: "alipay_qr", label: "支付宝", icon: "💙" },
+const CHANNELS: {
+  value: Channel
+  label: string
+  icon?: string
+  iconUrl?: string
+  devOnly?: boolean
+}[] = [
+  { value: "wx_native", label: "微信支付", iconUrl: "/assets/brand/wechatpay.png" },
+  { value: "alipay_qr", label: "支付宝", iconUrl: "/assets/brand/alipay.png" },
+  { value: "contact_service", label: "联系客服", icon: "💬" },
   ...(IS_DEV ? [{ value: "MOCK" as Channel, label: "模拟（Dev）", icon: "🧪", devOnly: true }] : [])
 ]
 
@@ -42,11 +53,11 @@ function QrStep({
     }
     pollRef.current = setInterval(async () => {
       try {
-        const res = await backendClient.get<PayOrderVO>(restEndpoints.pay.order(order.id))
-        if (res.data.status === 10) {
+        const res = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(order.id))
+        if (res.status === 10) {
           clearInterval(pollRef.current ?? undefined)
           onSuccess()
-        } else if (res.data.status === 30) {
+        } else if (res.status === 30) {
           clearInterval(pollRef.current ?? undefined)
           notify.error("订单已关闭，请重新发起支付")
           onCancel()
@@ -98,9 +109,11 @@ export function SubscriptionPayDialog({
   billingCycle,
   onSuccess
 }: SubscriptionPayDialogProps) {
+  const qc = useQueryClient()
   const { mutate: subscribe, isPending } = useSubscribe()
   const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "wx_native")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
+  const [contactOpen, setContactOpen] = useState(false)
 
   // 弹窗关闭时重置状态
   const handleOpenChange = (v: boolean) => {
@@ -109,6 +122,11 @@ export function SubscriptionPayDialog({
   }
 
   const handlePay = () => {
+    // 联系客服渠道，直接弹窗提示
+    if (channel === "contact_service") {
+      setContactOpen(true)
+      return
+    }
     subscribe(
       { planCode, billingCycle, channelCode: channel },
       {
@@ -136,66 +154,86 @@ export function SubscriptionPayDialog({
 
   const handleQrSuccess = () => {
     notify.success("支付成功，订阅已激活！")
+    invalidateCreditQueries(qc)
+    qc.invalidateQueries({ queryKey: ["billing", "subscription", "current"] })
+    qc.invalidateQueries({ queryKey: ["billing", "entitlement", "quotas"] })
     onSuccess?.()
     onOpenChange(false)
     setQrOrder(null)
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[400px] max-w-none!">
-        <DialogHeader>
-          <DialogTitle>订阅 {planName}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="w-[400px] max-w-none!">
+          <DialogHeader>
+            <DialogTitle>订阅 {planName}</DialogTitle>
+          </DialogHeader>
 
-        {qrOrder ? (
-          <QrStep
-            order={qrOrder}
-            channel={channel}
-            onSuccess={handleQrSuccess}
-            onCancel={() => setQrOrder(null)}
-          />
-        ) : (
-          <div className="space-y-6 py-2">
-            {/* 费用摘要 */}
-            <div className="rounded-xl border bg-muted/30 px-5 py-4 text-center">
-              <p className="mt-1 font-bold text-3xl">
-                ¥{(price / 100).toFixed(0)}
-                <span className="ml-1 font-normal text-base text-muted-foreground">
-                  /{billingCycle === "yearly" ? "年" : "月"}
-                </span>
-              </p>
-            </div>
-
-            {/* 支付方式 */}
-            <div>
-              <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
-              <div className="flex gap-2">
-                {CHANNELS.map((c) => (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setChannel(c.value)}
-                    className={[
-                      "flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm transition-all",
-                      channel === c.value
-                        ? "border-primary bg-primary/5 font-medium text-primary"
-                        : "border-border hover:border-primary/40",
-                      c.devOnly ? "text-amber-600" : ""
-                    ].join(" ")}
-                  >
-                    {c.icon} {c.label}
-                  </button>
-                ))}
+          {qrOrder ? (
+            <QrStep
+              order={qrOrder}
+              channel={channel}
+              onSuccess={handleQrSuccess}
+              onCancel={() => setQrOrder(null)}
+            />
+          ) : (
+            <div className="space-y-6 py-2">
+              {/* 费用摘要 */}
+              <div className="rounded-xl border bg-muted/30 px-5 py-4 text-center">
+                <p className="mt-1 font-bold text-3xl">
+                  ¥{(price / 100).toFixed(0)}
+                  <span className="ml-1 font-normal text-base text-muted-foreground">
+                    /{billingCycle === "yearly" ? "年" : "月"}
+                  </span>
+                </p>
               </div>
-            </div>
 
-            <Button size="lg" className="w-full" disabled={isPending} onClick={handlePay}>
-              {isPending ? "处理中..." : `确认支付 ¥${(price / 100).toFixed(0)}`}
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+              {/* 支付方式 */}
+              <div>
+                <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
+                <div className="flex gap-2">
+                  {CHANNELS.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setChannel(c.value)}
+                      className={[
+                        "flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm transition-all",
+                        channel === c.value
+                          ? "border-primary bg-primary/5 font-medium text-primary"
+                          : "border-border hover:border-primary/40",
+                        c.devOnly ? "text-amber-600" : ""
+                      ].join(" ")}
+                    >
+                      {c.iconUrl ? (
+                        <Image src={c.iconUrl} alt="" width={16} height={16} className="h-4 w-4" />
+                      ) : (
+                        c.icon
+                      )}{" "}
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button size="lg" className="w-full" disabled={isPending} onClick={handlePay}>
+                {isPending ? "处理中..." : `确认支付 ¥${(price / 100).toFixed(0)}`}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <LottieDialog
+        open={contactOpen}
+        onOpenChange={setContactOpen}
+        icon="warning"
+        loop
+        title="联系客服充值"
+        description="在线支付即将开放，请扫码联系客服完成充值，客服将在 5 分钟内为您处理。"
+        confirmText="好的，我知道了"
+      />
+    </>
   )
 }

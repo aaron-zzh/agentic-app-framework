@@ -74,7 +74,7 @@
 		<!-- 工具 -->
 		<!-- 微信 SDK（WxJava，含公众号/小程序/支付） -->
 		<weixin-java.version>4.8.3-20260605.182943</weixin-java.version>
-		<alipay-sdk-java.version>4.39.218.ALL</alipay-sdk-java.version>
+		<alipay-sdk-java.version>4.40.865.ALL</alipay-sdk-java.version>
 		<!-- 操作日志 diff -->
 		<java-object-diff.version>0.95</java-object-diff.version>
 		<!-- 内部模块 -->

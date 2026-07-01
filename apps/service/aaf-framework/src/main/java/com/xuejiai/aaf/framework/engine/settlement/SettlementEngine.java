@@ -17,5 +17,8 @@ public interface SettlementEngine {
     RefundResult refund(RefundRequest request);
 
     /** 查询支付状态 */
-    PayStatus queryStatus(String outTradeNo);
+    QueryResult queryStatus(String channelCode, String outTradeNo);
+
+    /** 判断渠道是否受支持，用于下单前校验，避免创建业务订单后才发现渠道不支持 */
+    boolean isChannelSupported(String channelCode);
 }

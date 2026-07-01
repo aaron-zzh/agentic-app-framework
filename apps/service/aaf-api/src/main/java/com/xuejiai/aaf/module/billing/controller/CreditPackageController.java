@@ -11,6 +11,7 @@ import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.engine.settlement.SettlementEngine;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.billing.repository.CreditPackageRepository;
 import com.xuejiai.aaf.module.billing.vo.CreditPackageVO;
@@ -38,6 +39,7 @@ public class CreditPackageController {
     private final BizOrderService bizOrderService;
     private final PayOrderService payOrderService;
     private final PayNotifyService payNotifyService;
+    private final SettlementEngine settlementEngine;
     private final OperatorContext operatorContext;
 
     @Operation(summary = "获取积分充值套餐列表")
@@ -81,6 +83,9 @@ public class CreditPackageController {
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "套餐不存在"));
 
         String channelCode = body.getOrDefault("channelCode", "MOCK");
+        if (!settlementEngine.isChannelSupported(channelCode)) {
+            return Result.error(400, "不支持的支付渠道: " + channelCode);
+        }
 
         // 创建业务订单，通过 BizOrderItem 携带套餐 ID 供 handler 使用
         var bizOrder =

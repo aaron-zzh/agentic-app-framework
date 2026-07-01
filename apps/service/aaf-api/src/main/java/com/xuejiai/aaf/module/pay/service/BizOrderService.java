@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.pay.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -9,11 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.BizOrderStatusEnum;
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
+import com.xuejiai.aaf.module.pay.ErrorCodeConstants;
 import com.xuejiai.aaf.module.pay.domain.BizOrder;
 import com.xuejiai.aaf.module.pay.domain.BizOrderItem;
 import com.xuejiai.aaf.module.pay.repository.BizOrderItemRepository;
@@ -107,7 +108,7 @@ public class BizOrderService {
     private BizOrder getOrder(Long id) {
         return bizOrderRepository
                 .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "业务订单不存在"));
+                .orElseThrow(() -> exception(ErrorCodeConstants.BIZ_ORDER_NOT_FOUND));
     }
 
     private String generateOrderNo() {

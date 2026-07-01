@@ -51,6 +51,7 @@ import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { useAiSkills } from "@/lib/queries/use-ai-skills"
+import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 import { useGenerateImage, useGenerateVideo } from "@/lib/queries/use-image-generation"
 import { cn } from "@/lib/utils"
 import { ImageUploadChip } from "./ImageUploadChip"
@@ -166,7 +167,7 @@ export function HomeChatLauncher() {
       (task: AigcTaskEvent) => {
         setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
         queryClient.invalidateQueries({ queryKey: ["media-assets"] })
-        queryClient.invalidateQueries({ queryKey: ["credits", "balance"] })
+        invalidateCreditQueries(queryClient)
       },
       [queryClient]
     ),
@@ -284,7 +285,6 @@ export function HomeChatLauncher() {
         setRefImage({ url: result.url, previewSrc, name: file.name })
         setUploadingChip(null)
       } catch {
-        toast.error("图片上传失败")
         URL.revokeObjectURL(previewSrc)
         setUploadingChip(null)
       }

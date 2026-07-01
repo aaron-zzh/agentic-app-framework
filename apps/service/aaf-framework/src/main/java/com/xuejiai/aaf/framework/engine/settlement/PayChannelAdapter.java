@@ -24,7 +24,7 @@ public interface PayChannelAdapter {
     RefundResult refund(RefundRequest request);
 
     /** 查询支付状态 */
-    PayStatus queryStatus(String outTradeNo);
+    QueryResult queryStatus(String outTradeNo);
 
     /** 验证渠道异步通知签名（M28）。默认 fail-closed 拒绝；具体渠道适配器须覆盖实现真实验签。 */
     default boolean verifyNotify(java.util.Map<String, String> params) {

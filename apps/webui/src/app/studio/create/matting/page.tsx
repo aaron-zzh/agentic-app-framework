@@ -174,7 +174,6 @@ export default function MattingPage() {
       const result = await upload(file)
       setImageUrl(result.url)
     } catch {
-      notify.error("图片上传失败，请重试")
       setPreviewUrl("")
     }
   }

@@ -35,12 +35,8 @@ export default function OcrToolPage() {
     if (!file) return
     setPreviewSrc(URL.createObjectURL(file))
     setOcrResult(null)
-    try {
-      const uploaded = await upload(file)
-      setImageUrl(uploaded.url)
-    } catch {
-      notify.error("图片上传失败")
-    }
+    const uploaded = await upload(file)
+    setImageUrl(uploaded.url)
   }
 
   const handleRecognize = async () => {

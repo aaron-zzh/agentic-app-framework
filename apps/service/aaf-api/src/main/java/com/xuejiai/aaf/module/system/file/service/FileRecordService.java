@@ -60,7 +60,11 @@ public class FileRecordService {
     private void checkStorageQuota(Long userId, long newFileSize) {
         var quota = entitlementQuotaRepository.findByUserIdAndEntCode(userId, "storage");
         if (quota.isEmpty()) return; // 未配置配额则不限制
-        long quotaBytes = quota.get().getRemain() * GB;
+
+        long remainGB = quota.get().getRemain();
+        if (remainGB == -1) return; // -1 表示不限制
+
+        long quotaBytes = remainGB * GB;
         long used = fileRecordRepository.sumSizeByUploaderId(userId);
         if (used + newFileSize > quotaBytes) {
             throw new QuotaExceededException("storage", 1, 0);

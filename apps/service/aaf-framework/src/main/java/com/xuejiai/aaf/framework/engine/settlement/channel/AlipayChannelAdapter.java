@@ -17,6 +17,7 @@ import com.alipay.api.response.*;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
+import com.xuejiai.aaf.framework.engine.settlement.QueryResult;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -72,16 +73,22 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
                     };
             // alipay_qr 的 body 就是 qr_code URL，放进 codeUrl 透传给前端
             String codeUrl = "alipay_qr".equals(request.channelCode()) ? body : null;
-            return new PayResult(true, request.outTradeNo(), null, body, codeUrl);
+            log.info(
+                    "支付宝下单成功: outTradeNo={}, channelCode={}",
+                    request.outTradeNo(),
+                    request.channelCode());
+            // 四种支付宝渠道均为跳转/扫码类，下单成功≠已支付，须等待异步回调或轮询确认
+            return new PayResult(true, PayStatus.UNPAID, request.outTradeNo(), null, body, codeUrl);
         } catch (AlipayApiException e) {
             log.error("支付宝下单失败: outTradeNo={}, error={}", request.outTradeNo(), e.getMessage());
-            return new PayResult(false, request.outTradeNo(), null, e.getMessage());
+            return new PayResult(
+                    false, PayStatus.UNPAID, request.outTradeNo(), null, e.getMessage());
         }
     }
 
     @Override
     public PayResult withdraw(WithdrawRequest request) {
-        return new PayResult(false, request.outTradeNo(), null, "支付宝提现暂未实现");
+        return new PayResult(false, PayStatus.UNPAID, request.outTradeNo(), null, "支付宝提现暂未实现");
     }
 
     @Override
@@ -107,7 +114,7 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
     }
 
     @Override
-    public PayStatus queryStatus(String outTradeNo) {
+    public QueryResult queryStatus(String outTradeNo) {
         try {
             var model = new AlipayTradeQueryModel();
             model.setOutTradeNo(outTradeNo);
@@ -115,12 +122,17 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
             req.setBizModel(model);
             AlipayTradeQueryResponse response = alipayClient.execute(req);
             if (!response.isSuccess()) {
+                // 交易不存在是明确的业务判定（非网关调用异常），区分对待以便提前关闭死单
+                if ("ACQ.TRADE_NOT_EXIST".equals(response.getSubCode())) {
+                    return new QueryResult(PayStatus.NOT_FOUND);
+                }
                 return null;
             }
             return switch (response.getTradeStatus()) {
-                case "TRADE_SUCCESS", "TRADE_FINISHED" -> PayStatus.PAID;
-                case "TRADE_CLOSED" -> PayStatus.CLOSED;
-                default -> PayStatus.UNPAID;
+                case "TRADE_SUCCESS", "TRADE_FINISHED" ->
+                        new QueryResult(PayStatus.PAID, response.getTradeNo());
+                case "TRADE_CLOSED" -> new QueryResult(PayStatus.CLOSED);
+                default -> new QueryResult(PayStatus.UNPAID);
             };
         } catch (AlipayApiException e) {
             log.warn("支付宝查询订单状态失败: outTradeNo={}", outTradeNo);
@@ -169,7 +181,9 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         req.setBizModel(model);
         req.setNotifyUrl(properties.getNotifyUrl());
         req.setReturnUrl(properties.getReturnUrl());
-        return alipayClient.pageExecute(req).getBody();
+        var response = alipayClient.pageExecute(req);
+        // 页面跳转类接口本身不返回业务成功/失败（表单会直接跳转到支付宝页面），无需校验 isSuccess
+        return response.getBody();
     }
 
     private String chargeWapPay(ChargeRequest request) throws AlipayApiException {
@@ -182,7 +196,8 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         req.setBizModel(model);
         req.setNotifyUrl(properties.getNotifyUrl());
         req.setReturnUrl(properties.getReturnUrl());
-        return alipayClient.pageExecute(req).getBody();
+        var response = alipayClient.pageExecute(req);
+        return response.getBody();
     }
 
     private String chargeAppPay(ChargeRequest request) throws AlipayApiException {
@@ -207,6 +222,16 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         req.setBizModel(model);
         req.setNotifyUrl(properties.getNotifyUrl());
         AlipayTradePrecreateResponse response = alipayClient.execute(req);
+        if (!response.isSuccess() || response.getQrCode() == null) {
+            log.error(
+                    "支付宝预下单业务失败: outTradeNo={}, code={}, subCode={}, subMsg={}",
+                    request.outTradeNo(),
+                    response.getCode(),
+                    response.getSubCode(),
+                    response.getSubMsg());
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "支付宝预下单失败: " + response.getSubMsg());
+        }
         return response.getQrCode();
     }
 

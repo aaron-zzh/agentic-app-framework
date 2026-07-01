@@ -24,7 +24,9 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     public static final String CHANNEL_CODE = "MOCK";
 
     /** 记录已支付订单（模拟对账用） */
-    private final ConcurrentMap<String, Long> paidOrders = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, PaidRecord> paidOrders = new ConcurrentHashMap<>();
+
+    private record PaidRecord(String channelOrderNo, long amount) {}
 
     @Override
     public String channelCode() {
@@ -36,8 +38,8 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
         log.info("模拟支付: outTradeNo={}, amount={}", request.outTradeNo(), request.amount());
         var channelOrderNo =
                 "MOCK_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        paidOrders.put(request.outTradeNo(), request.amount());
-        return new PayResult(true, request.outTradeNo(), channelOrderNo, "模拟支付成功");
+        paidOrders.put(request.outTradeNo(), new PaidRecord(channelOrderNo, request.amount()));
+        return new PayResult(true, PayStatus.PAID, request.outTradeNo(), channelOrderNo, "模拟支付成功");
     }
 
     @Override
@@ -45,7 +47,7 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
         log.info("模拟提现: outTradeNo={}, amount={}", request.outTradeNo(), request.amount());
         var channelOrderNo =
                 "MOCK_W_" + UUID.randomUUID().toString().replace("-", "").substring(0, 14);
-        return new PayResult(true, request.outTradeNo(), channelOrderNo, "模拟提现成功");
+        return new PayResult(true, PayStatus.PAID, request.outTradeNo(), channelOrderNo, "模拟提现成功");
     }
 
     @Override
@@ -55,15 +57,16 @@ public class MockPayChannelAdapter implements PayChannelAdapter {
     }
 
     @Override
-    public PayStatus queryStatus(String outTradeNo) {
-        return paidOrders.containsKey(outTradeNo) ? PayStatus.PAID : null;
+    public QueryResult queryStatus(String outTradeNo) {
+        var record = paidOrders.get(outTradeNo);
+        return record != null ? new QueryResult(PayStatus.PAID, record.channelOrderNo()) : null;
     }
 
     @Override
     public List<BillItem> downloadBill(LocalDate date) {
         // 返回内存中记录的所有已支付订单作为模拟账单
         return paidOrders.entrySet().stream()
-                .map(e -> new BillItem(e.getKey(), e.getValue(), PayStatus.PAID))
+                .map(e -> new BillItem(e.getKey(), e.getValue().amount(), PayStatus.PAID))
                 .toList();
     }
 }

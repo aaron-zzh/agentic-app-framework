@@ -14,6 +14,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
+import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.protection.RateLimitExceededException;
 import com.xuejiai.aaf.framework.security.license.LicenseRequiredException;
@@ -85,6 +86,18 @@ public class GlobalExceptionHandler {
                 e.getOverdraft(),
                 shortBy);
         return Result.error(402, "积分余额不足，请充值后继续使用");
+    }
+
+    /** 权益配额超限 */
+    @ExceptionHandler(QuotaExceededException.class)
+    @ResponseStatus(HttpStatus.PAYMENT_REQUIRED)
+    public Result<?> handleQuotaExceeded(QuotaExceededException e) {
+        log.info(
+                "权益配额不足: code={}, required={}, remain={}",
+                e.getEntitlementCode(),
+                e.getRequired(),
+                e.getRemain());
+        return Result.error(402, "存储空间已满，请升级套餐或清理文件");
     }
 
     /** 业务异常——根据业务码动态映射 HTTP 状态码 */

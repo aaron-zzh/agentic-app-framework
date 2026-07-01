@@ -92,7 +92,9 @@ export function UserAvatarPopover() {
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate font-bold text-foreground text-xl">{displayName || "User"}</span>
+                <span className="truncate font-bold text-foreground text-xl">
+                  {displayName || "User"}
+                </span>
                 <span className="shrink-0 rounded-full border px-2 py-0.5 text-muted-foreground text-xs">
                   {planName}
                 </span>

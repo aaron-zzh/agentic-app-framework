@@ -6,6 +6,7 @@ import com.xuejiai.aaf.framework.engine.settlement.ChargeRequest;
 import com.xuejiai.aaf.framework.engine.settlement.PayChannelAdapter;
 import com.xuejiai.aaf.framework.engine.settlement.PayResult;
 import com.xuejiai.aaf.framework.engine.settlement.PayStatus;
+import com.xuejiai.aaf.framework.engine.settlement.QueryResult;
 import com.xuejiai.aaf.framework.engine.settlement.RefundRequest;
 import com.xuejiai.aaf.framework.engine.settlement.RefundResult;
 import com.xuejiai.aaf.framework.engine.settlement.WithdrawRequest;
@@ -33,12 +34,17 @@ public class BrokerageBalanceChannelAdapter implements PayChannelAdapter {
     public PayResult charge(ChargeRequest request) {
         // 余额已在 PayOrderService 层扣减，此处直接返回成功
         log.info("余额支付完成: outTradeNo={}, amount={}", request.outTradeNo(), request.amount());
-        return new PayResult(true, request.outTradeNo(), "BAL_" + request.outTradeNo(), "余额支付成功");
+        return new PayResult(
+                true,
+                PayStatus.PAID,
+                request.outTradeNo(),
+                "BAL_" + request.outTradeNo(),
+                "余额支付成功");
     }
 
     @Override
     public PayResult withdraw(WithdrawRequest request) {
-        return new PayResult(false, request.outTradeNo(), null, "余额渠道不支持提现");
+        return new PayResult(false, PayStatus.UNPAID, request.outTradeNo(), null, "余额渠道不支持提现");
     }
 
     @Override
@@ -49,7 +55,7 @@ public class BrokerageBalanceChannelAdapter implements PayChannelAdapter {
     }
 
     @Override
-    public PayStatus queryStatus(String outTradeNo) {
+    public QueryResult queryStatus(String outTradeNo) {
         // 余额支付同步完成，无需查询
         return null;
     }

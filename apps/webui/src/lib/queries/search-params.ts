@@ -5,7 +5,7 @@
  * 用法：
  * ```tsx
  * const [params, setParams] = useEntitySearchParams()
- * // params.view / params.page / params.sort / params.search
+ * params.view / params.page / params.sort / params.search
  * ```
  */
 

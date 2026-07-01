@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.pay.controller;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
@@ -79,7 +80,9 @@ public class CreditController {
     @Operation(summary = "查询积分流水")
     @GetMapping("/transactions")
     public Result<PageResult<CreditTransactionVO>> getTransactions(
-            @RequestParam(required = false) Long userId, @PageableDefault Pageable pageable) {
+            @RequestParam(required = false) Long userId,
+            @PageableDefault(sort = "createTime", direction = Sort.Direction.DESC)
+                    Pageable pageable) {
         var page = creditService.getTransactions(ownerId(userId), pageable);
         var list =
                 page.getContent().stream()

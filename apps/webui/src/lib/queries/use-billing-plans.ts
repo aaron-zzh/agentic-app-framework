@@ -1,5 +1,6 @@
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { billingPlansApi } from "@/lib/api/rest/billing/plans"
+import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 export function useSubscriptionPlans() {
@@ -33,6 +34,7 @@ export function useCreditPackages() {
 }
 
 export function useSubscribe() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: ({
       planCode,
@@ -42,14 +44,21 @@ export function useSubscribe() {
       planCode: string
       billingCycle: "monthly" | "yearly"
       channelCode: string
-    }) => billingPlansApi.subscribe(planCode, billingCycle, channelCode)
+    }) => billingPlansApi.subscribe(planCode, billingCycle, channelCode),
+    onSuccess: () => {
+      invalidateCreditQueries(qc)
+      qc.invalidateQueries({ queryKey: ["billing", "subscription", "current"] })
+      qc.invalidateQueries({ queryKey: ["billing", "entitlement", "quotas"] })
+    }
   })
 }
 
 export function usePurchaseCredits() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ packageId, channelCode }: { packageId: string; channelCode?: string }) =>
-      billingPlansApi.purchaseCredits(packageId, channelCode)
+      billingPlansApi.purchaseCredits(packageId, channelCode),
+    onSuccess: () => invalidateCreditQueries(qc)
   })
 }
 

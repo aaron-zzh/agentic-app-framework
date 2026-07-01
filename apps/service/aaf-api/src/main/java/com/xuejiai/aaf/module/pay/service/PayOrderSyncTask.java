@@ -46,10 +46,16 @@ public class PayOrderSyncTask {
     }
 
     private void syncOrder(PayOrder order) {
-        var status = settlementEngine.queryStatus(order.getMerchantOrderNo());
+        var result =
+                settlementEngine.queryStatus(order.getChannelCode(), order.getMerchantOrderNo());
+        if (result == null) return;
+        var status = result.status();
         if (status == PayStatus.PAID) {
             order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
             order.setSuccessTime(LocalDateTime.now());
+            if (result.channelOrderNo() != null) {
+                order.setChannelOrderNo(result.channelOrderNo());
+            }
             payOrderRepository.save(order);
             payNotifyService.onPaySuccess(order.getId()); // 统一路由到对应 handler
             log.info("轮询发现支付成功: merchantOrderNo={}", order.getMerchantOrderNo());
@@ -57,6 +63,12 @@ public class PayOrderSyncTask {
             order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
             payOrderRepository.save(order);
             log.info("轮询发现支付关闭: merchantOrderNo={}", order.getMerchantOrderNo());
+        } else if (status == PayStatus.NOT_FOUND
+                && order.getCreateTime().isBefore(LocalDateTime.now().minusMinutes(2))) {
+            // 下单 2 分钟后渠道侧仍查无此交易，基本可判定为下单失败的死单，无需等到 30 分钟过期
+            order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
+            payOrderRepository.save(order);
+            log.info("轮询发现交易不存在，提前关闭死单: merchantOrderNo={}", order.getMerchantOrderNo());
         }
     }
 }

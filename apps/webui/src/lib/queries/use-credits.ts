@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { creditsApi } from "@/lib/api/rest/billing/credits"
 import { useAuthStore } from "@/lib/store/auth-store"
 
@@ -11,6 +11,16 @@ const BALANCE_KEY = ["credits", "balance"]
 const TRANSACTIONS_KEY = ["credits", "transactions"]
 const TOKEN_RULES_KEY = ["credits", "token-rules"]
 const GROUPS_KEY = ["credits", "groups"]
+
+/**
+ * 积分变更后统一失效查询：余额 + 流水 + 分组明细。
+ * 任何会导致积分增减的操作（充值、订阅、AI 调用、任务奖励等）成功后调用。
+ */
+export function invalidateCreditQueries(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: BALANCE_KEY })
+  qc.invalidateQueries({ queryKey: TRANSACTIONS_KEY })
+  qc.invalidateQueries({ queryKey: GROUPS_KEY })
+}
 
 /** 查询积分余额 */
 export function useCreditBalance() {
@@ -52,10 +62,6 @@ export function useCreateRecharge() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (amount: number) => creditsApi.createRecharge(amount),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: BALANCE_KEY })
-      qc.invalidateQueries({ queryKey: TRANSACTIONS_KEY })
-      qc.invalidateQueries({ queryKey: GROUPS_KEY })
-    }
+    onSuccess: () => invalidateCreditQueries(qc)
   })
 }

@@ -47,6 +47,16 @@ aaf:
     # 开发环境启用模拟支付渠道；生产默认关闭（MockPayChannelAdapter @ConditionalOnProperty）
     mock:
       enabled: true
+    # 支付宝支付配置（开发环境可使用沙箱环境测试）
+    alipay:
+      enabled: true
+      # 沙箱环境网关（正式环境使用 https://openapi.alipay.com/gateway.do）
+      server-url: ${ALIPAY_SERVER_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+      app-id: ${ALIPAY_APP_ID:9021000165620830}
+      private-key: ${ALIPAY_PRIVATE_KEY:}
+      alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
+      notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8080/api/pay/order/notify/alipay}
+      return-url: ${ALIPAY_RETURN_URL:http://localhost:3000/billing/success}
   security:
     mock-enable: true # ⚠️ 仅 dev：mock 认证，生产必须为 false
   # ── 示例模块（按需开启，需配置 DASHSCOPE_API_KEY）────────────────

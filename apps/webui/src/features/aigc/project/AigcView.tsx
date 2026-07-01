@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useAigcProject } from "@/lib/queries/use-aigc-projects"
+import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 // import { useChatterLayoutPreference } from "@/features/chatter"
 import { CopywritingPanel } from "../copywriting/CopywritingPanel"
 import { StoryboardPanel } from "../copywriting/StoryboardPanel"
@@ -94,7 +95,7 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
         removePendingTask(task.id)
         queryClient.invalidateQueries({ queryKey: ["media-assets"] })
         queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-        queryClient.invalidateQueries({ queryKey: ["credits", "balance"] })
+        invalidateCreditQueries(queryClient)
       }, 1500)
     },
     onFailed: (task) => {
@@ -108,7 +109,7 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
       // SSE 断连重连后，补查断连期间可能丢失的任务结果
       queryClient.invalidateQueries({ queryKey: ["media-assets"] })
       queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-      queryClient.invalidateQueries({ queryKey: ["credits", "balance"] })
+      invalidateCreditQueries(queryClient)
     }
   })
 

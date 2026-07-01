@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { backendClient } from "@/lib/api/rest/backend-client"
+import { backendApi } from "@/lib/api/rest/backend-client"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
 
 // ==================== 类型 ====================
@@ -67,12 +67,12 @@ export default function QrPayPage() {
       stopPoll()
       pollRef.current = setInterval(async () => {
         try {
-          const res = await backendClient.get<PayOrderVO>(restEndpoints.pay.order(orderId))
-          if (res.data.status === 10) {
+          const res = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(orderId))
+          if (res.status === 10) {
             stopPoll()
-            setOrder(res.data)
+            setOrder(res)
             setPhase("success")
-          } else if (res.data.status === 30) {
+          } else if (res.status === 30) {
             stopPoll()
             setPhase("error")
             setError("订单已关闭")
@@ -90,21 +90,21 @@ export default function QrPayPage() {
     setError("")
     try {
       const orderNo = `QR${Date.now()}`
-      const res = await backendClient.post<PayOrderVO>(restEndpoints.pay.orders, {
+      const res = await backendApi.post<PayOrderVO>(restEndpoints.pay.orders, {
         merchantOrderNo: orderNo,
         subject: "扫码支付示例",
         amount,
         channelCode: channel,
         userId: 1 // 实际应从 auth context 取
       })
-      setOrder(res.data)
+      setOrder(res)
 
       if (channel === "MOCK") {
         // Mock 直接成功
         setPhase("success")
-      } else if (res.data.codeUrl) {
+      } else if (res.codeUrl) {
         setPhase("qr")
-        pollStatus(res.data.id)
+        pollStatus(res.id)
       } else {
         setPhase("error")
         setError("未获取到支付二维码，请检查渠道配置")

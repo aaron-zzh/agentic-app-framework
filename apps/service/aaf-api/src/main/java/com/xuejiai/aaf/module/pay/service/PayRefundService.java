@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.pay.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -7,10 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.PayRefundStatusEnum;
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.RefundRequest;
 import com.xuejiai.aaf.framework.engine.settlement.SettlementEngine;
+import com.xuejiai.aaf.module.pay.ErrorCodeConstants;
 import com.xuejiai.aaf.module.pay.domain.RefundOrder;
 import com.xuejiai.aaf.module.pay.repository.PayOrderRepository;
 import com.xuejiai.aaf.module.pay.repository.RefundOrderRepository;
@@ -36,13 +37,12 @@ public class PayRefundService {
         var payOrder =
                 payOrderRepository
                         .findById(dto.payOrderId())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "支付单不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.PAY_ORDER_NOT_FOUND));
 
         // 校验可退金额
         long refundable = payOrder.getAmount() - payOrder.getRefundAmount();
         if (dto.amount() > refundable) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "退款金额超过可退金额");
+            throw exception(ErrorCodeConstants.REFUND_AMOUNT_EXCEEDED);
         }
 
         // 创建退款单
@@ -86,8 +86,7 @@ public class PayRefundService {
         var refundOrder =
                 refundOrderRepository
                         .findByRefundNo(refundNo)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "退款单不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.REFUND_ORDER_NOT_FOUND));
 
         if (!refundOrder.getStatus().equals(PayRefundStatusEnum.WAITING.getCode())) {
             log.warn("退款单已处理，忽略回调: refundNo={}", refundNo);
@@ -144,8 +143,7 @@ public class PayRefundService {
         var refund =
                 refundOrderRepository
                         .findByRefundNo(refundNo)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "退款单不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.REFUND_ORDER_NOT_FOUND));
         return toVO(refund);
     }
 
