@@ -19,8 +19,8 @@ public interface FunctionPermissionChecker {
     /**
      * 检查权限码是否已在系统中注册（{@code sys_permission_code} 是否存在对应记录）。
      *
-     * <p>用于区分"业务未接入精细权限管控"（未注册，降级为仅登录）与"已接入但用户未被授权"（已注册但
-     * {@link #hasPermission} 返回 false，应拒绝）两种场景，避免未补充权限码数据的业务实体被误锁。
+     * <p>用于区分"业务未接入精细权限管控"（未注册，降级为仅登录）与"已接入但用户未被授权"（已注册但 {@link #hasPermission} 返回
+     * false，应拒绝）两种场景，避免未补充权限码数据的业务实体被误锁。
      *
      * @param permissionCode 三段式权限码
      * @return true=已注册

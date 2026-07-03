@@ -18,8 +18,7 @@ import lombok.RequiredArgsConstructor;
  * </ul>
  *
  * <p>用"是否已注册"而非"字符串是否为空"判断降级，因为 {@code BaseCrudService#permissionCode} 总会拼接出
- * 非空字符串；只有业务实体已显式补充权限码种子数据时才代表接入了精细权限管控，未接入的实体维持仅登录语义，
- * 避免大量未配置权限码的业务实体被误锁。
+ * 非空字符串；只有业务实体已显式补充权限码种子数据时才代表接入了精细权限管控，未接入的实体维持仅登录语义， 避免大量未配置权限码的业务实体被误锁。
  */
 @Component("crudAuth")
 @RequiredArgsConstructor

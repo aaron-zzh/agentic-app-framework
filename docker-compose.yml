@@ -117,6 +117,26 @@ services:
       - aaf-webui
     restart: unless-stopped
 
+  # Flyway repair 工具——手动改动已应用的迁移脚本后，用于同步 flyway_schema_history 的 checksum
+  # 使用前先把改动的迁移脚本复制到服务器固定路径：
+  #   scp -r apps/service/aaf-api/src/main/resources/db/migration/*.sql root@<ECS_HOST>:/root/aaf/flyway-sql/
+  # 不随 docker compose up 启动，需显式指定 profile 执行：
+  #   docker compose --profile tools run --rm flyway-repair
+  flyway-repair:
+    image: flyway/flyway:10
+    container_name: aaf-flyway-repair
+    profiles: ["tools"]
+    volumes:
+      - /root/aaf/flyway-sql:/flyway/sql
+    command:
+      - -url=jdbc:postgresql://postgres:5432/${DB_NAME:-aaf-dev}
+      - -user=${DB_USERNAME:-postgres}
+      - -password=${DB_PASSWORD:-postgres}
+      - repair
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
