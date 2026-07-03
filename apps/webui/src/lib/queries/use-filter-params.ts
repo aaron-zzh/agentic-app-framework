@@ -12,6 +12,9 @@ import type { FilterCondition } from "@/lib/types/entity/filter"
 
 const FILTER_PREFIX = "f_"
 
+/** 无需输入值的操作符——即使 value 为空也应写入 URL */
+const VALUELESS_OPERATORS = new Set(["isEmpty", "isNotEmpty", "isTrue", "isFalse"])
+
 /** 将筛选条件编码为 URL 参数 */
 function encodeFilters(filters: FilterCondition[]): Record<string, string> {
   const params: Record<string, string> = {}
@@ -54,7 +57,9 @@ export function useFilterParams() {
         if (key.startsWith(FILTER_PREFIX)) params.delete(key)
       }
       // 写入新筛选参数
-      const encoded = encodeFilters(next.filter((f) => f.value || f.operator === "isEmpty"))
+      const encoded = encodeFilters(
+        next.filter((f) => f.value || VALUELESS_OPERATORS.has(f.operator))
+      )
       for (const [k, v] of Object.entries(encoded)) {
         params.set(k, v)
       }

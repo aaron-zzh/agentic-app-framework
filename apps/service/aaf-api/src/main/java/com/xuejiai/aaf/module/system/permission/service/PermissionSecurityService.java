@@ -68,6 +68,14 @@ public class PermissionSecurityService implements FunctionPermissionChecker {
         return permissions.contains(permissionCode.trim());
     }
 
+    @Override
+    public boolean isRegistered(String permissionCode) {
+        if (permissionCode == null || permissionCode.isBlank()) {
+            return false;
+        }
+        return permissionRepository.existsByCodeAndDeletedFalse(permissionCode.trim());
+    }
+
     private boolean hasSuperAdmin(List<Long> roleIds) {
         return roleRepository.findAllById(roleIds).stream()
                 .map(Role::getCode)

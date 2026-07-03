@@ -13,9 +13,13 @@ import lombok.RequiredArgsConstructor;
  * <p>权限解析规则：
  *
  * <ul>
- *   <li>permissionCode 非空 → 检查用户是否持有该功能权限码（L1 功能权限）
- *   <li>permissionCode 为 null 或空 → 降级为仅需登录（isAuthenticated），行级隔离由 L3 数据规则保障
+ *   <li>permissionCode 已在系统中注册（{@code sys_permission_code} 存在记录）→ 严格校验用户是否持有该功能权限码（L1 功能权限）
+ *   <li>permissionCode 为空或未注册 → 降级为仅需登录（isAuthenticated），行级隔离由 L3 数据规则保障
  * </ul>
+ *
+ * <p>用"是否已注册"而非"字符串是否为空"判断降级，因为 {@code BaseCrudService#permissionCode} 总会拼接出
+ * 非空字符串；只有业务实体已显式补充权限码种子数据时才代表接入了精细权限管控，未接入的实体维持仅登录语义，
+ * 避免大量未配置权限码的业务实体被误锁。
  */
 @Component("crudAuth")
 @RequiredArgsConstructor
@@ -29,8 +33,10 @@ public class CrudPermissionAuthorizer {
         }
         var service = crudController.getService();
         var permissionCode = service.permissionCode(action);
-        // 无权限码：降级为仅登录校验，行级数据隔离由 sys_data_access_rule 保障
-        if (permissionCode == null || permissionCode.isBlank()) {
+        // 权限码未注册：降级为仅登录校验，行级数据隔离由 sys_data_access_rule 保障
+        if (permissionCode == null
+                || permissionCode.isBlank()
+                || !accessDecisionService.isPermissionCodeRegistered(permissionCode)) {
             var auth = SecurityContextHolder.getContext().getAuthentication();
             return auth != null && auth.isAuthenticated();
         }

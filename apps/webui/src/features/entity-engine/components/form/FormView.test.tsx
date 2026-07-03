@@ -54,6 +54,18 @@ describe("FormView", () => {
     expect(screen.getByDisplayValue("25")).toBeInTheDocument()
   })
 
+  it("data 异步到达（挂载后从空变为有值）时应重新填充表单", () => {
+    const { rerender } = render(<FormView entity={mockEntity} data={undefined} loading={true} />)
+
+    // 首次挂载时数据未到达，渲染骨架屏
+    expect(screen.queryByLabelText("年龄")).not.toBeInTheDocument()
+
+    // 数据异步加载完成，loading 结束、data 到达
+    rerender(<FormView entity={mockEntity} data={{ age: 25, status: "active" }} loading={false} />)
+
+    expect(screen.getByDisplayValue("25")).toBeInTheDocument()
+  })
+
   it("提交时应调用 onSubmit", async () => {
     const onSubmit = vi.fn()
     render(
@@ -67,6 +79,18 @@ describe("FormView", () => {
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalled()
     })
+  })
+
+  it("未传 onSubmit（无更新权限）时不应渲染保存按钮", () => {
+    render(<FormView entity={mockEntity} data={{ age: 18, status: "active" }} />)
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument()
+  })
+
+  it("传入 onSubmit（有更新权限）时应渲染保存按钮", () => {
+    render(<FormView entity={mockEntity} data={{ age: 18, status: "active" }} onSubmit={vi.fn()} />)
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument()
   })
 
   it("hidden 字段不应渲染", () => {

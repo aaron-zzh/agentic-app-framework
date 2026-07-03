@@ -12,6 +12,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import type { ReactNode } from "react"
+import { useEffect } from "react"
 import { FormProvider, useForm, useFormContext } from "react-hook-form"
 
 import { FieldErrorBoundary } from "@/components/common/FieldErrorBoundary"
@@ -62,6 +63,12 @@ export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
     defaultValues: data ?? {}
   })
 
+  // data 异步加载完成后重新填充表单——defaultValues 只在挂载时生效一次，
+  // 详情面板打开时 data 通常晚于组件挂载到达，需显式 reset 同步最新值
+  useEffect(() => {
+    if (data) form.reset(data)
+  }, [data, form])
+
   const handleSubmit = form.handleSubmit((values) => {
     onSubmit?.(values)
   })
@@ -80,14 +87,17 @@ export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
         {/* 审计信息只读区 */}
         {auditFields.length > 0 && data && <AuditInfo fields={auditFields} data={data} />}
 
-        <div className="flex justify-end pt-4">
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-          >
-            保存
-          </button>
-        </div>
+        {/* 无更新权限时（onSubmit 未传入）不渲染保存按钮 */}
+        {onSubmit && (
+          <div className="flex justify-end pt-4">
+            <button
+              type="submit"
+              className="rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90"
+            >
+              保存
+            </button>
+          </div>
+        )}
       </form>
     </FormProvider>
   )

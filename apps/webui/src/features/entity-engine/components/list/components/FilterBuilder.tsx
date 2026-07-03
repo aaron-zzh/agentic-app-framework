@@ -6,10 +6,14 @@
 "use client"
 
 import { useCallback, useState } from "react"
+import { useDebouncedCallback } from "use-debounce"
 
 import type { DataFieldDef, EntityDef, FilterCondition } from "@/lib/types/entity"
 
 export type { FilterCondition } from "@/lib/types/entity"
+
+/** 无需输入值的操作符——UI 隐藏值输入框 */
+const VALUELESS_OPERATORS = new Set(["isEmpty", "isNotEmpty", "isTrue", "isFalse"])
 
 /** 字段类型 → 可用操作符 */
 const operatorsByType: Record<string, { value: string; label: string }[]> = {
@@ -17,24 +21,38 @@ const operatorsByType: Record<string, { value: string; label: string }[]> = {
     { value: "contains", label: "包含" },
     { value: "eq", label: "等于" },
     { value: "startsWith", label: "开头是" },
-    { value: "isEmpty", label: "为空" }
+    { value: "isEmpty", label: "为空" },
+    { value: "isNotEmpty", label: "不为空" }
   ],
   number: [
     { value: "eq", label: "等于" },
     { value: "gt", label: "大于" },
+    { value: "gte", label: "大于等于" },
     { value: "lt", label: "小于" },
+    { value: "lte", label: "小于等于" },
     { value: "between", label: "介于" }
   ],
   date: [
     { value: "eq", label: "等于" },
     { value: "gt", label: "晚于" },
     { value: "lt", label: "早于" },
-    { value: "between", label: "介于" }
+    { value: "between", label: "介于" },
+    { value: "thisWeek", label: "本周" },
+    { value: "thisMonth", label: "本月" }
   ],
   select: [
     { value: "eq", label: "等于" },
     { value: "in", label: "属于" },
-    { value: "neq", label: "不等于" }
+    { value: "notIn", label: "不属于" }
+  ],
+  relationship: [
+    { value: "eq", label: "等于" },
+    { value: "in", label: "属于" },
+    { value: "isEmpty", label: "为空" }
+  ],
+  checkbox: [
+    { value: "isTrue", label: "是" },
+    { value: "isFalse", label: "否" }
   ]
 }
 
@@ -109,12 +127,11 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
                     </option>
                   ))}
                 </select>
-                {filter.operator !== "isEmpty" && (
-                  <input
-                    className="h-8 flex-1 rounded border px-2 text-sm"
+                {!VALUELESS_OPERATORS.has(filter.operator) && (
+                  <FilterValueInput
+                    key={`${filter.field}-${filter.operator}`}
                     value={filter.value}
-                    onChange={(e) => updateFilter(i, { value: e.target.value })}
-                    placeholder="值"
+                    onChange={(value) => updateFilter(i, { value })}
                   />
                 )}
                 <button
@@ -133,5 +150,29 @@ export function FilterBuilder({ entity, filters, onChange }: FilterBuilderProps)
         + 添加筛选
       </button>
     </div>
+  )
+}
+
+/** 筛选值输入框——本地即时展示，300ms 防抖后才向上游触发查询，避免逐字符输入连续发起请求 */
+function FilterValueInput({
+  value,
+  onChange
+}: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [localValue, setLocalValue] = useState(value)
+  const debouncedOnChange = useDebouncedCallback(onChange, 300)
+
+  return (
+    <input
+      className="h-8 flex-1 rounded border px-2 text-sm"
+      value={localValue}
+      onChange={(e) => {
+        setLocalValue(e.target.value)
+        debouncedOnChange(e.target.value)
+      }}
+      placeholder="值"
+    />
   )
 }

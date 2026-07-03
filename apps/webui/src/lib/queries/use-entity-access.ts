@@ -1,19 +1,18 @@
 /**
- * useEntityAccess——获取实体权限配置的 TanStack Query hook
+ * useEntityAccess——查询当前用户对指定实体的权限
+ *
+ * 调用 GET /api/permissions/entity/{slug}，由后端按用户角色动态计算 read/create/update/delete。
  * @author AaronZZH & Kiro
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { type EntityAccess, fetchEntityAccess } from "@/lib/api/rest/user/permission"
+import { backendApi } from "@/lib/api/rest/backend-client"
+import type { EntityAccess } from "@/lib/types/entity"
 
-/** 查询实体权限，staleTime 较长（权限不频繁变化） */
 export function useEntityAccess(entitySlug: string) {
-  const { data, isLoading } = useQuery<EntityAccess>({
-    queryKey: ["entityAccess", entitySlug],
-    queryFn: () => fetchEntityAccess(entitySlug),
-    staleTime: 5 * 60 * 1000,
-    enabled: !!entitySlug
+  return useQuery<EntityAccess>({
+    queryKey: [entitySlug, "access"],
+    queryFn: () => backendApi.get<EntityAccess>(`/permissions/entity/${entitySlug}`),
+    staleTime: 5 * 60 * 1000
   })
-
-  return { access: data, isLoading }
 }

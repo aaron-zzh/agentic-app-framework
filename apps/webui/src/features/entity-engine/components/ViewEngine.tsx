@@ -20,11 +20,13 @@ import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
 import { fromEntityDef, useCrudUpdate } from "@/lib/api/rest/crud"
 import type { PageResult } from "@/lib/api/rest/entity/crud"
 import { paths } from "@/lib/constants/paths"
+import { useEntityAccess } from "@/lib/queries/use-entity-access"
 import { useEntityDetail } from "@/lib/queries/use-entity-detail"
 import { useEntityList } from "@/lib/queries/use-entity-list"
 import { useEntityQueryWindow } from "@/lib/queries/use-entity-query-window"
 import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
-
+import { useFilterParams } from "@/lib/queries/use-filter-params"
+import { useResolvedEntity } from "../hooks/use-resolved-entity"
 import { getViewComponent } from "../lib/component-registry"
 import type { EntityDef } from "../types"
 import { CalendarView } from "./calendar"
@@ -87,6 +89,9 @@ function ViewEngineInner({
   queryToken,
   viewSettings
 }: ViewEngineProps) {
+  // 物化带 dictType 的 select 字段：从字典拉取数据填充 options，下游视图组件无需改动
+  const resolvedEntity = useResolvedEntity(entity)
+
   // 优先使用实体级自定义覆盖
   if (view === "list" && entity.overrides?.listView) {
     const Override = entity.overrides.listView
@@ -110,19 +115,21 @@ function ViewEngineInner({
   // 内置视图
   switch (view) {
     case "list":
-      return <ConnectedListView entity={entity} viewSettings={viewSettings} />
+      return <ConnectedListView entity={resolvedEntity} viewSettings={viewSettings} />
     case "kanban":
-      return <KanbanView entity={entity} />
+      return <KanbanView entity={resolvedEntity} />
     case "form":
-      return <ConnectedFormView entity={entity} recordId={recordId} queryToken={queryToken} />
+      return (
+        <ConnectedFormView entity={resolvedEntity} recordId={recordId} queryToken={queryToken} />
+      )
     case "pivot":
-      return <PivotView entity={entity} />
+      return <PivotView entity={resolvedEntity} />
     case "calendar":
-      return <ConnectedCalendarView entity={entity} />
+      return <ConnectedCalendarView entity={resolvedEntity} />
     case "canvas":
-      return <CanvasView entity={entity} recordId={recordId} />
+      return <CanvasView entity={resolvedEntity} recordId={recordId} />
     default:
-      return <ViewPlaceholder entity={entity} view={view} />
+      return <ViewPlaceholder entity={resolvedEntity} view={view} />
   }
 }
 
@@ -135,8 +142,16 @@ function ConnectedListView({
   viewSettings?: ViewSettings
 }) {
   const [params, setParams] = useEntitySearchParams()
+  const [filters] = useFilterParams()
   const serverPagination =
     viewSettings?.serverPagination ?? entity.listView.serverPagination ?? false
+
+  // Toolbar（QuickFilterBar/SearchBar/FilterChips）写入 URL 的筛选条件（f_xxx=op:value）
+  // 需在此展开为后端 PageDTO 认识的普通字段参数；__search 映射到全文搜索参数
+  const search = params.search ?? filters.find((f) => f.field === "__search")?.value ?? undefined
+  const fieldFilters = Object.fromEntries(
+    filters.filter((f) => f.field !== "__search").map((f) => [f.field, f.value])
+  )
 
   const { data, isLoading, pagination, queryToken } = useEntityQueryWindow(entity, {
     // 服务端分页：传 page/pageSize；前端分页：传 pageSize=-1，由 /_query 返回过滤后的完整窗口
@@ -144,7 +159,8 @@ function ConnectedListView({
       ? { page: params.page, pageSize: params.pageSize }
       : { page: 1, pageSize: -1 }),
     sort: params.sort ?? undefined,
-    search: params.search ?? undefined
+    search,
+    ...fieldFilters
   })
 
   return (
@@ -173,19 +189,24 @@ function ConnectedFormView({
   queryToken?: string
 }) {
   const { data, isLoading } = useEntityDetail(entity, recordId, { queryToken })
+  const { data: access } = useEntityAccess(entity.slug)
   const resource = fromEntityDef(entity)
   const { mutate: update, isPending: updating } = useCrudUpdate(resource)
 
-  const handleSubmit = (values: Record<string, unknown>) => {
-    if (!recordId) return
-    update(
-      { id: recordId, data: values },
-      {
-        onSuccess: () => toast.success(`${entity.label}已保存`),
-        onError: () => {}
+  // 无更新权限时不传 onSubmit，FormView 据此隐藏保存按钮；access 未加载完成前保持可编辑，避免闪烁
+  const canUpdate = access?.update !== false
+  const handleSubmit = canUpdate
+    ? (values: Record<string, unknown>) => {
+        if (!recordId) return
+        update(
+          { id: recordId, data: values },
+          {
+            onSuccess: () => toast.success(`${entity.label}已保存`),
+            onError: () => {}
+          }
+        )
       }
-    )
-  }
+    : undefined
 
   return (
     <div className="space-y-4">

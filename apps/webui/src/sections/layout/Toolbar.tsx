@@ -11,6 +11,7 @@
 "use client"
 
 import { useTabs } from "@aaf/hooks"
+import { useQueryClient } from "@tanstack/react-query"
 import { RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
@@ -57,6 +58,13 @@ export function Toolbar({
   const currentView = searchParams.get("view") ?? "list"
   const [filters, setFilters] = useFilterParams()
   const tabs = useTabs("")
+  const queryClient = useQueryClient()
+
+  // 刷新：保留当前筛选/排序/分页参数，仅使该实体的查询窗口缓存失效并重新请求
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [entity.slug, "queryWindow"] })
+    queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
+  }, [queryClient, entity.slug])
 
   // 有效的 Tab 字段：
   //   viewSettings.tabField === undefined → 未配置，回退到 EntityDef
@@ -177,6 +185,7 @@ export function Toolbar({
             render={
               <button
                 type="button"
+                onClick={handleRefresh}
                 className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               />
             }

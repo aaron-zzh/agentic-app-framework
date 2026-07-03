@@ -32,6 +32,12 @@ public class DefaultAccessDecisionService implements AccessDecisionService {
     }
 
     @Override
+    public boolean isPermissionCodeRegistered(String permissionCode) {
+        var checker = functionPermissionChecker.getIfAvailable();
+        return checker != null && checker.isRegistered(permissionCode);
+    }
+
+    @Override
     public boolean hasPermission(String objectType, String objectId, String relationPermission) {
         if (hasSuperAdminAuthority()) {
             return true;
