@@ -3,8 +3,12 @@ package com.xuejiai.aaf.module.ai.aigc.media.service;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -74,12 +78,11 @@ public class MediaAssetService {
             String sort,
             Pageable pageable) {
         // 解析 sort 参数，格式 "createTime:desc"
-        org.springframework.data.domain.Sort jpaSort = parseSort(sort);
+        Sort jpaSort = parseSort(sort);
         Pageable pageableWithSort =
-                org.springframework.data.domain.PageRequest.of(
-                        pageable.getPageNumber(), pageable.getPageSize(), jpaSort);
+                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), jpaSort);
 
-        org.springframework.data.jpa.domain.Specification<MediaAsset> spec =
+        Specification<MediaAsset> spec =
                 (root, query, cb) -> {
                     var predicates =
                             new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
@@ -106,24 +109,23 @@ public class MediaAssetService {
     }
 
     /** 解析 "field:asc|desc" 格式的排序参数 */
-    private org.springframework.data.domain.Sort parseSort(String sort) {
+    private Sort parseSort(String sort) {
         if (sort == null || sort.isBlank()) {
-            return org.springframework.data.domain.Sort.by(
-                    org.springframework.data.domain.Sort.Direction.DESC, "createTime");
+            return Sort.by(Sort.Direction.DESC, "createTime");
         }
         String[] parts = sort.split(":");
         String field = parts[0].trim();
-        org.springframework.data.domain.Sort.Direction dir =
+        Sort.Direction dir =
                 parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim())
-                        ? org.springframework.data.domain.Sort.Direction.ASC
-                        : org.springframework.data.domain.Sort.Direction.DESC;
+                        ? Sort.Direction.ASC
+                        : Sort.Direction.DESC;
         // 白名单防止任意字段注入
         field =
                 switch (field) {
                     case "name", "size", "width", "height", "type" -> field;
                     default -> "createTime";
                 };
-        return org.springframework.data.domain.Sort.by(dir, field);
+        return Sort.by(dir, field);
     }
 
     /**
@@ -257,9 +259,7 @@ public class MediaAssetService {
      * @param dto 保存请求
      * @return 保存的素材
      */
-    @Transactional(
-            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW,
-            noRollbackFor = Exception.class)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = Exception.class)
     public MediaAssetVO saveFromGeneration(Long userId, SaveFromGenerationDTO dto) {
         var asset = new MediaAsset();
         asset.setUserId(userId);

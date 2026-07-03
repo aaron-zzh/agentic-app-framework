@@ -4,6 +4,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult.TaskStatus;
@@ -34,7 +36,9 @@ public class VideoTaskSyncJob {
     @Scheduled(fixedDelay = 15_000)
     @Transactional
     public void sync() {
-        var tasks = taskRepo.findByStatusAndType("PENDING", "VIDEO");
+        var tasks =
+                taskRepo.findByStatusAndType(
+                        AigcTaskStatusEnum.PENDING.getCode(), AigcTaskTypeEnum.VIDEO.getCode());
         if (tasks.isEmpty()) return;
 
         for (var task : tasks) {

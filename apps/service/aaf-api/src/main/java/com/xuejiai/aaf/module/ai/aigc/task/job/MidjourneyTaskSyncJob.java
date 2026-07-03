@@ -7,6 +7,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyAsyncImageService;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
@@ -40,7 +42,9 @@ public class MidjourneyTaskSyncJob {
     public void sync() {
         if (midjourneyService == null) return;
 
-        var tasks = taskRepo.findByStatusAndType("PENDING", "IMAGE");
+        var tasks =
+                taskRepo.findByStatusAndType(
+                        AigcTaskStatusEnum.PENDING.getCode(), AigcTaskTypeEnum.IMAGE.getCode());
         if (tasks.isEmpty()) return;
 
         for (var task : tasks) {

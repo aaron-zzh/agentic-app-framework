@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.video.service;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
@@ -76,8 +77,7 @@ public class VideoTemplateService
     }
 
     @Override
-    protected org.springframework.data.jpa.domain.Specification<VideoTemplate> buildSpec(
-            VideoTemplatePageDTO query) {
+    protected Specification<VideoTemplate> buildSpec(VideoTemplatePageDTO query) {
         return SpecificationBuilder.<VideoTemplate>builder()
                 .eqIfPresent("type", query.getType())
                 .build();

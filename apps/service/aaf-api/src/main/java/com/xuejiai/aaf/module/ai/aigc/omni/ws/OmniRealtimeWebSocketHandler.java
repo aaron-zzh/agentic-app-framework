@@ -101,11 +101,11 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
 
         try {
             var node = JsonUtils.readTree(message.getPayload());
-            var type = node.has("type") ? node.get("type").asText() : "";
+            var type = node.has("type") ? node.get("type").asString() : "";
 
             switch (type) {
-                case "audio" -> omniSession.sendAudio(node.get("data").asText());
-                case "video" -> omniSession.sendVideo(node.get("data").asText());
+                case "audio" -> omniSession.sendAudio(node.get("data").asString());
+                case "video" -> omniSession.sendVideo(node.get("data").asString());
                 case "commit" -> omniSession.commit();
                 case "create_response" -> omniSession.createResponse();
                 case "cancel_response" -> omniSession.cancelResponse();

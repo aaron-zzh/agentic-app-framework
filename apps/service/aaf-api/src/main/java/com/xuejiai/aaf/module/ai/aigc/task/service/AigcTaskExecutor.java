@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
@@ -73,15 +75,12 @@ public class AigcTaskExecutor {
     private final PermissionExecutionService permissionExecutionService;
     private final ApplicationEventPublisher eventPublisher;
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @Autowired(required = false)
     private MidjourneyAsyncImageService midjourneyAsyncImageService;
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @Autowired(required = false)
     private ImageProcessService imageProcessService;
 
-    private static final String STATUS_RUNNING = "RUNNING";
-    private static final String STATUS_SUCCESS = "SUCCESS";
-    private static final String STATUS_FAIL = "FAIL";
     private static final String EVENT_COMPLETED = "task.completed";
     private static final String EVENT_FAILED = "task.failed";
 
@@ -108,7 +107,7 @@ public class AigcTaskExecutor {
     private void submitSyncInternal(
             AigcTask task, Long taskId, String prompt, String modelId, String mockUrl) {
         try {
-            task.setStatus(STATUS_RUNNING);
+            task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             var p = parseImageParams(prompt, modelId, task.getParams());
@@ -140,7 +139,7 @@ public class AigcTaskExecutor {
             String ossUrl = uploadFirstImage(task, result, taskId, modelId);
             task.setResultUrl(ossUrl);
             task.setOssUrl(ossUrl);
-            task.setStatus(STATUS_SUCCESS);
+            task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
@@ -166,7 +165,7 @@ public class AigcTaskExecutor {
         } catch (Exception e) {
             log.error("[submitSync] 生成失败: taskId={}", taskId, e);
             refundIfSettled(task, e.getMessage());
-            task.setStatus(STATUS_FAIL);
+            task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
             try {
@@ -178,7 +177,9 @@ public class AigcTaskExecutor {
         try {
             eventService.push(
                     task.getUserId(),
-                    task.getStatus().equals(STATUS_SUCCESS) ? EVENT_COMPLETED : EVENT_FAILED,
+                    task.getStatus().equals(AigcTaskStatusEnum.SUCCESS.getCode())
+                            ? EVENT_COMPLETED
+                            : EVENT_FAILED,
                     toVO(task));
         } catch (Exception e) {
             log.debug("[submitSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
@@ -202,7 +203,7 @@ public class AigcTaskExecutor {
             var req = new AsyncImageGenerationService.AsyncImageRequest(p.getPrompt(), modelId);
             String mjTaskId = midjourneyAsyncImageService.submitTask(req);
             task.setTaskId(modelId + ":" + mjTaskId);
-            task.setStatus("PENDING");
+            task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
             taskRepo.save(task);
             log.info(
                     "[AigcTaskExecutor] Midjourney 任务提交: taskId={}, mjTaskId={}", taskId, mjTaskId);
@@ -302,6 +303,7 @@ public class AigcTaskExecutor {
         }
     }
 
+    /** 保存主素材，任务类型 → 素材类型映射取值参见 {@link AigcTaskTypeEnum}（case 需编译期常量，故用字面量）。 */
     private long saveToMediaAsset(
             AigcTask task, String ossUrl, String displayPrompt, String sizePreset, int w, int h) {
         try {
@@ -362,7 +364,7 @@ public class AigcTaskExecutor {
         }
     }
 
-    /** 多图时追加第 2～N 张到同一素材组 */
+    /** 多图时追加第 2～N 张到同一素材组，任务类型取值参见 {@link AigcTaskTypeEnum}（case 需编译期常量，故用字面量）。 */
     private void saveExtraAsset(
             AigcTask task, String ossUrl, String sizePreset, int w, int h, long groupId) {
         try {
@@ -427,7 +429,7 @@ public class AigcTaskExecutor {
             String gender,
             String mockUrl) {
         try {
-            task.setStatus("RUNNING");
+            task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             String ossUrl;
@@ -450,7 +452,7 @@ public class AigcTaskExecutor {
                 ossUrl = fileService.uploadFromUrl(result.audioUrl(), path, "audio/mpeg", null);
             }
             task.setOssUrl(ossUrl);
-            task.setStatus("SUCCESS");
+            task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
@@ -498,7 +500,7 @@ public class AigcTaskExecutor {
         } catch (Exception e) {
             log.error("[submitMusicSync] 生成失败: taskId={}", taskId, e);
             refundIfSettled(task, e.getMessage());
-            task.setStatus("FAIL");
+            task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
@@ -506,7 +508,9 @@ public class AigcTaskExecutor {
         try {
             eventService.push(
                     task.getUserId(),
-                    "SUCCESS".equals(task.getStatus()) ? EVENT_COMPLETED : EVENT_FAILED,
+                    AigcTaskStatusEnum.SUCCESS.getCode().equals(task.getStatus())
+                            ? EVENT_COMPLETED
+                            : EVENT_FAILED,
                     toVO(task));
         } catch (Exception e) {
             log.debug("[submitMusicSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
@@ -529,7 +533,7 @@ public class AigcTaskExecutor {
     private void submitVoiceSyncInternal(
             AigcTask task, Long taskId, String text, String voice, String mockUrl) {
         try {
-            task.setStatus(STATUS_RUNNING);
+            task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             String ossUrl;
@@ -560,7 +564,7 @@ public class AigcTaskExecutor {
 
             task.setResultUrl(ossUrl);
             task.setOssUrl(ossUrl);
-            task.setStatus(STATUS_SUCCESS);
+            task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
@@ -603,7 +607,7 @@ public class AigcTaskExecutor {
         } catch (Exception e) {
             log.error("[submitVoiceSync] 生成失败: taskId={}", taskId, e);
             refundIfSettled(task, e.getMessage());
-            task.setStatus(STATUS_FAIL);
+            task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
@@ -611,7 +615,9 @@ public class AigcTaskExecutor {
         try {
             eventService.push(
                     task.getUserId(),
-                    STATUS_SUCCESS.equals(task.getStatus()) ? EVENT_COMPLETED : EVENT_FAILED,
+                    AigcTaskStatusEnum.SUCCESS.getCode().equals(task.getStatus())
+                            ? EVENT_COMPLETED
+                            : EVENT_FAILED,
                     toVO(task));
         } catch (Exception e) {
             log.debug("[submitVoiceSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
@@ -625,12 +631,12 @@ public class AigcTaskExecutor {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
         try {
-            task.setStatus("RUNNING");
+            task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             if (mockUrl != null && !mockUrl.isBlank()) {
                 task.setOssUrl(mockUrl);
-                task.setStatus("SUCCESS");
+                task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
                 task.setUpdateTime(LocalDateTime.now());
                 taskRepo.save(task);
                 eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
@@ -664,7 +670,7 @@ public class AigcTaskExecutor {
                                                 prompt, textureQuality, null));
                     };
             task.setTaskId(thirdTaskId);
-            task.setStatus("PENDING");
+            task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
             log.info(
@@ -674,7 +680,7 @@ public class AigcTaskExecutor {
                     source);
         } catch (Exception e) {
             log.error("[submitModel3dSync] 提交失败: taskId={}", taskId, e);
-            task.setStatus("FAIL");
+            task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
@@ -692,12 +698,12 @@ public class AigcTaskExecutor {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
         try {
-            task.setStatus("RUNNING");
+            task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             if (mockUrl != null && !mockUrl.isBlank()) {
                 task.setOssUrl(mockUrl);
-                task.setStatus("SUCCESS");
+                task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
                 task.setUpdateTime(LocalDateTime.now());
                 taskRepo.save(task);
                 eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
@@ -778,13 +784,13 @@ public class AigcTaskExecutor {
             }
 
             task.setTaskId(thirdTaskId);
-            task.setStatus("PENDING");
+            task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
             log.info("[submitVideoAsync] 任务已提交: taskId={}, thirdTaskId={}", taskId, thirdTaskId);
         } catch (Exception e) {
             log.error("[submitVideoAsync] 提交失败: taskId={}", taskId, e);
-            task.setStatus("FAIL");
+            task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
@@ -872,7 +878,7 @@ public class AigcTaskExecutor {
     private void submitImageProcessSyncInternal(
             AigcTask task, Long taskId, String imageUrl, String method, String mockUrl) {
         try {
-            task.setStatus(STATUS_RUNNING);
+            task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             String ossUrl;
@@ -889,7 +895,7 @@ public class AigcTaskExecutor {
                 // 异步模式（如 SEGMENT_HD_COMMON_IMAGE）：提交成功后转 PENDING，由轮询 Job 处理
                 if ("PENDING".equals(result.status())) {
                     task.setTaskId(result.taskId());
-                    task.setStatus("PENDING");
+                    task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
                     task.setUpdateTime(LocalDateTime.now());
                     taskRepo.save(task);
                     log.info(
@@ -910,7 +916,7 @@ public class AigcTaskExecutor {
 
             task.setResultUrl(ossUrl);
             task.setOssUrl(ossUrl);
-            task.setStatus(STATUS_SUCCESS);
+            task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
@@ -947,7 +953,7 @@ public class AigcTaskExecutor {
             log.info("[submitImageProcessSync] 图像处理完成: taskId={}, ossUrl={}", taskId, ossUrl);
         } catch (Exception e) {
             log.error("[submitImageProcessSync] 处理失败: taskId={}", taskId, e);
-            task.setStatus(STATUS_FAIL);
+            task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
@@ -955,7 +961,9 @@ public class AigcTaskExecutor {
         try {
             eventService.push(
                     task.getUserId(),
-                    STATUS_SUCCESS.equals(task.getStatus()) ? EVENT_COMPLETED : EVENT_FAILED,
+                    AigcTaskStatusEnum.SUCCESS.getCode().equals(task.getStatus())
+                            ? EVENT_COMPLETED
+                            : EVENT_FAILED,
                     toVO(task));
         } catch (Exception e) {
             log.debug("[submitImageProcessSync] SSE 推送失败（连接已断开）: taskId={}", taskId);

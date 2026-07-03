@@ -1,11 +1,15 @@
 package com.xuejiai.aaf.module.ai.aigc.task.controller;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
@@ -16,7 +20,9 @@ import com.xuejiai.aaf.framework.protection.RateLimit;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.license.FeatureRequired;
 import com.xuejiai.aaf.framework.security.license.LicenseFeature;
+import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
+import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
@@ -48,7 +54,7 @@ public class AigcTaskController
     private final AigcTaskService taskService;
     private final AigcTaskEventService eventService;
     private final OperatorContext operatorContext;
-    private final com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository taskRepository;
+    private final AigcTaskRepository taskRepository;
 
     @Override
     protected BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> getService() {
@@ -58,10 +64,10 @@ public class AigcTaskController
     // BE-8 数据隔离：override 单条查询，加 ownership 校验（跨用户返回 404 防探测）
     @Override
     @Operation(summary = "查询任务详情（含 ownership 校验）")
-    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
     public Result<AigcTaskVO> get(
-            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @PathVariable Long id,
             @RequestParam(required = false) String queryToken,
             @RequestParam(defaultValue = "detail") String fieldSet) {
         return Result.success(taskService.getByIdOwned(id));
@@ -69,17 +75,14 @@ public class AigcTaskController
 
     /** 屏蔽创建——任务通过 /submit 提交 */
     @Override
-    public Result<AigcTaskVO> create(
-            @org.springframework.web.bind.annotation.RequestBody Void body) {
-        throw new BusinessException(GlobalErrorCode.METHOD_NOT_ALLOWED, "请使用 /submit 提交任务");
+    public Result<AigcTaskVO> create(@RequestBody Void body) {
+        throw exception(ErrorCodeConstants.AIGC_TASK_NOT_ALLOWED_CREATE);
     }
 
     /** 屏蔽更新——任务不支持编辑 */
     @Override
-    public Result<AigcTaskVO> update(
-            @org.springframework.web.bind.annotation.PathVariable Long id,
-            @org.springframework.web.bind.annotation.RequestBody Void body) {
-        throw new BusinessException(GlobalErrorCode.METHOD_NOT_ALLOWED, "任务不支持编辑");
+    public Result<AigcTaskVO> update(@PathVariable Long id, @RequestBody Void body) {
+        throw exception(ErrorCodeConstants.AIGC_TASK_NOT_ALLOWED_UPDATE);
     }
 
     /** 提交任务请求 DTO */
@@ -138,9 +141,15 @@ public class AigcTaskController
                         .currentOwnerId()
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
+        AigcTaskTypeEnum taskType;
+        try {
+            taskType = AigcTaskTypeEnum.fromCode(dto.type());
+        } catch (IllegalArgumentException e) {
+            throw exception(ErrorCodeConstants.AIGC_TASK_TYPE_INVALID, dto.type());
+        }
         Long taskId =
-                switch (dto.type().toUpperCase()) {
-                    case "IMAGE", "IMAGE_GEN" -> {
+                switch (taskType) {
+                    case IMAGE -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         String imageUrl = toString(p.get("imageUrl"));
                         @SuppressWarnings("unchecked")
@@ -176,7 +185,7 @@ public class AigcTaskController
                                         null,
                                         dto.projectId()));
                     }
-                    case "VIDEO", "VIDEO_GEN" -> {
+                    case VIDEO -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         yield taskService.submitVideoTask(
                                 userId,
@@ -197,7 +206,7 @@ public class AigcTaskController
                                         toBoolean(p.get("promptExtend")),
                                         toBoolean(p.get("generateAudio"))));
                     }
-                    case "MODEL_3D" -> {
+                    case MODEL_3D -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         yield taskService.submit3dTask(
                                 userId,
@@ -207,7 +216,7 @@ public class AigcTaskController
                                 toString(p.get("textureQuality")),
                                 dto.projectId());
                     }
-                    case "MUSIC" -> {
+                    case MUSIC -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         yield taskService.submitMusicTask(
                                 userId,
@@ -217,7 +226,7 @@ public class AigcTaskController
                                 toString(p.get("gender")),
                                 dto.projectId());
                     }
-                    case "VOICE" -> {
+                    case VOICE -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         yield taskService.submitVoiceTask(
                                 userId,
@@ -226,7 +235,7 @@ public class AigcTaskController
                                 dto.model(),
                                 dto.projectId());
                     }
-                    case "IMAGE_PROCESS" -> {
+                    case IMAGE_PROCESS -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         // imageUrl 优先取 params.imageUrl，其次取 prompt（兼容直接传 URL 的场景）
                         String imageUrl = toString(p.get("imageUrl"));
@@ -240,9 +249,6 @@ public class AigcTaskController
                         yield taskService.submitImageProcessTask(
                                 userId, imageUrl, method, dto.projectId());
                     }
-                    default ->
-                            throw new BusinessException(
-                                    GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + dto.type());
                 };
         // 技能 systemPrompt 回写（不影响任务提交本身）
         if (dto.systemPrompt() != null && !dto.systemPrompt().isBlank()) {

@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.framework.intelligent.ai.image.process.ImageProcessService;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
@@ -51,7 +53,10 @@ public class ImageProcessTaskSyncJob {
     @Scheduled(fixedDelay = 10_000)
     public void sync() {
         if (imageProcessService == null) return;
-        var tasks = taskRepo.findByStatusAndType("PENDING", "IMAGE_PROCESS");
+        var tasks =
+                taskRepo.findByStatusAndType(
+                        AigcTaskStatusEnum.PENDING.getCode(),
+                        AigcTaskTypeEnum.IMAGE_PROCESS.getCode());
         if (tasks.isEmpty()) return;
 
         for (var task : tasks) {
@@ -89,7 +94,7 @@ public class ImageProcessTaskSyncJob {
                         }
                         task.setResultUrl(ossUrl);
                         task.setOssUrl(ossUrl);
-                        task.setStatus("SUCCESS");
+                        task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
                         task.setUpdateTime(LocalDateTime.now());
                         taskRepo.save(task);
 

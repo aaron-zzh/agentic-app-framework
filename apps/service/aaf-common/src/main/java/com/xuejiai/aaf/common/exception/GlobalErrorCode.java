@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
  *   <li>chat 模块：[3_000_000, 3_999_999]
  *   <li>auto-dev 模块：[4_000_000, 4_999_999]
  *   <li>license 模块：[5_000_000, 5_999_999]
+ *   <li>pay 模块：[6_000_000, 6_999_999]
+ *   <li>ai.aigc 模块：[7_000_000, 7_999_999]
  * </ul>
  *
  * 各模块在自己的包内定义 {@code enum XxxErrorCode implements ErrorCode}。

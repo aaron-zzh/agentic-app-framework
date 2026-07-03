@@ -4,6 +4,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService.Model3dTaskResult.TaskStatus;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
@@ -31,7 +33,9 @@ public class Model3dTaskSyncJob {
     @Scheduled(fixedDelay = 10_000)
     @Transactional
     public void sync() {
-        var tasks = taskRepo.findByStatusAndType("PENDING", "MODEL_3D");
+        var tasks =
+                taskRepo.findByStatusAndType(
+                        AigcTaskStatusEnum.PENDING.getCode(), AigcTaskTypeEnum.MODEL_3D.getCode());
         if (tasks.isEmpty()) return;
 
         for (var task : tasks) {

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.task.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
@@ -15,9 +17,9 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
@@ -34,6 +36,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
@@ -64,13 +67,6 @@ import tools.jackson.core.type.TypeReference;
 public class AigcTaskService
         extends BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> {
 
-    private static final String TYPE_IMAGE = "IMAGE";
-    private static final String TYPE_VIDEO = "VIDEO";
-    private static final String TYPE_MODEL3D = "MODEL_3D";
-    private static final String TYPE_MUSIC = "MUSIC";
-    private static final String TYPE_VOICE = "VOICE";
-    private static final String TYPE_IMAGE_PROCESS = "IMAGE_PROCESS";
-
     /** 阿里云通用高清分割计费单价（元/次），0.007 元。 */
     private static final double IMAGE_PROCESS_COMMON_PRICE_YUAN = 0.007;
 
@@ -79,10 +75,6 @@ public class AigcTaskService
 
     /** 配音文本最大长度（字） */
     private static final int VOICE_TEXT_MAX_LEN = 200;
-
-    private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_SUCCESS = "SUCCESS";
-    private static final String STATUS_FAIL = "FAIL";
 
     private static final String EVENT_CREATED = "task.created";
     private static final String EVENT_COMPLETED = "task.completed";
@@ -160,8 +152,7 @@ public class AigcTaskService
         var entity = requireEntity(id);
         Long userId = operatorContext.currentUserId().orElseThrow();
         if (!entity.getUserId().equals(userId)) {
-            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                    com.xuejiai.aaf.common.exception.GlobalErrorCode.NOT_FOUND, "任务不存在");
+            throw exception(ErrorCodeConstants.AIGC_TASK_NOT_FOUND);
         }
         return toVO(entity);
     }
@@ -197,7 +188,7 @@ public class AigcTaskService
         var task =
                 buildTask(
                         userId,
-                        TYPE_IMAGE,
+                        AigcTaskTypeEnum.IMAGE.getCode(),
                         req.prompt(),
                         resolvedModel,
                         resolvedAiModel.getDisplayName(),
@@ -252,7 +243,7 @@ public class AigcTaskService
         var task =
                 buildTask(
                         userId,
-                        TYPE_VIDEO,
+                        AigcTaskTypeEnum.VIDEO.getCode(),
                         req.prompt(),
                         resolvedModelId,
                         resolvedModel.getDisplayName(),
@@ -302,7 +293,7 @@ public class AigcTaskService
         var task =
                 buildTask(
                         userId,
-                        TYPE_MODEL3D,
+                        AigcTaskTypeEnum.MODEL_3D.getCode(),
                         prompt,
                         resolvedModelId,
                         resolvedModel.getDisplayName(),
@@ -355,7 +346,13 @@ public class AigcTaskService
                         .estimateCost(resolvedModel, musicReq, creditGuard.getMarkupRate());
         creditGuard.precheck(userId, CreditTransactionCategoryEnum.MUSIC.getCode(), estimatedCost);
         var task =
-                buildTask(userId, TYPE_MUSIC, prompt, resolvedModel.getModelId(), null, projectId);
+                buildTask(
+                        userId,
+                        AigcTaskTypeEnum.MUSIC.getCode(),
+                        prompt,
+                        resolvedModel.getModelId(),
+                        null,
+                        projectId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
@@ -387,11 +384,10 @@ public class AigcTaskService
     public Long submitVoiceTask(
             Long userId, String text, String voice, String model, Long projectId) {
         if (text == null || text.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "配音文本不能为空");
+            throw exception(ErrorCodeConstants.AIGC_TASK_VOICE_TEXT_EMPTY);
         }
         if (text.length() > VOICE_TEXT_MAX_LEN) {
-            throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST, "配音文本不能超过 " + VOICE_TEXT_MAX_LEN + " 字");
+            throw exception(ErrorCodeConstants.AIGC_TASK_VOICE_TEXT_TOO_LONG, VOICE_TEXT_MAX_LEN);
         }
 
         // 通过 CapabilityRouter 解析模型（显式指定 → 用户偏好 → 系统默认）
@@ -411,7 +407,7 @@ public class AigcTaskService
         var task =
                 buildTask(
                         userId,
-                        TYPE_VOICE,
+                        AigcTaskTypeEnum.VOICE.getCode(),
                         text,
                         resolvedModelId,
                         resolvedModel.getDisplayName(),
@@ -455,10 +451,10 @@ public class AigcTaskService
     public Long submitImageProcessTask(
             Long userId, String imageUrl, String method, Long projectId) {
         if (imageUrl == null || imageUrl.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "图像 URL 不能为空");
+            throw exception(ErrorCodeConstants.AIGC_TASK_IMAGE_URL_EMPTY);
         }
         if (method == null || method.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "处理方式不能为空");
+            throw exception(ErrorCodeConstants.AIGC_TASK_METHOD_EMPTY);
         }
 
         // 0.002~0.007 元/次 × 100 积分/元 × 加价倍率，向上取整，最低 1 积分
@@ -475,7 +471,12 @@ public class AigcTaskService
 
         var task =
                 buildTask(
-                        userId, "IMAGE_PROCESS", imageUrl, "aliyun:imageseg", "阿里云图像处理", projectId);
+                        userId,
+                        AigcTaskTypeEnum.IMAGE_PROCESS.getCode(),
+                        imageUrl,
+                        "aliyun:imageseg",
+                        "阿里云图像处理",
+                        projectId);
         task.setParams(JsonUtils.toJsonString(Map.of("imageUrl", imageUrl, "method", method)));
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
@@ -508,8 +509,14 @@ public class AigcTaskService
             Long userId, String type, String model, Map<String, Object> params) {
         if (params == null) params = Map.of();
         int markup = creditGuard.getMarkupRate();
-        return switch (type.toUpperCase()) {
-            case "IMAGE", "IMAGE_GEN" -> {
+        AigcTaskTypeEnum taskType;
+        try {
+            taskType = AigcTaskTypeEnum.fromCode(type);
+        } catch (IllegalArgumentException e) {
+            throw exception(ErrorCodeConstants.AIGC_TASK_TYPE_INVALID, type);
+        }
+        return switch (taskType) {
+            case IMAGE -> {
                 var ctx =
                         CapabilityRoutingContext.of(
                                 userId, CapabilityRoutingContext.CAP_IMAGE_GEN, model);
@@ -544,7 +551,7 @@ public class AigcTaskService
                         .get(ImageGenerationService.class, resolvedModel)
                         .estimateCost(resolvedModel, req, markup);
             }
-            case "VIDEO", "VIDEO_GEN" -> {
+            case VIDEO -> {
                 var ctx =
                         CapabilityRoutingContext.of(
                                 userId, CapabilityRoutingContext.CAP_VIDEO_GEN, model);
@@ -564,7 +571,7 @@ public class AigcTaskService
                         .get(VideoGenerationService.class, resolvedModel)
                         .estimateCost(resolvedModel, videoReq, markup);
             }
-            case "MODEL_3D" -> {
+            case MODEL_3D -> {
                 var ctx =
                         CapabilityRoutingContext.of(
                                 userId, CapabilityRoutingContext.CAP_MODEL_3D, model);
@@ -576,14 +583,14 @@ public class AigcTaskService
                                 toStr(params.get("textureQuality")));
                 yield model3dGenerationService.estimateCost(resolvedModel, req, markup);
             }
-            case "MUSIC" -> {
+            case MUSIC -> {
                 var resolvedModel = configCacheManager.getAiModelByModelId(model);
                 var req = new MusicGenerationService.MusicRequest("", null, null, "mp3");
                 yield aiServiceRegistry
                         .get(MusicGenerationService.class, resolvedModel)
                         .estimateCost(resolvedModel, req, markup);
             }
-            case "VOICE" -> {
+            case VOICE -> {
                 var ctx =
                         CapabilityRoutingContext.of(
                                 userId, CapabilityRoutingContext.CAP_SPEECH_TTS, model);
@@ -593,7 +600,7 @@ public class AigcTaskService
                         .get(SpeechService.class, resolvedModel)
                         .estimateCost(resolvedModel, text != null ? text : "", markup);
             }
-            case "IMAGE_PROCESS" -> {
+            case IMAGE_PROCESS -> {
                 String method = toStr(params.get("method"));
                 yield Math.max(
                         1L,
@@ -603,8 +610,6 @@ public class AigcTaskService
                                                 * AiCreditGuard.YUAN_TO_CREDIT
                                                 * markup));
             }
-            default ->
-                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不支持的任务类型: " + type);
         };
     }
 
@@ -635,7 +640,7 @@ public class AigcTaskService
         task.setResultUrl(resultUrl);
 
         // Step 1: 3D 任务先结算积分（settle 必须在 OSS 上传前，便于 OSS 失败时通过 credit_tx_id 退还）
-        if (TYPE_MODEL3D.equals(task.getType())) {
+        if (AigcTaskTypeEnum.MODEL_3D.getCode().equals(task.getType())) {
             Long creditTxId = settleModel3d(task, thirdTaskId);
             if (creditTxId != null) {
                 task.setCreditTxId(creditTxId);
@@ -653,14 +658,15 @@ public class AigcTaskService
             return;
         }
         task.setOssUrl(ossUrl);
-        task.setStatus(STATUS_SUCCESS);
+        task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
         taskRepo.save(task);
         saveToMediaAsset(task, ossUrl);
 
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
         // 图片任务触发成长任务进度
-        if ("IMAGE_GEN".equals(task.getType()) || "IMAGE_EDIT".equals(task.getType())) {
+        if (AigcTaskTypeEnum.IMAGE.getCode().equals(task.getType())
+                || "IMAGE_EDIT".equals(task.getType())) {
             eventPublisher.publishEvent(
                     new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
         }
@@ -704,7 +710,7 @@ public class AigcTaskService
             return;
         }
         task.setOssUrl(ossUrl);
-        task.setStatus(STATUS_SUCCESS);
+        task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
         taskRepo.save(task);
         saveToMediaAsset(task, ossUrl);
 
@@ -785,7 +791,7 @@ public class AigcTaskService
             }
         }
 
-        task.setStatus(STATUS_FAIL);
+        task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
         task.setErrorMsg(errorMsg);
         taskRepo.save(task);
         eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
@@ -857,7 +863,7 @@ public class AigcTaskService
         task.setUserId(userId);
         task.setOwnerId(userId);
         task.setType(type);
-        task.setStatus(STATUS_PENDING);
+        task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
         task.setPrompt(prompt);
         task.setModel(model);
         task.setModelName(modelName);
@@ -896,7 +902,7 @@ public class AigcTaskService
         try {
             // 视频类型：异步生成 OSS 截帧缩略图（仅 OSS 存储时有效，其他存储静默忽略）
             String thumbnailUrl = null;
-            if (TYPE_VIDEO.equals(task.getType())) {
+            if (AigcTaskTypeEnum.VIDEO.getCode().equals(task.getType())) {
                 try {
                     thumbnailUrl = fileService.generateVideoThumbnail(ossUrl);
                 } catch (Exception e) {
@@ -937,16 +943,18 @@ public class AigcTaskService
         }
     }
 
+    /** 任务类型 → 素材类型映射，取值参见 {@link AigcTaskTypeEnum}（case 需编译期常量，故用字面量）。 */
     private MediaAssetType toMediaAssetType(String type) {
         return switch (type) {
-            case TYPE_VIDEO -> MediaAssetType.VIDEO;
-            case TYPE_MODEL3D -> MediaAssetType.MODEL_3D;
-            case TYPE_MUSIC -> MediaAssetType.MUSIC;
-            case TYPE_VOICE -> MediaAssetType.AUDIO;
+            case "VIDEO" -> MediaAssetType.VIDEO;
+            case "MODEL_3D" -> MediaAssetType.MODEL_3D;
+            case "MUSIC" -> MediaAssetType.MUSIC;
+            case "VOICE" -> MediaAssetType.AUDIO;
             default -> MediaAssetType.IMAGE;
         };
     }
 
+    /** 任务类型 → 文件扩展名映射，取值参见 {@link AigcTaskTypeEnum}（case 需编译期常量，故用字面量）。 */
     private String guessExtension(String url, String type) {
         if (url != null && url.contains(".")) {
             String path = url.split("\\?")[0];
@@ -955,20 +963,21 @@ public class AigcTaskService
             if (ext.length() <= 5) return ext;
         }
         return switch (type) {
-            case TYPE_VIDEO -> "mp4";
-            case TYPE_MODEL3D -> "glb";
-            case TYPE_MUSIC -> "mp3";
-            case TYPE_VOICE -> "mp3";
+            case "VIDEO" -> "mp4";
+            case "MODEL_3D" -> "glb";
+            case "MUSIC" -> "mp3";
+            case "VOICE" -> "mp3";
             default -> "png";
         };
     }
 
+    /** 任务类型 → Content-Type 映射，取值参见 {@link AigcTaskTypeEnum}（case 需编译期常量，故用字面量）。 */
     private String guessContentType(String type) {
         return switch (type) {
-            case TYPE_VIDEO -> "video/mp4";
-            case TYPE_MODEL3D -> "model/gltf-binary";
-            case TYPE_MUSIC -> "audio/mpeg";
-            case TYPE_VOICE -> "audio/mpeg";
+            case "VIDEO" -> "video/mp4";
+            case "MODEL_3D" -> "model/gltf-binary";
+            case "MUSIC" -> "audio/mpeg";
+            case "VOICE" -> "audio/mpeg";
             default -> "image/png";
         };
     }
@@ -1014,7 +1023,7 @@ public class AigcTaskService
         var mockVal = getMockValue(typeKey);
         task.setResultUrl(mockVal);
         task.setOssUrl(mockVal);
-        task.setStatus(STATUS_SUCCESS);
+        task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
         taskRepo.save(task);
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
         log.info("[mock] 任务直接完成: taskId={}, type={}, url={}", task.getId(), typeKey, mockVal);
