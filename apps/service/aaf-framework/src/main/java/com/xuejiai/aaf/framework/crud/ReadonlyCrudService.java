@@ -35,12 +35,12 @@ public abstract class ReadonlyCrudService<E extends BaseEntity, V, P extends Pag
     }
 
     @Override
-    public final V create(Void request) {
+    public V create(Void request) {
         throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "只读资源不支持创建");
     }
 
     @Override
-    public final V update(Long id, Void request) {
+    public V update(Long id, Void request) {
         throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "只读资源不支持更新");
     }
 

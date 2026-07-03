@@ -794,3 +794,29 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('brokerage_withdraw_status', '审核拒绝', 'REJECTED',  3, 'danger'),
 ('brokerage_withdraw_status', '已转账',  'TRANSFERRED',4, 'success')
 ON CONFLICT DO NOTHING;
+
+
+-- ==================== AIGC 生成任务字典 ====================
+
+INSERT INTO sys_dict_type (name, type, status, remark) VALUES
+('AIGC 任务类型', 'aigc_task_type',   0, 'AigcTask.type：IMAGE/VIDEO/MODEL_3D/MUSIC/VOICE/IMAGE_PROCESS，与 AigcTaskController#submit 分支一致'),
+('AIGC 任务状态', 'aigc_task_status', 0, 'AigcTask.status：PENDING/RUNNING/SUCCESS/FAIL')
+ON CONFLICT DO NOTHING;
+
+-- aigc_task_type AIGC 任务类型
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('aigc_task_type', '图像',     'IMAGE',         1, 'primary'),
+('aigc_task_type', '视频',     'VIDEO',         2, 'success'),
+('aigc_task_type', '3D 模型', 'MODEL_3D',      3, 'warning'),
+('aigc_task_type', '音乐',     'MUSIC',         4, 'info'),
+('aigc_task_type', '配音',     'VOICE',         5, 'info'),
+('aigc_task_type', '图像处理', 'IMAGE_PROCESS', 6, 'default')
+ON CONFLICT DO NOTHING;
+
+-- aigc_task_status AIGC 任务状态
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('aigc_task_status', '等待中', 'PENDING', 1, 'default'),
+('aigc_task_status', '运行中', 'RUNNING', 2, 'primary'),
+('aigc_task_status', '成功',   'SUCCESS', 3, 'success'),
+('aigc_task_status', '失败',   'FAIL',    4, 'danger')
+ON CONFLICT DO NOTHING;

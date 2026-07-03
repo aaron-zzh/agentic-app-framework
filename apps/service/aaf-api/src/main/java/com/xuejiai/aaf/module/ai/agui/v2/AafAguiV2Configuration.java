@@ -10,8 +10,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.agentscope.runtime.ConversationContextResolver;
 import com.xuejiai.aaf.framework.agentscope.tool.GenerateImageTool;
@@ -27,6 +25,7 @@ import io.agentscope.spring.boot.agui.common.AguiProperties;
 import io.agentscope.spring.boot.agui.common.ThreadSessionManager;
 import io.agentscope.spring.boot.agui.mvc.AguiMvcController;
 import io.agentscope.spring.boot.agui.mvc.AguiRestController;
+import tools.jackson.databind.JsonNode;
 
 /** AG-UI 链路配置：注册 v2 Controller 及 AIGC 生成工具。 */
 @Configuration
@@ -66,12 +65,12 @@ public class AafAguiV2Configuration {
         BiFunction<Long, String, Long> submitter =
                 (userId, requestJson) -> {
                     JsonNode n = parseJson(requestJson);
-                    String prompt = n.path("prompt").asText("");
+                    String prompt = n.path("prompt").asString("");
                     if (prompt.isBlank()) throw new IllegalArgumentException("prompt 不能为空");
-                    String model = nullIfBlank(n.path("model").asText(null));
-                    String ratio = nullIfBlank(n.path("ratio").asText(null));
+                    String model = nullIfBlank(n.path("model").asString(null));
+                    String ratio = nullIfBlank(n.path("ratio").asString(null));
                     int duration = n.path("duration").asInt(5);
-                    String imageUrl = nullIfBlank(n.path("imageUrl").asText(null));
+                    String imageUrl = nullIfBlank(n.path("imageUrl").asString(null));
                     var req =
                             new VideoTaskRequest(
                                     prompt,
@@ -100,9 +99,9 @@ public class AafAguiV2Configuration {
         BiFunction<Long, String, Long> submitter =
                 (userId, requestJson) -> {
                     JsonNode n = parseJson(requestJson);
-                    String prompt = n.path("prompt").asText("");
+                    String prompt = n.path("prompt").asString("");
                     if (prompt.isBlank()) throw new IllegalArgumentException("prompt 不能为空");
-                    String model = nullIfBlank(n.path("model").asText(null));
+                    String model = nullIfBlank(n.path("model").asString(null));
                     return aigcTaskService.submitMusicTask(userId, prompt, model, null, null, null);
                 };
         return new GenerateMusicTool(submitter);
@@ -110,12 +109,12 @@ public class AafAguiV2Configuration {
 
     private static ImageTaskRequest parseImageRequest(String json) {
         JsonNode n = parseJson(json);
-        String prompt = n.path("prompt").asText("");
+        String prompt = n.path("prompt").asString("");
         if (prompt.isBlank()) throw new IllegalArgumentException("prompt 不能为空");
         int width = n.path("width").asInt(1024);
         int height = n.path("height").asInt(1024);
-        String model = nullIfBlank(n.path("model").asText(null));
-        String aspectRatio = nullIfBlank(n.path("aspectRatio").asText(null));
+        String model = nullIfBlank(n.path("model").asString(null));
+        String aspectRatio = nullIfBlank(n.path("aspectRatio").asString(null));
         return new ImageTaskRequest(
                 prompt,
                 model,

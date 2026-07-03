@@ -134,8 +134,8 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             var responseNode = parseJson(response);
             if (responseNode != null && responseNode.has("data")) {
                 for (var item : responseNode.get("data")) {
-                    String b = item.path("b64_json").asText(null);
-                    String u = item.path("url").asText(null);
+                    String b = item.path("b64_json").asString(null);
+                    String u = item.path("url").asString(null);
                     if (b != null && !b.isBlank()) urls.add(b);
                     else if (u != null && !u.isBlank()) urls.add(u);
                     if (b64 == null && b != null && !b.isBlank()) b64 = b;
@@ -265,8 +265,8 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             var responseNode = parseJson(response);
             if (responseNode != null && responseNode.has("data")) {
                 for (var item : responseNode.get("data")) {
-                    String b = item.path("b64_json").asText(null);
-                    String u = item.path("url").asText(null);
+                    String b = item.path("b64_json").asString(null);
+                    String u = item.path("url").asString(null);
                     if (b != null && !b.isBlank()) urls.add(b);
                     else if (u != null && !u.isBlank()) urls.add(u);
                     if (b64 == null && b != null && !b.isBlank()) b64 = b;

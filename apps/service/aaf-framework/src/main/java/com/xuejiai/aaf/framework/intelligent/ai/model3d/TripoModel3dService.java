@@ -86,7 +86,7 @@ public class TripoModel3dService implements Model3dGenerationService {
             var root = JsonUtils.readTree(response.body());
             var output = root.get("output");
 
-            var status = parseStatus(output.get("task_status").asText());
+            var status = parseStatus(output.get("task_status").asString());
 
             String modelUrl = null;
             String baseModelUrl = null;
@@ -136,11 +136,11 @@ public class TripoModel3dService implements Model3dGenerationService {
             var root = JsonUtils.readTree(response.body());
 
             if (root.has("code")) {
-                var errMsg = root.get("message").asText();
+                var errMsg = root.get("message").asString();
                 throw new RuntimeException("Tripo 3D 任务提交失败: " + errMsg);
             }
 
-            var taskId = root.get("output").get("task_id").asText();
+            var taskId = root.get("output").get("task_id").asString();
             log.info("[Tripo] 3D 任务提交成功: taskId={}", taskId);
             return taskId;
         } catch (RuntimeException e) {
@@ -174,6 +174,6 @@ public class TripoModel3dService implements Model3dGenerationService {
     }
 
     private String getTextOrNull(JsonNode node, String field) {
-        return node.has(field) && !node.get(field).isNull() ? node.get(field).asText() : null;
+        return node.has(field) && !node.get(field).isNull() ? node.get(field).asString() : null;
     }
 }

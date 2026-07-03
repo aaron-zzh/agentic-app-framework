@@ -245,8 +245,8 @@ public class AccessPolicyService implements PolicyEngine {
         }
         var actual = context == null ? null : context.get(field);
         return switch (op) {
-            case "eq" -> actual != null && actual.toString().equals(expected.asText());
-            case "ne" -> actual == null || !actual.toString().equals(expected.asText());
+            case "eq" -> actual != null && actual.toString().equals(expected.asString());
+            case "ne" -> actual == null || !actual.toString().equals(expected.asString());
             case "in" ->
                     expected.isArray()
                             && java.util.stream.StreamSupport.stream(expected.spliterator(), false)
@@ -254,13 +254,13 @@ public class AccessPolicyService implements PolicyEngine {
                                             value ->
                                                     actual != null
                                                             && actual.toString()
-                                                                    .equals(value.asText()));
+                                                                    .equals(value.asString()));
             default -> false;
         };
     }
 
     private String text(JsonNode node, String fieldName) {
         var value = node.get(fieldName);
-        return value == null || value.isNull() ? null : value.asText();
+        return value == null || value.isNull() ? null : value.asString();
     }
 }

@@ -52,7 +52,7 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
             // 飞书 URL 验证（challenge 机制）
             if (root.has("challenge")) {
                 var extra = new HashMap<String, Object>();
-                extra.put("challenge", root.path("challenge").asText());
+                extra.put("challenge", root.path("challenge").asString());
                 extra.put("isChallenge", true);
                 return new UnifiedMessage(
                         ChannelTypeEnum.FEISHU,
@@ -71,14 +71,15 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
             // 事件订阅消息
             var event = root.path("event");
             var msgNode = event.path("message");
-            var senderId = event.path("sender").path("sender_id").path("open_id").asText("unknown");
-            var msgType = msgNode.path("message_type").asText("text");
-            var chatId = msgNode.path("chat_id").asText("");
+            var senderId =
+                    event.path("sender").path("sender_id").path("open_id").asString("unknown");
+            var msgType = msgNode.path("message_type").asString("text");
+            var chatId = msgNode.path("chat_id").asString("");
 
             // 解析消息内容
-            var contentStr = msgNode.path("content").asText("{}");
+            var contentStr = msgNode.path("content").asString("{}");
             var contentNode = JsonUtils.readTree(contentStr);
-            var text = contentNode.path("text").asText("").strip();
+            var text = contentNode.path("text").asString("").strip();
 
             // 去掉 @机器人 的前缀
             if (text.contains("@_all") || text.startsWith("@")) {
@@ -88,8 +89,8 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
             // 解析指令
             var extra = BotCommandParser.parse(text);
             extra.put("chatId", chatId);
-            extra.put("messageId", msgNode.path("message_id").asText(""));
-            extra.put("chatType", msgNode.path("chat_type").asText(""));
+            extra.put("messageId", msgNode.path("message_id").asString(""));
+            extra.put("chatType", msgNode.path("chat_type").asString(""));
 
             var messageType =
                     switch (msgType) {

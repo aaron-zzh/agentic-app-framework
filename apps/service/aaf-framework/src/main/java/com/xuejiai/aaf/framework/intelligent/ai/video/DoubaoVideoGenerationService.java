@@ -180,8 +180,9 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             var root = JsonUtils.readTree(response.body());
 
-            var status = parseStatus(root.path("status").asText());
-            var videoUrl = root.path("content").path(0).path("video_url").path("url").asText(null);
+            var status = parseStatus(root.path("status").asString());
+            var videoUrl =
+                    root.path("content").path(0).path("video_url").path("url").asString(null);
             return new VideoTaskResult(taskId, status, videoUrl, null, null, null, null);
         } catch (Exception e) {
             log.error("[doubao-seedance] 查询任务失败: taskId={}", taskId, e);
@@ -221,11 +222,11 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
             var root = JsonUtils.readTree(response.body());
 
             if (root.has("error")) {
-                var errMsg = root.get("error").path("message").asText("未知错误");
+                var errMsg = root.get("error").path("message").asString("未知错误");
                 throw new RuntimeException("doubao-seedance 任务提交失败: " + errMsg);
             }
 
-            var taskId = root.path("id").asText();
+            var taskId = root.path("id").asString();
             log.info("[doubao-seedance] 任务提交成功: model={}, taskId={}", model, taskId);
             return taskId;
         } catch (RuntimeException e) {
@@ -260,9 +261,9 @@ public class DoubaoVideoGenerationService implements VideoGenerationService {
             var root = JsonUtils.readTree(response.body());
             if (root.has("error")) {
                 throw new RuntimeException(
-                        "doubao-seedance 任务提交失败: " + root.get("error").path("message").asText());
+                        "doubao-seedance 任务提交失败: " + root.get("error").path("message").asString());
             }
-            var taskId = root.path("id").asText();
+            var taskId = root.path("id").asString();
             log.info("[doubao-seedance] 任务提交成功: model={}, taskId={}", modelName, taskId);
             return taskId;
         } catch (RuntimeException e) {

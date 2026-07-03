@@ -370,11 +370,11 @@ public class ToolCallDispatcher {
         try {
             var node = JsonUtils.readTree(arguments);
             if (node.hasNonNull("prompt")) {
-                return node.get("prompt").asText();
+                return node.get("prompt").asString();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = JsonUtils.readTree(node.get("requestJson").asText());
-                return nested.hasNonNull("prompt") ? nested.get("prompt").asText() : null;
+                var nested = JsonUtils.readTree(node.get("requestJson").asString());
+                return nested.hasNonNull("prompt") ? nested.get("prompt").asString() : null;
             }
         } catch (Exception ignored) {
             // 非 JSON 参数无法抽取 prompt。
@@ -392,7 +392,7 @@ public class ToolCallDispatcher {
                 return node.get(field).asDouble();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = JsonUtils.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asString());
                 return nested.hasNonNull(field) && nested.get(field).isNumber()
                         ? nested.get(field).asDouble()
                         : null;
@@ -413,7 +413,7 @@ public class ToolCallDispatcher {
                 return node.get(field).asBoolean();
             }
             if (node.hasNonNull("requestJson")) {
-                var nested = JsonUtils.readTree(node.get("requestJson").asText());
+                var nested = JsonUtils.readTree(node.get("requestJson").asString());
                 return nested.hasNonNull(field) && nested.get(field).isBoolean()
                         ? nested.get(field).asBoolean()
                         : defaultValue;

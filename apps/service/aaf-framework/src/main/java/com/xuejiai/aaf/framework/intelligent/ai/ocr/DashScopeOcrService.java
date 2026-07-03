@@ -353,7 +353,7 @@ public class DashScopeOcrService implements OcrService {
 
     private JsonObject toGsonObject(JsonNode node) {
         JsonObject obj = new JsonObject();
-        node.properties().forEach(e -> obj.addProperty(e.getKey(), e.getValue().asText()));
+        node.properties().forEach(e -> obj.addProperty(e.getKey(), e.getValue().asString()));
         return obj;
     }
 

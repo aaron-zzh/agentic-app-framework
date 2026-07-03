@@ -57,7 +57,7 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
             var root = JsonUtils.readTree(response.body());
 
             if (root.has("code")) {
-                var errMsg = root.has("message") ? root.get("message").asText() : "未知错误";
+                var errMsg = root.has("message") ? root.get("message").asString() : "未知错误";
                 throw new RuntimeException("音乐生成失败: " + errMsg);
             }
 
@@ -96,18 +96,18 @@ public class DashScopeMusicGenerationService implements MusicGenerationService {
     }
 
     private MusicResult parseResult(JsonNode root) {
-        var requestId = root.has("request_id") ? root.get("request_id").asText() : null;
+        var requestId = root.has("request_id") ? root.get("request_id").asString() : null;
         var output = root.get("output");
         var audio = output.get("audio");
 
-        var audioUrl = audio.has("url") ? audio.get("url").asText() : null;
+        var audioUrl = audio.has("url") ? audio.get("url").asString() : null;
 
         String lyrics = null;
         Integer sampleRate = null;
         Integer channels = null;
         if (output.has("extra_info")) {
             var extraInfo = output.get("extra_info");
-            lyrics = extraInfo.has("lyrics") ? extraInfo.get("lyrics").asText() : null;
+            lyrics = extraInfo.has("lyrics") ? extraInfo.get("lyrics").asString() : null;
             sampleRate = extraInfo.has("sample_rate") ? extraInfo.get("sample_rate").asInt() : null;
             channels = extraInfo.has("channels") ? extraInfo.get("channels").asInt() : null;
         }

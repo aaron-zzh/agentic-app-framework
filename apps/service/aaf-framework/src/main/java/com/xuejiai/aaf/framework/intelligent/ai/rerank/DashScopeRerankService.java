@@ -84,7 +84,7 @@ public class DashScopeRerankService implements RerankService {
                             r ->
                                     new RankedDocument(
                                             r.path("index").asInt(),
-                                            r.path("document").path("text").asText(""),
+                                            r.path("document").path("text").asString(""),
                                             r.path("relevance_score").asDouble()))
                     .toList();
         } catch (IOException | InterruptedException e) {

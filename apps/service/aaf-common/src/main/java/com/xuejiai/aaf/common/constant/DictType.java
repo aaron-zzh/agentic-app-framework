@@ -76,6 +76,8 @@ public final class DictType {
         public static final String SHOT_SCENE_TYPE =
                 "aigc_shot_scene_type"; // 镜头景别类型，见 AigcShotSceneTypeEnum
         public static final String TRACK_TYPE = "aigc_track_type"; // 轨道类型，见 AigcTrackTypeEnum
+        public static final String TASK_TYPE = "aigc_task_type"; // 任务类型，见 AigcTaskTypeEnum
+        public static final String TASK_STATUS = "aigc_task_status"; // 任务状态，见 AigcTaskStatusEnum
     }
 
     /** 对话/聊天模块 */

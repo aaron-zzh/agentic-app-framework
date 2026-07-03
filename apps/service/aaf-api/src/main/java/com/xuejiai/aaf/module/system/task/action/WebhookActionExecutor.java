@@ -29,9 +29,9 @@ public class WebhookActionExecutor implements ScheduledActionExecutor {
     public void execute(ScheduledTask task) {
         try {
             var config = JsonUtils.readTree(task.getActionConfig());
-            var url = config.get("url").asText();
-            var method = config.has("method") ? config.get("method").asText() : "POST";
-            var body = config.has("body") ? config.get("body").asText("") : "";
+            var url = config.get("url").asString();
+            var method = config.has("method") ? config.get("method").asString() : "POST";
+            var body = config.has("body") ? config.get("body").asString("") : "";
 
             var client = restClientBuilder.build();
             var response =

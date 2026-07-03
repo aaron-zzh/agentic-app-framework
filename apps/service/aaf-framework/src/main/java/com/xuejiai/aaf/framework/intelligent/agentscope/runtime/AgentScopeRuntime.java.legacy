@@ -243,7 +243,7 @@ public class AgentScopeRuntime implements AgentRuntime {
         try {
             var node = objectMapper.readTree(json);
             if (!node.has("ragMode")) return;
-            var mode = node.get("ragMode").asText().toUpperCase();
+            var mode = node.get("ragMode").asString().toUpperCase();
             var limit = node.has("ragLimit") ? node.get("ragLimit").asInt() : 3;
             var threshold =
                     node.has("ragScoreThreshold") ? node.get("ragScoreThreshold").asDouble() : 0.3;

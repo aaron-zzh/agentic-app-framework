@@ -155,6 +155,13 @@ public class GlobalExceptionHandler {
         return Result.error(GlobalErrorCode.BAD_REQUEST, e.getMessage());
     }
 
+    /** 非法参数异常（如枚举解析失败），统一映射为 400，避免落入未知异常兜底返回 500 */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<?> handleIllegalArgument(IllegalArgumentException e) {
+        return Result.error(GlobalErrorCode.BAD_REQUEST, e.getMessage());
+    }
+
     /** 请求方法不支持 */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)

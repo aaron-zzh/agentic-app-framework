@@ -47,7 +47,7 @@ public class AutodevDocImportService {
     @EventListener(ApplicationStartedEvent.class)
     public void onStartup() {
         log.info("启动时自动扫描 docs/ 目录（autodev_doc）");
-        importAll();
+        // importAll();
     }
 
     /** 全量导入（手动触发或启动时调用）。 */

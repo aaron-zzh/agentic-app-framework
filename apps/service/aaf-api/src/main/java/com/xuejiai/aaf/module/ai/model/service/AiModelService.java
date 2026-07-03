@@ -414,7 +414,7 @@ public class AiModelService {
                 continue;
             }
             for (var group : enableGroups) {
-                var groupName = group.asText();
+                var groupName = group.asString();
                 if (!groupName.isBlank()) {
                     groups.computeIfAbsent(groupName, ignored -> new ArrayList<>()).add(item);
                 }
@@ -484,7 +484,7 @@ public class AiModelService {
         var endpoints = firstPresent(item, "supported_endpoint_types", "supported_endpoints");
         if (endpoints != null && endpoints.isArray()) {
             for (var endpoint : endpoints) {
-                if ("anthropic".equalsIgnoreCase(endpoint.asText())) {
+                if ("anthropic".equalsIgnoreCase(endpoint.asString())) {
                     return AiModelProviderType.ANTHROPIC;
                 }
             }
@@ -508,10 +508,10 @@ public class AiModelService {
         }
         if (endpoints != null && endpoints.isArray()) {
             for (var endpoint : endpoints) {
-                if (contains(endpoint.asText(), "image")) {
+                if (contains(endpoint.asString(), "image")) {
                     values.add("IMAGE_GEN");
                 }
-                if (contains(endpoint.asText(), "embedding")) {
+                if (contains(endpoint.asString(), "embedding")) {
                     values.add("EMBEDDING");
                 }
             }
@@ -557,7 +557,7 @@ public class AiModelService {
         if (value == null || value.isNull()) {
             return null;
         }
-        var text = value.asText();
+        var text = value.asString();
         return text.isBlank() ? null : text;
     }
 

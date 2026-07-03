@@ -21,6 +21,7 @@ import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.BizOrderItemCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
+import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -65,8 +66,7 @@ public class CreditPackageController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/purchase")
     @Transactional
-    public Result<com.xuejiai.aaf.module.pay.vo.PayOrderVO> purchase(
-            @RequestBody Map<String, String> body) {
+    public Result<PayOrderVO> purchase(@RequestBody Map<String, String> body) {
         String packageIdStr = body.get("packageId");
         if (packageIdStr == null || packageIdStr.isBlank()) {
             return Result.error(400, "packageId 不能为空");

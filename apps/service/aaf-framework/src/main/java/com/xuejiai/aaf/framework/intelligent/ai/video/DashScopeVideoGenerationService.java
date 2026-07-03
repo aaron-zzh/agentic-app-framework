@@ -202,12 +202,14 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
             var root = JsonUtils.readTree(response.body());
             var output = root.get("output");
 
-            var status = parseStatus(output.get("task_status").asText());
-            var videoUrl = output.has("video_url") ? output.get("video_url").asText() : null;
-            var origPrompt = output.has("orig_prompt") ? output.get("orig_prompt").asText() : null;
-            var submitTime = output.has("submit_time") ? output.get("submit_time").asText() : null;
-            var endTime = output.has("end_time") ? output.get("end_time").asText() : null;
-            var errorMessage = output.has("message") ? output.get("message").asText() : null;
+            var status = parseStatus(output.get("task_status").asString());
+            var videoUrl = output.has("video_url") ? output.get("video_url").asString() : null;
+            var origPrompt =
+                    output.has("orig_prompt") ? output.get("orig_prompt").asString() : null;
+            var submitTime =
+                    output.has("submit_time") ? output.get("submit_time").asString() : null;
+            var endTime = output.has("end_time") ? output.get("end_time").asString() : null;
+            var errorMessage = output.has("message") ? output.get("message").asString() : null;
 
             Integer duration = null;
             String resolution = null;
@@ -276,11 +278,11 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
             var root = JsonUtils.readTree(response.body());
 
             if (root.has("code")) {
-                var errMsg = root.get("message").asText();
+                var errMsg = root.get("message").asString();
                 throw new RuntimeException("视频生成任务提交失败: " + errMsg);
             }
 
-            var taskId = root.get("output").get("task_id").asText();
+            var taskId = root.get("output").get("task_id").asString();
             log.info("[HappyHorse] 任务提交成功: model={}, taskId={}", model, taskId);
             return taskId;
         } catch (RuntimeException e) {

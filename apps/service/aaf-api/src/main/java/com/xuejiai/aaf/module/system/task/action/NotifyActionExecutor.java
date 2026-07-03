@@ -27,8 +27,8 @@ public class NotifyActionExecutor implements ScheduledActionExecutor {
         try {
             var config = JsonUtils.readTree(task.getActionConfig());
             var userId = config.get("userId").asLong();
-            var title = config.get("title").asText();
-            var content = config.get("content").asText();
+            var title = config.get("title").asString();
+            var content = config.get("content").asString();
             notificationService.sendSystemNotification(userId, title, content);
         } catch (Exception e) {
             log.error("NOTIFY 动作执行失败，taskId={}", task.getId(), e);

@@ -82,7 +82,7 @@ public class GenerateImageTool {
 
     static String extractPrompt(String requestJson) {
         try {
-            return JsonUtils.readTree(requestJson).path("prompt").asText("");
+            return JsonUtils.readTree(requestJson).path("prompt").asString("");
         } catch (Exception e) {
             return "";
         }

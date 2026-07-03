@@ -146,7 +146,7 @@ public class AliyunImageProcessService implements ImageProcessService {
             return switch (data.getStatus()) {
                 case "PROCESS_SUCCESS" -> {
                     var node = JsonUtils.readTree(data.getResult());
-                    yield ProcessResult.success(node.path("resultUrl").asText());
+                    yield ProcessResult.success(node.path("resultUrl").asString());
                 }
                 case "PROCESS_FAILED", "TIMEOUT_FAILED" ->
                         ProcessResult.failed(data.getErrorMessage());

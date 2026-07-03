@@ -60,7 +60,7 @@ public class PullRequestService {
                         "创建 PR 失败: HTTP %d - %s".formatted(response.statusCode(), response.body()));
             }
             var json = JsonUtils.readTree(response.body());
-            var prUrl = json.get("html_url").asText();
+            var prUrl = json.get("html_url").asString();
             log.info("PR 创建成功：{}", prUrl);
             return prUrl;
         } catch (IOException | InterruptedException e) {

@@ -102,16 +102,16 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
     public UnifiedMessage receive(String rawPayload) {
         try {
             var root = JsonUtils.readTree(rawPayload);
-            var msgType = root.path("msgtype").asText("text");
+            var msgType = root.path("msgtype").asString("text");
             var senderId =
-                    root.path("senderStaffId").asText(root.path("senderId").asText("unknown"));
-            var text = root.path("text").path("content").asText("").strip();
+                    root.path("senderStaffId").asString(root.path("senderId").asString("unknown"));
+            var text = root.path("text").path("content").asString("").strip();
 
             // 解析指令
             var extra = BotCommandParser.parse(text);
-            extra.put("senderNick", root.path("senderNick").asText(""));
-            extra.put("conversationType", root.path("conversationType").asText(""));
-            extra.put("sessionWebhook", root.path("sessionWebhook").asText(""));
+            extra.put("senderNick", root.path("senderNick").asString(""));
+            extra.put("conversationType", root.path("conversationType").asString(""));
+            extra.put("sessionWebhook", root.path("sessionWebhook").asString(""));
 
             var messageType =
                     switch (msgType) {

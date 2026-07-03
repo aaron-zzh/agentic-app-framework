@@ -365,7 +365,7 @@ public class DataAccessService
 
     private String text(JsonNode node, String fieldName) {
         var value = node.get(fieldName);
-        return value == null || value.isNull() ? null : value.asText();
+        return value == null || value.isNull() ? null : value.asString();
     }
 
     /** 解析 $user.xxx 表达式为实际值，并按字段类型做基础转换。 */
@@ -379,8 +379,8 @@ public class DataAccessService
             valueNode.forEach(value -> values.add(resolveValue(value, userContext, targetType)));
             return values;
         }
-        if (valueNode.isTextual() && valueNode.asText().startsWith("$user.")) {
-            var key = valueNode.asText().substring("$user.".length());
+        if (valueNode.isString() && valueNode.asString().startsWith("$user.")) {
+            var key = valueNode.asString().substring("$user.".length());
             return userContext.get(key);
         }
         if (Long.class.equals(targetType) || long.class.equals(targetType)) {
@@ -392,7 +392,7 @@ public class DataAccessService
         if (Boolean.class.equals(targetType) || boolean.class.equals(targetType)) {
             return valueNode.asBoolean();
         }
-        return valueNode.isTextual() ? valueNode.asText() : valueNode.toString();
+        return valueNode.isString() ? valueNode.asString() : valueNode.toString();
     }
 
     private void applyDTO(DataAccessRule rule, DataAccessRuleCreateDTO dto) {

@@ -165,7 +165,7 @@ public class GeminiNativeImageGenerationService implements ImageGenerationServic
                 var inlineData = part.path("inlineData");
                 if (inlineData.isMissingNode()) inlineData = part.path("inline_data");
                 if (!inlineData.isMissingNode()) {
-                    String data = inlineData.path("data").asText(null);
+                    String data = inlineData.path("data").asString(null);
                     if (data != null && !data.isBlank()) return data;
                 }
             }

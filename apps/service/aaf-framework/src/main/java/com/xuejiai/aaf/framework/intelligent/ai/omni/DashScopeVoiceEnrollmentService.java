@@ -58,7 +58,7 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
             body.set("input", input);
 
             var root = post(body.toString());
-            var voice = root.get("output").get("voice").asText();
+            var voice = root.get("output").get("voice").asString();
             log.info(
                     "[VoiceEnrollment] 音色创建成功: voice={}, targetModel={}",
                     voice,
@@ -90,9 +90,9 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
                         item ->
                                 result.add(
                                         new VoiceInfo(
-                                                item.get("voice").asText(),
-                                                item.get("gmt_create").asText(),
-                                                item.get("target_model").asText())));
+                                                item.get("voice").asString(),
+                                                item.get("gmt_create").asString(),
+                                                item.get("target_model").asString())));
             }
             return result;
         } catch (RuntimeException e) {
@@ -131,7 +131,7 @@ public class DashScopeVoiceEnrollmentService implements VoiceEnrollmentService {
         var root = JsonUtils.readTree(response.body());
 
         if (response.statusCode() != 200) {
-            var msg = root.has("message") ? root.get("message").asText() : response.body();
+            var msg = root.has("message") ? root.get("message").asString() : response.body();
             throw new RuntimeException("DashScope API 错误 [" + response.statusCode() + "]: " + msg);
         }
         return root;

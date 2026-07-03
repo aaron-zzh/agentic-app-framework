@@ -77,12 +77,12 @@ public class CiCdService {
                 var json = JsonUtils.readTree(response.body());
                 var status = new BuildStatus();
                 status.setRunId(runId);
-                status.setStatus(json.get("status").asText());
+                status.setStatus(json.get("status").asString());
                 status.setConclusion(
                         json.has("conclusion") && !json.get("conclusion").isNull()
-                                ? json.get("conclusion").asText()
+                                ? json.get("conclusion").asString()
                                 : null);
-                status.setHtmlUrl(json.get("html_url").asText());
+                status.setHtmlUrl(json.get("html_url").asString());
                 status.setUpdatedAt(LocalDateTime.now());
                 buildCache.put(runId, status);
                 return status;
@@ -97,18 +97,18 @@ public class CiCdService {
     public void handleWebhook(String event, JsonNode payload) {
         if (!"workflow_run".equals(event)) return;
 
-        var action = payload.get("action").asText();
+        var action = payload.get("action").asString();
         var run = payload.get("workflow_run");
         var runId = run.get("id").asLong();
 
         var status = new BuildStatus();
         status.setRunId(runId);
-        status.setStatus(run.get("status").asText());
+        status.setStatus(run.get("status").asString());
         status.setConclusion(
                 run.has("conclusion") && !run.get("conclusion").isNull()
-                        ? run.get("conclusion").asText()
+                        ? run.get("conclusion").asString()
                         : null);
-        status.setHtmlUrl(run.get("html_url").asText());
+        status.setHtmlUrl(run.get("html_url").asString());
         status.setUpdatedAt(LocalDateTime.now());
         buildCache.put(runId, status);
 

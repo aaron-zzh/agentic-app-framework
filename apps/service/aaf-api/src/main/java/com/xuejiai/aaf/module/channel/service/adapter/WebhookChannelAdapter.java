@@ -35,8 +35,8 @@ public class WebhookChannelAdapter implements ChannelAdapter {
     public UnifiedMessage receive(String rawPayload) {
         try {
             var root = JsonUtils.readTree(rawPayload);
-            var eventType = root.path("event_type").asText("unknown");
-            var source = root.path("source").asText("external");
+            var eventType = root.path("event_type").asString("unknown");
+            var source = root.path("source").asString("external");
             var content = root.path("data").toString();
 
             var extra = new HashMap<String, Object>();

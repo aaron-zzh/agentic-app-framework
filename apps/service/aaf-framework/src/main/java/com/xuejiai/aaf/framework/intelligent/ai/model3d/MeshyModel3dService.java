@@ -81,14 +81,14 @@ public class MeshyModel3dService implements Model3dGenerationService {
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             var root = JsonUtils.readTree(response.body());
 
-            var status = parseStatus(root.get("status").asText());
+            var status = parseStatus(root.get("status").asString());
             var modelUrl =
                     root.has("model_urls") && root.get("model_urls").has("glb")
-                            ? root.get("model_urls").get("glb").asText()
+                            ? root.get("model_urls").get("glb").asString()
                             : null;
             var thumbnailUrl =
-                    root.has("thumbnail_url") ? root.get("thumbnail_url").asText() : null;
-            var prompt = root.has("prompt") ? root.get("prompt").asText() : null;
+                    root.has("thumbnail_url") ? root.get("thumbnail_url").asString() : null;
+            var prompt = root.has("prompt") ? root.get("prompt").asString() : null;
 
             return new Model3dTaskResult(taskId, status, modelUrl, null, thumbnailUrl, prompt);
         } catch (Exception e) {
@@ -115,7 +115,7 @@ public class MeshyModel3dService implements Model3dGenerationService {
             var root = JsonUtils.readTree(response.body());
 
             if (root.has("result")) {
-                var taskId = root.get("result").asText();
+                var taskId = root.get("result").asString();
                 log.info("[Meshy] 3D 任务提交成功: path={}, taskId={}", path, taskId);
                 // 返回带前缀的 taskId，用于 query 时区分端点
                 var prefix = path.substring(1); // 去掉前导 /

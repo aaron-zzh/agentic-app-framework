@@ -44,7 +44,7 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
         try {
             var json = JsonUtils.toJsonString(body);
             var resp = post(baseUrl, apiKey, "/submit/imagine", json);
-            String taskId = JsonUtils.readTree(resp).path("result").asText(null);
+            String taskId = JsonUtils.readTree(resp).path("result").asString(null);
             if (taskId == null || taskId.isBlank()) {
                 throw new RuntimeException("Midjourney 任务提交失败: " + resp);
             }
@@ -72,15 +72,15 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
         try {
             var resp = get(baseUrl, apiKey, "/task/" + mjTaskId + "/fetch");
             var node = JsonUtils.readTree(resp);
-            String status = node.path("status").asText("UNKNOWN");
+            String status = node.path("status").asString("UNKNOWN");
             return switch (status) {
                 case "SUCCESS" -> {
-                    String imageUrl = node.path("imageUrl").asText(null);
+                    String imageUrl = node.path("imageUrl").asString(null);
                     log.info("[Midjourney] 任务完成: taskId={}, url={}", mjTaskId, imageUrl);
                     yield AsyncImageResult.succeeded(taskId, imageUrl);
                 }
                 case "FAILURE" -> {
-                    String failReason = node.path("failReason").asText("未知原因");
+                    String failReason = node.path("failReason").asString("未知原因");
                     log.warn("[Midjourney] 任务失败: taskId={}, reason={}", mjTaskId, failReason);
                     yield AsyncImageResult.failed(taskId, failReason);
                 }
@@ -107,10 +107,11 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
             var json = JsonUtils.toJsonString(body);
             var resp = post(baseUrl, apiKey, "/submit/imagine", json);
             var node = JsonUtils.readTree(resp);
-            if (!List.of("1", "21", "22").contains(node.path("code").asText())) {
-                throw new RuntimeException("Midjourney 提交失败: " + node.path("description").asText());
+            if (!List.of("1", "21", "22").contains(node.path("code").asString())) {
+                throw new RuntimeException(
+                        "Midjourney 提交失败: " + node.path("description").asString());
             }
-            String taskId = node.path("result").asText(null);
+            String taskId = node.path("result").asString(null);
             log.info("[Midjourney] imagine 提交成功: modelId={}, taskId={}", modelId, taskId);
             return taskId;
         } catch (RuntimeException e) {
@@ -129,11 +130,11 @@ public class MidjourneyAsyncImageService implements AsyncImageGenerationService 
             var resp =
                     post(model.effectiveBaseUrl(), model.effectiveApiKey(), "/submit/action", json);
             var node = JsonUtils.readTree(resp);
-            if (!List.of("1", "21", "22").contains(node.path("code").asText())) {
+            if (!List.of("1", "21", "22").contains(node.path("code").asString())) {
                 throw new RuntimeException(
-                        "Midjourney action 失败: " + node.path("description").asText());
+                        "Midjourney action 失败: " + node.path("description").asString());
             }
-            return node.path("result").asText(null);
+            return node.path("result").asString(null);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
