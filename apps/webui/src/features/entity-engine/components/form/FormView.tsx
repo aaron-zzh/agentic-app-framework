@@ -5,6 +5,8 @@
  * 用法：
   ```tsx
  * <FormView entity={documentEntity} data={record} onSubmit={handleSave} />
+ * // 视图级只读展示态（复用 Cell 组件体系，不渲染表单控件和保存按钮）
+ * <FormView entity={documentEntity} data={record} readOnly />
  * ```
  */
 
@@ -22,6 +24,7 @@ import { buildZodSchema } from "../../lib/build-zod-schema"
 import { getFieldComponent } from "../../lib/component-registry"
 import type { DataFieldDef, EntityDef, FieldDef, LayoutField } from "../../types"
 import { registerDefaultComponents } from "../register"
+import { FieldViewer } from "./FieldViewer"
 
 // 确保默认组件已注册（幂等，多次调用安全）
 registerDefaultComponents()
@@ -31,6 +34,8 @@ interface FormViewProps {
   data?: Record<string, unknown>
   loading?: boolean
   onSubmit?: (values: Record<string, unknown>) => void
+  /** 视图级只读展示态——为真时渲染 Cell 展示组件，不渲染表单控件，无保存按钮 */
+  readOnly?: boolean
 }
 
 /** 审计元信息字段名（固定渲染到表单末尾只读区） */
@@ -39,7 +44,7 @@ const AUDIT_FIELD_NAMES = new Set(["createTime", "updateTime", "createBy", "upda
 const HIDDEN_FIELD_NAMES = new Set(["deleted", "deleteTime"])
 
 /** 表单视图 */
-export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
+export function FormView({ entity, data, loading, onSubmit, readOnly }: FormViewProps) {
   const { fields, formView } = entity
   const labelLayout = formView?.labelLayout ?? "top"
 
@@ -79,16 +84,16 @@ export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={handleSubmit} className="space-y-4 p-4">
+      <form onSubmit={readOnly ? undefined : handleSubmit} className="space-y-4 p-4">
         {formView?.layout
-          ? renderLayout(formView.layout, visibleFields, entity, labelLayout)
-          : renderLinear(visibleFields, entity, labelLayout)}
+          ? renderLayout(formView.layout, visibleFields, entity, labelLayout, readOnly, data)
+          : renderLinear(visibleFields, entity, labelLayout, readOnly, data)}
 
         {/* 审计信息只读区 */}
         {auditFields.length > 0 && data && <AuditInfo fields={auditFields} data={data} />}
 
-        {/* 无更新权限时（onSubmit 未传入）不渲染保存按钮 */}
-        {onSubmit && (
+        {/* 只读态或无更新权限时（onSubmit 未传入）不渲染保存按钮 */}
+        {!readOnly && onSubmit && (
           <div className="flex justify-end pt-4">
             <button
               type="submit"
@@ -104,8 +109,22 @@ export function FormView({ entity, data, loading, onSubmit }: FormViewProps) {
 }
 
 /** 线性渲染所有字段 */
-function renderLinear(fields: FieldDef[], entity: EntityDef, labelLayout: "top" | "left") {
-  return <ConditionalFields fields={fields} entity={entity} labelLayout={labelLayout} />
+function renderLinear(
+  fields: FieldDef[],
+  entity: EntityDef,
+  labelLayout: "top" | "left",
+  readOnly?: boolean,
+  record?: Record<string, unknown>
+) {
+  return (
+    <ConditionalFields
+      fields={fields}
+      entity={entity}
+      labelLayout={labelLayout}
+      readOnly={readOnly}
+      record={record}
+    />
+  )
 }
 
 /** 混合渲染：FieldDef[] 中可能包含布局字段（row/group）和数据字段 */
@@ -113,11 +132,13 @@ function renderMixed(
   fieldDefs: FieldDef[],
   allFields: FieldDef[],
   entity: EntityDef,
-  labelLayout: "top" | "left"
+  labelLayout: "top" | "left",
+  readOnly?: boolean,
+  record?: Record<string, unknown>
 ) {
   return fieldDefs.map((f, i) => {
     if (f.type === "group" || f.type === "tabs" || f.type === "row") {
-      return renderLayoutItem(f as LayoutField, i, allFields, entity, labelLayout)
+      return renderLayoutItem(f as LayoutField, i, allFields, entity, labelLayout, readOnly, record)
     }
     return (
       <ConditionalFields
@@ -125,6 +146,8 @@ function renderMixed(
         fields={[f as DataFieldDef]}
         entity={entity}
         labelLayout={labelLayout}
+        readOnly={readOnly}
+        record={record}
       />
     )
   })
@@ -136,14 +159,16 @@ function renderLayoutItem(
   i: number,
   fields: FieldDef[],
   entity: EntityDef,
-  labelLayout: "top" | "left"
+  labelLayout: "top" | "left",
+  readOnly?: boolean,
+  record?: Record<string, unknown>
 ): ReactNode {
   switch (item.type) {
     case "group":
       return (
         <fieldset key={`group-${i}`} className="space-y-3 rounded-md border p-4">
           <legend className="px-2 font-medium text-sm">{item.label}</legend>
-          {renderMixed(item.fields, fields, entity, labelLayout)}
+          {renderMixed(item.fields, fields, entity, labelLayout, readOnly, record)}
         </fieldset>
       )
     case "tabs":
@@ -163,6 +188,8 @@ function renderLayoutItem(
             fields={item.tabs[0]?.fields ?? []}
             entity={entity}
             labelLayout={labelLayout}
+            readOnly={readOnly}
+            record={record}
           />
         </div>
       )
@@ -178,9 +205,18 @@ function renderLayoutItem(
               (f): f is DataFieldDef & { width?: string } =>
                 f.type !== "group" && f.type !== "tabs" && f.type !== "row"
             )
-            .map((f) => (
-              <FieldRenderer key={f.name} field={f} labelLayout={labelLayout} />
-            ))}
+            .map((f) =>
+              readOnly ? (
+                <FieldViewerConnected
+                  key={f.name}
+                  field={f}
+                  labelLayout={labelLayout}
+                  record={record}
+                />
+              ) : (
+                <FieldRenderer key={f.name} field={f} labelLayout={labelLayout} />
+              )
+            )}
         </div>
       )
     default:
@@ -193,9 +229,13 @@ function renderLayout(
   layout: LayoutField[],
   fields: FieldDef[],
   entity: EntityDef,
-  labelLayout: "top" | "left"
+  labelLayout: "top" | "left",
+  readOnly?: boolean,
+  record?: Record<string, unknown>
 ) {
-  return layout.map((item, i) => renderLayoutItem(item, i, fields, entity, labelLayout))
+  return layout.map((item, i) =>
+    renderLayoutItem(item, i, fields, entity, labelLayout, readOnly, record)
+  )
 }
 
 /**
@@ -205,11 +245,15 @@ function renderLayout(
 function ConditionalFields({
   fields,
   entity: _entity,
-  labelLayout
+  labelLayout,
+  readOnly,
+  record
 }: {
   fields: FieldDef[]
   entity: EntityDef
   labelLayout: "top" | "left"
+  readOnly?: boolean
+  record?: Record<string, unknown>
 }) {
   const dataFields = fields.filter(
     (f): f is DataFieldDef => f.type !== "group" && f.type !== "tabs" && f.type !== "row"
@@ -221,6 +265,16 @@ function ConditionalFields({
       {dataFields.map((field) => {
         const state = conditions[field.name]
         if (!state?.visible) return null
+        if (readOnly) {
+          return (
+            <FieldViewerConnected
+              key={field.name}
+              field={field}
+              labelLayout={labelLayout}
+              record={record}
+            />
+          )
+        }
         return (
           <FieldRenderer
             key={field.name}
@@ -232,6 +286,21 @@ function ConditionalFields({
       })}
     </>
   )
+}
+
+/** 只读态字段展示——从 FormProvider 上下文取当前值传给 FieldViewer */
+function FieldViewerConnected({
+  field,
+  labelLayout,
+  record
+}: {
+  field: DataFieldDef
+  labelLayout: "top" | "left"
+  record?: Record<string, unknown>
+}) {
+  const { watch } = useFormContext()
+  const value = watch(field.name)
+  return <FieldViewer field={field} value={value} record={record ?? {}} labelLayout={labelLayout} />
 }
 
 /** 单个字段渲染器 */

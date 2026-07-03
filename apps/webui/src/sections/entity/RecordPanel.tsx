@@ -36,7 +36,7 @@ export function RecordPanel({ entity, recordId, onClose, children, mode = "panel
     return () => window.removeEventListener("resize", check)
   }, [])
 
-  const detail = <ViewEngine entity={entity} view="form" recordId={recordId} />
+  const detail = <ViewEngine entity={entity} view="form" recordId={recordId} readOnly />
 
   // drawer 模式：右侧 Sheet，手机端全屏
   if (mode === "drawer" || isMobile) {

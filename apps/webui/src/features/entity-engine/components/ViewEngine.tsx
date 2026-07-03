@@ -58,6 +58,8 @@ interface ViewEngineProps {
   queryToken?: string
   /** 视图设置（由 EntityListView 传入） */
   viewSettings?: ViewSettings
+  /** 视图级只读展示态（表单视图时生效，用于列表内嵌详情等纯查看场景） */
+  readOnly?: boolean
 }
 
 /** 视图引擎：根据 view 参数选择渲染器 */
@@ -66,7 +68,8 @@ export function ViewEngine({
   view = "list",
   recordId,
   queryToken,
-  viewSettings
+  viewSettings,
+  readOnly
 }: ViewEngineProps) {
   return (
     <ViewErrorBoundary>
@@ -76,6 +79,7 @@ export function ViewEngine({
         recordId={recordId}
         queryToken={queryToken}
         viewSettings={viewSettings}
+        readOnly={readOnly}
       />
     </ViewErrorBoundary>
   )
@@ -87,7 +91,8 @@ function ViewEngineInner({
   view = "list",
   recordId,
   queryToken,
-  viewSettings
+  viewSettings,
+  readOnly
 }: ViewEngineProps) {
   // 物化带 dictType 的 select 字段：从字典拉取数据填充 options，下游视图组件无需改动
   const resolvedEntity = useResolvedEntity(entity)
@@ -120,7 +125,12 @@ function ViewEngineInner({
       return <KanbanView entity={resolvedEntity} />
     case "form":
       return (
-        <ConnectedFormView entity={resolvedEntity} recordId={recordId} queryToken={queryToken} />
+        <ConnectedFormView
+          entity={resolvedEntity}
+          recordId={recordId}
+          queryToken={queryToken}
+          readOnly={readOnly}
+        />
       )
     case "pivot":
       return <PivotView entity={resolvedEntity} />
@@ -182,19 +192,21 @@ function ConnectedListView({
 function ConnectedFormView({
   entity,
   recordId,
-  queryToken
+  queryToken,
+  readOnly
 }: {
   entity: EntityDef
   recordId?: string
   queryToken?: string
+  readOnly?: boolean
 }) {
   const { data, isLoading } = useEntityDetail(entity, recordId, { queryToken })
   const { data: access } = useEntityAccess(entity.slug)
   const resource = fromEntityDef(entity)
   const { mutate: update, isPending: updating } = useCrudUpdate(resource)
 
-  // 无更新权限时不传 onSubmit，FormView 据此隐藏保存按钮；access 未加载完成前保持可编辑，避免闪烁
-  const canUpdate = access?.update !== false
+  // 只读态或无更新权限时不传 onSubmit，FormView 据此隐藏保存按钮；access 未加载完成前保持可编辑，避免闪烁
+  const canUpdate = !readOnly && access?.update !== false
   const handleSubmit = canUpdate
     ? (values: Record<string, unknown>) => {
         if (!recordId) return
@@ -217,6 +229,7 @@ function ConnectedFormView({
         data={data ?? undefined}
         loading={isLoading || updating}
         onSubmit={handleSubmit}
+        readOnly={readOnly}
       />
       {entity.workflow && recordId && (
         <EntityApproval config={entity.workflow} entityId={recordId} currentUserId="current-user" />
