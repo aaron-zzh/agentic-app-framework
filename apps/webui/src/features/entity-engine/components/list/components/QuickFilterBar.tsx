@@ -73,11 +73,15 @@ function QuickFilterField({
 
   // select 字段 → 下拉
   if (field.type === "select" && "options" in field) {
-    const options = (field as unknown as { options: { value: string; label: string }[] }).options
+    const options =
+      (field as unknown as { options?: { value: string; label: string }[] }).options ?? []
+    const currentLabel = options.find((opt) => opt.value === currentValue)?.label
     return (
       <Select value={currentValue} onValueChange={(v) => handleChange(v ?? "")}>
         <SelectTrigger className="h-9 w-36 text-sm">
-          <SelectValue placeholder={field.label ?? field.name} />
+          <SelectValue placeholder={field.label ?? field.name}>
+            {currentLabel ?? field.label ?? field.name}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="">{field.label ?? field.name}</SelectItem>

@@ -93,7 +93,14 @@ export interface CheckboxField extends BaseFieldDef {
 
 export interface SelectField extends BaseFieldDef {
   type: "select"
-  options: SelectOption[]
+  /**
+   * 静态选项。与 dictType 二选一：
+   * - 未配 dictType 时必须提供 options（编译期已知的固定枚举）
+   * - 配了 dictType 时可留空，由 useResolvedEntity 在运行时从字典物化填充
+   */
+  options?: SelectOption[]
+  /** 字典类型编码（见 @/lib/constants/dict-type），配置后 options 由字典动态物化，见 useResolvedEntity */
+  dictType?: string
   multiple?: boolean
 }
 

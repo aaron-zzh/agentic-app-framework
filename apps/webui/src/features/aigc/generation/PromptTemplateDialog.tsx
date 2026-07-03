@@ -22,13 +22,16 @@ interface PromptTemplateDialogProps {
   hasReferenceImages?: boolean
   /** 使用场景：GENERATION（默认，单次生成）| PROJECT（项目级） */
   scope?: "GENERATION" | "PROJECT"
+  /** 触发按钮自定义样式，未传则使用默认样式 */
+  triggerClassName?: string
 }
 
 export function PromptTemplateDialog({
   type,
   onSelect,
   hasReferenceImages,
-  scope = "GENERATION"
+  scope = "GENERATION",
+  triggerClassName
 }: PromptTemplateDialogProps) {
   const [open, setOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>("全部")
@@ -70,7 +73,12 @@ export function PromptTemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-muted-foreground text-xs hover:bg-accent hover:text-foreground">
+      <DialogTrigger
+        className={
+          triggerClassName ??
+          "inline-flex h-7 items-center gap-1 rounded-md px-2 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
+        }
+      >
         <Sparkles className="size-3" />
         模板库
       </DialogTrigger>

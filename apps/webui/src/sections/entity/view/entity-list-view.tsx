@@ -16,6 +16,7 @@ import { CustomBreadcrumbs } from "@/components/common/CustomBreadcrumbs"
 import { Card } from "@/components/ui/card"
 import { ViewEngine } from "@/features/entity-engine/components"
 import type { ViewSettings } from "@/features/entity-engine/components/list"
+import { useResolvedEntity } from "@/features/entity-engine/hooks/use-resolved-entity"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { paths } from "@/lib/constants/paths"
 import { useUIStore } from "@/lib/store/ui-store"
@@ -35,6 +36,9 @@ export function EntityListView({ entity, view }: Props) {
   const pathname = usePathname()
   const canCreate = entity.access?.create !== false
   const extraAction = getListToolbarExtra(entity.slug)
+
+  // 物化带 dictType 的 select 字段，Toolbar（筛选/搜索）与 ViewEngine（表格/表单渲染）共享同一份结果
+  const resolvedEntity = useResolvedEntity(entity)
 
   // viewSettings 状态提升到此层，同时传给 Toolbar（读写）和 ViewEngine（只读）
   // 用 useEffect 在客户端加载，避免 SSR hydration mismatch
@@ -74,7 +78,7 @@ export function EntityListView({ entity, view }: Props) {
       <Card className="flex flex-1 flex-col overflow-hidden py-0">
         <Suspense>
           <Toolbar
-            entity={entity}
+            entity={resolvedEntity}
             viewSettings={viewSettings}
             onViewSettingsChange={setViewSettings}
           />

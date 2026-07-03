@@ -141,7 +141,7 @@ function MobileCard({
 
               // select 字段渲染为 Badge
               if (fieldDef?.type === "select") {
-                const opt = (fieldDef as SelectField).options.find((o) => o.value === value)
+                const opt = (fieldDef as SelectField).options?.find((o) => o.value === value)
                 return (
                   <Badge key={fieldName} variant="secondary" className="text-xs">
                     {opt?.label ?? String(value)}

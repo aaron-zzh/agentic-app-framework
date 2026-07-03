@@ -6,6 +6,33 @@
 /** 素材类型枚举 */
 export type MediaAssetType = "IMAGE" | "VIDEO" | "AUDIO" | "MODEL_3D" | "TEXT" | "MUSIC"
 
+/**
+ * AIGC 任务类型，对应后端 AigcTaskTypeEnum / 字典 aigc_task_type。
+ * 与 AigcTaskController#submit 分支一致。
+ */
+export type AigcTaskType = "IMAGE" | "VIDEO" | "MODEL_3D" | "MUSIC" | "VOICE" | "IMAGE_PROCESS"
+
+/** AigcTaskType 全部取值（用于遍历/校验，避免散落硬编码） */
+export const AIGC_TASK_TYPES: readonly AigcTaskType[] = [
+  "IMAGE",
+  "VIDEO",
+  "MODEL_3D",
+  "MUSIC",
+  "VOICE",
+  "IMAGE_PROCESS"
+]
+
+/** AIGC 任务状态，对应后端 AigcTaskStatusEnum / 字典 aigc_task_status。 */
+export type AigcTaskStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAIL"
+
+/** AigcTaskStatus 全部取值（用于遍历/校验，避免散落硬编码） */
+export const AIGC_TASK_STATUSES: readonly AigcTaskStatus[] = [
+  "PENDING",
+  "RUNNING",
+  "SUCCESS",
+  "FAIL"
+]
+
 /** 素材资源 VO（对齐后端 MediaAssetVO） */
 export interface MediaAssetVO {
   id: number

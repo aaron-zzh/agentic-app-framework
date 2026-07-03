@@ -107,7 +107,8 @@ export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
   // select 类型字段的选项
   const selectOptions =
     selectedField?.type === "select" && "options" in selectedField
-      ? (selectedField as unknown as { options: { value: string; label: string }[] }).options
+      ? ((selectedField as unknown as { options?: { value: string; label: string }[] }).options ??
+        [])
       : null
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -139,8 +140,8 @@ export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
           const valueLabel =
             fieldDef?.type === "select" && "options" in fieldDef
               ? ((
-                  fieldDef as unknown as { options: { value: string; label: string }[] }
-                ).options.find((o) => o.value === f.value)?.label ?? f.value)
+                  fieldDef as unknown as { options?: { value: string; label: string }[] }
+                ).options?.find((o) => o.value === f.value)?.label ?? f.value)
               : f.value
           return (
             <span

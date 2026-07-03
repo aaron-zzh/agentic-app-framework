@@ -204,12 +204,12 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
           onOpenChange(v)
         }}
       >
-        <DialogContent className="flex max-h-[90vh] w-[640px] max-w-none! flex-col gap-0 p-0">
-          <DialogHeader className="px-6 pt-6 pb-4">
+        <DialogContent className="flex max-h-[90vh] w-full max-w-[calc(100%-2rem)] flex-col gap-0 p-0 md:max-w-[640px]">
+          <DialogHeader className="px-4 pt-6 pb-4 sm:px-6">
             <DialogTitle className="text-xl">积分充值</DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 px-6 pb-4">
+          <div className="flex-1 overflow-y-auto px-4 pt-2 pb-4 sm:px-6">
             {qrOrder ? (
               <QrStep
                 order={qrOrder}
@@ -218,7 +218,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
                 onCancel={handleQrCancel}
               />
             ) : isLoading ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <Skeleton key={`sk-${i}`} className="h-28 rounded-xl" />
                 ))}
@@ -228,7 +228,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
             ) : (
               <div className="space-y-6">
                 {/* 套餐列表 */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {packages.map((pkg) => (
                     <PackageCard
                       key={pkg.id}
@@ -242,7 +242,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
                 {/* 渠道选择 */}
                 <div>
                   <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {CHANNELS.map((c) => (
                       <button
                         key={c.value}
@@ -277,7 +277,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
           </div>
 
           {!qrOrder && (
-            <div className="flex items-center justify-between border-t px-6 py-4">
+            <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-6">
               <p className="text-muted-foreground text-xs">*充值积分有效期 2 年，支付后不退不换</p>
               <Button
                 size="lg"

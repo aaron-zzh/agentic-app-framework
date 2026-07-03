@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
 import { PromptInput } from "@/features/aigc/generation/PromptInput"
+import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
 import { SkillPickerContent } from "@/features/aigc/generation/SkillPicker"
 import { useAigcStore } from "@/features/aigc/store"
 import { VOICES } from "@/features/aigc/voice-options"
@@ -67,6 +68,8 @@ interface Feature {
   hasUpload: boolean
   hasModel: boolean // 是否支持模型/参数选择
   hasSkill: boolean // 是否显示技能选择
+  /** 提示词模板库 type（对应 GenerationTemplateVO.type），未配置则不显示模板库按钮 */
+  templateType?: string
   activeClass: string
 }
 
@@ -78,6 +81,7 @@ const FEATURES: Feature[] = [
     hasUpload: true,
     hasModel: true,
     hasSkill: true,
+    templateType: "IMAGE_GEN",
     activeClass: "border-violet-500/40 bg-violet-500/15 text-violet-400"
   },
   {
@@ -87,6 +91,7 @@ const FEATURES: Feature[] = [
     hasUpload: true,
     hasModel: true,
     hasSkill: true,
+    templateType: "VIDEO_GEN",
     activeClass: "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
   },
   {
@@ -393,6 +398,39 @@ export function HomeChatLauncher() {
     }
   }
 
+  // 任务类型 → 输入框能力映射
+  const TASK_TYPE_FEATURE_MAP: Partial<Record<AigcTaskEvent["type"], FeatureKey>> = {
+    IMAGE: "image",
+    VIDEO: "video",
+    VOICE: "voice",
+    MUSIC: "music"
+  }
+
+  /** 重新生成：还原能力、模型、提示词与参考图到输入框 */
+  const handleRegenerate = (task: AigcTaskEvent) => {
+    const feature = TASK_TYPE_FEATURE_MAP[task.type]
+    if (!feature) return
+    setActiveFeature(feature)
+    setInput(task.prompt ?? "")
+    if (task.model) {
+      if (feature === "image") setImageModelId(task.model)
+      else if (feature === "video") setVideoModelId(task.model)
+    }
+    // 恢复参考图（仅 image/video 支持上传的能力，从 params.imageUrls 取第一张）
+    const refUrl = (() => {
+      if (!task.params || (feature !== "image" && feature !== "video")) return null
+      try {
+        const parsed = JSON.parse(task.params) as { imageUrls?: string[] }
+        return parsed.imageUrls?.[0] ?? null
+      } catch {
+        return null
+      }
+    })()
+    setRefImage(refUrl ? { url: refUrl, previewSrc: refUrl, name: "参考图" } : null)
+    setUploadingChip(null)
+    setParamsOpen(false)
+  }
+
   const isSubmitting =
     generateImage.isPending ||
     generateVideo.isPending ||
@@ -552,6 +590,16 @@ export function HomeChatLauncher() {
                           {brand.label}
                         </button>
                       ))}
+
+                    {/* 提示词模板库（image/video 能力支持） */}
+                    {activeFeatureMeta?.templateType && (
+                      <PromptTemplateDialog
+                        type={activeFeatureMeta.templateType}
+                        hasReferenceImages={!!refImage}
+                        onSelect={(p) => setInput(p)}
+                        triggerClassName="flex h-auto shrink-0 items-center gap-1 rounded-full border border-foreground/8 px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
+                      />
+                    )}
 
                     {/* 技能选择（hasSkill feature 支持） */}
                     {activeFeatureMeta?.hasSkill && (
@@ -726,6 +774,7 @@ export function HomeChatLauncher() {
               ? "AUDIO"
               : "IMAGE"
         }
+        onRegenerate={handleRegenerate}
       />
     </>
   )

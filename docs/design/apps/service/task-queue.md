@@ -244,7 +244,7 @@ public class EmbeddingTaskHandler implements TaskHandler {
     @Override
     public void execute(JsonNode payload) {
         var docId = payload.get("docId").asLong();
-        var content = payload.get("content").asText();
+        var content = payload.get("content").asString();
         embeddingService.embed(docId, content);
     }
 }

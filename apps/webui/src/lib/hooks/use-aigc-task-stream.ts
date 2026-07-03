@@ -26,6 +26,8 @@ export interface AigcTaskEvent {
   resultUrl?: string
   ossUrl?: string
   errorMsg?: string
+  /** 生成参数 JSON 字符串（含 imageUrls 等），对应后端 AigcTaskVO.params */
+  params?: string
   createTime: string
   updateTime: string
 }

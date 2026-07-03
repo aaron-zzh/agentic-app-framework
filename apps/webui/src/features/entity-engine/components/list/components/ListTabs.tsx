@@ -28,7 +28,7 @@ export function ListTabs({ entity, activeValue, onChange, counts }: ListTabsProp
   const items = tabsConfig.items ?? [
     { value: "", label: "全部" },
     ...(field?.type === "select" && "options" in field
-      ? (field as { options: { value: string; label: string }[] }).options
+      ? ((field as { options?: { value: string; label: string }[] }).options ?? [])
       : [])
   ]
 

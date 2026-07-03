@@ -8,6 +8,7 @@
 import {
   Bell,
   CheckSquare,
+  ChevronDown,
   CreditCard,
   Gift,
   LayoutDashboard,
@@ -20,6 +21,15 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth/use-auth"
 import { $url } from "@/lib/utils"
@@ -58,7 +68,7 @@ function StudioMeSidebar() {
   }
 
   return (
-    <aside className="flex h-full w-52 shrink-0 flex-col gap-1 px-4 py-6">
+    <aside className="hidden h-full w-52 shrink-0 flex-col gap-1 px-4 py-6 md:flex">
       {/* 用户信息 */}
       <div className="mb-4 flex items-center gap-3 px-2">
         <Avatar className="size-9">
@@ -130,11 +140,78 @@ function StudioMeSidebar() {
   )
 }
 
+/** 移动端顶部导航条：侧边栏在窄屏下收起，改为下拉菜单选择当前分类 */
+function StudioMeMobileNav() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const { logout, isAdmin } = useAuth()
+
+  const allItems = NAV_GROUPS.flatMap((group) => group.items)
+  const current =
+    allItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)) ??
+    allItems[0]
+  const CurrentIcon = current.icon
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
+
+  return (
+    <div className="flex items-center gap-2 border-b px-3 py-2 md:hidden">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              className="flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent"
+            />
+          }
+        >
+          <CurrentIcon className="size-4 shrink-0" />
+          <span className="flex-1 truncate text-left font-medium">{current.label}</span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="start" className="w-56">
+          {NAV_GROUPS.map((group, gi) => (
+            <DropdownMenuGroup key={gi}>
+              {group.label && <DropdownMenuLabel>{group.label}</DropdownMenuLabel>}
+              {group.items.map(({ label, href, icon: Icon }) => (
+                <DropdownMenuItem key={href} render={<Link href={href} />} className="gap-2.5">
+                  <Icon className="size-4 shrink-0" />
+                  {label}
+                </DropdownMenuItem>
+              ))}
+              {gi < NAV_GROUPS.length - 1 && <DropdownMenuSeparator />}
+            </DropdownMenuGroup>
+          ))}
+          {isAdmin && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem render={<Link href="/dashboard" />} className="gap-2.5">
+                <LayoutDashboard className="size-4 shrink-0" />
+                进入工作台
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout} variant="destructive" className="gap-2.5">
+            <LogOut className="size-4 shrink-0" />
+            退出登录
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
 export default function StudioMeLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col md:flex-row">
+      <StudioMeMobileNav />
       <StudioMeSidebar />
-      <Separator orientation="vertical" className="h-auto" />
+      <Separator orientation="vertical" className="hidden h-auto md:block" />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   )

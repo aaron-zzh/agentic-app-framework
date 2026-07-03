@@ -23,6 +23,7 @@ import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { notify } from "@/lib/notification"
+import { downloadFileWithToast } from "@/lib/utils"
 
 // ─── 分割方式配置（含阿里云接口限制） ─────────────────────
 
@@ -393,18 +394,7 @@ export default function MattingPage() {
                       onClick={() => {
                         const url = task.ossUrl
                         if (!url) return
-                        toast.promise(
-                          fetch(url)
-                            .then((r) => r.blob())
-                            .then((blob) => {
-                              const a = document.createElement("a")
-                              a.href = URL.createObjectURL(blob)
-                              a.download = `matting-${task.id}.png`
-                              a.click()
-                              URL.revokeObjectURL(a.href)
-                            }),
-                          { loading: "下载中...", success: "下载完成", error: "下载失败" }
-                        )
+                        downloadFileWithToast(url, `matting-${task.id}.png`)
                       }}
                     >
                       <Download className="size-3" />

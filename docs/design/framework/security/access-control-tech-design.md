@@ -304,7 +304,7 @@ private Predicate buildPredicate(JsonNode node, Root<?> root, CriteriaBuilder cb
     if (node.has("or"))  return cb.or(/* 递归 */);
     if (node.has("not")) return cb.not(/* 递归 */);
     // 叶子：解析 field/op/value，value 中 $user.xxx 替换为实际值
-    return switch (node.get("op").asText()) {
+    return switch (node.get("op").asString()) {
         case "eq"  -> cb.equal(root.get(field), resolvedValue);
         case "in"  -> root.get(field).in((Collection<?>) resolvedValue);
         // ...

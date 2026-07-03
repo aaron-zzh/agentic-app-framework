@@ -289,7 +289,7 @@ export function GenerationPanel() {
           addPendingTask({
             id: taskId,
             prompt,
-            type: isVideo ? "VIDEO_GEN" : "IMAGE_GEN",
+            type: "IMAGE",
             modelId: modelId
           })
           setPrompt("")
@@ -338,7 +338,7 @@ export function GenerationPanel() {
     }
     videoGenerate.mutate(
       {
-        type: "VIDEO_GEN",
+        type: "VIDEO",
         prompt: prompt.trim(),
         projectId: projectId ?? null,
         model: modelId,
@@ -346,7 +346,7 @@ export function GenerationPanel() {
       },
       {
         onSuccess: (taskId) => {
-          addPendingTask({ id: taskId, prompt, type: "VIDEO_GEN", modelId })
+          addPendingTask({ id: taskId, prompt, type: "VIDEO", modelId })
           setPrompt("")
           setOpen(false)
           toast.success("视频生成任务已提交")

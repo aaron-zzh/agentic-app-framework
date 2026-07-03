@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Model3DPreview } from "@/features/aigc/three/Model3DPreview"
 import { useMediaCategories, useUpdateMediaAsset } from "@/lib/queries/use-media-assets"
+import { downloadFileWithToast } from "@/lib/utils"
 import type { MediaAssetType, MediaAssetVO, MediaCategoryVO } from "../types"
 
 /** 按 type 返回对应生成界面路径 */
@@ -58,7 +59,7 @@ interface AssetCardProps {
 
 export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProps) {
   const is3D = asset.type === "MODEL_3D"
-  const isAudio = asset.type === "AUDIO"
+  const isAudio = asset.type === "AUDIO" || asset.type === "MUSIC"
   const router = useRouter()
   const { data: categories } = useMediaCategories()
   const { mutate: updateAsset } = useUpdateMediaAsset()
@@ -127,7 +128,7 @@ export function AssetCard({ asset, onClick, onDelete, onPreview }: AssetCardProp
           className="size-7 bg-black/50 text-white hover:bg-black/70"
           onClick={(e) => {
             e.stopPropagation()
-            window.open(asset.url, "_blank")
+            downloadFileWithToast(asset.url, asset.name || `asset-${asset.id}`)
           }}
         >
           <Download className="size-3.5" />

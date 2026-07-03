@@ -31,7 +31,7 @@ export function FilterChips({ entity, filters, onChange }: FilterChipsProps) {
     const fieldLabel = fieldDef?.label ?? f.field
     const valueLabel =
       fieldDef?.type === "select" && "options" in fieldDef
-        ? ((fieldDef as unknown as { options: { value: string; label: string }[] }).options.find(
+        ? ((fieldDef as unknown as { options?: { value: string; label: string }[] }).options?.find(
             (o) => o.value === f.value
           )?.label ?? f.value)
         : f.value

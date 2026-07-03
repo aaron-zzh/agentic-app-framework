@@ -35,6 +35,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { downloadFile } from "@/lib/utils"
 import { FileGrid } from "../asset/FileGrid"
 import { useAigcStore } from "../store"
 import { ImageViewer } from "./ImageViewer"
@@ -355,21 +356,9 @@ export function PreviewPanel({
                         variant="ghost"
                         size="sm"
                         className="size-8 p-0 text-muted-foreground hover:text-foreground"
-                        onClick={async () => {
+                        onClick={() => {
                           if (!previewAsset?.url) return
-                          try {
-                            const res = await fetch(previewAsset.url)
-                            const blob = await res.blob()
-                            const blobUrl = URL.createObjectURL(blob)
-                            const a = document.createElement("a")
-                            a.href = blobUrl
-                            a.download = previewAsset.name || "image"
-                            a.click()
-                            URL.revokeObjectURL(blobUrl)
-                          } catch {
-                            // 跨域 fetch 失败时降级直接打开
-                            window.open(previewAsset.url, "_blank")
-                          }
+                          downloadFile(previewAsset.url, previewAsset.name || "image")
                         }}
                       >
                         <Download className="size-4" />
