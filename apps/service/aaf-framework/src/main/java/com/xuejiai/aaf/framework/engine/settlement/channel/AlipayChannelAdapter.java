@@ -143,6 +143,33 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         }
     }
 
+    /**
+     * 关闭未支付交易——订单超时未支付时调用 alipay.trade.close，通知支付宝侧同步关闭该交易，
+     * 避免本地已判定关闭后，用户仍能扫码/继续完成该笔交易造成状态不一致。
+     */
+    @Override
+    public void close(String outTradeNo) {
+        try {
+            var model = new AlipayTradeCloseModel();
+            model.setOutTradeNo(outTradeNo);
+            var req = new AlipayTradeCloseRequest();
+            req.setBizModel(model);
+            var response = alipayClient.execute(req);
+            if (!response.isSuccess()) {
+                // 交易不存在（未曾创建成功）视为已是关闭态，无需报错
+                if (!"ACQ.TRADE_NOT_EXIST".equals(response.getSubCode())) {
+                    log.warn(
+                            "支付宝关闭交易失败: outTradeNo={}, subCode={}, subMsg={}",
+                            outTradeNo,
+                            response.getSubCode(),
+                            response.getSubMsg());
+                }
+            }
+        } catch (AlipayApiException e) {
+            log.warn("支付宝关闭交易调用异常: outTradeNo={}, error={}", outTradeNo, e.getMessage());
+        }
+    }
+
     /** 验证支付宝异步通知签名 */
     public boolean verifyNotify(Map<String, String> params) {
         try {

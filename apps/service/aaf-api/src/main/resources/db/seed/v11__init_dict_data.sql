@@ -217,9 +217,10 @@ ON CONFLICT DO NOTHING;
 
 -- biz_order_type 业务订单类型
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('biz_order_type', '充值',   'RECHARGE',     1, 'primary'),
-('biz_order_type', '购买',   'PURCHASE',     2, 'success'),
-('biz_order_type', '订阅',   'SUBSCRIPTION', 3, 'info')
+('biz_order_type', '充值',       'RECHARGE',      1, 'primary'),
+('biz_order_type', '购买',       'PURCHASE',      2, 'success'),
+('biz_order_type', '订阅',       'SUBSCRIPTION',  3, 'info'),
+('biz_order_type', '积分套餐购买', 'CREDIT_PACKAGE', 4, 'warning')
 ON CONFLICT DO NOTHING;
 
 -- biz_order_status 业务订单状态

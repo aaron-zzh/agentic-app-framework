@@ -60,7 +60,23 @@ export interface PayOrderVO {
   status: number
   channelCode: string
   codeUrl?: string
+  /** 关联业务订单类型，见 BizOrderType（与后端 BizOrderTypeEnum.code 对应），无关联业务订单时为空 */
+  bizOrderType?: BizOrderType
 }
+
+/** 业务订单类型（与后端 BizOrderTypeEnum 对应） */
+export const BIZ_ORDER_TYPE = {
+  /** 直接充值 */
+  RECHARGE: "RECHARGE",
+  /** 积分套餐购买 */
+  CREDIT_PACKAGE: "CREDIT_PACKAGE",
+  /** 购买 */
+  PURCHASE: "PURCHASE",
+  /** 订阅 */
+  SUBSCRIPTION: "SUBSCRIPTION"
+} as const
+
+export type BizOrderType = (typeof BIZ_ORDER_TYPE)[keyof typeof BIZ_ORDER_TYPE]
 
 /** 当前订阅信息 */
 export interface SubscriptionVO {

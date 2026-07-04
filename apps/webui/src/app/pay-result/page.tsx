@@ -14,7 +14,8 @@ import { useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { backendApi } from "@/lib/api/rest/backend-client"
-import type { PayOrderVO } from "@/lib/api/rest/billing/plans"
+import type { BizOrderType, PayOrderVO } from "@/lib/api/rest/billing/plans"
+import { BIZ_ORDER_TYPE } from "@/lib/api/rest/billing/plans"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
 import { paths } from "@/lib/constants/paths"
 
@@ -25,6 +26,7 @@ export default function PayResultPage() {
   // 支付宝 returnUrl 跳转自动携带 out_trade_no（即后端 merchantOrderNo），非数据库自增 ID
   const merchantOrderNo = searchParams.get("out_trade_no")
   const [state, setState] = useState<QueryState>("loading")
+  const [bizOrderType, setBizOrderType] = useState<BizOrderType | undefined>()
 
   useEffect(() => {
     if (!merchantOrderNo) {
@@ -40,6 +42,7 @@ export default function PayResultPage() {
           restEndpoints.pay.orderByMerchantOrderNo(merchantOrderNo)
         )
         if (cancelled) return
+        setBizOrderType(order.bizOrderType)
         if (order.status === 10) {
           setState("success")
           return
@@ -64,6 +67,21 @@ export default function PayResultPage() {
     }
   }, [merchantOrderNo])
 
+  const successMessage =
+    bizOrderType === BIZ_ORDER_TYPE.SUBSCRIPTION
+      ? "订阅已激活，可返回继续使用"
+      : bizOrderType === BIZ_ORDER_TYPE.CREDIT_PACKAGE || bizOrderType === BIZ_ORDER_TYPE.RECHARGE
+        ? "积分已到账，可返回继续使用"
+        : "订单已完成，可返回继续使用"
+
+  // 按业务类型跳回对应功能页，而非笼统的首页；未知类型兜底到工作台欢迎页
+  const backHref =
+    bizOrderType === BIZ_ORDER_TYPE.SUBSCRIPTION
+      ? paths.studio.mePricing
+      : bizOrderType === BIZ_ORDER_TYPE.CREDIT_PACKAGE || bizOrderType === BIZ_ORDER_TYPE.RECHARGE
+        ? paths.studio.meCredits
+        : paths.studio.welcome
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
       {state === "loading" && (
@@ -76,7 +94,7 @@ export default function PayResultPage() {
         <>
           <CheckCircle2 className="size-10 text-green-500" />
           <p className="font-medium text-lg">支付成功</p>
-          <p className="text-muted-foreground text-sm">订阅已激活，可返回继续使用</p>
+          <p className="text-muted-foreground text-sm">{successMessage}</p>
         </>
       )}
       {state === "pending" && (
@@ -95,8 +113,8 @@ export default function PayResultPage() {
           <p className="text-muted-foreground text-sm">请返回重新发起支付，或联系客服处理</p>
         </>
       )}
-      <Button className="mt-4" nativeButton={false} render={<Link href={paths.root} />}>
-        返回首页
+      <Button className="mt-4" nativeButton={false} render={<Link href={backHref} />}>
+        {state === "success" ? "返回继续使用" : "返回工作台"}
       </Button>
     </div>
   )

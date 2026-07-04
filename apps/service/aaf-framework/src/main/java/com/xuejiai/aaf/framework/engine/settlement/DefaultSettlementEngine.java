@@ -49,6 +49,11 @@ public class DefaultSettlementEngine implements SettlementEngine {
     }
 
     @Override
+    public void close(String channelCode, String outTradeNo) {
+        getAdapter(channelCode).close(outTradeNo);
+    }
+
+    @Override
     public boolean isChannelSupported(String channelCode) {
         return adapterMap.containsKey(channelCode);
     }

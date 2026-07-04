@@ -39,6 +39,8 @@ public class PayOrderService {
 
     private final UserRepository userRepository;
 
+    private final BizOrderService bizOrderService;
+
     /** 创建支付单并发起支付 */
     @Transactional
     public PayOrderVO create(PayOrderCreateDTO dto) {
@@ -251,6 +253,7 @@ public class PayOrderService {
     }
 
     private PayOrderVO toVO(PayOrder o) {
+        var bizOrder = bizOrderService.findByPayOrderId(o.getId());
         return new PayOrderVO(
                 o.getId(),
                 o.getMerchantOrderNo(),
@@ -264,6 +267,7 @@ public class PayOrderService {
                 o.getSuccessTime(),
                 o.getRefundAmount(),
                 o.getCreateTime(),
-                o.getCodeUrl());
+                o.getCodeUrl(),
+                bizOrder != null ? bizOrder.getOrderType() : null);
     }
 }

@@ -8,6 +8,7 @@ import { LottieDialog } from "@/components/common/LottieDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { buildApiUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import type { PayOrderVO } from "@/lib/api/rest/billing/plans"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
@@ -81,29 +82,14 @@ function QrStep({
   onCancel: () => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (canvasRef.current && order.codeUrl) {
       QRCode.toCanvas(canvasRef.current, order.codeUrl, { width: 200, margin: 2 })
     }
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(order.id))
-        if (res.status === 10) {
-          clearInterval(pollRef.current ?? undefined)
-          onSuccess()
-        } else if (res.status === 30) {
-          clearInterval(pollRef.current ?? undefined)
-          notify.error("订单已关闭，请重新发起支付")
-          onCancel()
-        }
-      } catch {
-        /* 网络错误静默处理 */
-      }
-    }, 2000)
-    return () => clearInterval(pollRef.current ?? undefined)
-  }, [order.id, order.codeUrl, onSuccess, onCancel])
+  }, [order.codeUrl])
+
+  usePayOrderPolling(order.id, onSuccess, onCancel)
 
   const channelLabel = CHANNELS.find((c) => c.value === channel)?.label ?? channel
 
@@ -123,6 +109,64 @@ function QrStep({
       </Button>
     </div>
   )
+}
+
+/**
+ * 支付宝页面跳转类支付（电脑网站支付/手机网站支付）等待步骤。
+ *
+ * <p>跳转链接已在新标签页打开，不替换当前页面；当前页面轮询订单状态感知支付完成
+ * （后端 PayOrderSyncTask 每 30 秒主动查单兜底，无需等待异步回调）。
+ */
+function WaitingRedirectStep({
+  order,
+  onSuccess,
+  onCancel
+}: {
+  order: PayOrderVO
+  onSuccess: () => void
+  onCancel: () => void
+}) {
+  usePayOrderPolling(order.id, onSuccess, onCancel)
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-6">
+      <p className="text-center font-medium text-sm">
+        已在新标签页打开支付宝收银台，完成支付后本页面将自动更新
+      </p>
+      <p className="mt-1 font-bold text-2xl">¥{(order.amount / 100).toFixed(0)}</p>
+      <Badge variant="outline" className="mt-2 animate-pulse text-xs">
+        等待支付…
+      </Badge>
+      <p className="text-[11px] text-muted-foreground">订单号：{order.merchantOrderNo}</p>
+      <Button variant="ghost" size="sm" onClick={onCancel}>
+        取消
+      </Button>
+    </div>
+  )
+}
+
+/** 每 2 秒轮询一次支付单状态，成功/关闭时触发对应回调 */
+function usePayOrderPolling(orderId: number, onSuccess: () => void, onCancel: () => void) {
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(orderId))
+        if (res.status === 10) {
+          clearInterval(pollRef.current ?? undefined)
+          onSuccess()
+        } else if (res.status === 30) {
+          clearInterval(pollRef.current ?? undefined)
+          notify.error("订单已关闭，请重新发起支付")
+          onCancel()
+        }
+      } catch {
+        /* 网络错误静默处理 */
+      }
+    }, 2000)
+    return () => clearInterval(pollRef.current ?? undefined)
+  }, [orderId, onSuccess, onCancel])
 }
 
 export interface SubscriptionPayDialogProps {
@@ -197,8 +241,10 @@ export function SubscriptionPayDialog({
             onSuccess?.()
             onOpenChange(false)
           } else if ((channel === "alipay_wap" || channel === "alipay_pc") && data.codeUrl) {
-            // 手机网站支付/电脑网站支付：整页跳转到后端跳转接口，浏览器自动提交表单跳转到支付宝收银台
-            window.location.href = data.codeUrl
+            // 手机网站支付/电脑网站支付：新标签页打开跳转链接，不替换当前页面，
+            // 当前页面轮询订单状态感知支付完成。codeUrl 为后端相对路径，需拼上后端 origin。
+            window.open(buildApiUrl(data.codeUrl), "_blank")
+            setQrOrder(data)
           } else if (data.codeUrl) {
             setQrOrder(data)
           } else {
@@ -229,12 +275,20 @@ export function SubscriptionPayDialog({
           </DialogHeader>
 
           {qrOrder ? (
-            <QrStep
-              order={qrOrder}
-              channel={channel}
-              onSuccess={handleQrSuccess}
-              onCancel={() => setQrOrder(null)}
-            />
+            channel === "alipay_wap" || channel === "alipay_pc" ? (
+              <WaitingRedirectStep
+                order={qrOrder}
+                onSuccess={handleQrSuccess}
+                onCancel={() => setQrOrder(null)}
+              />
+            ) : (
+              <QrStep
+                order={qrOrder}
+                channel={channel}
+                onSuccess={handleQrSuccess}
+                onCancel={() => setQrOrder(null)}
+              />
+            )
           ) : (
             <div className="space-y-6 py-2">
               {/* 费用摘要 */}

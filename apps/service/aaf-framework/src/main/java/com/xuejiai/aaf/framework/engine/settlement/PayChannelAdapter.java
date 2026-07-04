@@ -26,6 +26,12 @@ public interface PayChannelAdapter {
     /** 查询支付状态 */
     QueryResult queryStatus(String outTradeNo);
 
+    /**
+     * 关闭未支付交易——订单超时未支付时调用，通知渠道侧同步关闭该交易，避免渠道侧交易仍可被扫码/继续支付
+     * 而本地订单已判定关闭，导致资金与状态不一致。默认空实现（Mock/余额支付等无需通知外部渠道）。
+     */
+    default void close(String outTradeNo) {}
+
     /** 验证渠道异步通知签名（M28）。默认 fail-closed 拒绝；具体渠道适配器须覆盖实现真实验签。 */
     default boolean verifyNotify(java.util.Map<String, String> params) {
         return false;
