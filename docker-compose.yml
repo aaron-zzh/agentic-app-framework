@@ -118,20 +118,25 @@ services:
     restart: unless-stopped
 
   # Flyway repair 工具——手动改动已应用的迁移脚本后，用于同步 flyway_schema_history 的 checksum
-  # 使用前先把改动的迁移脚本复制到服务器固定路径：
-  #   scp -r apps/service/aaf-api/src/main/resources/db/migration/*.sql root@<ECS_HOST>:/root/aaf/flyway-sql/
+  # 覆盖范围需与 application.yaml 的 flyway.locations 保持一致（db/migration + db/seed）
+  # 使用前先把改动的脚本复制到服务器固定路径：
+  #   scp -r apps/service/aaf-api/src/main/resources/db/migration/*.sql root@<ECS_HOST>:/root/aaf/flyway-sql/migration/
+  #   scp -r apps/service/aaf-api/src/main/resources/db/seed/*.sql root@<ECS_HOST>:/root/aaf/flyway-sql/seed/
   # 不随 docker compose up 启动，需显式指定 profile 执行：
   #   docker compose --profile tools run --rm flyway-repair
   flyway-repair:
-    image: flyway/flyway:10
+    image: ${ACR_REGISTRY}/flyway:11-alpine
     container_name: aaf-flyway-repair
     profiles: ["tools"]
     volumes:
-      - /root/aaf/flyway-sql:/flyway/sql
+      - /root/aaf/flyway-sql/migration:/flyway/sql/migration
+      - /root/aaf/flyway-sql/seed:/flyway/sql/seed
     command:
       - -url=jdbc:postgresql://postgres:5432/${DB_NAME:-aaf-dev}
       - -user=${DB_USERNAME:-postgres}
       - -password=${DB_PASSWORD:-postgres}
+      - -locations=filesystem:/flyway/sql/migration,filesystem:/flyway/sql/seed
+      - -sqlMigrationPrefix=v
       - repair
     depends_on:
       postgres:
