@@ -113,16 +113,16 @@ public class PayOrderController {
     }
 
     /**
-     * 支付宝手机网站支付跳转页——前端整页跳转到此地址，浏览器自动提交表单跳转到支付宝收银台。
+     * 支付宝页面跳转页（电脑网站支付/手机网站支付）——前端整页跳转到此地址，浏览器自动提交表单跳转到支付宝收银台。
      *
      * <p>无需鉴权头（浏览器直接整页跳转访问），安全性由订单归属 + 状态校验保证：仅未支付订单可重新生成跳转表单。
      */
-    @Operation(summary = "支付宝手机网站支付跳转页")
+    @Operation(summary = "支付宝页面跳转页")
     @GetMapping(
             value = "/{id}/redirect",
             produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
     public String redirect(@PathVariable Long id) {
-        return payOrderService.buildAlipayWapRedirectHtml(id);
+        return payOrderService.buildAlipayRedirectHtml(id);
     }
 
     /**

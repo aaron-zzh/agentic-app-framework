@@ -74,10 +74,8 @@ public class PayOrderService {
         }
         if (result.codeUrl() != null) {
             order.setCodeUrl(result.codeUrl());
-        } else if (com.xuejiai.aaf.framework.engine.settlement.channel.AlipayChannelAdapter
-                .CHANNEL_CODE_WAP
-                .equals(dto.channelCode())) {
-            // 手机网站支付：跳转表单 HTML 按需实时生成，此处仅存放跳转接口地址供前端整页跳转
+        } else if (isAlipayRedirectChannel(dto.channelCode())) {
+            // 电脑网站支付/手机网站支付：跳转表单 HTML 按需实时生成，此处仅存放跳转接口地址供前端整页跳转
             order.setCodeUrl("/api/pay/orders/" + order.getId() + "/redirect");
         }
         payOrderRepository.save(order);
@@ -206,19 +204,17 @@ public class PayOrderService {
     }
 
     /**
-     * 支付宝手机网站支付跳转表单——按需实时生成，不落库。
+     * 支付宝页面跳转表单——按需实时生成，不落库。
      *
-     * <p>支付宝允许对同一笔未支付订单重复下单，故每次跳转都重新调用支付宝接口生成表单， 避免在数据库中持久化大段 HTML 内容。
+     * <p>支付宝允许对同一笔未支付订单重复下单，故每次跳转都重新调用支付宝接口生成表单， 避免在数据库中持久化大段 HTML 内容。电脑网站支付、手机网站支付均走此逻辑。
      */
     @Transactional(readOnly = true)
-    public String buildAlipayWapRedirectHtml(Long id) {
+    public String buildAlipayRedirectHtml(Long id) {
         var order =
                 payOrderRepository
                         .findById(id)
                         .orElseThrow(() -> exception(ErrorCodeConstants.PAY_ORDER_NOT_FOUND));
-        if (!com.xuejiai.aaf.framework.engine.settlement.channel.AlipayChannelAdapter
-                .CHANNEL_CODE_WAP
-                .equals(order.getChannelCode())) {
+        if (!isAlipayRedirectChannel(order.getChannelCode())) {
             throw exception(ErrorCodeConstants.PAY_ORDER_CHANNEL_MISMATCH);
         }
         if (!order.getStatus().equals(PayOrderStatusEnum.WAITING.getCode())) {
@@ -227,18 +223,31 @@ public class PayOrderService {
         var adapter =
                 alipayAdapter.orElseThrow(
                         () -> exception(ErrorCodeConstants.PAY_ORDER_CHANNEL_NOT_CONFIGURED));
+        var chargeRequest =
+                new ChargeRequest(
+                        order.getMerchantOrderNo(),
+                        order.getAmount(),
+                        order.getSubject(),
+                        order.getChannelCode(),
+                        null);
         try {
-            return adapter.buildWapPayForm(
-                    new ChargeRequest(
-                            order.getMerchantOrderNo(),
-                            order.getAmount(),
-                            order.getSubject(),
-                            order.getChannelCode(),
-                            null));
+            return com.xuejiai.aaf.framework.engine.settlement.channel.AlipayChannelAdapter
+                            .CHANNEL_CODE_WAP
+                            .equals(order.getChannelCode())
+                    ? adapter.buildWapPayForm(chargeRequest)
+                    : adapter.buildPagePayForm(chargeRequest);
         } catch (com.alipay.api.AlipayApiException e) {
-            log.error("支付宝手机网站支付表单生成失败: orderId={}", id, e);
+            log.error("支付宝跳转表单生成失败: orderId={}", id, e);
             throw exception(ErrorCodeConstants.PAY_ORDER_CHANNEL_ERROR);
         }
+    }
+
+    /** 判断渠道是否为支付宝页面跳转类（电脑网站支付/手机网站支付），此类渠道不返回 codeUrl，需按 orderId 实时生成跳转表单 */
+    private boolean isAlipayRedirectChannel(String channelCode) {
+        return com.xuejiai.aaf.framework.engine.settlement.channel.AlipayChannelAdapter
+                        .CHANNEL_CODE_WAP
+                        .equals(channelCode)
+                || "alipay_pc".equals(channelCode);
     }
 
     private PayOrderVO toVO(PayOrder o) {

@@ -163,6 +163,11 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         return chargeWapPay(request);
     }
 
+    /** 电脑网站支付跳转表单——按需实时生成，不落库存储，原因同手机网站支付。 */
+    public String buildPagePayForm(ChargeRequest request) throws AlipayApiException {
+        return chargePagePay(request);
+    }
+
     @Override
     public List<PayChannelAdapter.BillItem> downloadBill(java.time.LocalDate date) {
         try {

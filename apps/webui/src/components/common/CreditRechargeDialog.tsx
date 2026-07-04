@@ -18,7 +18,7 @@ import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 
 const IS_DEV = process.env.NODE_ENV === "development"
 
-type Channel = "wx_native" | "alipay_qr" | "MOCK" | "contact_service"
+type Channel = "wx_native" | "alipay_pc" | "alipay_wap" | "alipay_qr" | "MOCK" | "contact_service"
 
 const CHANNELS: {
   value: Channel
@@ -26,9 +26,26 @@ const CHANNELS: {
   icon?: string
   iconUrl?: string
   devOnly?: boolean
+  /** 仅移动端展示（手机浏览器整页跳转支付，不适用于 PC） */
+  mobileOnly?: boolean
+  /** 仅 PC 端展示（整页跳转，移动端用 alipay_wap 整页跳转替代） */
+  desktopOnly?: boolean
+  /**
+   * 默认隐藏——当面付（扫码支付）需支付宝开放平台单独签约权限，未签约前调用会报
+   * ACQ.ACCESS_FORBIDDEN。签约完成后移除此标记即可恢复展示。
+   */
+  hidden?: boolean
 }[] = [
   { value: "wx_native", label: "微信支付", iconUrl: "/assets/brand/wechatpay.png" },
-  { value: "alipay_qr", label: "支付宝", iconUrl: "/assets/brand/alipay.png" },
+  { value: "alipay_pc", label: "支付宝", iconUrl: "/assets/brand/alipay.png", desktopOnly: true },
+  { value: "alipay_wap", label: "支付宝", iconUrl: "/assets/brand/alipay.png", mobileOnly: true },
+  {
+    value: "alipay_qr",
+    label: "支付宝",
+    iconUrl: "/assets/brand/alipay.png",
+    desktopOnly: true,
+    hidden: true
+  },
   { value: "contact_service", label: "联系客服", icon: "💬" },
   ...(IS_DEV ? [{ value: "MOCK" as Channel, label: "模拟（Dev）", icon: "🧪", devOnly: true }] : [])
 ]
@@ -150,9 +167,25 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
   const { data: packages, isLoading } = useCreditPackages()
   const { mutate: purchase, isPending } = usePurchaseCredits()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "wx_native")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
+
+  // 检测移动端：支付宝渠道按设备互斥展示（PC → 电脑网站支付；移动端 → 手机网站支付整页跳转）
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
+
+  const visibleChannels = CHANNELS.filter((c) => {
+    if (c.hidden) return false
+    if (c.desktopOnly && isMobile) return false
+    if (c.mobileOnly && !isMobile) return false
+    return true
+  })
 
   const selectedPkg = packages?.find((p) => p.id === selectedId)
 
@@ -174,6 +207,9 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
             notify.success("充值成功！")
             onSuccess?.()
             onOpenChange(false)
+          } else if ((channel === "alipay_wap" || channel === "alipay_pc") && data.codeUrl) {
+            // 手机网站支付/电脑网站支付：整页跳转到后端跳转接口，浏览器自动提交表单跳转到支付宝收银台
+            window.location.href = data.codeUrl
           } else if (data.codeUrl) {
             setQrOrder(data)
           } else {
@@ -243,7 +279,7 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
                 <div>
                   <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
                   <div className="flex flex-wrap gap-2">
-                    {CHANNELS.map((c) => (
+                    {visibleChannels.map((c) => (
                       <button
                         key={c.value}
                         type="button"
