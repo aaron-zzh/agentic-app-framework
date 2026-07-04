@@ -181,12 +181,12 @@ function WaitingRedirectStep({
   )
 }
 
-/** 每 2 秒轮询一次支付单状态，成功/关闭时触发对应回调 */
+/** 每 2 秒轮询一次支付单状态，成功/关闭时触发对应回调；页面从后台切回前台时立即查一次兜底 */
 function usePayOrderPolling(orderId: number, onSuccess: () => void, onCancel: () => void) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    pollRef.current = setInterval(async () => {
+    const checkOnce = async () => {
       try {
         const res = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(orderId))
         if (res.status === 10) {
@@ -200,8 +200,21 @@ function usePayOrderPolling(orderId: number, onSuccess: () => void, onCancel: ()
       } catch {
         /* 网络错误静默处理 */
       }
-    }, 2000)
-    return () => clearInterval(pollRef.current ?? undefined)
+    }
+
+    pollRef.current = setInterval(checkOnce, 2000)
+
+    // 浏览器对后台标签页的定时器限流/暂停会导致轮询失效（尤其手机网站支付新标签页跳转场景），
+    // 页面重新可见时（用户从支付宝页面切回）立即补查一次，不等下一个周期
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkOnce()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+
+    return () => {
+      clearInterval(pollRef.current ?? undefined)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
   }, [orderId, onSuccess, onCancel])
 }
 

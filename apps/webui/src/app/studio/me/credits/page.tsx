@@ -8,6 +8,7 @@
 
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { RefreshCw } from "lucide-react"
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { CreditRechargeDialog } from "@/components/common/CreditRechargeDialog"
 import {
@@ -61,8 +62,19 @@ export default function StudioMeCreditsPage() {
   useEffect(() => setMounted(true), [])
   const [rechargeOpen, setRechargeOpen] = useState(false)
 
-  const { data: balance, isLoading: balLoading } = useCreditBalance()
-  const { data: groups, isLoading: grpLoading } = useCreditGroups()
+  const {
+    data: balance,
+    isLoading: balLoading,
+    refetch: refetchBalance,
+    isFetching: balFetching
+  } = useCreditBalance()
+  const {
+    data: groups,
+    isLoading: grpLoading,
+    refetch: refetchGroups,
+    isFetching: grpFetching
+  } = useCreditGroups()
+  const [refreshing, setRefreshing] = useState(false)
   const [tab, setTab] = useState<TabValue>("all")
   const [page, setPage] = useState(0)
   const { data: txPage, isLoading: txLoading } = useCreditTransactions(page)
@@ -70,6 +82,13 @@ export default function StudioMeCreditsPage() {
   const { data: chartTxPage } = useCreditTransactions(0, 100)
   const { getLabel: getTypeLabel, getColor: getTypeColor } = useDict("credit_transaction_type")
   const { getLabel: getSourceLabel } = useDict("credit_transaction_source")
+
+  // 手动刷新余额——兜底移动端刷新页面/切后台等场景下数据未自动更新
+  const handleRefreshBalance = async () => {
+    setRefreshing(true)
+    await Promise.all([refetchBalance(), refetchGroups()])
+    setRefreshing(false)
+  }
 
   // 近 14 天消耗趋势（从 chartTxPage 聚合）
   const trendOption = useMemo<EChartsOption>(() => {
@@ -172,9 +191,25 @@ export default function StudioMeCreditsPage() {
             loading={grpLoading}
             tone="amber"
             action={
-              <GlowButton tone="violet" size="sm" onClick={() => setRechargeOpen(true)}>
-                充值
-              </GlowButton>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleRefreshBalance}
+                  disabled={refreshing || balFetching || grpFetching}
+                  aria-label="刷新积分余额"
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={cn(
+                      "size-3.5",
+                      (refreshing || balFetching || grpFetching) && "animate-spin"
+                    )}
+                  />
+                </button>
+                <GlowButton tone="violet" size="sm" onClick={() => setRechargeOpen(true)}>
+                  充值
+                </GlowButton>
+              </div>
             }
           />
           <DataCapsule
