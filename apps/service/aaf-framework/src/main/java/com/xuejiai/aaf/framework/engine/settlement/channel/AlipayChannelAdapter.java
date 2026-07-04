@@ -27,8 +27,11 @@ import lombok.extern.slf4j.Slf4j;
 @ConditionalOnProperty(prefix = "aaf.pay.alipay", name = "enabled", havingValue = "true")
 public class AlipayChannelAdapter implements PayChannelAdapter {
 
+    /** 手机网站支付渠道码——跳转表单 HTML 不落库，PayOrderService 据此渠道码识别并写入跳转接口地址 */
+    public static final String CHANNEL_CODE_WAP = "alipay_wap";
+
     private static final List<String> SUPPORTED_CODES =
-            List.of("alipay_pc", "alipay_wap", "alipay_app", "alipay_qr");
+            List.of("alipay_pc", CHANNEL_CODE_WAP, "alipay_app", "alipay_qr");
 
     private final AlipayClient alipayClient;
     private final AlipayProperties properties;
@@ -149,6 +152,15 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
             log.error("支付宝签名验证失败", e);
             return false;
         }
+    }
+
+    /**
+     * 手机网站支付跳转表单——按需实时生成，不落库存储。
+     *
+     * <p>跳转表单 HTML 只在用户点击跳转时才需要，且支付宝允许对同一笔未支付订单重复下单， 因此不在创建支付单时持久化这段 HTML，避免数据库存放大段冗余内容及过期风险。
+     */
+    public String buildWapPayForm(ChargeRequest request) throws AlipayApiException {
+        return chargeWapPay(request);
     }
 
     @Override

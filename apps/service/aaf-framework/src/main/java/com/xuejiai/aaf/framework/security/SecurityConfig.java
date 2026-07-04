@@ -57,6 +57,8 @@ public class SecurityConfig {
         "/api/hello",
         "/api/system/files/**",
         "/api/pay/orders/notify",
+        "/api/pay/orders/*/redirect",
+        "/api/pay/orders/by-merchant-order-no/*",
         "/swagger-ui/**",
         "/swagger-ui.html",
         "/v3/api-docs/**",

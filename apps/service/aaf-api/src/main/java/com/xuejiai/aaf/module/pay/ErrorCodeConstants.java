@@ -21,6 +21,10 @@ public interface ErrorCodeConstants {
     ErrorCode PAY_ORDER_BALANCE_INSUFFICIENT = ErrorCode.of(6_000_002, "分销余额不足，当前余额: {0} 分");
     ErrorCode PAY_ORDER_BALANCE_DEDUCT_FAILED = ErrorCode.of(6_000_003, "余额扣减失败，请重试");
     ErrorCode PAY_ORDER_NOTIFY_UNSIGNED_FORBIDDEN = ErrorCode.of(6_000_004, "真实渠道回调须经验签，禁止未签名通知");
+    ErrorCode PAY_ORDER_CHANNEL_MISMATCH = ErrorCode.of(6_000_005, "支付单渠道与请求渠道不匹配");
+    ErrorCode PAY_ORDER_ALREADY_FINISHED = ErrorCode.of(6_000_006, "支付单已处理，无法重新生成跳转表单");
+    ErrorCode PAY_ORDER_CHANNEL_NOT_CONFIGURED = ErrorCode.of(6_000_007, "支付渠道未启用或未配置");
+    ErrorCode PAY_ORDER_CHANNEL_ERROR = ErrorCode.of(6_000_008, "支付渠道调用失败，请重试");
 
     // ========== REFUND 模块 6_001_000 ==========
     ErrorCode REFUND_ORDER_NOT_FOUND = ErrorCode.of(6_001_000, "退款单不存在");

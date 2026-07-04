@@ -101,6 +101,31 @@ public class PayOrderController {
     }
 
     /**
+     * 按商户订单号查询支付单——供支付结果落地页调用。
+     *
+     * <p>支付宝 returnUrl 跳转回来时 query 参数携带的是 out_trade_no（即 merchantOrderNo）， 而非数据库自增
+     * ID，此端点供未登录场景下的落地页查询最终支付状态。
+     */
+    @Operation(summary = "按商户订单号查询支付单")
+    @GetMapping("/by-merchant-order-no/{merchantOrderNo}")
+    public Result<PayOrderVO> getByMerchantOrderNo(@PathVariable String merchantOrderNo) {
+        return Result.success(payOrderService.getByMerchantOrderNo(merchantOrderNo));
+    }
+
+    /**
+     * 支付宝手机网站支付跳转页——前端整页跳转到此地址，浏览器自动提交表单跳转到支付宝收银台。
+     *
+     * <p>无需鉴权头（浏览器直接整页跳转访问），安全性由订单归属 + 状态校验保证：仅未支付订单可重新生成跳转表单。
+     */
+    @Operation(summary = "支付宝手机网站支付跳转页")
+    @GetMapping(
+            value = "/{id}/redirect",
+            produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
+    public String redirect(@PathVariable Long id) {
+        return payOrderService.buildAlipayWapRedirectHtml(id);
+    }
+
+    /**
      * 微信支付异步回调（带验签）。
      *
      * <p>微信会推送到此端点，须校验签名后才能标记支付成功。 配置：在微信商户平台填写 notifyUrl =

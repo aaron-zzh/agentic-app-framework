@@ -56,7 +56,7 @@ aaf:
       private-key: ${ALIPAY_PRIVATE_KEY:}
       alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
       notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8080/api/pay/order/notify/alipay}
-      return-url: ${ALIPAY_RETURN_URL:http://localhost:3000/billing/success}
+      return-url: ${ALIPAY_RETURN_URL:http://localhost:3000/pay-result}
   security:
     mock-enable: true # ⚠️ 仅 dev：mock 认证，生产必须为 false
   # ── 示例模块（按需开启，需配置 DASHSCOPE_API_KEY）────────────────

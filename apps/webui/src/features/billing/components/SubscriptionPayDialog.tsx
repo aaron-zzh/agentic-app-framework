@@ -17,7 +17,7 @@ import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 
 const IS_DEV = process.env.NODE_ENV === "development"
 
-type Channel = "wx_native" | "alipay_qr" | "MOCK" | "contact_service"
+type Channel = "wx_native" | "alipay_qr" | "alipay_wap" | "MOCK" | "contact_service"
 
 const CHANNELS: {
   value: Channel
@@ -25,12 +25,31 @@ const CHANNELS: {
   icon?: string
   iconUrl?: string
   devOnly?: boolean
+  /** 仅移动端展示（手机浏览器整页跳转支付，不适用于 PC） */
+  mobileOnly?: boolean
+  /** 仅 PC 端展示（扫码支付，移动端用 alipay_wap 整页跳转替代） */
+  desktopOnly?: boolean
+  /** 微信内置浏览器会拦截跳转支付宝域名，此渠道在微信内不可用，需用扫码支付兜底 */
+  hiddenInWechat?: boolean
 }[] = [
   { value: "wx_native", label: "微信支付", iconUrl: "/assets/brand/wechatpay.png" },
-  { value: "alipay_qr", label: "支付宝", iconUrl: "/assets/brand/alipay.png" },
+  { value: "alipay_qr", label: "支付宝", iconUrl: "/assets/brand/alipay.png", desktopOnly: true },
+  {
+    value: "alipay_wap",
+    label: "支付宝",
+    iconUrl: "/assets/brand/alipay.png",
+    mobileOnly: true,
+    hiddenInWechat: true
+  },
   { value: "contact_service", label: "联系客服", icon: "💬" },
   ...(IS_DEV ? [{ value: "MOCK" as Channel, label: "模拟（Dev）", icon: "🧪", devOnly: true }] : [])
 ]
+
+/** 微信内置浏览器会拦截跳转到支付宝域名，需检测 UA 并降级为扫码支付 */
+function isWechatBrowser(): boolean {
+  if (typeof navigator === "undefined") return false
+  return /MicroMessenger/i.test(navigator.userAgent)
+}
 
 /** 二维码展示 + 轮询支付状态 */
 function QrStep({
@@ -111,9 +130,29 @@ export function SubscriptionPayDialog({
 }: SubscriptionPayDialogProps) {
   const qc = useQueryClient()
   const { mutate: subscribe, isPending } = useSubscribe()
+  const [isMobile, setIsMobile] = useState(false)
+  const [isWechat, setIsWechat] = useState(false)
   const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "wx_native")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
+
+  // 检测移动端 + 微信内置浏览器：支付宝渠道按设备/环境互斥展示
+  // PC → 扫码；移动端非微信 → 整页跳转；移动端微信内 → 微信会拦截跳转支付宝域名，降级为扫码兜底
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    setIsWechat(isWechatBrowser())
+    return () => window.removeEventListener("resize", check)
+  }, [])
+
+  const visibleChannels = CHANNELS.filter((c) => {
+    if (c.hiddenInWechat && isWechat) return false
+    // alipay_qr 默认仅 PC 展示，但移动端微信内需要作为 alipay_wap 的兜底方案展示
+    if (c.desktopOnly && isMobile && !(c.value === "alipay_qr" && isWechat)) return false
+    if (c.mobileOnly && !isMobile) return false
+    return true
+  })
 
   // 弹窗关闭时重置状态
   const handleOpenChange = (v: boolean) => {
@@ -141,6 +180,9 @@ export function SubscriptionPayDialog({
             notify.success("订阅成功！")
             onSuccess?.()
             onOpenChange(false)
+          } else if (channel === "alipay_wap" && data.codeUrl) {
+            // 手机网站支付：整页跳转到后端跳转接口，浏览器自动提交表单跳转到支付宝收银台
+            window.location.href = data.codeUrl
           } else if (data.codeUrl) {
             setQrOrder(data)
           } else {
@@ -193,7 +235,7 @@ export function SubscriptionPayDialog({
               <div>
                 <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
                 <div className="flex gap-2">
-                  {CHANNELS.map((c) => (
+                  {visibleChannels.map((c) => (
                     <button
                       key={c.value}
                       type="button"

@@ -120,6 +120,17 @@ aaf:
     allowed-headers: ["*"]
     allow-credentials: true
     max-age: 3600
+  pay:
+    # 支付渠道公共骨架——各环境默认关闭，dev 覆盖为沙箱测试值，生产由 .env 注入真实凭证
+    alipay:
+      enabled: ${ALIPAY_ENABLED:false}
+      # 沙箱环境网关：https://openapi-sandbox.dl.alipaydev.com/gateway.do；正式环境：https://openapi.alipay.com/gateway.do
+      server-url: ${ALIPAY_SERVER_URL:https://openapi.alipay.com/gateway.do}
+      app-id: ${ALIPAY_APP_ID:}
+      private-key: ${ALIPAY_PRIVATE_KEY:}
+      alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
+      notify-url: ${ALIPAY_NOTIFY_URL:}
+      return-url: ${ALIPAY_RETURN_URL:${AAF_WEB_ORIGIN:http://localhost:3000}/pay-result}
   ai:
     default-model: deepseek:chat
     fallback-model: default
