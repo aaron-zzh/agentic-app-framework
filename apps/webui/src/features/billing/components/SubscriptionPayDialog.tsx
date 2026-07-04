@@ -38,7 +38,13 @@ const CHANNELS: {
    */
   hidden?: boolean
 }[] = [
-  { value: "wx_native", label: "微信支付", iconUrl: "/assets/brand/wechatpay.png" },
+  {
+    value: "wx_native",
+    label: "微信支付",
+    iconUrl: "/assets/brand/wechatpay.png",
+    // 临时隐藏，默认展示支付宝支付；恢复时移除此标记即可
+    hidden: true
+  },
   {
     value: "alipay_pc",
     label: "支付宝",
@@ -206,7 +212,7 @@ export function SubscriptionPayDialog({
   const { mutate: subscribe, isPending } = useSubscribe()
   const [isMobile, setIsMobile] = useState(false)
   const [isWechat, setIsWechat] = useState(false)
-  const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "wx_native")
+  const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "alipay_pc")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
 
@@ -226,6 +232,17 @@ export function SubscriptionPayDialog({
     if (c.mobileOnly && !isMobile) return false
     return true
   })
+
+  // 移动端默认渠道为电脑网站支付时不可见，自动切换到当前设备可见的第一个渠道（微信支付临时隐藏期间默认支付宝）
+  useEffect(() => {
+    if (IS_DEV) return
+    if (!visibleChannels.some((c) => c.value === channel)) {
+      const fallback = visibleChannels[0]?.value
+      if (fallback) setChannel(fallback)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, isWechat])
+
 
   // 弹窗关闭时重置状态
   const handleOpenChange = (v: boolean) => {
