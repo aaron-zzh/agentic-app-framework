@@ -46,5 +46,8 @@ export const adminUserApi = {
 
   downloadTemplate: () => {
     window.open(buildApiUrl("/system/users/import/template"), "_blank")
-  }
+  },
+
+  resetPassword: (id: number, password: string) =>
+    backendApi.post<void>(`/system/users/${id}/password/reset`, { password })
 }

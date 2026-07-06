@@ -6,7 +6,7 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { Upload } from "lucide-react"
+import { KeyRound, MoreHorizontal, Upload } from "lucide-react"
 import { useRef, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { TablePagination } from "@/components/table/TablePagination"
@@ -19,6 +19,12 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -29,7 +35,8 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import { adminUserApi, type UserListParams } from "@/lib/api/rest/admin/user"
+import { adminUserApi, type UserListParams, type UserVO } from "@/lib/api/rest/admin/user"
+import { notify } from "@/lib/notification"
 import { useAdminUserList } from "@/lib/queries/use-admin-user"
 
 export default function AdminUserPage() {
@@ -48,6 +55,11 @@ export default function AdminUserPage() {
   } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 重置密码弹窗状态
+  const [resetTarget, setResetTarget] = useState<UserVO | null>(null)
+  const [resetPassword, setResetPassword] = useState("")
+  const [resetting, setResetting] = useState(false)
+
   function updateFilter(key: keyof UserListParams, value: string) {
     setParams((prev) => ({ ...prev, [key]: value || undefined, page: 1 }))
   }
@@ -56,6 +68,29 @@ export default function AdminUserPage() {
     setImportFile(null)
     setImportResult(null)
     setImportOpen(true)
+  }
+
+  function openResetPassword(user: UserVO) {
+    setResetPassword("")
+    setResetTarget(user)
+  }
+
+  async function handleResetPassword() {
+    if (!resetTarget) return
+    if (resetPassword.length < 6 || resetPassword.length > 50) {
+      notify.error("新密码长度 6-50")
+      return
+    }
+    setResetting(true)
+    try {
+      await adminUserApi.resetPassword(resetTarget.id, resetPassword)
+      notify.success("密码重置成功")
+      setResetTarget(null)
+    } catch (_e) {
+      notify.error("密码重置失败")
+    } finally {
+      setResetting(false)
+    }
   }
 
   async function handleImport() {
@@ -113,18 +148,19 @@ export default function AdminUserPage() {
               <TableHead>邮箱</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>创建时间</TableHead>
+              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                   加载中...
                 </TableCell>
               </TableRow>
             ) : data?.list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                   暂无数据
                 </TableCell>
               </TableRow>
@@ -144,6 +180,22 @@ export default function AdminUserPage() {
                   <TableCell className="text-muted-foreground text-sm">
                     {user.createTime ? user.createTime.replace("T", " ").slice(0, 16) : "-"}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted"
+                        aria-label="更多操作"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openResetPassword(user)}>
+                          <KeyRound className="mr-2 size-3.5" />
+                          重置密码
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -161,6 +213,37 @@ export default function AdminUserPage() {
           onChangePageSize={(pageSize) => setParams((prev) => ({ ...prev, pageSize, page: 1 }))}
         />
       )}
+
+      {/* 重置密码弹窗 */}
+      <Dialog open={!!resetTarget} onOpenChange={(open) => !open && setResetTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>重置密码</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <p className="text-muted-foreground text-sm">
+              为用户「{resetTarget?.nickname || resetTarget?.username}」设置新密码
+            </p>
+            <Input
+              type="password"
+              placeholder="请输入新密码（6-50 位）"
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              maxLength={50}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetTarget(null)}>
+              取消
+            </Button>
+            <Button onClick={handleResetPassword} disabled={!resetPassword || resetting}>
+              {resetting ? "提交中..." : "确认重置"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 导入弹窗 */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
