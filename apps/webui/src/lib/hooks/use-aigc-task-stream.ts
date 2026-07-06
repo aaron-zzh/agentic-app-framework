@@ -9,10 +9,32 @@
 
 "use client"
 
-import { useQueryClient } from "@tanstack/react-query"
+import { type QueryClient, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef } from "react"
 import { buildSseUrl } from "@/lib/api/config"
 import { invalidateCreditQueries } from "@/lib/queries/use-credits"
+
+/**
+ * 任务完成/失败后的默认失效延时（毫秒）。
+ *
+ * SSE 事件由 AigcTaskExecutor 在 REQUIRES_NEW 事务方法体内推送（push 早于方法返回、事务提交），
+ * 立即失效存在读到提交前旧数据的竞态窗口，延时与 AigcView.tsx 原有实践保持一致。
+ */
+const INVALIDATE_DELAY_MS = 1500
+
+/**
+ * 任务完成/失败后的默认失效集合：素材列表 + 首页计数胶囊 + 积分。
+ * 调用方仅需在自己的 onCompleted/onFailed 中处理独有的 UI 状态
+ * （如本地任务列表、素材库专属 key `media-asset-library`）。
+ */
+function invalidateAigcDefaultQueries(qc: QueryClient) {
+  setTimeout(() => {
+    qc.invalidateQueries({ queryKey: ["media-assets"] })
+    qc.invalidateQueries({ queryKey: ["aigc", "tasks", "today-count"] })
+    qc.invalidateQueries({ queryKey: ["aigc", "assets", "ai-count"] })
+    invalidateCreditQueries(qc)
+  }, INVALIDATE_DELAY_MS)
+}
 
 export interface AigcTaskEvent {
   id: number
@@ -143,13 +165,14 @@ export function useAigcTaskStream(options: UseAigcTaskStreamOptions = {}) {
   subRef.current = {
     onCreated: onCreated ?? (() => {}),
     onProgress: onProgress ?? (() => {}),
-    // 任务完成/失败后积分余额已变更，统一在此刷新，调用方无需关心
+    // 任务完成/失败后素材列表、首页计数、积分余额均已变更，统一在此失效，调用方无需关心
+    // 调用方仅需处理自己独有的 UI 状态（如本地任务列表、素材库专属 key）
     onCompleted: (t) => {
-      invalidateCreditQueries(qc)
+      invalidateAigcDefaultQueries(qc)
       onCompleted?.(t)
     },
     onFailed: (t) => {
-      invalidateCreditQueries(qc)
+      invalidateAigcDefaultQueries(qc)
       onFailed?.(t)
     },
     onReconnect

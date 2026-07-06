@@ -12,7 +12,7 @@
 
 "use client"
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import {
   ArrowUp,
   ChevronDown,
@@ -52,7 +52,6 @@ import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { useAiSkills } from "@/lib/queries/use-ai-skills"
-import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 import { useGenerateImage, useGenerateVideo } from "@/lib/queries/use-image-generation"
 import { cn } from "@/lib/utils"
 import { ImageUploadChip } from "./ImageUploadChip"
@@ -145,7 +144,6 @@ const FEATURES: Feature[] = [
 
 export function HomeChatLauncher() {
   const [input, setInput] = useState("")
-  const queryClient = useQueryClient()
   const [activeFeature, setActiveFeature] = useState<FeatureKey | null>(null)
   const [refImage, setRefImage] = useState<{
     url: string
@@ -168,14 +166,9 @@ export function HomeChatLauncher() {
     onProgress: useCallback((task: AigcTaskEvent) => {
       setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
     }, []),
-    onCompleted: useCallback(
-      (task: AigcTaskEvent) => {
-        setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-        queryClient.invalidateQueries({ queryKey: ["media-assets"] })
-        invalidateCreditQueries(queryClient)
-      },
-      [queryClient]
-    ),
+    onCompleted: useCallback((task: AigcTaskEvent) => {
+      setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+    }, []),
     onFailed: useCallback((task: AigcTaskEvent) => {
       setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
     }, [])

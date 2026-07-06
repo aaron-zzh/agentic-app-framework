@@ -13,7 +13,6 @@ import { toast } from "sonner"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useAigcProject } from "@/lib/queries/use-aigc-projects"
-import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 // import { useChatterLayoutPreference } from "@/features/chatter"
 import { CopywritingPanel } from "../copywriting/CopywritingPanel"
 import { StoryboardPanel } from "../copywriting/StoryboardPanel"
@@ -93,9 +92,8 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
       }
       setTimeout(() => {
         removePendingTask(task.id)
-        queryClient.invalidateQueries({ queryKey: ["media-assets"] })
+        // media-assets + 积分已由 useAigcTaskStream 内置默认行为失效，此处仅补充素材库专属 key
         queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-        invalidateCreditQueries(queryClient)
       }, 1500)
     },
     onFailed: (task) => {
@@ -106,10 +104,8 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
       // 失败卡片保留，等用户点击重试或手动关闭
     },
     onReconnect: () => {
-      // SSE 断连重连后，补查断连期间可能丢失的任务结果
-      queryClient.invalidateQueries({ queryKey: ["media-assets"] })
+      // SSE 断连重连后，补查断连期间可能丢失的任务结果（media-assets/积分由内置行为覆盖，此处仅补素材库专属 key）
       queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-      invalidateCreditQueries(queryClient)
     }
   })
 
