@@ -7,7 +7,16 @@
 
 "use client"
 
-import { ArrowUpRight, Cloud, FileText, Lock, Mic, PenSquare, TrendingUp } from "lucide-react"
+import {
+  ArrowUpRight,
+  Cloud,
+  FileText,
+  Lock,
+  Mic,
+  PenSquare,
+  QrCode,
+  TrendingUp
+} from "lucide-react"
 import Link from "next/link"
 import { GlassCard, NeonChip } from "@/components/studio"
 import { cn } from "@/lib/utils/index"
@@ -54,6 +63,14 @@ const TOOLS: Tool[] = [
     icon: Cloud,
     href: "/studio/create/tools/weather",
     tone: "amber"
+  },
+  {
+    key: "qrcode",
+    title: "二维码生成",
+    desc: "本地生成二维码，支持自定义风格与贴图下载",
+    icon: QrCode,
+    href: "/studio/create/tools/qrcode",
+    tone: "violet"
   },
   {
     key: "meeting",

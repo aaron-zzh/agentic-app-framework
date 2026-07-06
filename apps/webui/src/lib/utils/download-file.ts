@@ -1,7 +1,7 @@
 import { toast } from "sonner"
 
 /** 触发浏览器保存 blob 为文件，并释放临时 URL */
-function saveBlob(blob: Blob, filename: string): void {
+export function saveBlob(blob: Blob, filename: string): void {
   const a = document.createElement("a")
   a.href = URL.createObjectURL(blob)
   a.download = filename
