@@ -250,15 +250,14 @@ export function CreditRechargeDialog({ open, onOpenChange, onSuccess }: Props) {
   })
 
   // 移动端默认渠道为电脑网站支付时不可见，自动切换到当前设备可见的第一个渠道（微信支付临时隐藏期间默认支付宝）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 仅需在设备类型变化时重新校验渠道，channel/visibleChannels 变化不应重触发
   useEffect(() => {
     if (IS_DEV) return
     if (!visibleChannels.some((c) => c.value === channel)) {
       const fallback = visibleChannels[0]?.value
       if (fallback) setChannel(fallback)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile])
-
 
   const selectedPkg = packages?.find((p) => p.id === selectedId)
 
