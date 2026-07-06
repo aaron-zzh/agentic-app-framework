@@ -7,7 +7,8 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useEffect } from "react"
+import { Eye, EyeOff, Info, Lock } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Field } from "@/components/form/fields"
@@ -24,7 +25,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { UploadAvatar } from "@/components/upload"
-import { useProfile, useUpdateProfile } from "@/lib/api/rest/user/profile"
+import { useChangePassword, useProfile, useUpdateProfile } from "@/lib/api/rest/user/profile"
 import { useAuth } from "@/lib/auth/use-auth"
 import { notify } from "@/lib/notification"
 
@@ -34,6 +35,23 @@ const profileSchema = z.object({
   avatar: z.string().optional()
 })
 type ProfileFormValues = z.infer<typeof profileSchema>
+
+// 原密码不做长度校验（仅必填），新密码沿用管理后台一致的最小长度规则
+const passwordSchema = z
+  .object({
+    oldPassword: z.string().min(1, "请输入当前密码"),
+    newPassword: z.string().min(6, "新密码至少 6 位"),
+    confirmPassword: z.string().min(1, "请确认新密码")
+  })
+  .refine((v) => v.oldPassword !== v.newPassword, {
+    message: "新密码不能与当前密码相同",
+    path: ["newPassword"]
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    message: "两次输入的密码不一致",
+    path: ["confirmPassword"]
+  })
+type PasswordFormValues = z.infer<typeof passwordSchema>
 
 export default function StudioMeAccountPage() {
   const { data: profile, isLoading } = useProfile()
@@ -135,7 +153,118 @@ export default function StudioMeAccountPage() {
             </GlassCard>
           </div>
         </Form>
+
+        {/* 安全设置：修改密码 */}
+        <SecuritySection />
       </div>
     </div>
+  )
+}
+
+/**
+ * 安全设置——修改密码
+ * 原密码仅做必填校验，不校验长度（后端负责校验正确性）
+ */
+function SecuritySection() {
+  const [showPwd, setShowPwd] = useState(false)
+  const changePassword = useChangePassword()
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { oldPassword: "", newPassword: "", confirmPassword: "" }
+  })
+
+  const onSubmit = handleSubmit(async (data) => {
+    try {
+      await changePassword.mutateAsync({
+        oldPassword: data.oldPassword,
+        newPassword: data.newPassword
+      })
+      reset()
+      notify.success("密码修改成功")
+    } catch {
+      notify.error("密码修改失败，请检查当前密码是否正确")
+    }
+  })
+
+  return (
+    <GlassCard>
+      <GlassCardHeader>
+        <GlassCardTitle className="flex items-center gap-2">
+          <Lock className="size-4" />
+          安全设置
+        </GlassCardTitle>
+      </GlassCardHeader>
+      <GlassCardBody>
+        <form onSubmit={onSubmit} className="max-w-md space-y-5">
+          <div className="relative space-y-1.5">
+            <Label htmlFor="oldPassword">当前密码</Label>
+            <Input
+              id="oldPassword"
+              type={showPwd ? "text" : "password"}
+              aria-invalid={!!errors.oldPassword}
+              {...register("oldPassword")}
+            />
+            <button
+              type="button"
+              className="absolute top-8 right-3 text-muted-foreground"
+              onClick={() => setShowPwd((v) => !v)}
+              tabIndex={-1}
+            >
+              {showPwd ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+            {errors.oldPassword && (
+              <p className="text-destructive text-xs">{errors.oldPassword.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="newPassword">新密码</Label>
+            <Input
+              id="newPassword"
+              type={showPwd ? "text" : "password"}
+              aria-invalid={!!errors.newPassword}
+              {...register("newPassword")}
+            />
+            {errors.newPassword ? (
+              <p className="text-destructive text-xs">{errors.newPassword.message}</p>
+            ) : (
+              <p className="flex items-center gap-1 text-muted-foreground text-xs">
+                <Info className="size-3.5" />
+                密码至少 6 位字符
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword">确认新密码</Label>
+            <Input
+              id="confirmPassword"
+              type={showPwd ? "text" : "password"}
+              aria-invalid={!!errors.confirmPassword}
+              {...register("confirmPassword")}
+            />
+            {errors.confirmPassword && (
+              <p className="text-destructive text-xs">{errors.confirmPassword.message}</p>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <GlowButton
+              type="submit"
+              tone="violet"
+              disabled={isSubmitting || changePassword.isPending}
+            >
+              {isSubmitting ? "修改中..." : "保存修改"}
+            </GlowButton>
+          </div>
+        </form>
+      </GlassCardBody>
+    </GlassCard>
   )
 }
