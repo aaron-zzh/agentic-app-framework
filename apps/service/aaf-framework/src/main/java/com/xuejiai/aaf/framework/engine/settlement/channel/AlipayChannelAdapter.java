@@ -143,10 +143,7 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         }
     }
 
-    /**
-     * 关闭未支付交易——订单超时未支付时调用 alipay.trade.close，通知支付宝侧同步关闭该交易，
-     * 避免本地已判定关闭后，用户仍能扫码/继续完成该笔交易造成状态不一致。
-     */
+    /** 关闭未支付交易——订单超时未支付时调用 alipay.trade.close，通知支付宝侧同步关闭该交易， 避免本地已判定关闭后，用户仍能扫码/继续完成该笔交易造成状态不一致。 */
     @Override
     public void close(String outTradeNo) {
         try {

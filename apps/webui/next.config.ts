@@ -40,13 +40,13 @@ const proxyAgentPackages = [
   "https-proxy-agent",
   "http-proxy-agent",
   "socks-proxy-agent",
-  "pac-proxy-agent",
+  "pac-proxy-agent"
 ]
 const proxyAgentStubsAbsolute = Object.fromEntries(
-  proxyAgentPackages.map((p) => [p, emptyModuleAbsolute]),
+  proxyAgentPackages.map((p) => [p, emptyModuleAbsolute])
 )
 const proxyAgentStubsRelative = Object.fromEntries(
-  proxyAgentPackages.map((p) => [p, emptyModuleRelative]),
+  proxyAgentPackages.map((p) => [p, emptyModuleRelative])
 )
 
 const nextConfig: NextConfig = {

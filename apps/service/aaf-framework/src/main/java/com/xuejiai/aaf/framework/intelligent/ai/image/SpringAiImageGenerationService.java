@@ -37,9 +37,34 @@ import tools.jackson.databind.JsonNode;
 @RequiredArgsConstructor
 public class SpringAiImageGenerationService implements ImageGenerationService {
 
+    /** 图像生成/编辑 HTTP 调用连接超时（建立连接阶段） */
+    private static final int CONNECT_TIMEOUT_MS = 15_000;
+
+    /** 图像生成/编辑 HTTP 调用响应超时（第三方图像模型处理耗时可达 160s+，留足余量） */
+    private static final int RESPONSE_TIMEOUT_MS = 300_000;
+
     private final DynamicImageModelFactory imageModelFactory;
     private final AiModelRepository modelRepository;
     private final AiProperties aiProperties;
+
+    /** 构建带统一超时配置的 RestClient，用于图像生成/编辑的直连 HTTP 调用。 */
+    private RestClient buildRestClient() {
+        return RestClient.builder()
+                .requestFactory(
+                        new HttpComponentsClientHttpRequestFactory(
+                                HttpClients.custom()
+                                        .setDefaultRequestConfig(
+                                                RequestConfig.custom()
+                                                        .setConnectTimeout(
+                                                                CONNECT_TIMEOUT_MS,
+                                                                TimeUnit.MILLISECONDS)
+                                                        .setResponseTimeout(
+                                                                RESPONSE_TIMEOUT_MS,
+                                                                TimeUnit.MILLISECONDS)
+                                                        .build())
+                                        .build()))
+                .build();
+    }
 
     @Override
     public ImageResult generate(AiModel model, ImageRequest request) {
@@ -109,18 +134,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
 
             // gpt-image-2 文生图走 /images/generations（官方接口规范）
             var response =
-                    RestClient.builder()
-                            .requestFactory(
-                                    new HttpComponentsClientHttpRequestFactory(
-                                            HttpClients.custom()
-                                                    .setDefaultRequestConfig(
-                                                            RequestConfig.custom()
-                                                                    .setResponseTimeout(
-                                                                            120_000,
-                                                                            TimeUnit.MILLISECONDS)
-                                                                    .build())
-                                                    .build()))
-                            .build()
+                    buildRestClient()
                             .post()
                             .uri(baseUrl + "/images/generations")
                             .header("Authorization", "Bearer " + apiKey)
@@ -241,18 +255,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             if (editSize != null) multipart.part("size", editSize.replace("*", "x"));
 
             var response =
-                    RestClient.builder()
-                            .requestFactory(
-                                    new HttpComponentsClientHttpRequestFactory(
-                                            HttpClients.custom()
-                                                    .setDefaultRequestConfig(
-                                                            RequestConfig.custom()
-                                                                    .setResponseTimeout(
-                                                                            120_000,
-                                                                            TimeUnit.MILLISECONDS)
-                                                                    .build())
-                                                    .build()))
-                            .build()
+                    buildRestClient()
                             .post()
                             .uri(baseUrl + "/images/edits")
                             .header("Authorization", "Bearer " + apiKey)
