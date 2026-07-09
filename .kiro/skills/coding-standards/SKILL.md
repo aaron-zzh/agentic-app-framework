@@ -110,7 +110,7 @@ pnpm check:affected
 
 ### 8. 测试命名区分 developer 与 tester 产出
 
-> 起因：Surefire/Failsafe 按文件名后缀分流执行。命名混用导致验收测试被 `pnpm check` 误执行（需外部依赖而失败），或单测被跳过。参见 [ADR-003](../../../docs/design/adr/ADR-003-remove-cucumber.md) 测试分层决策。
+> 起因：Surefire/Failsafe 按文件名后缀分流执行。命名混用导致验收测试被 `pnpm check` 误执行（需外部依赖而失败），或单测被跳过。
 
 - Java：developer 单测 `*Test.java`（Surefire 执行）；tester 验收/集成 `*IT.java` 或 `*AcceptanceTest.java`（Failsafe 执行）
 - TS：developer 单测 `*.test.ts(x)` / `*.spec.ts(x)`（Vitest）；tester 验收 `*.accept.test.ts(x)` 或 Playwright E2E

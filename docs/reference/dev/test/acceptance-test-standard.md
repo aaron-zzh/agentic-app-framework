@@ -15,9 +15,9 @@ changelog:
 > 验收测试是 **tester 的产出**，归入 `acceptance` target。对照需求文件的 AC 逐条验证代码是否满足需求，输出 AC 覆盖矩阵。
 >
 > **相关决策**：
-> - 测试环境走本地真实 DB + CI service container（不用 Testcontainers）— 起因：[ADR-002](../../../design/adr/ADR-002-local-env-vs-testcontainers.md)
-> - AC 用 Gherkin 格式写在需求文档，测试用 JUnit 5 `@DisplayName` 引用 AC 编号（不落地 `.feature` 文件）— 起因：[ADR-003](../../../design/adr/ADR-003-remove-cucumber.md)
-> - 前端 E2E 走 Playwright（非 Vitest acceptance），单测走 Vitest — 起因：[ADR-001](../../../design/adr/ADR-001-vitest-vs-jest.md)
+> - 测试环境走本地真实 DB + CI service container（不用 Testcontainers）
+> - AC 用 Gherkin 格式写在需求文档，测试用 JUnit 5 `@DisplayName` 引用 AC 编号（不落地 `.feature` 文件）
+> - 前端 E2E 走 Playwright（非 Vitest acceptance），单测走 Vitest
 
 ## 基本原则
 

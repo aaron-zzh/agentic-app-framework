@@ -10,7 +10,6 @@ author: AaronZZH
 
 # AgentScope 整合策略
 
-> 决策记录见 [ADR-005](../../adr/ADR-005-agentscope-integration-strategy.md)。
 > AgentScope 为骨架，AAF 五层架构作为薄门面。
 
 ## 整合原则
@@ -269,7 +268,6 @@ builder.structuredOutputReminder(StructuredOutputReminder.json(schema));
 - [五层智能架构](architecture.md)
 - [Agent 技术方案](agent/agent-tech.md)
 - [记忆管道](cognition/memory-pipeline.md)
-- [ADR-005 AgentScope 整合策略](../../adr/ADR-005-agentscope-integration-strategy.md)
 
 
 示例                   │ 核心模式                │ 对 AAF 的价值                                 │ 优先级      │

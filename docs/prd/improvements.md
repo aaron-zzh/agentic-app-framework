@@ -24,9 +24,9 @@ AI 智能体和人类用户协作中发现的改进点，协调者定期审阅�
 
 - 2026-05-05 | **缺失关键流程**：hotfix / 技术债 / 依赖升级 / 回滚 / 超时无规范。遇到首次真实案例时各建 20-30 行规范，不预先写 | 已采纳
 - 2026-05-06 | **前端状态管理规范细化（4 个子规则）**：补充已登记条目：① **Zustand 选择器必须返回稳定引用**——`s => ({ a: s.a, b: s.b })` 或 `s => s.items.map(...)` 会触发无限重渲，用分开选 primitive 或 shallow 比较；② **Query 缓存键必须带 workspace/租户 id**（如 `['issues', wsId]`），让切换空间自动换数据无需手动 invalidate；③ **Mutations 默认 optimistic**：本地先改 → 发请求 → 失败回滚 → settle 后 invalidate；④ **Persist 硬规则**：用户偏好/草稿/tab 布局可持久化，模态框/临时选择/服务端数据绝不持久化。参考 multica CLAUDE.md `State Management` 节 | 已采纳
-- 2026-05-05 | **Vitest + Playwright + @nx/vite 技术选型**：不引入 Jest/@nx/jest。见 [ADR-001](../design/adr/ADR-001-vitest-vs-jest.md) | 已采纳
-- 2026-05-05 | **后端测试环境走本地真实 DB + CI service container，不引入 Testcontainers**：见 [ADR-002](../design/adr/ADR-002-local-env-vs-testcontainers.md) | 已采纳
-- 2026-05-05 | **Cucumber 移除**：6 处规范宣称但 pom 零依赖零 `.feature`；Cucumber BDD 与"`docs/prd/**` 是唯一真理"冲突。Gherkin 仅保留在需求文档 + 测试 `@DisplayName`。见 [ADR-003](../design/adr/ADR-003-remove-cucumber.md) | 已采纳
+- 2026-05-05 | **Vitest + Playwright + @nx/vite 技术选型**：不引入 Jest/@nx/jest。 | 已采纳
+- 2026-05-05 | **后端测试环境走本地真实 DB + CI service container，不引入 Testcontainers**： | 已采纳
+- 2026-05-05 | **Cucumber 移除**：6 处规范宣称但 pom 零依赖零 `.feature`；Cucumber BDD 与"`docs/prd/**` 是唯一真理"冲突。Gherkin 仅保留在需求文档 + 测试 `@DisplayName`。 | 已采纳
 - 2026-05-05 | **Playwright E2E 引入**：登记为 [AAF-023 #6](../task/v0.1.0/AAF-023/tasks.md) | 已采纳（未实施）
 
 ## 协作流程与智能体

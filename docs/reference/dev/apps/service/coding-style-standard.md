@@ -583,8 +583,6 @@ var msg = "用户 " + username + "（ID=" + userId + "）登录失败";
 
 ## 并发编程规范（Virtual Threads）
 
-> 起因：[ADR-004](../../../../design/adr/ADR-004-virtual-threads-over-webflux.md)
-
 AAF 全量启用虚拟线程（`spring.threads.virtual.enabled=true`），业务代码默认运行在虚拟线程上。
 
 ### 核心规则

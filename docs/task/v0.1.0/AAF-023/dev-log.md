@@ -18,8 +18,6 @@
 
 ## #2 Vitest vs Jest 决策
 
-✅ 05-05 — 协调者 → [ADR-001](../../../design/adr/ADR-001-vitest-vs-jest.md)
-
 - 选 Vitest：ESM 原生、Nx 默认、冷启动快
 - 验收测试改由 Playwright 接管（登记 #22）
 
@@ -31,8 +29,6 @@
 - 理由：一人公司，0 秒启动 × N 次内循环优于容器延迟
 
 ## #4 Cucumber 移除决策
-
-✅ 05-05 — 协调者 → [ADR-003](../../../design/adr/ADR-003-remove-cucumber.md)
 
 - .feature 与"文档唯一真理"冲突，移除
 - 保留 Gherkin 作 AC 格式，用 @DisplayName 映射

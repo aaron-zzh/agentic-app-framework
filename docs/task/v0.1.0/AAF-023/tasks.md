@@ -49,8 +49,6 @@ changelog:
 
 5. ✅ #23 测试规范清理（去 Cucumber） — developer-service
    - 去除规范文档里的 Cucumber 引用，pom 显式加 `spring-boot-starter-test`
-   - 来源：[ADR-003](../../../design/adr/ADR-003-remove-cucumber.md)
-   - verify: `grep -r "Cucumber" docs/` 无命中（除 ADR 历史记录）
 
 6. ✅ #21 ArchUnit 分层规则激活 — developer-service (依赖: #17)
    - 替换 LayeringTest.java 占位，启用 5 条真实分层规则

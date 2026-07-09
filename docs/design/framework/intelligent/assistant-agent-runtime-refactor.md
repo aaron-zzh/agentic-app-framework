@@ -412,7 +412,6 @@ AI 执行中 → HumanApprovalService.request() → 存入 pending Map + 生成 
 - [Assistant 技术方案](assistant/assistant-tech.md)
 - [Agent 技术方案](agent/agent-tech.md)
 - [AgentScope 整合策略](agentscope-integration.md)
-- [ADR-005 AgentScope 整合策略](../../adr/ADR-005-agentscope-integration-strategy.md)
 
 ## 架构重构意见：以认知模型驱动，AgentScope 仅为执行层（2026-06-02）
 

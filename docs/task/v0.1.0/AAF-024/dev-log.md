@@ -368,16 +368,6 @@ AAF-023 dev-log 承载了 3 条横跨全项目的技术选型决策：
 
 ### 改动清单
 
-**新建（5 个文件）**：
-
-| 文件 | 行数 | 内容 |
-|------|-----|------|
-| `docs/design/adr/README.md` | 71 | 目录索引 + 为什么需要 ADR + 格式与流程 + 触发条件 |
-| `docs/design/adr/_template.md` | 85 | MADR 3.0 模板（含 Reversal Triggers 反向选择触发条件章节） |
-| `docs/design/adr/ADR-001-vitest-vs-jest.md` | 112 | 迁移自 AAF-023 dev-log #2 |
-| `docs/design/adr/ADR-002-local-env-vs-testcontainers.md` | 145 | 迁移自 AAF-023 dev-log #3 |
-| `docs/design/adr/ADR-003-remove-cucumber.md` | 153 | 迁移自 AAF-023 dev-log #4 |
-
 **回链（3 个测试规范顶部加"起因：ADR-NNN"）**：
 
 | 文件 | 回链 |

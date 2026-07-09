@@ -15,8 +15,8 @@ changelog:
 > 单元测试是 **developer 的自验证手段**，归入 `check` target。覆盖核心业务逻辑的行为正确性，不关心需求满足度（那是 tester 的 acceptance 职责）。
 >
 > **相关决策**：
-> - 前端单测框架走 Vitest（不走 Jest）— 起因：[ADR-001](../../../design/adr/ADR-001-vitest-vs-jest.md)
-> - 后端单测走 JUnit 5 + Mockito + AssertJ，AC 用 `@DisplayName` 表达而非 Cucumber — 起因：[ADR-003](../../../design/adr/ADR-003-remove-cucumber.md)
+> - 前端单测框架走 Vitest（不走 Jest）—
+> - 后端单测走 JUnit 5 + Mockito + AssertJ，AC 用 `@DisplayName` 表达
 
 ## 基本原则
 
