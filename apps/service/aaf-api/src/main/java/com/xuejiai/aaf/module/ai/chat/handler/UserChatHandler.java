@@ -18,8 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 用户间聊天处理器
  *
- * <p>消息已由 {@code ChatRunController} 保存（{@code shouldPersist} 分支），本处理器只负责
- * 通过 {@link WebSocketMessageSender} 推送给目标用户，不重复保存。
+ * <p>消息已由 {@code ChatRunController} 保存（{@code shouldPersist} 分支），本处理器只负责 通过 {@link
+ * WebSocketMessageSender} 推送给目标用户，不重复保存。
  *
  * @author AaronZZH & Kiro
  */

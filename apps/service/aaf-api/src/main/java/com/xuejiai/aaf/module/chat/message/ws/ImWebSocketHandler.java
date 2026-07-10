@@ -14,9 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * IM WebSocket 处理器，处理用户间聊天连接的建立、断开与心跳。
  *
- * <p>连接身份为 userId（一人一连接），实际消息推送由
- * {@code MessageCrudService.pushToParticipants} 通过 {@link WebSocketSessionManager}
- * 完成，本 handler 只负责连接生命周期管理。
+ * <p>连接身份为 userId（一人一连接），实际消息推送由 {@code MessageCrudService.pushToParticipants} 通过 {@link
+ * WebSocketSessionManager} 完成，本 handler 只负责连接生命周期管理。
  *
  * @author AaronZZH & Kiro
  */

@@ -11,8 +11,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * WebSocket 消息推送统一入口。
  *
- * <p>业务方通过本类推送强类型 {@link WsMessage}，不直接操作
- * {@link WebSocketSessionManager} 或手写 JSON 序列化，保证消息信封格式统一
+ * <p>业务方通过本类推送强类型 {@link WsMessage}，不直接操作 {@link WebSocketSessionManager} 或手写 JSON 序列化，保证消息信封格式统一
  * （{@code {type, data}}）且字段类型安全。
  *
  * @author AaronZZH & Kiro

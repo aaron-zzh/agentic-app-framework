@@ -56,8 +56,7 @@ public class EntityChangeListener {
 
             // 实时推送
             webSocketMessageSender.send(
-                    sub.getUserId(),
-                    new SubscriptionMessage(event.entityType(), event.entityId()));
+                    sub.getUserId(), new SubscriptionMessage(event.entityType(), event.entityId()));
         }
 
         // 触发自动化规则

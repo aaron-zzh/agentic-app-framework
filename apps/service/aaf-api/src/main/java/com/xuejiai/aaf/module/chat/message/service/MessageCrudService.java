@@ -126,8 +126,7 @@ public class MessageCrudService
                     .forEach(
                             p -> {
                                 try {
-                                    messageSender.send(
-                                            Long.valueOf(p.getParticipantId()), message);
+                                    messageSender.send(Long.valueOf(p.getParticipantId()), message);
                                 } catch (Exception ignored) {
                                 }
                             });

@@ -12,8 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 管理在线用户 WebSocket 会话，提供按用户推送能力。
  *
- * <p>会话按 {@code (userId, channel)} 复合键存储，支持同一用户同时打开多个端点连接
- * （如 Notification + IM）而不互相覆盖。{@link #sendToUser} 广播给该用户所有已连接端点。
+ * <p>会话按 {@code (userId, channel)} 复合键存储，支持同一用户同时打开多个端点连接 （如 Notification + IM）而不互相覆盖。{@link
+ * #sendToUser} 广播给该用户所有已连接端点。
  *
  * @author AaronZZH & Kiro
  */
@@ -33,11 +33,7 @@ public class WebSocketSessionManager {
      */
     public void register(Long userId, String channel, WebSocketSession session) {
         sessions.computeIfAbsent(userId, k -> new ConcurrentHashMap<>()).put(channel, session);
-        log.info(
-                "用户 {} WebSocket 已连接: channel={}，当前在线用户数 {}",
-                userId,
-                channel,
-                sessions.size());
+        log.info("用户 {} WebSocket 已连接: channel={}，当前在线用户数 {}", userId, channel, sessions.size());
     }
 
     /**
