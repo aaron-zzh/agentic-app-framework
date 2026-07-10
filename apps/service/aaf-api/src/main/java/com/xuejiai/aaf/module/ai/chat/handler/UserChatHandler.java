@@ -6,10 +6,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.messaging.ws.ImMessage;
+import com.xuejiai.aaf.framework.messaging.ws.WebSocketMessageSender;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatRunRequest;
-import com.xuejiai.aaf.module.ai.chat.ws.ChatWebSocketHandler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 用户间聊天处理器
  *
- * <p>保存消息并通过 WebSocket 推送给目标用户。
+ * <p>消息已由 {@code ChatRunController} 保存（{@code shouldPersist} 分支），本处理器只负责
+ * 通过 {@link WebSocketMessageSender} 推送给目标用户，不重复保存。
  *
  * @author AaronZZH & Kiro
  */
@@ -29,7 +31,7 @@ public class UserChatHandler {
     private static final long SSE_TIMEOUT = 30 * 1000L;
 
     private final ChatService chatService;
-    private final ChatWebSocketHandler webSocketHandler;
+    private final WebSocketMessageSender messageSender;
 
     /**
      * 处理用户间聊天请求
@@ -45,31 +47,26 @@ public class UserChatHandler {
         Thread.startVirtualThread(
                 () -> {
                     try {
-                        // 提取最后一条 user 消息内容
-                        String content =
-                                request.messages().stream()
-                                        .filter(m -> "user".equals(m.role()))
-                                        .reduce((first, second) -> second)
-                                        .map(ChatRunRequest.AgUiMessage::content)
-                                        .orElse("");
-
-                        // 通过 WebSocket 推送给目标用户所在的会话
                         Long targetUserId = request.target().userId();
-                        String sessionId =
+                        String sessionIdStr =
                                 request.state() != null ? request.state().sessionId() : null;
-                        if (sessionId != null) {
-                            var saved =
-                                    chatService.saveMessage(
-                                            senderId,
-                                            "HUMAN",
-                                            Long.valueOf(sessionId),
-                                            "user",
-                                            content);
-                            var json = JsonUtils.toJsonString(saved);
-                            webSocketHandler.broadcast(Long.valueOf(sessionId), json);
+                        if (targetUserId != null && sessionIdStr != null) {
+                            var sessionId = Long.valueOf(sessionIdStr);
+                            // 消息已由 ChatRunController 保存，此处只取最新一条推送
+                            chatService.listMessages(sessionId).stream()
+                                    .reduce((first, second) -> second)
+                                    .ifPresent(
+                                            latest ->
+                                                    messageSender.send(
+                                                            targetUserId,
+                                                            new ImMessage(
+                                                                    sessionId,
+                                                                    latest.id(),
+                                                                    String.valueOf(
+                                                                            latest.senderId()),
+                                                                    latest.content())));
                         }
 
-                        // SSE 返回 RUN_FINISHED 确认
                         sendEvent(emitter, AgUiEvent.runStarted(runId));
                         sendEvent(emitter, AgUiEvent.runFinished(runId));
                         emitter.complete();

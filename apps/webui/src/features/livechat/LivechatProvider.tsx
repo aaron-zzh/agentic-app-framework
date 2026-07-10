@@ -52,7 +52,7 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
   const { userId, sessionId } = config
   const [messages, setMessages] = useState<ThreadMessage[]>([])
   const [isRunning, setIsRunning] = useState(false)
-  const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080"}/ws/chat?userId=${userId}&sessionId=${sessionId}`
+  const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080"}/ws/im?userId=${userId}&sessionId=${sessionId}`
 
   // 加载历史消息
   const { data: history } = useChatMessages(sessionId)
@@ -65,20 +65,39 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
     }
   }, [history])
 
-  // WebSocket 实时消息
-  const handleWsMessage = useCallback((raw: string) => {
-    try {
-      const msg: ChatMessageVO = JSON.parse(raw)
-      setMessages((prev) => {
-        // 去重：避免历史加载和 WS 推送重复
-        if (prev.some((m) => m.id === msg.id)) return prev
-        return [...prev, toThreadMessage(msg)]
-      })
-      setIsRunning(false)
-    } catch {
-      // 忽略非 JSON 消息（如心跳）
-    }
-  }, [])
+  // WebSocket 实时消息：统一信封 {type: "im_message", data: ImMessage}
+  // ImMessage 字段扁平：{conversationId, messageId, senderId, content}，无 role/createdAt，
+  // 按 senderId 是否等于当前用户判断消息角色。
+  const handleWsMessage = useCallback(
+    (raw: string) => {
+      try {
+        const envelope: {
+          type?: string
+          data?: { conversationId?: number; messageId?: number; senderId?: number; content?: string }
+        } = JSON.parse(raw)
+        if (envelope.type !== "im_message" || !envelope.data) return
+        const { messageId, senderId, content } = envelope.data
+        if (messageId == null || content == null) return
+        const isSelf = String(senderId) === String(userId)
+        const msg: ChatMessageVO = {
+          id: String(messageId),
+          sessionId,
+          role: isSelf ? "user" : "assistant",
+          content,
+          createdAt: new Date().toISOString()
+        }
+        setMessages((prev) => {
+          // 去重：避免历史加载和 WS 推送重复
+          if (prev.some((m) => m.id === msg.id)) return prev
+          return [...prev, toThreadMessage(msg)]
+        })
+        setIsRunning(false)
+      } catch {
+        // 忽略非 JSON 消息（如心跳）
+      }
+    },
+    [userId, sessionId]
+  )
 
   useWebSocket({
     url: wsUrl,

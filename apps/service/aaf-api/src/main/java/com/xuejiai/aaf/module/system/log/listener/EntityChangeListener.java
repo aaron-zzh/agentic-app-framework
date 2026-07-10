@@ -3,7 +3,8 @@ package com.xuejiai.aaf.module.system.log.listener;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
+import com.xuejiai.aaf.framework.messaging.ws.SubscriptionMessage;
+import com.xuejiai.aaf.framework.messaging.ws.WebSocketMessageSender;
 import com.xuejiai.aaf.module.system.log.event.EntityChangeEvent;
 import com.xuejiai.aaf.module.system.log.service.ActivityService;
 import com.xuejiai.aaf.module.system.log.service.AuditLogService;
@@ -27,7 +28,7 @@ public class EntityChangeListener {
     private final AuditLogService auditLogService;
     private final SubscriptionService subscriptionService;
     private final NotificationRepository notificationRepository;
-    private final WebSocketSessionManager webSocketSessionManager;
+    private final WebSocketMessageSender webSocketMessageSender;
     private final AutomationService automationService;
 
     @EventListener
@@ -54,10 +55,9 @@ public class EntityChangeListener {
             notificationRepository.save(notification);
 
             // 实时推送
-            webSocketSessionManager.sendToUser(
+            webSocketMessageSender.send(
                     sub.getUserId(),
-                    "{\"type\":\"subscription\",\"entityType\":\"%s\",\"entityId\":%d}"
-                            .formatted(event.entityType(), event.entityId()));
+                    new SubscriptionMessage(event.entityType(), event.entityId()));
         }
 
         // 触发自动化规则

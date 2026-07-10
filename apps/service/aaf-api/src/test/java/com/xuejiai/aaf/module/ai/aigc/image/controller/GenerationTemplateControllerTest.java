@@ -77,7 +77,7 @@ class GenerationTemplateControllerTest {
     @WithMockUser
     void should_return_public_templates_when_query_by_type_and_scope() throws Exception {
         var pageResult = new PageResult<>(List.of(sampleVO(1L, "PROJECT")), 1L);
-        when(templateService.page(any())).thenReturn(pageResult);
+        when(templateService.pagePublic(any())).thenReturn(pageResult);
 
         mockMvc.perform(
                         get("/api/aigc/templates/public")

@@ -43,10 +43,13 @@ export function NotificationDrawer({ notificationsUrl }: { notificationsUrl?: st
     enabled: !!accessToken,
     onMessage: (data) => {
       try {
-        const msg = JSON.parse(data) as { type: string; title?: string; body?: string }
-        if (msg.type === "notification") {
+        const envelope = JSON.parse(data) as {
+          type: string
+          data?: { title?: string; body?: string }
+        }
+        if (envelope.type === "notification" && envelope.data) {
           qc.invalidateQueries({ queryKey: ["notifications"] })
-          notify.info(msg.title ?? "新通知", { description: msg.body })
+          notify.info(envelope.data.title ?? "新通知", { description: envelope.data.body })
         }
       } catch {
         // 忽略非 JSON 消息

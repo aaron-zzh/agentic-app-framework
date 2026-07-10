@@ -6,12 +6,12 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessage;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessage.PushStrategy;
 import com.xuejiai.aaf.framework.messaging.internal.InternalMessageSender;
 import com.xuejiai.aaf.framework.messaging.sse.SseSessionManager;
-import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
+import com.xuejiai.aaf.framework.messaging.ws.NotificationMessage;
+import com.xuejiai.aaf.framework.messaging.ws.WebSocketMessageSender;
 import com.xuejiai.aaf.module.system.notify.domain.Notification;
 import com.xuejiai.aaf.module.system.notify.repository.NotificationRepository;
 
@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 public class InternalMessageSenderImpl implements InternalMessageSender {
 
     private final NotificationRepository notificationRepository;
-    private final WebSocketSessionManager wsSessionManager;
+    private final WebSocketMessageSender wsMessageSender;
     private final SseSessionManager sseSessionManager;
 
     /** 消息类型 → 推送策略映射表。 未注册的类型默认走 ALL。 */
@@ -80,28 +80,22 @@ public class InternalMessageSenderImpl implements InternalMessageSender {
         if (strategy == PushStrategy.PERSIST_ONLY) return;
 
         try {
-            var payload =
-                    JsonUtils.toJsonString(
-                            java.util.Map.of(
-                                    "type",
-                                    "notification",
-                                    "notificationType",
-                                    message.getType(),
-                                    "title",
-                                    message.getTitle(),
-                                    "body",
-                                    message.getBody() != null ? message.getBody() : "",
-                                    "relatedUrl",
-                                    message.getRelatedUrl() != null
-                                            ? message.getRelatedUrl()
-                                            : ""));
+            var notificationMessage =
+                    new NotificationMessage(
+                            message.getType(),
+                            message.getTitle(),
+                            message.getBody() != null ? message.getBody() : "",
+                            message.getRelatedUrl() != null ? message.getRelatedUrl() : "");
 
             if (strategy == PushStrategy.WS_ONLY || strategy == PushStrategy.ALL) {
-                wsSessionManager.sendToUser(message.getUserId(), payload);
+                wsMessageSender.send(message.getUserId(), notificationMessage);
             }
             if ((strategy == PushStrategy.SSE_ONLY || strategy == PushStrategy.ALL)
                     && sseSessionManager.hasSubscriber(message.getUserId())) {
-                sseSessionManager.push(message.getUserId(), "notification", payload);
+                sseSessionManager.push(
+                        message.getUserId(),
+                        "notification",
+                        wsMessageSender.serialize(notificationMessage));
             }
         } catch (Exception e) {
             log.warn("消息推送失败，userId={} type={}", message.getUserId(), message.getType(), e);

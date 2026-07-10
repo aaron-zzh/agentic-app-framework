@@ -11,10 +11,13 @@ import { notify } from "@/lib/notification"
 import { useWebSocket } from "./use-websocket"
 
 interface NotificationMessage {
-  id: string
   type: string
-  title: string
-  body?: string
+  data: {
+    notificationType?: string
+    title: string
+    body?: string
+    relatedUrl?: string
+  }
 }
 
 /**
@@ -33,12 +36,13 @@ export function useNotificationWs(userId: string | undefined) {
       } catch {
         return
       }
+      if (msg.type !== "notification" || !msg.data) return
 
       // 刷新通知相关缓存
       queryClient.invalidateQueries({ queryKey: ["notifications"] })
 
       // Toast 提示
-      notify.info(msg.title, { description: msg.body })
+      notify.info(msg.data.title, { description: msg.data.body })
     },
     [queryClient]
   )

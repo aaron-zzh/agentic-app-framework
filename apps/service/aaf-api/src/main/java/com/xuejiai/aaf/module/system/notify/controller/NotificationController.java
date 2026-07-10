@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.messaging.ws.WebSocketSessionManager;
+import com.xuejiai.aaf.framework.messaging.ws.NotificationMessage;
+import com.xuejiai.aaf.framework.messaging.ws.WebSocketMessageSender;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import com.xuejiai.aaf.module.system.notify.vo.NotificationPageDTO;
@@ -42,7 +42,7 @@ public class NotificationController {
 
     private final NotificationService notificationService;
     private final OperatorContext operatorContext;
-    private final WebSocketSessionManager sessionManager;
+    private final WebSocketMessageSender messageSender;
 
     @Operation(summary = "分页查询通知")
     @GetMapping
@@ -84,15 +84,7 @@ public class NotificationController {
         String title = dto != null && dto.title() != null ? dto.title() : "测试通知";
         String body = dto != null && dto.body() != null ? dto.body() : "这是一条测试推送消息";
         try {
-            var payload =
-                    JsonUtils.toJsonString(
-                            java.util.Map.of(
-                                    "type", "notification",
-                                    "notificationType", "system",
-                                    "title", title,
-                                    "body", body,
-                                    "relatedUrl", ""));
-            sessionManager.sendToUser(targetId, payload);
+            messageSender.send(targetId, new NotificationMessage("system", title, body, ""));
         } catch (Exception e) {
             log.error("test-push 序列化失败", e);
         }
