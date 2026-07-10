@@ -2,7 +2,7 @@
 
 import { useContext, useEffect } from "react"
 import { useShallow } from "zustand/react/shallow"
-import useInterval from "@/hooks/useInterval"
+import { useInterval } from "@/lib/hooks/use-interval"
 import { ClockStoreContext, useClockStore } from "@/lib/store/providers"
 
 function useClock() {
