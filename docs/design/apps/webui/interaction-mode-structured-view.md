@@ -6,10 +6,11 @@ status: draft
 version: 2.2.0
 date: 2026-05-13
 author: AaronZZH
+---
 
 # 结构化交互模式设计
 
-> **定位**：结构化视图是 AAF 的主交互面（高带宽通道），对话/生成式交互是辅助通道。AI 输出优先"焊"进结构化视图（高亮修改、内联 diff、表单预填充、看板卡片更新），用户在此做决策和审查。对话仅用于意图表达和快速指令。
+> **定位**：结构化视图是 AAF 的当前的主要交互界面，主要用于管理中后台，是结合对话/生成式交互的高带宽通道。AI 输出融合到结构化视图（高亮修改、内联 diff、表单预填充、看板卡片更新），用户在此做决策和审查。对话仅用于意图表达和快速指令。
 >
 > 设计依据：纯聊天将树状决策压缩为线性对话导致上下文腐烂；AI 使执行近乎免费后，规划与审查成为新瓶颈——结构化视图是降低审查成本的高效载体。
 
@@ -17,7 +18,7 @@ author: AaronZZH
 
 ### 配置驱动视图生成
 
-- 问题：AAF 需要大量"列表 + 表单 + 看板"管理页面。传统做法每个模块手写组件，重复度高。
+- 问题：中后台需要大量"列表 + 表单 + 看板"管理页面。传统做法每个模块手写组件，重复度高。
 - 方案：**新增业务模块 = 注册实体配置 + 可选自定义覆盖**，不写页面代码。
 
 ```text
@@ -75,7 +76,7 @@ interface EntityDef {
   listView: ListViewConfig  // 列表配置
   formView?: FormViewConfig // 表单配置
   kanbanView?: KanbanViewConfig
-  access?: EntityAccess                   // 权限配置，详见 [前端权限配置](./permission-ui.md)
+  access?: EntityAccess     // 权限配置，详见 [前端权限配置](./permission-ui.md)
   overrides?: { listView?, formView?, kanbanView? }  // 自定义
 }
 
@@ -95,7 +96,6 @@ interface FieldAccess {
 ```
 
 视图引擎根据 `access` 自动控制 UI：无 create 权限 → 隐藏 [+ 新建]；字段 visible=false → 不渲染；editable=false → 只读。无权限的内容对用户完全不存在，而非灰色禁用。权限规则可通过 DSL 声明，详见 [前端权限配置与控制](./permission-ui.md)。
-```
 
 ### 字段类型
 

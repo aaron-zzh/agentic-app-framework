@@ -13,7 +13,7 @@ gains:
 
 # AAF 产品概述
 
-> AAF（Agentic App Framework）是面向开发人员的生产级 AI 原生框架。AI 是架构的一等公民，不是附加物。
+> AAF（Agentic App Framework）是面向开发人员的生产级 AI 原生框架。
 
 ## 解决什么问题
 
