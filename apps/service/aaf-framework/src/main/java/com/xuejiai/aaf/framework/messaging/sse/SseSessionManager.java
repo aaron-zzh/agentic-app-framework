@@ -9,6 +9,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -107,6 +109,7 @@ public class SseSessionManager {
     }
 
     /** 每 15 秒向所有活跃连接发送心跳，防止 CDN/代理 30 秒无数据断连 */
+    @OrgIgnore
     @Scheduled(fixedDelay = 15_000)
     public void heartbeat() {
         subscribers.forEach(

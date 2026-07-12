@@ -19,8 +19,8 @@ import com.tngtech.archunit.library.freeze.FreezingArchRule;
 /**
  * 鉴权默认拒绝基线：{@code @RestController} 中的写接口（POST/PUT/DELETE/PATCH）必须带方法级授权注解。
  *
- * <p>授权注解任一即可：{@code @PreAuthorize} / {@code @AccessControl} / {@code @Secured}。 公开端点与自验签回调通过
- * {@link #ALLOWLISTED_CONTROLLERS} 显式豁免，新增豁免必须登记并说明理由。
+ * <p>授权注解任一即可：{@code @PreAuthorize} / {@code @Secured}。 公开端点与自验签回调通过 {@link
+ * #ALLOWLISTED_CONTROLLERS} 显式豁免，新增豁免必须登记并说明理由。
  *
  * <p>用 {@link FreezingArchRule} 冻结当前存量违规为基线：本规则**只拦截新增**未鉴权写接口， 不会因历史欠债（见 B9，约 112 个控制器）导致 {@code
  * pnpm check} 立即变红。 存量控制器按 {@code 10-authorization-matrix.md} 逐个加注解后，冻结基线会自动收缩。
@@ -48,8 +48,7 @@ class ControllerAuthorizationTest {
     private static final List<String> AUTH_ANNOTATIONS =
             List.of(
                     "org.springframework.security.access.prepost.PreAuthorize",
-                    "org.springframework.security.access.annotation.Secured",
-                    "com.xuejiai.aaf.framework.security.access.AccessControl");
+                    "org.springframework.security.access.annotation.Secured");
 
     /** 豁免控制器：公开端点 / 自验签回调 / 示例代码。新增项必须在此显式登记并写明理由。 */
     private static final Set<String> ALLOWLISTED_CONTROLLERS =
@@ -83,7 +82,7 @@ class ControllerAuthorizationTest {
                         events.add(
                                 SimpleConditionEvent.violated(
                                         method,
-                                        "%s.%s() 写接口缺少授权注解（@PreAuthorize/@AccessControl/@Secured）"
+                                        "%s.%s() 写接口缺少授权注解（@PreAuthorize/@Secured）"
                                                 .formatted(controller, method.getName())));
                     }
                 }

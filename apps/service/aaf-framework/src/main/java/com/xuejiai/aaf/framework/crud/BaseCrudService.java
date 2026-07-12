@@ -29,6 +29,7 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.access.FieldAccessSupport;
 import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
@@ -76,6 +77,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
 
     @Autowired(required = false)
     private ObjectProvider<FieldAccessSupport> fieldAccessSupport;
+
+    @Autowired(required = false)
+    private ObjectProvider<DictLabelResolver> dictLabelResolver;
 
     @Autowired(required = false)
     private EntitlementChecker entitlementChecker;
@@ -179,9 +183,28 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return spec == null ? (root, query, cb) -> null : spec;
     }
 
-    /** 合并业务查询条件与行级数据权限条件。 */
+    /**
+     * 构建工作区隔离条件。{@code workspaceId} 为 NULL 表示"组织级共享，不特定某个工作区"，在任何工作区
+     * 视角下都默认可见；否则要求精确匹配当前工作区。当前请求未指定工作区（{@code X-Workspace-Id} 未携带）
+     * 时不叠加该条件，视为不做工作区维度过滤——工作区隔离是可选维度，不像组织维度那样强制要求。
+     *
+     * <p>与 {@code orgId} 隔离机制不同，本条件不走 Hibernate {@code @Filter}，而是显式拼接 {@link
+     * Specification}，原因见设计文档 {@code docs/design/apps/service/workspace-isolation.md} 「隔离机制选型」一节。
+     */
+    protected Specification<E> workspaceSpec() {
+        var workspaceId = OrgContext.getCurrentWorkspaceId();
+        if (workspaceId == null) {
+            return (root, query, cb) -> null;
+        }
+        return (root, query, cb) ->
+                cb.or(
+                        cb.isNull(root.get("workspaceId")),
+                        cb.equal(root.get("workspaceId"), workspaceId));
+    }
+
+    /** 合并业务查询条件、行级数据权限条件与工作区隔离条件。 */
     protected Specification<E> buildEffectiveSpec(P pageDTO) {
-        return Specification.allOf(buildSpec(pageDTO), buildAccessSpec());
+        return Specification.allOf(buildSpec(pageDTO), buildAccessSpec(), workspaceSpec());
     }
 
     /** 默认排序，子类可覆写。 */
@@ -258,7 +281,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var normalizedFieldSet = normalizeFieldSet(fieldSet == null ? "detail" : fieldSet);
         var entitiesById = new LinkedHashMap<Long, E>();
         getSpecExecutor()
-                .findAll(Specification.allOf(idInSpec(ids), buildAccessSpec()))
+                .findAll(Specification.allOf(idInSpec(ids), buildAccessSpec(), workspaceSpec()))
                 .forEach(entity -> entitiesById.put(entity.getId(), entity));
         return ids.stream()
                 .map(entitiesById::get)
@@ -311,6 +334,89 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         request.setPageSize(PageParam.PAGE_SIZE_NONE);
         return queryWindow(request, "export");
     }
+
+    /**
+     * 导出为动态表格数据，供 {@link BaseCrudController#exportExcel} 生成 Excel/CSV。
+     *
+     * <p>复用 {@link #queryWindow} 的筛选与 export 字段集；{@code fields} 为空时导出 VO 全部字段（按声明顺序）， 非空时按 {@code
+     * fields} 过滤并排序列。字段标注 {@link DictFormat} 时，通过 {@link DictLabelResolver} 将 value 转成字典 label（未注入
+     * resolver 时保留原值）。
+     *
+     * @param fields 指定导出的字段名，null/空表示导出全部
+     */
+    public ExportSheet exportSheet(P request, List<String> fields) {
+        var page = exportData(request);
+        var rows = page.list();
+        if (rows.isEmpty()) {
+            return new ExportSheet(fields == null ? List.of() : fields, List.of());
+        }
+        @SuppressWarnings("unchecked")
+        var firstRowMap =
+                (java.util.LinkedHashMap<String, Object>)
+                        com.xuejiai.aaf.common.util.JsonUtils.convertValue(
+                                rows.get(0), java.util.LinkedHashMap.class);
+        var dictFields = collectDictFields(rows.get(0).getClass());
+        var columns =
+                fields == null || fields.isEmpty() ? List.copyOf(firstRowMap.keySet()) : fields;
+        var resolver = dictLabelResolver == null ? null : dictLabelResolver.getIfAvailable();
+        var dataRows =
+                rows.stream()
+                        .map(
+                                vo -> {
+                                    @SuppressWarnings("unchecked")
+                                    var map =
+                                            (java.util.Map<String, Object>)
+                                                    com.xuejiai.aaf.common.util.JsonUtils
+                                                            .convertValue(
+                                                                    vo,
+                                                                    java.util.LinkedHashMap.class);
+                                    return columns.stream()
+                                            .<Object>map(
+                                                    col ->
+                                                            resolveCellValue(
+                                                                    map, col, dictFields, resolver))
+                                            .toList();
+                                })
+                        .toList();
+        return new ExportSheet(columns, dataRows);
+    }
+
+    private Object resolveCellValue(
+            java.util.Map<String, Object> row,
+            String column,
+            java.util.Map<String, String> dictFields,
+            DictLabelResolver resolver) {
+        Object value = row.get(column);
+        var dictType = dictFields.get(column);
+        if (dictType != null && resolver != null && value != null) {
+            return resolver.resolve(dictType, String.valueOf(value));
+        }
+        return value;
+    }
+
+    /** 反射收集 VO 上标注 {@link DictFormat} 的字段/record 分量：字段名 → 字典类型。 */
+    private java.util.Map<String, String> collectDictFields(Class<?> voClass) {
+        var result = new java.util.LinkedHashMap<String, String>();
+        if (voClass.isRecord()) {
+            for (var component : voClass.getRecordComponents()) {
+                var format = component.getAnnotation(DictFormat.class);
+                if (format != null) {
+                    result.put(component.getName(), format.value());
+                }
+            }
+        } else {
+            for (var field : voClass.getDeclaredFields()) {
+                var format = field.getAnnotation(DictFormat.class);
+                if (format != null) {
+                    result.put(field.getName(), format.value());
+                }
+            }
+        }
+        return result;
+    }
+
+    /** 导出表格结果：列名 + 数据行，供 Controller 层转成 Excel/CSV 文件流。 */
+    public record ExportSheet(List<String> columns, List<List<Object>> rows) {}
 
     /** JSON 导入。默认未启用，业务子类确认语义后覆写。 */
     public CrudImportResult importRows(CrudImportRequest<C> request) {
@@ -584,7 +690,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /** 根据 ID 查询实体，不存在则抛异常。 */
     protected E requireEntity(Long id) {
         return getSpecExecutor()
-                .findOne(Specification.allOf(idSpec(id), buildAccessSpec()))
+                .findOne(Specification.allOf(idSpec(id), buildAccessSpec(), workspaceSpec()))
                 .orElseThrow(
                         () ->
                                 new BusinessException(
@@ -597,7 +703,10 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
             return List.of();
         }
         var entities =
-                getSpecExecutor().findAll(Specification.allOf(idInSpec(ids), buildAccessSpec()));
+                getSpecExecutor()
+                        .findAll(
+                                Specification.allOf(
+                                        idInSpec(ids), buildAccessSpec(), workspaceSpec()));
         if (entities.size() != ids.stream().distinct().count()) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, entityName() + "不存在");
         }

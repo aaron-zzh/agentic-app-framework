@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.role.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,6 +20,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_role")
+@OrgIgnore
 @SQLDelete(sql = "UPDATE sys_role SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Role extends BaseEntity {
 

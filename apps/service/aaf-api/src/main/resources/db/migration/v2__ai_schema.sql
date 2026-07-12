@@ -815,7 +815,6 @@ CREATE TABLE ai_value_rule (
     priority    INTEGER      NOT NULL DEFAULT 0,
     enabled     BOOLEAN      NOT NULL DEFAULT TRUE,
     scope       VARCHAR(16)  NOT NULL DEFAULT 'GLOBAL',
-    tenant_id   BIGINT,
     create_by   BIGINT,
     create_by_type VARCHAR(16),
     create_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -831,7 +830,7 @@ CREATE TABLE ai_value_rule (
 COMMENT ON TABLE ai_value_rule IS '价值观/伦理约束规则：Agent 执行前内容过滤';
 COMMENT ON COLUMN ai_value_rule.rule_type IS '规则类型：FORBIDDEN / REQUIRED / PREFERRED';
 COMMENT ON COLUMN ai_value_rule.condition IS '规则条件描述（用于 LLM 判断或关键词匹配）';
-COMMENT ON COLUMN ai_value_rule.scope IS '作用范围：GLOBAL / TENANT';
+COMMENT ON COLUMN ai_value_rule.scope IS '作用范围：GLOBAL / ORG';
 CREATE INDEX idx_ai_value_rule_enabled ON ai_value_rule(enabled, priority) WHERE deleted = FALSE;
 
 -- ============================================================

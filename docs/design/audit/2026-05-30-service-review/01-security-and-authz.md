@@ -1,6 +1,6 @@
 # 01 安全与鉴权
 
-> 覆盖：租户隔离、鉴权链、Mock Token、API Key、JWT、AccessControl 切面、AuthService、企微回调。
+> 覆盖：租户隔离、鉴权链、Mock Token、API Key、JWT、AuthService、企微回调。
 
 ## 问题清单
 
@@ -21,7 +21,6 @@
 
 - `JwtUtils` 具备 jti 黑名单、refreshToken 轮换（refresh 时 revoke 旧发新）、多端会话管理，设计完整。
 - `AuthService.login` 有账号锁定（`checkLocked`/`handleLoginFail`）、禁用校验、登出黑名单，登录安全基线到位。
-- `AccessControlAspect`（Layer1）角色 + 功能开关校验逻辑正确。
 - `ApiKey` 以 SHA-256 哈希存储、原文不落库，正确。
 
 ## 待确认（未读全）

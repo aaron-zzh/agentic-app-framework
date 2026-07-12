@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.sms.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,12 +14,15 @@ import lombok.Setter;
 /**
  * 短信模板配置，管理签名和厂商模板 ID。
  *
+ * <p>系统内置认证/通知模板，{@code code} 全局唯一，与组织无关，标注 {@link OrgIgnore} 避免被 orgFilter 误套用后静默查空。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_sms_template")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE sys_sms_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

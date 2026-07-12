@@ -5,6 +5,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,12 +16,15 @@ import lombok.Setter;
 /**
  * 消息模板。
  *
+ * <p>系统内置通知模板，{@code code} 全局唯一，与组织无关，标注 {@link OrgIgnore} 避免被 orgFilter 误套用后静默查空。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_message_template")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE sys_message_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

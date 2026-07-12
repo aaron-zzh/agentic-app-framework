@@ -1,7 +1,7 @@
 # 10 全 Controller 鉴权矩阵（B9 修复工单）
 
 > 把 B9「系统性缺失方法级鉴权」从抽样结论变成逐条可修复工单。
-> 数据来源：对 `apps/service` 全量扫描 `@RestController` / `@PreAuthorize` / `@AccessControl` / `@Entitlement` / `@PremiumRequired` / `@Secured`（2026-05-30）。
+> 数据来源：对 `apps/service` 全量扫描 `@RestController` / `@PreAuthorize` / `@Entitlement` / `@PremiumRequired` / `@Secured`（2026-05-30）。
 
 ## 扫描结果（事实）
 
@@ -9,7 +9,6 @@
 |------|------|
 | `@RestController` 总数 | 117（含约 6 个同名重复类） |
 | 有任意 `@PreAuthorize` 的控制器 | **5** |
-| `@AccessControl` 使用 | **0**（注解已定义但全项目未用） |
 | `@Entitlement` 使用 | **0** |
 | `@PremiumRequired` 使用 | **0** |
 | `@Secured` / `@RolesAllowed` 使用 | **0** |
@@ -77,7 +76,7 @@
 
 ## 落地建议（最小改动路径）
 
-1. **先建默认拒绝基线**：把 `@AccessControl`（已存在但 0 使用）或 `@PreAuthorize` 作为强制项，CI 加 ArchUnit 规则——非白名单 `@RestController` 的写方法（`@PostMapping/@PutMapping/@DeleteMapping`）必须带授权注解，否则编译期/测试期失败。
+1. **先建默认拒绝基线**：把 `@PreAuthorize` 作为强制项，CI 加 ArchUnit 规则——非白名单 `@RestController` 的写方法（`@PostMapping/@PutMapping/@DeleteMapping`）必须带授权注解，否则编译期/测试期失败。
 2. **批量按上表打注解**：P0 先行（资金/账号/运维），P1 次之。
 3. **消除 userId 入参**：所有"当前用户"语义改 `OperatorContext`，配合 SELF 归属校验（见 M1/M18/M20）。
 4. **回调统一验签**：webhook/notify/pay/sms 回调加入白名单 + 各自签名校验（B3/M5/M24/M10）。

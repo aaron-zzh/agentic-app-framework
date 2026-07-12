@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.skill.BuiltinSkills;
 import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ public class BuiltinSkillInitializer implements ApplicationRunner {
     private final SkillDefinitionRepository repository;
 
     @Override
+    @OrgIgnore
     public void run(ApplicationArguments args) {
         for (var builtin : BuiltinSkills.values()) {
             // 用 name + builtIn=true 作为唯一标识（skillId 字段已删除）

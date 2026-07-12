@@ -34,7 +34,7 @@ public interface PermissionTupleRepository extends JpaRepository<PermissionTuple
                     WITH RECURSIVE relation_path AS (
                         SELECT t.object_type, t.object_id, t.relation,
                                t.subject_type, t.subject_id, t.subject_relation, 1 AS depth
-                        FROM permission_tuple t
+                        FROM sys_permission_tuple t
                         WHERE t.object_type = :objectType
                           AND t.object_id = :objectId
                           AND t.relation IN (:relations)
@@ -43,7 +43,7 @@ public interface PermissionTupleRepository extends JpaRepository<PermissionTuple
                         UNION ALL
                         SELECT t.object_type, t.object_id, t.relation,
                                t.subject_type, t.subject_id, t.subject_relation, p.depth + 1
-                        FROM permission_tuple t
+                        FROM sys_permission_tuple t
                         JOIN relation_path p
                           ON p.subject_relation <> ''
                          AND t.object_type = p.subject_type

@@ -15,6 +15,8 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
+import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
+import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
 import com.xuejiai.aaf.module.system.role.domain.DataAccessRule;
 import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.DataAccessRuleRepository;
@@ -23,7 +25,6 @@ import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
 import com.xuejiai.aaf.module.system.role.vo.DataAccessRuleCreateDTO;
 import com.xuejiai.aaf.module.system.role.vo.DataAccessRulePageParam;
 import com.xuejiai.aaf.module.system.role.vo.DataAccessRuleVO;
-import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Path;
@@ -55,7 +56,8 @@ public class DataAccessService
     private final DataAccessRuleRepository ruleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
-    private final UserRepository userRepository;
+    private final OrgMemberRepository orgMemberRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
     private final DataAccessRuleCache ruleCache;
     private final PermissionVersionService versionService;
 
@@ -262,12 +264,26 @@ public class DataAccessService
         return root.toString();
     }
 
+    /**
+     * 构建规则求值上下文。{@code orgIds}/{@code workspaceIds} 是用户实际所属的组织/工作区集合 （查 {@code
+     * sys_org_member}/{@code sys_workspace_member}，用户可同时属于多个），不能取 {@code BaseEntity.orgId}/{@code
+     * workspaceId} 单值字段——那是"该用户记录本身归属于哪个组织/ 工作区"（数据隔离用），与"用户是哪些组织/工作区的成员"是两个不同的问题，此前 workspaceId
+     * 曾误用单值字段，已修正为同一套集合语义。规则条件中配合 {@code op: "in"} 使用，如 {@code
+     * {"field":"orgId","op":"in","value":"$user.orgIds"}}。
+     */
     private Map<String, Object> buildUserContext(Long userId) {
-        var user = userRepository.findById(userId).orElse(null);
+        var orgIds =
+                orgMemberRepository.findByUserIdAndDeletedFalse(userId).stream()
+                        .map(m -> m.getOrgId())
+                        .toList();
+        var workspaceIds =
+                workspaceMemberRepository.findByUserIdAndDeletedFalse(userId).stream()
+                        .map(m -> m.getWorkspaceId())
+                        .toList();
         var context = new java.util.HashMap<String, Object>();
         context.put("id", userId);
-        context.put("orgId", user == null ? null : user.getOrgId());
-        context.put("workspaceId", user == null ? null : user.getWorkspaceId());
+        context.put("orgIds", orgIds);
+        context.put("workspaceIds", workspaceIds);
         context.put("teamIds", List.of());
         return context;
     }

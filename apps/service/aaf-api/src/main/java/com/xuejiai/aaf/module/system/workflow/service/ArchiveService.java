@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.system.workflow.domain.ArchiveRule;
 import com.xuejiai.aaf.module.system.workflow.repository.ArchiveRuleRepository;
 
@@ -75,6 +76,7 @@ public class ArchiveService {
     }
 
     /** 定时自动归档：每天凌晨 2 点扫描规则执行。 */
+    @OrgIgnore
     @Scheduled(cron = "0 0 2 * * ?")
     @Transactional
     public void scheduledArchive() {

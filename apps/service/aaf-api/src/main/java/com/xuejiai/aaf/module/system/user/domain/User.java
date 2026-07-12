@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,12 +18,17 @@ import lombok.Setter;
 /**
  * 系统用户。
  *
+ * <p>一个用户可属于多个组织，归属关系由 {@code OrgMember}（org_id + user_id + role）表达， 不是 {@code User}
+ * 自身的单值字段能承载的关系；{@code org_id}（继承自 BaseEntity）恒为 NULL， 标注 {@link OrgIgnore} 避免被 orgFilter
+ * 误套用后静默查空——用户管理接口按全局角色 （ADMIN/SUPER_ADMIN）鉴权，未依赖组织级隔离，不受此标注影响现有安全边界。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_user")
+@OrgIgnore
 @SQLDelete(sql = "UPDATE sys_user SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class User extends BaseEntity {
 

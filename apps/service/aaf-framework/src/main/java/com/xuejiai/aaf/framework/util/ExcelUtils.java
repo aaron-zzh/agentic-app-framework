@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.util;
+package com.xuejiai.aaf.framework.util;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +31,10 @@ import lombok.extern.slf4j.Slf4j;
  * <pre>{@code
  * ExcelUtils.write(response, "用户列表", "用户", UserVO.class, dataList);
  * ExcelUtils.write(response, "用户列表", "用户", UserVO.class, dataList, ExcelTypeEnum.CSV);
+ * ExcelUtils.writeDynamic(response, "待办列表", "待办", headers, rows, ExcelTypeEnum.XLSX);
  * }</pre>
+ *
+ * @author AaronZZH & Kiro
  */
 @Slf4j
 public final class ExcelUtils {
@@ -68,6 +71,40 @@ public final class ExcelUtils {
                     .registerConverter(new LongStringConverter())
                     .sheet(sheetName)
                     .doWrite(data);
+        } catch (Exception e) {
+            log.error("导出 Excel 失败: {}", filename, e);
+            response.reset();
+            response.setContentType("application/json; charset=UTF-8");
+            response.getWriter().write("{\"code\":500,\"message\":\"导出失败\"}");
+        }
+    }
+
+    /**
+     * 动态表头导出，无需预先定义实体类。用于 BaseCrudController 通用导出（按筛选条件 + 指定字段）。
+     *
+     * @param headers 表头名称，按列顺序
+     * @param rows 数据行，每行元素顺序与 headers 对应
+     */
+    public static void writeDynamic(
+            HttpServletResponse response,
+            String filename,
+            String sheetName,
+            List<String> headers,
+            List<List<Object>> rows,
+            ExcelTypeEnum type)
+            throws IOException {
+        setResponseHeaders(response, filename, type);
+        try {
+            List<List<String>> head = headers.stream().map(List::of).toList();
+            FesodSheet.write(response.getOutputStream())
+                    .excelType(type)
+                    .autoCloseStream(false)
+                    .head(head)
+                    .registerWriteHandler(new LongestMatchColumnWidthStyleStrategy())
+                    .registerWriteHandler(defaultStyleStrategy())
+                    .registerConverter(new LongStringConverter())
+                    .sheet(sheetName)
+                    .doWrite(rows);
         } catch (Exception e) {
             log.error("导出 Excel 失败: {}", filename, e);
             response.reset();

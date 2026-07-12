@@ -6,6 +6,8 @@ import java.time.temporal.ChronoUnit;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,6 +29,7 @@ public class MemoryMaintenanceTask {
     private static final double DECAY_THRESHOLD = 0.05;
 
     /** 每日 3:00 执行记忆衰减清理 */
+    @OrgIgnore
     @Scheduled(cron = "0 0 3 * * ?")
     public void decayAndCleanup() {
         log.info("[MemoryMaintenance] 开始记忆衰减清理");

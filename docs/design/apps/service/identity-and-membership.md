@@ -7,6 +7,7 @@ version: 0.2.0
 date: 2026-05-29
 author: AaronZZH
 changelog:
+  - 2026-07-12 | 标注：租户层判断已被 workspace-isolation.md 更新，见该文档
   - 2026-05-29 | 会员权益改为关系化模型（subscription_plan/entitlement/quota/ledger）
   - 2026-05-29 | 初版：统一身份 + 联系人分层 + level.benefits
 gains:
@@ -391,7 +392,7 @@ module/billing            ← 计费域（AAF-074），含三组表：
 | 获取双轨 | level（成长免费）+ subscription（付费）并存 | 成长线零成本激励活跃，付费线承载变现，职责分离 |
 | 权益与权限 | `@Entitlement` 与四层权限平行解耦 | 商业策略高频变更，不应绑架功能权限系统 |
 | token 归属 | token 是 entitlement 计量权益，不进积分账户 | 区分"通用货币（积分）"与"专项额度"，避免积分账户字段膨胀 |
-| 租户层 | 不引入 | 当前为单用户/工作区模式，按需后置（避免过度设计） |
+| 租户层 | ~~不引入~~ **已更新，见 [workspace-isolation.md](workspace-isolation.md)** | ~~当前为单用户/工作区模式，按需后置（避免过度设计）~~ 新需求要求用户可自建工作区、数据按工作区隔离，2026-07-12 起推进落地 |
 
 ## 落地路径（v0.9）
 
@@ -405,7 +406,7 @@ module/billing            ← 计费域（AAF-074），含三组表：
 - `engine/credit`：`CreditService`（earn/spend/freeze/unfreeze/hasBudget）
 - `engine/settlement`：`SettlementEngine` + `PayChannelAdapter` 接口 + **仅 `MockPayChannelAdapter`**（无真实微信/支付宝）
 - `PayChannelEnum`：微信/支付宝全渠道编码已定义（wx_pub/wx_lite/wx_app/wx_native/alipay_*）
-- 审计字段双轨：`org_id`/`workspace_id`（保留不用）+ `owner_id`/`create_by_type`（Operator 模型）
+- 审计字段双轨：`org_id`/`workspace_id`（`org_id` 已启用，`workspace_id` 见 [workspace-isolation.md](workspace-isolation.md) 推进中）+ `owner_id`/`create_by_type`（Operator 模型）
 
 > 现有 `credit_account` 即本设计的积分账户，`credit_transaction` 在此基础上扩展批次有效期字段（`batch_type / expire_at / remain`），`credit_token_rule` ≈ token 计费雏形。v0.9 在此基础上补关系化权益模型，不推倒重来。
 

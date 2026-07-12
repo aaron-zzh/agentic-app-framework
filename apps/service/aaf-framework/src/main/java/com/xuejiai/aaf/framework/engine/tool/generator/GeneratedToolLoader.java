@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.tool.ScriptExecutor;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ public class GeneratedToolLoader implements ApplicationRunner {
     private final ScriptExecutor scriptExecutor;
 
     @Override
+    @OrgIgnore
     public void run(ApplicationArguments args) {
         var tools = toolStore.findShared();
         tools.addAll(toolStore.findByCreator(0L)); // 系统级工具

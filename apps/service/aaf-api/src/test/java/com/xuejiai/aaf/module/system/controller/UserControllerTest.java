@@ -50,7 +50,8 @@ import com.xuejiai.aaf.module.system.user.vo.UserVO;
                             RequestMetricsFilter.class,
                             SecurityConfig.class,
                             ApiKeyAuthFilter.class,
-                            AssistantAuthFilter.class
+                            AssistantAuthFilter.class,
+                            com.xuejiai.aaf.config.OrgFilter.class
                         }))
 @AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {

@@ -75,6 +75,7 @@ public class AuthService {
     private final com.xuejiai.aaf.module.system.contact.repository.ContactRepository
             contactRepository;
     private final PhoneRegisterRateLimiter phoneRegisterRateLimiter;
+    private final com.xuejiai.aaf.module.system.org.service.OrganizationService organizationService;
 
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
@@ -161,6 +162,7 @@ public class AuthService {
         user.setEmailVerified(true);
         userRepository.save(user);
         assignDefaultRole(user.getId());
+        createDefaultOrg(user);
         grantRegistrationCredits(user.getId());
         Long contactId = createContactForUser(user);
         bindReferrerIfPresent(contactId, dto.referrerCode());
@@ -190,6 +192,7 @@ public class AuthService {
         user.setRegisterLocation(resolveLocation(registerIp));
         userRepository.save(user);
         assignDefaultRole(user.getId());
+        createDefaultOrg(user);
         grantRegistrationCredits(user.getId());
         Long contactId = createContactForUser(user);
         bindReferrerIfPresent(contactId, dto.referrerCode());
@@ -358,6 +361,7 @@ public class AuthService {
         user.setRegisterLocation(resolveLocation(registerIp));
         userRepository.save(user);
         assignDefaultRole(user.getId());
+        createDefaultOrg(user);
         grantRegistrationCredits(user.getId());
         Long contactId = createContactForUser(user);
         bindReferrerIfPresent(contactId, referrerCode);
@@ -557,6 +561,7 @@ public class AuthService {
         user.setRegisterLocation(resolveLocation(registerIp));
         userRepository.save(user);
         assignDefaultRole(user.getId());
+        createDefaultOrg(user);
         grantRegistrationCredits(user.getId());
         // OAuth 注册补齐 contact + 邀请绑定 + 分销资格初始化（与邮箱/手机注册保持对称）
         Long contactId = createContactForUser(user);
@@ -713,6 +718,11 @@ public class AuthService {
                             ur.setRoleId(role.getId());
                             userRoleRepository.save(ur);
                         });
+    }
+
+    /** 为新用户创建默认归属的个人工作空间（组织），保证多租户隔离下用户始终有 org 归属。 */
+    private void createDefaultOrg(User user) {
+        organizationService.createPersonalOrg(user.getId(), user.getNickname());
     }
 
     private void grantRegistrationCredits(Long userId) {

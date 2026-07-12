@@ -12,7 +12,7 @@
 
 ## 复用检查清单（每块都过一遍）
 
-- 鉴权：非公开写接口是否有 `@PreAuthorize/@AccessControl`（B9/B10）；"当前用户"是否取自 `OperatorContext` 而非参数（M1/M18）。
+- 鉴权：非公开写接口是否有 `@PreAuthorize`（B9/B10）；"当前用户"是否取自 `OperatorContext` 而非参数（M1/M18）。
 - 验签：webhook/回调/触发器是否验签、是否 fail-open（B3/M5/M24）。
 - 资金/配额：扣减是否加锁/幂等、是否接积分权益门控（M3/M4/M23）。
 - 越权：按 id/key 操作是否校验归属（M18/M20/B11）。

@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.engine.credit.CreditAccountRepository;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransaction;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransactionRepository;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransactionType;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class CreditExpireScheduler {
     private final CreditAccountRepository accountRepository;
     private final SystemConfigService systemConfigService;
 
+    @OrgIgnore
     @Scheduled(cron = "0 10 0 * * *")
     @Transactional
     public void expireCredits() {

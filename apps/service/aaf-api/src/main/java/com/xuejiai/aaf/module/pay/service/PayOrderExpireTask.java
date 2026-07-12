@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.framework.engine.settlement.SettlementEngine;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.pay.repository.PayOrderRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class PayOrderExpireTask {
     private final SettlementEngine settlementEngine;
 
     /** 每分钟执行一次 */
+    @OrgIgnore
     @Scheduled(fixedDelay = 60_000, initialDelay = 30_000)
     @Transactional
     public void expireOrders() {

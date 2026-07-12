@@ -68,9 +68,12 @@ public class SecurityOperatorContext implements OperatorContext {
             if (principal instanceof String str) {
                 return Optional.of(Long.valueOf(str));
             }
+            // 兜底：兼容 UserDetails 等其他 principal 类型（如测试环境
+            // SecurityMockMvcRequestPostProcessors.user(String) 构造的 principal）。
+            // Authentication#getName() 是标准接口方法，对 UserDetails 返回 getUsername()。
+            return Optional.of(Long.valueOf(auth.getName()));
         } catch (NumberFormatException e) {
             return Optional.empty();
         }
-        return Optional.empty();
     }
 }

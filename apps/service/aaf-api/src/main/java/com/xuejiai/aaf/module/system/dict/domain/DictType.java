@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.dict.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,12 +14,15 @@ import lombok.Setter;
 /**
  * 字典类型
  *
+ * <p>系统级枚举定义，与组织无关，标注 {@link OrgIgnore} 避免被 orgFilter 误套用后静默查空。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_dict_type")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE sys_dict_type SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

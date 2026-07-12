@@ -32,7 +32,7 @@ public class WecomAutoConfiguration {
     public WxCpService wxCpService(WecomProperties props) {
         var config = new WxCpDefaultConfigImpl();
         config.setCorpId(props.corpId());
-        if (props.agentId() != null) {
+        if (props.agentId() != null && !props.agentId().isBlank()) {
             config.setAgentId(Integer.parseInt(props.agentId()));
         }
         config.setCorpSecret(props.secret());

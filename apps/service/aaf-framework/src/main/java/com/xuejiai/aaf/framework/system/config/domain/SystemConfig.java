@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.system.config.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,12 +14,15 @@ import lombok.Setter;
 /**
  * 系统配置
  *
+ * <p>{@code config_key} 全局唯一，是登录策略、AI 配额等系统级参数，与组织无关，标注 {@link OrgIgnore} 避免被 orgFilter 误套用后静默查空。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_config")
+@OrgIgnore
 @SQLDelete(
         sql = "UPDATE sys_config SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SystemConfig extends BaseEntity {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.framework.engine.settlement.PayStatus;
 import com.xuejiai.aaf.framework.engine.settlement.SettlementEngine;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.pay.domain.PayOrder;
 import com.xuejiai.aaf.module.pay.repository.PayOrderRepository;
 
@@ -26,6 +27,7 @@ public class PayOrderSyncTask {
     private final PayNotifyService payNotifyService;
 
     /** 每 30 秒轮询一次未完成的支付订单 */
+    @OrgIgnore
     @Scheduled(fixedDelay = 30_000, initialDelay = 60_000)
     public void syncPendingOrders() {
         var cutoff = LocalDateTime.now().minusMinutes(30);

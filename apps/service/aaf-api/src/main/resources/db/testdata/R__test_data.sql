@@ -41,6 +41,73 @@ JOIN sys_user u ON o.owner_id = u.id
 WHERE u.username IN ('user1', 'user2')
   AND NOT EXISTS (SELECT 1 FROM sys_org_member m WHERE m.org_id = o.id AND m.user_id = o.owner_id);
 
+-- ==================== todo 管理员测试账号（org_admin） ====================
+-- 用于验证 sys_data_access_rule 中 org_admin 对 todo 实体的行级规则（见
+-- db/seed/v14__todo_permission_codes.sql）：同组织内 org_admin 可查看
+-- 其他成员的待办（越权放行），跨组织则不可见（组织隔离由 OrgFilter 保障）。
+--
+-- 构造一个 team 类型组织 + 2 个成员（org_admin / member），member 名下建一条 todo，
+-- 用于验证：org_admin 在该组织下能看到 member 的 todo；换成其他组织则看不到/被拒绝。
+
+INSERT INTO sys_user (username, password, nickname, email, email_verified, status)
+VALUES
+    ('todo_admin_test', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', 'Todo管理员测试账号', 'todo_admin_test@xuejiai.com', TRUE, 0),
+    ('todo_member_test', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', 'Todo成员测试账号', 'todo_member_test@xuejiai.com', TRUE, 0)
+ON CONFLICT (username) DO NOTHING;
+
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'sys_user', id FROM sys_user WHERE username IN ('todo_admin_test', 'todo_member_test');
+
+INSERT INTO sys_user_role (user_id, role_id)
+SELECT u.id, r.id FROM sys_user u, sys_role r
+WHERE u.username = 'todo_admin_test' AND r.code = 'org_admin'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+INSERT INTO sys_user_role (user_id, role_id)
+SELECT u.id, r.id FROM sys_user u, sys_role r
+WHERE u.username = 'todo_member_test' AND r.code = 'member'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+-- team 类型测试组织，owner 为 todo_admin_test
+INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
+SELECT '待办测试团队', 'team-todo-test',
+       'team', u.id, u.id
+FROM sys_user u WHERE u.username = 'todo_admin_test'
+  AND NOT EXISTS (SELECT 1 FROM sys_organization o WHERE o.slug = 'team-todo-test');
+
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'sys_organization', id FROM sys_organization WHERE slug = 'team-todo-test';
+
+-- 两个用户均加入该团队组织：admin 为 owner，member 为 member
+INSERT INTO sys_org_member (org_id, user_id, role, create_by)
+SELECT o.id, u.id, 'owner', u.id
+FROM sys_organization o
+JOIN sys_user u ON u.username = 'todo_admin_test'
+WHERE o.slug = 'team-todo-test'
+  AND NOT EXISTS (SELECT 1 FROM sys_org_member m WHERE m.org_id = o.id AND m.user_id = u.id);
+
+INSERT INTO sys_org_member (org_id, user_id, role, create_by)
+SELECT o.id, u.id, 'member', (SELECT id FROM sys_user WHERE username = 'todo_admin_test')
+FROM sys_organization o
+JOIN sys_user u ON u.username = 'todo_member_test'
+WHERE o.slug = 'team-todo-test'
+  AND NOT EXISTS (SELECT 1 FROM sys_org_member m WHERE m.org_id = o.id AND m.user_id = u.id);
+
+-- todo_member_test 在该组织下建一条待办，assigneeId 指向自己
+WITH inserted AS (
+    INSERT INTO sys_todo (title, assignee_id, org_id, create_by)
+    SELECT '验证组织内越权放行', u.id, o.id, u.id
+    FROM sys_user u
+    JOIN sys_organization o ON o.slug = 'team-todo-test'
+    WHERE u.username = 'todo_member_test'
+      AND NOT EXISTS (
+          SELECT 1 FROM sys_todo t WHERE t.title = '验证组织内越权放行' AND t.assignee_id = u.id
+      )
+    RETURNING id
+)
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'sys_todo', id FROM inserted;
+
 
 -- ==================== 积分测试数据 ====================
 

@@ -45,7 +45,8 @@ import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateVO;
                             RequestMetricsFilter.class,
                             SecurityConfig.class,
                             ApiKeyAuthFilter.class,
-                            AssistantAuthFilter.class
+                            AssistantAuthFilter.class,
+                            com.xuejiai.aaf.config.OrgFilter.class
                         }))
 @AutoConfigureMockMvc(addFilters = false)
 @org.springframework.context.annotation.Import(com.xuejiai.aaf.config.GlobalExceptionHandler.class)

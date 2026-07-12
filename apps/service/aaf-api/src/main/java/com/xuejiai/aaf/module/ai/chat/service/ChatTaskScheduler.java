@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
 
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class ChatTaskScheduler {
     private final DurableTaskExecutor durableExecutor;
 
     /** 定时扫描到期任务（每 30 秒） */
+    @OrgIgnore
     @Scheduled(fixedDelay = 30_000, initialDelay = 10_000)
     public void pollDueTasks() {
         var dueTasks = taskService.findDueTasks();
@@ -41,6 +43,7 @@ public class ChatTaskScheduler {
     }
 
     /** 定时回收孤儿（每 2 分钟） */
+    @OrgIgnore
     @Scheduled(fixedDelay = 120_000, initialDelay = 60_000)
     public void recoverOrphans() {
         int recovered = durableExecutor.recoverOrphans();

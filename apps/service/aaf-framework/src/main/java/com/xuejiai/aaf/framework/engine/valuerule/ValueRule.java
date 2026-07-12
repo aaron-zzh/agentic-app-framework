@@ -31,9 +31,7 @@ public class ValueRule extends BaseEntity {
     @Column(nullable = false)
     private Boolean enabled = true;
 
-    /** 作用范围：GLOBAL / TENANT */
+    /** 作用范围：GLOBAL / ORG */
     @Column(nullable = false, length = 16)
     private String scope = "GLOBAL";
-
-    private Long tenantId;
 }

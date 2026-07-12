@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.xuejiai.aaf.common.enums.sys.TodoCategoryEnum;
+import com.xuejiai.aaf.common.enums.sys.TodoStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -24,7 +26,7 @@ import lombok.Setter;
 @SQLDelete(sql = "UPDATE sys_todo SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Todo extends BaseEntity {
 
-    /** 指派人 ID */
+    /** 执行人 ID */
     @Column(name = "assignee_id", nullable = false)
     private Long assigneeId;
 
@@ -44,13 +46,13 @@ public class Todo extends BaseEntity {
     @Column(name = "source_id")
     private Long sourceId;
 
-    /** 状态：pending / done / ignored */
+    /** 状态。枚举 {@link TodoStatusEnum} */
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "pending";
+    private String status = TodoStatusEnum.PENDING.getCode();
 
-    /** 待办分类（todo/call/email/meeting），对应字典 sys_todo_category */
+    /** 待办分类。枚举 {@link TodoCategoryEnum}，对应字典 sys_todo_category */
     @Column(name = "category", length = 20)
-    private String category = "todo";
+    private String category = TodoCategoryEnum.TODO.getCode();
 
     /** 截止日期 */
     @Column(name = "due_date")

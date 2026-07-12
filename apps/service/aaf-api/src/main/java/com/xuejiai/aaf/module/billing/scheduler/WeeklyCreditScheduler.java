@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.framework.engine.credit.CreditAccountRepository;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.billing.service.CreditGrantService;
 
@@ -28,6 +29,7 @@ public class WeeklyCreditScheduler {
     private final CreditGrantService creditGrantService;
     private final SystemConfigService systemConfigService;
 
+    @OrgIgnore
     @Scheduled(cron = "0 1 0 * * MON")
     @Transactional
     public void issueWeeklyCredits() {

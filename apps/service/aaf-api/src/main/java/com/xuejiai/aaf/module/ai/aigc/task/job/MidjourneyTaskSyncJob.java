@@ -12,6 +12,7 @@ import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.intelligent.ai.image.MidjourneyAsyncImageService;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
@@ -37,6 +38,7 @@ public class MidjourneyTaskSyncJob {
     @Autowired(required = false)
     private MidjourneyAsyncImageService midjourneyService;
 
+    @OrgIgnore
     @Scheduled(fixedDelay = 10_000)
     @Transactional
     public void sync() {

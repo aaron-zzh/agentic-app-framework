@@ -25,7 +25,7 @@ import lombok.Setter;
 /**
  * 实体基类，所有 JPA 实体继承此类。
  *
- * <p>提供 id、多租户（org_id / workspace_id）、审计字段（创建/更新人和时间）、逻辑删除、备注。 逻辑删除通过 {@code @SQLRestriction}
+ * <p>提供 id、组织隔离（org_id / workspace_id）、审计字段（创建/更新人和时间）、逻辑删除、备注。 逻辑删除通过 {@code @SQLRestriction}
  * 自动过滤查询，子类需加 {@code @SQLDelete} 指定删除 SQL。
  *
  * <p>子类示例：
@@ -41,8 +41,8 @@ import lombok.Setter;
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 @SQLRestriction("deleted = false")
-@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "orgId", type = Long.class))
-@Filter(name = "tenantFilter", condition = "org_id = :orgId")
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "orgId", type = Long.class))
+@Filter(name = "orgFilter", condition = "org_id = :orgId")
 public abstract class BaseEntity implements Serializable {
 
     @Id

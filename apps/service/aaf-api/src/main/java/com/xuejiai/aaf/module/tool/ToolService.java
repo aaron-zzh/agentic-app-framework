@@ -16,6 +16,7 @@ import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry.ToolMeta;
 import com.xuejiai.aaf.framework.engine.tool.mcp.McpConnectionService;
 import com.xuejiai.aaf.framework.engine.tool.mcp.McpConnectionService.McpServerConfig;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class ToolService {
 
     /** 应用启动后重连所有已启用的 MCP Server。 */
     @EventListener(ApplicationReadyEvent.class)
+    @OrgIgnore
     public void reconnectMcpServers() {
         var servers =
                 mcpServerRepository.findByEnabledTrue().stream()

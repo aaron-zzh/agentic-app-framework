@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
@@ -45,6 +46,7 @@ public class SubscriptionExpiryReminderScheduler {
     private final SystemConfigService systemConfigService;
     private final NotificationService notificationService;
 
+    @OrgIgnore
     @Scheduled(cron = "0 0 9 * * *")
     @Transactional
     public void sendReminders() {

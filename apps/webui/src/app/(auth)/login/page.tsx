@@ -18,11 +18,13 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { type LegalDocument, legalApi } from "@/lib/api/rest/legal"
 import { authApi } from "@/lib/api/rest/user/auth"
+import { organizationApi } from "@/lib/api/rest/user/organization"
 import { clearAxiosAuth, setAxiosAuth } from "@/lib/auth/utils"
 import { paths } from "@/lib/constants/paths"
 import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
+import { useOrgStore } from "@/lib/store/org-store"
 import { LoginSuccessOverlay } from "./LoginSuccessOverlay"
 import { PasswordLoginPanel, type PasswordLoginPanelRef } from "./PasswordLoginPanel"
 import { PhoneLoginPanel, type PhoneLoginPanelRef } from "./PhoneLoginPanel"
@@ -58,8 +60,14 @@ function LoginContent() {
     if (!accessToken || !refreshToken) return
 
     setTokens(accessToken, refreshToken)
-    authApi.me().then(({ user }) => {
+    authApi.me().then(async ({ user }) => {
       setUser(user)
+      try {
+        const orgs = await organizationApi.list()
+        useOrgStore.getState().ensureDefaultOrg(orgs)
+      } catch {
+        // 拉取组织列表失败不阻塞登录流程
+      }
       router.replace(redirectTo)
     })
   }, [searchParams, setTokens, setUser, router, redirectTo])
@@ -113,7 +121,7 @@ function LoginContent() {
     notify.info("您未同意必要条款，已取消本次登录")
   }, [])
 
-  const handleOverlayDone = useCallback(() => {
+  const handleOverlayDone = useCallback(async () => {
     const pending = pendingAuthRef.current
     if (!pending) {
       router.push(redirectTo)
@@ -122,6 +130,13 @@ function LoginContent() {
     pendingAuthRef.current = null
     setTokens(pending.accessToken, pending.refreshToken)
     setUser(pending.user)
+    // 确保登录后有有效的当前组织，否则后续请求会因缺少 X-Org-Id 被拒绝
+    try {
+      const orgs = await organizationApi.list()
+      useOrgStore.getState().ensureDefaultOrg(orgs)
+    } catch {
+      // 拉取组织列表失败不阻塞登录流程，后续页面可自行重试
+    }
     const dest = redirectTo.startsWith("/studio")
       ? `${redirectTo.split("?")[0]}?welcome=1`
       : redirectTo

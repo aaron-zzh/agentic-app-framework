@@ -12,6 +12,7 @@ import com.xuejiai.aaf.framework.security.JwtUtils;
 import com.xuejiai.aaf.module.channel.vo.MiniAppLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppPhoneLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppSessionVO;
+import com.xuejiai.aaf.module.system.org.service.OrganizationService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.domain.UserOauth;
 import com.xuejiai.aaf.module.system.user.repository.UserOauthRepository;
@@ -41,6 +42,7 @@ public class MiniAppLoginService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final OrganizationService organizationService;
 
     /**
      * 小程序登录。
@@ -100,7 +102,9 @@ public class MiniAppLoginService {
         user.setPassword(
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
         user.setEmailVerified(false);
-        return userRepository.save(user);
+        user = userRepository.save(user);
+        organizationService.createPersonalOrg(user.getId(), user.getNickname());
+        return user;
     }
 
     private void createOAuthBinding(Long userId, String openid, String unionid) {
@@ -190,6 +194,8 @@ public class MiniAppLoginService {
         user.setPassword(
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
         user.setEmailVerified(false);
-        return userRepository.save(user);
+        user = userRepository.save(user);
+        organizationService.createPersonalOrg(user.getId(), user.getNickname());
+        return user;
     }
 }

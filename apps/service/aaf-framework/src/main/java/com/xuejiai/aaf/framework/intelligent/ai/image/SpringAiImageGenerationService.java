@@ -41,7 +41,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
     private static final int CONNECT_TIMEOUT_MS = 15_000;
 
     /** 图像生成/编辑 HTTP 调用响应超时（第三方图像模型处理耗时可达 160s+，留足余量） */
-    private static final int RESPONSE_TIMEOUT_MS = 300_000;
+    private static final int RESPONSE_TIMEOUT_MS = 600_000;
 
     private final DynamicImageModelFactory imageModelFactory;
     private final AiModelRepository modelRepository;

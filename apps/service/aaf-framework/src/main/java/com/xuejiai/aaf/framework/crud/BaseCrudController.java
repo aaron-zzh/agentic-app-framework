@@ -1,7 +1,9 @@
 package com.xuejiai.aaf.framework.crud;
 
+import java.io.IOException;
 import java.util.List;
 
+import org.apache.fesod.sheet.support.ExcelTypeEnum;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -18,9 +20,11 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.util.ExcelUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * 通用 CRUD Controller 基类。提供标准 REST 端点：分页查询、单条查询、创建、更新、删除、批量删除。
@@ -139,6 +143,34 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
     @PostMapping("/_export")
     public Result<PageResult<V>> exportData(@Validated @RequestBody P request) {
         return Result.success(getService().exportData(request));
+    }
+
+    /**
+     * 导出 Excel/CSV 文件。
+     *
+     * <p>复用当前筛选条件（{@code request}），支持通过 {@code fields} 指定导出字段（不传导出全部）， 字段标注 {@code @DictFormat}
+     * 时自动转换为字典 label。
+     */
+    @Operation(summary = "导出 Excel", description = "按筛选条件 + 指定字段导出 xlsx/csv 文件；fields 为空导出全部字段。")
+    @PreAuthorize("@crudAuth.can(#root.getThis(), 'export')")
+    @GetMapping("/_export/excel")
+    public void exportExcel(
+            @Validated P request,
+            @Parameter(description = "指定导出字段，为空导出全部") @RequestParam(required = false)
+                    List<String> fields,
+            @Parameter(description = "文件格式：xlsx 或 csv，默认 xlsx") @RequestParam(defaultValue = "xlsx")
+                    String format,
+            HttpServletResponse response)
+            throws IOException {
+        var sheet = getService().exportSheet(request, fields);
+        var type = "csv".equalsIgnoreCase(format) ? ExcelTypeEnum.CSV : ExcelTypeEnum.XLSX;
+        ExcelUtils.writeDynamic(
+                response, entityName() + "列表", entityName(), sheet.columns(), sheet.rows(), type);
+    }
+
+    /** 实体名称，用于导出文件名。默认取 Service 的 {@code entityName()}。 */
+    protected String entityName() {
+        return getService().getEntityName();
     }
 
     /**

@@ -6,7 +6,7 @@
 
 | 编号 | 级别 | 位置 | 问题 | 修复建议 |
 |------|------|------|------|---------|
-| B9 | 🔴 | `system/user/controller/UserController`、`tool/ToolController`、`company/controller/CompanyController`、`stats/StatsController`、`pay/*Controller`、`channel/*` 等大量管理接口 | **系统性缺失方法级鉴权**：增删用户、重置任意用户密码（含 admin id=1→账号接管）、改状态、导入导出、删/禁用工具、生成并注册可执行工具、导出全员行为报表等均无 `@PreAuthorize`/`@AccessControl`。框架已有 `@AccessControl` 切面却几乎未被业务接口使用 | 制定"写操作/管理端点默认需鉴权"基线；对 user/role/permission/tool/stats/pay/channel 管理端点逐一加角色或权限校验；CI 加规则检测无鉴权的非公开写接口 |
+| B9 | 🔴 | `system/user/controller/UserController`、`tool/ToolController`、`company/controller/CompanyController`、`stats/StatsController`、`pay/*Controller`、`channel/*` 等大量管理接口 | **系统性缺失方法级鉴权**：增删用户、重置任意用户密码（含 admin id=1→账号接管）、改状态、导入导出、删/禁用工具、生成并注册可执行工具、导出全员行为报表等均无 `@PreAuthorize` | 制定"写操作/管理端点默认需鉴权"基线；对 user/role/permission/tool/stats/pay/channel 管理端点逐一加角色或权限校验；CI 加规则检测无鉴权的非公开写接口 |
 | B10 | 🔴 | `module/tool/ToolController#invoke`/`generate`/`confirmGenerate`/`viewSource`/`share` | 统一工具调用入口"Agent/用户/外部系统均可调用"，REST 直调可能绕过 `ToolPermissionGuard`（其只包装 Agent 内的 ToolCallback）；AI 生成并注册可执行工具、查看源码均无鉴权→任意用户可执行/生成代码、读他人工具源码 | `/invoke` 必须复用与 Agent 同一套权限/风险门控；生成/注册/共享/查看源码加鉴权与审计 |
 | M15 | 🟠 | `CompanyController`（createPlan/createObjective/createTask/recordMetric）、`WebhookService.create`、`ChannelConfigService.create` 等 | 直接以 JPA 实体作 `@RequestBody`→**Mass Assignment**：客户端可注入 id/orgId/ownerId/createBy/deleted/version 等系统字段 | 用 Create/Update DTO 接收，仅映射允许字段 |
 | M16 | 🟠 | `system/user/domain/User`（password 无 `@JsonIgnore`）、`channel/WebhookConfig.secret`、`ChannelConfig.appSecret/token` | 敏感字段缺 `@JsonIgnore`，违反架构约束"password/secret 必须 `@JsonIgnore`"，依赖 VO 转换做唯一防线 | 敏感字段统一加 `@JsonIgnore` 做纵深防御 |

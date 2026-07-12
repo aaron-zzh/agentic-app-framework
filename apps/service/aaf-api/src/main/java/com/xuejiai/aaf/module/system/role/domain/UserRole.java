@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.role.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,6 +23,7 @@ import lombok.Setter;
 @Table(
         name = "sys_user_role",
         uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "role_id"}))
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE sys_user_role SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id"

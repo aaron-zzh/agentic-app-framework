@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -103,6 +105,7 @@ public class TaskMonitor {
     }
 
     /** 定时扫描超时任务（每 5 分钟） */
+    @OrgIgnore
     @Scheduled(fixedDelay = 300_000)
     public void detectTimeout() {
         var threshold = LocalDateTime.now().minusMinutes(TIMEOUT_MINUTES);
@@ -122,6 +125,7 @@ public class TaskMonitor {
     }
 
     /** 清理过期执行历史（每天凌晨 3:00） */
+    @OrgIgnore
     @Scheduled(cron = "0 0 3 * * ?")
     public void cleanupHistory() {
         if (retentionDays < 0) return;

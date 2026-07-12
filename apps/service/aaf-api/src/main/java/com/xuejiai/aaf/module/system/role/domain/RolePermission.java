@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.role.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,6 +23,7 @@ import lombok.Setter;
 @Table(
         name = "sys_role_permission",
         uniqueConstraints = @UniqueConstraint(columnNames = {"role_id", "permission_id"}))
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE sys_role_permission SET deleted = true, delete_time = CURRENT_TIMESTAMP"

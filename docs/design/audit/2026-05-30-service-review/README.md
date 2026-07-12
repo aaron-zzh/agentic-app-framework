@@ -16,7 +16,7 @@
 
 | 文档 | 覆盖范围 |
 |------|---------|
-| [01-security-and-authz.md](01-security-and-authz.md) | 租户隔离、鉴权、Mock Token、API Key、JWT、AccessControl 切面、AuthService、企微回调 |
+| [01-security-and-authz.md](01-security-and-authz.md) | 租户隔离、鉴权、Mock Token、API Key、JWT、AuthService、企微回调 |
 | [02-payments-billing-credit.md](02-payments-billing-credit.md) | 积分、支付、充值、权益、订阅、对账 |
 | [03-channel-livechat.md](03-channel-livechat.md) | 渠道路由/配置、Webhook、客服会话、坐席分配 |
 | [04-ai-engines-and-tools.md](04-ai-engines-and-tools.md) | 工具权限守卫、脚本沙箱、价值规则、占位引擎、知识库 |

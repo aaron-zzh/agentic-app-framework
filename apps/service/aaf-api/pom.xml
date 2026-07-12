@@ -138,6 +138,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+			<exclusions>
+				<!-- jsonassert 传递引入的 android-json 与 jedis 引入的 org.json:json 类名冲突
+				     （均为 org.json.JSONObject），排除前者以保证运行时类加载行为可预测 -->
+				<exclusion>
+					<groupId>com.vaadin.external.google</groupId>
+					<artifactId>android-json</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -216,6 +224,9 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<mainClass>com.xuejiai.aaf.AafApplication</mainClass>
+					<!-- 独立 classifier：避免覆盖主 artifact / target/classes，
+					     否则 Failsafe fork 子进程读取重打包后的 fat jar 结构会 NoClassDefFoundError。 -->
+					<classifier>exec</classifier>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>
@@ -231,6 +242,12 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<!-- 激活父 POM pluginManagement 中声明的 Failsafe 配置：*IT.java/*AcceptanceTest.java
+			     在此之前从未被任何子模块显式引用，acceptance target 实际未执行集成测试。 -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
 			</plugin>
 		</plugins>
 	</build>

@@ -107,7 +107,7 @@ agentic-app-framework/                  # Nx monorepo 根目录
 ```text
 com.xuejiai.aaf/
 ├── AafApplication.java             启动入口
-├── config/                         应用级配置（TenantFilter/CORS/WebSocket/OpenAPI）
+├── config/                         应用级配置（OrgFilter/CORS/WebSocket/OpenAPI）
 ├── module/                         业务模块（按功能域隔离）
 │   ├── system/                     系统模块（user/auth/role/org/notify/log/chat/entity/workflow/task/dashboard）
 │   ├── agent/                      Agent 管理

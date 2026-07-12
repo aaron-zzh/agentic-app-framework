@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.system.workflow.vo.TrashItemVO;
 import com.xuejiai.aaf.module.system.workflow.vo.TrashPageDTO;
 
@@ -126,6 +127,7 @@ public class TrashService {
     }
 
     /** 定时清理：每天凌晨 3 点删除超过保留天数的记录。 */
+    @OrgIgnore
     @Scheduled(cron = "0 0 3 * * ?")
     @Transactional
     public void scheduledPurge() {

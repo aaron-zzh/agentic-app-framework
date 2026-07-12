@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.task.queue;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -58,7 +59,17 @@ public class TaskConsumer {
     @PreDestroy
     public void stop() {
         running.set(false);
-        if (executor != null) executor.shutdownNow();
+        if (executor != null) {
+            executor.shutdownNow();
+            try {
+                // 等待消费线程真正退出阻塞读循环，避免应用关闭时 Redis 连接未释放
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("任务消费者未能在 5s 内正常退出");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")

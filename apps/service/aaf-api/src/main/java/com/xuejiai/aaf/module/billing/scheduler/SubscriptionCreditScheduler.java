@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
@@ -32,6 +33,7 @@ public class SubscriptionCreditScheduler {
     private final CreditService creditService;
     private final SystemConfigService systemConfigService;
 
+    @OrgIgnore
     @Scheduled(cron = "0 5 0 * * *")
     @Transactional
     public void issueMonthlyCredits() {

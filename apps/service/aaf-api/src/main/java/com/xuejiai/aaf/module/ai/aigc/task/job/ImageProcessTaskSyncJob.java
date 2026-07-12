@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.framework.intelligent.ai.image.process.ImageProcessService;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
@@ -50,6 +51,7 @@ public class ImageProcessTaskSyncJob {
     private final AigcTaskMapper taskMapper;
     private final PermissionExecutionService permissionExecutionService;
 
+    @OrgIgnore
     @Scheduled(fixedDelay = 10_000)
     public void sync() {
         if (imageProcessService == null) return;

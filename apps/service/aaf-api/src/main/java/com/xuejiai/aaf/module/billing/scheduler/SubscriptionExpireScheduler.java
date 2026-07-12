@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
 import com.xuejiai.aaf.module.billing.domain.SubscriptionPlan;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
@@ -48,6 +49,7 @@ public class SubscriptionExpireScheduler {
     @Autowired(required = false)
     private SubscriptionAutoRenewService autoRenewService;
 
+    @OrgIgnore
     @Scheduled(cron = "0 15 0 * * *")
     @Transactional
     public void expireAndSwitch() {

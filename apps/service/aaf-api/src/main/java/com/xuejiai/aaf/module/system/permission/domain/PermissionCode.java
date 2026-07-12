@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.permission.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,6 +16,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_permission_code")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE sys_permission_code SET deleted = true, delete_time = CURRENT_TIMESTAMP"

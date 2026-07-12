@@ -8,6 +8,7 @@ import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.model3d.Model3dGenerationService.Model3dTaskResult.TaskStatus;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
@@ -30,6 +31,7 @@ public class Model3dTaskSyncJob {
     private final Model3dGenerationService model3dGenerationService;
     private final PermissionExecutionService permissionExecutionService;
 
+    @OrgIgnore
     @Scheduled(fixedDelay = 10_000)
     @Transactional
     public void sync() {

@@ -7,6 +7,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.system.role.domain.Role;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
 
@@ -36,6 +37,7 @@ public class BuiltinRoleInitializer implements ApplicationRunner {
                     new RoleDef("agent", "AI 智能体", "AI 操作权限"));
 
     @Override
+    @OrgIgnore
     @Transactional
     public void run(ApplicationArguments args) {
         for (var def : BUILTIN_ROLES) {

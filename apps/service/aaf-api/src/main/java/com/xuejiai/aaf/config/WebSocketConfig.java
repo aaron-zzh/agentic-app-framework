@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.config;
 
+import org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
@@ -18,9 +20,18 @@ public class WebSocketConfig {
      *
      * <p>Tomcat 默认文本/二进制消息缓冲区仅 8KB，而 Omni/ASR 的音频帧（base64 PCM）单帧可达 ~11KB， 会触发 1009「message too
      * big」直接断连。统一放大到 512KB 以容纳实时音视频分片。
+     *
+     * <p>仅在真实嵌入式容器（{@link ServletWebServerApplicationContext}）下注册：{@code
+     * ServletServerContainerFactoryBean} 依赖容器在启动时向 {@code ServletContext} 注入 {@code
+     * jakarta.websocket.server.ServerContainer} 属性，{@code @SpringBootTest + @AutoConfigureMockMvc}
+     * 使用的 Mock Servlet 环境不具备该属性，会导致上下文加载失败（见 dev-log）。
      */
     @Bean
-    public ServletServerContainerFactoryBean createWebSocketContainer() {
+    public ServletServerContainerFactoryBean createWebSocketContainer(
+            ApplicationContext applicationContext) {
+        if (!(applicationContext instanceof ServletWebServerApplicationContext)) {
+            return null;
+        }
         var container = new ServletServerContainerFactoryBean();
         int bufferSize = 512 * 1024;
         container.setMaxTextMessageBufferSize(bufferSize);

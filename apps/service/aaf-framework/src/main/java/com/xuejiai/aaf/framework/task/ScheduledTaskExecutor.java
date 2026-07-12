@@ -20,6 +20,7 @@ import org.springframework.scheduling.support.SimpleTriggerContext;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.meta.runtime.ExecutionMeta;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -111,6 +112,7 @@ public class ScheduledTaskExecutor {
 
     /** 应用启动完成后初始化所有任务， 确保所有 Bean（包括业务 Runnable）已完成初始化后再调度。 */
     @EventListener(ApplicationReadyEvent.class)
+    @OrgIgnore
     public void onReady() {
         // 1. 从 DB 加载持久化任务并注册到内存（DB 记录覆盖代码内注册的同名任务）
         persistencePort.ifAvailable(

@@ -1,0 +1,116 @@
+package com.xuejiai.aaf.config;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.core.GenericTypeResolver;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+
+import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
+
+/**
+ * AOP 切面：在 Repository 方法执行前自动启用组织过滤器。
+ *
+ * <p>安全约束：orgId 缺失时 fail-closed（拒绝访问），不再静默跳过过滤器直接放行全部组织数据。 唯一例外是 {@link
+ * #ORG_LIST_PATH}——该接口用于登录后查询"当前用户属于哪些组织"，语义上基于 userId 查询、不依赖 orgId，必须豁免，否则用户在拿到 orgId
+ * 之前无法查到自己的组织列表（死锁）。
+ *
+ * <p>切面覆盖范围扩大到 {@code aaf-framework} 包下的 repository，此前只切 {@code module} 包，framework 层的
+ * repository（如系统配置、序列号）完全不受组织隔离保护。
+ *
+ * <p>后台任务（{@code @Scheduled}）运行在无 HTTP 请求上下文的独立线程，{@code OrgContext} 中不会有 orgId，需要在方法/类上显式加
+ * {@code @OrgIgnore} 声明豁免，否则会被 fail-closed 拒绝——不能像 HTTP 场景一样用 URL 白名单处理。
+ *
+ * <p>全局配置类实体（如 {@code Role}/{@code PermissionCode}/{@code UserRole}/{@code RolePermission}）
+ * 语义上不属于任何组织，其 {@code org_id} 列恒为 NULL——若被套用 {@code orgFilter}（{@code WHERE org_id = ?}）， SQL 中
+ * {@code NULL = :orgId} 永远不成立，会导致查询静默返回空、权限判断全部失效（比 fail-closed 更隐蔽的回归）。 这类实体需在实体类上标注
+ * {@code @OrgIgnore}，本切面通过反射解析 repository 的实体类型并按类型缓存判断结果， 不管调用方是谁、有没有 orgId，命中即跳过过滤器且不
+ * fail-closed。
+ */
+@Aspect
+@Component
+@RequiredArgsConstructor
+public class OrgFilterAspect {
+
+    /** 登录后查询用户所属组织列表的接口，基于 userId 查询，不依赖 orgId，需豁免组织过滤强制要求。 */
+    private static final String ORG_LIST_PATH = "/api/system/orgs";
+
+    private final EntityManager entityManager;
+
+    /** repository 接口 → 其实体类型是否标注 @OrgIgnore，缓存避免每次调用重复反射解析泛型参数。 */
+    private final Map<Class<?>, Boolean> globalEntityCache = new ConcurrentHashMap<>();
+
+    @Before(
+            "execution(* com.xuejiai.aaf.module..repository.*.*(..)) || "
+                    + "execution(* com.xuejiai.aaf.framework..repository.*.*(..))")
+    public void enableOrgFilter(JoinPoint joinPoint) {
+        var session = entityManager.unwrap(org.hibernate.Session.class);
+        if (OrgContext.isIgnore() || isGlobalEntityRepository(joinPoint)) {
+            // 显式声明豁免（如全局性后台任务，见 @OrgIgnore）或目标实体本身是全局配置类型，
+            // 不启用过滤器也不 fail-closed；同一 Session 可能被前序调用启用过 orgFilter
+            // （Hibernate Filter 状态绑定在 Session 而非单次查询上），此处必须显式关闭，
+            // 否则会残留污染本次本应豁免的查询，导致全局配置类实体被误套 org_id 条件。
+            session.disableFilter("orgFilter");
+            return;
+        }
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId != null) {
+            session.enableFilter("orgFilter").setParameter("orgId", orgId);
+            return;
+        }
+        if (isOrgListRequest()) {
+            // 白名单：不启用过滤器，允许按 userId 语义查询，不代表放行其他数据
+            session.disableFilter("orgFilter");
+            return;
+        }
+        throw new BusinessException(GlobalErrorCode.FORBIDDEN, "缺少组织上下文，无法访问该资源");
+    }
+
+    /** 判断当前调用的 repository 接口对应的实体类型是否标注 {@code @OrgIgnore}（全局配置类实体）。 */
+    private boolean isGlobalEntityRepository(JoinPoint joinPoint) {
+        // 不能用 joinPoint.getSignature().getDeclaringType()：对于 findAllById 等
+        // repository 基类（如 ListCrudRepository）自带的方法，AOP 拿到的声明类型是该方法
+        // 最初声明所在的父接口，而非业务 repository 接口本身，导致解析不到具体实体泛型参数。
+        // 改用 joinPoint.getTarget().getClass()（repository 代理实例的运行时类型）反查其实现的、
+        // 直接继承 JpaRepository<Entity, ID> 的业务接口，才能稳定解析出实体类型。
+        var targetClass = joinPoint.getTarget().getClass();
+        return globalEntityCache.computeIfAbsent(targetClass, this::resolveIsGlobalEntity);
+    }
+
+    private boolean resolveIsGlobalEntity(Class<?> targetClass) {
+        for (var candidate :
+                org.springframework.core.ResolvableType.forClass(targetClass).getInterfaces()) {
+            var typeArgs =
+                    GenericTypeResolver.resolveTypeArguments(
+                            candidate.resolve(), JpaRepository.class);
+            if (typeArgs != null && typeArgs.length > 0) {
+                var entityType = typeArgs[0];
+                return entityType != null && entityType.isAnnotationPresent(OrgIgnore.class);
+            }
+        }
+        return false;
+    }
+
+    /** 判断当前请求是否是查询用户组织列表的白名单接口（GET /api/system/orgs，不含子路径）。 */
+    private boolean isOrgListRequest() {
+        var attrs = RequestContextHolder.getRequestAttributes();
+        if (!(attrs instanceof ServletRequestAttributes servletAttrs)) {
+            return false;
+        }
+        var request = servletAttrs.getRequest();
+        return "GET".equalsIgnoreCase(request.getMethod())
+                && ORG_LIST_PATH.equals(request.getRequestURI());
+    }
+}

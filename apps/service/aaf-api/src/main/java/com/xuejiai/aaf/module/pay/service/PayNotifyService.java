@@ -14,6 +14,7 @@ import com.xuejiai.aaf.common.enums.pay.BizOrderStatusEnum;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.pay.domain.PayNotifyTask;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.repository.PayNotifyTaskRepository;
@@ -73,6 +74,7 @@ public class PayNotifyService {
     }
 
     /** 每 30 秒扫描一次 PENDING 任务，处理失败重试 */
+    @OrgIgnore
     @Scheduled(fixedDelay = 30_000, initialDelay = 10_000)
     public void retryPendingTasks() {
         var tasks =

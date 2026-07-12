@@ -10,6 +10,7 @@ import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult.TaskStatus;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
@@ -33,6 +34,7 @@ public class VideoTaskSyncJob {
     private final ConfigCacheManager configCacheManager;
     private final PermissionExecutionService permissionExecutionService;
 
+    @OrgIgnore
     @Scheduled(fixedDelay = 15_000)
     @Transactional
     public void sync() {

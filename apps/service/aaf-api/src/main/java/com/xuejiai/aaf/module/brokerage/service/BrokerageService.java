@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.brokerage.BrokerageRecordStatusEnum;
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.billing.repository.CreditGrantRuleRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
@@ -178,6 +179,7 @@ public class BrokerageService {
      *
      * <p>查找 unfreeze_time <= now() 的 FROZEN 记录，批量解冻并更新分销员余额。 使用 Redis 分布式锁防止多节点重复执行。
      */
+    @OrgIgnore
     @Scheduled(cron = "0 0 * * * *")
     public void unfreezeExpiredRecords() {
         // 分布式锁：5分钟过期，防多节点重复执行

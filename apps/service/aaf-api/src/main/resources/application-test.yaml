@@ -2,7 +2,7 @@
 spring:
   datasource:
     # 独立测试库，避免污染 dev 数据
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aaf_test}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/aaf_test
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
   flyway:
