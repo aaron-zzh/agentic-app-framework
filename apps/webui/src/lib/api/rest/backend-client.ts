@@ -50,6 +50,30 @@ export function setBackendSourceApp(sourceApp: string): void {
   backendApi.setHeader("X-Source-App", sourceApp)
 }
 
+/**
+ * 查询视角：own=个人工作台场景（studio），all=中后台管理场景。
+ *
+ * 后端默认收窄为个人视角（fail-safe，见 aaf-framework ScopeContext 说明）——
+ * 传 own 或不传该头效果一致，均按当前用户收窄；只有显式传 all 才会跳过收窄，
+ * 交由行级数据权限（L3）决定可见范围（管理员可查看全部）。仍保留 own 值用于
+ * 前端语义显式表达，不依赖"省略即安全"的隐性约定。
+ */
+type BackendScope = "own" | "all"
+
+// 模块级变量而非 setHeader 固定值：同一 webui 内 studio/中后台是两棵独立布局树，
+// 各自在 layout 挂载时调用 setBackendScope 声明所属场景，取代逐个业务调用点手动传 X-Scope 头。
+// 默认 own：与后端 fail-safe 默认值一致，即使漏挂载声明也不会越权。
+let currentBackendScope: BackendScope = "own"
+
+/** 声明当前前端场景的查询视角，由 studio/(workspace) 各自 layout 挂载时调用一次。 */
+export function setBackendScope(scope: BackendScope): void {
+  currentBackendScope = scope
+}
+
+export function getBackendScope(): BackendScope {
+  return currentBackendScope
+}
+
 export function registerBackendTokenRefresh(handler: RefreshAccessToken): void {
   refreshAccessToken = handler
 }
@@ -127,6 +151,11 @@ backendClient.interceptors.request.use((config) => {
     config.headers.set("Authorization", authorization)
   } else {
     config.headers.delete("Authorization")
+  }
+  // X-Scope 默认按当前路由场景统一注入；若调用点已显式指定（如 /todos 页面无论挂在哪棵路由树下
+  // 均需固定为个人视角），尊重该显式值，不做覆盖
+  if (!config.headers.has("X-Scope")) {
+    config.headers.set("X-Scope", currentBackendScope)
   }
   return config
 })

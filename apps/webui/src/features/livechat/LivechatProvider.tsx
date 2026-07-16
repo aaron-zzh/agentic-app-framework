@@ -73,7 +73,12 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
       try {
         const envelope: {
           type?: string
-          data?: { conversationId?: number; messageId?: number; senderId?: number; content?: string }
+          data?: {
+            conversationId?: number
+            messageId?: number
+            senderId?: number
+            content?: string
+          }
         } = JSON.parse(raw)
         if (envelope.type !== "im_message" || !envelope.data) return
         const { messageId, senderId, content } = envelope.data

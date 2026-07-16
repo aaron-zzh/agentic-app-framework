@@ -19,7 +19,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { FloatingChatter } from "@/features/chatter/layout/FloatingChatter"
 import { StudioRouteSync, StudioSidebar, StudioTopbar } from "@/features/studio/shell"
 import { SlotDevTrigger, SlotDock } from "@/features/studio/slots"
-import { AuthProvider } from "@/lib/auth/AuthProvider"
+import { setBackendScope } from "@/lib/api/rest/backend-client"
 import { commandRegistry, useCommandPalette } from "@/lib/hooks/use-command-palette"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
@@ -58,6 +58,102 @@ commandRegistry.registerAll([
     }
   },
   {
+    id: "studio-create-viral",
+    label: "爆款仿写",
+    group: "创作",
+    action: () => {
+      window.location.href = "/studio/create/viral"
+    }
+  },
+  {
+    id: "studio-create-matting",
+    label: "抠图",
+    group: "创作",
+    action: () => {
+      window.location.href = "/studio/create/matting"
+    }
+  },
+  {
+    id: "studio-create-voice",
+    label: "配音",
+    group: "创作",
+    action: () => {
+      window.location.href = "/studio/create/voice"
+    }
+  },
+  {
+    id: "studio-create-music",
+    label: "音乐",
+    group: "创作",
+    action: () => {
+      window.location.href = "/studio/create/music"
+    }
+  },
+  {
+    id: "studio-create-tools",
+    label: "工具箱",
+    group: "创作",
+    action: () => {
+      window.location.href = "/studio/create/tools"
+    }
+  },
+  {
+    id: "studio-tools-draw",
+    label: "无限画布",
+    group: "工具箱",
+    action: () => {
+      window.location.href = "/studio/create/draw"
+    }
+  },
+  {
+    id: "studio-tools-ocr",
+    label: "图片文字提取",
+    group: "工具箱",
+    action: () => {
+      window.location.href = "/studio/create/tools/ocr"
+    }
+  },
+  {
+    id: "studio-tools-weather",
+    label: "实时天气",
+    group: "工具箱",
+    action: () => {
+      window.location.href = "/studio/create/tools/weather"
+    }
+  },
+  {
+    id: "studio-tools-qrcode",
+    label: "二维码生成",
+    group: "工具箱",
+    action: () => {
+      window.location.href = "/studio/create/tools/qrcode"
+    }
+  },
+  {
+    id: "studio-tools-todo",
+    label: "待办清单",
+    group: "工具箱",
+    action: () => {
+      window.location.href = "/studio/create/tools/todo"
+    }
+  },
+  {
+    id: "studio-tools-meeting",
+    label: "会议记录",
+    group: "工具箱",
+    action: () => {
+      window.location.href = "/studio/create/tools/meeting"
+    }
+  },
+  {
+    id: "studio-tools-hot",
+    label: "热点跟踪",
+    group: "工具箱",
+    action: () => {
+      window.location.href = "/studio/create/tools/hot"
+    }
+  },
+  {
     id: "studio-create-pipeline",
     label: "工作流",
     group: "创作",
@@ -74,11 +170,67 @@ commandRegistry.registerAll([
     }
   },
   {
+    id: "studio-projects-templates",
+    label: "模板库",
+    group: "项目",
+    action: () => {
+      window.location.href = "/studio/templates"
+    }
+  },
+  {
     id: "studio-assets-works",
     label: "我的作品",
     group: "首页",
     action: () => {
       window.location.href = "/studio/assets/works"
+    }
+  },
+  {
+    id: "studio-assets-materials",
+    label: "素材库",
+    group: "作品",
+    action: () => {
+      window.location.href = "/studio/assets/materials"
+    }
+  },
+  {
+    id: "studio-assets-prompts",
+    label: "提示词库",
+    group: "作品",
+    action: () => {
+      window.location.href = "/studio/assets/prompts"
+    }
+  },
+  {
+    id: "studio-assets-history",
+    label: "任务历史",
+    group: "作品",
+    action: () => {
+      window.location.href = "/studio/assets/history"
+    }
+  },
+  {
+    id: "studio-knowledge-docs",
+    label: "文档管理",
+    group: "知识",
+    action: () => {
+      window.location.href = "/studio/knowledge/docs"
+    }
+  },
+  {
+    id: "studio-knowledge-bases",
+    label: "知识库",
+    group: "知识",
+    action: () => {
+      window.location.href = "/studio/knowledge/bases"
+    }
+  },
+  {
+    id: "studio-knowledge-favorites",
+    label: "我的收藏",
+    group: "知识",
+    action: () => {
+      window.location.href = "/studio/knowledge/favorites"
     }
   },
   {
@@ -103,6 +255,38 @@ commandRegistry.registerAll([
     group: "我",
     action: () => {
       window.location.href = "/studio/me/tasks"
+    }
+  },
+  {
+    id: "studio-invite",
+    label: "邀请好友",
+    group: "我",
+    action: () => {
+      window.location.href = "/studio/me/invite"
+    }
+  },
+  {
+    id: "studio-outfits",
+    label: "装扮中心",
+    group: "我",
+    action: () => {
+      window.location.href = "/studio/me/outfits"
+    }
+  },
+  {
+    id: "studio-account",
+    label: "账号设置",
+    group: "我",
+    action: () => {
+      window.location.href = "/studio/me/account"
+    }
+  },
+  {
+    id: "studio-settings",
+    label: "系统设置",
+    group: "我",
+    action: () => {
+      window.location.href = "/studio/me/settings"
     }
   }
 ])
@@ -213,39 +397,42 @@ function StudioContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
+  // studio 个人工作台场景：查询视角为 own，强制仅本人数据，与角色无关
+  // （即使管理员登录 studio 也只看自己，区别于中后台 all，见 backend-client.ts 查询视角说明）
+  useEffect(() => {
+    setBackendScope("own")
+  }, [])
+
   return (
-    <AuthProvider>
-      {/* Studio 子树独立 ThemeProvider，defaultTheme='dark'，storageKey 与根不同 */}
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        enableSystem={false}
-        storageKey="aaf-studio-theme"
-        disableTransitionOnChange
-      >
-        <StudioThemeBinder />
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem={false}
+      storageKey="aaf-studio-theme"
+      disableTransitionOnChange
+    >
+      <StudioThemeBinder />
 
-        <Suspense>
-          <TopProgressBar />
-        </Suspense>
+      <Suspense>
+        <TopProgressBar />
+      </Suspense>
 
-        <StudioRouteSync />
+      <StudioRouteSync />
 
-        {/* ⌘K 全局命令面板（M9） */}
-        <StudioCommandPalette />
+      {/* ⌘K 全局命令面板（M9） */}
+      <StudioCommandPalette />
 
-        <div className="relative flex h-screen w-full overflow-hidden bg-background">
-          <StudioSidebar />
-          <MotionLazy>
-            <StudioContent>{children}</StudioContent>
-          </MotionLazy>
-        </div>
+      <div className="relative flex h-screen w-full overflow-hidden bg-background">
+        <StudioSidebar />
+        <MotionLazy>
+          <StudioContent>{children}</StudioContent>
+        </MotionLazy>
+      </div>
 
-        {/* panel/page slot 已在 StudioContent 内提供 */}
-        <FloatingChatter availableModes={["panel", "page"]} />
-        {/* 演示触发器：开发期模拟后端 WS 推送，生产环境移除 */}
-        {process.env.NODE_ENV === "development" && <SlotDevTrigger />}
-      </ThemeProvider>
-    </AuthProvider>
+      {/* panel/page slot 已在 StudioContent 内提供 */}
+      <FloatingChatter availableModes={["panel", "page"]} />
+      {/* 演示触发器：开发期模拟后端 WS 推送，生产环境移除 */}
+      {process.env.NODE_ENV === "development" && <SlotDevTrigger />}
+    </ThemeProvider>
   )
 }

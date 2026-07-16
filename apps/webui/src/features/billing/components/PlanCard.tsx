@@ -14,7 +14,7 @@
 
 "use client"
 
-import { CheckIcon, FlameIcon, SparklesIcon } from "lucide-react"
+import { CheckIcon, FlameIcon } from "lucide-react"
 import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import type { SubscriptionPlanVO } from "@/lib/api/rest/billing/plans"
@@ -117,13 +117,8 @@ export function PlanCard({
       )}
     >
       {/* 推荐/当前套餐徽标：当前套餐优先 */}
-      {isCurrent ? (
-        <span className="absolute top-0 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-foreground px-3 py-1 font-semibold text-background text-xs shadow-md ring-2 ring-background">
-          <SparklesIcon className="size-3" strokeWidth={2.5} />
-          当前套餐
-        </span>
-      ) : isRecommended ? (
-        <span className="absolute top-0 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 font-semibold text-white text-xs shadow-md ring-2 ring-background">
+      {isRecommended ? (
+        <span className="absolute top-2 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 font-semibold text-white text-xs shadow-md ring-2 ring-background">
           <FlameIcon className="size-3" strokeWidth={2.5} />
           最受欢迎
         </span>

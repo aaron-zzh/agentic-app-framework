@@ -12,7 +12,6 @@ import { registerDefaultComponents } from "@/features/entity-engine/components/r
 // side-effect import：导入即触发 entityRegistry.registerAll()，确保视图引擎渲染前所有实体已注册
 import "@/features/entity-engine/entities"
 import { MotionLazy } from "@/components/animate"
-import { AuthProvider } from "@/lib/auth/AuthProvider"
 import { WorkspaceLayout } from "@/sections/layout/WorkspaceLayout"
 
 // 注册默认字段组件（实体注册已在 entities/index.ts side effect 中完成）
@@ -31,10 +30,8 @@ export default function Layout({
       <Suspense>
         <TopProgressBar />
       </Suspense>
-      <AuthProvider>
-        <WorkspaceLayout>{children}</WorkspaceLayout>
-        {modal}
-      </AuthProvider>
+      <WorkspaceLayout>{children}</WorkspaceLayout>
+      {modal}
     </MotionLazy>
   )
 }

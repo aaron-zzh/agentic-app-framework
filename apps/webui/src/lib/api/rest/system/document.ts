@@ -57,6 +57,9 @@ export const documentApi = {
   /** 取消发布 */
   unpublish: (id: number) => request<Document>(`${BASE}/${id}/unpublish`, { method: "POST" }),
 
+  /** 删除文档 */
+  delete: (id: number) => request<void>(`${BASE}/${id}`, { method: "DELETE" }),
+
   /** 获取已发布文档列表（公开端） */
   published: () => request<Document[]>(`${BASE}/published`),
 

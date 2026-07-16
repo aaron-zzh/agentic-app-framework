@@ -8,7 +8,6 @@
 
 import { Trash2 } from "lucide-react"
 import { useEffect, useId, useState } from "react"
-import { ThemeSettings } from "@/components/common/ThemeSettings"
 import {
   GlassCard,
   GlassCardBody,
@@ -104,18 +103,6 @@ export default function StudioMeSettingsPage() {
     <div className="relative mx-auto max-w-2xl p-6">
       <SectionHaze variant="soft" />
       <div className="relative space-y-6">
-        <h1 className="font-semibold text-xl">偏好设置</h1>
-
-        {/* 主题 */}
-        <GlassCard glow="none">
-          <GlassCardHeader>
-            <GlassCardTitle>主题外观</GlassCardTitle>
-          </GlassCardHeader>
-          <GlassCardBody>
-            <ThemeSettings />
-          </GlassCardBody>
-        </GlassCard>
-
         {/* 通知偏好 */}
         <GlassCard glow="none">
           <GlassCardHeader>

@@ -334,9 +334,9 @@ export default function WeatherPage() {
                         className="flex flex-col items-center gap-1 rounded-lg bg-muted/50 p-2 text-center"
                         style={{ minWidth: "52px" }}
                       >
-                        <span className="text-muted-foreground text-xs">{fmtHour(t.datetime)}</span>
-                        <span className="text-lg">{sky ? skycon(sky.value).emoji : "—"}</span>
                         <span className="font-medium text-sm">{Math.round(t.value)}°</span>
+                        <span className="text-lg">{sky ? skycon(sky.value).emoji : "—"}</span>
+                        <span className="text-muted-foreground text-xs">{fmtHour(t.datetime)}</span>
                         {precip && precip.probability > 10 && (
                           <span className="text-blue-500 text-xs">{precip.probability}%</span>
                         )}

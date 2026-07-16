@@ -30,15 +30,16 @@ public class CopywritingController {
     private final CopywritingService copywritingService;
 
     public record GenerateRequest(
-            @NotBlank String topic,
+            @NotBlank String prompt,
             String modelId,
             String type,
             String template,
             String length,
             String translateTo,
-            String referenceAnalysis,
-            String userNotes,
             List<String> referenceImageKeys) {}
+
+    public record AnalysisGenerateRequest(
+            @NotBlank String analysis, String modelId, String userNotes) {}
 
     public record RewriteRequest(@NotBlank String content, String modelId) {}
 
@@ -51,13 +52,19 @@ public class CopywritingController {
                 copywritingService.generate(
                         req.modelId(),
                         req.type(),
-                        req.topic(),
+                        req.prompt(),
                         req.template(),
                         req.length(),
                         req.translateTo(),
-                        req.referenceAnalysis(),
-                        req.userNotes(),
                         req.referenceImageKeys()));
+    }
+
+    @Operation(summary = "流式生成文案（爆款复制场景：参考爆款结构分析创作）")
+    @PostMapping(value = "/generate-from-analysis", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> generateFromAnalysis(@Valid @RequestBody AnalysisGenerateRequest req) {
+        return encodeStream(
+                copywritingService.generateFromAnalysis(
+                        req.modelId(), req.analysis(), req.userNotes()));
     }
 
     @Operation(summary = "流式改写文案")

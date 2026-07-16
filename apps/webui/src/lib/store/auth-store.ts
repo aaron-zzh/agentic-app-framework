@@ -83,7 +83,19 @@ export const useAuthStore = create<AuthState>()(
         })
       }
     }),
-    { name: "aaf-auth" }
+    {
+      name: "aaf-auth",
+      onRehydrateStorage: () => (state) => {
+        // persist 只恢复内存 state，不会重放 setTokens()，cookie/axios header 需要在此显式重新同步。
+        // 否则会出现内存 isAuthenticated=true 但 cookie 缺失的不一致状态：
+        // proxy.ts 服务端路由守卫读取 cookie 判断未登录 → 重定向 /login，
+        // 而客户端 GuestGuard 读取内存状态判断已登录 → 又跳回目标页，形成刷新循环。
+        if (state?.accessToken) {
+          setAxiosAuth(state.accessToken)
+          syncTokenCookie(state.accessToken)
+        }
+      }
+    }
   )
 )
 

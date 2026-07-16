@@ -94,6 +94,13 @@ public class DocumentController {
         return Result.success(documentService.unpublish(id));
     }
 
+    @Operation(summary = "删除文档（逻辑删除）")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        documentService.delete(id);
+        return Result.success(null);
+    }
+
     @Operation(summary = "获取已发布文档列表（公开端）")
     @GetMapping("/published")
     public Result<List<Document>> getPublished() {

@@ -35,12 +35,12 @@ export function CopywritingHeader({
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <Label className="shrink-0 text-muted-foreground text-xs">类型</Label>
-        <Tabs value={type} onValueChange={(v) => setType(v as "oral" | "xiaohongshu" | "viral")}>
+        <Tabs value={type} onValueChange={(v) => setType(v as "voiceover" | "redbook" | "viral")}>
           <TabsList className="h-7">
-            <TabsTrigger value="oral" className="h-6 px-3 text-xs">
+            <TabsTrigger value="voiceover" className="h-6 px-3 text-xs">
               口播
             </TabsTrigger>
-            <TabsTrigger value="xiaohongshu" className="h-6 px-3 text-xs">
+            <TabsTrigger value="redbook" className="h-6 px-3 text-xs">
               小红书
             </TabsTrigger>
             <TabsTrigger value="viral" className="h-6 px-3 text-xs">

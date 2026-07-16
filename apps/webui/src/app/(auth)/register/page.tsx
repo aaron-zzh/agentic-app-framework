@@ -20,11 +20,13 @@ import { Form } from "@/components/form/form"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { authApi } from "@/lib/api/rest/user/auth"
+import { organizationApi } from "@/lib/api/rest/user/organization"
 import { APP } from "@/lib/config"
 import { paths } from "@/lib/constants/paths"
 import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { useOrgStore } from "@/lib/store/org-store"
 import { clearRefCode, readRefCode } from "@/lib/utils/ref-code"
 
 // ==================== 邮箱密码注册 ====================
@@ -380,6 +382,14 @@ function RegisterPageInner() {
     setTokens(accessToken, refreshToken)
     const { user } = await authApi.me()
     setUser(user)
+    // 新用户注册后端已自动创建 personal 组织（AuthService.createPersonalOrg），
+    // 但前端 X-Org-Id 仍需显式拉取写入，否则跳转后的页面请求会因缺少组织上下文被拒绝
+    try {
+      const orgs = await organizationApi.list()
+      useOrgStore.getState().ensureDefaultOrg(orgs)
+    } catch {
+      // 拉取组织列表失败不阻塞注册流程，后续由 checkAuth 兜底纠正
+    }
     router.push("/studio/welcome")
   }
 

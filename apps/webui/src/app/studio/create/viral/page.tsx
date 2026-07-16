@@ -4,8 +4,8 @@
  * 步骤：输入爆款内容 → AI 分析结构 → 调整说明 → 生成文案
  *
  * 后端接口：
- * - /aigc/copywriting/analyze  { content }     → 分析爆款套路（SSE）
- * - /aigc/copywriting/generate { topic, userNotes } → 生成复刻文案（SSE）
+ * - /aigc/copywriting/analyze                { content }            → 分析爆款套路（SSE）
+ * - /aigc/copywriting/generate-from-analysis  { analysis, userNotes } → 生成复刻文案（SSE）
  *
  * @author AaronZZH & Kiro
  */
@@ -144,8 +144,8 @@ export default function StudioCreateViralPage() {
       setResult("")
       abortRef.current = new AbortController()
       postAiStream(
-        "/aigc/copywriting/generate",
-        { topic: analysis, userNotes },
+        "/aigc/copywriting/generate-from-analysis",
+        { analysis, userNotes },
         {
           onChunk: (chunk) => setResult((prev) => prev + chunk),
           onDone: () => setIsGenerating(false),

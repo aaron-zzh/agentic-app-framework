@@ -14,7 +14,7 @@ DELETE FROM sys_demo_data_record;
 INSERT INTO sys_user (username, password, nickname, email, email_verified, status)
 VALUES ('user1', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '用户1', 'user1@xuejiai.com', TRUE, 0),
        ('user2', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '用户2', 'user2@xuejiai.com', TRUE, 0)
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT (username) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'sys_user', id FROM sys_user WHERE username IN ('user1', 'user2');
@@ -53,7 +53,7 @@ INSERT INTO sys_user (username, password, nickname, email, email_verified, statu
 VALUES
     ('todo_admin_test', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', 'Todo管理员测试账号', 'todo_admin_test@xuejiai.com', TRUE, 0),
     ('todo_member_test', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', 'Todo成员测试账号', 'todo_member_test@xuejiai.com', TRUE, 0)
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT (username) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_demo_data_record (table_name, record_id)
 SELECT 'sys_user', id FROM sys_user WHERE username IN ('todo_admin_test', 'todo_member_test');

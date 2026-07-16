@@ -4,7 +4,7 @@
  * 功能：
  * - 基于 Lexical minimal 模式的纯文本输入
  * - 项目提示词以可关闭标签形式嵌入编辑器头部
- * - 字数统计（不计标签内容）
+ * - 字数统计（用户输入 + 项目提示词内容，与实际提交长度一致）
  * - 点击标签弹出 Popover 预览完整内容
  *
  * @author AaronZZH & Kiro
@@ -34,7 +34,6 @@ import { X } from "lucide-react"
 import { type JSX, useCallback, useEffect, useRef, useState } from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { editorTheme } from "@/features/rich-text-editor/lib/theme"
-import { OnChangePlugin } from "@/features/rich-text-editor/plugins/OnChangePlugin"
 import { cn } from "@/lib/utils/cn"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,6 +185,23 @@ function ProjectPromptTag({
 // 字数统计插件
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** 递归提取纯文本，排除 ProjectPromptNode（tag 内容不属于用户输入） */
+function getPlainTextExcludingTag(root: LexicalNode): string {
+  let text = ""
+  const visit = (node: LexicalNode) => {
+    if (node instanceof ProjectPromptNode) return
+    // biome-ignore lint/suspicious/noExplicitAny: Lexical 节点子项遍历
+    const children = (node as any).getChildren?.()
+    if (children) {
+      for (const c of children) visit(c)
+    } else {
+      text += node.getTextContent()
+    }
+  }
+  visit(root)
+  return text
+}
+
 /** 外部 value → 编辑器内容同步（仅在 value 变化且非用户输入时覆写） */
 function ExternalValuePlugin({ value }: { value: string }) {
   const [editor] = useLexicalComposerContext()
@@ -194,33 +210,61 @@ function ExternalValuePlugin({ value }: { value: string }) {
   useEffect(() => {
     if (value === prevRef.current) return
     prevRef.current = value
-    // 读取编辑器当前纯文本，相同则跳过（用户输入已触发 onChange → store，无需再写回）
-    const currentText = editor.getEditorState().read(() => $getRoot().getTextContent())
+    // 读取编辑器当前纯文本，排除 tag 内容后与外部 value 比较，相同则跳过
+    const currentText = editor.getEditorState().read(() => getPlainTextExcludingTag($getRoot()))
     if (currentText === value) return
     editor.update(() => {
       const root = $getRoot()
+      // 保留含 ProjectPromptNode 的段落，仅清空其中的纯文本节点；移除其余段落
+      let tagParagraph: LexicalNode | null = null
       for (const child of root.getChildren()) {
-        if (!(child instanceof ProjectPromptNode)) child.remove()
+        // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph children
+        const hasTag = (child as any)
+          .getChildren?.()
+          ?.some((c: LexicalNode) => c instanceof ProjectPromptNode)
+        if (hasTag && !tagParagraph) {
+          tagParagraph = child
+          // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph children
+          for (const c of (child as any).getChildren()) {
+            if (!(c instanceof ProjectPromptNode)) c.remove()
+          }
+        } else {
+          child.remove()
+        }
       }
-      const p = $createParagraphNode()
-      p.append($createTextNode(value))
-      root.append(p)
+      if (tagParagraph) {
+        // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph append
+        if (value) (tagParagraph as any).append($createTextNode(value))
+      } else {
+        const p = $createParagraphNode()
+        if (value) p.append($createTextNode(value))
+        root.append(p)
+      }
     })
   }, [editor, value])
 
   return null
 }
 
-function CharCountPlugin({ onCount }: { onCount: (n: number) => void }) {
+/** 编辑器内容变化时回调用户纯文本（排除 tag 内容）+ 用户文本字数（不含 tag，由调用方叠加 tag 长度得到总数） */
+function PlainTextChangePlugin({
+  onChange,
+  onCount
+}: {
+  onChange: (value: string) => void
+  onCount: (n: number) => void
+}) {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
-        onCount($getRoot().getTextContent().length)
+        const text = getPlainTextExcludingTag($getRoot())
+        onChange(text)
+        onCount(text.length)
       })
     })
-  }, [editor, onCount])
+  }, [editor, onChange, onCount])
 
   return null
 }
@@ -244,17 +288,23 @@ function ProjectPromptPlugin({
     editor.update(() => {
       const root = $getRoot()
 
-      // 移除所有旧 ProjectPromptNode
+      // 移除所有旧 ProjectPromptNode（root 直接子节点及其子节点中的 tag）
       const toRemove: ProjectPromptNode[] = []
-      root.getChildren().forEach((child) => {
-        if (child instanceof ProjectPromptNode)
+      for (const child of root.getChildren()) {
+        if (child instanceof ProjectPromptNode) {
           toRemove.push(child)
-          // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph children
-        ;(child as any).getChildren?.()?.forEach((c: LexicalNode) => {
+          continue
+        }
+        // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph children
+        const nested = (child as any).getChildren?.() as LexicalNode[] | undefined
+        nested?.forEach((c) => {
           if (c instanceof ProjectPromptNode) toRemove.push(c)
         })
-      })
-      for (const n of toRemove) n.remove()
+      }
+      for (const n of toRemove) {
+        _dismissCallbacks.delete(n.getKey())
+        n.remove()
+      }
 
       if (!projectPrompt?.content.trim()) return
 
@@ -301,7 +351,7 @@ export interface PromptInputProps {
   onDismissedChange?: (dismissed: boolean) => void
   /** Enter（非 Shift）触发提交 */
   onSubmit?: () => void
-  /** 最大字数限制（0 = 不限制） */
+  /** 最大字数限制（用户输入 + 项目提示词内容总和，与实际提交长度一致；0 = 不限制） */
   maxLength?: number
   className?: string
   minHeight?: number
@@ -321,12 +371,14 @@ export function PromptInput({
   minHeight = 100,
   maxHeight
 }: PromptInputProps) {
-  const [charCount, setCharCount] = useState(0)
+  const [userTextLength, setUserTextLength] = useState(0)
   const handleDismiss = useCallback(() => {
     onDismissedChange?.(true)
   }, [onDismissedChange])
 
   const activePrompt = dismissed ? null : projectPrompt
+  // 总字数 = 用户输入 + 项目提示词内容（两者拼接后才是实际提交给模型的 prompt 长度）
+  const charCount = userTextLength + (activePrompt?.content.trim().length ?? 0)
 
   const initialConfig = {
     namespace: `prompt-input-${Math.random().toString(36).slice(2)}`,
@@ -382,9 +434,8 @@ export function PromptInput({
         </div>
 
         {/* 插件 */}
-        <OnChangePlugin onChange={onChange} mode="plaintext" />
+        <PlainTextChangePlugin onChange={onChange} onCount={setUserTextLength} />
         <ExternalValuePlugin value={_value} />
-        <CharCountPlugin onCount={setCharCount} />
         <ProjectPromptPlugin projectPrompt={activePrompt} onDismiss={handleDismiss} />
         <PastePlugin />
         <HistoryPlugin />

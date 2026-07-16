@@ -181,6 +181,7 @@ export default function StudioProjectsPage() {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
+                nativeButton={false}
                 render={
                   <Link
                     href={

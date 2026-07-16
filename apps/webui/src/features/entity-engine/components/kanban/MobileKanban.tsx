@@ -46,7 +46,7 @@ export function MobileKanban({
   const filteredData = data.filter((r) => r[statusField] === activeStatus)
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-[360px] shrink flex-col overflow-hidden">
       {/* 状态 Tab 切换 */}
       <div className="flex gap-1 overflow-x-auto border-b px-3 py-2">
         {options.map((opt) => {
@@ -70,7 +70,7 @@ export function MobileKanban({
       </div>
 
       {/* 卡片列表 */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="flex flex-col gap-2 p-3">
           {filteredData.map((record) => {
             const id = String(record.id ?? "")

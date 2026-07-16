@@ -89,6 +89,18 @@ export function useUnpublishDocument() {
   })
 }
 
+export function useDeleteDocument() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => documentApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: docKeys.list })
+      qc.invalidateQueries({ queryKey: docKeys.tree })
+      qc.invalidateQueries({ queryKey: docKeys.published })
+    }
+  })
+}
+
 export function useImportDocs() {
   const qc = useQueryClient()
   return useMutation({

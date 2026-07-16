@@ -76,7 +76,7 @@ export function useCopywriting(projectId?: number) {
     let acc = ""
     await copywritingApi.generate(
       {
-        topic: content || "新品发布",
+        prompt: content || "新品发布",
         type,
         template,
         length,
@@ -173,14 +173,10 @@ export function useCopywriting(projectId?: number) {
     setViralStep(3)
     setContent("")
     let acc = ""
-    await copywritingApi.generate(
+    await copywritingApi.generateFromAnalysis(
       {
-        topic: "参考爆款结构创作",
-        type: "oral",
-        template,
-        length,
-        modelId: model || undefined,
-        referenceAnalysis: viralAnalysis
+        analysis: viralAnalysis,
+        modelId: model || undefined
       },
       {
         onChunk: (chunk) => {

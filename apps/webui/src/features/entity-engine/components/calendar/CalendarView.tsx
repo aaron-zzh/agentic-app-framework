@@ -117,7 +117,7 @@ export function CalendarView({ entity, data = [], loading }: CalendarViewProps) 
   const defaultView = isMobile ? "listWeek" : (config.defaultView ?? "dayGridMonth")
 
   return (
-    <div className="p-4">
+    <div className="min-h-[520px] shrink overflow-auto p-4">
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}

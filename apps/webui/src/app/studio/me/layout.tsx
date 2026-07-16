@@ -13,6 +13,7 @@ import {
   Gift,
   LayoutDashboard,
   LogOut,
+  ShieldCheck,
   Ticket,
   User,
   Zap
@@ -42,6 +43,7 @@ const NAV_GROUPS: {
   {
     items: [
       { label: "账号资料", href: "/studio/me/account", icon: User },
+      { label: "安全设置", href: "/studio/me/security", icon: ShieldCheck },
       { label: "成长任务", href: "/studio/me/tasks", icon: CheckSquare },
       { label: "通知设置", href: "/studio/me/settings", icon: Bell }
     ]
@@ -88,7 +90,7 @@ function StudioMeSidebar() {
           className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-orange-500/10 px-3 py-2 font-medium text-amber-500 text-xs transition-colors hover:from-amber-500/15 hover:to-orange-500/15"
         >
           <LayoutDashboard className="size-3.5 shrink-0" />
-          <span className="flex-1">进入工作台</span>
+          <span className="flex-1">进入后台</span>
         </Link>
       )}
 
@@ -191,7 +193,7 @@ function StudioMeMobileNav() {
               <DropdownMenuSeparator />
               <DropdownMenuItem render={<Link href="/dashboard" />} className="gap-2.5">
                 <LayoutDashboard className="size-4 shrink-0" />
-                进入工作台
+                进入后台
               </DropdownMenuItem>
             </>
           )}

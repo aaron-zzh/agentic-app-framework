@@ -106,6 +106,14 @@ public class DocumentService {
         return doc;
     }
 
+    /** 删除文档（逻辑删除，走 {@code @SQLDelete} 软删除）。 */
+    @Transactional
+    public void delete(Long id) {
+        Document doc = getById(id);
+        documentRepository.delete(doc);
+        broadcastChange(id, doc.getTitle());
+    }
+
     /** 获取所有已发布文档（公开端）。 */
     public List<Document> getPublished() {
         return documentRepository.findByPublishOrderByUpdateTimeDesc("published");

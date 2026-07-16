@@ -5,6 +5,7 @@ import { getLocale, getMessages } from "next-intl/server"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 import { RefCodeCapture } from "@/components/common/RefCodeCapture"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { AuthProvider } from "@/lib/auth/AuthProvider"
 import { APP } from "@/lib/config"
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
 import { QueryProvider } from "@/providers/QueryProvider"
@@ -106,7 +107,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ThemeProvider>
             <QueryProvider>
               <TooltipProvider>
-                <NuqsAdapter>{children}</NuqsAdapter>
+                <AuthProvider>
+                  <NuqsAdapter>{children}</NuqsAdapter>
+                </AuthProvider>
                 <ToastProvider />
                 {/* 进入站点即捕获 ?refCode= 写入 sessionStorage，供注册流程读取 */}
                 <RefCodeCapture />

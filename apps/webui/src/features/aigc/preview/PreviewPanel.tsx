@@ -48,20 +48,31 @@ function FileAreaHeader({ onClose }: { onClose?: () => void }) {
   const fileZoom = useAigcStore((s) => s.fileZoom)
   const setFileZoom = useAigcStore((s) => s.setFileZoom)
   const setGenerationPanelOpen = useAigcStore((s) => s.setGenerationPanelOpen)
+  const setCopywritingPanelOpen = useAigcStore((s) => s.setCopywritingPanelOpen)
 
   return (
     <div className="flex shrink-0 items-center justify-between border-border/50 border-b px-3 py-2">
       <span className="font-medium text-muted-foreground text-xs">素材区</span>
       <div className="flex items-center gap-1">
         {/* 添加：直接打开生成面板 */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setGenerationPanelOpen(true)}
-          className="group/button inline-flex h-6 shrink-0 select-none items-center justify-center gap-1 rounded-lg px-1.5 text-muted-foreground text-xs outline-none transition-all hover:bg-accent hover:text-foreground focus-visible:ring-2"
+          className="px-1.5"
         >
           <Plus className="size-3.5" />
-          添加
-        </button>
+          图像
+        </Button>
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={() => setCopywritingPanelOpen(true)}
+          className="px-1.5"
+        >
+          <Plus className="size-3.5" />
+          文案
+        </Button>
         {/* <span className="text-muted-foreground text-xs">只展示未分配</span>
         <Switch
           checked={fileFilterUnassigned}
@@ -429,7 +440,7 @@ export function PreviewPanel({
       {/* 全屏查看 Dialog */}
       {previewAsset && (
         <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
-          <DialogContent className="h-[90vh] max-w-[90vw] p-0 [&>button]:text-white">
+          <DialogContent className="h-[100vh]! max-w-[100vw]! p-0 [&>button]:text-white">
             <ImageViewer
               src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
               alt={previewAsset.name}

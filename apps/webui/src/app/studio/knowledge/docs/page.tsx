@@ -7,8 +7,9 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { FileText, Loader2, Plus } from "lucide-react"
+import { FileText, Loader2, Plus, Trash2 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 import { SectionHaze } from "@/components/studio"
 import {
   Accordion,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -28,6 +30,7 @@ import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import {
   docKeys,
   useCreateDocument,
+  useDeleteDocument,
   useDocList,
   useDocument,
   usePublishDocument,
@@ -50,10 +53,12 @@ type PublishTab = "all" | "draft" | "published"
 export default function StudioKnowledgeDocsPage() {
   const [selectedId, setSelectedId] = useState<number | "new" | null>(null)
   const [publishTab, setPublishTab] = useState<PublishTab>("all")
+  const [deletingNode, setDeletingNode] = useState<DocListItem | null>(null)
   const queryClient = useQueryClient()
 
   const { data: list, isLoading: treeLoading } = useDocList()
   const { mutate: createDocMutate, isPending: creating } = useCreateDocument()
+  const { mutate: deleteDoc } = useDeleteDocument()
 
   const createDoc = (
     p: { title: string; content: string },
@@ -145,20 +150,35 @@ export default function StudioKnowledgeDocsPage() {
                           {g.nodes.map((node) => {
                             const nodeId = node.id ?? -1
                             return (
-                              <button
+                              <div
                                 key={`doc-${node.id}`}
-                                type="button"
-                                onClick={() => setSelectedId(nodeId)}
-                                className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-foreground/[0.05] ${selectedId === nodeId ? "bg-foreground/[0.08]" : ""}`}
+                                className={`group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-foreground/[0.05] ${selectedId === nodeId ? "bg-foreground/[0.08]" : ""}`}
                               >
-                                <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                                <span className="truncate">{node.title}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedId(nodeId)}
+                                  className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+                                >
+                                  <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                                  <span className="truncate">{node.title}</span>
+                                </button>
                                 {node.publish !== "published" && (
-                                  <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
+                                  <Badge variant="outline" className="shrink-0 text-[10px]">
                                     草稿
                                   </Badge>
                                 )}
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setDeletingNode(node)
+                                  }}
+                                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                                  aria-label={`删除文档「${node.title}」`}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </div>
                             )
                           })}
                         </div>
@@ -193,6 +213,29 @@ export default function StudioKnowledgeDocsPage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      <ConfirmDialog
+        open={deletingNode !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingNode(null)
+        }}
+        title="删除文档"
+        description={`确定要删除「${deletingNode?.title}」吗？此操作不可撤销。`}
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={() => {
+          if (deletingNode?.id == null) return
+          const { id, title } = deletingNode
+          deleteDoc(id, {
+            onSuccess: () => {
+              toast.success(`文档「${title}」已删除`)
+              if (selectedId === id) setSelectedId(null)
+            },
+            onError: (err) =>
+              toast.error(`删除失败：${err instanceof Error ? err.message : "未知错误"}`)
+          })
+        }}
+      />
     </div>
   )
 }

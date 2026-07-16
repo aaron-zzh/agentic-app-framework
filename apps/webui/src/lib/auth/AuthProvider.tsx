@@ -2,7 +2,9 @@
 
 /**
  * AuthProvider——应用启动时校验 token 有效性并拉取用户信息
- * 挂在 workspace layout，确保进入工作区时用户数据已就绪
+ * 挂在根 layout，覆盖所有路由（含营销页/公开页）：这类页面上的 FloatingChatter 等组件
+ * 同样会在 isAuthenticated=true 时发起需要组织上下文的请求，必须统一在此校正 X-Org-Id，
+ * 不能只覆盖 workspace/studio 局部路由。
  * token 失效时由 API 拦截器统一跳转登录页（backend-client.ts redirectToLogin）
  *
  * @author AaronZZH & Kiro

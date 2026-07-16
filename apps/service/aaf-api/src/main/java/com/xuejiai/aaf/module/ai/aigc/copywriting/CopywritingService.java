@@ -43,12 +43,12 @@ public class CopywritingService {
     private final SkillService skillService;
 
     /**
-     * 流式生成文案。
+     * 流式生成文案（常规场景：口播/小红书/自定义技能）。
      *
      * @param modelId 显式指定模型（null 则路由决策；附带参考图时路由会优先选 VISION 模型）
-     * @param type 文案类型（oral / xiaohongshu）
-     * @param topic 主题或关键词
-     * @param template 模板名（可为空）
+     * @param type 技能 code（如 voiceover=口播 / redbook=小红书），由前端直传；未配置对应技能时回退到内置提示词
+     * @param prompt 创作提示词（主题词或完整写作指令）
+     * @param template 风格模板名（可为空）
      * @param length 长度（short / medium / long）
      * @param referenceImageKeys 参考图 fileKey 列表（OSS 内部 key），可为空；非空时模型按图理解风格、配色、构图
      * @return 文字 token 流
@@ -56,12 +56,10 @@ public class CopywritingService {
     public Flux<String> generate(
             String modelId,
             String type,
-            String topic,
+            String prompt,
             String template,
             String length,
             String translateTo,
-            String referenceAnalysis,
-            String userNotes,
             List<String> referenceImageKeys) {
         if (isMockEnabled()) return mockTextStream();
         Long userId = operatorContext.currentUserId().orElse(null);
@@ -91,21 +89,12 @@ public class CopywritingService {
         String systemPrompt = resolveSystemPrompt(type);
         boolean hasSkillPrompt = !CopywritingConstants.SYS_GENERATE.equals(systemPrompt);
 
-        // 构造 UserMessage：有 skill 系统提示词时只传主题+长度+翻译，不注入格式规则
-        String prompt =
-                buildGeneratePrompt(
-                        type,
-                        topic,
-                        template,
-                        length,
-                        translateTo,
-                        referenceAnalysis,
-                        userNotes,
-                        hasSkillPrompt);
+        String userPrompt =
+                buildGeneratePrompt(type, prompt, template, length, translateTo, hasSkillPrompt);
         UserMessage userMessage =
                 media.isEmpty()
-                        ? new UserMessage(prompt)
-                        : UserMessage.builder().text(prompt).media(media).build();
+                        ? new UserMessage(userPrompt)
+                        : UserMessage.builder().text(userPrompt).media(media).build();
 
         var messages = List.<Message>of(new SystemMessage(systemPrompt), userMessage);
         log.info(
@@ -115,6 +104,39 @@ public class CopywritingService {
                 translateTo,
                 modelId,
                 media.size());
+        return chatService.stream(messages, ctx)
+                .onErrorContinue(
+                        com.openai.errors.OpenAIInvalidDataException.class,
+                        (e, o) -> log.debug("[LLM流] 跳过无效 chunk: {}", e.getMessage()))
+                .mapNotNull(r -> r.getResult() != null ? r.getResult().getOutput().getText() : null)
+                .filter(text -> text != null && !text.isEmpty())
+                .onErrorMap(this::mapLlmError);
+    }
+
+    /**
+     * 流式生成文案（爆款复制场景专用）：参考爆款结构分析结果创作，不涉及 type/skill/template。
+     *
+     * @param modelId 显式指定模型（null 则路由决策）
+     * @param analysis 爆款结构分析结果（{@link #analyze} 的输出）
+     * @param userNotes 本次创作的主题/调整说明（可为空）
+     * @return 文字 token 流
+     */
+    public Flux<String> generateFromAnalysis(String modelId, String analysis, String userNotes) {
+        if (isMockEnabled()) return mockTextStream();
+        Long userId = operatorContext.currentUserId().orElse(null);
+        var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
+
+        var sb = new StringBuilder();
+        if (userNotes != null && !userNotes.isBlank()) {
+            sb.append("创作主题：").append(userNotes).append("\n");
+        }
+        sb.append("参考以下爆款结构分析来组织内容：\n").append(analysis);
+
+        var messages =
+                List.<Message>of(
+                        new SystemMessage(CopywritingConstants.SYS_GENERATE),
+                        new UserMessage(sb.toString()));
+        log.info("[爆款复制生成] modelId={}, analysisLength={}", modelId, analysis.length());
         return chatService.stream(messages, ctx)
                 .onErrorContinue(
                         com.openai.errors.OpenAIInvalidDataException.class,
@@ -186,13 +208,12 @@ public class CopywritingService {
 
     private String buildGeneratePrompt(
             String type,
-            String topic,
+            String prompt,
             String template,
             String length,
             String translateTo,
-            String referenceAnalysis,
-            String userNotes,
             boolean hasSkillPrompt) {
+        boolean isVoiceoverOrRedbook = "voiceover".equals(type) || "redbook".equals(type);
         String lengthDesc =
                 switch (length != null ? length : "medium") {
                     case "short" -> "短篇（200字以内）";
@@ -200,43 +221,25 @@ public class CopywritingService {
                     default -> "中篇（200-500字）";
                 };
         var sb = new StringBuilder();
+        sb.append("创作提示词：").append(prompt).append("\n");
 
-        if (hasSkillPrompt) {
-            // 有 skill 系统提示词：只传主题+长度+翻译，格式规则由系统提示词决定
-            sb.append("主题：").append(topic).append("\n");
-            if (userNotes != null && !userNotes.isBlank()) {
-                sb.append("创作要求：").append(userNotes).append("\n");
-            }
-            sb.append("长度要求：").append(lengthDesc);
-        } else {
-            // 回退到内置逻辑（oral/xiaohongshu）
-            String typeName = "oral".equals(type) ? "口播" : "小红书";
-            sb.append("请生成一篇").append(typeName).append("文案。\n");
-            if (userNotes != null && !userNotes.isBlank()) {
-                sb.append("创作主题：").append(userNotes).append("\n");
-                sb.append("参考以下爆款结构分析来组织内容：\n").append(topic).append("\n");
-            } else {
-                sb.append("主题：").append(topic).append("\n");
-            }
-            if ("oral".equals(type)) {
-                sb.append("格式要求：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构，自然流畅，适合视频配音。\n");
-            } else {
-                sb.append("格式要求：活泼有趣，多用 emoji，有吸引力的标题，直接输出纯文本，不要使用 Markdown 语法。\n");
-            }
-            if (template != null && !template.isBlank()) {
-                String templateLabel =
-                        switch (template) {
-                            case "product-launch" -> "新品上市";
-                            case "promotion" -> "促销活动";
-                            case "brand-story" -> "品牌故事";
-                            case "tutorial" -> "教程攻略";
-                            case "review" -> "测评分享";
-                            default -> template;
-                        };
-                sb.append("风格模板：").append(templateLabel).append("\n");
-            }
-            sb.append("长度要求：").append(lengthDesc);
+        // 技能未配置/未命中时的内置格式兜底（正常情况下 voiceover/redbook 技能始终存在，此分支基本不触发）
+        if (!hasSkillPrompt && isVoiceoverOrRedbook) {
+            appendFormatRule(sb, type);
         }
+        if (template != null && !template.isBlank()) {
+            String templateLabel =
+                    switch (template) {
+                        case "product-launch" -> "新品上市";
+                        case "promotion" -> "促销活动";
+                        case "brand-story" -> "品牌故事";
+                        case "tutorial" -> "教程攻略";
+                        case "review" -> "测评分享";
+                        default -> template;
+                    };
+            sb.append("风格模板：").append(templateLabel).append("\n");
+        }
+        sb.append("长度要求：").append(lengthDesc);
 
         if (translateTo != null && !translateTo.isBlank()) {
             String langName =
@@ -250,15 +253,22 @@ public class CopywritingService {
                     };
             sb.append("\n翻译要求：生成完成后将内容翻译为").append(langName);
         }
-        if (referenceAnalysis != null && !referenceAnalysis.isBlank()) {
-            sb.append("\n\n参考爆款结构分析：\n").append(referenceAnalysis);
-        }
         log.debug("[文案生成] 最终 prompt:\n{}", sb);
         return sb.toString();
     }
 
+    /** 追加 voiceover/redbook 内置回退的固定格式规则（Markdown vs emoji 纯文本）；技能命中时格式规则已写入技能提示词本身，不走这里。 */
+    private void appendFormatRule(StringBuilder sb, String type) {
+        if ("voiceover".equals(type)) {
+            sb.append("格式要求：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构，自然流畅，适合视频配音。\n");
+        } else {
+            sb.append("格式要求：活泼有趣，多用 emoji，有吸引力的标题，直接输出纯文本，不要使用 Markdown 语法。\n");
+        }
+    }
+
     private String resolveSystemPrompt(String type) {
         if (type != null && !type.isBlank()) {
+            // type 即 skill code（前端直传，如 voiceover/redbook/rich-text-write），未配置或已禁用时回退到内置常量
             String prompt = skillService.getSystemPromptByCode(type);
             if (prompt != null && !prompt.isBlank()) {
                 log.debug("[文案生成] 使用 skill[{}] 的系统提示词", type);

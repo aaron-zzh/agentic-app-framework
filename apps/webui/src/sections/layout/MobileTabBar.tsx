@@ -30,7 +30,11 @@ const TABS: TabItem[] = [
     path: paths.workspace.dashboard,
     exact: true
   },
-  { label: "待办", icon: <CheckSquare className="size-5" />, path: paths.workspace.todos },
+  {
+    label: "待办",
+    icon: <CheckSquare className="size-5" />,
+    path: "/studio/create/tools/todo"
+  },
   { label: "搜索", icon: <Search className="size-5" />, path: "#search" },
   { label: "设置", icon: <Settings className="size-5" />, path: paths.workspace.settings }
 ]

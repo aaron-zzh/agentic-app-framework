@@ -41,7 +41,7 @@ export function CanvasView({ entity, recordId }: CanvasViewProps) {
   }, [])
 
   return (
-    <div className="relative h-full min-h-[600px] w-full">
+    <div className="relative min-h-[600px] w-full shrink overflow-hidden">
       <Tldraw onMount={handleMount} store={collaboration ? store : undefined} />
 
       {/* 协作者头像列表 */}

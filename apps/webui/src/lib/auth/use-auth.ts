@@ -6,7 +6,9 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
 import { authApi } from "@/lib/api/rest/user/auth"
+import { organizationApi } from "@/lib/api/rest/user/organization"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
+import { useOrgStore } from "@/lib/store/org-store"
 import {
   isMockAuthEnabled,
   MOCK_AUTH_ACCESS_TOKEN,
@@ -37,6 +39,24 @@ export function useAuth() {
     qc.invalidateQueries({ queryKey: ["auth", "me"] })
   }, [qc, setUser])
 
+  /**
+   * 确保存在有效的 X-Org-Id 请求头。
+   *
+   * orgId 是纯客户端 UI 状态（org-store），其可用性不能依赖 localStorage persist 的
+   * rehydrate 时序或登录页面组件是否被经过——用户可能通过已持久化的 token 直接进入应用
+   * （刷新页面、书签直达等），完全跳过登录页。checkAuth 是唯一在所有恢复路径下都会执行的
+   * 统一入口，因此 orgId 校正必须收口在这里，而不是散落在登录页面组件里。
+   */
+  const ensureOrgContext = useCallback(async () => {
+    try {
+      const orgs = await organizationApi.list()
+      useOrgStore.getState().ensureDefaultOrg(orgs)
+    } catch {
+      // 拉取组织列表失败不阻塞鉴权流程，后续页面请求会因缺少 X-Org-Id 收到 403，
+      // 用户可感知并重试，不在此处静默吞掉导致状态不一致
+    }
+  }, [])
+
   /** 校验当前 token 有效性，并拉取最新用户信息 */
   const checkAuth = useCallback(async () => {
     if (isMockAuthEnabled()) {
@@ -57,6 +77,7 @@ export function useAuth() {
         staleTime: 30_000
       })
       setUser({ ...info.user, roles: info.roles } as AuthUser)
+      await ensureOrgContext()
       return { isValid: true }
     } catch {
       // 清理token
@@ -67,7 +88,7 @@ export function useAuth() {
     } finally {
       setChecking(false)
     }
-  }, [qc, setChecking, setTokens, setUser, clearAuth])
+  }, [qc, setChecking, setTokens, setUser, clearAuth, ensureOrgContext])
 
   /** 登录：写 tokens + 拉用户信息 */
   const login = useCallback(
@@ -76,9 +97,10 @@ export function useAuth() {
       setTokens(result.accessToken, result.refreshToken)
       const info = await authApi.me()
       setUser({ ...info.user, roles: info.roles } as AuthUser)
+      await ensureOrgContext()
       return result
     },
-    [setTokens, setUser]
+    [setTokens, setUser, ensureOrgContext]
   )
 
   /** 登出：清除本地状态 + 通知后端 */

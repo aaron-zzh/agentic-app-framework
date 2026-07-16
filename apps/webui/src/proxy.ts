@@ -19,7 +19,6 @@ const PROTECTED_PATHS = [
   "/module",
   "/settings",
   "/notifications",
-  "/todos",
   "/trash",
   "/admin",
   "/aigc",
