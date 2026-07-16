@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { request } from "../entity/crud"
+import { backendApi } from "../backend-client"
 
 export interface LoginResult {
   accessToken: string
@@ -24,12 +24,11 @@ export interface UserInfo {
 
 export const authApi = {
   login(account: string, password: string, captchaVerifyParam?: string) {
-    return request<LoginResult>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ username: account, password }),
-      // ESA 验签参数放请求头，由边缘节点拦截校验，不传给源站
-      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
-    })
+    return backendApi.post<LoginResult>(
+      "/auth/login",
+      { username: account, password },
+      captchaVerifyParam ? { headers: { "captcha-verify-param": captchaVerifyParam } } : undefined
+    )
   },
 
   register(
@@ -39,26 +38,28 @@ export const authApi = {
     captchaVerifyParam?: string,
     referrerCode?: string
   ) {
-    return request<void>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password, nickname, referrerCode }),
-      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
-    })
+    return backendApi.post<void>(
+      "/auth/register",
+      { email, password, nickname, referrerCode },
+      captchaVerifyParam ? { headers: { "captcha-verify-param": captchaVerifyParam } } : undefined
+    )
   },
 
   registerByEmail(email: string, code: string, nickname?: string, referrerCode?: string) {
-    return request<LoginResult>("/auth/register-by-email", {
-      method: "POST",
-      body: JSON.stringify({ email, code, nickname, referrerCode })
+    return backendApi.post<LoginResult>("/auth/register-by-email", {
+      email,
+      code,
+      nickname,
+      referrerCode
     })
   },
 
   sendEmailCode(email: string, type: "register" | "reset" | "login", captchaVerifyParam?: string) {
-    return request<void>("/auth/send-email-code", {
-      method: "POST",
-      body: JSON.stringify({ email, type }),
-      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
-    })
+    return backendApi.post<void>(
+      "/auth/send-email-code",
+      { email, type },
+      captchaVerifyParam ? { headers: { "captcha-verify-param": captchaVerifyParam } } : undefined
+    )
   },
 
   sendSmsCode(
@@ -66,74 +67,54 @@ export const authApi = {
     type: "register" | "login" | "reset" | "bind",
     captchaVerifyParam?: string
   ) {
-    return request<void>("/auth/send-sms-code", {
-      method: "POST",
-      body: JSON.stringify({ phone, type }),
-      headers: captchaVerifyParam ? { "captcha-verify-param": captchaVerifyParam } : undefined
-    })
+    return backendApi.post<void>(
+      "/auth/send-sms-code",
+      { phone, type },
+      captchaVerifyParam ? { headers: { "captcha-verify-param": captchaVerifyParam } } : undefined
+    )
   },
 
   loginByPhone(phone: string, code: string, referrerCode?: string) {
-    return request<LoginResult>("/auth/login-by-phone", {
-      method: "POST",
-      body: JSON.stringify({ phone, code, referrerCode })
-    })
+    return backendApi.post<LoginResult>("/auth/login-by-phone", { phone, code, referrerCode })
   },
 
   verifyEmail(email: string, code: string, referrerCode?: string) {
-    return request<LoginResult>("/auth/verify-email", {
-      method: "POST",
-      body: JSON.stringify({ email, code, referrerCode })
-    })
+    return backendApi.post<LoginResult>("/auth/verify-email", { email, code, referrerCode })
   },
 
   loginByEmail(email: string, code: string) {
-    return request<LoginResult>("/auth/login-by-email", {
-      method: "POST",
-      body: JSON.stringify({ email, code })
-    })
+    return backendApi.post<LoginResult>("/auth/login-by-email", { email, code })
   },
 
   resetPassword(email: string, code: string, newPassword: string) {
-    return request<void>("/auth/reset-password", {
-      method: "POST",
-      body: JSON.stringify({ email, code, newPassword })
-    })
+    return backendApi.post<void>("/auth/reset-password", { email, code, newPassword })
   },
 
   resetPasswordByPhone(phone: string, code: string, newPassword: string) {
-    return request<void>("/auth/reset-password-by-phone", {
-      method: "POST",
-      body: JSON.stringify({ phone, code, newPassword })
-    })
+    return backendApi.post<void>("/auth/reset-password-by-phone", { phone, code, newPassword })
   },
 
   refresh(refreshToken: string) {
-    return request<LoginResult>("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken })
-    })
+    return backendApi.post<LoginResult>("/auth/refresh", { refreshToken })
   },
 
   logout(accessToken: string, refreshToken: string) {
-    return request<void>("/auth/logout", {
-      method: "POST",
-      body: JSON.stringify({ accessToken, refreshToken })
-    })
+    return backendApi.post<void>("/auth/logout", { accessToken, refreshToken })
   },
 
   me() {
-    return request<{ user: UserInfo; roles: string[] }>("/auth/me")
+    return backendApi.get<{ user: UserInfo; roles: string[] }>("/auth/me")
   },
 
   getOAuthUrl(provider: string, state: string) {
-    return request<string>(`/auth/oauth/${provider}/url?state=${encodeURIComponent(state)}`)
+    return backendApi.get<string>(`/auth/oauth/${provider}/url?state=${encodeURIComponent(state)}`)
   },
 
   oauthCallback(provider: string, code: string, referrerCode?: string) {
-    return request<LoginResult>(`/auth/oauth/${provider}/callback`, {
-      method: "POST",
-      body: JSON.stringify({ code, deviceId: getDeviceId(), referrerCode })
+    return backendApi.post<LoginResult>(`/auth/oauth/${provider}/callback`, {
+      code,
+      deviceId: getDeviceId(),
+      referrerCode
     })
   }
 }

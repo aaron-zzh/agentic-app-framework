@@ -10,8 +10,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { backendClient } from "@/lib/api/rest/backend-client"
-import { request } from "../entity/crud"
+import { backendApi, backendClient } from "@/lib/api/rest/backend-client"
 
 /** 兑换码类型：CREDIT=积分码，MEMBERSHIP=会员码 */
 export type RedeemCodeType = "CREDIT" | "MEMBERSHIP"
@@ -38,10 +37,7 @@ export interface RedeemCodeCreateDTO {
 export const redeemCodesApi = {
   /** 单个生成：返回明文（仅本次响应可见，后端只持久化哈希） */
   generate: (dto: RedeemCodeCreateDTO): Promise<string> =>
-    request<string>("/billing/credit-redeem-codes/generate", {
-      method: "POST",
-      body: JSON.stringify(dto)
-    }),
+    backendApi.post<string>("/billing/credit-redeem-codes/generate", dto),
 
   /**
    * 批量生成：后端直接返回 xlsx 二进制（Content-Disposition 含文件名），

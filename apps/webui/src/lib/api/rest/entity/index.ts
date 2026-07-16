@@ -1,7 +1,6 @@
 export * from "./activity"
 export * from "./archive"
 export * from "./crud"
-export * from "./custom-field"
 export * from "./entity-def"
 export * from "./page-def"
 export * from "./trash"

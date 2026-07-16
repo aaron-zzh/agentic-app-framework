@@ -1,4 +1,4 @@
-import { request } from "@/lib/api/rest/entity/crud"
+import { backendApi } from "../backend-client"
 
 export interface DeveloperSubscriptionPlan {
   id: number
@@ -32,22 +32,16 @@ export interface DeveloperTokenAccount {
 }
 
 export const developerApi = {
-  plans: () => request<DeveloperSubscriptionPlan[]>("/developer/subscription/plans"),
+  plans: () => backendApi.get<DeveloperSubscriptionPlan[]>("/developer/subscription/plans"),
   currentSubscription: () =>
-    request<DeveloperSubscription | null>("/developer/subscription/current"),
-  tokenAccount: () => request<DeveloperTokenAccount>("/developer/tokens/account"),
+    backendApi.get<DeveloperSubscription | null>("/developer/subscription/current"),
+  tokenAccount: () => backendApi.get<DeveloperTokenAccount>("/developer/tokens/account"),
   subscribe: (planCode: string) =>
-    request<number>("/developer/subscription/subscribe", {
-      method: "POST",
-      body: JSON.stringify({ planCode })
-    }),
+    backendApi.post<number>("/developer/subscription/subscribe", { planCode }),
   adminPlans: () =>
-    request<DeveloperSubscriptionPlan[]>("/developer/admin/subscription-plans?size=100"),
+    backendApi.get<DeveloperSubscriptionPlan[]>("/developer/admin/subscription-plans?size=100"),
   updatePlan: (id: number, dto: Partial<Omit<DeveloperSubscriptionPlan, "id" | "code">>) =>
-    request<DeveloperSubscriptionPlan>(`/developer/admin/subscription-plans/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(dto)
-    }),
+    backendApi.put<DeveloperSubscriptionPlan>(`/developer/admin/subscription-plans/${id}`, dto),
   createRedeemCode: (dto: {
     type: string
     tokenAmount?: number
@@ -55,11 +49,11 @@ export const developerApi = {
     expiresAt?: string
     remark?: string
   }) =>
-    request<{
+    backendApi.post<{
       id: number
       code: string
       codePrefix: string
       tokenAmount: number
       licenseJwt?: string
-    }>("/developer/admin/redeem-codes", { method: "POST", body: JSON.stringify(dto) })
+    }>("/developer/admin/redeem-codes", dto)
 }

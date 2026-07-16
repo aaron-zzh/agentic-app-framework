@@ -1,6 +1,6 @@
 import { buildApiUrl } from "@/lib/api/config"
-import { request } from "@/lib/api/rest/entity/crud"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { backendApi } from "../backend-client"
 
 export interface LicenseStatus {
   identityValid: boolean
@@ -35,13 +35,10 @@ export interface LicenseIssueResult {
 }
 
 export const licenseApi = {
-  current: () => request<LicenseStatus>("/license/current"),
-  officialSummary: () => request<OfficialConsoleSummary>("/official/console/summary"),
+  current: () => backendApi.get<LicenseStatus>("/license/current"),
+  officialSummary: () => backendApi.get<OfficialConsoleSummary>("/official/console/summary"),
   issue: (data: LicenseIssueRequest) =>
-    request<LicenseIssueResult>("/official/console/licenses", {
-      method: "POST",
-      body: JSON.stringify(data)
-    }),
+    backendApi.post<LicenseIssueResult>("/official/console/licenses", data),
   sourceDownloadUrl: () => buildApiUrl("/license/source-code"),
   sourceDownloadHeaders: () => {
     const token = useAuthStore.getState().accessToken

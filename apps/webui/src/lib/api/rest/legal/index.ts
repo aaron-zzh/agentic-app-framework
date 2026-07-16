@@ -1,9 +1,9 @@
+import { backendApi } from "../backend-client"
+
 /**
  * 法律文档 API——服务条款 / 隐私政策 + 用户同意快照
  * @author AaronZZH & Kiro
  */
-
-import { request } from "@/lib/api/rest/entity/crud"
 
 /** 法律文档（公开端） */
 export interface LegalDocument {
@@ -36,19 +36,16 @@ export type LegalTypeAlias = "terms" | "privacy"
  */
 export const legalApi = {
   getLatest(type: LegalTypeAlias) {
-    return request<LegalDocument>(`/public/legal/${type}`)
+    return backendApi.get<LegalDocument>(`/public/legal/${type}`)
   },
 
   /** 查询当前用户尚未同意的法律文档（需登录） */
   pending() {
-    return request<PendingConsent>("/legal/consent/pending")
+    return backendApi.get<PendingConsent>("/legal/consent/pending")
   },
 
   /** 提交对某文档的同意（需登录） */
   submit(documentId: number) {
-    return request<void>("/legal/consent", {
-      method: "POST",
-      body: JSON.stringify({ documentId })
-    })
+    return backendApi.post<void>("/legal/consent", { documentId })
   }
 }
