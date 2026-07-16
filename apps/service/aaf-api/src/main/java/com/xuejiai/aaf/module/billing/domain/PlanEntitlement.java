@@ -3,12 +3,17 @@ package com.xuejiai.aaf.module.billing.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 套餐×权益规则（多对多关联，定价与权益解耦） */
+/**
+ * 套餐×权益规则（多对多关联，定价与权益解耦）。
+ *
+ * <p>标注 {@link OrgIgnore}：平台级配置关联，不含用户/组织归属字段，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -21,6 +26,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE billing_plan_entitlement SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class PlanEntitlement extends BaseEntity {
 
     /** 套餐 ID */

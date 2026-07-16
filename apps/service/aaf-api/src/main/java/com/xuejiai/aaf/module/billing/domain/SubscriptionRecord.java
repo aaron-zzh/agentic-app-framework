@@ -5,12 +5,17 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 订阅购买流水（新购/续费） */
+/**
+ * 订阅购买流水（新购/续费）。
+ *
+ * <p>标注 {@link OrgIgnore}：流水归属用户（{@code userId}）而非组织，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -18,6 +23,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE subscription_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class SubscriptionRecord extends BaseEntity {
 
     /** 用户 ID */

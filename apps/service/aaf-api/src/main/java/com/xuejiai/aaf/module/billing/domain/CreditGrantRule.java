@@ -7,6 +7,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -24,6 +25,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE credit_grant_rule SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class CreditGrantRule extends BaseEntity {
 
     /** 规则编码（WEEKLY/INVITE/EXPLORE/REGISTER/EVENT_xxx） */

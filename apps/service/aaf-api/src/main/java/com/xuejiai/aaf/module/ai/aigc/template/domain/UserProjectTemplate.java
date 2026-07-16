@@ -7,6 +7,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -20,6 +21,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE user_project_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class UserProjectTemplate extends BaseEntity {
 
     @Column(name = "code", nullable = false, length = 100, unique = true)

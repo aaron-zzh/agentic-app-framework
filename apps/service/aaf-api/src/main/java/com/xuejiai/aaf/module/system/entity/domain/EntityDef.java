@@ -5,6 +5,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,6 +25,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE sys_entity_def SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class EntityDef extends BaseEntity {
 
     /** 实体标识（唯一） */

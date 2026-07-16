@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.menu.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,11 +11,12 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 系统菜单 */
+/** 系统菜单：全局配置类实体，不属于任何组织，org_id 恒为 NULL，需豁免组织过滤器（见 OrgFilterAspect）。 */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_menu")
+@OrgIgnore
 @SQLDelete(sql = "UPDATE sys_menu SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SysMenu extends BaseEntity {
 

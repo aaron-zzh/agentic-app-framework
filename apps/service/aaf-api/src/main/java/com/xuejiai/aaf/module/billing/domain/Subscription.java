@@ -5,12 +5,17 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 用户订阅实例（购买后产生，决定有效期） */
+/**
+ * 用户订阅实例（购买后产生，决定有效期）。
+ *
+ * <p>标注 {@link OrgIgnore}：订阅归属用户（{@code userId}）而非组织，用户切换组织/工作区不应 影响其订阅可见性，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -18,6 +23,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE billing_subscription SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class Subscription extends BaseEntity {
 
     /** 用户 ID */

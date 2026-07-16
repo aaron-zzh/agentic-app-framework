@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.action.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,6 +19,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE ai_action_catalog SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class AiActionCatalog extends BaseEntity {
 
     @Column(name = "action_key", nullable = false, length = 120)

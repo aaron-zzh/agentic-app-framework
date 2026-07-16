@@ -5,12 +5,17 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 成长等级（免费线，按 exp 自动升降） */
+/**
+ * 成长等级（免费线，按 exp 自动升降）。
+ *
+ * <p>标注 {@link OrgIgnore}：平台级等级定义，不含用户/组织归属字段，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -18,6 +23,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE billing_level SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class Level extends BaseEntity {
 
     /** 等级编码（L0/L1/L2） */

@@ -3,8 +3,11 @@ package com.xuejiai.aaf.module.user.growth.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,6 +19,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE user_growth_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class UserGrowthTask extends BaseEntity {
 
     @Column(name = "code", nullable = false, length = 100, unique = true)

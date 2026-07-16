@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.legal.domain;
 import java.time.LocalDateTime;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,12 +18,17 @@ import lombok.Setter;
  *
  * <p>对应 {@code sys_user_consent} 表，软删除继承自 {@link BaseEntity}。
  *
+ * <p>标注 {@link OrgIgnore}：同意状态是用户级别的全局事实（是否同意某版本协议与所属组织无关）， {@code org_id} 列恒为
+ * NULL。查询发生在登录后立即检查待同意协议的时点，此时前端很可能尚未确定 {@code X-Org-Id}（组织上下文本身依赖登录后查询 {@code /api/system/orgs}
+ * 才能确定）——与该接口 白名单豁免同理，若不标注会被 {@code OrgFilterAspect} fail-closed 拒绝（403），导致登录合规检查失效。
+ *
  * @author AaronZZH &amp; Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_user_consent")
+@OrgIgnore
 public class UserConsent extends BaseEntity {
 
     /** 用户 ID（sys_user.id） */

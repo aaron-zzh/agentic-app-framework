@@ -2,15 +2,27 @@ package com.xuejiai.aaf.module.billing.domain;
 
 import java.time.LocalDateTime;
 
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 权益额度变更流水（账本，每次扣减/充值/重置留痕） */
+/**
+ * 权益额度变更流水（账本，每次扣减/充值/重置留痕）。
+ *
+ * <p>不继承 {@link com.xuejiai.aaf.common.model.BaseEntity}：账本语义上只应追加（append-only）， 不提供软删除/组织过滤能力（无
+ * {@code deleted}/{@code org_id} 列）。
+ *
+ * <p>标注 {@link OrgIgnore}：{@code OrgFilterAspect} 是覆盖所有 {@code module.repository}
+ * 方法的全局切面，不检查目标表是否真的存在 {@code org_id} 列——只要调用方（{@code BillingQueryService}/{@code
+ * EntitlementService}，均在登录后 HTTP 请求链路中触发）缺少组织上下文， 未标注即会被 fail-closed 拒绝（403），而非"因无 org_id 列自动豁免"。
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "billing_entitlement_ledger")
+@OrgIgnore
 public class EntitlementLedger {
 
     @Id

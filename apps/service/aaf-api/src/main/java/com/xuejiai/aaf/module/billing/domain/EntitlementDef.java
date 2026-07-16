@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.billing.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -16,6 +17,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE billing_entitlement_def SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class EntitlementDef extends BaseEntity {
 
     /** 权益编码（ai_token/model_gpt4/kb_storage 等） */

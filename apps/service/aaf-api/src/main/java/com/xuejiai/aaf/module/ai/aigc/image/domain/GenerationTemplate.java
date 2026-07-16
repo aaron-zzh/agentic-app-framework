@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.image.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -13,6 +14,11 @@ import lombok.Setter;
  *
  * <p>用户可保存常用的生成参数组合为模板，支持公开分享。
  *
+ * <p>标注 {@link OrgIgnore}：模板归属用户（{@code userId}）而非组织，语义上与组织维度无关—— 可见性规则是 {@code ownerId=$user.id OR
+ * isPublic=true}（见 {@code db/seed/v13__access_rules.sql}），完全未涉及组织概念；{@code org_id} 列继承自 {@link
+ * BaseEntity} 但恒为 NULL。未标注会被 {@code OrgFilterAspect} fail-closed 拒绝 （缺少组织上下文时抛
+ * 403），或在组织上下文与模板归属不一致时查询静默为空——用户切换工作区/组织 后应仍能看到自己保存的模板，不应因组织切换而"丢失"。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
@@ -22,6 +28,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE generation_template SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class GenerationTemplate extends BaseEntity {
 
     /** 模板名称 */

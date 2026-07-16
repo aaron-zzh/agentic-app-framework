@@ -5,12 +5,17 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 订阅套餐定义（货架商品） */
+/**
+ * 订阅套餐定义（货架商品）。
+ *
+ * <p>标注 {@link OrgIgnore}：平台级货架商品定义，不含用户/组织归属字段，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -18,6 +23,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE billing_subscription_plan SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class SubscriptionPlan extends BaseEntity {
 
     /** 套餐编码（FREE/PRO/TEAM/ENTERPRISE） */

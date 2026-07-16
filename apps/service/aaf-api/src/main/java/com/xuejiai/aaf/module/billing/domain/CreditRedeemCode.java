@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +13,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 积分兑换码。 */
+/**
+ * 积分兑换码。
+ *
+ * <p>标注 {@link OrgIgnore}：兑换码是平台级发放物，兑换归属用户（{@code redeemedByUserId}） 而非组织，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -20,6 +25,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE credit_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@OrgIgnore
 public class CreditRedeemCode extends BaseEntity {
 
     /** SHA-256 哈希，存储时不保留明文 */
