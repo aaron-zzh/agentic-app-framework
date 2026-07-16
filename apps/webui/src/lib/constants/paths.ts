@@ -33,7 +33,6 @@ export const paths = {
     settingsPricing: "/settings/pricing",
     settingsNotifications: "/settings/notifications",
     notifications: "/notifications",
-    todos: "/todos",
     trash: "/trash"
   },
   aigc: {

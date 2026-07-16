@@ -25,7 +25,11 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   sms: { label: "短信", icon: "💬" },
   storage: { label: "存储", icon: "🗄️" },
   aigc: { label: "AIGC", icon: "🎨" },
-  member: { label: "会员", icon: "⭐" }
+  member: { label: "会员", icon: "⭐" },
+  brand: { label: "品牌", icon: "🏷️" },
+  contact: { label: "联系方式", icon: "📞" },
+  brokerage: { label: "分销", icon: "🤝" },
+  examples: { label: "示例", icon: "🧪" }
 }
 
 // ── 单个配置项控件 ───────────────────────────────────────────

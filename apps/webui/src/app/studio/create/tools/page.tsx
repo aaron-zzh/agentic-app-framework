@@ -9,6 +9,7 @@
 
 import {
   ArrowUpRight,
+  CheckSquare,
   Cloud,
   FileText,
   Lock,
@@ -71,6 +72,14 @@ const TOOLS: Tool[] = [
     icon: QrCode,
     href: "/studio/create/tools/qrcode",
     tone: "violet"
+  },
+  {
+    key: "todo",
+    title: "待办清单",
+    desc: "记录创作灵感与任务，随手勾选完成",
+    icon: CheckSquare,
+    href: "/studio/create/tools/todo",
+    tone: "emerald"
   },
   {
     key: "meeting",

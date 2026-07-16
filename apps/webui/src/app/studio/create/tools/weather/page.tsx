@@ -192,7 +192,7 @@ export default function WeatherToolPage() {
               <div className="mb-4 flex items-center gap-4">
                 <span className="text-6xl">{skycon(rt.skycon).emoji}</span>
                 <div>
-                  <p className="font-bold text-5xl">{rt.temperature}°C</p>
+                  <p className="font-bold text-5xl">{Math.round(rt.temperature)}°C</p>
                   <p className="text-muted-foreground">
                     {skycon(rt.skycon).label} · {data?.result.forecast_keypoint}
                   </p>
@@ -229,11 +229,11 @@ export default function WeatherToolPage() {
                           key={t.datetime}
                           className="flex min-w-[52px] flex-col items-center gap-1 rounded-xl bg-foreground/[0.04] px-3 py-2 text-center"
                         >
+                          <span className="font-medium text-sm">{Math.round(t.value)}°</span>
+                          <span className="text-xl">{sky ? skycon(sky.value).emoji : "—"}</span>
                           <span className="text-muted-foreground text-xs">
                             {fmtHour(t.datetime)}
                           </span>
-                          <span className="text-xl">{sky ? skycon(sky.value).emoji : "—"}</span>
-                          <span className="font-medium text-sm">{Math.round(t.value)}°</span>
                           {precip && precip.probability > 10 && (
                             <span className="text-[10px] text-sky-400">{precip.probability}%</span>
                           )}
