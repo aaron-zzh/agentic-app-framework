@@ -32,7 +32,7 @@ import type {
   ProgressWidgetConfig,
   ShortcutWidgetConfig
 } from "@/lib/api/rest/dashboard/dashboard"
-import { useMetrics } from "@/lib/queries/use-dashboard"
+import { useMetrics } from "@/lib/api/rest/dashboard/dashboard"
 
 /** 支持的颜色选项 */
 const COLOR_OPTIONS: { value: string; label: string; bg: string }[] = [

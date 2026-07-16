@@ -24,8 +24,6 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { KiroAgentDrawer } from "@/features/livechat/kiro/KiroAgentDrawer"
-import { paths } from "@/lib/constants/paths"
-import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import {
   docKeys,
   useDocTree,
@@ -33,7 +31,9 @@ import {
   useImportDocs,
   usePublishDocument,
   useUnpublishDocument
-} from "@/lib/queries/use-documents"
+} from "@/lib/api/rest/system/document"
+import { paths } from "@/lib/constants/paths"
+import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import type { DocTreeNode } from "@/lib/types/document"
 import { DocCreateDialog } from "./DocCreateDialog"
 import { DocRelationGraph } from "./DocRelationGraph"

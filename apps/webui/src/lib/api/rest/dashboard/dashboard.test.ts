@@ -1,79 +1,82 @@
 /**
- * dashboard.ts API 单元测试——验证仪表盘接口的请求构造
+ * 仪表盘 API facade 单元测试——验证 backendApi 请求构造
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { dashboardApi } from "./dashboard"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("../entity/crud", () => ({
-  request: vi.fn()
+const backendApiMock = vi.hoisted(() => ({
+  delete: vi.fn(),
+  get: vi.fn(),
+  patch: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn()
 }))
 
-import { request } from "../entity/crud"
+vi.mock("../backend-client", () => ({ backendApi: backendApiMock }))
 
-const mockRequest = vi.mocked(request)
+import { type DashboardWidgetVO, dashboardApi, type WidgetConfig } from "./dashboard"
+
+const widget: DashboardWidgetVO = {
+  id: "w1",
+  type: "counter",
+  title: "计数",
+  position: { x: 0, y: 0, w: 4, h: 2 },
+  config: { type: "counter", entity: "user", aggregation: "count" }
+}
+const widgetConfig: WidgetConfig = { type: "counter", entity: "order", aggregation: "count" }
 
 describe("dashboardApi", () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  it("list 应请求 GET /dashboards", async () => {
-    mockRequest.mockResolvedValueOnce([])
+  it("预设和仪表盘读取端点应使用 GET", async () => {
+    await dashboardApi.listPresets()
+    await dashboardApi.listMetrics()
     await dashboardApi.list()
-    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards")
-  })
-
-  it("get 应请求 GET /dashboards/:id", async () => {
-    mockRequest.mockResolvedValueOnce({ id: "d1", name: "test", widgets: [] })
     await dashboardApi.get("d1")
-    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/d1")
-  })
-
-  it("getDefault 应请求 GET /dashboards/default", async () => {
-    mockRequest.mockResolvedValueOnce({ id: "default", name: "默认", widgets: [] })
     await dashboardApi.getDefault()
-    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/default")
+    expect(backendApiMock.get).toHaveBeenNthCalledWith(1, "/system/dashboards/presets")
+    expect(backendApiMock.get).toHaveBeenNthCalledWith(2, "/system/dashboards/metrics")
+    expect(backendApiMock.get).toHaveBeenNthCalledWith(3, "/system/dashboards")
+    expect(backendApiMock.get).toHaveBeenNthCalledWith(4, "/system/dashboards/d1")
+    expect(backendApiMock.get).toHaveBeenNthCalledWith(5, "/system/dashboards/default")
   })
 
-  it("create 应发送 POST /dashboards", async () => {
-    mockRequest.mockResolvedValueOnce({ id: "new", name: "新仪表盘", widgets: [] })
+  it("预设写操作应保留 verb、路径和负载", async () => {
+    await dashboardApi.createPreset({ name: "默认" })
+    await dashboardApi.updatePreset("p1", { description: "说明" })
+    await dashboardApi.deletePreset("p1")
+    expect(backendApiMock.post).toHaveBeenCalledWith("/system/dashboards/presets", { name: "默认" })
+    expect(backendApiMock.put).toHaveBeenCalledWith("/system/dashboards/presets/p1", {
+      description: "说明"
+    })
+    expect(backendApiMock.delete).toHaveBeenCalledWith("/system/dashboards/presets/p1")
+  })
+
+  it("仪表盘写操作应保留 verb、路径和负载", async () => {
+    await dashboardApi.saveLayout("d1", [widget])
     await dashboardApi.create({ name: "新仪表盘", shared: true })
-    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards", {
-      method: "POST",
-      body: JSON.stringify({ name: "新仪表盘", shared: true })
+    await dashboardApi.rename("d1", "新名称")
+    await dashboardApi.delete("d1")
+    expect(backendApiMock.put).toHaveBeenNthCalledWith(1, "/system/dashboards/d1/layout", {
+      layout: [widget]
     })
+    expect(backendApiMock.post).toHaveBeenCalledWith("/system/dashboards", {
+      name: "新仪表盘",
+      shared: true
+    })
+    expect(backendApiMock.put).toHaveBeenNthCalledWith(2, "/system/dashboards/d1", {
+      name: "新名称"
+    })
+    expect(backendApiMock.delete).toHaveBeenCalledWith("/system/dashboards/d1")
   })
 
-  it("saveLayout 应发送 PUT /dashboards/:id/layout", async () => {
-    mockRequest.mockResolvedValueOnce(undefined)
-    const layout = [
-      {
-        id: "w1",
-        type: "counter" as const,
-        title: "计数",
-        position: { x: 0, y: 0, w: 4, h: 2 },
-        config: { type: "counter" as const, entity: "user", aggregation: "count" as const }
-      }
-    ]
-    await dashboardApi.saveLayout("d1", layout)
-    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/d1/layout", {
-      method: "PUT",
-      body: JSON.stringify({ layout })
-    })
-  })
-
-  it("getWidgetData 应发送 POST /dashboards/widgets/:id/data", async () => {
-    mockRequest.mockResolvedValueOnce({ value: 42 })
-    const config = { type: "counter" as const, entity: "order", aggregation: "count" as const }
-    await dashboardApi.getWidgetData("w1", config)
-    expect(mockRequest).toHaveBeenCalledWith("/system/dashboards/widgets/w1/data", {
-      method: "POST",
-      body: JSON.stringify(config)
-    })
+  it("Widget 数据应使用 POST 并传递完整配置", async () => {
+    await dashboardApi.getWidgetData("w1", widgetConfig)
+    expect(backendApiMock.post).toHaveBeenCalledWith(
+      "/system/dashboards/widgets/w1/data",
+      widgetConfig
+    )
   })
 })

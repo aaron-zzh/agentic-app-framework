@@ -5,7 +5,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { type EntityDefInput, entityDefApi } from "@/lib/api/rest/entity/entity-def"
+import {
+  type EntityDefInput,
+  type EntityDefUpdateInput,
+  entityDefApi
+} from "@/lib/api/rest/entity/entity-def"
 
 const ENTITY_DEFS_KEY = ["entity-defs"]
 
@@ -18,11 +22,11 @@ export function useEntityDefs() {
 }
 
 /** 查询单个实体定义 */
-export function useEntityDef(id: string | undefined) {
+export function useEntityDef(id: number | undefined) {
   return useQuery({
     queryKey: [...ENTITY_DEFS_KEY, id],
-    queryFn: () => entityDefApi.get(id as NonNullable<typeof id>),
-    enabled: !!id
+    queryFn: () => entityDefApi.get(id as number),
+    enabled: id !== undefined
   })
 }
 
@@ -39,7 +43,7 @@ export function useCreateEntityDef() {
 export function useUpdateEntityDef() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: EntityDefInput }) =>
+    mutationFn: ({ id, data }: { id: number; data: EntityDefUpdateInput }) =>
       entityDefApi.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
   })
@@ -49,7 +53,7 @@ export function useUpdateEntityDef() {
 export function useDeleteEntityDef() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => entityDefApi.delete(id),
+    mutationFn: (id: number) => entityDefApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
   })
 }

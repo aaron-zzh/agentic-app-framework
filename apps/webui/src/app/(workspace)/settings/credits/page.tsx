@@ -17,10 +17,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RedeemCodeButton } from "@/features/billing/components/RedeemCodeButton"
 import type { CreditTransactionVO } from "@/lib/api/rest/billing/credits"
+import { useCreditGroups, useCreditTransactions } from "@/lib/api/rest/billing/credits"
+import { useCurrentSubscription, useEntitlementQuotas } from "@/lib/api/rest/billing/plans"
 import { paths } from "@/lib/constants/paths"
 import { useDict } from "@/lib/hooks/use-dict"
-import { useCurrentSubscription, useEntitlementQuotas } from "@/lib/queries/use-billing-plans"
-import { useCreditGroups, useCreditTransactions } from "@/lib/queries/use-credits"
 import { cn } from "@/lib/utils/cn"
 
 // ─── 权益额度 ────────────────────────────────────────────────────────────────

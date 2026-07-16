@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
 import type { MenuCreateDTO, MenuVO } from "@/lib/api/rest/user/menu"
-import { useAllMenus, useCreateMenu, useDeleteMenu, useUpdateMenu } from "@/lib/queries/use-menus"
+import { useAllMenus, useCreateMenu, useDeleteMenu, useUpdateMenu } from "@/lib/api/rest/user/menu"
 import { cn } from "@/lib/utils/cn"
 
 /** 菜单类型标签颜色 */

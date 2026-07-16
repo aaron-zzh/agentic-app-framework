@@ -1,8 +1,8 @@
+import { backendApi } from "../backend-client"
+
 /**
  * 订阅套餐 & 积分充值套餐 API 类型
  */
-
-import { request } from "../entity/crud"
 
 /** 套餐权益项 */
 export interface PlanEntitlementVO {
@@ -103,28 +103,103 @@ export interface EntitlementQuotaVO {
 
 export const billingPlansApi = {
   /** 获取所有启用的订阅套餐（含权益列表） */
-  getPlans: () => request<SubscriptionPlanVO[]>("/billing/subscription/plans"),
+  getPlans: () => backendApi.get<SubscriptionPlanVO[]>("/billing/subscription/plans"),
 
   /** 获取当前用户的有效订阅，无订阅返回 null */
-  getCurrentSubscription: () => request<SubscriptionVO | null>("/billing/subscription/current"),
+  getCurrentSubscription: () =>
+    backendApi.get<SubscriptionVO | null>("/billing/subscription/current"),
 
   /** 获取积分充值套餐列表 */
-  getCreditPackages: () => request<CreditPackageVO[]>("/billing/credit-packages"),
+  getCreditPackages: () => backendApi.get<CreditPackageVO[]>("/billing/credit-packages"),
 
   /** 购买订阅套餐，返回支付单（免费套餐直接激活返回 null） */
   subscribe: (planCode: string, billingCycle: "monthly" | "yearly", channelCode: string) =>
-    request<PayOrderVO | null>("/billing/subscription/subscribe", {
-      method: "POST",
-      body: JSON.stringify({ planCode, billingCycle, channelCode })
+    backendApi.post<PayOrderVO | null>("/billing/subscription/subscribe", {
+      planCode,
+      billingCycle,
+      channelCode
     }),
 
   /** 购买积分套餐，返回支付单（含 codeUrl） */
   purchaseCredits: (packageId: string, channelCode?: string) =>
-    request<PayOrderVO>("/billing/credit-packages/purchase", {
-      method: "POST",
-      body: JSON.stringify({ packageId, channelCode: channelCode ?? "MOCK" })
+    backendApi.post<PayOrderVO>("/billing/credit-packages/purchase", {
+      packageId,
+      channelCode: channelCode ?? "MOCK"
     }),
 
   /** 获取当前用户所有权益额度 */
-  getEntitlementQuotas: () => request<EntitlementQuotaVO[]>("/billing/entitlement/quotas")
+  getEntitlementQuotas: () => backendApi.get<EntitlementQuotaVO[]>("/billing/entitlement/quotas")
+}
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useAuthStore } from "@/lib/store/auth-store"
+import { invalidateCreditQueries } from "./credits"
+
+export function useSubscriptionPlans() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return useQuery({
+    queryKey: ["billing", "plans"],
+    queryFn: billingPlansApi.getPlans,
+    staleTime: 5 * 60 * 1000,
+    enabled: isAuthenticated
+  })
+}
+
+export function useCurrentSubscription() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return useQuery({
+    queryKey: ["billing", "subscription", "current"],
+    queryFn: billingPlansApi.getCurrentSubscription,
+    staleTime: 60 * 1000,
+    enabled: isAuthenticated
+  })
+}
+
+export function useCreditPackages() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return useQuery({
+    queryKey: ["billing", "credit-packages"],
+    queryFn: billingPlansApi.getCreditPackages,
+    staleTime: 5 * 60 * 1000,
+    enabled: isAuthenticated
+  })
+}
+
+export function useSubscribe() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      planCode,
+      billingCycle,
+      channelCode
+    }: {
+      planCode: string
+      billingCycle: "monthly" | "yearly"
+      channelCode: string
+    }) => billingPlansApi.subscribe(planCode, billingCycle, channelCode),
+    onSuccess: () => {
+      invalidateCreditQueries(qc)
+      qc.invalidateQueries({ queryKey: ["billing", "subscription", "current"] })
+      qc.invalidateQueries({ queryKey: ["billing", "entitlement", "quotas"] })
+    }
+  })
+}
+
+export function usePurchaseCredits() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ packageId, channelCode }: { packageId: string; channelCode?: string }) =>
+      billingPlansApi.purchaseCredits(packageId, channelCode),
+    onSuccess: () => invalidateCreditQueries(qc)
+  })
+}
+
+export function useEntitlementQuotas() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return useQuery({
+    queryKey: ["billing", "entitlement", "quotas"],
+    queryFn: billingPlansApi.getEntitlementQuotas,
+    staleTime: 60 * 1000,
+    enabled: isAuthenticated
+  })
 }

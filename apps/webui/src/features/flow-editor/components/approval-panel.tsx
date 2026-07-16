@@ -27,7 +27,7 @@ import {
   useTransferSign,
   useVoteProgress,
   useWithdraw
-} from "@/lib/queries/use-approval"
+} from "@/lib/api/rest/workflow/approval"
 import { useWorkflowComplete, useWorkflowReject } from "@/lib/queries/use-workflow"
 
 interface ApprovalPanelProps {

@@ -78,7 +78,7 @@ export function usePurchaseOutfit() {
       notify.success("购买成功")
     },
     onError: () => {
-      notify.error("购买失败，积分不足或请重试")
+      //notify.error("购买失败，积分不足或请重试")
     }
   })
 }

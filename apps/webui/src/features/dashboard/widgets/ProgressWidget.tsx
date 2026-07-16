@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ProgressWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
-import { useWidgetData } from "@/lib/queries/use-dashboard"
+import { useWidgetData } from "@/lib/api/rest/dashboard/dashboard"
 import { cn } from "@/lib/utils/cn"
 import { WIDGET_CARD_CLASS } from "./_shared/styles"
 

@@ -18,7 +18,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useCreateAutodevDoc } from "@/lib/queries/use-autodev-documents"
+import { useCreateAutodevDoc } from "@/lib/api/rest/knowledge/autodev-document"
 
 const DOC_TYPES = [
   { value: "spec", label: "规格" },

@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
+import { useCreateDocument, useDocument, useUpdateDocument } from "@/lib/api/rest/system/document"
 import {
   useAigcProject,
   useAigcProjectDocs,
@@ -25,7 +26,6 @@ import {
   useUnlinkProjectDoc,
   useUpdateAigcProject
 } from "@/lib/queries/use-aigc-projects"
-import { useCreateDocument, useDocument, useUpdateDocument } from "@/lib/queries/use-documents"
 import { cn } from "@/lib/utils/cn"
 
 interface Props {

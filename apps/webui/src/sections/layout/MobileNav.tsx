@@ -10,8 +10,8 @@ import { usePathname } from "next/navigation"
 import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useUserMenus } from "@/lib/api/rest/user/menu"
 import { useLicenseStatus } from "@/lib/queries/use-license-status"
-import { useUserMenus } from "@/lib/queries/use-menus"
 import { cn } from "@/lib/utils/cn"
 import {
   buildNavConfig,

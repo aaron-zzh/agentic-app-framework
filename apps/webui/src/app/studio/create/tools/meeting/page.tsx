@@ -24,7 +24,7 @@ import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import { buildWsUrl } from "@/lib/api/config"
 import { meetingApi } from "@/lib/api/rest/ai/meeting"
-import { useCreateDocument } from "@/lib/queries/use-documents"
+import { useCreateDocument } from "@/lib/api/rest/system/document"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { float32ToPcm16 } from "@/lib/utils/audio"
 

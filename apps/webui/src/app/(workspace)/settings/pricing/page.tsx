@@ -28,9 +28,9 @@ import { PlanCard } from "@/features/billing/components/PlanCard"
 import { PlanCompareTable } from "@/features/billing/components/PlanCompareTable"
 import { PricingFAQ } from "@/features/billing/components/PricingFAQ"
 import { TrustSignals } from "@/features/billing/components/TrustSignals"
+import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/api/rest/billing/plans"
+import { useMemberFaq, useWechatQrImage } from "@/lib/api/rest/system/config"
 import { APP, CONTACT } from "@/lib/config"
-import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/queries/use-billing-plans"
-import { useMemberFaq, useWechatQrImage } from "@/lib/queries/use-system-config"
 
 /** 默认推荐套餐 code，可从 plan.ext.recommended 后续改成数据驱动 */
 const RECOMMENDED_PLAN_CODE = "PRO"

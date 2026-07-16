@@ -18,7 +18,7 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog"
 import type { DashboardPresetVO, DashboardWidgetVO } from "@/lib/api/rest/dashboard/dashboard"
-import { usePresets } from "@/lib/queries/use-dashboard"
+import { usePresets } from "@/lib/api/rest/dashboard/dashboard"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 interface ApplyPresetDialogProps {

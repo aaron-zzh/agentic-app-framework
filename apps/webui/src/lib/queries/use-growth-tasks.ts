@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { backendApi } from "@/lib/api/rest/backend-client"
-import { invalidateCreditQueries } from "@/lib/queries/use-credits"
+import { invalidateCreditQueries } from "@/lib/api/rest/billing/credits"
 
 export interface GrowthTaskVO {
   id: number

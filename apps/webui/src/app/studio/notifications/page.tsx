@@ -16,12 +16,12 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { NotificationItem } from "@/lib/api/rest/user/notification"
-import { notify } from "@/lib/notification"
 import {
   useMarkRead,
   useNotifications,
   useRemoveNotifications
-} from "@/lib/queries/use-notifications"
+} from "@/lib/api/rest/user/notification"
+import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/index"
 import { formatTimeAgo } from "@/lib/utils/time"
 import { NotificationIcon } from "@/sections/layout/notifications/icons"

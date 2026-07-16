@@ -22,7 +22,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypographyH1 } from "@/components/ui/typography"
-import { useCreateKnowledgeBase, useKnowledgeBases } from "@/lib/queries/use-knowledge"
+import { useCreateKnowledgeBase, useKnowledgeBases } from "@/lib/api/rest/knowledge/knowledge"
 
 export default function KnowledgeListPage() {
   const [search, setSearch] = useState("")

@@ -11,11 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton"
 import { buildApiUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
+import { invalidateCreditQueries } from "@/lib/api/rest/billing/credits"
 import type { CreditPackageVO, PayOrderVO } from "@/lib/api/rest/billing/plans"
+import { useCreditPackages, usePurchaseCredits } from "@/lib/api/rest/billing/plans"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
 import { notify } from "@/lib/notification"
-import { useCreditPackages, usePurchaseCredits } from "@/lib/queries/use-billing-plans"
-import { invalidateCreditQueries } from "@/lib/queries/use-credits"
 
 const IS_DEV = process.env.NODE_ENV === "development"
 

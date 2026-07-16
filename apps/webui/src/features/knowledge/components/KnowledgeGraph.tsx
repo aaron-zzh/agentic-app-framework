@@ -17,7 +17,7 @@ import { useCallback, useMemo, useState } from "react"
 import "@xyflow/react/dist/style.css"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useKnowledgeGraph } from "@/lib/queries/use-knowledge"
+import { useKnowledgeGraph } from "@/lib/api/rest/knowledge/knowledge"
 import type { GraphNode } from "@/lib/types/knowledge"
 
 interface KnowledgeGraphProps {

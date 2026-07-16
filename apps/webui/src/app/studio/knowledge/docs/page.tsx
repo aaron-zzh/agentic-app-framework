@@ -26,7 +26,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import type { DocListItem } from "@/lib/api/rest/system/document"
-import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import {
   docKeys,
   useCreateDocument,
@@ -36,7 +35,8 @@ import {
   usePublishDocument,
   useUnpublishDocument,
   useUpdateDocument
-} from "@/lib/queries/use-documents"
+} from "@/lib/api/rest/system/document"
+import { useDocEvents } from "@/lib/hooks/use-doc-events"
 
 const DOC_TYPE_GROUPS = [
   { key: "spec", label: "规格" },

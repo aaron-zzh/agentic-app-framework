@@ -22,7 +22,7 @@ import {
   useApprovalStats,
   useMyInitiated,
   useMyPendingTasks
-} from "@/lib/queries/use-approval"
+} from "@/lib/api/rest/workflow/approval"
 
 type Tab = "pending" | "done" | "initiated"
 

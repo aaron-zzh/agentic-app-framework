@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { useUpdateKnowledgeBase } from "@/lib/queries/use-knowledge"
+import { useUpdateKnowledgeBase } from "@/lib/api/rest/knowledge/knowledge"
 import type { KnowledgeBase } from "@/lib/types/knowledge"
 
 const CHUNK_STRATEGIES = [

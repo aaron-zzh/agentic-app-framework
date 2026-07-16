@@ -42,7 +42,6 @@ import { DocumentUpload } from "@/features/knowledge/components/DocumentUpload"
 import { KnowledgeGraph } from "@/features/knowledge/components/KnowledgeGraph"
 import { KnowledgeSettings } from "@/features/knowledge/components/KnowledgeSettings"
 import { SearchTestPanel } from "@/features/knowledge/components/SearchTestPanel"
-import { notify } from "@/lib/notification"
 import {
   useCreateSegment,
   useDeleteSegment,
@@ -53,7 +52,8 @@ import {
   useToggleSegment,
   useUpdateKnowledgeBase,
   useUpdateSegment
-} from "@/lib/queries/use-knowledge"
+} from "@/lib/api/rest/knowledge/knowledge"
+import { notify } from "@/lib/notification"
 import type { KnowledgeDocument } from "@/lib/types/knowledge"
 
 const STATUS_MAP: Record<

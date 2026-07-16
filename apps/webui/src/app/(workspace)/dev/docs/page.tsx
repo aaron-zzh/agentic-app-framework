@@ -29,7 +29,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Chatter } from "@/features/chatter"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import { request } from "@/lib/api/rest/entity/crud"
-import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import {
   autodevDocKeys,
   useAutodevDoc,
@@ -37,7 +36,8 @@ import {
   useAutodevDocTree,
   useImportAutodevDocs,
   useUpdateAutodevDoc
-} from "@/lib/queries/use-autodev-documents"
+} from "@/lib/api/rest/knowledge/autodev-document"
+import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import { AutodevDocCreateDialog } from "./AutodevDocCreateDialog"
 
 /** 获取可用 agent 角色列表 */

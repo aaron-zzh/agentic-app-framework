@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { SystemConfigVO } from "@/lib/api/rest/system/config"
-import { useAllSystemConfigs, useUpdateSystemConfig } from "@/lib/queries/use-system-config"
+import { useAllSystemConfigs, useUpdateSystemConfig } from "@/lib/api/rest/system/config"
 
 // ── 分类元数据 ──────────────────────────────────────────────
 

@@ -19,13 +19,13 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { DashboardPresetVO } from "@/lib/api/rest/dashboard/dashboard"
-import { notify } from "@/lib/notification"
 import {
   useCreatePreset,
   useDeletePreset,
   usePresets,
   useUpdatePreset
-} from "@/lib/queries/use-dashboard"
+} from "@/lib/api/rest/dashboard/dashboard"
+import { notify } from "@/lib/notification"
 
 // ===== 类型 =====
 

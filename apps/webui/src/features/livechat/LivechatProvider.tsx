@@ -16,8 +16,8 @@ import {
 } from "@assistant-ui/react"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import type { ChatMessageVO } from "@/lib/api/rest/ai/chat"
+import { useChatMessages } from "@/lib/api/rest/ai/chat"
 import { useWebSocket } from "@/lib/hooks/use-websocket"
-import { useChatMessages } from "@/lib/queries/use-chat"
 import type { IMRuntimeConfig } from "./runtime"
 
 /** 后端 ChatMessageVO → assistant-ui ThreadMessage */

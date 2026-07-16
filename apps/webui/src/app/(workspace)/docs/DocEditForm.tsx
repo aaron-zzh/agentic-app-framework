@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RichTextEditor } from "@/features/rich-text-editor"
+import { useCreateDocument, useUpdateDocument } from "@/lib/api/rest/system/document"
 import { paths } from "@/lib/constants/paths"
-import { useCreateDocument, useUpdateDocument } from "@/lib/queries/use-documents"
 import type { Document } from "@/lib/types/document"
 
 const DOC_TYPES = [

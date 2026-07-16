@@ -45,7 +45,7 @@ import {
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { CounterWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
-import { useWidgetData } from "@/lib/queries/use-dashboard"
+import { useWidgetData } from "@/lib/api/rest/dashboard/dashboard"
 import { cn } from "@/lib/utils/cn"
 import { Sparkline } from "./_shared/Sparkline"
 import { formatCompactNumber, resolveCardStyle } from "./_shared/styles"

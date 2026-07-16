@@ -3,8 +3,8 @@
  * @author AaronZZH
  */
 
+import { backendApi } from "../backend-client"
 import type { PageResult } from "../entity/crud"
-import { request } from "../entity/crud"
 
 /** 审批人策略 */
 export type AssigneeStrategy =
@@ -87,56 +87,157 @@ export interface ProcessInstanceVO {
 export const approvalApi = {
   /** 前加签 */
   addSignBefore: (taskId: string, assignee: string) =>
-    request<void>("/system/workflow/approval/add-sign-before", {
-      method: "POST",
-      body: JSON.stringify({ taskId, assignee })
-    }),
+    backendApi.post<void>("/system/workflow/approval/add-sign-before", { taskId, assignee }),
 
   /** 后加签 */
   addSignAfter: (taskId: string, assignee: string) =>
-    request<void>("/system/workflow/approval/add-sign-after", {
-      method: "POST",
-      body: JSON.stringify({ taskId, assignee })
-    }),
+    backendApi.post<void>("/system/workflow/approval/add-sign-after", { taskId, assignee }),
 
   /** 转签 */
   transfer: (taskId: string, targetAssignee: string, reason: string) =>
-    request<void>("/system/workflow/approval/transfer", {
-      method: "POST",
-      body: JSON.stringify({ taskId, targetAssignee, reason })
-    }),
+    backendApi.post<void>("/system/workflow/approval/transfer", { taskId, targetAssignee, reason }),
 
   /** 撤回 */
   withdraw: (processInstanceId: string, initiator: string) =>
-    request<void>("/system/workflow/approval/withdraw", {
-      method: "POST",
-      body: JSON.stringify({ processInstanceId, initiator })
-    }),
+    backendApi.post<void>("/system/workflow/approval/withdraw", { processInstanceId, initiator }),
 
   /** 查询审批时间线 */
   getTimeline: (processInstanceId: string) =>
-    request<ApprovalRecordVO[]>(`/system/workflow/approval/timeline/${processInstanceId}`),
+    backendApi.get<ApprovalRecordVO[]>(`/system/workflow/approval/timeline/${processInstanceId}`),
 
   /** 查询投票进度 */
   getVoteProgress: (processInstanceId: string) =>
-    request<VoteProgress>(`/system/workflow/approval/vote-progress/${processInstanceId}`),
+    backendApi.get<VoteProgress>(`/system/workflow/approval/vote-progress/${processInstanceId}`),
 
   /** 审批统计 */
   getStats: (assignee: string) =>
-    request<ApprovalStats>(`/system/workflow/approval/stats?assignee=${assignee}`),
+    backendApi.get<ApprovalStats>(`/system/workflow/approval/stats?assignee=${assignee}`),
 
   /** 我的待办 */
-  myPendingTasks: () => request<WorkflowTaskVO[]>("/system/workflow/tasks/my-pending"),
+  myPendingTasks: () => backendApi.get<WorkflowTaskVO[]>("/system/workflow/tasks/my-pending"),
 
   /** 我发起的流程 */
   myInitiated: (pageNo = 1, pageSize = 20) =>
-    request<PageResult<ProcessInstanceVO>>(
+    backendApi.get<PageResult<ProcessInstanceVO>>(
       `/system/workflow/instances/my-initiated?pageNo=${pageNo}&pageSize=${pageSize}`
     ),
 
   /** 历史流程（已办） */
   historyInstances: (pageNo = 1, pageSize = 20) =>
-    request<PageResult<ProcessInstanceVO>>(
+    backendApi.get<PageResult<ProcessInstanceVO>>(
       `/system/workflow/instances/history?finished=true&pageNo=${pageNo}&pageSize=${pageSize}`
     )
+}
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+
+/** 我的待办任务 */
+export function useMyPendingTasks() {
+  return useQuery({
+    queryKey: ["approval", "pending"],
+    queryFn: approvalApi.myPendingTasks
+  })
+}
+
+/** 我发起的流程 */
+export function useMyInitiated(pageNo = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ["approval", "initiated", pageNo, pageSize],
+    queryFn: () => approvalApi.myInitiated(pageNo, pageSize)
+  })
+}
+
+/** 已办列表 */
+export function useApprovalHistory(pageNo = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ["approval", "history", pageNo, pageSize],
+    queryFn: () => approvalApi.historyInstances(pageNo, pageSize)
+  })
+}
+
+/** 审批时间线 */
+export function useApprovalTimeline(processInstanceId?: string) {
+  return useQuery({
+    queryKey: ["approval", "timeline", processInstanceId],
+    queryFn: () => approvalApi.getTimeline(processInstanceId ?? ""),
+    enabled: !!processInstanceId
+  })
+}
+
+/** 投票进度 */
+export function useVoteProgress(processInstanceId?: string) {
+  return useQuery({
+    queryKey: ["approval", "vote-progress", processInstanceId],
+    queryFn: () => approvalApi.getVoteProgress(processInstanceId ?? ""),
+    enabled: !!processInstanceId
+  })
+}
+
+/** 审批统计 */
+export function useApprovalStats(assignee?: string) {
+  return useQuery({
+    queryKey: ["approval", "stats", assignee],
+    queryFn: () => approvalApi.getStats(assignee ?? ""),
+    enabled: !!assignee
+  })
+}
+
+/** 前加签 */
+export function useAddSignBefore() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ taskId, assignee }: { taskId: string; assignee: string }) =>
+      approvalApi.addSignBefore(taskId, assignee),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["approval"] })
+    }
+  })
+}
+
+/** 后加签 */
+export function useAddSignAfter() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ taskId, assignee }: { taskId: string; assignee: string }) =>
+      approvalApi.addSignAfter(taskId, assignee),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["approval"] })
+    }
+  })
+}
+
+/** 转签 */
+export function useTransferSign() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      targetAssignee,
+      reason
+    }: {
+      taskId: string
+      targetAssignee: string
+      reason: string
+    }) => approvalApi.transfer(taskId, targetAssignee, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["approval"] })
+    }
+  })
+}
+
+/** 撤回 */
+export function useWithdraw() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      processInstanceId,
+      initiator
+    }: {
+      processInstanceId: string
+      initiator: string
+    }) => approvalApi.withdraw(processInstanceId, initiator),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["approval"] })
+    }
+  })
 }

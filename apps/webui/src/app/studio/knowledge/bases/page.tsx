@@ -21,7 +21,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCreateKnowledgeBase, useKnowledgeBases } from "@/lib/queries/use-knowledge"
+import { useCreateKnowledgeBase, useKnowledgeBases } from "@/lib/api/rest/knowledge/knowledge"
 
 export default function StudioKnowledgeBasesPage() {
   const [search, setSearch] = useState("")

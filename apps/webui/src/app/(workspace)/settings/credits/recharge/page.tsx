@@ -12,8 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCreateRecharge, useTokenRules } from "@/lib/api/rest/billing/credits"
 import { notify } from "@/lib/notification"
-import { useCreateRecharge, useTokenRules } from "@/lib/queries/use-credits"
 
 export default function RechargePage() {
   const { data: rules, isLoading } = useTokenRules()

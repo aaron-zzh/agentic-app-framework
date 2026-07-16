@@ -4,7 +4,7 @@
  */
 
 import type { Model3dTaskResult } from "@/features/aigc/types"
-import { request } from "../entity/crud"
+import { backendApi } from "../backend-client"
 
 const API_PATH = "/aigc/model3d"
 
@@ -37,26 +37,58 @@ export interface MultiImageTo3dParams {
 export const model3dApi = {
   /** 文本生成 3D 模型 */
   submitTextTo3d: (params: TextTo3dParams): Promise<string> =>
-    request<string>(`${API_PATH}/text-to-3d`, {
-      method: "POST",
-      body: JSON.stringify(params)
-    }),
+    backendApi.post<string>(`${API_PATH}/text-to-3d`, params),
 
   /** 单图生成 3D 模型 */
   submitImageTo3d: (params: ImageTo3dParams): Promise<string> =>
-    request<string>(`${API_PATH}/image-to-3d`, {
-      method: "POST",
-      body: JSON.stringify(params)
-    }),
+    backendApi.post<string>(`${API_PATH}/image-to-3d`, params),
 
   /** 多图生成 3D 模型（四视角：前/左/后/右） */
   submitMultiImageTo3d: (params: MultiImageTo3dParams): Promise<string> =>
-    request<string>(`${API_PATH}/multi-image-to-3d`, {
-      method: "POST",
-      body: JSON.stringify(params)
-    }),
+    backendApi.post<string>(`${API_PATH}/multi-image-to-3d`, params),
 
   /** 查询 3D 生成任务状态 */
   queryTask: (taskId: string): Promise<Model3dTaskResult> =>
-    request<Model3dTaskResult>(`${API_PATH}/task/${taskId}`)
+    backendApi.get<Model3dTaskResult>(`${API_PATH}/task/${taskId}`)
+}
+
+import { useMutation, useQuery } from "@tanstack/react-query"
+
+const KEYS = {
+  task: (taskId: string) => ["model3d", "task", taskId] as const
+}
+
+/** 文本生成 3D 模型 */
+export function useTextTo3d() {
+  return useMutation({
+    mutationFn: (params: TextTo3dParams) => model3dApi.submitTextTo3d(params)
+  })
+}
+
+/** 单图生成 3D 模型 */
+export function useImageTo3d() {
+  return useMutation({
+    mutationFn: (params: ImageTo3dParams) => model3dApi.submitImageTo3d(params)
+  })
+}
+
+/** 多图生成 3D 模型（四视角） */
+export function useMultiImageTo3d() {
+  return useMutation({
+    mutationFn: (params: MultiImageTo3dParams) => model3dApi.submitMultiImageTo3d(params)
+  })
+}
+
+/** 轮询 3D 生成任务状态（15秒间隔，直到完成或失败） */
+export function useModel3dTaskStatus(taskId: string | null) {
+  return useQuery({
+    queryKey: KEYS.task(taskId as NonNullable<typeof taskId>),
+    queryFn: () => model3dApi.queryTask(taskId as NonNullable<typeof taskId>),
+    enabled: taskId !== null,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      if (status === "COMPLETED" || status === "FAILED") return false
+      return 15_000
+    }
+  })
 }

@@ -29,7 +29,7 @@ import type {
   DashboardWidgetVO,
   WidgetType
 } from "@/lib/api/rest/dashboard/dashboard"
-import { useMetrics } from "@/lib/queries/use-dashboard"
+import { useMetrics } from "@/lib/api/rest/dashboard/dashboard"
 
 /** 可添加的 Widget 类型列表 */
 const WIDGET_OPTIONS: {
