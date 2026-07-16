@@ -14,7 +14,7 @@ interface AigcStore {
   copywritingPanelOpen: boolean
   /** 文案内容 */
   copywritingContent: string
-  /** 文案生成类型：oral=口播 xiaohongshu=小红书 viral=爆款复制，或任意 skill code */
+  /** 文案生成类型：直接传 ai_skill_definition.code（如 voiceover=口播 redbook=小红书），viral=爆款复制固定值 */
   copywritingType: string
   /** 文案生成模板 */
   copywritingTemplate: string
@@ -149,7 +149,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   videoDuration: "5s",
   copywritingPanelOpen: false,
   copywritingContent: "",
-  copywritingType: "oral",
+  copywritingType: "voiceover",
   copywritingTemplate: "",
   copywritingTranslateTo: "",
   copywritingLength: "medium",

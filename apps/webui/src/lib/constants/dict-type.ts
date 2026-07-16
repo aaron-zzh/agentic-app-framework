@@ -12,6 +12,12 @@
  * ```
  */
 export const DictType = {
+  Sys: {
+    /** 待办分类，见 TodoCategoryEnum */
+    TODO_CATEGORY: "sys_todo_category",
+    /** 待办状态，见 TodoStatusEnum */
+    TODO_STATUS: "sys_todo_status"
+  },
   Aigc: {
     /** AIGC 任务类型，见 AigcTaskType（features/aigc/types.ts） */
     TASK_TYPE: "aigc_task_type",

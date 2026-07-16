@@ -46,10 +46,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        className="shadow-lg ring-0"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <AlertDialogContent className="shadow-lg ring-0" onClick={(event) => event.stopPropagation()}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description && (

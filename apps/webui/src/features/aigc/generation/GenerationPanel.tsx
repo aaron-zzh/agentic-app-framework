@@ -37,7 +37,8 @@ import { VOICE_TEXT_MAX_LEN, VOICES } from "../voice-options"
 import { buildFinalPrompt, PromptInput } from "./PromptInput"
 import { PromptTemplateDialog } from "./PromptTemplateDialog"
 import { ReferenceDropZone } from "./ReferenceDropZone"
-import { RoleSelector } from "./RoleSelector"
+
+// import { RoleSelector } from "./RoleSelector"
 
 // ── 视频模式定义 ──────────────────────────────────────────────────
 type VideoImageMode = "T2V" | "FIRST_FRAME" | "REFERENCE" | "EDIT"
@@ -213,8 +214,8 @@ export function GenerationPanel() {
   const { options, modelId, setModelId, currentModel } = useModelSelector(generationType)
   const { params, onChangeParams, resolvedSize } = useGenerationParams(currentModel)
   // ─────────────────────
-  const agentRole = useAigcStore((s) => s.agentRole)
-  const setAgentRole = useAigcStore((s) => s.setAgentRole)
+  // const agentRole = useAigcStore((s) => s.agentRole)
+  // const setAgentRole = useAigcStore((s) => s.setAgentRole)
   const negativePrompt = useAigcStore((s) => s.negativePrompt)
   const setNegativePrompt = useAigcStore((s) => s.setNegativePrompt)
   const referenceAssets = useAigcStore((s) => s.referenceAssets)
@@ -558,8 +559,8 @@ export function GenerationPanel() {
           {/* 底部参数栏 */}
           {!isAudioType && (
             <div className="shrink-0 border-t px-4 py-3">
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-1 flex-wrap items-center gap-2">
                   {/* 模型选择 */}
                   <ModelSelector
                     variant="select"
@@ -578,16 +579,18 @@ export function GenerationPanel() {
                   )}
                   {/* 图像参数控件——根据模型配置动态渲染 */}
                   {!isVideo && (
-                    <ModelParamsBar
-                      model={currentModel}
-                      params={params}
-                      onChangeParams={onChangeParams}
-                      isEditMode={isEditMode}
-                    />
+                    <div className="flex-1">
+                      <ModelParamsBar
+                        model={currentModel}
+                        params={params}
+                        onChangeParams={onChangeParams}
+                        isEditMode={isEditMode}
+                      />
+                    </div>
                   )}
                 </div>
 
-                <RoleSelector value={agentRole} onChange={setAgentRole} />
+                {/* <RoleSelector value={agentRole} onChange={setAgentRole} /> */}
 
                 <Button
                   size="sm"

@@ -1,12 +1,34 @@
 "use client"
 
-import { Download, Loader2 } from "lucide-react"
+import { Download, ImagePlus, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import type { LightboxExternalProps, SlideImage } from "yet-another-react-lightbox"
 import ReactLightbox, { useLightboxState } from "yet-another-react-lightbox"
 
 export type LightboxProps = LightboxExternalProps
+
+/** 引用按钮：仅图片 slide 展示，点击跳转到图像创作页并作为参考图 */
+function ReferenceButton() {
+  const router = useRouter()
+  const { currentSlide } = useLightboxState()
+  const isImage = !!currentSlide && (currentSlide as { type?: string }).type !== "video"
+  const url = isImage ? (currentSlide as SlideImage).src : undefined
+
+  if (!url) return null
+
+  return (
+    <button
+      type="button"
+      className="yarl__button"
+      onClick={() => router.push(`/studio/create/image?refUrl=${encodeURIComponent(url)}`)}
+      title="引用为参考图"
+    >
+      <ImagePlus size={24} />
+    </button>
+  )
+}
 
 function DownloadButton() {
   const { currentSlide } = useLightboxState()
@@ -59,7 +81,7 @@ export function Lightbox({ plugins = [], toolbar, ...props }: LightboxProps) {
       controller={{ closeOnBackdropClick: true }}
       plugins={plugins}
       toolbar={{
-        buttons: [<DownloadButton key="download" />, "close"],
+        buttons: [<ReferenceButton key="reference" />, <DownloadButton key="download" />, "close"],
         ...toolbar
       }}
       {...props}
