@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.system.role.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
 
 import java.util.Set;
@@ -10,12 +11,11 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.bizlog.annotation.LogRecord;
 import com.xuejiai.aaf.framework.bizlog.context.LogRecordContext;
 import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.role.domain.Role;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
 import com.xuejiai.aaf.module.system.role.vo.RoleCreateDTO;
@@ -69,7 +69,7 @@ public class RoleService
     @Override
     protected Role toEntity(RoleCreateDTO dto) {
         if (roleRepository.existsByCodeAndDeletedFalse(dto.code())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "角色编码已存在");
+            throw exception(ErrorCodeConstants.ROLE_CODE_EXISTS);
         }
         var role = new Role();
         role.setCode(dto.code());

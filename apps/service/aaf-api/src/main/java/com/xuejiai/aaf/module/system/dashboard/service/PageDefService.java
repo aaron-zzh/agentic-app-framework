@@ -1,13 +1,14 @@
 package com.xuejiai.aaf.module.system.dashboard.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.dashboard.domain.PageDef;
 import com.xuejiai.aaf.module.system.dashboard.repository.PageDefRepository;
 import com.xuejiai.aaf.module.system.dashboard.vo.PageDefCreateDTO;
@@ -43,14 +44,14 @@ public class PageDefService {
                 .findBySlugAndStatusAndDeletedFalse(slug, "published")
                 .map(this::toVO)
                 .orElseThrow(
-                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "页面未找到: " + slug));
+                        () -> exception(ErrorCodeConstants.PAGE_DEF_PUBLISHED_NOT_FOUND, slug));
     }
 
     /** 创建页面定义 */
     @Transactional
     public PageDefVO create(PageDefCreateDTO dto) {
         if (pageDefRepository.existsBySlugAndDeletedFalse(dto.slug())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "slug 已存在: " + dto.slug());
+            throw exception(ErrorCodeConstants.PAGE_DEF_SLUG_EXISTS, dto.slug());
         }
         var entity = new PageDef();
         entity.setSlug(dto.slug());
@@ -101,8 +102,7 @@ public class PageDefService {
     private PageDef findById(Long id) {
         return pageDefRepository
                 .findByIdAndDeletedFalse(id)
-                .orElseThrow(
-                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "页面定义不存在: " + id));
+                .orElseThrow(() -> exception(ErrorCodeConstants.PAGE_DEF_NOT_FOUND, id));
     }
 
     private PageDefVO toVO(PageDef entity) {

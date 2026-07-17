@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.developer.service;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -34,6 +35,19 @@ public class DeveloperSubscriptionPlanCrudService
                 DeveloperSubscriptionPlanUpdateDTO,
                 DeveloperSubscriptionPlanPageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "createTime",
+                    "updateTime",
+                    "code",
+                    "name",
+                    "durationDays",
+                    "price",
+                    "includedTokens",
+                    "status",
+                    "sortOrder");
+
     private final DeveloperSubscriptionPlanRepository planRepository;
 
     @Override
@@ -44,6 +58,11 @@ public class DeveloperSubscriptionPlanCrudService
     @Override
     protected JpaSpecificationExecutor<DeveloperSubscriptionPlan> getSpecExecutor() {
         return planRepository;
+    }
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
     }
 
     @Override

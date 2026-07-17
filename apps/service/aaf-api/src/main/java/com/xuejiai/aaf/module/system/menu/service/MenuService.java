@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.menu.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,9 +13,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.menu.domain.SysMenu;
 import com.xuejiai.aaf.module.system.menu.domain.SysRoleMenu;
 import com.xuejiai.aaf.module.system.menu.repository.SysMenuRepository;
@@ -226,7 +227,7 @@ public class MenuService
                             .map(SysMenu::getId)
                             .collect(Collectors.toSet());
             if (existingMenuIds.size() != safeMenuIds.size()) {
-                throw new BusinessException(GlobalErrorCode.NOT_FOUND, "菜单不存在");
+                throw exception(ErrorCodeConstants.MENU_NOT_FOUND);
             }
         }
 
@@ -254,12 +255,12 @@ public class MenuService
     private SysMenu requireMenu(Long id) {
         return menuRepository
                 .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "菜单不存在"));
+                .orElseThrow(() -> exception(ErrorCodeConstants.MENU_NOT_FOUND));
     }
 
     private void ensureRoleExists(Long roleId) {
         if (!roleRepository.existsById(roleId)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "角色不存在");
+            throw exception(ErrorCodeConstants.ROLE_NOT_FOUND);
         }
     }
 

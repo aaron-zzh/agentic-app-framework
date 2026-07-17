@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.video.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -33,7 +35,15 @@ public class VideoTemplateService
                 VideoTemplateUpdateDTO,
                 VideoTemplatePageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "name", "type", "createTime", "updateTime");
+
     private final VideoTemplateRepository templateRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<VideoTemplate, Long> getRepository() {

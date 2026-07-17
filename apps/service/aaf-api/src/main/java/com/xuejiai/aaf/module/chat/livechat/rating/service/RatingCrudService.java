@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.chat.livechat.rating.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -32,7 +33,15 @@ public class RatingCrudService
         extends BaseCrudService<
                 SessionRating, RatingVO, RatingCreateDTO, RatingUpdateDTO, RatingPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "conversationId", "staffId", "score", "createTime", "updateTime");
+
     private final SessionRatingRepository repository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<SessionRating, Long> getRepository() {

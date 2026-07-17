@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.license.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -8,8 +10,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 /** 官方源码包下载服务。 */
 @Service
@@ -23,11 +24,11 @@ public class SourceArchiveService {
 
     public Resource load() {
         if (archivePath == null || archivePath.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "未配置源码包路径");
+            throw exception(ErrorCodeConstants.LICENSE_SOURCE_ARCHIVE_PATH_NOT_CONFIGURED);
         }
         var path = Path.of(archivePath).toAbsolutePath().normalize();
         if (!Files.isRegularFile(path)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "源码包不存在");
+            throw exception(ErrorCodeConstants.LICENSE_SOURCE_ARCHIVE_NOT_FOUND);
         }
         return new FileSystemResource(path);
     }

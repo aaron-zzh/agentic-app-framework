@@ -1,15 +1,16 @@
 package com.xuejiai.aaf.module.system.permission.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.cache.PermissionCacheService;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.permission.domain.PermissionCode;
 import com.xuejiai.aaf.module.system.permission.repository.PermissionCodeRepository;
 import com.xuejiai.aaf.module.system.permission.vo.PermissionCreateDTO;
@@ -91,7 +92,7 @@ public class PermissionService {
     public PermissionVO create(PermissionCreateDTO dto) {
         var code = normalizeCode(dto.code(), dto.module(), dto.resource(), dto.action());
         if (permissionRepository.existsByCodeAndDeletedFalse(code)) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "权限编码已存在");
+            throw exception(ErrorCodeConstants.PERMISSION_CODE_EXISTS);
         }
         var entity = new PermissionCode();
         entity.setName(dto.name());
@@ -111,8 +112,7 @@ public class PermissionService {
         var entity =
                 permissionRepository
                         .findByIdAndDeletedFalse(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "权限码不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.PERMISSION_CODE_NOT_FOUND));
         if (dto.name() != null) entity.setName(dto.name());
         if (dto.module() != null) entity.setModule(normalizeSegment(dto.module()));
         if (dto.resource() != null) entity.setResource(normalizeSegment(dto.resource()));
@@ -126,7 +126,7 @@ public class PermissionService {
                             entity.getAction());
             if (!code.equals(entity.getCode())
                     && permissionRepository.existsByCodeAndDeletedFalse(code)) {
-                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "权限编码已存在");
+                throw exception(ErrorCodeConstants.PERMISSION_CODE_EXISTS);
             }
             entity.setCode(code);
         }
@@ -258,7 +258,7 @@ public class PermissionService {
 
     private String normalizeSegment(String value) {
         if (value == null || value.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "权限码分段不能为空");
+            throw exception(ErrorCodeConstants.PERMISSION_SEGMENT_REQUIRED);
         }
         return value.trim();
     }

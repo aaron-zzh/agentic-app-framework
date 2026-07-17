@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.dashboard.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 import java.util.Map;
 
@@ -7,9 +9,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.dashboard.domain.Dashboard;
 import com.xuejiai.aaf.module.system.dashboard.domain.DashboardPreset;
 import com.xuejiai.aaf.module.system.dashboard.domain.DashboardWidget;
@@ -78,8 +79,7 @@ public class DashboardService {
         var dashboard =
                 dashboardRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "仪表盘不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
         return toVO(dashboard);
     }
 
@@ -105,8 +105,7 @@ public class DashboardService {
         var dashboard =
                 dashboardRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "仪表盘不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
         if (dto.name() != null) {
             dashboard.setName(dto.name());
         }
@@ -134,8 +133,7 @@ public class DashboardService {
         var dashboard =
                 dashboardRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "仪表盘不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
         replaceWidgets(id, layout);
         return toVO(dashboard);
     }
@@ -146,8 +144,7 @@ public class DashboardService {
         var dashboard =
                 dashboardRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "仪表盘不存在"));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
         dashboardRepository.delete(dashboard);
     }
 
@@ -204,11 +201,11 @@ public class DashboardService {
      */
     public WidgetDataVO getWidgetData(String widgetId, Map<String, Object> config, Long userId) {
         if (config == null || config.isEmpty()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "缺少组件 config");
+            throw exception(ErrorCodeConstants.DASHBOARD_WIDGET_CONFIG_REQUIRED);
         }
         var type = (String) config.get("type");
         if (type == null || type.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "config.type 缺失");
+            throw exception(ErrorCodeConstants.DASHBOARD_WIDGET_TYPE_REQUIRED);
         }
         var data = queryWidgetData(type, config, userId);
         return new WidgetDataVO(widgetId, type, data);
@@ -231,8 +228,8 @@ public class DashboardService {
                 widgets = JsonUtils.parseObject(raw, WIDGET_LIST_TYPE);
                 if (widgets == null) widgets = List.of();
             } catch (RuntimeException e) {
-                throw new BusinessException(
-                        GlobalErrorCode.INTERNAL_SERVER_ERROR, "预设 widgets 解析失败: id=" + p.getId());
+                throw exception(
+                        ErrorCodeConstants.DASHBOARD_PRESET_WIDGETS_PARSE_FAILED, p.getId());
             }
         }
         return new DashboardPresetVO(
@@ -281,7 +278,7 @@ public class DashboardService {
             case "list" -> queryList(config, userId);
             case "progress" -> queryProgress(config);
             case "billing" -> queryBilling(config, userId);
-            default -> throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "未知组件类型: " + type);
+            default -> throw exception(ErrorCodeConstants.DASHBOARD_WIDGET_TYPE_UNKNOWN, type);
         };
     }
 
@@ -300,7 +297,7 @@ public class DashboardService {
     private Object queryBilling(Map<String, Object> config, Long userId) {
         var component = (String) config.get("component");
         if (component == null || component.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "billing widget 缺少 component");
+            throw exception(ErrorCodeConstants.DASHBOARD_BILLING_COMPONENT_REQUIRED);
         }
         return switch (component) {
             case "overview" -> queryBillingOverview(userId);
@@ -308,8 +305,8 @@ public class DashboardService {
             case "transaction-list" -> queryBillingTransactions(config, userId);
             case "multi-series-chart" -> queryBillingMultiSeries(userId);
             default ->
-                    throw new BusinessException(
-                            GlobalErrorCode.BAD_REQUEST, "未知 billing 组件: " + component);
+                    throw exception(
+                            ErrorCodeConstants.DASHBOARD_BILLING_COMPONENT_UNKNOWN, component);
         };
     }
 
@@ -504,8 +501,8 @@ public class DashboardService {
                     case "@lead_feedback" ->
                             "SELECT COUNT(*) FROM ops_guest_lead WHERE deleted = false AND channel = 'FEEDBACK'";
                     default ->
-                            throw new BusinessException(
-                                    GlobalErrorCode.BAD_REQUEST, "未知预定义指标: " + metric);
+                            throw exception(
+                                    ErrorCodeConstants.DASHBOARD_PRESET_METRIC_UNKNOWN, metric);
                 };
         return jdbcTemplate.queryForObject(sql, Long.class);
     }
@@ -528,7 +525,7 @@ public class DashboardService {
         var entity = sanitizeIdentifier((String) config.get("entity"));
         var columns = (List<String>) config.get("columns");
         if (columns == null || columns.isEmpty()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "list 组件缺少 columns");
+            throw exception(ErrorCodeConstants.DASHBOARD_LIST_COLUMNS_REQUIRED);
         }
         var rawLimit = config.get("limit") != null ? ((Number) config.get("limit")).intValue() : 10;
         // 限制 1-200，防止恶意请求触发全表扫描
@@ -556,7 +553,7 @@ public class DashboardService {
     /** 防止 SQL 注入：只允许字母、数字、下划线 */
     private String sanitizeIdentifier(String identifier) {
         if (identifier == null || !identifier.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "非法标识符: " + identifier);
+            throw exception(ErrorCodeConstants.DASHBOARD_IDENTIFIER_INVALID, identifier);
         }
         return identifier;
     }
@@ -639,8 +636,7 @@ public class DashboardService {
                             ? new WidgetPositionVO(0, 0, 4, 3)
                             : JsonUtils.parseObject(w.getPosition(), WidgetPositionVO.class);
         } catch (RuntimeException e) {
-            throw new BusinessException(
-                    GlobalErrorCode.INTERNAL_SERVER_ERROR, "widget position 解析失败: id=" + w.getId());
+            throw exception(ErrorCodeConstants.DASHBOARD_WIDGET_POSITION_PARSE_FAILED, w.getId());
         }
         try {
             config =
@@ -648,8 +644,7 @@ public class DashboardService {
                             ? Map.of()
                             : JsonUtils.parseObject(w.getConfig(), CONFIG_MAP_TYPE);
         } catch (RuntimeException e) {
-            throw new BusinessException(
-                    GlobalErrorCode.INTERNAL_SERVER_ERROR, "widget config 解析失败: id=" + w.getId());
+            throw exception(ErrorCodeConstants.DASHBOARD_WIDGET_CONFIG_PARSE_FAILED, w.getId());
         }
         return new DashboardWidgetVO(
                 String.valueOf(w.getId()),

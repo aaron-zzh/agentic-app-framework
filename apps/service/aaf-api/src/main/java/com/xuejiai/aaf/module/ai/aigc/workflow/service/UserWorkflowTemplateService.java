@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.workflow.service;
 
 import java.util.ArrayList;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,7 +28,24 @@ public class UserWorkflowTemplateService
         extends ReadonlyCrudService<
                 UserWorkflowTemplate, UserWorkflowTemplateVO, UserWorkflowTemplatePageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "code",
+                    "name",
+                    "category",
+                    "isOfficial",
+                    "usageCount",
+                    "sortOrder",
+                    "createTime",
+                    "updateTime");
+
     private final UserWorkflowTemplateRepository templateRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<UserWorkflowTemplate, Long> getRepository() {

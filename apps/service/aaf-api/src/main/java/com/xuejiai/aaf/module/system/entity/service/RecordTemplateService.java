@@ -1,12 +1,13 @@
 package com.xuejiai.aaf.module.system.entity.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.entity.domain.RecordTemplate;
 import com.xuejiai.aaf.module.system.entity.repository.RecordTemplateRepository;
 import com.xuejiai.aaf.module.system.entity.vo.RecordTemplateCreateDTO;
@@ -89,7 +90,7 @@ public class RecordTemplateService {
     private RecordTemplate findById(Long id) {
         return recordTemplateRepository
                 .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "模板不存在"));
+                .orElseThrow(() -> exception(ErrorCodeConstants.RECORD_TEMPLATE_NOT_FOUND));
     }
 
     private RecordTemplateVO toVO(RecordTemplate e) {

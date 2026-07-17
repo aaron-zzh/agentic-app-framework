@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,14 +20,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.crud.ResourceRef;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 import com.xuejiai.aaf.module.system.user.service.UserService;
 import com.xuejiai.aaf.module.system.user.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserCreateDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserPageDTO;
+import com.xuejiai.aaf.module.system.user.vo.UserSimpleVO;
 import com.xuejiai.aaf.module.system.user.vo.UserUpdateDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserVO;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
@@ -191,6 +195,57 @@ class UserServiceTest extends BaseMockitoUnitTest {
                                         1L, new UserChangePasswordDTO("wrong", "newpass")))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("旧密码不正确");
+    }
+
+    @Test
+    @DisplayName("Given 手机号已被其他用户绑定 When 绑定手机号 Then 抛出对应业务异常")
+    void should_throw_exception_when_phone_already_bound() {
+        // 准备参数
+        var otherUser = new User();
+        otherUser.setId(2L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findByPhone("13800138000")).thenReturn(Optional.of(otherUser));
+
+        // 调用 + 断言
+        assertThatThrownBy(() -> userService.bindPhone(1L, "13800138000"))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(
+                        com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_PHONE_ALREADY_BOUND
+                                .code());
+    }
+
+    @Test
+    @DisplayName("Given 启用用户 When 查询可分配选项 Then 返回受限 ResourceRef")
+    void should_return_resource_refs_when_querying_picker_options() {
+        // mock 方法
+        when(userRepository.findPickerOptions(
+                        eq(CommonStatusEnum.ENABLE.getCode()), eq("测试"), any(Pageable.class)))
+                .thenReturn(List.of(new UserSimpleVO(1L, "testuser", "测试用户")));
+
+        // 调用
+        var result = userService.getPickerOptions(" 测试 ", 100);
+
+        // 断言
+        assertThat(result).containsExactly(new ResourceRef(1L, "测试用户", null));
+        verify(userRepository)
+                .findPickerOptions(
+                        eq(CommonStatusEnum.ENABLE.getCode()), eq("测试"), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("Given 已关联用户 When 批量解析引用 Then 保留头像与展示名称")
+    void should_return_resource_refs_when_resolving_users() {
+        // 准备参数
+        user.setAvatar("https://example.com/avatar.png");
+        when(userRepository.findAllById(List.of(1L))).thenReturn(List.of(user));
+
+        // 调用
+        var result = userService.findRefs(List.of(1L));
+
+        // 断言
+        assertThat(result)
+                .containsEntry(1L, new ResourceRef(1L, "测试用户", "https://example.com/avatar.png"));
     }
 
     @Test

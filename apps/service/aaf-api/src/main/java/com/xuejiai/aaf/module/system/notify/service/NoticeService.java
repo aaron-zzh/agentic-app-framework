@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.module.system.notify.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.NOTICE_NOT_FOUND;
+
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -11,8 +14,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.notify.domain.Notice;
@@ -104,11 +105,7 @@ public class NoticeService
     /** 发布公告 */
     @Transactional
     public NoticeVO publish(Long id) {
-        var notice =
-                noticeRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "公告不存在"));
+        var notice = noticeRepository.findById(id).orElseThrow(() -> exception(NOTICE_NOT_FOUND));
         notice.setStatus((short) 1);
         notice.setPublishTime(LocalDateTime.now());
         var saved = noticeRepository.save(notice);

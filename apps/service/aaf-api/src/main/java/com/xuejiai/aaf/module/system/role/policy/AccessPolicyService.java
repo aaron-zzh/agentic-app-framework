@@ -5,6 +5,8 @@
  */
 package com.xuejiai.aaf.module.system.role.policy;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,13 +17,12 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.access.PolicyEngine;
 import com.xuejiai.aaf.framework.security.access.PolicyInput;
 import com.xuejiai.aaf.framework.security.access.PolicyResult;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.JsonNode;
@@ -143,7 +144,7 @@ public class AccessPolicyService implements PolicyEngine {
     private AccessPolicy getEntity(Long id) {
         return repository
                 .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "策略不存在"));
+                .orElseThrow(() -> exception(ErrorCodeConstants.ACCESS_POLICY_NOT_FOUND));
     }
 
     private AccessPolicyVO toVO(AccessPolicy e) {

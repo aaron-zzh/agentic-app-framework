@@ -2,45 +2,44 @@ package com.xuejiai.aaf.module.system.user.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_ADMIN_DELETE_FORBIDDEN;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_NOT_FOUND;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_PASSWORD_INCORRECT;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_PHONE_ALREADY_BOUND;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_USERNAME_EXISTS;
 import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.common.util.CollectionUtils;
+import com.xuejiai.aaf.common.util.ImportExecutor;
 import com.xuejiai.aaf.common.util.NicknameGenerator;
 import com.xuejiai.aaf.framework.bizlog.annotation.LogRecord;
 import com.xuejiai.aaf.framework.bizlog.context.LogRecordContext;
 import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
+import com.xuejiai.aaf.framework.crud.ResourceRef;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.system.user.api.UserRelationService;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.mapper.UserConvert;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
-import com.xuejiai.aaf.module.system.user.vo.UserChangePasswordDTO;
-import com.xuejiai.aaf.module.system.user.vo.UserCreateDTO;
-import com.xuejiai.aaf.module.system.user.vo.UserExportVO;
-import com.xuejiai.aaf.module.system.user.vo.UserImportVO;
-import com.xuejiai.aaf.module.system.user.vo.UserPageDTO;
-import com.xuejiai.aaf.module.system.user.vo.UserProfileUpdateDTO;
-import com.xuejiai.aaf.module.system.user.vo.UserProfileVO;
-import com.xuejiai.aaf.module.system.user.vo.UserSimpleVO;
-import com.xuejiai.aaf.module.system.user.vo.UserUpdateDTO;
-import com.xuejiai.aaf.module.system.user.vo.UserVO;
-import com.xuejiai.aaf.util.ImportExecutor;
+import com.xuejiai.aaf.module.system.user.vo.*;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +52,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements UserRelationService {
+
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "username", "nickname", "status", "lastLoginTime", "createTime");
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -109,7 +111,7 @@ public class UserService {
      * @return 分页结果
      */
     public PageResult<UserVO> page(UserPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), SORTABLE_FIELDS);
         Specification<User> spec = buildSpec(req);
         Page<User> page = userRepository.findAll(spec, pageable);
         return new PageResult<>(
@@ -162,6 +164,43 @@ public class UserService {
         return userRepository.findSimpleList();
     }
 
+    /** 查询可分配的启用用户，供受登录鉴权的关系选择器使用。 */
+    public List<ResourceRef> getPickerOptions(String keyword, int limit) {
+        var normalizedKeyword = keyword == null ? "" : keyword.trim();
+        var normalizedLimit = Math.clamp(limit, 1, 50);
+        return userRepository
+                .findPickerOptions(
+                        CommonStatusEnum.ENABLE.getCode(),
+                        normalizedKeyword,
+                        PageRequest.of(0, normalizedLimit))
+                .stream()
+                .map(this::toPickerRef)
+                .toList();
+    }
+
+    /** 批量解析用户关联展示引用，供其他业务资源装配读模型。 */
+    @Override
+    public Map<Long, ResourceRef> findRefs(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        return CollectionUtils.mapToMap(
+                userRepository.findAllById(userIds), User::getId, this::toResourceRef);
+    }
+
+    private ResourceRef toPickerRef(UserSimpleVO user) {
+        return new ResourceRef(user.id(), userLabel(user.nickname(), user.username()), null);
+    }
+
+    private ResourceRef toResourceRef(User user) {
+        return new ResourceRef(
+                user.getId(), userLabel(user.getNickname(), user.getUsername()), user.getAvatar());
+    }
+
+    private String userLabel(String nickname, String username) {
+        return nickname != null ? nickname : username;
+    }
+
     /**
      * 删除用户
      *
@@ -176,11 +215,7 @@ public class UserService {
             fail = "删除用户 ID={{#id}} 失败：{{#_errorMsg}}")
     public void delete(Long id) {
         validateNotAdmin(id);
-        var user =
-                userRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在"));
+        var user = userRepository.findById(id).orElseThrow(() -> exception(USER_NOT_FOUND));
         LogRecordContext.putVariable("user", user);
         userRepository.delete(user);
     }
@@ -230,7 +265,7 @@ public class UserService {
     public void changePassword(Long id, UserChangePasswordDTO request) {
         var user = requireUser(id);
         if (!user.checkPassword(passwordEncoder, request.oldPassword())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "旧密码不正确");
+            throw exception(USER_PASSWORD_INCORRECT);
         }
         user.changePassword(passwordEncoder, request.newPassword());
         userRepository.save(user);
@@ -424,8 +459,7 @@ public class UserService {
      * <p>校验逻辑：1) 短信验证码（key=sms_verify_code:bind:{phone}）必须正确； 2) 目标手机号不能已被其他账户绑定。
      *
      * @param userId 当前用户 ID
-     * @param phone 目标手机号
-     * @param code 短信验证码（已由调用方通过 redis 校验，此方法只负责业务校验）
+     * @param phone 目标手机号 短信验证码（已由调用方通过 redis 校验，此方法只负责业务校验）
      */
     @Transactional
     public UserProfileVO bindPhone(Long userId, String phone) {
@@ -440,8 +474,7 @@ public class UserService {
                 .ifPresent(
                         other -> {
                             if (!other.getId().equals(userId)) {
-                                throw new BusinessException(
-                                        GlobalErrorCode.BAD_REQUEST, "该手机号已被其他账户绑定");
+                                throw exception(USER_PHONE_ALREADY_BOUND);
                             }
                         });
         user.setPhone(phone);
@@ -460,9 +493,7 @@ public class UserService {
     }
 
     private User requireUser(Long id) {
-        return userRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "用户不存在"));
+        return userRepository.findById(id).orElseThrow(() -> exception(USER_NOT_FOUND));
     }
 
     /** 校验用户名唯一（创建时 id=null，更新时传当前 id 排除自身） */
@@ -472,7 +503,7 @@ public class UserService {
                 .ifPresent(
                         existing -> {
                             if (!existing.getId().equals(id)) {
-                                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "用户名已存在");
+                                throw exception(USER_USERNAME_EXISTS);
                             }
                         });
     }

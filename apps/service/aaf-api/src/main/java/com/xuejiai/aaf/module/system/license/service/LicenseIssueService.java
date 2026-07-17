@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.license.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -19,9 +21,9 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.framework.security.license.LicenseIdentityService;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.license.vo.LicenseIssueDTO;
 import com.xuejiai.aaf.module.system.license.vo.LicenseIssueVO;
 import com.xuejiai.aaf.module.system.log.service.AuditLogService;
@@ -64,7 +66,7 @@ public class LicenseIssueService {
 
     public LicenseIssueVO issue(LicenseIssueDTO dto) {
         if (privateKeyPem == null || privateKeyPem.isBlank()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "未配置 license 签发私钥");
+            throw exception(ErrorCodeConstants.LICENSE_SIGNING_KEY_NOT_CONFIGURED);
         }
         try {
             var subject = resolveSubject(dto.subject());
@@ -90,7 +92,7 @@ public class LicenseIssueService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "license 签发失败，请检查私钥配置");
+            throw exception(ErrorCodeConstants.LICENSE_ISSUE_FAILED);
         }
     }
 
@@ -124,8 +126,7 @@ public class LicenseIssueService {
                         .filter(v -> !LicenseFeature.isKnown(v))
                         .collect(Collectors.toUnmodifiableSet());
         if (!unknown.isEmpty()) {
-            throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST, "features 只能包含已登记的高级模块：" + LicenseFeature.codes());
+            throw exception(ErrorCodeConstants.LICENSE_FEATURES_INVALID, LicenseFeature.codes());
         }
         return normalized;
     }
@@ -135,8 +136,7 @@ public class LicenseIssueService {
             return identityService.generate();
         }
         if (!identityService.isValid(subject)) {
-            throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST, "license user_id 格式不合法，请留空自动生成");
+            throw exception(ErrorCodeConstants.LICENSE_SUBJECT_INVALID);
         }
         return subject;
     }
