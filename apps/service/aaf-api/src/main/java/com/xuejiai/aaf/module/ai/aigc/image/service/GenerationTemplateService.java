@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.image.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
@@ -32,7 +34,28 @@ public class GenerationTemplateService
                 GenerationTemplateUpdateDTO,
                 GenerationTemplatePageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "name",
+                    "type",
+                    "category",
+                    "model",
+                    "width",
+                    "height",
+                    "steps",
+                    "isPublic",
+                    "usageCount",
+                    "scope",
+                    "createTime",
+                    "updateTime");
+
     private final GenerationTemplateRepository templateRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<GenerationTemplate, Long> getRepository() {

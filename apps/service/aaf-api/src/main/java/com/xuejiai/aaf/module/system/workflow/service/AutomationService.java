@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.workflow.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -35,6 +36,16 @@ import tools.jackson.core.type.TypeReference;
 @Service
 @RequiredArgsConstructor
 public class AutomationService {
+
+    private static final Set<String> AUTOMATION_LOG_SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "ruleId",
+                    "triggerType",
+                    "entityType",
+                    "status",
+                    "executedAt",
+                    "createTime");
 
     private final AutomationRuleRepository ruleRepository;
     private final AutomationLogRepository logRepository;
@@ -98,7 +109,7 @@ public class AutomationService {
     // ========== 执行日志查询 ==========
 
     public PageResult<AutomationLogVO> pageLogs(AutomationLogPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), AUTOMATION_LOG_SORTABLE_FIELDS);
         Specification<AutomationLog> spec =
                 SpecificationBuilder.<AutomationLog>builder()
                         .eqIfPresent("ruleId", req.getRuleId())

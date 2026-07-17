@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.brokerage.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -28,6 +30,20 @@ public class BrokerageRuleCrudService
                 BrokerageRuleDTO,
                 BrokerageRulePageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "createTime",
+                    "updateTime",
+                    "name",
+                    "bizType",
+                    "bizTargetType",
+                    "priority",
+                    "status",
+                    "frozenDays",
+                    "level1Rate",
+                    "level2Rate");
+
     private final BrokerageRuleRepository brokerageRuleRepository;
 
     @Override
@@ -38,6 +54,11 @@ public class BrokerageRuleCrudService
     @Override
     protected JpaSpecificationExecutor<BrokerageRule> getSpecExecutor() {
         return brokerageRuleRepository;
+    }
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
     }
 
     @Override

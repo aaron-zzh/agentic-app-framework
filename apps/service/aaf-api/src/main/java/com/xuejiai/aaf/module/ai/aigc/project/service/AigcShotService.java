@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,11 +16,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcShotAsset;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcShotAssetId;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcShotAssetRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcShotRepository;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcShotAssetVO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcShotCreateDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcShotPageDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcShotUpdateDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcShotVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.*;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +28,16 @@ public class AigcShotService
         extends BaseCrudService<
                 AigcShot, AigcShotVO, AigcShotCreateDTO, AigcShotUpdateDTO, AigcShotPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "shotNo", "name", "createTime", "updateTime");
+
     private final AigcShotRepository repository;
     private final AigcShotAssetRepository shotAssetRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AigcShot, Long> getRepository() {

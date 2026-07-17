@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -43,11 +44,19 @@ public class AigcTimelineService
                 AigcTimelineUpdateDTO,
                 AigcTimelinePageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "title", "status", "durationMs", "fps", "createTime", "updateTime");
+
     private final AigcTimelineRepository repository;
     private final AigcTrackRepository trackRepository;
     private final AigcClipRepository clipRepository;
 
     @Autowired private OperatorContext operatorContext;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AigcTimeline, Long> getRepository() {

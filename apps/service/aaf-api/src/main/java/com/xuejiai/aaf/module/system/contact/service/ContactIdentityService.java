@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.contact.service;
 
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,6 +35,13 @@ public class ContactIdentityService
 
     private final ContactIdentityRepository identityRepository;
     private final ContactRepository contactRepository;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "contactId", "channel", "displayName", "createTime", "updateTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<ContactIdentity, Long> getRepository() {

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.chat.livechat.seat.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
@@ -27,7 +29,24 @@ import lombok.RequiredArgsConstructor;
 public class SeatCrudService
         extends BaseCrudService<LivechatSeat, SeatVO, SeatCreateDTO, SeatUpdateDTO, SeatPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "seatType",
+                    "nickname",
+                    "skillGroup",
+                    "status",
+                    "currentSessions",
+                    "maxSessions",
+                    "createTime",
+                    "updateTime");
+
     private final LivechatSeatRepository seatRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<LivechatSeat, Long> getRepository() {

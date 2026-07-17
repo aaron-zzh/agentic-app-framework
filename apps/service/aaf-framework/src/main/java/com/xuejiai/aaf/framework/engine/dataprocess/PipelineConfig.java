@@ -72,10 +72,10 @@ public class PipelineConfig {
     @Setter
     @Builder
     public static class RouteTarget {
-        /** 目标类型：custom_table / knowledge_base */
+        /** 目标类型：knowledge_base */
         private String type;
 
-        /** 目标表名或知识库 ID */
+        /** 目标知识库 ID */
         private String target;
     }
 }

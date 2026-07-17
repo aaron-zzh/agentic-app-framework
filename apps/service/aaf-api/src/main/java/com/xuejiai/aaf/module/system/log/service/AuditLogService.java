@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.log.service;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -26,6 +27,9 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AuditLogService {
+
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "entityType", "entityId", "action", "userId", "createdAt");
 
     private final AuditLogRepository auditLogRepository;
     private final OperatorContext operatorContext;
@@ -59,7 +63,7 @@ public class AuditLogService {
     /** 分页查询审计日志 */
     @Transactional(readOnly = true)
     public PageResult<AuditLogVO> page(AuditLogPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), SORTABLE_FIELDS);
         Specification<AuditLog> spec =
                 SpecificationBuilder.<AuditLog>builder()
                         .eqIfPresent("entityType", req.getEntityType())

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.brokerage.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -23,6 +25,21 @@ public class BrokerageRecordCrudService
         extends BaseCrudService<
                 BrokerageRecord, BrokerageRecordVO, Void, Void, BrokerageRecordPageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "createTime",
+                    "updateTime",
+                    "contactId",
+                    "sourceContactId",
+                    "sourceLevel",
+                    "bizType",
+                    "amount",
+                    "status",
+                    "frozenDays",
+                    "unfreezeTime",
+                    "ruleId");
+
     private final BrokerageRecordRepository brokerageRecordRepository;
 
     @Override
@@ -33,6 +50,11 @@ public class BrokerageRecordCrudService
     @Override
     protected JpaSpecificationExecutor<BrokerageRecord> getSpecExecutor() {
         return brokerageRecordRepository;
+    }
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
     }
 
     @Override

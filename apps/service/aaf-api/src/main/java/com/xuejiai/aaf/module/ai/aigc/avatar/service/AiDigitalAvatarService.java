@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.avatar.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -30,10 +32,18 @@ public class AiDigitalAvatarService
                 AiDigitalAvatarUpdateDTO,
                 AiDigitalAvatarPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "name", "detectStatus", "defaultVoice", "createTime");
+
     private static final String STATUS_PENDING = "PENDING";
 
     private final AiDigitalAvatarRepository avatarRepository;
     @org.springframework.beans.factory.annotation.Autowired private OperatorContext operatorContext;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AiDigitalAvatar, Long> getRepository() {

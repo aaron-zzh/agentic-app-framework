@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.notify.service;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
@@ -36,6 +37,13 @@ public class NoticeService
 
     private final NoticeRepository noticeRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "title", "type", "status", "publishTime", "createTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<Notice, Long> getRepository() {

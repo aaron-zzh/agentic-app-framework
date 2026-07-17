@@ -1,12 +1,19 @@
 package com.xuejiai.aaf.module.system.org.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_ALREADY_EXISTS;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_NOT_FOUND;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_NOT_FOUND;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_OWNER_REMOVE_FORBIDDEN;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_OWNER_ROLE_CHANGE_FORBIDDEN;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_PERSONAL_DELETE_FORBIDDEN;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_SLUG_EXISTS;
+
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.org.domain.OrgMember;
@@ -56,7 +63,7 @@ public class OrganizationService {
     @Transactional
     public OrganizationVO create(OrganizationCreateDTO dto, Long currentUserId) {
         if (orgRepository.existsBySlugAndDeletedFalse(dto.slug())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "组织标识已存在");
+            throw exception(ORG_SLUG_EXISTS);
         }
         var org = new Organization();
         org.setName(dto.name());
@@ -88,7 +95,7 @@ public class OrganizationService {
     public void delete(Long id) {
         var org = findOrg(id);
         if (org.isPersonal()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "个人工作空间不可删除");
+            throw exception(ORG_PERSONAL_DELETE_FORBIDDEN);
         }
         orgRepository.deleteById(id);
     }
@@ -124,7 +131,7 @@ public class OrganizationService {
     public OrgMemberVO addMember(Long orgId, OrgMemberAddDTO dto) {
         findOrg(orgId); // 确认组织存在
         if (memberRepository.existsByOrgIdAndUserIdAndDeletedFalse(orgId, dto.userId())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "用户已是组织成员");
+            throw exception(ORG_MEMBER_ALREADY_EXISTS);
         }
         operatorContext
                 .currentOwnerId()
@@ -149,13 +156,12 @@ public class OrganizationService {
         var member =
                 memberRepository
                         .findById(memberId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "成员不存在"));
+                        .orElseThrow(() -> exception(ORG_MEMBER_NOT_FOUND));
         if (!member.getOrgId().equals(orgId)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "成员不存在");
+            throw exception(ORG_MEMBER_NOT_FOUND);
         }
         if ("owner".equals(member.getRole())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不能修改所有者角色");
+            throw exception(ORG_OWNER_ROLE_CHANGE_FORBIDDEN);
         }
         member.setRole(dto.role());
         return toMemberVO(memberRepository.save(member));
@@ -166,10 +172,9 @@ public class OrganizationService {
         var member =
                 memberRepository
                         .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "成员不存在"));
+                        .orElseThrow(() -> exception(ORG_MEMBER_NOT_FOUND));
         if ("owner".equals(member.getRole())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不能移除组织所有者");
+            throw exception(ORG_OWNER_REMOVE_FORBIDDEN);
         }
         memberRepository.deleteById(member.getId());
         operatorContext
@@ -180,9 +185,7 @@ public class OrganizationService {
     // ==================== 私有方法 ====================
 
     private Organization findOrg(Long id) {
-        return orgRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "组织不存在"));
+        return orgRepository.findById(id).orElseThrow(() -> exception(ORG_NOT_FOUND));
     }
 
     private OrganizationVO toVO(Organization org) {

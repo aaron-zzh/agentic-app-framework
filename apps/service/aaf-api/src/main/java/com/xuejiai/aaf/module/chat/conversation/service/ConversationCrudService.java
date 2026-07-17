@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.chat.conversation.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
@@ -32,7 +34,27 @@ public class ConversationCrudService
                 ConversationUpdateDTO,
                 ConversationPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "type",
+                    "title",
+                    "status",
+                    "assistantId",
+                    "modelId",
+                    "totalTokens",
+                    "staffId",
+                    "priority",
+                    "closedAt",
+                    "createTime",
+                    "updateTime");
+
     private final ConversationRepository conversationRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<Conversation, Long> getRepository() {

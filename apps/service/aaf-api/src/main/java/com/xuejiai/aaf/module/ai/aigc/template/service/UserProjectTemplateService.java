@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.template.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -42,10 +43,28 @@ public class UserProjectTemplateService
                 UserProjectTemplateUpdateDTO,
                 UserProjectTemplatePageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "code",
+                    "name",
+                    "category",
+                    "projectType",
+                    "isOfficial",
+                    "usageCount",
+                    "sortOrder",
+                    "createTime",
+                    "updateTime");
+
     private final UserProjectTemplateRepository templateRepository;
     private final AigcProjectRepository projectRepository;
     private final UserProjectResourceService resourceService;
     private final OperatorContext operatorContext;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<UserProjectTemplate, Long> getRepository() {

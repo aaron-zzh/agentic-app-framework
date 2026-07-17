@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.file.service;
 
+import java.util.Set;
+
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 public class FileRecordService {
 
     private static final long GB = 1024L * 1024 * 1024;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "originalName", "mimeType", "size", "createTime");
 
     private final FileRecordRepository fileRecordRepository;
     private final EntitlementQuotaRepository entitlementQuotaRepository;
@@ -73,7 +77,7 @@ public class FileRecordService {
 
     /** 分页查询文件记录。 */
     public PageResult<FileRecordVO> page(FileRecordPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), SORTABLE_FIELDS);
         Specification<FileRecord> spec =
                 SpecificationBuilder.<FileRecord>builder()
                         .likeIfPresent("originalName", req.getOriginalName())

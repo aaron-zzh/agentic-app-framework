@@ -53,6 +53,9 @@ public class DataAccessService
                 DataAccessRulePageParam>
         implements RecordRuleSupport {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "entitySlug", "effect", "createTime");
+
     private final DataAccessRuleRepository ruleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
@@ -60,6 +63,11 @@ public class DataAccessService
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final DataAccessRuleCache ruleCache;
     private final PermissionVersionService versionService;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<DataAccessRule, Long> getRepository() {

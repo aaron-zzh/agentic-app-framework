@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,18 +20,8 @@ import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDoc;
-import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcContentRepository;
-import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocRepository;
-import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRepository;
-import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcStoryboardRepository;
-import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcTimelineRepository;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCreateDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocLinkDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocVO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectPageDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
+import com.xuejiai.aaf.module.ai.aigc.project.repository.*;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.*;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
@@ -48,6 +39,9 @@ public class AigcProjectService
                 AigcProjectCreateDTO,
                 AigcProjectUpdateDTO,
                 AigcProjectPageDTO> {
+
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "name", "type", "status", "createTime", "updateTime");
 
     private final AigcProjectRepository repository;
     private final AigcStoryboardRepository storyboardRepository;
@@ -69,6 +63,11 @@ public class AigcProjectService
                                 eventPublisher.publishEvent(
                                         new UserGrowthEvent(uid, "project.created")));
         return vo;
+    }
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
     }
 
     @Override

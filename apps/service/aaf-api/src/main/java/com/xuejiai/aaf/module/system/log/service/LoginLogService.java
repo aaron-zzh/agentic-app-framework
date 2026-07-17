@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.log.service;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -24,6 +25,9 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class LoginLogService {
+
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "username", "loginType", "success", "loginTime");
 
     private final LoginLogRepository loginLogRepository;
 
@@ -69,7 +73,7 @@ public class LoginLogService {
      * @return 分页结果
      */
     public PageResult<LoginLogVO> page(LoginLogPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), SORTABLE_FIELDS);
         Specification<LoginLog> spec =
                 SpecificationBuilder.<LoginLog>builder()
                         .likeIfPresent("username", req.getUsername())

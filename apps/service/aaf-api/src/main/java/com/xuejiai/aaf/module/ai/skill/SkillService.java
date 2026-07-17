@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.skill;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -27,7 +28,25 @@ public class SkillService
         extends BaseCrudService<
                 SkillDefinition, SkillVO, SkillCreateDTO, SkillUpdateDTO, PageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "code",
+                    "name",
+                    "category",
+                    "priority",
+                    "builtIn",
+                    "isGlobal",
+                    "status",
+                    "createTime",
+                    "updateTime");
+
     private final SkillDefinitionRepository repository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<SkillDefinition, Long> getRepository() {
@@ -130,10 +149,7 @@ public class SkillService
      */
     public String getSystemPromptByCode(String code) {
         if (code == null || code.isBlank()) return null;
-        return repository
-                .findByCode(code)
-                .map(com.xuejiai.aaf.framework.engine.skill.SkillDefinition::getSystemPrompt)
-                .orElse(null);
+        return repository.findByCode(code).map(SkillDefinition::getSystemPrompt).orElse(null);
     }
 
     @Transactional

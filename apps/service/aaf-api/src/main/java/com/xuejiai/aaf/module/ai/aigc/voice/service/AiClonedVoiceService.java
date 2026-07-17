@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.voice.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,9 @@ public class AiClonedVoiceService
                 AiClonedVoiceUpdateDTO,
                 AiClonedVoicePageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "voice", "preferredName", "targetModel", "createTime");
+
     private final AiClonedVoiceRepository voiceRepository;
     private final VoiceEnrollmentService enrollmentService;
     private final CosyVoiceEnrollmentService cosyEnrollmentService;
@@ -50,6 +55,11 @@ public class AiClonedVoiceService
     private final SpeechService speechService;
     private final StorageService storageService;
     @org.springframework.beans.factory.annotation.Autowired private OperatorContext operatorContext;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AiClonedVoice, Long> getRepository() {

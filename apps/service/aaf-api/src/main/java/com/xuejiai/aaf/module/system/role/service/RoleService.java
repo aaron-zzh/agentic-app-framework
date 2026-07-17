@@ -2,6 +2,8 @@ package com.xuejiai.aaf.module.system.role.service;
 
 import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -35,6 +37,13 @@ public class RoleService
         extends BaseCrudService<Role, RoleVO, RoleCreateDTO, RoleUpdateDTO, RolePageParam> {
 
     private final RoleRepository roleRepository;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "code", "name", "status", "createTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<Role, Long> getRepository() {

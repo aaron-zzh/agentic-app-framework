@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -38,10 +39,26 @@ public class AigcContentService
                 AigcContentUpdateDTO,
                 AigcContentPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "type",
+                    "title",
+                    "platform",
+                    "publishStatus",
+                    "publishTime",
+                    "createTime",
+                    "updateTime");
+
     private final AigcContentRepository repository;
     private final AigcContentAssetRepository contentAssetRepository;
 
     @Autowired private OperatorContext operatorContext;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AigcContent, Long> getRepository() {

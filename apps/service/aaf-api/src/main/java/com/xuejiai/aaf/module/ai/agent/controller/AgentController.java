@@ -9,7 +9,10 @@ import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.ai.agent.service.AgentManagementService;
-import com.xuejiai.aaf.module.ai.agent.vo.*;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentCreateDTO;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentExecutionVO;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentUpdateDTO;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +41,7 @@ public class AgentController {
     @GetMapping
     public Result<PageResult<AgentVO>> list(
             @RequestParam(required = false) String status, @Validated PageParam pageParam) {
-        return Result.success(agentService.list(status, pageParam.toPageable()));
+        return Result.success(agentService.list(status, pageParam));
     }
 
     @Operation(summary = "Agent 详情")

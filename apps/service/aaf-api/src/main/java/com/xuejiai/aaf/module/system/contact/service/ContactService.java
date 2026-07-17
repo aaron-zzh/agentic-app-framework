@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.contact.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -24,6 +26,21 @@ public class ContactService
         extends BaseCrudService<Contact, ContactVO, ContactDTO, ContactDTO, ContactPageParam> {
 
     private final ContactRepository contactRepository;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "name",
+                    "realName",
+                    "type",
+                    "source",
+                    "status",
+                    "createTime",
+                    "updateTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<Contact, Long> getRepository() {

@@ -54,11 +54,15 @@ describe("crud client", () => {
     )
   })
 
-  it("应请求标准查询窗口", async () => {
-    mockBackendResponse({ code: 0, data: { list: [], total: 0 } })
+  it("应请求标准查询窗口并保留排序 capability", async () => {
+    mockBackendResponse({
+      code: 0,
+      data: { list: [], total: 0, sortableFields: ["title", "createTime"] }
+    })
 
-    await fetchQueryWindow(crudResources.system.menus, { pageNo: 1, fieldSet: "list" })
+    const page = await fetchQueryWindow(crudResources.system.menus, { pageNo: 1, fieldSet: "list" })
 
+    expect(page.sortableFields).toEqual(["title", "createTime"])
     expect(mockBackendRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         method: "get",

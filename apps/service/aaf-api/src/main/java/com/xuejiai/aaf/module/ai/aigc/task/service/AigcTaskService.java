@@ -4,6 +4,7 @@ import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -68,6 +69,18 @@ public class AigcTaskService
         extends BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> {
 
     /** 阿里云通用高清分割计费单价（元/次），0.007 元。 */
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "type",
+                    "status",
+                    "provider",
+                    "model",
+                    "modelName",
+                    "projectId",
+                    "createTime",
+                    "updateTime");
+
     private static final double IMAGE_PROCESS_COMMON_PRICE_YUAN = 0.007;
 
     /** 阿里云高清人体分割计费单价（元/次），0.007 元。 */
@@ -99,6 +112,11 @@ public class AigcTaskService
     private com.xuejiai.aaf.framework.security.OperatorContext operatorContext;
 
     // ========== BaseCrudService 必须实现 ==========
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AigcTask, Long> getRepository() {

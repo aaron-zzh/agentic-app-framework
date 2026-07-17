@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.flow.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,8 +31,25 @@ public class AiFlowService
                 AiFlowDefinitionUpdateDTO,
                 AiFlowDefinitionPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "name",
+                    "mode",
+                    "status",
+                    "agentCallable",
+                    "requireConfirm",
+                    "publishedAt",
+                    "createTime",
+                    "updateTime");
+
     private final AiFlowDefinitionRepository repository;
     private final WorkflowEngine workflowEngine;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AiFlowDefinition, Long> getRepository() {

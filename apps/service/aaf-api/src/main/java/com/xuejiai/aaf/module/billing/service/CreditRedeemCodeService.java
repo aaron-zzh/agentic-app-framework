@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.billing.service;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -36,6 +37,20 @@ public class CreditRedeemCodeService
                 CreditRedeemCodeCreateDTO,
                 CreditRedeemCodePageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "createTime",
+                    "updateTime",
+                    "codePrefix",
+                    "creditAmount",
+                    "batchType",
+                    "type",
+                    "planId",
+                    "status",
+                    "expiresAt",
+                    "redeemedAt");
+
     private final CreditRedeemCodeRepository redeemCodeRepository;
     private final CreditService creditService;
     private final SubscriptionService subscriptionService;
@@ -49,6 +64,11 @@ public class CreditRedeemCodeService
     @Override
     protected JpaSpecificationExecutor<CreditRedeemCode> getSpecExecutor() {
         return redeemCodeRepository;
+    }
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
     }
 
     @Override

@@ -1,12 +1,16 @@
 package com.xuejiai.aaf.module.ai.agent.service;
 
+import java.util.Set;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
@@ -16,7 +20,10 @@ import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionRun;
 import com.xuejiai.aaf.framework.intelligent.agent.trace.ExecutionRunRepository;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.agent.vo.*;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentCreateDTO;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentExecutionVO;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentUpdateDTO;
+import com.xuejiai.aaf.module.ai.agent.vo.AgentVO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +35,17 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AgentManagementService {
+
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "name",
+                    "modelId",
+                    "maxIterations",
+                    "timeoutSeconds",
+                    "status",
+                    "createTime",
+                    "updateTime");
 
     private final AgentRegistryService registryService;
     private final AgentDefinitionRepository agentRepo;
@@ -66,11 +84,12 @@ public class AgentManagementService {
      * 分页查询 Agent 列表。
      *
      * @param status 状态过滤（可选）
-     * @param pageable 分页参数
+     * @param pageParam 分页与排序参数
      * @return 分页结果
      */
     @Transactional(readOnly = true)
-    public PageResult<AgentVO> list(String status, Pageable pageable) {
+    public PageResult<AgentVO> list(String status, PageParam pageParam) {
+        var pageable = pageParam.toPageable(Sort.unsorted(), SORTABLE_FIELDS);
         Page<AgentDefinition> page;
         if (status != null && !status.isBlank()) {
             page = agentRepo.findByStatus(status, pageable);

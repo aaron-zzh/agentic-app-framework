@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.role;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,15 @@ import lombok.RequiredArgsConstructor;
 public class AiRoleCrudService
         extends BaseCrudService<Role, RoleVO, RoleCreateDTO, RoleCreateDTO, PageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "name", "status", "createTime", "updateTime");
+
     private final AiRoleRepository roleRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<Role, Long> getRepository() {

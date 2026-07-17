@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.workflow.service;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -31,6 +32,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DelegationService {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "delegateId", "startDate", "endDate", "status", "createTime");
+
     private final DelegationRepository delegationRepository;
     private final WorkflowEngine workflowEngine;
 
@@ -49,7 +53,7 @@ public class DelegationService {
 
     /** 分页查询 */
     public PageResult<DelegationVO> page(Long userId, DelegationPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), SORTABLE_FIELDS);
         Specification<Delegation> spec =
                 SpecificationBuilder.<Delegation>builder()
                         .eqIfPresent("delegatorId", userId)

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -36,10 +37,28 @@ import lombok.RequiredArgsConstructor;
 public class AvatarOutfitService
         extends ReadonlyCrudService<AvatarOutfit, AvatarOutfitVO, AvatarOutfitPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "code",
+                    "name",
+                    "type",
+                    "rarity",
+                    "unlockCondition",
+                    "price",
+                    "sortOrder",
+                    "createTime",
+                    "updateTime");
+
     private final AvatarOutfitRepository outfitRepository;
     private final UserAvatarInventoryRepository inventoryRepository;
     private final CreditService creditService;
     private final OperatorContext operatorContext;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<AvatarOutfit, Long> getRepository() {

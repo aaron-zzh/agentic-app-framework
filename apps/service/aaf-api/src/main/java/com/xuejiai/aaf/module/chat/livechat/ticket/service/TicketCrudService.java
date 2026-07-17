@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.chat.livechat.ticket.service;
 
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -28,7 +29,26 @@ import lombok.RequiredArgsConstructor;
 public class TicketCrudService
         extends BaseCrudService<Ticket, TicketVO, TicketCreateDTO, TicketUpdateDTO, TicketPageDTO> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "ticketNo",
+                    "title",
+                    "type",
+                    "priority",
+                    "status",
+                    "assigneeId",
+                    "slaDueTime",
+                    "closedTime",
+                    "createTime",
+                    "updateTime");
+
     private final TicketRepository ticketRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<Ticket, Long> getRepository() {

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.brokerage.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -27,6 +29,16 @@ public class BrokerageLevelBonusCrudService
                 BrokerageLevelBonusDTO,
                 BrokerageLevelBonusPageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "createTime",
+                    "updateTime",
+                    "ruleId",
+                    "planId",
+                    "level1Rate",
+                    "level2Rate");
+
     private final BrokerageLevelBonusRepository brokerageLevelBonusRepository;
 
     @Override
@@ -37,6 +49,11 @@ public class BrokerageLevelBonusCrudService
     @Override
     protected JpaSpecificationExecutor<BrokerageLevelBonus> getSpecExecutor() {
         return brokerageLevelBonusRepository;
+    }
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
     }
 
     @Override

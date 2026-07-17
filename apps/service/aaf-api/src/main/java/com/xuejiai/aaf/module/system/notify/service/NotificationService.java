@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.notify.service;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,12 +28,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class NotificationService {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "type", "title", "entityType", "isRead", "createTime");
+
     private final NotificationRepository notificationRepository;
     private final InternalMessageSender messageSender;
 
     /** 分页查询当前用户通知 */
     public PageResult<NotificationVO> page(Long userId, NotificationPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), SORTABLE_FIELDS);
         Specification<Notification> spec =
                 SpecificationBuilder.<Notification>builder()
                         .eqIfPresent("userId", userId)

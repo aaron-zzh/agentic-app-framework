@@ -1,7 +1,11 @@
 package com.xuejiai.aaf.module.system.dict.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.DICT_TYPE_NOT_FOUND;
+
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -10,8 +14,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.dict.domain.DictData;
@@ -37,6 +39,13 @@ public class DictDataService
 
     private final DictDataRepository dictDataRepository;
     private final DictTypeRepository dictTypeRepository;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "dictType", "label", "value", "sort", "status", "createTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<DictData, Long> getRepository() {
@@ -147,7 +156,7 @@ public class DictDataService
 
     private void requireDictTypeExists(String dictType) {
         if (!dictTypeRepository.existsByTypeAndDeletedFalse(dictType)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "字典类型不存在");
+            throw exception(DICT_TYPE_NOT_FOUND);
         }
     }
 }

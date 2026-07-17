@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.brokerage.service;
 
+import java.util.Set;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -31,6 +33,19 @@ public class BrokerageWithdrawCrudService
                 BrokerageWithdrawDTO,
                 BrokerageWithdrawPageParam> {
 
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "createTime",
+                    "updateTime",
+                    "contactId",
+                    "amount",
+                    "fee",
+                    "type",
+                    "status",
+                    "auditTime",
+                    "transferTime");
+
     private final BrokerageWithdrawRepository brokerageWithdrawRepository;
     private final BrokerageUserRepository brokerageUserRepository;
     private final UserRepository userRepository;
@@ -44,6 +59,11 @@ public class BrokerageWithdrawCrudService
     @Override
     protected JpaSpecificationExecutor<BrokerageWithdraw> getSpecExecutor() {
         return brokerageWithdrawRepository;
+    }
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
     }
 
     @Override

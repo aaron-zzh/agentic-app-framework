@@ -1,6 +1,10 @@
 package com.xuejiai.aaf.module.system.user.favorite.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_FAVORITE_NOT_FOUND;
+
 import java.util.ArrayList;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,8 +12,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.user.favorite.domain.UserFavorite;
@@ -31,6 +33,13 @@ public class UserFavoriteService
 
     private final UserFavoriteRepository favoriteRepository;
     private final OperatorContext operatorContext;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "targetType", "targetId", "sortOrder", "createTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<UserFavorite, Long> getRepository() {
@@ -100,10 +109,9 @@ public class UserFavoriteService
         var entity =
                 favoriteRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "收藏不存在"));
+                        .orElseThrow(() -> exception(USER_FAVORITE_NOT_FOUND));
         if (!entity.getUserId().equals(userId)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "收藏不存在");
+            throw exception(USER_FAVORITE_NOT_FOUND);
         }
         favoriteRepository.delete(entity);
     }

@@ -9,9 +9,11 @@ import { getCellComponent } from "./component-registry"
 
 export function buildColumns(
   entity: EntityDef,
-  visibleColumns: EntityColumnDef[]
+  visibleColumns: EntityColumnDef[],
+  sortableFields: readonly string[]
 ): ColumnDef<Record<string, unknown>>[] {
   const { fields } = entity
+  const sortableFieldSet = new Set(sortableFields)
 
   return visibleColumns
     .map((col) => {
@@ -23,7 +25,9 @@ export function buildColumns(
       const Cell = getCellComponent(field.type)
 
       const columnDef: ColumnDef<Record<string, unknown>> = {
+        id: col.name,
         accessorKey: col.name,
+        enableSorting: sortableFieldSet.has(col.name) && col.sortable !== false,
         header: field.label ?? col.name,
         size: col.width ? Number.parseInt(col.width, 10) || undefined : undefined,
         cell: ({ row }) => {

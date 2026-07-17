@@ -49,11 +49,26 @@ public class MenuService
         extends BaseCrudService<SysMenu, MenuVO, MenuCreateDTO, MenuCreateDTO, MenuPageParam> {
 
     private static final String SUPER_ADMIN_CODE = "super_admin";
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "parentId",
+                    "title",
+                    "path",
+                    "sortOrder",
+                    "visible",
+                    "menuType",
+                    "createTime");
 
     private final SysMenuRepository menuRepository;
     private final SysRoleMenuRepository roleMenuRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<SysMenu, Long> getRepository() {

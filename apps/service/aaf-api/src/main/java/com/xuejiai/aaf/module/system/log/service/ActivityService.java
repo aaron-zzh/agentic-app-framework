@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.log.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ActivityService {
 
+    private static final Set<String> SORTABLE_FIELDS = Set.of("createTime");
+
     private final ActivityLogRepository activityLogRepository;
     private final CommentRepository commentRepository;
 
@@ -43,7 +46,7 @@ public class ActivityService {
     /** 查询活动流（活动+评论混合时间线，按时间倒序） */
     public PageResult<ActivityTimelineItem> timeline(
             String entityType, Long entityId, PageParam pageParam) {
-        var pageable = pageParam.toPageable(Sort.by("createTime").descending());
+        var pageable = pageParam.toPageable(Sort.by("createTime").descending(), SORTABLE_FIELDS);
 
         var activityPage =
                 activityLogRepository.findByEntityTypeAndEntityId(entityType, entityId, pageable);

@@ -1,6 +1,15 @@
 package com.xuejiai.aaf.module.system.org.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MANAGER_REMOVE_FORBIDDEN;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MANAGER_REQUIRED;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MEMBER_ALREADY_EXISTS;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MEMBER_NOT_FOUND;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_ORG_CONTEXT_REQUIRED;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_SLUG_EXISTS;
+
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,8 +17,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.org.OrgContext;
@@ -44,6 +51,12 @@ public class WorkspaceService
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final OperatorContext operatorContext;
+    private static final Set<String> SORTABLE_FIELDS = Set.of("id", "name", "slug", "createTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<Workspace, Long> getRepository() {
@@ -70,10 +83,10 @@ public class WorkspaceService
     protected Workspace toEntity(WorkspaceCreateDTO dto) {
         var orgId = OrgContext.getCurrentOrgId();
         if (orgId == null) {
-            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "缺少组织上下文，无法创建工作区");
+            throw exception(WORKSPACE_ORG_CONTEXT_REQUIRED);
         }
         if (workspaceRepository.findByOrgIdAndSlugAndDeletedFalse(orgId, dto.slug()).isPresent()) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "工作区标识已存在");
+            throw exception(WORKSPACE_SLUG_EXISTS);
         }
         var workspace = new Workspace();
         workspace.setOrgId(orgId);
@@ -154,7 +167,7 @@ public class WorkspaceService
         requireManager(workspace);
         if (workspaceMemberRepository.existsByWorkspaceIdAndUserIdAndDeletedFalse(
                 workspaceId, dto.userId())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "用户已是工作区成员");
+            throw exception(WORKSPACE_MEMBER_ALREADY_EXISTS);
         }
         var member = new WorkspaceMember();
         member.setWorkspaceId(workspaceId);
@@ -168,13 +181,12 @@ public class WorkspaceService
         var workspace = requireEntity(workspaceId);
         requireManager(workspace);
         if (workspace.getCreateBy() != null && workspace.getCreateBy().equals(userId)) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不能移除工作区管理者");
+            throw exception(WORKSPACE_MANAGER_REMOVE_FORBIDDEN);
         }
         var member =
                 workspaceMemberRepository
                         .findByWorkspaceIdAndUserIdAndDeletedFalse(workspaceId, userId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "成员不存在"));
+                        .orElseThrow(() -> exception(WORKSPACE_MEMBER_NOT_FOUND));
         workspaceMemberRepository.delete(member);
     }
 
@@ -184,7 +196,7 @@ public class WorkspaceService
         if (currentUserId == null
                 || workspace.getCreateBy() == null
                 || !workspace.getCreateBy().equals(currentUserId)) {
-            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "仅工作区管理者可执行此操作");
+            throw exception(WORKSPACE_MANAGER_REQUIRED);
         }
     }
 

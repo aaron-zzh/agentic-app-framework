@@ -1,12 +1,18 @@
 package com.xuejiai.aaf.module.system.dict.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.DICT_TYPE_CODE_EXISTS;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.DICT_TYPE_HAS_DATA;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.DICT_TYPE_NAME_EXISTS;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.DICT_TYPE_NOT_FOUND;
+
+import java.util.Set;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.dict.domain.DictType;
@@ -32,6 +38,13 @@ public class DictTypeService
 
     private final DictTypeRepository dictTypeRepository;
     private final DictDataRepository dictDataRepository;
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "name", "type", "status", "createTime");
+
+    @Override
+    protected Set<String> sortableFields() {
+        return SORTABLE_FIELDS;
+    }
 
     @Override
     protected JpaRepository<DictType, Long> getRepository() {
@@ -57,10 +70,10 @@ public class DictTypeService
     @Override
     protected DictType toEntity(DictTypeCreateDTO dto) {
         if (dictTypeRepository.existsByTypeAndDeletedFalse(dto.type())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "字典类型编码已存在");
+            throw exception(DICT_TYPE_CODE_EXISTS);
         }
         if (dictTypeRepository.existsByNameAndDeletedFalse(dto.name())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "字典名称已存在");
+            throw exception(DICT_TYPE_NAME_EXISTS);
         }
         var dictType = new DictType();
         dictType.setName(dto.name());
@@ -74,7 +87,7 @@ public class DictTypeService
         if (dto.name() != null) {
             if (dictTypeRepository.existsByNameAndDeletedFalse(dto.name())
                     && !dictType.getName().equals(dto.name())) {
-                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "字典名称已存在");
+                throw exception(DICT_TYPE_NAME_EXISTS);
             }
             dictType.setName(dto.name());
         }
@@ -86,12 +99,9 @@ public class DictTypeService
     @Transactional
     public void delete(Long id) {
         var dictType =
-                dictTypeRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "字典类型不存在"));
+                dictTypeRepository.findById(id).orElseThrow(() -> exception(DICT_TYPE_NOT_FOUND));
         if (dictDataRepository.countByDictTypeAndDeletedFalse(dictType.getType()) > 0) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "该字典类型下存在字典数据，请先删除");
+            throw exception(DICT_TYPE_HAS_DATA);
         }
         dictTypeRepository.deleteById(id);
     }

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.log.service;
 
+import java.util.Set;
+
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
@@ -28,6 +30,17 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class OperationLogService {
+
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of(
+                    "id",
+                    "username",
+                    "module",
+                    "type",
+                    "bizNo",
+                    "durationMs",
+                    "success",
+                    "createTime");
 
     private final OperationLogRepository repository;
 
@@ -59,7 +72,7 @@ public class OperationLogService {
     /** 分页查询操作日志。 */
     @Transactional(readOnly = true)
     public PageResult<OperationLogVO> page(OperationLogPageDTO req) {
-        var pageable = req.toPageable(Sort.by("id").descending());
+        var pageable = req.toPageable(Sort.by("id").descending(), SORTABLE_FIELDS);
         Specification<OperationLogEntity> spec =
                 SpecificationBuilder.<OperationLogEntity>builder()
                         .eqIfPresent("module", req.module())
