@@ -153,40 +153,33 @@ public class ProjectContext {
 
 注入方式：System Prompt + Spring AI `QuestionAnswerAdvisor` 按需检索。
 
-## EntityDef storage 配置实现
+## EntityDef 元数据配置
 
 ### 数据结构
 
 ```json
 {
-  "storage": {
-    "mode": "typed",
-    "table": "biz_order",
-    "primaryKey": "id",
-    "relations": [
-      { "field": "items", "type": "oneToMany", "targetTable": "biz_order_item", "targetEntity": "biz_order_item", "foreignKey": "order_id", "cascade": ["persist", "remove"] }
-    ],
-    "indexes": [
-      { "fields": ["user_id"], "condition": "deleted = FALSE" },
-      { "fields": ["order_no"], "unique": true }
-    ]
+  "kind": "code",
+  "resource": "system.todo",
+  "apiPath": "/todos",
+  "readModels": {
+    "list": { "fields": ["id", "title", "status", "assignee", "createTime"] },
+    "detail": { "fields": ["id", "title", "status", "assignee"] },
+    "picker": { "fields": ["id", "title"] }
   }
 }
 ```
 
-### EntityDefService 扩展
+### EntityDefService 职责
 
-在已有 `sys_entity_def.config` JSONB 中增加 `storage` 段，`GenericEntityController` 根据 mode 决定路由：
-- `typed` → 路由到生成的强类型 Controller
-- `generic` → 通用 JSONB CRUD
-- `virtual` → 只读聚合查询
+`sys_entity_def.config` 保存代码实体的 UI 与可信读模型声明。业务数据始终由对应的类型化 Controller/Service 管理；`EntityDefService` 不执行运行时 DDL、不创建 `data_{slug}` 表，也不提供通用记录 CRUD。
 
 ## MigrationGenerator 实现（P0）
 
 ```java
 public interface MigrationGenerator {
-    /** 对比 EntityDef 与当前 DB schema，生成增量 DDL */
-    String generateDDL(EntityDef entityDef, DatabaseSchema currentSchema);
+    /** 根据已确认的代码模型生成 Flyway 脚本草案 */
+    String generateDDL(CodeModel codeModel, DatabaseSchema currentSchema);
     /** 生成 Flyway 版本号 */
     String nextVersion();
 }
@@ -194,9 +187,9 @@ public interface MigrationGenerator {
 
 实现思路：
 1. 通过 `information_schema` 读取当前表结构
-2. 将 EntityDef.storage 转换为目标表结构
+2. 将已确认的代码模型转换为目标表结构
 3. diff 计算增量（CREATE TABLE / ALTER TABLE / CREATE INDEX）
-4. 输出标准 PostgreSQL DDL
+4. 输出供人工审核的标准 Flyway DDL；运行时不执行 DDL
 
 ## CodegenService 扩展（P1）
 
@@ -253,8 +246,7 @@ public interface AiEnricher {
 |---------|---------|
 | `Chatter` 组件 | 统一入口，不传 agentRole，后端自动路由 |
 | `SkillMatchEngine` | 前注意分流，匹配开发 Skill 触发 Pipeline |
-| `EntityDefService` | 扩展 storage 配置段 |
-| `GenericEntityController` | generic 模式运行时 CRUD |
+| `EntityDefService` | 管理代码实体的 UI 与读模型元数据；不执行运行时 DDL 或通用 CRUD |
 | `CodegenService` | 扩展子表/关联模板 |
 | `KiroAgentController` | /run 端点，注册开发 Skills |
 | AG-UI 协议 | 扩展 DevEvent 事件类型 |

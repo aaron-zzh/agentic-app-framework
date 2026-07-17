@@ -114,10 +114,8 @@ export const restEndpoints = {
     unarchive: (entity: string, id: string) => `/${entity}/${id}/unarchive`,
     comments: "/comments",
     comment: (id: string) => `/comments/${id}`,
-    customFields: (slug: string) => `/entity-defs/${slug}/fields`,
-    customField: (slug: string, fieldName: string) => `/entity-defs/${slug}/fields/${fieldName}`,
     entityDefs: "/entity-defs",
-    entityDef: (id: string) => `/entity-defs/${id}`,
+    entityDef: (id: number) => `/entity-defs/${id}`,
     pageDefs: "/system/page-defs",
     pageDef: (id: string) => `/system/page-defs/${id}`,
     pageDefBySlug: (slug: string) => `/system/page-defs/slug/${slug}`,
@@ -224,9 +222,6 @@ export const restEndpoints = {
     formTemplate: (id: string) => `/system/workflow/form-templates/${id}`,
     myInitiatedInstances: "/system/workflow/instances/my-initiated",
     historyInstances: "/system/workflow/instances/history",
-    myPendingTasks: "/system/workflow/tasks/my-pending",
-    todos: "/todos",
-    todoComplete: (id: string) => `/todos/${id}/complete`,
-    todoDismiss: (id: string) => `/todos/${id}/dismiss`
+    myPendingTasks: "/system/workflow/tasks/my-pending"
   }
 } as const
