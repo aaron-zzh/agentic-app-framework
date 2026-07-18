@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.util;
+package com.xuejiai.aaf.common.util;
 
 import java.util.ArrayList;
 import java.util.List;

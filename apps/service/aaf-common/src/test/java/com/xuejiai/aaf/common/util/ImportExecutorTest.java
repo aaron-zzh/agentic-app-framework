@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.util;
+package com.xuejiai.aaf.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
