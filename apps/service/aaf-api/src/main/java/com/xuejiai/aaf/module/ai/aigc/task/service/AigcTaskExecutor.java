@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
@@ -35,6 +36,9 @@ import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.framework.security.license.License;
 import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
@@ -85,23 +89,56 @@ public class AigcTaskExecutor {
     private static final String EVENT_FAILED = "task.failed";
 
     /**
+     * 在 {@code @Async} 子线程中恢复任务归属者的权限上下文与组织上下文后执行给定逻辑。
+     *
+     * <p>{@code @Async} 方法运行在独立线程池线程，脱离原 HTTP 请求线程， {@link PermissionExecutionContextHolder}（用户身份）与
+     * {@link OrgContext}（组织隔离）均为空—— 前者导致积分结算等取不到 userId；后者不仅让方法入口 {@code taskRepo.findById} 被
+     * {@code OrgFilterAspect} fail-closed 拒绝（需搭配方法级 {@link OrgIgnore} 豁免这段空窗期）， 还会让 {@code
+     * OperatorEntityListener} 对新建关联记录（如生成结果写入 {@code MediaAssetGroup}/ {@code MediaAsset}）的
+     * orgId/workspaceId 兜底填充失效——{@code @OrgIgnore} 只豁免过滤器的 fail-closed
+     * 拒绝，不会代替持久化时的字段回填，必须显式从任务实体恢复真实 orgId， 保证任务与其衍生记录的组织归属一致。执行完毕后清理，避免线程池复用时上下文泄漏。
+     *
+     * <p>覆盖了整个 internal 方法的执行期间，内部无需再单独调用 {@code permissionExecutionService.runAsOwner} 重复设置同一
+     * userId 的权限上下文。
+     */
+    private void runInOwnerContext(AigcTask task, String reason, Runnable runnable) {
+        permissionExecutionService.runAsOwner(
+                task.getUserId(),
+                reason,
+                () -> {
+                    OrgContext.setCurrentOrgId(task.getOrgId());
+                    OrgContext.setCurrentWorkspaceId(task.getWorkspaceId());
+                    try {
+                        runnable.run();
+                    } finally {
+                        // 只清理本方法设置的两个字段，不用 OrgContext.clear()
+                        OrgContext.setCurrentOrgId(null);
+                        OrgContext.setCurrentWorkspaceId(null);
+                    }
+                });
+    }
+
+    /**
      * 同步模型路径（所有图像生成模型统一入口）。
      *
      * <p>从 {@code task.params} 读取 width/height/negativePrompt/seed/promptExtend/imageCount， 构建完整
      * {@link ImageRequest} 后调用对应服务。 REQUIRES_NEW 表示：不管外部是否有事务，都新建一个独立事务。
      * 外部事务挂起，这个方法在自己的事务里执行，完成后提交/回滚，再恢复外部事务。
+     *
+     * <p>{@code @OrgIgnore}：方法入口 {@code taskRepo.findById} 执行时尚未知道 task 的 orgId （先有鸡蛋问题，同 {@code
+     * OrgFilter} 处理 {@code X-Org-Id} 自校验查询的场景），需豁免这段空窗期的 fail-closed 拒绝；查到 task 后 {@link
+     * #runInOwnerContext} 会恢复真实 orgId， 使后续查询/持久化按真实组织语义执行。
      */
+    @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitSync(Long taskId, String prompt, String modelId, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
-        // @Async 子线程无 SecurityContext，显式设置用户上下文，确保积分结算能取到 userId
-        try (var ignored =
-                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
-                        task.getUserId(), "aigc-image-gen")) {
-            submitSyncInternal(task, taskId, prompt, modelId, mockUrl);
-        }
+        runInOwnerContext(
+                task,
+                "aigc-image-gen",
+                () -> submitSyncInternal(task, taskId, prompt, modelId, mockUrl));
     }
 
     private void submitSyncInternal(
@@ -143,21 +180,16 @@ public class AigcTaskExecutor {
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // ④ 写素材库（需要用户上下文，runAsOwner 确保 ownerId 正确填充）
-            permissionExecutionService.runAsOwner(
-                    task.getUserId(),
-                    "图像素材保存",
-                    () -> {
-                        long groupId =
-                                saveToMediaAsset(
-                                        task,
-                                        ossUrl,
-                                        p.getDisplayPrompt(),
-                                        p.getSizePreset(),
-                                        p.getWidth(),
-                                        p.getHeight());
-                        saveExtraImages(task, result, p, groupId);
-                    });
+            // ④ 写素材库（外层 runInOwnerContext 已设置用户上下文，ownerId 能正确填充）
+            long groupId =
+                    saveToMediaAsset(
+                            task,
+                            ossUrl,
+                            p.getDisplayPrompt(),
+                            p.getSizePreset(),
+                            p.getWidth(),
+                            p.getHeight());
+            saveExtraImages(task, result, p, groupId);
 
             log.info("[submitSync] 任务完成: taskId={}, ossUrl={}", taskId, ossUrl);
             eventPublisher.publishEvent(
@@ -407,18 +439,22 @@ public class AigcTaskExecutor {
         }
     }
 
-    /** 音乐生成异步执行（同步 API，阻塞直到结果返回）。 */
+    /**
+     * 音乐生成异步执行（同步 API，阻塞直到结果返回）。
+     *
+     * <p>{@code @OrgIgnore} 用途见 {@link #submitSync}。
+     */
+    @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitMusicSync(
             Long taskId, String prompt, String lyrics, String gender, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
-        try (var ignored =
-                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
-                        task.getUserId(), "aigc-music-gen")) {
-            submitMusicSyncInternal(task, taskId, prompt, lyrics, gender, mockUrl);
-        }
+        runInOwnerContext(
+                task,
+                "aigc-music-gen",
+                () -> submitMusicSyncInternal(task, taskId, prompt, lyrics, gender, mockUrl));
     }
 
     private void submitMusicSyncInternal(
@@ -456,45 +492,35 @@ public class AigcTaskExecutor {
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // 写入素材库（runAsOwner 确保异步线程中 ownerId 正确填充）
-            final String musicOssUrl = ossUrl;
-            permissionExecutionService.runAsOwner(
-                    task.getUserId(),
-                    "音乐素材保存",
-                    () -> {
-                        try {
-                            var dto =
-                                    new SaveFromGenerationDTO(
-                                            prompt != null
-                                                    ? prompt.substring(
-                                                            0, Math.min(prompt.length(), 40))
-                                                    : "AI音乐",
-                                            MediaAssetType.MUSIC,
-                                            musicOssUrl,
-                                            null,
-                                            "{\"prompt\":\"%s\",\"model\":\"%s\"}"
-                                                    .formatted(
-                                                            task.getPrompt() != null
-                                                                    ? task.getPrompt()
-                                                                            .replace("\"", "'")
-                                                                    : "",
-                                                            task.getModel() != null
-                                                                    ? task.getModel()
-                                                                    : ""),
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            true,
-                                            task.getModelName(),
-                                            task.getProvider(),
-                                            task.getProjectId());
-                            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-                        } catch (Exception e) {
-                            log.warn("[submitMusicSync] 写入素材库失败: taskId={}", taskId, e);
-                        }
-                    });
+            // 写入素材库（外层 runInOwnerContext 已设置用户上下文，ownerId 能正确填充）
+            try {
+                var dto =
+                        new SaveFromGenerationDTO(
+                                prompt != null
+                                        ? prompt.substring(0, Math.min(prompt.length(), 40))
+                                        : "AI音乐",
+                                MediaAssetType.MUSIC,
+                                ossUrl,
+                                null,
+                                "{\"prompt\":\"%s\",\"model\":\"%s\"}"
+                                        .formatted(
+                                                task.getPrompt() != null
+                                                        ? task.getPrompt().replace("\"", "'")
+                                                        : "",
+                                                task.getModel() != null ? task.getModel() : ""),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                true,
+                                task.getModelName(),
+                                task.getProvider(),
+                                task.getProjectId());
+                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+            } catch (Exception e) {
+                log.warn("[submitMusicSync] 写入素材库失败: taskId={}", taskId, e);
+            }
 
             log.info("[submitMusicSync] 音乐生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
         } catch (Exception e) {
@@ -517,17 +543,21 @@ public class AigcTaskExecutor {
         }
     }
 
-    /** 配音生成异步执行（TTS 非流式，阻塞合成完整音频后上传存储）。 */
+    /**
+     * 配音生成异步执行（TTS 非流式，阻塞合成完整音频后上传存储）。
+     *
+     * <p>{@code @OrgIgnore} 用途见 {@link #submitSync}。
+     */
+    @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitVoiceSync(Long taskId, String text, String voice, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
-        try (var ignored =
-                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
-                        task.getUserId(), "aigc-voice-gen")) {
-            submitVoiceSyncInternal(task, taskId, text, voice, mockUrl);
-        }
+        runInOwnerContext(
+                task,
+                "aigc-voice-gen",
+                () -> submitVoiceSyncInternal(task, taskId, text, voice, mockUrl));
     }
 
     private void submitVoiceSyncInternal(
@@ -568,40 +598,30 @@ public class AigcTaskExecutor {
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // 写入素材库（AUDIO 类型），用配音文本前 20 字命名（runAsOwner 确保 ownerId 正确填充）
-            final String voiceOssUrl = ossUrl;
-            permissionExecutionService.runAsOwner(
-                    task.getUserId(),
-                    "配音素材保存",
-                    () -> {
-                        try {
-                            String name = text.substring(0, Math.min(text.length(), 20));
-                            var dto =
-                                    new SaveFromGenerationDTO(
-                                            name,
-                                            MediaAssetType.AUDIO,
-                                            voiceOssUrl,
-                                            null,
-                                            JsonUtils.toJsonString(
-                                                    Map.of(
-                                                            "text",
-                                                            text,
-                                                            "voice",
-                                                            voice != null ? voice : "")),
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            true,
-                                            task.getModelName(),
-                                            task.getProvider(),
-                                            task.getProjectId());
-                            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-                        } catch (Exception e) {
-                            log.warn("[submitVoiceSync] 写入素材库失败: taskId={}", taskId, e);
-                        }
-                    });
+            // 写入素材库（AUDIO 类型），用配音文本前 20 字命名（外层 runInOwnerContext 已设置用户上下文）
+            try {
+                String name = text.substring(0, Math.min(text.length(), 20));
+                var dto =
+                        new SaveFromGenerationDTO(
+                                name,
+                                MediaAssetType.AUDIO,
+                                ossUrl,
+                                null,
+                                JsonUtils.toJsonString(
+                                        Map.of("text", text, "voice", voice != null ? voice : "")),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                true,
+                                task.getModelName(),
+                                task.getProvider(),
+                                task.getProjectId());
+                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+            } catch (Exception e) {
+                log.warn("[submitVoiceSync] 写入素材库失败: taskId={}", taskId, e);
+            }
 
             log.info("[submitVoiceSync] 配音生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
         } catch (Exception e) {
@@ -857,22 +877,24 @@ public class AigcTaskExecutor {
     /**
      * 图像处理任务异步执行（SEGMENT_HD_BODY 等同步 SDK 调用，完成后直接存 OSS）。
      *
+     * <p>{@code @OrgIgnore} 用途见 {@link #submitSync}。
+     *
      * @param taskId 内部任务 ID
      * @param imageUrl 待处理图像 URL
      * @param method 处理方式，如 SEGMENT_HD_BODY
      * @param mockUrl Mock 模式固定返回 URL，null 表示真实调用
      */
+    @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitImageProcessSync(
             Long taskId, String imageUrl, String method, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
-        try (var ignored =
-                com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder.useOwner(
-                        task.getUserId(), "aigc-image-process")) {
-            submitImageProcessSyncInternal(task, taskId, imageUrl, method, mockUrl);
-        }
+        runInOwnerContext(
+                task,
+                "aigc-image-process",
+                () -> submitImageProcessSyncInternal(task, taskId, imageUrl, method, mockUrl));
     }
 
     private void submitImageProcessSyncInternal(
@@ -920,35 +942,31 @@ public class AigcTaskExecutor {
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            permissionExecutionService.runAsOwner(
-                    task.getUserId(),
-                    "图像处理素材保存",
-                    () -> {
-                        try {
-                            var dto =
-                                    new SaveFromGenerationDTO(
-                                            "AI处理-" + method + "-" + task.getId(),
-                                            MediaAssetType.IMAGE,
-                                            ossUrl,
-                                            null,
-                                            JsonUtils.toJsonString(
-                                                    Map.of(
-                                                            "imageUrl", imageUrl,
-                                                            "method", method)),
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            true,
-                                            task.getModelName(),
-                                            task.getProvider(),
-                                            task.getProjectId());
-                            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-                        } catch (Exception e) {
-                            log.warn("[submitImageProcessSync] 写入素材库失败: taskId={}", taskId, e);
-                        }
-                    });
+            // 写入素材库（外层 runInOwnerContext 已设置用户上下文，ownerId 能正确填充）
+            try {
+                var dto =
+                        new SaveFromGenerationDTO(
+                                "AI处理-" + method + "-" + task.getId(),
+                                MediaAssetType.IMAGE,
+                                ossUrl,
+                                null,
+                                JsonUtils.toJsonString(
+                                        Map.of(
+                                                "imageUrl", imageUrl,
+                                                "method", method)),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                true,
+                                task.getModelName(),
+                                task.getProvider(),
+                                task.getProjectId());
+                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
+            } catch (Exception e) {
+                log.warn("[submitImageProcessSync] 写入素材库失败: taskId={}", taskId, e);
+            }
 
             log.info("[submitImageProcessSync] 图像处理完成: taskId={}, ossUrl={}", taskId, ossUrl);
         } catch (Exception e) {
