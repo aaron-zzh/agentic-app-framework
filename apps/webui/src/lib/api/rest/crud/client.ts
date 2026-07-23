@@ -20,6 +20,30 @@ export interface CrudResource<TRecord = CrudRecord> {
   __record?: TRecord
 }
 
+/** 服务端声明的筛选操作符及其值数量约束。 */
+export interface CrudFilterOperatorMeta {
+  value: string
+  minValues: number
+  maxValues: number | null
+}
+
+/** 服务端声明的字段筛选能力。 */
+export interface CrudFilterFieldMeta {
+  field: string
+  operators: CrudFilterOperatorMeta[]
+  variables: string[]
+}
+
+/** GET /_meta 响应的通用 CRUD 元数据。 */
+export interface CrudMeta {
+  entitySlug: string
+  entityName: string
+  fieldSets: string[]
+  operations: string[]
+  filterFields: CrudFilterFieldMeta[]
+  sortableFields: string[]
+}
+
 export interface CrudDetailParams {
   [key: string]: string | number | boolean | string[] | undefined
   queryToken?: string

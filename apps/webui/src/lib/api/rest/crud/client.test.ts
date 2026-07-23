@@ -6,7 +6,15 @@ import {
   resetMockBackendClient
 } from "@/test/mock-backend-client"
 import { crudResources } from "../endpoints"
-import { buildQuery, deleteRecord, deleteRecords, fetchList, fetchQueryWindow } from "./client"
+import {
+  buildQuery,
+  type CrudMeta,
+  deleteRecord,
+  deleteRecords,
+  fetchCrudMeta,
+  fetchList,
+  fetchQueryWindow
+} from "./client"
 
 describe("crud client", () => {
   beforeEach(() => {
@@ -54,20 +62,38 @@ describe("crud client", () => {
     )
   })
 
-  it("应请求标准查询窗口并保留排序 capability", async () => {
-    mockBackendResponse({
-      code: 0,
-      data: { list: [], total: 0, sortableFields: ["title", "createTime"] }
-    })
+  it("应请求标准查询窗口", async () => {
+    mockBackendResponse({ code: 0, data: { list: [], total: 0 } })
 
     const page = await fetchQueryWindow(crudResources.system.menus, { pageNo: 1, fieldSet: "list" })
 
-    expect(page.sortableFields).toEqual(["title", "createTime"])
+    expect(page).toEqual({ list: [], total: 0 })
     expect(mockBackendRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         method: "get",
         url: "/system/menus/_query?pageNo=1&fieldSet=list"
       })
+    )
+  })
+
+  it("应从 CRUD 元数据请求排序能力", async () => {
+    mockBackendResponse({
+      code: 0,
+      data: {
+        entitySlug: "menu",
+        entityName: "菜单",
+        fieldSets: ["list"],
+        operations: ["read"],
+        filterFields: [],
+        sortableFields: ["title", "createTime"]
+      }
+    })
+
+    const meta = await fetchCrudMeta<CrudMeta>(crudResources.system.menus)
+
+    expect(meta.sortableFields).toEqual(["title", "createTime"])
+    expect(mockBackendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "get", url: "/system/menus/_meta" })
     )
   })
 
