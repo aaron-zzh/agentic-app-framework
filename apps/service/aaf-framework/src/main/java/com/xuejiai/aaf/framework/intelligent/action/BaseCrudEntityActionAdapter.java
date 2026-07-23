@@ -12,20 +12,32 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
-import com.xuejiai.aaf.framework.crud.BatchReadRequest;
-import com.xuejiai.aaf.framework.crud.CrudIdsRequest;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
+import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
+import com.xuejiai.aaf.framework.crud.dto.BatchReadRequestDTO;
+import com.xuejiai.aaf.framework.crud.dto.CrudIdsRequestDTO;
 
 /** 基于 BaseCrudService 的 AI 标准实体动作适配器。 */
 public abstract class BaseCrudEntityActionAdapter<
                 E extends BaseEntity, V, C, U, P extends PageParam>
         implements EntityActionAdapter {
 
+    private final ResourceKey resourceKey;
+    private final CrudResourceRegistry resourceCatalog;
     private final Class<C> createType;
     private final Class<U> updateType;
     private final Class<P> pageParamType;
 
     protected BaseCrudEntityActionAdapter(
-            Class<C> createType, Class<U> updateType, Class<P> pageParamType) {
+            ResourceKey resourceKey,
+            CrudResourceRegistry resourceCatalog,
+            Class<C> createType,
+            Class<U> updateType,
+            Class<P> pageParamType) {
+        this.resourceKey = resourceKey;
+        this.resourceCatalog = resourceCatalog;
         this.createType = createType;
         this.updateType = updateType;
         this.pageParamType = pageParamType;
@@ -35,26 +47,30 @@ public abstract class BaseCrudEntityActionAdapter<
 
     @Override
     public String entitySlug() {
-        return getService().getEntitySlug();
+        return entry().snapshot().slug();
     }
 
     @Override
     public String entityName() {
-        return getService().getEntityName();
+        return entry().snapshot().descriptor().label();
     }
 
     @Override
     public List<String> supportedActions() {
-        var operations = getService().getOperations();
+        var operations = entry().definition().capabilities().operations();
         return Arrays.stream(AiBusinessActionType.values())
-                .filter(action -> isBackedByCrudOperation(action, operations))
+                .filter(action -> operations.contains(crudOperation(action)))
                 .map(AiBusinessActionType::action)
                 .toList();
     }
 
     @Override
     public String permissionCode(AiBusinessActionType action) {
-        return getService().resolvePermissionCode(action.permissionAction());
+        return entry().definition().permissionCode(crudOperation(action).action());
+    }
+
+    private CrudResourceCatalogEntry entry() {
+        return resourceCatalog.require(resourceKey);
     }
 
     @Override
@@ -62,7 +78,11 @@ public abstract class BaseCrudEntityActionAdapter<
         var safeParams = params == null ? Map.<String, Object>of() : params;
         return switch (action) {
             case QUERY ->
-                    getService().queryWindow(toPageParam(safeParams), fieldSet(safeParams, "list"));
+                    getService()
+                            .queryWindow(
+                                    toPageParam(safeParams),
+                                    fieldSet(safeParams, "list"),
+                                    List.of());
             case DETAIL ->
                     getService()
                             .getById(
@@ -155,10 +175,10 @@ public abstract class BaseCrudEntityActionAdapter<
             }
             return result;
         }
-        if (value instanceof CrudIdsRequest request) {
+        if (value instanceof CrudIdsRequestDTO request) {
             return request.ids();
         }
-        if (value instanceof BatchReadRequest request) {
+        if (value instanceof BatchReadRequestDTO request) {
             return request.ids();
         }
         if (value instanceof String text && !text.isBlank()) {
@@ -186,22 +206,21 @@ public abstract class BaseCrudEntityActionAdapter<
         return defaultValue;
     }
 
-    private boolean isBackedByCrudOperation(AiBusinessActionType action, List<String> operations) {
+    private CrudOperation crudOperation(AiBusinessActionType action) {
         return switch (action) {
-            case QUERY -> operations.contains("queryWindow") || operations.contains("page");
-            case DETAIL -> operations.contains("get");
-            case BATCH_READ -> operations.contains("batchRead");
-            case OPTIONS -> operations.contains("options");
-            case META -> operations.contains("meta");
-            case CREATE -> operations.contains("create");
-            case UPDATE -> operations.contains("update");
-            case DELETE -> operations.contains("delete");
-            case BATCH_DELETE ->
-                    operations.contains("batchDelete") || operations.contains("deleteBatch");
-            case EXPORT -> operations.contains("export");
-            case VALIDATE -> operations.contains("validate");
-            case ARCHIVE -> operations.contains("archive");
-            case RESTORE -> operations.contains("restore");
+            case QUERY -> CrudOperation.QUERY;
+            case DETAIL -> CrudOperation.GET;
+            case BATCH_READ -> CrudOperation.BATCH_READ;
+            case OPTIONS -> CrudOperation.OPTIONS;
+            case META -> CrudOperation.META;
+            case CREATE -> CrudOperation.CREATE;
+            case UPDATE -> CrudOperation.UPDATE;
+            case DELETE -> CrudOperation.DELETE;
+            case BATCH_DELETE -> CrudOperation.DELETE_BATCH;
+            case EXPORT -> CrudOperation.EXPORT;
+            case VALIDATE -> CrudOperation.VALIDATE;
+            case ARCHIVE -> CrudOperation.ARCHIVE;
+            case RESTORE -> CrudOperation.RESTORE;
         };
     }
 }

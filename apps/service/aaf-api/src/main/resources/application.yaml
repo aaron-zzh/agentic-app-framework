@@ -182,6 +182,9 @@ aaf:
       api-key: ${DINGTALK_BOT_TOKEN:c4276c598eeb3ec929934ad6e191d2049d92211eacba85c40f02f5b35b16e390}
       secret: ${DINGTALK_SECRET:SECd7950093c3b96abf8e865abfbcad43bd5c7ecef1e74ca2a4e3ae2100a5cf3bda}
   security:
+    query-token:
+      secret: ${AAF_QUERY_TOKEN_SECRET}
+      ttl: ${AAF_QUERY_TOKEN_TTL:PT5M}
     jwt:
       secret: ${JWT_SECRET:aaf-dev-secret-must-be-at-least-32-bytes-long!!}
       expire-seconds: ${JWT_EXPIRE_SECONDS:604800}
