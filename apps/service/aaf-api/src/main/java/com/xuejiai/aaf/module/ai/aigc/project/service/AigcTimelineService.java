@@ -6,8 +6,6 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,23 +52,8 @@ public class AigcTimelineService
     @Autowired private OperatorContext operatorContext;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AigcTimeline, Long> getRepository() {
+    protected AigcTimelineRepository getRepository() {
         return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AigcTimeline> getSpecExecutor() {
-        return repository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "时间轴";
     }
 
     @Override

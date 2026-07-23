@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,23 +33,8 @@ public class AigcShotService
     private final AigcShotAssetRepository shotAssetRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AigcShot, Long> getRepository() {
+    protected AigcShotRepository getRepository() {
         return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AigcShot> getSpecExecutor() {
-        return repository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "分镜";
     }
 
     @Override

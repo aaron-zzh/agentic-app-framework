@@ -3,11 +3,10 @@ package com.xuejiai.aaf.module.ai.skill;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
 import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 
@@ -66,8 +65,7 @@ public class SkillStoreImpl implements SkillStore {
 }
 
 @Repository
-interface SkillDefinitionRepository
-        extends JpaRepository<SkillDefinition, Long>, JpaSpecificationExecutor<SkillDefinition> {
+interface SkillDefinitionRepository extends CrudEntityRepository<SkillDefinition> {
     List<SkillDefinition> findByAgentIdAndStatus(Long agentId, String status);
 
     List<SkillDefinition> findByBuiltInTrueAndStatus(String status);

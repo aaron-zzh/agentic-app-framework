@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,23 +41,8 @@ public class UserWorkflowTemplateService
     private final UserWorkflowTemplateRepository templateRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<UserWorkflowTemplate, Long> getRepository() {
+    protected UserWorkflowTemplateRepository getRepository() {
         return templateRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<UserWorkflowTemplate> getSpecExecutor() {
-        return templateRepository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "工作流模板";
     }
 
     @Override

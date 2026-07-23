@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.ai.aigc.image.service;
 
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,17 +51,7 @@ public class GenerationTemplateService
     private final GenerationTemplateRepository templateRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<GenerationTemplate, Long> getRepository() {
-        return templateRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<GenerationTemplate> getSpecExecutor() {
+    protected GenerationTemplateRepository getRepository() {
         return templateRepository;
     }
 
@@ -126,11 +114,6 @@ public class GenerationTemplateService
                 .eqIfPresent("category", query.getCategory())
                 .eqIfPresent("isPublic", query.getIsPublic())
                 .build();
-    }
-
-    @Override
-    protected String entityName() {
-        return "参数模板";
     }
 
     /** TODO 查询公开模板（绕过行级数据权限，直接按 is_public=true 过滤）。 */

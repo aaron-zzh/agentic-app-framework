@@ -6,8 +6,6 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,23 +56,8 @@ public class AigcStoryboardService
     @Autowired private OperatorContext operatorContext;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AigcStoryboard, Long> getRepository() {
+    protected AigcStoryboardRepository getRepository() {
         return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AigcStoryboard> getSpecExecutor() {
-        return repository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "分镜规划";
     }
 
     @Override

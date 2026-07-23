@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.chat.service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -11,9 +12,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantService;
-import com.xuejiai.aaf.framework.security.access.AccessContext;
-import com.xuejiai.aaf.framework.security.access.AccessLayer;
-import com.xuejiai.aaf.framework.security.access.ServicePermissionChecker;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationRequest;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationTarget;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatRunRequest;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
@@ -44,7 +47,7 @@ public class ChatOrchestrationService {
 
     private final ChatService chatService;
     private final AssistantService assistantService;
-    private final ServicePermissionChecker permissionChecker;
+    private final AuthorizationService authorizationService;
     private final ResilientChatService chatLlm;
 
     private static final long SSE_TIMEOUT = 5 * 60 * 1000L;
@@ -57,12 +60,11 @@ public class ChatOrchestrationService {
      * @return SSE 流
      */
     public SseEmitter execute(ChatRunRequest request, Long userId) {
-        // Layer 3 权限：检查用户是否有权访问目标 session
+        // 已有会话必须显式通过 L2 关系权限；无会话时由后续创建流程建立归属。
         var sessionIdStr = request.state() != null ? request.state().sessionId() : null;
         if (sessionIdStr != null) {
-            permissionChecker.require(userId, "session", sessionIdStr, "write");
+            requireSessionWrite(sessionIdStr, userId);
         }
-        AccessContext.markProcessed(AccessLayer.SERVICE);
 
         // 会话管理
         Long sessionId = resolveSession(request, userId);
@@ -148,9 +150,38 @@ public class ChatOrchestrationService {
      * @return AI 回复文本
      */
     public String executeSync(String sessionId, Long userId, String userInput) {
-        permissionChecker.require(userId, "session", sessionId, "write");
+        requireSessionWrite(sessionId, userId);
         var response = assistantService.handle(sessionId, userId, "default", userInput);
         return response.content();
+    }
+
+    private void requireSessionWrite(String sessionId, Long userId) {
+        var relation =
+                new AuthorizationPlan.RelationRequirement("session", sessionId, "can_write");
+        var plan =
+                new AuthorizationPlan(
+                        AuthorizationPlan.FunctionRequirement.authenticated(),
+                        AuthorizationPlan.RelationPlan.all(relation),
+                        null,
+                        new AuthorizationPlan.PolicyPlan());
+        var request =
+                new AuthorizationRequest(
+                        new AuthorizationSubject(userId, userId, null, null),
+                        new AuthorizationTarget("session", "write", sessionId),
+                        plan,
+                        Map.of("entryPoint", "CHAT_ORCHESTRATION"),
+                        Duration.ofMinutes(10));
+        var decision = authorizationService.authorize(request);
+        if (decision.allowed()) {
+            return;
+        }
+        if (decision.challengeId() != null) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.FORBIDDEN,
+                    "授权确认待处理，challengeId=" + decision.challengeId());
+        }
+        throw new com.xuejiai.aaf.common.exception.BusinessException(
+                com.xuejiai.aaf.common.exception.GlobalErrorCode.FORBIDDEN);
     }
 
     private Long resolveSession(ChatRunRequest request, Long userId) {

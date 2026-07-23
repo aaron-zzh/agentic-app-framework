@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.ai.aigc.voice.service;
 
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,17 +55,12 @@ public class AiClonedVoiceService
     @org.springframework.beans.factory.annotation.Autowired private OperatorContext operatorContext;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
+    protected java.util.List<String> optionSearchFields() {
+        return java.util.List.of("preferredName", "voice");
     }
 
     @Override
-    protected JpaRepository<AiClonedVoice, Long> getRepository() {
-        return voiceRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AiClonedVoice> getSpecExecutor() {
+    protected AiClonedVoiceRepository getRepository() {
         return voiceRepository;
     }
 

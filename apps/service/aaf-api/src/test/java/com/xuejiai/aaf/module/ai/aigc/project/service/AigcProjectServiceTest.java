@@ -81,14 +81,13 @@ class AigcProjectServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 项目属于用户A When 用户B 调用 deleteOwned Then 抛出 BusinessException（404 语义，防探测）")
-    void deleteOwned_otherUser_throws() {
+    @DisplayName("Given 项目属于用户A When 用户B 进入 DELETE hook Then 抛出 BusinessException（404 语义，防探测）")
+    void beforeDelete_otherUser_throws() {
         // mock
-        when(repository.findOne(any(Specification.class))).thenReturn(Optional.of(ownerProject));
         when(operatorContext.currentUserId()).thenReturn(Optional.of(99L));
 
         // 调用 + 断言
-        assertThatThrownBy(() -> service.deleteOwned(1L))
+        assertThatThrownBy(() -> service.beforeDelete(ownerProject))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("项目不存在");
     }

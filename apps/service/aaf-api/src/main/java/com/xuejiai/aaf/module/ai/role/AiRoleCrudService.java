@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.ai.role;
 
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,17 +29,7 @@ public class AiRoleCrudService
     private final AiRoleRepository roleRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<Role, Long> getRepository() {
-        return roleRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Role> getSpecExecutor() {
+    protected AiRoleRepository getRepository() {
         return roleRepository;
     }
 
@@ -74,10 +62,5 @@ public class AiRoleCrudService
         entity.setDescription(dto.description());
         entity.setSkillIds(dto.skillIds());
         entity.setToolWhitelist(dto.toolWhitelist());
-    }
-
-    @Override
-    protected String entityName() {
-        return "AI Role";
     }
 }

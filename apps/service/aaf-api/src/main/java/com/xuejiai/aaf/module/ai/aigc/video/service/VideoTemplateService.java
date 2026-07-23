@@ -3,8 +3,6 @@ package com.xuejiai.aaf.module.ai.aigc.video.service;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,17 +39,7 @@ public class VideoTemplateService
     private final VideoTemplateRepository templateRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<VideoTemplate, Long> getRepository() {
-        return templateRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<VideoTemplate> getSpecExecutor() {
+    protected VideoTemplateRepository getRepository() {
         return templateRepository;
     }
 
@@ -91,10 +79,5 @@ public class VideoTemplateService
         return SpecificationBuilder.<VideoTemplate>builder()
                 .eqIfPresent("type", query.getType())
                 .build();
-    }
-
-    @Override
-    protected String entityName() {
-        return "视频模板";
     }
 }

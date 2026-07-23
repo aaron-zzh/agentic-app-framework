@@ -3,8 +3,6 @@ package com.xuejiai.aaf.module.ai.skill;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,17 +42,7 @@ public class SkillService
     private final SkillDefinitionRepository repository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<SkillDefinition, Long> getRepository() {
-        return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<SkillDefinition> getSpecExecutor() {
+    protected SkillDefinitionRepository getRepository() {
         return repository;
     }
 
@@ -114,11 +102,6 @@ public class SkillService
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "内置技能不可删除");
         }
         repository.delete(entity);
-    }
-
-    @Override
-    protected String entityName() {
-        return "技能";
     }
 
     // ─── 自定义方法 ───

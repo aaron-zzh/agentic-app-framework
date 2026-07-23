@@ -11,6 +11,7 @@ import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
 import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
 import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.framework.security.authorization.RelationPermissionWriter;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
@@ -35,6 +36,7 @@ public class ChatService {
 
     private final ConversationRepository conversationRepository;
     private final ConversationMessageRepository messageRepository;
+    private final RelationPermissionWriter relationPermissionWriter;
 
     /**
      * 创建会话
@@ -52,6 +54,7 @@ public class ChatService {
         conv.setCreatorId(userId);
         conv.setThreadId(java.util.UUID.randomUUID().toString());
         conversationRepository.save(conv);
+        relationPermissionWriter.grant(userId, "session", String.valueOf(conv.getId()), "OWNER");
         return toSessionVO(conv);
     }
 

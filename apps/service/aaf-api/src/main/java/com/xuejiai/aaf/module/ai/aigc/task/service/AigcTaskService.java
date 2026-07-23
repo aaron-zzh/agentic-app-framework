@@ -9,8 +9,6 @@ import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,17 +112,7 @@ public class AigcTaskService
     // ========== BaseCrudService 必须实现 ==========
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AigcTask, Long> getRepository() {
-        return taskRepo;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AigcTask> getSpecExecutor() {
+    protected AigcTaskRepository getRepository() {
         return taskRepo;
     }
 
@@ -158,11 +146,6 @@ public class AigcTaskService
                 predicates.add(cb.equal(root.get("projectId"), dto.getProjectId()));
             return predicates.isEmpty() ? null : cb.and(predicates.toArray(new Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "AIGC任务";
     }
 
     /** BE-8 数据隔离：单条查询后校验 ownership，跨用户返回 404 防探测。 */

@@ -9,8 +9,6 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +38,12 @@ public class AigcProjectService
                 AigcProjectUpdateDTO,
                 AigcProjectPageDTO> {
 
+    public static final String COMMAND_UPDATE_OWNED = "AIGC_PROJECT_UPDATE_OWNED";
+    public static final String COMMAND_LINK_DOCUMENT = "AIGC_PROJECT_LINK_DOCUMENT";
+    public static final String COMMAND_UNLINK_DOCUMENT = "AIGC_PROJECT_UNLINK_DOCUMENT";
+
+    private static final String FIELD_DOCUMENTS = "documents";
+
     private static final Set<String> SORTABLE_FIELDS =
             Set.of("id", "name", "type", "status", "createTime", "updateTime");
 
@@ -66,23 +70,8 @@ public class AigcProjectService
     }
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AigcProject, Long> getRepository() {
+    protected AigcProjectRepository getRepository() {
         return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AigcProject> getSpecExecutor() {
-        return repository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "创作项目";
     }
 
     @Override
@@ -124,6 +113,25 @@ public class AigcProjectService
     }
 
     @Override
+    protected Map<String, Object> authorizationAttributes(AigcProject project) {
+        var attributes = new java.util.LinkedHashMap<>(super.authorizationAttributes(project));
+        attributes.put("name", project.getName());
+        attributes.put("coverUrl", project.getCoverUrl());
+        attributes.put("description", project.getDescription());
+        attributes.put("type", project.getType());
+        attributes.put("status", project.getStatus());
+        attributes.put("prompt", project.getPrompt());
+        attributes.put("userId", project.getUserId());
+        return attributes;
+    }
+
+    /** DELETE 已授权加载项目后，在同一流程内校验业务 owner。 */
+    @Override
+    protected void beforeDelete(AigcProject project) {
+        requireOwner(project);
+    }
+
+    @Override
     protected Specification<AigcProject> buildSpec(AigcProjectPageDTO p) {
         // BE-8 数据隔离：强制按当前 userId 过滤，防止跨用户读取
         Long userId = operatorContext.currentUserId().orElseThrow();
@@ -148,26 +156,29 @@ public class AigcProjectService
         return toVO(entity);
     }
 
-    /** BE-8 数据隔离：更新前校验 ownership，跨用户返回 404 防探测。 */
+    /** BE-8 数据隔离：通过具名 UPDATE 命令校验 ownership、字段策略和对象策略。 */
     @Transactional
     public AigcProjectVO updateOwned(Long id, AigcProjectUpdateDTO dto) {
-        var entity = requireEntity(id);
-        Long userId = operatorContext.currentUserId().orElseThrow();
-        if (!entity.getUserId().equals(userId)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
+        var fields = projectUpdateFields(dto);
+        if (fields.isEmpty()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "至少需要修改一个项目字段");
         }
-        updateEntity(entity, dto);
-        return toVO(entity);
+        var plan =
+                new CustomUpdatePlan<AigcProject, AigcProjectUpdateDTO, Void, AigcProjectVO>(
+                        COMMAND_UPDATE_OWNED,
+                        fields,
+                        (project, command) -> requireOwner(project),
+                        this::updateEntity,
+                        (project, command) -> null,
+                        true,
+                        (project, command, ignored) -> {},
+                        (project, command, ignored) -> toVO(project));
+        return executeCustomUpdateCommand(id, dto, plan);
     }
 
-    /** BE-8 数据隔离：删除前校验 ownership，跨用户返回 404 防探测。 */
+    /** 删除直接进入 BaseCrud 唯一 DELETE PEP；ownership 由 {@link #beforeDelete(AigcProject)} 校验。 */
     @Transactional
     public void deleteOwned(Long id) {
-        var entity = requireEntity(id);
-        Long userId = operatorContext.currentUserId().orElseThrow();
-        if (!entity.getUserId().equals(userId)) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
-        }
         delete(id);
     }
 
@@ -204,33 +215,83 @@ public class AigcProjectService
     /** 关联文档到项目。 */
     @Transactional
     public AigcProjectDocVO linkDoc(Long projectId, AigcProjectDocLinkDTO dto) {
-        requireEntity(projectId);
-        Document doc =
-                documentRepository
-                        .findById(dto.docId())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
-
-        // 幂等：已存在则直接返回
-        return projectDocRepository
-                .findByProjectIdAndDocId(projectId, dto.docId())
-                .map(existing -> toDocVO(existing, doc))
-                .orElseGet(
-                        () -> {
-                            var link = new AigcProjectDoc();
-                            link.setProjectId(projectId);
-                            link.setDocId(dto.docId());
-                            link.setRole(dto.role() != null ? dto.role() : "ref");
-                            projectDocRepository.save(link);
-                            return toDocVO(link, doc);
-                        });
+        var command = new LinkDocumentCommand(dto.docId(), dto.role());
+        var plan =
+                new CustomUpdatePlan<
+                        AigcProject, LinkDocumentCommand, AigcProjectDoc, AigcProjectDocVO>(
+                        COMMAND_LINK_DOCUMENT,
+                        Set.of(FIELD_DOCUMENTS),
+                        (project, ignored) -> requireOwner(project),
+                        (project, ignored) -> {},
+                        (project, request) -> linkDocument(project.getId(), request),
+                        false,
+                        (project, request, link) -> {},
+                        (project, request, link) ->
+                                toDocVO(
+                                        link,
+                                        documentRepository.findById(request.docId()).orElse(null)));
+        return executeCustomUpdateCommand(projectId, command, plan);
     }
 
     /** 取消文档与项目的关联。 */
     @Transactional
     public void unlinkDoc(Long projectId, Long docId) {
-        projectDocRepository.deleteByProjectIdAndDocId(projectId, docId);
+        var command = new UnlinkDocumentCommand(docId);
+        var plan =
+                new CustomUpdatePlan<AigcProject, UnlinkDocumentCommand, Void, Void>(
+                        COMMAND_UNLINK_DOCUMENT,
+                        Set.of(FIELD_DOCUMENTS),
+                        (project, ignored) -> requireOwner(project),
+                        (project, ignored) -> {},
+                        (project, request) -> {
+                            projectDocRepository.deleteByProjectIdAndDocId(
+                                    project.getId(), request.docId());
+                            return null;
+                        },
+                        false,
+                        (project, request, ignored) -> {},
+                        (project, request, ignored) -> null);
+        executeCustomUpdateCommand(projectId, command, plan);
     }
+
+    private AigcProjectDoc linkDocument(Long projectId, LinkDocumentCommand command) {
+        documentRepository
+                .findById(command.docId())
+                .orElseThrow(
+                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
+        return projectDocRepository
+                .findByProjectIdAndDocId(projectId, command.docId())
+                .orElseGet(
+                        () -> {
+                            var link = new AigcProjectDoc();
+                            link.setProjectId(projectId);
+                            link.setDocId(command.docId());
+                            link.setRole(command.role() != null ? command.role() : "ref");
+                            return projectDocRepository.save(link);
+                        });
+    }
+
+    private Set<String> projectUpdateFields(AigcProjectUpdateDTO dto) {
+        var fields = new java.util.LinkedHashSet<String>();
+        if (dto.name() != null) fields.add("name");
+        if (dto.coverUrl() != null) fields.add("coverUrl");
+        if (dto.description() != null) fields.add("description");
+        if (dto.type() != null) fields.add("type");
+        if (dto.status() != null) fields.add("status");
+        if (dto.prompt() != null) fields.add("prompt");
+        return Set.copyOf(fields);
+    }
+
+    private void requireOwner(AigcProject project) {
+        Long userId = operatorContext.currentUserId().orElseThrow();
+        if (!project.getUserId().equals(userId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
+        }
+    }
+
+    private record LinkDocumentCommand(Long docId, String role) {}
+
+    private record UnlinkDocumentCommand(Long docId) {}
 
     private AigcProjectDocVO toDocVO(AigcProjectDoc link, Document doc) {
         var vo = new AigcProjectDocVO();

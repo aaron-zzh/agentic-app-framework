@@ -8,8 +8,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,23 +54,8 @@ public class AvatarOutfitService
     private final OperatorContext operatorContext;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AvatarOutfit, Long> getRepository() {
+    protected AvatarOutfitRepository getRepository() {
         return outfitRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AvatarOutfit> getSpecExecutor() {
-        return outfitRepository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "装扮";
     }
 
     @Override
