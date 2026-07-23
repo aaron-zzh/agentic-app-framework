@@ -22,6 +22,8 @@ import jakarta.persistence.criteria.Predicate;
  */
 public class SpecificationBuilder<T> {
 
+    private static final char LIKE_ESCAPE = '\\';
+
     private final List<SpecCondition> conditions = new ArrayList<>();
 
     public static <T> SpecificationBuilder<T> builder() {
@@ -30,7 +32,9 @@ public class SpecificationBuilder<T> {
 
     public SpecificationBuilder<T> likeIfPresent(String field, String value) {
         if (value != null && !value.isBlank()) {
-            conditions.add((root, cb) -> cb.like(root.get(field), "%" + value + "%"));
+            conditions.add(
+                    (root, cb) ->
+                            cb.like(root.get(field), "%" + escapeLike(value) + "%", LIKE_ESCAPE));
         }
         return this;
     }
@@ -97,6 +101,50 @@ public class SpecificationBuilder<T> {
             conditions.add((root, cb) -> root.get(field).in(values));
         }
         return this;
+    }
+
+    public SpecificationBuilder<T> notInIfPresent(String field, Collection<?> values) {
+        if (values != null && !values.isEmpty()) {
+            conditions.add(
+                    (root, cb) ->
+                            cb.or(cb.isNull(root.get(field)), cb.not(root.get(field).in(values))));
+        }
+        return this;
+    }
+
+    public SpecificationBuilder<T> startsWithIfPresent(String field, String value) {
+        if (value != null && !value.isBlank()) {
+            conditions.add(
+                    (root, cb) -> cb.like(root.get(field), escapeLike(value) + "%", LIKE_ESCAPE));
+        }
+        return this;
+    }
+
+    public SpecificationBuilder<T> isNull(String field) {
+        conditions.add((root, cb) -> cb.isNull(root.get(field)));
+        return this;
+    }
+
+    public SpecificationBuilder<T> isNotNull(String field) {
+        conditions.add((root, cb) -> cb.isNotNull(root.get(field)));
+        return this;
+    }
+
+    public SpecificationBuilder<T> isEmpty(String field) {
+        conditions.add(
+                (root, cb) -> cb.or(cb.isNull(root.get(field)), cb.equal(root.get(field), "")));
+        return this;
+    }
+
+    public SpecificationBuilder<T> isNotEmpty(String field) {
+        conditions.add(
+                (root, cb) ->
+                        cb.and(cb.isNotNull(root.get(field)), cb.notEqual(root.get(field), "")));
+        return this;
+    }
+
+    private String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     public Specification<T> build() {
