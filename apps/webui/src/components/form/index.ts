@@ -1,5 +1,10 @@
 // 核心
 
+export type {
+  EntityRecordReference,
+  EntityRecordReferencePickerProps
+} from "./entity-record-reference-picker"
+export { EntityRecordReferencePicker } from "./entity-record-reference-picker"
 // 扩展字段（不在 Field 命名空间内的特殊控件）
 export { FieldCascader } from "./field-cascader"
 export { FieldMoney, FieldQuantity } from "./field-money"

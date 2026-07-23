@@ -3,63 +3,79 @@
  * @author AaronZZH & Kiro
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useCallback, useEffect, useState } from "react"
+import { useDebounce } from "use-debounce"
+
+import { backendApi } from "@/lib/api/rest/backend-client"
 
 export interface RelationOption {
   id: string
   label: string
+  imageUrl?: string
 }
 
-const RECENT_KEY = (endpoint: string) => `aaf_recent_${endpoint}`
 const MAX_RECENT = 5
 
+const RECENT_KEY = (endpoint: string) => `aaf_recent_${endpoint}`
+
+function readRecent(endpoint?: string): RelationOption[] {
+  if (!endpoint || typeof window === "undefined") return []
+
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY(endpoint)) ?? "[]") as RelationOption[]
+  } catch {
+    return []
+  }
+}
+
+/** 查询并管理关系字段的最近选择。 */
 export function useRelationshipPicker(searchEndpoint?: string, displayField = "name") {
   const [query, setQuery] = useState("")
-  const [options, setOptions] = useState<RelationOption[]>([])
-  const [loading, setLoading] = useState(false)
-  const [recent, setRecent] = useState<RelationOption[]>(() => {
-    if (!searchEndpoint || typeof window === "undefined") return []
-    try {
-      return JSON.parse(localStorage.getItem(RECENT_KEY(searchEndpoint)) ?? "[]")
-    } catch {
-      return []
-    }
-  })
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [recent, setRecent] = useState<RelationOption[]>(() => readRecent(searchEndpoint))
+  const [debouncedQuery] = useDebounce(query, 300)
+  const normalizedQuery = debouncedQuery.trim()
 
-  // 异步搜索（debounce 300ms）
   useEffect(() => {
-    if (!query.trim() || !searchEndpoint) {
-      setOptions([])
-      return
-    }
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(`${searchEndpoint}?search=${encodeURIComponent(query)}&limit=10`)
-        const json = await res.json()
-        const list = (json.data?.list ?? json.data ?? []) as Record<string, unknown>[]
-        setOptions(
-          list.map((r) => ({
-            id: r.id as string,
-            label: (r[displayField] as string) ?? String(r.id)
-          }))
-        )
-      } catch {
-        setOptions([])
-      } finally {
-        setLoading(false)
-      }
-    }, 300)
-  }, [query, searchEndpoint, displayField])
+    setQuery("")
+    setRecent(readRecent(searchEndpoint))
+  }, [searchEndpoint])
 
-  // 记录最近选择
+  const optionsQuery = useQuery({
+    queryKey: ["relationship-picker", searchEndpoint, displayField, normalizedQuery],
+    queryFn: async (): Promise<RelationOption[]> => {
+      if (!searchEndpoint) return []
+
+      const params = new URLSearchParams({ limit: "20" })
+      if (normalizedQuery) params.set("q", normalizedQuery)
+      const records = await backendApi.get<Record<string, unknown>[]>(
+        `${searchEndpoint}?${params.toString()}`
+      )
+      return records.map((record) => ({
+        id: String(record.id),
+        label: String(
+          record.label ??
+            record[displayField] ??
+            record.displayName ??
+            record.nickname ??
+            record.username ??
+            record.id
+        ),
+        ...(typeof record.imageUrl === "string" ? { imageUrl: record.imageUrl } : {})
+      }))
+    },
+    enabled: Boolean(searchEndpoint)
+  })
+
   const recordRecent = useCallback(
-    (opt: RelationOption) => {
+    (option: RelationOption) => {
       if (!searchEndpoint) return
-      setRecent((prev) => {
-        const next = [opt, ...prev.filter((r) => r.id !== opt.id)].slice(0, MAX_RECENT)
+
+      setRecent((previous) => {
+        const next = [option, ...previous.filter((item) => item.id !== option.id)].slice(
+          0,
+          MAX_RECENT
+        )
         localStorage.setItem(RECENT_KEY(searchEndpoint), JSON.stringify(next))
         return next
       })
@@ -67,8 +83,11 @@ export function useRelationshipPicker(searchEndpoint?: string, displayField = "n
     [searchEndpoint]
   )
 
-  // 显示的选项：有搜索词时显示搜索结果，否则显示最近选择
-  const displayOptions = query.trim() ? options : recent
-
-  return { query, setQuery, displayOptions, loading, recordRecent }
+  return {
+    query,
+    setQuery,
+    displayOptions: optionsQuery.data ?? recent,
+    loading: optionsQuery.isFetching,
+    recordRecent
+  }
 }
