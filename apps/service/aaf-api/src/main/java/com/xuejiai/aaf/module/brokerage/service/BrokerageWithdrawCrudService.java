@@ -1,19 +1,19 @@
 package com.xuejiai.aaf.module.brokerage.service;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.brokerage.BrokerageWithdrawStatusEnum;
-import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.crud.ReadonlyCrudService;
 import com.xuejiai.aaf.module.brokerage.domain.BrokerageWithdraw;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageWithdrawRepository;
-import com.xuejiai.aaf.module.brokerage.vo.BrokerageWithdrawDTO;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageWithdrawPageParam;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageWithdrawVO;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
@@ -21,17 +21,13 @@ import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
-/** 佣金提现 CRUD 服务。 */
+/** 佣金提现管理服务，通用 CRUD 只读，状态只能通过具名动作流转。 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BrokerageWithdrawCrudService
-        extends BaseCrudService<
-                BrokerageWithdraw,
-                BrokerageWithdrawVO,
-                BrokerageWithdrawDTO,
-                BrokerageWithdrawDTO,
-                BrokerageWithdrawPageParam> {
+        extends ReadonlyCrudService<
+                BrokerageWithdraw, BrokerageWithdrawVO, BrokerageWithdrawPageParam> {
 
     private static final Set<String> SORTABLE_FIELDS =
             Set.of(
@@ -52,18 +48,8 @@ public class BrokerageWithdrawCrudService
     private final NotificationService notificationService;
 
     @Override
-    protected JpaRepository<BrokerageWithdraw, Long> getRepository() {
+    protected BrokerageWithdrawRepository getRepository() {
         return brokerageWithdrawRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<BrokerageWithdraw> getSpecExecutor() {
-        return brokerageWithdrawRepository;
-    }
-
-    @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
     }
 
     @Override
@@ -86,53 +72,87 @@ public class BrokerageWithdrawCrudService
                 e.getUpdateTime());
     }
 
-    @Override
-    protected BrokerageWithdraw toEntity(BrokerageWithdrawDTO dto) {
-        // 校验余额是否充足
-        var bu = brokerageUserRepository.findByContactId(dto.contactId()).orElse(null);
-        if (bu == null || bu.getBalance() < dto.amount()) {
-            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST,
-                    "可用佣金余额不足，当前余额: " + (bu == null ? 0 : bu.getBalance()) + " 分");
+    /** 审核通过待审核提现，不执行支付。 */
+    // TODO(security): 改为独立 approve 领域命令，经统一 PDP 绑定提现 ID、命令摘要和 CURRENT/PROPOSED；通知必须在授权成功后发送。
+    @Transactional
+    public BrokerageWithdrawVO approve(Long id) {
+        var withdraw = requirePending(id);
+        withdraw.setStatus(BrokerageWithdrawStatusEnum.APPROVED);
+        withdraw.setAuditReason(null);
+        withdraw.setAuditTime(LocalDateTime.now());
+        brokerageWithdrawRepository.save(withdraw);
+        sendAuditNotification(withdraw, BrokerageWithdrawStatusEnum.APPROVED, null);
+        return toVO(withdraw);
+    }
+
+    /** 驳回待审核提现并解除该申请冻结的佣金。 */
+    // TODO(security): 改为独立 reject 领域命令，经统一 PDP 绑定驳回原因和状态快照；余额解冻及通知必须在授权成功后执行。
+    @Transactional
+    public BrokerageWithdrawVO reject(Long id, String auditReason) {
+        if (auditReason == null || auditReason.isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "驳回提现必须填写原因");
         }
-        var e = new BrokerageWithdraw();
-        e.setContactId(dto.contactId());
-        e.setAmount(dto.amount());
-        e.setType(dto.type());
-        e.setAccountName(dto.accountName());
-        e.setAccountNo(dto.accountNo());
-        e.setQrCodeUrl(dto.qrCodeUrl());
-        return e;
+        var withdraw = requirePending(id);
+        int updated =
+                brokerageUserRepository.addBalanceAndReduceFrozen(
+                        withdraw.getContactId(), withdraw.getAmount());
+        if (updated != 1) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "提现申请人不存在分销账户");
+        }
+        withdraw.setStatus(BrokerageWithdrawStatusEnum.REJECTED);
+        withdraw.setAuditReason(auditReason.trim());
+        withdraw.setAuditTime(LocalDateTime.now());
+        brokerageWithdrawRepository.save(withdraw);
+        sendAuditNotification(
+                withdraw, BrokerageWithdrawStatusEnum.REJECTED, withdraw.getAuditReason());
+        return toVO(withdraw);
+    }
+
+    /** 确认已完成线下或外部转账，不创建或执行支付单。 */
+    // TODO(security): 改为独立 confirm-transfer 领域命令，经统一 PDP 绑定转账单 ID 和状态快照，禁止继续使用 GET 授权执行写入。
+    @Transactional
+    public BrokerageWithdrawVO confirmTransfer(Long id, Long payTransferId) {
+        if (payTransferId == null || payTransferId <= 0) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "转账单 ID 必须为正数");
+        }
+        var withdraw = requireEntity(id);
+        if (withdraw.getStatus() != BrokerageWithdrawStatusEnum.APPROVED) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "仅审核通过的提现申请可确认转账");
+        }
+        withdraw.setPayTransferId(payTransferId);
+        withdraw.setStatus(BrokerageWithdrawStatusEnum.TRANSFERRED);
+        withdraw.setTransferTime(LocalDateTime.now());
+        brokerageWithdrawRepository.save(withdraw);
+        return toVO(withdraw);
     }
 
     @Override
-    protected void updateEntity(BrokerageWithdraw e, BrokerageWithdrawDTO dto) {
-        if (dto.accountName() != null) e.setAccountName(dto.accountName());
-        if (dto.accountNo() != null) e.setAccountNo(dto.accountNo());
-        if (dto.qrCodeUrl() != null) e.setQrCodeUrl(dto.qrCodeUrl());
-        // 审核操作
-        if (dto.status() != null) {
-            e.setStatus(dto.status());
-            if (dto.auditReason() != null) e.setAuditReason(dto.auditReason());
-            if (dto.status() == BrokerageWithdrawStatusEnum.APPROVED
-                    || dto.status() == BrokerageWithdrawStatusEnum.REJECTED) {
-                e.setAuditTime(java.time.LocalDateTime.now());
-                sendAuditNotification(e, dto.status(), dto.auditReason());
-            }
-        }
+    protected Specification<BrokerageWithdraw> buildSpec(BrokerageWithdrawPageParam p) {
+        return (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (p.getContactId() != null)
+                predicates.add(cb.equal(root.get("contactId"), p.getContactId()));
+            if (p.getStatus() != null) predicates.add(cb.equal(root.get("status"), p.getStatus()));
+            if (p.getType() != null) predicates.add(cb.equal(root.get("type"), p.getType()));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
     }
 
-    /**
-     * 审核通过/驳回时给申请人发站内消息。
-     *
-     * <p>反查 contactId → userId；用户不存在则跳过通知（提现记录通常对应有效用户，但保留容错）。
-     */
+    private BrokerageWithdraw requirePending(Long id) {
+        var withdraw = requireEntity(id);
+        if (withdraw.getStatus() != BrokerageWithdrawStatusEnum.PENDING) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "仅待审核的提现申请可审核");
+        }
+        return withdraw;
+    }
+
+    /** 审核通过或驳回时给申请人发站内消息。 */
     private void sendAuditNotification(
-            BrokerageWithdraw e, BrokerageWithdrawStatusEnum status, String auditReason) {
-        var userOpt = userRepository.findByContactId(e.getContactId());
+            BrokerageWithdraw withdraw, BrokerageWithdrawStatusEnum status, String auditReason) {
+        var userOpt = userRepository.findByContactId(withdraw.getContactId());
         if (userOpt.isEmpty()) return;
 
-        String amount = String.format("¥%.2f", e.getAmount() / 100.0);
+        String amount = String.format("¥%.2f", withdraw.getAmount() / 100.0);
         String title;
         String body;
         if (status == BrokerageWithdrawStatusEnum.APPROVED) {
@@ -153,23 +173,6 @@ public class BrokerageWithdrawCrudService
                 body,
                 "/settings/withdraw",
                 "BROKERAGE_WITHDRAW",
-                e.getId());
-    }
-
-    @Override
-    protected Specification<BrokerageWithdraw> buildSpec(BrokerageWithdrawPageParam p) {
-        return (root, query, cb) -> {
-            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-            if (p.getContactId() != null)
-                predicates.add(cb.equal(root.get("contactId"), p.getContactId()));
-            if (p.getStatus() != null) predicates.add(cb.equal(root.get("status"), p.getStatus()));
-            if (p.getType() != null) predicates.add(cb.equal(root.get("type"), p.getType()));
-            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-        };
-    }
-
-    @Override
-    protected String entityName() {
-        return "佣金提现";
+                withdraw.getId());
     }
 }

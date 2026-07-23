@@ -7,8 +7,6 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +37,12 @@ public class AigcContentService
                 AigcContentUpdateDTO,
                 AigcContentPageDTO> {
 
+    public static final String COMMAND_PUBLISH = "AIGC_CONTENT_PUBLISH";
+    public static final String COMMAND_ADD_ASSET = "AIGC_CONTENT_ADD_ASSET";
+    public static final String COMMAND_REMOVE_ASSET = "AIGC_CONTENT_REMOVE_ASSET";
+
+    private static final String FIELD_ASSETS = "assets";
+
     private static final Set<String> SORTABLE_FIELDS =
             Set.of(
                     "id",
@@ -56,23 +60,8 @@ public class AigcContentService
     @Autowired private OperatorContext operatorContext;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AigcContent, Long> getRepository() {
+    protected AigcContentRepository getRepository() {
         return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AigcContent> getSpecExecutor() {
-        return repository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "内容产出";
     }
 
     @Override
@@ -128,6 +117,7 @@ public class AigcContentService
     }
 
     /** 发布内容（设置 publishStatus=PUBLISHED，记录发布时间）。 */
+    // TODO(security): 改为独立 publish 领域命令，经统一 PDP 绑定内容 ID、命令摘要和 CURRENT/PROPOSED，禁止继续使用 GET 授权执行写入。
     @Transactional
     public AigcContentVO publish(Long id) {
         AigcContent content = requireEntity(id);

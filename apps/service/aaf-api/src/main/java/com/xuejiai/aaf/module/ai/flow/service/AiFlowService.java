@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,23 +45,8 @@ public class AiFlowService
     private final WorkflowEngine workflowEngine;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<AiFlowDefinition, Long> getRepository() {
+    protected AiFlowDefinitionRepository getRepository() {
         return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<AiFlowDefinition> getSpecExecutor() {
-        return repository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "AI 工作流";
     }
 
     @Override
@@ -128,6 +111,7 @@ public class AiFlowService
     }
 
     /** 发布：将编辑态 JSON 转 BPMN 部署到 Flowable，更新状态为 PUBLISHED。 */
+    // TODO(security): 改为独立 deploy 领域命令，经统一 PDP 绑定流程 ID、命令摘要和 CURRENT/PROPOSED；Flowable 部署必须在授权成功后执行。
     @Transactional
     public AiFlowDefinitionVO deploy(Long id, String bpmnXml) {
         var entity = requireEntity(id);
