@@ -3,8 +3,6 @@ package com.xuejiai.aaf.module.brokerage.service;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,18 +35,8 @@ public class BrokerageInviteCodeCrudService
     private final BrokerageInviteCodeService inviteCodeService;
 
     @Override
-    protected JpaRepository<BrokerageInviteCode, Long> getRepository() {
+    protected BrokerageInviteCodeRepository getRepository() {
         return inviteCodeRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<BrokerageInviteCode> getSpecExecutor() {
-        return inviteCodeRepository;
-    }
-
-    @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
     }
 
     @Override
@@ -92,10 +80,5 @@ public class BrokerageInviteCodeCrudService
                 predicates.add(cb.equal(root.get("channel"), p.getChannel()));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "邀请码";
     }
 }

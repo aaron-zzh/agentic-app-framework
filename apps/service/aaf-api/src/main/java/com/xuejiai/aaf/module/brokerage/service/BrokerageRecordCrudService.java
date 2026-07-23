@@ -3,13 +3,11 @@ package com.xuejiai.aaf.module.brokerage.service;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.crud.ReadonlyCrudService;
 import com.xuejiai.aaf.module.brokerage.domain.BrokerageRecord;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageRecordRepository;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageRecordPageParam;
@@ -17,13 +15,12 @@ import com.xuejiai.aaf.module.brokerage.vo.BrokerageRecordVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 佣金流水 CRUD 服务（只读为主，写操作由 BrokerageService 核心服务处理）。 */
+/** 佣金流水只读服务，写入仅由 BrokerageService 处理。 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BrokerageRecordCrudService
-        extends BaseCrudService<
-                BrokerageRecord, BrokerageRecordVO, Void, Void, BrokerageRecordPageParam> {
+        extends ReadonlyCrudService<BrokerageRecord, BrokerageRecordVO, BrokerageRecordPageParam> {
 
     private static final Set<String> SORTABLE_FIELDS =
             Set.of(
@@ -43,18 +40,8 @@ public class BrokerageRecordCrudService
     private final BrokerageRecordRepository brokerageRecordRepository;
 
     @Override
-    protected JpaRepository<BrokerageRecord, Long> getRepository() {
+    protected BrokerageRecordRepository getRepository() {
         return brokerageRecordRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<BrokerageRecord> getSpecExecutor() {
-        return brokerageRecordRepository;
-    }
-
-    @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
     }
 
     @Override
@@ -79,18 +66,6 @@ public class BrokerageRecordCrudService
     }
 
     @Override
-    protected BrokerageRecord toEntity(Void dto) {
-        throw new com.xuejiai.aaf.common.exception.BusinessException(
-                com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "佣金流水不支持手动创建");
-    }
-
-    @Override
-    protected void updateEntity(BrokerageRecord e, Void dto) {
-        throw new com.xuejiai.aaf.common.exception.BusinessException(
-                com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "佣金流水不支持手动更新");
-    }
-
-    @Override
     protected Specification<BrokerageRecord> buildSpec(BrokerageRecordPageParam p) {
         return (root, query, cb) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
@@ -101,10 +76,5 @@ public class BrokerageRecordCrudService
             if (p.getStatus() != null) predicates.add(cb.equal(root.get("status"), p.getStatus()));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "佣金流水";
     }
 }

@@ -3,8 +3,6 @@ package com.xuejiai.aaf.module.brokerage.service;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,18 +40,8 @@ public class BrokerageLevelBonusCrudService
     private final BrokerageLevelBonusRepository brokerageLevelBonusRepository;
 
     @Override
-    protected JpaRepository<BrokerageLevelBonus, Long> getRepository() {
+    protected BrokerageLevelBonusRepository getRepository() {
         return brokerageLevelBonusRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<BrokerageLevelBonus> getSpecExecutor() {
-        return brokerageLevelBonusRepository;
-    }
-
-    @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
     }
 
     @Override
@@ -92,10 +80,5 @@ public class BrokerageLevelBonusCrudService
             if (p.getPlanId() != null) predicates.add(cb.equal(root.get("planId"), p.getPlanId()));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "等级佣金加成";
     }
 }

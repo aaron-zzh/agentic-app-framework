@@ -1,23 +1,25 @@
 package com.xuejiai.aaf.module.brokerage.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.brokerage.domain.BrokerageUser;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
-import com.xuejiai.aaf.module.brokerage.vo.BrokerageUserDTO;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageUserPageParam;
+import com.xuejiai.aaf.module.brokerage.vo.BrokerageUserUpdateDTO;
 import com.xuejiai.aaf.module.brokerage.vo.BrokerageUserVO;
 
 import lombok.RequiredArgsConstructor;
 
-/** 分销员 CRUD 服务。 */
+/** 分销员管理服务，仅允许管理员读取和调整分销资格。 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -25,8 +27,8 @@ public class BrokerageUserCrudService
         extends BaseCrudService<
                 BrokerageUser,
                 BrokerageUserVO,
-                BrokerageUserDTO,
-                BrokerageUserDTO,
+                Void,
+                BrokerageUserUpdateDTO,
                 BrokerageUserPageParam> {
 
     private static final Set<String> SORTABLE_FIELDS =
@@ -45,18 +47,8 @@ public class BrokerageUserCrudService
     private final BrokerageUserRepository brokerageUserRepository;
 
     @Override
-    protected JpaRepository<BrokerageUser, Long> getRepository() {
+    protected BrokerageUserRepository getRepository() {
         return brokerageUserRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<BrokerageUser> getSpecExecutor() {
-        return brokerageUserRepository;
-    }
-
-    @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
     }
 
     @Override
@@ -75,18 +67,40 @@ public class BrokerageUserCrudService
     }
 
     @Override
-    protected BrokerageUser toEntity(BrokerageUserDTO dto) {
-        var e = new BrokerageUser();
-        e.setContactId(dto.contactId());
-        e.setReferrerContactId(dto.referrerContactId());
-        if (dto.brokerageEnabled() != null) e.setBrokerageEnabled(dto.brokerageEnabled());
-        return e;
+    protected BrokerageUser toEntity(Void dto) {
+        return unsupported("创建");
     }
 
     @Override
-    protected void updateEntity(BrokerageUser e, BrokerageUserDTO dto) {
-        if (dto.referrerContactId() != null) e.setReferrerContactId(dto.referrerContactId());
-        if (dto.brokerageEnabled() != null) e.setBrokerageEnabled(dto.brokerageEnabled());
+    protected void updateEntity(BrokerageUser e, BrokerageUserUpdateDTO dto) {
+        if (dto.brokerageEnabled() != null) {
+            e.setBrokerageEnabled(dto.brokerageEnabled());
+        }
+    }
+
+    @Override
+    public BrokerageUserVO create(Void request) {
+        return unsupported("创建");
+    }
+
+    @Override
+    public void delete(Long id) {
+        unsupported("删除");
+    }
+
+    @Override
+    public void deleteBatch(List<Long> ids) {
+        unsupported("批量删除");
+    }
+
+    @Override
+    public void archive(List<Long> ids) {
+        unsupported("归档");
+    }
+
+    @Override
+    public void restore(List<Long> ids) {
+        unsupported("恢复");
     }
 
     @Override
@@ -103,8 +117,7 @@ public class BrokerageUserCrudService
         };
     }
 
-    @Override
-    protected String entityName() {
-        return "分销员";
+    private <T> T unsupported(String operation) {
+        throw exception(GlobalErrorCode.CRUD_OPERATION_UNSUPPORTED, getEntityName(), operation);
     }
 }

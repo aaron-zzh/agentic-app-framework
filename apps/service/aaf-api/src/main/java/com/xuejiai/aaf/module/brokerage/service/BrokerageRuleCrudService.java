@@ -3,8 +3,6 @@ package com.xuejiai.aaf.module.brokerage.service;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -47,18 +45,8 @@ public class BrokerageRuleCrudService
     private final BrokerageRuleRepository brokerageRuleRepository;
 
     @Override
-    protected JpaRepository<BrokerageRule, Long> getRepository() {
+    protected BrokerageRuleRepository getRepository() {
         return brokerageRuleRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<BrokerageRule> getSpecExecutor() {
-        return brokerageRuleRepository;
-    }
-
-    @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
     }
 
     @Override
@@ -121,10 +109,5 @@ public class BrokerageRuleCrudService
                 predicates.add(cb.equal(root.get("status"), p.getStatus()));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "佣金规则";
     }
 }
