@@ -6,15 +6,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
-import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
-import com.xuejiai.aaf.framework.security.access.RecordRuleSupport;
+import com.xuejiai.aaf.framework.crud.enforcement.RecordRule;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.authorization.RecordRuleSupport;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
 import com.xuejiai.aaf.module.system.role.domain.DataAccessRule;
@@ -65,17 +64,12 @@ public class DataAccessService
     private final PermissionVersionService versionService;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
+    protected List<String> optionSearchFields() {
+        return List.of("entitySlug");
     }
 
     @Override
-    protected JpaRepository<DataAccessRule, Long> getRepository() {
-        return ruleRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<DataAccessRule> getSpecExecutor() {
+    protected DataAccessRuleRepository getRepository() {
         return ruleRepository;
     }
 
@@ -117,11 +111,6 @@ public class DataAccessService
     }
 
     @Override
-    protected String entityName() {
-        return "数据权限规则";
-    }
-
-    @Override
     protected String permissionCode(String action) {
         return "system:data-access-rule:manage";
     }
@@ -132,9 +121,20 @@ public class DataAccessService
      * <p>实体完全没有配置规则时返回 null，调用方跳过 L3；实体存在规则但当前用户角色无匹配规则时返回 1=0， 让列表为空、详情/更新/删除统一表现为 404。
      */
     @Override
-    public <T> Specification<T> buildAccessSpec(String entitySlug, Long userId) {
+    public <T> RecordRule<T> compile(String entitySlug, Long userId) {
         if (entitySlug == null || entitySlug.isBlank() || userId == null) {
-            return null;
+            return RecordRule.denyAll("invalid-context");
+        }
+        var version = accessVersion(entitySlug, userId);
+        Specification<T> specification = compileSpecification(entitySlug, userId);
+        return specification == null
+                ? RecordRule.allowAll(version)
+                : new RecordRule<>(specification, version);
+    }
+
+    private <T> Specification<T> compileSpecification(String entitySlug, Long userId) {
+        if (entitySlug == null || entitySlug.isBlank() || userId == null) {
+            return (root, query, cb) -> cb.disjunction();
         }
 
         var userRoleCodes = getUserRoleCodes(userId);
@@ -173,8 +173,7 @@ public class DataAccessService
         };
     }
 
-    @Override
-    public String accessVersion(String entitySlug, Long userId) {
+    private String accessVersion(String entitySlug, Long userId) {
         if (entitySlug == null || entitySlug.isBlank() || userId == null) {
             return "0";
         }
@@ -190,14 +189,6 @@ public class DataAccessService
                 + ruleVersion
                 + ":"
                 + roleCodes.hashCode();
-    }
-
-    /**
-     * @deprecated 请使用 {@link #buildAccessSpec(String, Long)}，名称更准确地表达行级数据权限语义。
-     */
-    @Deprecated(forRemoval = false)
-    public <T> Specification<T> buildSpecification(String entitySlug, Long userId) {
-        return buildAccessSpec(entitySlug, userId);
     }
 
     private Set<String> getUserRoleCodes(Long userId) {
@@ -445,10 +436,7 @@ public class DataAccessService
     }
 
     @Override
-    @Transactional
-    public void delete(Long id) {
-        var entity = requireEntity(id);
-        super.delete(id);
+    protected void afterDelete(DataAccessRule entity) {
         versionService.bumpRuleVersion(entity.getEntitySlug());
         ruleCache.evictEntity(entity.getEntitySlug());
     }

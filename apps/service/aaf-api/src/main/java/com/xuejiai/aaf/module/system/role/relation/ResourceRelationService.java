@@ -8,8 +8,9 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
-import com.xuejiai.aaf.framework.security.access.RelationPermissionChecker;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.authorization.RelationPermissionChecker;
+import com.xuejiai.aaf.framework.security.authorization.RelationPermissionWriter;
 import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
 
@@ -18,7 +19,8 @@ import lombok.RequiredArgsConstructor;
 /** ReBAC 关系元组服务。 */
 @Service
 @RequiredArgsConstructor
-public class ResourceRelationService implements RelationPermissionChecker {
+public class ResourceRelationService
+        implements RelationPermissionChecker, RelationPermissionWriter {
 
     private static final int MAX_DEPTH = 8;
 
@@ -50,6 +52,20 @@ public class ResourceRelationService implements RelationPermissionChecker {
         entity.setExpiresAt(dto.expiresAt());
         repository.save(entity);
         evict(dto.objectType(), dto.objectId());
+    }
+
+    @Override
+    @Transactional
+    public void grant(Long subjectId, String objectType, String objectId, String relation) {
+        grant(
+                new GrantRelationDTO(
+                        objectType,
+                        objectId,
+                        relation,
+                        "USER",
+                        String.valueOf(subjectId),
+                        null,
+                        null));
     }
 
     @Transactional

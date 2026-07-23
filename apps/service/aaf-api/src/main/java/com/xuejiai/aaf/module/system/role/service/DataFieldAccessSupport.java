@@ -1,15 +1,20 @@
 package com.xuejiai.aaf.module.system.role.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
+import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.security.access.FieldAccessSupport;
+import com.xuejiai.aaf.framework.crud.definition.FieldCapability;
+import com.xuejiai.aaf.framework.security.authorization.FieldAccessSupport;
 import com.xuejiai.aaf.module.system.auth.vo.FieldAccessVO;
 import com.xuejiai.aaf.module.system.role.domain.Permission;
 import com.xuejiai.aaf.module.system.role.repository.PermissionRepository;
@@ -17,7 +22,7 @@ import com.xuejiai.aaf.module.system.role.repository.PermissionRepository;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.type.TypeReference;
 
-/** 基于 sys_permission.field_access 的字段级权限裁剪支持。 */
+/** 基于 sys_permission.field_access 的字段能力动态收窄实现。 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -26,9 +31,9 @@ public class DataFieldAccessSupport implements FieldAccessSupport {
     private final PermissionRepository permissionRepository;
 
     @Override
-    public Set<String> hiddenFields(String entitySlug, Long userId, String action) {
-        if (entitySlug == null || userId == null) {
-            return Set.of();
+    public Map<FieldCapability, Set<String>> deniedFields(String entitySlug, Long userId) {
+        if (entitySlug == null || entitySlug.isBlank() || userId == null) {
+            throw exception(GlobalErrorCode.FORBIDDEN);
         }
         var fields = new HashMap<String, FieldAccessVO>();
         for (Permission permission :
@@ -36,27 +41,55 @@ public class DataFieldAccessSupport implements FieldAccessSupport {
             if (permission.getFieldAccess() == null || permission.getFieldAccess().isBlank()) {
                 continue;
             }
+            Map<String, FieldAccessVO> parsed;
             try {
-                Map<String, FieldAccessVO> parsed =
+                parsed =
                         JsonUtils.parseObject(
                                 permission.getFieldAccess(), new TypeReference<>() {});
-                parsed.forEach(
-                        (field, access) ->
-                                fields.merge(
-                                        field,
-                                        access,
-                                        (existing, incoming) ->
-                                                new FieldAccessVO(
-                                                        existing.visible() || incoming.visible(),
-                                                        existing.editable()
-                                                                || incoming.editable())));
-            } catch (Exception ignored) {
-                // 字段权限配置错误时不在响应层泄露异常，保留服务日志由上游配置校验处理。
+            } catch (RuntimeException cause) {
+                throw exception(GlobalErrorCode.FORBIDDEN);
             }
+            if (parsed == null
+                    || parsed.entrySet().stream()
+                            .anyMatch(
+                                    entry ->
+                                            entry.getKey() == null
+                                                    || entry.getKey().isBlank()
+                                                    || entry.getValue() == null)) {
+                throw exception(GlobalErrorCode.FORBIDDEN);
+            }
+            parsed.forEach(
+                    (field, access) ->
+                            fields.merge(
+                                    field,
+                                    access,
+                                    (existing, incoming) ->
+                                            new FieldAccessVO(
+                                                    existing.visible() || incoming.visible(),
+                                                    existing.editable() || incoming.editable())));
         }
-        return fields.entrySet().stream()
-                .filter(entry -> entry.getValue() != null && !entry.getValue().visible())
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+
+        var denied = new EnumMap<FieldCapability, Set<String>>(FieldCapability.class);
+        for (var capability : FieldCapability.values()) {
+            denied.put(capability, new HashSet<>());
+        }
+        fields.forEach(
+                (field, access) -> {
+                    if (!access.visible()) {
+                        denied.get(FieldCapability.READ).add(field);
+                        denied.get(FieldCapability.FILTER).add(field);
+                        denied.get(FieldCapability.SORT).add(field);
+                        denied.get(FieldCapability.AGGREGATE).add(field);
+                        denied.get(FieldCapability.EXPORT).add(field);
+                        denied.get(FieldCapability.REFERENCE).add(field);
+                    }
+                    if (!access.editable()) {
+                        denied.get(FieldCapability.WRITE).add(field);
+                        denied.get(FieldCapability.REFERENCE).add(field);
+                    }
+                });
+        var immutable = new EnumMap<FieldCapability, Set<String>>(FieldCapability.class);
+        denied.forEach((capability, values) -> immutable.put(capability, Set.copyOf(values)));
+        return Map.copyOf(immutable);
     }
 }

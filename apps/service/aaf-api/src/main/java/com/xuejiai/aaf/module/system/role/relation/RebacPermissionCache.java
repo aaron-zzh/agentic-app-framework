@@ -5,7 +5,7 @@ import java.time.Duration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 
 import lombok.RequiredArgsConstructor;
 
