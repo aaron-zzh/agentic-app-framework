@@ -3,8 +3,6 @@ package com.xuejiai.aaf.module.system.contact.service;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -38,17 +36,7 @@ public class ContactService
                     "updateTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<Contact, Long> getRepository() {
-        return contactRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Contact> getSpecExecutor() {
+    protected ContactRepository getRepository() {
         return contactRepository;
     }
 
@@ -112,10 +100,5 @@ public class ContactService
                 predicates.add(cb.like(root.get("name"), "%" + p.getKeyword() + "%"));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "联系人";
     }
 }

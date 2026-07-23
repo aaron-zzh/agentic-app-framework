@@ -8,8 +8,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,17 +65,7 @@ public class MenuService
     private final RoleRepository roleRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<SysMenu, Long> getRepository() {
-        return menuRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<SysMenu> getSpecExecutor() {
+    protected SysMenuRepository getRepository() {
         return menuRepository;
     }
 
@@ -131,16 +119,6 @@ public class MenuService
             }
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "菜单";
-    }
-
-    @Override
-    protected String entitySlug() {
-        return "menu";
     }
 
     @Override

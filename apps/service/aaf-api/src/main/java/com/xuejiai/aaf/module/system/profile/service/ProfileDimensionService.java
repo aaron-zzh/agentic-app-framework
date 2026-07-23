@@ -1,12 +1,14 @@
 package com.xuejiai.aaf.module.system.profile.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.PROFILE_DIMENSION_CODE_EXISTS;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.PROFILE_DIMENSION_NOT_FOUND;
+
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.profile.domain.ProfileDimension;
 import com.xuejiai.aaf.module.system.profile.repository.ProfileDimensionRepository;
 
@@ -43,8 +45,7 @@ public class ProfileDimensionService {
                 .findByCodeAndDeletedFalse(dimension.getCode())
                 .ifPresent(
                         d -> {
-                            throw new BusinessException(
-                                    GlobalErrorCode.BAD_REQUEST, "维度编码已存在: " + d.getCode());
+                            throw exception(PROFILE_DIMENSION_CODE_EXISTS, d.getCode());
                         });
         return dimensionRepository.save(dimension);
     }
@@ -55,8 +56,7 @@ public class ProfileDimensionService {
         var dim =
                 dimensionRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "维度不存在"));
+                        .orElseThrow(() -> exception(PROFILE_DIMENSION_NOT_FOUND));
         dim.setName(updated.getName());
         dim.setGroupCode(updated.getGroupCode());
         dim.setValueType(updated.getValueType());

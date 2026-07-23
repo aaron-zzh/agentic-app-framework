@@ -1,12 +1,13 @@
 package com.xuejiai.aaf.module.system.file.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_CONFIG_NOT_FOUND;
+
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.file.domain.FileConfig;
 import com.xuejiai.aaf.module.system.file.repository.FileConfigRepository;
 import com.xuejiai.aaf.module.system.file.vo.FileConfigCreateDTO;
@@ -106,7 +107,7 @@ public class FileConfigService {
     private FileConfig requireConfig(Long id) {
         return fileConfigRepository
                 .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件存储配置不存在"));
+                .orElseThrow(() -> exception(FILE_CONFIG_NOT_FOUND));
     }
 
     private FileConfigVO toVO(FileConfig entity) {

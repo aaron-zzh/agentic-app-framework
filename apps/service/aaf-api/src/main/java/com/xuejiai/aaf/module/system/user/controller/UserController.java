@@ -22,8 +22,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.common.util.ImportExecutor;
+import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
+import com.xuejiai.aaf.framework.crud.web.ResourceOptionsController;
 import com.xuejiai.aaf.framework.util.ExcelUtils;
 import com.xuejiai.aaf.module.system.task.async.AsyncTaskService;
+import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.service.UserService;
 import com.xuejiai.aaf.module.system.user.vo.UserChangePasswordDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserCreateDTO;
@@ -35,7 +39,6 @@ import com.xuejiai.aaf.module.system.user.vo.UserSimpleVO;
 import com.xuejiai.aaf.module.system.user.vo.UserUpdateDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserUpdateStatusDTO;
 import com.xuejiai.aaf.module.system.user.vo.UserVO;
-import com.xuejiai.aaf.util.ImportExecutor;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,7 +54,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController implements ResourceOptionsController<User, UserVO> {
 
     private final UserService userService;
     private final AsyncTaskService asyncTaskService;
@@ -60,6 +63,15 @@ public class UserController {
     @GetMapping("/simple")
     public Result<List<UserSimpleVO>> simpleList() {
         return Result.success(userService.getSimpleList());
+    }
+
+    @Operation(summary = "查询可分配用户", description = "关系选择器使用，按用户名或昵称过滤启用用户")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/_options")
+    public Result<List<ResourceRefDTO>> pickerOptions(
+            @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "10") int limit) {
+        return Result.success(userService.getPickerOptions(q, limit));
     }
 
     @Operation(summary = "创建用户")

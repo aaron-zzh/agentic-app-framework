@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.crud.CrudMeta;
+import com.xuejiai.aaf.framework.crud.dto.CrudMetaDTO;
+import com.xuejiai.aaf.framework.crud.web.NestedCrudResourceController;
 import com.xuejiai.aaf.module.system.log.service.CommentService;
 import com.xuejiai.aaf.module.system.log.vo.CommentCreateDTO;
 import com.xuejiai.aaf.module.system.log.vo.CommentPageDTO;
@@ -29,9 +30,20 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/{entity}/{entityId}/comments")
 @RequiredArgsConstructor
-public class CommentController {
+public class CommentController
+        implements NestedCrudResourceController<
+                com.xuejiai.aaf.module.system.log.domain.Comment,
+                CommentVO,
+                CommentCreateDTO,
+                CommentUpdateDTO,
+                CommentPageDTO> {
 
     private final CommentService commentService;
+
+    @Override
+    public CommentService getService() {
+        return commentService;
+    }
 
     @Operation(summary = "分页查询评论")
     @GetMapping
@@ -66,7 +78,7 @@ public class CommentController {
 
     @Operation(summary = "评论元数据")
     @GetMapping("/_meta")
-    public Result<CrudMeta> meta() {
+    public Result<CrudMetaDTO> meta() {
         return Result.success(commentService.meta());
     }
 

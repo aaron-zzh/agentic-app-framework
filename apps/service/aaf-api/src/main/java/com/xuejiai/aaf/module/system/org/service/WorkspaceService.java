@@ -12,8 +12,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,17 +52,7 @@ public class WorkspaceService
     private static final Set<String> SORTABLE_FIELDS = Set.of("id", "name", "slug", "createTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<Workspace, Long> getRepository() {
-        return workspaceRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Workspace> getSpecExecutor() {
+    protected WorkspaceRepository getRepository() {
         return workspaceRepository;
     }
 
@@ -109,11 +97,6 @@ public class WorkspaceService
                 .build();
     }
 
-    @Override
-    protected String entityName() {
-        return "工作区";
-    }
-
     /** 创建工作区后，创建者自动成为该工作区成员，保证创建者不会看不到自己创建的工作区。 */
     @Override
     @Transactional
@@ -131,24 +114,19 @@ public class WorkspaceService
         return vo;
     }
 
-    /** 更新工作区，仅创建者（管理者）可改名。 */
+    /** 更新工作区前，仅允许创建者（管理者）改名。 */
     @Override
-    @Transactional
-    public WorkspaceVO update(Long id, WorkspaceUpdateDTO request) {
-        requireManager(requireEntity(id));
-        return super.update(id, request);
+    protected void beforeUpdate(Workspace workspace, WorkspaceUpdateDTO request) {
+        requireManager(workspace);
     }
 
-    /** 删除工作区，仅创建者（管理者）可操作，级联清理成员关系。 */
+    /** 删除工作区前，仅允许创建者（管理者）操作并清理成员关系。 */
     @Override
-    @Transactional
-    public void delete(Long id) {
-        var workspace = requireEntity(id);
+    protected void beforeDelete(Workspace workspace) {
         requireManager(workspace);
         workspaceMemberRepository
-                .findByWorkspaceIdAndDeletedFalse(id)
+                .findByWorkspaceIdAndDeletedFalse(workspace.getId())
                 .forEach(workspaceMemberRepository::delete);
-        super.delete(id);
     }
 
     // ==================== 成员管理 ====================

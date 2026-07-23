@@ -7,8 +7,6 @@ import java.util.ArrayList;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,23 +35,8 @@ public class UserFavoriteService
             Set.of("id", "targetType", "targetId", "sortOrder", "createTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<UserFavorite, Long> getRepository() {
+    protected UserFavoriteRepository getRepository() {
         return favoriteRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<UserFavorite> getSpecExecutor() {
-        return favoriteRepository;
-    }
-
-    @Override
-    protected String entityName() {
-        return "收藏";
     }
 
     @Override

@@ -31,7 +31,9 @@ import com.xuejiai.aaf.common.util.NicknameGenerator;
 import com.xuejiai.aaf.framework.bizlog.annotation.LogRecord;
 import com.xuejiai.aaf.framework.bizlog.context.LogRecordContext;
 import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
-import com.xuejiai.aaf.framework.crud.ResourceRef;
+import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
+import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
+import com.xuejiai.aaf.framework.crud.reference.CrudReferenceTargetAccess;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
@@ -52,7 +54,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserService implements UserRelationService {
+public class UserService implements UserRelationService, CrudReferenceTargetAccess {
+
+    private static final ResourceKey RESOURCE_KEY = ResourceKey.of("system.user");
 
     private static final Set<String> SORTABLE_FIELDS =
             Set.of("id", "username", "nickname", "status", "lastLoginTime", "createTime");
@@ -164,8 +168,41 @@ public class UserService implements UserRelationService {
         return userRepository.findSimpleList();
     }
 
+    @Override
+    public ResourceKey resourceKey() {
+        return RESOURCE_KEY;
+    }
+
+    @Override
+    public Set<Long> readableIds(Collection<Long> ids) {
+        return existingIds(ids);
+    }
+
+    @Override
+    public Set<Long> referenceableIds(Collection<Long> ids) {
+        return existingIds(ids);
+    }
+
+    @Override
+    public Map<Long, ResourceRefDTO> loadReadableRefs(Collection<Long> ids) {
+        return findRefs(ids).entrySet().stream()
+                .collect(
+                        java.util.stream.Collectors.toUnmodifiableMap(
+                                Map.Entry::getKey,
+                                entry -> entry.getValue().withResource(RESOURCE_KEY.value())));
+    }
+
+    private Set<Long> existingIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Set.of();
+        }
+        return userRepository.findAllById(ids).stream()
+                .map(User::getId)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
     /** 查询可分配的启用用户，供受登录鉴权的关系选择器使用。 */
-    public List<ResourceRef> getPickerOptions(String keyword, int limit) {
+    public List<ResourceRefDTO> getPickerOptions(String keyword, int limit) {
         var normalizedKeyword = keyword == null ? "" : keyword.trim();
         var normalizedLimit = Math.clamp(limit, 1, 50);
         return userRepository
@@ -180,7 +217,7 @@ public class UserService implements UserRelationService {
 
     /** 批量解析用户关联展示引用，供其他业务资源装配读模型。 */
     @Override
-    public Map<Long, ResourceRef> findRefs(Collection<Long> userIds) {
+    public Map<Long, ResourceRefDTO> findRefs(Collection<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return Map.of();
         }
@@ -188,12 +225,12 @@ public class UserService implements UserRelationService {
                 userRepository.findAllById(userIds), User::getId, this::toResourceRef);
     }
 
-    private ResourceRef toPickerRef(UserSimpleVO user) {
-        return new ResourceRef(user.id(), userLabel(user.nickname(), user.username()), null);
+    private ResourceRefDTO toPickerRef(UserSimpleVO user) {
+        return new ResourceRefDTO(user.id(), userLabel(user.nickname(), user.username()), null);
     }
 
-    private ResourceRef toResourceRef(User user) {
-        return new ResourceRef(
+    private ResourceRefDTO toResourceRef(User user) {
+        return new ResourceRefDTO(
                 user.getId(), userLabel(user.getNickname(), user.getUsername()), user.getAvatar());
     }
 

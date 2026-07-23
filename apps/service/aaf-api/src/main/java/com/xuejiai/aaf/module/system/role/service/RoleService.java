@@ -6,8 +6,6 @@ import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,17 +39,7 @@ public class RoleService
             Set.of("id", "code", "name", "status", "createTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<Role, Long> getRepository() {
-        return roleRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Role> getSpecExecutor() {
+    protected RoleRepository getRepository() {
         return roleRepository;
     }
 
@@ -118,21 +106,6 @@ public class RoleService
             var pattern = "%" + keyword.trim() + "%";
             return cb.or(cb.like(root.get("code"), pattern), cb.like(root.get("name"), pattern));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "角色";
-    }
-
-    @Override
-    protected String entitySlug() {
-        return "system-role";
-    }
-
-    @Override
-    protected String permissionResource() {
-        return "role";
     }
 
     // ==================== 操作日志 ====================

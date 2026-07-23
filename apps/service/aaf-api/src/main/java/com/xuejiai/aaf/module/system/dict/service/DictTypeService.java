@@ -8,8 +8,6 @@ import static com.xuejiai.aaf.module.system.ErrorCodeConstants.DICT_TYPE_NOT_FOU
 
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,17 +40,7 @@ public class DictTypeService
             Set.of("id", "name", "type", "status", "createTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<DictType, Long> getRepository() {
-        return dictTypeRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<DictType> getSpecExecutor() {
+    protected DictTypeRepository getRepository() {
         return dictTypeRepository;
     }
 
@@ -104,10 +92,5 @@ public class DictTypeService
             throw exception(DICT_TYPE_HAS_DATA);
         }
         dictTypeRepository.deleteById(id);
-    }
-
-    @Override
-    protected String entityName() {
-        return "字典类型";
     }
 }

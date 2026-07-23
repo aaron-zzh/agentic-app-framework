@@ -9,8 +9,6 @@ import java.util.Set;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,17 +41,12 @@ public class DictDataService
             Set.of("id", "dictType", "label", "value", "sort", "status", "createTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
+    protected List<String> optionSearchFields() {
+        return List.of("label", "value");
     }
 
     @Override
-    protected JpaRepository<DictData, Long> getRepository() {
-        return dictDataRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<DictData> getSpecExecutor() {
+    protected DictDataRepository getRepository() {
         return dictDataRepository;
     }
 
@@ -116,11 +109,6 @@ public class DictDataService
     @CacheEvict(cacheNames = "dict", allEntries = true)
     public void delete(Long id) {
         super.delete(id);
-    }
-
-    @Override
-    protected String entityName() {
-        return "字典数据";
     }
 
     // ─── 自定义查询 ───

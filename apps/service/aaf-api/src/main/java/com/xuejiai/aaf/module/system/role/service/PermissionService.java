@@ -70,8 +70,9 @@ public class PermissionService {
                                         existing.visible() || incoming.visible(),
                                         existing.editable() || incoming.editable()));
             }
-        } catch (Exception e) {
-            log.warn("解析 field_access JSON 失败: {}", e.getMessage());
+        } catch (RuntimeException cause) {
+            throw com.xuejiai.aaf.common.exception.ExceptionUtil.exception(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.FORBIDDEN);
         }
     }
 }

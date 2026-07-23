@@ -3,6 +3,8 @@ package com.xuejiai.aaf.module.system.role.service;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
+import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
 import com.xuejiai.aaf.framework.intelligent.action.BaseCrudEntityActionAdapter;
 import com.xuejiai.aaf.module.system.role.domain.Role;
 import com.xuejiai.aaf.module.system.role.vo.RoleCreateDTO;
@@ -18,8 +20,13 @@ public class RoleAiActionAdapter
 
     private final RoleService roleService;
 
-    public RoleAiActionAdapter(RoleService roleService) {
-        super(RoleCreateDTO.class, RoleUpdateDTO.class, RolePageParam.class);
+    public RoleAiActionAdapter(RoleService roleService, CrudResourceRegistry resourceCatalog) {
+        super(
+                ResourceKey.of("system.system-role"),
+                resourceCatalog,
+                RoleCreateDTO.class,
+                RoleUpdateDTO.class,
+                RolePageParam.class);
         this.roleService = roleService;
     }
 

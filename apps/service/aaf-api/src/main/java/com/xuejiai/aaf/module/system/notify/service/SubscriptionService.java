@@ -1,12 +1,14 @@
 package com.xuejiai.aaf.module.system.notify.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.SUBSCRIPTION_CANCEL_FORBIDDEN;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.SUBSCRIPTION_NOT_FOUND;
+
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.notify.domain.Subscription;
 import com.xuejiai.aaf.module.system.notify.repository.NotifySubscriptionRepository;
 
@@ -42,10 +44,9 @@ public class SubscriptionService {
         var sub =
                 subscriptionRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "订阅不存在"));
+                        .orElseThrow(() -> exception(SUBSCRIPTION_NOT_FOUND));
         if (!sub.getUserId().equals(userId)) {
-            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "无权取消他人订阅");
+            throw exception(SUBSCRIPTION_CANCEL_FORBIDDEN);
         }
         subscriptionRepository.delete(sub);
     }

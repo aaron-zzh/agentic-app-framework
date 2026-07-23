@@ -4,10 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,17 +52,7 @@ public class GuestLeadCrudService
                     "createTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<GuestLead, Long> getRepository() {
-        return repository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<GuestLead> getSpecExecutor() {
+    protected GuestLeadRepository getRepository() {
         return repository;
     }
 
@@ -138,21 +125,6 @@ public class GuestLeadCrudService
                 .eqIfPresent("email", req.getEmail())
                 .eqIfPresent("contactId", req.getContactId())
                 .build();
-    }
-
-    @Override
-    protected Sort defaultSort() {
-        return Sort.by("id").descending();
-    }
-
-    @Override
-    protected String entityName() {
-        return "访客线索";
-    }
-
-    @Override
-    protected String entitySlug() {
-        return "ops_guest_lead";
     }
 
     // ========== 公开端调用的扩展方法（不走 BaseCrud 鉴权） ==========

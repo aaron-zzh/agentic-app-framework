@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
  * @author AaronZZH & Kiro
  */
 @Tag(name = "字段变更订阅")
-@RestController
+@RestController("systemNotifySubscriptionController")
 @RequestMapping("/api/subscriptions")
 @RequiredArgsConstructor
 public class SubscriptionController {

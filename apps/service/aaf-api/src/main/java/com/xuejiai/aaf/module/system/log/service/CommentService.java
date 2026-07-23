@@ -10,8 +10,6 @@ import java.util.regex.Pattern;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,12 +44,7 @@ public class CommentService
     private final UserRepository userRepository;
 
     @Override
-    protected JpaRepository<Comment, Long> getRepository() {
-        return commentRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Comment> getSpecExecutor() {
+    protected CommentRepository getRepository() {
         return commentRepository;
     }
 
@@ -117,33 +110,8 @@ public class CommentService
     }
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected String entityName() {
-        return "评论";
-    }
-
-    @Override
-    protected String ownerFieldName() {
-        return "ownerId";
-    }
-
-    @Override
     protected Long extractOwnerId(Comment comment) {
         return comment.getOwnerId();
-    }
-
-    @Override
-    protected List<String> fieldSets() {
-        return List.of("list", "detail");
-    }
-
-    @Override
-    protected List<String> operations() {
-        return List.of("page", "queryWindow", "get", "create", "update", "delete", "meta");
     }
 
     /** 按父资源分页查询评论。 */

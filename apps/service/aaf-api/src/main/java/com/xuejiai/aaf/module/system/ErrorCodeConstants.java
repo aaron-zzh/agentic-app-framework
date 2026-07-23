@@ -75,8 +75,6 @@ public interface ErrorCodeConstants {
 
     // ========== TODO 模块 1_006_000 ==========
     ErrorCode TODO_NOT_FOUND = ErrorCode.of(1_006_000, "待办不存在");
-    ErrorCode TODO_FILTER_FIELD_UNSUPPORTED = ErrorCode.of(1_006_001, "待办不支持筛选字段: {0}");
-    ErrorCode TODO_FILTER_VALUE_INVALID = ErrorCode.of(1_006_002, "待办筛选值非法: {0}");
 
     // ========== ORG 模块 1_007_000 ==========
     ErrorCode ORG_NOT_FOUND = ErrorCode.of(1_007_000, "组织不存在");

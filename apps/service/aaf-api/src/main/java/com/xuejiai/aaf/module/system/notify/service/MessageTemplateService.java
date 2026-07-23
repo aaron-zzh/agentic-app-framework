@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.module.system.notify.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.MESSAGE_TEMPLATE_NOT_FOUND;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -7,8 +10,6 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageTemplateEngine;
 import com.xuejiai.aaf.framework.messaging.MessageTemplateProvider;
@@ -97,9 +98,7 @@ public class MessageTemplateService implements MessageTemplateProvider {
     }
 
     private MessageTemplate findById(Long id) {
-        return repository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "消息模板不存在"));
+        return repository.findById(id).orElseThrow(() -> exception(MESSAGE_TEMPLATE_NOT_FOUND));
     }
 
     private MessageTemplateVO toVO(MessageTemplate t) {

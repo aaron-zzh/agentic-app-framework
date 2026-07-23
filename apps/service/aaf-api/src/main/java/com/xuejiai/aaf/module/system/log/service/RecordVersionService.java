@@ -1,13 +1,14 @@
 package com.xuejiai.aaf.module.system.log.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.RECORD_VERSION_NOT_FOUND;
+
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.log.domain.RecordVersion;
 import com.xuejiai.aaf.module.system.log.repository.RecordVersionRepository;
 
@@ -71,6 +72,6 @@ public class RecordVersionService {
         return recordVersionRepository
                 .findByEntityTypeAndEntityIdAndVerNumber(entityType, entityId, verNumber)
                 .map(RecordVersion::getData)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "版本不存在"));
+                .orElseThrow(() -> exception(RECORD_VERSION_NOT_FOUND));
     }
 }

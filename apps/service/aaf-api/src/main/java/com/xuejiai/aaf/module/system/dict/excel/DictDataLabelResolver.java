@@ -2,7 +2,7 @@ package com.xuejiai.aaf.module.system.dict.excel;
 
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.crud.DictLabelResolver;
+import com.xuejiai.aaf.framework.crud.export.DictLabelResolver;
 import com.xuejiai.aaf.module.system.dict.service.DictDataService;
 
 import lombok.RequiredArgsConstructor;

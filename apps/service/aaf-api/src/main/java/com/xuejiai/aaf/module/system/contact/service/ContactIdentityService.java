@@ -4,8 +4,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,17 +37,7 @@ public class ContactIdentityService
             Set.of("id", "contactId", "channel", "displayName", "createTime", "updateTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<ContactIdentity, Long> getRepository() {
-        return identityRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<ContactIdentity> getSpecExecutor() {
+    protected ContactIdentityRepository getRepository() {
         return identityRepository;
     }
 
@@ -95,11 +83,6 @@ public class ContactIdentityService
                 predicates.add(cb.equal(root.get("channel"), p.getChannel()));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-    }
-
-    @Override
-    protected String entityName() {
-        return "渠道身份";
     }
 
     /**

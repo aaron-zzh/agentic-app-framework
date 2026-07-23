@@ -7,10 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,17 +39,7 @@ public class NoticeService
             Set.of("id", "title", "type", "status", "publishTime", "createTime");
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<Notice, Long> getRepository() {
-        return noticeRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Notice> getSpecExecutor() {
+    protected NoticeRepository getRepository() {
         return noticeRepository;
     }
 
@@ -90,16 +77,6 @@ public class NoticeService
                 .eqIfPresent("type", req.getType())
                 .eqIfPresent("status", req.getStatus())
                 .build();
-    }
-
-    @Override
-    protected Sort defaultSort() {
-        return Sort.by("id").descending();
-    }
-
-    @Override
-    protected String entityName() {
-        return "通知公告";
     }
 
     /** 发布公告 */
