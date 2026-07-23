@@ -42,6 +42,7 @@ public class ResourceRelationController {
     }
 
     @Operation(summary = "检查是否拥有关系")
+    @PreAuthorize("hasPermission(null, 'system:relation:manage')")
     @GetMapping("/check")
     public Result<Boolean> check(
             @RequestParam String objectType,
@@ -54,6 +55,7 @@ public class ResourceRelationController {
     }
 
     @Operation(summary = "查询资源的所有关系")
+    @PreAuthorize("hasPermission(null, 'system:relation:manage')")
     @GetMapping
     public Result<List<PermissionTupleVO>> list(
             @RequestParam String objectType, @RequestParam String objectId) {
