@@ -3,7 +3,7 @@ level: Practice
 layer: Product
 purpose: 将五层智能架构 v2 和 AgentScope v2 适配方案拆解为可执行、可验证的开发阶段
 status: draft
-version: 1.1.0
+version: 1.2.0
 date: 2026-07-23
 author: AaronZZH
 dependencies:
@@ -51,6 +51,7 @@ gains:
 
 - 五层领域模型不依赖 AgentScope；只有 `intelligent.infrastructure.agentscope` 可直接 import `io.agentscope.*`。
 - 不创建 legacy adapter、fallback、双路径、双写或“临时保留”的第二套 runtime。
+- **保留能力，不保留旧实现**：归档代码和历史文档是功能、规则与异常语义的证据源，不是运行时依赖；仍有效的能力必须在五层架构中重新归属、实现并验收，不能因删除旧文件而无意丢失。
 - Assistant 是唯一面向用户的智能入口；内容创作和客服是两个系统内置 `AssistantDefinition`，不是两个硬编码 Agent 工厂。
 - 问答、协作、委托、自动化是显式用户控制模式，与内部编排/自主正交；模型不得静默提高自主权。
 - Task 生命周期和 CompletionValidator 从首个可写场景起生效；模型回合结束不等于业务任务完成。
@@ -125,6 +126,7 @@ com.xuejiai.aaf.framework.intelligent
 ### 交付策略
 
 - 每阶段先补契约和失败测试，再写实现；新增端口必须同时给出唯一生产实现和测试替身。
+- 归档能力必须逐项标记为“保留重写、等价替代、合并吸收、批准废弃”；前三类在旧文件删除前必须有新责任和验收证据，“批准废弃”必须记录理由、影响和人工批准。
 - 被新实现替代的旧责任在同阶段停止接线，最晚 P6 删除源码。不得以“灰度”为由长期双注册 runtime Bean 或双写事实表。
 - 数据库变更优先采用“先加新约束/新字段 → 数据校验 → 原子切换 writer → 删除旧 writer/字段”的迁移；中间状态不开放两套事实写入者。
 - 回滚按完整版本回滚，不靠运行时 fallback：破坏性删除前保留数据库备份和可逆迁移窗口；一旦执行 P6 删除，不再支持回到旧 API。
@@ -141,20 +143,24 @@ com.xuejiai.aaf.framework.intelligent
 主要工作：
 
 - 在 `2.0.0-RC4` 与经评审的升级版本之间做一次明确选择，并把 BOM、参考源码、Javadoc/源码标签和测试依赖对齐到同一版本。
+- 盘点 `.legacy`、并列 `framework.agentscope` PoC、旧 Runtime/Factory/Hook/Tool、历史迁移文档和旧数据 writer；提取用户可见行为、业务默认值、权限边界、失败/取消/恢复、计量/事件以及数据配置语义。
+- 建立归档能力迁移矩阵；每项记录来源路径/符号、可观察行为、边界场景、新责任、处置、阶段、验收证据、批准人和状态。
+- 对仍有效的外部行为先编写 characterization tests；测试约束能力结果和不变量，不固化旧类名、旧 API 或 AgentScope v1 实现细节。
 - 编写 AgentScope characterization tests，覆盖：同实例并发不同状态槽位、同槽位串行、RuntimeContext 不持久化、AgentStateStore 自动加载/保存、middleware 顺序、取消、异常和流结束语义。
 - 定义 AAF 稳定 ID：assistantId、agentId、conversationId/sessionId、taskId、executionId、runId、eventId、correlationId、causationId 与 idempotencyKey。
 - 定义 `ExecutionEvent` 枚举、payload 脱敏规则、`UNIQUE(event_id)` 和 `UNIQUE(execution_id, sequence)`。
 - 添加 ArchUnit 规则：五层领域包禁止 AgentScope、Spring、JPA、JdbcTemplate；AgentScope import 仅允许出现在唯一适配器目录。
 - 建立旧类、旧 Bean、旧 endpoint、旧表 writer 和 POM exclude 清单，冻结新增旧路径代码。
 
-产物：版本 ADR、契约测试套件、架构边界测试、事件 schema、ID 规范、迁移基线清单。
+产物：版本 ADR、契约测试套件、架构边界测试、事件 schema、ID 规范、归档能力迁移矩阵和删除基线清单。
 
 退出标准：
 
 - 人工确认唯一 AgentScope 版本，BOM 与参考源码一致。
 - characterization tests 在该版本全绿；关键 API 不再来自 Snapshot 猜测。
 - ArchUnit 能对故意添加的非法 import 失败，并在当前目标骨架上通过。
-- `ExecutionEvent`、状态所有权和删除清单完成评审。
+- 归档能力矩阵覆盖所有计划删除的路径和责任；不存在来源不明、无目标责任或无处置结论的条目。
+- 所有“批准废弃”项完成影响说明和人工确认；`ExecutionEvent`、状态所有权和删除清单完成评审。
 
 **P1：Core + Agent 最小闭环**
 
@@ -292,6 +298,7 @@ com.xuejiai.aaf.framework.intelligent
 
 主要工作：
 
+- 冻结归档能力迁移矩阵并生成差异报告：逐项核对新实现、验收证据和批准记录；任何 `TODO`、`UNKNOWN` 或无证据条目都会阻止删除。
 - 停止服务，完成最后一次数据校验和必要投影重建，再切换唯一 endpoint/Bean/port 实现；不运行新旧双写窗口。
 - 删除并列 `com.xuejiai.aaf.framework.agentscope` PoC 包。
 - 删除 `com.xuejiai.aaf.framework.intelligent.agentscope` 下的 `.legacy` 内容与对应 POM excludes。
@@ -303,6 +310,7 @@ com.xuejiai.aaf.framework.intelligent
 
 退出标准：
 
+- 归档能力迁移矩阵无未处理项；“保留重写、等价替代、合并吸收”均有通过的自动化或验收证据，“批准废弃”均有人工批准记录。
 - 静态扫描旧包、旧类、`.legacy`、旧 import、POM exclude 和禁止配置均为零。
 - 每个关键端口恰有一个生产实现；Spring context 无重复/条件式旧 Bean。
 - 全量单测、集成测试、验收测试、ArchUnit、数据库迁移测试和双副本故障测试全绿。
@@ -327,6 +335,7 @@ com.xuejiai.aaf.framework.intelligent
 | 多副本 | lease/fencing 算法 | 两实例 + Redis | kill owner、网络抖动 | 同会话全局单执行者 |
 | 受控委托/复杂任务 | ExecutionContract、DAG、validator、干预 | 持久调度 + 子任务并行 | 预算越界、接管、部分失败 | 有负责人和停止条件，只重跑必要节点 |
 | 自动化/Team/A2A | 模板版本、触发幂等、策略与仲裁 | workflow + fake/外部 gateway | 重复触发、升级、成员失败 | 可停用回退，Team 不复制 AgentState |
+| 归档能力迁移 | characterization、处置矩阵 | 新旧行为基线对照 | 异常、取消、恢复、权限和计量回归 | 保留项有证据，废弃项有批准，零未处理项 |
 | 迁移 | 数据校验与脚本 | 空库/升级库 | 回滚与投影重建 | 无双 writer、无旧 Bean |
 
 ### 每阶段通用门禁
@@ -337,12 +346,43 @@ com.xuejiai.aaf.framework.intelligent
 - 日志、事件和错误不泄漏系统提示词、工具凭据、个人记忆和原始敏感 payload。
 - 数据库 migration 可在空库和升级库执行；写入幂等，约束与代码契约一致。
 - 本阶段替代的旧责任已断开或删除，不新增“稍后删除”的兼容实现。
+- 本阶段涉及的归档能力矩阵条目已更新目标责任、处置状态和证据链接；未处理项不能顺延到 P6 临时决定。
 
 ### 关键可观测指标
 
 上线前至少具备：活动 conversation lease 数、lease 等待/超时/失效次数、fencing 拒绝次数、AgentState load/save 延迟和失败率、事件 sequence 冲突、SSE lag、任务状态停留时长、CompletionValidator 继续修复率、有效上下文来源数量、授权撤销/拒绝、OAuth 过期、后台预算使用率、人工接管成功率、自动化重复触发抑制、工具幂等命中、审批等待时长、记忆候选接受/拒绝率、模型用量与结算差异、TaskBoard 悬挂任务数。
 
 ## 迁移、删除与人工确认
+
+### 归档能力迁移原则
+
+归档范围包括 `.legacy` 源码、并列 `framework.agentscope` PoC、复制的 AgentScope 示例、旧 Runtime/Factory/Hook/Tool、旧配置与数据 writer，以及 `agentscope-integration.md`、`assistant-agent-runtime-refactor.md`、`task-durability.md` 等历史设计。它们只用于提取能力和决策依据，禁止作为新运行时依赖。
+
+| 处置 | 含义 | 删除前要求 |
+|---|---|---|
+| 保留重写 | 用户价值和外部行为仍有效，在五层架构中重新实现 | 新责任明确，行为/验收测试通过 |
+| 等价替代 | 用不同机制提供相同或更强的结果与安全语义 | 替代差异有说明，关键不变量测试通过 |
+| 合并吸收 | 多个旧能力合入统一端口、策略或定义 | 原入口全部映射，覆盖矩阵无遗漏 |
+| 批准废弃 | 能力无价值、危险、重复或与目标架构冲突 | 影响分析、迁移说明和人工批准 |
+
+矩阵中的“能力”不限于正常主流程，还必须覆盖默认值、提示策略、权限和数据范围、错误处理、取消、恢复、幂等、计量、事件、并发及运维诊断。只验证“能跑通”不能证明归档能力已完整迁移。
+
+以下是 P0 必须逐符号扩充和核验的初始基线：
+
+| 归档能力 | 主要来源 | 新责任 | 初始处置 | 阶段 | 必要验收证据 | 状态 |
+|---|---|---|---|---|---|---|
+| 定义编译与 Agent 执行 | 旧 AgentRuntime/Factory、AssistantRuntime | AgentSpecCompiler + AgentExecutionPort | 保留重写 | P1 | 定义版本、流式执行、异常和取消测试 | P0 待核验 |
+| 会话状态隔离与恢复 | SessionAgentManager、HarnessGateway、Session store | 无状态 Harness + Redis AgentStateStore + lease | 等价替代 | P1/P4 | 并发隔离、重启恢复、副本接管测试 | P0 待核验 |
+| 内容创作能力装配 | ContentCreationAgentFactory、AssistantAutoConfiguration | 系统内置内容创作 AssistantDefinition | 合并吸收 | P2 | 策划、草稿、润色、事实核查验收 | P0 待核验 |
+| 客服咨询与转人工 | 固定客服 Bean/配置、历史客服路径 | 系统内置客服 AssistantDefinition | 合并吸收 | P2/P3 | 只读咨询、隐私、授权、转人工验收 | P0 待核验 |
+| 调用上下文传播 | AafContextHolder、AgentCapabilityContext | 显式 InvocationContext | 等价替代 | P1/P3 | tenant/user/task 隔离和无 ThreadLocal 测试 | P0 待核验 |
+| 工具审批 | RequestApprovalTool 轮询 | 持久 AuthorizationGrant + HITL 暂停/恢复 | 等价替代 | P3 | 批准、拒绝、超时、重复回调、重启测试 | P0 待核验 |
+| 工具、MCP 与沙箱隔离 | PoC tool/middleware/sandbox | ToolGateway + ConnectorActionPort + sandbox adapter | 保留重写 | P1-P4 | 白名单、参数策略、凭证脱敏、隔离测试 | P0 待核验 |
+| 日志、轨迹与计量 | CallLogMiddleware、TokenMeteringHook | ExecutionEvent + ai_task_event + TokenMeteringMiddleware | 合并吸收 | P3 | 事件顺序、真实模型价格、幂等扣费测试 | P0 待核验 |
+| 长期记忆与上下文压缩 | MEMORY.md、旧 memory/session 设计 | Cognition + EffectiveContextPort；AgentState 仅工作态 | 等价替代 | P3 | 回忆、写入治理、遗忘、缓存删除恢复测试 | P0 待核验 |
+| 长任务和任务恢复 | task-durability、旧 task/checkpoint 责任 | TaskControlPort + TaskBoard + DelegatedTaskPort | 保留重写 | P2-P4 | 暂停、恢复、接管、部分失败和预算停止测试 | P0 待核验 |
+
+矩阵应在每阶段结束时更新状态和证据链接。发现新归档能力时先补矩阵再实施；不得以“未在初始清单中”为由直接删除。
 
 ### 旧责任迁移清单
 
@@ -372,9 +412,9 @@ com.xuejiai.aaf.framework.intelligent
 | P2 内置助理发布前 | 提示词、工具权限、客服隐私和转人工规则 | 定义保持 draft，不对用户启用 |
 | P4 实现前 | 委托预算/期限/停止/通知/接管契约，以及 Redis/Redisson lease 与 fencing 原子性 | 不开放后台委托和多副本生产部署 |
 | P5 自动化启用前 | 试运行结果、触发幂等、权限范围、全局停用和极高风险禁用策略 | 模板保持 draft，不启用触发 |
-| P6 切换前 | 停机窗口、数据库备份、旧表保留/删除策略 | 不执行破坏性迁移 |
+| P6 切换前 | 归档能力矩阵零未处理项、废弃项批准、停机窗口、数据库备份和旧表保留/删除策略 | 不执行旧文件和数据的破坏性删除 |
 | P6 删除后 | 全量验收、故障演练和回滚演练结果 | 不发布生产版本 |
 
 ### 完成定义
 
-当 P6 全部退出标准满足时，才可宣称智能架构 v2 开发完成：领域代码仅表达五层模型；AgentScope 仅存在于唯一基础设施适配器；内容创作与客服由数据化内置 Assistant 提供；问答、协作、委托和自动化模式具有不可越权的控制边界；任务状态、有效上下文、授权和人工接管可解释、可恢复；长期记忆、消息、执行状态、编排和轨迹各有唯一真理源；tenant 数据和凭证隔离；同一 conversation 在多副本下保持单执行者；仓库中不存在可被重新启用的旧路径或双写开关。
+当 P6 全部退出标准满足时，才可宣称智能架构 v2 开发完成：领域代码仅表达五层模型；AgentScope 仅存在于唯一基础设施适配器；内容创作与客服由数据化内置 Assistant 提供；问答、协作、委托和自动化模式具有不可越权的控制边界；任务状态、有效上下文、授权和人工接管可解释、可恢复；长期记忆、消息、执行状态、编排和轨迹各有唯一真理源；tenant 数据和凭证隔离；同一 conversation 在多副本下保持单执行者；归档能力迁移矩阵零未处理项且所有保留/替代能力有验收证据；仓库中不存在可被重新启用的旧路径或双写开关。
