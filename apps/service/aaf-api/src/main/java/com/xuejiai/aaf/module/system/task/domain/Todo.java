@@ -7,6 +7,8 @@ import org.hibernate.annotations.SQLDelete;
 import com.xuejiai.aaf.common.enums.sys.TodoCategoryEnum;
 import com.xuejiai.aaf.common.enums.sys.TodoStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.crud.reference.CrudReference;
+import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,10 +25,25 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_todo")
+@CrudReference(
+        key = "createBy",
+        idProperty = "createBy",
+        targetResource = "system.user",
+        viewField = "createBy",
+        capabilities = ReferenceCapability.READ)
+@CrudReference(
+        key = "updateBy",
+        idProperty = "updateBy",
+        targetResource = "system.user",
+        viewField = "updateBy",
+        capabilities = ReferenceCapability.READ)
 @SQLDelete(sql = "UPDATE sys_todo SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class Todo extends BaseEntity {
 
     /** 执行人 ID */
+    @CrudReference(
+            targetResource = "system.user",
+            additionalPolicyBean = "todoUserReferencePolicy")
     @Column(name = "assignee_id", nullable = false)
     private Long assigneeId;
 
@@ -38,11 +55,12 @@ public class Todo extends BaseEntity {
     @Column(name = "source_type", length = 50)
     private String sourceType;
 
-    /** 来源实体类型 */
-    @Column(name = "source_entity", length = 50)
+    /** 来源资源标识 */
+    @Column(name = "source_entity", length = 100)
     private String sourceEntity;
 
     /** 来源实体 ID */
+    @CrudReference(resourceProperty = "sourceEntity")
     @Column(name = "source_id")
     private Long sourceId;
 

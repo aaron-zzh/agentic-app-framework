@@ -88,12 +88,18 @@ class TodoPermissionIT {
                 () -> {
                     memberRole = findOrCreateRole("todo_it_member");
                     grantPermission(memberRole, "system:todo:read");
+                    grantPermission(memberRole, "system:todo:create");
                     grantPermission(memberRole, "system:todo:update");
+                    grantPermission(memberRole, "system:todo:delete");
+                    grantPermission(memberRole, "system:todo:export");
+                    grantPermission(memberRole, "system:todo:reference");
 
                     userA = createUser("todo_it_user_a");
                     userB = createUser("todo_it_user_b");
                     bindRole(userA, memberRole);
                     bindRole(userB, memberRole);
+
+                    grantPermission(memberRole, "system:todo:access-mode:admin-maintenance");
 
                     testOrg = createOrgWithMembers(userA, userB);
 
@@ -172,7 +178,7 @@ class TodoPermissionIT {
                                     .header("X-Org-Id", testOrg.getId().toString())
                                     .with(user(userC.getId().toString()))
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .content("{\"status\":\"done\"}"))
+                                    .content("{\"status\":\"done\",\"expectedVersion\":0}"))
                     .andExpect(status().isForbidden());
         } finally {
             OrgContext.runIgnoring(() -> userRepository.delete(userC));
@@ -187,7 +193,7 @@ class TodoPermissionIT {
                                 .header("X-Org-Id", testOrg.getId().toString())
                                 .with(user(userA.getId().toString()))
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"status\":\"done\"}"))
+                                .content("{\"status\":\"done\",\"expectedVersion\":0}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value(TodoStatusEnum.DONE.getCode()));
     }
@@ -202,19 +208,19 @@ class TodoPermissionIT {
                                 .header("X-Org-Id", testOrg.getId().toString())
                                 .with(user(userB.getId().toString()))
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"status\":\"done\"}"))
+                                .content("{\"status\":\"done\",\"expectedVersion\":0}"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     @DisplayName("Given A 查询实体关联待办列表 When 持有 system:todo:read 权限码 Then 200")
     void should_return_200_when_listing_by_entity_with_permission_code() throws Exception {
-        todoOfA.setSourceEntity("order");
-        todoOfA.setSourceId(999L);
+        todoOfA.setSourceEntity("system.todo");
+        todoOfA.setSourceId(todoOfA.getId());
         OrgContext.runIgnoring(() -> todoRepository.save(todoOfA));
 
         mockMvc.perform(
-                        get("/api/todos/by-entity/{entity}/{id}", "order", 999L)
+                        get("/api/todos/by-entity/{entity}/{id}", "system.todo", todoOfA.getId())
                                 .header("X-Org-Id", testOrg.getId().toString())
                                 .with(user(userA.getId().toString())))
                 .andExpect(status().isOk())
@@ -227,7 +233,10 @@ class TodoPermissionIT {
         var userC = OrgContext.runIgnoring(() -> createUserInOrg("todo_it_user_c"));
         try {
             mockMvc.perform(
-                            get("/api/todos/by-entity/{entity}/{id}", "order", 999L)
+                            get(
+                                            "/api/todos/by-entity/{entity}/{id}",
+                                            "system.todo",
+                                            todoOfA.getId())
                                     .header("X-Org-Id", testOrg.getId().toString())
                                     .with(user(userC.getId().toString())))
                     .andExpect(status().isForbidden());
@@ -282,21 +291,72 @@ class TodoPermissionIT {
         }
     }
 
-    // ==================== L2：ReBAC 关系元组 ====================
-
     @Test
-    @DisplayName("Given B 未被授予关系 When 查询协作待办详情 Then 403")
-    void should_return_403_when_collab_view_without_relation() throws Exception {
-        mockMvc.perform(
-                        get("/api/todos/{id}/collab-view", todoOfA.getId())
-                                .header("X-Org-Id", testOrg.getId().toString())
-                                .with(user(userB.getId().toString())))
-                .andExpect(status().isForbidden());
+    @DisplayName("Given 用户无 system:todo:read 权限码 When 标准 GET 查询待办 Then 403（L1 拒绝）")
+    void should_return_403_when_standard_get_has_no_read_permission() throws Exception {
+        var userC = OrgContext.runIgnoring(() -> createUserInOrg("todo_it_standard_get_no_read"));
+        try {
+            mockMvc.perform(
+                            get("/api/todos/{id}", todoOfA.getId())
+                                    .header("X-Org-Id", testOrg.getId().toString())
+                                    .with(user(userC.getId().toString())))
+                    .andExpect(status().isForbidden());
+        } finally {
+            OrgContext.runIgnoring(
+                    () -> {
+                        orgMemberRepository
+                                .findByOrgIdAndDeletedFalse(testOrg.getId())
+                                .stream()
+                                .filter(member -> member.getUserId().equals(userC.getId()))
+                                .forEach(orgMemberRepository::delete);
+                        userRepository.delete(userC);
+                    });
+            permissionCacheService.evict(userC.getId());
+        }
     }
 
     @Test
-    @DisplayName("Given A 分享 VIEWER 关系给 B When B 查询协作待办详情 Then 200（绕过 L3）")
-    void should_return_200_when_collab_view_after_share() throws Exception {
+    @DisplayName("Given A 是执行人但待办属于其他租户 When 使用当前租户标准 GET Then 404")
+    void should_return_404_when_standard_get_crosses_tenant_boundary() throws Exception {
+        var otherOrg = OrgContext.runIgnoring(() -> createOrgWithMembers(userA));
+        var unsavedTodo = new Todo();
+        unsavedTodo.setAssigneeId(userA.getId());
+        unsavedTodo.setOrgId(otherOrg.getId());
+        unsavedTodo.setTitle("其他租户的待办");
+        var otherTenantTodo = OrgContext.runIgnoring(() -> todoRepository.save(unsavedTodo));
+        try {
+            mockMvc.perform(
+                            get("/api/todos/{id}", otherTenantTodo.getId())
+                                    .header("X-Org-Id", testOrg.getId().toString())
+                                    .with(user(userA.getId().toString())))
+                    .andExpect(status().isNotFound());
+        } finally {
+            OrgContext.runIgnoring(
+                    () -> {
+                        todoRepository.delete(otherTenantTodo);
+                        orgMemberRepository
+                                .findByOrgIdAndDeletedFalse(otherOrg.getId())
+                                .forEach(orgMemberRepository::delete);
+                        organizationRepository.delete(otherOrg);
+                    });
+        }
+    }
+
+    // ==================== L2：ReBAC 关系元组 ====================
+
+    @Test
+    @DisplayName("Given B 未被授予关系 When 通过标准 GET 查询 A 的待办 Then 404")
+    void should_return_404_when_standard_get_has_no_relation() throws Exception {
+        mockMvc.perform(
+                        get("/api/todos/{id}", todoOfA.getId())
+                                .header("X-Org-Id", testOrg.getId().toString())
+                                .with(user(userB.getId().toString())))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Given A 分享 VIEWER 关系给 B When B 使用标准 GET Then 可读但更新仍被 L3 拒绝")
+    void should_allow_standard_get_but_not_update_after_share() throws Exception {
         mockMvc.perform(
                         post("/api/todos/{id}/share", todoOfA.getId())
                                 .header("X-Org-Id", testOrg.getId().toString())
@@ -310,11 +370,19 @@ class TodoPermissionIT {
                 .andExpect(status().isOk());
 
         mockMvc.perform(
-                        get("/api/todos/{id}/collab-view", todoOfA.getId())
+                        get("/api/todos/{id}", todoOfA.getId())
                                 .header("X-Org-Id", testOrg.getId().toString())
                                 .with(user(userB.getId().toString())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(todoOfA.getId()));
+
+        mockMvc.perform(
+                        put("/api/todos/{id}/status", todoOfA.getId())
+                                .header("X-Org-Id", testOrg.getId().toString())
+                                .with(user(userB.getId().toString()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"done\",\"expectedVersion\":0}"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -338,7 +406,7 @@ class TodoPermissionIT {
         }
     }
 
-    // ==================== @crudAuth.can：标准 CRUD 动态权限降级/严格 ====================
+    // ==================== 标准 CRUD：Controller 仅认证，Service PEP 执行 L1/L4 ====================
 
     @Test
     @DisplayName("Given system:todo:read 权限码已注册 When 无权限码用户查询列表 Then 403（严格校验分支）")
@@ -358,36 +426,20 @@ class TodoPermissionIT {
     }
 
     @Test
-    @DisplayName("Given system:todo:create 权限码未注册 When 任意登录用户创建待办 Then 201（降级为仅登录）")
-    void should_return_200_when_creating_todo_without_registered_permission_code()
-            throws Exception {
-        // system:todo:create 未在任何测试中注册，CrudPermissionAuthorizer 应降级为仅登录校验，
-        // 验证"未接入精细权限管控的动作默认放行已登录用户"这一既定设计。
-        // 显式传 assigneeId：TodoConvert.toEntity 当前未实现"不传则指派给当前用户"的默认值填充
-        // （既有缺陷，非本测试范围，见 dev-log），显式传值以隔离本用例只验证鉴权分支。
-        var userC = OrgContext.runIgnoring(() -> createUserInOrg("todo_it_user_c")); // 无角色、无权限码，仅登录
+    @DisplayName("Given system:todo:create 权限码已注册 When 无权限码用户创建待办 Then 403")
+    void should_return_403_when_creating_todo_without_permission_code() throws Exception {
+        var userC = OrgContext.runIgnoring(() -> createUserInOrg("todo_it_user_c"));
         try {
-            var result =
-                    mockMvc.perform(
-                                    post("/api/todos")
-                                            .header("X-Org-Id", testOrg.getId().toString())
-                                            .with(user(userC.getId().toString()))
-                                            .contentType(MediaType.APPLICATION_JSON)
-                                            .content(
-                                                    """
-                                                    {"title":"降级验证待办","assigneeId":%d}
-                                                    """
-                                                            .formatted(userC.getId())))
-                            .andExpect(status().isCreated())
-                            .andExpect(jsonPath("$.data.id").exists())
-                            .andReturn();
-
-            var createdId =
-                    ((Number)
-                                    com.jayway.jsonpath.JsonPath.read(
-                                            result.getResponse().getContentAsString(), "$.data.id"))
-                            .longValue();
-            OrgContext.runIgnoring(() -> todoRepository.deleteById(createdId));
+            mockMvc.perform(
+                            post("/api/todos")
+                                    .header("X-Org-Id", testOrg.getId().toString())
+                                    .with(user(userC.getId().toString()))
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(
+                                            """
+                                            {"title":"无权限待办"}
+                                            """))
+                    .andExpect(status().isForbidden());
         } finally {
             OrgContext.runIgnoring(() -> userRepository.delete(userC));
         }
