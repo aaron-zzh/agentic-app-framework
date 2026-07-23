@@ -1,16 +1,8 @@
 package com.xuejiai.aaf.framework.engine.entitlement;
 
-import java.lang.reflect.Method;
-
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.context.expression.MethodBasedEvaluationContext;
-import org.springframework.core.DefaultParameterNameDiscoverer;
-import org.springframework.core.ParameterNameDiscoverer;
-import org.springframework.expression.ExpressionParser;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
@@ -34,13 +26,11 @@ public class EntitlementAspect {
 
     private final EntitlementChecker entitlementChecker;
     private final OperatorContext operatorContext;
-    private final ExpressionParser parser = new SpelExpressionParser();
-    private final ParameterNameDiscoverer paramDiscoverer = new DefaultParameterNameDiscoverer();
 
     @Around("@annotation(entitlement)")
     public Object around(ProceedingJoinPoint joinPoint, Entitlement entitlement) throws Throwable {
         var userId = getCurrentUserId();
-        var cost = resolveCost(entitlement.cost(), joinPoint);
+        var cost = resolveCost(entitlement.cost());
 
         // 1. 执行前检查额度是否足够（不足直接抛异常，方法不执行）
         entitlementChecker.check(userId, entitlement.code(), cost);
@@ -54,25 +44,13 @@ public class EntitlementAspect {
         return result;
     }
 
-    /** 解析 SpEL 表达式获取 cost 值 */
-    private long resolveCost(String costExpression, ProceedingJoinPoint joinPoint) {
-        // 纯数字直接返回
+    /** 解析固定数字额度，不执行表达式。 */
+    private long resolveCost(String cost) {
         try {
-            return Long.parseLong(costExpression);
-        } catch (NumberFormatException ignored) {
-            // SpEL 表达式
+            return Long.parseLong(cost);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("@Entitlement cost 必须是数字常量: " + cost, exception);
         }
-
-        var signature = (MethodSignature) joinPoint.getSignature();
-        Method method = signature.getMethod();
-        var context =
-                new MethodBasedEvaluationContext(
-                        null, method, joinPoint.getArgs(), paramDiscoverer);
-        var value = parser.parseExpression(costExpression).getValue(context);
-        if (value instanceof Number num) {
-            return num.longValue();
-        }
-        throw new IllegalArgumentException("@Entitlement cost 表达式必须解析为数值: " + costExpression);
     }
 
     /** 优先从 OperatorContext 获取 owner；兼容普通 Spring Security principal。 */
@@ -89,7 +67,7 @@ public class EntitlementAspect {
         if (auth != null && auth.getPrincipal() != null) {
             try {
                 return Long.parseLong(auth.getPrincipal().toString());
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException exception) {
                 // 忽略
             }
         }

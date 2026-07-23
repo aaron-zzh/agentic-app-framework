@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.engine.tool;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -12,7 +13,12 @@ import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
 import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
-import com.xuejiai.aaf.framework.security.access.AccessDecisionService;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationDecision;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationRequest;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationTarget;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +37,7 @@ public class ToolCallDispatcher {
     private final ToolPermissionChecker permissionChecker;
     private final ToolCallAuditRepository auditRepository;
     private final ObjectProvider<ToolCatalogProvider> catalogProvider;
-    private final AccessDecisionService accessDecisionService;
+    private final AuthorizationService authorizationService;
     private final ObjectProvider<AiCreditGuard> creditService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final ObjectProvider<ConfidenceGate> confidenceGate;
@@ -63,7 +69,14 @@ public class ToolCallDispatcher {
         var hasRolePermission =
                 registry.resolveForRole(roleId).stream()
                         .anyMatch(cb -> cb.getToolDefinition().name().equals(functionName));
-        if (!hasToolPermission(effectiveMeta, entry)) {
+        var authorization = authorizeTool(effectiveMeta, entry, arguments);
+        if (!authorization.allowed()) {
+            if (authorization.challengeId() != null) {
+                return ToolCallResult.pendingApproval(
+                        functionName,
+                        "工具 [%s] 等待统一授权确认".formatted(functionName),
+                        authorization.challengeId().toString());
+            }
             return ToolCallResult.forbidden(
                     functionName, "工具 [%s] 权限不足，需管理员授予工具权限".formatted(functionName));
         }
@@ -274,13 +287,35 @@ public class ToolCallDispatcher {
         }
     }
 
-    private boolean hasToolPermission(ToolRegistry.ToolMeta meta, ToolCatalogEntry entry) {
+    private AuthorizationDecision authorizeTool(
+            ToolRegistry.ToolMeta meta, ToolCatalogEntry entry, String arguments) {
         var permissionCode = entry == null ? null : entry.permissionCode();
         if (permissionCode == null || permissionCode.isBlank()) {
             permissionCode = "tool:%s:execute".formatted(normalizePermissionSegment(meta.name()));
         }
-        return accessDecisionService.hasPermission(permissionCode)
-                || accessDecisionService.hasPermission("tool:default:execute");
+        var plan =
+                new AuthorizationPlan(
+                        AuthorizationPlan.FunctionRequirement.permission(permissionCode),
+                        null,
+                        null,
+                        new AuthorizationPlan.PolicyPlan());
+        var request =
+                new AuthorizationRequest(
+                        AuthorizationSubject.unresolved(),
+                        new AuthorizationTarget(
+                                "tool." + normalizePermissionSegment(meta.name()),
+                                "execute",
+                                null),
+                        plan,
+                        Map.of(
+                                "tool",
+                                meta.name(),
+                                "riskLevel",
+                                meta.riskLevel() == null ? "" : meta.riskLevel().name(),
+                                "arguments",
+                                arguments == null ? "" : arguments),
+                        Duration.ofMinutes(10));
+        return authorizationService.authorize(request);
     }
 
     private String normalizePermissionSegment(String value) {

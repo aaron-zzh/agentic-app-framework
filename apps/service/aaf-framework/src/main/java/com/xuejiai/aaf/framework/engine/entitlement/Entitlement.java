@@ -1,6 +1,10 @@
 package com.xuejiai.aaf.framework.engine.entitlement;
 
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * 权益配额检查注解——与四层权限（RBAC/ReBAC/记录规则/ABAC）平行的第五层商业权益检查。
@@ -11,8 +15,8 @@ import java.lang.annotation.*;
  *
  * <pre>{@code
  * @PreAuthorize("hasPermission('ai:chat')")
- * @Entitlement(code = "ai_token", cost = "#tokens")
- * public ChatResponse chat(@P("tokens") int tokens, ...) { ... }
+ * @Entitlement(code = "ai_token", cost = "10")
+ * public ChatResponse chat(...) { ... }
  * }</pre>
  */
 @Target(ElementType.METHOD)
@@ -23,10 +27,6 @@ public @interface Entitlement {
     /** 权益编码（对应 entitlement_def.code） */
     String code();
 
-    /**
-     * 消耗额度，支持 SpEL 表达式引用方法参数。
-     *
-     * <p>BOOLEAN 类型权益此值忽略（仅检查是否拥有）。
-     */
+    /** 消耗额度，仅允许数字常量；BOOLEAN 类型权益此值忽略（仅检查是否拥有）。 */
     String cost() default "1";
 }
