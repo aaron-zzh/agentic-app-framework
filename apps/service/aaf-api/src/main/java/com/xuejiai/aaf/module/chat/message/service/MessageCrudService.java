@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.chat.message.service;
 
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,17 +55,7 @@ public class MessageCrudService
     private final WebSocketMessageSender messageSender;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<ConversationMessage, Long> getRepository() {
-        return messageRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<ConversationMessage> getSpecExecutor() {
+    protected ConversationMessageRepository getRepository() {
         return messageRepository;
     }
 
@@ -115,11 +103,6 @@ public class MessageCrudService
                 .eqIfPresent("senderType", query.getSenderType())
                 .eqIfPresent("contentType", query.getContentType())
                 .build();
-    }
-
-    @Override
-    protected String entityName() {
-        return "消息";
     }
 
     /** 覆写 create，消息存库后通过 WS 实时推送给会话中其他参与者。 只推送 HUMAN 类型参与者（userId），忽略 AGENT/STAFF 类型。 */

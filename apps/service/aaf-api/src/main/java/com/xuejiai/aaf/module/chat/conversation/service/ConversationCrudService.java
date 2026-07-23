@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.chat.conversation.service;
 
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,17 +50,7 @@ public class ConversationCrudService
     private final ConversationRepository conversationRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<Conversation, Long> getRepository() {
-        return conversationRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Conversation> getSpecExecutor() {
+    protected ConversationRepository getRepository() {
         return conversationRepository;
     }
 
@@ -109,10 +97,5 @@ public class ConversationCrudService
                 .eqIfPresent("assistantId", query.getAssistantId())
                 .likeIfPresent("title", query.getSearch())
                 .build();
-    }
-
-    @Override
-    protected String entityName() {
-        return "会话";
     }
 }

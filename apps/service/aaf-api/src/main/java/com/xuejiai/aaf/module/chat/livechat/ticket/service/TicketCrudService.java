@@ -4,8 +4,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -46,17 +44,7 @@ public class TicketCrudService
     private final TicketRepository ticketRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
-    }
-
-    @Override
-    protected JpaRepository<Ticket, Long> getRepository() {
-        return ticketRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<Ticket> getSpecExecutor() {
+    protected TicketRepository getRepository() {
         return ticketRepository;
     }
 

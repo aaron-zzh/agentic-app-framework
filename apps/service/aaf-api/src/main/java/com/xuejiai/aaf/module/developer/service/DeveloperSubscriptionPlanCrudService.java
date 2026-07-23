@@ -1,12 +1,8 @@
 package com.xuejiai.aaf.module.developer.service;
 
-import java.util.List;
 import java.util.Set;
 
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,18 +47,8 @@ public class DeveloperSubscriptionPlanCrudService
     private final DeveloperSubscriptionPlanRepository planRepository;
 
     @Override
-    protected JpaRepository<DeveloperSubscriptionPlan, Long> getRepository() {
+    protected DeveloperSubscriptionPlanRepository getRepository() {
         return planRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<DeveloperSubscriptionPlan> getSpecExecutor() {
-        return planRepository;
-    }
-
-    @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
     }
 
     @Override
@@ -164,31 +150,6 @@ public class DeveloperSubscriptionPlanCrudService
             var pattern = "%" + keyword.trim() + "%";
             return cb.or(cb.like(root.get("code"), pattern), cb.like(root.get("name"), pattern));
         };
-    }
-
-    @Override
-    protected Sort defaultSort() {
-        return Sort.by(Sort.Order.asc("sortOrder"), Sort.Order.asc("id"));
-    }
-
-    @Override
-    protected String entityName() {
-        return "开发者订阅套餐";
-    }
-
-    @Override
-    protected String permissionModule() {
-        return "developer";
-    }
-
-    @Override
-    protected String permissionResource() {
-        return "subscription-plan";
-    }
-
-    @Override
-    protected List<String> fieldSets() {
-        return List.of("list", "detail", "picker", "export");
     }
 
     private void applyCreateDTO(

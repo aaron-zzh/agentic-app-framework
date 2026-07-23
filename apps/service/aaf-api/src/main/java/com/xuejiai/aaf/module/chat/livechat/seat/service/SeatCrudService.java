@@ -2,8 +2,6 @@ package com.xuejiai.aaf.module.chat.livechat.seat.service;
 
 import java.util.Set;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,17 +42,12 @@ public class SeatCrudService
     private final LivechatSeatRepository seatRepository;
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
+    protected java.util.List<String> optionSearchFields() {
+        return java.util.List.of("nickname", "skillGroup");
     }
 
     @Override
-    protected JpaRepository<LivechatSeat, Long> getRepository() {
-        return seatRepository;
-    }
-
-    @Override
-    protected JpaSpecificationExecutor<LivechatSeat> getSpecExecutor() {
+    protected LivechatSeatRepository getRepository() {
         return seatRepository;
     }
 
@@ -101,10 +94,5 @@ public class SeatCrudService
                 .eqIfPresent("status", query.getStatus())
                 .eqIfPresent("skillGroup", query.getSkillGroup())
                 .build();
-    }
-
-    @Override
-    protected String entityName() {
-        return "坐席";
     }
 }
