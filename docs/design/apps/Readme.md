@@ -3,10 +3,11 @@ level: Practice
 layer: Model
 purpose: 应用设计目录索引
 status: published
-version: 1.0.0
-date: 2026-05-06
+version: 1.1.0
+date: 2026-07-24
 author: AaronZZH
 changelog:
+  - 2026-07-24 | v1.1.0 新增 Content Studio 索引并补齐 ModBot 条目
   - 2026-05-06 | 补充 Front Matter
 ---
 
@@ -19,3 +20,5 @@ changelog:
 1. [Service](./service/) — Spring Boot 后端设计
 2. [WebUI](./webui/) — Next.js 前端设计
 3. [UniApp](./uniapp/) — 跨端应用设计
+4. [Content Studio](./content-studio/) — 企业广告与 OPC 内容创作的跨端产品设计
+5. [ModBot](./modbot.md) — ModBot 应用设计

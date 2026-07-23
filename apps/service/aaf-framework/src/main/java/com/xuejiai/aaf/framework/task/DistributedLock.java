@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DistributedLock {
 
-    /** 锁的 key，支持 SpEL 表达式 */
+    /** 锁的固定 key */
     String key();
 
     /** 锁超时时间（秒），默认 5 分钟 */
