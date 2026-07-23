@@ -3,10 +3,11 @@ level: Practice
 layer: Model
 purpose: 框架设计目录索引
 status: published
-version: 1.0.0
-date: 2026-05-06
+version: 1.1.0
+date: 2026-07-23
 author: AaronZZH
 changelog:
+  - 2026-07-23 | 更新五层智能架构 v2 与开发计划入口
   - 2026-05-06 | 补充 Front Matter
 ---
 
@@ -19,7 +20,7 @@ changelog:
 ```
 framework/
 ├── meta-engine.md       # 元引擎核心设计
-├── core/                # 核心智能（Layer 3）
+├── intelligent/         # 五层智能架构（Layer 3）
 ├── engine/              # 专项引擎（Layer 2）
 ├── security/            # 安全与权限
 └── assets/              # 图片资源
@@ -31,7 +32,9 @@ framework/
 
 | 文档 | 说明 |
 |------|------|
-| [AgentScope 整合](intelligent/agentscope-integration.md) | AgentScope 整合策略、编排模式映射 |
+| [智能架构设计索引](intelligent/Readme.md) | 五层智能架构及专项设计导航 |
+| [五层智能架构 v2](intelligent/architecture-v2.md) | 当前智能层领域模型与 AgentScope v2 适配边界 |
+| [五层智能架构 v2 开发计划](intelligent/architecture-v2-development-plan.md) | P0-P6 实施、测试、迁移与删除门禁 |
 | [meta-engine.md](engine/meta/meta-engine.md) | 元引擎核心设计（调度、状态、上下文、置信度门控） |
 | [personalization.md](intelligent/cognition/personalization.md) | 用户感知与个性化（记忆管道、上下文、状态管理协同） |
 

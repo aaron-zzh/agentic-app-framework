@@ -3,9 +3,13 @@ level: Practice
 layer: Model
 purpose: 五层智能架构 v2——以智能助理为核心、对齐认知心理模型的领域模型设计
 status: draft
-version: 5.0.0
-date: 2026-06-10
+version: 5.2.0
+date: 2026-07-23
 author: AaronZZH
+related:
+  - ./architecture-v2-development-plan.md
+  - ../../../explanation/general-agent/general-agent-migration-design.md
+  - ../../../explanation/general-agent/general-agent-delivery-roadmap.md
 ---
 
 # 五层智能架构 v2（领域模型）
@@ -240,6 +244,17 @@ author: AaronZZH
 
 **多会话与分身的数量关系**：一个用户可同时开多个对话（1 用户 : N 对话）；每个对话对应一个主助理作为唯一协调者（1 对话 : 1 主助理）；主助理按需分出 0..N 个分身并行，各分身独立调度智能体执行，最后由主助理聚合（1 主助理 : 0..N 分身）。
 
+### 系统内置助理
+
+内容创作与客服均作为**系统内置 Assistant 定义**提供，而不是在框架中各维护一套专用运行时或硬编码 `HarnessAgent` 工厂。它们与用户自建助理走同一条 Assistant 用例和 `AgentExecutor` 执行链，只在预置人格、角色、技能、工具、知识和权限范围上不同。
+
+| 内置助理 | 主要能力 | 记忆与知识边界 | 默认权限 |
+|---|---|---|---|
+| 内容创作助理 | 策划、撰写、润色、事实核查、多媒体生成 | 用户私有创作偏好与历史 + 用户授权知识库 | 可调用生成工具；发布、付费、删除等动作需确认 |
+| 客服助理 | 产品咨询、故障排查、工单路由、转人工 | 公共产品知识 + 已登录用户的服务历史 | 默认只读；写操作与敏感查询需授权 |
+
+采用两个独立定义，而不是让一个助理同时承担公共客服与私人创作：二者的身份、知识、权限和隐私边界不同。内置定义应支持管理员配置、用户复制和版本化升级；用户复制后的定义不被系统模板升级覆盖。
+
 ### 输入缓冲与执行期干预
 
 两个相邻但不同的概念，都发生在助理处理任务的过程中，不可混为一谈：
@@ -268,6 +283,16 @@ author: AaronZZH
 - **知识**：世界是怎样的。可被多助理共享的客观资料与常识。
 - **价值观**：什么不可逾越。行动前据此过滤的伦理与优先级约束。
 - **决策依据**：自主决策时留下的"为什么这么选"（决策点、备选、理由、置信度），供事后异步审查。
+
+### 默认长期记忆策略
+
+助理默认启用长期记忆，但长期记忆的唯一真理源是 `Cognition`，而不是 Agent 运行时或工作区文件。默认规则如下：
+
+- `Assistant` 默认按记忆策略回忆与沉淀；`Agent` 只在任务期间借用工作上下文，任务结束不保留长期记忆；`Core` 完全无记忆。
+- 只沉淀稳定偏好、经确认事实、重要任务结果和经评估有效的程序经验；一次性指令、低可信推测和敏感凭据不得自动进入长期记忆。
+- 已登录用户按用户/租户隔离个人记忆；匿名客服仅保留短期摘要或带 TTL 的访客记忆，登录后也必须经确认才能合并。
+- 共享知识的写入必须经过评估或人工审核，不能把模型回答直接提升为公共知识。
+- AgentScope `MEMORY.md` 默认关闭；如后续启用，只能是可删除、可从 Cognition 重建的工作区缓存。
 
 ### 运行模式：编排与自主
 
@@ -305,6 +330,59 @@ author: AaronZZH
 - **助理（会话级）**：意图漏斗收敛——先把模糊意图澄清、收窄，再决定如何调度。
 - **群体（项目级）**：目标假设性分解——目标未必清晰，先假设性拆解，边推进边校正。
 
+## 通用智能体产品控制面
+
+> 本节把 [通用智能体迁移设计](../../../explanation/general-agent/general-agent-migration-design.md) 的产品要求落为五层架构的跨层契约。它不新增第六个智能层，也不改变 Assistant、Team、Agent、Cognition、Core 的职责。
+
+### 助理能力契约与有效上下文
+
+AssistantDefinition 除人格、角色和记忆策略外，还应形成面向用户和治理系统的**助理能力清单**，至少表达：稳定标识与版本、维护者、职责和非职责、支持的用户控制模式、可用业务动作、资料与记忆作用域、默认风险策略和生命周期状态。该清单是定义的只读投影，不是第二份配置源。
+
+每次任务还应产生**有效上下文清单**，记录实际生效的系统/组织规则、Skill、任务资料、知识、个人记忆及其来源、版本、作用域和选用原因。用户可纠正、移除或禁止后续使用允许管理的来源；清单只保存引用和脱敏摘要，不复制知识或记忆正文。
+
+### 用户控制模式
+
+用户控制模式描述“用户授予多大自主权”，与内部“编排/自主”运行模式正交：
+
+| 用户控制模式 | 外部副作用 | 人的参与方式 | 进入条件 |
+|---|---|---|---|
+| 问答 `READ_ONLY` | 禁止写入，只能生成建议或草稿内容 | 可随时追问和取消 | 默认模式 |
+| 协作 `COLLABORATIVE` | 允许范围内的可撤销写入 | 展示计划，关键动作前确认 | 任务目标和影响可解释 |
+| 委托 `DELEGATED` | 在任务授权内后台执行 | 异常、授权缺口或分歧时介入 | 预算、截止时间、停止条件和负责人齐全 |
+| 自动化 `AUTOMATED` | 按已审核模板重复执行 | 通过试运行、变更审核和全局停用控制 | 模板、触发器、权限和失败策略已版本化 |
+
+模式只能由用户或策略显式升级，不能由模型静默升级。模式降级、暂停和取消必须随时可用；内部可以在任一用户模式下选择编排或自主执行，但不得突破该模式的副作用边界。
+
+### 任务生命周期与完成门禁
+
+Assistant 层持有稳定任务生命周期，TaskBoard 管步骤与依赖，二者不可只靠聊天消息推断：
+
+```text
+DRAFT → PLANNING → AWAITING_AUTHORIZATION → RUNNING → VERIFYING → COMPLETED
+                     ├→ AWAITING_INPUT ────────────────┤
+                     ├→ PAUSED
+                     ├→ CANCELED
+                     └→ FAILED → RECOVERING 或终止
+```
+
+交互层可投影为“准备中、进行中、需要你、已完成、未完成”，但每次状态转换必须保留原因、发起者、时间、当前责任主体和恢复点。模型一轮输出结束不等于任务完成；从第一个可写任务开始就必须由 CompletionValidator 根据显式完成条件返回“完成、继续修复、需要用户、失败或转人工”。
+
+人工接管是责任主体变更：先暂停 Agent 执行并释放执行权，再由人领取、修改或完成；交回时创建新的 execution 继续，不能让人与 Agent 同时写同一任务。
+
+### 业务授权与连接器信任
+
+工具治理保持三层边界：业务动作是否可见、当前任务是否获得授权、实际参数是否满足系统与组织策略。任务授权至少包含 `action`、`resource`、`scope`、`expiresAt`、`conditions`、`reversible`、`grantedBy` 和 `taskId`；授权可撤销，用户确认不能绕过系统或租户策略。
+
+确认请求必须说明：做什么、为什么现在做、影响什么、使用哪些数据、如何撤销或补救。低风险同类动作可在明确范围内合并授权；高风险和不可逆动作仍逐项确认或走双重审批。
+
+MCP 只负责连接协议。连接器目录、OAuth scope、凭证托管、刷新、过期和撤销属于服务/基础设施层；智能层只接收业务动作和凭证句柄，凭证正文不得进入模型上下文、AgentState 或事件 payload。
+
+### 受控委托、自动化与协作
+
+委托任务必须携带执行契约：预算、截止时间、最大调用次数、允许动作、停止条件、重试策略、通知策略、负责人和人工接管策略。后台任务由 AAF 持久调度/任务引擎承载，AgentStateStore 只恢复 Agent 工作态，不充当后台任务队列。
+
+自动化是经试运行验证的版本化任务模板，必须定义触发条件、频率、权限、预算、失败处理、启停入口和升级影响；工作流引擎承载确定性骨架，Assistant 决定何时调用。Team 和子 Agent 可以作为内部实现，但主 Assistant 始终对用户解释委派原因、汇总冲突并承担最终责任。
+
 ## 支撑性领域能力
 
 有些能力最终由技术机制承载，但**领域必须先讲清"在哪个组件、为什么需要"**——这里只描述能力与动因，不涉及实现构件。后续技术方案据此落地。
@@ -322,6 +400,10 @@ author: AaronZZH
 | 推理策略可选 | 智能体 · 内核 | 同一任务可按难度选不同推理方式（直接作答 / 先规划后执行 / 边想边做），简单的事不过度思考 |
 | 执行隔离 | 智能体 | 调用工具、运行代码须在隔离环境中进行，限定可触达资源，防越权与副作用外溢 |
 | 权限与风险分级 | 智能体 · 助理 | 动作按风险分级（无害 / 低 / 中 / 高）；高风险动作执行前需人工确认。与"能力护栏"正交——护栏限定可做的范围，分级管单次动作的放行 |
+| 用户控制模式 | 助理 | 问答、协作、委托、自动化决定用户授予的自主权和副作用上限，不能由模型静默升级 |
+| 任务生命周期与完成门禁 | 助理 | 任务状态、责任主体和完成条件必须独立于聊天回合，支持暂停、接管、恢复和验证失败后继续修复 |
+| 有效上下文透明度 | 助理 · 认知基础 | 用户需知道本次实际使用了哪些规则、资料、知识和记忆，并能纠正或移除允许管理的来源 |
+| 受控委托与自动化 | 助理 · 群体 | 后台执行和重复触发必须受预算、期限、停止条件、通知、版本和人工接管约束 |
 | 执行轨迹（可观测） | 助理 · 智能体 | 执行过程产出可追溯的事件流（步骤、工具调用、决策点），支撑实时呈现与事后审查 |
 
 > 这张表是领域与技术的交接点：左两列（能力 + 归属）属本章稳定的领域约定，右列动因解释"为何后续要做池化、可恢复、检索编排、配置预热等机制"——但具体怎么实现留给技术方案。
@@ -330,9 +412,83 @@ author: AaronZZH
 
 领域层面尚未定论、留待演进的几个开放问题：
 
-- **预算意识**：如何让组件感知并遵守时间 / 花费 / 算力预算，在预算内自行取舍深浅。
-- **能力自进化**：工具与技能能否在使用中自我改进（描述、人体工学、组合方式）。
+- **能力自进化**：工具与技能能否在使用中自我改进（描述、人体工学、组合方式），以及如何经过试运行和审核后晋升。
 - **新型协作通信**：多助理协作如何突破"一问一答"的同步回合，支持更丰富的异步协同。
+
+## 已确认的实现决策
+
+> 本节是 v2 实现的约束性决策，优先级高于后续历史技术示例。后续示例若仍出现 `Session`、每会话 Agent 实例或工作区长期记忆等旧表述，均应按本节解释并在实现阶段清理。分阶段交付与验收见 [五层智能架构 v2 开发计划](architecture-v2-development-plan.md)。
+
+### 内置助理物化
+
+内容创作助理与客服助理以 PostgreSQL 中的系统内置 `AssistantDefinition` 存在，由通用 Assistant 应用服务加载并物化。框架只提供 Assistant、Agent、Tool contributor 端口；内容创作和客服的提示词、业务工具及知识配置属于产品能力，通过上层模块注册，不固化进 AgentScope 适配器。
+
+用户入口以 `tenantId + assistantId + conversationId` 建立会话，以 `taskId + executionId` 标识任务及其执行；内置助理、自建助理和复制助理共享同一入口、权限检查、记忆策略、任务生命周期和事件流，不按助理类型注册不同执行端点。所有调用必须显式携带 tenant 上下文；当 AgentScope 状态接口只暴露 `(userId, sessionId)` 时，适配层必须使用稳定 tenant store prefix 或规范化 state user key 隔离租户，不能假设跨租户 userId 全局唯一。
+
+### 包结构、适配边界与版本基线
+
+保留根包 `com.xuejiai.aaf.framework.intelligent`，以 `assistant`、`team`、`agent`、`cognition`、`core` 为一级领域包。唯一允许直接依赖 AgentScope 的区域是 `intelligent.infrastructure.agentscope`。领域与应用端口不得暴露 `HarnessAgent`、`ReActAgent`、`RuntimeContext`、`AgentState` 或 Spring/JPA 类型。
+
+```text
+com.xuejiai.aaf.framework.intelligent
+├── assistant/{model,application,port}
+├── team/{model,application,port}
+├── agent/{model,application,port}
+├── cognition/{model,application,port}
+├── core/{inference,capability,port}
+├── shared/{id,event}
+└── infrastructure/agentscope
+    ├── execution
+    ├── compiler
+    ├── mapping
+    ├── middleware
+    ├── tool
+    ├── state
+    ├── sandbox
+    └── spring
+```
+
+JPA Entity、Spring Data Repository 与 `JdbcTemplate` 实现放在纯领域包之外，通过端口注入。现有并列包 `com.xuejiai.aaf.framework.agentscope` 只作为 PoC 和迁移素材，不作为目标包结构；顶层 `action`、`ai` 的责任最终收敛到五层契约或基础设施实现。
+
+当前 AAF BOM 锁定 `AgentScope 2.0.0-RC4`，而本地 `tmp/agentscope-java` 源码是 `2.0.1-SNAPSHOT`。进入编码前必须选择并锁定同一基线：要么取得 RC4 对应源码并以 RC4 契约测试为准，要么单独评审依赖升级。不得依据 Snapshot API 直接实现 RC4 代码。
+
+### 长期记忆与运行状态
+
+长期记忆默认开启且唯一归 `Cognition`；AgentScope 只保存可丢弃、可恢复的执行工作态。状态所有权固定如下：
+
+| 数据 | 唯一真理源 | AgentScope 中的角色 |
+|---|---|---|
+| 助理/Agent/角色/技能/模型配置 | PostgreSQL | Builder 编译输入 |
+| 用户可见对话消息 | `conversation_message` | `AgentState.context` 是可压缩工作集 |
+| TaskBoard/Goal/依赖/编排状态 | PostgreSQL | 不重复维护 |
+| Agent 执行快照 | Redis `AgentStateStore` | 自动加载和保存 |
+| 长期记忆、知识、价值观 | Cognition 存储 | 每轮按需注入 |
+| HITL 当前状态 | PostgreSQL approval 状态 | 运行时负责暂停与恢复 |
+| Token 与结算账本 | PostgreSQL | Middleware 上报 |
+
+同一次事实只允许一个写入者。工作区 `MEMORY.md`、AgentState 和业务数据库不得分别维护可独立修改的长期记忆或 TaskBoard。
+
+### 执行轨迹
+
+`ai_task_event` 是 Assistant/Agent 执行轨迹的唯一 append-only 事实源，承载任务状态、控制模式、模型、工具、授权、审批、接管、子任务、验证、取消与恢复事件，并作为 SSE 的持久来源。事件至少携带 `eventId`、`tenantId`、`taskId`、`executionId`、`runId`、`parentExecutionId`、`sequence`、`type`、`status`、`controlMode`、`ownerType`、`assistantId`、`agentId`、`userId`、`correlationId`、`causationId`、脱敏 `payload` 和 `createdAt`。
+
+至少建立 `UNIQUE(event_id)` 与 `UNIQUE(execution_id, sequence)` 约束。`ai_execution_run` / `ai_execution_step` 不再作为第二套事实源；若管理端确需步骤树查询，只能由 `ai_task_event` 异步生成可删除、可重建的读模型，禁止同步双写。模型计量、额度账本和 HITL 当前状态仍使用各自业务表，事件只记录其发生过程。
+
+### 多副本一致性
+
+多副本是指同一 AAF 服务同时运行多个 JVM/Pod，并由负载均衡把请求路由到任一副本。Redis `AgentStateStore` 解决跨副本恢复，但不自动保证两个副本不会同时处理同一会话。
+
+生产环境必须在调用 Harness 前按 conversation/session 获取分布式 lease，并携带单调递增的 fencing token；只有仍持有最新 token 的执行者可写回状态。规则是同一 conversation 串行、不同 conversation 并行，外部副作用工具仍须使用幂等键。粘性路由只能作为优化，不能作为唯一正确性保证。
+
+```text
+收到消息
+→ 获取 conversation lease + fencing token
+→ 加载编排态与 AgentState
+→ HarnessAgent 执行
+→ 校验 fencing token
+→ 幂等写消息、事件、计量和状态
+→ 释放 lease
+```
 
 ## 技术承载参考：AgentScope Harness
 
@@ -362,35 +518,25 @@ AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的�
 
 ### 核心概念
 
-- **薄包装、能力叠加而非改写循环**：`HarnessAgent` **组合**（非继承）一个 `ReActAgent`（`delegate`）。所有工程能力以 middleware/hook 形式挂在推理循环的关键时机上，core 的 ReAct 算法本身不动。内置 middleware 构建期按固定顺序串联，调用方用 `.middleware(...)` 加的跑在最前。
-- **三个共享对象**（能力之间只通过它们通信，互不感知）：
-  - **RuntimeContext**：本次 `call()` 的身份与元数据（`sessionId` / `userId` / `sessionKey` / sandbox 句柄 / extra）。**不持久化、不进 Session**。
-  - **工作区（Workspace）**：谁读写哪些文件；物理落到本机 / 沙箱 / 远端由 `.filesystem(...)` 配置决定，须经 `getWorkspaceManager()` 路由（直接用 `java.nio.Files` 在沙箱/远端模式会写错地方）。
-  - **Session**：跨调用如何恢复运行时状态。
-- **状态三层**：
-  - 调用内 **AgentState**：对话上下文、压缩摘要、权限规则、Plan Mode 状态、`todo` 清单、工具组激活状态。
-  - 跨调用 **Session**：每次 `call()` 结束/进程关闭时把整份 `AgentState` 以 `agent_state` 键落盘，下次同 `sessionId` 自动载回。
-  - 长期记忆 **MEMORY.md**：跨 session 累积，`memory/YYYY-MM-DD.md` 只追加，后台节流任务合并进 `MEMORY.md`，每轮推理注入 system prompt。
-- **按需打开的能力**（builder 开关）：工作区驱动人格、会话持久化、双层长期记忆 + 对话压缩、大工具结果卸载、子智能体编排、可插拔文件系统、沙箱隔离、计划模式（HITL）、技能装配、MCP 集成 + 工具白名单。
+- **薄包装、能力叠加而非改写循环**：`HarnessAgent` 组合一个 `ReActAgent`，通过 middleware 叠加工作区、压缩、沙箱、技能、MCP、计划模式和子 Agent 能力。
+- **RuntimeContext 是 per-call 上下文**：每次调用显式传入 `userId`、`sessionId` 和 AAF typed context；自由属性不持久化，禁止用 ThreadLocal 或全局 fallback 代替。
+- **AgentState 是执行工作态**：对话工作集、摘要、权限、Plan、todo 和工具状态按 `(userId, sessionId)` 隔离。
+- **AgentStateStore 负责跨调用恢复**：调用入口加载、调用结束保存；开发可用内存/文件实现，生产使用 Redis 等分布式实现。
+- **工作区不是业务真理源**：文件系统和沙箱承载执行资源，DB 配置、Cognition 长期记忆和 AAF 编排态不得反向由工作区定义。
 
 ### 运行时：一次 call 的流转
 
-1. `call(msgs, ctx)` → `ensureSessionDefaults(ctx)`：缺 `sessionKey` 时按 `sessionId`（或 agent 名）补上，并注入默认 sandbox 上下文（Session 后端在 builder 期绑定，**不能 per-call 切换**）。
-2. `wrappedCall`：用 `Mono.using` 在调用前 `acquireForCall` 沙箱、调用后 `releaseForCall`；若配了压缩，捕获 `context_length_exceeded` 触发 `recoverFromOverflow`（强制极限压缩后自动重试一次）。
-3. `delegate.call(msgs, effective)`：走 ReAct 循环，各 middleware 就地改写内存里的 `AgentState`。
-4. call 结束 / shutdown：`shutdownManager` 把 `AgentState` 整体写回 Session（不在每条消息后落盘，吞吐压力低）。
-- **跨进程/跨机恢复**：Session 换成分布式后端（如 `RedisSession`）后，任意副本按 `sessionId` 续上同一份 `AgentState`——故障转移、滚动发布、Web↔CLI 接续，对话都不断。
-- **压缩链路**（默认全关，按需开）：对话摘要压缩 / 大工具结果卸载（>80K 字符落盘留占位）/ 溢出兜底 / 预压缩参数截断；压缩永远先于落盘，Session 拿到的是压缩后版本。
+1. AAF `AgentExecutor` 接收纯领域 `AgentExecutionCommand` 与显式 `InvocationContext`。
+2. AgentScope 适配器按定义版本取得无状态 `HarnessAgent`，将 AAF 上下文映射为新的 `RuntimeContext`。
+3. `ReActAgent` 从 `AgentStateStore` 加载当前状态并执行 middleware、ReAct 与工具循环。
+4. AgentScope 事件映射为稳定的 AAF `ExecutionEvent`，由应用层持久化到 `ai_task_event` 并向交互层发布。
+5. 调用结束自动保存 `AgentState`；AAF 的 CompletionValidator 独立判断业务任务是完成、继续修复、暂停还是转人工。
 
-### 实例模型：一个实例支持多用户，还是每对话一个？
+### 实例模型：无状态引擎与会话状态分离
 
-- **设计意图：一个实例可（串行）服务多用户/多会话。** 身份每次 `call()` 经 RuntimeContext 传入，`AgentState` 按 `sessionId` 经 Session 装卸。文档的多用户示例即**同一个 agent** 先后用 alice、bob 的 ctx 调用，状态与文件命名空间互不干扰。
-- **并发约束**：单个实例同一时刻只持有一份活跃 `AgentState`（`getAgentState()` 即 `delegate` 的实例字段）。源码注释明确：普通路径会改写共享状态、**并发不安全**，`workspaceFor(userId, sessionId)` 才是"不碰共享状态、可并发"的旁路。⇒ **同一实例对不同会话的调用必须串行**。
-- **多用户隔离的三把钥匙**：`sessionId`（区分对话 → 独立 AgentState）、`userId`（区分文件/沙箱命名空间）、`SessionKey`（生产建议把 `userId` 编进键，配 `RedisSession` 做 AgentState 级隔离）。
-- **生产范式（dataagent 示例印证）**：
-  - **共享实例 + 每会话锁**：一个 `agentId` 一个共享实例，每个会话一把锁（`SessionTurnGate`）串行其轮次；不同会话靠锁 + 按 `sessionId` 装卸状态 + 按 `userId` 分沙箱隔离；跨副本用分布式 Session。
-  - **每会话/子任务一个实例**：按 `sessionKey` 懒建并缓存独立实例（子 agent 路径的 `agentCache`），各自独立 AgentState。
-- **结论**：既不是"每对话必须 new 一个实例"，也不是"一个实例能无锁并发服务多人"；而是**一个实例可串行服务多会话/多用户**，隔离靠 `RuntimeContext + Session(按 sessionId) + 沙箱(按 userId)`，并发靠每会话加锁或每会话独立实例。
+目标 v2 运行时采用无状态 Agent 引擎：`HarnessAgent` 只持不可变配置，可按 `definitionId + definitionVersion` 缓存为共享实例；所有会话可变状态都在 `AgentState`，每次调用由 `RuntimeContext` 选择 `(userId, sessionId)` 槽位。
+
+同一实例可并发服务不同会话；同一槽位在单进程内由 AgentScope 串行。多副本下仍必须由 AAF 的分布式 lease/fencing 保证全局串行。定义更新通过版本化缓存失效，不通过“每用户一个 Agent 注册表”解决。
 
 ## 领域与实现的对齐原则
 
@@ -419,7 +565,7 @@ AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的�
 
 ### 划界（必须明确边界，防双真理源 / 反向耦合）
 
-- **记忆**：认知基础是唯一真理源；HarnessAgent 的 `MEMORY.md` 文件记忆退为"会话工作层 / 缓存"，或经自定义文件系统桥回我们的存储。**禁双真理源**。
+- **记忆**：认知基础是唯一真理源；HarnessAgent 的 `MEMORY.md` 默认关闭；如启用，只能作为可从 Cognition 重建的缓存。**禁双真理源**。
 - **配置**：DB 驱动（agent / persona / role）是源，用 AAF builder **编译**成 HarnessAgent；不反向让文件配置成为源。
 
 ### 可零成本吸收的两个运行时刻画
@@ -441,103 +587,23 @@ AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的�
 | 运行时 | 归属 | 管什么 |
 |---|---|---|
 | 编排层（围绕助理 / Agent） | AAF 自管 | 前注意分流/路由、记忆策略选择、多分身编排、TaskBoard / GoalTracker、编排态 Checkpoint(DB)、缓存层 |
-| 执行层（助理 + Agent 本体） | HarnessAgent 承载 | **会话型助理 + 任务型子 agent**；AgentState / Session(Redis)、沙箱、子 agent、压缩、Plan/HITL、工具执行 |
+| 执行层（Agent 执行） | HarnessAgent 承载 | 无状态执行引擎；AgentStateStore、沙箱、子 agent、压缩、Plan/HITL、工具执行 |
 
-关键：**助理本体就是一个会话型 HarnessAgent**；AAF 编排层是它"之前与周围"的逻辑（前注意短路、路由、TaskBoard、多分身），不是另一个独立的非-HarnessAgent 对象。衔接经 `AgentExecutor`（= `HarnessAgentExecutor`），记忆/计量/权限/轨迹经 middleware 注入，记忆真理源在认知基础。
+关键：**Assistant 是 AAF 领域主体，不是 HarnessAgent 的别名**。AAF 应用层负责前注意、路由、TaskBoard 和多分身；需要推理时经 `AgentExecutor` 调用 AgentScope 适配器。记忆、计量、权限和轨迹通过稳定 AAF 端口与 middleware 衔接。
 
 ### 缓存层：DB 配置作为"编译源"
 
 DB 配置（Actor / Role / SkillDef / AgentDef / Model）→ 本地缓存（+Redis 二级，变更事件刷新）→ **编译成 `HarnessAgent.builder()`**（name / sysPrompt / model / skills / tools / workspace）。HarnessAgent 本是 builder 驱动，缓存配置充当编译源，**DB 仍是真理源**。Actor / Role 纯配置不池化。
 
-### 多会话与实例模型
+### 实例与状态生命周期
 
-先定两个本体（**都是 HarnessAgent**，区别在生命周期）：
+- **共享 Agent 引擎**：按 `definitionId + definitionVersion` 缓存无状态 `HarnessAgent`；模型客户端、工具模板、AgentStateStore、沙箱池等重资源由 Spring 单例管理。
+- **会话状态槽位**：每个 conversation 对应稳定 `sessionId`；生产调用必须提供非空 `userId`，由 Redis `AgentStateStore` 按 `(userId, sessionId)` 隔离。
+- **任务型 Agent**：每个 task/subtask 使用独立 executionId 和 sessionId；任务结束后可删除执行工作态，但结果、事件和学习候选已经进入 AAF 真理源。
+- **定义刷新**：配置 DB 是源；变更产生新 definition version 并使编译缓存失效，不修改正在执行的旧版本实例。
+- **资源回收**：关闭的是 Agent 编译缓存项、沙箱租约和临时工作区；会话恢复依赖 AgentStateStore，而不是保留 Java 对象。
 
-- **助理（会话型 HarnessAgent）**：面向用户的会话主体，持人格、对话历史、记忆、Session。长生命周期，按 `sessionId` 持久化。
-- **Agent（任务型子 agent）**：助理为执行/并行 spawn 的子 agent，短生命周期，执行完即收。
-- **多分身** = 助理同时 spawn 多个（同人格、不同角色）子 agent 并行，再聚合——本质就是子 agent 编排。
-
-> 前注意分流、路由、TaskBoard 是 AAF 在"调用助理 HarnessAgent 之前/周围"的逻辑（可短路简单请求、不进 ReAct），不是又一个 agent 本体。
-
-实例与会话的数量关系（**这是常被问混的点**）：
-
-| 关系 | 基数 | 说明 |
-|---|---|---|
-| 用户 : 对话 | 1 : N | 一个用户可同时开多个对话 |
-| 对话 : 助理会话(`sessionId`) | 1 : 1 | 每个对话一份独立 `AgentState` |
-| 助理会话 : 助理实例(HarnessAgent) | 1 : 1 或 N : 1 | 见下「并发与性能」：每会话一个轻量实例，或共享实例 + 会话锁 |
-| **重资源**（模型客户端 / 工具·技能模板 / Session 后端 / 沙箱池） | 全局共享 | 实例无论几个都共享这些，**不重复创建** |
-| 助理会话 : 任务型子 agent | 1 : 0..N | 按需 spawn，执行完即收 |
-
-两个核心问题的答案：
-
-- **每个用户多会话，对应几个还是一个助理实例？** → 逻辑上每对话一个独立**会话**（`sessionId` + 独立 `AgentState`）。物理实例两种都行：每会话一个轻量实例（推荐，真并行）或共享实例 + 会话锁；但**重资源（模型/工具模板/Session/沙箱）始终全局共享，不为每对话重建**。关键是状态按 `sessionId` 隔离、`userId` 隔离沙箱，而非"几个实例"。
-- **助理实例是否对应一个 HarnessAgent？** → **是。助理本体就是一个会话型 HarnessAgent**；它派发/并行出去的 Agent 是它 spawn 的任务型子 agent（也是 HarnessAgent，但短命）。
-
-### 实例创建与生命周期
-
-先回答"**助理是不是单例**"：**不是全局单例。** 全局单例的是**重资源**（模型客户端、工具/技能模板、Session 后端、沙箱池、middleware 构建器）——启动建一次、应用生命周期常驻、所有人共享。**助理与 Agent 实例是会话级的、可创建可回收**，区别只在策略：推荐"每会话一个轻量实例（按 `sessionKey` 懒建+缓存+空闲淘汰）"，备选"每 `agentId` 一个共享实例 + 会话锁"。
-
-| 对象 | 创建时机 | 状态从哪来 | 存活 | 销毁 |
-|---|---|---|---|---|
-| 重资源（模型客户端 / 工具·技能模板 / Session 后端 / 沙箱池 / **认知服务**：记忆·知识·检索引擎） | 应用启动 | 配置（DB 编译） | 应用生命周期 | 应用关闭 |
-| 会话型助理（HarnessAgent） | 某会话首次到达时懒建（按 `sessionKey` 缓存） | 调用时从 Session 按 `sessionId` 载入 `AgentState` | 会话活跃期驻留缓存 | 空闲超时 / 会话重置 / 缓存淘汰 / 应用关闭——**状态不丢（在 Session）** |
-| 任务型子 agent（HarnessAgent） | 助理 spawn 子任务时（`SubagentFactory.create(parentRc)`） | 父上下文 + 自己的子 `sessionId` | 任务执行期（同步：完即收；后台：直到完成） | 任务结束即销毁（短命），结果落 task 仓 + Session |
-
-关键性质：**实例轻、状态重外置**。创建实例 = new 对象 + 从 Session 载状态；销毁实例 = 丢对象，状态留 Session。所以"何时创建/销毁实例"**不影响正确性**（状态随时可从 Session 恢复），只影响内存与并发度——这正是能放心"懒建 + 淘汰 + 跨副本漂移"的根本原因。
-
-> **认知服务（记忆 / 知识 / 检索引擎）同属重资源**：是单例、无状态的 `@Service` bean，全局共享、并发安全。真正区分用户/会话的不是"多个服务实例"，而是其背后**按 `userId` / `knowledgeBaseId` / scope 分区的数据**（存 PgVector / Neo4j / Redis）；调用时传身份，单例服务按身份读写对应分区。瓶颈在这些存储与检索模型的吞吐，不在 bean。
-
-落地骨架（**单例管理服务 + 会话级助理实例**）：
-
-```java
-@Service                                   // 单例·无状态：接请求、路由、复用/新建、加锁
-class AssistantRuntime {
-    private final Model sharedModel;         // 重资源·单例共享
-    private final Session sessionBackend;    // 重资源·单例共享（Redis）
-    private final Map<String, HarnessAgent> cache = new ConcurrentHashMap<>(); // 会话级实例缓存
-    private final SessionTurnGate gate;      // 每会话锁
-
-    Mono<Msg> handle(String userId, String conversationId, List<Msg> msgs) {
-        String sessionKey = userId + ":" + conversationId;
-        // 复用或新建：会话级 HarnessAgent（共享重资源）
-        HarnessAgent assistant = cache.computeIfAbsent(sessionKey, k ->
-            HarnessAgent.builder()
-                .model(sharedModel).session(sessionBackend)
-                .filesystem(perUserSandbox(userId))
-                /* 角色/技能/middleware 由 DB 配置编译 */
-                .build());                   // 未命中→新建轻量实例；首次 call 按 sessionId 从 Session 载入 AgentState
-        RuntimeContext ctx = RuntimeContext.builder()
-            .userId(userId).sessionId(conversationId).build();
-        return gate.run(sessionKey, () -> assistant.call(msgs, ctx)); // 每会话串行
-    }
-}
-```
-
-- **单例的是 `AssistantRuntime`**（管理者/网关，无状态：接请求、按 `sessionKey` 路由、复用/新建、加锁）；助理 `HarnessAgent` 是**会话级**，按 `sessionKey` 复用或新建。
-- **助理不能做成无状态单例**：它持有会话级活跃 `AgentState`（对话上下文等），单例会让所有会话共用一份状态而串话/竞争。对比记忆/知识服务能单例，是因为它们无状态、数据在 DB 按身份传参。
-- dataagent 对应实现：`SessionAgentManager.getOrCreateAgent`（`agentCache.computeIfAbsent(sessionKey, ...)`）+ `HarnessGateway`（`withGatedTurn` 每会话锁）。
-
-#### 空闲淘汰（实例回收）
-
-淘汰的是**内存里的助理实例**（释放内存/资源）；`AgentState` 已在 Session，淘汰零损失，下次该会话再来 miss → 重建并从 Session 恢复。两种实现：
-
-- **Caffeine TTL + 容量**（推荐，AAF 技术栈已用 Caffeine）：把实例缓存换成
-  ```java
-  Caffeine.newBuilder()
-      .expireAfterAccess(Duration.ofMinutes(30))   // 空闲淘汰：闲置超时即剔除
-      .maximumSize(2000)                            // 容量淘汰：超量按近似 LRU
-      .removalListener((k, agent, cause) -> {       // 淘汰回调：释放资源（状态已在 Session）
-          if (agent != null) ((HarnessAgent) agent).close(); // 关工作区索引/沙箱租约
-      })
-      .build();
-  ```
-- **定时维护**（dataagent 官方示例做法）：维护 `lastActivityMs` + 调度器周期跑 `SessionAgentManager.runMaintenance()`（按 `pruneAfterMs` 剔除、`maxEntries` 限容，内部 `agentCache.remove`），另有 `resetIdleSessions(idleMs)` / `evictAgent(sessionKey)`。
-
-注意：① 配合每会话锁，淘汰只发生在调用间隙，安全；② `close()` 释放工作区索引/沙箱租约，模型/Session 等全局重资源不关，per-user 沙箱另由沙箱池按空闲回收；③ 多副本下缓存是**每副本本地**的，会话漂到别副本 miss → 从 Redis Session 恢复，无需分布式协调。
-
-> 来源标注：会话维护/空闲重置（`runMaintenance` / `resetIdleSessions` / `evictAgent`）出自官方示例 `agentscope-dataagent` 源码（用 `ConcurrentHashMap` + 定时维护）；`HarnessAgent.close()` 出自 harness 源码；**Caffeine 方案是结合 AAF 既有技术栈的标准用法，非 agentscope 自带示例**。
-
+Assistant 并不等于一个永驻的有状态 Agent 对象。Assistant 是 AAF 领域主体；AgentScope `HarnessAgent` 是可共享、可替换的执行引擎，两者通过 `AgentExecutor` 端口连接。
 ### 场景会话流程
 
 每次用户消息先过助理的**决策前路**：前注意分流（规则/小模型快速判断，简单的就地短路）→ 情绪/意图理解 → 技能匹配 + 置信度评估 → 选处理路径。不同场景走不同路径：
@@ -587,38 +653,25 @@ class AssistantRuntime {
 
 > 边界：**HarnessAgent 本身不提供工作流引擎**——它的 Plan Mode / subagent 只是 agent 级的轻量规划/委派。企业级编排骨架、Team Supervisor、DSL/可视化编辑器是 **AAF 自研**（基于 Flowable）；HarnessAgent 只作被编排的节点执行单元。
 
-### 并发与性能
+### 并发、性能与多副本
 
-- **同一会话内**：串行——用户一问一答本就顺序，且单实例同一时刻只持一份活跃 `AgentState`，串行保证状态一致，无损失。
-- **跨会话 / 跨用户**：可并行，但**不能让多个会话争用同一份活跃状态**（源码注释：普通路径改写共享状态、并发不安全，`workspaceFor` 才是可并发旁路）。
-- 瓶颈**不在"一个 Java 对象"**：一次 turn 是 I/O 密集（等模型/工具/沙箱），运行时是 reactive 调度；真正的容量约束是 **LLM 并发额度、沙箱容量、Session/Redis 吞吐**。
-
-跨会话并行的几种做法：
-
-| 做法 | 跨会话并行 | 评价 |
-|---|---|---|
-| 共享 1 实例 + 一把实例级锁 | ❌ 全串行 | 瓶颈，**别用** |
-| 共享实例 + 仅每会话锁 | ✅ 不同会话并行 | 依赖运行时 per-call 状态隔离 |
-| **每会话/每用户轻量实例 + 共享重资源** | ✅ 真并行 | **推荐**，实例轻、创建廉价（dataagent 按 `sessionKey` 缓存即此） |
-| 多副本 + Redis Session | ✅ 跨副本并行 | 横向扩展标配；**同会话需粘性路由或分布式锁**（见下） |
-
-> ⚠️ 多副本注意：`SessionTurnGate` 是**进程内内存锁**，只在单副本内串行。多副本部署时，同一 `sessionId` 的请求必须**粘性路由**到同一副本，或改用**分布式锁**（如 Redis），否则两副本可能同时处理同一会话、争用 `AgentState`，落 Session 时 last-write-wins。Redis Session 只负责跨副本状态恢复，**不负责跨副本写串行**。
+- 不同 `(userId, sessionId)` 可并行，容量瓶颈主要来自模型额度、工具、沙箱和 Redis，而不是 Agent Java 对象数量。
+- 同一会话在单 JVM 内使用 AgentScope 的槽位串行；跨 JVM/Pod 使用 AAF `ConversationLeasePort` 的 Redis lease + fencing token。
+- 子任务并行必须使用独立 execution/session key，并受全局、用户和会话三级并发与预算限制。
+- 任何会产生外部副作用的工具都必须接受稳定 idempotency key；锁失效、重试或恢复不得造成重复发布、重复付款或重复通知。
+- 本地缓存和路由表只作性能优化，删除后必须能从 PostgreSQL、Redis AgentStateStore 和 `ai_task_event` 重建。
 
 ### 名词解释
 
-- **AgentState**：一次会话的"瞬时运行状态"快照——对话历史、权限、Plan 状态、待办、工具状态。每会话一份，按 `sessionId` 隔离。
-- **Session（会话后端）**：把 `AgentState` 持久化的存储抽象；换成 `RedisSession` 即可多副本共享、跨进程恢复。
-- **sessionId / sessionKey**：`sessionId` 标识"哪段对话"；`sessionKey` 是写入存储时的键（可把 `userId` 编进去做隔离）。
-- **会话锁**：保证"同一会话同一时刻只有一轮在跑"的互斥（如 dataagent 的 `SessionTurnGate`）；不同会话各一把，互不阻塞。
-- **轻量实例 vs 重资源**：实例 = 一个 HarnessAgent 对象，只持配置引用 + 当前会话状态，创建很便宜；重资源 = 模型客户端、工具/技能模板、Session 后端、沙箱池，全局共享、只建一次。
-- **per-call 状态隔离**：每次 `call()` 的状态收在本次调用作用域内、不串到并发调用——决定"共享实例 + 仅会话锁"是否安全。
-- **reactive / boundedElastic 调度**：非阻塞响应式执行；I/O 等待时线程不空转，少量线程即可承载大量并发 turn。
-- **横向扩展（副本）**：多开无状态 JVM 进程，会话状态放共享 Session(Redis)，请求可路由到任意副本、会话可在副本间漂移。
-
+- **AgentState**：单个 `(userId, sessionId)` 的可恢复执行工作态，不是长期记忆或业务任务真理源。
+- **AgentStateStore**：AgentState 的存储端口；生产使用 Redis 实现，负责恢复而不负责跨副本互斥。
+- **RuntimeContext**：单次调用的身份和扩展上下文，不持久化。
+- **会话 lease**：保证同一 conversation 同时只有一个有效执行者的分布式租约。
+- **fencing token**：随每次 lease 获取递增的写入代次；存储拒绝旧代次执行者的迟到写入。
 ### 任务管理与 Checkpoint：不双存，按归属分
 
 - **编排态 → AAF 存 DB**：GoalTracker / TaskBoard / SubTaskContext / fork 树 → 编排 checkpoint。
-- **助理与 Agent 的运行态 → HarnessAgent 存 Session(Redis)**：两者的 AgentState（对话/权限/plan/todo/工具状态）、工作记忆都由 HarnessAgent 在 call 结束自动落 Session，按 `sessionId` 跨副本恢复。AAF **不再**为它们的运行态另做 checkpoint。
+- **Agent 执行工作态 → Redis AgentStateStore**：AgentState（上下文工作集/权限/plan/todo/工具状态）由 AgentScope 自动加载和保存；AAF 不为同一执行快照另做 checkpoint。
 - **恢复缝合**：重启 → AAF 扫 DB 编排 checkpoint 恢复主助理/TaskBoard → 每个 RUNNING 子任务按其 sessionId 让 HarnessAgent 从 Redis 自动恢复 AgentState → 续跑。编排态 AAF 管、执行态 Session 管，**按 sessionId 缝合**。
 
 ### 技能与工具：DB 定义编译进 HarnessAgent
@@ -627,7 +680,7 @@ Role 的 Skill 集 → skillRepositories；Tool 白名单 → tools.json / 工�
 
 ### 记忆衔接：认知基础为真理源
 
-Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext` middleware 注入混合检索结果；新事实经学习反哺写回认知基础（DB + 图谱）。HarnessAgent 工作区记忆退为"会话工作层"。实现选项：自定义 Session / RemoteFilesystem 桥回认知基础，或关闭其 MEMORY flush、纯靠 middleware 注入 + 反哺写回。
+Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext` middleware 注入混合检索结果；新事实经学习反哺写回认知基础（DB + 图谱）。HarnessAgent 的工作区长期记忆默认关闭；如启用只能是 Cognition 的可重建缓存。写回仍须经过候选提取、隐私/可信度评估、去重与冲突检测。
 
 ### 运行时全景
 
@@ -645,7 +698,7 @@ Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext`
    └────┬──────────────────────────────┘
         │
    ┌────▼────────────────────────────────────────┐  HarnessAgent 执行运行时
-   │ HarnessAgent（共享实例 + 每会话锁）            │  AgentState → Session(Redis)
+   │ HarnessAgent（按定义版本共享的无状态实例）      │  AgentState → Redis AgentStateStore
    │  ReAct 循环 · 沙箱(per-user) · 子 agent · 压缩 · Plan/HITL │
    └────┬────────────────────────────────────────┘
         │ 记忆注入 ↑ / 反哺写回 ↓（真理源）
@@ -659,7 +712,7 @@ Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext`
 - `AgentExecutor` ← `HarnessAgentExecutor`（上层只依赖接口）
 - builder 编译器：DB 配置（缓存）→ `HarnessAgent.builder()`
 - middleware 注入：MemoryContext（混合检索）/ TokenMetering（计量）/ Permission-Risk（HITL）/ Trace（执行轨迹）——现有 hook 迁到 v2 middleware
-- Session：`RedisSession` + `SessionKey` 编 `userId` 隔离
+- State：Redis `AgentStateStore` 按 `(userId, sessionId)` 隔离；AAF lease/fencing 保证跨副本串行
 - Sandbox：per-user（`DockerFilesystemSpec` + `IsolationScope.USER`）
 
 ## 复杂任务全流程实现（结合 AgentScope 运行时）
@@ -670,7 +723,7 @@ Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext`
 
 | 流程步骤 | AgentScope 承载 | 归属 |
 |---|---|---|
-| 创建会话型助理 | `HarnessAgent.builder()` + `RedisSession` + per-user 沙箱 | 原生 |
+| 编译 Agent 执行引擎 | `HarnessAgent.builder()` + Redis `AgentStateStore` + per-user 沙箱 | 原生 + AAF 适配 |
 | 加载角色/技能 | `skillRepository(...)`（多来源）+ `tools.json` 白名单 | 原生（DB 编译进去） |
 | 注入记忆/知识库 | `MemoryContext` middleware 注入混合检索 / RAG 扩展 | AAF 注入（Cognition 真理源） |
 | 工具调用 | toolkit + `tools.json` + MCP；子 agent 亦作为可调用单元 | 原生 |
@@ -684,7 +737,7 @@ HarnessAgent assistant = HarnessAgent.builder()
     .name(actor.name())                 // 人格(Actor)：name/persona/avatar
     .sysPrompt(actor.systemPrompt())    // 人格的系统提示
     .model(resolveModel(assistant))     // 助理对话主模型：assistant.model_id，缺省走 CapabilityRouter
-    .session(redisSession)              // 多副本共享、跨进程恢复（RedisSession）
+    .stateStore(redisAgentStateStore)   // 多副本共享、跨进程恢复
     .filesystem(new DockerFilesystemSpec()
         .isolationScope(IsolationScope.USER))   // per-user 沙箱隔离
     .compaction(CompactionConfig.builder()      // 上下文有界
@@ -736,7 +789,7 @@ DB 配置（Actor/Role/SkillDef/AgentDef）经缓存**编译**进这个 builder�
   │  [AAF 前置] 前注意分流 → 意图/情绪 → 技能匹配 + 置信度
   ▼
 助理 HarnessAgent.call(msgs, ctx)
-  │  [实例] 该会话首次到达 → 按 sessionKey 懒建助理实例 + 从 Session 载入 AgentState
+  │  [实例] 按定义版本取得共享 HarnessAgent + 从 AgentStateStore 载入槽位状态
   │         （重资源：模型/工具模板/Session/沙箱池在启动时已建好、全局共享）
   │  [middleware] MemoryContext 注入混合检索（记忆+知识+价值观）
   │  [Plan Mode] 只读规划 → 拆为可验证子任务 → 写 TaskBoard(AAF/DB)
@@ -766,7 +819,7 @@ DB 配置（Actor/Role/SkillDef/AgentDef）经缓存**编译**进这个 builder�
 **协调方式两种，可混用**：
 
 - **自主协调**（HarnessAgent 原生）：给主 agent 一个"spawn 子 agent"工具（`AgentSpawnTool` + `SubagentsMiddleware`），LLM **自主决定**委派什么给哪个子 agent，框架管 spawn 生命周期、同步/后台、完成反向通知、结果并回上下文。只需**声明可用子 agent**，不写协调循环——但由 LLM 驱动、不确定。
-- **编码编排**（我们写）：协调器/工作流创建多个 HarnessAgent 实例并精确编排（并行扇出 + TaskBoard 跟踪 + 聚合 + 仲裁）。dataagent 的 `SessionAgentManager` + `HarnessGateway` 即范例；AAF 的 Assistant 协调、Team（Leader/Worker）、A2A 跨系统属此类。确定性流程用编排、灵活探索用自主。
+- **编码编排**（我们写）：协调器/工作流创建多个 HarnessAgent 实例并精确编排（并行扇出 + TaskBoard 跟踪 + 聚合 + 仲裁）。官方 Harness/AgentStateStore 契约是实现基线；AAF 不复制示例中的 `SessionAgentManager` 或 `HarnessGateway`；AAF 的 Assistant 协调、Team（Leader/Worker）、A2A 跨系统属此类。确定性流程用编排、灵活探索用自主。
 
 **外层编码编排 + 节点内自主**可叠加：你编码控制多个 HarnessAgent（可控、可审计），每个 HarnessAgent 节点内又可自主再 spawn 子 agent。
 
@@ -786,7 +839,7 @@ HarnessAgent 的 `subagents/` 声明 / `.subagent(spec)` ← 由我们的 builde
 
 ## 数据架构（结合运行时设计）
 
-> 技术设计参考。把 v1 数据架构迁移到 v2，并按运行时设计重新划分存储归属。核心变化：**会话运行态归 Session(Redis)、不进业务 DB**；DB 只存配置、对话记录、编排态、认知数据与计量。实际表定义以 `vN__*.sql` 为准，本节为设计视角的精简描述。
+> 技术设计参考。把 v1 数据架构迁移到 v2，并按运行时设计重新划分存储归属。核心变化：**Agent 执行工作态归 Redis AgentStateStore、不进业务 DB**；DB 只存配置、对话记录、编排态、认知数据与计量。实际表定义以 `vN__*.sql` 为准，本节为设计视角的精简描述。
 
 ### 存储分工（先定真理源）
 
@@ -798,16 +851,16 @@ HarnessAgent 的 `subagents/` 声明 / `.subagent(spec)` ← 由我们的 builde
 | 认知数据·结构化（记忆原子 / 知识分块 / 价值观 / 决策日志） | PostgreSQL | DB |
 | 认知数据·向量 | PgVector | DB |
 | 认知数据·图关系 | Neo4j（PG 为源，异步同步） | PG |
-| **会话运行态（AgentState：对话上下文 / Plan / todo / 工具 / 权限）** | **Session 后端（Redis）** | **Session** |
+| **Agent 执行工作态（AgentState：上下文工作集 / Plan / todo / 工具 / 权限）** | **Redis** | **AgentStateStore** |
 | 计量（Token / 额度） | PostgreSQL | DB |
 
-一句话：**配置与认知数据、对话记录、编排态在 DB；会话运行态在 Session(Redis)；向量在 PgVector、图在 Neo4j。**
+一句话：**配置、认知数据、对话记录和编排态在 DB；Agent 执行工作态在 Redis AgentStateStore；向量在 PgVector、图在 Neo4j。**
 
 ### 与 v1 的关键差异（运行时驱动）
 
 - **运行态出 DB**：v1 的 `ai_task_checkpoint` 收窄——**只存编排态**（TaskBoard / GoalTracker / fork 树 / SubTaskContext），不再存 agent/助理的对话级运行态（那是 `AgentState`，归 Session/Redis，由 HarnessAgent 在 call 结束自动落盘）。Agent 步骤级工作记忆同理在 `AgentState` 内，不进 DB。
 - **对话历史双轨澄清（防双真理源）**：`conversation_message`（DB）= **对外可见、跨参与方、可审计/检索的对话真理源**；`AgentState.context`（Session）= **agent 推理用的工作上下文**（会被压缩/卸载，可重建）。两者职责不同、按 `sessionId` 关联，**不是双真理源**。消息由 `ChatPersistenceListener` 从 agent 事件落 DB。
-- **记忆/知识真理源在认知基础**：HarnessAgent 的 `MEMORY.md` 退为"会话工作层"，**不建 DB 表**；长期记忆/知识在 `ai_memory_*` / `ai_knowledge_*`（+ PgVector / Neo4j）。
+- **记忆/知识真理源在认知基础**：HarnessAgent 的 `MEMORY.md` 默认关闭或仅作可重建缓存，**不建业务 DB 表**；长期记忆/知识在 `ai_memory_*` / `ai_knowledge_*`（+ PgVector / Neo4j）。
 - **执行轨迹（可观测）**：复用 `ai_task_event`（append-only 事件流 + SSE），无需新表。
 - **子 agent 来源**：任务型子 agent ← `ai_agent_definition`；助理分身 ← `ai_persona` + `ai_role`（见「多智能体协作与子 agent 来源」），无新表。
 
@@ -821,7 +874,7 @@ HarnessAgent 的 `subagents/` 声明 / `.subagent(spec)` ← 由我们的 builde
   - 对话：`conversation` · `conversation_participant` · `conversation_message`
   - 编排态：`ai_chat_task` · `ai_task_execution` · `ai_task_checkpoint`（仅编排态）· `ai_task_event`
 - **群体 Team**：`ai_team` · `ai_team_member` · `ai_team_task`
-- **会话运行态**：**无 DB 表**——在 Redis Session（`SessionKey` 由 `userId` + `conversationId` 编码）；若用 `MysqlSession` 则落 agentscope 扩展自带的 session 表（基础设施，非业务 schema）。
+- **Agent 执行工作态**：**无业务 DB 表**——生产存入 Redis AgentStateStore，按 `(userId, sessionId)` 隔离；不再规划 `MysqlSession` 或第二套业务 checkpoint。
 
 ### 核心配置表关系
 
@@ -846,7 +899,7 @@ ai_skill_definition ── agent_id ──▶ ai_agent_definition   技能路由
 ```
 
 - **助理 = 人格 + 角色 + 记忆策略**：`ai_assistant.persona_id → ai_persona`、`default_role_id → ai_role`（真 FK），`memory_strategy` 为字段——对应领域「助理的构成」。
-- **助理对话主模型**：`ai_assistant.model_id → ai_model`（FK，**可空**）。助理本体是会话型 HarnessAgent，需模型做对话推理；为空时由 `CapabilityRouter` 按 `ai_model_preference`（USER/SYSTEM × capability）路由。模型是多级多用途的：前注意分流（小模型）/ 助理对话主模型 / Agent 任务模型（`ai_agent_definition.model_id`）/ 嵌入检索（capability=EMBEDDING），优先级链：**显式绑定 → 用户偏好 → 系统默认**，逐级降级。
+- **助理对话主模型**：`ai_assistant.model_id → ai_model`（FK，**可空**）。Assistant 经 `AgentExecutor` 调用按定义编译的 HarnessAgent，需要模型完成对话推理；为空时由 `CapabilityRouter` 按 `ai_model_preference`（USER/SYSTEM × capability）路由。模型是多级多用途的：前注意分流（小模型）/ 助理对话主模型 / Agent 任务模型（`ai_agent_definition.model_id`）/ 嵌入检索（capability=EMBEDDING），优先级链：**显式绑定 → 用户偏好 → 系统默认**，逐级降级。
 - **角色 = 技能集 + 工具白名单**：`ai_role.skill_ids` / `tool_whitelist` 是列表，**逻辑引用** `ai_skill_definition` / `ai_tool_catalog`（非 FK，便于灵活组合）。
 - **技能路由到 Agent**：`ai_skill_definition.agent_id → ai_agent_definition`（FK）——「Skill 决定把任务交给哪个 Agent」。
 - **Agent 绑模型与工具**：`ai_agent_definition.model_id → ai_model`（FK）；`tools/allowed_tools → ai_tool_catalog`（**工具级**白名单，含 MCP 工具）；`mcp_servers → ai_mcp_server`（**服务级**，声明连接哪些 MCP 服务）。二者互补不冗余：`mcp_servers` 决定"连哪些服务（带来哪些工具）"，`allowed_tools` 决定"这些工具里允许哪几个"——对齐 HarnessAgent 的 `tools.json`（声明 MCP server + 工具 allow/deny）。`ai_mcp_server` 是连接配置真理源，**连接本身是全局共享重资源**（由 `McpConnectionService` 管，一服务一连接、所有 Agent 共用），Agent 只声明引用、不持有连接。（若所有 MCP 工具预注册进 `ai_tool_catalog` 且只做工具级白名单，`mcp_servers` 可省。）
@@ -864,8 +917,8 @@ ai_skill_definition ── agent_id ──▶ ai_agent_definition   技能路由
 
 ### 会话与 sessionId 的对应
 
-- `conversation.id`（或 `thread_id`）↔ HarnessAgent 的 `sessionId`；`userId` 编入 `SessionKey` 做隔离。
-- 一次对话（`conversation`）= 一个会话型 HarnessAgent 会话（一份 `AgentState`，存 Session）+ 一串对外消息（`conversation_message`，存 DB）。
+- `conversation.id`（或 `thread_id`）↔ AgentScope 的 `sessionId`；状态由 `(userId, sessionId)` 二元组隔离。
+- 一次对话（`conversation`）= 一份 AgentState 工作槽位（存 Redis AgentStateStore）+ 一串用户可见消息（`conversation_message`，存 DB）。
 - 编排态（TaskBoard 等）按 `conversation` / `ai_chat_task` 关联，存 DB；恢复时编排态从 DB、运行态从 Session，按 `sessionId` 缝合（见「任务管理与 Checkpoint」）。
 
 ### 待定（运行时新引入，需后续定表）
@@ -902,55 +955,14 @@ PostgreSQL 是 source of truth，Neo4j 承担**关系遍历 / 多跳 / 拓扑分
 
 > 「候选」项需先确认确有多跳/拓扑查询需求再落地；否则保持 PG（依赖关系用 TEXT/JSONB + JOIN 已够）。所有图均为 PG 派生投影，异步幂等同步。
 
-## v2 迁移待办：计费链路收尾事项
+## 计量与结算
 
-> v1 时代发现但**故意延后**到 v2 重构时一并修复的 AI 计费链路问题。在 v1（`Hook` + `PreReasoningEvent` / `PostCallEvent`）下做这些修复将在 v2 全部作废，故先按"症状容错"处理，根因修在 v2 落地。
-> 来源：v0.x 期间 chat 计费日志/流水接线工作的现场结论（2026-06）。
+AgentScope 路径统一使用 v2 `MiddlewareBase` 采集模型调用，不保留 v1 Hook、ThreadLocal 桥接或兜底计价双路径。
 
-### 背景
+- `onAgent` 入口执行额度预检；`onModelCall` 从实际 `ModelCallInput.model()` 解析稳定 modelId，并记录输入/输出 token、缓存命中和多模态类型。
+- 预检与结算使用同一 capability；文本为 `chat`，图像/视频/音频按已选模型能力分类，不使用笼统的 `agentscope` 类别。
+- `ai_token_usage` 与结算账本是用量和金额的真理源；`ai_task_event` 只追加 `MODEL_CALL_STARTED/COMPLETED/FAILED` 轨迹并引用 usageId，不复制账本金额。
+- billable 模型必须能映射到 `ai_model` 及其生效价格。映射缺失时停止结算并告警，不使用固定兜底单价，也不把 `model_id` 留空后继续正常链路。
+- 重试必须复用 executionId、modelCallId 与幂等键，只有实际发生的模型调用计费一次；失败、取消、恢复和跨副本接管均须验证不会重复扣减。
 
-v1 AgentScope 链路（`AssistantScopeRuntime` / `AgentScopeRuntime` + `TokenMeteringHook`）在结算时 **modelId 全程为 null**：
-
-- `TokenMeteringHook` 调 `meteringService.record(userId, null, ...)` 落 `ai_token_usage` 时被 NOT NULL + FK 拦截 → 计费真理源缺数据
-- 同时调 `creditGuard.settleByUsage(userId, null, ...)` → `DefaultAiCreditGuard.calcCost` 走兜底单价 0.072 元/千 token → **不论真实模型是 GPT-4o / DeepSeek / Qwen-Max 都按同一价扣**，金额不准
-
-根因是 v1 Hook 接口拿不到当前 LLM 调用的 `Model` 实例，反查需要 ThreadLocal/全局 Map 跨"构建期 → 运行期"传递，方案不干净。
-
-### v1 时代的容错（已在 v0.x 落地，保留至 v2）
-
-- **`ai_token_usage.model_id` 改可空**（直接改 `v2__ai_schema.sql` 建表语句）：让 AgentScope 路径至少能写入 token 用量记录，model_id 留 NULL；v2 SDK 迁移后能可靠拿到 modelId 时回收 NOT NULL 约束
-- **`TokenUsageRecord.modelId` 注解去 `nullable = false`**：与迁移一致
-- **`TokenMeteringHook` 透传 `conversationId`**：从 `AgentRunContextHolder` 取，提升可观测性
-- **capability 仍硬编码 `"agentscope"`**：未拆 chat / vision
-
-### v2 迁移时必须补齐的根因修复
-
-按 v2 `MiddlewareBase`（5 挂点：`onAgent` / `onReasoning` / `onActing` / `onModelCall` / `onSystemPrompt`）改造 `TokenMeteringHook` → `TokenMeteringMiddleware`，关键差异：
-
-- **modelId 透传**：`onModelCall` 的 `ModelCallInput.model()` 直接给 `Model` 实例。从中提取 modelId 字符串 → 反查 `ai_model.id`（Long）→ 传入 `creditGuard.settleByUsage(userId, model, ...)`，让 `calcCost` 走真实价格而非 0.072 兜底。
-- **vision / chat 自动拆分**：`onAgent` 的 `msgs: List<Msg>`（或 `onReasoning` 的 `messages: List<Msg>`）遍历 `ContentBlock`，命中 `ImageBlock` / `VideoBlock` / `AudioBlock` 或图像/视频类的 `DataBlock` 即按对应能力拆分（vision / 多模态），否则 `chat`。与 SpringAI 路径在 `credit_transaction.category` 上保持口径统一。
-- **per-call 上下文用官方 `RuntimeContext`**：替代 v1 的 `AgentRunContextHolder` ThreadLocal 槽位。v2 `ReActAgent` **完全无状态**（change-log A.6），per-call 状态封装在 `CallExecution` 对象、经 **Reactor Context** 在调用链上透传——同实例并发服务多 `(userId, sessionId)` 安全。`userId` / `sessionId` / `sessionKey` 走 `RuntimeContext`，middleware 内 `agent.getRuntimeContext()` 读写；modelId 不进 `RuntimeContext`，在 `onModelCall` 处直接从 `ModelCallInput.model()` 取。
-- **precheck 与 settle 接同一个 capability**：`onAgent` 入口做 precheck（已知 messages 即可识别 vision），`onModelCall` 出口做 settle，二者用同一字符串。
-
-### 落地时的关联清理
-
-- `AiCreditGuard.precheck` / `settleByUsage` 入参不变（已是 `(userId, capability, ...)` 形态），只换调用方
-- `DefaultAiCreditGuard.fallbackCreditCost` 兜底逻辑保留作"AgentScope 配置错误模型时的最后防线"，正常路径不应再触发
-- `ai_token_usage.model_id` 是否回收 NOT NULL 约束：评估 v2 落地后是否还存在 modelId 拿不到的边缘场景；若彻底无，重新加约束以恢复"计费真理源"强语义
-- `TokenUsageEvent` v1 监听器（`TokenUsageEventListener`、`TokenMeteringService.onTokenUsage`）仍服务 SpringAI 直连路径，**保留**——v2 迁移只动 AgentScope 那一支
-- 把 capability 从 `"agentscope"` 改为 `"chat"` / `"vision"` 后，引擎归属信息改放在 `credit_transaction.remark` 或新增 `engine` 元数据字段（与 SpringAI 路径区分）
-
-### 验收标准
-
-| 项 | 期望 |
-|---|---|
-| AgentScope 路径 `credit_transaction.category` | `chat` 或 `vision`，不再是 `agentscope` |
-| AgentScope 路径 `credit_transaction.amount` | 按 `ai_model.input_price_per_k` / `output_price_per_k` 真实算，不走 0.072 兜底 |
-| `ai_token_usage.model_id` | 非 null，对得上 `ai_model.id` |
-| `ai_usage_record.model_id` | 同上 |
-| 多模态对话（含图像消息） | capability 落 `vision`，扣分按 vision 模型价格 |
-| INFO 日志 | `AgentScope 计费结算: ... capability=vision modelId=...` 可见 |
-
-### 落地节奏
-
-随 v2 主干迁移（`Hook` → `Middleware`、`AssistantScopeRuntime` 重写为 `HarnessAgent` builder）一次到位，**不单独立 PR**。本节作为 v2 迁移的 sub-checklist。
+验收至少覆盖文本、多模态、模型切换、模型映射缺失、模型超时、同一调用重放和 lease 过期接管；每条轨迹都能从 `ai_task_event` 关联到唯一用量记录和结算流水。
