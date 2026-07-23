@@ -3,9 +3,12 @@ level: Practice
 layer: Product
 purpose: AAF 前端结构化交互模式设计——配置驱动的低代码应用体系
 status: draft
-version: 2.2.0
-date: 2026-05-13
+version: 2.3.0
+date: 2026-07-16
 author: AaronZZH
+changelog:
+  - 2026-07-16 | 资源目录改由后端自动发现，EntityDef 与资源描述符通过原子 bootstrap 加载
+  - 2026-07-16 | 将 EntityDef 收敛为代码实体的 UI 与读模型元数据，移除运行时 DDL 和自动 CRUD 设计
 ---
 
 # 结构化交互模式设计
@@ -16,23 +19,25 @@ author: AaronZZH
 
 ## 一、设计理念
 
-### 配置驱动视图生成
+### 代码实体的配置驱动视图
 
-- 问题：中后台需要大量"列表 + 表单 + 看板"管理页面。传统做法每个模块手写组件，重复度高。
-- 方案：**新增业务模块 = 注册实体配置 + 可选自定义覆盖**，不写页面代码。
+- 问题：中后台需要大量“列表 + 表单 + 看板”管理页面。逐模块手写视图会产生重复 UI 代码，但业务数据与规则仍必须可审计、可测试。
+- 方案：**新增业务模块 = 类型化数据模型、Controller/Service 与受审核 Flyway 迁移 + EntityDef 元数据 seed + 可选视图覆盖**。业务模块不需要重复手写标准视图页，但 EntityDef 不创建表、不加列，也不生成通用 CRUD。
 
 ```text
-TS 配置 → 编译时类型安全 → React 渲染 → REST + TanStack Query 缓存
-
-实体注册表（TypeScript 配置）
-         ↓ 自动派生
-  列表视图 / 表单视图 / 看板视图 / 筛选器 / API 调用
+代码实体（类型化 Controller / Service / 迁移）
+         ↓ 提供数据权威
+EntityDef seed（UI + 可信读模型元数据）
+         ↓ 驱动渲染
+ViewEngine → 列表 / 表单 / 看板 / 筛选器
+         ↓
+TanStack Query → 类型化 REST API
 ```
 
 ### 设计原则
 
 - **配置优先**：80% 场景通过配置解决，20% 复杂场景通过自定义组件覆盖
-- **类型安全**：配置本身是 TypeScript，享受类型推断
+- **类型安全**：EntityDef 契约由 TypeScript 类型与后端 schema 共同约束，配置变更可被校验
 - **AI 友好**：结构化配置比手写 JSX 更易 AI 生成和理解
 
 ## 二、核心架构
@@ -40,24 +45,24 @@ TS 配置 → 编译时类型安全 → React 渲染 → REST + TanStack Query �
 ### 三层模型
 
 ```text
-┌──────────────────────────────────┐
-│  实体注册表（Entity Registry）      │  ← 定义"有什么"
-├──────────────────────────────────┤
-│  视图引擎（View Engine）            │  ← 决定"怎么展示"
-├──────────────────────────────────┤
-│  组件注册表（Component Registry）   │  ← 提供"用什么渲染"
-└──────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│  代码实体元数据注册表（EntityDef Registry） │  ← 描述可展示的代码资源
+├──────────────────────────────────────────┤
+│  视图引擎（View Engine）                   │  ← 决定“怎么展示”
+├──────────────────────────────────────────┤
+│  组件注册表（Component Registry）          │  ← 提供“用什么渲染”
+└──────────────────────────────────────────┘
 ```
 
 ### 数据流
 
 ```text
 URL /workspace/document?view=list
-  → 动态路由 [module]/page.tsx
-  → 查找 EntityDef('document')
+  → 读取 EntityDef('document') 元数据
+  → 校验其 kind=code、resource 与 apiPath 指向已注册的类型化业务资源
   → ViewEngine 根据 ?view= 选择渲染器
   → 渲染器从组件注册表获取字段组件
-  → TanStack Query 根据 apiPath 获取数据
+  → TanStack Query 按 apiPath 调用类型化 API，并请求受信任的 list/detail/picker 读模型
   → 渲染
 ```
 
@@ -68,11 +73,18 @@ URL /workspace/document?view=list
 ```typescript
 interface EntityDef {
   slug: string              // URL 路径 + 唯一标识
+  kind: 'code'              // 数据模型由代码承载
+  resource: string          // 稳定资源标识，如 system.todo
   label: string             // 显示名称
-  apiPath: string           // 后端 API 路径
+  apiPath: string           // 运行期由受信任 Controller 映射投影的客户端路径
+  readModels?: {
+    list?: { fields: string[] }
+    detail?: { fields: string[] }
+    picker?: { fields: string[] }
+  }
   icon?: string             // 侧边栏图标
   group?: string            // 侧边栏分组
-  fields: FieldDef[]        // 字段定义
+  fields: FieldDef[]        // 字段与组件元数据，不是数据库列定义
   listView: ListViewConfig  // 列表配置
   formView?: FormViewConfig // 表单配置
   kanbanView?: KanbanViewConfig
@@ -104,7 +116,7 @@ type FieldDef =
   | { type: 'text', name, label?, required?, maxLength?, placeholder? }
   | { type: 'textarea' | 'number' | 'email' | 'date' | 'checkbox' }
   | { type: 'select', options: {label, value, color?}[], multiple? }
-  | { type: 'relationship', relationTo: string, hasMany? }
+  | { type: 'relationship', relationTo: string, hasMany? } // relationTo 为规范 resource ID
   | { type: 'richText' | 'json' | 'code' | 'upload' }
   // 布局字段
   | { type: 'group', label, fields: FieldDef[], collapsible? }
@@ -115,13 +127,14 @@ type FieldDef =
 ### 注册示例
 
 ```typescript
+// DocumentController 已实现 /api/documents；客户端 apiPath 不含 /api 前缀。
 entityRegistry.document = {
-  slug: 'document', label: '文档', apiPath: '/api/documents',
+  slug: 'document', kind: 'code', resource: 'document', label: '文档', apiPath: '/documents',
   icon: 'file-text', group: '内容管理',
   fields: [
     { name: 'title', type: 'text', required: true },
     { name: 'status', type: 'select', options: [{label:'草稿',value:'draft',color:'gray'}, ...] },
-    { name: 'author', type: 'relationship', relationTo: 'user' },
+    { name: 'author', type: 'relationship', relationTo: 'system.user' },
     { name: 'content', type: 'richText' },
   ],
   listView: {
@@ -228,11 +241,13 @@ function FormView({ entity, id }) {
 ### 通用 Hooks
 
 ```typescript
-useEntityList(entity, params)    // 列表查询，自动拼接 apiPath + 分页/排序/筛选
-useEntityRecord(entity, id)      // 单条记录
-useEntityMutation(entity, id?)   // 创建/更新
-useEntityDelete(entity)          // 删除
+useEntityList(entity, params)    // 列表查询，调用实体已实现的 list 读模型
+useEntityRecord(entity, id)      // 单条记录，调用实体已实现的 detail 读模型
+useEntityMutation(entity, id?)   // 创建/更新，调用实体的类型化写 API
+useEntityDelete(entity)          // 删除，调用实体的类型化删除 API
 ```
+
+> 文中 `{entity}` 形式的接口仅表示**已由对应类型化 Controller 显式实现的共享契约**，不是 EntityDef 自动生成的端点。EntityDef 只能选择可信的 `list/detail/picker` 投影，不能让客户端提交任意字段列表或绕过业务规则。
 
 ### Zod Schema 自动生成
 
@@ -558,6 +573,10 @@ listView: {
 
 ## 十八、关联字段深度交互
 
+### 关联读模型
+
+列表和详情读模型中的关联字段由后端按批次解析为轻量 `ResourceRef`（如 `id`、`label`、`imageUrl`）。`RelationCell` 只负责渲染该对象；前端不得为每个单元格单独请求关联记录名称。
+
 ### 关联选择器
 
 ```text
@@ -591,9 +610,9 @@ RelationshipPicker 组件：
 ```typescript
 // 多级关联（如：省 → 市 → 区）
 { type: 'cascader', levels: [
-  { relationTo: 'province', label: '省' },
-  { relationTo: 'city', label: '市', dependsOn: 'province' },
-  { relationTo: 'district', label: '区', dependsOn: 'city' },
+  { relationTo: 'location.province', label: '省' },
+  { relationTo: 'location.city', label: '市', dependsOn: 'province' },
+  { relationTo: 'location.district', label: '区', dependsOn: 'city' },
 ]}
 ```
 
@@ -1143,17 +1162,15 @@ interface GroupAction {
 - 拖拽记录跨分组 = 修改分组字段值（如拖拽到"已发布"组 = 修改 status）
 
 
-## 三十四点五、用户自定义字段
+## 三十四点五、字段演进
 
-管理员可在运行时为实体动态添加字段，无需开发介入。
+业务字段由代码实体和受审核的数据库迁移演进，不提供管理员运行时加列、隐藏列或自动 DDL 的入口。
 
-- **谁**：仅管理员角色
-- **在哪**：表单/列表视图 → 右上角 ⚙️ 设置菜单 → [自定义字段]
-- **如何**：弹窗中选择字段类型（text/number/date/select/checkbox 等）→ 填写标签和配置 → 确认后系统自动加列 + UI 即时渲染新字段
-- **删除**：逻辑隐藏（数据保留，可恢复），不物理删除
+- **业务字段变更**：修改类型化领域模型、DTO/VO、业务校验和对应 Flyway 迁移；再同步更新 EntityDef 的字段、视图与读模型元数据。
+- **展示调整**：在不改变业务存储与接口契约的前提下，可调整 EntityDef 的标签、布局、列显隐、视图配置和只读规则。
+- **扩展提案**：AI 或可视化编辑器可以生成字段变更提案、代码与迁移草案；必须经过代码审查和迁移审核后才能进入运行环境。
 
-详细设计（元数据表、前后端协作流程、字段类型映射）见 [用户自定义字段](../../framework/intelligent/core/custom-fields.md)。
-
+这样保留了配置驱动 UI 的灵活性，同时避免运行时 `ALTER TABLE`、通用写入接口和业务规则绕过。
 
 ## 三十五、AI 感知能力（AI Context Awareness）
 
@@ -1311,7 +1328,7 @@ interface FieldContext {
 **2. 动态关联过滤**
 
 ```typescript
-{ name: 'city', type: 'relationship', relationTo: 'city',
+{ name: 'city', type: 'relationship', relationTo: 'location.city',
   optionsFrom: {
     type: 'entity',
     entity: 'city',
@@ -1324,10 +1341,10 @@ interface FieldContext {
 **3. 动态默认值**
 
 ```typescript
-{ name: 'assignee', type: 'relationship', relationTo: 'user',
+{ name: 'assignee', type: 'relationship', relationTo: 'system.user',
   defaultValue: '$user.id' }
 
-{ name: 'department', type: 'relationship', relationTo: 'department',
+{ name: 'department', type: 'relationship', relationTo: 'system.department',
   defaultValue: '$user.department' }
 ```
 
@@ -1373,101 +1390,35 @@ function resolveValue(expr: string, ctx: FieldContext): any {
 | `context="{'default_user_id': uid}"` | `defaultValue: '$user.id'` | 等价 |
 | Python 表达式求值 | TypeScript 路径解析 | AAF 更安全（无 eval） |
 
-## 三十七、动态视图注册与无代码编辑
+## 三十七、EntityDef 元数据注册与视图编辑
 
-### 设计思路
+EntityDef 是类型化代码实体的 UI 与可信读模型元数据，不描述数据库表结构，也不是业务数据或 API 能力的权威来源。持久化配置只包含 `kind: "code"`、规范 `resource` 与 UI 配置；`slug`、`apiPath` 和关系 `pickerPath` 都是受信任的运行期投影，不能由 seed 或编辑器保存。
 
-EntityDef 配置存储在后端数据库，前端启动时加载。ViewEngine 消费配置对象渲染，不关心来源。配合可视化编辑器即实现无代码。
+### 可信资源目录
 
-### 架构
+`@EntityView` 的值是规范化、带命名空间的资源 ID，例如 `system.todo` 与 `system.user`。`CodeEntityResourceRegistry` 在启动时自动扫描 `BaseCrudController<E, V>` 与 `ResourceOptionsController<E, V>`。两类 Controller 都必须直接标记 `@EntityView`，要求 `E` 继承 `BaseEntity`、`V` 为 record，以及唯一的类级 `@RequestMapping("/api/...")`；后者还要求唯一的 `GET /_options`。注册表从资源末段派生 slug、从映射去掉 `/api` 派生 apiPath，并从泛型 VO 的 record 组件取得可校验字段；资源、slug、映射、泛型或标注位置不合法时应用启动失败。
 
-```text
-┌─────────────────┐     ┌──────────────┐     ┌──────────────┐
-│ 无代码编辑器     │ ──→ │ 后端 API      │ ──→ │ sys_entity_def│
-│（编辑 EntityDef）│     │ CRUD + 校验   │     │（JSONB 存储） │
-└─────────────────┘     └──────────────┘     └──────────────┘
-                                                     ↓ 加载
-                                              ┌──────────────┐
-                                              │ ViewEngine    │
-                                              │（直接渲染）    │
-                                              └──────────────┘
+### 持久化、校验与 bootstrap
+
+`sys_entity_def.slug` 保存派生的 UI 路由标识；`config` 不保存路由或端点。`EntityDefService` 在保存/更新时校验 resource、数据库 slug、VO 字段和 `relationTo`/级联目标；`EntityDefStartupAuditor` 在 Flyway 后复核启用或内置 seed，阻止直接迁移绕过校验。
+
+工作区只通过 `GET /api/entity-defs/bootstrap` 装载元数据：
+
+```json
+{
+  "definitions": [{ "slug": "todo", "apiPath": "/todos", "config": { "kind": "code", "resource": "system.todo" } }],
+  "resources": [
+    { "resource": "system.todo", "slug": "todo", "apiPath": "/todos", "fields": ["id", "title", "status", "assignee", "assigneeId", "dueDate"] },
+    { "resource": "system.user", "slug": "user", "apiPath": "/system/users", "fields": ["id", "label"] }
+  ]
+}
 ```
 
-### 后端存储
+前端验证描述符唯一性、每条 EntityDef 与描述符的 resource/slug/apiPath 对齐，以及关系与级联目标均在 `resources` 中；每个描述符还提供由后端泛型展示 VO record 组件派生的 `fields` 白名单。视图编辑器和 AI 草稿生成器使用 resource 与 fields 做本地早期校验，拒绝未注册资源、字段引用、`pickerPath`、`slug` 与 `apiPath`；`EntityDefService` 仍是最终权威。成功后才 `entityRegistry.replaceAll(definitions, resources)`。`resources` 可包含 descriptor-only 资源供关系选择器使用；不存在独立 `/api/entity-resources` API 或前端 `registerResources` 流程。
 
-```sql
-CREATE TABLE sys_entity_def (
-  id          BIGINT PRIMARY KEY,
-  slug        VARCHAR(64) UNIQUE NOT NULL,
-  config      JSONB NOT NULL,              -- 完整 EntityDef
-  builtin     BOOLEAN DEFAULT FALSE,       -- 系统内置（代码中定义，不可删除）
-  enabled     BOOLEAN DEFAULT TRUE,
-  version     INT DEFAULT 1,
-  created_at  TIMESTAMP,
-  updated_at  TIMESTAMP
-);
-```
+### 视图编辑器边界
 
-### 前端加载
-
-```text
-应用启动 → GET /api/entity-defs（全量，缓存 staleTime 长）
-         → 合并代码中的内置配置（内置优先，不可被数据库覆盖）
-         → entityRegistry 就绪 → 正常渲染
-配置变更 → 管理员保存 → invalidate 缓存 → 下次访问自动刷新
-```
-
-性能影响：无。一次请求 20-100KB，与 JS bundle 并行加载，运行时 O(1) 内存查找。
-
-### 无代码编辑器（分步实现）
-
-| 阶段 | 编辑方式 | 能力 |
-|------|---------|------|
-| v0.1 | Monaco Editor 编辑 JSON（带 schema 校验 + 补全） | 开发者/高级用户可用 |
-| v0.2 | 表单化编辑（字段列表拖拽 + 属性面板 + 实时预览） | 业务人员可用 |
-| v1.0 | 拖拽式 Studio（所见即所得 + AI 辅助生成配置） | 任何人可用 |
-
-### 核心优势
-
-配置驱动架构的红利：**运行时和设计时共享同一套数据结构**（EntityDef），无代码是自然产物而非额外开发。
-
-### AI 辅助生成与调整
-
-AI 可直接生成/修改 EntityDef 配置，因为配置本身是结构化 JSON（对 AI 友好）：
-
-| 场景 | 用户输入 | AI 产出 |
-|------|---------|---------|
-| 从零创建 | "我需要一个客户管理模块，包含姓名、电话、公司、跟进状态" | 完整 EntityDef JSON |
-| 添加字段 | "给文档加一个优先级字段，高中低三个选项" | 追加 FieldDef 到 fields 数组 |
-| 调整视图 | "列表默认按创建时间倒序，隐藏描述列" | 修改 listView 配置 |
-| 添加逻辑 | "状态为已发布时，标题字段只读" | 添加 readOnlyWhen 条件 |
-| 生成关联 | "客户和订单是一对多关系" | 两个实体互加 relationship 字段 |
-
-交互流程：
-
-```text
-用户对话："帮我创建一个项目管理模块"
-  → Agent 生成 EntityDef JSON
-  → 前端实时预览（ViewEngine 直接渲染）
-  → 用户："把状态改成看板视图的分列依据"
-  → Agent 修改配置，添加 kanbanView
-  → 用户确认 → 保存到 sys_entity_def → 生效
-```
-
-后端自动处理（用户无感）：
-
-```text
-保存 EntityDef 时，后端实体运行时自动执行：
-  1. 检测数据库中是否存在对应表 → 不存在则 CREATE TABLE
-  2. 对比字段定义与现有列 → 新增字段执行 ALTER TABLE ADD COLUMN
-  3. 注册 REST API 端点（自动 CRUD）
-  4. 返回成功 → 前端即可正常读写数据
-```
-
-无需预先建表、无需写迁移脚本、无需重启服务。用户/AI 定义 EntityDef → 系统自动生成表结构和 API。详见 [用户自定义字段](../../framework/intelligent/core/custom-fields.md)。
-
-
-
+视图编辑器可以调整已注册代码实体的标签、布局、列显隐和读模型元数据，但不得创建资源、改写路由/端点、增加业务字段或绕过 DTO、权限与领域规则。AI 生成的新模块仍须先交付类型化模型、Flyway、Controller 契约和 `@EntityView`，再生成经校验的 EntityDef seed。
 ## 三十八、在线客服与聊天模块（Livechat & Chatbot）
 
 > 📄 **独立文档**：[chat-livechat-module.md](./chat-livechat-module.md)
@@ -2921,8 +2872,8 @@ const TimestampMixin: FieldDef[] = [
 ]
 
 const AuditMixin: FieldDef[] = [
-  { name: 'createdBy', type: 'relationship', relationTo: 'user', readOnly: true },
-  { name: 'updatedBy', type: 'relationship', relationTo: 'user', readOnly: true },
+  { name: 'createdBy', type: 'relationship', relationTo: 'system.user', readOnly: true },
+  { name: 'updatedBy', type: 'relationship', relationTo: 'system.user', readOnly: true },
 ]
 
 const SoftDeleteMixin: FieldDef[] = [
@@ -3118,15 +3069,15 @@ interface EntityDef {
 | 优势 | 说明 |
 |------|------|
 | **TypeScript 全链路类型安全** | EntityDef 从定义到渲染全程类型检查，IDE 补全/重构/跳转，编译时发现错误 |
-| **AI 原生** | EntityDef 是结构化 JSON，AI 可直接生成/修改整个业务模块；内置 AI 感知，主动辅助用户操作 |
-| **无代码开发** | 用户/AI 通过对话或配置界面创建实体 → 系统自动建表 + API + UI，全程零代码 |
+| **AI 原生** | EntityDef 是结构化元数据；AI 可调整视图配置，并为业务模块生成待审核的代码、测试与迁移提案；内置 AI 感知，主动辅助用户操作 |
+| **元数据化视图编辑** | 用户/AI 可通过配置界面调整已注册代码实体的 UI 与读模型；业务模型与 API 仍走代码评审与迁移 |
 | **双模式融合** | 结构化视图管理数据 + 生成式交互创造知识，共享组件注册表和 API 层，对话中可创建/调整结构化视图 |
-| **配置驱动** | 新增业务模块 = 注册 EntityDef，不写页面代码；视图引擎自动生成列表/表单/看板/图表/透视 |
+| **配置驱动** | 新增业务模块 = 类型化业务实现 + EntityDef seed；无需重复手写标准视图页，视图引擎自动生成列表/表单/看板/图表/透视 |
 | **权限 DSL** | 声明式权限规则（实体级 + 行级），一份定义前后端同时生效，AI 可通过自然语言配置权限 |
 | **RSC + 流式渲染** | Next.js Server Components 首屏秒开，PPR 静态壳 + 动态流式注入 |
 | **服务端状态分离** | TanStack Query 管服务端缓存，Zustand 仅管 UI 状态，禁止双真理源 |
 | **组件注册表扩展** | React 组合 + overrides 覆盖，清晰不冲突，第三方可注册自定义字段类型和视图 |
-| **自定义字段** | 用户运行时动态添加字段，ALTER TABLE 瞬间完成，UI 即时渲染，AI 可生成 |
+| **字段演进可审计** | 字段、表结构和写入规则通过代码与 Flyway 迁移演进；EntityDef 同步描述展示与读模型，不执行运行时 DDL |
 | **DSL 贯穿** | Magic-DSL 统一中间表示——人类可读、AI 可生成、系统可执行，自然语言可达 |
 | **多端统一** | 同一套 EntityDef 驱动 Web + UniApp，响应式适配桌面/平板/移动端 |
 | **DRY 继承体系** | EntityDef 支持 Mixin + 继承，公共字段/配置一处定义多处复用，消除重复 |

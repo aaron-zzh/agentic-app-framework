@@ -161,7 +161,6 @@ public class ProjectContext {
 {
   "kind": "code",
   "resource": "system.todo",
-  "apiPath": "/todos",
   "readModels": {
     "list": { "fields": ["id", "title", "status", "assignee", "createTime"] },
     "detail": { "fields": ["id", "title", "status", "assignee"] },
@@ -170,9 +169,9 @@ public class ProjectContext {
 }
 ```
 
-### EntityDefService 职责
+### 自动资源契约与 EntityDefService 职责
 
-`sys_entity_def.config` 保存代码实体的 UI 与可信读模型声明。业务数据始终由对应的类型化 Controller/Service 管理；`EntityDefService` 不执行运行时 DDL、不创建 `data_{slug}` 表，也不提供通用记录 CRUD。
+AI 或代码生成器不能手工注册资源或在 EntityDef 中指定路由。资源 Controller 必须标记 `@EntityView("namespace.resource")`，其泛型展示 VO 必须是 record；`CodeEntityResourceRegistry` 启动时扫描 `BaseCrudController` 与 `ResourceOptionsController`，从 Controller 类级映射派生 apiPath、从 resource 末段派生 slug。`sys_entity_def.config` 只保存 UI、读模型和 `kind/resource`，不得持久化 `slug`、`apiPath` 或关系 `pickerPath`。`EntityDefService` 校验 resource、数据库 slug、VO 字段和关系目标，启动审计会复核 seed；运行期 metadata 仅由 `GET /api/entity-defs/bootstrap` 的 `definitions/resources` 原子响应投影。每个资源描述符还包含从泛型展示 VO record 组件派生的 `fields` 白名单；视图编辑器和 AI 生成草稿在本地使用 resource 与 fields 做早期校验，后端 `EntityDefService` 仍是最终权威。
 
 ## MigrationGenerator 实现（P0）
 

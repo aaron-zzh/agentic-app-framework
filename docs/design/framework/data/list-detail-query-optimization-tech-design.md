@@ -3,8 +3,8 @@ level: Practice
 layer: Product
 purpose: AAF 列表查询与详情快速切换优化技术方案
 status: draft
-version: 0.1.0
-date: 2026-05-30
+version: 0.2.0
+date: 2026-07-23
 author: AaronZZH & Codex
 ---
 
@@ -84,7 +84,7 @@ author: AaronZZH & Codex
 }
 ```
 
-`ids` 是当前页可见记录 ID，必须已经经过 L1/L2/L3/L4 中适用于查询的过滤。`queryToken` 是服务端生成的不透明查询上下文标识，用于详情切换和窗口校验。
+`ids` 是当前页可见记录 ID，必须来自 `CrudEnforcementService` 已通过的 L1/L4 决策，并经过 tenant、record、personal 组成的 L3 `Specification` SQL 过滤和字段策略裁剪。L2 关系不会作为 OR 条件自动合并到列表或查询窗口。`queryToken` 是服务端生成的不透明查询上下文标识，用于详情切换和窗口校验。
 
 ### 查询 Token
 
@@ -193,7 +193,7 @@ POST /api/{resource}/_batch-read
 }
 ```
 
-服务端必须逐条套用详情权限与 L3 过滤，不可因来自同一 token 就跳过权限。
+服务端必须逐条执行 L1/L4 与完整 L3 scope，不可因来自同一 token 就跳过权限，也不使用单对象 GET 的关系兜底。
 
 ## 后端实现设计
 
@@ -240,8 +240,9 @@ TTL：默认 15 分钟。切换组织、登出、权限版本变化时主动失�
 
 增强列表与详情必须遵守：
 
-- 列表 ID 窗口只包含当前用户可见记录。
-- 详情读取仍执行 L1/L2/L3 检查。
+- 列表 ID 窗口只包含经过 L1/L4 和完整 L3 SQL scope 的记录，不自动合并仅通过 L2 可读的记录。
+- 单对象详情先按 `id + tenant + record + personal` 查询；仅当业务 Service 对 GET 显式声明与当前 ID 绑定的 `relationRequirement` 时，默认 L3 未命中后才执行 L1+L2+L4，并按 `id + tenant scope` 重查。
+- 批量读取逐条执行完整 L3，不走关系兜底。
 - `queryToken` 只能减少重复计算，不能作为绕过权限的凭证。
 - L3 规则变化后，`dataRuleVersion` 变化，旧 token 失效。
 - 用户角色、权限码、关系权限变化后，`permissionVersion/schemaVersion` 变化，旧 token 失效。

@@ -38,8 +38,8 @@ AI / Agent
 -> 查实体注册表
 -> 解析标准动作
 -> 计算权限码
--> AccessDecisionService.hasPermission
--> BaseCrudService 行级数据权限与字段权限
+-> AuthorizationService 评估 L1/L4
+-> BaseCrudService / CrudEnforcementService 下推租户、记录和字段范围
 -> 执行业务
 -> 返回结构化结果
 ```

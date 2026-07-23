@@ -10,14 +10,10 @@
 
 | Controller | 路径 | 建议 |
 |------------|------|------|
-| `DataIngestController` | `/api/v1/ingest` | 数据接入管理权限 |
-| `DataTableController` | `/api/v1/data-tables` | 数据表管理权限 |
 | `WebhookTriggerController` | `/api/webhook/trigger` | Webhook 签名或触发权限 |
 | `ChannelController` | `/api/channel` | 渠道管理权限；回调入口单独处理 |
 | `SystemConfigController` | `/api/system/configs` | 系统配置管理权限 |
 | `EntityDefController` | `/api/entity-defs` | 实体定义管理权限 |
-| `CustomFieldController` | `/api/entity-defs/{slug}/fields` | 实体字段管理权限 |
-| `GenericEntityController` | `/api/data/{slug}` | 按实体动态权限 |
 | `RecordTemplateController` | `/api/system/record-templates` | 模板管理权限 |
 | `MailAccountController` | `/api/system/mail/accounts` | 邮件账号管理权限 |
 | `MailTemplateController` | `/api/system/mail/templates` | 邮件模板管理权限 |

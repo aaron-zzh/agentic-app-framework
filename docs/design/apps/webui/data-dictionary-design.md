@@ -83,7 +83,7 @@ interface SelectField extends BaseField {
   optionsFrom?: {
     type: 'dictionary' | 'entity'
     group?: string              // 字典分组
-    entity?: string             // 关联实体 slug
+    entity?: string             // 关联实体的规范 resource ID，例如 system.user
     labelField?: string         // 默认 'label'(字典) / 'name'(实体)
     valueField?: string         // 默认 'value'(字典) / 'id'(实体)
     filter?: Record<string, any>
@@ -99,9 +99,9 @@ interface SelectField extends BaseField {
 |------|------|------|
 | 硬编码 | 无 | 无需 |
 | 字典 | `GET /api/dict-data?typeCode=x` | staleTime 10min（很少变） |
-| 关联实体 | `GET /api/{entity}?fields=id,name` | staleTime 1min |
+| 关联实体 | 从 bootstrap 资源描述符取得 apiPath，再请求 `GET {apiPath}/_options` | staleTime 1min |
 
-数据量大的关联实体（>50 条）自动切换为异步搜索模式（`<RelationshipPicker>`）。
+关联实体必须来自同一 bootstrap 的受信任资源描述符；数据量大的关联实体（>50 条）自动切换为异步搜索模式（`<RelationshipPicker>`）。
 
 ## 示例
 
@@ -115,5 +115,5 @@ interface SelectField extends BaseField {
   optionsFrom: { type: 'dictionary', group: 'doc_type' } }
 
 // 关联实体：作者（有独立属性和 CRUD）
-{ name: 'author', type: 'relationship', relationTo: 'user' }
+{ name: 'author', type: 'relationship', relationTo: 'system.user' }
 ```

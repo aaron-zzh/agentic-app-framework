@@ -10,12 +10,12 @@ author: AaronZZH
 
 # 用户自定义字段（Custom Fields）
 
-> 允许用户（非开发者）在运行时为实体添加自定义字段，无需修改代码或重新部署。
+> **状态：未来提案，尚未实现。** 当前 EntityDef 仅服务于由 `@EntityView` 和 Controller 契约自动发现的代码资源；它不支持运行时加列、动态实体、通用记录 CRUD 或本文件中的 API。
 > 所属体系：[结构化视图模式](../../../apps/webui/interaction-mode-structured-view.md) | [元引擎](../../engine/meta/meta-engine.md)
 
 ## 一、定位
 
-用户可根据业务需要，在管理界面为任意实体动态添加字段。系统自动完成数据库加列、API 扩展、UI 渲染，全程无需开发介入。
+本节描述尚未排期的动态字段产品设想，而不是当前系统能力。任何后续实现都必须先定义独立的资源模型、迁移与权限边界；不能复用或削弱 code-backed EntityDef 的受信任目录。当前业务字段只能通过类型化领域模型、DTO/VO、Controller 与 Flyway 演进；关系字段使用规范资源 ID，slug 仅是 UI 路由标识。
 
 ```text
 用户点击 [+ 添加字段]
@@ -45,12 +45,12 @@ author: AaronZZH
 
 ## 三、元数据表
 
-全局一张表，通过 `entity_slug` 区分所属实体：
+全局一张表，通过 `entity_resource` 区分所属实体：
 
 ```sql
 CREATE TABLE custom_field_def (
   id          BIGSERIAL PRIMARY KEY,
-  entity_slug VARCHAR(64) NOT NULL,     -- 所属实体（如 'document'）
+  entity_resource VARCHAR(64) NOT NULL,     -- 所属实体（如 'document'）
   field_name  VARCHAR(64) NOT NULL,     -- 列名（x_ 前缀，如 'x_priority'）
   field_type  VARCHAR(32) NOT NULL,     -- text/number/date/select/relationship/checkbox...
   label       VARCHAR(128) NOT NULL,    -- 显示名称
@@ -59,7 +59,7 @@ CREATE TABLE custom_field_def (
   hidden      BOOLEAN DEFAULT FALSE,    -- 逻辑删除（隐藏）
   created_by  BIGINT NOT NULL,          -- 创建人
   created_at  TIMESTAMP DEFAULT NOW(),
-  UNIQUE(entity_slug, field_name)
+  UNIQUE(entity_resource, field_name)
 );
 ```
 
@@ -70,7 +70,7 @@ CREATE TABLE custom_field_def (
 { "options": [{"label": "高", "value": "high"}, {"label": "低", "value": "low"}] }
 
 // relationship 类型
-{ "relationTo": "user", "hasMany": false }
+{ "relationTo": "system.user", "hasMany": false }
 
 // number 类型
 { "min": 0, "max": 100, "precision": 2 }
@@ -107,7 +107,7 @@ CREATE TABLE custom_field_def (
 
 ```text
 1. 前端：用户在设置菜单点击 [+ 添加字段] → 弹窗配置
-2. 前端：POST /api/entities/{slug}/custom-fields { fieldName, fieldType, label, config }
+2. 前端（未来示意）：POST /api/entities/{slug}/custom-fields { fieldName, fieldType, label, config }
 3. 后端：
    a. 校验字段名（x_ 前缀、不重复、合法标识符）
    b. 执行 ALTER TABLE {entity_table} ADD COLUMN x_{name} {pg_type}
@@ -117,12 +117,12 @@ CREATE TABLE custom_field_def (
 5. 前端：TanStack Query invalidate EntityDef → 重新获取字段列表 → UI 自动渲染新字段
 ```
 
-### EntityDef API 合并逻辑
+### 未来 EntityDef API 合并逻辑（未实现）
 
 ```text
 GET /api/entities/{slug}/definition
   → 系统字段（代码中定义的 FieldDef[]）
-  + 自定义字段（custom_field_def WHERE entity_slug = '{slug}' AND hidden = false）
+  + 自定义字段（custom_field_def WHERE entity_resource = '{slug}' AND hidden = false）
   → 合并返回统一的 FieldDef[]
 ```
 
@@ -145,26 +145,19 @@ GET /api/entities/{slug}/definition
   → 排序：拖拽调整顺序
 ```
 
-## 九、EntityDef：静态 + 动态共存
+## 九、与当前 EntityDef 模式的关系
 
-### 设计原则
+### 实现边界
 
-EntityDef 支持三种来源，按实体自由选择：
+当前实现只支持 code-backed EntityDef：资源由 `@EntityView`、`BaseCrudController` 或 `ResourceOptionsController` 自动发现，前端从 `GET /api/entity-defs/bootstrap` 原子取得 `definitions` 与 `resources`。以下内容是未来提案，不能据此调用 API、设计 seed 或假定存在自动 DDL。
 
-| 来源 | 适用场景 | 说明 |
+| 未来来源模型 | 适用场景 | 设想 |
 |------|---------|------|
 | 纯静态（代码定义） | 系统核心实体（user/role/permission） | 字段固定，不允许用户修改 |
 | 静态 + 动态扩展 | 业务实体（document/task） | 系统字段代码定义 + 用户可追加自定义字段 |
 | 纯动态（后端存储） | 用户自建实体 | 整个 EntityDef 由用户/AI 创建，无代码定义 |
 
-```text
-前端启动
-  → GET /api/entities/{slug}/definition
-  → 后端返回完整 EntityDef（无论来源是代码、数据库还是混合）
-  → 前端统一按返回值渲染
-```
-
-纯动态实体从创建开始就完全由后端存储驱动——用户通过 UI 或 AI 对话创建实体、定义字段、配置视图，无需任何代码。
+未来方案会定义独立 API 与完整 EntityDef 合并策略；当前没有 `/api/entities/{slug}/definition` 端点，也没有动态 EntityDef 的运行时加载路径。纯动态实体、自动 DDL 和用户/AI 直接创建实体均不属于当前实现。
 
 ### 视图自动调整规则
 
@@ -181,10 +174,10 @@ EntityDef 支持三种来源，按实体自由选择：
 
 ```text
 用户："给文档加一个优先级字段，高中低三个选项，列表中显示"
-  → AI 生成：POST /api/entities/document/custom-fields
+  → AI 生成（未来示意）：POST /api/entities/document/custom-fields
     { fieldName: "x_priority", fieldType: "select", label: "优先级",
       config: { options: [{label:"高",value:"high"}, {label:"中",value:"mid"}, {label:"低",value:"low"}] } }
-  → AI 追加：PATCH /api/entities/document/view-config
+  → AI 追加（未来示意）：PATCH /api/entities/document/view-config
     { listView: { columns: [...existing, "x_priority"] } }
   → 前端刷新 → 新字段出现在表单和列表中
 ```
