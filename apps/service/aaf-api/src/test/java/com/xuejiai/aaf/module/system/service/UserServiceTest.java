@@ -23,7 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.model.PageResult;
-import com.xuejiai.aaf.framework.crud.ResourceRef;
+import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 import com.xuejiai.aaf.module.system.user.service.UserService;
@@ -227,7 +227,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
         var result = userService.getPickerOptions(" 测试 ", 100);
 
         // 断言
-        assertThat(result).containsExactly(new ResourceRef(1L, "测试用户", null));
+        assertThat(result).containsExactly(new ResourceRefDTO(1L, "测试用户", null));
         verify(userRepository)
                 .findPickerOptions(
                         eq(CommonStatusEnum.ENABLE.getCode()), eq("测试"), any(Pageable.class));
@@ -245,7 +245,8 @@ class UserServiceTest extends BaseMockitoUnitTest {
 
         // 断言
         assertThat(result)
-                .containsEntry(1L, new ResourceRef(1L, "测试用户", "https://example.com/avatar.png"));
+                .containsEntry(
+                        1L, new ResourceRefDTO(1L, "测试用户", "https://example.com/avatar.png"));
     }
 
     @Test
