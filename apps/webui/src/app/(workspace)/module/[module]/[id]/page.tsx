@@ -3,9 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { notFound } from "next/navigation"
-import { entityRegistry } from "@/features/entity-engine"
-import { EntityRecordView } from "@/sections/entity/view"
+import { EntityModuleRoute } from "@/sections/entity/view"
 
 interface PageProps {
   params: Promise<{ module: string; id: string }>
@@ -16,8 +14,5 @@ export default async function RecordPage({ params, searchParams }: PageProps) {
   const { module, id } = await params
   const { qw } = await searchParams
 
-  const entity = entityRegistry.get(module)
-  if (!entity) return notFound()
-
-  return <EntityRecordView entity={entity} recordId={id} queryToken={qw} />
+  return <EntityModuleRoute kind="record" module={module} recordId={id} queryToken={qw} />
 }

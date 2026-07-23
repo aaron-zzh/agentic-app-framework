@@ -15,34 +15,121 @@ import {
   RichTextEditor,
   Subtable
 } from "@/components/form"
+import {
+  type EntityRecordReference,
+  EntityRecordReferencePicker
+} from "@/components/form/entity-record-reference-picker"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import type { RelationOption } from "@/lib/hooks/use-relationship-picker"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 import type {
   CascaderField,
   FieldProps,
   MoneyField,
   QuantityField,
+  RecordReferenceField,
   RelationshipField,
   SignatureField,
   SubtableField,
   UploadField
 } from "../../types"
 
+type RelationshipValue = {
+  id: string | number
+  label?: string
+  imageUrl?: string
+}
+
+function isRelationshipValue(value: unknown): value is RelationshipValue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    (typeof value.id === "string" || typeof value.id === "number")
+  )
+}
+
 /** 关联字段适配器 */
 export function RelationshipInput({ name, value, onChange, error, disabled, field }: FieldProps) {
   const rel = field as RelationshipField
+  const target = entityRegistry.requireResource(rel.relationTo)
+  const targetDefinition = entityRegistry.getByResource(rel.relationTo)
+  const relationValues = Array.isArray(value) ? value : value == null || value === "" ? [] : [value]
+  const selectedOptions: RelationOption[] = relationValues.flatMap((item) => {
+    if (!isRelationshipValue(item)) return []
+    return [
+      {
+        id: String(item.id),
+        label: item.label ?? String(item.id),
+        ...(item.imageUrl ? { imageUrl: item.imageUrl } : {})
+      }
+    ]
+  })
+  const selectedIds = relationValues
+    .flatMap((item) =>
+      isRelationshipValue(item) ? [String(item.id)] : typeof item === "string" ? [item] : []
+    )
+    .filter((id) => id.trim().length > 0)
+  const selectedValue = rel.hasMany ? selectedIds : (selectedIds[0] ?? "")
+
   return (
-    <RelationshipPicker
-      name={name}
-      value={value as string | string[]}
-      onChange={onChange as (v: string | string[]) => void}
-      error={error}
-      disabled={disabled}
-      field={field}
-      multiple={rel.hasMany}
-      displayField={rel.displayField}
-      searchEndpoint={`/api/${rel.relationTo}`}
-    />
+    <div className="flex flex-col gap-1.5">
+      {field.label ? <p className="font-medium text-sm">{field.label}</p> : null}
+      <RelationshipPicker
+        name={name}
+        value={selectedValue}
+        onChange={onChange as (v: string | string[]) => void}
+        error={error}
+        disabled={disabled}
+        field={field}
+        multiple={rel.hasMany}
+        placeholder={targetDefinition ? `搜索${targetDefinition.label}…` : undefined}
+        displayField={rel.displayField}
+        searchEndpoint={`${target.apiPath}/_options`}
+        selectedOptions={selectedOptions}
+      />
+    </div>
+  )
+}
+
+function toEntityRecordReference(value: unknown): EntityRecordReference | undefined {
+  if (typeof value !== "object" || value === null || !("resource" in value) || !("id" in value)) {
+    return undefined
+  }
+  const reference = value as Record<string, unknown>
+  if (
+    typeof reference.resource !== "string" ||
+    (typeof reference.id !== "string" && typeof reference.id !== "number")
+  ) {
+    return undefined
+  }
+  const entity = entityRegistry.getAll().find((item) => item.resource === reference.resource)
+  const id = String(reference.id)
+  return {
+    resource: reference.resource,
+    entitySlug: entity?.slug ?? reference.resource,
+    id,
+    label: typeof reference.label === "string" ? reference.label : `#${id}`
+  }
+}
+
+/** 跨实体记录引用字段适配器。 */
+export function RecordReferenceInput({ value, onChange, error, disabled, field }: FieldProps) {
+  const referenceField = field as RecordReferenceField
+  return (
+    <div className="flex flex-col gap-1.5">
+      {field.label && <p className="font-medium text-sm">{field.label}</p>}
+      <EntityRecordReferencePicker
+        value={toEntityRecordReference(value)}
+        onChange={onChange as (value: EntityRecordReference | undefined) => void}
+        allowedEntitySlugs={referenceField.allowedEntitySlugs}
+        excludeEntitySlugs={referenceField.excludeEntitySlugs}
+        disabled={disabled}
+        placeholder={field.placeholder}
+      />
+      {error && <p className="text-destructive text-xs">{error}</p>}
+    </div>
   )
 }
 
@@ -156,7 +243,10 @@ export function CascaderInput({ name, value, onChange, error, disabled, field }:
     <FieldCascader
       name={name}
       label={field.label}
-      levels={cascField.levels.map((l) => ({ ...l, apiPath: l.apiPath ?? `/api/${l.relationTo}` }))}
+      levels={cascField.levels.map((level) => {
+        const target = entityRegistry.requireResource(level.relationTo)
+        return { ...level, apiPath: `${target.apiPath}/_options` }
+      })}
       value={value as string[] | undefined}
       onChange={onChange as (v: string[]) => void}
       disabled={disabled}

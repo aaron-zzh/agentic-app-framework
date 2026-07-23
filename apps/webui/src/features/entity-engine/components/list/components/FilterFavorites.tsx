@@ -20,7 +20,7 @@ export interface FilterFavorite {
   isDefault?: boolean
 }
 
-const STORAGE_KEY_PREFIX = "aaf:filter-favorites:"
+const STORAGE_KEY_PREFIX = "aaf:filter-favorites:v2:"
 
 function loadFavorites(entitySlug: string): FilterFavorite[] {
   if (typeof window === "undefined") return []

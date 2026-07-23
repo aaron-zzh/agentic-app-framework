@@ -20,31 +20,34 @@ interface FilterChipsProps {
 export function FilterChips({ entity, filters, onChange }: FilterChipsProps) {
   // 排除内部字段（tab 字段、全文搜索）
   const tabField = entity.listView.tabs?.field
-  const visibleFilters = filters.filter((f) => f.field !== "__search" && f.field !== tabField)
+  const visibleFilters = filters.filter(
+    (filter) => filter.field !== "__search" && filter.field !== tabField
+  )
 
   if (!visibleFilters.length) return null
 
-  const allFields = entity.fields.filter((f): f is DataFieldDef => "name" in f)
+  const allFields = entity.fields.filter((field): field is DataFieldDef => "name" in field)
 
-  const getLabel = (f: FilterCondition) => {
-    const fieldDef = allFields.find((fd) => fd.name === f.field)
-    const fieldLabel = fieldDef?.label ?? f.field
-    const valueLabel =
+  const getLabel = (filter: FilterCondition) => {
+    const fieldDef = allFields.find((field) => field.name === filter.field)
+    const fieldLabel = fieldDef?.label ?? filter.field
+    const labels = filter.values.map((value) =>
       fieldDef?.type === "select" && "options" in fieldDef
         ? ((fieldDef as unknown as { options?: { value: string; label: string }[] }).options?.find(
-            (o) => o.value === f.value
-          )?.label ?? f.value)
-        : f.value
-    return { fieldLabel, valueLabel }
+            (option) => option.value === value
+          )?.label ?? value)
+        : value
+    )
+    return { fieldLabel, valueLabel: labels.join(filter.operator === "between" ? " 至 " : "、") }
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-t px-4 py-2">
-      {visibleFilters.map((f) => {
-        const { fieldLabel, valueLabel } = getLabel(f)
+      {visibleFilters.map((filter) => {
+        const { fieldLabel, valueLabel } = getLabel(filter)
         return (
           <span
-            key={`${f.field}-${f.operator}-${String(f.value)}`}
+            key={conditionKey(filter)}
             className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 text-xs"
           >
             <span className="text-muted-foreground">{fieldLabel}:</span>
@@ -53,16 +56,7 @@ export function FilterChips({ entity, filters, onChange }: FilterChipsProps) {
               type="button"
               className="ml-0.5 rounded-full text-muted-foreground hover:text-foreground"
               onClick={() =>
-                onChange(
-                  filters.filter(
-                    (item) =>
-                      !(
-                        item.field === f.field &&
-                        item.operator === f.operator &&
-                        item.value === f.value
-                      )
-                  )
-                )
+                onChange(filters.filter((item) => conditionKey(item) !== conditionKey(filter)))
               }
             >
               <X className="size-3" />
@@ -75,7 +69,9 @@ export function FilterChips({ entity, filters, onChange }: FilterChipsProps) {
         type="button"
         className="inline-flex items-center gap-1 text-destructive text-xs hover:underline"
         onClick={() =>
-          onChange(filters.filter((f) => f.field === tabField || f.field === "__search"))
+          onChange(
+            filters.filter((filter) => filter.field === tabField || filter.field === "__search")
+          )
         }
       >
         <Trash2 className="size-3" />
@@ -83,4 +79,8 @@ export function FilterChips({ entity, filters, onChange }: FilterChipsProps) {
       </button>
     </div>
   )
+}
+
+function conditionKey(condition: FilterCondition): string {
+  return `${condition.field}-${condition.operator}-${condition.values.join("|")}`
 }

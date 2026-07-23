@@ -31,8 +31,7 @@ export interface ScheduledActivity {
   title: string
   /** 对应字典 sys_todo_category：todo / call / email / meeting */
   category: "todo" | "call" | "email" | "meeting"
-  sourceEntity?: string
-  sourceId?: number
+  source?: { resource: string; id: number }
   /** 对应字典 sys_todo_status：pending / done / ignored */
   status: "pending" | "done" | "ignored"
   dueDate?: string
@@ -67,16 +66,12 @@ export const activityApi = {
   createSchedule: (data: {
     title: string
     category: string
-    sourceEntity: string
-    sourceId: string
+    source: { resource: string; id: number }
     assigneeId?: number
     dueDate?: string
   }) =>
     backendApi
-      .post<Omit<ScheduledActivity, "done">>("/api/todos", {
-        ...data,
-        sourceId: Number(data.sourceId)
-      })
+      .post<Omit<ScheduledActivity, "done">>("/api/todos", data)
       .then((s) => ({ ...s, done: s.status === "done" })),
 
   /** 完成待办（更新状态为 done） */

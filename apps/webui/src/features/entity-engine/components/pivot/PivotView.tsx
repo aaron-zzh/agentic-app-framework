@@ -109,9 +109,9 @@ function PivotViewInner({ entity }: PivotViewProps) {
   const resultColumns = result && result.length > 0 ? Object.keys(result[0]) : []
 
   return (
-    <div className="flex h-full gap-0">
+    <div className="flex min-h-[480px] shrink gap-0 overflow-hidden">
       {/* 左侧维度面板 */}
-      <div className="w-52 shrink-0 border-r p-3">
+      <div className="w-52 shrink-0 overflow-auto border-r p-3">
         <p className="mb-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">
           维度
         </p>
@@ -148,7 +148,7 @@ function PivotViewInner({ entity }: PivotViewProps) {
       </div>
 
       {/* 右侧配置 + 结果 */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 配置区 */}
         <div className="flex items-start gap-4 border-b p-3">
           {/* 行维度 */}
@@ -212,7 +212,7 @@ function PivotViewInner({ entity }: PivotViewProps) {
         </div>
 
         {/* 结果区 */}
-        <div className="flex-1 overflow-auto p-3">
+        <div className="min-h-0 flex-1 overflow-auto p-3">
           {result === null && (
             <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
               配置维度和指标后点击查询

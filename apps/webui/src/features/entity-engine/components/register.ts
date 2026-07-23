@@ -32,6 +32,7 @@ import {
   MoneyInput,
   NumberInput,
   QuantityInput,
+  RecordReferenceInput,
   RelationshipInput,
   RichTextInput,
   SelectInput,
@@ -53,6 +54,7 @@ export function registerDefaultComponents(): void {
   registerFieldType("select", SelectInput)
   registerFieldType("date", DateInput)
   registerFieldType("relationship", RelationshipInput)
+  registerFieldType("recordReference", RecordReferenceInput)
   registerFieldType("richText", RichTextInput)
   registerFieldType("upload", UploadInput)
   registerFieldType("switch", SwitchInput)

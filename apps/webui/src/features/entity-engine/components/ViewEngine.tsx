@@ -13,22 +13,25 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
+import type { OnChangeFn, SortingState } from "@tanstack/react-table"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
+import type { ComponentType } from "react"
 import { toast } from "sonner"
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
 import { fromEntityDef, useCrudUpdate } from "@/lib/api/rest/crud"
 import type { PageResult } from "@/lib/api/rest/entity/crud"
 import { paths } from "@/lib/constants/paths"
-import { useEntityAccess } from "@/lib/queries/use-entity-access"
 import { useEntityDetail } from "@/lib/queries/use-entity-detail"
 import { useEntityList } from "@/lib/queries/use-entity-list"
 import { useEntityQueryWindow } from "@/lib/queries/use-entity-query-window"
 import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
-import { useFilterParams } from "@/lib/queries/use-filter-params"
+import { encodeFilterParams, useFilterParams } from "@/lib/queries/use-filter-params"
+import { cn } from "@/lib/utils/cn"
 import { useResolvedEntity } from "../hooks/use-resolved-entity"
 import { getViewComponent } from "../lib/component-registry"
-import type { EntityDef } from "../types"
+import { parseSortParam, resolveSortingUpdater, serializeSorting } from "../lib/sort-params"
+import type { EntityDef, FormViewOverrideProps } from "../types"
 import { CalendarView } from "./calendar"
 import { CanvasView } from "./canvas"
 import { EntityApproval } from "./EntityApproval"
@@ -56,10 +59,16 @@ interface ViewEngineProps {
   recordId?: string
   /** 查询窗口标识（表单视图时用于缓存复用） */
   queryToken?: string
+  /** 在不改变路由的前提下切换详情记录 */
+  onRecordChange?: (recordId: string) => void
   /** 视图设置（由 EntityListView 传入） */
   viewSettings?: ViewSettings
   /** 视图级只读展示态（表单视图时生效，用于列表内嵌详情等纯查看场景） */
   readOnly?: boolean
+  /** 是否在内容区显示查询窗口导航 */
+  showRecordWindowPager?: boolean
+  /** 供页面外部保存按钮关联的详情表单 ID。 */
+  externalFormId?: string
 }
 
 /** 视图引擎：根据 view 参数选择渲染器 */
@@ -68,8 +77,11 @@ export function ViewEngine({
   view = "list",
   recordId,
   queryToken,
+  onRecordChange,
   viewSettings,
-  readOnly
+  readOnly,
+  externalFormId,
+  showRecordWindowPager = true
 }: ViewEngineProps) {
   return (
     <ViewErrorBoundary>
@@ -78,8 +90,11 @@ export function ViewEngine({
         view={view}
         recordId={recordId}
         queryToken={queryToken}
+        onRecordChange={onRecordChange}
         viewSettings={viewSettings}
         readOnly={readOnly}
+        externalFormId={externalFormId}
+        showRecordWindowPager={showRecordWindowPager}
       />
     </ViewErrorBoundary>
   )
@@ -91,8 +106,11 @@ function ViewEngineInner({
   view = "list",
   recordId,
   queryToken,
+  onRecordChange,
   viewSettings,
-  readOnly
+  readOnly,
+  externalFormId,
+  showRecordWindowPager = true
 }: ViewEngineProps) {
   // 物化带 dictType 的 select 字段：从字典拉取数据填充 options，下游视图组件无需改动
   const resolvedEntity = useResolvedEntity(entity)
@@ -100,10 +118,6 @@ function ViewEngineInner({
   // 优先使用实体级自定义覆盖
   if (view === "list" && entity.overrides?.listView) {
     const Override = entity.overrides.listView
-    return <Override />
-  }
-  if (view === "form" && entity.overrides?.formView) {
-    const Override = entity.overrides.formView
     return <Override />
   }
   if (view === "kanban" && entity.overrides?.kanbanView) {
@@ -129,7 +143,11 @@ function ViewEngineInner({
           entity={resolvedEntity}
           recordId={recordId}
           queryToken={queryToken}
+          onRecordChange={onRecordChange}
+          Override={entity.overrides?.formView}
           readOnly={readOnly}
+          externalFormId={externalFormId}
+          showRecordWindowPager={showRecordWindowPager}
         />
       )
     case "pivot":
@@ -156,21 +174,24 @@ function ConnectedListView({
   const serverPagination =
     viewSettings?.serverPagination ?? entity.listView.serverPagination ?? false
 
-  // Toolbar（QuickFilterBar/SearchBar/FilterChips）写入 URL 的筛选条件（f_xxx=op:value）
-  // 需在此展开为后端 PageDTO 认识的普通字段参数；__search 映射到全文搜索参数
-  const search = params.search ?? filters.find((f) => f.field === "__search")?.value ?? undefined
-  const fieldFilters = Object.fromEntries(
-    filters.filter((f) => f.field !== "__search").map((f) => [f.field, f.value])
-  )
+  const search =
+    params.search ?? filters.find((filter) => filter.field === "__search")?.values[0] ?? undefined
+  const filterParams = encodeFilterParams(filters.filter((filter) => filter.field !== "__search"))
+  const effectiveSort = params.sort ?? entity.listView.defaultSort
+  const sorting = parseSortParam(effectiveSort)
+  const onSortingChange: OnChangeFn<SortingState> = (updater) => {
+    const next = resolveSortingUpdater(updater, sorting)
+    setParams({ sort: serializeSorting(next) ?? null, page: 1 })
+  }
 
-  const { data, isLoading, pagination, queryToken } = useEntityQueryWindow(entity, {
+  const { data, isLoading, pagination, queryToken, sortableFields } = useEntityQueryWindow(entity, {
     // 服务端分页：传 page/pageSize；前端分页：传 pageSize=-1，由 /_query 返回过滤后的完整窗口
     ...(serverPagination
       ? { page: params.page, pageSize: params.pageSize }
       : { page: 1, pageSize: -1 }),
-    sort: params.sort ?? undefined,
+    sort: effectiveSort,
     search,
-    ...fieldFilters
+    ...filterParams
   })
 
   return (
@@ -183,6 +204,9 @@ function ConnectedListView({
       serverPagination={serverPagination ? pagination : undefined}
       onPageChange={serverPagination ? (page) => setParams({ page }) : undefined}
       onPageSizeChange={serverPagination ? (pageSize) => setParams({ pageSize }) : undefined}
+      sorting={sorting}
+      onSortingChange={onSortingChange}
+      sortableFields={sortableFields}
       queryToken={queryToken}
     />
   )
@@ -193,20 +217,28 @@ function ConnectedFormView({
   entity,
   recordId,
   queryToken,
-  readOnly
+  onRecordChange,
+  Override,
+  readOnly,
+  externalFormId,
+  showRecordWindowPager
 }: {
   entity: EntityDef
   recordId?: string
   queryToken?: string
+  onRecordChange?: (recordId: string) => void
+  Override?: ComponentType<FormViewOverrideProps>
   readOnly?: boolean
+  externalFormId?: string
+  showRecordWindowPager: boolean
 }) {
   const { data, isLoading } = useEntityDetail(entity, recordId, { queryToken })
-  const { data: access } = useEntityAccess(entity.slug)
   const resource = fromEntityDef(entity)
   const { mutate: update, isPending: updating } = useCrudUpdate(resource)
 
-  // 只读态或无更新权限时不传 onSubmit，FormView 据此隐藏保存按钮；access 未加载完成前保持可编辑，避免闪烁
-  const canUpdate = !readOnly && access?.update !== false
+  // EntityDef 显式声明只读时禁用提交；实际更新权限仍由后端 CRUD 授权最终校验。
+  const isReadOnly = readOnly || entity.access?.update === false
+  const canUpdate = !isReadOnly
   const handleSubmit = canUpdate
     ? (values: Record<string, unknown>) => {
         if (!recordId) return
@@ -219,21 +251,138 @@ function ConnectedFormView({
         )
       }
     : undefined
+  const detail = Override ? (
+    <Override
+      key={recordId}
+      entity={entity}
+      recordId={recordId}
+      queryToken={queryToken}
+      data={data ?? undefined}
+      loading={isLoading}
+      saving={updating}
+      onSubmit={handleSubmit}
+      readOnly={isReadOnly}
+    />
+  ) : (
+    <FormView
+      key={recordId}
+      entity={entity}
+      data={data ?? undefined}
+      loading={isLoading || updating}
+      onSubmit={handleSubmit}
+      externalFormId={externalFormId}
+      readOnly={isReadOnly}
+    />
+  )
 
   return (
-    <div className="space-y-4">
-      <RecordWindowPager entity={entity} recordId={recordId} queryToken={queryToken} />
-      <FormView
-        key={recordId}
-        entity={entity}
-        data={data ?? undefined}
-        loading={isLoading || updating}
-        onSubmit={handleSubmit}
-        readOnly={readOnly}
-      />
-      {entity.workflow && recordId && (
+    <div className="flex min-h-0 shrink flex-col gap-4 overflow-hidden">
+      {showRecordWindowPager && (
+        <RecordWindowPager
+          entity={entity}
+          recordId={recordId}
+          queryToken={queryToken}
+          onRecordChange={onRecordChange}
+        />
+      )}
+      {detail}
+      {!Override && entity.workflow && recordId && (
         <EntityApproval config={entity.workflow} entityId={recordId} currentUserId="current-user" />
       )}
+    </div>
+  )
+}
+
+export interface RecordWindowNavigation {
+  statusLabel: string
+  isAvailable: boolean
+  prevId?: string
+  nextId?: string
+  prevTitle: string
+  nextTitle: string
+  navigateToRecord: (id: string) => void
+}
+
+export function useRecordWindowNavigation({
+  entity,
+  recordId,
+  queryToken,
+  onRecordChange
+}: {
+  entity: EntityDef
+  recordId?: string
+  queryToken?: string
+  onRecordChange?: (recordId: string) => void
+}): RecordWindowNavigation {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const queryWindow = queryToken ? findQueryWindow(queryClient, entity.slug, queryToken) : undefined
+  const ids = queryWindow?.ids?.map(String) ?? []
+  const currentIndex = recordId ? ids.indexOf(recordId) : -1
+  const hasWindow = !!queryWindow && currentIndex >= 0
+  const prevId = hasWindow && currentIndex > 0 ? ids[currentIndex - 1] : undefined
+  const nextId = hasWindow && currentIndex < ids.length - 1 ? ids[currentIndex + 1] : undefined
+  const boundaryTitle = getBoundaryTitle(hasWindow, queryWindow?.hasMore)
+  const navigateToRecord = (id: string) => {
+    if (onRecordChange) {
+      onRecordChange(id)
+      return
+    }
+    router.push(recordHref(entity.slug, id, queryToken))
+  }
+
+  return {
+    statusLabel: hasWindow ? `当前窗口 ${currentIndex + 1} / ${ids.length}` : "当前查询窗口不可用",
+    isAvailable: hasWindow,
+    prevId,
+    nextId,
+    prevTitle: prevId ? "上一条" : boundaryTitle,
+    nextTitle: nextId ? "下一条" : boundaryTitle,
+    navigateToRecord
+  }
+}
+
+export function RecordWindowNavigationControls({
+  navigation,
+  iconOnly = false
+}: {
+  navigation: RecordWindowNavigation
+  iconOnly?: boolean
+}) {
+  if (!navigation.isAvailable) return null
+
+  const { prevId, nextId, prevTitle, nextTitle, navigateToRecord } = navigation
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        disabled={!prevId}
+        title={prevTitle}
+        aria-label="上一条"
+        className={cn(
+          "inline-flex h-8 items-center rounded-md border text-sm disabled:cursor-not-allowed disabled:opacity-50",
+          iconOnly ? "size-8 justify-center" : "gap-1 px-2"
+        )}
+        onClick={() => prevId && navigateToRecord(prevId)}
+      >
+        <ChevronLeft className="size-4" />
+        {iconOnly ? null : "上一条"}
+      </button>
+      <button
+        type="button"
+        disabled={!nextId}
+        title={nextTitle}
+        aria-label="下一条"
+        className={cn(
+          "inline-flex h-8 items-center rounded-md border text-sm disabled:cursor-not-allowed disabled:opacity-50",
+          iconOnly ? "size-8 justify-center" : "gap-1 px-2"
+        )}
+        onClick={() => nextId && navigateToRecord(nextId)}
+      >
+        {iconOnly ? null : "下一条"}
+        <ChevronRight className="size-4" />
+      </button>
     </div>
   )
 }
@@ -241,51 +390,21 @@ function ConnectedFormView({
 function RecordWindowPager({
   entity,
   recordId,
-  queryToken
+  queryToken,
+  onRecordChange
 }: {
   entity: EntityDef
   recordId?: string
   queryToken?: string
+  onRecordChange?: (recordId: string) => void
 }) {
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  if (!queryToken) return null
-
-  const queryWindow = findQueryWindow(queryClient, entity.slug, queryToken)
-  const ids = queryWindow?.ids?.map(String) ?? []
-  const currentIndex = recordId ? ids.indexOf(recordId) : -1
-  const hasWindow = !!queryWindow && currentIndex >= 0
-  const prevId = hasWindow && currentIndex > 0 ? ids[currentIndex - 1] : undefined
-  const nextId = hasWindow && currentIndex < ids.length - 1 ? ids[currentIndex + 1] : undefined
-  const boundaryTitle = getBoundaryTitle(hasWindow, queryWindow?.hasMore)
+  const navigation = useRecordWindowNavigation({ entity, recordId, queryToken, onRecordChange })
+  if (!queryToken || !navigation.isAvailable) return null
 
   return (
     <div className="flex items-center justify-between border-b px-4 py-2">
-      <div className="text-muted-foreground text-xs">
-        {hasWindow ? `当前窗口 ${currentIndex + 1} / ${ids.length}` : "当前查询窗口不可用"}
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={!prevId}
-          title={prevId ? "上一条" : boundaryTitle}
-          className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={() => prevId && router.push(recordHref(entity.slug, prevId, queryToken))}
-        >
-          <ChevronLeft className="size-4" />
-          上一条
-        </button>
-        <button
-          type="button"
-          disabled={!nextId}
-          title={nextId ? "下一条" : boundaryTitle}
-          className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={() => nextId && router.push(recordHref(entity.slug, nextId, queryToken))}
-        >
-          下一条
-          <ChevronRight className="size-4" />
-        </button>
-      </div>
+      <div className="text-muted-foreground text-xs">{navigation.statusLabel}</div>
+      <RecordWindowNavigationControls navigation={navigation} />
     </div>
   )
 }

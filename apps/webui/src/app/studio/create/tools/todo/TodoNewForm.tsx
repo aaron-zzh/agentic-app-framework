@@ -11,8 +11,8 @@ import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { notify } from "@/lib/notification"
 import { useStudioTodoCreate } from "@/lib/api/rest/system/todo"
+import { notify } from "@/lib/notification"
 
 const newTodoSchema = z.object({
   title: z.string().trim().min(1, "请输入待办内容")

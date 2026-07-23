@@ -17,17 +17,31 @@ export type TodoCategory = "todo" | "call" | "email" | "meeting"
 export type TodoStatus = "pending" | "done" | "ignored"
 
 /** 待办响应，字段与 TodoVO 严格对齐 */
+export interface UserResourceRef {
+  id: number
+  label: string
+  imageUrl?: string
+}
+
+export interface TodoSourceReference {
+  resource: string
+  id: number
+}
+
 export interface TodoVO {
   id: number
   assigneeId: number
   title: string
   category: TodoCategory
-  sourceType?: string
-  sourceEntity?: string
-  sourceId?: number
+  sourceType?: "manual" | "comment" | "task"
+  source?: TodoSourceReference
   status: TodoStatus
   dueDate?: string
   createTime: string
+  assignee?: UserResourceRef
+  participants?: UserResourceRef[]
+  createBy?: UserResourceRef
+  updateBy?: UserResourceRef
 }
 
 export interface TodoPageParams {
@@ -41,6 +55,8 @@ export interface TodoCreateInput {
   title: string
   category?: TodoCategory
   dueDate?: string
+  source?: TodoSourceReference
+  participantIds?: number[]
 }
 
 export interface TodoUpdateInput {
@@ -48,6 +64,8 @@ export interface TodoUpdateInput {
   category?: TodoCategory
   status?: TodoStatus
   dueDate?: string
+  source?: TodoSourceReference | null
+  participantIds?: number[]
 }
 
 /** Studio 待办工具固定声明个人视角，与页面所在路由树的默认场景无关 */

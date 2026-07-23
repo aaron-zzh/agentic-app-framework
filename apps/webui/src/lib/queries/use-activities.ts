@@ -53,8 +53,7 @@ export function useCreateSchedule(entityType: string, entityId: string) {
     }) =>
       activityApi.createSchedule({
         ...data,
-        sourceEntity: entityType,
-        sourceId: entityId
+        source: { resource: entityType, id: Number(entityId) }
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: scheduleKey(entityType, entityId) })
   })

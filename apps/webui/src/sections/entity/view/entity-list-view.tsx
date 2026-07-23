@@ -9,8 +9,6 @@
 
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { Suspense, useEffect, useState } from "react"
 import { CustomBreadcrumbs } from "@/components/common/CustomBreadcrumbs"
 import { Card } from "@/components/ui/card"
@@ -32,8 +30,9 @@ interface Props {
 export function EntityListView({ entity, view }: Props) {
   const recordId = useUIStore((s) => s.recordPanelId)
   const recordPanelMode = useUIStore((s) => s.recordPanelMode)
+  const recordPanelQueryToken = useUIStore((s) => s.recordPanelQueryToken)
+  const openRecordPanel = useUIStore((s) => s.openRecordPanel)
   const close = useUIStore((s) => s.closeRecordPanel)
-  const pathname = usePathname()
   const canCreate = entity.access?.create !== false
   const extraAction = getListToolbarExtra(entity.slug)
 
@@ -62,12 +61,12 @@ export function EntityListView({ entity, view }: Props) {
             <div className="flex items-center gap-2">
               {extraAction}
               {canCreate && (
-                <Link
-                  href={`${pathname}/new`}
+                <a
+                  href={`${paths.workspace.module(entity.slug)}/new`}
                   className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
                 >
                   + 创建
-                </Link>
+                </a>
               )}
             </div>
           ) : undefined
@@ -75,7 +74,7 @@ export function EntityListView({ entity, view }: Props) {
         className="mb-4"
       />
 
-      <Card className="flex flex-1 flex-col overflow-hidden py-0">
+      <Card className="flex max-h-full min-h-0 shrink flex-col overflow-hidden py-0">
         <Suspense>
           <Toolbar
             entity={resolvedEntity}
@@ -83,7 +82,7 @@ export function EntityListView({ entity, view }: Props) {
             onViewSettingsChange={setViewSettings}
           />
         </Suspense>
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 shrink flex-col overflow-hidden">
           <ViewEngine entity={entity} view={view} viewSettings={viewSettings} />
         </div>
       </Card>
@@ -93,7 +92,16 @@ export function EntityListView({ entity, view }: Props) {
   if (!recordId) return list
 
   return (
-    <RecordPanel entity={entity} recordId={recordId} onClose={close} mode={recordPanelMode}>
+    <RecordPanel
+      entity={entity}
+      recordId={recordId}
+      queryToken={recordPanelQueryToken}
+      onClose={close}
+      onRecordChange={(nextRecordId) =>
+        openRecordPanel(nextRecordId, recordPanelMode, recordPanelQueryToken)
+      }
+      mode={recordPanelMode}
+    >
       {list}
     </RecordPanel>
   )

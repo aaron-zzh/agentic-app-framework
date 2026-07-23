@@ -1,20 +1,19 @@
 /**
  * 工作区布局——侧边栏 + 顶栏 + 主内容区 + GlobalChatter
- * Server Component：只做注册和静态初始化
+ * Server Component：仅注册字段组件。
+ * 实体定义由 WorkspaceLayout 从后端元数据加载并注册。
  * 客户端交互（GlobalChatter、主题切换等）由 WorkspaceLayout 处理
  *
  * @author AaronZZH & Kiro
  */
 
 import { Suspense } from "react"
+import { MotionLazy } from "@/components/animate"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { registerDefaultComponents } from "@/features/entity-engine/components/register"
-// side-effect import：导入即触发 entityRegistry.registerAll()，确保视图引擎渲染前所有实体已注册
-import "@/features/entity-engine/entities"
-import { MotionLazy } from "@/components/animate"
 import { WorkspaceLayout } from "@/sections/layout/WorkspaceLayout"
 
-// 注册默认字段组件（实体注册已在 entities/index.ts side effect 中完成）
+// 注册默认字段组件；实体定义由 WorkspaceLayout 从后端元数据加载。
 registerDefaultComponents()
 
 export default function Layout({

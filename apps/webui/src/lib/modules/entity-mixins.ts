@@ -24,8 +24,20 @@ export const TimestampMixin: MixinDef = {
 export const AuditMixin: MixinDef = {
   name: "audit",
   fields: [
-    { type: "relationship", name: "createBy", label: "创建人", relationTo: "user", readOnly: true },
-    { type: "relationship", name: "updateBy", label: "更新人", relationTo: "user", readOnly: true }
+    {
+      type: "relationship",
+      name: "createBy",
+      label: "创建人",
+      relationTo: "system.user",
+      readOnly: true
+    },
+    {
+      type: "relationship",
+      name: "updateBy",
+      label: "更新人",
+      relationTo: "system.user",
+      readOnly: true
+    }
   ]
 }
 
@@ -46,7 +58,7 @@ export const OrgMixin: MixinDef = {
       type: "relationship",
       name: "orgId",
       label: "所属组织",
-      relationTo: "organization",
+      relationTo: "system.organization",
       hidden: true
     }
   ]
@@ -60,7 +72,7 @@ export const WorkspaceMixin: MixinDef = {
       type: "relationship",
       name: "workspaceId",
       label: "所属工作区",
-      relationTo: "workspace",
+      relationTo: "system.workspace",
       hidden: true
     }
   ]

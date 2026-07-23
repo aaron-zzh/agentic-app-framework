@@ -285,7 +285,9 @@ export function KanbanView({
             renderColumns={renderColumns}
           />
         ) : (
-          <div className="flex gap-4 overflow-x-auto p-4">{renderColumns(localData)}</div>
+          <div className="flex min-h-[360px] shrink gap-4 overflow-x-auto overflow-y-hidden p-4">
+            {renderColumns(localData)}
+          </div>
         )}
       </SortableContext>
 

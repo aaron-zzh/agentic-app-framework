@@ -11,21 +11,24 @@
 "use client"
 
 import { useTabs } from "@aaf/hooks"
-import { useQueryClient } from "@tanstack/react-query"
+import { useIsFetching, useQueryClient } from "@tanstack/react-query"
 import { RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useCallback } from "react"
+import { useCallback, useSyncExternalStore } from "react"
+import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ViewSettings } from "@/features/entity-engine/components/list"
 import {
+  FilterBar,
+  FilterBuilder,
   FilterFavorites,
   ListTabs,
-  QuickFilterBar,
   SearchBar,
   ViewSettingsSheet
 } from "@/features/entity-engine/components/list"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import { type CrudMeta, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
 import { useFilterParams } from "@/lib/queries/use-filter-params"
 import { cn } from "@/lib/utils/cn"
 
@@ -36,14 +39,23 @@ interface ToolbarProps {
   onViewSettingsChange: (settings: ViewSettings) => void
 }
 
-/** 判断实体是否有快速筛选配置 */
-function getHasQuickFilters(entity: EntityDef, viewSettings?: ViewSettings): boolean {
-  if (viewSettings?.quickFilterFields?.length) return true
-  if (entity.listView.quickFilters?.length) return true
-  const filterableFields = entity.listView.filterableFields ?? []
-  if (!filterableFields.length) return false
+const subscribeToHydration = () => () => undefined
+
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false
+  )
+}
+
+/** 判断实体是否有要显示在筛选栏中的字段。 */
+function getHasFilterFields(entity: EntityDef, viewSettings?: ViewSettings): boolean {
+  const filterFields = viewSettings?.filterFields ?? entity.listView.filterFields ?? []
+  if (!filterFields.length) return false
   return entity.fields.some(
-    (f) => "name" in f && "type" in f && filterableFields.includes((f as DataFieldDef).name)
+    (field) =>
+      "name" in field && "type" in field && filterFields.includes((field as DataFieldDef).name)
   )
 }
 
@@ -57,14 +69,36 @@ export function Toolbar({
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") ?? "list"
   const [filters, setFilters] = useFilterParams()
+  const { data: crudMeta } = useCrudMeta<CrudMeta>(fromEntityDef(entity), {
+    enabled: currentView === "list"
+  })
   const tabs = useTabs("")
+  const isHydrated = useHydrated()
   const queryClient = useQueryClient()
+  const queryWindowFetching = useIsFetching({ queryKey: [entity.slug, "queryWindow"] })
+  const listFetching = useIsFetching({ queryKey: [entity.slug, "list"] })
 
-  // 刷新：保留当前筛选/排序/分页参数，仅使该实体的查询窗口缓存失效并重新请求
-  const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: [entity.slug, "queryWindow"] })
-    queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
-  }, [queryClient, entity.slug])
+  // hydration 前不读取客户端 Query 缓存状态，避免 Base UI Trigger 的 disabled 属性不一致。
+  const isRefreshing = isHydrated && (queryWindowFetching > 0 || listFetching > 0)
+  const isRefreshDisabled = isHydrated && isRefreshing
+
+  // 刷新：保留当前筛选/排序/分页参数，等待活跃的实体查询完成后反馈结果
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshDisabled) return
+
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries(
+          { queryKey: [entity.slug, "queryWindow"] },
+          { throwOnError: true }
+        ),
+        queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] }, { throwOnError: true })
+      ])
+      toast.success("已刷新，当前已是最新数据")
+    } catch {
+      toast.error("刷新失败，请稍后重试")
+    }
+  }, [entity.slug, isRefreshDisabled, queryClient])
 
   // 有效的 Tab 字段：
   //   viewSettings.tabField === undefined → 未配置，回退到 EntityDef
@@ -101,7 +135,7 @@ export function Toolbar({
       if (!tabField) return
       const without = filters.filter((f) => f.field !== tabField)
       if (value) {
-        setFilters([...without, { field: tabField, operator: "eq", value }])
+        setFilters([...without, { field: tabField, operator: "eq", values: [value] }])
       } else {
         setFilters(without)
       }
@@ -112,7 +146,7 @@ export function Toolbar({
   const hasTabs = !!effectiveTabField
 
   return (
-    <div className="relative border-b">
+    <div className="relative z-10 border-b">
       {/* 视图切换 + 设置——有 Tab 时固定到右上角，无 Tab 时在行1右侧 */}
       {hasTabs && (
         <div className="absolute top-1.5 right-3 z-10 flex items-center gap-1">
@@ -137,16 +171,26 @@ export function Toolbar({
         </div>
       )}
 
-      {/* 行1：Tab + 快速筛选（无 Tab 时含右侧视图切换） */}
+      {/* 行1：Tab + 筛选栏（无 Tab 时含右侧视图切换） */}
       <div className="flex items-start justify-between px-4 py-1">
         <div className="flex flex-1 flex-col gap-1">
           <ListTabs entity={effectiveEntity} activeValue={tabs.value} onChange={handleTabChange} />
-          {getHasQuickFilters(entity, viewSettings) && (
-            <QuickFilterBar
+          {(getHasFilterFields(entity, viewSettings) || Boolean(crudMeta?.filterFields.length)) && (
+            <FilterBar
               entity={effectiveEntity}
               filters={filters}
               onChange={setFilters}
               viewSettings={viewSettings}
+              trailingAction={
+                crudMeta?.filterFields.length ? (
+                  <FilterBuilder
+                    entity={entity}
+                    filters={filters}
+                    onChange={setFilters}
+                    capabilities={crudMeta.filterFields}
+                  />
+                ) : null
+              }
             />
           )}
         </div>
@@ -176,7 +220,7 @@ export function Toolbar({
         )}
       </div>
 
-      {/* 行2：搜索框（含已选条件 chips）+ 收藏 + 刷新 */}
+      {/* 行2：搜索框 + 收藏 + 刷新 */}
       <div className="flex items-center gap-2 px-4 pt-2 pb-1.5">
         <SearchBar entity={entity} filters={filters} onChange={setFilters} />
         <FilterFavorites entitySlug={entity.slug} currentFilters={filters} onApply={setFilters} />
@@ -186,13 +230,16 @@ export function Toolbar({
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                disabled={isRefreshDisabled}
+                aria-busy={isRefreshing}
+                aria-label={isRefreshing ? "正在刷新" : "刷新"}
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               />
             }
           >
-            <RefreshCw className="size-4" />
+            <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
           </TooltipTrigger>
-          <TooltipContent>刷新</TooltipContent>
+          <TooltipContent>{isRefreshing ? "正在刷新" : "刷新"}</TooltipContent>
         </Tooltip>
       </div>
     </div>

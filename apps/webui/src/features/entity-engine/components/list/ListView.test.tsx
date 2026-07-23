@@ -2,7 +2,9 @@
  * ListView 单元测试——验证列表渲染、分页、空状态
  */
 
-import { render, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { fireEvent, screen, render as testingRender } from "@testing-library/react"
+import type { ReactElement } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("next/navigation", () => ({
@@ -10,8 +12,22 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => "/"
 }))
+const mockOpenRecordPanel = vi.fn()
+const mockCloseRecordPanel = vi.fn()
+
 vi.mock("@/lib/store/ui-store", () => ({
-  useUIStore: () => vi.fn()
+  useUIStore: (
+    selector: (state: {
+      openRecordPanel: typeof mockOpenRecordPanel
+      recordPanelId: null
+      closeRecordPanel: typeof mockCloseRecordPanel
+    }) => unknown
+  ) =>
+    selector({
+      openRecordPanel: mockOpenRecordPanel,
+      recordPanelId: null,
+      closeRecordPanel: mockCloseRecordPanel
+    })
 }))
 vi.mock("@/lib/hooks/use-column-preferences", () => ({
   useColumnPreferences: () => ({
@@ -24,9 +40,20 @@ vi.mock("@/lib/hooks/use-column-preferences", () => ({
     resetColumns: vi.fn()
   })
 }))
+vi.mock("@/lib/api/rest/crud", () => ({
+  fromEntityDef: vi.fn((entity: { apiPath: string }) => ({ apiPath: entity.apiPath })),
+  useCrudDelete: () => ({ mutate: vi.fn(), isPending: false })
+}))
 
 import type { EntityDef } from "@/lib/types/entity"
 import { ListView } from "./ListView"
+
+function render(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return testingRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
+
+const sortingProps = { sorting: [], onSortingChange: vi.fn(), sortableFields: [] }
 
 const mockEntity: Partial<EntityDef> = {
   slug: "task",
@@ -52,20 +79,33 @@ describe("ListView", () => {
       { id: "2", name: "任务B", status: "done" }
     ]
 
-    render(<ListView entity={mockEntity} data={data} />)
+    render(<ListView {...sortingProps} entity={mockEntity} data={data} />)
 
     expect(screen.getByText("任务A")).toBeInTheDocument()
     expect(screen.getByText("任务B")).toBeInTheDocument()
   })
 
+  it("表格滚动时应固定表头", () => {
+    render(
+      <ListView
+        {...sortingProps}
+        entity={mockEntity}
+        data={[{ id: "1", name: "任务A", status: "active" }]}
+      />
+    )
+
+    expect(document.querySelector('[data-slot="table-header"]')).toHaveClass("sticky", "top-0")
+    expect(document.querySelector('[data-slot="table-container"]')).toHaveClass("overflow-visible")
+  })
+
   it("空数据时应显示空状态", () => {
-    render(<ListView entity={mockEntity} data={[]} />)
+    render(<ListView {...sortingProps} entity={mockEntity} data={[]} />)
 
     expect(screen.getByText(/暂无数据|没有记录|No data/i)).toBeInTheDocument()
   })
 
   it("loading 时应显示加载状态", () => {
-    render(<ListView entity={mockEntity} data={[]} loading={true} />)
+    render(<ListView {...sortingProps} entity={mockEntity} data={[]} loading={true} />)
 
     // 加载状态通常有 skeleton 或 spinner
     expect(
@@ -75,11 +115,26 @@ describe("ListView", () => {
     ).toBeTruthy()
   })
 
+  it("loading 时将骨架行数限制为六行", () => {
+    render(
+      <ListView
+        {...sortingProps}
+        entity={mockEntity}
+        data={[]}
+        loading={true}
+        serverPagination={{ page: 1, pageSize: 100, total: 1000 }}
+      />
+    )
+
+    expect(document.querySelectorAll('[data-slot="list-skeleton-row"]')).toHaveLength(6)
+  })
+
   it("服务端分页时应渲染分页控件", () => {
     const data = [{ id: "1", name: "任务A", status: "active" }]
 
     render(
       <ListView
+        {...sortingProps}
         entity={mockEntity}
         data={data}
         serverPagination={{ page: 1, pageSize: 20, total: 100 }}
@@ -90,5 +145,41 @@ describe("ListView", () => {
 
     // 分页模式下应渲染数据行
     expect(screen.getByText("任务A")).toBeInTheDocument()
+  })
+
+  it("点击删除时应打开确认弹窗", () => {
+    render(
+      <ListView
+        {...sortingProps}
+        entity={mockEntity}
+        data={[{ id: "1", name: "任务A", status: "active" }]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "删除" }))
+
+    expect(screen.getByText("删除任务")).toBeInTheDocument()
+    expect(screen.getByText("确定要删除「任务A」吗？")).toBeInTheDocument()
+  })
+
+  it("取消或关闭删除确认时不应触发行点击", () => {
+    mockOpenRecordPanel.mockClear()
+    render(
+      <ListView
+        {...sortingProps}
+        entity={mockEntity}
+        data={[{ id: "1", name: "任务A", status: "active" }]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "删除" }))
+    fireEvent.click(screen.getByRole("button", { name: "取消" }))
+
+    expect(mockOpenRecordPanel).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole("button", { name: "删除" }))
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
+
+    expect(mockOpenRecordPanel).not.toHaveBeenCalled()
   })
 })

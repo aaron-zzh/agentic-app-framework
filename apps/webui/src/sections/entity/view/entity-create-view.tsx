@@ -14,8 +14,10 @@ import { useRouter } from "next/navigation"
 import { Suspense } from "react"
 import { toast } from "sonner"
 import { CustomBreadcrumbs } from "@/components/common/CustomBreadcrumbs"
+import { PageContainer } from "@/components/common/PageContainer"
 import { Card } from "@/components/ui/card"
 import { FormView } from "@/features/entity-engine/components/form/FormView"
+import { useResolvedEntity } from "@/features/entity-engine/hooks/use-resolved-entity"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { fromEntityDef, useCrudCreate } from "@/lib/api/rest/crud"
 import { paths } from "@/lib/constants/paths"
@@ -26,6 +28,7 @@ interface Props {
 
 export function EntityCreateView({ entity }: Props) {
   const router = useRouter()
+  const resolvedEntity = useResolvedEntity(entity)
   const resource = fromEntityDef(entity)
   const { mutate: create, isPending } = useCrudCreate(resource)
 
@@ -45,7 +48,7 @@ export function EntityCreateView({ entity }: Props) {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden p-3">
+    <PageContainer maxWidth="lg" className="flex flex-1 flex-col">
       <CustomBreadcrumbs
         links={[
           { name: "首页", href: paths.workspace.root },
@@ -57,9 +60,14 @@ export function EntityCreateView({ entity }: Props) {
 
       <Card className="flex flex-1 flex-col overflow-hidden py-0">
         <Suspense>
-          <FormView entity={entity} loading={isPending} onSubmit={handleSubmit} />
+          <FormView
+            entity={resolvedEntity}
+            loading={isPending}
+            onSubmit={handleSubmit}
+            mode="create"
+          />
         </Suspense>
       </Card>
-    </div>
+    </PageContainer>
   )
 }

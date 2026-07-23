@@ -7,8 +7,10 @@ export type { EntityAccess, FieldAccess } from "./access"
 export type {
   EntityAction,
   EntityDef,
+  EntityDefConfig,
   EntityHooks,
   EntityWorkflowConfig,
+  FormViewOverrideProps,
   ImportConfig,
   NestedImportConfig,
   SmartButton
@@ -26,6 +28,7 @@ export type {
   MoneyField,
   NumberField,
   QuantityField,
+  RecordReferenceField,
   RelationshipField,
   RichTextField,
   RowField,

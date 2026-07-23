@@ -7,5 +7,5 @@
 export interface FilterCondition {
   field: string
   operator: string
-  value: string
+  values: string[]
 }

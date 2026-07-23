@@ -20,7 +20,9 @@ interface UIState {
   /** 当前在侧边面板/抽屉中打开的记录 ID，null = 关闭 */
   recordPanelId: string | null
   recordPanelMode: "panel" | "drawer"
-  openRecordPanel: (id: string, mode?: "panel" | "drawer") => void
+  /** 面板详情所属查询窗口的临时标识，不保存服务端记录数据 */
+  recordPanelQueryToken?: string
+  openRecordPanel: (id: string, mode?: "panel" | "drawer", queryToken?: string) => void
   closeRecordPanel: () => void
   /** 当前工作区 */
   currentWorkspace: WorkspaceItem | null
@@ -40,8 +42,10 @@ export const useUIStore = create<UIState>()(
       setThemeColor: (color) => set({ themeColor: color }),
       recordPanelId: null,
       recordPanelMode: "panel",
-      openRecordPanel: (id, mode = "panel") => set({ recordPanelId: id, recordPanelMode: mode }),
-      closeRecordPanel: () => set({ recordPanelId: null }),
+      recordPanelQueryToken: undefined,
+      openRecordPanel: (id, mode = "panel", queryToken) =>
+        set({ recordPanelId: id, recordPanelMode: mode, recordPanelQueryToken: queryToken }),
+      closeRecordPanel: () => set({ recordPanelId: null, recordPanelQueryToken: undefined }),
       currentWorkspace: null,
       workspaces: [],
       setCurrentWorkspace: (workspace) => {

@@ -14,6 +14,10 @@ interface BaseFieldDef {
   required?: boolean
   hidden?: boolean
   readOnly?: boolean
+  /** 指定字段显示的表单模式。 */
+  displayModes?: ("create" | "edit")[]
+  /** 指定角色之一才显示该字段；仅控制前端展示，不能替代服务端授权。 */
+  visibleRoles?: string[]
   defaultValue?: unknown
   placeholder?: string
   description?: string
@@ -42,6 +46,7 @@ export type FieldDef =
   | CheckboxField
   | SelectField
   | RelationshipField
+  | RecordReferenceField
   | RichTextField
   | JsonField
   | CodeField
@@ -113,14 +118,28 @@ export interface SelectOption {
 
 export interface RelationshipField extends BaseFieldDef {
   type: "relationship"
-  /** 目标实体 slug */
+  /** 目标实体的受信任资源标识。 */
   relationTo: string
+  /** 关联展示字段写入 DTO 时使用的 ID 字段名。 */
+  writeKey?: string
   /** 一对多 */
   hasMany?: boolean
   /** 目标实体用于展示的字段 */
   displayField?: string
   /** 在父表单内嵌套编辑（子表模式） */
   inline?: boolean
+}
+
+export interface RecordReferenceField extends BaseFieldDef {
+  type: "recordReference"
+  /** 引用对象写入 DTO 时使用的字段名。 */
+  writeKey: string
+  /** 引用 ID 的序列化类型，默认 string。 */
+  idValueType?: "number" | "string"
+  /** 允许引用的实体 slug 白名单。 */
+  allowedEntitySlugs?: string[]
+  /** 禁止引用的实体 slug 黑名单；优先级高于白名单。 */
+  excludeEntitySlugs?: string[]
 }
 
 export interface RichTextField extends BaseFieldDef {
@@ -181,7 +200,8 @@ export interface SignatureField extends BaseFieldDef {
 
 export interface CascaderField extends BaseFieldDef {
   type: "cascader"
-  levels: { relationTo: string; label: string; dependsOn?: string; apiPath?: string }[]
+  /** 每级 relationTo 均为规范化的命名空间资源标识。 */
+  levels: { relationTo: string; label: string; dependsOn?: string }[]
 }
 
 export interface SubtableField extends BaseFieldDef {

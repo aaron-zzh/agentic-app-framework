@@ -18,13 +18,20 @@ import type {
 
 /** 实体完整定义——配置驱动视图引擎的核心契约 */
 export interface EntityDef {
-  /** URL 路径 + 唯一标识 */
+  /** 代码实体类型；服务端解析后的运行期定义必为 code。 */
+  kind?: "code"
+  /** 后端受信任代码资源标识；服务端解析后的运行期定义必填。 */
+  resource?: string
+  /** 是否可作为跨实体记录来源；由 bootstrap 资源目录决定。 */
+  referenceable?: boolean
+
+  /** 服务端丰富的 URL 路径 + 唯一标识，不持久化到 seed JSON。 */
   slug: string
   /** 显示名称 */
   label: string
   /** 复数名称 */
   labelPlural?: string
-  /** 后端 API 路径 */
+  /** 服务端丰富的客户端 API 路径，不持久化到 seed JSON。 */
   apiPath: string
   /** 侧边栏图标（lucide 图标名） */
   icon?: string
@@ -72,7 +79,7 @@ export interface EntityDef {
   /** 自定义视图覆盖 */
   overrides?: {
     listView?: ComponentType
-    formView?: ComponentType
+    formView?: ComponentType<FormViewOverrideProps>
     kanbanView?: ComponentType
   }
 
@@ -80,6 +87,26 @@ export interface EntityDef {
   mixins?: string[]
   /** 继承的父实体 slug */
   extends?: string
+}
+
+/**
+ * EntityDef 持久化 seed 配置：slug 与 apiPath 由后端在读取时按受信任资源丰富。
+ */
+export type EntityDefConfig = Omit<EntityDef, "slug" | "apiPath"> & {
+  kind: "code"
+  resource: string
+}
+
+/** 表单覆盖视图的框架上下文；覆盖组件仅替换内容，不接管详情数据和分页导航。 */
+export interface FormViewOverrideProps {
+  entity: EntityDef
+  recordId?: string
+  queryToken?: string
+  data?: Record<string, unknown>
+  loading: boolean
+  saving: boolean
+  readOnly?: boolean
+  onSubmit?: (values: Record<string, unknown>) => void
 }
 
 /** 实体动作（Server Action 触发） */

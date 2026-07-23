@@ -2,20 +2,15 @@
  * useEntityQueryWindow——通用实体列表引擎默认查询 Hook。
  *
  * 调用后端 /_query，返回列表数据、当前窗口 ids、queryToken 和 fieldSet。
+ * 排序能力由 /_meta 提供，与筛选能力共用 CRUD 元数据缓存。
  * pageSize=-1 时返回过滤后的完整窗口，由前端本地分页；否则返回服务端分页窗口。
  * @author AaronZZH & Codex
  */
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
-import { fromEntityDef } from "@/lib/api/rest/crud"
-import {
-  ApiError,
-  fetchList,
-  fetchQueryWindow,
-  type ListParams,
-  type PageResult
-} from "@/lib/api/rest/entity/crud"
+import { type CrudMeta, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
+import { fetchQueryWindow, type ListParams, type PageResult } from "@/lib/api/rest/entity/crud"
 import { useOrgStore } from "@/lib/store/org-store"
 import { useUIStore } from "@/lib/store/ui-store"
 import type { EntityDef } from "@/lib/types/entity"
@@ -24,6 +19,7 @@ export interface UseEntityQueryWindowResult {
   data: Record<string, unknown>[]
   ids: string[]
   queryToken?: string
+  sortableFields: string[]
   pagination: { page: number; pageSize: number; total: number }
   isLoading: boolean
   isFetching: boolean
@@ -42,6 +38,7 @@ export function useEntityQueryWindow(
   const workspaceId = useUIStore((s) => s.currentWorkspace?.id)
   const orgId = useOrgStore((s) => s.currentOrgId)
   const resource = fromEntityDef(entity)
+  const { data: crudMeta } = useCrudMeta<CrudMeta>(resource)
   const queryParams = {
     workspaceId,
     orgId: orgId ?? undefined,
@@ -71,38 +68,14 @@ export function useEntityQueryWindow(
           }
         }
       }
-      try {
-        return await fetchQueryWindow(resource, {
-          pageNo: page,
-          pageSize,
-          sort,
-          search,
-          fieldSet: "list",
-          ...filters
-        })
-      } catch (error) {
-        if (error instanceof ApiError && error.code === 404) {
-          const fallback = await fetchList(resource, {
-            pageNo: page,
-            pageSize,
-            sort,
-            search,
-            ...filters
-          })
-          const list = fallback.list
-          return {
-            list,
-            total: fallback.total,
-            pageNo: fallback.pageNo ?? fallback.page ?? page,
-            pageSize: fallback.pageSize ?? pageSize,
-            ids: list.map((item) => Number(item.id)).filter((itemId) => !Number.isNaN(itemId)),
-            queryToken: `fallback:${entity.slug}:${page}:${pageSize}`,
-            fieldSet: "list",
-            hasMore: pageSize === -1 ? false : fallback.total > page * pageSize
-          }
-        }
-        throw error
-      }
+      return fetchQueryWindow(resource, {
+        pageNo: page,
+        pageSize,
+        sort,
+        search,
+        fieldSet: "list",
+        ...filters
+      })
     },
     placeholderData: keepPreviousData
   })
@@ -111,6 +84,7 @@ export function useEntityQueryWindow(
     data: data?.list ?? [],
     ids: data?.ids?.map(String) ?? [],
     queryToken: data?.queryToken,
+    sortableFields: crudMeta?.sortableFields ?? [],
     pagination: {
       page: data?.pageNo ?? page,
       pageSize: data?.pageSize ?? pageSize,

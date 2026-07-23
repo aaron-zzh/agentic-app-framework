@@ -2,6 +2,7 @@ export {
   CascaderInput,
   MoneyInput,
   QuantityInput,
+  RecordReferenceInput,
   RelationshipInput,
   RichTextInput,
   SignatureInput,

@@ -61,7 +61,7 @@ export function KanbanColumn({
       }}
       style={style}
       className={cn(
-        "flex w-64 shrink-0 flex-col rounded-lg bg-muted/50 p-2",
+        "flex min-h-0 w-64 shrink-0 flex-col rounded-lg bg-muted/50 p-2",
         isOver && !isBlocked && "ring-2 ring-primary/50",
         isOver && isBlocked && "ring-2 ring-destructive/50",
         isDragging && "opacity-50"
@@ -89,7 +89,7 @@ export function KanbanColumn({
         )}
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-1 flex-col gap-2">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">{children}</div>
       </SortableContext>
     </div>
   )

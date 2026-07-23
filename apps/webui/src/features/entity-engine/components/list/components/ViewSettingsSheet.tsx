@@ -48,8 +48,8 @@ export interface ViewSettings {
   columnFreeze?: "none" | "first" | "first-two"
   /** 操作列固定 */
   actionColumnFixed?: boolean
-  /** 快速筛选字段名列表 */
-  quickFilterFields?: string[]
+  /** 筛选栏字段名列表 */
+  filterFields?: string[]
   /** Tab 字段 */
   tabField?: string
   /** 是否启用列头排序 */
@@ -432,7 +432,7 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
               <span className="w-4 shrink-0" />
               <span className="flex-1">显示字段</span>
               <span className="w-14 shrink-0 text-center">宽度</span>
-              <span className="w-16 shrink-0 text-center">快速筛选</span>
+              <span className="w-16 shrink-0 text-center">筛选</span>
             </div>
 
             {/* 搜索 */}
@@ -461,7 +461,7 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                     const field = allFields.find((f) => f.name === col.name)
                     const label = field?.label ?? col.name
                     const isFirst = col.name === firstColumn?.name
-                    const current = draft.quickFilterFields ?? getDefaultQuickFilterFields(entity)
+                    const current = draft.filterFields ?? getDefaultFilterFields(entity)
                     const isFiltered = current.includes(col.name)
 
                     return (
@@ -476,7 +476,7 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                         onToggle={() => !isFirst && toggleColumn(col.name)}
                         onFilterToggle={() =>
                           patch({
-                            quickFilterFields: isFiltered
+                            filterFields: isFiltered
                               ? current.filter((n) => n !== col.name)
                               : [...current, col.name]
                           })
@@ -599,7 +599,7 @@ function SortableColumnItem({
         <Switch
           checked={filtered}
           onCheckedChange={onFilterToggle}
-          aria-label={`快速筛选：${label}`}
+          aria-label={`筛选：${label}`}
           className="scale-75"
         />
       </div>
@@ -607,10 +607,7 @@ function SortableColumnItem({
   )
 }
 
-/** 获取默认快速筛选字段 */
-export function getDefaultQuickFilterFields(entity: EntityDef): string[] {
-  if (entity.listView.quickFilters?.length) {
-    return [...new Set(entity.listView.quickFilters.map((qf) => qf.field))]
-  }
-  return entity.listView.filterableFields ?? []
+/** 获取默认筛选字段。 */
+export function getDefaultFilterFields(entity: EntityDef): string[] {
+  return entity.listView.filterFields ?? []
 }

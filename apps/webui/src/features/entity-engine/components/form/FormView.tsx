@@ -18,7 +18,9 @@ import { useEffect } from "react"
 import { FormProvider, useForm, useFormContext } from "react-hook-form"
 
 import { FieldErrorBoundary } from "@/components/common/FieldErrorBoundary"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { useConditionalFields } from "../../hooks/use-conditional-fields"
 import { buildZodSchema } from "../../lib/build-zod-schema"
 import { getFieldComponent } from "../../lib/component-registry"
@@ -34,6 +36,12 @@ interface FormViewProps {
   data?: Record<string, unknown>
   loading?: boolean
   onSubmit?: (values: Record<string, unknown>) => void
+  /** 供外部 submit 按钮关联的原生表单 ID。 */
+  externalFormId?: string
+  /** 是否渲染表单底部保存动作；默认渲染。 */
+  showSubmitAction?: boolean
+  /** 表单模式决定 displayModes 配置字段是否渲染；默认编辑模式。 */
+  mode?: "create" | "edit"
   /** 视图级只读展示态——为真时渲染 Cell 展示组件，不渲染表单控件，无保存按钮 */
   readOnly?: boolean
 }
@@ -43,13 +51,120 @@ const AUDIT_FIELD_NAMES = new Set(["createTime", "updateTime", "createBy", "upda
 /** 软删除字段名（不渲染） */
 const HIDDEN_FIELD_NAMES = new Set(["deleted", "deleteTime"])
 
+type FormMode = NonNullable<FormViewProps["mode"]>
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function relationWriteValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(relationWriteValue)
+  if (isRecord(value) && "id" in value) return value.id
+  return value
+}
+
+function isVisibleInMode(field: FieldDef, mode: FormMode): boolean {
+  return !("displayModes" in field) || !field.displayModes || field.displayModes.includes(mode)
+}
+
+function isVisibleForRoles(field: FieldDef, userRoles?: string[]): boolean {
+  if (!("visibleRoles" in field) || !field.visibleRoles?.length) return true
+  const normalizedRoles = new Set(userRoles?.map((role) => role.toLowerCase()))
+  return field.visibleRoles.some((role) => normalizedRoles.has(role.toLowerCase()))
+}
+
+function filterFieldsForMode(fields: FieldDef[], mode: FormMode, userRoles?: string[]): FieldDef[] {
+  const filteredFields: FieldDef[] = []
+  for (const field of fields) {
+    switch (field.type) {
+      case "group": {
+        const groupFields = filterFieldsForMode(field.fields, mode, userRoles)
+        if (groupFields.length > 0) filteredFields.push({ ...field, fields: groupFields })
+        break
+      }
+      case "tabs": {
+        const tabs = field.tabs
+          .map((tab) => ({ ...tab, fields: filterFieldsForMode(tab.fields, mode, userRoles) }))
+          .filter((tab) => tab.fields.length > 0)
+        if (tabs.length > 0) filteredFields.push({ ...field, tabs })
+        break
+      }
+      case "row": {
+        const rowFields = filterFieldsForMode(field.fields, mode, userRoles)
+        if (rowFields.length > 0) {
+          filteredFields.push({ ...field, fields: rowFields as typeof field.fields })
+        }
+        break
+      }
+      default:
+        if (isVisibleInMode(field, mode) && isVisibleForRoles(field, userRoles)) {
+          filteredFields.push(field)
+        }
+    }
+  }
+  return filteredFields
+}
+
+function serializeRecordReference(
+  field: DataFieldDef,
+  value: unknown
+): Record<string, unknown> | null {
+  if (field.type !== "recordReference") return null
+  if (!isRecord(value)) return { [field.writeKey]: null }
+  const resource = value.resource
+  const id = value.id
+  if (typeof resource !== "string" || (typeof id !== "string" && typeof id !== "number")) {
+    return { [field.writeKey]: null }
+  }
+  if (field.idValueType === "number") {
+    const numericId = Number(id)
+    if (!Number.isFinite(numericId)) return null
+    return { [field.writeKey]: { resource, id: numericId } }
+  }
+  return { [field.writeKey]: { resource, id: String(id) } }
+}
+
+/** 仅提交可写字段；关联展示对象按 writeKey 转为后端 DTO 所需 ID。 */
+function serializeEntityValues(fields: FieldDef[], values: Record<string, unknown>) {
+  const payload: Record<string, unknown> = {}
+  for (const field of fields) {
+    if (field.type === "group" || field.type === "tabs" || field.type === "row" || field.readOnly) {
+      continue
+    }
+    const value = values[field.name]
+    const recordReference = serializeRecordReference(field, value)
+    if (recordReference) {
+      Object.assign(payload, recordReference)
+      continue
+    }
+    if (value === undefined) continue
+    const key = field.type === "relationship" ? (field.writeKey ?? field.name) : field.name
+    payload[key] = field.type === "relationship" ? relationWriteValue(value) : value
+  }
+  return payload
+}
+
 /** 表单视图 */
-export function FormView({ entity, data, loading, onSubmit, readOnly }: FormViewProps) {
+export function FormView({
+  entity,
+  data,
+  loading,
+  onSubmit,
+  externalFormId,
+  showSubmitAction = !externalFormId,
+  mode = "edit",
+  readOnly
+}: FormViewProps) {
+  const userRoles = useAuthStore((state) => state.user?.roles)
   const { fields, formView } = entity
   const labelLayout = formView?.labelLayout ?? "top"
+  const modeFields = filterFieldsForMode(fields, mode, userRoles)
+  const layout = formView?.layout
+    ? filterFieldsForMode(formView.layout, mode, userRoles)
+    : undefined
 
   // 过滤掉软删除字段和 hidden 字段，审计字段单独处理
-  const visibleFields = fields.filter((f) => {
+  const visibleFields = modeFields.filter((f) => {
     if (!("name" in f)) return true
     const df = f as DataFieldDef
     if (HIDDEN_FIELD_NAMES.has(df.name)) return false
@@ -75,7 +190,7 @@ export function FormView({ entity, data, loading, onSubmit, readOnly }: FormView
   }, [data, form])
 
   const handleSubmit = form.handleSubmit((values) => {
-    onSubmit?.(values)
+    onSubmit?.(serializeEntityValues(modeFields, values))
   })
 
   if (loading) {
@@ -84,16 +199,27 @@ export function FormView({ entity, data, loading, onSubmit, readOnly }: FormView
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={readOnly ? undefined : handleSubmit} className="space-y-4 p-4">
-        {formView?.layout
-          ? renderLayout(formView.layout, visibleFields, entity, labelLayout, readOnly, data)
+      <form
+        id={externalFormId}
+        onSubmit={readOnly ? undefined : handleSubmit}
+        className="@container min-h-[240px] space-y-4 overflow-auto @lg:p-6 @sm:p-5 p-4"
+      >
+        {layout
+          ? renderLayout(
+              layout as LayoutField[],
+              visibleFields,
+              entity,
+              labelLayout,
+              readOnly,
+              data
+            )
           : renderLinear(visibleFields, entity, labelLayout, readOnly, data)}
 
         {/* 审计信息只读区 */}
         {auditFields.length > 0 && data && <AuditInfo fields={auditFields} data={data} />}
 
-        {/* 只读态或无更新权限时（onSubmit 未传入）不渲染保存按钮 */}
-        {!readOnly && onSubmit && (
+        {/* 只读态、无更新权限或外置保存动作时不渲染表单底部保存按钮 */}
+        {showSubmitAction && !readOnly && onSubmit && (
           <div className="flex justify-end pt-4">
             <button
               type="submit"
@@ -117,13 +243,15 @@ function renderLinear(
   record?: Record<string, unknown>
 ) {
   return (
-    <ConditionalFields
-      fields={fields}
-      entity={entity}
-      labelLayout={labelLayout}
-      readOnly={readOnly}
-      record={record}
-    />
+    <div data-slot="form-fields" className="grid @sm:grid-cols-2 grid-cols-1 gap-4">
+      <ConditionalFields
+        fields={fields}
+        entity={entity}
+        labelLayout={labelLayout}
+        readOnly={readOnly}
+        record={record}
+      />
+    </div>
   )
 }
 
@@ -418,19 +546,15 @@ function AuditInfo({ fields, data }: { fields: DataFieldDef[]; data: Record<stri
     if (typeof val === "object" && val !== null) {
       const o = val as Record<string, unknown>
       const name = String(
-        o.displayName ?? o.nickname ?? o.username ?? o.name ?? o.title ?? o.id ?? "—"
+        o.label ?? o.displayName ?? o.nickname ?? o.username ?? o.name ?? o.title ?? o.id ?? "—"
       )
-      const avatar = o.avatar ?? o.imgUrl ?? o.avatarUrl
+      const imageUrl = o.imageUrl ?? o.avatar ?? o.imgUrl ?? o.avatarUrl
       return (
         <div className="flex items-center gap-1.5">
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary text-xs">
-            {avatar ? (
-              // biome-ignore lint/performance/noImgElement: 动态头像 URL
-              <img src={String(avatar)} alt={name} className="size-5 rounded-full object-cover" />
-            ) : (
-              name.slice(0, 1)
-            )}
-          </span>
+          <Avatar size="sm">
+            {imageUrl ? <AvatarImage src={String(imageUrl)} alt="" /> : null}
+            <AvatarFallback>{name.slice(0, 1)}</AvatarFallback>
+          </Avatar>
           <span>{name}</span>
         </div>
       )

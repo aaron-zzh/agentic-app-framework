@@ -17,13 +17,17 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ViewEngine } from "@/features/entity-engine/components/ViewEngine"
-import type { EntityDef } from "@/features/entity-engine/types"
+import type { EntityDef, EntityDefConfig } from "@/features/entity-engine/types"
 
 import { entityDefJsonSchema } from "./entity-def-schema"
 
 interface EntityDefEditorProps {
   /** 当前编辑的 JSON 字符串 */
   value: string
+  /** 服务端丰富的运行期 slug。 */
+  runtimeSlug: string
+  /** 服务端丰富的运行期 API 路径。 */
+  runtimeApiPath: string
   /** 是否为内置实体（只读） */
   builtin?: boolean
   /** 保存回调 */
@@ -33,7 +37,14 @@ interface EntityDefEditorProps {
 }
 
 /** EntityDef JSON 编辑器（左右分屏：编辑器 + 预览） */
-export function EntityDefEditor({ value, builtin, onSave, saving }: EntityDefEditorProps) {
+export function EntityDefEditor({
+  value,
+  runtimeSlug,
+  runtimeApiPath,
+  builtin,
+  onSave,
+  saving
+}: EntityDefEditorProps) {
   const [editorValue, setEditorValue] = useState(value)
   const [parseError, setParseError] = useState<string | null>(null)
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
@@ -44,21 +55,27 @@ export function EntityDefEditor({ value, builtin, onSave, saving }: EntityDefEdi
     setEditorValue(value)
   }, [value])
 
-  /** 尝试解析为 EntityDef 用于预览 */
+  /** 尝试解析 seed 配置，并注入服务端运行期字段用于预览。 */
   const previewEntity = useMemo((): EntityDef | null => {
     try {
-      const parsed = JSON.parse(editorValue) as EntityDef
-      if (parsed.slug && parsed.fields && parsed.listView) {
+      const parsed = JSON.parse(editorValue) as EntityDefConfig
+      if (
+        parsed.kind === "code" &&
+        parsed.resource &&
+        parsed.label &&
+        parsed.fields &&
+        parsed.listView
+      ) {
         setParseError(null)
-        return parsed
+        return { ...parsed, slug: runtimeSlug, apiPath: runtimeApiPath }
       }
-      setParseError("缺少必填字段：slug / fields / listView")
+      setParseError("缺少必填字段：kind / resource / label / fields / listView")
       return null
     } catch (e) {
       setParseError(e instanceof Error ? e.message : "JSON 解析失败")
       return null
     }
-  }, [editorValue])
+  }, [editorValue, runtimeApiPath, runtimeSlug])
 
   /** Monaco 挂载时注册 JSON Schema */
   const handleEditorMount: OnMount = useCallback(

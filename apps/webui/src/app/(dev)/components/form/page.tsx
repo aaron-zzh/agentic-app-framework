@@ -15,8 +15,41 @@ import { Button } from "@/components/ui/button"
 import type { UploadFile } from "@/components/upload"
 import { Upload, UploadAvatar } from "@/components/upload"
 import { FormView } from "@/features/entity-engine/components/form/FormView"
-import { taskEntity, userEntity } from "@/features/entity-engine/entities"
-import type { DataFieldDef } from "@/features/entity-engine/types"
+import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+
+const userEntity: EntityDef = {
+  slug: "form-demo-user",
+  label: "用户",
+  apiPath: "/system/users",
+  fields: [
+    { type: "text", name: "username", label: "用户名", required: true },
+    { type: "text", name: "nickname", label: "昵称", required: true },
+    { type: "email", name: "email", label: "邮箱" },
+    { type: "text", name: "phone", label: "手机号" }
+  ],
+  listView: { columns: ["username", "nickname", "email"] }
+}
+
+const taskEntity: EntityDef = {
+  slug: "form-demo-task",
+  label: "任务",
+  apiPath: "/tasks",
+  fields: [
+    { type: "text", name: "title", label: "标题", required: true },
+    { type: "textarea", name: "description", label: "描述" },
+    {
+      type: "select",
+      name: "status",
+      label: "状态",
+      options: [
+        { label: "待办", value: "todo" },
+        { label: "进行中", value: "in_progress" },
+        { label: "已完成", value: "done" }
+      ]
+    }
+  ],
+  listView: { columns: ["title", "status"] }
+}
 
 export default function FormPage() {
   const methods = useForm({

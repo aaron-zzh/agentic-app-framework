@@ -30,8 +30,8 @@ import {
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
-  getSortedRowModel,
   type Header,
+  type OnChangeFn,
   type PaginationState,
   type Row,
   type RowSelectionState,
@@ -41,6 +41,7 @@ import {
 } from "@tanstack/react-table"
 import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical, Trash2 } from "lucide-react"
 import { useCallback, useState } from "react"
+import { EmptyState } from "@/components/common/EmptyState"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -64,6 +65,8 @@ interface DataTableProps<TData> {
   headerAction?: React.ReactNode
   enableSelection?: boolean
   enableSort?: boolean
+  sorting: SortingState
+  onSortingChange: OnChangeFn<SortingState>
   draggable?: boolean
   onReorder?: (ids: string[]) => void
   serverPagination?: { page: number; pageSize: number; total: number }
@@ -105,6 +108,8 @@ export function DataTable<TData>({
   headerAction,
   enableSelection = true,
   enableSort = true,
+  sorting,
+  onSortingChange,
   draggable = false,
   onReorder,
   serverPagination,
@@ -115,7 +120,6 @@ export function DataTable<TData>({
   actionColumnFixed = true,
   rowDragItem
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [columnSizing, setColumnSizing] = useState({})
   const [items, setItems] = useState<TData[]>(data)
@@ -164,13 +168,13 @@ export function DataTable<TData>({
         pagination: { pageIndex: serverPagination.page - 1, pageSize: serverPagination.pageSize }
       })
     },
-    onSortingChange: setSorting,
+    onSortingChange,
     onRowSelectionChange: setRowSelection,
     onColumnSizingChange: setColumnSizing,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    manualSorting: true,
     enableRowSelection: enableSelection,
     enableSorting: enableSort,
     ...(serverPagination
@@ -194,8 +198,8 @@ export function DataTable<TData>({
   const hasSelection = selectedRows.length > 0
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="relative flex-1 overflow-auto">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative min-h-0 flex-1 overflow-auto">
         {hasSelection && (
           <BatchActionBar
             count={selectedRows.length}
@@ -207,7 +211,7 @@ export function DataTable<TData>({
           />
         )}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <Table>
+          <Table containerClassName="overflow-visible">
             <TableHeader className="sticky top-0 z-[5] bg-card">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
@@ -226,11 +230,8 @@ export function DataTable<TData>({
               <TableBody>
                 {table.getRowModel().rows.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={allColumns.length}
-                      className="h-24 text-center text-muted-foreground"
-                    >
-                      暂无数据
+                    <TableCell colSpan={allColumns.length} className="p-0">
+                      <EmptyState />
                     </TableCell>
                   </TableRow>
                 ) : (

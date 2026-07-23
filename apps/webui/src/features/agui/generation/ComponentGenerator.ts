@@ -44,6 +44,7 @@ const featureMapping: Record<string, (config: Partial<ListViewConfig>) => void> 
   },
   filter: (c) => {
     c.filterableFields = c.filterableFields ?? []
+    c.filterFields = c.filterFields ?? []
   },
   sort: (c) => {
     c.defaultSort = c.defaultSort ?? "createdAt:desc"
@@ -205,6 +206,9 @@ export class ComponentGeneratorImpl {
       listView.filterableFields = dataFields
         .filter((f) => f.type === "select" || f.type === "date")
         .map((f) => f.name)
+    }
+    if (listView.filterFields?.length === 0) {
+      listView.filterFields = listView.filterableFields ?? []
     }
 
     return {

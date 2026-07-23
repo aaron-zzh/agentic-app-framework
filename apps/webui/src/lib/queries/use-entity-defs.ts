@@ -12,12 +12,27 @@ import {
 } from "@/lib/api/rest/entity/entity-def"
 
 const ENTITY_DEFS_KEY = ["entity-defs"]
+const ENTITY_BOOTSTRAP_KEY = ["entity-def-bootstrap"]
 
-/** 查询所有实体定义 */
-export function useEntityDefs() {
+interface UseEntityDefsOptions {
+  enabled?: boolean
+}
+
+/** 查询工作区视图引擎需要的完整实体元数据。 */
+export function useEntityBootstrap({ enabled = true }: UseEntityDefsOptions = {}) {
+  return useQuery({
+    queryKey: ENTITY_BOOTSTRAP_KEY,
+    queryFn: () => entityDefApi.bootstrap(),
+    enabled
+  })
+}
+
+/** 查询实体编辑器需要的 EntityDef 记录。 */
+export function useEntityDefs({ enabled = true }: UseEntityDefsOptions = {}) {
   return useQuery({
     queryKey: ENTITY_DEFS_KEY,
-    queryFn: () => entityDefApi.list()
+    queryFn: () => entityDefApi.list(),
+    enabled
   })
 }
 
@@ -35,7 +50,10 @@ export function useCreateEntityDef() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: EntityDefInput) => entityDefApi.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
+      qc.invalidateQueries({ queryKey: ENTITY_BOOTSTRAP_KEY })
+    }
   })
 }
 
@@ -45,7 +63,10 @@ export function useUpdateEntityDef() {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: EntityDefUpdateInput }) =>
       entityDefApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
+      qc.invalidateQueries({ queryKey: ENTITY_BOOTSTRAP_KEY })
+    }
   })
 }
 
@@ -54,6 +75,9 @@ export function useDeleteEntityDef() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => entityDefApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ENTITY_DEFS_KEY })
+      qc.invalidateQueries({ queryKey: ENTITY_BOOTSTRAP_KEY })
+    }
   })
 }

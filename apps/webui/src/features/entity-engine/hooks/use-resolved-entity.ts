@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  *
  * 扫描 entity.fields 中带 dictType 的 select 字段，从字典批量拉取数据并物化填充 options，
- * 返回一份新的 EntityDef；下游组件（QuickFilterBar/SearchBar/FilterChips 等）无需改动，
+ * 返回一份新的 EntityDef；下游组件（FilterBar/SearchBar/FilterChips 等）无需改动，
  * 仍按原有方式读取 field.options 静态数组。
  *
  * 用法：

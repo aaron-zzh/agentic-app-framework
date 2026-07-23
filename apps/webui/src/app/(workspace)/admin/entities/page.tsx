@@ -14,45 +14,17 @@ import { TypographyH1 } from "@/components/ui/typography"
 import { EntityDefEditor } from "@/features/entity-editor/EntityDefEditor"
 import { EntityDefList } from "@/features/entity-editor/EntityDefList"
 import type { EntityDefRecord } from "@/lib/api/rest/entity/entity-def"
-import {
-  useCreateEntityDef,
-  useEntityDefs,
-  useUpdateEntityDef
-} from "@/lib/queries/use-entity-defs"
-
-/** 新建实体的默认模板 */
-const NEW_ENTITY_TEMPLATE = JSON.stringify(
-  {
-    slug: "new-entity",
-    label: "新实体",
-    apiPath: "/new-entity",
-    fields: [{ name: "title", type: "text", label: "标题", required: true }],
-    listView: {
-      columns: ["title"]
-    }
-  },
-  null,
-  2
-)
+import { useEntityDefs, useUpdateEntityDef } from "@/lib/queries/use-entity-defs"
 
 export default function EntitiesPage() {
   const { data: entities, isLoading } = useEntityDefs()
   const updateMutation = useUpdateEntityDef()
-  const createMutation = useCreateEntityDef()
 
   const [selected, setSelected] = useState<EntityDefRecord | null>(null)
-  const [isNew, setIsNew] = useState(false)
 
   /** 选中实体 */
   const handleSelect = useCallback((item: EntityDefRecord) => {
     setSelected(item)
-    setIsNew(false)
-  }, [])
-
-  /** 新建实体 */
-  const handleCreate = useCallback(() => {
-    setSelected(null)
-    setIsNew(true)
   }, [])
 
   /** 保存 */
@@ -60,28 +32,10 @@ export default function EntitiesPage() {
     (json: string) => {
       try {
         const config = JSON.parse(json) as Record<string, unknown>
-        const slug = config.slug as string
 
-        if (!slug) {
-          toast.error("slug 字段不能为空")
-          return
-        }
-
-        if (isNew) {
-          createMutation.mutate(
-            { slug, config },
-            {
-              onSuccess: (record) => {
-                toast.success(`实体 "${slug}" 创建成功`)
-                setSelected(record)
-                setIsNew(false)
-              },
-              onError: () => {}
-            }
-          )
-        } else if (selected) {
+        if (selected) {
           updateMutation.mutate(
-            { id: selected.id, data: { slug, config } },
+            { id: selected.id, data: { config } },
             {
               onSuccess: () => toast.success("保存成功"),
               onError: () => {}
@@ -92,15 +46,11 @@ export default function EntitiesPage() {
         toast.error("JSON 格式错误，无法保存")
       }
     },
-    [isNew, selected, createMutation, updateMutation]
+    [selected, updateMutation]
   )
 
   /** 当前编辑器的 JSON 值 */
-  const editorValue = isNew
-    ? NEW_ENTITY_TEMPLATE
-    : selected
-      ? JSON.stringify(selected.config, null, 2)
-      : ""
+  const editorValue = selected ? JSON.stringify(selected.config, null, 2) : ""
 
   return (
     <PageContainer className="h-[calc(100vh-var(--layout-header-height)-2rem)]">
@@ -117,7 +67,6 @@ export default function EntitiesPage() {
               items={entities ?? []}
               selectedId={selected?.id}
               onSelect={handleSelect}
-              onCreate={handleCreate}
             />
             {isLoading && (
               <p className="p-3 text-center text-muted-foreground text-sm">加载中...</p>
@@ -126,16 +75,18 @@ export default function EntitiesPage() {
           <ResizableHandle />
           {/* 右侧编辑器 + 预览 */}
           <ResizablePanel defaultSize="80%">
-            {editorValue ? (
+            {selected ? (
               <EntityDefEditor
                 value={editorValue}
-                builtin={selected?.builtin}
+                runtimeSlug={selected.slug}
+                runtimeApiPath={selected.apiPath}
+                builtin={selected.builtin}
                 onSave={handleSave}
-                saving={createMutation.isPending || updateMutation.isPending}
+                saving={updateMutation.isPending}
               />
             ) : (
               <div className="flex h-full items-center justify-center text-muted-foreground">
-                选择一个实体或点击 + 新建
+                选择一个已注册的实体定义
               </div>
             )}
           </ResizablePanel>

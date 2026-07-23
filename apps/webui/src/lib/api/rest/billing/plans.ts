@@ -103,18 +103,17 @@ export interface EntitlementQuotaVO {
 
 export const billingPlansApi = {
   /** 获取所有启用的订阅套餐（含权益列表） */
-  getPlans: () => backendApi.get<SubscriptionPlanVO[]>("/billing/subscription/plans"),
+  getPlans: () => backendApi.get<SubscriptionPlanVO[]>("/billing/subscription-plans/catalog"),
 
   /** 获取当前用户的有效订阅，无订阅返回 null */
-  getCurrentSubscription: () =>
-    backendApi.get<SubscriptionVO | null>("/billing/subscription/current"),
+  getCurrentSubscription: () => backendApi.get<SubscriptionVO | null>("/billing/subscriptions/me"),
 
   /** 获取积分充值套餐列表 */
   getCreditPackages: () => backendApi.get<CreditPackageVO[]>("/billing/credit-packages"),
 
   /** 购买订阅套餐，返回支付单（免费套餐直接激活返回 null） */
   subscribe: (planCode: string, billingCycle: "monthly" | "yearly", channelCode: string) =>
-    backendApi.post<PayOrderVO | null>("/billing/subscription/subscribe", {
+    backendApi.post<PayOrderVO | null>("/billing/subscriptions/subscribe", {
       planCode,
       billingCycle,
       channelCode
@@ -128,7 +127,7 @@ export const billingPlansApi = {
     }),
 
   /** 获取当前用户所有权益额度 */
-  getEntitlementQuotas: () => backendApi.get<EntitlementQuotaVO[]>("/billing/entitlement/quotas")
+  getEntitlementQuotas: () => backendApi.get<EntitlementQuotaVO[]>("/billing/entitlement-quotas/me")
 }
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"

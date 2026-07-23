@@ -7,7 +7,13 @@
 
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
+import type { OnChangeFn, SortingState } from "@tanstack/react-table"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { fromEntityDef, useCrudDelete } from "@/lib/api/rest/crud"
 import { paths } from "@/lib/constants/paths"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { useUIStore } from "@/lib/store/ui-store"
@@ -30,6 +36,9 @@ interface ListViewProps {
   serverPagination?: { page: number; pageSize: number; total: number }
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
+  sorting: SortingState
+  onSortingChange: OnChangeFn<SortingState>
+  sortableFields: string[]
   queryToken?: string
 }
 
@@ -41,6 +50,9 @@ export function ListView({
   serverPagination,
   onPageChange,
   onPageSizeChange,
+  sorting,
+  onSortingChange,
+  sortableFields,
   queryToken
 }: ListViewProps) {
   const router = useRouter()
@@ -91,7 +103,12 @@ export function ListView({
   )
 
   if (loading) {
-    return <ListSkeleton columns={visibleColumns.length} />
+    // 骨架用于提示加载而非模拟整页数据；页大小可达 20/50/100，必须限制高度避免刷新时撑满视口。
+    const skeletonRows = Math.min(
+      serverPagination?.pageSize ?? DEFAULT_LOCAL_PAGE_SIZE,
+      MAX_SKELETON_ROWS
+    )
+    return <ListSkeleton columns={visibleColumns.length} rows={skeletonRows} />
   }
 
   // 分组模式
@@ -122,7 +139,7 @@ export function ListView({
   }
 
   // TanStack Table 列定义
-  const tableColumns = buildColumns(entity, visibleColumns)
+  const tableColumns = buildColumns(entity, visibleColumns, sortableFields)
 
   const columnConfigAction = (
     <ColumnConfigPanel
@@ -139,6 +156,8 @@ export function ListView({
       data={data}
       headerAction={columnConfigAction}
       enableSort={enableSort}
+      sorting={sorting}
+      onSortingChange={onSortingChange}
       draggable={effectiveDraggable}
       serverPagination={serverPagination}
       onPageChange={onPageChange}
@@ -157,18 +176,15 @@ export function ListView({
         const id = row.id as string
         if (!id) return
         const action = viewSettings?.rowClickAction ?? "panel"
-        if (action === "panel") openRecordPanel(id, "panel")
-        else if (action === "drawer") openRecordPanel(id, "drawer")
+        if (action === "panel") openRecordPanel(id, "panel", queryToken)
+        else if (action === "drawer") openRecordPanel(id, "drawer", queryToken)
         else if (action === "detail") router.push(recordHref(entity.slug, id, queryToken))
       }}
-      renderRowActions={(row) => (
-        <RowActions
-          row={row}
-          entitySlug={entity.slug}
-          entityLabel={entity.label}
-          queryToken={queryToken}
-        />
-      )}
+      renderRowActions={
+        entity.access?.update !== false || entity.access?.delete !== false
+          ? (row) => <RowActions row={row} entity={entity} queryToken={queryToken} />
+          : undefined
+      }
     />
   )
 }
@@ -176,41 +192,79 @@ export function ListView({
 /** 行操作（含拖放到对话） */
 function RowActions({
   row,
-  entitySlug,
-  entityLabel: _entityLabel,
+  entity,
   queryToken
 }: {
   row: Record<string, unknown>
-  entitySlug: string
-  entityLabel: string
+  entity: EntityDef
   queryToken?: string
 }) {
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const router = useRouter()
-  const id = row.id as string
+  const queryClient = useQueryClient()
+  const recordPanelId = useUIStore((s) => s.recordPanelId)
+  const closeRecordPanel = useUIStore((s) => s.closeRecordPanel)
+  const { mutate: remove, isPending: isDeleting } = useCrudDelete(fromEntityDef(entity))
+  const id = row.id ? String(row.id) : ""
+  const title = String(row.name ?? row.title ?? id)
+
+  const handleDelete = () => {
+    if (!id) return
+    remove(
+      { id },
+      {
+        onSuccess: () => {
+          queryClient.removeQueries({ queryKey: [entity.slug, "detail"] })
+          queryClient.invalidateQueries({ queryKey: [entity.slug, "queryWindow"] })
+          if (recordPanelId === id) closeRecordPanel()
+          toast.success(`${entity.label}已删除`)
+        }
+        //onError: () => toast.error(`${entity.label}删除失败，请稍后重试`)
+      }
+    )
+  }
 
   return (
-    <div className="flex items-center gap-1">
-      <button
-        type="button"
-        className="rounded px-2 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
-        onClick={(e) => {
-          e.stopPropagation()
-          if (id) router.push(recordHref(entitySlug, id, queryToken))
-        }}
-      >
-        编辑
-      </button>
-      <span className="text-border">|</span>
-      <button
-        type="button"
-        className="rounded px-2 py-0.5 text-destructive text-xs hover:bg-destructive/10"
-        onClick={(e) => {
-          e.stopPropagation()
-        }}
-      >
-        删除
-      </button>
-    </div>
+    <>
+      <div className="flex items-center gap-1">
+        {entity.access?.update !== false && (
+          <button
+            type="button"
+            className="rounded px-2 py-0.5 text-muted-foreground text-xs hover:bg-accent hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (id) router.push(recordHref(entity.slug, id, queryToken))
+            }}
+          >
+            编辑
+          </button>
+        )}
+        {entity.access?.update !== false && entity.access?.delete !== false && (
+          <span className="text-border">|</span>
+        )}
+        {entity.access?.delete !== false && (
+          <button
+            type="button"
+            className="rounded px-2 py-0.5 text-destructive text-xs hover:bg-destructive/10"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (id) setDeleteDialogOpen(true)
+            }}
+          >
+            删除
+          </button>
+        )}
+      </div>
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={`删除${entity.label}`}
+        description={`确定要删除「${title}」吗？`}
+        confirmText={isDeleting ? "删除中..." : "删除"}
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
+    </>
   )
 }
 
@@ -219,12 +273,23 @@ function recordHref(entitySlug: string, id: string, queryToken?: string) {
   return queryToken ? `${base}?qw=${encodeURIComponent(queryToken)}` : base
 }
 
+/** 本地分页模式下 TanStack Table 的默认页大小，需与 DataTable 未显式设置 pageSize 时的内部默认值保持一致 */
+const DEFAULT_LOCAL_PAGE_SIZE = 10
+/** 加载态最多展示六行，避免服务端大页大小导致骨架屏撑满列表视口。 */
+const MAX_SKELETON_ROWS = 6
+
 /** 列表骨架屏 */
-function ListSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }) {
+function ListSkeleton({
+  columns,
+  rows = DEFAULT_LOCAL_PAGE_SIZE
+}: {
+  columns: number
+  rows?: number
+}) {
   return (
     <div className="w-full space-y-2 p-4">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex gap-4">
+        <div key={i} data-slot="list-skeleton-row" className="flex gap-4">
           {Array.from({ length: columns }).map((_, j) => (
             <div key={j} className="h-8 flex-1 animate-pulse rounded bg-muted" />
           ))}

@@ -72,7 +72,7 @@ export function KanbanSwimlane({
   }
 
   return (
-    <div className="flex flex-col gap-2 p-4">
+    <div className="flex min-h-[360px] shrink flex-col gap-2 overflow-auto p-4">
       {Array.from(groups.entries()).map(([key, records]) => {
         const isCollapsed = collapsed.has(key)
         const color = getColor(key)

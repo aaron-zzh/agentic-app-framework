@@ -4,6 +4,7 @@
  */
 
 import type { GroupField, RowField, TabsField } from "./field"
+import type { FilterCondition } from "./filter"
 
 /** 列定义 */
 export interface ColumnDef {
@@ -25,12 +26,8 @@ export interface ColumnDef {
 export interface QuickFilter {
   /** 显示名称 */
   label: string
-  /** 筛选字段 */
-  field: string
-  /** 操作符 */
-  operator: string
-  /** 筛选值 */
-  value: string
+  /** 同时生效的筛选条件 */
+  conditions: FilterCondition[]
 }
 
 /** 列表视图配置 */
@@ -45,7 +42,9 @@ export interface ListViewConfig {
   searchableFields?: string[]
   /** 可筛选字段 */
   filterableFields?: string[]
-  /** 快捷筛选（显示在搜索栏旁，点击直接添加条件） */
+  /** 筛选栏默认显示字段 */
+  filterFields?: string[]
+  /** 快捷筛选（显示在搜索栏下拉中，点击直接添加条件） */
   quickFilters?: QuickFilter[]
   /** 行内编辑 */
   inlineEdit?: boolean

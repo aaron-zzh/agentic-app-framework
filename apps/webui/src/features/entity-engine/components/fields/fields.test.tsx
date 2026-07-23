@@ -72,16 +72,23 @@ describe("SelectInput", () => {
     ]
   }
 
-  it("渲染选项", () => {
+  it("打开下拉后应渲染选项", () => {
     render(<SelectInput name="status" value="" onChange={() => {}} field={selectField} />)
-    expect(screen.getByText("草稿")).toBeInTheDocument()
-    expect(screen.getByText("已发布")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("combobox"))
+    expect(screen.getByRole("option", { name: "草稿" })).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "已发布" })).toBeInTheDocument()
   })
 
-  it("触发 onChange", () => {
+  it("选择选项时应触发 onChange", () => {
     const onChange = vi.fn()
     render(<SelectInput name="status" value="" onChange={onChange} field={selectField} />)
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "published" } })
+
+    fireEvent.click(screen.getByRole("combobox"))
+    const option = screen.getByRole("option", { name: "已发布" })
+    fireEvent.mouseMove(option)
+    fireEvent.pointerDown(option)
+    fireEvent.click(option)
     expect(onChange).toHaveBeenCalledWith("published")
   })
 })
