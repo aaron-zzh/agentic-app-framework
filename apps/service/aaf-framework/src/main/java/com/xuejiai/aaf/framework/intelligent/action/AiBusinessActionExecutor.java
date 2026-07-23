@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.framework.intelligent.action;
 
+import java.time.Duration;
+import java.util.Map;
+
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -11,7 +14,11 @@ import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
-import com.xuejiai.aaf.framework.security.access.AccessDecisionService;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationRequest;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationTarget;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class AiBusinessActionExecutor {
 
     private final EntityActionRegistry registry;
-    private final AccessDecisionService accessDecisionService;
+    private final AuthorizationService authorizationService;
     private final PermissionExecutionService permissionExecutionService;
     private final ToolPermissionChecker permissionChecker;
     private final OperatorContext operatorContext;
@@ -48,9 +55,36 @@ public class AiBusinessActionExecutor {
                     "UNSUPPORTED_ACTION", "实体不支持动作: " + action.action());
         }
         var permissionCode = registry.permissionCode(adapter, action);
-        if (permissionCode == null
-                || permissionCode.isBlank()
-                || !accessDecisionService.hasPermission(permissionCode)) {
+        if (permissionCode == null || permissionCode.isBlank()) {
+            return AiBusinessActionResult.forbidden("权限码未声明");
+        }
+        var plan =
+                new AuthorizationPlan(
+                        AuthorizationPlan.FunctionRequirement.permission(permissionCode),
+                        null,
+                        null,
+                        new AuthorizationPlan.PolicyPlan());
+        var authorizationRequest =
+                new AuthorizationRequest(
+                        new AuthorizationSubject(
+                                operatorContext.currentOperatorId().orElse(null),
+                                operatorContext.currentOwnerId().orElse(null),
+                                null,
+                                null),
+                        new AuthorizationTarget(adapter.entitySlug(), action.action(), null),
+                        plan,
+                        Map.of(
+                                "entryPoint",
+                                "AI_BUSINESS_ACTION",
+                                "params",
+                                request.params() == null ? Map.of() : request.params()),
+                        Duration.ofMinutes(10));
+        var authorization = authorizationService.authorize(authorizationRequest);
+        if (!authorization.allowed()) {
+            if (authorization.challengeId() != null) {
+                return AiBusinessActionResult.pendingApproval(
+                        "业务动作等待统一授权确认", authorization.challengeId().toString());
+            }
             return AiBusinessActionResult.forbidden("权限不足: " + permissionCode);
         }
         var entry = registry.catalogEntry(adapter, action);
