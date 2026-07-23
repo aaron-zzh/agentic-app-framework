@@ -1,30 +1,36 @@
 package com.xuejiai.aaf.module.billing.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.billing.domain.CreditRedeemCode;
+import com.xuejiai.aaf.module.billing.domain.SubscriptionPlan;
 import com.xuejiai.aaf.module.billing.repository.CreditRedeemCodeRepository;
+import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodeCreateDTO;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodePageParam;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodeVO;
+import com.xuejiai.aaf.module.system.user.api.UserRelationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 兑换码 CRUD 服务（支持积分码与会员码）。 */
+/** 兑换码管理服务：标准化读模型，写入仅允许显式生成操作。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -40,8 +46,6 @@ public class CreditRedeemCodeService
     private static final Set<String> SORTABLE_FIELDS =
             Set.of(
                     "id",
-                    "createTime",
-                    "updateTime",
                     "codePrefix",
                     "creditAmount",
                     "batchType",
@@ -49,110 +53,139 @@ public class CreditRedeemCodeService
                     "planId",
                     "status",
                     "expiresAt",
-                    "redeemedAt");
+                    "redeemedAt",
+                    "createTime",
+                    "updateTime");
 
     private final CreditRedeemCodeRepository redeemCodeRepository;
+    private final SubscriptionPlanRepository planRepository;
+    private final UserRelationService userRelationService;
     private final CreditService creditService;
     private final SubscriptionService subscriptionService;
     private final MessageService messageService;
 
     @Override
-    protected JpaRepository<CreditRedeemCode, Long> getRepository() {
+    protected CreditRedeemCodeRepository getRepository() {
         return redeemCodeRepository;
     }
 
     @Override
-    protected JpaSpecificationExecutor<CreditRedeemCode> getSpecExecutor() {
-        return redeemCodeRepository;
+    protected List<String> optionSearchFields() {
+        return List.of("codePrefix");
     }
 
     @Override
-    protected Set<String> sortableFields() {
-        return SORTABLE_FIELDS;
+    protected Specification<CreditRedeemCode> buildSpec(CreditRedeemCodePageParam request) {
+        return (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (request.getStatus() != null && !request.getStatus().isBlank())
+                predicates.add(cb.equal(root.get("status"), request.getStatus().trim()));
+            if (request.getType() != null && !request.getType().isBlank())
+                predicates.add(cb.equal(root.get("type"), request.getType().trim()));
+            if (request.getBatchType() != null && !request.getBatchType().isBlank())
+                predicates.add(cb.equal(root.get("batchType"), request.getBatchType().trim()));
+            if (request.getPlanId() != null)
+                predicates.add(cb.equal(root.get("planId"), request.getPlanId()));
+            if (request.getRedeemedByUserId() != null)
+                predicates.add(
+                        cb.equal(root.get("redeemedByUserId"), request.getRedeemedByUserId()));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
     }
 
     @Override
-    protected CreditRedeemCodeVO toVO(CreditRedeemCode e) {
-        return new CreditRedeemCodeVO(
-                e.getId(),
-                e.getCodePrefix(),
-                e.getCreditAmount(),
-                e.getBatchType(),
-                e.getType(),
-                e.getPlanId(),
-                e.getStatus(),
-                e.getExpiresAt(),
-                e.getRedeemedByUserId(),
-                e.getRedeemedAt(),
-                e.getRemark(),
-                e.getCreateTime());
+    protected CreditRedeemCodeVO toVO(CreditRedeemCode code) {
+        return toVOList(List.of(code), "detail").getFirst();
+    }
+
+    @Override
+    protected List<CreditRedeemCodeVO> toVOList(List<CreditRedeemCode> codes, String fieldSet) {
+        if (codes.isEmpty()) return List.of();
+        Map<Long, SubscriptionPlan> plans =
+                planRepository
+                        .findAllById(
+                                codes.stream()
+                                        .map(CreditRedeemCode::getPlanId)
+                                        .filter(java.util.Objects::nonNull)
+                                        .collect(Collectors.toSet()))
+                        .stream()
+                        .collect(Collectors.toMap(SubscriptionPlan::getId, plan -> plan));
+        var redeemedBy =
+                userRelationService.findRefs(
+                        codes.stream()
+                                .map(CreditRedeemCode::getRedeemedByUserId)
+                                .filter(java.util.Objects::nonNull)
+                                .collect(Collectors.toSet()));
+        return codes.stream()
+                .map(
+                        code ->
+                                toVO(
+                                        code,
+                                        plans.get(code.getPlanId()),
+                                        redeemedBy.get(code.getRedeemedByUserId())))
+                .toList();
     }
 
     @Override
     protected CreditRedeemCode toEntity(CreditRedeemCodeCreateDTO dto) {
-        var code = new CreditRedeemCode();
-        var rawCode = CreditRedeemSecurityUtil.randomSecret("CRED-", 24);
-        code.setCodeHash(CreditRedeemSecurityUtil.sha256(rawCode));
-        code.setCodePrefix(rawCode.substring(0, 10) + "...");
-        code.setCreditAmount(dto.creditAmount());
-        code.setBatchType(dto.batchType() != null ? dto.batchType() : "REWARD");
-        code.setType(dto.type() != null ? dto.type() : "CREDIT");
-        code.setPlanId(dto.planId());
-        code.setExpiresAt(dto.expiresAt());
-        code.setRemark(dto.remark());
-        return code;
+        throw writeUnsupported();
     }
 
     @Override
     protected void updateEntity(CreditRedeemCode entity, CreditRedeemCodeCreateDTO dto) {
-        entity.setCreditAmount(dto.creditAmount());
-        entity.setExpiresAt(dto.expiresAt());
-        entity.setRemark(dto.remark());
+        throw writeUnsupported();
     }
 
     @Override
-    protected String entityName() {
-        return "兑换码";
+    @Transactional
+    public CreditRedeemCodeVO create(CreditRedeemCodeCreateDTO request) {
+        throw writeUnsupported();
     }
 
-    /** 创建兑换码并返回明文（仅此时可见）。 */
+    @Override
+    @Transactional
+    public CreditRedeemCodeVO update(Long id, CreditRedeemCodeCreateDTO request) {
+        throw writeUnsupported();
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        throw writeUnsupported();
+    }
+
+    @Override
+    @Transactional
+    public void deleteBatch(List<Long> ids) {
+        throw writeUnsupported();
+    }
+
+    /** 生成单个兑换码并返回仅一次可见的明文。 */
     @Transactional
     public String createAndReturnRawCode(CreditRedeemCodeCreateDTO dto) {
-        if ("MEMBERSHIP".equals(dto.type()) && dto.planId() == null) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "会员码必须指定套餐 planId");
-        }
-        if (!"MEMBERSHIP".equals(dto.type())
-                && (dto.creditAmount() == null || dto.creditAmount() < 1)) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分码的积分数量需 ≥ 1");
-        }
+        validateGeneration(dto);
         var rawCode = CreditRedeemSecurityUtil.randomSecret("CRED-", 24);
-        var code = new CreditRedeemCode();
-        code.setCodeHash(CreditRedeemSecurityUtil.sha256(rawCode));
-        code.setCodePrefix(rawCode.substring(0, 10) + "...");
-        code.setCreditAmount(dto.creditAmount());
-        code.setBatchType(dto.batchType() != null ? dto.batchType() : "REWARD");
-        code.setType(dto.type() != null ? dto.type() : "CREDIT");
-        code.setPlanId(dto.planId());
-        code.setExpiresAt(dto.expiresAt());
-        code.setRemark(dto.remark());
-        redeemCodeRepository.save(code);
+        redeemCodeRepository.save(createCode(dto, rawCode));
         return rawCode;
     }
 
-    /** 批量创建兑换码，返回所有明文列表。 */
+    /** 批量生成兑换码并返回所有明文。 */
     @Transactional
-    public java.util.List<String> createBatch(CreditRedeemCodeCreateDTO dto, int count) {
+    public List<String> createBatch(CreditRedeemCodeCreateDTO dto, int count) {
+        validateGeneration(dto);
         if (count < 1 || count > 500) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "批量数量需在 1-500 之间");
         }
         var results = new java.util.ArrayList<String>(count);
-        for (int i = 0; i < count; i++) {
-            results.add(createAndReturnRawCode(dto));
+        for (var index = 0; index < count; index++) {
+            var rawCode = CreditRedeemSecurityUtil.randomSecret("CRED-", 24);
+            redeemCodeRepository.save(createCode(dto, rawCode));
+            results.add(rawCode);
         }
         return results;
     }
 
-    /** 用户兑换码（积分码或会员码）。 */
+    /** 用户兑换积分码或会员码。 */
     @Transactional
     @com.xuejiai.aaf.framework.logging.OperationLog(
             module = "兑换码",
@@ -164,7 +197,6 @@ public class CreditRedeemCodeService
                         .findByCodeHashForUpdate(CreditRedeemSecurityUtil.sha256(rawCode))
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "兑换码不存在"));
-
         if (!"UNUSED".equals(code.getStatus())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "兑换码已使用或已失效");
         }
@@ -172,24 +204,15 @@ public class CreditRedeemCodeService
             code.setStatus("EXPIRED");
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "兑换码已过期");
         }
-
         code.setStatus("REDEEMED");
         code.setRedeemedByUserId(userId);
         code.setRedeemedAt(LocalDateTime.now());
-
         if ("MEMBERSHIP".equals(code.getType())) {
             subscriptionService.activateSubscription(userId, code.getPlanId(), null, false);
             notifyDingtalk(
-                    "会员兑换",
-                    "**会员兑换** \n\n> 用户ID："
-                            + userId
-                            + "  \n> 兑换码："
-                            + code.getCodePrefix()
-                            + "  \n> 时间："
-                            + code.getRedeemedAt());
+                    "会员兑换", "**会员兑换** \n\n> 用户ID：" + userId + "  \n> 兑换码：" + code.getCodePrefix());
             return 0L;
         }
-
         creditService.earnBatch(
                 userId,
                 code.getCreditAmount(),
@@ -204,20 +227,61 @@ public class CreditRedeemCodeService
                         + "  \n> 兑换码："
                         + code.getCodePrefix()
                         + "  \n> 积分："
-                        + code.getCreditAmount()
-                        + "  \n> 时间："
-                        + code.getRedeemedAt());
+                        + code.getCreditAmount());
         return code.getCreditAmount();
     }
 
-    /** 推送钉钉群通知（静默失败，不影响兑换流程） */
+    private CreditRedeemCode createCode(CreditRedeemCodeCreateDTO dto, String rawCode) {
+        var code = new CreditRedeemCode();
+        code.setCodeHash(CreditRedeemSecurityUtil.sha256(rawCode));
+        code.setCodePrefix(rawCode.substring(0, 10) + "...");
+        code.setCreditAmount(dto.creditAmount());
+        code.setBatchType(dto.batchType() == null ? "REWARD" : dto.batchType());
+        code.setType(dto.type() == null ? "CREDIT" : dto.type());
+        code.setPlanId(dto.planId());
+        code.setExpiresAt(dto.expiresAt());
+        code.setRemark(dto.remark());
+        return code;
+    }
+
+    private void validateGeneration(CreditRedeemCodeCreateDTO dto) {
+        if ("MEMBERSHIP".equals(dto.type()) && dto.planId() == null) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "会员码必须指定套餐 planId");
+        }
+        if (!"MEMBERSHIP".equals(dto.type())
+                && (dto.creditAmount() == null || dto.creditAmount() < 1)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分码的积分数量需 ≥ 1");
+        }
+    }
+
+    private BusinessException writeUnsupported() {
+        return new BusinessException(GlobalErrorCode.BAD_REQUEST, "兑换码仅支持显式生成，不支持通用写入");
+    }
+
     private void notifyDingtalk(String subject, String content) {
         try {
             messageService.send(
                     MessageRequest.direct(
-                            MessageChannel.DINGTALK, subject, content, java.util.List.of("all")));
-        } catch (Exception e) {
-            log.warn("钉钉通知发送失败: subject={}", subject, e);
+                            MessageChannel.DINGTALK, subject, content, List.of("all")));
+        } catch (Exception exception) {
+            log.warn("钉钉通知发送失败: subject={}", subject, exception);
         }
+    }
+
+    private CreditRedeemCodeVO toVO(
+            CreditRedeemCode code, SubscriptionPlan plan, ResourceRefDTO redeemedBy) {
+        return new CreditRedeemCodeVO(
+                code.getId(),
+                code.getCodePrefix(),
+                code.getCreditAmount(),
+                code.getBatchType(),
+                code.getType(),
+                plan == null ? null : new ResourceRefDTO(plan.getId(), plan.getName(), null),
+                code.getStatus(),
+                code.getExpiresAt(),
+                redeemedBy,
+                code.getRedeemedAt(),
+                code.getRemark(),
+                code.getCreateTime());
     }
 }

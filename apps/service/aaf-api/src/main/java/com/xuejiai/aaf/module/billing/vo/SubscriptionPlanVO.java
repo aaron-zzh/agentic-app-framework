@@ -1,23 +1,24 @@
 package com.xuejiai.aaf.module.billing.vo;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
-/** 订阅套餐展示 VO（含年付价格和权益列表） */
+/** 订阅套餐展示 VO（含客户目录权益和管理元数据）。 */
 public record SubscriptionPlanVO(
         Long id,
         String code,
         String name,
         Integer durationDays,
-        /** 月付价格（分） */
         Long price,
-        /** 年付价格（分）= price * 12 * 0.8 */
         Long yearlyPrice,
-        /** 划线价（分） */
         Long marketPrice,
-        /** 每月发放积分数 */
         Long monthlyCredits,
         String ext,
-        List<PlanEntitlementVO> entitlements) {
+        List<PlanEntitlementVO> entitlements,
+        String status,
+        Integer sort,
+        LocalDateTime createTime,
+        LocalDateTime updateTime) {
 
     public record PlanEntitlementVO(
             String code,

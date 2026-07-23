@@ -2,16 +2,18 @@ package com.xuejiai.aaf.module.billing.vo;
 
 import java.time.LocalDateTime;
 
+import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
+
 public record CreditRedeemCodeVO(
         Long id,
         String codePrefix,
         Long creditAmount,
         String batchType,
         String type,
-        Long planId,
+        ResourceRefDTO plan,
         String status,
         LocalDateTime expiresAt,
-        Long redeemedByUserId,
+        ResourceRefDTO redeemedBy,
         LocalDateTime redeemedAt,
         String remark,
         LocalDateTime createTime) {}

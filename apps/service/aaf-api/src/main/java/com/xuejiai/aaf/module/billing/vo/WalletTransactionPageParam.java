@@ -7,10 +7,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class CreditRedeemCodePageParam extends PageParam {
-    private String status;
+public class WalletTransactionPageParam extends PageParam {
+    private Long accountId;
     private String type;
+    private String category;
     private String batchType;
-    private Long planId;
-    private Long redeemedByUserId;
 }
