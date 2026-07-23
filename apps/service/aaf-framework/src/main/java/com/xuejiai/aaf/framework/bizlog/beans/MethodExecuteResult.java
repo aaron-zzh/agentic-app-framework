@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 
 import lombok.Getter;
 
-/** 方法执行结果，用于 SpEL 解析和日志组装。 */
+/** 方法执行结果，用于 安全模板 解析和日志组装。 */
 @Getter
 public class MethodExecuteResult {
     private boolean success;

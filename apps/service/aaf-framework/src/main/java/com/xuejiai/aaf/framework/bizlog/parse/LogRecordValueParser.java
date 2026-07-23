@@ -1,39 +1,43 @@
 package com.xuejiai.aaf.framework.bizlog.parse;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.context.expression.AnnotatedElementKey;
-import org.springframework.expression.EvaluationContext;
 
 import com.xuejiai.aaf.framework.bizlog.beans.MethodExecuteResult;
 import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
+import com.xuejiai.aaf.framework.logging.SafeLogValueResolver;
 
 /**
- * 操作日志 SpEL 模板解析基类。
+ * 操作日志安全模板解析基类。
  *
  * <p>模板语法：
  *
  * <ul>
- *   <li>{@code {{#param}}} — 普通 SpEL 表达式
- *   <li>{@code {functionName{#param}}} — 调用注册的 IParseFunction
+ *   <li>{@code {{#param}}} — 读取参数或上下文变量
+ *   <li>{@code {functionName{#param}}} — 将安全路径读取的值交给已注册函数
  *   <li>{@code {_DIFF{#newObj}}} 或 {@code {_DIFF{#oldObj, #newObj}}} — diff 函数
  * </ul>
+ *
+ * <p>路径只允许变量名、只读属性和 {@code size()}，不支持类型、Bean、构造器、运算符或任意方法调用。
  */
 public class LogRecordValueParser implements BeanFactoryAware {
 
-    /** 匹配 {functionName{expression}} 格式，functionName 可为空（普通 SpEL）。 */
+    /** 匹配 {functionName{path}} 格式，functionName 可为空。 */
     private static final Pattern PATTERN = Pattern.compile("\\{\\s*(\\w*)\\s*\\{(.*?)}}");
 
     public static final String COMMA = ",";
 
-    private final LogRecordExpressionEvaluator expressionEvaluator =
-            new LogRecordExpressionEvaluator();
+    private final SafeLogValueResolver valueResolver = new SafeLogValueResolver();
     protected BeanFactory beanFactory;
     protected boolean diffSameWhetherSaveLog;
 
@@ -53,34 +57,25 @@ public class LogRecordValueParser implements BeanFactoryAware {
             Collection<String> templates,
             MethodExecuteResult methodExecuteResult,
             Map<String, String> beforeFunctionNameAndReturnMap) {
-        Map<String, String> expressionValues = new HashMap<>();
-        EvaluationContext evaluationContext =
-                expressionEvaluator.createEvaluationContext(
-                        methodExecuteResult.getMethod(), methodExecuteResult.getArgs(),
-                        methodExecuteResult.getTargetClass(), methodExecuteResult.getResult(),
-                        methodExecuteResult.getErrorMsg(), beanFactory);
+        var expressionValues = new HashMap<String, String>();
+        var variables = createVariables(methodExecuteResult);
 
-        for (String expressionTemplate : templates) {
+        for (var expressionTemplate : templates) {
             if (!expressionTemplate.contains("{")) {
                 expressionValues.put(expressionTemplate, expressionTemplate);
                 continue;
             }
-            Matcher matcher = PATTERN.matcher(expressionTemplate);
+            var matcher = PATTERN.matcher(expressionTemplate);
             var parsedStr = new StringBuffer();
-            var elementKey =
-                    new AnnotatedElementKey(
-                            methodExecuteResult.getMethod(), methodExecuteResult.getTargetClass());
             boolean sameDiff = false;
             while (matcher.find()) {
-                String expression = matcher.group(2);
-                String functionName = matcher.group(1);
+                var expression = matcher.group(2);
+                var functionName = matcher.group(1);
                 if (DiffParseFunction.diffFunctionName.equals(functionName)) {
-                    expression = getDiffFunctionValue(evaluationContext, elementKey, expression);
+                    expression = getDiffFunctionValue(variables, expression);
                     sameDiff = Objects.equals("", expression);
                 } else {
-                    Object value =
-                            expressionEvaluator.parseExpression(
-                                    expression, elementKey, evaluationContext);
+                    var value = valueResolver.resolve(expression, variables);
                     expression =
                             logFunctionParser.getFunctionReturnValue(
                                     beforeFunctionNameAndReturnMap,
@@ -102,24 +97,23 @@ public class LogRecordValueParser implements BeanFactoryAware {
 
     public Map<String, String> processBeforeExecuteFunctionTemplate(
             Collection<String> templates, Class<?> targetClass, Method method, Object[] args) {
-        Map<String, String> functionNameAndReturnValueMap = new HashMap<>();
-        EvaluationContext evaluationContext =
-                expressionEvaluator.createEvaluationContext(
-                        method, args, targetClass, null, null, beanFactory);
+        var functionNameAndReturnValueMap = new HashMap<String, String>();
+        var variables = valueResolver.createVariables(method, args, targetClass, null, null);
 
-        for (String expressionTemplate : templates) {
-            if (!expressionTemplate.contains("{")) continue;
-            Matcher matcher = PATTERN.matcher(expressionTemplate);
-            var elementKey = new AnnotatedElementKey(method, targetClass);
+        for (var expressionTemplate : templates) {
+            if (!expressionTemplate.contains("{")) {
+                continue;
+            }
+            var matcher = PATTERN.matcher(expressionTemplate);
             while (matcher.find()) {
-                String expression = matcher.group(2);
-                if (expression.contains("#_ret") || expression.contains("#_errorMsg")) continue;
-                String functionName = matcher.group(1);
+                var expression = matcher.group(2);
+                if (expression.contains("#_ret") || expression.contains("#_errorMsg")) {
+                    continue;
+                }
+                var functionName = matcher.group(1);
                 if (logFunctionParser.beforeFunction(functionName)) {
-                    Object value =
-                            expressionEvaluator.parseExpression(
-                                    expression, elementKey, evaluationContext);
-                    String functionReturnValue =
+                    var value = valueResolver.resolve(expression, variables);
+                    var functionReturnValue =
                             logFunctionParser.getFunctionReturnValue(
                                     null, value, expression, functionName);
                     functionNameAndReturnValueMap.put(
@@ -131,22 +125,23 @@ public class LogRecordValueParser implements BeanFactoryAware {
         return functionNameAndReturnValueMap;
     }
 
-    private String getDiffFunctionValue(
-            EvaluationContext evaluationContext,
-            AnnotatedElementKey elementKey,
-            String expression) {
-        String[] params = parseDiffFunction(expression);
+    private Map<String, Object> createVariables(MethodExecuteResult methodExecuteResult) {
+        return valueResolver.createVariables(
+                methodExecuteResult.getMethod(),
+                methodExecuteResult.getArgs(),
+                methodExecuteResult.getTargetClass(),
+                methodExecuteResult.getResult(),
+                methodExecuteResult.getErrorMsg());
+    }
+
+    private String getDiffFunctionValue(Map<String, Object> variables, String expression) {
+        var params = parseDiffFunction(expression);
         if (params.length == 1) {
-            Object targetObj =
-                    expressionEvaluator.parseExpression(params[0], elementKey, evaluationContext);
-            return diffParseFunction.diff(targetObj);
-        } else {
-            Object sourceObj =
-                    expressionEvaluator.parseExpression(params[0], elementKey, evaluationContext);
-            Object targetObj =
-                    expressionEvaluator.parseExpression(params[1], elementKey, evaluationContext);
-            return diffParseFunction.diff(sourceObj, targetObj);
+            return diffParseFunction.diff(valueResolver.resolve(params[0], variables));
         }
+        var source = valueResolver.resolve(params[0], variables);
+        var target = valueResolver.resolve(params[1], variables);
+        return diffParseFunction.diff(source, target);
     }
 
     private String[] parseDiffFunction(String expression) {
@@ -157,12 +152,12 @@ public class LogRecordValueParser implements BeanFactoryAware {
     }
 
     private boolean shouldRecord(boolean sameDiff) {
-        if (diffSameWhetherSaveLog) return true;
-        return !sameDiff;
+        return diffSameWhetherSaveLog || !sameDiff;
     }
 
     private static int countOccurrences(String src, String find) {
-        int count = 0, index = 0;
+        int count = 0;
+        int index = 0;
         while ((index = src.indexOf(find, index)) != -1) {
             index += find.length();
             count++;

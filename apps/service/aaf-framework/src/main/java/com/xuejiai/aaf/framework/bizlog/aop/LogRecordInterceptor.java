@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * @LogRecord AOP 核心拦截器。
  *
- * <p>执行流程： 1. 方法执行前：解析 executeBefore=true 的自定义函数（保存更新前的旧值） 2. 执行目标方法 3. 方法执行后：解析 SpEL 模板，组装
+ * <p>执行流程： 1. 方法执行前：解析 executeBefore=true 的自定义函数（保存更新前的旧值） 2. 执行目标方法 3. 方法执行后：解析 安全路径模板，组装
  * LogRecord，调用 ILogRecordService 持久化
  */
 @Slf4j

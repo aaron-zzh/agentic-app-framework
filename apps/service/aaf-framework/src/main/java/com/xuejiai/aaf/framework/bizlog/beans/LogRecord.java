@@ -32,7 +32,7 @@ public class LogRecord {
     /** 操作人 ID */
     private String operator;
 
-    /** 操作内容（SpEL 渲染后的文案） */
+    /** 操作内容（安全模板 渲染后的文案） */
     private String action;
 
     /** 是否为失败日志 */

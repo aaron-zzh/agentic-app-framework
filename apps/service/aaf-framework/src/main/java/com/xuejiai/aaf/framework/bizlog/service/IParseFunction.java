@@ -24,7 +24,7 @@ public interface IParseFunction {
     /**
      * 将原始值转换为可读文案。
      *
-     * @param value SpEL 表达式解析出的参数值
+     * @param value 安全路径解析出的参数值
      * @return 可读文案，如 "张三(13800138000)"
      */
     String apply(Object value);

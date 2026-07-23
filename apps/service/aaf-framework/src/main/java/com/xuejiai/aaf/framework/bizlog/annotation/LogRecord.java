@@ -28,7 +28,7 @@ public @interface LogRecord {
     /** 方法执行失败后的日志模板（可引用 {@code _errorMsg} 内置变量）。 */
     String fail() default "";
 
-    /** 操作人（SpEL 表达式），为空时从 IOperatorGetService 自动获取。 */
+    /** 操作人（安全路径），为空时从 IOperatorGetService 自动获取。 */
     String operator() default "";
 
     /** 日志类型，如"订单"、"用户"。 */
@@ -37,17 +37,17 @@ public @interface LogRecord {
     /** 日志子类型，用于区分同类型下不同场景的日志。 */
     String subType() default "";
 
-    /** 业务标识（SpEL 表达式），如订单号、用户 ID。 */
+    /** 业务标识（安全路径），如订单号、用户 ID。 */
     String bizNo();
 
-    /** 额外扩展信息（SpEL 表达式，通常为 JSON 字符串）。 */
+    /** 额外扩展信息（安全路径，通常为 JSON 字符串）。 */
     String extra() default "";
 
-    /** 记录日志的条件（SpEL 表达式），结果为 false 时不记录。 */
+    /** 记录日志的条件（安全路径），结果为 false 时不记录。 */
     String condition() default "";
 
     /**
-     * 成功条件（SpEL 表达式）。 非空时：结果为 true 走 success 模板，结果为 false 走 fail 模板。 为空时：无异常为成功走 success，有异常走 fail。
+     * 成功条件（安全路径）。 非空时：结果为 true 走 success 模板，结果为 false 走 fail 模板。 为空时：无异常为成功走 success，有异常走 fail。
      */
     String successCondition() default "";
 }

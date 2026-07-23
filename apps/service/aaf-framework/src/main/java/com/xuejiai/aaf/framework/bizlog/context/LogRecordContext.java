@@ -8,7 +8,7 @@ import java.util.Map;
 import org.springframework.util.CollectionUtils;
 
 /**
- * 操作日志 SpEL 上下文，支持方法内手动注入额外变量。
+ * 操作日志 安全模板 上下文，支持方法内手动注入额外变量。
  *
  * <p>使用方式：在被 @LogRecord 标注的方法内调用 {@code LogRecordContext.putVariable("key", value)}， 即可在模板中通过
  * {@code {{#key}}} 引用。

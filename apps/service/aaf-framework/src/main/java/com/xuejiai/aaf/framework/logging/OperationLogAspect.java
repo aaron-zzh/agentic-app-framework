@@ -2,15 +2,13 @@ package com.xuejiai.aaf.framework.logging;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Map;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.expression.MethodBasedEvaluationContext;
-import org.springframework.core.DefaultParameterNameDiscoverer;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -28,12 +26,10 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OperationLogAspect {
 
+    private static final SafeLogValueResolver VALUE_RESOLVER = new SafeLogValueResolver();
+
     private final OperatorContext operatorContext;
     private final ApplicationEventPublisher eventPublisher;
-
-    private static final SpelExpressionParser PARSER = new SpelExpressionParser();
-    private static final DefaultParameterNameDiscoverer DISCOVERER =
-            new DefaultParameterNameDiscoverer();
 
     @Around("@annotation(operationLog)")
     public Object around(ProceedingJoinPoint joinPoint, OperationLog operationLog)
@@ -67,17 +63,18 @@ public class OperationLogAspect {
             boolean success,
             String errorMsg,
             long duration) {
-        var method = ((MethodSignature) joinPoint.getSignature()).getMethod();
-        var ctx =
-                new MethodBasedEvaluationContext(
-                        joinPoint.getTarget(), method, joinPoint.getArgs(), DISCOVERER);
-        // 将返回值放入 SpEL 上下文
-        ctx.setVariable("result", result);
+        var signature = (MethodSignature) joinPoint.getSignature();
+        var method = signature.getMethod();
+        var variables =
+                VALUE_RESOLVER.createVariables(
+                        method,
+                        joinPoint.getArgs(),
+                        joinPoint.getTarget().getClass(),
+                        result,
+                        errorMsg);
+        var description = resolveTemplate(annotation.description(), variables);
+        var bizNo = resolveTemplate(annotation.bizNo(), variables);
 
-        var description = resolveSpel(annotation.description(), ctx);
-        var bizNo = resolveSpel(annotation.bizNo(), ctx);
-
-        // 请求信息
         String requestMethod = null;
         String requestUrl = null;
         String ip = null;
@@ -91,7 +88,6 @@ public class OperationLogAspect {
             userAgent = ServletUtils.getUserAgent(request);
         }
 
-        // 请求参数（截断避免过大）
         var params = truncate(Arrays.toString(joinPoint.getArgs()), 2000);
         var responseStr = result != null ? truncate(result.toString(), 2000) : null;
 
@@ -117,37 +113,31 @@ public class OperationLogAspect {
         eventPublisher.publishEvent(event);
     }
 
-    private String resolveSpel(String template, MethodBasedEvaluationContext ctx) {
-        if (template == null || template.isBlank()) {
+    private String resolveTemplate(String template, Map<String, Object> variables) {
+        if (template == null || template.isBlank() || !template.contains("#{")) {
             return template;
         }
-        // 支持 #{} 包裹的 SpEL 表达式
-        if (!template.contains("#{")) {
-            return template;
-        }
-        try {
-            // 提取 #{...} 中的表达式并替换
-            var result = template;
-            while (result.contains("#{")) {
-                var startIdx = result.indexOf("#{");
-                var endIdx = result.indexOf("}", startIdx);
-                if (endIdx == -1) break;
-                var expr = result.substring(startIdx + 2, endIdx);
-                var value = PARSER.parseExpression(expr).getValue(ctx, String.class);
-                result =
-                        result.substring(0, startIdx)
-                                + (value != null ? value : "")
-                                + result.substring(endIdx + 1);
+        var resolved = template;
+        while (resolved.contains("#{")) {
+            var startIndex = resolved.indexOf("#{");
+            var endIndex = resolved.indexOf("}", startIndex);
+            if (endIndex == -1) {
+                throw new IllegalArgumentException("操作日志模板缺少右花括号: " + template);
             }
-            return result;
-        } catch (Exception ex) {
-            log.debug("SpEL 解析失败: {}", template, ex);
-            return template;
+            var path = resolved.substring(startIndex + 2, endIndex);
+            var value = VALUE_RESOLVER.resolve(path, variables);
+            resolved =
+                    resolved.substring(0, startIndex)
+                            + (value == null ? "" : value)
+                            + resolved.substring(endIndex + 1);
         }
+        return resolved;
     }
 
     private String truncate(String str, int maxLen) {
-        if (str == null) return null;
+        if (str == null) {
+            return null;
+        }
         return str.length() > maxLen ? str.substring(0, maxLen) : str;
     }
 }
