@@ -32,7 +32,7 @@ public class EntityDef extends BaseEntity {
     @Column(name = "slug", nullable = false, length = 100)
     private String slug;
 
-    /** 实体配置（JSONB，含 fields 数组） */
+    /** 实体 UI 元数据配置（JSONB） */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "config", nullable = false, columnDefinition = "jsonb")
     private String config;

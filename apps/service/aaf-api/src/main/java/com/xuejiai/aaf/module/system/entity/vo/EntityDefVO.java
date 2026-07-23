@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.entity.vo;
 import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 实体定义响应。
@@ -13,7 +14,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record EntityDefVO(
         Long id,
         String slug,
-        String config,
+        @Schema(description = "由受信任代码资源目录解析的客户端 API 路径", example = "/system/users") String apiPath,
+        JsonNode config,
         Boolean builtin,
         Boolean enabled,
         LocalDateTime createTime,

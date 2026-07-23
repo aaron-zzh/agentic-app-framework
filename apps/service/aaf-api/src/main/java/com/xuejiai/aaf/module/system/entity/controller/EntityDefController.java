@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.system.entity.service.EntityDefService;
+import com.xuejiai.aaf.module.system.entity.vo.EntityDefBootstrapVO;
 import com.xuejiai.aaf.module.system.entity.vo.EntityDefCreateDTO;
 import com.xuejiai.aaf.module.system.entity.vo.EntityDefUpdateDTO;
 import com.xuejiai.aaf.module.system.entity.vo.EntityDefVO;
@@ -34,6 +35,12 @@ import lombok.RequiredArgsConstructor;
 public class EntityDefController {
 
     private final EntityDefService entityDefService;
+
+    @Operation(summary = "加载工作区实体元数据")
+    @GetMapping("/bootstrap")
+    public Result<EntityDefBootstrapVO> bootstrap() {
+        return Result.success(entityDefService.bootstrap());
+    }
 
     @Operation(summary = "查询全量实体定义")
     @GetMapping

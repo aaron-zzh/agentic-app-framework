@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.entity.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 更新实体定义请求。
@@ -8,4 +9,4 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @author AaronZZH & Kiro
  */
 @Schema(description = "更新实体定义")
-public record EntityDefUpdateDTO(String config, Boolean enabled) {}
+public record EntityDefUpdateDTO(JsonNode config, Boolean enabled) {}
