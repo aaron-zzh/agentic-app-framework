@@ -6,9 +6,8 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 
 /**
@@ -16,8 +15,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
  *
  * @author AaronZZH
  */
-public interface AigcTaskRepository
-        extends JpaRepository<AigcTask, Long>, JpaSpecificationExecutor<AigcTask> {
+public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
 
     /** 按用户分页查询（最新在前） */
     Page<AigcTask> findByUserIdOrderByCreateTimeDesc(Long userId, Pageable pageable);

@@ -4,12 +4,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
 import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
 
 /**
@@ -17,8 +16,7 @@ import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
  *
  * @author AaronZZH & Kiro
  */
-public interface ConversationRepository
-        extends JpaRepository<Conversation, Long>, JpaSpecificationExecutor<Conversation> {
+public interface ConversationRepository extends CrudEntityRepository<Conversation> {
 
     Optional<Conversation> findByThreadId(String threadId);
 

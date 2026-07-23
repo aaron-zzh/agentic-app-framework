@@ -3,9 +3,11 @@ package com.xuejiai.aaf.module.system.user.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.vo.UserSimpleVO;
@@ -41,4 +43,17 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query(
             "SELECT new com.xuejiai.aaf.module.system.user.vo.UserSimpleVO(u.id, u.username, u.nickname) FROM User u WHERE u.status = :status")
     List<UserSimpleVO> findSimpleListByStatus(Integer status);
+
+    /** 查询可分配的启用用户，支持用户名和昵称关键字匹配。 */
+    @Query(
+            """
+            SELECT new com.xuejiai.aaf.module.system.user.vo.UserSimpleVO(u.id, u.username, u.nickname)
+            FROM User u
+            WHERE u.status = :status
+              AND (:keyword = '' OR lower(u.username) LIKE lower(concat('%', :keyword, '%'))
+                   OR lower(coalesce(u.nickname, '')) LIKE lower(concat('%', :keyword, '%')))
+            ORDER BY u.nickname ASC, u.username ASC
+            """)
+    List<UserSimpleVO> findPickerOptions(
+            @Param("status") Integer status, @Param("keyword") String keyword, Pageable pageable);
 }

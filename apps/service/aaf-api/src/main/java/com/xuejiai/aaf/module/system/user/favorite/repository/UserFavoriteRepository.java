@@ -2,13 +2,10 @@ package com.xuejiai.aaf.module.system.user.favorite.repository;
 
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.system.user.favorite.domain.UserFavorite;
 
-public interface UserFavoriteRepository
-        extends JpaRepository<UserFavorite, Long>, JpaSpecificationExecutor<UserFavorite> {
+public interface UserFavoriteRepository extends CrudEntityRepository<UserFavorite> {
 
     Optional<UserFavorite> findByUserIdAndTargetTypeAndTargetIdAndDeletedFalse(
             Long userId, String targetType, Long targetId);

@@ -7,13 +7,12 @@ package com.xuejiai.aaf.framework.intelligent.assistant.role;
 
 import java.util.List;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface AiRoleRepository
-        extends JpaRepository<Role, Long>, JpaSpecificationExecutor<Role> {
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
+
+public interface AiRoleRepository extends CrudEntityRepository<Role> {
 
     /**
      * 查询助理挂载的角色（经 ai_assistant_role 关联）。

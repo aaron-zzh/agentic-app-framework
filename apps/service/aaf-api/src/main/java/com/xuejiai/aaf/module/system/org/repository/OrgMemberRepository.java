@@ -20,5 +20,8 @@ public interface OrgMemberRepository extends JpaRepository<OrgMember, Long> {
 
     Optional<OrgMember> findByOrgIdAndUserIdAndDeletedFalse(Long orgId, Long userId);
 
+    List<OrgMember> findByOrgIdAndUserIdInAndDeletedFalse(
+            Long orgId, java.util.Collection<Long> userIds);
+
     boolean existsByOrgIdAndUserIdAndDeletedFalse(Long orgId, Long userId);
 }

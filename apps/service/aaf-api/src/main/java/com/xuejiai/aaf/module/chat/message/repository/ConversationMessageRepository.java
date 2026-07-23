@@ -2,9 +2,7 @@ package com.xuejiai.aaf.module.chat.message.repository;
 
 import java.util.List;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
 
 /**
@@ -12,9 +10,7 @@ import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
  *
  * @author AaronZZH & Kiro
  */
-public interface ConversationMessageRepository
-        extends JpaRepository<ConversationMessage, Long>,
-                JpaSpecificationExecutor<ConversationMessage> {
+public interface ConversationMessageRepository extends CrudEntityRepository<ConversationMessage> {
 
     /** 按会话查询所有消息，按时间升序 */
     List<ConversationMessage> findByConversationIdOrderByCreateTimeAsc(Long conversationId);

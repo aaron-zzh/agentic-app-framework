@@ -5,38 +5,27 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-/** 积分流水仓储 */
-public interface CreditTransactionRepository extends JpaRepository<CreditTransaction, Long> {
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
+
+/** 积分流水仓储。 */
+public interface CreditTransactionRepository extends CrudEntityRepository<CreditTransaction> {
 
     Page<CreditTransaction> findByAccountId(Long accountId, Pageable pageable);
 
-    /**
-     * 查询账户下所有剩余量 > 0 的批次，按扣减优先级排序：
-     * 赠送/奖励类（REWARD/WEEKLY/MANUAL）优先于付费类（SUBSCRIPTION/TOPUP），同类内按过期时间升序（NULL 排最后）。 用于 spend()
-     * 按批次优先扣减。
-     */
     @Query(
             "SELECT t FROM CreditTransaction t WHERE t.accountId = :accountId AND t.remain > 0 AND t.deleted = false ORDER BY CASE t.batchType WHEN 'REWARD' THEN 1 WHEN 'WEEKLY' THEN 2 WHEN 'MANUAL' THEN 3 WHEN 'SUBSCRIPTION' THEN 4 WHEN 'TOPUP' THEN 5 ELSE 6 END ASC, t.expireAt ASC NULLS LAST")
     List<CreditTransaction> findActiveBatchesByAccountId(Long accountId);
 
-    /** 查询已过期且仍有剩余量的批次（供过期清理定时任务使用）。 */
     @Query(
             "SELECT t FROM CreditTransaction t WHERE t.expireAt < :now AND t.remain > 0 AND t.deleted = false")
     List<CreditTransaction> findExpiredBatches(LocalDateTime now);
 
-    /** 按 batch_type 汇总账户下有效批次的剩余积分。 返回 [batchType, sumRemain] 对。 */
     @Query(
             "SELECT t.batchType, SUM(t.remain) FROM CreditTransaction t WHERE t.accountId = :accountId AND t.remain > 0 AND t.deleted = false GROUP BY t.batchType")
     List<Object[]> sumRemainByBatchType(Long accountId);
 
-    /**
-     * 检查指定原扣款流水是否已写过退还流水（幂等保护）。
-     *
-     * <p>退还流水定义：type=EARN AND source=REFUND_SOURCE_TAG AND bizId=String.valueOf(原扣款流水 ID)。
-     */
     @Query(
             "SELECT COUNT(t) > 0 FROM CreditTransaction t WHERE t.type = com.xuejiai.aaf.framework.engine.credit.CreditTransactionType.EARN AND t.source = :refundSource AND t.bizId = :originalTxIdStr AND t.deleted = false")
     boolean existsRefundForOriginalTx(String refundSource, String originalTxIdStr);

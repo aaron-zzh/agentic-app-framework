@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.billing.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,6 +11,8 @@ import com.xuejiai.aaf.module.billing.domain.PlanEntitlement;
 public interface PlanEntitlementRepository extends JpaRepository<PlanEntitlement, Long> {
 
     List<PlanEntitlement> findByPlanId(Long planId);
+
+    List<PlanEntitlement> findByPlanIdIn(Collection<Long> planIds);
 
     Optional<PlanEntitlement> findByPlanIdAndEntId(Long planId, Long entId);
 }

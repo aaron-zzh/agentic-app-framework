@@ -3,14 +3,12 @@ package com.xuejiai.aaf.module.system.dict.repository;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.system.dict.domain.DictData;
 
-public interface DictDataRepository
-        extends JpaRepository<DictData, Long>, JpaSpecificationExecutor<DictData> {
+public interface DictDataRepository extends CrudEntityRepository<DictData> {
 
     List<DictData> findByDictTypeAndStatusAndDeletedFalseOrderBySort(
             String dictType, Integer status);

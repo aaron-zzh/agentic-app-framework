@@ -4,11 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.billing.domain.EntitlementQuota;
 
-public interface EntitlementQuotaRepository extends JpaRepository<EntitlementQuota, Long> {
+public interface EntitlementQuotaRepository extends CrudEntityRepository<EntitlementQuota> {
 
     Optional<EntitlementQuota> findByUserIdAndEntId(Long userId, Long entId);
 
@@ -21,6 +20,5 @@ public interface EntitlementQuotaRepository extends JpaRepository<EntitlementQuo
             @org.springframework.data.repository.query.Param("userId") Long userId,
             @org.springframework.data.repository.query.Param("code") String code);
 
-    /** 查找需要重置的额度（next_reset_at <= 当前时间） */
     List<EntitlementQuota> findByNextResetAtLessThanEqual(LocalDateTime now);
 }

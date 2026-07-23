@@ -3,10 +3,8 @@ package com.xuejiai.aaf.module.system.lead.repository;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
 import com.xuejiai.aaf.common.enums.lead.LeadChannelEnum;
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.system.lead.domain.GuestLead;
 
 /**
@@ -14,8 +12,7 @@ import com.xuejiai.aaf.module.system.lead.domain.GuestLead;
  *
  * @author AaronZZH & Kiro
  */
-public interface GuestLeadRepository
-        extends JpaRepository<GuestLead, Long>, JpaSpecificationExecutor<GuestLead> {
+public interface GuestLeadRepository extends CrudEntityRepository<GuestLead> {
 
     /** 按 anonymousId + channel 查询访客的动作记录（按创建时间倒序） */
     List<GuestLead> findByAnonymousIdAndChannelOrderByCreateTimeDesc(

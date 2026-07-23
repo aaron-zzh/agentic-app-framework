@@ -5,8 +5,6 @@
  */
 package com.xuejiai.aaf.framework.intelligent.assistant.persona;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 
-public interface PersonaRepository
-        extends JpaRepository<Persona, Long>, JpaSpecificationExecutor<Persona> {}
+public interface PersonaRepository extends CrudEntityRepository<Persona> {}

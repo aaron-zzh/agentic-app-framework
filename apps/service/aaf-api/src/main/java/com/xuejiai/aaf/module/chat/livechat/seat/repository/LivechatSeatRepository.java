@@ -3,11 +3,10 @@ package com.xuejiai.aaf.module.chat.livechat.seat.repository;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.common.enums.chat.SeatTypeEnum;
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.chat.livechat.seat.domain.LivechatSeat;
 
 /**
@@ -15,8 +14,7 @@ import com.xuejiai.aaf.module.chat.livechat.seat.domain.LivechatSeat;
  *
  * @author AaronZZH & Kiro
  */
-public interface LivechatSeatRepository
-        extends JpaRepository<LivechatSeat, Long>, JpaSpecificationExecutor<LivechatSeat> {
+public interface LivechatSeatRepository extends CrudEntityRepository<LivechatSeat> {
 
     Optional<LivechatSeat> findByUserId(Long userId);
 

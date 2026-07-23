@@ -21,5 +21,8 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
     Optional<WorkspaceMember> findByWorkspaceIdAndUserIdAndDeletedFalse(
             Long workspaceId, Long userId);
 
+    List<WorkspaceMember> findByWorkspaceIdAndUserIdInAndDeletedFalse(
+            Long workspaceId, java.util.Collection<Long> userIds);
+
     boolean existsByWorkspaceIdAndUserIdAndDeletedFalse(Long workspaceId, Long userId);
 }

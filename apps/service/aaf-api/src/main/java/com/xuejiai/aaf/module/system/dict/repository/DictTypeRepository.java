@@ -2,16 +2,13 @@ package com.xuejiai.aaf.module.system.dict.repository;
 
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.system.dict.domain.DictType;
 
 /**
  * @author AaronZZH & Kiro
  */
-public interface DictTypeRepository
-        extends JpaRepository<DictType, Long>, JpaSpecificationExecutor<DictType> {
+public interface DictTypeRepository extends CrudEntityRepository<DictType> {
 
     boolean existsByTypeAndDeletedFalse(String type);
 

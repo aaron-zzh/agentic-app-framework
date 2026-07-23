@@ -2,9 +2,8 @@ package com.xuejiai.aaf.module.system.log.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.system.log.domain.Comment;
 
 /**
@@ -12,8 +11,7 @@ import com.xuejiai.aaf.module.system.log.domain.Comment;
  *
  * @author AaronZZH & Kiro
  */
-public interface CommentRepository
-        extends JpaRepository<Comment, Long>, JpaSpecificationExecutor<Comment> {
+public interface CommentRepository extends CrudEntityRepository<Comment> {
 
     Page<Comment> findByEntityTypeAndEntityId(String entityType, Long entityId, Pageable pageable);
 }
