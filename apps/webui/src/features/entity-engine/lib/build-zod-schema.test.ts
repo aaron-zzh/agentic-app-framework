@@ -16,6 +16,25 @@ describe("buildZodSchema", () => {
     expect(schema.safeParse({}).success).toBe(false)
   })
 
+  it("should report a field-level required message for missing required values", () => {
+    const fields: FieldDef[] = [
+      { type: "text", name: "title", label: "标题", required: true },
+      { type: "select", name: "tags", label: "标签", multiple: true, required: true },
+      { type: "number", name: "priority", label: "优先级", required: true }
+    ]
+    const schema = buildZodSchema(fields)
+
+    const result = schema.safeParse({ title: " ", tags: [], priority: Number.NaN })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues.map((issue) => issue.message)).toEqual([
+      "标题不能为空",
+      "标签不能为空",
+      "优先级不能为空"
+    ])
+  })
+
   it("should allow empty optional field", () => {
     const fields: FieldDef[] = [{ type: "text", name: "note" }]
     const schema = buildZodSchema(fields)

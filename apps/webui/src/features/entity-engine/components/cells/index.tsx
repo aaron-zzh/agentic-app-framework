@@ -3,6 +3,9 @@
  * @author AaronZZH & Kiro
  */
 
+import Link from "next/link"
+import { paths } from "@/lib/constants/paths"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 import type { CellProps, RelationshipField, SelectField } from "../../types"
 
 /** 文本单元格 */
@@ -114,7 +117,7 @@ export function RelationCell({ value, field }: CellProps<unknown>) {
     : String(value)
   const avatar = obj?.avatar ?? obj?.imgUrl ?? obj?.avatarUrl
   const color = obj?.color as string | undefined
-  const id = obj?.id as string | undefined
+  const id = obj?.id
 
   const inner = (
     <div className="flex items-center gap-1.5">
@@ -142,13 +145,16 @@ export function RelationCell({ value, field }: CellProps<unknown>) {
 
   if (!id || !rel?.relationTo) return inner
 
+  const target = entityRegistry.getByResource(rel.relationTo)
+  if (!target) return inner
+
   return (
-    <a
-      href={`/workspace/${rel.relationTo}/${id}`}
+    <Link
+      href={paths.workspace.record(target.slug, String(id))}
       className="hover:underline"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
     >
       {inner}
-    </a>
+    </Link>
   )
 }

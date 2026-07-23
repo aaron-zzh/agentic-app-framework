@@ -31,7 +31,25 @@ export function buildZodSchema(fields: FieldDef[]): z.ZodObject<Record<string, z
 /** 根据单个字段定义生成对应的 Zod schema */
 function buildFieldSchema(field: DataFieldDef): z.ZodTypeAny {
   const base = buildBaseSchema(field)
-  return field.required ? base : base.optional()
+  if (!field.required) return base.optional()
+
+  const required = z.union([base, z.undefined()]).refine((value) => value !== undefined, {
+    message: `${field.label ?? field.name}不能为空`
+  })
+
+  return z.preprocess(normalizeRequiredValue, required)
+}
+
+function normalizeRequiredValue(value: unknown): unknown {
+  if (
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "") ||
+    (Array.isArray(value) && value.length === 0) ||
+    (typeof value === "number" && Number.isNaN(value))
+  ) {
+    return undefined
+  }
+  return value
 }
 
 function buildBaseSchema(field: DataFieldDef): z.ZodTypeAny {
