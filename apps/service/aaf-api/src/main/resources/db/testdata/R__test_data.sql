@@ -95,8 +95,8 @@ WHERE o.slug = 'team-todo-test'
 
 -- todo_member_test 在该组织下建一条待办，assigneeId 指向自己
 WITH inserted AS (
-    INSERT INTO sys_todo (title, assignee_id, org_id, create_by)
-    SELECT '验证组织内越权放行', u.id, o.id, u.id
+    INSERT INTO sys_todo (title, assignee_id, org_id, due_date, create_by)
+    SELECT '验证组织内越权放行', u.id, o.id, CURRENT_TIMESTAMP + INTERVAL '2 days', u.id
     FROM sys_user u
     JOIN sys_organization o ON o.slug = 'team-todo-test'
     WHERE u.username = 'todo_member_test'
