@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.config;
 
+import java.util.Map;
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authorization.AuthorizationDeniedException;
@@ -17,6 +20,7 @@ import com.xuejiai.aaf.common.exception.InsufficientCreditsException;
 import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.protection.RateLimitExceededException;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationChallengeRequiredException;
 import com.xuejiai.aaf.framework.security.license.LicenseRequiredException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -98,6 +102,19 @@ public class GlobalExceptionHandler {
                 e.getRequired(),
                 e.getRemain());
         return Result.error(402, "存储空间已满，请升级套餐或清理文件");
+    }
+
+    /** 授权 challenge 需要先由本人批准，再以原请求继续。 */
+    @ExceptionHandler(AuthorizationChallengeRequiredException.class)
+    public ResponseEntity<Result<Map<String, UUID>>> handleAuthorizationChallengeRequired(
+            AuthorizationChallengeRequiredException e) {
+        log.info("授权确认待处理: challengeId={}", e.getChallengeId());
+        var body =
+                new Result<>(
+                        HttpStatus.PRECONDITION_REQUIRED.value(),
+                        e.getMessage(),
+                        Map.of("challengeId", e.getChallengeId()));
+        return ResponseEntity.status(HttpStatus.PRECONDITION_REQUIRED).body(body);
     }
 
     /** 业务异常——根据业务码动态映射 HTTP 状态码 */

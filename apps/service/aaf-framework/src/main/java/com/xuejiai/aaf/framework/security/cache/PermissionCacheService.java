@@ -12,7 +12,7 @@ import java.util.Set;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 
 import lombok.RequiredArgsConstructor;
 

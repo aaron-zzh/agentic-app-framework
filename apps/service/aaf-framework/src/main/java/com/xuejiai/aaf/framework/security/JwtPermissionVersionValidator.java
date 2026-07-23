@@ -5,7 +5,7 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 
 import lombok.RequiredArgsConstructor;
 

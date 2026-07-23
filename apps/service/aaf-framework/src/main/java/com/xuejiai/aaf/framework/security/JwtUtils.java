@@ -14,7 +14,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 
-import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 
 /** JWT 签发工具，基于 Spring Security 的 JwtEncoder（nimbus-jose）+ Redis 存储 refreshToken。 */
 public class JwtUtils {
