@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.framework.security.access.PermissionVersionService;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.cache.PermissionCacheService;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.permission.domain.PermissionCode;

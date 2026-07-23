@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.framework.security.access.FunctionPermissionChecker;
+import com.xuejiai.aaf.framework.security.authorization.FunctionPermissionChecker;
 import com.xuejiai.aaf.framework.security.cache.PermissionCacheService;
 import com.xuejiai.aaf.module.system.permission.repository.PermissionCodeRepository;
 import com.xuejiai.aaf.module.system.role.domain.Role;

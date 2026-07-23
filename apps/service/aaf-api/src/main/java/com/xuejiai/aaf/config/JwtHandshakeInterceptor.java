@@ -10,8 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
-import com.xuejiai.aaf.framework.security.access.AccessContext;
-import com.xuejiai.aaf.framework.security.access.AccessLayer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +46,6 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             var jwt = jwtDecoder.decode(token);
             var userId = Long.valueOf(jwt.getSubject());
             attributes.put(ATTR_USER_ID, userId);
-            AccessContext.markProcessed(AccessLayer.INTERCEPTOR);
             log.debug("WebSocket 握手认证通过: userId={}", userId);
             return true;
         } catch (Exception e) {
