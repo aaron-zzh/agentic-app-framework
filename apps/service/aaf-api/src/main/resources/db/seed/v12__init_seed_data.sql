@@ -26,7 +26,31 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 ('contact',  'contact.wechat_qr_image',      NULL,          NULL,          'string',  '微信客服二维码',       '微信客服二维码图片 URL，公开接口可读取', TRUE,  TRUE),
 ('examples', 'examples.agentscope_rate_limit_per_minute', '20', '20', 'integer', 'AgentScope示例限流（次/分钟/IP）', 'AgentScope示例接口每个IP每分钟最多调用次数', TRUE, TRUE),
 ('sms',      'sms.rate_limit.max_per_minute',            '1',  '1',  'integer', '短信每分钟限制',                   '同一手机号每分钟最多发送短信次数',                   TRUE,  TRUE),
-('sms',      'sms.rate_limit.max_per_hour',              '5',  '5',  'integer', '短信每小时限制',                   '同一手机号每小时最多发送短信次数',                   TRUE,  TRUE)
+('sms',      'sms.rate_limit.max_per_hour',              '5',  '5',  'integer', '短信每小时限制',                   '同一手机号每小时最多发送短信次数',                   TRUE,  TRUE),
+-- AIGC Mock 系统参数（开发调试用，默认开启）
+('aigc', 'aigc.mock_enabled', 'true', 'true', 'boolean', 'AIGC Mock 开关',
+ '开启后所有 AIGC 生成任务跳过真实 API 调用，直接返回 aigc.mock_data 中的固定值，适用于开发调试', TRUE, TRUE),
+('aigc', 'aigc.mock_data',
+ '{"image":"https://picsum.photos/720","video":"https://www.w3schools.com/html/mov_bbb.mp4","model3d":"","text":"这是一段 Mock 固定文字内容","audio":"https://www.w3schools.com/html/horse.ogg"}',
+ '{"image":"","video":"","model3d":"","text":"","audio":""}',
+ 'json', 'AIGC Mock 数据',
+ 'JSON 格式，各类型固定返回值，key 为 image/video/model3d/text/audio', TRUE, TRUE),
+-- 会员与积分 FAQ（订阅与积分定价页展示）
+-- 前端通过 GET /api/public/system/configs/member.faq 读取（无需登录）
+-- 前端 DEFAULT_MEMBER_FAQ 仍保留作为接口不可达时的兜底
+-- 退款联系邮箱在文案中固定写运营邮箱（业务数据，由运营在 admin UI 维护）
+('member', 'member.faq',
+$$[{"q":"什么是积分，我如何获得？","a":"积分是 AAF 平台的标准计量单位。当你使用 AI 模型对话、图像 / 视频生成、知识库检索、工作流执行等功能时，系统会根据所使用的模型类型、调用次数、Token 消耗、生成时长、分辨率等参数自动扣除相应积分。\n\n你可以通过以下方式获取积分：\n• 订阅获取（Subscription Credits）：订阅会员套餐后，每月可获得固定额度积分，有效期 30 天\n• 充值获取（Top-up Credits）：在「积分详情」页通过订单充值获得，有效期 2 年（自发放之日起计算）\n• 每周积分（Weekly Credits）：每周一 00:01 自动刷新，有效期 7 天\n• 邀请奖励积分（Invite Bonus Credits）：成功邀请用户注册后获取，有效期 30 天\n• 活动奖励积分（Event Bonus Credits）：参与社区计划或运营活动获得，发放数量与有效期以活动规则为准\n\n⚠️ 积分规则、奖励政策及相关活动机制可能根据运营需要进行调整，调整可在提前通知或不提前通知的情况下进行。在法律允许的范围内，AAF 保留相关规则的最终解释权。"},{"q":"积分在使用过程中如何扣除？","a":"积分计费规则：积分的具体消耗以「积分详情」页中的模型与计费规则为准，不同模型、不同分辨率、不同生成时长所消耗的积分不同。\n\n积分扣除顺序：系统将优先扣除更快到期的积分，以最大程度保障你的积分使用权益。\n\n异常退还：若因系统问题导致执行失败，系统将自动退还相应积分，无需手动申请。\n\n⚠️ 免费体验期间将启用防刷与防自动化滥用机制，相关使用规则可能根据平台稳定性与公平性需要进行动态调整。"},{"q":"订阅是如何运作的？","a":"AAF 提供灵活的月度与年度订阅方案，每个方案都包含一定数量的积分，可用于对话、图像生成、视频生成、知识库检索、工作流执行等功能。\n\n当你升级订阅时：\n• 旧套餐仅按已使用积分比例计费\n• 剩余未使用余额将自动抵扣至新套餐\n• 你仅需支付补齐差价\n• 新的订阅周期将从升级当日重新计算"},{"q":"订阅会自动续费吗？","a":"会的。订阅将在每个计费周期结束时自动续费，除非你在续费日前主动取消。"},{"q":"如何修改或取消订阅？","a":"你可以随时进行升级：免费 → 高级 → 专业 → 企业，按月付费 → 按年付费。\n\n取消订阅方式：\n1. 进入「设置 → 价格套餐」\n2. 点击「管理订阅」\n3. 选择「取消订阅」\n\n取消后，你仍可在当前订阅周期内继续使用订阅权益；周期结束后订阅将自动失效，并不再进行自动续费。"},{"q":"我如何申请退款？","a":"如果你在最近一次付款后未有任何积分消耗记录（包括对话、图像 / 视频生成、知识库检索、工作流执行等），可在购买后 7 天内申请全额退款。\n\n若因系统问题导致执行失败，我们将自动进行相应积分退还，无需手动申请。\n\n如需申请退款，请联系 service@xuejiai.com。退款通常会在 5–10 个工作日内退回原支付方式。"}]$$,
+ '[]',
+ 'json', '会员与积分常见问题',
+ '订阅与积分定价页 FAQ 列表，JSON 数组格式 [{"q":"...","a":"..."}]', TRUE, TRUE),
+('member', 'member.expiry_reminder_days', '7', '7', 'integer',
+ '订阅到期提醒提前天数', '订阅 end_at 前几天发送提醒（含当天）', TRUE, TRUE),
+-- 分销配置
+('brokerage', 'brokerage.enabled_condition', 'MANUAL', 'MANUAL', 'string',
+ '分销资格获取条件',
+ 'ALL=全员自动 / PAID=付费套餐激活后自动 / MANUAL=手动授权',
+ TRUE, TRUE)
 ON CONFLICT (config_key) DO NOTHING;
 
 INSERT INTO sys_file_config (name, storage_type, config, master, status)
@@ -173,6 +197,24 @@ VALUES
     ('开发者订阅套餐更新', 'developer:subscription-plan:update', 'developer', 'subscription-plan', 'update',  0),
     ('开发者订阅套餐删除', 'developer:subscription-plan:delete', 'developer', 'subscription-plan', 'delete',  0),
     ('开发者订阅套餐导出', 'developer:subscription-plan:export', 'developer', 'subscription-plan', 'export',  0),
+    ('会员等级读取',       'billing:level:read',                  'billing',   'level',             'read',    0),
+    ('会员等级创建',       'billing:level:create',                'billing',   'level',             'create',  0),
+    ('会员等级更新',       'billing:level:update',                'billing',   'level',             'update',  0),
+    ('会员等级删除',       'billing:level:delete',                'billing',   'level',             'delete',  0),
+    ('会员等级导出',       'billing:level:export',                'billing',   'level',             'export',  0),
+    ('订阅套餐读取',       'billing:subscription-plan:read',      'billing',   'subscription-plan', 'read',    0),
+    ('订阅套餐创建',       'billing:subscription-plan:create',    'billing',   'subscription-plan', 'create',  0),
+    ('订阅套餐更新',       'billing:subscription-plan:update',    'billing',   'subscription-plan', 'update',  0),
+    ('订阅套餐删除',       'billing:subscription-plan:delete',    'billing',   'subscription-plan', 'delete',  0),
+    ('订阅套餐导出',       'billing:subscription-plan:export',    'billing',   'subscription-plan', 'export',  0),
+    ('用户订阅读取',       'billing:subscription:read',           'billing',   'subscription',      'read',    0),
+    ('用户订阅导出',       'billing:subscription:export',         'billing',   'subscription',      'export',  0),
+    ('权益额度读取',       'billing:entitlement-quota:read',      'billing',   'entitlement-quota', 'read',    0),
+    ('权益额度导出',       'billing:entitlement-quota:export',    'billing',   'entitlement-quota', 'export',  0),
+    ('钱包流水读取',       'billing:wallet-transaction:read',     'billing',   'wallet-transaction','read',    0),
+    ('钱包流水导出',       'billing:wallet-transaction:export',   'billing',   'wallet-transaction','export',  0),
+    ('积分兑换码读取',     'billing:credit-redeem-code:read',     'billing',   'credit-redeem-code','read',    0),
+    ('积分兑换码导出',     'billing:credit-redeem-code:export',   'billing',   'credit-redeem-code','export',  0),
     ('工具执行',           'tool:default:execute',               'tool',      'default',           'execute', 0),
     ('业务动作工具执行',   'tool:business-action:execute',       'tool',      'business-action',   'execute', 0),
     ('图片生成工具执行',   'tool:image-generate:execute',        'tool',      'image-generate',    'execute', 0),
@@ -245,7 +287,7 @@ items (group_title, title, path, icon, sort_order, visible) AS (
     -- 管理
     ('管理',     'AI 模型',    '/system/model',               'cpu',               0,  true),
     ('管理',     '兑换码',     '/module/credit-redeem-code',  'ticket',            1,  true),
-    ('管理',     '待办管理',   '/todos',                      'check-square',      4,  true),
+    ('管理',     '待办管理',   '/module/todo',                'check-square',      4,  true),
     -- 系统
     ('系统',     '系统参数',   '/admin/system-config',        'sliders-horizontal',0,  true),
     ('系统',     '回收站',     '/trash',                      'trash-2',           1,  true),
@@ -939,37 +981,7 @@ E'为以上主题生成 5 个开头钩子（每个不超过 30 字）：\n- 制�
 
 ON CONFLICT DO NOTHING;
 
--- ============================================================
--- AIGC Mock 系统参数（开发调试用，默认开启）
--- ============================================================
-INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable) VALUES
-('aigc', 'aigc.mock_enabled', 'true', 'true', 'boolean', 'AIGC Mock 开关',
- '开启后所有 AIGC 生成任务跳过真实 API 调用，直接返回 aigc.mock_data 中的固定值，适用于开发调试', TRUE, TRUE),
-('aigc', 'aigc.mock_data',
- '{"image":"https://picsum.photos/720","video":"https://www.w3schools.com/html/mov_bbb.mp4","model3d":"","text":"这是一段 Mock 固定文字内容","audio":"https://www.w3schools.com/html/horse.ogg"}',
- '{"image":"","video":"","model3d":"","text":"","audio":""}',
- 'json', 'AIGC Mock 数据',
- 'JSON 格式，各类型固定返回值，key 为 image/video/model3d/text/audio', TRUE, TRUE)
-ON CONFLICT (config_key) DO NOTHING;
-
--- ============================================================
--- 会员与积分 FAQ（订阅与积分定价页展示）
--- 前端通过 GET /api/public/system/configs/member.faq 读取（无需登录）
--- 前端 DEFAULT_MEMBER_FAQ 仍保留作为接口不可达时的兜底
--- 退款联系邮箱在文案中固定写运营邮箱（业务数据，由运营在 admin UI 维护）
--- ============================================================
-INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable) VALUES
-('member', 'member.faq',
-$$[{"q":"什么是积分，我如何获得？","a":"积分是 AAF 平台的标准计量单位。当你使用 AI 模型对话、图像 / 视频生成、知识库检索、工作流执行等功能时，系统会根据所使用的模型类型、调用次数、Token 消耗、生成时长、分辨率等参数自动扣除相应积分。\n\n你可以通过以下方式获取积分：\n• 订阅获取（Subscription Credits）：订阅会员套餐后，每月可获得固定额度积分，有效期 30 天\n• 充值获取（Top-up Credits）：在「积分详情」页通过订单充值获得，有效期 2 年（自发放之日起计算）\n• 每周积分（Weekly Credits）：每周一 00:01 自动刷新，有效期 7 天\n• 邀请奖励积分（Invite Bonus Credits）：成功邀请用户注册后获取，有效期 30 天\n• 活动奖励积分（Event Bonus Credits）：参与社区计划或运营活动获得，发放数量与有效期以活动规则为准\n\n⚠️ 积分规则、奖励政策及相关活动机制可能根据运营需要进行调整，调整可在提前通知或不提前通知的情况下进行。在法律允许的范围内，AAF 保留相关规则的最终解释权。"},{"q":"积分在使用过程中如何扣除？","a":"积分计费规则：积分的具体消耗以「积分详情」页中的模型与计费规则为准，不同模型、不同分辨率、不同生成时长所消耗的积分不同。\n\n积分扣除顺序：系统将优先扣除更快到期的积分，以最大程度保障你的积分使用权益。\n\n异常退还：若因系统问题导致执行失败，系统将自动退还相应积分，无需手动申请。\n\n⚠️ 免费体验期间将启用防刷与防自动化滥用机制，相关使用规则可能根据平台稳定性与公平性需要进行动态调整。"},{"q":"订阅是如何运作的？","a":"AAF 提供灵活的月度与年度订阅方案，每个方案都包含一定数量的积分，可用于对话、图像生成、视频生成、知识库检索、工作流执行等功能。\n\n当你升级订阅时：\n• 旧套餐仅按已使用积分比例计费\n• 剩余未使用余额将自动抵扣至新套餐\n• 你仅需支付补齐差价\n• 新的订阅周期将从升级当日重新计算"},{"q":"订阅会自动续费吗？","a":"会的。订阅将在每个计费周期结束时自动续费，除非你在续费日前主动取消。"},{"q":"如何修改或取消订阅？","a":"你可以随时进行升级：免费 → 高级 → 专业 → 企业，按月付费 → 按年付费。\n\n取消订阅方式：\n1. 进入「设置 → 价格套餐」\n2. 点击「管理订阅」\n3. 选择「取消订阅」\n\n取消后，你仍可在当前订阅周期内继续使用订阅权益；周期结束后订阅将自动失效，并不再进行自动续费。"},{"q":"我如何申请退款？","a":"如果你在最近一次付款后未有任何积分消耗记录（包括对话、图像 / 视频生成、知识库检索、工作流执行等），可在购买后 7 天内申请全额退款。\n\n若因系统问题导致执行失败，我们将自动进行相应积分退还，无需手动申请。\n\n如需申请退款，请联系 service@xuejiai.com。退款通常会在 5–10 个工作日内退回原支付方式。"}]$$,
- '[]',
- 'json', '会员与积分常见问题',
- '订阅与积分定价页 FAQ 列表，JSON 数组格式 [{"q":"...","a":"..."}]', TRUE, TRUE)
-ON CONFLICT (config_key) DO NOTHING;
-
-INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable)
-VALUES ('member', 'member.expiry_reminder_days', '7', '7', 'integer',
-        '订阅到期提醒提前天数', '订阅 end_at 前几天发送提醒（含当天）', TRUE, TRUE)
-ON CONFLICT (config_key) DO NOTHING;
+-- 注：AIGC Mock 参数、会员与积分 FAQ、订阅到期提醒天数已合并至文件顶部「系统配置」INSERT 块
 
 -- ==================== 分销菜单 ====================
 
@@ -999,15 +1011,7 @@ BEGIN
   );
 END $$;
 
--- ==================== 分销配置 ====================
-
-INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable)
-VALUES
-('brokerage', 'brokerage.enabled_condition', 'MANUAL', 'MANUAL', 'string',
- '分销资格获取条件',
- 'ALL=全员自动 / PAID=付费套餐激活后自动 / MANUAL=手动授权',
- TRUE, TRUE)
-ON CONFLICT (config_key) DO NOTHING;
+-- 注：分销资格获取条件（brokerage.enabled_condition）已合并至文件顶部「系统配置」INSERT 块
 
 -- ==================== 默认佣金规则 ====================
 -- 兜底规则（biz_target_type 和 biz_target_id 均为 NULL，匹配该 biz_type 下所有目标）。
@@ -1124,11 +1128,7 @@ WHERE r.code = 'sales'
 ON CONFLICT DO NOTHING;
 
 
--- ==================== 联系配置 ====================
-INSERT INTO sys_config (category, config_key, value, default_value, value_type, name, description, visible, editable)
-VALUES ('contact', 'contact.wechat_qr_image', NULL, NULL, 'string',
-        '微信客服二维码', '微信客服二维码图片 URL，公开接口可读取', TRUE, TRUE)
-ON CONFLICT (config_key) DO NOTHING;
+-- 注：微信客服二维码配置（contact.wechat_qr_image）已合并至文件顶部「系统配置」INSERT 块
 
 
 -- ============================================================
@@ -1204,19 +1204,19 @@ VALUES
      'LEGENDARY', 'VIP', 15)
 ON CONFLICT (code) DO NOTHING;
 
--- ==================== 文案智能体技能（7 个：COPYWRITING/STRATEGY） ====================
+-- ==================== 文案智能体技能（8 个：COPYWRITING/STRATEGY） ====================
 INSERT INTO ai_skill_definition (code, name, description, category, system_prompt, priority, status, built_in)
 VALUES
     ('voiceover', '口播文案',
      '短视频/直播口播稿，带节奏 + 钩子 + 转化',
      'COPYWRITING',
-     '你是一位专业短视频口播文案师，擅长为各类品牌和内容创作者打磨口播稿件。你熟悉各平台受众心理（抖音/视频号/快手），能精准把握节奏感和情绪张力。创作时，前 3 秒必须抓住注意力（用痛点、反常识或强悬念），中段清晰传递核心价值，结尾给出明确的行动指令。语言口语化、有画面感，适合真人配音朗读。每次输出请标注字数和预计朗读时长。',
+     '你是一位专业短视频口播文案师，擅长为各类品牌和内容创作者打磨口播稿件。你熟悉各平台受众心理（抖音/视频号/快手），能精准把握节奏感和情绪张力。创作时，前 3 秒必须抓住注意力（用痛点、反常识或强悬念），中段清晰传递核心价值，结尾给出明确的行动指令。语言口语化、有画面感，适合真人配音朗读。每次输出请标注字数和预计朗读时长。输出格式：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构。',
      100, 'active', TRUE),
 
     ('redbook', '小红书爆款',
      '标题 + 正文 + 标签，符合平台算法偏好',
      'COPYWRITING',
-     '你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。',
+     '你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。输出格式：直接输出纯文本，不要使用 Markdown 语法。',
      90, 'active', TRUE),
 
     ('product-copy', '产品文案',
@@ -1247,7 +1247,13 @@ VALUES
      '市场洞察 / 竞品对标 / SWOT 分析',
      'STRATEGY',
      '你是资深商业分析师和战略顾问，有丰富的行业研究和竞争分析经验。你能快速梳理市场格局，识别机会与风险。分析框架包括：市场规模与增速（TAM/SAM/SOM）、用户画像与需求洞察、竞品对标分析（功能/定价/渠道/口碑）、SWOT 矩阵、建议切入策略。输出结构清晰，结论简明，数据来源透明，适合用于决策汇报和商业计划书。',
-     40, 'active', TRUE)
+     40, 'active', TRUE),
+
+    ('rich-text-write', '文档 AI 写作',
+     '富文本编辑器内联生成，通用写作助手',
+     'COPYWRITING',
+     '你是专业的写作助手，服务于富文本文档编辑场景。根据用户输入的写作指令生成内容，直接输出正文，不要加任何前缀说明或额外解释。若用户提供了参考文本（选中内容），请在语义和风格上与其保持连贯衔接。使用标准 Markdown 格式（`##` 标题、`-` 列表、`**粗体**` 等）组织结构，确保生成内容可直接插入文档使用。',
+     30, 'active', TRUE)
 ON CONFLICT (code) WHERE code IS NOT NULL AND deleted = FALSE DO NOTHING;
 
 
