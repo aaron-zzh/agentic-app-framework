@@ -118,11 +118,12 @@ public record ExecutionEvent(
         COMPLETED,
         CANCELED,
         FAILED,
+        REJECTED,
         RECOVERING;
 
         /** 是否为不可继续追加业务执行事件的终态。 */
         public boolean isTerminal() {
-            return this == COMPLETED || this == CANCELED || this == FAILED;
+            return this == COMPLETED || this == CANCELED || this == FAILED || this == REJECTED;
         }
     }
 }

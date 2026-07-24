@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
@@ -29,6 +30,12 @@ import io.agentscope.core.message.ToolResultState;
 
 /** 将 AgentScope 运行事件收敛为稳定、脱敏的 AAF 事件。 */
 public final class AgentScopeEventMapper {
+
+    private final ToolResultEvidenceStore evidenceStore;
+
+    public AgentScopeEventMapper(ToolResultEvidenceStore evidenceStore) {
+        this.evidenceStore = evidenceStore;
+    }
 
     /** 映射单个运行事件；不对外暴露思考链和工具参数。 */
     public Optional<ExecutionEvent> map(
@@ -187,6 +194,21 @@ public final class AgentScopeEventMapper {
             ToolResultEndEvent source, AgentExecutionCommand command, MappingState state) {
         var resultState = source.getState();
         var successful = resultState == ToolResultState.SUCCESS;
+        var evidence =
+                evidenceStore
+                        .take(command.context().executionId(), source.getToolCallId())
+                        .orElseGet(java.util.Map::of);
+        if (!successful && Boolean.TRUE.equals(evidence.get("authorizationRequired"))) {
+            state.status(ExecutionEventStatus.AWAITING_AUTHORIZATION);
+            var values = toolResultPayload(source, resultState, evidence);
+            return event(
+                    source,
+                    command,
+                    state,
+                    ExecutionEventType.AUTHORIZATION_REQUESTED,
+                    ExecutionEventStatus.AWAITING_AUTHORIZATION,
+                    new ExecutionEventPayload(values));
+        }
         return event(
                 source,
                 command,
@@ -195,13 +217,19 @@ public final class AgentScopeEventMapper {
                         ? ExecutionEventType.TOOL_CALL_COMPLETED
                         : ExecutionEventType.TOOL_CALL_FAILED,
                 state.status(),
-                payload(
-                        "toolCallId",
-                        source.getToolCallId(),
-                        "toolName",
-                        source.getToolCallName(),
-                        "resultState",
-                        resultState == null ? "UNKNOWN" : resultState.name()));
+                new ExecutionEventPayload(toolResultPayload(source, resultState, evidence)));
+    }
+
+    private static LinkedHashMap<String, Object> toolResultPayload(
+            ToolResultEndEvent source,
+            ToolResultState resultState,
+            java.util.Map<String, Object> evidence) {
+        var values = new LinkedHashMap<String, Object>();
+        values.put("toolCallId", source.getToolCallId());
+        values.put("toolName", source.getToolCallName());
+        values.put("resultState", resultState == null ? "UNKNOWN" : resultState.name());
+        values.putAll(evidence);
+        return values;
     }
 
     private Optional<ExecutionEvent> mapConfirmation(
@@ -221,7 +249,8 @@ public final class AgentScopeEventMapper {
 
     private Optional<ExecutionEvent> mapStop(
             RequestStopEvent source, AgentExecutionCommand command, MappingState state) {
-        if (source.getGenerateReason() == GenerateReason.PERMISSION_ASKING) {
+        if (source.getGenerateReason() == GenerateReason.PERMISSION_ASKING
+                || source.getGenerateReason() == GenerateReason.TOOL_SUSPENDED) {
             state.status(ExecutionEventStatus.AWAITING_AUTHORIZATION);
             return Optional.empty();
         }

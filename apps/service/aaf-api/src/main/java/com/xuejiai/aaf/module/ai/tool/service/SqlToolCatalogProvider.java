@@ -46,6 +46,7 @@ public class SqlToolCatalogProvider implements ToolCatalogProvider {
                 entity.getCategory(),
                 enumValue(ToolRiskLevel.class, entity.getRiskLevel(), ToolRiskLevel.LOW),
                 Boolean.TRUE.equals(entity.getReadOnly()),
+                Boolean.TRUE.equals(entity.getReversible()),
                 Boolean.TRUE.equals(entity.getRequireConfirm()),
                 entity.getPermissionCode(),
                 entity.getEntitlementCode(),

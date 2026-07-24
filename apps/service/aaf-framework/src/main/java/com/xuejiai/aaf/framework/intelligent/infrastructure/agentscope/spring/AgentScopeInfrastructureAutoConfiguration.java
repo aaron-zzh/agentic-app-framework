@@ -9,8 +9,10 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeRuntimeContextMapper;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.SpringRedisClientAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.extensions.redis.state.RedisAgentStateStore;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -52,20 +54,29 @@ public class AgentScopeInfrastructureAutoConfiguration {
     }
 
     @Bean
-    AgentScopeEventMapper agentScopeEventMapper() {
-        return new AgentScopeEventMapper();
+    ToolResultEvidenceStore toolResultEvidenceStore() {
+        return new ToolResultEvidenceStore();
+    }
+
+    @Bean
+    AgentScopeEventMapper agentScopeEventMapper(ToolResultEvidenceStore evidenceStore) {
+        return new AgentScopeEventMapper(evidenceStore);
     }
 
     @Bean
     AgentScopeToolkitFactory agentScopeToolkitFactory(
-            ToolCatalogPort toolCatalog, ToolInvocationPort toolInvocation) {
-        return new AgentScopeToolkitFactory(toolCatalog, toolInvocation);
+            ToolCatalogPort toolCatalog,
+            ToolInvocationPort toolInvocation,
+            ToolResultEvidenceStore evidenceStore) {
+        return new AgentScopeToolkitFactory(toolCatalog, toolInvocation, evidenceStore);
     }
 
     @Bean(destroyMethod = "close")
     AgentScopeSpecCompiler agentScopeSpecCompiler(
-            AgentStateStore stateStore, AgentScopeToolkitFactory toolkitFactory) {
-        return new AgentScopeSpecCompiler(stateStore, toolkitFactory);
+            AgentStateStore stateStore,
+            AgentScopeToolkitFactory toolkitFactory,
+            AgentScopeModelResolver modelResolver) {
+        return new AgentScopeSpecCompiler(stateStore, toolkitFactory, modelResolver);
     }
 
     @Bean

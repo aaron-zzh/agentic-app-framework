@@ -29,7 +29,8 @@ public record InvocationContext(
         CorrelationId correlationId,
         CausationId causationId,
         IdempotencyKey idempotencyKey,
-        ControlMode controlMode) {
+        ControlMode controlMode,
+        ToolAuthorizationContext toolAuthorization) {
 
     public InvocationContext {
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
@@ -41,5 +42,6 @@ public record InvocationContext(
         Objects.requireNonNull(runId, "runId 不能为空");
         Objects.requireNonNull(correlationId, "correlationId 不能为空");
         Objects.requireNonNull(controlMode, "controlMode 不能为空");
+        Objects.requireNonNull(toolAuthorization, "toolAuthorization 不能为空");
     }
 }

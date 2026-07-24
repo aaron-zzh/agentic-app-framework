@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import io.agentscope.core.state.AgentStateStore;
@@ -15,12 +16,16 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
 
     private final AgentStateStore stateStore;
     private final AgentScopeToolkitFactory toolkitFactory;
+    private final AgentScopeModelResolver modelResolver;
     private final ConcurrentMap<DefinitionKey, HarnessAgent> cache = new ConcurrentHashMap<>();
 
     public AgentScopeSpecCompiler(
-            AgentStateStore stateStore, AgentScopeToolkitFactory toolkitFactory) {
+            AgentStateStore stateStore,
+            AgentScopeToolkitFactory toolkitFactory,
+            AgentScopeModelResolver modelResolver) {
         this.stateStore = Objects.requireNonNull(stateStore, "stateStore 不能为空");
         this.toolkitFactory = Objects.requireNonNull(toolkitFactory, "toolkitFactory 不能为空");
+        this.modelResolver = Objects.requireNonNull(modelResolver, "modelResolver 不能为空");
     }
 
     /** 按 agentId + version 命中不可变编译产物。 */
@@ -38,7 +43,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                         .name(spec.name())
                         .description(spec.description())
                         .sysPrompt(spec.systemPrompt())
-                        .model(spec.model().modelId())
+                        .model(modelResolver.resolve(spec.model()))
                         .toolkit(toolkit)
                         .stateStore(stateStore)
                         .maxIters(spec.executionPolicy().maxIterations())

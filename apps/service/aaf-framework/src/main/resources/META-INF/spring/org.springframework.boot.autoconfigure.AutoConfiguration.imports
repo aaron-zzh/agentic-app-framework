@@ -1,1 +1,3 @@
+com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration
 com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration
+com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.AssistantInfrastructureAutoConfiguration

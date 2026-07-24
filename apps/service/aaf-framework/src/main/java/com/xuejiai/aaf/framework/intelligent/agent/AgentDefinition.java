@@ -18,6 +18,10 @@ import lombok.Setter;
 @Table(name = "ai_agent_definition")
 public class AgentDefinition extends BaseEntity {
 
+    /** 运行时稳定标识。 */
+    @Column(name = "agent_id", nullable = false, unique = true, length = 64)
+    private String agentId;
+
     /** 显示名称 */
     @Column(nullable = false, length = 128)
     private String name;

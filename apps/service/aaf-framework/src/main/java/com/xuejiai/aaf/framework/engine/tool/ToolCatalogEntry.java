@@ -9,6 +9,7 @@ public record ToolCatalogEntry(
         String category,
         ToolRiskLevel riskLevel,
         boolean readOnly,
+        boolean reversible,
         boolean requireConfirm,
         String permissionCode,
         String entitlementCode,

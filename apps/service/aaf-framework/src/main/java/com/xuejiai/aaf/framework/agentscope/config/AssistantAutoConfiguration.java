@@ -8,10 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Scope;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -53,19 +49,10 @@ import io.agentscope.spring.boot.agui.common.AguiAgentId;
 import io.micrometer.context.ThreadLocalAccessor;
 
 /**
- * AAF AI 助理 Agent 自动装配。
+ * 已断开注册的旧专用 Assistant 装配素材。
  *
- * <p>注册后端点 {@code POST /api/agui/run/assistant}（默认）、{@code /api/agui/run/editor}、 {@code
- * /api/agui/run/customer-service} 立即可用。
+ * <p>P2 起生产链路只注册通用 AssistantCommandPort；本类不再是 Spring 配置，不会创建固定内容、编辑或客服 runtime。
  */
-@AutoConfiguration
-@ConditionalOnClass(io.agentscope.harness.agent.HarnessAgent.class)
-@ConditionalOnProperty(
-        prefix = "aaf.agentscope.assistant",
-        name = "enabled",
-        havingValue = "true",
-        matchIfMissing = true)
-@EnableConfigurationProperties(ContentCreationProperties.class)
 public class AssistantAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(AssistantAutoConfiguration.class);

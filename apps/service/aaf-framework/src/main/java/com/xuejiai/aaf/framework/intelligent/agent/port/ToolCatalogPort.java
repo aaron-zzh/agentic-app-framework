@@ -17,12 +17,16 @@ public interface ToolCatalogPort {
             ToolRef ref,
             String description,
             Map<String, Object> inputSchema,
-            boolean readOnly) {
+            boolean readOnly,
+            boolean reversible) {
 
         public ToolDefinition {
             Objects.requireNonNull(ref, "ref 不能为空");
             Objects.requireNonNull(description, "description 不能为空");
             inputSchema = Map.copyOf(Objects.requireNonNull(inputSchema, "inputSchema 不能为空"));
+            if (readOnly && reversible) {
+                throw new IllegalArgumentException("只读工具不能标记为可撤销写入");
+            }
         }
     }
 }

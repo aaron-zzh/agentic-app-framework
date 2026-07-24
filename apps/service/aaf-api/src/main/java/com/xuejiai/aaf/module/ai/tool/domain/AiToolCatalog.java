@@ -43,6 +43,9 @@ public class AiToolCatalog extends BaseEntity {
     @Column(name = "read_only", nullable = false)
     private Boolean readOnly = false;
 
+    @Column(name = "reversible", nullable = false)
+    private Boolean reversible = false;
+
     @Column(name = "require_confirm", nullable = false)
     private Boolean requireConfirm = false;
 

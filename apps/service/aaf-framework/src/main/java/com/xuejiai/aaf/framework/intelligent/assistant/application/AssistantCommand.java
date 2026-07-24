@@ -1,0 +1,89 @@
+package com.xuejiai.aaf.framework.intelligent.assistant.application;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
+
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CausationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.IdempotencyKey;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
+
+/** 内置、自建和复制 Assistant 共用的命令。 */
+public record AssistantCommand(
+        Operation operation,
+        TenantId tenantId,
+        UserId userId,
+        AssistantId assistantId,
+        AssistantVersion assistantVersion,
+        ConversationId conversationId,
+        SessionId sessionId,
+        TaskId taskId,
+        ExecutionId executionId,
+        RunId runId,
+        ExecutionId parentExecutionId,
+        CorrelationId correlationId,
+        CausationId causationId,
+        IdempotencyKey idempotencyKey,
+        ControlMode controlMode,
+        long sequenceBase,
+        String input,
+        CompletionCriteria completionCriteria,
+        List<SourceReference> contextCandidates,
+        Instant requestedAt) {
+
+    public AssistantCommand {
+        Objects.requireNonNull(operation, "operation 不能为空");
+        Objects.requireNonNull(tenantId, "tenantId 不能为空");
+        Objects.requireNonNull(userId, "userId 不能为空");
+        Objects.requireNonNull(assistantId, "assistantId 不能为空");
+        Objects.requireNonNull(assistantVersion, "assistantVersion 不能为空");
+        Objects.requireNonNull(conversationId, "conversationId 不能为空");
+        Objects.requireNonNull(sessionId, "sessionId 不能为空");
+        Objects.requireNonNull(taskId, "taskId 不能为空");
+        Objects.requireNonNull(executionId, "executionId 不能为空");
+        Objects.requireNonNull(runId, "runId 不能为空");
+        Objects.requireNonNull(correlationId, "correlationId 不能为空");
+        Objects.requireNonNull(controlMode, "controlMode 不能为空");
+        Objects.requireNonNull(requestedAt, "requestedAt 不能为空");
+        contextCandidates =
+                List.copyOf(Objects.requireNonNull(contextCandidates, "contextCandidates 不能为空"));
+        if (sequenceBase < 0) {
+            throw new IllegalArgumentException("sequenceBase 不能小于 0");
+        }
+        if (controlMode != ControlMode.READ_ONLY && controlMode != ControlMode.COLLABORATIVE) {
+            throw new IllegalArgumentException("P2 仅支持 READ_ONLY 和 COLLABORATIVE");
+        }
+        if (operation.executesAgent()) {
+            if (input == null || input.isBlank()) {
+                throw new IllegalArgumentException("执行或恢复命令的 input 不能为空白");
+            }
+            Objects.requireNonNull(completionCriteria, "completionCriteria 不能为空");
+        } else {
+            input = input == null ? "" : input;
+        }
+    }
+
+    public enum Operation {
+        START,
+        RESUME,
+        PAUSE,
+        CANCEL,
+        TAKE_OVER;
+
+        public boolean executesAgent() {
+            return this == START || this == RESUME;
+        }
+    }
+}

@@ -12,11 +12,15 @@ public final class AgentScopeToolkitFactory {
 
     private final ToolCatalogPort toolCatalog;
     private final ToolInvocationPort toolInvocation;
+    private final ToolResultEvidenceStore evidenceStore;
 
     public AgentScopeToolkitFactory(
-            ToolCatalogPort toolCatalog, ToolInvocationPort toolInvocation) {
+            ToolCatalogPort toolCatalog,
+            ToolInvocationPort toolInvocation,
+            ToolResultEvidenceStore evidenceStore) {
         this.toolCatalog = toolCatalog;
         this.toolInvocation = toolInvocation;
+        this.evidenceStore = evidenceStore;
     }
 
     /** 严格按引用解析工具；缺失或错序时失败，不走替代路径。 */
@@ -33,7 +37,8 @@ public final class AgentScopeToolkitFactory {
             if (!expected.equals(definition.ref())) {
                 throw new IllegalStateException("工具目录返回了错误或乱序的工具定义: " + expected);
             }
-            toolkit.registerAgentTool(new PortBackedAgentTool(definition, toolInvocation));
+            toolkit.registerAgentTool(
+                    new PortBackedAgentTool(definition, toolInvocation, evidenceStore));
         }
         return toolkit;
     }

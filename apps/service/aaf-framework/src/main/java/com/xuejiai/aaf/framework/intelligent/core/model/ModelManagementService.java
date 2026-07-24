@@ -72,6 +72,17 @@ public class ModelManagementService {
         return model;
     }
 
+    /** 按数据库主键查找启用模型，不存在或未启用时抛异常。 */
+    public AiModel getModel(Long id) {
+        return repository
+                .findById(id)
+                .filter(model -> Boolean.TRUE.equals(model.getEnabled()))
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        GlobalErrorCode.BAD_REQUEST, "模型不存在或未启用: " + id));
+    }
+
     /** 按 ID 查找（走库，用于管理操作） */
     public Optional<AiModel> findByModelId(String modelId) {
         return repository.findByModelId(modelId);

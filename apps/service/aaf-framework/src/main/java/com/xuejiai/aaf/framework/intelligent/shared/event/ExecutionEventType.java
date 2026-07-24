@@ -8,6 +8,7 @@ public enum ExecutionEventType {
     EXECUTION_CANCELED,
     EXECUTION_PAUSED,
     EXECUTION_RESUMED,
+    COMMAND_REJECTED,
 
     RUN_STARTED,
     RUN_COMPLETED,
