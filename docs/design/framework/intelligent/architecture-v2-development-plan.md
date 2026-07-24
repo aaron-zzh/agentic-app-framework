@@ -142,7 +142,7 @@ com.xuejiai.aaf.framework.intelligent
 
 主要工作：
 
-- 在 `2.0.0-RC4` 与经评审的升级版本之间做一次明确选择，并把 BOM、参考源码、Javadoc/源码标签和测试依赖对齐到同一版本。
+- 已人工确认并锁定 AgentScope `2.0.0` 正式版；BOM 与本地 `tmp/agentscope-java` 的 `v2.0.0` 源码标签保持一致，后续契约检查均以该版本为准。
 - 盘点 `.legacy`、并列 `framework.agentscope` PoC、旧 Runtime/Factory/Hook/Tool、历史迁移文档和旧数据 writer；提取用户可见行为、业务默认值、权限边界、失败/取消/恢复、计量/事件以及数据配置语义。
 - 建立归档能力迁移矩阵；每项记录来源路径/符号、可观察行为、边界场景、新责任、处置、阶段、验收证据、批准人和状态。
 - 对仍有效的外部行为先编写 characterization tests；测试约束能力结果和不变量，不固化旧类名、旧 API 或 AgentScope v1 实现细节。

@@ -450,7 +450,7 @@ com.xuejiai.aaf.framework.intelligent
 
 JPA Entity、Spring Data Repository 与 `JdbcTemplate` 实现放在纯领域包之外，通过端口注入。现有并列包 `com.xuejiai.aaf.framework.agentscope` 只作为 PoC 和迁移素材，不作为目标包结构；顶层 `action`、`ai` 的责任最终收敛到五层契约或基础设施实现。
 
-当前 AAF BOM 锁定 `AgentScope 2.0.0-RC4`，而本地 `tmp/agentscope-java` 源码是 `2.0.1-SNAPSHOT`。进入编码前必须选择并锁定同一基线：要么取得 RC4 对应源码并以 RC4 契约测试为准，要么单独评审依赖升级。不得依据 Snapshot API 直接实现 RC4 代码。
+当前 AAF BOM 已锁定 `AgentScope 2.0.0` 正式版，本地 `tmp/agentscope-java` 源码也检出 `v2.0.0` 标签。后续实现与契约检查必须以该正式版源码和依赖为唯一基线，不得依据其他 Snapshot API 修改业务代码。
 
 ### 长期记忆与运行状态
 
