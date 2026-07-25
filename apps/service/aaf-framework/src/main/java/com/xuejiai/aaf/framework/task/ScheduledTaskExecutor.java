@@ -5,20 +5,20 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.scheduling.support.SimpleTriggerContext;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.engine.lease.DistributedLeasePort;
 import com.xuejiai.aaf.framework.engine.meta.runtime.ExecutionMeta;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 
@@ -41,13 +41,13 @@ import lombok.extern.slf4j.Slf4j;
  * 执行流程：
  *   ThreadPoolTaskScheduler 触发（cron / fixedDelay / fixedRate）
  *     → executeWithLock()
- *         → Redis setIfAbsent 抢分布式锁（防集群重复执行）
+ *         → DistributedLeasePort 获取租约（防集群重复执行）
  *         → TaskRuntime.submit()               委托元引擎运行时执行
  *             → TaskExecutionListener.onStart()  记录执行开始（DB 写入在 task 层）
  *             → AafTask.execute()               执行业务逻辑
  *             → TaskExecutionListener.onSuccess/Failure()
  *         → DbTaskPersistencePort.updateLastRun() 回写 last_run 到 DB
- *         → Redis delete 释放锁
+ *         → DistributedLeasePort CAS 释放租约
  * </pre>
  *
  * <h3>任务类型与 Bean 解析</h3>
@@ -95,8 +95,8 @@ public class ScheduledTaskExecutor {
     /** 内存任务注册表，持有所有已注册的 TaskDefinition */
     private final TaskRegistry taskRegistry;
 
-    /** Redis 客户端，用于分布式锁 */
-    private final StringRedisTemplate redisTemplate;
+    /** 通用分布式租约端口，用于集群任务互斥。 */
+    private final DistributedLeasePort distributedLeases;
 
     /** Spring Bean 工厂，用于按 taskClass 获取业务 Runnable Bean */
     private final BeanFactory beanFactory;
@@ -232,27 +232,24 @@ public class ScheduledTaskExecutor {
      * <p>执行步骤：
      *
      * <ol>
-     *   <li>Redis setIfAbsent 抢锁，失败则跳过（集群其他节点已在执行）
+     *   <li>获取分布式租约，失败则跳过（集群其他节点已在执行）
      *   <li>委托 TaskRuntime.submit() 执行（含监控回调）
      *   <li>回写 last_run 到 DB
-     *   <li>finally 释放 Redis 锁
+     *   <li>finally 以 CAS 语义释放租约
      * </ol>
      */
     private void executeWithLock(TaskDefinition def) {
         var lockKey = LOCK_PREFIX + def.name();
-
-        // 抢分布式锁，setIfAbsent = SET key value NX PX ttl
-        var acquired =
-                Boolean.TRUE.equals(
-                        redisTemplate
-                                .opsForValue()
-                                .setIfAbsent(
-                                        lockKey, "1", DEFAULT_LOCK_TTL_SECONDS, TimeUnit.SECONDS));
-        if (!acquired) {
+        var lease = distributedLeases.acquire(
+                lockKey,
+                UUID.randomUUID().toString(),
+                Duration.ofSeconds(DEFAULT_LOCK_TTL_SECONDS));
+        if (lease.isEmpty()) {
             log.debug("任务 [{}] 未获取到锁，跳过执行（集群其他节点正在执行）", def.name());
             return;
         }
 
+        var acquiredLease = lease.orElseThrow();
         var now = LocalDateTime.now();
         try {
             // 用户任务：注入归属者上下文
@@ -273,9 +270,9 @@ public class ScheduledTaskExecutor {
             // 记录失败次数，连续失败超阈值自动暂停任务
             persistencePort.ifAvailable(port -> port.recordFailure(def.name(), e.getMessage()));
         } finally {
-            // 无论成功失败都释放锁，并清理用户上下文
+            // 无论成功失败都释放租约，并清理用户上下文
             TaskExecutionContextHolder.clear();
-            redisTemplate.delete(lockKey);
+            distributedLeases.release(acquiredLease);
         }
     }
 }

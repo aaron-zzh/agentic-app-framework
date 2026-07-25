@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -13,6 +14,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
+import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantApplicationService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
@@ -156,7 +158,8 @@ public class AssistantInfrastructureAutoConfiguration {
         AgentExecutionPort.class,
         ExecutionEventStorePort.class,
         NotificationPort.class,
-        DelegatedTaskDispatchPort.class
+        DelegatedTaskDispatchPort.class,
+        AgentTaskRuntime.class
     })
     @ConditionalOnMissingBean
     DelegatedTaskCoordinator delegatedTaskCoordinator(
@@ -168,6 +171,7 @@ public class AssistantInfrastructureAutoConfiguration {
             ExecutionEventStorePort events,
             NotificationPort notifications,
             DelegatedTaskDispatchPort dispatchSignals,
+            AgentTaskRuntime agentTaskRuntime,
             Environment environment) {
         var leaseTtl = Duration.ofSeconds(environment.getProperty(
                 "aaf.assistant.delegated.lease-seconds", Long.class, 60L));
@@ -180,6 +184,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 events,
                 notifications,
                 dispatchSignals,
+                agentTaskRuntime,
                 Clock.systemUTC(),
                 leaseTtl);
     }
@@ -188,11 +193,27 @@ public class AssistantInfrastructureAutoConfiguration {
     @ConditionalOnBean(DelegatedTaskCoordinator.class)
     @ConditionalOnMissingBean
     DelegatedTaskScheduler delegatedTaskScheduler(
-            DelegatedTaskCoordinator coordinator, Environment environment) {
+            DelegatedTaskCoordinator coordinator,
+            AgentTaskRuntime agentTaskRuntime,
+            Environment environment) {
         var defaultWorker = ManagementFactory.getRuntimeMXBean().getName() + "-" + UUID.randomUUID();
         var workerId = environment.getProperty(
                 "aaf.assistant.delegated.worker-id", defaultWorker);
-        return new DelegatedTaskScheduler(coordinator, workerId);
+        return new DelegatedTaskScheduler(coordinator, agentTaskRuntime, workerId);
+    }
+
+    @Bean
+    @ConditionalOnBean({
+        DelegatedTaskCoordinator.class,
+        DelegatedTaskPort.class,
+        AgentTaskRuntime.class
+    })
+    SmartInitializingSingleton delegatedTaskAgentTaskRegistration(
+            DelegatedTaskCoordinator coordinator,
+            DelegatedTaskPort tasks,
+            AgentTaskRuntime agentTaskRuntime) {
+        return () -> agentTaskRuntime.register(
+                new DelegatedTaskAgentTaskAdapter(coordinator, tasks));
     }
 
     @Bean

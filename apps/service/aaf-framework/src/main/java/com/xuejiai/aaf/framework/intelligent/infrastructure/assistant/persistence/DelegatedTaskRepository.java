@@ -17,6 +17,10 @@ public interface DelegatedTaskRepository extends JpaRepository<DelegatedTaskEnti
 
     List<DelegatedTaskEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId);
 
+    List<DelegatedTaskEntity>
+            findByTenantIdAndConversationIdAndStatusOrderByPriorityAscCreatedAtAsc(
+                    String tenantId, String conversationId, String status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from DelegatedTaskEntity t where t.tenantId = :tenantId and t.taskId = :taskId")
     Optional<DelegatedTaskEntity> findForUpdate(String tenantId, String taskId);

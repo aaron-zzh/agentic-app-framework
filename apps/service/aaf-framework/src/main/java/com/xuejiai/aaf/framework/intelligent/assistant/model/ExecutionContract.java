@@ -54,6 +54,35 @@ public record ExecutionContract(
         }
     }
 
+    /**
+     * 对话内任务的安全默认档，由系统托底预算、停止条件和接管策略，用户无需逐项填写。
+     */
+    public static ExecutionContract conversationDefault(
+            Set<String> allowedActions, ResponsibleOwner responsibleOwner) {
+        return new ExecutionContract(
+                new BudgetLimit(1_000_000, 1_000, new BigDecimal("100")),
+                Instant.now().plus(Duration.ofHours(24)),
+                200,
+                200,
+                allowedActions,
+                Set.of(
+                        StopCondition.COMPLETED,
+                        StopCondition.DEADLINE_REACHED,
+                        StopCondition.BUDGET_EXHAUSTED,
+                        StopCondition.AUTHORIZATION_MISSING,
+                        StopCondition.CONSECUTIVE_FAILURES,
+                        StopCondition.HUMAN_TAKEOVER,
+                        StopCondition.USER_CANCELED),
+                new RetryPolicy(3, Duration.ofSeconds(30), true),
+                new NotificationPolicy(
+                        Set.of(
+                                NotificationTrigger.COMPLETED,
+                                NotificationTrigger.CONSECUTIVE_FAILURE),
+                        0.8),
+                responsibleOwner,
+                new TakeoverPolicy(true, true, false));
+    }
+
     public void requireUsableAt(Instant at) {
         Objects.requireNonNull(at, "检查时间不能为空");
         if (!deadline.isAfter(at)) {

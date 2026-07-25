@@ -2,6 +2,8 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.trace.persistence;
 
 import java.util.Objects;
 
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
@@ -18,10 +20,12 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /** ai_task_event 唯一 append-only 写入与续读实现。 */
-public final class JpaExecutionEventStoreAdapter implements ExecutionEventStorePort {
+public final class JpaExecutionEventStoreAdapter
+        implements ExecutionEventStorePort, ApplicationEventPublisherAware {
     private final ExecutionEventRepository repository;
     private final ConversationLeasePort leases;
     private final DelegatedTaskPort tasks;
+    private ApplicationEventPublisher applicationEventPublisher;
 
     public JpaExecutionEventStoreAdapter(
             ExecutionEventRepository repository,
@@ -33,9 +37,16 @@ public final class JpaExecutionEventStoreAdapter implements ExecutionEventStoreP
     }
 
     @Override
+    public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+        this.applicationEventPublisher =
+                Objects.requireNonNull(applicationEventPublisher, "applicationEventPublisher 不能为空");
+    }
+
+    @Override
     public Mono<ExecutionEvent> append(ExecutionEvent event, Lease lease) {
         requireLease(event, lease);
-        return Mono.fromCallable(() -> appendBlocking(event, lease)).subscribeOn(Schedulers.boundedElastic());
+        return Mono.fromCallable(() -> appendBlocking(event, lease))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     ExecutionEvent appendBlocking(ExecutionEvent requested, Lease lease) {
@@ -57,7 +68,9 @@ public final class JpaExecutionEventStoreAdapter implements ExecutionEventStoreP
         entity.setCreatedAt(event.createdAt());
         entity.setEvent(event);
         try {
-            return repository.saveAndFlush(entity).getEvent();
+            var storedEvent = repository.saveAndFlush(entity).getEvent();
+            publishStoredEvent(storedEvent);
+            return storedEvent;
         } catch (DataIntegrityViolationException conflict) {
             var concurrent = repository.findById(event.eventId().value())
                     .map(ExecutionEventEntity::getEvent)
@@ -95,10 +108,22 @@ public final class JpaExecutionEventStoreAdapter implements ExecutionEventStoreP
 
     @Override
     public Mono<Long> nextSequence(TenantId tenantId, ExecutionId executionId, Lease lease) {
-        if (lease != null) leases.requireCurrent(lease);
+        if (lease != null) {
+            leases.requireCurrent(lease);
+        }
         return Mono.fromCallable(() -> repository.allocateSequence(
                         tenantId.value(), executionId.value()))
                 .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    private void publishStoredEvent(ExecutionEvent event) {
+        var eventOffset = repository.findEventOffsetByEventId(event.eventId().value());
+        if (eventOffset == null) {
+            throw new IllegalStateException(
+                    "执行事件落库后缺少 eventOffset: " + event.eventId().value());
+        }
+        Objects.requireNonNull(applicationEventPublisher, "ApplicationEventPublisher 尚未注入")
+                .publishEvent(new StoredExecutionEvent(eventOffset, event));
     }
 
     private static ExecutionEvent requireSameEvent(

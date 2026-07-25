@@ -2,14 +2,29 @@ package com.xuejiai.aaf.module.ai.assistant.service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Source;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.IdempotencyKey;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
@@ -21,6 +36,10 @@ import reactor.core.publisher.Mono;
 
 @Service
 public class DelegatedTaskService {
+    private static final AssistantId DEFAULT_ASSISTANT_ID =
+            new AssistantId("system.assistant.content-creator");
+    private static final AssistantVersion DEFAULT_ASSISTANT_VERSION = new AssistantVersion(1);
+
     private final DelegatedTaskPort tasks;
     private final DelegatedTaskCoordinator coordinator;
     private final OperatorContext operators;
@@ -32,6 +51,23 @@ public class DelegatedTaskService {
         this.tasks = tasks;
         this.coordinator = coordinator;
         this.operators = operators;
+    }
+
+    public DelegatedTaskVO create(
+            Source source,
+            String conversationId,
+            String title,
+            String description,
+            int priority) {
+        var command = createCommand(conversationId, title, description);
+        var task = switch (source) {
+            case CONVERSATION ->
+                    coordinator.submitConversationTask(command, title, description, priority);
+            case MANUAL ->
+                    coordinator.submitManualTask(command, title, description, priority, null);
+            case AUTOMATION -> throw new IllegalArgumentException("API 不允许创建 AUTOMATION 来源任务");
+        };
+        return DelegatedTaskVO.from(task);
     }
 
     public List<DelegatedTaskVO> list(String status) {
@@ -70,6 +106,41 @@ public class DelegatedTaskService {
                 input.inputId(), tenantId(), userId(), new TaskId(taskId),
                 input.kind(), input.content(), Instant.now());
         return coordinator.acceptInput(command).map(DelegatedTaskVO::from);
+    }
+
+    private AssistantCommand createCommand(
+            String conversationId, String title, String description) {
+        var tenantId = tenantId();
+        var userId = userId();
+        var seed = UUID.randomUUID().toString();
+        var taskId = new TaskId("delegated-task:" + seed);
+        var executionId = new ExecutionId("delegated-execution:" + seed);
+        var input = description == null || description.isBlank() ? title : description;
+        var now = Instant.now();
+        return new AssistantCommand(
+                AssistantCommand.Operation.START,
+                tenantId,
+                userId,
+                new MemorySubject(tenantId, SubjectKind.USER, userId.value()),
+                DEFAULT_ASSISTANT_ID,
+                DEFAULT_ASSISTANT_VERSION,
+                new ConversationId(conversationId),
+                new SessionId("delegated-session:" + seed),
+                taskId,
+                executionId,
+                new RunId("delegated-run:" + seed),
+                null,
+                new CorrelationId("delegated-correlation:" + seed),
+                null,
+                new IdempotencyKey("delegated-idempotency:" + seed),
+                ControlMode.READ_ONLY,
+                null,
+                null,
+                0,
+                input,
+                CompletionCriteria.responseDelivered(),
+                List.of(),
+                now);
     }
 
     private TenantId tenantId() {

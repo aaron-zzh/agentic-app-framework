@@ -14,6 +14,9 @@ public interface ExecutionEventRepository extends JpaRepository<ExecutionEventEn
     List<ExecutionEventEntity> findByTenantIdAndExecutionIdAndSequenceGreaterThanOrderBySequenceAsc(
             String tenantId, String executionId, long afterSequence);
 
+    @Query(value = "SELECT event_offset FROM ai_task_event WHERE event_id = :eventId", nativeQuery = true)
+    Long findEventOffsetByEventId(String eventId);
+
     @Transactional
     @Query(
             value = """

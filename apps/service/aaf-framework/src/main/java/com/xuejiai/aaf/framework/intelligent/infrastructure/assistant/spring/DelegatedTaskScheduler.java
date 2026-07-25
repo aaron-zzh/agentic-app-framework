@@ -2,23 +2,25 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring;
 
 import java.util.Objects;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.SpringDelegatedTaskDispatchAdapter.DispatchSignal;
 
-/** 事件即时派发 + 定时恢复；执行流为 Reactor 异步订阅，不轮询占线程等待。 */
+/** 事件即时派发经统一 AgentTaskRuntime 执行；定时恢复保留批量扫描语义。 */
 public final class DelegatedTaskScheduler {
-    private static final Logger LOG =
-            LoggerFactory.getLogger(DelegatedTaskScheduler.class);
     private final DelegatedTaskCoordinator coordinator;
+    private final AgentTaskRuntime agentTaskRuntime;
     private final String workerId;
 
-    public DelegatedTaskScheduler(DelegatedTaskCoordinator coordinator, String workerId) {
+    public DelegatedTaskScheduler(
+            DelegatedTaskCoordinator coordinator,
+            AgentTaskRuntime agentTaskRuntime,
+            String workerId) {
         this.coordinator = Objects.requireNonNull(coordinator, "coordinator 不能为空");
+        this.agentTaskRuntime = Objects.requireNonNull(agentTaskRuntime, "agentTaskRuntime 不能为空");
         if (workerId == null || workerId.isBlank()) {
             throw new IllegalArgumentException("workerId 不能为空白");
         }
@@ -27,11 +29,11 @@ public final class DelegatedTaskScheduler {
 
     @EventListener
     public void onDispatch(DispatchSignal signal) {
-        coordinator.dispatch(signal.tenantId(), signal.taskId(), workerId)
-                .subscribe(
-                        ignored -> {},
-                        failure -> LOG.error(
-                                "委托任务派发失败: taskId={}", signal.taskId().value(), failure));
+        agentTaskRuntime.dispatch(
+                DelegatedTaskAgentTaskAdapter.TASK_TYPE,
+                signal.taskId().value(),
+                signal.tenantId().value(),
+                "EVENT");
     }
 
     @Scheduled(fixedDelayString = "${aaf.assistant.delegated.recovery-delay-ms:30000}")

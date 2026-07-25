@@ -9,9 +9,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.engine.lease.LeaseAutoConfiguration;
+import com.xuejiai.aaf.framework.engine.lease.RedisDistributedLeaseAdapter;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.application.DefaultToolGateway;
@@ -83,14 +84,14 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 
 /** Cognition 与 P3/P4 治理基础设施的唯一生产接线。 */
 @AutoConfiguration
-@AutoConfigureAfter(AgentRuntimePortAutoConfiguration.class)
+@AutoConfigureAfter({LeaseAutoConfiguration.class, AgentRuntimePortAutoConfiguration.class})
 @AutoConfigureBefore(AgentScopeInfrastructureAutoConfiguration.class)
 public class IntelligentGovernanceAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(ConversationLeasePort.class)
-    ConversationLeasePort conversationLeasePort(StringRedisTemplate redis) {
-        return new RedisConversationLeaseAdapter(redis);
+    ConversationLeasePort conversationLeasePort(RedisDistributedLeaseAdapter leases) {
+        return new RedisConversationLeaseAdapter(leases);
     }
 
     @Bean

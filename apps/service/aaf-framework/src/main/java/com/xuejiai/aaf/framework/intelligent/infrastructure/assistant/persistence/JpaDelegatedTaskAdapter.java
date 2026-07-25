@@ -23,6 +23,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
@@ -83,6 +84,18 @@ public final class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
     public List<DelegatedTask> list(TenantId tenantId, UserId userId) {
         return repository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(tenantId.value(), userId.value())
                 .stream().map(DelegatedTaskEntity::getTask).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StoredTask> findPendingByConversation(
+            TenantId tenantId, ConversationId conversationId) {
+        return repository
+                .findByTenantIdAndConversationIdAndStatusOrderByPriorityAscCreatedAtAsc(
+                        tenantId.value(), conversationId.value(), Status.PENDING.name())
+                .stream()
+                .map(this::stored)
+                .toList();
     }
 
     @Override
@@ -547,6 +560,8 @@ public final class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
         entity.setUserId(task.userId().value());
         entity.setTaskId(task.taskId().value());
         entity.setConversationId(task.conversationId().value());
+        entity.setSource(task.source().name());
+        entity.setPriority(task.priority());
         entity.setExecutionId(task.executionId().value());
         entity.setStatus(task.status().name());
         entity.setOwnerKind(task.owner().kind().name());
@@ -571,9 +586,9 @@ public final class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
             Instant updatedAt, SessionId sessionId, ExecutionId executionId) {
         return new DelegatedTask(
                 source.tenantId(), source.userId(), source.taskId(), source.conversationId(),
-                sessionId, executionId, source.parentExecutionId(), status, owner, source.contract(),
-                usage, attempts, failures, nextRunAt, leaseOwner, leaseUntil, fencingToken,
-                checkpoint, source.createdAt(), updatedAt);
+                sessionId, executionId, source.parentExecutionId(), source.source(), source.priority(),
+                status, owner, source.contract(), usage, attempts, failures, nextRunAt, leaseOwner,
+                leaseUntil, fencingToken, checkpoint, source.createdAt(), updatedAt);
     }
 
     private static Map<String, Object> merge(Map<String, Object> source, String key, Object value) {

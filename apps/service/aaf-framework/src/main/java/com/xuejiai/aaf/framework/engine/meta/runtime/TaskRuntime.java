@@ -29,10 +29,7 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>重要任务完成/超时推送通知
  * </ul>
  *
- * <p><b>演进方向（v0.2+）：持久化长任务支持</b><br>
- * 当任务需要可中断/可恢复/子任务协调时（如 AI Chat 的 DurableTaskExecutor）， 当前由业务层自行实现状态机。未来在 {@code submit()} 内增加
- * {@code durable} 模式， 委托 {@code framework/engine/workflow/FlowableWorkflowEngine} 启动 Flowable 流程实例，
- * 由 Flowable 原生提供持久化状态机、检查点、子流程、人工节点等能力， 业务层的手写状态机（DurableTaskExecutor）随之退役。
+ * <p>委托型 AI 长任务统一由 AgentTaskRuntime 承担持久排队、租约与重试；本运行时继续负责元引擎通用任务的超时、监控与工作流启动。
  *
  * @author Kiro
  */

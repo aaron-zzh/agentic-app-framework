@@ -4,13 +4,16 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
@@ -18,8 +21,11 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.BudgetUsage;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Owner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.OwnerKind;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Source;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.NotificationTrigger;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.ResponsibleOwner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
@@ -38,6 +44,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerTy
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
@@ -49,6 +56,10 @@ import reactor.core.publisher.Mono;
 
 /** DELEGATED 唯一应用入口；任务、DAG 与预算事实均在 PostgreSQL。 */
 public final class DelegatedTaskCoordinator {
+    private static final String DELEGATED_TASK_TYPE = "delegated-task";
+    private static final Set<String> CONVERSATION_ALLOWED_ACTIONS =
+            Set.of("knowledge.search", "content.generate");
+
     private final DelegatedTaskPort tasks;
     private final TaskBoardPort boards;
     private final ConversationLeasePort leases;
@@ -57,6 +68,7 @@ public final class DelegatedTaskCoordinator {
     private final ExecutionEventStorePort events;
     private final NotificationPort notifications;
     private final DelegatedTaskDispatchPort dispatch;
+    private final AgentTaskRuntime agentTaskRuntime;
     private final Clock clock;
     private final Duration leaseTtl;
 
@@ -69,6 +81,7 @@ public final class DelegatedTaskCoordinator {
             ExecutionEventStorePort events,
             NotificationPort notifications,
             DelegatedTaskDispatchPort dispatch,
+            AgentTaskRuntime agentTaskRuntime,
             Clock clock,
             Duration leaseTtl) {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
@@ -79,6 +92,7 @@ public final class DelegatedTaskCoordinator {
         this.events = Objects.requireNonNull(events, "events 不能为空");
         this.notifications = Objects.requireNonNull(notifications, "notifications 不能为空");
         this.dispatch = Objects.requireNonNull(dispatch, "dispatch 不能为空");
+        this.agentTaskRuntime = Objects.requireNonNull(agentTaskRuntime, "agentTaskRuntime 不能为空");
         this.clock = Objects.requireNonNull(clock, "clock 不能为空");
         this.leaseTtl = Objects.requireNonNull(leaseTtl, "leaseTtl 不能为空");
         if (leaseTtl.isZero() || leaseTtl.isNegative()) {
@@ -88,13 +102,45 @@ public final class DelegatedTaskCoordinator {
 
     public DelegatedTask submit(AssistantCommand command) {
         var contract = Objects.requireNonNull(command.executionContract(), "ExecutionContract 不能为空");
-        return submit(command, TaskBoard.single(
-                command.taskId(), command.input(), contract.retryPolicy().maxAttempts()));
+        return submit(
+                command,
+                TaskBoard.single(
+                        command.taskId(), command.input(), contract.retryPolicy().maxAttempts()),
+                Source.AUTOMATION,
+                0);
     }
 
     public DelegatedTask submit(AssistantCommand command, TaskBoard board) {
+        return submit(command, board, Source.AUTOMATION, 0);
+    }
+
+    public DelegatedTask submitConversationTask(
+            AssistantCommand command, String title, String description, int priority) {
+        var effectiveCommand = requireTaskCommand(command, title, null);
+        var board = TaskBoard.single(
+                effectiveCommand.taskId(), taskDescription(title, description), 3);
+        return submit(effectiveCommand, board, Source.CONVERSATION, priority);
+    }
+
+    public DelegatedTask submitManualTask(
+            AssistantCommand command,
+            String title,
+            String description,
+            int priority,
+            ExecutionContract contract) {
+        var effectiveCommand = requireTaskCommand(command, title, contract);
+        var board = TaskBoard.single(
+                effectiveCommand.taskId(),
+                taskDescription(title, description),
+                effectiveCommand.executionContract().retryPolicy().maxAttempts());
+        return submit(effectiveCommand, board, Source.MANUAL, priority);
+    }
+
+    private DelegatedTask submit(
+            AssistantCommand command, TaskBoard board, Source source, int priority) {
         Objects.requireNonNull(command, "command 不能为空");
         Objects.requireNonNull(board, "board 不能为空");
+        Objects.requireNonNull(source, "source 不能为空");
         if (command.controlMode() != ExecutionEvent.ControlMode.DELEGATED
                 || command.executionContract() == null
                 || command.operation() != AssistantCommand.Operation.START) {
@@ -106,13 +152,55 @@ public final class DelegatedTaskCoordinator {
         var at = command.requestedAt();
         var task = new DelegatedTask(
                 command.tenantId(), command.userId(), command.taskId(), command.conversationId(),
-                command.sessionId(), command.executionId(), command.parentExecutionId(), Status.PENDING,
+                command.sessionId(), command.executionId(), command.parentExecutionId(), source,
+                priority, Status.PENDING,
                 new Owner(OwnerKind.ASSISTANT, command.assistantId().value()), command.executionContract(),
                 BudgetUsage.empty(), 0, 0, at, null, null, 0, Map.of(), at, at);
         var stored = tasks.create(task, command, board);
         notifyStatus(stored.task(), "委托任务已进入持久调度队列", "submitted");
         dispatch.signal(command.tenantId(), command.taskId());
         return stored.task();
+    }
+
+    private AssistantCommand requireTaskCommand(
+            AssistantCommand command, String title, ExecutionContract contract) {
+        Objects.requireNonNull(command, "command 不能为空");
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("任务标题不能为空白");
+        }
+        var effectiveContract = contract == null
+                ? ExecutionContract.conversationDefault(
+                        CONVERSATION_ALLOWED_ACTIONS,
+                        new ResponsibleOwner("ASSISTANT", command.assistantId().value()))
+                : contract;
+        return new AssistantCommand(
+                command.operation(),
+                command.tenantId(),
+                command.userId(),
+                command.memorySubject(),
+                command.assistantId(),
+                command.assistantVersion(),
+                command.conversationId(),
+                command.sessionId(),
+                command.taskId(),
+                command.executionId(),
+                command.runId(),
+                command.parentExecutionId(),
+                command.correlationId(),
+                command.causationId(),
+                command.idempotencyKey(),
+                ExecutionEvent.ControlMode.DELEGATED,
+                effectiveContract,
+                command.lease(),
+                command.sequenceBase(),
+                command.input(),
+                command.completionCriteria(),
+                command.contextCandidates(),
+                command.requestedAt());
+    }
+
+    private static String taskDescription(String title, String description) {
+        return description == null || description.isBlank() ? title : description;
     }
 
     public Flux<ExecutionEvent> dispatch(TenantId tenantId, TaskId taskId, String workerId) {
@@ -146,9 +234,27 @@ public final class DelegatedTaskCoordinator {
                                 } else if (latest.status() == Status.PAUSED) {
                                     notifyStatus(latest, "委托任务因停止条件暂停",
                                             "boundary-paused-" + latest.fencingToken());
+                                } else if (latest.status() == Status.COMPLETED
+                                        || latest.status() == Status.FAILED) {
+                                    dispatchNextInConversation(tenantId, latest.conversationId());
                                 }
                             });
                 });
+    }
+
+    public void dispatchNextInConversation(
+            TenantId tenantId, ConversationId conversationId) {
+        tasks.findPendingByConversation(tenantId, conversationId).stream()
+                .sorted(Comparator
+                        .comparingInt((DelegatedTaskPort.StoredTask stored) ->
+                                stored.task().priority())
+                        .thenComparing(stored -> stored.task().createdAt()))
+                .findFirst()
+                .ifPresent(stored -> agentTaskRuntime.dispatch(
+                        DELEGATED_TASK_TYPE,
+                        stored.task().taskId().value(),
+                        tenantId.value(),
+                        "QUEUE"));
     }
 
     public DelegatedTask stop(

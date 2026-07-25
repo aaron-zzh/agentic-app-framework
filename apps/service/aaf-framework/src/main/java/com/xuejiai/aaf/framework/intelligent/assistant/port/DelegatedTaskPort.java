@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantComm
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
@@ -25,6 +26,9 @@ public interface DelegatedTaskPort {
     Optional<StoredTask> find(TenantId tenantId, TaskId taskId);
 
     List<DelegatedTask> list(TenantId tenantId, UserId userId);
+
+    List<StoredTask> findPendingByConversation(
+            TenantId tenantId, ConversationId conversationId);
 
     List<StoredTask> findDispatchable(Instant now, int limit);
 

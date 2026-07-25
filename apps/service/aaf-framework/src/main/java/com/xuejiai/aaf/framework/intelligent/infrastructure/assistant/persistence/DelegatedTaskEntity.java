@@ -35,6 +35,10 @@ public class DelegatedTaskEntity {
     private String taskId;
     @Column(name = "conversation_id", nullable = false, length = 128)
     private String conversationId;
+    @Column(nullable = false, length = 32)
+    private String source = DelegatedTask.Source.AUTOMATION.name();
+    @Column(nullable = false)
+    private Integer priority = 0;
     @Column(name = "execution_id", nullable = false, length = 128)
     private String executionId;
     @Column(nullable = false, length = 32)

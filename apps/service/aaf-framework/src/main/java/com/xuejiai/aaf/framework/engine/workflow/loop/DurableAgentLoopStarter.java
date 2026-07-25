@@ -20,17 +20,12 @@ import lombok.extern.slf4j.Slf4j;
  * <p><b>三层 Loop 分工</b>：
  *
  * <ul>
- *   <li>外层 Loop（任务级）：调用方（Assistant / ChatTaskScheduler）负责，传入 input/goalCondition
+ *   <li>外层 Loop（任务级）：调用方（Assistant / AgentTaskRuntime）负责，传入 input/goalCondition
  *   <li>中层 Loop（步骤级）：本流程 + Flowable，负责持久化、检查点、人工节点
  *   <li>内层 Loop（ReAct）：AgentExecutionPort 统一执行入口
  * </ul>
  *
- * <p>与 {@code DurableTaskExecutor} 的关系：
- *
- * <ul>
- *   <li>DurableTaskExecutor：手写状态机，v0.1 遗留，继续服务现有 ChatTask
- *   <li>DurableAgentLoopStarter：基于 Flowable BPMN，新长任务推荐使用此入口
- * </ul>
+ * <p>委托任务由 AgentTaskRuntime 统一排队调度；本类只负责基于 Flowable BPMN 的步骤级持久循环。
  *
  * <p>用法示例：
  *

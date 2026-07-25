@@ -21,6 +21,8 @@ public record DelegatedTask(
         SessionId sessionId,
         ExecutionId executionId,
         ExecutionId parentExecutionId,
+        Source source,
+        int priority,
         Status status,
         Owner owner,
         ExecutionContract contract,
@@ -42,6 +44,7 @@ public record DelegatedTask(
         Objects.requireNonNull(conversationId, "conversationId 不能为空");
         Objects.requireNonNull(sessionId, "sessionId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");
+        source = source == null ? Source.AUTOMATION : source;
         Objects.requireNonNull(status, "status 不能为空");
         Objects.requireNonNull(owner, "owner 不能为空");
         Objects.requireNonNull(contract, "contract 不能为空");
@@ -97,6 +100,12 @@ public record DelegatedTask(
         ASSISTANT,
         AGENT,
         HUMAN
+    }
+
+    public enum Source {
+        CONVERSATION,
+        MANUAL,
+        AUTOMATION
     }
 
     public enum Status {
