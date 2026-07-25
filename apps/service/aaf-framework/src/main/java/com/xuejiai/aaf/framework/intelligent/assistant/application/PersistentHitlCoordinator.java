@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,6 +19,9 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskA
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskOwner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskStatus;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatchPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
@@ -42,6 +46,9 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
     private final TaskRecoveryPort recoveries;
     private final TaskResumeSignalPort resumeSignals;
     private final ExecutionEventStorePort events;
+    private final DelegatedTaskPort delegatedTasks;
+    private final DelegatedTaskDispatchPort delegatedDispatch;
+    private final ConversationLeasePort leases;
 
     public PersistentHitlCoordinator(
             HumanApprovalPort approvals,
@@ -50,7 +57,10 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
             TaskControlPort tasks,
             TaskRecoveryPort recoveries,
             TaskResumeSignalPort resumeSignals,
-            ExecutionEventStorePort events) {
+            ExecutionEventStorePort events,
+            DelegatedTaskPort delegatedTasks,
+            DelegatedTaskDispatchPort delegatedDispatch,
+            ConversationLeasePort leases) {
         this.approvals = Objects.requireNonNull(approvals, "approvals 不能为空");
         this.grants = Objects.requireNonNull(grants, "grants 不能为空");
         this.credentials = Objects.requireNonNull(credentials, "credentials 不能为空");
@@ -58,6 +68,9 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
         this.recoveries = Objects.requireNonNull(recoveries, "recoveries 不能为空");
         this.resumeSignals = Objects.requireNonNull(resumeSignals, "resumeSignals 不能为空");
         this.events = Objects.requireNonNull(events, "events 不能为空");
+        this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
+        this.delegatedDispatch = Objects.requireNonNull(delegatedDispatch, "delegatedDispatch 不能为空");
+        this.leases = Objects.requireNonNull(leases, "leases 不能为空");
     }
 
     @Override
@@ -101,15 +114,32 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
         if (approval.status() == HumanApproval.Status.APPROVED) {
             ensureGrant(approval);
             appendDecisionEvent(approval);
-            recoveries.schedule(approval, command.at());
             var context = approval.invocationContext();
-            resumeSignals.publish(new ResumeSignal(
-                    context.tenantId(),
-                    context.taskId(),
-                    context.executionId(),
-                    approval.approvalId(),
-                    true,
-                    approval.decidedAt()));
+            if (isDelegated(context)) {
+                var lease = leases.acquire(
+                                context.tenantId(),
+                                context.conversationId(),
+                                "approval-resume-" + approval.approvalId(),
+                                Duration.ofSeconds(30))
+                        .orElseThrow(() -> new IllegalStateException(
+                                "无法取得授权恢复 conversation lease"));
+                try {
+                    delegatedTasks.resumeAfterAuthorization(
+                            context.tenantId(), context.userId(), context.taskId(), lease, command.at());
+                } finally {
+                    leases.release(lease);
+                }
+                delegatedDispatch.signal(context.tenantId(), context.taskId());
+            } else {
+                recoveries.schedule(approval, command.at());
+                resumeSignals.publish(new ResumeSignal(
+                        context.tenantId(),
+                        context.taskId(),
+                        context.executionId(),
+                        approval.approvalId(),
+                        true,
+                        approval.decidedAt()));
+            }
             return approval;
         }
         pauseRejectedTask(approval);
@@ -153,6 +183,23 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
 
     private void pauseRejectedTask(HumanApproval approval) {
         var context = approval.invocationContext();
+        if (isDelegated(context)) {
+            var lease = leases.acquire(
+                            context.tenantId(),
+                            context.conversationId(),
+                            "approval-reject-" + approval.approvalId(),
+                            Duration.ofSeconds(30))
+                    .orElseThrow(() -> new IllegalStateException(
+                            "无法取得拒绝授权 conversation lease"));
+            try {
+                delegatedTasks.pause(
+                        context.tenantId(), context.taskId(), lease,
+                        "用户拒绝工具授权", approval.decidedAt());
+            } finally {
+                leases.release(lease);
+            }
+            return;
+        }
         var task = tasks.find(context.tenantId(), context.taskId())
                 .orElseThrow(() -> new IllegalStateException("审批关联任务不存在"));
         if (task.status() != TaskStatus.AWAITING_AUTHORIZATION) {
@@ -170,7 +217,7 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                         "approval-rejected:" + approval.approvalId(),
                         "修改方案后重新规划"),
                 approval.decidedAt());
-        tasks.save(context.tenantId(), paused);
+        tasks.save(context.tenantId(), paused, context.lease());
     }
 
     private void appendDecisionEvent(HumanApproval approval) {
@@ -207,7 +254,26 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                 context.idempotencyKey(),
                 new ExecutionEventPayload(values),
                 approval.decidedAt());
-        events.append(event).block();
+        if (!isDelegated(context)) {
+            events.append(event, context.lease()).block();
+            return;
+        }
+        var lease = leases.acquire(
+                        context.tenantId(),
+                        context.conversationId(),
+                        "approval-" + approval.approvalId(),
+                        Duration.ofSeconds(30))
+                .orElseThrow(() -> new IllegalStateException("无法取得授权决策 conversation lease"));
+        try {
+            events.append(event, lease).block();
+        } finally {
+            leases.release(lease);
+        }
+    }
+
+    private static boolean isDelegated(
+            com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext context) {
+        return context.controlMode() == ExecutionEvent.ControlMode.DELEGATED;
     }
 
     private static void requireDecisionOwner(HumanApproval approval, String decidedBy) {

@@ -106,9 +106,10 @@ public record AssistantDefinition(
         if (modes.isEmpty()) {
             throw new IllegalArgumentException("supportedControlModes 不能为空");
         }
-        if (modes.stream()
-                .anyMatch(mode -> mode != ControlMode.READ_ONLY && mode != ControlMode.COLLABORATIVE)) {
-            throw new IllegalArgumentException("P2 仅支持 READ_ONLY 和 COLLABORATIVE");
+        if (modes.stream().anyMatch(mode -> mode != ControlMode.READ_ONLY
+                && mode != ControlMode.COLLABORATIVE
+                && mode != ControlMode.DELEGATED)) {
+            throw new IllegalArgumentException("仅支持 READ_ONLY、COLLABORATIVE 和 DELEGATED");
         }
     }
 

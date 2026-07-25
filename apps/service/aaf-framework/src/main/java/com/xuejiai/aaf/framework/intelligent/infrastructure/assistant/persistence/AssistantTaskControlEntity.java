@@ -45,6 +45,9 @@ public class AssistantTaskControlEntity {
     @Column(name = "task_payload", nullable = false, columnDefinition = "jsonb")
     private AssistantTask task;
 
+    @Column(name = "fencing_token", nullable = false)
+    private Long fencingToken;
+
     @Version
     @Column(name = "lock_version", nullable = false)
     private Long lockVersion;

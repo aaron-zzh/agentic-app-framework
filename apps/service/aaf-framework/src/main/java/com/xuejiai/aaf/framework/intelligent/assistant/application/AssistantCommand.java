@@ -1,12 +1,17 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
@@ -40,6 +45,8 @@ public record AssistantCommand(
         CausationId causationId,
         IdempotencyKey idempotencyKey,
         ControlMode controlMode,
+        ExecutionContract executionContract,
+        Lease lease,
         long sequenceBase,
         String input,
         CompletionCriteria completionCriteria,
@@ -73,8 +80,19 @@ public record AssistantCommand(
         if (sequenceBase < 0) {
             throw new IllegalArgumentException("sequenceBase 不能小于 0");
         }
-        if (controlMode != ControlMode.READ_ONLY && controlMode != ControlMode.COLLABORATIVE) {
-            throw new IllegalArgumentException("P2 仅支持 READ_ONLY 和 COLLABORATIVE");
+        if (controlMode != ControlMode.READ_ONLY
+                && controlMode != ControlMode.COLLABORATIVE
+                && controlMode != ControlMode.DELEGATED) {
+            throw new IllegalArgumentException("仅支持 READ_ONLY、COLLABORATIVE 和 DELEGATED");
+        }
+        if (controlMode == ControlMode.DELEGATED) {
+            Objects.requireNonNull(executionContract, "DELEGATED 必须携带 ExecutionContract");
+            executionContract.requireUsableAt(requestedAt);
+            if (lease != null
+                    && (!tenantId.equals(lease.tenantId())
+                            || !conversationId.equals(lease.conversationId()))) {
+                throw new IllegalArgumentException("委托命令与 conversation lease 边界不一致");
+            }
         }
         if (operation.executesAgent()) {
             if (input == null || input.isBlank()) {
@@ -104,8 +122,132 @@ public record AssistantCommand(
                 causationId,
                 idempotencyKey,
                 controlMode,
+                executionContract,
+                lease,
                 sequenceBase,
                 input,
+                completionCriteria,
+                contextCandidates,
+                at);
+    }
+
+    public AssistantCommand withLease(Lease nextLease, Instant at) {
+        return new AssistantCommand(
+                operation,
+                tenantId,
+                userId,
+                memorySubject,
+                assistantId,
+                assistantVersion,
+                conversationId,
+                sessionId,
+                taskId,
+                executionId,
+                runId,
+                parentExecutionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                executionContract,
+                nextLease,
+                sequenceBase,
+                input,
+                completionCriteria,
+                contextCandidates,
+                at);
+    }
+
+    public AssistantCommand newExecution(
+            ExecutionId nextExecutionId,
+            SessionId nextSessionId,
+            RunId nextRunId,
+            Lease nextLease,
+            Instant at) {
+        return new AssistantCommand(
+                Operation.RESUME,
+                tenantId,
+                userId,
+                memorySubject,
+                assistantId,
+                assistantVersion,
+                conversationId,
+                nextSessionId,
+                taskId,
+                nextExecutionId,
+                nextRunId,
+                executionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                executionContract,
+                nextLease,
+                0,
+                input,
+                completionCriteria,
+                contextCandidates,
+                at);
+    }
+
+    public AssistantCommand withInput(String nextInput, Lease nextLease, Instant at) {
+        return new AssistantCommand(
+                operation,
+                tenantId,
+                userId,
+                memorySubject,
+                assistantId,
+                assistantVersion,
+                conversationId,
+                sessionId,
+                taskId,
+                executionId,
+                runId,
+                parentExecutionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                executionContract,
+                nextLease,
+                sequenceBase,
+                nextInput,
+                completionCriteria,
+                contextCandidates,
+                at);
+    }
+
+    public AssistantCommand forSubTask(SubTask subTask, Lease nextLease, Instant at) {
+        Objects.requireNonNull(subTask, "subTask 不能为空");
+        var idempotencyRoot = UUID.nameUUIDFromBytes(
+                        (taskId.value() + '|' + subTask.subTaskId())
+                                .getBytes(StandardCharsets.UTF_8))
+                .toString();
+        var childRunId = UUID.nameUUIDFromBytes(
+                        (taskId.value() + '|' + subTask.subTaskId() + '|' + subTask.executionId().value())
+                                .getBytes(StandardCharsets.UTF_8))
+                .toString();
+        return new AssistantCommand(
+                Operation.SUBTASK,
+                tenantId,
+                userId,
+                memorySubject,
+                assistantId,
+                assistantVersion,
+                conversationId,
+                subTask.sessionId(),
+                taskId,
+                subTask.executionId(),
+                new RunId(childRunId),
+                executionId,
+                correlationId,
+                new CausationId(executionId.value()),
+                new IdempotencyKey(idempotencyRoot),
+                controlMode,
+                executionContract,
+                nextLease,
+                0,
+                subTask.description(),
                 completionCriteria,
                 contextCandidates,
                 at);
@@ -114,12 +256,13 @@ public record AssistantCommand(
     public enum Operation {
         START,
         RESUME,
+        SUBTASK,
         PAUSE,
         CANCEL,
         TAKE_OVER;
 
         public boolean executesAgent() {
-            return this == START || this == RESUME;
+            return this == START || this == RESUME || this == SUBTASK;
         }
     }
 }

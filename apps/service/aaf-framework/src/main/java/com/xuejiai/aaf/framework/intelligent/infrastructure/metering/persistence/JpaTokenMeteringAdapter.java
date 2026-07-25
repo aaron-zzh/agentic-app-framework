@@ -10,6 +10,9 @@ import java.util.Objects;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard.IdempotentUsageSettlement;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 
@@ -19,16 +22,23 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
 
     private final ModelManagementService models;
     private final AiCreditGuard creditGuard;
+    private final DelegatedTaskPort delegatedTasks;
+    private final ConversationLeasePort leases;
 
     public JpaTokenMeteringAdapter(
-            ModelManagementService models, AiCreditGuard creditGuard) {
+            ModelManagementService models,
+            AiCreditGuard creditGuard,
+            DelegatedTaskPort delegatedTasks,
+            ConversationLeasePort leases) {
         this.models = Objects.requireNonNull(models, "models 不能为空");
         this.creditGuard = Objects.requireNonNull(creditGuard, "creditGuard 不能为空");
+        this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
+        this.leases = Objects.requireNonNull(leases, "leases 不能为空");
     }
 
     @Override
     public MeteringResult record(ModelUsageFact fact) {
-        var userId = parsePositiveLong(fact.userId().value(), "userId");
+        var userId = parsePositiveLong(fact.context().userId().value(), "userId");
         var databaseModelId = parsePositiveLong(fact.modelId(), "modelId");
         var model = models.getModel(databaseModelId);
         if (!model.hasCapability(fact.capability())) {
@@ -51,6 +61,13 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
                         model.getCacheRatio(),
                         "模型存在缓存用量但缺少 cache_ratio: " + databaseModelId);
         var cost = tokenCost(fact, inputPrice, outputPrice, cacheRatio);
+        if (fact.context().controlMode() == ControlMode.DELEGATED) {
+            delegatedTasks.recordModelUsage(
+                    fact.context(),
+                    fact.inputTokens() + fact.outputTokens(),
+                    cost,
+                    fact.occurredAt());
+        }
         var usage = new TokenUsage(
                 fact.inputTokens(),
                 fact.outputTokens(),
@@ -58,11 +75,16 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
                 inputPrice,
                 outputPrice,
                 cacheRatio);
+        if (fact.context().controlMode() == ControlMode.DELEGATED) {
+            leases.requireCurrent(fact.context().lease());
+            delegatedTasks.requireAgentExecution(fact.context());
+        }
         var result = creditGuard.settleIdempotently(new IdempotentUsageSettlement(
                 fact.usageId(),
-                fact.tenantId().value(),
-                fact.taskId().value(),
-                fact.executionId().value(),
+                fact.context().tenantId().value(),
+                fact.context().taskId().value(),
+                fact.context().executionId().value(),
+                fact.context().lease() == null ? 0L : fact.context().lease().fencingToken(),
                 userId,
                 model,
                 usage,

@@ -17,11 +17,11 @@ public interface AiUsageRecordRepository extends JpaRepository<AiUsageRecord, Lo
     @Query(
             value = """
                     INSERT INTO ai_usage_record (
-                        usage_key, settlement_digest, tenant_id, task_id, execution_id,
+                        usage_key, settlement_digest, tenant_id, task_id, execution_id, fencing_token,
                         occurred_at, user_id, model_id, capability, quota_type,
                         cost_yuan, credit_amount, credit_tx_id, usage, raw_usage, create_time)
                     VALUES (
-                        :usageKey, :digest, :tenantId, :taskId, :executionId,
+                        :usageKey, :digest, :tenantId, :taskId, :executionId, :fencingToken,
                         :occurredAt, :userId, :modelId, :capability, :quotaType,
                         :costYuan, :creditAmount, NULL,
                         CAST(:usage AS jsonb), CAST(:rawUsage AS jsonb), CURRENT_TIMESTAMP)
@@ -34,6 +34,7 @@ public interface AiUsageRecordRepository extends JpaRepository<AiUsageRecord, Lo
             String tenantId,
             String taskId,
             String executionId,
+            long fencingToken,
             Instant occurredAt,
             Long userId,
             Long modelId,

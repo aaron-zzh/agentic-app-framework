@@ -19,8 +19,10 @@ public record ToolAuthorizationContext(Map<String, ToolAuthorizationRule> rules)
         if (rule == null) {
             throw new IllegalArgumentException("工具不在 Assistant 白名单: " + toolKey);
         }
-        if (mode != ControlMode.READ_ONLY && mode != ControlMode.COLLABORATIVE) {
-            throw new IllegalStateException("P3 尚未开放控制模式: " + mode);
+        if (mode != ControlMode.READ_ONLY
+                && mode != ControlMode.COLLABORATIVE
+                && mode != ControlMode.DELEGATED) {
+            throw new IllegalStateException("未开放控制模式: " + mode);
         }
         if (rule.readOnly() != catalogReadOnly || rule.reversible() != catalogReversible) {
             throw new IllegalStateException("工具目录与 Assistant 策略不一致: " + toolKey);

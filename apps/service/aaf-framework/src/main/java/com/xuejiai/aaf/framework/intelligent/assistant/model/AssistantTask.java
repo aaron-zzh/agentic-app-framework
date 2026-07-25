@@ -89,8 +89,10 @@ public record AssistantTask(
     public AssistantTask changeControlMode(
             ControlMode next, String reason, TaskActor initiatedBy, Instant at) {
         Objects.requireNonNull(next, "next controlMode 不能为空");
-        if (next != ControlMode.READ_ONLY && next != ControlMode.COLLABORATIVE) {
-            throw new IllegalArgumentException("P2 仅支持 READ_ONLY 和 COLLABORATIVE");
+        if (next != ControlMode.READ_ONLY
+                && next != ControlMode.COLLABORATIVE
+                && next != ControlMode.DELEGATED) {
+            throw new IllegalArgumentException("仅支持 READ_ONLY、COLLABORATIVE 和 DELEGATED");
         }
         if (next == controlMode) {
             return this;

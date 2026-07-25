@@ -32,7 +32,8 @@ public record ToolPolicy(Map<String, ToolRule> rules) {
                             || effect == ActionEffect.GENERATED_CONTENT
                             || effect == ActionEffect.HUMAN_HANDOFF;
             case COLLABORATIVE -> effect != ActionEffect.IRREVERSIBLE_WRITE;
-            case DELEGATED, AUTOMATED -> false;
+            case DELEGATED -> true;
+            case AUTOMATED -> false;
         };
     }
 

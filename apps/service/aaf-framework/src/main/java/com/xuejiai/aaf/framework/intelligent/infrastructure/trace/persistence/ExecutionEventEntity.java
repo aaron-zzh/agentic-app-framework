@@ -35,6 +35,8 @@ public class ExecutionEventEntity {
     private String executionId;
     @Column(nullable = false)
     private Long sequence;
+    @Column(name = "fencing_token", nullable = false)
+    private Long fencingToken;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
     @JdbcTypeCode(SqlTypes.JSON)

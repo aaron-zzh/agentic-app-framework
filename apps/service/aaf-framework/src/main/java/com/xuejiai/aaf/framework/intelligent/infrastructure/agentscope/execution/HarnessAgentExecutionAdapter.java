@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper.MappingState;
@@ -34,6 +36,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private final AgentScopeEventMapper eventMapper;
     private final AgentScopeTokenMeteringObserver meteringObserver;
     private final ExecutionEventStorePort eventStore;
+    private final ConversationLeasePort leases;
+    private final DelegatedTaskPort delegatedTasks;
     private final ConcurrentMap<ExecutionId, ActiveExecution> activeExecutions =
             new ConcurrentHashMap<>();
 
@@ -44,7 +48,9 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AgentScopeRuntimeContextMapper contextMapper,
             AgentScopeEventMapper eventMapper,
             AgentScopeTokenMeteringObserver meteringObserver,
-            ExecutionEventStorePort eventStore) {
+            ExecutionEventStorePort eventStore,
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks) {
         this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
         this.compiler = Objects.requireNonNull(compiler, "compiler 不能为空");
         this.messageMapper = Objects.requireNonNull(messageMapper, "messageMapper 不能为空");
@@ -52,6 +58,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         this.eventMapper = Objects.requireNonNull(eventMapper, "eventMapper 不能为空");
         this.meteringObserver = Objects.requireNonNull(meteringObserver, "meteringObserver 不能为空");
         this.eventStore = Objects.requireNonNull(eventStore, "eventStore 不能为空");
+        this.leases = Objects.requireNonNull(leases, "leases 不能为空");
+        this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
     }
 
     @Override
@@ -77,6 +85,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     }
 
     private Flux<ExecutionEvent> executeDeferred(AgentExecutionCommand command) {
+        requireCurrent(command);
         var mappingState = new MappingState(command.sequenceBase());
         try {
             var spec =
@@ -104,6 +113,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                             messageMapper.toAgentScope(command.messages()), runtimeContext)
                     .doOnNext(
                             event -> {
+                                requireCurrent(command);
                                 onSourceEvent(event, active);
                                 meteringObserver.observe(event, spec, command);
                             })
@@ -135,14 +145,25 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                             eventMapper.canceled(
                                                                     command, mappingState))
                                                     : Flux.empty()))
-                    .concatMap(eventStore::append)
+                    .concatMap(event -> eventStore.append(event, command.context().lease()))
                     .doFinally(
                             ignored ->
                                     activeExecutions.remove(
                                             command.context().executionId(), active));
         } catch (RuntimeException failure) {
-            return eventStore.append(eventMapper.failure(command, mappingState, failure)).flux();
+            return eventStore.append(
+                    eventMapper.failure(command, mappingState, failure), command.context().lease()).flux();
         }
+    }
+
+    private void requireCurrent(AgentExecutionCommand command) {
+        var context = command.context();
+        if (context.controlMode()
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+            return;
+        }
+        leases.requireCurrent(context.lease());
+        delegatedTasks.requireAgentExecution(context);
     }
 
     private void onSourceEvent(AgentEvent event, ActiveExecution active) {

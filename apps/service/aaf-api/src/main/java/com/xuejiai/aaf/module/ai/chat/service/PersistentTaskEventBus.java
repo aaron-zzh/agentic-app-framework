@@ -81,7 +81,7 @@ public class PersistentTaskEventBus implements TaskEventBus {
                 null,
                 new ExecutionEventPayload(payload),
                 Instant.now());
-        var stored = eventStore.append(event).block();
+        var stored = eventStore.append(event, null).block();
         if (stored == null) {
             throw new IllegalStateException("任务事件追加未返回结果: " + taskId);
         }

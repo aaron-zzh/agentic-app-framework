@@ -4,6 +4,9 @@ import java.util.Objects;
 
 import org.springframework.dao.DataIntegrityViolationException;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort.StoredExecutionEvent;
@@ -17,17 +20,26 @@ import reactor.core.scheduler.Schedulers;
 /** ai_task_event 唯一 append-only 写入与续读实现。 */
 public final class JpaExecutionEventStoreAdapter implements ExecutionEventStorePort {
     private final ExecutionEventRepository repository;
+    private final ConversationLeasePort leases;
+    private final DelegatedTaskPort tasks;
 
-    public JpaExecutionEventStoreAdapter(ExecutionEventRepository repository) {
+    public JpaExecutionEventStoreAdapter(
+            ExecutionEventRepository repository,
+            ConversationLeasePort leases,
+            DelegatedTaskPort tasks) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
+        this.leases = Objects.requireNonNull(leases, "leases 不能为空");
+        this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
     }
 
     @Override
-    public Mono<ExecutionEvent> append(ExecutionEvent event) {
-        return Mono.fromCallable(() -> appendBlocking(event)).subscribeOn(Schedulers.boundedElastic());
+    public Mono<ExecutionEvent> append(ExecutionEvent event, Lease lease) {
+        requireLease(event, lease);
+        return Mono.fromCallable(() -> appendBlocking(event, lease)).subscribeOn(Schedulers.boundedElastic());
     }
 
-    ExecutionEvent appendBlocking(ExecutionEvent requested) {
+    ExecutionEvent appendBlocking(ExecutionEvent requested, Lease lease) {
+        requireLease(requested, lease);
         var existing = repository.findById(requested.eventId().value());
         if (existing.isPresent()) {
             return requireSameEvent(existing.get().getEvent(), requested);
@@ -41,6 +53,7 @@ public final class JpaExecutionEventStoreAdapter implements ExecutionEventStoreP
         entity.setTaskId(event.taskId().value());
         entity.setExecutionId(event.executionId().value());
         entity.setSequence(event.sequence());
+        entity.setFencingToken(lease == null ? 0L : lease.fencingToken());
         entity.setCreatedAt(event.createdAt());
         entity.setEvent(event);
         try {
@@ -81,7 +94,8 @@ public final class JpaExecutionEventStoreAdapter implements ExecutionEventStoreP
     }
 
     @Override
-    public Mono<Long> nextSequence(TenantId tenantId, ExecutionId executionId) {
+    public Mono<Long> nextSequence(TenantId tenantId, ExecutionId executionId, Lease lease) {
+        if (lease != null) leases.requireCurrent(lease);
         return Mono.fromCallable(() -> repository.allocateSequence(
                         tenantId.value(), executionId.value()))
                 .subscribeOn(Schedulers.boundedElastic());
@@ -94,6 +108,23 @@ public final class JpaExecutionEventStoreAdapter implements ExecutionEventStoreP
                     "eventId 已绑定不同事件内容: " + requested.eventId().value());
         }
         return existing;
+    }
+
+    private void requireLease(ExecutionEvent event, Lease lease) {
+        if (event.controlMode()
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+            return;
+        }
+        if (lease == null
+                || !event.tenantId().equals(lease.tenantId())
+                || !event.conversationId().equals(lease.conversationId())) {
+            throw new IllegalStateException("DELEGATED 事件写入缺少匹配 conversation lease");
+        }
+        leases.requireCurrent(lease);
+        if (event.ownerType()
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType.HUMAN) {
+            tasks.requireExecution(event.tenantId(), event.taskId(), event.executionId(), lease);
+        }
     }
 
     private static ExecutionEvent withSequence(ExecutionEvent event, long sequence) {

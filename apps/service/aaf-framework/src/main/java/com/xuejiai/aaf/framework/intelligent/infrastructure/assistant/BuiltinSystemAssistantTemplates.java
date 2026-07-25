@@ -108,7 +108,7 @@ public final class BuiltinSystemAssistantTemplates
                 MemoryStrategy.hybridDefault(),
                 routes,
                 policy,
-                Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE),
+                Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE, ControlMode.DELEGATED),
                 RiskPolicy.CONFIRM_WRITES,
                 Lifecycle.PUBLISHED);
     }

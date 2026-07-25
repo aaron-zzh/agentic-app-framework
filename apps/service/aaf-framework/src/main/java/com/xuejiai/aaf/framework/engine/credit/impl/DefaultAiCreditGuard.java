@@ -171,6 +171,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 settlement.tenantId(),
                 settlement.taskId(),
                 settlement.executionId(),
+                settlement.fencingToken(),
                 settlement.occurredAt(),
                 settlement.userId(),
                 model.getId(),
@@ -213,6 +214,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 || !Objects.equals(existing.getTenantId(), settlement.tenantId())
                 || !Objects.equals(existing.getTaskId(), settlement.taskId())
                 || !Objects.equals(existing.getExecutionId(), settlement.executionId())
+                || !Objects.equals(existing.getFencingToken(), settlement.fencingToken())
                 || !Objects.equals(existing.getUserId(), settlement.userId())
                 || !Objects.equals(existing.getModelId(), settlement.model().getId())
                 || !Objects.equals(existing.getCapability(), settlement.capability())) {
@@ -239,6 +241,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         values.put("tenantId", settlement.tenantId());
         values.put("taskId", settlement.taskId());
         values.put("executionId", settlement.executionId());
+        values.put("fencingToken", settlement.fencingToken());
         values.put("userId", settlement.userId());
         values.put("modelId", settlement.model().getId());
         values.put("capability", settlement.capability());

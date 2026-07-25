@@ -52,6 +52,9 @@ public class AiUsageRecord {
     @Column(name = "execution_id", length = 128)
     private String executionId;
 
+    @Column(name = "fencing_token", nullable = false)
+    private Long fencingToken;
+
     @Column(name = "occurred_at")
     private Instant occurredAt;
 

@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.shared.event;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
@@ -9,14 +10,14 @@ import reactor.core.publisher.Mono;
 /** ai_task_event 的 append-only 唯一事实端口，同时支持 SSE 断点续读。 */
 public interface ExecutionEventStorePort {
 
-    Mono<ExecutionEvent> append(ExecutionEvent event);
+    Mono<ExecutionEvent> append(ExecutionEvent event, Lease lease);
 
     Flux<StoredExecutionEvent> readTask(TenantId tenantId, TaskId taskId, long afterEventOffset);
 
     Flux<ExecutionEvent> readExecution(
             TenantId tenantId, ExecutionId executionId, long afterSequence);
 
-    Mono<Long> nextSequence(TenantId tenantId, ExecutionId executionId);
+    Mono<Long> nextSequence(TenantId tenantId, ExecutionId executionId, Lease lease);
 
     record StoredExecutionEvent(long eventOffset, ExecutionEvent event) {
         public StoredExecutionEvent {

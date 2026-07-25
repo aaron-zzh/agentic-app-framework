@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution.HarnessAgentExecutionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
@@ -69,8 +70,9 @@ public class AgentScopeInfrastructureAutoConfiguration {
     }
 
     @Bean
-    AgentScopeTokenMeteringObserver tokenMeteringObserver(TokenMeteringPort metering) {
-        return new AgentScopeTokenMeteringObserver(metering);
+    AgentScopeTokenMeteringObserver tokenMeteringObserver(
+            TokenMeteringPort metering, DelegatedTaskPort delegatedTasks) {
+        return new AgentScopeTokenMeteringObserver(metering, delegatedTasks);
     }
 
     @Bean
@@ -98,9 +100,11 @@ public class AgentScopeInfrastructureAutoConfiguration {
             AgentScopeRuntimeContextMapper contextMapper,
             AgentScopeEventMapper eventMapper,
             AgentScopeTokenMeteringObserver meteringObserver,
-            ExecutionEventStorePort eventStore) {
+            ExecutionEventStorePort eventStore,
+            com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks) {
         return new HarnessAgentExecutionAdapter(
                 definitions, compiler, messageMapper, contextMapper, eventMapper,
-                meteringObserver, eventStore);
+                meteringObserver, eventStore, leases, delegatedTasks);
     }
 }

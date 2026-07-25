@@ -13,6 +13,15 @@ public final class DefaultCompletionValidator implements CompletionValidator {
 
     @Override
     public CompletionDecision validate(ValidationRequest request) {
+        if (request.taskBoard().isPresent()) {
+            var board = request.taskBoard().orElseThrow();
+            if (board.hasTerminalFailure()) {
+                return decision(Outcome.FAILED, "DAG 存在不可重试失败节点", "dag-failure");
+            }
+            if (!board.completed()) {
+                return decision(Outcome.CONTINUE_REPAIR, "DAG 尚有未完成节点", "dag-ready-claim");
+            }
+        }
         var events = request.events();
         if (events.stream()
                 .anyMatch(

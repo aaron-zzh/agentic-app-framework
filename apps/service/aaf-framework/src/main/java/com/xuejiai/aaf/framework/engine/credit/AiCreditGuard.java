@@ -59,6 +59,7 @@ public interface AiCreditGuard {
             String tenantId,
             String taskId,
             String executionId,
+            long fencingToken,
             Long userId,
             AiModel model,
             AiUsage usage,
@@ -71,6 +72,9 @@ public interface AiCreditGuard {
             tenantId = requireText(tenantId, "tenantId");
             taskId = requireText(taskId, "taskId");
             executionId = requireText(executionId, "executionId");
+            if (fencingToken < 0) {
+                throw new IllegalArgumentException("fencingToken 不能为负数");
+            }
             Objects.requireNonNull(userId, "userId 不能为空");
             if (userId <= 0) {
                 throw new IllegalArgumentException("userId 必须大于 0");

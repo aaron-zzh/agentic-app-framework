@@ -3,10 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.agent.port;
 import java.time.Instant;
 import java.util.Objects;
 
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
+import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 
 /** 从真实模型结束事件写入的幂等用量事实边界。 */
 public interface TokenMeteringPort {
@@ -15,10 +12,7 @@ public interface TokenMeteringPort {
 
     record ModelUsageFact(
             String usageId,
-            TenantId tenantId,
-            UserId userId,
-            TaskId taskId,
-            ExecutionId executionId,
+            InvocationContext context,
             String modelId,
             String capability,
             long inputTokens,
@@ -27,10 +21,7 @@ public interface TokenMeteringPort {
             Instant occurredAt) {
         public ModelUsageFact {
             Objects.requireNonNull(usageId, "usageId 不能为空");
-            Objects.requireNonNull(tenantId, "tenantId 不能为空");
-            Objects.requireNonNull(userId, "userId 不能为空");
-            Objects.requireNonNull(taskId, "taskId 不能为空");
-            Objects.requireNonNull(executionId, "executionId 不能为空");
+            Objects.requireNonNull(context, "context 不能为空");
             Objects.requireNonNull(modelId, "modelId 不能为空");
             Objects.requireNonNull(capability, "capability 不能为空");
             Objects.requireNonNull(occurredAt, "occurredAt 不能为空");

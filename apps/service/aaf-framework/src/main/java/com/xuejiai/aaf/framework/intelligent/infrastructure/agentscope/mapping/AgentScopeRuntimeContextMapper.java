@@ -28,9 +28,16 @@ public final class AgentScopeRuntimeContextMapper {
                 .build();
     }
 
-    /** 返回 AgentStateStore 使用的租户隔离用户键。 */
+    /** 返回 AgentStateStore 使用的 tenant/user/task 隔离键；委托态按 fencing 代际隔离。 */
     public String stateUserKey(InvocationContext context) {
         Objects.requireNonNull(context, "context 不能为空");
-        return "tenant=" + context.tenantId().value() + "|user=" + context.userId().value();
+        var key = "tenant=" + context.tenantId().value()
+                + "|user=" + context.userId().value()
+                + "|task=" + context.taskId().value();
+        if (context.controlMode()
+                == com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+            key += "|fence=" + context.lease().fencingToken();
+        }
+        return key;
     }
 }

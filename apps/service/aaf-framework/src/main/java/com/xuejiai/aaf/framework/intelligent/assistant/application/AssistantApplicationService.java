@@ -30,6 +30,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
@@ -49,6 +50,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     private final AssistantDefinitionPort definitions;
     private final TaskControlPort tasks;
+    private final TaskBoardPort taskBoards;
     private final SkillRouter skillRouter;
     private final EffectiveContextPort effectiveContexts;
     private final MemoryContextPort memoryContexts;
@@ -61,6 +63,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     public AssistantApplicationService(
             AssistantDefinitionPort definitions,
             TaskControlPort tasks,
+            TaskBoardPort taskBoards,
             SkillRouter skillRouter,
             EffectiveContextPort effectiveContexts,
             MemoryContextPort memoryContexts,
@@ -71,6 +74,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             TaskRecoveryPort recoveries) {
         this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
+        this.taskBoards = Objects.requireNonNull(taskBoards, "taskBoards 不能为空");
         this.skillRouter = Objects.requireNonNull(skillRouter, "skillRouter 不能为空");
         this.effectiveContexts = Objects.requireNonNull(effectiveContexts, "effectiveContexts 不能为空");
         this.memoryContexts = Objects.requireNonNull(memoryContexts, "memoryContexts 不能为空");
@@ -84,7 +88,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     @Override
     public Flux<ExecutionEvent> execute(AssistantCommand command) {
         Objects.requireNonNull(command, "command 不能为空");
-        if (command.operation().executesAgent()) {
+        if (command.controlMode()
+                        == com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED
+                && command.lease() == null) {
+            throw new IllegalStateException("DELEGATED 执行必须由持久调度器注入 conversation lease");
+        }
+        if (command.operation().executesAgent()
+                && command.controlMode()
+                        != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
             recoveries.saveCommand(command);
         }
         var failureSequence = new AtomicLong(command.sequenceBase());
@@ -92,9 +103,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var taskProgressed = new AtomicBoolean();
         return Flux.defer(
                         () ->
-                                command.operation().executesAgent()
-                                        ? executeAgent(command, taskRef, taskProgressed)
-                                        : controlTask(command))
+                                command.operation() == AssistantCommand.Operation.SUBTASK
+                                        ? executeSubTask(command)
+                                        : command.operation().executesAgent()
+                                                ? executeAgent(command, taskRef, taskProgressed)
+                                                : controlTask(command))
                 .doOnNext(
                         event ->
                                 failureSequence.accumulateAndGet(event.sequence(), Math::max))
@@ -109,8 +122,25 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 .concatMap(
                         event ->
                                 event.ownerType() == OwnerType.ASSISTANT
-                                        ? eventStore.append(event)
+                                        ? eventStore.append(event, command.lease())
                                         : reactor.core.publisher.Mono.just(event));
+    }
+
+    private Flux<ExecutionEvent> executeSubTask(AssistantCommand command) {
+        var definition = requireDefinition(command);
+        definition.requireControlMode(command.controlMode());
+        requirePublished(definition);
+        var route = skillRouter.route(definition, command.input())
+                .orElseThrow(() -> new IllegalStateException("子任务没有可用的 SkillRoute"));
+        if (!definition.toolPolicy().allows(command.controlMode(), route.actionEffect())) {
+            throw new IllegalStateException("当前控制模式禁止子任务动作: " + route.actionKey());
+        }
+        var memoryContext = definition.memoryStrategy().longTermEnabled()
+                ? memoryContexts.prepare(new RecallQuery(
+                        command.memorySubject(), command.input(), 4, 1024, command.requestedAt()))
+                : MemoryContextPort.MemoryContext.empty();
+        return agentExecution.execute(
+                agentCommand(command, route, definition, command.sequenceBase(), memoryContext.messages()));
     }
 
     private Flux<ExecutionEvent> executeAgent(
@@ -211,7 +241,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 switch (command.operation()) {
                     case CANCEL -> TaskStatus.CANCELED;
                     case PAUSE, TAKE_OVER -> TaskStatus.PAUSED;
-                    case START, RESUME -> throw new IllegalStateException("非法控制命令");
+                    case START, RESUME, SUBTASK -> throw new IllegalStateException("非法控制命令");
                 };
         var owner =
                 command.operation() == AssistantCommand.Operation.TAKE_OVER
@@ -222,7 +252,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     case CANCEL -> "用户取消任务";
                     case PAUSE -> "用户暂停任务";
                     case TAKE_OVER -> "用户接管任务";
-                    case START, RESUME -> throw new IllegalStateException("非法控制命令");
+                    case START, RESUME, SUBTASK -> throw new IllegalStateException("非法控制命令");
                 };
         var recovery =
                 next == TaskStatus.PAUSED
@@ -240,7 +270,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 .cancel(command.executionId())
                 .flatMapMany(
                         ignored -> {
-                            var saved = tasks.save(command.tenantId(), changed);
+                            var saved = tasks.save(command.tenantId(), changed, command.lease());
                             var type =
                                     next == TaskStatus.CANCELED
                                             ? ExecutionEventType.EXECUTION_CANCELED
@@ -291,7 +321,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             "用户创建任务",
                             humanActor(command),
                             command.requestedAt());
-            var created = tasks.create(command.tenantId(), draft);
+            var created = tasks.create(command.tenantId(), draft, command.lease());
             taskRef.set(created);
             taskProgressed.set(true);
             emitted.add(
@@ -311,7 +341,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             assistantOwner(command),
                             new RecoveryPoint("planning", "从技能路由前恢复"),
                             command.requestedAt());
-            tasks.save(command.tenantId(), planning);
+            tasks.save(command.tenantId(), planning, command.lease());
             taskRef.set(planning);
             emitted.add(
                     taskEvent(
@@ -334,7 +364,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             "用户显式切换控制模式",
                             humanActor(command),
                             command.requestedAt());
-            tasks.save(command.tenantId(), task);
+            tasks.save(command.tenantId(), task, command.lease());
             emitted.add(
                     taskEvent(
                             command,
@@ -354,7 +384,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             assistantOwner(command),
                             task.recoveryPoint(),
                             command.requestedAt());
-            tasks.save(command.tenantId(), task);
+            tasks.save(command.tenantId(), task, command.lease());
             emitted.add(
                     taskEvent(
                             command,
@@ -373,7 +403,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             assistantOwner(command),
                             new RecoveryPoint("planning", "从技能路由前恢复"),
                             command.requestedAt());
-            tasks.save(command.tenantId(), task);
+            tasks.save(command.tenantId(), task, command.lease());
         }
         if (!task.equals(taskRef.get())) {
             taskRef.set(task);
@@ -397,7 +427,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         new TaskOwner(OwnerKind.AGENT, route.agentId().value()),
                         new RecoveryPoint("agent-execution", "从 Agent 状态槽位恢复"),
                         command.requestedAt());
-        tasks.save(command.tenantId(), running);
+        tasks.save(command.tenantId(), running, command.lease());
         emitted.add(
                 taskEvent(
                         command,
@@ -432,7 +462,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             humanOwner(command),
                             null,
                             Instant.now());
-            tasks.save(command.tenantId(), canceledTask);
+            tasks.save(command.tenantId(), canceledTask, command.lease());
             taskRef.set(canceledTask);
             return Flux.just(
                     taskEvent(
@@ -447,7 +477,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var decision =
                 completionValidator.validate(
                         new CompletionValidator.ValidationRequest(
-                                taskRef.get(), route, command.completionCriteria(), agentEvents));
+                                taskRef.get(),
+                                route,
+                                command.completionCriteria(),
+                                taskBoards.find(command.tenantId(), command.taskId()),
+                                agentEvents));
         var events = new ArrayList<ExecutionEvent>();
         var task = taskRef.get();
         events.add(
@@ -632,7 +666,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         owner,
                         recoveryPoint,
                         Instant.now());
-        return tasks.save(command.tenantId(), changed);
+        return tasks.save(command.tenantId(), changed, command.lease());
     }
 
     private Flux<ExecutionEvent> failTask(
@@ -663,7 +697,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             assistantOwner(command),
                             current.recoveryPoint(),
                             Instant.now());
-            failed = tasks.save(command.tenantId(), failed);
+            failed = tasks.save(command.tenantId(), failed, command.lease());
         }
         taskRef.set(failed);
         return Flux.just(
@@ -744,6 +778,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.causationId(),
                         command.idempotencyKey(),
                         command.controlMode(),
+                        command.executionContract(),
+                        command.lease(),
                         toolAuthorization);
         var messages = new ArrayList<>(memoryMessages);
         messages.add(

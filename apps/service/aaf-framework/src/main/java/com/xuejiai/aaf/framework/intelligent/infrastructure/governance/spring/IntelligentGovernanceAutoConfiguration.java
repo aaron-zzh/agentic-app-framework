@@ -1,11 +1,15 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.governance.spring;
 
+import java.nio.file.Path;
+
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
@@ -15,14 +19,23 @@ import com.xuejiai.aaf.framework.intelligent.agent.application.DefaultToolParame
 import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ConnectorActionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.CredentialVaultPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.InvocationReceiptPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.McpPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SandboxPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ScopedFileSystemPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolParameterPolicyPort;
 import com.xuejiai.aaf.framework.intelligent.ai.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PersistentHitlCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatchPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskResumeSignalPort;
@@ -35,44 +48,100 @@ import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.lease.RedisConversationLeaseAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.DelegatedTaskRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaDelegatedTaskAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaNotificationOutboxAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskBoardAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskBoardRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskNotificationOutboxRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.SpringDelegatedTaskDispatchAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.KnowledgeEmbeddingAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.RuleBasedMemoryGovernanceAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.persistence.CognitionMemoryRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.persistence.JpaCognitionMemoryAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.GovernedMcpAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.GovernedSandboxAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.LocalScopedFileSystemAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.RegistryConnectorActionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.SpringTaskResumeSignalAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.AuthorizationGrantRepository;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.ConnectorActionExecutionRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.CredentialHandleRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.HitlRecoveryRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.HumanApprovalRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.JpaAuthorizationGrantAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.JpaCredentialVaultAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.JpaHumanApprovalAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.JpaInvocationReceiptAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.JpaTaskRecoveryAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.TaskRecoveryCommandRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.persistence.ToolInvocationReceiptRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.metering.persistence.JpaTokenMeteringAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.trace.persistence.ExecutionEventRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.trace.persistence.JpaExecutionEventStoreAdapter;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 
-/** P3 Cognition、授权、HITL、连接器、计量与轨迹唯一生产接线。 */
+/** Cognition 与 P3/P4 治理基础设施的唯一生产接线。 */
 @AutoConfiguration
 @AutoConfigureAfter(AgentRuntimePortAutoConfiguration.class)
 @AutoConfigureBefore(AgentScopeInfrastructureAutoConfiguration.class)
 public class IntelligentGovernanceAutoConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean(ConversationLeasePort.class)
+    ConversationLeasePort conversationLeasePort(StringRedisTemplate redis) {
+        return new RedisConversationLeaseAdapter(redis);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(DelegatedTaskPort.class)
+    DelegatedTaskPort delegatedTaskPort(
+            DelegatedTaskRepository repository,
+            TaskBoardRepository taskBoards,
+            ConversationLeasePort leases) {
+        return new JpaDelegatedTaskAdapter(repository, taskBoards, leases);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TaskBoardPort.class)
+    TaskBoardPort taskBoardPort(
+            TaskBoardRepository repository, ConversationLeasePort leases) {
+        return new JpaTaskBoardAdapter(repository, leases);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(NotificationPort.class)
+    NotificationPort notificationPort(
+            TaskNotificationOutboxRepository repository, ApplicationEventPublisher publisher) {
+        return new JpaNotificationOutboxAdapter(repository, publisher);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(InvocationReceiptPort.class)
+    InvocationReceiptPort invocationReceiptPort(
+            ToolInvocationReceiptRepository repository,
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks) {
+        return new JpaInvocationReceiptAdapter(repository, leases, delegatedTasks);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(ExecutionEventStorePort.class)
-    JpaExecutionEventStoreAdapter executionEventStore(ExecutionEventRepository repository) {
-        return new JpaExecutionEventStoreAdapter(repository);
+    JpaExecutionEventStoreAdapter executionEventStore(
+            ExecutionEventRepository repository,
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks) {
+        return new JpaExecutionEventStoreAdapter(repository, leases, delegatedTasks);
     }
 
     @Bean
     @ConditionalOnMissingBean(TokenMeteringPort.class)
     TokenMeteringPort tokenMeteringPort(
-            ModelManagementService models, AiCreditGuard creditGuard) {
-        return new JpaTokenMeteringAdapter(models, creditGuard);
+            ModelManagementService models,
+            AiCreditGuard creditGuard,
+            DelegatedTaskPort delegatedTasks,
+            ConversationLeasePort leases) {
+        return new JpaTokenMeteringAdapter(models, creditGuard, delegatedTasks, leases);
     }
 
     @Bean
@@ -98,6 +167,12 @@ public class IntelligentGovernanceAutoConfiguration {
     TaskRecoveryPort taskRecoveryPort(
             TaskRecoveryCommandRepository commands, HitlRecoveryRepository recoveries) {
         return new JpaTaskRecoveryAdapter(commands, recoveries);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(DelegatedTaskDispatchPort.class)
+    DelegatedTaskDispatchPort delegatedTaskDispatchPort(ApplicationEventPublisher publisher) {
+        return new SpringDelegatedTaskDispatchAdapter(publisher);
     }
 
     @Bean
@@ -149,8 +224,37 @@ public class IntelligentGovernanceAutoConfiguration {
     ConnectorActionPort connectorActionPort(
             ToolRegistry registry,
             CredentialVaultPort credentials,
-            ConnectorActionExecutionRepository executions) {
-        return new RegistryConnectorActionAdapter(registry, credentials, executions);
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks) {
+        return new RegistryConnectorActionAdapter(registry, credentials, leases, delegatedTasks);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ScopedFileSystemPort.class)
+    ScopedFileSystemPort scopedFileSystemPort(
+            Environment environment,
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks) {
+        return new LocalScopedFileSystemAdapter(workspaceRoot(environment), leases, delegatedTasks);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SandboxPort.class)
+    SandboxPort sandboxPort(
+            Environment environment,
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks) {
+        return new GovernedSandboxAdapter(workspaceRoot(environment), leases, delegatedTasks);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(McpPort.class)
+    McpPort mcpPort(
+            ConnectorActionPort connectors,
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks,
+            InvocationReceiptPort receipts) {
+        return new GovernedMcpAdapter(connectors, leases, delegatedTasks, receipts);
     }
 
     @Bean
@@ -162,9 +266,21 @@ public class IntelligentGovernanceAutoConfiguration {
             TaskControlPort tasks,
             TaskRecoveryPort recoveries,
             TaskResumeSignalPort resumeSignals,
-            ExecutionEventStorePort events) {
+            ExecutionEventStorePort events,
+            DelegatedTaskPort delegatedTasks,
+            DelegatedTaskDispatchPort delegatedDispatch,
+            ConversationLeasePort leases) {
         return new PersistentHitlCoordinator(
-                approvals, grants, credentials, tasks, recoveries, resumeSignals, events);
+                approvals,
+                grants,
+                credentials,
+                tasks,
+                recoveries,
+                resumeSignals,
+                events,
+                delegatedTasks,
+                delegatedDispatch,
+                leases);
     }
 
     @Bean
@@ -174,7 +290,24 @@ public class IntelligentGovernanceAutoConfiguration {
             ToolParameterPolicyPort parameterPolicy,
             HitlCoordinatorPort hitl,
             ToolInvocationPort localTools,
-            ConnectorActionPort connectors) {
-        return new DefaultToolGateway(grants, parameterPolicy, hitl, localTools, connectors);
+            ConnectorActionPort connectors,
+            ConversationLeasePort leases,
+            DelegatedTaskPort delegatedTasks,
+            InvocationReceiptPort receipts) {
+        return new DefaultToolGateway(
+                grants,
+                parameterPolicy,
+                hitl,
+                localTools,
+                connectors,
+                leases,
+                delegatedTasks,
+                receipts);
+    }
+
+    private static Path workspaceRoot(Environment environment) {
+        return Path.of(environment.getProperty(
+                "aaf.assistant.delegated.workspace-root",
+                Path.of(System.getProperty("java.io.tmpdir"), "aaf-delegated-workspace").toString()));
     }
 }

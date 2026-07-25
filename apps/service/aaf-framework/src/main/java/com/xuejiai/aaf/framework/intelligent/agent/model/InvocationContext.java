@@ -2,6 +2,8 @@ package com.xuejiai.aaf.framework.intelligent.agent.model;
 
 import java.util.Objects;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CausationId;
@@ -30,6 +32,8 @@ public record InvocationContext(
         CausationId causationId,
         IdempotencyKey idempotencyKey,
         ControlMode controlMode,
+        ExecutionContract executionContract,
+        Lease lease,
         ToolAuthorizationContext toolAuthorization) {
 
     public InvocationContext {
@@ -43,5 +47,13 @@ public record InvocationContext(
         Objects.requireNonNull(correlationId, "correlationId 不能为空");
         Objects.requireNonNull(controlMode, "controlMode 不能为空");
         Objects.requireNonNull(toolAuthorization, "toolAuthorization 不能为空");
+        if (controlMode == ControlMode.DELEGATED) {
+            Objects.requireNonNull(executionContract, "DELEGATED 调用必须携带 ExecutionContract");
+            Objects.requireNonNull(lease, "DELEGATED 调用必须携带 conversation lease");
+            executionContract.requireUsableAt(java.time.Instant.now());
+            if (!tenantId.equals(lease.tenantId()) || !conversationId.equals(lease.conversationId())) {
+                throw new IllegalArgumentException("InvocationContext 与 conversation lease 不一致");
+            }
+        }
     }
 }
