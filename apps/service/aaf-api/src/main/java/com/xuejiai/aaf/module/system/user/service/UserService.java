@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -34,8 +33,6 @@ import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
 import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
 import com.xuejiai.aaf.framework.crud.reference.CrudReferenceTargetAccess;
-import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinition;
-import com.xuejiai.aaf.framework.intelligent.assistant.AssistantDefinitionRepository;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.user.api.UserRelationService;
 import com.xuejiai.aaf.module.system.user.domain.User;
@@ -65,10 +62,6 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
     private final PasswordEncoder passwordEncoder;
     private final jakarta.validation.Validator validator;
     private final SystemConfigService systemConfigService;
-    private final AssistantDefinitionRepository assistantRepo;
-
-    @Value("${aaf.assistant.auto-create-on-register:true}")
-    private boolean autoCreateAssistant;
 
     /**
      * 创建用户
@@ -92,9 +85,6 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
         userRepository.save(user);
         // 新增后 id 才有值，通过 LogRecordContext 注入供模板引用
         LogRecordContext.putVariable("user", user);
-        if (autoCreateAssistant) {
-            initDefaultAssistant(user.getId());
-        }
         return toVO(user);
     }
 
@@ -549,22 +539,4 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
         return UserConvert.INSTANCE.toVO(user);
     }
 
-    /** 为新用户克隆 default-assistant（以 userId=0 的第一个 active assistant 为模板） */
-    private void initDefaultAssistant(Long userId) {
-        try {
-            var defaultDef =
-                    assistantRepo.findByUserIdAndStatus(0L, "active").stream()
-                            .findFirst()
-                            .orElse(null);
-            if (defaultDef == null) return;
-            var assistant = new AssistantDefinition();
-            assistant.setUserId(userId);
-            assistant.setPersonaId(defaultDef.getPersonaId());
-            assistant.setDefaultRoleId(defaultDef.getDefaultRoleId());
-            assistant.setMemoryStrategy(defaultDef.getMemoryStrategy());
-            assistantRepo.save(assistant);
-        } catch (Exception e) {
-            log.warn("为用户 {} 自动创建助理失败，跳过: {}", userId, e.getMessage());
-        }
-    }
 }

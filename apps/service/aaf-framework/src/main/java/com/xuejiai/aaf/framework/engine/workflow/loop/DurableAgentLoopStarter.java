@@ -22,8 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li>外层 Loop（任务级）：调用方（Assistant / ChatTaskScheduler）负责，传入 input/goalCondition
  *   <li>中层 Loop（步骤级）：本流程 + Flowable，负责持久化、检查点、人工节点
- *   <li>内层 Loop（ReAct）：{@link
- *       com.xuejiai.aaf.framework.intelligent.agent.runtime.CognitiveCycleExecutor}
+ *   <li>内层 Loop（ReAct）：AgentExecutionPort 统一执行入口
  * </ul>
  *
  * <p>与 {@code DurableTaskExecutor} 的关系：

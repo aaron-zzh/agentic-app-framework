@@ -15,7 +15,7 @@ package com.xuejiai.aaf.framework.intelligent.core.confidence;
  *
  * <ul>
  *   <li><b>Agent 执行前</b>：{@code AgentDispatcher} 根据意图理解置信度 + 任务可验证性决定策略
- *   <li><b>Agent 执行中</b>：{@code CognitiveCycleExecutor} 评估阶段检查置信度是否跌破阈值
+ *   <li><b>Agent 执行中</b>：AgentExecutionPort 执行链检查置信度是否跌破阈值
  *   <li><b>Agent 执行后</b>：{@code ResultAggregator} 对最终结果标注置信度，决定返回策略
  *   <li><b>元引擎路由前</b>：{@code ExecutionDispatcher} 调用门控决定是否自动执行
  * </ul>

@@ -1,7 +1,9 @@
 package com.xuejiai.aaf.module.ai.chat.service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,13 +11,26 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.enums.RiskLevel;
 import com.xuejiai.aaf.framework.engine.task.CheckpointStore;
 import com.xuejiai.aaf.framework.engine.task.TaskEventBus;
-import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
-import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
-import com.xuejiai.aaf.framework.intelligent.agent.runtime.CognitiveCycleExecutor;
-import com.xuejiai.aaf.framework.intelligent.assistant.TaskBoard;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.IdempotencyKey;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskCheckpoint;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskEvent;
@@ -34,14 +49,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 持久任务执行器——委托 framework 层组件实现可恢复、可观测、状态一致的长任务执行。
  *
- * <p>职责分工：
- *
- * <ul>
- *   <li>本类：入口 + DB 持久化（执行实例/检查点/事件日志）+ 调度协调
- *   <li>TaskBoard（framework）：子任务管理 + 依赖检查 + 快照/恢复
- *   <li>CognitiveCycleExecutor（framework）：Agent 认知循环 + 步骤级检查点
- *   <li>CheckpointStore（framework/engine）：通用检查点持久化
- * </ul>
+ * <p>职责分工：本类负责 ChatTask 执行状态与业务产出持久化，实际 AI 执行统一委托 P2
+ * {@link AssistantCommandPort}。
  */
 @Slf4j
 @Component
@@ -53,12 +62,13 @@ public class DurableTaskExecutor {
     private final CheckpointStore checkpointStore;
     private final TaskEventBus taskEventBus;
     private final ExecutionEventStorePort eventStore;
-    private final CognitiveCycleExecutor cognitiveCycleExecutor;
-    private final AgentRegistryService agentRegistry;
+    private final AssistantCommandPort assistantCommandPort;
     private final ChatService chatService;
     private final AiOutputService aiOutputService;
 
     private static final int ORPHAN_TIMEOUT_MINUTES = 10;
+    private static final String DEFAULT_ASSISTANT_ID = "system.assistant.content-creator";
+    private static final AssistantVersion DEFAULT_ASSISTANT_VERSION = new AssistantVersion(1);
 
     // === 执行实例管理 ===
 
@@ -111,9 +121,9 @@ public class DurableTaskExecutor {
         return executionRepository.casStart(executionId) > 0;
     }
 
-    // === 单任务执行（委托 CognitiveCycleExecutor） ===
+    // === 单任务执行（委托 AssistantCommandPort） ===
 
-    /** 执行单个任务——委托 Agent 认知循环 */
+    /** 执行单个任务——通过 P2 Assistant 应用入口执行。 */
     public void execute(ChatTask task, TaskExecution execution) {
         emitEvent(
                 task.getId(),
@@ -122,32 +132,39 @@ public class DurableTaskExecutor {
                 "task_started",
                 "{\"title\":\"%s\"}".formatted(escapeJson(task.getTitle())));
 
+        var startedAt = System.nanoTime();
         try {
             var input =
                     task.getDescription() != null
                             ? task.getTitle() + "\n" + task.getDescription()
                             : task.getTitle();
+            var events =
+                    assistantCommandPort
+                            .execute(createCommand(task, execution, input))
+                            .collectList()
+                            .blockOptional()
+                            .orElseThrow(() -> new IllegalStateException("助理执行未返回事件"));
+            var completed =
+                    events.stream()
+                            .anyMatch(
+                                    event ->
+                                            event.type()
+                                                    == ExecutionEventType.EXECUTION_COMPLETED);
+            if (!completed) {
+                throw new IllegalStateException("助理执行未完成: " + failureReason(events));
+            }
+            var response = finalReply(events);
+            if (response.isBlank()) {
+                throw new IllegalStateException("助理执行完成但未返回回复文本");
+            }
+            var durationMs = (System.nanoTime() - startedAt) / 1_000_000;
 
-            // 委托 CognitiveCycleExecutor（含记忆检索、检查点、重试）
-            var agentDef = resolveAgent(task);
-            var result =
-                    cognitiveCycleExecutor.execute(
-                            agentDef,
-                            input,
-                            task.getCreatorId(),
-                            task.getConversationId().toString(),
-                            null,
-                            null);
-
-            // 保存协调者检查点
             saveCheckpoint(
                     execution.getId(),
                     "coordinator",
                     1,
-                    "{\"result\":\"%s\",\"success\":%b}"
-                            .formatted(
-                                    escapeJson(truncate(result.response(), 2000)),
-                                    result.success()));
+                    "{\"result\":\"%s\",\"success\":true}"
+                            .formatted(escapeJson(truncate(response, 2000))));
 
             completeExecution(execution.getId());
             emitEvent(
@@ -155,20 +172,15 @@ public class DurableTaskExecutor {
                     execution.getId(),
                     null,
                     "task_completed",
-                    "{\"success\":%b,\"duration_ms\":%d}"
-                            .formatted(result.success(), result.duration().toMillis()));
+                    "{\"success\":true,\"duration_ms\":%d}".formatted(durationMs));
 
-            // 持久化回复到对话
             chatService.saveMessage(
                     task.getCreatorId(),
                     "AI",
                     task.getConversationId(),
                     "assistant",
-                    "[任务完成: %s]\n%s".formatted(task.getTitle(), result.response()));
-
-            // 记录 AI 产出
-            recordOutput(task, execution.getId(), result.response());
-
+                    "[任务完成: %s]\n%s".formatted(task.getTitle(), response));
+            recordOutput(task, execution.getId(), response);
         } catch (Exception e) {
             failExecution(execution.getId(), e.getMessage());
             emitEvent(
@@ -181,104 +193,60 @@ public class DurableTaskExecutor {
         }
     }
 
-    // === 多子任务执行（委托 TaskBoard + fork） ===
-
-    /** 执行多子任务——使用 TaskBoard 管理依赖和并发 */
-    public void executeWithSubtasks(ChatTask task, TaskExecution execution, TaskBoard taskBoard) {
-        emitEvent(
-                task.getId(),
-                execution.getId(),
-                null,
-                "task_started",
-                "{\"subtaskCount\":%d}".formatted(taskBoard.allTasks().size()));
-
-        // 保存初始 TaskBoard 检查点
-        saveCheckpoint(execution.getId(), "coordinator", 0, taskBoard.toSnapshot().toString());
-
-        // 循环执行直到所有子任务完成
-        while (!taskBoard.isAllFinished()) {
-            var next = taskBoard.nextReady();
-            if (next.isEmpty()) {
-                // 所有可执行的都在 running 或有未满足依赖，等待
-                sleep(1000);
-                continue;
-            }
-
-            var subtask = next.get();
-            taskBoard.markRunning(subtask.id());
-
-            // fork 子执行
-            var subExec =
-                    createSubExecution(task.getId(), execution.getId(), subtask.id(), subtask.id());
-            if (!tryStart(subExec.getId())) continue;
-
-            emitEvent(
-                    task.getId(),
-                    execution.getId(),
-                    subtask.id(),
-                    "step_started",
-                    "{\"description\":\"%s\"}".formatted(escapeJson(subtask.description())));
-
-            try {
-                var agentDef = resolveAgent(task);
-                var result =
-                        cognitiveCycleExecutor.execute(
-                                agentDef,
-                                subtask.description(),
-                                task.getCreatorId(),
-                                task.getConversationId().toString(),
-                                null,
-                                null);
-
-                taskBoard.markDone(subtask.id(), result.response());
-                completeExecution(subExec.getId());
-                emitEvent(
-                        task.getId(),
-                        execution.getId(),
-                        subtask.id(),
-                        "subtask_completed",
-                        "{\"success\":true}");
-            } catch (Exception e) {
-                taskBoard.markFailed(subtask.id(), e.getMessage());
-                failExecution(subExec.getId(), e.getMessage());
-                emitEvent(
-                        task.getId(),
-                        execution.getId(),
-                        subtask.id(),
-                        "error",
-                        "{\"message\":\"%s\"}".formatted(escapeJson(e.getMessage())));
-            }
-
-            // 每完成一个子任务保存检查点
-            saveCheckpoint(
-                    execution.getId(),
-                    "coordinator",
-                    (int)
-                            taskBoard.allTasks().stream()
-                                    .filter(t -> t.status() == TaskBoard.TaskStatus.DONE)
-                                    .count(),
-                    taskBoard.toSnapshot().toString());
+    private AssistantCommand createCommand(
+            ChatTask task, TaskExecution execution, String input) {
+        if (task.getOrgId() == null) {
+            throw new IllegalStateException("聊天任务缺少 tenant/org 归属: " + task.getId());
         }
-
-        // 聚合结果
-        if (taskBoard.hasFailure()) {
-            failExecution(execution.getId(), "部分子任务失败");
-        } else {
-            completeExecution(execution.getId());
-        }
-        emitEvent(
-                task.getId(),
-                execution.getId(),
+        var tenantId = new TenantId(task.getOrgId().toString());
+        var userId = new UserId(task.getCreatorId().toString());
+        var conversationKey = "chat-conversation-" + task.getConversationId();
+        var executionKey =
+                "chat-task-%d-execution-%d".formatted(task.getId(), execution.getId());
+        var now = Instant.now();
+        return new AssistantCommand(
+                AssistantCommand.Operation.START,
+                tenantId,
+                userId,
+                new MemorySubject(tenantId, SubjectKind.USER, userId.value()),
+                new AssistantId(DEFAULT_ASSISTANT_ID),
+                DEFAULT_ASSISTANT_VERSION,
+                new ConversationId(conversationKey),
+                new SessionId(conversationKey),
+                new TaskId(executionKey),
+                new ExecutionId(executionKey),
+                new RunId(executionKey),
                 null,
-                taskBoard.hasFailure() ? "task_failed" : "task_completed",
-                "{\"done\":%d,\"failed\":%d}"
-                        .formatted(
-                                taskBoard.allTasks().stream()
-                                        .filter(t -> t.status() == TaskBoard.TaskStatus.DONE)
-                                        .count(),
-                                taskBoard.allTasks().stream()
-                                        .filter(t -> t.status() == TaskBoard.TaskStatus.FAILED)
-                                        .count()));
+                new CorrelationId("chat-task-" + task.getId()),
+                null,
+                new IdempotencyKey(executionKey),
+                ControlMode.READ_ONLY,
+                null,
+                null,
+                0,
+                input,
+                CompletionCriteria.responseDelivered(),
+                List.of(),
+                now);
+    }
+
+    private String finalReply(List<ExecutionEvent> events) {
+        return events.reversed().stream()
+                .filter(event -> event.type() == ExecutionEventType.MESSAGE_COMPLETED)
+                .map(event -> event.payload().values().get("text"))
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .findFirst()
+                .orElse("");
+    }
+
+    private String failureReason(List<ExecutionEvent> events) {
+        return events.reversed().stream()
+                .map(event -> event.payload().values().get("reason"))
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .findFirst()
+                .orElse("未产生成功终态");
     }
 
     // === 检查点 ===
@@ -406,18 +374,6 @@ public class DurableTaskExecutor {
 
     // === 内部方法 ===
 
-    private AgentDefinition resolveAgent(ChatTask task) {
-        // 优先使用任务关联的 Agent，否则用默认
-        var def = agentRegistry.listActive().stream().findFirst().orElse(null);
-        if (def == null) {
-            def = new AgentDefinition();
-            def.setName("默认助理");
-            def.setSystemPrompt("你是一个有帮助的 AI 助手，请完成用户交给你的任务。");
-            def.setTimeoutSeconds(120);
-        }
-        return def;
-    }
-
     private String escapeJson(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
@@ -428,11 +384,4 @@ public class DurableTaskExecutor {
         return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
     }
 
-    private void sleep(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
 }
