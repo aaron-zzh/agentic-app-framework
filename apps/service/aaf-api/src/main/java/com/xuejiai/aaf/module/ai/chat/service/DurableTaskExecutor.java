@@ -13,13 +13,16 @@ import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentRegistryService;
 import com.xuejiai.aaf.framework.intelligent.agent.runtime.CognitiveCycleExecutor;
 import com.xuejiai.aaf.framework.intelligent.assistant.TaskBoard;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.module.ai.chat.domain.ChatTask;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskCheckpoint;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskEvent;
 import com.xuejiai.aaf.module.ai.chat.domain.TaskExecution;
 import com.xuejiai.aaf.module.ai.chat.domain.enums.TaskExecutionStatus;
 import com.xuejiai.aaf.module.ai.chat.repository.AiTaskExecutionRepository;
-import com.xuejiai.aaf.module.ai.chat.repository.TaskEventRepository;
+import com.xuejiai.aaf.module.ai.chat.repository.ChatTaskRepository;
 import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
 import com.xuejiai.aaf.module.ai.output.domain.enums.OutputCategory;
 import com.xuejiai.aaf.module.ai.output.domain.enums.OutputSourceType;
@@ -46,10 +49,10 @@ import lombok.extern.slf4j.Slf4j;
 public class DurableTaskExecutor {
 
     private final AiTaskExecutionRepository executionRepository;
+    private final ChatTaskRepository taskRepository;
     private final CheckpointStore checkpointStore;
     private final TaskEventBus taskEventBus;
-    private final TaskEventStreamService eventStreamService;
-    private final TaskEventRepository eventRepository;
+    private final ExecutionEventStorePort eventStore;
     private final CognitiveCycleExecutor cognitiveCycleExecutor;
     private final AgentRegistryService agentRegistry;
     private final ChatService chatService;
@@ -345,7 +348,16 @@ public class DurableTaskExecutor {
     }
 
     public List<TaskEvent> getEvents(Long taskId) {
-        return eventRepository.findByTaskIdOrderByCreateTimeAsc(taskId);
+        var task = taskRepository.findById(taskId).orElseThrow();
+        if (task.getOrgId() == null) {
+            throw new IllegalStateException("聊天任务缺少 tenant/org 归属: " + taskId);
+        }
+        return eventStore
+                .readTask(new TenantId(task.getOrgId().toString()), new TaskId(taskId.toString()), 0)
+                .map(stored -> TaskEvent.from(stored.eventOffset(), stored.event()))
+                .collectList()
+                .blockOptional()
+                .orElseGet(List::of);
     }
 
     // === 产出记录 ===

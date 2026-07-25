@@ -2,8 +2,6 @@ package com.xuejiai.aaf.framework.intelligent.cognition.pipeline;
 
 import java.time.Instant;
 
-import org.springframework.stereotype.Component;
-
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.TimeDecayStrategy;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryDeduplicationService;
@@ -28,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
  * </pre>
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class DefaultMemoryWritePipeline implements MemoryWritePipeline {
 

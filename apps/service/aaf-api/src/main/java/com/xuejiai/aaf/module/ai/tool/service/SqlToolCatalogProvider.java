@@ -48,6 +48,7 @@ public class SqlToolCatalogProvider implements ToolCatalogProvider {
                 Boolean.TRUE.equals(entity.getReadOnly()),
                 Boolean.TRUE.equals(entity.getReversible()),
                 Boolean.TRUE.equals(entity.getRequireConfirm()),
+                Boolean.TRUE.equals(entity.getIdempotencyRequired()),
                 entity.getPermissionCode(),
                 entity.getEntitlementCode(),
                 entity.getCostExpression(),

@@ -41,14 +41,15 @@ public class TaskEventStreamService {
 
     /** 广播事件给所有订阅该任务的客户端 */
     public void broadcast(TaskEvent event) {
-        var emitters = subscribers.get(event.getTaskId());
+        var taskId = Long.valueOf(event.taskId());
+        var emitters = subscribers.get(taskId);
         if (emitters == null || emitters.isEmpty()) return;
 
         for (var emitter : emitters) {
             try {
-                emitter.send(SseEmitter.event().name(event.getType()).data(event));
+                emitter.send(SseEmitter.event().name(event.type()).data(event));
             } catch (IOException e) {
-                removeEmitter(event.getTaskId(), emitter);
+                removeEmitter(taskId, emitter);
             }
         }
     }

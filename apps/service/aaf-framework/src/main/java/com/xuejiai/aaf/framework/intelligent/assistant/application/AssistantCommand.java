@@ -7,6 +7,8 @@ import java.util.Objects;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CausationId;
@@ -25,6 +27,7 @@ public record AssistantCommand(
         Operation operation,
         TenantId tenantId,
         UserId userId,
+        MemorySubject memorySubject,
         AssistantId assistantId,
         AssistantVersion assistantVersion,
         ConversationId conversationId,
@@ -47,6 +50,14 @@ public record AssistantCommand(
         Objects.requireNonNull(operation, "operation 不能为空");
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(userId, "userId 不能为空");
+        Objects.requireNonNull(memorySubject, "memorySubject 不能为空");
+        if (!tenantId.equals(memorySubject.tenantId())) {
+            throw new IllegalArgumentException("memorySubject tenant 与命令 tenant 不一致");
+        }
+        if (memorySubject.kind() == SubjectKind.USER
+                && !userId.value().equals(memorySubject.subjectId())) {
+            throw new IllegalArgumentException("USER memorySubject 必须绑定当前 userId");
+        }
         Objects.requireNonNull(assistantId, "assistantId 不能为空");
         Objects.requireNonNull(assistantVersion, "assistantVersion 不能为空");
         Objects.requireNonNull(conversationId, "conversationId 不能为空");
@@ -73,6 +84,31 @@ public record AssistantCommand(
         } else {
             input = input == null ? "" : input;
         }
+    }
+
+    public AssistantCommand asResume(Instant at) {
+        return new AssistantCommand(
+                Operation.RESUME,
+                tenantId,
+                userId,
+                memorySubject,
+                assistantId,
+                assistantVersion,
+                conversationId,
+                sessionId,
+                taskId,
+                executionId,
+                runId,
+                parentExecutionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                sequenceBase,
+                input,
+                completionCriteria,
+                contextCandidates,
+                at);
     }
 
     public enum Operation {

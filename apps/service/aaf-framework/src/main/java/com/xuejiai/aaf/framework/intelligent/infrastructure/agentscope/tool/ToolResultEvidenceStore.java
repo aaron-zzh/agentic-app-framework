@@ -20,7 +20,8 @@ public final class ToolResultEvidenceStore {
                     "artifactType",
                     "artifactId",
                     "reversible",
-                    "completionEvidence");
+                    "completionEvidence",
+                    "approvalId");
 
     private final ConcurrentMap<EvidenceKey, Map<String, Object>> evidence =
             new ConcurrentHashMap<>();

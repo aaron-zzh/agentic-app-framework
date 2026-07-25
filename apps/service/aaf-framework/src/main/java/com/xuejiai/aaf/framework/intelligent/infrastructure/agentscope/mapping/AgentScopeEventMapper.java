@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
@@ -39,7 +40,10 @@ public final class AgentScopeEventMapper {
 
     /** 映射单个运行事件；不对外暴露思考链和工具参数。 */
     public Optional<ExecutionEvent> map(
-            AgentEvent source, AgentExecutionCommand command, MappingState state) {
+            AgentEvent source,
+            AgentExecutionCommand command,
+            ModelSpec model,
+            MappingState state) {
         return switch (source.getType()) {
             case AGENT_START -> {
                 state.status(ExecutionEventStatus.RUNNING);
@@ -76,7 +80,7 @@ public final class AgentScopeEventMapper {
                             ExecutionEventType.MODEL_CALL_STARTED,
                             state.status(),
                             ExecutionEventPayload.empty());
-            case MODEL_CALL_END -> mapModelCallEnd((ModelCallEndEvent) source, command, state);
+            case MODEL_CALL_END -> mapModelCallEnd((ModelCallEndEvent) source, command, model, state);
             case TEXT_BLOCK_START ->
                     event(
                             source,
@@ -146,9 +150,14 @@ public final class AgentScopeEventMapper {
     }
 
     private Optional<ExecutionEvent> mapModelCallEnd(
-            ModelCallEndEvent source, AgentExecutionCommand command, MappingState state) {
+            ModelCallEndEvent source,
+            AgentExecutionCommand command,
+            ModelSpec model,
+            MappingState state) {
         var usage = source.getUsage();
         var values = new LinkedHashMap<String, Object>();
+        values.put("modelId", model.modelId());
+        values.put("capability", "CHAT");
         if (usage != null) {
             values.put("inputTokens", usage.getInputTokens());
             values.put("outputTokens", usage.getOutputTokens());
@@ -339,7 +348,7 @@ public final class AgentScopeEventMapper {
                 context.executionId(),
                 context.runId(),
                 context.parentExecutionId(),
-                state.nextSequence(),
+                state.nextProvisionalSequence(),
                 type,
                 status,
                 context.controlMode(),
@@ -382,7 +391,8 @@ public final class AgentScopeEventMapper {
             this.sequence = new AtomicLong(sequenceBase);
         }
 
-        long nextSequence() {
+        /** 仅满足入库前事件契约；持久 sequence 由 ExecutionEventStorePort 数据库原子重分配。 */
+        long nextProvisionalSequence() {
             return sequence.incrementAndGet();
         }
 

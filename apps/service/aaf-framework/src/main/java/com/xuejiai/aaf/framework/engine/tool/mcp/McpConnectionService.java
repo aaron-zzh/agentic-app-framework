@@ -1,13 +1,14 @@
 package com.xuejiai.aaf.framework.engine.tool.mcp;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.DefaultToolDefinition;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.engine.tool.ConnectorToolCallback;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 
 import io.agentscope.core.tool.mcp.McpClientBuilder;
@@ -15,7 +16,6 @@ import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.agentscope.core.tool.mcp.McpTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.core.type.TypeReference;
 
 /**
  * MCP 动态连接服务——连接外部 MCP Server，拉取工具列表，注册进 ToolRegistry。
@@ -64,7 +64,7 @@ public class McpConnectionService {
             for (var tool : tools) {
                 var params = McpTool.convertMcpSchemaToParameters(tool.inputSchema(), null);
                 var mcpTool = new McpTool(tool.name(), tool.description(), params, client);
-                var callback = new McpToolCallback(mcpTool);
+                var callback = new McpToolCallback(mcpTool, client);
                 toolRegistry.register(callback, ToolRegistry.SOURCE_MCP);
             }
             log.info("MCP Server [{}] 注册 {} 个工具", serverName, tools.size());
@@ -109,14 +109,16 @@ public class McpConnectionService {
 
     // ── 内部 ToolCallback 适配器 ─────────────────────────────────────────────
 
-    /** 将 AgentScope McpTool 适配为 Spring AI ToolCallback，注册进 ToolRegistry。 */
-    private static final class McpToolCallback implements ToolCallback {
+    /** 将 AgentScope McpTool 适配为受信 Connector 回调。 */
+    private static final class McpToolCallback implements ConnectorToolCallback {
 
         private final McpTool mcpTool;
+        private final McpClientWrapper client;
         private final org.springframework.ai.tool.definition.ToolDefinition definition;
 
-        McpToolCallback(McpTool mcpTool) {
+        McpToolCallback(McpTool mcpTool, McpClientWrapper client) {
             this.mcpTool = mcpTool;
+            this.client = client;
             this.definition =
                     DefaultToolDefinition.builder()
                             .name(mcpTool.getName())
@@ -131,25 +133,32 @@ public class McpConnectionService {
         }
 
         @Override
-        public String call(String arguments) {
+        public String callConnector(
+                Map<String, Object> businessArguments,
+                String vaultRef,
+                String idempotencyKey) {
             try {
-                var input =
-                        JsonUtils.parseObject(
-                                arguments, new TypeReference<Map<String, Object>>() {});
-                var param = io.agentscope.core.tool.ToolCallParam.builder().input(input).build();
-                var result = mcpTool.callAsync(param).block();
-                return result != null ? result.toString() : "";
-            } catch (Exception e) {
-                return "{\"error\":\"" + e.getMessage() + "\"}";
+                var input = new LinkedHashMap<String, Object>(businessArguments);
+                var result = client.callTool(
+                                mcpTool.getName(),
+                                input,
+                                Map.of("vaultRef", vaultRef, "idempotencyKey", idempotencyKey))
+                        .block();
+                if (result == null) {
+                    throw new IllegalStateException("MCP Connector 返回空结果");
+                }
+                if (Boolean.TRUE.equals(result.isError())) {
+                    throw new IllegalStateException("MCP Connector 返回错误: " + result.content());
+                }
+                return io.agentscope.core.tool.mcp.McpContentConverter.convertCallToolResult(result)
+                        .toString();
+            } catch (Exception failure) {
+                throw new IllegalStateException("MCP Connector 调用失败", failure);
             }
         }
 
         private static String schemaToString(Map<String, Object> schema) {
-            try {
-                return JsonUtils.toJsonString(schema);
-            } catch (Exception e) {
-                return "{\"type\":\"object\"}";
-            }
+            return JsonUtils.toJsonString(schema);
         }
     }
 }

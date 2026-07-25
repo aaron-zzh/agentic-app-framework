@@ -13,7 +13,6 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantAppl
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillRouter;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefinitionEffectiveContextResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InstallSystemAssistantTemplatesUseCase;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillRouter;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
@@ -22,23 +21,31 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateContributor;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateInstaller;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.BuiltinSystemAssistantTemplates;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantDefinitionVersionRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantTaskControlRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ContextSourcePreferenceRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.EffectiveContextManifestRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantDefinitionAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaEffectiveContextAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaSystemAssistantTemplateInstaller;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskControlAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.ApprovalRecoveryDispatcher;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 
-/** P2 Assistant 应用层装配；只依赖稳定 AAF 端口，不依赖 AgentScope。 */
+/** Assistant 应用层装配；只依赖稳定 AAF 端口，不依赖 AgentScope。 */
 @AutoConfiguration
 @AutoConfigureAfter(AgentScopeInfrastructureAutoConfiguration.class)
 public class AssistantInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AssistantDefinitionPort.class)
-    AssistantDefinitionPort assistantDefinitionPort(
-            AssistantDefinitionVersionRepository repository) {
+    AssistantDefinitionPort assistantDefinitionPort(AssistantDefinitionVersionRepository repository) {
         return new JpaAssistantDefinitionAdapter(repository);
     }
 
@@ -69,8 +76,10 @@ public class AssistantInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(EffectiveContextPort.class)
-    EffectiveContextPort assistantEffectiveContextPort() {
-        return new DefinitionEffectiveContextResolver();
+    EffectiveContextPort assistantEffectiveContextPort(
+            ContextSourcePreferenceRepository preferences,
+            EffectiveContextManifestRepository manifests) {
+        return new JpaEffectiveContextAdapter(preferences, manifests);
     }
 
     @Bean
@@ -85,7 +94,11 @@ public class AssistantInfrastructureAutoConfiguration {
         AgentExecutionPort.class,
         SkillRouter.class,
         EffectiveContextPort.class,
-        CompletionValidator.class
+        MemoryContextPort.class,
+        MemoryGovernanceService.class,
+        CompletionValidator.class,
+        ExecutionEventStorePort.class,
+        TaskRecoveryPort.class
     })
     @ConditionalOnMissingBean(AssistantCommandPort.class)
     AssistantCommandPort assistantCommandPort(
@@ -93,15 +106,30 @@ public class AssistantInfrastructureAutoConfiguration {
             TaskControlPort tasks,
             SkillRouter skillRouter,
             EffectiveContextPort effectiveContexts,
+            MemoryContextPort memoryContexts,
+            MemoryGovernanceService memoryGovernance,
             AgentExecutionPort agentExecution,
-            CompletionValidator completionValidator) {
+            CompletionValidator completionValidator,
+            ExecutionEventStorePort eventStore,
+            TaskRecoveryPort recoveries) {
         return new AssistantApplicationService(
                 definitions,
                 tasks,
                 skillRouter,
                 effectiveContexts,
+                memoryContexts,
+                memoryGovernance,
                 agentExecution,
-                completionValidator);
+                completionValidator,
+                eventStore,
+                recoveries);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TaskRecoveryDispatchPort.class)
+    TaskRecoveryDispatchPort taskRecoveryDispatchPort(
+            TaskRecoveryPort recoveries, AssistantCommandPort commands) {
+        return new ApprovalRecoveryDispatcher(recoveries, commands);
     }
 
     @Bean

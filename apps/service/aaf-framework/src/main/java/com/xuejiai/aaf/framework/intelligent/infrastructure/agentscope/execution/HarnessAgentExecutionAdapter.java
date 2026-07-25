@@ -13,7 +13,9 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.A
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper.MappingState;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeRuntimeContextMapper;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.AgentScopeTokenMeteringObserver;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
@@ -30,6 +32,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private final AgentScopeMessageMapper messageMapper;
     private final AgentScopeRuntimeContextMapper contextMapper;
     private final AgentScopeEventMapper eventMapper;
+    private final AgentScopeTokenMeteringObserver meteringObserver;
+    private final ExecutionEventStorePort eventStore;
     private final ConcurrentMap<ExecutionId, ActiveExecution> activeExecutions =
             new ConcurrentHashMap<>();
 
@@ -38,12 +42,16 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AgentScopeSpecCompiler compiler,
             AgentScopeMessageMapper messageMapper,
             AgentScopeRuntimeContextMapper contextMapper,
-            AgentScopeEventMapper eventMapper) {
+            AgentScopeEventMapper eventMapper,
+            AgentScopeTokenMeteringObserver meteringObserver,
+            ExecutionEventStorePort eventStore) {
         this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
         this.compiler = Objects.requireNonNull(compiler, "compiler 不能为空");
         this.messageMapper = Objects.requireNonNull(messageMapper, "messageMapper 不能为空");
         this.contextMapper = Objects.requireNonNull(contextMapper, "contextMapper 不能为空");
         this.eventMapper = Objects.requireNonNull(eventMapper, "eventMapper 不能为空");
+        this.meteringObserver = Objects.requireNonNull(meteringObserver, "meteringObserver 不能为空");
+        this.eventStore = Objects.requireNonNull(eventStore, "eventStore 不能为空");
     }
 
     @Override
@@ -94,11 +102,16 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
 
             return agent.streamEvents(
                             messageMapper.toAgentScope(command.messages()), runtimeContext)
-                    .doOnNext(event -> onSourceEvent(event, active))
+                    .doOnNext(
+                            event -> {
+                                onSourceEvent(event, active);
+                                meteringObserver.observe(event, spec, command);
+                            })
                     .concatMap(
                             event ->
                                     Mono.justOrEmpty(
-                                            eventMapper.map(event, command, mappingState)))
+                                            eventMapper.map(
+                                                    event, command, spec.model(), mappingState)))
                     .timeout(spec.executionPolicy().timeout())
                     .doOnError(ignored -> interruptOnce(active))
                     .onErrorResume(
@@ -122,12 +135,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                             eventMapper.canceled(
                                                                     command, mappingState))
                                                     : Flux.empty()))
+                    .concatMap(eventStore::append)
                     .doFinally(
                             ignored ->
                                     activeExecutions.remove(
                                             command.context().executionId(), active));
         } catch (RuntimeException failure) {
-            return Flux.just(eventMapper.failure(command, mappingState, failure));
+            return eventStore.append(eventMapper.failure(command, mappingState, failure)).flux();
         }
     }
 

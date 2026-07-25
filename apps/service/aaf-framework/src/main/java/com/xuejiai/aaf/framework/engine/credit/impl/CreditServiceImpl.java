@@ -104,8 +104,7 @@ public class CreditServiceImpl implements CreditService {
     }
 
     @Override
-    @Transactional(
-            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional
     public Long spend(
             Long userId,
             long amount,

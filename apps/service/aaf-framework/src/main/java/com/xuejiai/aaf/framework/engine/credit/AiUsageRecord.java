@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.JdbcTypeCode;
@@ -32,6 +33,27 @@ public class AiUsageRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /** P3 调度用量的稳定幂等键；历史记录可为空。 */
+    @Column(name = "usage_key", length = 128)
+    private String usageKey;
+
+    /** 幂等键绑定的结算内容摘要。 */
+    @Column(name = "settlement_digest", length = 64)
+    private String settlementDigest;
+
+    /** 租户、任务和执行引用；历史记录可为空。 */
+    @Column(name = "tenant_id", length = 128)
+    private String tenantId;
+
+    @Column(name = "task_id", length = 128)
+    private String taskId;
+
+    @Column(name = "execution_id", length = 128)
+    private String executionId;
+
+    @Column(name = "occurred_at")
+    private Instant occurredAt;
 
     /** 用户 ID */
     @Column(name = "user_id", nullable = false)

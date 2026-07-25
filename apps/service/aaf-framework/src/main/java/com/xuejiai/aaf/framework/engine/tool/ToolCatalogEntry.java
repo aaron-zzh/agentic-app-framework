@@ -11,6 +11,7 @@ public record ToolCatalogEntry(
         boolean readOnly,
         boolean reversible,
         boolean requireConfirm,
+        boolean idempotencyRequired,
         String permissionCode,
         String entitlementCode,
         String costExpression,

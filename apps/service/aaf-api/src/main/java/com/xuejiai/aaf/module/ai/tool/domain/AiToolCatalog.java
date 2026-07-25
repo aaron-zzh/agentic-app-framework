@@ -49,6 +49,9 @@ public class AiToolCatalog extends BaseEntity {
     @Column(name = "require_confirm", nullable = false)
     private Boolean requireConfirm = false;
 
+    @Column(name = "idempotency_required", nullable = false)
+    private Boolean idempotencyRequired = false;
+
     @Column(name = "permission_code", length = 120)
     private String permissionCode;
 
