@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.ai.chat.controller;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -14,19 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContext;
-import com.xuejiai.aaf.framework.intelligent.agent.context.AgentRunContextHolder;
-import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventPublisher;
-import com.xuejiai.aaf.framework.intelligent.agent.trace.AgentRunEventType;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.ChatContextBuilder.HistoryMessage;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.chat.agui.AgentRunEventStreamService;
 import com.xuejiai.aaf.module.ai.chat.service.ChatOrchestrationService;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.service.IntentService;
@@ -35,7 +24,6 @@ import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionRenameDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
-import com.xuejiai.aaf.module.ai.chat.vo.ChatStreamDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.IntentClassifyDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.IntentResult;
 import com.xuejiai.aaf.module.ai.chat.vo.MessageFeedbackDTO;
@@ -43,33 +31,24 @@ import com.xuejiai.aaf.module.ai.chat.vo.MessageFeedbackDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 聊天管理接口
  *
- * <p>提供会话管理、消息收发、AI 流式对话等功能。
+ * <p>仅提供会话与消息管理；AI 执行统一走 v2 {@code /agui/run}。
  *
  * @author AaronZZH & Kiro
  */
-@Slf4j
 @Tag(name = "聊天")
 @RestController
 @RequestMapping("/api/system/chat")
 @RequiredArgsConstructor
 public class ChatController {
 
-    private static final long SSE_TIMEOUT = 5 * 60 * 1000L;
-
     private final ChatService chatService;
     private final IntentService intentService;
     private final OperatorContext operatorContext;
-    private final ResilientChatService resilientChatService;
-    private final ChatContextBuilder chatContextBuilder;
     private final ChatOrchestrationService chatOrchestrationService;
-    private final AiProperties aiProperties;
-    private final AgentRunEventStreamService agentRunEventStreamService;
-    private final AgentRunEventPublisher agentRunEventPublisher;
 
     @Operation(summary = "意图识别")
     @PostMapping("/intent")
@@ -148,129 +127,6 @@ public class ChatController {
             @PathVariable Long messageId, @RequestBody @Validated MessageFeedbackDTO dto) {
         chatService.messageFeedback(messageId, dto.type(), dto.comment());
         return Result.success();
-    }
-
-    @Operation(summary = "AI 流式对话")
-    @PostMapping("/sessions/{sessionId}/stream")
-    public SseEmitter streamChat(
-            @PathVariable Long sessionId, @RequestBody @Validated ChatStreamDTO dto) {
-
-        var userId = operatorContext.currentUserId().orElseThrow();
-        var emitter = new SseEmitter(SSE_TIMEOUT);
-        var runId = java.util.UUID.randomUUID().toString();
-        agentRunEventStreamService.attach(runId, emitter, AgentRunEventStreamService.Format.NAMED);
-
-        // 注册清理回调
-        emitter.onCompletion(() -> log.debug("SSE 完成: sessionId={}", sessionId));
-        emitter.onTimeout(() -> log.warn("SSE 超时: sessionId={}", sessionId));
-
-        // 保存用户消息
-        chatService.saveMessage(userId, "HUMAN", sessionId, "user", dto.content());
-
-        // 构建上下文
-        var history =
-                chatService.listMessages(sessionId).stream()
-                        .map(m -> new HistoryMessage(m.role(), m.content()))
-                        .toList();
-        var systemPrompt = aiProperties.getPrompts().getOrDefault("chat", "你是一个有帮助的 AI 助手。");
-        var messages = chatContextBuilder.buildMessages(systemPrompt, history, dto.content(), 4096);
-
-        // 虚拟线程中执行流式调用
-        Thread.startVirtualThread(
-                () -> {
-                    var fullContent = new StringBuilder();
-                    try (var ignored = AgentRunContextHolder.open(runId, userId, null)) {
-                        agentRunEventPublisher.publish(
-                                AgentRunEventType.RUN_STARTED,
-                                "运行开始",
-                                "聊天流式运行已启动",
-                                java.util.Map.of("sessionId", sessionId));
-                        var flux = resilientChatService.stream(messages, "chat", userId);
-                        flux.doOnNext(
-                                        response -> {
-                                            if (response.getResult() != null
-                                                    && response.getResult().getOutput() != null) {
-                                                var token =
-                                                        response.getResult().getOutput().getText();
-                                                if (token != null && !token.isEmpty()) {
-                                                    fullContent.append(token);
-                                                    sendEvent(
-                                                            emitter,
-                                                            "{\"token\":\"%s\",\"done\":false}"
-                                                                    .formatted(escapeJson(token)));
-                                                }
-                                            }
-                                        })
-                                .doOnComplete(
-                                        () -> {
-                                            agentRunEventPublisher.publish(
-                                                    new AgentRunContext(runId, userId, null),
-                                                    AgentRunEventType.RUN_FINISHED,
-                                                    "运行完成",
-                                                    "聊天流式运行已完成",
-                                                    java.util.Map.of("sessionId", sessionId));
-                                            // 保存 AI 回复
-                                            chatService.saveMessage(
-                                                    0L,
-                                                    "AI",
-                                                    sessionId,
-                                                    "assistant",
-                                                    fullContent.toString());
-                                            sendEvent(
-                                                    emitter,
-                                                    "{\"token\":\"\",\"done\":true,\"usage\":{\"promptTokens\":0,\"completionTokens\":0}}");
-                                            emitter.complete();
-                                        })
-                                .doOnError(
-                                        e -> {
-                                            agentRunEventPublisher.publish(
-                                                    new AgentRunContext(runId, userId, null),
-                                                    AgentRunEventType.RUN_ERROR,
-                                                    "运行失败",
-                                                    e.getMessage() != null ? e.getMessage() : "",
-                                                    java.util.Map.of("sessionId", sessionId));
-                                            log.error("流式调用异常: sessionId={}", sessionId, e);
-                                            completeWithError(emitter, e);
-                                        })
-                                .subscribe();
-                    } catch (Exception e) {
-                        agentRunEventPublisher.publish(
-                                AgentRunEventType.RUN_ERROR,
-                                "运行失败",
-                                e.getMessage(),
-                                java.util.Map.of("sessionId", sessionId));
-                        log.error("启动流式调用失败: sessionId={}", sessionId, e);
-                        completeWithError(emitter, e);
-                    }
-                });
-
-        return emitter;
-    }
-
-    private void sendEvent(SseEmitter emitter, String data) {
-        try {
-            synchronized (emitter) {
-                emitter.send(SseEmitter.event().data(data));
-            }
-        } catch (IOException e) {
-            log.debug("SSE 发送失败（客户端可能已断开）: {}", e.getMessage());
-        }
-    }
-
-    private void completeWithError(SseEmitter emitter, Throwable e) {
-        try {
-            emitter.completeWithError(e);
-        } catch (Exception ignored) {
-            // 客户端已断开
-        }
-    }
-
-    private String escapeJson(String text) {
-        return text.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
     }
 
     @GetMapping("/suggestions")

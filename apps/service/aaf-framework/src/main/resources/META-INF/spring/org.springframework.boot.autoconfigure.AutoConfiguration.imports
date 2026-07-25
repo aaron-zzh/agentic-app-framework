@@ -2,3 +2,5 @@ com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRunt
 com.xuejiai.aaf.framework.intelligent.infrastructure.governance.spring.IntelligentGovernanceAutoConfiguration
 com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration
 com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.AssistantInfrastructureAutoConfiguration
+
+com.xuejiai.aaf.framework.intelligent.infrastructure.automation.spring.AutomationInfrastructureAutoConfiguration

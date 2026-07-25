@@ -243,60 +243,10 @@ aaf:
       poll-timeout: 5s
   script:
     engine: process # process（开发默认） | graalvm（生产推荐，JVM 内沙箱）
-  a2a:
-    engine: local # local（内存直调） | agentscope（标准 A2A 协议）
   weather:
     caiyun:
       app-key: ${CAIYUN_APP_KEY:}
       app-secret: ${CAIYUN_APP_SECRET:}
-
-  # AAF 内容创作 Agent（基于 agentscope 2.0 HarnessAgent）
-  agentscope:
-    assistant:
-      enabled: true
-      main-agent-id: assistant
-      editor-agent-id: editor
-      max-iterations: 50
-      editor-max-iterations: 20
-      # dashscope:qwen-max | openai:gpt-4o | anthropic:claude-3-5-sonnet
-      model-id: ${AAF_AGENTSCOPE_MODEL_ID:dashscope:qwen-max}
-      fallback-model-id: ${AAF_AGENTSCOPE_FALLBACK_MODEL_ID:}
-      # none（本地文件系统，开发默认） | docker（每 session 一个容器，需要预先 docker pull）
-      sandbox-type: ${AAF_AGENTSCOPE_SANDBOX_TYPE:none}
-      sandbox-image: agentscope/coding-sandbox:latest
-      thread-model-call-budget: 200
-      global-model-call-limit: 5000
-      compaction-trigger-messages: 40
-      compaction-keep-messages: 15
-      enable-task-list: true
-
-# AgentScope AG-UI 配置
-agentscope:
-  agui:
-    path-prefix: /api/agui
-    cors-enabled: true
-    cors-allowed-origins: ["*"]
-    emit-state-events: true
-    emit-tool-call-args: true
-    enable-reasoning: true
-    enable-path-routing: true
-    default-agent-id: assistant
-    agent-id-header: X-Agent-Id
-    server-side-memory: true
-    max-thread-sessions: 1000
-    session-timeout-minutes: 30
-    run-timeout: 10m
-    sse-timeout: 300000
-  a2a:
-    server:
-      # AAF 默认走自有 A2A 引擎（见上方 aaf.a2a.engine=local），AgentScope A2A Server 默认关闭。
-      # 该 Server 依赖 ReActAgent Bean 派生 AgentRunner，仅在示例模块开启（dev profile）时才有，
-      # 否则 AgentRunner 缺失会导致 agentScopeA2aServer 装配失败、应用启动中止。
-      enabled: false
-      card:
-        name: AAF Supervisor Agent
-        description: AAF 多智能体协作框架 - Supervisor Agent，支持日程管理等任务委托
-        version: 0.1.0
 
 management:
   info:
