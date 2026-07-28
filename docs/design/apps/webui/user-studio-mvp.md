@@ -3,11 +3,12 @@ level: Practice
 layer: Product
 purpose: User Studio v0.1 MVP 完整设计——驾驶舱 + 五度空间多 tab + 助理常驻 + 全功能闭环
 status: published
-version: 0.2.1
-date: 2026-07-24
+version: 0.2.2
+date: 2026-07-26
 author: AaronZZH & Kiro
 changelog:
-  - 2026-07-24 | v0.2.1 增加 Campaign Studio 企业广告与 OPC 创作演进方案入口
+  - 2026-07-26 | v0.2.2 更新 Content Studio 产品设计入口与项目图谱/结构双视图描述
+  - 2026-07-24 | v0.2.1 增加 Content Studio 企业广告与 OPC 创作演进方案入口
   - 2026-06-22 | v0.2.0 全功能完整化：补全多模型生图（3 国内 + 3 国外）/ 视频 2 模型 / 智能体技能矩阵 / 爆款 4 步 / 数据资产 4 类 / 助理装扮库存 / 项目资源 M:N 关联 / 其他小工具（logo/天气/热点/会议/画像）/ 模型能力收费说明；五度空间升级为多 tab 切换交互；D7 文档管理基础版（不上 PARA）；数据隔离硬约束（按 user_id 过滤）；后端缺口清单
   - 2026-06-22 | v0.1.2 决策落定：D1-D6/D8 确认；模板市场升核心；项目枚举初步扩展；周期 4 → 4.5 周
   - 2026-06-22 | v0.1.1 调整：根目录 `app/studio/` 而非路由组
@@ -17,7 +18,7 @@ changelog:
 # User Studio v0.1 MVP 设计方案
 
 > 上游：[user-studio.md](./user-studio.md)（产品定位与待对齐问题）
-> 演进：[Campaign Studio 产品设计](../content-studio/campaign-studio-product-design.md)（企业广告 + OPC 内容包、画布 + Flow + 助理）
+> 演进：[Content Studio 产品设计](../content-studio/content-studio-design.md)（企业广告 + OPC 项目内容包、项目图谱 + 结构视图 + 助理）
 > 关联：[directory-structure.md](./directory-structure.md) | [tech-stack.md](./tech-stack.md) | [interaction-modes.md](./interaction-modes.md)
 > 任务：AAF-100（tasks.md 待创建）
 
