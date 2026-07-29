@@ -9,4 +9,7 @@ import com.xuejiai.aaf.module.content.domain.ContentDomainExtension;
  * @author AaronZZH & Kiro
  */
 public interface ContentDomainExtensionRepository
-        extends CrudEntityRepository<ContentDomainExtension> {}
+        extends CrudEntityRepository<ContentDomainExtension> {
+
+    java.util.Optional<ContentDomainExtension> findFirstByCodeOrderByIdDesc(String code);
+}

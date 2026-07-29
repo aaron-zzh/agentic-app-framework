@@ -9,4 +9,12 @@ import com.xuejiai.aaf.module.content.domain.ContentProjectBlueprint;
  * @author AaronZZH & Kiro
  */
 public interface ContentProjectBlueprintRepository
-        extends CrudEntityRepository<ContentProjectBlueprint> {}
+        extends CrudEntityRepository<ContentProjectBlueprint> {
+
+    java.util.Optional<ContentProjectBlueprint> findFirstByCodeAndStatusOrderByIdDesc(
+            String code, String status);
+
+    java.util.Optional<ContentProjectBlueprint>
+            findFirstByProjectTypeCodeAndProductionModeAndStatusOrderByIdDesc(
+                    String projectTypeCode, String productionMode, String status);
+}

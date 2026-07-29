@@ -9,4 +9,7 @@ import com.xuejiai.aaf.module.content.domain.ContentProjectProfileRef;
  * @author AaronZZH & Kiro
  */
 public interface ContentProjectProfileRefRepository
-        extends CrudEntityRepository<ContentProjectProfileRef> {}
+        extends CrudEntityRepository<ContentProjectProfileRef> {
+
+    java.util.List<ContentProjectProfileRef> findByProjectIdOrderByIdAsc(Long projectId);
+}

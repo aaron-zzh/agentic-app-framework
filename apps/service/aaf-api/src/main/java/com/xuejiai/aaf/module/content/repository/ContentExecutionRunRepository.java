@@ -8,4 +8,7 @@ import com.xuejiai.aaf.module.content.domain.ContentExecutionRun;
  *
  * @author AaronZZH & Kiro
  */
-public interface ContentExecutionRunRepository extends CrudEntityRepository<ContentExecutionRun> {}
+public interface ContentExecutionRunRepository extends CrudEntityRepository<ContentExecutionRun> {
+
+    long countByProjectIdAndStatus(Long projectId, String status);
+}

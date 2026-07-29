@@ -108,6 +108,30 @@ public record ContentProjectUpdateDTO(
                 expectedVersion);
     }
 
+    public static ContentProjectUpdateDTO statusPatch(String status, Integer expectedVersion) {
+        return new ContentProjectUpdateDTO(
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.value(status),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                Patch.absent(),
+                expectedVersion);
+    }
+
     private static <T> Patch<T> normalize(Patch<T> patch) {
         return patch == null ? Patch.absent() : patch;
     }

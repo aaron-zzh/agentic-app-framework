@@ -8,4 +8,8 @@ import com.xuejiai.aaf.module.content.domain.ContentChannelSpec;
  *
  * @author AaronZZH & Kiro
  */
-public interface ContentChannelSpecRepository extends CrudEntityRepository<ContentChannelSpec> {}
+public interface ContentChannelSpecRepository extends CrudEntityRepository<ContentChannelSpec> {
+
+    java.util.List<ContentChannelSpec> findByCodeInAndStatus(
+            java.util.Collection<String> codes, String status);
+}

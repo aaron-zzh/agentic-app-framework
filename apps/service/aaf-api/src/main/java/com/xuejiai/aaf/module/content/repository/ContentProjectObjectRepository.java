@@ -8,5 +8,7 @@ import com.xuejiai.aaf.module.content.domain.ContentProjectObject;
  *
  * @author AaronZZH & Kiro
  */
-public interface ContentProjectObjectRepository
-        extends CrudEntityRepository<ContentProjectObject> {}
+public interface ContentProjectObjectRepository extends CrudEntityRepository<ContentProjectObject> {
+
+    java.util.List<ContentProjectObject> findByProjectIdOrderBySortOrderAscIdAsc(Long projectId);
+}

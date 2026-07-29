@@ -37,6 +37,8 @@ public class ContentProjectService
                 ContentProjectPageDTO> {
 
     private final ContentProjectRepository repository;
+    private final com.xuejiai.aaf.module.content.repository.ContentBrandProfileRepository
+            brandProfileRepository;
     private final OperatorContext operatorContext;
 
     @Override
@@ -63,7 +65,7 @@ public class ContentProjectService
                 entity.getChannels(),
                 entity.getGraphRevision(),
                 entity.getPrimaryBrandProfileId(),
-                null,
+                brandProfileName(entity.getPrimaryBrandProfileId()),
                 entity.getBudgetLimit(),
                 entity.getCostUsed(),
                 entity.getLastActiveTime(),
@@ -83,6 +85,13 @@ public class ContentProjectService
 
     @Override
     protected void updateEntity(ContentProject entity, ContentProjectUpdateDTO dto) {
+        if (com.xuejiai.aaf.common.enums.content.ContentProjectStatusEnum.ARCHIVED
+                .getCode()
+                .equals(entity.getStatus())) {
+            throw exception(
+                    com.xuejiai.aaf.module.content.ErrorCodeConstants
+                            .CONTENT_PROJECT_ARCHIVED_READONLY);
+        }
         entity.setVersion(
                 ContentPatchSupport.requireVersion(entity.getVersion(), dto.expectedVersion()));
         ContentPatchSupport.required(dto.name(), "name", entity::setName);
@@ -109,6 +118,33 @@ public class ContentProjectService
         ContentPatchSupport.nullable(dto.budgetLimit(), entity::setBudgetLimit);
         ContentPatchSupport.required(dto.costUsed(), "costUsed", entity::setCostUsed);
         ContentPatchSupport.nullable(dto.lastActiveTime(), entity::setLastActiveTime);
+    }
+
+    @Transactional
+    public ContentProjectVO updateStatus(
+            Long id, com.xuejiai.aaf.module.content.vo.ContentProjectStatusDTO dto) {
+        return update(id, ContentProjectUpdateDTO.statusPatch(dto.status(), dto.expectedVersion()));
+    }
+
+    @Override
+    protected void beforeDelete(ContentProject entity) {
+        if (com.xuejiai.aaf.common.enums.content.ContentProjectStatusEnum.ARCHIVED
+                .getCode()
+                .equals(entity.getStatus())) {
+            throw exception(
+                    com.xuejiai.aaf.module.content.ErrorCodeConstants
+                            .CONTENT_PROJECT_ARCHIVED_READONLY);
+        }
+    }
+
+    private String brandProfileName(Long brandProfileId) {
+        if (brandProfileId == null) {
+            return null;
+        }
+        return brandProfileRepository
+                .findById(brandProfileId)
+                .map(com.xuejiai.aaf.module.content.domain.ContentBrandProfile::getName)
+                .orElse(null);
     }
 
     @Override

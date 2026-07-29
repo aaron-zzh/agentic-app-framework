@@ -9,4 +9,7 @@ import com.xuejiai.aaf.module.content.domain.ContentProjectRelation;
  * @author AaronZZH & Kiro
  */
 public interface ContentProjectRelationRepository
-        extends CrudEntityRepository<ContentProjectRelation> {}
+        extends CrudEntityRepository<ContentProjectRelation> {
+
+    java.util.List<ContentProjectRelation> findByProjectIdOrderByIdAsc(Long projectId);
+}

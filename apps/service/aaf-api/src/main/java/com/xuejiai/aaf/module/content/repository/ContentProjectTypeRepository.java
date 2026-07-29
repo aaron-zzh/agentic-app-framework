@@ -8,4 +8,7 @@ import com.xuejiai.aaf.module.content.domain.ContentProjectType;
  *
  * @author AaronZZH & Kiro
  */
-public interface ContentProjectTypeRepository extends CrudEntityRepository<ContentProjectType> {}
+public interface ContentProjectTypeRepository extends CrudEntityRepository<ContentProjectType> {
+
+    java.util.Optional<ContentProjectType> findFirstByCodeOrderByIdDesc(String code);
+}
