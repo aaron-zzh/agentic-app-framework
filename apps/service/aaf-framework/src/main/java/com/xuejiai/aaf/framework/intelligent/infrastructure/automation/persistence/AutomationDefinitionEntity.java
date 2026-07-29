@@ -20,5 +20,5 @@ public class AutomationDefinitionEntity {
     @JdbcTypeCode(SqlTypes.JSON) @Column(name="definition_payload", nullable=false, columnDefinition="jsonb") private AutomationDefinition definition;
     @Column(name="created_at", nullable=false) private Instant createdAt;
     @Column(name="updated_at", nullable=false) private Instant updatedAt;
-    @Version @Column(name="lock_version", nullable=false) private Long lockVersion;
+    @Version @Column(name="version", nullable=false) private Long version;
 }

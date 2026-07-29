@@ -17,7 +17,7 @@ public interface HitlRecoveryRepository extends JpaRepository<HitlRecoveryEntity
             value = """
                     INSERT INTO ai_hitl_recovery (
                         approval_id, tenant_id, task_id, status, attempts,
-                        command_payload, created_at, updated_at, lock_version)
+                        command_payload, created_at, updated_at, version)
                     VALUES (
                         :approvalId, :tenantId, :taskId, 'PENDING', 0,
                         cast(:commandPayload AS jsonb), :at, :at, 0)

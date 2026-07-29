@@ -51,6 +51,6 @@ public class ToolInvocationReceiptEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
     @Version
-    @Column(name = "lock_version", nullable = false)
-    private Long lockVersion;
+    @Column(name = "version", nullable = false)
+    private Long version;
 }

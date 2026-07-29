@@ -22,5 +22,5 @@ public class AutomationRunEntity {
     @JdbcTypeCode(SqlTypes.JSON) @Column(name="run_payload",nullable=false,columnDefinition="jsonb") private AutomationRun run;
     @Column(name="created_at",nullable=false) private Instant createdAt;
     @Column(name="updated_at",nullable=false) private Instant updatedAt;
-    @Version @Column(name="lock_version",nullable=false) private Long lockVersion;
+    @Version @Column(name="version",nullable=false) private Long version;
 }

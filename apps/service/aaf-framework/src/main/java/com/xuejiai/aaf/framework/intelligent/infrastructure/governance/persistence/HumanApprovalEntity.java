@@ -37,6 +37,6 @@ public class HumanApprovalEntity {
     @Column(name = "approval_payload", nullable = false, columnDefinition = "jsonb")
     private HumanApproval approval;
     @Version
-    @Column(name = "lock_version", nullable = false)
-    private Long lockVersion;
+    @Column(name = "version", nullable = false)
+    private Long version;
 }

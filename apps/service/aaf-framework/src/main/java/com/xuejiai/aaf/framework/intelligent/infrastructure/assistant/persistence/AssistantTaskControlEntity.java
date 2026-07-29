@@ -49,6 +49,6 @@ public class AssistantTaskControlEntity {
     private Long fencingToken;
 
     @Version
-    @Column(name = "lock_version", nullable = false)
-    private Long lockVersion;
+    @Column(name = "version", nullable = false)
+    private Long version;
 }

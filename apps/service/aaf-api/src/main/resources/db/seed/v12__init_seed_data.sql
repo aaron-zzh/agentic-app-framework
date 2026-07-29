@@ -654,26 +654,9 @@ VALUES (
 );
 
 -- ============================================================
--- 内容创作助理 Agent
+-- 内容创作助理（Assistant + Role 直接承载，不经 Agent 层——
+-- 与客服助理同模式：Role.tool_whitelist 直接持有业务工具，skill_ids 驱动流程推进）
 -- ============================================================
-
-INSERT INTO ai_agent_definition (agent_id, name, description, system_prompt, model_id, capabilities, tools, max_iterations, timeout_seconds, memory_config, status, create_time, update_time)
-VALUES (
-    'content-creator',
-    '内容创作助理',
-    '帮助用户完成内容创作全流程：爆款拆解→思路澄清→结构构建→内容裂变→多平台发布。',
-    E'你是一位专业的内容创作助理，擅长帮助用户系统化地创作高质量内容。\n\n你的核心能力：\n1. 分析爆款内容的传播结构\n2. 引导用户澄清写作思路\n3. 构建可复用的内容结构\n4. 将一份内容裂变为多平台版本\n5. 协助发布到各平台（公众号、小红书、抖音、视频号）\n\n工作原则：\n- 按「拆解→澄清→构建→裂变→发布」的顺序引导\n- 每个阶段产出保存为文档，方便后续编辑\n- 用中文交流，语气专业但不生硬\n- 主动推进流程，不等用户追问',
-    NULL,  -- model_id: BIGINT，运行时按实际模型 ID 填写
-    'CHAT',
-    '["createDocument","updateDocument","publish","publishStatus","collect"]',
-    15, 180,
-    '{"maxToken": 100000, "msgThreshold": 50, "lastKeep": 10, "largePayloadThreshold": 2000, "minConsecutiveToolMessages": 6}',
-    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-) ON CONFLICT (agent_id) DO UPDATE SET
-    system_prompt = EXCLUDED.system_prompt,
-    tools = EXCLUDED.tools,
-    memory_config = EXCLUDED.memory_config,
-    update_time = CURRENT_TIMESTAMP;
 
 -- 内容创作（人格）
 INSERT INTO ai_persona (name, persona, system_prompt, status, create_time, update_time)

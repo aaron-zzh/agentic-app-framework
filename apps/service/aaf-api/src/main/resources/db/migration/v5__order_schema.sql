@@ -718,13 +718,29 @@ CREATE TABLE IF NOT EXISTS ai_usage_record (
     raw_usage       JSONB,
     client_ip       VARCHAR(64),
     user_agent      VARCHAR(255),
-    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    usage_key       VARCHAR(128),
+    settlement_digest VARCHAR(64),
+    tenant_id       VARCHAR(128),
+    task_id         VARCHAR(128),
+    execution_id    VARCHAR(128),
+    fencing_token   BIGINT       NOT NULL DEFAULT 0,
+    occurred_at     TIMESTAMPTZ,
+    create_time     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_usage_record_fencing_token CHECK (fencing_token >= 0)
 );
 
 CREATE INDEX idx_air_user_id     ON ai_usage_record (user_id);
 CREATE INDEX idx_air_model_id    ON ai_usage_record (model_id);
 CREATE INDEX idx_air_capability  ON ai_usage_record (capability);
 CREATE INDEX idx_air_create_time ON ai_usage_record (create_time);
+CREATE UNIQUE INDEX uk_ai_usage_record_usage_key
+    ON ai_usage_record (usage_key);
+CREATE INDEX idx_ai_usage_record_task
+    ON ai_usage_record (tenant_id, task_id, occurred_at)
+    WHERE usage_key IS NOT NULL;
+CREATE INDEX idx_ai_usage_record_execution
+    ON ai_usage_record (tenant_id, execution_id, occurred_at)
+    WHERE usage_key IS NOT NULL;
 
 COMMENT ON TABLE  ai_usage_record                IS 'AI 调用用量记录';
 COMMENT ON COLUMN ai_usage_record.quota_type     IS '0=TOKEN 1=PER_USE 2=PER_SEC 3=PER_UNIT';
