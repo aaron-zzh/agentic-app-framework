@@ -1,0 +1,82 @@
+package com.xuejiai.aaf.module.content.domain;
+
+import java.util.Map;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
+
+import com.xuejiai.aaf.common.enums.content.ContentConfigStatusEnum;
+import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.crud.reference.CrudReference;
+import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * 渠道规格实体。
+ *
+ * @author AaronZZH & Kiro
+ */
+@Getter
+@Setter
+@Entity
+@Table(name = "cs_channel_spec")
+@CrudReference(
+        key = "createBy",
+        idProperty = "createBy",
+        targetResource = "system.user",
+        viewField = "createBy",
+        capabilities = ReferenceCapability.READ)
+@CrudReference(
+        key = "updateBy",
+        idProperty = "updateBy",
+        targetResource = "system.user",
+        viewField = "updateBy",
+        capabilities = ReferenceCapability.READ)
+@SQLDelete(
+        sql =
+                "UPDATE cs_channel_spec SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+public class ContentChannelSpec extends BaseEntity {
+
+    @Column(name = "code", nullable = false, length = 64)
+    private String code;
+
+    @Column(name = "name", nullable = false, length = 100)
+    private String name;
+
+    @Column(name = "spec_version", nullable = false, length = 32)
+    private String specVersion;
+
+    @Column(name = "aspect_ratio", length = 32)
+    private String aspectRatio;
+
+    @Column(name = "width")
+    private Integer width;
+
+    @Column(name = "height")
+    private Integer height;
+
+    @Column(name = "max_duration_seconds")
+    private Integer maxDurationSeconds;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "copy_structure", columnDefinition = "jsonb")
+    private Map<String, Object> copyStructure;
+
+    @Column(name = "required_disclaimers", length = 1000)
+    private String requiredDisclaimers;
+
+    @Column(name = "export_format", length = 64)
+    private String exportFormat;
+
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder = 0;
+
+    @Column(name = "status", nullable = false, length = 32)
+    private String status = ContentConfigStatusEnum.DRAFT.getCode();
+}
