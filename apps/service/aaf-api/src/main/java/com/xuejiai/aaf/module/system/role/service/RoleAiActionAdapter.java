@@ -3,8 +3,8 @@ package com.xuejiai.aaf.module.system.role.service;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.framework.intelligent.action.BaseCrudEntityActionAdapter;
 import com.xuejiai.aaf.module.system.role.domain.Role;
 import com.xuejiai.aaf.module.system.role.vo.RoleCreateDTO;

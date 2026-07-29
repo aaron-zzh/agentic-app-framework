@@ -33,7 +33,9 @@ public final class JpaNotificationOutboxAdapter implements NotificationPort {
         var existing = repository.findById(notification.notificationId()).orElse(null);
         if (existing != null) {
             return new NotificationResult(
-                    notification.notificationId(), false, "DISPATCHED".equals(existing.getStatus()));
+                    notification.notificationId(),
+                    false,
+                    "DISPATCHED".equals(existing.getStatus()));
         }
         var entity = new TaskNotificationOutboxEntity();
         entity.setNotificationId(notification.notificationId());
@@ -53,8 +55,9 @@ public final class JpaNotificationOutboxAdapter implements NotificationPort {
         if (limit < 1 || limit > 100) {
             throw new IllegalArgumentException("通知重投 limit 必须在 1..100");
         }
-        var pending = repository.findByStatusInOrderByUpdatedAtAsc(
-                List.of("PENDING", "FAILED"), PageRequest.of(0, limit));
+        var pending =
+                repository.findByStatusInOrderByUpdatedAtAsc(
+                        List.of("PENDING", "FAILED"), PageRequest.of(0, limit));
         pending.forEach(entity -> dispatch(entity, false));
         return pending.size();
     }

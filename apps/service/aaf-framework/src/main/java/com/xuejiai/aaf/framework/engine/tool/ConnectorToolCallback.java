@@ -7,8 +7,8 @@ import org.springframework.ai.tool.ToolCallback;
 /**
  * 外部 Connector 专用回调。
  *
- * <p>业务参数来自模型；vaultRef 与 idempotencyKey 仅由服务端基础设施注入。写动作实现必须把
- * idempotencyKey 原样传给上游 provider，并保证同键重复调用返回同一业务结果。
+ * <p>业务参数来自模型；vaultRef 与 idempotencyKey 仅由服务端基础设施注入。写动作实现必须把 idempotencyKey 原样传给上游
+ * provider，并保证同键重复调用返回同一业务结果。
  */
 public interface ConnectorToolCallback extends ToolCallback {
 

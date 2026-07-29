@@ -15,6 +15,5 @@ public interface EffectiveToolResolver {
      * @param agentAllowedTools Agent 执行环境允许的工具
      * @return 两层共同允许的工具
      */
-    List<ToolRef> resolve(
-            Set<String> roleAllowedToolNames, List<ToolRef> agentAllowedTools);
+    List<ToolRef> resolve(Set<String> roleAllowedToolNames, List<ToolRef> agentAllowedTools);
 }

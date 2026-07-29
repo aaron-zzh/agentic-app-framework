@@ -7,6 +7,7 @@ import java.util.Set;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
+
 import reactor.core.publisher.Mono;
 
 /** 外部连接器业务动作边界；凭证明文和 vaultRef 永不进入模型参数。 */
@@ -33,9 +34,7 @@ public interface ConnectorActionPort {
             arguments = Map.copyOf(Objects.requireNonNull(arguments, "arguments 不能为空"));
             Objects.requireNonNull(idempotencyKey, "idempotencyKey 不能为空");
             Objects.requireNonNull(context, "context 不能为空");
-            if (connectorId.isBlank()
-                    || credentialHandle.isBlank()
-                    || idempotencyKey.isBlank()) {
+            if (connectorId.isBlank() || credentialHandle.isBlank() || idempotencyKey.isBlank()) {
                 throw new IllegalArgumentException(
                         "connectorId、credentialHandle 和 idempotencyKey 不能为空白");
             }

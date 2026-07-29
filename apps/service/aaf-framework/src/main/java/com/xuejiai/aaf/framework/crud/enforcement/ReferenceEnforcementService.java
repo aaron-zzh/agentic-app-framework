@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
 import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
-import com.xuejiai.aaf.framework.crud.reference.CrudReferenceDefinition;
 import com.xuejiai.aaf.framework.crud.reference.EntityReferenceAccess;
 import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
 import com.xuejiai.aaf.framework.crud.reference.ReferenceContext;
@@ -49,29 +48,24 @@ public final class ReferenceEnforcementService {
     }
 
     public Set<ReferenceRequest> readable(
-            ResourceKey sourceResource,
-            String field,
-            Collection<ReferenceRequest> requests) {
+            ResourceKey sourceResource, String field, Collection<ReferenceRequest> requests) {
         return authorize(sourceResource, field, requests, ReferenceCapability.READ);
     }
 
     public Set<ReferenceRequest> referenceable(
-            ResourceKey sourceResource,
-            String field,
-            Collection<ReferenceRequest> requests) {
+            ResourceKey sourceResource, String field, Collection<ReferenceRequest> requests) {
         return authorize(sourceResource, field, requests, ReferenceCapability.REFERENCE);
     }
 
     public Map<ReferenceRequest, ResourceRefDTO> resolveReadable(
-            ResourceKey sourceResource,
-            String field,
-            Collection<ReferenceRequest> requests) {
+            ResourceKey sourceResource, String field, Collection<ReferenceRequest> requests) {
         var contract = contract(sourceResource, field, ReferenceCapability.READ);
         var normalized = normalize(contract, requests);
         if (normalized.isEmpty()) {
             return Map.of();
         }
-        var loaded = access().loadReadable(normalized.stream().map(ReferenceRequest::target).toList());
+        var loaded =
+                access().loadReadable(normalized.stream().map(ReferenceRequest::target).toList());
         var baseline =
                 normalized.stream()
                         .filter(request -> loaded.containsKey(request.target()))
@@ -133,7 +127,8 @@ public final class ReferenceEnforcementService {
         var input = Set.copyOf(contexts.keySet());
         var filtered = read ? policy.filterReadable(input) : policy.filterReferenceable(input);
         if (filtered == null) {
-            throw new IllegalStateException("ReferencePolicy 返回 null: " + contract.additionalPolicyBean());
+            throw new IllegalStateException(
+                    "ReferencePolicy 返回 null: " + contract.additionalPolicyBean());
         }
         var allowed = new LinkedHashSet<ReferenceRequest>();
         filtered.forEach(
@@ -208,8 +203,7 @@ public final class ReferenceEnforcementService {
             boolean supported) {
         if (!supported) {
             throw new IllegalStateException(
-                    "资源 %s 的引用字段 %s 未声明能力 %s"
-                            .formatted(sourceResource.value(), field, capability));
+                    "资源 %s 的引用字段 %s 未声明能力 %s".formatted(sourceResource.value(), field, capability));
         }
     }
 

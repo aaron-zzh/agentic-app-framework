@@ -31,6 +31,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.Agen
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
+
 import io.agentscope.core.model.Model;
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
@@ -156,19 +157,13 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec,
-                                            parentModel,
-                                            "技能 A",
-                                            Set.of(search.name())),
+                                            spec, parentModel, "技能 A", Set.of(search.name())),
                             executor);
             var generateFuture =
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec,
-                                            parentModel,
-                                            "技能 B",
-                                            Set.of(generate.name())),
+                                            spec, parentModel, "技能 B", Set.of(generate.name())),
                             executor);
 
             searchAgent = searchFuture.join();
@@ -208,12 +203,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
 
     private SubagentSpec.Dynamic dynamicSpec(List<ToolRef> tools) {
         return new SubagentSpec.Dynamic(
-                "agent.dynamic-test",
-                "验证动态执行画像",
-                "动态基础提示",
-                tools,
-                policy(),
-                false);
+                "agent.dynamic-test", "验证动态执行画像", "动态基础提示", tools, policy(), false);
     }
 
     private ExecutionPolicy policy() {

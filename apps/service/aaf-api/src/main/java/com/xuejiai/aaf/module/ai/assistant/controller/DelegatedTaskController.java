@@ -23,6 +23,7 @@ import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskEventVO;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskInputDTO;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskReasonDTO;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskVO;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
@@ -43,24 +44,24 @@ public class DelegatedTaskController {
 
     @Operation(summary = "创建对话或手工委托任务")
     @PostMapping
-    public Result<DelegatedTaskVO> create(
-            @Validated @RequestBody DelegatedTaskCreateDTO request) {
-        var source = switch (request.source()) {
-            case CONVERSATION -> Source.CONVERSATION;
-            case MANUAL -> Source.MANUAL;
-        };
-        return Result.success(tasks.create(
-                source,
-                request.conversationId(),
-                request.title(),
-                request.description(),
-                request.priority()));
+    public Result<DelegatedTaskVO> create(@Validated @RequestBody DelegatedTaskCreateDTO request) {
+        var source =
+                switch (request.source()) {
+                    case CONVERSATION -> Source.CONVERSATION;
+                    case MANUAL -> Source.MANUAL;
+                };
+        return Result.success(
+                tasks.create(
+                        source,
+                        request.conversationId(),
+                        request.title(),
+                        request.description(),
+                        request.priority()));
     }
 
     @Operation(summary = "查询当前用户的委托任务")
     @GetMapping("/delegated")
-    public Result<List<DelegatedTaskVO>> list(
-            @RequestParam(required = false) String status) {
+    public Result<List<DelegatedTaskVO>> list(@RequestParam(required = false) String status) {
         return Result.success(tasks.list(status));
     }
 
@@ -85,16 +86,14 @@ public class DelegatedTaskController {
     @Operation(summary = "停止委托任务")
     @PostMapping("/{taskId}/stop")
     public Result<DelegatedTaskVO> stop(
-            @PathVariable String taskId,
-            @Validated @RequestBody DelegatedTaskReasonDTO request) {
+            @PathVariable String taskId, @Validated @RequestBody DelegatedTaskReasonDTO request) {
         return Result.success(tasks.stop(taskId, request.reason()));
     }
 
     @Operation(summary = "人工接管委托任务")
     @PostMapping("/{taskId}/take-over")
     public Result<DelegatedTaskVO> takeOver(
-            @PathVariable String taskId,
-            @Validated @RequestBody DelegatedTaskReasonDTO request) {
+            @PathVariable String taskId, @Validated @RequestBody DelegatedTaskReasonDTO request) {
         return Result.success(tasks.takeOver(taskId, request.reason()));
     }
 
@@ -107,8 +106,7 @@ public class DelegatedTaskController {
     @Operation(summary = "提交任务运行期输入")
     @PostMapping("/{taskId}/inputs")
     public Mono<Result<DelegatedTaskVO>> input(
-            @PathVariable String taskId,
-            @Validated @RequestBody DelegatedTaskInputDTO request) {
+            @PathVariable String taskId, @Validated @RequestBody DelegatedTaskInputDTO request) {
         return tasks.acceptInput(taskId, request).map(Result::success);
     }
 }

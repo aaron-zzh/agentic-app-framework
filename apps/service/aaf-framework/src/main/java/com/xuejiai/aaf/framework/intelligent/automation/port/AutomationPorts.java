@@ -17,33 +17,52 @@ public final class AutomationPorts {
 
     public interface DefinitionPort {
         AutomationDefinition save(AutomationDefinition definition);
+
         Optional<AutomationDefinition> findLatest(TenantId tenantId, String automationId);
-        Optional<AutomationDefinition> findVersion(TenantId tenantId, String automationId, long version);
+
+        Optional<AutomationDefinition> findVersion(
+                TenantId tenantId, String automationId, long version);
+
         List<AutomationDefinition> list(TenantId tenantId);
     }
 
     public interface RunPort {
         AutomationRun createOnce(AutomationRun run);
-        Optional<AutomationRun> findByTrigger(TenantId tenantId, String automationId, String triggerKey);
+
+        Optional<AutomationRun> findByTrigger(
+                TenantId tenantId, String automationId, String triggerKey);
+
         List<AutomationRun> history(TenantId tenantId, String automationId);
+
         List<AutomationRun> findPending(int limit);
+
         AutomationRun markDispatched(TenantId tenantId, String runId, Instant at);
+
         AutomationRun markFailed(TenantId tenantId, String runId, String failure, Instant at);
     }
 
     public interface PolicyPort {
         OrganizationPolicy get(TenantId tenantId);
+
         OrganizationPolicy save(OrganizationPolicy policy);
     }
 
     public interface LifecyclePort {
         DefinitionLifecycle save(DefinitionLifecycle lifecycle);
+
         Optional<DefinitionLifecycle> find(TenantId tenantId, DefinitionLifecycleKey key);
-        record DefinitionLifecycleKey(com.xuejiai.aaf.framework.intelligent.automation.model.AutomationGovernance.DefinitionKind kind, String definitionId, long version) {}
+
+        record DefinitionLifecycleKey(
+                com.xuejiai.aaf.framework.intelligent.automation.model.AutomationGovernance
+                                .DefinitionKind
+                        kind,
+                String definitionId,
+                long version) {}
     }
 
     public interface AuditPort {
         void append(AuditRecord record);
+
         List<AuditRecord> search(TenantId tenantId, String automationId, Instant from, Instant to);
     }
 

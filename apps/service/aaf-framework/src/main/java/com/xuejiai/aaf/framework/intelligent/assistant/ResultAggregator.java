@@ -11,16 +11,18 @@ public final class ResultAggregator {
             var result = results.getFirst();
             return new AggregatedResult(result.content(), result.confidence());
         }
-        var sorted = results.stream()
-                .sorted((left, right) -> Double.compare(right.confidence(), left.confidence()))
-                .toList();
+        var sorted =
+                results.stream()
+                        .sorted(
+                                (left, right) ->
+                                        Double.compare(right.confidence(), left.confidence()))
+                        .toList();
         var best = sorted.getFirst();
         var second = sorted.get(1);
         if (best.confidence() - second.confidence() < 0.1
                 && !best.content().equals(second.content())) {
             return new AggregatedResult(
-                    best.content() + "\n\n[注：存在不同观点] " + second.content(),
-                    best.confidence() * 0.9);
+                    best.content() + "\n\n[注：存在不同观点] " + second.content(), best.confidence() * 0.9);
         }
         return new AggregatedResult(best.content(), best.confidence());
     }

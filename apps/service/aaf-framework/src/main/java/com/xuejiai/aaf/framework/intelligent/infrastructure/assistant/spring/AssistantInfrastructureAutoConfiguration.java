@@ -63,10 +63,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 
 /** Assistant 应用层装配；AgentScope 只通过稳定执行端口进入。 */
 @AutoConfiguration
-@AutoConfigureAfter({
-    AgentScopeInfrastructureAutoConfiguration.class,
-    AiAutoConfiguration.class
-})
+@AutoConfigureAfter({AgentScopeInfrastructureAutoConfiguration.class, AiAutoConfiguration.class})
 public class AssistantInfrastructureAutoConfiguration {
 
     @Bean

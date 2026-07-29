@@ -103,11 +103,24 @@ public record MemoryRecord(
         }
     }
 
-    public enum SubjectKind { USER, VISITOR }
+    public enum SubjectKind {
+        USER,
+        VISITOR
+    }
 
-    public enum PrivacyLevel { PUBLIC, PERSONAL, SENSITIVE, SECRET }
+    public enum PrivacyLevel {
+        PUBLIC,
+        PERSONAL,
+        SENSITIVE,
+        SECRET
+    }
 
-    public enum ConflictDecision { ADD, DUPLICATE, REPLACE, CONFLICT_REQUIRES_CONFIRMATION }
+    public enum ConflictDecision {
+        ADD,
+        DUPLICATE,
+        REPLACE,
+        CONFLICT_REQUIRES_CONFIRMATION
+    }
 
     public record ConflictResolution(
             ConflictDecision decision, String existingMemoryId, String reason) {

@@ -14,7 +14,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 
 /** PostgreSQL 持久化的目标与子任务依赖 DAG。 */
-public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String, SubTask> subTasks) {
+public record TaskBoard(
+        TaskId taskId, Goal goal, int maxParallelism, Map<String, SubTask> subTasks) {
 
     public TaskBoard {
         Objects.requireNonNull(taskId, "taskId 不能为空");
@@ -28,13 +29,17 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
         }
         validateReferences(subTasks);
         var effectiveSubTasks = subTasks;
-        goal.completionEvidence().forEach(evidence -> {
-            if (!effectiveSubTasks.containsKey(evidence)) {
-                throw new IllegalArgumentException("Goal 完成证据引用不存在的子任务: " + evidence);
-            }
-        });
+        goal.completionEvidence()
+                .forEach(
+                        evidence -> {
+                            if (!effectiveSubTasks.containsKey(evidence)) {
+                                throw new IllegalArgumentException(
+                                        "Goal 完成证据引用不存在的子任务: " + evidence);
+                            }
+                        });
         rejectCycles(subTasks);
-        var running = subTasks.values().stream().filter(task -> task.status() == Status.RUNNING).count();
+        var running =
+                subTasks.values().stream().filter(task -> task.status() == Status.RUNNING).count();
         if (running > maxParallelism) {
             throw new IllegalArgumentException("运行中子任务超过并行度限制");
         }
@@ -50,13 +55,22 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
     }
 
     public List<SubTask> ready() {
-        var slots = maxParallelism
-                - (int) subTasks.values().stream().filter(task -> task.status() == Status.RUNNING).count();
+        var slots =
+                maxParallelism
+                        - (int)
+                                subTasks.values().stream()
+                                        .filter(task -> task.status() == Status.RUNNING)
+                                        .count();
         if (slots <= 0) return List.of();
         return subTasks.values().stream()
                 .filter(SubTask::readyForClaim)
-                .filter(task -> task.dependsOn().stream()
-                        .allMatch(dependency -> subTasks.get(dependency).status() == Status.COMPLETED))
+                .filter(
+                        task ->
+                                task.dependsOn().stream()
+                                        .allMatch(
+                                                dependency ->
+                                                        subTasks.get(dependency).status()
+                                                                == Status.COMPLETED))
                 .sorted(java.util.Comparator.comparing(SubTask::subTaskId))
                 .limit(slots)
                 .toList();
@@ -119,12 +133,15 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
 
     public TaskBoard interruptRunning(boolean retryable) {
         var copy = new LinkedHashMap<String, SubTask>();
-        subTasks.forEach((key, task) -> {
-            var shouldInterrupt = task.status() == Status.RUNNING
-                    || (!retryable && (task.status() == Status.PENDING
-                            || task.status() == Status.RETRYABLE));
-            copy.put(key, shouldInterrupt ? task.interrupted(retryable) : task);
-        });
+        subTasks.forEach(
+                (key, task) -> {
+                    var shouldInterrupt =
+                            task.status() == Status.RUNNING
+                                    || (!retryable
+                                            && (task.status() == Status.PENDING
+                                                    || task.status() == Status.RETRYABLE));
+                    copy.put(key, shouldInterrupt ? task.interrupted(retryable) : task);
+                });
         return new TaskBoard(taskId, goal, maxParallelism, copy);
     }
 
@@ -135,34 +152,53 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
     }
 
     private static void validateReferences(Map<String, SubTask> tasks) {
-        tasks.forEach((key, task) -> {
-            if (!key.equals(task.subTaskId())) {
-                throw new IllegalArgumentException("subTasks key 与 subTaskId 不一致: " + key);
-            }
-            task.dependsOn().forEach(dependency -> {
-                if (!tasks.containsKey(dependency)) {
-                    throw new IllegalArgumentException("子任务依赖不存在: " + dependency);
-                }
-                if (dependency.equals(task.subTaskId())) {
-                    throw new IllegalArgumentException("子任务不能依赖自身: " + dependency);
-                }
-            });
-        });
+        tasks.forEach(
+                (key, task) -> {
+                    if (!key.equals(task.subTaskId())) {
+                        throw new IllegalArgumentException("subTasks key 与 subTaskId 不一致: " + key);
+                    }
+                    task.dependsOn()
+                            .forEach(
+                                    dependency -> {
+                                        if (!tasks.containsKey(dependency)) {
+                                            throw new IllegalArgumentException(
+                                                    "子任务依赖不存在: " + dependency);
+                                        }
+                                        if (dependency.equals(task.subTaskId())) {
+                                            throw new IllegalArgumentException(
+                                                    "子任务不能依赖自身: " + dependency);
+                                        }
+                                    });
+                });
     }
 
     private static void rejectCycles(Map<String, SubTask> tasks) {
         var indegree = new LinkedHashMap<String, Integer>();
         var dependents = new LinkedHashMap<String, List<String>>();
-        tasks.keySet().forEach(key -> {
-            indegree.put(key, 0);
-            dependents.put(key, new ArrayList<>());
-        });
-        tasks.values().forEach(task -> task.dependsOn().forEach(dependency -> {
-            indegree.compute(task.subTaskId(), (ignored, value) -> value + 1);
-            dependents.get(dependency).add(task.subTaskId());
-        }));
+        tasks.keySet()
+                .forEach(
+                        key -> {
+                            indegree.put(key, 0);
+                            dependents.put(key, new ArrayList<>());
+                        });
+        tasks.values()
+                .forEach(
+                        task ->
+                                task.dependsOn()
+                                        .forEach(
+                                                dependency -> {
+                                                    indegree.compute(
+                                                            task.subTaskId(),
+                                                            (ignored, value) -> value + 1);
+                                                    dependents
+                                                            .get(dependency)
+                                                            .add(task.subTaskId());
+                                                }));
         var ready = new ArrayDeque<String>();
-        indegree.forEach((key, value) -> { if (value == 0) ready.add(key); });
+        indegree.forEach(
+                (key, value) -> {
+                    if (value == 0) ready.add(key);
+                });
         var visited = 0;
         while (!ready.isEmpty()) {
             var current = ready.removeFirst();
@@ -190,7 +226,10 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
 
     public record Goal(String goalId, String description, Set<String> completionEvidence) {
         public Goal {
-            if (goalId == null || goalId.isBlank() || description == null || description.isBlank()) {
+            if (goalId == null
+                    || goalId.isBlank()
+                    || description == null
+                    || description.isBlank()) {
                 throw new IllegalArgumentException("goalId 和 description 不能为空白");
             }
             completionEvidence = Set.copyOf(Objects.requireNonNull(completionEvidence, "完成证据不能为空"));
@@ -213,7 +252,10 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
             String result,
             String failure) {
         public SubTask {
-            if (subTaskId == null || subTaskId.isBlank() || description == null || description.isBlank()) {
+            if (subTaskId == null
+                    || subTaskId.isBlank()
+                    || description == null
+                    || description.isBlank()) {
                 throw new IllegalArgumentException("subTaskId 和 description 不能为空白");
             }
             dependsOn = Set.copyOf(Objects.requireNonNull(dependsOn, "dependsOn 不能为空"));
@@ -234,8 +276,17 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
         public static SubTask pending(
                 String subTaskId, String description, Set<String> dependsOn, int maxAttempts) {
             return new SubTask(
-                    subTaskId, description, dependsOn, Status.PENDING, true, 0, maxAttempts,
-                    new ExecutionId(randomId()), new SessionId(randomId()), null, null);
+                    subTaskId,
+                    description,
+                    dependsOn,
+                    Status.PENDING,
+                    true,
+                    0,
+                    maxAttempts,
+                    new ExecutionId(randomId()),
+                    new SessionId(randomId()),
+                    null,
+                    null);
         }
 
         public boolean readyForClaim() {
@@ -244,37 +295,69 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
 
         private SubTask claim() {
             if (!readyForClaim()) throw new IllegalStateException("子任务当前不可 claim: " + subTaskId);
-            var nextExecution = status == Status.RETRYABLE ? new ExecutionId(randomId()) : executionId;
+            var nextExecution =
+                    status == Status.RETRYABLE ? new ExecutionId(randomId()) : executionId;
             var nextSession = status == Status.RETRYABLE ? new SessionId(randomId()) : sessionId;
             return new SubTask(
-                    subTaskId, description, dependsOn, Status.RUNNING, retryable,
-                    attempts + 1, maxAttempts, nextExecution, nextSession, null, null);
+                    subTaskId,
+                    description,
+                    dependsOn,
+                    Status.RUNNING,
+                    retryable,
+                    attempts + 1,
+                    maxAttempts,
+                    nextExecution,
+                    nextSession,
+                    null,
+                    null);
         }
 
         private SubTask completed(String value) {
             return new SubTask(
-                    subTaskId, description, dependsOn, Status.COMPLETED, retryable,
-                    attempts, maxAttempts, executionId, sessionId,
-                    Objects.requireNonNullElse(value, ""), null);
+                    subTaskId,
+                    description,
+                    dependsOn,
+                    Status.COMPLETED,
+                    retryable,
+                    attempts,
+                    maxAttempts,
+                    executionId,
+                    sessionId,
+                    Objects.requireNonNullElse(value, ""),
+                    null);
         }
 
         private SubTask failed(String reason, boolean transientFailure) {
             var canRetry = retryable && transientFailure && attempts < maxAttempts;
             return new SubTask(
-                    subTaskId, description, dependsOn,
+                    subTaskId,
+                    description,
+                    dependsOn,
                     canRetry ? Status.RETRYABLE : Status.FAILED,
-                    retryable, attempts, maxAttempts, executionId, sessionId,
-                    null, Objects.requireNonNullElse(reason, "子任务失败"));
+                    retryable,
+                    attempts,
+                    maxAttempts,
+                    executionId,
+                    sessionId,
+                    null,
+                    Objects.requireNonNullElse(reason, "子任务失败"));
         }
 
         private SubTask interrupted(boolean allowRetry) {
             var canRetry = allowRetry && retryable;
             var retainedAttempts = canRetry ? Math.max(0, attempts - 1) : attempts;
             return new SubTask(
-                    subTaskId, description, dependsOn,
+                    subTaskId,
+                    description,
+                    dependsOn,
                     canRetry ? Status.RETRYABLE : Status.CANCELED,
-                    retryable, retainedAttempts, maxAttempts, executionId, sessionId,
-                    result, canRetry ? "执行被控制操作中断" : failure);
+                    retryable,
+                    retainedAttempts,
+                    maxAttempts,
+                    executionId,
+                    sessionId,
+                    result,
+                    canRetry ? "执行被控制操作中断" : failure);
         }
     }
 

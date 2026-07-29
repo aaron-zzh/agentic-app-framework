@@ -95,7 +95,8 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
         verify(authorizationService).authorize(captor.capture());
         assertThat(captor.getValue().plan().l4()).isNotNull();
         assertThat(captor.getValue().target().objectId()).isNull();
-        assertThat(captor.getValue().facts()).doesNotContainKey(CrudEnforcementService.FACT_NAMESPACE);
+        assertThat(captor.getValue().facts())
+                .doesNotContainKey(CrudEnforcementService.FACT_NAMESPACE);
     }
 
     @Test
@@ -127,7 +128,12 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
         assertThat(request.plan().l3()).isNull();
         assertThat(request.plan().l4()).isNotNull();
         assertThat(crudFacts(request).get(CrudEnforcementService.FACT_CURRENT))
-                .isEqualTo(Map.of("id", new java.math.BigDecimal("99"), "ownerId", new java.math.BigDecimal("7")));
+                .isEqualTo(
+                        Map.of(
+                                "id",
+                                new java.math.BigDecimal("99"),
+                                "ownerId",
+                                new java.math.BigDecimal("7")));
     }
 
     @Test
@@ -156,8 +162,7 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
         assertThat(facts)
                 .containsEntry(CrudEnforcementService.FACT_PAYLOAD_DIGEST, payloadDigest)
                 .containsKeys(
-                        CrudEnforcementService.FACT_CURRENT,
-                        CrudEnforcementService.FACT_PROPOSED)
+                        CrudEnforcementService.FACT_CURRENT, CrudEnforcementService.FACT_PROPOSED)
                 .doesNotContainKeys("body", "objectId");
         assertThat(request.target().objectId()).isEqualTo("99");
     }
@@ -322,8 +327,7 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
         when(authorizationService.authorize(any())).thenReturn(allowedCrudDecision(Map.of()));
 
         // 调用
-        enforcementService.enforceRequest(
-                entry, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
+        enforcementService.enforceRequest(entry, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
 
         // 断言
         var captor = ArgumentCaptor.forClass(AuthorizationRequest.class);

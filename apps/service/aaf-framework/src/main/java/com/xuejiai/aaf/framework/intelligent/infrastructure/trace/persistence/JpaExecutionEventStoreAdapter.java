@@ -15,6 +15,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -55,8 +56,9 @@ public final class JpaExecutionEventStoreAdapter
         if (existing.isPresent()) {
             return requireSameEvent(existing.get().getEvent(), requested);
         }
-        var sequence = repository.allocateSequence(
-                requested.tenantId().value(), requested.executionId().value());
+        var sequence =
+                repository.allocateSequence(
+                        requested.tenantId().value(), requested.executionId().value());
         var event = withSequence(requested, sequence);
         var entity = new ExecutionEventEntity();
         entity.setEventId(event.eventId().value());
@@ -72,14 +74,18 @@ public final class JpaExecutionEventStoreAdapter
             publishStoredEvent(storedEvent);
             return storedEvent;
         } catch (DataIntegrityViolationException conflict) {
-            var concurrent = repository.findById(event.eventId().value())
-                    .map(ExecutionEventEntity::getEvent)
-                    .orElseThrow(() -> new IllegalStateException(
-                            "execution sequence 分配后写入失败: "
-                                    + event.executionId().value()
-                                    + "#"
-                                    + event.sequence(),
-                            conflict));
+            var concurrent =
+                    repository
+                            .findById(event.eventId().value())
+                            .map(ExecutionEventEntity::getEvent)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "execution sequence 分配后写入失败: "
+                                                            + event.executionId().value()
+                                                            + "#"
+                                                            + event.sequence(),
+                                                    conflict));
             return requireSameEvent(concurrent, requested);
         }
     }
@@ -87,20 +93,29 @@ public final class JpaExecutionEventStoreAdapter
     @Override
     public Flux<StoredExecutionEvent> readTask(
             TenantId tenantId, TaskId taskId, long afterEventOffset) {
-        return Mono.fromCallable(() -> repository
-                        .findByTenantIdAndTaskIdAndEventOffsetGreaterThanOrderByEventOffsetAsc(
-                                tenantId.value(), taskId.value(), afterEventOffset))
+        return Mono.fromCallable(
+                        () ->
+                                repository
+                                        .findByTenantIdAndTaskIdAndEventOffsetGreaterThanOrderByEventOffsetAsc(
+                                                tenantId.value(), taskId.value(), afterEventOffset))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(Flux::fromIterable)
-                .map(entity -> new StoredExecutionEvent(entity.getEventOffset(), entity.getEvent()));
+                .map(
+                        entity ->
+                                new StoredExecutionEvent(
+                                        entity.getEventOffset(), entity.getEvent()));
     }
 
     @Override
     public Flux<ExecutionEvent> readExecution(
             TenantId tenantId, ExecutionId executionId, long afterSequence) {
-        return Mono.fromCallable(() -> repository
-                        .findByTenantIdAndExecutionIdAndSequenceGreaterThanOrderBySequenceAsc(
-                                tenantId.value(), executionId.value(), afterSequence))
+        return Mono.fromCallable(
+                        () ->
+                                repository
+                                        .findByTenantIdAndExecutionIdAndSequenceGreaterThanOrderBySequenceAsc(
+                                                tenantId.value(),
+                                                executionId.value(),
+                                                afterSequence))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(Flux::fromIterable)
                 .map(ExecutionEventEntity::getEvent);
@@ -111,16 +126,15 @@ public final class JpaExecutionEventStoreAdapter
         if (lease != null) {
             leases.requireCurrent(lease);
         }
-        return Mono.fromCallable(() -> repository.allocateSequence(
-                        tenantId.value(), executionId.value()))
+        return Mono.fromCallable(
+                        () -> repository.allocateSequence(tenantId.value(), executionId.value()))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
     private void publishStoredEvent(ExecutionEvent event) {
         var eventOffset = repository.findEventOffsetByEventId(event.eventId().value());
         if (eventOffset == null) {
-            throw new IllegalStateException(
-                    "执行事件落库后缺少 eventOffset: " + event.eventId().value());
+            throw new IllegalStateException("执行事件落库后缺少 eventOffset: " + event.eventId().value());
         }
         Objects.requireNonNull(applicationEventPublisher, "ApplicationEventPublisher 尚未注入")
                 .publishEvent(new StoredExecutionEvent(eventOffset, event));
@@ -129,15 +143,15 @@ public final class JpaExecutionEventStoreAdapter
     private static ExecutionEvent requireSameEvent(
             ExecutionEvent existing, ExecutionEvent requested) {
         if (!existing.equals(withSequence(requested, existing.sequence()))) {
-            throw new IllegalStateException(
-                    "eventId 已绑定不同事件内容: " + requested.eventId().value());
+            throw new IllegalStateException("eventId 已绑定不同事件内容: " + requested.eventId().value());
         }
         return existing;
     }
 
     private void requireLease(ExecutionEvent event, Lease lease) {
         if (event.controlMode()
-                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode
+                        .DELEGATED) {
             return;
         }
         if (lease == null
@@ -147,7 +161,8 @@ public final class JpaExecutionEventStoreAdapter
         }
         leases.requireCurrent(lease);
         if (event.ownerType()
-                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType.HUMAN) {
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType
+                        .HUMAN) {
             tasks.requireExecution(event.tenantId(), event.taskId(), event.executionId(), lease);
         }
     }

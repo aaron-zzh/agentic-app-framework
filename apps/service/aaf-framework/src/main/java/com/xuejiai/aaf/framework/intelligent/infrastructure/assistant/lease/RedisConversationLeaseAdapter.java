@@ -30,8 +30,10 @@ public final class RedisConversationLeaseAdapter implements ConversationLeasePor
     public Optional<Lease> renew(Lease lease, Duration ttl) {
         Objects.requireNonNull(lease, "lease 不能为空");
         return leases.renew(toDistributedLease(lease), ttl)
-                .map(renewed -> toConversationLease(
-                        lease.tenantId(), lease.conversationId(), renewed));
+                .map(
+                        renewed ->
+                                toConversationLease(
+                                        lease.tenantId(), lease.conversationId(), renewed));
     }
 
     @Override
@@ -60,15 +62,9 @@ public final class RedisConversationLeaseAdapter implements ConversationLeasePor
     }
 
     private static Lease toConversationLease(
-            TenantId tenantId,
-            ConversationId conversationId,
-            DistributedLeasePort.Lease lease) {
+            TenantId tenantId, ConversationId conversationId, DistributedLeasePort.Lease lease) {
         return new Lease(
-                tenantId,
-                conversationId,
-                lease.ownerId(),
-                lease.fencingToken(),
-                lease.expiresAt());
+                tenantId, conversationId, lease.ownerId(), lease.fencingToken(), lease.expiresAt());
     }
 
     private static DistributedLeasePort.Lease toDistributedLease(Lease lease) {

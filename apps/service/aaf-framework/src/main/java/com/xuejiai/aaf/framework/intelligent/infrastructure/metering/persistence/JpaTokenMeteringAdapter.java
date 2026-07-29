@@ -12,9 +12,9 @@ import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard.IdempotentUsageSett
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 
 /** 将真实模型价格映射为 Credit 单账本幂等结算。 */
 public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
@@ -46,20 +46,20 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
                     "模型能力映射缺失: " + databaseModelId + '/' + fact.capability());
         }
         if (model.getQuotaType() == null || model.getQuotaType() != 0) {
-            throw new IllegalStateException(
-                    "Token 用量只能映射 TOKEN 定价模型: " + databaseModelId);
+            throw new IllegalStateException("Token 用量只能映射 TOKEN 定价模型: " + databaseModelId);
         }
-        var inputPrice = Objects.requireNonNull(
-                model.getInputPricePerK(),
-                "模型缺少 input_price_per_k: " + databaseModelId);
-        var outputPrice = Objects.requireNonNull(
-                model.getOutputPricePerK(),
-                "模型缺少 output_price_per_k: " + databaseModelId);
-        var cacheRatio = fact.cachedTokens() == 0
-                ? BigDecimal.ZERO
-                : Objects.requireNonNull(
-                        model.getCacheRatio(),
-                        "模型存在缓存用量但缺少 cache_ratio: " + databaseModelId);
+        var inputPrice =
+                Objects.requireNonNull(
+                        model.getInputPricePerK(), "模型缺少 input_price_per_k: " + databaseModelId);
+        var outputPrice =
+                Objects.requireNonNull(
+                        model.getOutputPricePerK(), "模型缺少 output_price_per_k: " + databaseModelId);
+        var cacheRatio =
+                fact.cachedTokens() == 0
+                        ? BigDecimal.ZERO
+                        : Objects.requireNonNull(
+                                model.getCacheRatio(),
+                                "模型存在缓存用量但缺少 cache_ratio: " + databaseModelId);
         var cost = tokenCost(fact, inputPrice, outputPrice, cacheRatio);
         if (fact.context().controlMode() == ControlMode.DELEGATED) {
             delegatedTasks.recordModelUsage(
@@ -68,30 +68,35 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
                     cost,
                     fact.occurredAt());
         }
-        var usage = new TokenUsage(
-                fact.inputTokens(),
-                fact.outputTokens(),
-                fact.cachedTokens(),
-                inputPrice,
-                outputPrice,
-                cacheRatio);
+        var usage =
+                new TokenUsage(
+                        fact.inputTokens(),
+                        fact.outputTokens(),
+                        fact.cachedTokens(),
+                        inputPrice,
+                        outputPrice,
+                        cacheRatio);
         if (fact.context().controlMode() == ControlMode.DELEGATED) {
             leases.requireCurrent(fact.context().lease());
             delegatedTasks.requireAgentExecution(fact.context());
         }
-        var result = creditGuard.settleIdempotently(new IdempotentUsageSettlement(
-                fact.usageId(),
-                fact.context().tenantId().value(),
-                fact.context().taskId().value(),
-                fact.context().executionId().value(),
-                fact.context().lease() == null ? 0L : fact.context().lease().fencingToken(),
-                userId,
-                model,
-                usage,
-                fact.capability(),
-                cost,
-                fact.occurredAt(),
-                "Agent 执行 Token 用量"));
+        var result =
+                creditGuard.settleIdempotently(
+                        new IdempotentUsageSettlement(
+                                fact.usageId(),
+                                fact.context().tenantId().value(),
+                                fact.context().taskId().value(),
+                                fact.context().executionId().value(),
+                                fact.context().lease() == null
+                                        ? 0L
+                                        : fact.context().lease().fencingToken(),
+                                userId,
+                                model,
+                                usage,
+                                fact.capability(),
+                                cost,
+                                fact.occurredAt(),
+                                "Agent 执行 Token 用量"));
         return new MeteringResult(result.usageKey(), result.created());
     }
 
@@ -103,9 +108,11 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
         var billableInput = fact.inputTokens() - fact.cachedTokens();
         var inputCost = inputPrice.multiply(BigDecimal.valueOf(billableInput));
         if (fact.cachedTokens() > 0) {
-            inputCost = inputCost.add(inputPrice
-                    .multiply(cacheRatio)
-                    .multiply(BigDecimal.valueOf(fact.cachedTokens())));
+            inputCost =
+                    inputCost.add(
+                            inputPrice
+                                    .multiply(cacheRatio)
+                                    .multiply(BigDecimal.valueOf(fact.cachedTokens())));
         }
         return inputCost
                 .add(outputPrice.multiply(BigDecimal.valueOf(fact.outputTokens())))
@@ -117,8 +124,7 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
         try {
             parsed = Long.parseLong(value);
         } catch (NumberFormatException failure) {
-            throw new IllegalStateException(
-                    field + " 无法映射真实 Long 标识: " + value, failure);
+            throw new IllegalStateException(field + " 无法映射真实 Long 标识: " + value, failure);
         }
         if (parsed <= 0) {
             throw new IllegalStateException(field + " 必须映射为正 Long: " + value);

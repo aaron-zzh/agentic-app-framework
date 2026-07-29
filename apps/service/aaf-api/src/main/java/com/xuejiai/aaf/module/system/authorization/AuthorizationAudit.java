@@ -22,9 +22,7 @@ import lombok.Setter;
             @Index(
                     name = "idx_authorization_audit_subject_time",
                     columnList = "subject_id,occurred_at"),
-            @Index(
-                    name = "idx_authorization_audit_policy",
-                    columnList = "policy_id,policy_version")
+            @Index(name = "idx_authorization_audit_policy", columnList = "policy_id,policy_version")
         })
 public class AuthorizationAudit extends BaseEntity {
 

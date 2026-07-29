@@ -16,9 +16,9 @@ import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationDecision;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationRequest;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationTarget;
-import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -303,9 +303,7 @@ public class ToolCallDispatcher {
                 new AuthorizationRequest(
                         AuthorizationSubject.unresolved(),
                         new AuthorizationTarget(
-                                "tool." + normalizePermissionSegment(meta.name()),
-                                "execute",
-                                null),
+                                "tool." + normalizePermissionSegment(meta.name()), "execute", null),
                         plan,
                         Map.of(
                                 "tool",

@@ -8,18 +8,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface ExecutionEventRepository extends JpaRepository<ExecutionEventEntity, String> {
 
-    List<ExecutionEventEntity> findByTenantIdAndTaskIdAndEventOffsetGreaterThanOrderByEventOffsetAsc(
-            String tenantId, String taskId, long afterEventOffset);
+    List<ExecutionEventEntity>
+            findByTenantIdAndTaskIdAndEventOffsetGreaterThanOrderByEventOffsetAsc(
+                    String tenantId, String taskId, long afterEventOffset);
 
     List<ExecutionEventEntity> findByTenantIdAndExecutionIdAndSequenceGreaterThanOrderBySequenceAsc(
             String tenantId, String executionId, long afterSequence);
 
-    @Query(value = "SELECT event_offset FROM ai_task_event WHERE event_id = :eventId", nativeQuery = true)
+    @Query(
+            value = "SELECT event_offset FROM ai_task_event WHERE event_id = :eventId",
+            nativeQuery = true)
     Long findEventOffsetByEventId(String eventId);
 
     @Transactional
     @Query(
-            value = """
+            value =
+                    """
                     INSERT INTO ai_execution_sequence (tenant_id, execution_id, next_sequence)
                     VALUES (:tenantId, :executionId, 2)
                     ON CONFLICT (tenant_id, execution_id)

@@ -42,22 +42,37 @@ public final class RuleBasedMemoryGovernanceAdapter implements MemoryGovernanceP
     @Override
     public Assessment assess(Candidate candidate) {
         var lower = candidate.content().toLowerCase(Locale.ROOT);
-        var secret = lower.contains("password") || lower.contains("密码")
-                || lower.contains("api key") || lower.contains("token=") || lower.contains("secret");
-        var stable = lower.contains("我喜欢") || lower.contains("我偏好")
-                || lower.contains("请记住") || lower.contains("以后") || lower.contains("我的");
+        var secret =
+                lower.contains("password")
+                        || lower.contains("密码")
+                        || lower.contains("api key")
+                        || lower.contains("token=")
+                        || lower.contains("secret");
+        var stable =
+                lower.contains("我喜欢")
+                        || lower.contains("我偏好")
+                        || lower.contains("请记住")
+                        || lower.contains("以后")
+                        || lower.contains("我的");
         var importance = stable ? 0.85 : 0.60;
         var confidence = stable ? 0.90 : 0.72;
         var privacy = secret ? PrivacyLevel.SECRET : PrivacyLevel.PERSONAL;
         var summary = redact(candidate.content());
-        return new Assessment(candidate, importance, confidence, privacy, summary,
-                !secret, secret ? "疑似凭证或秘密，不允许沉淀" : "通过稳定性与隐私规则");
+        return new Assessment(
+                candidate,
+                importance,
+                confidence,
+                privacy,
+                summary,
+                !secret,
+                secret ? "疑似凭证或秘密，不允许沉淀" : "通过稳定性与隐私规则");
     }
 
     @Override
     public ConflictResolution resolve(MemorySubject subject, Assessment assessment, Instant at) {
-        var existing = recall.recall(
-                new RecallQuery(subject, assessment.candidate().content(), 3, 768, at));
+        var existing =
+                recall.recall(
+                        new RecallQuery(subject, assessment.candidate().content(), 3, 768, at));
         var normalized = normalize(assessment.candidate().content());
         for (var memory : existing) {
             if (normalize(memory.content()).equals(normalized)) {
@@ -76,9 +91,10 @@ public final class RuleBasedMemoryGovernanceAdapter implements MemoryGovernanceP
 
     private static boolean sameGovernedTopic(MemoryRecord memory, Candidate candidate) {
         var governedTags = List.of("preference", "decision");
-        var sharedGovernedTag = memory.tags().stream()
-                .filter(governedTags::contains)
-                .anyMatch(candidate.tags()::contains);
+        var sharedGovernedTag =
+                memory.tags().stream()
+                        .filter(governedTags::contains)
+                        .anyMatch(candidate.tags()::contains);
         return sharedGovernedTag
                 && !normalize(memory.content()).equals(normalize(candidate.content()))
                 && conflictKey(memory.content()).equals(conflictKey(candidate.content()));
@@ -97,14 +113,12 @@ public final class RuleBasedMemoryGovernanceAdapter implements MemoryGovernanceP
     }
 
     private static String redact(String text) {
-        var redacted = text
-                .replaceAll(
-                        "(?i)(password|token|api[_ -]?key|secret)\\s*[:=]\\s*\\S+",
-                        "$1=[REDACTED]")
-                .replaceAll("(?<!\\d)1[3-9]\\d{9}(?!\\d)", "[PHONE]")
-                .replaceAll(
-                        "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
-                        "[EMAIL]");
+        var redacted =
+                text.replaceAll(
+                                "(?i)(password|token|api[_ -]?key|secret)\\s*[:=]\\s*\\S+",
+                                "$1=[REDACTED]")
+                        .replaceAll("(?<!\\d)1[3-9]\\d{9}(?!\\d)", "[PHONE]")
+                        .replaceAll("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "[EMAIL]");
         return redacted.length() <= 256 ? redacted : redacted.substring(0, 256);
     }
 

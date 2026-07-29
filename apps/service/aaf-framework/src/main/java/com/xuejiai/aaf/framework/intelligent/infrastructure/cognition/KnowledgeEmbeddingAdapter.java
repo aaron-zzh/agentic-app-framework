@@ -33,8 +33,7 @@ public final class KnowledgeEmbeddingAdapter implements EmbeddingService {
 
     private void requireConfiguredModel(String modelId) {
         if (!properties.model().equals(modelId)) {
-            throw new IllegalArgumentException(
-                    "Cognition embedding modelId 未接线: " + modelId);
+            throw new IllegalArgumentException("Cognition embedding modelId 未接线: " + modelId);
         }
     }
 }

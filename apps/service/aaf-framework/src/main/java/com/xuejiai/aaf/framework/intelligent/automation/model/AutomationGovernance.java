@@ -23,7 +23,8 @@ public final class AutomationGovernance {
         public DefinitionLifecycle {
             Objects.requireNonNull(tenantId, "tenantId 不能为空");
             Objects.requireNonNull(kind, "kind 不能为空");
-            if (definitionId == null || definitionId.isBlank() || version < 1) throw new IllegalArgumentException("定义标识或版本无效");
+            if (definitionId == null || definitionId.isBlank() || version < 1)
+                throw new IllegalArgumentException("定义标识或版本无效");
             Objects.requireNonNull(state, "state 不能为空");
             Objects.requireNonNull(review, "review 不能为空");
             Objects.requireNonNull(compatibilityImpact, "compatibilityImpact 不能为空");
@@ -40,6 +41,7 @@ public final class AutomationGovernance {
                 throw new IllegalArgumentException("已处理审核必须记录审核人和时间");
             }
         }
+
         public void requireApproved() {
             if (status != ReviewStatus.APPROVED) throw new IllegalStateException("定义尚未审核通过");
         }
@@ -54,20 +56,46 @@ public final class AutomationGovernance {
             Instant updatedAt) {
         public OrganizationPolicy {
             Objects.requireNonNull(tenantId, "tenantId 不能为空");
-            extremeRiskActions = Set.copyOf(Objects.requireNonNull(extremeRiskActions, "extremeRiskActions 不能为空"));
+            extremeRiskActions =
+                    Set.copyOf(
+                            Objects.requireNonNull(extremeRiskActions, "extremeRiskActions 不能为空"));
             if (anomalyFailureThreshold < 1) throw new IllegalArgumentException("异常阈值必须大于 0");
-            if (policyVersion == null || policyVersion.isBlank()) throw new IllegalArgumentException("policyVersion 不能为空");
+            if (policyVersion == null || policyVersion.isBlank())
+                throw new IllegalArgumentException("policyVersion 不能为空");
             Objects.requireNonNull(updatedAt, "updatedAt 不能为空");
         }
+
         public void requireUnattended(Set<String> actions) {
             if (globalStop) throw new IllegalStateException("组织已全局停用自动化");
             var prohibited = actions.stream().filter(extremeRiskActions::contains).toList();
-            if (!prohibited.isEmpty()) throw new IllegalStateException("极高风险动作禁止无人值守: " + prohibited);
+            if (!prohibited.isEmpty())
+                throw new IllegalStateException("极高风险动作禁止无人值守: " + prohibited);
         }
     }
 
-    public enum DefinitionKind { ASSISTANT, SKILL, AUTOMATION, CONNECTOR }
-    public enum State { DRAFT, PUBLISHED, DEPRECATED, DISABLED }
-    public enum ReviewStatus { PENDING, APPROVED, REJECTED }
-    public enum CompatibilityImpact { NONE, COMPATIBLE, BREAKING }
+    public enum DefinitionKind {
+        ASSISTANT,
+        SKILL,
+        AUTOMATION,
+        CONNECTOR
+    }
+
+    public enum State {
+        DRAFT,
+        PUBLISHED,
+        DEPRECATED,
+        DISABLED
+    }
+
+    public enum ReviewStatus {
+        PENDING,
+        APPROVED,
+        REJECTED
+    }
+
+    public enum CompatibilityImpact {
+        NONE,
+        COMPATIBLE,
+        BREAKING
+    }
 }

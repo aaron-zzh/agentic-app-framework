@@ -19,20 +19,27 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_task_board", uniqueConstraints = @UniqueConstraint(columnNames = {"tenant_id", "task_id"}))
+@Table(
+        name = "ai_task_board",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"tenant_id", "task_id"}))
 public class TaskBoardEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(name = "tenant_id", nullable = false, length = 128)
     private String tenantId;
+
     @Column(name = "task_id", nullable = false, length = 128)
     private String taskId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "board_payload", nullable = false, columnDefinition = "jsonb")
     private TaskBoard board;
+
     @Column(name = "fencing_token", nullable = false)
     private Long fencingToken;
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version;

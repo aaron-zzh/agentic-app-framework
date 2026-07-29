@@ -18,23 +18,39 @@ public final class AutomationScheduler {
     private final AutomationApplicationService application;
     private final AutomationDefinitionRepository definitions;
     private final Clock clock;
-    public AutomationScheduler(AutomationApplicationService application, AutomationDefinitionRepository definitions, Clock clock) {
-        this.application = application; this.definitions = definitions; this.clock = clock;
+
+    public AutomationScheduler(
+            AutomationApplicationService application,
+            AutomationDefinitionRepository definitions,
+            Clock clock) {
+        this.application = application;
+        this.definitions = definitions;
+        this.clock = clock;
     }
 
     @Scheduled(fixedDelay = 1000L)
     public void tick() {
         var now = clock.instant();
-        definitions.findAll().stream().map(entity -> entity.getDefinition()).filter(AutomationDefinition::enabled)
-                .filter(definition -> due(definition, now)).forEach(definition -> application.trigger(
-                        definition.tenantId(), definition.automationId(), triggerKey(definition, now), Map.of(), "SYSTEM/scheduler"));
+        definitions.findAll().stream()
+                .map(entity -> entity.getDefinition())
+                .filter(AutomationDefinition::enabled)
+                .filter(definition -> due(definition, now))
+                .forEach(
+                        definition ->
+                                application.trigger(
+                                        definition.tenantId(),
+                                        definition.automationId(),
+                                        triggerKey(definition, now),
+                                        Map.of(),
+                                        "SYSTEM/scheduler"));
         application.dispatchPending(50);
     }
 
     private static boolean due(AutomationDefinition definition, Instant now) {
         return switch (definition.trigger().type()) {
             case MANUAL -> false;
-            case FREQUENCY -> now.getEpochSecond() % definition.trigger().frequency().toSeconds() == 0;
+            case FREQUENCY ->
+                    now.getEpochSecond() % definition.trigger().frequency().toSeconds() == 0;
             case CRON -> {
                 var expression = CronExpression.parse(definition.trigger().cron());
                 var previousMinute = ZonedDateTime.ofInstant(now.minusSeconds(60), ZoneOffset.UTC);
@@ -47,7 +63,9 @@ public final class AutomationScheduler {
     private static String triggerKey(AutomationDefinition definition, Instant now) {
         return switch (definition.trigger().type()) {
             case MANUAL -> "manual:" + now.toEpochMilli();
-            case FREQUENCY -> "frequency:" + now.getEpochSecond() / definition.trigger().frequency().toSeconds();
+            case FREQUENCY ->
+                    "frequency:"
+                            + now.getEpochSecond() / definition.trigger().frequency().toSeconds();
             case CRON -> "cron:" + now.getEpochSecond() / 60;
         };
     }

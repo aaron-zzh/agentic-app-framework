@@ -44,9 +44,10 @@ public class HumanApprovalController {
     @Operation(summary = "查询当前用户的待处理审批")
     @GetMapping("/pending")
     public Result<List<HumanApprovalVO>> pending() {
-        var pending = approvals.pending(currentTenant(), new UserId(currentUser())).stream()
-                .map(HumanApprovalVO::from)
-                .toList();
+        var pending =
+                approvals.pending(currentTenant(), new UserId(currentUser())).stream()
+                        .map(HumanApprovalVO::from)
+                        .toList();
         return Result.success(pending);
     }
 
@@ -57,13 +58,15 @@ public class HumanApprovalController {
             @Validated @RequestBody HumanApprovalDecisionDTO request) {
         var tenantId = currentTenant();
         var userId = currentUser();
-        var approval = hitl.decide(new DecisionCommand(
-                tenantId,
-                approvalId,
-                request.decision(),
-                userId,
-                request.reason(),
-                Instant.now()));
+        var approval =
+                hitl.decide(
+                        new DecisionCommand(
+                                tenantId,
+                                approvalId,
+                                request.decision(),
+                                userId,
+                                request.reason(),
+                                Instant.now()));
         return Result.success(HumanApprovalVO.from(approval));
     }
 
@@ -72,20 +75,25 @@ public class HumanApprovalController {
     public Result<Boolean> recover(@PathVariable String approvalId) {
         var tenantId = currentTenant();
         var userId = currentUser();
-        var approval = approvals.find(tenantId, approvalId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "审批不存在"));
+        var approval =
+                approvals
+                        .find(tenantId, approvalId)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "审批不存在"));
         if (!approval.invocationContext().userId().value().equals(userId)) {
             throw new BusinessException(GlobalErrorCode.FORBIDDEN);
         }
         if (approval.status()
-                != com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval.Status.APPROVED) {
+                != com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval.Status
+                        .APPROVED) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "仅批准决定可恢复执行");
         }
         return Result.success(recoveries.recover(tenantId, approvalId));
     }
 
     private String currentUser() {
-        return operatorContext.currentUserId()
+        return operatorContext
+                .currentUserId()
                 .map(String::valueOf)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
     }

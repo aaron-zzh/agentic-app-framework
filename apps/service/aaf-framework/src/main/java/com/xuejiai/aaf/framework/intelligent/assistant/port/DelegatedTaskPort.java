@@ -27,12 +27,12 @@ public interface DelegatedTaskPort {
 
     List<DelegatedTask> list(TenantId tenantId, UserId userId);
 
-    List<StoredTask> findPendingByConversation(
-            TenantId tenantId, ConversationId conversationId);
+    List<StoredTask> findPendingByConversation(TenantId tenantId, ConversationId conversationId);
 
     List<StoredTask> findDispatchable(Instant now, int limit);
 
-    Optional<StoredTask> claim(TenantId tenantId, TaskId taskId, ConversationLeasePort.Lease lease, Instant now);
+    Optional<StoredTask> claim(
+            TenantId tenantId, TaskId taskId, ConversationLeasePort.Lease lease, Instant now);
 
     DelegatedTask renew(TaskId taskId, ConversationLeasePort.Lease lease, Instant now);
 
@@ -55,7 +55,10 @@ public interface DelegatedTaskPort {
             InvocationContext context, long units, BigDecimal credits, Instant at);
 
     DelegatedTask checkpoint(
-            InvocationContext context, Map<String, Object> checkpoint, Instant nextRunAt, Instant at);
+            InvocationContext context,
+            Map<String, Object> checkpoint,
+            Instant nextRunAt,
+            Instant at);
 
     DelegatedTask pause(
             TenantId tenantId,
@@ -77,7 +80,8 @@ public interface DelegatedTaskPort {
 
     DelegatedTask fail(InvocationContext context, String failure, Instant at);
 
-    DelegatedTask failOrRetry(InvocationContext context, String failure, boolean transientFailure, Instant at);
+    DelegatedTask failOrRetry(
+            InvocationContext context, String failure, boolean transientFailure, Instant at);
 
     DelegatedTask cancel(
             TenantId tenantId,

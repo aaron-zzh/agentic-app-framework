@@ -30,9 +30,11 @@ public final class JpaCredentialVaultAdapter implements CredentialVaultPort {
         try {
             return toDomain(repository.saveAndFlush(toEntity(metadata)));
         } catch (DataIntegrityViolationException conflict) {
-            var concurrent = repository.findById(metadata.handleId())
-                    .map(this::toDomain)
-                    .orElseThrow(() -> conflict);
+            var concurrent =
+                    repository
+                            .findById(metadata.handleId())
+                            .map(this::toDomain)
+                            .orElseThrow(() -> conflict);
             return requireSame(concurrent, metadata);
         }
     }
@@ -60,7 +62,8 @@ public final class JpaCredentialVaultAdapter implements CredentialVaultPort {
             String connectorId,
             Set<String> requiredScopes,
             Instant at) {
-        return repository.findById(handleId)
+        return repository
+                .findById(handleId)
                 .map(this::toDomain)
                 .filter(handle -> handle.tenantId().equals(tenantId))
                 .filter(handle -> handle.userId().equals(userId))

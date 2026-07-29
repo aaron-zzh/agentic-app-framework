@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.entity.domain.EntityDef;
 import com.xuejiai.aaf.module.system.entity.repository.EntityDefRepository;

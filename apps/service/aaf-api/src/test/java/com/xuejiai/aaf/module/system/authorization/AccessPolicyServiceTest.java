@@ -128,8 +128,7 @@ class AccessPolicyServiceTest extends BaseMockitoUnitTest {
         service.loadSnapshot(target);
         verify(repository, times(2)).findByLifecycleInOrderByPriority(anyCollection());
         verify(versionService, never()).bumpPolicyVersion();
-        verify(auditService, never())
-                .recordPolicyLifecycle(any(), any(), any(), any());
+        verify(auditService, never()).recordPolicyLifecycle(any(), any(), any(), any());
 
         TransactionSynchronizationUtils.triggerAfterCommit();
 
@@ -184,13 +183,7 @@ class AccessPolicyServiceTest extends BaseMockitoUnitTest {
         var shadowSnapshot = AccessPolicySnapshot.from(shadowPolicy, 4L, "SHADOW");
         var wildcardSnapshot = AccessPolicySnapshot.from(wildcardPolicy, 4L, "SHADOW");
         when(versionService.policyVersion())
-                .thenReturn(
-                        "global-1",
-                        "global-1",
-                        "global-1",
-                        "global-1",
-                        "global-1",
-                        "global-2");
+                .thenReturn("global-1", "global-1", "global-1", "global-1", "global-1", "global-2");
         when(repository.findByLifecycleInOrderByPriority(anyCollection()))
                 .thenReturn(
                         List.of(firstPolicy),
@@ -285,15 +278,11 @@ class AccessPolicyServiceTest extends BaseMockitoUnitTest {
                 .thenReturn(List.of(directSnapshot, wildcardSnapshot));
 
         // 调用
-        var snapshot =
-                service.loadSnapshot(new AuthorizationTarget("document", "read", null));
+        var snapshot = service.loadSnapshot(new AuthorizationTarget("document", "read", null));
 
         // 断言
-        assertThat(snapshot.policies())
-                .extracting(AuthorizationPolicy::id)
-                .containsExactly(7L, 9L);
-        assertThat(snapshot.factSchema().requireType("attributes.level"))
-                .hasToString("STRING");
+        assertThat(snapshot.policies()).extracting(AuthorizationPolicy::id).containsExactly(7L, 9L);
+        assertThat(snapshot.factSchema().requireType("attributes.level")).hasToString("STRING");
         verify(snapshotRepository)
                 .findByPolicyIdInAndPolicyVersionIn(eq(List.of(7L, 9L)), eq(List.of(3L, 1L)));
     }
@@ -357,8 +346,7 @@ class AccessPolicyServiceTest extends BaseMockitoUnitTest {
         when(repository.findByLifecycleInOrderByPriority(anyCollection())).thenReturn(List.of());
 
         // 调用
-        var snapshot =
-                service.loadSnapshot(new AuthorizationTarget("document", "read", null));
+        var snapshot = service.loadSnapshot(new AuthorizationTarget("document", "read", null));
 
         // 断言
         verify(repository).findByLifecycleInOrderByPriority(lifecycleCaptor.capture());
@@ -378,7 +366,8 @@ class AccessPolicyServiceTest extends BaseMockitoUnitTest {
         when(versionService.policyVersion()).thenReturn("14");
         when(repository.findByLifecycleInOrderByPriority(anyCollection()))
                 .thenReturn(List.of(policy));
-        when(snapshotRepository.findByPolicyIdInAndPolicyVersionIn(anyCollection(), anyCollection()))
+        when(snapshotRepository.findByPolicyIdInAndPolicyVersionIn(
+                        anyCollection(), anyCollection()))
                 .thenReturn(List.of());
 
         // 调用 + 断言
@@ -400,7 +389,8 @@ class AccessPolicyServiceTest extends BaseMockitoUnitTest {
         when(versionService.policyVersion()).thenReturn("15");
         when(repository.findByLifecycleInOrderByPriority(anyCollection()))
                 .thenReturn(List.of(policy));
-        when(snapshotRepository.findByPolicyIdInAndPolicyVersionIn(anyCollection(), anyCollection()))
+        when(snapshotRepository.findByPolicyIdInAndPolicyVersionIn(
+                        anyCollection(), anyCollection()))
                 .thenReturn(List.of(corrupted));
 
         // 调用 + 断言

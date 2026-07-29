@@ -22,10 +22,8 @@ import lombok.Setter;
 @Table(
         name = "ai_assistant_definition_version",
         uniqueConstraints = {
-            @UniqueConstraint(
-                    columnNames = {"tenant_id", "assistant_id", "definition_version"}),
-            @UniqueConstraint(
-                    columnNames = {"tenant_id", "system_key", "definition_version"})
+            @UniqueConstraint(columnNames = {"tenant_id", "assistant_id", "definition_version"}),
+            @UniqueConstraint(columnNames = {"tenant_id", "system_key", "definition_version"})
         })
 public class AssistantDefinitionVersionEntity {
 

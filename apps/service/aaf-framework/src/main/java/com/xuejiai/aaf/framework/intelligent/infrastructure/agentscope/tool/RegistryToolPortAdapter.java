@@ -14,6 +14,7 @@ import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
+
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import tools.jackson.core.type.TypeReference;
@@ -22,8 +23,8 @@ import tools.jackson.core.type.TypeReference;
 public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvocationPort {
 
     private static final long SUPPORTED_VERSION = 1;
-    private static final Set<String> RESERVED_CONNECTOR_PARAMETERS = Set.of(
-            "credentialhandle", "vaultref", "idempotencykey", "provideridempotencykey");
+    private static final Set<String> RESERVED_CONNECTOR_PARAMETERS =
+            Set.of("credentialhandle", "vaultref", "idempotencykey", "provideridempotencykey");
 
     private final ToolRegistry registry;
     private final ToolCatalogProvider catalog;
@@ -46,13 +47,20 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                         () -> {
                             var definition = resolveOne(invocation.tool());
                             if (definition.connectorAction()) {
-                                throw new IllegalStateException("Connector 禁止绕过 ConnectorActionPort 调用");
+                                throw new IllegalStateException(
+                                        "Connector 禁止绕过 ConnectorActionPort 调用");
                             }
-                            var callback = registry
-                                    .getCallback(invocation.tool().name())
-                                    .orElseThrow(() -> new IllegalStateException(
-                                            "工具 callback 未注册: " + invocation.tool().name()));
-                            var output = callback.call(JsonUtils.toJsonString(invocation.arguments()));
+                            var callback =
+                                    registry.getCallback(invocation.tool().name())
+                                            .orElseThrow(
+                                                    () ->
+                                                            new IllegalStateException(
+                                                                    "工具 callback 未注册: "
+                                                                            + invocation
+                                                                                    .tool()
+                                                                                    .name()));
+                            var output =
+                                    callback.call(JsonUtils.toJsonString(invocation.arguments()));
                             return new ToolInvocationResult(
                                     output,
                                     Map.of(
@@ -71,13 +79,15 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         if (!ref.toolId().equals(ref.name())) {
             throw new IllegalArgumentException("P2 工具稳定标识必须等于 callback 名称: " + ref);
         }
-        var entry = catalog
-                .find(ref.toolId())
-                .orElseThrow(() -> new IllegalArgumentException("工具目录不存在: " + ref.toolId()));
+        var entry =
+                catalog.find(ref.toolId())
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("工具目录不存在: " + ref.toolId()));
         requireEnabled(entry);
-        var callback = registry
-                .getCallback(ref.name())
-                .orElseThrow(() -> new IllegalStateException("工具 callback 未注册: " + ref.name()));
+        var callback =
+                registry.getCallback(ref.name())
+                        .orElseThrow(
+                                () -> new IllegalStateException("工具 callback 未注册: " + ref.name()));
         var schema = inputSchema(entry);
         if (connectorAction(entry)) {
             if (!(callback instanceof ConnectorToolCallback)) {
@@ -120,9 +130,8 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
             var properties = map.get("properties");
             if (properties instanceof Map<?, ?> declared) {
                 for (var key : declared.keySet()) {
-                    var normalized = key.toString()
-                            .replaceAll("[^A-Za-z0-9]", "")
-                            .toLowerCase(Locale.ROOT);
+                    var normalized =
+                            key.toString().replaceAll("[^A-Za-z0-9]", "").toLowerCase(Locale.ROOT);
                     if (RESERVED_CONNECTOR_PARAMETERS.contains(normalized)) {
                         throw new IllegalStateException(
                                 "Connector schema 禁止模型提供受信参数 " + key + ": " + toolName);
@@ -139,8 +148,9 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         if (entry.inputSchema() == null || entry.inputSchema().isBlank()) {
             throw new IllegalStateException("工具缺少 input schema: " + entry.toolName());
         }
-        var schema = JsonUtils.parseObject(
-                entry.inputSchema(), new TypeReference<Map<String, Object>>() {});
+        var schema =
+                JsonUtils.parseObject(
+                        entry.inputSchema(), new TypeReference<Map<String, Object>>() {});
         if (schema == null || !"object".equals(schema.get("type"))) {
             throw new IllegalStateException(
                     "工具 input schema 必须是 JSON object schema: " + entry.toolName());

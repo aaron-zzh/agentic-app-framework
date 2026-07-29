@@ -64,8 +64,7 @@ public final class JpaTaskControlAdapter implements TaskControlPort {
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
-                                                "Assistant 任务不存在: "
-                                                        + task.taskId().value()));
+                                                "Assistant 任务不存在: " + task.taskId().value()));
         if (lease != null && entity.getFencingToken() > lease.fencingToken()) {
             throw new IllegalStateException("旧 fencing token 不能覆盖 TaskControl");
         }
@@ -75,7 +74,8 @@ public final class JpaTaskControlAdapter implements TaskControlPort {
 
     private void requireLease(TenantId tenantId, AssistantTask task, Lease lease) {
         if (task.controlMode()
-                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode
+                        .DELEGATED) {
             return;
         }
         if (lease == null || !tenantId.equals(lease.tenantId())) {
@@ -84,8 +84,7 @@ public final class JpaTaskControlAdapter implements TaskControlPort {
         leases.requireCurrent(lease);
     }
 
-    private static void apply(
-            AssistantTaskControlEntity entity, AssistantTask task, Lease lease) {
+    private static void apply(AssistantTaskControlEntity entity, AssistantTask task, Lease lease) {
         entity.setTaskStatus(task.status().name());
         entity.setControlMode(task.controlMode().name());
         entity.setTask(task);

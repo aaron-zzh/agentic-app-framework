@@ -10,10 +10,7 @@ public enum AccessMode {
     private final boolean bypassRecordScope;
     private final boolean bypassPersonalScope;
 
-    AccessMode(
-            String permissionSegment,
-            boolean bypassRecordScope,
-            boolean bypassPersonalScope) {
+    AccessMode(String permissionSegment, boolean bypassRecordScope, boolean bypassPersonalScope) {
         this.permissionSegment = permissionSegment;
         this.bypassRecordScope = bypassRecordScope;
         this.bypassPersonalScope = bypassPersonalScope;

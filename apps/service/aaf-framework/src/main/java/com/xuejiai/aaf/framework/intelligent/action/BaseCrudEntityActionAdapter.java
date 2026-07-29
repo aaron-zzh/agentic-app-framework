@@ -12,12 +12,12 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
 import com.xuejiai.aaf.framework.crud.dto.BatchReadRequestDTO;
 import com.xuejiai.aaf.framework.crud.dto.CrudIdsRequestDTO;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 
 /** 基于 BaseCrudService 的 AI 标准实体动作适配器。 */
 public abstract class BaseCrudEntityActionAdapter<

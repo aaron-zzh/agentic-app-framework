@@ -63,7 +63,8 @@ public final class MemoryGovernanceService {
                             expiresAt,
                             at));
         }
-        var stored = accepted.isEmpty() ? java.util.List.<MemoryRecord>of() : writer.append(accepted);
+        var stored =
+                accepted.isEmpty() ? java.util.List.<MemoryRecord>of() : writer.append(accepted);
         return new WriteOutcome(stored.size(), rejected);
     }
 

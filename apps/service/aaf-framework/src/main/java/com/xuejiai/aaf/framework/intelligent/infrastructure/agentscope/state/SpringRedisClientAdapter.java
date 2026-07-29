@@ -4,8 +4,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import io.agentscope.extensions.redis.state.RedisClientAdapter;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import io.agentscope.extensions.redis.state.RedisClientAdapter;
 
 /** 复用 Spring 管理连接的 AgentScope Redis 客户端适配器。 */
 public final class SpringRedisClientAdapter implements RedisClientAdapter {

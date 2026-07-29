@@ -36,7 +36,8 @@ public record HumanApproval(
         impact = requireText(impact, "impact");
         dataUsage = requireText(dataUsage, "dataUsage");
         remediation = requireText(remediation, "remediation");
-        requestedConditions = requestedConditions == null ? Map.of() : Map.copyOf(requestedConditions);
+        requestedConditions =
+                requestedConditions == null ? Map.of() : Map.copyOf(requestedConditions);
         Objects.requireNonNull(status, "status 不能为空");
         Objects.requireNonNull(createdAt, "createdAt 不能为空");
     }

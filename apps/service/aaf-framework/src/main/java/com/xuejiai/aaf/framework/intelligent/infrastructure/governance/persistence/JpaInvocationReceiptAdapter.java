@@ -59,9 +59,10 @@ public final class JpaInvocationReceiptAdapter implements InvocationReceiptPort 
             return new Claim(Disposition.REPLAY, existing.getResult());
         }
         if (PENDING.equals(existing.getStatus())) {
-            var nextToken = request.context().lease() == null
-                    ? 0L
-                    : request.context().lease().fencingToken();
+            var nextToken =
+                    request.context().lease() == null
+                            ? 0L
+                            : request.context().lease().fencingToken();
             if (existing.getFencingToken() >= nextToken) {
                 return new Claim(Disposition.IN_PROGRESS, null);
             }
@@ -74,9 +75,7 @@ public final class JpaInvocationReceiptAdapter implements InvocationReceiptPort 
         existing.setStatus(PENDING);
         existing.setExecutionId(request.context().executionId().value());
         existing.setFencingToken(
-                request.context().lease() == null
-                        ? 0L
-                        : request.context().lease().fencingToken());
+                request.context().lease() == null ? 0L : request.context().lease().fencingToken());
         existing.setLastError(null);
         existing.setUpdatedAt(request.requestedAt());
         repository.saveAndFlush(existing);
@@ -117,8 +116,13 @@ public final class JpaInvocationReceiptAdapter implements InvocationReceiptPort 
     }
 
     private ToolInvocationReceiptEntity requireBound(String receiptKey, InvocationContext context) {
-        var entity = repository.findByReceiptKey(receiptKey)
-                .orElseThrow(() -> new IllegalStateException("invocation receipt 不存在: " + receiptKey));
+        var entity =
+                repository
+                        .findByReceiptKey(receiptKey)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "invocation receipt 不存在: " + receiptKey));
         var expectedToken = context.lease() == null ? 0L : context.lease().fencingToken();
         if (!entity.getTenantId().equals(context.tenantId().value())
                 || !entity.getUserId().equals(context.userId().value())
@@ -144,7 +148,8 @@ public final class JpaInvocationReceiptAdapter implements InvocationReceiptPort 
 
     private void requireCurrent(InvocationContext context) {
         if (context.controlMode()
-                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode
+                        .DELEGATED) {
             return;
         }
         if (context.lease() == null) {

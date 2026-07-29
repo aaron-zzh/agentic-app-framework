@@ -34,6 +34,7 @@ import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskInputDTO;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskVO;
+
 import reactor.core.publisher.Mono;
 
 @Service
@@ -59,24 +60,25 @@ public class DelegatedTaskService {
     }
 
     public DelegatedTaskVO create(
-            Source source,
-            String conversationId,
-            String title,
-            String description,
-            int priority) {
+            Source source, String conversationId, String title, String description, int priority) {
         var command = createCommand(conversationId, title, description);
-        var task = switch (source) {
-            case CONVERSATION ->
-                    coordinator.submitConversationTask(command, title, description, priority);
-            case MANUAL ->
-                    coordinator.submitManualTask(command, title, description, priority, null);
-            case AUTOMATION -> throw new IllegalArgumentException("API 不允许创建 AUTOMATION 来源任务");
-        };
+        var task =
+                switch (source) {
+                    case CONVERSATION ->
+                            coordinator.submitConversationTask(
+                                    command, title, description, priority);
+                    case MANUAL ->
+                            coordinator.submitManualTask(
+                                    command, title, description, priority, null);
+                    case AUTOMATION ->
+                            throw new IllegalArgumentException("API 不允许创建 AUTOMATION 来源任务");
+                };
         return toVO(task);
     }
 
     public List<DelegatedTaskVO> list(String status) {
-        var expected = status == null || status.isBlank() ? null : Status.valueOf(status.toUpperCase());
+        var expected =
+                status == null || status.isBlank() ? null : Status.valueOf(status.toUpperCase());
         return tasks.list(tenantId(), userId()).stream()
                 .filter(task -> expected == null || task.status() == expected)
                 .map(this::toVO)
@@ -84,9 +86,10 @@ public class DelegatedTaskService {
     }
 
     public DelegatedTaskVO get(String taskId) {
-        var task = tasks.find(tenantId(), new TaskId(taskId))
-                .orElseThrow(() -> new IllegalArgumentException("委托任务不存在"))
-                .task();
+        var task =
+                tasks.find(tenantId(), new TaskId(taskId))
+                        .orElseThrow(() -> new IllegalArgumentException("委托任务不存在"))
+                        .task();
         if (!task.userId().equals(userId())) throw new AccessDeniedException("无权访问该委托任务");
         return toVO(task);
     }
@@ -104,16 +107,23 @@ public class DelegatedTaskService {
     }
 
     public Mono<DelegatedTaskVO> acceptInput(String taskId, DelegatedTaskInputDTO input) {
-        var command = new ExecutionInput(
-                input.inputId(), tenantId(), userId(), new TaskId(taskId),
-                input.kind(), input.content(), Instant.now());
+        var command =
+                new ExecutionInput(
+                        input.inputId(),
+                        tenantId(),
+                        userId(),
+                        new TaskId(taskId),
+                        input.kind(),
+                        input.content(),
+                        Instant.now());
         return coordinator.acceptInput(command).map(this::toVO);
     }
 
     private DelegatedTaskVO toVO(DelegatedTask task) {
-        var goalDescription = boards.find(task.tenantId(), task.taskId())
-                .map(board -> board.goal().description())
-                .orElse(null);
+        var goalDescription =
+                boards.find(task.tenantId(), task.taskId())
+                        .map(board -> board.goal().description())
+                        .orElse(null);
         return DelegatedTaskVO.from(task, goalDescription);
     }
 
@@ -159,8 +169,8 @@ public class DelegatedTaskService {
     }
 
     private UserId userId() {
-        var value = operators.currentOwnerId()
-                .orElseThrow(() -> new AccessDeniedException("请求未认证"));
+        var value =
+                operators.currentOwnerId().orElseThrow(() -> new AccessDeniedException("请求未认证"));
         return new UserId(value.toString());
     }
 }

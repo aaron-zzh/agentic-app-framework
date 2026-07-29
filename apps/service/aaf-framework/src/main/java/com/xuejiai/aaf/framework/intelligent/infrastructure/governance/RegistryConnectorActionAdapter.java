@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.CredentialVaultPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -34,29 +35,47 @@ public final class RegistryConnectorActionAdapter implements ConnectorActionPort
 
     @Override
     public Mono<ToolInvocationResult> invoke(ConnectorAction action) {
-        return Mono.fromCallable(() -> invokeBlocking(action)).subscribeOn(Schedulers.boundedElastic());
+        return Mono.fromCallable(() -> invokeBlocking(action))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     private ToolInvocationResult invokeBlocking(ConnectorAction action) {
         var context = action.context();
         if (context.lease() != null) leases.requireCurrent(context.lease());
         tasks.requireAgentExecution(context);
-        var credential = credentials.findActiveHandle(
-                        context.tenantId(), context.userId(), action.credentialHandle(),
-                        action.connectorId(), action.requiredScopes(), Instant.now())
-                .orElseThrow(() -> new IllegalStateException("连接器凭证句柄无效或已撤销"));
-        var callback = registry.getCallback(action.tool().name())
-                .orElseThrow(() -> new IllegalStateException("连接器动作未注册: " + action.tool().name()));
+        var credential =
+                credentials
+                        .findActiveHandle(
+                                context.tenantId(),
+                                context.userId(),
+                                action.credentialHandle(),
+                                action.connectorId(),
+                                action.requiredScopes(),
+                                Instant.now())
+                        .orElseThrow(() -> new IllegalStateException("连接器凭证句柄无效或已撤销"));
+        var callback =
+                registry.getCallback(action.tool().name())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "连接器动作未注册: " + action.tool().name()));
         if (!(callback instanceof ConnectorToolCallback connector)) {
-            throw new IllegalStateException("连接器动作必须实现 ConnectorToolCallback: " + action.tool().name());
+            throw new IllegalStateException(
+                    "连接器动作必须实现 ConnectorToolCallback: " + action.tool().name());
         }
-        var output = Objects.requireNonNull(
-                connector.callConnector(action.arguments(), credential.vaultRef(), action.idempotencyKey()),
-                "Connector 返回结果不能为空");
+        var output =
+                Objects.requireNonNull(
+                        connector.callConnector(
+                                action.arguments(), credential.vaultRef(), action.idempotencyKey()),
+                        "Connector 返回结果不能为空");
         if (context.lease() != null) leases.requireCurrent(context.lease());
         tasks.requireAgentExecution(context);
         return new ToolInvocationResult(
                 output,
-                Map.of("connectorAction", action.tool().name(), "providerIdempotencyKey", action.idempotencyKey()));
+                Map.of(
+                        "connectorAction",
+                        action.tool().name(),
+                        "providerIdempotencyKey",
+                        action.idempotencyKey()));
     }
 }

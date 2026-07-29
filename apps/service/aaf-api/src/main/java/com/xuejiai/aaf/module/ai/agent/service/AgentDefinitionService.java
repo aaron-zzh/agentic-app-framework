@@ -138,10 +138,7 @@ public class AgentDefinitionService {
     private AgentDefinition getEntity(Long id) {
         return repository
                 .findById(id)
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        GlobalErrorCode.NOT_FOUND, "Agent 模板不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Agent 模板不存在"));
     }
 
     private static void requireMutable(AgentDefinition entity) {

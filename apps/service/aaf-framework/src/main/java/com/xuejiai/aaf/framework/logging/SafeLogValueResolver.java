@@ -22,8 +22,7 @@ import com.xuejiai.aaf.framework.bizlog.context.LogRecordContext;
 public final class SafeLogValueResolver {
 
     private static final Pattern SAFE_PATH =
-            Pattern.compile(
-                    "#?[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*(?:\\(\\))?)*");
+            Pattern.compile("#?[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*(?:\\(\\))?)*");
     private static final DefaultParameterNameDiscoverer PARAMETER_NAMES =
             new DefaultParameterNameDiscoverer();
 
@@ -87,7 +86,8 @@ public final class SafeLogValueResolver {
         if ("size".equals(segment) || "size()".equals(segment)) {
             return sizeOf(target);
         }
-        var property = segment.endsWith("()") ? segment.substring(0, segment.length() - 2) : segment;
+        var property =
+                segment.endsWith("()") ? segment.substring(0, segment.length() - 2) : segment;
         if (target instanceof Map<?, ?> map) {
             return map.get(property);
         }
@@ -117,7 +117,8 @@ public final class SafeLogValueResolver {
             }
         }
         try {
-            for (var descriptor : Introspector.getBeanInfo(target.getClass()).getPropertyDescriptors()) {
+            for (var descriptor :
+                    Introspector.getBeanInfo(target.getClass()).getPropertyDescriptors()) {
                 if (descriptor.getName().equals(property) && descriptor.getReadMethod() != null) {
                     return invokeAccessor(target, descriptor.getReadMethod());
                 }

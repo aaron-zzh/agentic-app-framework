@@ -38,7 +38,8 @@ public record RelationDefinition<E, P>(
         if (maxCardinality <= 0 || cardinality == Cardinality.ONE && maxCardinality != 1) {
             throw new IllegalArgumentException("关系最大基数非法: " + maxCardinality);
         }
-        if (associationKind == AssociationKind.ONE_TO_MANY_CHILD && syncMode != SyncMode.READ_ONLY) {
+        if (associationKind == AssociationKind.ONE_TO_MANY_CHILD
+                && syncMode != SyncMode.READ_ONLY) {
             throw new IllegalArgumentException("ONE_TO_MANY_CHILD 仅支持 READ_ONLY");
         }
         if (syncMode != SyncMode.READ_ONLY && inputField.isBlank()) {

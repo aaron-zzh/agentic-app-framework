@@ -80,7 +80,8 @@ public final class CrudResourceRegistry {
                 immutableEntries.values().stream()
                         .collect(
                                 java.util.stream.Collectors.toUnmodifiableMap(
-                                        entry -> (Class<?>) entry.endpointBinding().controllerType(),
+                                        entry ->
+                                                (Class<?>) entry.endpointBinding().controllerType(),
                                         entry -> entry));
         Map<Class<?>, CrudResourceCatalogEntry> byEntity =
                 immutableEntries.values().stream()

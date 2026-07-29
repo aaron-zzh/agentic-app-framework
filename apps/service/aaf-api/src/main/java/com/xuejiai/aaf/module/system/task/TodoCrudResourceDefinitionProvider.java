@@ -2,9 +2,9 @@ package com.xuejiai.aaf.module.system.task;
 
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitionProvider;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceEndpointBinding;
-import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
 import com.xuejiai.aaf.module.system.task.controller.TodoController;
 import com.xuejiai.aaf.module.system.task.domain.Todo;
 

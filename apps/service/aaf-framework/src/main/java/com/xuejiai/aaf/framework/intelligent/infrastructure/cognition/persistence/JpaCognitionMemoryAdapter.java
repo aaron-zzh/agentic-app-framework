@@ -39,11 +39,20 @@ public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, Memory
     @Transactional(readOnly = true)
     public List<MemoryRecord> recall(RecallQuery query) {
         var subject = query.subject();
-        var entities = query.query().isBlank()
-                ? repository.findActive(subject.tenantId().value(), subject.kind().name(), subject.subjectId(), query.at())
-                : repository.search(
-                        subject.tenantId().value(), subject.kind().name(), subject.subjectId(),
-                        vector(embeddings.embed(query.query(), embeddingModelId)), query.maxItems(), query.at());
+        var entities =
+                query.query().isBlank()
+                        ? repository.findActive(
+                                subject.tenantId().value(),
+                                subject.kind().name(),
+                                subject.subjectId(),
+                                query.at())
+                        : repository.search(
+                                subject.tenantId().value(),
+                                subject.kind().name(),
+                                subject.subjectId(),
+                                vector(embeddings.embed(query.query(), embeddingModelId)),
+                                query.maxItems(),
+                                query.at());
         var result = new ArrayList<MemoryRecord>();
         var used = 0;
         for (var entity : entities) {
@@ -60,7 +69,8 @@ public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, Memory
     @Transactional
     public List<MemoryRecord> append(List<MemoryRecord> memories) {
         return repository.saveAll(memories.stream().map(this::toEntity).toList()).stream()
-                .map(this::toDomain).toList();
+                .map(this::toDomain)
+                .toList();
     }
 
     @Override
@@ -92,7 +102,11 @@ public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, Memory
             Instant at) {
         confirmation.requireConfirmed("记忆删除/遗忘");
         repository.forget(
-                subject.tenantId().value(), subject.kind().name(), subject.subjectId(), memoryIds, at);
+                subject.tenantId().value(),
+                subject.kind().name(),
+                subject.subjectId(),
+                memoryIds,
+                at);
     }
 
     @Override
@@ -120,8 +134,10 @@ public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, Memory
     }
 
     private CognitionMemoryEntity requireOwned(MemorySubject subject, String memoryId) {
-        var entity = repository.findById(memoryId)
-                .orElseThrow(() -> new IllegalArgumentException("记忆不存在: " + memoryId));
+        var entity =
+                repository
+                        .findById(memoryId)
+                        .orElseThrow(() -> new IllegalArgumentException("记忆不存在: " + memoryId));
         if (!entity.getTenantId().equals(subject.tenantId().value())
                 || !entity.getSubjectKind().equals(subject.kind().name())
                 || !entity.getSubjectId().equals(subject.subjectId())) {
@@ -153,11 +169,18 @@ public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, Memory
         return new MemoryRecord(
                 entity.getMemoryId(),
                 new MemorySubject(
-                        new com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId(entity.getTenantId()),
-                        SubjectKind.valueOf(entity.getSubjectKind()), entity.getSubjectId()),
-                entity.getContent(), entity.getRedactedSummary(), entity.getImportance(),
-                entity.getConfidence(), PrivacyLevel.valueOf(entity.getPrivacy()), entity.getTags(),
-                entity.getExpiresAt(), entity.getCreatedAt());
+                        new com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId(
+                                entity.getTenantId()),
+                        SubjectKind.valueOf(entity.getSubjectKind()),
+                        entity.getSubjectId()),
+                entity.getContent(),
+                entity.getRedactedSummary(),
+                entity.getImportance(),
+                entity.getConfidence(),
+                PrivacyLevel.valueOf(entity.getPrivacy()),
+                entity.getTags(),
+                entity.getExpiresAt(),
+                entity.getCreatedAt());
     }
 
     private static String vector(float[] values) {

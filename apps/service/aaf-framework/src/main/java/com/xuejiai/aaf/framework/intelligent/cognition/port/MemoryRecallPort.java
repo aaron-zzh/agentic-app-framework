@@ -12,7 +12,8 @@ public interface MemoryRecallPort {
 
     List<MemoryRecord> recall(RecallQuery query);
 
-    record RecallQuery(MemorySubject subject, String query, int maxItems, int characterBudget, Instant at) {
+    record RecallQuery(
+            MemorySubject subject, String query, int maxItems, int characterBudget, Instant at) {
         public RecallQuery {
             Objects.requireNonNull(subject, "subject 不能为空");
             query = Objects.requireNonNullElse(query, "").trim();

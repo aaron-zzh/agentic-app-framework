@@ -173,9 +173,7 @@ public class AccessPolicyService implements AuthorizationPolicyProvider {
     }
 
     private AuthorizationPolicy.Snapshot loadSnapshot(
-            String snapshotVersion,
-            AuthorizationTarget target,
-            List<AccessPolicy> active) {
+            String snapshotVersion, AuthorizationTarget target, List<AccessPolicy> active) {
         if (active.isEmpty()) {
             return new AuthorizationPolicy.Snapshot(
                     snapshotVersion, PolicyFactSchema.builtInsOnly(), List.of());
@@ -302,8 +300,7 @@ public class AccessPolicyService implements AuthorizationPolicyProvider {
                                 var existing = merged.putIfAbsent(name, type);
                                 if (existing != null && existing != type) {
                                     throw new IllegalStateException(
-                                            "策略事实类型冲突: %s (%s/%s)"
-                                                    .formatted(name, existing, type));
+                                            "策略事实类型冲突: %s (%s/%s)".formatted(name, existing, type));
                                 }
                             });
         }
@@ -352,8 +349,7 @@ public class AccessPolicyService implements AuthorizationPolicyProvider {
     }
 
     private Map<String, PolicyFactSchema.ValueType> declaredFactTypes(String json) {
-        var declarations =
-                JsonUtils.parseObject(json, new TypeReference<Map<String, String>>() {});
+        var declarations = JsonUtils.parseObject(json, new TypeReference<Map<String, String>>() {});
         if (declarations == null) {
             throw new IllegalStateException("策略事实白名单为空");
         }
@@ -364,9 +360,7 @@ public class AccessPolicyService implements AuthorizationPolicyProvider {
             Map<String, String> declarations) {
         var types = new LinkedHashMap<String, PolicyFactSchema.ValueType>();
         normalizeFactSchema(declarations)
-                .forEach(
-                        (name, type) ->
-                                types.put(name, PolicyFactSchema.ValueType.valueOf(type)));
+                .forEach((name, type) -> types.put(name, PolicyFactSchema.ValueType.valueOf(type)));
         return Map.copyOf(types);
     }
 
@@ -433,8 +427,7 @@ public class AccessPolicyService implements AuthorizationPolicyProvider {
 
     private AuthorizationPolicy.PolicyEffect parseEffect(String effect) {
         try {
-            return AuthorizationPolicy.PolicyEffect.valueOf(
-                    effect.trim().toUpperCase(Locale.ROOT));
+            return AuthorizationPolicy.PolicyEffect.valueOf(effect.trim().toUpperCase(Locale.ROOT));
         } catch (RuntimeException ex) {
             throw new BusinessException(
                     GlobalErrorCode.BAD_REQUEST, "策略效果仅允许 ALLOW、DENY 或 CHALLENGE");
@@ -472,8 +465,7 @@ public class AccessPolicyService implements AuthorizationPolicyProvider {
                 policy.getPublishedVersion());
     }
 
-    private void publishChangeAfterCommit(
-            String eventType, AccessPolicy policy, String reason) {
+    private void publishChangeAfterCommit(String eventType, AccessPolicy policy, String reason) {
         var callback =
                 (Runnable)
                         () -> {

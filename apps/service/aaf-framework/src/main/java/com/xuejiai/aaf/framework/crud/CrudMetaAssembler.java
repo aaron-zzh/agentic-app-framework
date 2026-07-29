@@ -1,8 +1,8 @@
 package com.xuejiai.aaf.framework.crud;
 
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceSnapshot;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
 import com.xuejiai.aaf.framework.crud.dto.CrudMetaDTO;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceSnapshot;
 
 /** 将已编译资源快照组装为对外 CRUD 元数据。 */
 public final class CrudMetaAssembler {

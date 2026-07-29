@@ -23,7 +23,9 @@ public record AssistantCapabilityManifest(
 
     public static AssistantCapabilityManifest from(AssistantDefinition definition) {
         var actions =
-                definition.skillRoutes().stream().map(SkillRoute::actionKey).collect(java.util.stream.Collectors.toUnmodifiableSet());
+                definition.skillRoutes().stream()
+                        .map(SkillRoute::actionKey)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
         return new AssistantCapabilityManifest(
                 definition.assistantId(),
                 definition.systemKey(),

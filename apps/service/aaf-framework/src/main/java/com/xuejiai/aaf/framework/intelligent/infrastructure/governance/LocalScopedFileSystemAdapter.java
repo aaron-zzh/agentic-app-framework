@@ -39,8 +39,9 @@ public final class LocalScopedFileSystemAdapter implements ScopedFileSystemPort 
         requireCurrent(path);
         try {
             var target = resolveWritable(path);
-            var temporary = target.resolveSibling(target.getFileName() + ".fence-"
-                    + fencingToken(path) + ".tmp");
+            var temporary =
+                    target.resolveSibling(
+                            target.getFileName() + ".fence-" + fencingToken(path) + ".tmp");
             Files.writeString(temporary, Objects.requireNonNull(content, "content 不能为空"));
             requireCurrent(path);
             Files.move(
@@ -82,7 +83,8 @@ public final class LocalScopedFileSystemAdapter implements ScopedFileSystemPort 
         var realNamespace = namespace.toRealPath();
         var realParent = target.getParent().toRealPath();
         if (!realParent.startsWith(realNamespace)
-                || (Files.exists(target, LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(target))) {
+                || (Files.exists(target, LinkOption.NOFOLLOW_LINKS)
+                        && Files.isSymbolicLink(target))) {
             throw new IllegalArgumentException("写入路径通过符号链接越过 task namespace");
         }
         return target;
@@ -90,10 +92,11 @@ public final class LocalScopedFileSystemAdapter implements ScopedFileSystemPort 
 
     private Path ensureNamespace(ScopedPath path) throws IOException {
         var context = path.context();
-        var namespace = root.resolve("tenant=" + safe(context.tenantId().value()))
-                .resolve("user=" + safe(context.userId().value()))
-                .resolve("task=" + safe(context.taskId().value()))
-                .normalize();
+        var namespace =
+                root.resolve("tenant=" + safe(context.tenantId().value()))
+                        .resolve("user=" + safe(context.userId().value()))
+                        .resolve("task=" + safe(context.taskId().value()))
+                        .normalize();
         if (!namespace.startsWith(root)) {
             throw new IllegalArgumentException("task namespace 越过 root");
         }

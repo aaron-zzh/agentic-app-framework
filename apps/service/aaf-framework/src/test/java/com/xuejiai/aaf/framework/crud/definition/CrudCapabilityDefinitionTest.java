@@ -71,25 +71,17 @@ class CrudCapabilityDefinitionTest {
 
         var customized =
                 defaults.without(
-                        CrudOperation.IMPORT,
-                        CrudOperation.RESTORE,
-                        CrudOperation.ARCHIVE);
+                        CrudOperation.IMPORT, CrudOperation.RESTORE, CrudOperation.ARCHIVE);
 
         assertThat(customized.operations())
-                .doesNotContain(
-                        CrudOperation.IMPORT,
-                        CrudOperation.RESTORE,
-                        CrudOperation.ARCHIVE)
+                .doesNotContain(CrudOperation.IMPORT, CrudOperation.RESTORE, CrudOperation.ARCHIVE)
                 .contains(
                         CrudOperation.CREATE,
                         CrudOperation.UPDATE,
                         CrudOperation.DELETE,
                         CrudOperation.DELETE_BATCH);
         assertThat(defaults.operations())
-                .contains(
-                        CrudOperation.IMPORT,
-                        CrudOperation.RESTORE,
-                        CrudOperation.ARCHIVE);
+                .contains(CrudOperation.IMPORT, CrudOperation.RESTORE, CrudOperation.ARCHIVE);
     }
 
     @Test

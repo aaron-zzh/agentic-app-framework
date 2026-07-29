@@ -47,7 +47,9 @@ class BuiltinSystemAssistantTemplatesTest extends BaseMockitoUnitTest {
         var skillsByCode = skillsByCode();
         when(skillCatalog.findBuiltIn()).thenReturn(List.of());
         when(skillCatalog.findByCode(anyString()))
-                .thenAnswer(invocation -> Optional.ofNullable(skillsByCode.get(invocation.getArgument(0))));
+                .thenAnswer(
+                        invocation ->
+                                Optional.ofNullable(skillsByCode.get(invocation.getArgument(0))));
 
         for (var template : templates) {
             // 调用
@@ -65,18 +67,18 @@ class BuiltinSystemAssistantTemplatesTest extends BaseMockitoUnitTest {
     void should_restrict_agent_tools_with_tool_keys_from_both_builtin_roles() {
         // 准备参数
         assertThat(templates).hasSize(2);
-        var agentTools = templates.stream()
-                .flatMap(template -> template.role().toolKeys().stream())
-                .distinct()
-                .map(BuiltinSystemAssistantTemplatesTest::tool)
-                .toList();
+        var agentTools =
+                templates.stream()
+                        .flatMap(template -> template.role().toolKeys().stream())
+                        .distinct()
+                        .map(BuiltinSystemAssistantTemplatesTest::tool)
+                        .toList();
         var unrestrictedTools = new ArrayList<>(agentTools);
         unrestrictedTools.add(tool("system.unrestricted"));
 
         for (var template : templates) {
             // 调用
-            var result =
-                    toolResolver.resolve(template.role().toolKeys(), unrestrictedTools);
+            var result = toolResolver.resolve(template.role().toolKeys(), unrestrictedTools);
 
             // 断言
             assertThat(result)

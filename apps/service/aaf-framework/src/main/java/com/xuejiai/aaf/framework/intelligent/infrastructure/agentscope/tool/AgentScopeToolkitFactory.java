@@ -5,6 +5,7 @@ import java.util.List;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
+
 import io.agentscope.core.tool.Toolkit;
 
 /** 将版本化 AAF 工具定义编译为 AgentScope Toolkit。 */
@@ -35,7 +36,8 @@ public final class AgentScopeToolkitFactory {
             if (!expected.equals(definition.ref())) {
                 throw new IllegalStateException("工具目录返回了错误或乱序的工具定义: " + expected);
             }
-            toolkit.registerAgentTool(new PortBackedAgentTool(definition, toolGateway, evidenceStore));
+            toolkit.registerAgentTool(
+                    new PortBackedAgentTool(definition, toolGateway, evidenceStore));
         }
         return toolkit;
     }

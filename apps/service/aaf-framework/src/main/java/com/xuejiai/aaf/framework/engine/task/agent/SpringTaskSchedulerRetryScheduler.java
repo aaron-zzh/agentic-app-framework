@@ -23,13 +23,9 @@ public class SpringTaskSchedulerRetryScheduler implements RetryScheduler {
     }
 
     @Override
-    public void scheduleRetry(
-            String taskType, String taskId, String tenantId, Duration backoff) {
+    public void scheduleRetry(String taskType, String taskId, String tenantId, Duration backoff) {
         taskScheduler.schedule(
-                () ->
-                        runtimeProvider
-                                .getObject()
-                                .dispatch(taskType, taskId, tenantId, "RETRY"),
+                () -> runtimeProvider.getObject().dispatch(taskType, taskId, tenantId, "RETRY"),
                 Instant.now().plus(backoff));
     }
 }

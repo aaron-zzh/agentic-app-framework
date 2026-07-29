@@ -17,7 +17,8 @@ class TodoAssociationMetadataTest {
     @Test
     @DisplayName("Given assigneeId 字段 When 读取声明 Then 按约定生成固定用户引用")
     void should_declare_assignee_as_field_reference() throws NoSuchFieldException {
-        var annotation = Todo.class.getDeclaredField("assigneeId").getAnnotation(CrudReference.class);
+        var annotation =
+                Todo.class.getDeclaredField("assigneeId").getAnnotation(CrudReference.class);
 
         assertThat(annotation).isNotNull();
         assertThat(annotation.key()).isEmpty();

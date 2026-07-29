@@ -45,12 +45,19 @@ public interface EffectiveContextPort {
             Objects.requireNonNull(userId, "userId 不能为空");
             Objects.requireNonNull(assistantId, "assistantId 不能为空");
             Objects.requireNonNull(sourceType, "sourceType 不能为空");
-            if (sourceKey == null || sourceKey.isBlank()) throw new IllegalArgumentException("sourceKey 不能为空白");
+            if (sourceKey == null || sourceKey.isBlank())
+                throw new IllegalArgumentException("sourceKey 不能为空白");
             Objects.requireNonNull(disposition, "disposition 不能为空");
-            if (reason == null || reason.isBlank()) throw new IllegalArgumentException("reason 不能为空白");
+            if (reason == null || reason.isBlank())
+                throw new IllegalArgumentException("reason 不能为空白");
             Objects.requireNonNull(updatedAt, "updatedAt 不能为空");
         }
     }
 
-    enum Disposition { DEFAULT, PREFERRED, DISABLED, REMOVED }
+    enum Disposition {
+        DEFAULT,
+        PREFERRED,
+        DISABLED,
+        REMOVED
+    }
 }

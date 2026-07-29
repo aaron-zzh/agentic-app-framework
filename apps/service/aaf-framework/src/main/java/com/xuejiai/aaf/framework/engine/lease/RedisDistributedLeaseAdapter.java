@@ -13,7 +13,9 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 /** Redis 分布式租约适配器；counter key 永不回退，确保 fencing token 单调递增。 */
 public final class RedisDistributedLeaseAdapter implements DistributedLeasePort {
 
-    private static final DefaultRedisScript<Long> ACQUIRE = new DefaultRedisScript<>("""
+    private static final DefaultRedisScript<Long> ACQUIRE =
+            new DefaultRedisScript<>(
+                    """
             local current = redis.call('GET', KEYS[1])
             if not current then
                 local token = redis.call('INCR', KEYS[2])
@@ -28,31 +30,44 @@ public final class RedisDistributedLeaseAdapter implements DistributedLeasePort 
                 return tonumber(string.sub(current, string.len(prefix) + 1))
             end
             return 0
-            """, Long.class);
-    private static final DefaultRedisScript<Long> RENEW = new DefaultRedisScript<>("""
+            """,
+                    Long.class);
+    private static final DefaultRedisScript<Long> RENEW =
+            new DefaultRedisScript<>(
+                    """
             if redis.call('GET', KEYS[1]) == ARGV[1] then
                 return redis.call('PEXPIRE', KEYS[1], ARGV[2])
             end
             return 0
-            """, Long.class);
-    private static final DefaultRedisScript<Long> PREEMPT = new DefaultRedisScript<>("""
+            """,
+                    Long.class);
+    private static final DefaultRedisScript<Long> PREEMPT =
+            new DefaultRedisScript<>(
+                    """
             local token = redis.call('INCR', KEYS[2])
             local value = ARGV[1] .. '|' .. token
             redis.call('SET', KEYS[1], value, 'PX', ARGV[2])
             return token
-            """, Long.class);
-    private static final DefaultRedisScript<Long> RELEASE = new DefaultRedisScript<>("""
+            """,
+                    Long.class);
+    private static final DefaultRedisScript<Long> RELEASE =
+            new DefaultRedisScript<>(
+                    """
             if redis.call('GET', KEYS[1]) == ARGV[1] then
                 return redis.call('DEL', KEYS[1])
             end
             return 0
-            """, Long.class);
-    private static final DefaultRedisScript<Long> VALIDATE = new DefaultRedisScript<>("""
+            """,
+                    Long.class);
+    private static final DefaultRedisScript<Long> VALIDATE =
+            new DefaultRedisScript<>(
+                    """
             if redis.call('GET', KEYS[1]) == ARGV[1] and redis.call('PTTL', KEYS[1]) > 0 then
                 return 1
             end
             return 0
-            """, Long.class);
+            """,
+                    Long.class);
 
     private final StringRedisTemplate redis;
 
@@ -65,11 +80,9 @@ public final class RedisDistributedLeaseAdapter implements DistributedLeasePort 
         requireKey(key);
         requireOwnerId(ownerId);
         var ttlMillis = requireTtlMillis(ttl);
-        var token = redis.execute(
-                ACQUIRE,
-                List.of(key, counterKey(key)),
-                ownerId,
-                Long.toString(ttlMillis));
+        var token =
+                redis.execute(
+                        ACQUIRE, List.of(key, counterKey(key)), ownerId, Long.toString(ttlMillis));
         return token == null || token < 1
                 ? Optional.empty()
                 : Optional.of(new Lease(key, ownerId, token, Instant.now().plusMillis(ttlMillis)));
@@ -79,17 +92,16 @@ public final class RedisDistributedLeaseAdapter implements DistributedLeasePort 
     public Optional<Lease> renew(Lease current, Duration ttl) {
         requireLease(current);
         var ttlMillis = requireTtlMillis(ttl);
-        var renewed = redis.execute(
-                RENEW,
-                List.of(current.key()),
-                value(current),
-                Long.toString(ttlMillis));
+        var renewed =
+                redis.execute(
+                        RENEW, List.of(current.key()), value(current), Long.toString(ttlMillis));
         return renewed != null && renewed == 1
-                ? Optional.of(new Lease(
-                        current.key(),
-                        current.ownerId(),
-                        current.fencingToken(),
-                        Instant.now().plusMillis(ttlMillis)))
+                ? Optional.of(
+                        new Lease(
+                                current.key(),
+                                current.ownerId(),
+                                current.fencingToken(),
+                                Instant.now().plusMillis(ttlMillis)))
                 : Optional.empty();
     }
 
@@ -113,11 +125,9 @@ public final class RedisDistributedLeaseAdapter implements DistributedLeasePort 
         requireKey(key);
         requireOwnerId(ownerId);
         var ttlMillis = requireTtlMillis(ttl);
-        var token = redis.execute(
-                PREEMPT,
-                List.of(key, counterKey(key)),
-                ownerId,
-                Long.toString(ttlMillis));
+        var token =
+                redis.execute(
+                        PREEMPT, List.of(key, counterKey(key)), ownerId, Long.toString(ttlMillis));
         if (token == null || token < 1) {
             throw new IllegalStateException("抢占 distributed lease 失败: " + key);
         }
@@ -136,11 +146,12 @@ public final class RedisDistributedLeaseAdapter implements DistributedLeasePort 
         if (separator < 1) {
             throw new IllegalStateException("distributed lease value 损坏: " + key);
         }
-        return Optional.of(new Lease(
-                key,
-                current.substring(0, separator),
-                Long.parseLong(current.substring(separator + 1)),
-                Instant.now().plusMillis(ttlMillis)));
+        return Optional.of(
+                new Lease(
+                        key,
+                        current.substring(0, separator),
+                        Long.parseLong(current.substring(separator + 1)),
+                        Instant.now().plusMillis(ttlMillis)));
     }
 
     /** CAS 释放当前租约，并返回是否确实删除。 */

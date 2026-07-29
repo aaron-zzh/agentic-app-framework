@@ -22,6 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middlewar
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
+
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
@@ -93,20 +94,20 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         try {
             return executeResolved(command, mappingState, resolveExecution(command));
         } catch (RuntimeException failure) {
-            return eventStore.append(
-                    eventMapper.failure(
-                            command,
-                            command.subagentSpec().identifier(),
-                            mappingState,
-                            failure),
-                    command.context().lease()).flux();
+            return eventStore
+                    .append(
+                            eventMapper.failure(
+                                    command,
+                                    command.subagentSpec().identifier(),
+                                    mappingState,
+                                    failure),
+                            command.context().lease())
+                    .flux();
         }
     }
 
     private Flux<ExecutionEvent> executeResolved(
-            AgentExecutionCommand command,
-            MappingState mappingState,
-            ResolvedExecution execution) {
+            AgentExecutionCommand command, MappingState mappingState, ResolvedExecution execution) {
         var executionId = command.context().executionId();
         final RuntimeContext runtimeContext;
         try {
@@ -116,20 +117,18 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             throw failure;
         }
 
-        var active =
-                new ActiveExecution(execution.agent(), runtimeContext, execution.ephemeral());
+        var active = new ActiveExecution(execution.agent(), runtimeContext, execution.ephemeral());
         try {
             var existing = activeExecutions.putIfAbsent(executionId, active);
             if (existing != null) {
                 release(executionId, active);
                 return Flux.error(
-                        new IllegalStateException(
-                                "executionId 已存在活跃执行: " + executionId.value()));
+                        new IllegalStateException("executionId 已存在活跃执行: " + executionId.value()));
             }
 
-            return execution.agent()
-                    .streamEvents(
-                            messageMapper.toAgentScope(command.messages()), runtimeContext)
+            return execution
+                    .agent()
+                    .streamEvents(messageMapper.toAgentScope(command.messages()), runtimeContext)
                     .doOnNext(
                             event -> {
                                 requireCurrent(command);
@@ -212,9 +211,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 var parentModel =
                         command.parentModel()
                                 .orElseThrow(
-                                        () ->
-                                                new IllegalArgumentException(
-                                                        "Dynamic 子智能体缺少父模型"));
+                                        () -> new IllegalArgumentException("Dynamic 子智能体缺少父模型"));
                 yield new ResolvedExecution(
                         compiler.compileDynamic(
                                 dynamic,
@@ -232,7 +229,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private void requireCurrent(AgentExecutionCommand command) {
         var context = command.context();
         if (context.controlMode()
-                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+                != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode
+                        .DELEGATED) {
             return;
         }
         leases.requireCurrent(context.lease());

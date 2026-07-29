@@ -14,8 +14,7 @@ public class AgentTaskCronRegistrar {
     private final TaskScheduler taskScheduler;
     private final AgentTaskRuntime agentTaskRuntime;
 
-    public void register(
-            String taskType, String taskId, String tenantId, String cronExpression) {
+    public void register(String taskType, String taskId, String tenantId, String cronExpression) {
         taskScheduler.schedule(
                 () -> agentTaskRuntime.dispatch(taskType, taskId, tenantId, "CRON"),
                 new CronTrigger(cronExpression));

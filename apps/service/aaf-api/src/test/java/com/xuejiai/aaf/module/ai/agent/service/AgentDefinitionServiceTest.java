@@ -132,10 +132,7 @@ class AgentDefinitionServiceTest extends BaseMockitoUnitTest {
     void should_reject_invalid_status_when_page() {
         // 调用 + 断言
         assertThatThrownBy(
-                        () ->
-                                service.page(
-                                        "deleted",
-                                        new com.xuejiai.aaf.common.model.PageParam()))
+                        () -> service.page("deleted", new com.xuejiai.aaf.common.model.PageParam()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("状态不合法");
     }

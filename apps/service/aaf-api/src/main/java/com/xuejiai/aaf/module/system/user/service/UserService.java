@@ -538,5 +538,4 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
     private UserVO toVO(User user) {
         return UserConvert.INSTANCE.toVO(user);
     }
-
 }

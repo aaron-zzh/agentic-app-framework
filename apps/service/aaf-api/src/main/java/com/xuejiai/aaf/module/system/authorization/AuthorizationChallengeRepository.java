@@ -23,9 +23,7 @@ public interface AuthorizationChallengeRepository
                and challenge.expiresAt > :now
             """)
     int approve(
-            @Param("id") UUID id,
-            @Param("subjectId") Long subjectId,
-            @Param("now") Instant now);
+            @Param("id") UUID id, @Param("subjectId") Long subjectId, @Param("now") Instant now);
 
     @Query(
             """
@@ -37,9 +35,7 @@ public interface AuthorizationChallengeRepository
                and challenge.expiresAt > :now
             """)
     Optional<AuthorizationChallenge> findApproved(
-            @Param("id") UUID id,
-            @Param("subjectId") Long subjectId,
-            @Param("now") Instant now);
+            @Param("id") UUID id, @Param("subjectId") Long subjectId, @Param("now") Instant now);
 
     @Modifying
     @Query(
@@ -52,7 +48,5 @@ public interface AuthorizationChallengeRepository
                and challenge.expiresAt > :now
             """)
     int consume(
-            @Param("id") UUID id,
-            @Param("subjectId") Long subjectId,
-            @Param("now") Instant now);
+            @Param("id") UUID id, @Param("subjectId") Long subjectId, @Param("now") Instant now);
 }

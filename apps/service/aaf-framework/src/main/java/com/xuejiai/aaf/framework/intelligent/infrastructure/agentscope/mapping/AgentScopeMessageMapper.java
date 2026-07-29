@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping;
 import java.util.List;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
+
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 
@@ -16,9 +17,6 @@ public final class AgentScopeMessageMapper {
 
     private Msg toAgentScope(AgentMessage message) {
         var role = MsgRole.valueOf(message.role().name());
-        return Msg.builderForRole(role)
-                .id(message.messageId())
-                .textContent(message.text())
-                .build();
+        return Msg.builderForRole(role).id(message.messageId()).textContent(message.text()).build();
     }
 }

@@ -19,8 +19,7 @@ public final class ApprovalRecoveryDispatcher implements TaskRecoveryDispatchPor
     private final TaskRecoveryPort recoveries;
     private final AssistantCommandPort commands;
 
-    public ApprovalRecoveryDispatcher(
-            TaskRecoveryPort recoveries, AssistantCommandPort commands) {
+    public ApprovalRecoveryDispatcher(TaskRecoveryPort recoveries, AssistantCommandPort commands) {
         this.recoveries = Objects.requireNonNull(recoveries, "recoveries 不能为空");
         this.commands = Objects.requireNonNull(commands, "commands 不能为空");
     }
@@ -42,21 +41,23 @@ public final class ApprovalRecoveryDispatcher implements TaskRecoveryDispatchPor
         var executionFailure = new AtomicReference<String>();
         try {
             commands.execute(job.command())
-                    .doOnNext(event -> {
-                        if (event.status() == ExecutionEventStatus.FAILED
-                                || event.status() == ExecutionEventStatus.REJECTED) {
-                            executionFailure.compareAndSet(
-                                    null, "恢复执行返回终止状态: " + event.status());
-                        }
-                    })
+                    .doOnNext(
+                            event -> {
+                                if (event.status() == ExecutionEventStatus.FAILED
+                                        || event.status() == ExecutionEventStatus.REJECTED) {
+                                    executionFailure.compareAndSet(
+                                            null, "恢复执行返回终止状态: " + event.status());
+                                }
+                            })
                     .then()
                     .subscribe(
                             ignored -> {},
-                            failure -> recoveries.release(
-                                    tenantId,
-                                    approvalId,
-                                    failure.getMessage(),
-                                    Instant.now()),
+                            failure ->
+                                    recoveries.release(
+                                            tenantId,
+                                            approvalId,
+                                            failure.getMessage(),
+                                            Instant.now()),
                             () -> {
                                 var failure = executionFailure.get();
                                 if (failure == null) {

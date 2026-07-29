@@ -18,12 +18,13 @@ public final class DefaultCrudViewMapper implements CrudViewMapper<BaseEntity, O
         var entityValues =
                 (java.util.Map<String, Object>) JsonUtils.convertValue(entity, LinkedHashMap.class);
         var output = new LinkedHashMap<String, Object>();
-        plan.outputFields().forEach(
-                field -> {
-                    if (entityValues.containsKey(field)) {
-                        output.put(field, entityValues.get(field));
-                    }
-                });
+        plan.outputFields()
+                .forEach(
+                        field -> {
+                            if (entityValues.containsKey(field)) {
+                                output.put(field, entityValues.get(field));
+                            }
+                        });
         plan.dependencies()
                 .forEach(
                         (viewField, keys) -> {

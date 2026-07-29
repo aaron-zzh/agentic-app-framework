@@ -77,8 +77,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
                 .thenReturn(
                         Map.of(
                                 "detail",
-                                new CrudViewPlan(
-                                        "detail", Set.of("status"), Map.of(), "")));
+                                new CrudViewPlan("detail", Set.of("status"), Map.of(), "")));
         when(definition.displayName()).thenReturn("测试资源");
         when(definition.tenantScope()).thenReturn(TenantScope.ORG_REQUIRED);
         when(definition.personalScope()).thenReturn(PersonalScope.none());
@@ -168,10 +167,8 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         verify(enforcementService, never())
                 .enforceRequest(entry, CrudOperation.CREATE, AccessMode.DEFAULT);
         verify(enforcementService, never())
-                .requireCreatedTarget(
-                        eq(entry), eq(decision), any(TestEntity.class), any(), any());
-        assertThat(digests.getValue())
-                .containsExactly(payloadDigest(first), payloadDigest(second));
+                .requireCreatedTarget(eq(entry), eq(decision), any(TestEntity.class), any(), any());
+        assertThat(digests.getValue()).containsExactly(payloadDigest(first), payloadDigest(second));
         assertThat(created.getValue())
                 .hasSize(2)
                 .allSatisfy(
@@ -244,8 +241,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         service.archive(List.of(1L, 2L));
 
         // 断言
-        verify(enforcementService)
-                .enforceRequest(entry, CrudOperation.ARCHIVE, AccessMode.DEFAULT);
+        verify(enforcementService).enforceRequest(entry, CrudOperation.ARCHIVE, AccessMode.DEFAULT);
         verify(enforcementService, never())
                 .enforceRequest(entry, CrudOperation.DELETE_BATCH, AccessMode.DEFAULT);
         verify(genericRelationHandler).cleanupSourceLinks(List.of(), List.of(1L, 2L));
@@ -271,11 +267,9 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         // 断言
         assertThat(deleted).isEqualTo(2);
         verify(enforcementService)
-                .enforceRequest(
-                        entry, CrudOperation.DELETE_BATCH, AccessMode.ADMIN_MAINTENANCE);
+                .enforceRequest(entry, CrudOperation.DELETE_BATCH, AccessMode.ADMIN_MAINTENANCE);
         verify(enforcementService, never())
-                .enforceObjectPreflight(
-                        entry, CrudOperation.DELETE, AccessMode.ADMIN_MAINTENANCE);
+                .enforceObjectPreflight(entry, CrudOperation.DELETE, AccessMode.ADMIN_MAINTENANCE);
         verify(genericRelationHandler).cleanupSourceLinks(List.of(), List.of(3L, 4L));
         verify(query).executeUpdate();
     }
@@ -283,7 +277,10 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
     @Test
     @DisplayName("Given GET 详情方法 When 检查事务声明 Then continuation 消费与读取映射共享事务")
     void should_declare_transaction_boundary_for_get_details() throws Exception {
-        assertThat(BaseCrudService.class.getMethod("getById", Long.class).getAnnotation(Transactional.class))
+        assertThat(
+                        BaseCrudService.class
+                                .getMethod("getById", Long.class)
+                                .getAnnotation(Transactional.class))
                 .isNotNull();
         assertThat(
                         BaseCrudService.class

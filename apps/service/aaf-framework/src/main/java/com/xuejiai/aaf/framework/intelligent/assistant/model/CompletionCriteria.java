@@ -15,9 +15,7 @@ public record CompletionCriteria(
     public CompletionCriteria {
         Objects.requireNonNull(kind, "CompletionCriteria kind 不能为空");
         requiredEventTypes =
-                Set.copyOf(
-                        Objects.requireNonNull(
-                                requiredEventTypes, "requiredEventTypes 不能为空"));
+                Set.copyOf(Objects.requireNonNull(requiredEventTypes, "requiredEventTypes 不能为空"));
         requiredPayloadValues =
                 Map.copyOf(
                         Objects.requireNonNull(

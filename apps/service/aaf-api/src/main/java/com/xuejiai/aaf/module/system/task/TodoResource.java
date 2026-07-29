@@ -74,8 +74,7 @@ public final class TodoResource {
                             Sort.by("id").descending()),
                     CrudMutationDefinition.forTypes(TYPES)
                             .withCustomUpdateCommands(
-                                    java.util.Map.of(
-                                            COMMAND_SHARE, Set.of("participants"))),
+                                    java.util.Map.of(COMMAND_SHARE, Set.of("participants"))),
                     VIEW,
                     TenantScope.ORG_SHARED_WORKSPACE_OPTIONAL,
                     PersonalScope.byProperty("assigneeId"));

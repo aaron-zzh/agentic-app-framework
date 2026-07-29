@@ -26,16 +26,17 @@ public class ConnectorCredentialService {
     public ConnectorCredentialVO register(
             TenantId tenantId, UserId userId, ConnectorCredentialRegisterDTO request) {
         var now = Instant.now();
-        var metadata = new CredentialHandleMetadata(
-                "credential:" + UUID.randomUUID().toString().replace("-", ""),
-                tenantId,
-                userId,
-                request.connectorId(),
-                request.scopes(),
-                request.expiresAt(),
-                null,
-                request.vaultRef(),
-                now);
+        var metadata =
+                new CredentialHandleMetadata(
+                        "credential:" + UUID.randomUUID().toString().replace("-", ""),
+                        tenantId,
+                        userId,
+                        request.connectorId(),
+                        request.scopes(),
+                        request.expiresAt(),
+                        null,
+                        request.vaultRef(),
+                        now);
         return ConnectorCredentialVO.from(credentials.register(metadata));
     }
 

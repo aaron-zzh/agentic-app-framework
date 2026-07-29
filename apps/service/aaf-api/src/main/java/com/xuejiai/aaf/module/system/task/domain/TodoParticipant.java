@@ -2,14 +2,14 @@ package com.xuejiai.aaf.module.system.task.domain;
 
 import java.io.Serializable;
 
+import com.xuejiai.aaf.framework.crud.relation.AssociationKind;
+import com.xuejiai.aaf.framework.crud.relation.CrudAssociation;
+import com.xuejiai.aaf.framework.crud.relation.RelationDefinition;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
-
-import com.xuejiai.aaf.framework.crud.relation.AssociationKind;
-import com.xuejiai.aaf.framework.crud.relation.CrudAssociation;
-import com.xuejiai.aaf.framework.crud.relation.RelationDefinition;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

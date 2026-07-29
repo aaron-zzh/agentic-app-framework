@@ -25,8 +25,7 @@ public record PolicyFactSchema(Map<String, ValueType> facts) {
                         if (name == null
                                 || !name.startsWith("attributes.")
                                 || name.length() == "attributes.".length()) {
-                            throw new IllegalArgumentException(
-                                    "扩展策略事实必须使用 attributes.* 命名");
+                            throw new IllegalArgumentException("扩展策略事实必须使用 attributes.* 命名");
                         }
                         merged.put(name, Objects.requireNonNull(type, "type"));
                     });

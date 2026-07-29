@@ -25,13 +25,17 @@ public class TaskRecoveryCommandEntity {
     @Id
     @Column(name = "command_key", length = 300)
     private String commandKey;
+
     @Column(name = "tenant_id", nullable = false, length = 128)
     private String tenantId;
+
     @Column(name = "task_id", nullable = false, length = 128)
     private String taskId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "command_payload", nullable = false, columnDefinition = "jsonb")
     private AssistantCommand command;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }

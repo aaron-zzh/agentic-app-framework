@@ -36,6 +36,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.Control
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
+
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.harness.agent.HarnessAgent;
@@ -145,8 +146,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
     }
 
     private void stubDynamicAgent(
-            AgentExecutionCommand command,
-            Flux<io.agentscope.core.event.AgentEvent> events) {
+            AgentExecutionCommand command, Flux<io.agentscope.core.event.AgentEvent> events) {
         when(compiler.compileDynamic(
                         (SubagentSpec.Dynamic) command.subagentSpec(),
                         parentModel,

@@ -50,7 +50,8 @@ public final class GenericRelationHandler {
                                                 new ResourceReference(
                                                         relation.targetResource().value(), id)))
                         .toList();
-        if (referenceEnforcementService.referenceable(sourceResource, relation.key(), requests)
+        if (referenceEnforcementService
+                        .referenceable(sourceResource, relation.key(), requests)
                         .size()
                 != requests.size()) {
             throw exception(GlobalErrorCode.CRUD_RESOURCE_NOT_FOUND, "关联记录");
@@ -79,10 +80,7 @@ public final class GenericRelationHandler {
             return;
         }
         relations.stream()
-                .filter(
-                        relation ->
-                                relation.associationKind()
-                                        == AssociationKind.MANY_TO_MANY_JOIN)
+                .filter(relation -> relation.associationKind() == AssociationKind.MANY_TO_MANY_JOIN)
                 .flatMap(relation -> findRows(relation, sourceIds).stream())
                 .forEach(entityManager::remove);
     }
@@ -95,8 +93,7 @@ public final class GenericRelationHandler {
         return entityManager.createQuery(query).getResultList();
     }
 
-    private Object newAssociation(
-            RelationDefinition<?, ?> relation, Long sourceId, Long targetId) {
+    private Object newAssociation(RelationDefinition<?, ?> relation, Long sourceId, Long targetId) {
         try {
             var entity = relation.associationEntity().getDeclaredConstructor().newInstance();
             var bean = new BeanWrapperImpl(entity);

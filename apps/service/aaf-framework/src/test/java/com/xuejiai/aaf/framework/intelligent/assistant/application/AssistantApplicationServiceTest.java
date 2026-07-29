@@ -30,26 +30,14 @@ class AssistantApplicationServiceTest {
     @Test
     @DisplayName("Given 技能没有可用系统提示 When 合并 Then 返回空附录")
     void should_return_empty_appendix_when_skill_prompts_are_unavailable() {
-        var skills =
-                List.of(
-                        skill(1L, "空白", " ", 10),
-                        skill(2L, "缺失", null, 20));
+        var skills = List.of(skill(1L, "空白", " ", 10), skill(2L, "缺失", null, 20));
 
         var result = AssistantApplicationService.mergeSkillPrompts(skills);
 
         assertThat(result).isEmpty();
     }
 
-    private static SkillDef skill(
-            Long id, String name, String systemPrompt, int priority) {
-        return new SkillDef(
-                id,
-                name,
-                name + "描述",
-                null,
-                List.of(),
-                systemPrompt,
-                priority,
-                false);
+    private static SkillDef skill(Long id, String name, String systemPrompt, int priority) {
+        return new SkillDef(id, name, name + "描述", null, List.of(), systemPrompt, priority, false);
     }
 }

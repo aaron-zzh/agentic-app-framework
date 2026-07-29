@@ -46,8 +46,7 @@ public record CrudDataAuthorizationConstraint(
         for (var capability : FieldCapability.values()) {
             var fields = deniedFields.getOrDefault(capability, Set.of());
             if (fields == null
-                    || fields.stream()
-                            .anyMatch(field -> field == null || field.isBlank())) {
+                    || fields.stream().anyMatch(field -> field == null || field.isBlank())) {
                 throw new IllegalArgumentException("字段拒绝集合不完整");
             }
             normalized.put(capability, Set.copyOf(fields));

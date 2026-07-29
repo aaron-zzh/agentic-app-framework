@@ -17,7 +17,8 @@ public record ToolPolicy(Map<String, ToolRule> rules) {
                     }
                     Objects.requireNonNull(rule, "ToolRule 不能为空");
                     if (!key.equals(rule.toolKey())) {
-                        throw new IllegalArgumentException("ToolPolicy key 必须与 ToolRule.toolKey 一致");
+                        throw new IllegalArgumentException(
+                                "ToolPolicy key 必须与 ToolRule.toolKey 一致");
                     }
                 });
     }

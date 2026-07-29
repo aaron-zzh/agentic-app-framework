@@ -46,8 +46,6 @@ public @interface LogRecord {
     /** 记录日志的条件（安全路径），结果为 false 时不记录。 */
     String condition() default "";
 
-    /**
-     * 成功条件（安全路径）。 非空时：结果为 true 走 success 模板，结果为 false 走 fail 模板。 为空时：无异常为成功走 success，有异常走 fail。
-     */
+    /** 成功条件（安全路径）。 非空时：结果为 true 走 success 模板，结果为 false 走 fail 模板。 为空时：无异常为成功走 success，有异常走 fail。 */
     String successCondition() default "";
 }

@@ -24,9 +24,7 @@ import lombok.NoArgsConstructor;
                 @Index(
                         name = "idx_access_policy_snapshot_target",
                         columnList = "target_resource,target_action,priority"))
-@Check(
-        constraints =
-                "lifecycle in ('SHADOW','ENFORCE') and effect in ('ALLOW','DENY','CHALLENGE')")
+@Check(constraints = "lifecycle in ('SHADOW','ENFORCE') and effect in ('ALLOW','DENY','CHALLENGE')")
 @SQLDelete(
         sql =
                 "UPDATE sys_access_policy_snapshot SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
@@ -65,8 +63,7 @@ public class AccessPolicySnapshot extends BaseEntity {
     @Column(nullable = false, length = 16)
     private String lifecycle;
 
-    public static AccessPolicySnapshot from(
-            AccessPolicy policy, long version, String lifecycle) {
+    public static AccessPolicySnapshot from(AccessPolicy policy, long version, String lifecycle) {
         var snapshot = new AccessPolicySnapshot();
         snapshot.setOrgId(policy.getOrgId());
         snapshot.setWorkspaceId(policy.getWorkspaceId());

@@ -33,8 +33,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * 待办事项接口。
  *
- * <p>继承 BaseCrudController 获得标准 CRUD 端点。Controller 仅校验已认证；L1/L4、租户、记录、个人和字段约束统一由
- * BaseCrud Service 的 CRUD PEP 执行。
+ * <p>继承 BaseCrudController 获得标准 CRUD 端点。Controller 仅校验已认证；L1/L4、租户、记录、个人和字段约束统一由 BaseCrud Service 的
+ * CRUD PEP 执行。
  *
  * <p>Todo 标准 GET 在默认 L3 {@code assigneeId} 范围未命中时，可按 {@code todo:{id}#can_read}
  * 关系要求重试；更新与删除不声明关系替代路径。自定义端点继续保留各自显式的权限或角色约束。

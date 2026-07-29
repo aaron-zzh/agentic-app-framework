@@ -17,9 +17,7 @@ import tools.jackson.databind.json.JsonMapper;
 public final class PolicyDslCompiler {
 
     private static final JsonMapper SECURITY_DSL_JSON_MAPPER =
-            JsonMapper.builder()
-                    .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
-                    .build();
+            JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
 
     private final PolicyDslLimits limits;
 
@@ -64,9 +62,7 @@ public final class PolicyDslCompiler {
         }
 
         var combinators =
-                (node.has("and") ? 1 : 0)
-                        + (node.has("or") ? 1 : 0)
-                        + (node.has("not") ? 1 : 0);
+                (node.has("and") ? 1 : 0) + (node.has("or") ? 1 : 0) + (node.has("not") ? 1 : 0);
         if (combinators > 0) {
             return compileCombination(node, schema, depth, counter, combinators);
         }
@@ -74,11 +70,7 @@ public final class PolicyDslCompiler {
     }
 
     private PolicyExpression compileCombination(
-            JsonNode node,
-            PolicyFactSchema schema,
-            int depth,
-            Counter counter,
-            int combinators) {
+            JsonNode node, PolicyFactSchema schema, int depth, Counter counter, int combinators) {
         if (combinators != 1 || node.size() != 1) {
             throw new PolicyCompilationException("组合节点只能声明 and、or、not 之一");
         }
@@ -144,8 +136,7 @@ public final class PolicyDslCompiler {
             }
             case CONTAINS -> {
                 if (!factType.array() && factType != PolicyFactSchema.ValueType.STRING) {
-                    throw new PolicyCompilationException(
-                            "CONTAINS 只支持 STRING 或 ARRAY fact");
+                    throw new PolicyCompilationException("CONTAINS 只支持 STRING 或 ARRAY fact");
                 }
                 yield literal(value, factType.array() ? factType.elementType() : factType);
             }

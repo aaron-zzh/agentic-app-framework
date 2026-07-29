@@ -9,6 +9,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort.ModelU
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
 import io.agentscope.core.event.ModelCallEndEvent;
@@ -34,14 +35,15 @@ public final class AgentScopeTokenMeteringObserver {
         var completed = (ModelCallEndEvent) event;
         var usage = Objects.requireNonNull(completed.getUsage(), "模型结束事件缺少 usage");
         var usageId = Objects.requireNonNull(completed.getId(), "模型结束事件缺少 eventId");
-        metering.record(new ModelUsageFact(
-                usageId,
-                command.context(),
-                model.modelId(),
-                "CHAT",
-                usage.getInputTokens(),
-                usage.getOutputTokens(),
-                usage.getCachedTokens(),
-                Instant.parse(completed.getCreatedAt())));
+        metering.record(
+                new ModelUsageFact(
+                        usageId,
+                        command.context(),
+                        model.modelId(),
+                        "CHAT",
+                        usage.getInputTokens(),
+                        usage.getOutputTokens(),
+                        usage.getCachedTokens(),
+                        Instant.parse(completed.getCreatedAt())));
     }
 }

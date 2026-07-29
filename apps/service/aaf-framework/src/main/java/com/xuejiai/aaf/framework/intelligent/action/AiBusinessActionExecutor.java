@@ -16,9 +16,9 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationRequest;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationTarget;
-import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 
 import lombok.RequiredArgsConstructor;
 

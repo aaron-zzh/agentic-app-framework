@@ -27,8 +27,6 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
 import com.xuejiai.aaf.framework.crud.definition.*;
 import com.xuejiai.aaf.framework.crud.dto.*;
 import com.xuejiai.aaf.framework.crud.enforcement.*;
@@ -38,6 +36,8 @@ import com.xuejiai.aaf.framework.crud.filter.CrudFilter;
 import com.xuejiai.aaf.framework.crud.filter.CrudFilterSchema;
 import com.xuejiai.aaf.framework.crud.filter.FilterEvaluationContext;
 import com.xuejiai.aaf.framework.crud.relation.*;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.framework.crud.view.CrudViewData;
 import com.xuejiai.aaf.framework.crud.view.CrudViewMapper;
 import com.xuejiai.aaf.framework.crud.view.CrudViewPlan;
@@ -148,8 +148,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /**
      * UPDATE 已按完整 L3 范围加载实体后、固定 CURRENT 快照前执行的受控 Hook。
      *
-     * <p>仅用于刷新实体或获取数据库锁，不得修改业务字段。对象级 L4 仍由框架在 {@link #updateEntity(BaseEntity, Object)}
-     * 应用变更后统一执行。
+     * <p>仅用于刷新实体或获取数据库锁，不得修改业务字段。对象级 L4 仍由框架在 {@link #updateEntity(BaseEntity, Object)} 应用变更后统一执行。
      */
     protected void beforeUpdate(E entity, U updateDTO) {}
 
@@ -162,8 +161,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /**
      * 声明单条读取可使用的关系权限要求。
      *
-     * <p><b>默认不声明。</b>只有确实支持协作者读取的资源才可覆写，并且只能为 {@link CrudOperation#GET}
-     * 返回与当前记录 ID 绑定的关系要求。该要求仅在默认 L3 范围未命中后使用，不能用于更新、删除或非默认访问模式。
+     * <p><b>默认不声明。</b>只有确实支持协作者读取的资源才可覆写，并且只能为 {@link CrudOperation#GET} 返回与当前记录 ID 绑定的关系要求。该要求仅在默认
+     * L3 范围未命中后使用，不能用于更新、删除或非默认访问模式。
      */
     protected AuthorizationPlan.RelationRequirement relationRequirement(
             Long id, CrudOperation operation) {
@@ -439,17 +438,11 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var decision = enforceObject(CrudOperation.GET, AccessMode.DEFAULT);
         var entity =
                 getRepository()
-                        .findOne(
-                                Specification.allOf(
-                                        idSpec(id), decision.scopeSpecification()))
+                        .findOne(Specification.allOf(idSpec(id), decision.scopeSpecification()))
                         .orElse(null);
         return entity != null
                 && crudEnforcementService.allowsCurrentTarget(
-                        resourceEntry(),
-                        decision,
-                        entity,
-                        authorizationSnapshot(entity),
-                        null);
+                        resourceEntry(), decision, entity, authorizationSnapshot(entity), null);
     }
 
     /**
@@ -475,7 +468,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
         var decision = enforce(CrudOperation.GET);
         return getRepository()
-                .findAll(Specification.allOf(idInSpec(ids.stream().toList()), decision.scopeSpecification()))
+                .findAll(
+                        Specification.allOf(
+                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
                 .stream()
                 .map(BaseEntity::getId)
                 .collect(Collectors.toUnmodifiableSet());
@@ -488,7 +483,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var decision = enforce(CrudOperation.REFERENCE);
         decision.fieldPolicy().require("id", FieldCapability.REFERENCE);
         return getRepository()
-                .findAll(Specification.allOf(idInSpec(ids.stream().toList()), decision.scopeSpecification()))
+                .findAll(
+                        Specification.allOf(
+                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
                 .stream()
                 .map(BaseEntity::getId)
                 .collect(Collectors.toUnmodifiableSet());
@@ -502,7 +499,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var resource = resourceDefinition().key().value();
         var refs = new LinkedHashMap<Long, ResourceRefDTO>();
         getRepository()
-                .findAll(Specification.allOf(idInSpec(ids.stream().toList()), decision.scopeSpecification()))
+                .findAll(
+                        Specification.allOf(
+                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
                 .forEach(
                         entity ->
                                 refs.put(
@@ -546,7 +545,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var normalizedFieldSet = normalizeFieldSet(fieldSet == null ? "detail" : fieldSet);
         var entitiesById = new LinkedHashMap<Long, E>();
         getRepository()
-                .findAll(Specification.allOf(idInSpec(ids.stream().toList()), decision.scopeSpecification()))
+                .findAll(
+                        Specification.allOf(
+                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
                 .forEach(entity -> entitiesById.put(entity.getId(), entity));
         var orderedEntities = ids.stream().map(entitiesById::get).filter(Objects::nonNull).toList();
         return toViews(orderedEntities, normalizedFieldSet, decision);
@@ -759,8 +760,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /**
      * 使用明确访问模式创建记录，供业务内部特殊入口调用。
      *
-     * <p>例如系统任务或管理员维护创建。<b>必须显式传入 {@link AccessMode}</b>，避免特殊入口悄悄获得默认权限； 本方法为
-     * final，业务不能覆盖安全步骤，仍应通过 {@link #toEntity(Object)} 定义字段转换。
+     * <p>例如系统任务或管理员维护创建。<b>必须显式传入 {@link AccessMode}</b>，避免特殊入口悄悄获得默认权限； 本方法为 final，业务不能覆盖安全步骤，仍应通过
+     * {@link #toEntity(Object)} 定义字段转换。
      */
     protected final V createWithAccess(C request, AccessMode accessMode) {
         var payloadDigest = payloadDigest(request);
@@ -788,21 +789,14 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * <p>依次处理权益、租户、默认所有者、关系校验、保存、关系同步和详情输出视图。保持私有以避免业务子类只调用其中一部分。
      */
     private V persistCreatedEntity(
-            E entity,
-            C request,
-            String payloadDigest,
-            CrudEnforcementDecision<E> decision) {
+            E entity, C request, String payloadDigest, CrudEnforcementDecision<E> decision) {
         checkEntitlement(1);
         applyTenant(entity, decision);
         if (entity.getOwnerId() == null) {
             entity.setOwnerId(decision.subjectId());
         }
         crudEnforcementService.requireCreatedTarget(
-                resourceEntry(),
-                decision,
-                entity,
-                authorizationSnapshot(entity),
-                payloadDigest);
+                resourceEntry(), decision, entity, authorizationSnapshot(entity), payloadDigest);
         validateEntityReferences(entity, request, true);
         validateRelationPatches(entity, request, decision);
         getRepository().save(entity);
@@ -814,8 +808,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /**
      * 在同一事务中创建多条记录。
      *
-     * <p>框架只执行一次不含 L4 的前置决策；应用服务端租户和 owner 后，将全部 CREATED 快照与各自原请求摘要绑定到一个批次 target
-     * PDP。整个批次最多产生一个 challenge，任一校验失败都会使整批回滚。
+     * <p>框架只执行一次不含 L4 的前置决策；应用服务端租户和 owner 后，将全部 CREATED 快照与各自原请求摘要绑定到一个批次 target PDP。整个批次最多产生一个
+     * challenge，任一校验失败都会使整批回滚。
      */
     @Transactional
     public List<V> createBatch(List<C> requests) {
@@ -914,10 +908,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var entry = resourceEntry();
         CrudEnforcementDecision<E> decision =
                 crudEnforcementService.<E>enforceCustomUpdatePreflight(
-                        entry,
-                        AccessMode.DEFAULT,
-                        plan.commandType(),
-                        plan.modifiedFields());
+                        entry, AccessMode.DEFAULT, plan.commandType(), plan.modifiedFields());
         decision.fieldPolicy().requireAll(plan.modifiedFields(), FieldCapability.WRITE);
         var id = objectIdResolver.get();
         if (id == null || id <= 0) {
@@ -954,9 +945,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
 
     /** 防止 proposal 或授权后动作修改调用方未声明的授权属性。 */
     private void requireDeclaredAuthorizationChanges(
-            Map<String, Object> current,
-            Map<String, Object> changed,
-            Set<String> modifiedFields) {
+            Map<String, Object> current, Map<String, Object> changed, Set<String> modifiedFields) {
         var undeclared = new LinkedHashSet<String>();
         var keys = new LinkedHashSet<>(current.keySet());
         keys.addAll(changed.keySet());
@@ -1053,8 +1042,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     protected final long deleteMatchingWithAccess(
             Specification<E> businessSpec, AccessMode accessMode) {
         var decision = enforce(CrudOperation.DELETE_BATCH, accessMode);
-        var effectiveScope =
-                Specification.allOf(decision.scopeSpecification(), businessSpec);
+        var effectiveScope = Specification.allOf(decision.scopeSpecification(), businessSpec);
         var entities = getRepository().findAll(effectiveScope);
         var lockedEntities = lockAndRevalidateEntities(entities, effectiveScope);
         deleteEntities(lockedEntities);
@@ -1298,8 +1286,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /** 将服务端收到的原始请求规范化为稳定 JSON，并生成 target PDP 绑定使用的 SHA-256。 */
     private String payloadDigest(Object request) {
         Objects.requireNonNull(request, "request");
-        var jsonValue =
-                JsonUtils.parseObject(JsonUtils.toJsonString(request), Object.class);
+        var jsonValue = JsonUtils.parseObject(JsonUtils.toJsonString(request), Object.class);
         var stableJson = JsonUtils.toJsonString(stableJsonValue(jsonValue));
         try {
             var digest =
@@ -1314,9 +1301,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     private Object stableJsonValue(Object value) {
         if (value instanceof Map<?, ?> map) {
             var sorted = new TreeMap<String, Object>();
-            map.forEach(
-                    (key, item) ->
-                            sorted.put(String.valueOf(key), stableJsonValue(item)));
+            map.forEach((key, item) -> sorted.put(String.valueOf(key), stableJsonValue(item)));
             return sorted;
         }
         if (value instanceof Iterable<?> iterable) {
@@ -1355,8 +1340,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * <p>记录不存在或当前用户无权读取时都抛资源不存在，避免信息泄露。需要更新、删除或特殊访问模式时， 使用带操作和 {@link AccessMode} 的重载方法。
      */
     protected E requireEntity(Long id) {
-        return requireCurrentEntity(
-                id, enforceObject(CrudOperation.GET, AccessMode.DEFAULT));
+        return requireCurrentEntity(id, enforceObject(CrudOperation.GET, AccessMode.DEFAULT));
     }
 
     /**
@@ -1400,8 +1384,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     protected final V getByIdWithAccess(
             Long id, String fieldSet, CrudOperation operation, AccessMode accessMode) {
         var decision = enforceObject(operation, accessMode);
-        return toView(
-                requireCurrentEntity(id, decision), normalizeFieldSet(fieldSet), decision);
+        return toView(requireCurrentEntity(id, decision), normalizeFieldSet(fieldSet), decision);
     }
 
     /**
@@ -1420,9 +1403,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     private LoadedEntity<E> loadEntity(Long id, CrudEnforcementDecision<E> decision) {
         var scopedEntity =
                 getRepository()
-                        .findOne(
-                                Specification.allOf(
-                                        idSpec(id), decision.scopeSpecification()));
+                        .findOne(Specification.allOf(idSpec(id), decision.scopeSpecification()));
         if (scopedEntity.isPresent()) {
             return new LoadedEntity<>(scopedEntity.get(), null);
         }
@@ -1469,17 +1450,11 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     }
 
     /** 按 ID 排序获取写锁，随后以原始范围重新查询并核对集合，避免死锁和范围漂移。 */
-    private List<E> lockAndRevalidateEntities(
-            List<E> entities, Specification<E> effectiveScope) {
+    private List<E> lockAndRevalidateEntities(List<E> entities, Specification<E> effectiveScope) {
         if (entities == null || entities.isEmpty()) {
             return List.of();
         }
-        var expectedIds =
-                entities.stream()
-                        .map(BaseEntity::getId)
-                        .distinct()
-                        .sorted()
-                        .toList();
+        var expectedIds = entities.stream().map(BaseEntity::getId).distinct().sorted().toList();
         var byId = entities.stream().collect(Collectors.toMap(BaseEntity::getId, entity -> entity));
         for (var id : expectedIds) {
             var entity = byId.get(id);
@@ -1489,8 +1464,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
             entityManager.refresh(entity, LockModeType.PESSIMISTIC_WRITE);
         }
         var locked =
-                getRepository()
-                        .findAll(Specification.allOf(idInSpec(expectedIds), effectiveScope));
+                getRepository().findAll(Specification.allOf(idInSpec(expectedIds), effectiveScope));
         if (locked.size() != expectedIds.size()
                 || !locked.stream()
                         .map(BaseEntity::getId)
@@ -1529,15 +1503,17 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
         var entities =
                 getRepository()
-                        .findAll(Specification.allOf(idInSpec(ids.stream().toList()), decision.scopeSpecification()));
+                        .findAll(
+                                Specification.allOf(
+                                        idInSpec(ids.stream().toList()),
+                                        decision.scopeSpecification()));
         if (entities.size() != ids.stream().distinct().count()) {
             throw exception(GlobalErrorCode.CRUD_RESOURCE_NOT_FOUND, entityName());
         }
         return entities;
     }
 
-    private List<E> requireLockedEntities(
-            List<Long> ids, CrudEnforcementDecision<E> decision) {
+    private List<E> requireLockedEntities(List<Long> ids, CrudEnforcementDecision<E> decision) {
         var entities = requireEntities(ids, decision);
         return lockAndRevalidateEntities(entities, decision.scopeSpecification());
     }

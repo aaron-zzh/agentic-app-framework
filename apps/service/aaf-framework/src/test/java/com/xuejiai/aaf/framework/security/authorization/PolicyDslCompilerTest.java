@@ -38,7 +38,14 @@ class PolicyDslCompilerTest {
         var matched =
                 evaluator.evaluate(
                         expression,
-                        request(Map.of("risk", "high", "score", 0.95, "tags", java.util.List.of("write"))));
+                        request(
+                                Map.of(
+                                        "risk",
+                                        "high",
+                                        "score",
+                                        0.95,
+                                        "tags",
+                                        java.util.List.of("write"))));
 
         assertThat(matched).isTrue();
     }
@@ -62,8 +69,7 @@ class PolicyDslCompilerTest {
     void should_reject_unknown_json_member_and_operator() {
         var extra =
                 "{\"field\":\"attributes.risk\",\"op\":\"eq\",\"value\":\"high\",\"spel\":\"#root\"}";
-        var operator =
-                "{\"field\":\"attributes.risk\",\"op\":\"spel\",\"value\":\"#root\"}";
+        var operator = "{\"field\":\"attributes.risk\",\"op\":\"spel\",\"value\":\"#root\"}";
 
         assertThatThrownBy(() -> compiler.compile(extra, schema))
                 .isInstanceOf(PolicyCompilationException.class);
@@ -95,8 +101,7 @@ class PolicyDslCompilerTest {
     @Test
     @DisplayName("Given NUMBER fact 使用字符串字面量 When 编译 Then 禁止隐式转换")
     void should_reject_implicit_literal_type_conversion() {
-        var json =
-                "{\"field\":\"attributes.score\",\"op\":\"eq\",\"value\":\"0.9\"}";
+        var json = "{\"field\":\"attributes.score\",\"op\":\"eq\",\"value\":\"0.9\"}";
 
         assertThatThrownBy(() -> compiler.compile(json, schema))
                 .isInstanceOf(PolicyCompilationException.class)
@@ -108,11 +113,9 @@ class PolicyDslCompilerTest {
     void should_reject_implicit_runtime_type_conversion() {
         var expression =
                 compiler.compile(
-                        "{\"field\":\"attributes.score\",\"op\":\"gte\",\"value\":0.9}",
-                        schema);
+                        "{\"field\":\"attributes.score\",\"op\":\"gte\",\"value\":0.9}", schema);
 
-        assertThatThrownBy(
-                        () -> evaluator.evaluate(expression, request(Map.of("score", "0.95"))))
+        assertThatThrownBy(() -> evaluator.evaluate(expression, request(Map.of("score", "0.95"))))
                 .isInstanceOf(PolicyEvaluationException.class)
                 .hasMessageContaining("类型不匹配");
     }
@@ -138,6 +141,11 @@ class PolicyDslCompilerTest {
     }
 
     private AuthorizationRequest request(Map<String, Object> facts) {
-        return new AuthorizationRequest(new AuthorizationSubject(7L, 7L, 31L, 41L), new AuthorizationTarget("todo", "read", "9"), AuthorizationPlan.authenticated(), facts, Duration.ofMinutes(10));
+        return new AuthorizationRequest(
+                new AuthorizationSubject(7L, 7L, 31L, 41L),
+                new AuthorizationTarget("todo", "read", "9"),
+                AuthorizationPlan.authenticated(),
+                facts,
+                Duration.ofMinutes(10));
     }
 }

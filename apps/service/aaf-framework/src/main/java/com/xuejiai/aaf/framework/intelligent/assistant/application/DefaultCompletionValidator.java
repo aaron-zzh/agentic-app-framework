@@ -48,13 +48,12 @@ public final class DefaultCompletionValidator implements CompletionValidator {
                 request.criteria().requiredEventTypes().stream()
                         .filter(
                                 required ->
-                                        events.stream().noneMatch(event -> event.type() == required))
+                                        events.stream()
+                                                .noneMatch(event -> event.type() == required))
                         .toList();
         if (!missingTypes.isEmpty()) {
             return decision(
-                    Outcome.CONTINUE_REPAIR,
-                    "缺少业务完成事件: " + missingTypes,
-                    "completion-evidence");
+                    Outcome.CONTINUE_REPAIR, "缺少业务完成事件: " + missingTypes, "completion-evidence");
         }
 
         var missingPayload =
@@ -62,22 +61,26 @@ public final class DefaultCompletionValidator implements CompletionValidator {
                         .filter(
                                 required ->
                                         events.stream()
-                                                .map(event -> event.payload().values().get(required.getKey()))
-                                                .noneMatch(value -> Objects.equals(value, required.getValue())))
+                                                .map(
+                                                        event ->
+                                                                event.payload()
+                                                                        .values()
+                                                                        .get(required.getKey()))
+                                                .noneMatch(
+                                                        value ->
+                                                                Objects.equals(
+                                                                        value,
+                                                                        required.getValue())))
                         .map(java.util.Map.Entry::getKey)
                         .toList();
         if (!missingPayload.isEmpty()) {
             return decision(
-                    Outcome.CONTINUE_REPAIR,
-                    "缺少业务完成证据: " + missingPayload,
-                    "completion-evidence");
+                    Outcome.CONTINUE_REPAIR, "缺少业务完成证据: " + missingPayload, "completion-evidence");
         }
         return new CompletionDecision(Outcome.COMPLETED, "显式业务完成条件已满足", null);
     }
 
-    private static CompletionDecision decision(
-            Outcome outcome, String reason, String recoveryKey) {
-        return new CompletionDecision(
-                outcome, reason, new RecoveryPoint(recoveryKey, reason));
+    private static CompletionDecision decision(Outcome outcome, String reason, String recoveryKey) {
+        return new CompletionDecision(outcome, reason, new RecoveryPoint(recoveryKey, reason));
     }
 }

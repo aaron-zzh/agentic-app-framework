@@ -15,17 +15,20 @@ public interface DelegatedTaskRepository extends JpaRepository<DelegatedTaskEnti
 
     Optional<DelegatedTaskEntity> findByTenantIdAndTaskId(String tenantId, String taskId);
 
-    List<DelegatedTaskEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId);
+    List<DelegatedTaskEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(
+            String tenantId, String userId);
 
     List<DelegatedTaskEntity>
             findByTenantIdAndConversationIdAndStatusOrderByPriorityAscCreatedAtAsc(
                     String tenantId, String conversationId, String status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select t from DelegatedTaskEntity t where t.tenantId = :tenantId and t.taskId = :taskId")
+    @Query(
+            "select t from DelegatedTaskEntity t where t.tenantId = :tenantId and t.taskId = :taskId")
     Optional<DelegatedTaskEntity> findForUpdate(String tenantId, String taskId);
 
-    @Query("""
+    @Query(
+            """
             select t from DelegatedTaskEntity t
             where t.status = 'PENDING' and t.nextRunAt <= :now and t.ownerKind <> 'HUMAN'
             order by t.nextRunAt asc, t.id asc
@@ -33,7 +36,8 @@ public interface DelegatedTaskRepository extends JpaRepository<DelegatedTaskEnti
     List<DelegatedTaskEntity> findDispatchable(Instant now, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
+    @Query(
+            """
             select t from DelegatedTaskEntity t
             where t.status = 'RUNNING' and t.leaseUntil < :now
             order by t.leaseUntil asc

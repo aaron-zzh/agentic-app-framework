@@ -32,8 +32,7 @@ class AuthorizationMethodSecurityAdapterTest extends BaseMockitoUnitTest {
         verify(authorizationService).authorize(captor.capture());
         var request = captor.getValue();
         assertThat(allowed).isTrue();
-        assertThat(request.plan().l1().mode())
-                .isEqualTo(AuthorizationPlan.FunctionMode.PERMISSION);
+        assertThat(request.plan().l1().mode()).isEqualTo(AuthorizationPlan.FunctionMode.PERMISSION);
         assertThat(request.plan().l1().permissionCodes()).containsExactly("todo:read");
         assertThat(request.target().objectId()).isEqualTo("42");
     }
@@ -55,11 +54,8 @@ class AuthorizationMethodSecurityAdapterTest extends BaseMockitoUnitTest {
         assertThat(request.plan().l2().combination())
                 .isEqualTo(AuthorizationPlan.CombinationMode.ALL_APPLICABLE);
         assertThat(request.plan().l2().requirements())
-                .containsExactly(
-                        new AuthorizationPlan.RelationRequirement(
-                                "todo", "9", "viewer"));
-        assertThat(request.target())
-                .isEqualTo(new AuthorizationTarget("todo", "viewer", "9"));
+                .containsExactly(new AuthorizationPlan.RelationRequirement("todo", "9", "viewer"));
+        assertThat(request.target()).isEqualTo(new AuthorizationTarget("todo", "viewer", "9"));
     }
 
     private AuthorizationDecision allowDecision() {
@@ -67,9 +63,7 @@ class AuthorizationMethodSecurityAdapterTest extends BaseMockitoUnitTest {
                 AuthorizationEffect.ALLOW,
                 List.of(
                         AuthorizationDecision.LayerDecision.of(
-                                AuthorizationLayer.L1_FUNCTION,
-                                AuthorizationEffect.ALLOW,
-                                "允许")),
+                                AuthorizationLayer.L1_FUNCTION, AuthorizationEffect.ALLOW, "允许")),
                 List.of(),
                 null,
                 null);

@@ -41,9 +41,7 @@ import lombok.Setter;
 public class Todo extends BaseEntity {
 
     /** 执行人 ID */
-    @CrudReference(
-            targetResource = "system.user",
-            additionalPolicyBean = "todoUserReferencePolicy")
+    @CrudReference(targetResource = "system.user", additionalPolicyBean = "todoUserReferencePolicy")
     @Column(name = "assignee_id", nullable = false)
     private Long assigneeId;
 

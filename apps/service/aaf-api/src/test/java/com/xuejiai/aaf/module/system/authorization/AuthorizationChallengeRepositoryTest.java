@@ -35,8 +35,7 @@ class AuthorizationChallengeRepositoryTest {
 
     @Test
     @DisplayName("Given APPROVED challenge When 查询 Then 绑定 subject、状态和过期时间")
-    void should_bind_subject_status_and_expiry_when_find_approved()
-            throws NoSuchMethodException {
+    void should_bind_subject_status_and_expiry_when_find_approved() throws NoSuchMethodException {
         // 准备参数
         var method = method("findApproved");
 

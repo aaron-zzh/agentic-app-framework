@@ -20,8 +20,8 @@ import com.xuejiai.aaf.framework.crud.filter.CrudFilterSchema;
  * 泛型推导实体、输入、输出和分页类型，并生成与端点类型匹配的默认能力、变更规则、输出视图和字段能力。
  *
  * <p>{@link #crud(String, String, Class, String, String, TenantScope)} 及其重载按配置复杂度逐步开放：
- * 基础重载使用无个人范围和默认暴露面；后续重载可声明个人范围或自定义暴露面。需要自定义查询、字段能力、
- * 关系、引用策略或输出视图时，应显式实现 {@link CrudResourceDefinitionProvider}。
+ * 基础重载使用无个人范围和默认暴露面；后续重载可声明个人范围或自定义暴露面。需要自定义查询、字段能力、 关系、引用策略或输出视图时，应显式实现 {@link
+ * CrudResourceDefinitionProvider}。
  */
 public final class CrudResourceDefinitions {
 
@@ -30,9 +30,8 @@ public final class CrudResourceDefinitions {
     /**
      * 创建无个人范围、使用默认暴露面的标准 CRUD 资源 Provider。
      *
-     * <p> 暴露面 表示可发现资源的受信任框架入口，不代表当前用户已获得访问权限。默认暴露面为 HTTP、
-     * 实体定义和跨资源引用。完整参数说明见
-     * {@link #crud(String, String, Class, String, String, TenantScope, PersonalScope, Set)}。
+     * <p>暴露面 表示可发现资源的受信任框架入口，不代表当前用户已获得访问权限。默认暴露面为 HTTP、 实体定义和跨资源引用。完整参数说明见 {@link #crud(String,
+     * String, Class, String, String, TenantScope, PersonalScope, Set)}。
      */
     public static CrudResourceDefinitionProvider<?> crud(
             String key,
@@ -54,9 +53,8 @@ public final class CrudResourceDefinitions {
     /**
      * 创建使用指定个人范围的标准完整 CRUD 资源 Provider。
      *
-     * <p>默认向 HTTP、实体定义和跨资源引用暴露资源；需要调整消费者暴露面时，使用包含
-     * {@code exposures} 参数的重载。完整参数说明见
-     * {@link #crud(String, String, Class, String, String, TenantScope, PersonalScope, Set)}。
+     * <p>默认向 HTTP、实体定义和跨资源引用暴露资源；需要调整消费者暴露面时，使用包含 {@code exposures} 参数的重载。完整参数说明见 {@link
+     * #crud(String, String, Class, String, String, TenantScope, PersonalScope, Set)}。
      */
     public static CrudResourceDefinitionProvider<?> crud(
             String key,
@@ -83,8 +81,8 @@ public final class CrudResourceDefinitions {
     /**
      * 创建可完整定制个人范围和暴露面的标准 CRUD 资源 Provider。
      *
-     * <p>这是标准资源重载的最终入口。它仍使用框架默认的查询、变更、输出视图和字段能力；
-     * {@code exposures} 仅控制哪些受信任消费者可发现该资源，不会授予未声明的字段或操作能力。
+     * <p>这是标准资源重载的最终入口。它仍使用框架默认的查询、变更、输出视图和字段能力； {@code exposures}
+     * 仅控制哪些受信任消费者可发现该资源，不会授予未声明的字段或操作能力。
      *
      * @param key 带命名空间的稳定资源标识
      * @param label 资源显示名称
@@ -118,8 +116,8 @@ public final class CrudResourceDefinitions {
     /**
      * 创建仅通过嵌套 HTTP 路由访问的 CRUD 资源 Provider。
      *
-     * <p>该资源必须由 {@link com.xuejiai.aaf.framework.crud.web.NestedCrudResourceController}
-     * 实现端点，并且默认仅向 HTTP 暴露，不会进入实体定义或跨资源引用目录。
+     * <p>该资源必须由 {@link com.xuejiai.aaf.framework.crud.web.NestedCrudResourceController} 实现端点，并且默认仅向
+     * HTTP 暴露，不会进入实体定义或跨资源引用目录。
      *
      * @param key 带命名空间的稳定资源标识
      * @param label 资源显示名称
@@ -185,8 +183,8 @@ public final class CrudResourceDefinitions {
     /**
      * 在标准资源 Provider 上叠加具名自定义 UPDATE 命令契约。
      *
-     * <p>具名命令复用资源 UPDATE permission，但不会把只读资源伪装成支持标准 PUT；调用必须经过
-     * {@link com.xuejiai.aaf.framework.crud.BaseCrudService} 的固定命令模板。
+     * <p>具名命令复用资源 UPDATE permission，但不会把只读资源伪装成支持标准 PUT；调用必须经过 {@link
+     * com.xuejiai.aaf.framework.crud.BaseCrudService} 的固定命令模板。
      */
     public static CrudResourceDefinitionProvider<?> withCustomUpdateCommands(
             CrudResourceDefinitionProvider<?> provider,

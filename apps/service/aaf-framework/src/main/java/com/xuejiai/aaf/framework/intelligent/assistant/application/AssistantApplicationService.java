@@ -33,8 +33,8 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillRoute;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
@@ -51,6 +51,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
+
 import reactor.core.publisher.Flux;
 
 /** P2 Assistant 唯一应用用例，不感知 Spring、JPA 或 AgentScope。 */
@@ -90,12 +91,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         this.skillRouter = Objects.requireNonNull(skillRouter, "skillRouter 不能为空");
         this.effectiveSkillResolver =
                 Objects.requireNonNull(effectiveSkillResolver, "effectiveSkillResolver 不能为空");
-        this.effectiveContexts = Objects.requireNonNull(effectiveContexts, "effectiveContexts 不能为空");
+        this.effectiveContexts =
+                Objects.requireNonNull(effectiveContexts, "effectiveContexts 不能为空");
         this.memoryContexts = Objects.requireNonNull(memoryContexts, "memoryContexts 不能为空");
         this.memoryGovernance = Objects.requireNonNull(memoryGovernance, "memoryGovernance 不能为空");
         this.agentExecution = Objects.requireNonNull(agentExecution, "agentExecution 不能为空");
         this.models = Objects.requireNonNull(models, "models 不能为空");
-        this.completionValidator = Objects.requireNonNull(completionValidator, "completionValidator 不能为空");
+        this.completionValidator =
+                Objects.requireNonNull(completionValidator, "completionValidator 不能为空");
         this.eventStore = Objects.requireNonNull(eventStore, "eventStore 不能为空");
         this.recoveries = Objects.requireNonNull(recoveries, "recoveries 不能为空");
     }
@@ -104,13 +107,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     public Flux<ExecutionEvent> execute(AssistantCommand command) {
         Objects.requireNonNull(command, "command 不能为空");
         if (command.controlMode()
-                        == com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED
+                        == com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent
+                                .ControlMode.DELEGATED
                 && command.lease() == null) {
             throw new IllegalStateException("DELEGATED 执行必须由持久调度器注入 conversation lease");
         }
         if (command.operation().executesAgent()
                 && command.controlMode()
-                        != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode.DELEGATED) {
+                        != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent
+                                .ControlMode.DELEGATED) {
             recoveries.saveCommand(command);
         }
         var failureSequence = new AtomicLong(command.sequenceBase());
@@ -123,9 +128,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         : command.operation().executesAgent()
                                                 ? executeAgent(command, taskRef, taskProgressed)
                                                 : controlTask(command))
-                .doOnNext(
-                        event ->
-                                failureSequence.accumulateAndGet(event.sequence(), Math::max))
+                .doOnNext(event -> failureSequence.accumulateAndGet(event.sequence(), Math::max))
                 .onErrorResume(
                         failure ->
                                 failTask(
@@ -145,17 +148,30 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var definition = requireDefinition(command);
         definition.requireControlMode(command.controlMode());
         requirePublished(definition);
-        var route = skillRouter.route(definition, command.input())
-                .orElseThrow(() -> new IllegalStateException("子任务没有可用的 SkillRoute"));
+        var route =
+                skillRouter
+                        .route(definition, command.input())
+                        .orElseThrow(() -> new IllegalStateException("子任务没有可用的 SkillRoute"));
         if (!definition.toolPolicy().allows(command.controlMode(), route.actionEffect())) {
             throw new IllegalStateException("当前控制模式禁止子任务动作: " + route.actionKey());
         }
-        var memoryContext = definition.memoryStrategy().longTermEnabled()
-                ? memoryContexts.prepare(new RecallQuery(
-                        command.memorySubject(), command.input(), 4, 1024, command.requestedAt()))
-                : MemoryContextPort.MemoryContext.empty();
+        var memoryContext =
+                definition.memoryStrategy().longTermEnabled()
+                        ? memoryContexts.prepare(
+                                new RecallQuery(
+                                        command.memorySubject(),
+                                        command.input(),
+                                        4,
+                                        1024,
+                                        command.requestedAt()))
+                        : MemoryContextPort.MemoryContext.empty();
         return agentExecution.execute(
-                agentCommand(command, route, definition, command.sequenceBase(), memoryContext.messages()));
+                agentCommand(
+                        command,
+                        route,
+                        definition,
+                        command.sequenceBase(),
+                        memoryContext.messages()));
     }
 
     private Flux<ExecutionEvent> executeAgent(
@@ -185,31 +201,33 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         .route(definition, command.input())
                         .orElseThrow(() -> new IllegalStateException("没有可用的 SkillRoute"));
         if (!definition.toolPolicy().allows(command.controlMode(), route.actionEffect())) {
-            throw new IllegalStateException(
-                    "当前控制模式禁止业务动作: " + route.actionKey());
+            throw new IllegalStateException("当前控制模式禁止业务动作: " + route.actionKey());
         }
 
-        var memoryContext = definition.memoryStrategy().longTermEnabled()
-                ? memoryContexts.prepare(
-                        new RecallQuery(
-                                command.memorySubject(),
-                                command.input(),
-                                8,
-                                2048,
-                                command.requestedAt()))
-                : MemoryContextPort.MemoryContext.empty();
+        var memoryContext =
+                definition.memoryStrategy().longTermEnabled()
+                        ? memoryContexts.prepare(
+                                new RecallQuery(
+                                        command.memorySubject(),
+                                        command.input(),
+                                        8,
+                                        2048,
+                                        command.requestedAt()))
+                        : MemoryContextPort.MemoryContext.empty();
         var contextCandidates = new ArrayList<>(command.contextCandidates());
-        memoryContext.references().forEach(
-                reference ->
-                        contextCandidates.add(
-                                new EffectiveContextManifest.SourceReference(
-                                        EffectiveContextManifest.SourceType.MEMORY,
-                                        reference.memoryId(),
-                                        "1",
-                                        reference.scope(),
-                                        "与当前任务语义相关且在记忆预算内",
-                                        reference.redactedSummary(),
-                                        true)));
+        memoryContext
+                .references()
+                .forEach(
+                        reference ->
+                                contextCandidates.add(
+                                        new EffectiveContextManifest.SourceReference(
+                                                EffectiveContextManifest.SourceType.MEMORY,
+                                                reference.memoryId(),
+                                                "1",
+                                                reference.scope(),
+                                                "与当前任务语义相关且在记忆预算内",
+                                                reference.redactedSummary(),
+                                                true)));
         var manifest =
                 effectiveContexts.resolve(
                         command.tenantId(),
@@ -223,7 +241,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         taskRef.set(task);
         taskProgressed.set(true);
         var agentEvents = new ArrayList<ExecutionEvent>();
-        var agentCommand = agentCommand(command, route, definition, sequence.get(), memoryContext.messages());
+        var agentCommand =
+                agentCommand(command, route, definition, sequence.get(), memoryContext.messages());
 
         var executionEvents =
                 agentExecution
@@ -236,14 +255,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return Flux.concat(
                 Flux.fromIterable(emitted),
                 executionEvents,
-                Flux.defer(
-                        () ->
-                                finalizeTask(
-                                        command,
-                                        taskRef,
-                                        route,
-                                        agentEvents,
-                                        sequence)));
+                Flux.defer(() -> finalizeTask(command, taskRef, route, agentEvents, sequence)));
     }
 
     private Flux<ExecutionEvent> controlTask(AssistantCommand command) {
@@ -270,17 +282,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     case START, RESUME, SUBTASK -> throw new IllegalStateException("非法控制命令");
                 };
         var recovery =
-                next == TaskStatus.PAUSED
-                        ? new RecoveryPoint("user-control", "从用户控制点恢复")
-                        : null;
+                next == TaskStatus.PAUSED ? new RecoveryPoint("user-control", "从用户控制点恢复") : null;
         var changed =
                 task.transitionTo(
-                        next,
-                        reason,
-                        humanActor(command),
-                        owner,
-                        recovery,
-                        command.requestedAt());
+                        next, reason, humanActor(command), owner, recovery, command.requestedAt());
         return agentExecution
                 .cancel(command.executionId())
                 .flatMapMany(
@@ -675,12 +680,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             RecoveryPoint recoveryPoint) {
         var changed =
                 current.transitionTo(
-                        next,
-                        reason,
-                        assistantActor(command),
-                        owner,
-                        recoveryPoint,
-                        Instant.now());
+                        next, reason, assistantActor(command), owner, recoveryPoint, Instant.now());
         return tasks.save(command.tenantId(), changed, command.lease());
     }
 
@@ -698,8 +698,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             return Flux.just(commandRejectedEvent(command, sequence, failure));
         }
         var current = tasks.find(command.tenantId(), command.taskId()).orElse(tracked);
-        if (current.status() == TaskStatus.COMPLETED
-                || current.status() == TaskStatus.CANCELED) {
+        if (current.status() == TaskStatus.COMPLETED || current.status() == TaskStatus.CANCELED) {
             return Flux.just(commandRejectedEvent(command, sequence, failure));
         }
         var failed = current;
@@ -751,8 +750,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     private AssistantTask requireTask(AssistantCommand command) {
-        return tasks
-                .find(command.tenantId(), command.taskId())
+        return tasks.find(command.tenantId(), command.taskId())
                 .orElseThrow(
                         () ->
                                 new IllegalArgumentException(
@@ -766,21 +764,25 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             long sequenceBase,
             List<AgentMessage> memoryMessages) {
         var skillSystemPromptAppendix =
-                mergeSkillPrompts(
-                        effectiveSkillResolver.resolve(List.of(definition.role())));
+                mergeSkillPrompts(effectiveSkillResolver.resolve(List.of(definition.role())));
         var roleAllowedToolNames = definition.role().toolKeys();
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
-        definition.toolPolicy().rules().forEach(
-                (toolKey, rule) ->
-                        authorizationRules.put(
-                                toolKey,
-                                new ToolAuthorizationRule(
-                                        switch (rule.effect()) {
-                                            case READ, GENERATED_CONTENT, HUMAN_HANDOFF -> true;
-                                            case REVERSIBLE_WRITE, IRREVERSIBLE_WRITE -> false;
-                                        },
-                                        rule.reversible(),
-                                        rule.authorizationRequired())));
+        definition
+                .toolPolicy()
+                .rules()
+                .forEach(
+                        (toolKey, rule) ->
+                                authorizationRules.put(
+                                        toolKey,
+                                        new ToolAuthorizationRule(
+                                                switch (rule.effect()) {
+                                                    case READ, GENERATED_CONTENT, HUMAN_HANDOFF ->
+                                                            true;
+                                                    case REVERSIBLE_WRITE, IRREVERSIBLE_WRITE ->
+                                                            false;
+                                                },
+                                                rule.reversible(),
+                                                rule.authorizationRequired())));
         var toolAuthorization = new ToolAuthorizationContext(authorizationRules);
         var context =
                 new InvocationContext(
@@ -818,8 +820,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         yield Optional.of(
                                 new ModelSpec(
                                         Objects.requireNonNull(
-                                                        selectedModel.getId(),
-                                                        "CHAT 模型缺少数据库主键")
+                                                        selectedModel.getId(), "CHAT 模型缺少数据库主键")
                                                 .toString()));
                     }
                 };
@@ -910,7 +911,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 new ExecutionEventPayload(
                         java.util.Map.of(
                                 "errorType", failure.getClass().getSimpleName(),
-                                "reason", Objects.requireNonNullElse(failure.getMessage(), "命令不合法")));
+                                "reason",
+                                        Objects.requireNonNullElse(failure.getMessage(), "命令不合法")));
         return event(
                 command,
                 sequence,

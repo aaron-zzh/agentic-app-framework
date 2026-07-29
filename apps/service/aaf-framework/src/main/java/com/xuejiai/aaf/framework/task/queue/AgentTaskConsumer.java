@@ -34,10 +34,7 @@ public class AgentTaskConsumer {
 
     private static final String GROUP = "aaf-agent-task-consumers";
     private static final List<String> STREAMS =
-            List.of(
-                    "agent_task_queue:high",
-                    "agent_task_queue:normal",
-                    "agent_task_queue:low");
+            List.of("agent_task_queue:high", "agent_task_queue:normal", "agent_task_queue:low");
 
     private final StringRedisTemplate redisTemplate;
     private final AgentTaskRuntime agentTaskRuntime;
@@ -58,7 +55,9 @@ public class AgentTaskConsumer {
                         threads,
                         runnable ->
                                 Thread.ofVirtual()
-                                        .name("agent-task-consumer-" + threadSequence.incrementAndGet())
+                                        .name(
+                                                "agent-task-consumer-"
+                                                        + threadSequence.incrementAndGet())
                                         .unstarted(runnable));
         for (int index = 0; index < threads; index++) {
             var consumerIndex = index;
@@ -97,8 +96,7 @@ public class AgentTaskConsumer {
                                     .read(
                                             Consumer.from(GROUP, consumerName),
                                             StreamReadOptions.empty().count(1).block(timeout),
-                                            StreamOffset.create(
-                                                    stream, ReadOffset.lastConsumed()));
+                                            StreamOffset.create(stream, ReadOffset.lastConsumed()));
                     if (messages != null) {
                         for (var message : messages) {
                             processMessage(stream, message);
@@ -112,10 +110,7 @@ public class AgentTaskConsumer {
                 var errors = consecutiveErrors.incrementAndGet();
                 var backoffMs = Math.min(1000L * errors, 30_000L);
                 log.warn(
-                        "智能体任务 Redis 连接异常（第 {} 次），{}ms 后重试: {}",
-                        errors,
-                        backoffMs,
-                        e.getMessage());
+                        "智能体任务 Redis 连接异常（第 {} 次），{}ms 后重试: {}", errors, backoffMs, e.getMessage());
                 sleep(backoffMs);
             } catch (Exception e) {
                 if (running.get()) {

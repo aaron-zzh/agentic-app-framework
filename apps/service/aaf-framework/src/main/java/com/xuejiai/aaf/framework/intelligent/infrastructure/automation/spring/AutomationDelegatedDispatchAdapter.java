@@ -16,38 +16,88 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.*;
 public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
     private final DelegatedTaskCoordinator coordinator;
     private final Clock clock;
+
     public AutomationDelegatedDispatchAdapter(DelegatedTaskCoordinator coordinator, Clock clock) {
-        this.coordinator = coordinator; this.clock = clock;
+        this.coordinator = coordinator;
+        this.clock = clock;
     }
-    @Override public void dispatch(AutomationRun run) {
+
+    @Override
+    public void dispatch(AutomationRun run) {
         var now = clock.instant();
         var template = run.definitionSnapshot().template();
         var seed = run.runId();
         var contract = template.contract();
-        var effectiveContract = new ExecutionContract(contract.budget(), now.plus(template.executionWindow()),
-                contract.maxModelCalls(), contract.maxToolCalls(), contract.allowedActions(), contract.stopConditions(),
-                contract.retryPolicy(), contract.notificationPolicy(), contract.responsibleOwner(), contract.takeoverPolicy());
+        var effectiveContract =
+                new ExecutionContract(
+                        contract.budget(),
+                        now.plus(template.executionWindow()),
+                        contract.maxModelCalls(),
+                        contract.maxToolCalls(),
+                        contract.allowedActions(),
+                        contract.stopConditions(),
+                        contract.retryPolicy(),
+                        contract.notificationPolicy(),
+                        contract.responsibleOwner(),
+                        contract.takeoverPolicy());
         var taskId = run.delegatedTaskId();
-        var command = new AssistantCommand(AssistantCommand.Operation.START, run.tenantId(), template.ownerId(),
-                template.memorySubject(), template.assistantId(), template.assistantVersion(),
-                new ConversationId("automation:" + seed), new SessionId("automation:" + seed), taskId,
-                new ExecutionId("automation:" + seed), new RunId(seed), null,
-                new CorrelationId(stableId("correlation|" + seed)), new CausationId(run.definitionSnapshot().sourceTaskId().value()),
-                new IdempotencyKey(stableId("idempotency|" + run.automationId() + "|" + run.triggerKey())), ControlMode.DELEGATED,
-                effectiveContract, null, 0, renderGoal(template.goal(), run.parameters()),
-                template.completionCriteria(), template.contextCandidates(), now);
+        var command =
+                new AssistantCommand(
+                        AssistantCommand.Operation.START,
+                        run.tenantId(),
+                        template.ownerId(),
+                        template.memorySubject(),
+                        template.assistantId(),
+                        template.assistantVersion(),
+                        new ConversationId("automation:" + seed),
+                        new SessionId("automation:" + seed),
+                        taskId,
+                        new ExecutionId("automation:" + seed),
+                        new RunId(seed),
+                        null,
+                        new CorrelationId(stableId("correlation|" + seed)),
+                        new CausationId(run.definitionSnapshot().sourceTaskId().value()),
+                        new IdempotencyKey(
+                                stableId(
+                                        "idempotency|"
+                                                + run.automationId()
+                                                + "|"
+                                                + run.triggerKey())),
+                        ControlMode.DELEGATED,
+                        effectiveContract,
+                        null,
+                        0,
+                        renderGoal(template.goal(), run.parameters()),
+                        template.completionCriteria(),
+                        template.contextCandidates(),
+                        now);
         coordinator.submit(command, copyBoard(template.board(), taskId));
     }
-    private static String renderGoal(String goal, java.util.Map<String,Object> parameters) {
+
+    private static String renderGoal(String goal, java.util.Map<String, Object> parameters) {
         return parameters.isEmpty() ? goal : goal + "\n自动化参数: " + parameters;
     }
+
     private static TaskBoard copyBoard(TaskBoard source, TaskId taskId) {
         var tasks = new LinkedHashMap<String, TaskBoard.SubTask>();
-        source.subTasks().values().forEach(item -> tasks.put(item.subTaskId(),
-                TaskBoard.SubTask.pending(item.subTaskId(), item.description(), item.dependsOn(), item.maxAttempts())));
+        source.subTasks()
+                .values()
+                .forEach(
+                        item ->
+                                tasks.put(
+                                        item.subTaskId(),
+                                        TaskBoard.SubTask.pending(
+                                                item.subTaskId(),
+                                                item.description(),
+                                                item.dependsOn(),
+                                                item.maxAttempts())));
         return new TaskBoard(taskId, source.goal(), source.maxParallelism(), tasks);
     }
+
     private static String stableId(String value) {
-        return java.util.UUID.nameUUIDFromBytes(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+        return java.util
+                .UUID
+                .nameUUIDFromBytes(value.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                .toString();
     }
 }

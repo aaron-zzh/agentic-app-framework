@@ -25,6 +25,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.Spr
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.extensions.redis.state.RedisAgentStateStore;
 
@@ -114,7 +115,14 @@ public class AgentScopeInfrastructureAutoConfiguration {
             com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort leases,
             DelegatedTaskPort delegatedTasks) {
         return new HarnessAgentExecutionAdapter(
-                definitions, compiler, messageMapper, contextMapper, eventMapper,
-                meteringObserver, eventStore, leases, delegatedTasks);
+                definitions,
+                compiler,
+                messageMapper,
+                contextMapper,
+                eventMapper,
+                meteringObserver,
+                eventStore,
+                leases,
+                delegatedTasks);
     }
 }

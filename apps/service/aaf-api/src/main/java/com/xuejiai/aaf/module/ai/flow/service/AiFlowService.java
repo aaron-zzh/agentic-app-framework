@@ -111,7 +111,8 @@ public class AiFlowService
     }
 
     /** 发布：将编辑态 JSON 转 BPMN 部署到 Flowable，更新状态为 PUBLISHED。 */
-    // TODO(security): 改为独立 deploy 领域命令，经统一 PDP 绑定流程 ID、命令摘要和 CURRENT/PROPOSED；Flowable 部署必须在授权成功后执行。
+    // TODO(security): 改为独立 deploy 领域命令，经统一 PDP 绑定流程 ID、命令摘要和 CURRENT/PROPOSED；Flowable
+    // 部署必须在授权成功后执行。
     @Transactional
     public AiFlowDefinitionVO deploy(Long id, String bpmnXml) {
         var entity = requireEntity(id);

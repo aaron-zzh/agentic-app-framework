@@ -32,9 +32,18 @@ public record AutomationRun(
         Objects.requireNonNull(status, "status 不能为空");
         Objects.requireNonNull(createdAt, "createdAt 不能为空");
         Objects.requireNonNull(updatedAt, "updatedAt 不能为空");
-        if (definitionVersion != definitionSnapshot.version()) throw new IllegalArgumentException("运行版本快照不一致");
+        if (definitionVersion != definitionSnapshot.version())
+            throw new IllegalArgumentException("运行版本快照不一致");
     }
-    public enum Status { PENDING, DISPATCHED, COMPLETED, FAILED, CANCELED }
+
+    public enum Status {
+        PENDING,
+        DISPATCHED,
+        COMPLETED,
+        FAILED,
+        CANCELED
+    }
+
     private static void require(String value, String name) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " 不能为空白");
     }

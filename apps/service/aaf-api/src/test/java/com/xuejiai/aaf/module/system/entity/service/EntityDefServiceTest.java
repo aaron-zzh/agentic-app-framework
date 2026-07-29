@@ -20,13 +20,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceSnapshot;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceDescriptor;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceExposure;
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
 import com.xuejiai.aaf.framework.crud.definition.TenantScope;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceSnapshot;
 import com.xuejiai.aaf.module.system.entity.domain.EntityDef;
 import com.xuejiai.aaf.module.system.entity.repository.EntityDefRepository;
 import com.xuejiai.aaf.module.system.entity.vo.EntityDefCreateDTO;

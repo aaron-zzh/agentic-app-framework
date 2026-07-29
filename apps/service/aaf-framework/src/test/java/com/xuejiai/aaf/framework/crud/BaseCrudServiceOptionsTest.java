@@ -24,8 +24,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.definition.CrudQueryDefinition;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
@@ -34,6 +32,8 @@ import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.crud.enforcement.CompiledFieldPolicy;
 import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementDecision;
 import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementService;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 import jakarta.persistence.criteria.CriteriaBuilder;

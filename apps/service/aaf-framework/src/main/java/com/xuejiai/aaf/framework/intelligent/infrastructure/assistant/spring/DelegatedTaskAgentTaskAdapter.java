@@ -39,25 +39,27 @@ public final class DelegatedTaskAgentTaskAdapter implements AgentTask {
         ExecutionEvent lastEvent = null;
         RuntimeException dispatchFailure = null;
         try {
-            lastEvent = coordinator
-                    .dispatch(tenantId, taskId, context.lease().ownerId())
-                    .blockLast();
+            lastEvent =
+                    coordinator.dispatch(tenantId, taskId, context.lease().ownerId()).blockLast();
         } catch (RuntimeException failure) {
             dispatchFailure = failure;
         }
 
-        var task = tasks.find(tenantId, taskId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "委托任务不存在: " + taskId.value()))
-                .task();
+        var task =
+                tasks.find(tenantId, taskId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("委托任务不存在: " + taskId.value()))
+                        .task();
         return switch (task.status()) {
             case COMPLETED -> AgentTaskOutcome.completed();
-            case FAILED, CANCELED -> AgentTaskOutcome.terminal(detail(task.status(), dispatchFailure));
+            case FAILED, CANCELED ->
+                    AgentTaskOutcome.terminal(detail(task.status(), dispatchFailure));
             case PAUSED, AWAITING_INPUT, AWAITING_AUTHORIZATION ->
                     AgentTaskOutcome.pending(task.status().name());
-            case PENDING -> isRetryable(task.consecutiveFailures(), lastEvent, dispatchFailure)
-                    ? AgentTaskOutcome.retryable(detail(task.status(), dispatchFailure))
-                    : AgentTaskOutcome.pending(task.status().name());
+            case PENDING ->
+                    isRetryable(task.consecutiveFailures(), lastEvent, dispatchFailure)
+                            ? AgentTaskOutcome.retryable(detail(task.status(), dispatchFailure))
+                            : AgentTaskOutcome.pending(task.status().name());
             case RUNNING -> AgentTaskOutcome.pending(task.status().name());
         };
     }

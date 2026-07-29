@@ -22,18 +22,25 @@ public class AuthorizationGrantEntity {
     @Id
     @Column(name = "grant_id", length = 64)
     private String grantId;
+
     @Column(name = "tenant_id", nullable = false, length = 128)
     private String tenantId;
+
     @Column(name = "task_id", nullable = false, length = 128)
     private String taskId;
+
     @Column(nullable = false, length = 256)
     private String action;
+
     @Column(nullable = false, length = 256)
     private String resource;
+
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
+
     @Column(name = "revoked_at")
     private Instant revokedAt;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "grant_payload", nullable = false, columnDefinition = "jsonb")
     private AuthorizationGrant grant;

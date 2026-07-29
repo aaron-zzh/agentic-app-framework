@@ -54,8 +54,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
         layers.add(policyEvaluation.layer());
         var effect = combineLayers(layers);
         UUID challengeId = null;
-        if (effect == AuthorizationEffect.CHALLENGE
-                && policyEvaluation.challengePolicy() != null) {
+        if (effect == AuthorizationEffect.CHALLENGE && policyEvaluation.challengePolicy() != null) {
             var challengeResult = createChallenge(effective, policyEvaluation);
             layers.set(3, challengeResult.layer());
             effect = combineLayers(layers);
@@ -99,14 +98,12 @@ public final class DefaultAuthorizationService implements AuthorizationService {
                 return AuthorizationService.ContinuationSelection.INDETERMINATE;
             }
             var approved =
-                    store.findApproved(
-                            challengeId, effective.subject().subjectId(), Instant.now());
+                    store.findApproved(challengeId, effective.subject().subjectId(), Instant.now());
             if (approved.isEmpty()) {
                 return AuthorizationService.ContinuationSelection.INDETERMINATE;
             }
             var challenge = approved.get();
-            if (!Objects.equals(challenge.id(), challengeId)
-                    || !hasCompleteBinding(challenge)) {
+            if (!Objects.equals(challenge.id(), challengeId) || !hasCompleteBinding(challenge)) {
                 return AuthorizationService.ContinuationSelection.INDETERMINATE;
             }
             return matchesRequestBinding(challenge, effective)
@@ -136,11 +133,9 @@ public final class DefaultAuthorizationService implements AuthorizationService {
         final AuthorizationChallengeStore.Challenge challenge;
         try {
             var approved =
-                    store.findApproved(
-                            challengeId, effective.subject().subjectId(), Instant.now());
+                    store.findApproved(challengeId, effective.subject().subjectId(), Instant.now());
             if (approved.isEmpty()) {
-                return terminalDecision(
-                        AuthorizationEffect.DENY, "challenge 不存在、未批准、已消费或已过期");
+                return terminalDecision(AuthorizationEffect.DENY, "challenge 不存在、未批准、已消费或已过期");
             }
             challenge = approved.get();
         } catch (RuntimeException ex) {
@@ -204,13 +199,10 @@ public final class DefaultAuthorizationService implements AuthorizationService {
                 if (!checker.isRegistered(permissionCode)) {
                     items.add(
                             new ItemDecision(
-                                    permissionCode,
-                                    AuthorizationEffect.DENY,
-                                    "L1 权限码未注册"));
+                                    permissionCode, AuthorizationEffect.DENY, "L1 权限码未注册"));
                     continue;
                 }
-                var allowed =
-                        checker.hasPermission(request.subject().subjectId(), permissionCode);
+                var allowed = checker.hasPermission(request.subject().subjectId(), permissionCode);
                 items.add(
                         new ItemDecision(
                                 permissionCode,
@@ -219,9 +211,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
             } catch (RuntimeException ex) {
                 items.add(
                         new ItemDecision(
-                                permissionCode,
-                                AuthorizationEffect.INDETERMINATE,
-                                "L1 权限检查失败"));
+                                permissionCode, AuthorizationEffect.INDETERMINATE, "L1 权限检查失败"));
             }
         }
         return combinedLayer(
@@ -235,9 +225,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
         var plan = request.plan().l2();
         if (plan == null) {
             return LayerDecision.of(
-                    AuthorizationLayer.L2_RELATION,
-                    AuthorizationEffect.NOT_APPLICABLE,
-                    "未声明 L2");
+                    AuthorizationLayer.L2_RELATION, AuthorizationEffect.NOT_APPLICABLE, "未声明 L2");
         }
         final RelationPermissionChecker checker;
         try {
@@ -271,17 +259,21 @@ public final class DefaultAuthorizationService implements AuthorizationService {
                                     requirement.objectType(),
                                     requirement.objectId(),
                                     requirement.permission());
-            try { var allowed =
-                    checker.hasPermission(
-                            request.subject().subjectId(),
-                            requirement.objectType(),
-                            requirement.objectId(),
-                            requirement.permission());
-            items.add(
-                    new ItemDecision(
-                            key,
-                            allowed ? AuthorizationEffect.ALLOW : AuthorizationEffect.DENY,
-                            "L2 关系权限")); } catch (RuntimeException ex) { items.add(new ItemDecision(key, AuthorizationEffect.INDETERMINATE, "L2 关系检查失败")); }
+            try {
+                var allowed =
+                        checker.hasPermission(
+                                request.subject().subjectId(),
+                                requirement.objectType(),
+                                requirement.objectId(),
+                                requirement.permission());
+                items.add(
+                        new ItemDecision(
+                                key,
+                                allowed ? AuthorizationEffect.ALLOW : AuthorizationEffect.DENY,
+                                "L2 关系权限"));
+            } catch (RuntimeException ex) {
+                items.add(new ItemDecision(key, AuthorizationEffect.INDETERMINATE, "L2 关系检查失败"));
+            }
         }
         return combinedLayer(
                 AuthorizationLayer.L2_RELATION, plan.combination(), items, "L2 关系权限组合");
@@ -291,9 +283,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
         var plan = request.plan().l3();
         if (plan == null) {
             return LayerDecision.of(
-                    AuthorizationLayer.L3_DATA,
-                    AuthorizationEffect.NOT_APPLICABLE,
-                    "未声明 L3");
+                    AuthorizationLayer.L3_DATA, AuthorizationEffect.NOT_APPLICABLE, "未声明 L3");
         }
         final DataAuthorizationProvider provider;
         try {
@@ -313,25 +303,30 @@ public final class DefaultAuthorizationService implements AuthorizationService {
 
         var items = new ArrayList<ItemDecision>();
         for (var requirement : plan.requirements()) {
-            try { var result = provider.evaluate(request, requirement);
-            if (result == null) {
-                throw new IllegalStateException("L3 Provider 返回空结果");
+            try {
+                var result = provider.evaluate(request, requirement);
+                if (result == null) {
+                    throw new IllegalStateException("L3 Provider 返回空结果");
+                }
+                var effect = normalizeDeclared(result.effect());
+                if (effect == AuthorizationEffect.ALLOW && result.constraint() == null) {
+                    throw new IllegalStateException("L3 ALLOW 缺少授权约束");
+                }
+                items.add(
+                        new ItemDecision(
+                                requirement.key(),
+                                effect,
+                                result.reason(),
+                                effect == AuthorizationEffect.ALLOW ? result.constraint() : null));
+            } catch (RuntimeException ex) {
+                items.add(
+                        new ItemDecision(
+                                requirement.key(),
+                                AuthorizationEffect.INDETERMINATE,
+                                "L3 数据约束检查失败"));
             }
-            var effect = normalizeDeclared(result.effect());
-            if (effect == AuthorizationEffect.ALLOW && result.constraint() == null) {
-                throw new IllegalStateException("L3 ALLOW 缺少授权约束");
-            }
-            items.add(
-                    new ItemDecision(
-                            requirement.key(),
-                            effect,
-                            result.reason(),
-                            effect == AuthorizationEffect.ALLOW
-                                    ? result.constraint()
-                                    : null)); } catch (RuntimeException ex) { items.add(new ItemDecision(requirement.key(), AuthorizationEffect.INDETERMINATE, "L3 数据约束检查失败")); }
         }
-        return combinedLayer(
-                AuthorizationLayer.L3_DATA, plan.combination(), items, "L3 数据约束组合");
+        return combinedLayer(AuthorizationLayer.L3_DATA, plan.combination(), items, "L3 数据约束组合");
     }
 
     private PolicyEvaluation evaluateL4(
@@ -377,16 +372,13 @@ public final class DefaultAuthorizationService implements AuthorizationService {
                 }
                 case SHADOW -> evaluateShadow(request, snapshot, policy, shadows);
                 case ENFORCE -> {
-                    var item =
-                            evaluateEnforced(
-                                    request, snapshot, policy, verifiedChallenge);
+                    var item = evaluateEnforced(request, snapshot, policy, verifiedChallenge);
                     if (item == null) {
                         continue;
                     }
                     items.add(item);
                     policyIds.add(policy.id());
-                    if (item.effect() == AuthorizationEffect.CHALLENGE
-                            && challengePolicy == null) {
+                    if (item.effect() == AuthorizationEffect.CHALLENGE && challengePolicy == null) {
                         challengePolicy = policy;
                     }
                     auditPolicy(
@@ -410,11 +402,11 @@ public final class DefaultAuthorizationService implements AuthorizationService {
                     null,
                     snapshot.version());
         }
-        var effect = AuthorizationEffect.strongest(items.stream().map(ItemDecision::effect).toList());
+        var effect =
+                AuthorizationEffect.strongest(items.stream().map(ItemDecision::effect).toList());
         var reason = "L4 ENFORCE 策略组合结果: " + effect;
         return new PolicyEvaluation(
-                new LayerDecision(
-                        AuthorizationLayer.L4_POLICY, effect, reason, items, policyIds),
+                new LayerDecision(AuthorizationLayer.L4_POLICY, effect, reason, items, policyIds),
                 shadows,
                 effect == AuthorizationEffect.CHALLENGE ? challengePolicy : null,
                 snapshot.version());
@@ -433,15 +425,12 @@ public final class DefaultAuthorizationService implements AuthorizationService {
             var effect = policy.effect().toAuthorizationEffect();
             shadows.add(
                     new ShadowDecision(
-                            policy.id(), policy.version(), snapshot.version(), effect, "SHADOW 命中"));
-            auditPolicy(
-                    request,
-                    policy,
-                    snapshot.version(),
-                    effect,
-                    true,
-                    null,
-                    "SHADOW 命中");
+                            policy.id(),
+                            policy.version(),
+                            snapshot.version(),
+                            effect,
+                            "SHADOW 命中"));
+            auditPolicy(request, policy, snapshot.version(), effect, true, null, "SHADOW 命中");
         } catch (RuntimeException ex) {
             shadows.add(
                     new ShadowDecision(
@@ -477,8 +466,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
                     && verifiedChallenge.matchesSnapshot(snapshot)) {
                 effect = AuthorizationEffect.ALLOW;
             }
-            return new ItemDecision(
-                    "policy:" + policy.id(), effect, "ENFORCE 策略命中");
+            return new ItemDecision("policy:" + policy.id(), effect, "ENFORCE 策略命中");
         } catch (RuntimeException ex) {
             return new ItemDecision(
                     "policy:" + policy.id(),
@@ -563,8 +551,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
     }
 
     private AuthorizationEffect combineLayers(List<LayerDecision> layers) {
-        return AuthorizationEffect.strongest(
-                layers.stream().map(LayerDecision::effect).toList());
+        return AuthorizationEffect.strongest(layers.stream().map(LayerDecision::effect).toList());
     }
 
     private AuthorizationRequest completeSubject(AuthorizationRequest request) {
@@ -623,8 +610,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
 
     private LayerDecision replaceEffect(
             LayerDecision layer, AuthorizationEffect effect, String reason) {
-        return new LayerDecision(
-                layer.layer(), effect, reason, layer.items(), layer.policyIds());
+        return new LayerDecision(layer.layer(), effect, reason, layer.items(), layer.policyIds());
     }
 
     private AuthorizationDecision terminalDecision(AuthorizationEffect effect, String reason) {
@@ -679,16 +665,14 @@ public final class DefaultAuthorizationService implements AuthorizationService {
 
     private void audit(AuthorizationAuditSink.Event event) {
         try {
-            auditSinks.orderedStream()
+            auditSinks
+                    .orderedStream()
                     .forEach(
                             sink -> {
                                 try {
                                     sink.record(event);
                                 } catch (RuntimeException ex) {
-                                    log.error(
-                                            "授权审计写入失败: eventType={}",
-                                            event.eventType(),
-                                            ex);
+                                    log.error("授权审计写入失败: eventType={}", event.eventType(), ex);
                                 }
                             });
         } catch (RuntimeException ex) {

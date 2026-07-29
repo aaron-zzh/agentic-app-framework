@@ -87,10 +87,7 @@ public final class CrudDataAuthorizationProvider implements DataAuthorizationPro
                             : recordRule.specification();
             var constraint =
                     new CrudDataAuthorizationConstraint(
-                            resourceKey,
-                            recordScope,
-                            deniedFields,
-                            recordRule.accessVersion());
+                            resourceKey, recordScope, deniedFields, recordRule.accessVersion());
             return DataAuthorizationResult.allow(constraint, "CRUD L3 数据约束已编译");
         } catch (RuntimeException ex) {
             return DataAuthorizationResult.indeterminate("CRUD L3 数据约束编译失败");
@@ -107,8 +104,7 @@ public final class CrudDataAuthorizationProvider implements DataAuthorizationPro
         return switch (tenantScope) {
             case GLOBAL -> true;
             case ORG_REQUIRED, ORG_SHARED_WORKSPACE_OPTIONAL -> subject.tenantId() != null;
-            case WORKSPACE_REQUIRED ->
-                    subject.tenantId() != null && subject.workspaceId() != null;
+            case WORKSPACE_REQUIRED -> subject.tenantId() != null && subject.workspaceId() != null;
         };
     }
 

@@ -8,9 +8,9 @@ import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
@@ -219,14 +219,20 @@ public record AssistantCommand(
 
     public AssistantCommand forSubTask(SubTask subTask, Lease nextLease, Instant at) {
         Objects.requireNonNull(subTask, "subTask 不能为空");
-        var idempotencyRoot = UUID.nameUUIDFromBytes(
-                        (taskId.value() + '|' + subTask.subTaskId())
-                                .getBytes(StandardCharsets.UTF_8))
-                .toString();
-        var childRunId = UUID.nameUUIDFromBytes(
-                        (taskId.value() + '|' + subTask.subTaskId() + '|' + subTask.executionId().value())
-                                .getBytes(StandardCharsets.UTF_8))
-                .toString();
+        var idempotencyRoot =
+                UUID.nameUUIDFromBytes(
+                                (taskId.value() + '|' + subTask.subTaskId())
+                                        .getBytes(StandardCharsets.UTF_8))
+                        .toString();
+        var childRunId =
+                UUID.nameUUIDFromBytes(
+                                (taskId.value()
+                                                + '|'
+                                                + subTask.subTaskId()
+                                                + '|'
+                                                + subTask.executionId().value())
+                                        .getBytes(StandardCharsets.UTF_8))
+                        .toString();
         return new AssistantCommand(
                 Operation.SUBTASK,
                 tenantId,

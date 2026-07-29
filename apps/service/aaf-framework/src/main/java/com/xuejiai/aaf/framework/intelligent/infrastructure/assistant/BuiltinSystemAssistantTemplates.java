@@ -25,8 +25,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.Control
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 
 /** AAF 首批系统 Assistant 模板；两者共享同一运行用例，不注册专用 Factory。 */
-public final class BuiltinSystemAssistantTemplates
-        implements SystemAssistantTemplateContributor {
+public final class BuiltinSystemAssistantTemplates implements SystemAssistantTemplateContributor {
 
     public static final String CONTENT_CREATOR_SYSTEM_KEY = "aaf.assistant.content-creator";
     public static final String CUSTOMER_SERVICE_SYSTEM_KEY = "aaf.assistant.customer-service";
@@ -54,16 +53,12 @@ public final class BuiltinSystemAssistantTemplates
                         List.of("内容策划", "生成草稿", "润色与事实核查"),
                         List.of("自动发布", "不可逆删除", "未经确认的付费动作"),
                         Set.of("content.plan", "content.draft"),
-                        Set.of(
-                                "knowledge.search",
-                                "content.generate",
-                                "content.draft.create"));
+                        Set.of("knowledge.search", "content.generate", "content.draft.create"));
         var policy =
                 new ToolPolicy(
                         Map.of(
                                 "knowledge.search",
-                                new ToolRule(
-                                        "knowledge.search", ActionEffect.READ, false, false),
+                                new ToolRule("knowledge.search", ActionEffect.READ, false, false),
                                 "content.generate",
                                 new ToolRule(
                                         "content.generate",
@@ -84,8 +79,7 @@ public final class BuiltinSystemAssistantTemplates
                         List.of(
                                 new ToolRef("knowledge.search", 1, "knowledge.search"),
                                 new ToolRef("content.generate", 1, "content.generate"),
-                                new ToolRef(
-                                        "content.draft.create", 1, "content.draft.create")),
+                                new ToolRef("content.draft.create", 1, "content.draft.create")),
                         new ExecutionPolicy(10, 2, Duration.ofSeconds(120)),
                         false);
         var routes =
@@ -140,16 +134,12 @@ public final class BuiltinSystemAssistantTemplates
                         List.of("产品咨询", "只读故障排查", "转人工"),
                         List.of("修改工单", "修改用户数据", "访问未授权隐私数据"),
                         Set.of("support.read", "support.handoff"),
-                        Set.of(
-                                "knowledge.search",
-                                "support.diagnostics.read",
-                                "support.handoff"));
+                        Set.of("knowledge.search", "support.diagnostics.read", "support.handoff"));
         var policy =
                 new ToolPolicy(
                         Map.of(
                                 "knowledge.search",
-                                new ToolRule(
-                                        "knowledge.search", ActionEffect.READ, false, false),
+                                new ToolRule("knowledge.search", ActionEffect.READ, false, false),
                                 "support.diagnostics.read",
                                 new ToolRule(
                                         "support.diagnostics.read",
@@ -170,9 +160,7 @@ public final class BuiltinSystemAssistantTemplates
                         List.of(
                                 new ToolRef("knowledge.search", 1, "knowledge.search"),
                                 new ToolRef(
-                                        "support.diagnostics.read",
-                                        1,
-                                        "support.diagnostics.read"),
+                                        "support.diagnostics.read", 1, "support.diagnostics.read"),
                                 new ToolRef("support.handoff", 1, "support.handoff")),
                         new ExecutionPolicy(8, 2, Duration.ofSeconds(90)),
                         false);

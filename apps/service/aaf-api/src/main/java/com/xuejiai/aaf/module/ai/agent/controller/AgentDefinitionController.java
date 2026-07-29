@@ -38,8 +38,7 @@ public class AgentDefinitionController {
 
     @Operation(summary = "创建预定义智能体模板")
     @PostMapping
-    public Result<AgentDefinitionVO> create(
-            @Valid @RequestBody AgentDefinitionCreateDTO request) {
+    public Result<AgentDefinitionVO> create(@Valid @RequestBody AgentDefinitionCreateDTO request) {
         return Result.success(service.create(request));
     }
 

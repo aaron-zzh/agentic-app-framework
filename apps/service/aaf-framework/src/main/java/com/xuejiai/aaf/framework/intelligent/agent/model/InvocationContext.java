@@ -51,7 +51,8 @@ public record InvocationContext(
             Objects.requireNonNull(executionContract, "DELEGATED 调用必须携带 ExecutionContract");
             Objects.requireNonNull(lease, "DELEGATED 调用必须携带 conversation lease");
             executionContract.requireUsableAt(java.time.Instant.now());
-            if (!tenantId.equals(lease.tenantId()) || !conversationId.equals(lease.conversationId())) {
+            if (!tenantId.equals(lease.tenantId())
+                    || !conversationId.equals(lease.conversationId())) {
                 throw new IllegalArgumentException("InvocationContext 与 conversation lease 不一致");
             }
         }

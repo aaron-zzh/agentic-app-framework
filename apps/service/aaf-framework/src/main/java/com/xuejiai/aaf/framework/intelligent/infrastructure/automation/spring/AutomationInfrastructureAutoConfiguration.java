@@ -19,23 +19,36 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.automation.persisten
 @AutoConfigureAfter(AssistantInfrastructureAutoConfiguration.class)
 public class AutomationInfrastructureAutoConfiguration {
     @Bean
-    JpaAutomationStore automationStore(AutomationDefinitionRepository definitions,
-            AutomationRunRepository runs, AutomationPolicyRepository policies,
-            DefinitionLifecycleRepository lifecycles, AutomationAuditRepository audits) {
+    JpaAutomationStore automationStore(
+            AutomationDefinitionRepository definitions,
+            AutomationRunRepository runs,
+            AutomationPolicyRepository policies,
+            DefinitionLifecycleRepository lifecycles,
+            AutomationAuditRepository audits) {
         return new JpaAutomationStore(definitions, runs, policies, lifecycles, audits);
     }
 
     @Bean
-    AutomationDelegatedDispatchAdapter automationDispatchAdapter(DelegatedTaskCoordinator coordinator) {
+    AutomationDelegatedDispatchAdapter automationDispatchAdapter(
+            DelegatedTaskCoordinator coordinator) {
         return new AutomationDelegatedDispatchAdapter(coordinator, Clock.systemUTC());
     }
 
     @Bean
-    AutomationApplicationService automationApplicationService(JpaAutomationStore store,
-            AutomationDelegatedDispatchAdapter dispatcher, DelegatedTaskPort delegatedTasks,
+    AutomationApplicationService automationApplicationService(
+            JpaAutomationStore store,
+            AutomationDelegatedDispatchAdapter dispatcher,
+            DelegatedTaskPort delegatedTasks,
             TaskBoardPort taskBoards) {
-        return new AutomationApplicationService(store, store, store, store, dispatcher,
-                delegatedTasks, taskBoards, Clock.systemUTC());
+        return new AutomationApplicationService(
+                store,
+                store,
+                store,
+                store,
+                dispatcher,
+                delegatedTasks,
+                taskBoards,
+                Clock.systemUTC());
     }
 
     @Bean
@@ -44,8 +57,8 @@ public class AutomationInfrastructureAutoConfiguration {
     }
 
     @Bean
-    AutomationScheduler automationScheduler(AutomationApplicationService application,
-            AutomationDefinitionRepository definitions) {
+    AutomationScheduler automationScheduler(
+            AutomationApplicationService application, AutomationDefinitionRepository definitions) {
         return new AutomationScheduler(application, definitions, Clock.systemUTC());
     }
 }

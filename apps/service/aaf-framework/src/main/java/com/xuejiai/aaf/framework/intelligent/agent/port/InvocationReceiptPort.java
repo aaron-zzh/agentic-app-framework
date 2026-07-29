@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.agent.port;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.Objects;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
@@ -12,7 +11,8 @@ public interface InvocationReceiptPort {
 
     Claim claim(ReceiptRequest request);
 
-    void complete(String receiptKey, InvocationContext context, ToolInvocationResult result, Instant at);
+    void complete(
+            String receiptKey, InvocationContext context, ToolInvocationResult result, Instant at);
 
     void fail(String receiptKey, InvocationContext context, String failure, Instant at);
 
@@ -24,10 +24,14 @@ public interface InvocationReceiptPort {
             InvocationContext context,
             Instant requestedAt) {
         public ReceiptRequest {
-            if (receiptKey == null || receiptKey.isBlank()
-                    || requestDigest == null || requestDigest.isBlank()
-                    || toolId == null || toolId.isBlank()
-                    || actionKey == null || actionKey.isBlank()) {
+            if (receiptKey == null
+                    || receiptKey.isBlank()
+                    || requestDigest == null
+                    || requestDigest.isBlank()
+                    || toolId == null
+                    || toolId.isBlank()
+                    || actionKey == null
+                    || actionKey.isBlank()) {
                 throw new IllegalArgumentException("receiptKey、digest、toolId、actionKey 不能为空白");
             }
             Objects.requireNonNull(context, "context 不能为空");

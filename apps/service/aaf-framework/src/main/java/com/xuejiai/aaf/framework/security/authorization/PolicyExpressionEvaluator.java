@@ -73,8 +73,7 @@ public final class PolicyExpressionEvaluator {
         return current;
     }
 
-    private Object normalize(
-            Object value, PolicyFactSchema.ValueType type, String factName) {
+    private Object normalize(Object value, PolicyFactSchema.ValueType type, String factName) {
         return switch (type) {
             case STRING -> {
                 if (!(value instanceof String)) {

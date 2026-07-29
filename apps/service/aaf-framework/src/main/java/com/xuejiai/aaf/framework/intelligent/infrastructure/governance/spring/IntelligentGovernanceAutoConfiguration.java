@@ -11,9 +11,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.lease.LeaseAutoConfiguration;
 import com.xuejiai.aaf.framework.engine.lease.RedisDistributedLeaseAdapter;
-import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.application.DefaultToolGateway;
 import com.xuejiai.aaf.framework.intelligent.agent.application.DefaultToolParameterPolicy;
@@ -105,8 +105,7 @@ public class IntelligentGovernanceAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(TaskBoardPort.class)
-    TaskBoardPort taskBoardPort(
-            TaskBoardRepository repository, ConversationLeasePort leases) {
+    TaskBoardPort taskBoardPort(TaskBoardRepository repository, ConversationLeasePort leases) {
         return new JpaTaskBoardAdapter(repository, leases);
     }
 
@@ -307,8 +306,10 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     private static Path workspaceRoot(Environment environment) {
-        return Path.of(environment.getProperty(
-                "aaf.assistant.delegated.workspace-root",
-                Path.of(System.getProperty("java.io.tmpdir"), "aaf-delegated-workspace").toString()));
+        return Path.of(
+                environment.getProperty(
+                        "aaf.assistant.delegated.workspace-root",
+                        Path.of(System.getProperty("java.io.tmpdir"), "aaf-delegated-workspace")
+                                .toString()));
     }
 }

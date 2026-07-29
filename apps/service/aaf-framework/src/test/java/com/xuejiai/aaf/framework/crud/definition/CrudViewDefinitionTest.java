@@ -19,22 +19,15 @@ class CrudViewDefinitionTest {
     void should_only_expand_references_in_detail_by_default() {
         var types =
                 new CrudResourceTypeContract<>(
-                        TestEntity.class,
-                        Void.class,
-                        Void.class,
-                        TestView.class,
-                        PageParam.class);
+                        TestEntity.class, Void.class, Void.class, TestView.class, PageParam.class);
 
         var view = CrudViewDefinition.forTypes(types);
 
         assertThat(view.fieldSets().get("detail"))
                 .containsExactlyInAnyOrder("id", "title", "assignee", "participants");
-        assertThat(view.fieldSets().get("list"))
-                .containsExactlyInAnyOrder("id", "title");
-        assertThat(view.fieldSets().get("picker"))
-                .containsExactlyInAnyOrder("id", "title");
-        assertThat(view.fieldSets().get("export"))
-                .containsExactlyInAnyOrder("id", "title");
+        assertThat(view.fieldSets().get("list")).containsExactlyInAnyOrder("id", "title");
+        assertThat(view.fieldSets().get("picker")).containsExactlyInAnyOrder("id", "title");
+        assertThat(view.fieldSets().get("export")).containsExactlyInAnyOrder("id", "title");
     }
 
     @Test
@@ -42,11 +35,7 @@ class CrudViewDefinitionTest {
     void should_override_one_field_set_and_keep_default_detail() {
         var types =
                 new CrudResourceTypeContract<>(
-                        TestEntity.class,
-                        Void.class,
-                        Void.class,
-                        TestView.class,
-                        PageParam.class);
+                        TestEntity.class, Void.class, Void.class, TestView.class, PageParam.class);
 
         var view = CrudViewDefinition.forTypes(types).withFieldSet("list", Set.of("id"));
 
@@ -58,8 +47,5 @@ class CrudViewDefinitionTest {
     private static final class TestEntity extends BaseEntity {}
 
     private record TestView(
-            Long id,
-            String title,
-            ResourceRefDTO assignee,
-            List<ResourceRefDTO> participants) {}
+            Long id, String title, ResourceRefDTO assignee, List<ResourceRefDTO> participants) {}
 }

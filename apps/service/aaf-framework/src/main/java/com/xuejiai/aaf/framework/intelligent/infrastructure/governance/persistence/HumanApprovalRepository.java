@@ -19,6 +19,7 @@ public interface HumanApprovalRepository extends JpaRepository<HumanApprovalEnti
     List<HumanApprovalEntity> findByTenantIdAndStatus(String tenantId, String status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT a FROM HumanApprovalEntity a WHERE a.tenantId = :tenantId AND a.approvalId = :approvalId")
+    @Query(
+            "SELECT a FROM HumanApprovalEntity a WHERE a.tenantId = :tenantId AND a.approvalId = :approvalId")
     Optional<HumanApprovalEntity> findForUpdate(String tenantId, String approvalId);
 }

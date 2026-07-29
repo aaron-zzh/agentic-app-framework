@@ -13,7 +13,8 @@ public interface ConnectorActionExecutionRepository
     @Modifying
     @Transactional
     @Query(
-            value = """
+            value =
+                    """
                     INSERT INTO ai_connector_action_execution (
                         idempotency_key, tenant_id, user_id, task_id, execution_id,
                         connector_id, action_name, request_digest, provider_idempotency_key,
@@ -39,7 +40,8 @@ public interface ConnectorActionExecutionRepository
 
     @Modifying
     @Transactional
-    @Query("""
+    @Query(
+            """
             UPDATE ConnectorActionExecutionEntity e
             SET e.attempts = e.attempts + 1, e.lastError = NULL, e.updatedAt = :now
             WHERE e.idempotencyKey = :key AND e.status = 'PENDING'
@@ -48,7 +50,8 @@ public interface ConnectorActionExecutionRepository
 
     @Modifying
     @Transactional
-    @Query("""
+    @Query(
+            """
             UPDATE ConnectorActionExecutionEntity e
             SET e.status = 'SUCCEEDED', e.result = :result,
                 e.lastError = NULL, e.updatedAt = :now
@@ -58,7 +61,8 @@ public interface ConnectorActionExecutionRepository
 
     @Modifying
     @Transactional
-    @Query("""
+    @Query(
+            """
             UPDATE ConnectorActionExecutionEntity e
             SET e.lastError = :error, e.updatedAt = :now
             WHERE e.idempotencyKey = :key AND e.status = 'PENDING'

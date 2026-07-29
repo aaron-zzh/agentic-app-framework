@@ -29,9 +29,7 @@ public final class AuthorizationMethodSecurityAdapter implements PermissionEvalu
                         new AuthorizationTarget(
                                 null,
                                 null,
-                                targetDomainObject == null
-                                        ? null
-                                        : targetDomainObject.toString()),
+                                targetDomainObject == null ? null : targetDomainObject.toString()),
                         AuthorizationPlan.functionPermission(permission.toString()),
                         Map.of(),
                         Duration.ofMinutes(10));

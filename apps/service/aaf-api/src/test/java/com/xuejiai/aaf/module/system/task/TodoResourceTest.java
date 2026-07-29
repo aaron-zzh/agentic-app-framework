@@ -24,10 +24,7 @@ class TodoResourceTest {
                         CrudOperation.UPDATE,
                         CrudOperation.DELETE,
                         CrudOperation.EXPORT)
-                .doesNotContain(
-                        CrudOperation.IMPORT,
-                        CrudOperation.RESTORE,
-                        CrudOperation.ARCHIVE);
+                .doesNotContain(CrudOperation.IMPORT, CrudOperation.RESTORE, CrudOperation.ARCHIVE);
     }
 
     @Test
@@ -37,8 +34,8 @@ class TodoResourceTest {
 
         assertThat(fieldSets.get("detail"))
                 .containsExactlyInAnyOrderElementsOf(
-                        com.xuejiai.aaf.framework.crud.definition.CrudViewDefinition
-                                .forTypes(TodoResource.DEFINITION.types())
+                        com.xuejiai.aaf.framework.crud.definition.CrudViewDefinition.forTypes(
+                                        TodoResource.DEFINITION.types())
                                 .fieldSets()
                                 .get("detail"));
         assertThat(fieldSets.get("picker")).containsExactlyInAnyOrder("id", "title");

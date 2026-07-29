@@ -27,10 +27,7 @@ public sealed interface PolicyExpression
     record Not(PolicyExpression expression) implements PolicyExpression {}
 
     record Predicate(
-            String fact,
-            PolicyFactSchema.ValueType factType,
-            Operator operator,
-            Object expected)
+            String fact, PolicyFactSchema.ValueType factType, Operator operator, Object expected)
             implements PolicyExpression {}
 
     enum Operator {

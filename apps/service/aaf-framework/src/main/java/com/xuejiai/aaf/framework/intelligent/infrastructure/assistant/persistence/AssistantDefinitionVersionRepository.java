@@ -8,9 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AssistantDefinitionVersionRepository
         extends JpaRepository<AssistantDefinitionVersionEntity, Long> {
 
-    Optional<AssistantDefinitionVersionEntity>
-            findByTenantIdAndAssistantIdAndDefinitionVersion(
-                    String tenantId, String assistantId, Long definitionVersion);
+    Optional<AssistantDefinitionVersionEntity> findByTenantIdAndAssistantIdAndDefinitionVersion(
+            String tenantId, String assistantId, Long definitionVersion);
 
     Optional<AssistantDefinitionVersionEntity>
             findFirstByTenantIdAndSystemKeyOrderByDefinitionVersionDesc(

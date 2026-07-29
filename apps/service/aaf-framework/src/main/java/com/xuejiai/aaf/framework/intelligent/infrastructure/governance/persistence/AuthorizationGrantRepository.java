@@ -10,7 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 public interface AuthorizationGrantRepository
         extends JpaRepository<AuthorizationGrantEntity, String> {
 
-    @Query("""
+    @Query(
+            """
             SELECT g FROM AuthorizationGrantEntity g
             WHERE g.tenantId = :tenantId AND g.taskId = :taskId
               AND g.action = :action AND g.revokedAt IS NULL AND g.expiresAt > :at
@@ -22,7 +23,8 @@ public interface AuthorizationGrantRepository
             String tenantId, String taskId);
 
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE AuthorizationGrantEntity g SET g.revokedAt = :at
             WHERE g.tenantId = :tenantId AND g.grantId = :grantId AND g.revokedAt IS NULL
             """)

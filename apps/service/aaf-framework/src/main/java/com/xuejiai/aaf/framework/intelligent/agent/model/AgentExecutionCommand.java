@@ -25,8 +25,7 @@ public record AgentExecutionCommand(
                         .trim();
         roleAllowedToolNames =
                 Set.copyOf(
-                        Objects.requireNonNull(
-                                roleAllowedToolNames, "roleAllowedToolNames 不能为空"));
+                        Objects.requireNonNull(roleAllowedToolNames, "roleAllowedToolNames 不能为空"));
         roleAllowedToolNames.forEach(
                 name -> {
                     if (name.isBlank()) {

@@ -34,15 +34,18 @@ public final class JpaHumanApprovalAdapter implements HumanApprovalPort {
     @Override
     @Transactional(readOnly = true)
     public Optional<HumanApproval> find(TenantId tenantId, String approvalId) {
-        return repository.findByTenantIdAndApprovalId(tenantId.value(), approvalId)
+        return repository
+                .findByTenantIdAndApprovalId(tenantId.value(), approvalId)
                 .map(HumanApprovalEntity::getApproval);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<HumanApproval> pending(TenantId tenantId, TaskId taskId) {
-        return repository.findByTenantIdAndTaskIdAndStatus(
-                        tenantId.value(), taskId.value(), HumanApproval.Status.PENDING.name()).stream()
+        return repository
+                .findByTenantIdAndTaskIdAndStatus(
+                        tenantId.value(), taskId.value(), HumanApproval.Status.PENDING.name())
+                .stream()
                 .map(HumanApprovalEntity::getApproval)
                 .toList();
     }
@@ -50,8 +53,9 @@ public final class JpaHumanApprovalAdapter implements HumanApprovalPort {
     @Override
     @Transactional(readOnly = true)
     public List<HumanApproval> pending(TenantId tenantId, UserId userId) {
-        return repository.findByTenantIdAndStatus(
-                        tenantId.value(), HumanApproval.Status.PENDING.name()).stream()
+        return repository
+                .findByTenantIdAndStatus(tenantId.value(), HumanApproval.Status.PENDING.name())
+                .stream()
                 .map(HumanApprovalEntity::getApproval)
                 .filter(approval -> approval.invocationContext().userId().equals(userId))
                 .toList();
@@ -66,29 +70,32 @@ public final class JpaHumanApprovalAdapter implements HumanApprovalPort {
             String decidedBy,
             String reason,
             Instant at) {
-        var entity = repository.findForUpdate(tenantId.value(), approvalId)
-                .orElseThrow(() -> new IllegalArgumentException("审批不存在: " + approvalId));
+        var entity =
+                repository
+                        .findForUpdate(tenantId.value(), approvalId)
+                        .orElseThrow(() -> new IllegalArgumentException("审批不存在: " + approvalId));
         var current = entity.getApproval();
         if (current.status() != HumanApproval.Status.PENDING) {
             requireSameDecision(current, decision, decidedBy, reason);
             return new DecisionResult(current, false);
         }
-        var decided = new HumanApproval(
-                current.approvalId(),
-                current.invocationContext(),
-                current.action(),
-                current.resource(),
-                current.reason(),
-                current.impact(),
-                current.dataUsage(),
-                current.remediation(),
-                current.requestedConditions(),
-                current.reversible(),
-                decision,
-                current.createdAt(),
-                at,
-                decidedBy,
-                reason);
+        var decided =
+                new HumanApproval(
+                        current.approvalId(),
+                        current.invocationContext(),
+                        current.action(),
+                        current.resource(),
+                        current.reason(),
+                        current.impact(),
+                        current.dataUsage(),
+                        current.remediation(),
+                        current.requestedConditions(),
+                        current.reversible(),
+                        decision,
+                        current.createdAt(),
+                        at,
+                        decidedBy,
+                        reason);
         apply(entity, decided);
         return new DecisionResult(repository.saveAndFlush(entity).getApproval(), true);
     }

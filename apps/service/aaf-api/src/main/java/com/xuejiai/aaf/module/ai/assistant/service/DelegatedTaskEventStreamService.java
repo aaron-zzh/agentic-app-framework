@@ -46,10 +46,11 @@ public class DelegatedTaskEventStreamService {
         var eventVO = DelegatedTaskEventVO.from(stored);
         for (var emitter : emitters) {
             try {
-                emitter.send(SseEmitter.event()
-                        .id(Long.toString(stored.eventOffset()))
-                        .name(event.type().name())
-                        .data(eventVO, MediaType.APPLICATION_JSON));
+                emitter.send(
+                        SseEmitter.event()
+                                .id(Long.toString(stored.eventOffset()))
+                                .name(event.type().name())
+                                .data(eventVO, MediaType.APPLICATION_JSON));
             } catch (IOException failure) {
                 remove(key, emitter);
             }

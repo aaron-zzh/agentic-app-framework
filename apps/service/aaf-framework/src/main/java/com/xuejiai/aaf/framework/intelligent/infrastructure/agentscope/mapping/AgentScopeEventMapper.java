@@ -17,6 +17,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
+
 import io.agentscope.core.event.AgentEndEvent;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentResultEvent;
@@ -75,8 +76,7 @@ public final class AgentScopeEventMapper {
                                 "text",
                                 result.getTextContent()));
             }
-            case AGENT_END ->
-                    mapAgentEnd((AgentEndEvent) source, command, agentIdentifier, state);
+            case AGENT_END -> mapAgentEnd((AgentEndEvent) source, command, agentIdentifier, state);
             case MODEL_CALL_START ->
                     event(
                             source,
@@ -88,11 +88,7 @@ public final class AgentScopeEventMapper {
                             ExecutionEventPayload.empty());
             case MODEL_CALL_END ->
                     mapModelCallEnd(
-                            (ModelCallEndEvent) source,
-                            command,
-                            agentIdentifier,
-                            model,
-                            state);
+                            (ModelCallEndEvent) source, command, agentIdentifier, model, state);
             case TEXT_BLOCK_START ->
                     event(
                             source,
@@ -110,18 +106,11 @@ public final class AgentScopeEventMapper {
                     mapToolResult((ToolResultEndEvent) source, command, agentIdentifier, state);
             case REQUIRE_USER_CONFIRM ->
                     mapConfirmation(
-                            (RequireUserConfirmEvent) source,
-                            command,
-                            agentIdentifier,
-                            state);
+                            (RequireUserConfirmEvent) source, command, agentIdentifier, state);
             case REQUEST_STOP ->
                     mapStop((RequestStopEvent) source, command, agentIdentifier, state);
             case EXCEED_MAX_ITERS ->
-                    mapMaxIterations(
-                            (ExceedMaxItersEvent) source,
-                            command,
-                            agentIdentifier,
-                            state);
+                    mapMaxIterations((ExceedMaxItersEvent) source, command, agentIdentifier, state);
             case ALL_TOOLS_DENIED -> {
                 state.status(ExecutionEventStatus.FAILED);
                 yield event(
@@ -362,9 +351,7 @@ public final class AgentScopeEventMapper {
             ExecutionEventPayload payload) {
         var rawId = source.getId();
         var eventId =
-                rawId == null || rawId.isBlank()
-                        ? new EventId(randomId())
-                        : new EventId(rawId);
+                rawId == null || rawId.isBlank() ? new EventId(randomId()) : new EventId(rawId);
         return Optional.of(
                 create(
                         eventId,

@@ -5,11 +5,11 @@ import java.util.Set;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitionProvider;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitions;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceExposure;
 import com.xuejiai.aaf.framework.crud.definition.PersonalScope;
 import com.xuejiai.aaf.framework.crud.definition.TenantScope;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitionProvider;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitions;
 import com.xuejiai.aaf.module.ai.aigc.avatar.controller.AiDigitalAvatarController;
 import com.xuejiai.aaf.module.ai.aigc.image.controller.GenerationTemplateController;
 import com.xuejiai.aaf.module.ai.aigc.project.controller.AigcContentController;

@@ -304,9 +304,7 @@ class TodoPermissionIT {
         } finally {
             OrgContext.runIgnoring(
                     () -> {
-                        orgMemberRepository
-                                .findByOrgIdAndDeletedFalse(testOrg.getId())
-                                .stream()
+                        orgMemberRepository.findByOrgIdAndDeletedFalse(testOrg.getId()).stream()
                                 .filter(member -> member.getUserId().equals(userC.getId()))
                                 .forEach(orgMemberRepository::delete);
                         userRepository.delete(userC);

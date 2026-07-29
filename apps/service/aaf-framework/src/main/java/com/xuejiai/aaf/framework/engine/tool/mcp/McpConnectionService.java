@@ -134,16 +134,19 @@ public class McpConnectionService {
 
         @Override
         public String callConnector(
-                Map<String, Object> businessArguments,
-                String vaultRef,
-                String idempotencyKey) {
+                Map<String, Object> businessArguments, String vaultRef, String idempotencyKey) {
             try {
                 var input = new LinkedHashMap<String, Object>(businessArguments);
-                var result = client.callTool(
-                                mcpTool.getName(),
-                                input,
-                                Map.of("vaultRef", vaultRef, "idempotencyKey", idempotencyKey))
-                        .block();
+                var result =
+                        client.callTool(
+                                        mcpTool.getName(),
+                                        input,
+                                        Map.of(
+                                                "vaultRef",
+                                                vaultRef,
+                                                "idempotencyKey",
+                                                idempotencyKey))
+                                .block();
                 if (result == null) {
                     throw new IllegalStateException("MCP Connector 返回空结果");
                 }

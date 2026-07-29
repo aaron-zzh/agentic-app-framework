@@ -86,8 +86,7 @@ class AuthorizationCoreSecurityTest extends BaseMockitoUnitTest {
         var plan =
                 new AuthorizationPlan(
                         AuthorizationPlan.FunctionRequirement.authenticated(),
-                        AuthorizationPlan.RelationPlan.any(
-                                relation("owner"), relation("viewer")),
+                        AuthorizationPlan.RelationPlan.any(relation("owner"), relation("viewer")),
                         null,
                         null);
 
@@ -236,9 +235,7 @@ class AuthorizationCoreSecurityTest extends BaseMockitoUnitTest {
         when(challengeStore.findApproved(eq(challengeId), eq(7L), any()))
                 .thenReturn(Optional.empty());
 
-        var decision =
-                service.resume(
-                        challengeId, request(policyPlan(), Map.of("risk", "high")));
+        var decision = service.resume(challengeId, request(policyPlan(), Map.of("risk", "high")));
 
         assertThat(decision.effect()).isEqualTo(AuthorizationEffect.DENY);
         assertThat(decision.allowed()).isFalse();
@@ -283,18 +280,16 @@ class AuthorizationCoreSecurityTest extends BaseMockitoUnitTest {
                         original.plan(),
                         Map.of("risk", "low"),
                         original.challengeTtl());
-        var requests =
-                List.of(subjectTampered, targetTampered, planTampered, factsTampered);
+        var requests = List.of(subjectTampered, targetTampered, planTampered, factsTampered);
         when(challengeProvider.getIfAvailable()).thenReturn(challengeStore);
         requests.forEach(
                 request ->
                         when(challengeStore.findApproved(
-                                        eq(stored.id()),
-                                        eq(request.subject().subjectId()),
-                                        any()))
+                                        eq(stored.id()), eq(request.subject().subjectId()), any()))
                                 .thenReturn(Optional.of(stored)));
 
-        var decisions = requests.stream().map(request -> service.resume(stored.id(), request)).toList();
+        var decisions =
+                requests.stream().map(request -> service.resume(stored.id(), request)).toList();
 
         assertThat(decisions)
                 .allSatisfy(
@@ -408,8 +403,7 @@ class AuthorizationCoreSecurityTest extends BaseMockitoUnitTest {
         assertThatThrownBy(() -> new AuthorizationPlan.DataRequirement("record", withNull))
                 .isInstanceOf(IllegalArgumentException.class);
         var deeplyNested = tooDeep;
-        assertThatThrownBy(
-                        () -> new AuthorizationPlan.DataRequirement("record", deeplyNested))
+        assertThatThrownBy(() -> new AuthorizationPlan.DataRequirement("record", deeplyNested))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
@@ -438,9 +432,7 @@ class AuthorizationCoreSecurityTest extends BaseMockitoUnitTest {
                 .isEqualTo(AuthorizationEffect.INDETERMINATE);
         assertThat(
                         AuthorizationEffect.strongest(
-                                List.of(
-                                        AuthorizationEffect.ALLOW,
-                                        AuthorizationEffect.CHALLENGE)))
+                                List.of(AuthorizationEffect.ALLOW, AuthorizationEffect.CHALLENGE)))
                 .isEqualTo(AuthorizationEffect.CHALLENGE);
         assertThat(
                         AuthorizationEffect.strongest(
@@ -482,10 +474,7 @@ class AuthorizationCoreSecurityTest extends BaseMockitoUnitTest {
     }
 
     private AuthorizationChallengeStore.Challenge challenge(
-            UUID id,
-            AuthorizationRequest request,
-            long policyVersion,
-            String snapshotVersion) {
+            UUID id, AuthorizationRequest request, long policyVersion, String snapshotVersion) {
         return new AuthorizationChallengeStore.Challenge(
                 id,
                 request.subject(),
@@ -509,12 +498,10 @@ class AuthorizationCoreSecurityTest extends BaseMockitoUnitTest {
                 "{}");
     }
 
-    private AuthorizationPolicy.Snapshot snapshot(
-            String version, AuthorizationPolicy... policies) {
+    private AuthorizationPolicy.Snapshot snapshot(String version, AuthorizationPolicy... policies) {
         return new AuthorizationPolicy.Snapshot(
                 version,
-                new PolicyFactSchema(
-                        Map.of("attributes.risk", PolicyFactSchema.ValueType.STRING)),
+                new PolicyFactSchema(Map.of("attributes.risk", PolicyFactSchema.ValueType.STRING)),
                 List.of(policies));
     }
 }

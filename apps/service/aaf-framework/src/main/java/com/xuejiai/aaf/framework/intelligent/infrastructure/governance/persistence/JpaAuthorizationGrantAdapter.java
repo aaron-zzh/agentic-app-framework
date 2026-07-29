@@ -39,9 +39,11 @@ public final class JpaAuthorizationGrantAdapter implements AuthorizationGrantPor
         try {
             return toDomain(repository.saveAndFlush(entity));
         } catch (DataIntegrityViolationException conflict) {
-            var concurrent = repository.findById(grant.grantId())
-                    .map(this::toDomain)
-                    .orElseThrow(() -> conflict);
+            var concurrent =
+                    repository
+                            .findById(grant.grantId())
+                            .map(this::toDomain)
+                            .orElseThrow(() -> conflict);
             return requireSameGrant(concurrent, grant);
         }
     }
@@ -59,16 +61,20 @@ public final class JpaAuthorizationGrantAdapter implements AuthorizationGrantPor
             Instant at) {
         return repository.findActive(tenantId.value(), taskId.value(), action, at).stream()
                 .map(this::toDomain)
-                .filter(grant -> grant.activeAt(at)
-                        && grant.matches(action, resource, scope, conditions, reversible))
+                .filter(
+                        grant ->
+                                grant.activeAt(at)
+                                        && grant.matches(
+                                                action, resource, scope, conditions, reversible))
                 .findFirst();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<AuthorizationGrant> list(TenantId tenantId, TaskId taskId) {
-        return repository.findByTenantIdAndTaskIdOrderByExpiresAtDesc(
-                        tenantId.value(), taskId.value()).stream()
+        return repository
+                .findByTenantIdAndTaskIdOrderByExpiresAtDesc(tenantId.value(), taskId.value())
+                .stream()
                 .map(this::toDomain)
                 .toList();
     }

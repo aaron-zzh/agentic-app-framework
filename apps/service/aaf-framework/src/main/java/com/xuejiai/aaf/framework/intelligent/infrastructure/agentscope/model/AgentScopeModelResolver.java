@@ -6,6 +6,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+
 import io.agentscope.core.model.Model;
 import io.agentscope.extensions.model.anthropic.AnthropicChatModel;
 import io.agentscope.extensions.model.dashscope.DashScopeChatModel;
@@ -52,10 +53,8 @@ public final class AgentScopeModelResolver {
                     .build();
         }
         var builder =
-                OpenAIChatModel.builder()
-                        .apiKey(apiKey)
-                        .modelName(model.getModelName())
-                        .stream(true);
+                OpenAIChatModel.builder().apiKey(apiKey).modelName(model.getModelName()).stream(
+                        true);
         if (hasText(baseUrl)) {
             builder.baseUrl(baseUrl);
         }

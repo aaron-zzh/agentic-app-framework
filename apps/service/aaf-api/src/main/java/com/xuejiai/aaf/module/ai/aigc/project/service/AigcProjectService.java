@@ -257,8 +257,7 @@ public class AigcProjectService
     private AigcProjectDoc linkDocument(Long projectId, LinkDocumentCommand command) {
         documentRepository
                 .findById(command.docId())
-                .orElseThrow(
-                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
         return projectDocRepository
                 .findByProjectIdAndDocId(projectId, command.docId())
                 .orElseGet(

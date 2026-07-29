@@ -51,9 +51,10 @@ public class DelegatedTaskEventService {
     }
 
     private DelegatedTask requireOwned(String taskId) {
-        var task = tasks.find(tenantId(), new TaskId(taskId))
-                .orElseThrow(() -> new IllegalArgumentException("委托任务不存在"))
-                .task();
+        var task =
+                tasks.find(tenantId(), new TaskId(taskId))
+                        .orElseThrow(() -> new IllegalArgumentException("委托任务不存在"))
+                        .task();
         if (!task.userId().equals(userId())) {
             throw new AccessDeniedException("无权访问该委托任务");
         }
@@ -69,8 +70,8 @@ public class DelegatedTaskEventService {
     }
 
     private UserId userId() {
-        var value = operators.currentOwnerId()
-                .orElseThrow(() -> new AccessDeniedException("请求未认证"));
+        var value =
+                operators.currentOwnerId().orElseThrow(() -> new AccessDeniedException("请求未认证"));
         return new UserId(value.toString());
     }
 }

@@ -14,10 +14,7 @@ public interface TaskBoardPort {
 
     Optional<TaskBoard> find(TenantId tenantId, TaskId taskId);
 
-    ReadyClaim claimReady(
-            TenantId tenantId,
-            TaskId taskId,
-            ConversationLeasePort.Lease lease);
+    ReadyClaim claimReady(TenantId tenantId, TaskId taskId, ConversationLeasePort.Lease lease);
 
     TaskBoard completeSubTask(
             TenantId tenantId,
@@ -42,8 +39,5 @@ public interface TaskBoardPort {
             ConversationLeasePort.Lease lease);
 
     TaskBoard interruptRunning(
-            TenantId tenantId,
-            TaskId taskId,
-            boolean retryable,
-            ConversationLeasePort.Lease lease);
+            TenantId tenantId, TaskId taskId, boolean retryable, ConversationLeasePort.Lease lease);
 }

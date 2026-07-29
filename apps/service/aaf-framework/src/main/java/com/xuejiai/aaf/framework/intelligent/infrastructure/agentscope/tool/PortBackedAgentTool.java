@@ -7,6 +7,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort.ToolDefi
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort.ApprovalRequiredException;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
+
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.tool.ToolBase;
@@ -25,12 +26,13 @@ final class PortBackedAgentTool extends ToolBase {
             ToolDefinition definition,
             ToolGatewayPort gateway,
             ToolResultEvidenceStore evidenceStore) {
-        super(ToolBase.builder()
-                .name(definition.ref().name())
-                .description(definition.description())
-                .inputSchema(definition.inputSchema())
-                .readOnly(definition.readOnly())
-                .concurrencySafe(true));
+        super(
+                ToolBase.builder()
+                        .name(definition.ref().name())
+                        .description(definition.description())
+                        .inputSchema(definition.inputSchema())
+                        .readOnly(definition.readOnly())
+                        .concurrencySafe(true));
         this.definition = definition;
         this.gateway = gateway;
         this.evidenceStore = evidenceStore;
@@ -40,27 +42,37 @@ final class PortBackedAgentTool extends ToolBase {
     public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
         var runtimeContext = param.getRuntimeContext();
         var context = runtimeContext == null ? null : runtimeContext.get(InvocationContext.class);
-        if (context == null) return Mono.error(new IllegalStateException("工具调用缺少 typed InvocationContext"));
+        if (context == null)
+            return Mono.error(new IllegalStateException("工具调用缺少 typed InvocationContext"));
         var toolUse = param.getToolUseBlock();
         if (toolUse == null || toolUse.getId() == null) {
             return Mono.error(new IllegalStateException("工具调用缺少 toolCallId"));
         }
-        var invocation = new ToolInvocation(
-                toolUse.getId(), definition.ref(), param.getInput(), context);
+        var invocation =
+                new ToolInvocation(toolUse.getId(), definition.ref(), param.getInput(), context);
         return gateway.invoke(definition, invocation)
-                .map(result -> {
-                    evidenceStore.record(
-                            context.executionId(), toolUse.getId(), result.metadata(),
-                            definition.reversible(), definition.requireConfirm());
-                    return ToolResultBlock.of(
-                            TextBlock.builder().text(result.output()).build(), result.metadata());
-                })
-                .onErrorMap(ApprovalRequiredException.class, failure -> {
-                    evidenceStore.record(
-                            context.executionId(), toolUse.getId(),
-                            Map.of("approvalId", failure.approvalId()),
-                            definition.reversible(), true);
-                    return new ToolSuspendException(failure.getMessage());
-                });
+                .map(
+                        result -> {
+                            evidenceStore.record(
+                                    context.executionId(),
+                                    toolUse.getId(),
+                                    result.metadata(),
+                                    definition.reversible(),
+                                    definition.requireConfirm());
+                            return ToolResultBlock.of(
+                                    TextBlock.builder().text(result.output()).build(),
+                                    result.metadata());
+                        })
+                .onErrorMap(
+                        ApprovalRequiredException.class,
+                        failure -> {
+                            evidenceStore.record(
+                                    context.executionId(),
+                                    toolUse.getId(),
+                                    Map.of("approvalId", failure.approvalId()),
+                                    definition.reversible(),
+                                    true);
+                            return new ToolSuspendException(failure.getMessage());
+                        });
     }
 }

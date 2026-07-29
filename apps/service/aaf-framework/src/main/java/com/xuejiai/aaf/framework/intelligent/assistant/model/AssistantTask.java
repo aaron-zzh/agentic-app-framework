@@ -77,13 +77,7 @@ public record AssistantTask(
                         nextRecoveryPoint);
         var history = new java.util.ArrayList<>(transitions);
         history.add(transition);
-        return new AssistantTask(
-                taskId,
-                next,
-                controlMode,
-                nextOwner,
-                nextRecoveryPoint,
-                history);
+        return new AssistantTask(taskId, next, controlMode, nextOwner, nextRecoveryPoint, history);
     }
 
     public AssistantTask changeControlMode(

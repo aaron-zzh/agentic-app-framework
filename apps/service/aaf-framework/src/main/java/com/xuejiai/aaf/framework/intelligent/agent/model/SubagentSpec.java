@@ -6,8 +6,7 @@ import java.util.Objects;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 
 /** 技能命中后所委派子智能体的完整领域规格。 */
-public sealed interface SubagentSpec
-        permits SubagentSpec.Predefined, SubagentSpec.Dynamic {
+public sealed interface SubagentSpec permits SubagentSpec.Predefined, SubagentSpec.Dynamic {
 
     /** 用于任务归属、事件溯源和上下文来源的稳定标识。 */
     String identifier();

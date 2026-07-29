@@ -41,10 +41,9 @@ public sealed interface StableId
     /**
      * 租户命名空间标识。
      *
-     * <p>当前由业务系统的 {@code org_id} 承载（Controller 层以 {@code new TenantId(orgId.toString())}
-     * 构造），是 {@code org_id} 的字符串投影，与 {@code org_id} 是同一个隔离维度，不是并行的第二套隔离机制。
-     * 领域层使用 {@code TenantId} 而非直接依赖 {@code org_id: Long} 是为了不让五层架构领域模型依赖具体业务模块的
-     * 持久化类型；若未来隔离维度的实际来源发生变化，只需调整取值处，领域层契约不受影响。
+     * <p>当前由业务系统的 {@code org_id} 承载（Controller 层以 {@code new TenantId(orgId.toString())} 构造），是
+     * {@code org_id} 的字符串投影，与 {@code org_id} 是同一个隔离维度，不是并行的第二套隔离机制。 领域层使用 {@code TenantId} 而非直接依赖
+     * {@code org_id: Long} 是为了不让五层架构领域模型依赖具体业务模块的 持久化类型；若未来隔离维度的实际来源发生变化，只需调整取值处，领域层契约不受影响。
      */
     record TenantId(String value) implements StableId {
         public TenantId {

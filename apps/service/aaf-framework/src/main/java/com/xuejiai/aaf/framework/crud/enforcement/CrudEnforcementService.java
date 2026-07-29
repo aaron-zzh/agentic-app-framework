@@ -235,8 +235,10 @@ public final class CrudEnforcementService {
         var facts =
                 AuthorizationRequest.immutableData(
                         Map.of(
-                                "accessMode", preflight.accessMode().name(),
-                                FACT_NAMESPACE, crudFacts));
+                                "accessMode",
+                                preflight.accessMode().name(),
+                                FACT_NAMESPACE,
+                                crudFacts));
         return new AuthorizationRequest(
                 subject(preflight.subjectId(), preflight.orgId(), preflight.workspaceId()),
                 new AuthorizationTarget(
@@ -279,8 +281,7 @@ public final class CrudEnforcementService {
                 accessMode == AccessMode.DEFAULT
                         ? AuthorizationPlan.FunctionRequirement.permission(actionPermission)
                         : AuthorizationPlan.FunctionRequirement.all(
-                                actionPermission,
-                                definition.accessModePermissionCode(accessMode));
+                                actionPermission, definition.accessModePermissionCode(accessMode));
         var plan =
                 new AuthorizationPlan(
                         functionRequirement,
@@ -293,7 +294,9 @@ public final class CrudEnforcementService {
                 new AuthorizationRequest(
                         subject(subjectId, orgId, workspaceId),
                         new AuthorizationTarget(
-                                definition.entitySlug(), operation.action().permissionSegment(), null),
+                                definition.entitySlug(),
+                                operation.action().permissionSegment(),
+                                null),
                         plan,
                         Map.of("accessMode", accessMode.name()),
                         CHALLENGE_TTL);
@@ -381,7 +384,8 @@ public final class CrudEnforcementService {
                 }
                 if (layer.effect() != AuthorizationEffect.ALLOW
                         || item.effect() != AuthorizationEffect.ALLOW
-                        || !(item.constraint() instanceof CrudDataAuthorizationConstraint constraint)
+                        || !(item.constraint()
+                                instanceof CrudDataAuthorizationConstraint constraint)
                         || !resourceKey.equals(constraint.resourceKey())
                         || found != null) {
                     throw exception(GlobalErrorCode.FORBIDDEN);
@@ -473,7 +477,9 @@ public final class CrudEnforcementService {
         return switch (scope) {
             case GLOBAL ->
                     (root, query, cb) ->
-                            cb.and(cb.isNull(root.get("orgId")), cb.isNull(root.get("workspaceId")));
+                            cb.and(
+                                    cb.isNull(root.get("orgId")),
+                                    cb.isNull(root.get("workspaceId")));
             case ORG_REQUIRED -> (root, query, cb) -> cb.equal(root.get("orgId"), orgId);
             case WORKSPACE_REQUIRED ->
                     (root, query, cb) ->

@@ -8,7 +8,6 @@ import java.util.Optional;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
-
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
@@ -33,9 +32,10 @@ public final class JpaTaskRecoveryAdapter implements TaskRecoveryPort {
     @Transactional
     public void saveCommand(AssistantCommand command) {
         var key = command.tenantId().value() + ":" + command.taskId().value();
-        var entity = commands.findByTenantIdAndTaskId(
-                        command.tenantId().value(), command.taskId().value())
-                .orElseGet(TaskRecoveryCommandEntity::new);
+        var entity =
+                commands.findByTenantIdAndTaskId(
+                                command.tenantId().value(), command.taskId().value())
+                        .orElseGet(TaskRecoveryCommandEntity::new);
         entity.setCommandKey(key);
         entity.setTenantId(command.tenantId().value());
         entity.setTaskId(command.taskId().value());
@@ -52,9 +52,10 @@ public final class JpaTaskRecoveryAdapter implements TaskRecoveryPort {
             return requireSame(existing.get(), approval);
         }
         var context = approval.invocationContext();
-        var snapshot = commands.findByTenantIdAndTaskId(
-                        context.tenantId().value(), context.taskId().value())
-                .orElseThrow(() -> new IllegalStateException("审批任务缺少可恢复 Assistant 命令快照"));
+        var snapshot =
+                commands.findByTenantIdAndTaskId(
+                                context.tenantId().value(), context.taskId().value())
+                        .orElseThrow(() -> new IllegalStateException("审批任务缺少可恢复 Assistant 命令快照"));
         var resumeCommand = snapshot.getCommand().asResume(at);
         recoveries.schedule(
                 approval.approvalId(),
@@ -62,16 +63,20 @@ public final class JpaTaskRecoveryAdapter implements TaskRecoveryPort {
                 context.taskId().value(),
                 JsonUtils.toJsonString(resumeCommand),
                 at);
-        var scheduled = recoveries.findById(approval.approvalId())
-                .orElseThrow(() -> new IllegalStateException("恢复作业 schedule 后不可见"));
+        var scheduled =
+                recoveries
+                        .findById(approval.approvalId())
+                        .orElseThrow(() -> new IllegalStateException("恢复作业 schedule 后不可见"));
         return requireSame(scheduled, approval);
     }
 
     @Override
     @Transactional
     public Optional<RecoveryJob> claim(TenantId tenantId, String approvalId, Instant at) {
-        var entity = recoveries.findForUpdate(tenantId.value(), approvalId)
-                .orElseThrow(() -> new IllegalArgumentException("恢复作业不存在: " + approvalId));
+        var entity =
+                recoveries
+                        .findForUpdate(tenantId.value(), approvalId)
+                        .orElseThrow(() -> new IllegalArgumentException("恢复作业不存在: " + approvalId));
         var status = Status.valueOf(entity.getStatus());
         if (status == Status.COMPLETED) {
             return Optional.empty();
@@ -92,8 +97,10 @@ public final class JpaTaskRecoveryAdapter implements TaskRecoveryPort {
     @Override
     @Transactional
     public void complete(TenantId tenantId, String approvalId, Instant at) {
-        var entity = recoveries.findForUpdate(tenantId.value(), approvalId)
-                .orElseThrow(() -> new IllegalArgumentException("恢复作业不存在: " + approvalId));
+        var entity =
+                recoveries
+                        .findForUpdate(tenantId.value(), approvalId)
+                        .orElseThrow(() -> new IllegalArgumentException("恢复作业不存在: " + approvalId));
         entity.setStatus(Status.COMPLETED.name());
         entity.setLeaseUntil(null);
         entity.setLastError(null);
@@ -104,8 +111,10 @@ public final class JpaTaskRecoveryAdapter implements TaskRecoveryPort {
     @Override
     @Transactional
     public void release(TenantId tenantId, String approvalId, String failure, Instant at) {
-        var entity = recoveries.findForUpdate(tenantId.value(), approvalId)
-                .orElseThrow(() -> new IllegalArgumentException("恢复作业不存在: " + approvalId));
+        var entity =
+                recoveries
+                        .findForUpdate(tenantId.value(), approvalId)
+                        .orElseThrow(() -> new IllegalArgumentException("恢复作业不存在: " + approvalId));
         if (Status.valueOf(entity.getStatus()) == Status.COMPLETED) {
             return;
         }

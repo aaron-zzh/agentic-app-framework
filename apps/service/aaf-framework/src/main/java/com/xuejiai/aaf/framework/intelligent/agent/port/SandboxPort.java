@@ -11,10 +11,7 @@ public interface SandboxPort {
     SandboxResult execute(SandboxRequest request);
 
     record SandboxRequest(
-            InvocationContext context,
-            Language language,
-            String code,
-            Duration timeout) {
+            InvocationContext context, Language language, String code, Duration timeout) {
         public SandboxRequest {
             Objects.requireNonNull(context, "context 不能为空");
             Objects.requireNonNull(language, "language 不能为空");

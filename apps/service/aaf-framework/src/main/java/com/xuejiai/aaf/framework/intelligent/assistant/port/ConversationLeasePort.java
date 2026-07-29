@@ -11,7 +11,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 /** 同一 conversation 的单 owner 租约和单调 fencing token 边界。 */
 public interface ConversationLeasePort {
 
-    Optional<Lease> acquire(TenantId tenantId, ConversationId conversationId, String ownerId, Duration ttl);
+    Optional<Lease> acquire(
+            TenantId tenantId, ConversationId conversationId, String ownerId, Duration ttl);
 
     Optional<Lease> renew(Lease lease, Duration ttl);
 

@@ -68,8 +68,7 @@ public record AuthorizationRequest(
     private static String sha256(String value) {
         try {
             var digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of()
-                    .formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("运行环境缺少 SHA-256", ex);
         }
@@ -85,8 +84,7 @@ public record AuthorizationRequest(
         var copy = new LinkedHashMap<String, Object>();
         source.forEach(
                 (key, value) ->
-                        copy.put(
-                                requireStringKey(key), immutableFactValue(value, depth + 1)));
+                        copy.put(requireStringKey(key), immutableFactValue(value, depth + 1)));
         return Map.copyOf(copy);
     }
 

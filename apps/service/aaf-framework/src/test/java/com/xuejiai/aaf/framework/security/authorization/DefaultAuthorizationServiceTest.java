@@ -107,8 +107,7 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
         var decision = service.authorize(request(policyPlan()));
 
         assertThat(decision.effect()).isEqualTo(AuthorizationEffect.DENY);
-        assertThat(decision.layerDecisions().get(3).effect())
-                .isEqualTo(AuthorizationEffect.DENY);
+        assertThat(decision.layerDecisions().get(3).effect()).isEqualTo(AuthorizationEffect.DENY);
         assertThat(decision.layerDecisions().get(3).policyIds()).containsExactly(11L, 12L);
         assertThat(decision.shadowDecisions()).isEmpty();
     }
@@ -154,16 +153,14 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
         var plan =
                 new AuthorizationPlan(
                         AuthorizationPlan.FunctionRequirement.authenticated(),
-                        AuthorizationPlan.RelationPlan.all(
-                                relation("owner"), relation("editor")),
+                        AuthorizationPlan.RelationPlan.all(relation("owner"), relation("editor")),
                         null,
                         null);
 
         var decision = service.authorize(request(plan));
 
         assertThat(decision.effect()).isEqualTo(AuthorizationEffect.DENY);
-        assertThat(decision.layerDecisions().get(1).effect())
-                .isEqualTo(AuthorizationEffect.DENY);
+        assertThat(decision.layerDecisions().get(1).effect()).isEqualTo(AuthorizationEffect.DENY);
     }
 
     @Test
@@ -175,16 +172,14 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
         var plan =
                 new AuthorizationPlan(
                         AuthorizationPlan.FunctionRequirement.authenticated(),
-                        AuthorizationPlan.RelationPlan.any(
-                                relation("owner"), relation("viewer")),
+                        AuthorizationPlan.RelationPlan.any(relation("owner"), relation("viewer")),
                         null,
                         null);
 
         var decision = service.authorize(request(plan));
 
         assertThat(decision.effect()).isEqualTo(AuthorizationEffect.DENY);
-        assertThat(decision.layerDecisions().get(1).effect())
-                .isEqualTo(AuthorizationEffect.DENY);
+        assertThat(decision.layerDecisions().get(1).effect()).isEqualTo(AuthorizationEffect.DENY);
     }
 
     @ParameterizedTest
@@ -452,7 +447,8 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
         when(functionChecker.isRegistered("todo:update")).thenReturn(true);
         when(functionChecker.isRegistered("todo:access-mode:admin-maintenance")).thenReturn(true);
         when(functionChecker.hasPermission(7L, "todo:update")).thenReturn(true);
-        when(functionChecker.hasPermission(7L, "todo:access-mode:admin-maintenance")).thenReturn(true);
+        when(functionChecker.hasPermission(7L, "todo:access-mode:admin-maintenance"))
+                .thenReturn(true);
         var plan =
                 new AuthorizationPlan(
                         AuthorizationPlan.FunctionRequirement.all(
@@ -549,8 +545,7 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
         assertThatThrownBy(
                         () ->
                                 new AuthorizationPlan.FunctionRequirement(
-                                        AuthorizationPlan.FunctionMode.ALL,
-                                        List.of("todo:read")))
+                                        AuthorizationPlan.FunctionMode.ALL, List.of("todo:read")))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -567,7 +562,12 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
     }
 
     private AuthorizationRequest request(AuthorizationPlan plan) {
-        return new AuthorizationRequest(new AuthorizationSubject(7L, 7L, 31L, 41L), new AuthorizationTarget("todo", "read", "9"), plan, Map.of("risk", "high"), Duration.ofMinutes(10));
+        return new AuthorizationRequest(
+                new AuthorizationSubject(7L, 7L, 31L, 41L),
+                new AuthorizationTarget("todo", "read", "9"),
+                plan,
+                Map.of("risk", "high"),
+                Duration.ofMinutes(10));
     }
 
     private AuthorizationPolicy policy(

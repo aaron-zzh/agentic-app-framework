@@ -60,7 +60,9 @@ public record CrudViewDefinition(Map<String, Set<String>> fieldSets, String view
                 fieldSet ->
                         fieldSets.put(
                                 fieldSet,
-                                "detail".equals(fieldSet) ? outputFields : Set.copyOf(scalarFields)));
+                                "detail".equals(fieldSet)
+                                        ? outputFields
+                                        : Set.copyOf(scalarFields)));
         return new CrudViewDefinition(fieldSets, "");
     }
 

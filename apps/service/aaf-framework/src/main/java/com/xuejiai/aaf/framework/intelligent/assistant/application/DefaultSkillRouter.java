@@ -17,6 +17,9 @@ public final class DefaultSkillRouter implements SkillRouter {
                         .filter(route -> route.matches(input))
                         .max(Comparator.comparingInt(SkillRoute::priority));
         return matched.or(
-                () -> definition.skillRoutes().stream().filter(SkillRoute::defaultRoute).findFirst());
+                () ->
+                        definition.skillRoutes().stream()
+                                .filter(SkillRoute::defaultRoute)
+                                .findFirst());
     }
 }

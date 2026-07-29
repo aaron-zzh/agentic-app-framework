@@ -56,7 +56,8 @@ public record DelegatedTask(
         if (attempts < 0 || consecutiveFailures < 0 || fencingToken < 0) {
             throw new IllegalArgumentException("次数和 fencingToken 不能为负数");
         }
-        if (status == Status.RUNNING && (leaseOwner == null || leaseUntil == null || fencingToken < 1)) {
+        if (status == Status.RUNNING
+                && (leaseOwner == null || leaseUntil == null || fencingToken < 1)) {
             throw new IllegalArgumentException("RUNNING 任务必须持有有效执行租约");
         }
         if (owner.kind() == OwnerKind.HUMAN && status == Status.RUNNING) {
@@ -69,14 +70,13 @@ public record DelegatedTask(
     }
 
     public record BudgetUsage(
-            long modelCalls,
-            long modelTokens,
-            long toolCalls,
-            long toolUnits,
-            BigDecimal credits) {
+            long modelCalls, long modelTokens, long toolCalls, long toolUnits, BigDecimal credits) {
         public BudgetUsage {
             Objects.requireNonNull(credits, "credits 不能为空");
-            if (modelCalls < 0 || modelTokens < 0 || toolCalls < 0 || toolUnits < 0
+            if (modelCalls < 0
+                    || modelTokens < 0
+                    || toolCalls < 0
+                    || toolUnits < 0
                     || credits.signum() < 0) {
                 throw new IllegalArgumentException("预算用量不能为负数");
             }

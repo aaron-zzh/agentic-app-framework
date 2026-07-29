@@ -47,7 +47,8 @@ public final class ToolResultEvidenceStore {
     }
 
     public Optional<Map<String, Object>> take(ExecutionId executionId, String toolCallId) {
-        return Optional.ofNullable(evidence.remove(new EvidenceKey(executionId.value(), toolCallId)));
+        return Optional.ofNullable(
+                evidence.remove(new EvidenceKey(executionId.value(), toolCallId)));
     }
 
     private static boolean isSafeScalar(Object value) {

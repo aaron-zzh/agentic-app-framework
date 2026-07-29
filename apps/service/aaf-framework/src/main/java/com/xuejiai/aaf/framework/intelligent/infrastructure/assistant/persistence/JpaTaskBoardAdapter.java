@@ -18,8 +18,7 @@ public final class JpaTaskBoardAdapter implements TaskBoardPort {
     private final TaskBoardRepository repository;
     private final ConversationLeasePort leases;
 
-    public JpaTaskBoardAdapter(
-            TaskBoardRepository repository, ConversationLeasePort leases) {
+    public JpaTaskBoardAdapter(TaskBoardRepository repository, ConversationLeasePort leases) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
     }
@@ -27,9 +26,12 @@ public final class JpaTaskBoardAdapter implements TaskBoardPort {
     @Override
     @Transactional
     public TaskBoard save(TenantId tenantId, TaskBoard board) {
-        var existing = repository.findByTenantIdAndTaskId(tenantId.value(), board.taskId().value())
-                .orElse(null);
-        if (existing != null && existing.getFencingToken() != null
+        var existing =
+                repository
+                        .findByTenantIdAndTaskId(tenantId.value(), board.taskId().value())
+                        .orElse(null);
+        if (existing != null
+                && existing.getFencingToken() != null
                 && existing.getFencingToken() > 0) {
             throw new IllegalStateException("运行期 TaskBoard 必须通过 fenced mutation 更新");
         }
@@ -44,7 +46,8 @@ public final class JpaTaskBoardAdapter implements TaskBoardPort {
     @Override
     @Transactional(readOnly = true)
     public Optional<TaskBoard> find(TenantId tenantId, TaskId taskId) {
-        return repository.findByTenantIdAndTaskId(tenantId.value(), taskId.value())
+        return repository
+                .findByTenantIdAndTaskId(tenantId.value(), taskId.value())
                 .map(TaskBoardEntity::getBoard);
     }
 
@@ -63,11 +66,7 @@ public final class JpaTaskBoardAdapter implements TaskBoardPort {
     @Override
     @Transactional
     public TaskBoard completeSubTask(
-            TenantId tenantId,
-            TaskId taskId,
-            String subTaskId,
-            String result,
-            Lease lease) {
+            TenantId tenantId, TaskId taskId, String subTaskId, String result, Lease lease) {
         var entity = requireLocked(tenantId, taskId, lease);
         entity.setBoard(entity.getBoard().complete(subTaskId, result));
         return saveFenced(entity, lease);
@@ -90,11 +89,7 @@ public final class JpaTaskBoardAdapter implements TaskBoardPort {
     @Override
     @Transactional
     public TaskBoard interruptSubTask(
-            TenantId tenantId,
-            TaskId taskId,
-            String subTaskId,
-            boolean retryable,
-            Lease lease) {
+            TenantId tenantId, TaskId taskId, String subTaskId, boolean retryable, Lease lease) {
         var entity = requireLocked(tenantId, taskId, lease);
         entity.setBoard(entity.getBoard().interrupt(subTaskId, retryable));
         return saveFenced(entity, lease);
@@ -114,11 +109,14 @@ public final class JpaTaskBoardAdapter implements TaskBoardPort {
         if (!tenantId.equals(lease.tenantId())) {
             throw new IllegalStateException("TaskBoard tenant 与 conversation lease 不一致");
         }
-        var entity = repository.findLockedByTenantIdAndTaskId(tenantId.value(), taskId.value())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "TaskBoard 不存在: " + taskId.value()));
-        if (entity.getFencingToken() != null
-                && entity.getFencingToken() > lease.fencingToken()) {
+        var entity =
+                repository
+                        .findLockedByTenantIdAndTaskId(tenantId.value(), taskId.value())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "TaskBoard 不存在: " + taskId.value()));
+        if (entity.getFencingToken() != null && entity.getFencingToken() > lease.fencingToken()) {
             throw new IllegalStateException("旧 fencing token 不能覆盖 TaskBoard");
         }
         return entity;

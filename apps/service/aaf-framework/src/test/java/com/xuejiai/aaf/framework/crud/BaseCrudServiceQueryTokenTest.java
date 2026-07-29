@@ -13,13 +13,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
-import com.xuejiai.aaf.framework.crud.resource.CrudResourceSnapshot;
 import com.xuejiai.aaf.framework.crud.definition.*;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementDecision;
 import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementService;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceSnapshot;
 
 class BaseCrudServiceQueryTokenTest {
 

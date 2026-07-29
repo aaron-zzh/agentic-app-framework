@@ -45,10 +45,7 @@ class DefaultCrudViewMapperTest {
         var view =
                 (TestView)
                         mapper.toView(
-                                entity,
-                                (Class<Object>) (Class<?>) TestView.class,
-                                plan,
-                                data);
+                                entity, (Class<Object>) (Class<?>) TestView.class, plan, data);
 
         assertThat(view.id()).isEqualTo(10L);
         assertThat(view.title()).isEqualTo("待办");
@@ -69,8 +66,5 @@ class DefaultCrudViewMapperTest {
     }
 
     private record TestView(
-            Long id,
-            String title,
-            ResourceRefDTO assignee,
-            List<ResourceRefDTO> participants) {}
+            Long id, String title, ResourceRefDTO assignee, List<ResourceRefDTO> participants) {}
 }

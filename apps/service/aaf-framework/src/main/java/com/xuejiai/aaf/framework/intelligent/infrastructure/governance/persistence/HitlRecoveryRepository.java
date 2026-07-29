@@ -14,7 +14,8 @@ public interface HitlRecoveryRepository extends JpaRepository<HitlRecoveryEntity
 
     @Modifying
     @Query(
-            value = """
+            value =
+                    """
                     INSERT INTO ai_hitl_recovery (
                         approval_id, tenant_id, task_id, status, attempts,
                         command_payload, created_at, updated_at, version)
@@ -25,14 +26,11 @@ public interface HitlRecoveryRepository extends JpaRepository<HitlRecoveryEntity
                     """,
             nativeQuery = true)
     int schedule(
-            String approvalId,
-            String tenantId,
-            String taskId,
-            String commandPayload,
-            Instant at);
+            String approvalId, String tenantId, String taskId, String commandPayload, Instant at);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
+    @Query(
+            """
             SELECT r FROM HitlRecoveryEntity r
             WHERE r.tenantId = :tenantId AND r.approvalId = :approvalId
             """)

@@ -41,9 +41,7 @@ public final class TodoUserReferencePolicy implements ReferencePolicy {
             return Set.of();
         }
         var userIds =
-                contexts.stream()
-                        .map(context -> context.target().id())
-                        .collect(Collectors.toSet());
+                contexts.stream().map(context -> context.target().id()).collect(Collectors.toSet());
         var orgMembers =
                 orgMemberRepository
                         .findByOrgIdAndUserIdInAndDeletedFalse(first.orgId(), userIds)

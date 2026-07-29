@@ -37,29 +37,29 @@ public record ExecutionContract(
         if (stopConditions.isEmpty()) {
             throw new IllegalArgumentException("委托合同必须声明停止条件");
         }
-        var mandatoryStops = Set.of(
-                StopCondition.COMPLETED,
-                StopCondition.DEADLINE_REACHED,
-                StopCondition.BUDGET_EXHAUSTED,
-                StopCondition.AUTHORIZATION_MISSING,
-                StopCondition.CONSECUTIVE_FAILURES,
-                StopCondition.HUMAN_TAKEOVER,
-                StopCondition.USER_CANCELED);
+        var mandatoryStops =
+                Set.of(
+                        StopCondition.COMPLETED,
+                        StopCondition.DEADLINE_REACHED,
+                        StopCondition.BUDGET_EXHAUSTED,
+                        StopCondition.AUTHORIZATION_MISSING,
+                        StopCondition.CONSECUTIVE_FAILURES,
+                        StopCondition.HUMAN_TAKEOVER,
+                        StopCondition.USER_CANCELED);
         if (!stopConditions.containsAll(mandatoryStops)) {
             var effectiveStopConditions = stopConditions;
-            throw new IllegalArgumentException("委托合同缺少强制停止条件: "
-                    + mandatoryStops.stream()
-                            .filter(value -> !effectiveStopConditions.contains(value))
-                            .toList());
+            throw new IllegalArgumentException(
+                    "委托合同缺少强制停止条件: "
+                            + mandatoryStops.stream()
+                                    .filter(value -> !effectiveStopConditions.contains(value))
+                                    .toList());
         }
         if (!takeoverPolicy.humanTakeoverAllowed()) {
             throw new IllegalArgumentException("DELEGATED 必须允许人工接管");
         }
     }
 
-    /**
-     * 对话内任务的安全默认档，由系统托底预算、停止条件和接管策略，用户无需逐项填写。
-     */
+    /** 对话内任务的安全默认档，由系统托底预算、停止条件和接管策略，用户无需逐项填写。 */
     public static ExecutionContract conversationDefault(
             Set<String> allowedActions, ResponsibleOwner responsibleOwner) {
         return new ExecutionContract(
@@ -108,7 +108,8 @@ public record ExecutionContract(
         }
     }
 
-    public record RetryPolicy(int maxAttempts, Duration initialBackoff, boolean retryTransientOnly) {
+    public record RetryPolicy(
+            int maxAttempts, Duration initialBackoff, boolean retryTransientOnly) {
         public RetryPolicy {
             Objects.requireNonNull(initialBackoff, "initialBackoff 不能为空");
             if (maxAttempts < 1 || initialBackoff.isZero() || initialBackoff.isNegative()) {
@@ -138,9 +139,7 @@ public record ExecutionContract(
     }
 
     public record TakeoverPolicy(
-            boolean humanTakeoverAllowed,
-            boolean handBackAllowed,
-            boolean reasonRequired) {}
+            boolean humanTakeoverAllowed, boolean handBackAllowed, boolean reasonRequired) {}
 
     public enum StopCondition {
         COMPLETED,

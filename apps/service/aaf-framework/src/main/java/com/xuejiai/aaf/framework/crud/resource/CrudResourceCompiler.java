@@ -133,8 +133,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
             var key = defaultText(annotation.key(), referenceKey(idProperty));
             if (references.stream().anyMatch(reference -> reference.key().equals(key))) {
                 throw new IllegalStateException(
-                        "资源 %s 的显式引用与实体注解重复: %s"
-                                .formatted(rawDefinition.key().value(), key));
+                        "资源 %s 的显式引用与实体注解重复: %s".formatted(rawDefinition.key().value(), key));
             }
             var capabilities = Set.of(annotation.capabilities());
             var target =
@@ -142,8 +141,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                             ? null
                             : ResourceKey.of(annotation.targetResource());
             var inputField = annotation.inputField();
-            if (inputField.isBlank()
-                    && capabilities.contains(ReferenceCapability.REFERENCE)) {
+            if (inputField.isBlank() && capabilities.contains(ReferenceCapability.REFERENCE)) {
                 inputField = target == null ? key : idProperty;
             }
             references.add(
@@ -169,7 +167,8 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                                 return;
                             }
                             if (relations.stream()
-                                    .anyMatch(relation -> relation.key().equals(annotation.key()))) {
+                                    .anyMatch(
+                                            relation -> relation.key().equals(annotation.key()))) {
                                 throw new IllegalStateException(
                                         "资源 %s 的显式关系与关联注解重复: %s"
                                                 .formatted(
@@ -251,9 +250,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                 reference -> {
                     if (!reference.viewField().isBlank()) {
                         grantCapability(
-                                fieldCapabilities,
-                                reference.viewField(),
-                                FieldCapability.READ);
+                                fieldCapabilities, reference.viewField(), FieldCapability.READ);
                     }
                     if (!reference.inputField().isBlank()
                             && reference.supports(ReferenceCapability.REFERENCE)) {
@@ -267,7 +264,8 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
         relations.forEach(
                 relation -> {
                     if (!relation.viewField().isBlank()) {
-                        grantCapability(fieldCapabilities, relation.viewField(), FieldCapability.READ);
+                        grantCapability(
+                                fieldCapabilities, relation.viewField(), FieldCapability.READ);
                     }
                     if (!relation.inputField().isBlank()) {
                         grantCapability(
@@ -535,8 +533,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                 if (!inputFields.add(reference.inputField())) {
                     throw new IllegalStateException(
                             "资源 %s 的多个引用使用同一输入字段: %s"
-                                    .formatted(
-                                            definition.key().value(), reference.inputField()));
+                                    .formatted(definition.key().value(), reference.inputField()));
                 }
                 validateInputField(definition, reference.inputField());
             }
@@ -544,13 +541,11 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                 if (!viewFields.add(reference.viewField())) {
                     throw new IllegalStateException(
                             "资源 %s 的多个引用使用同一输出字段: %s"
-                                    .formatted(
-                                            definition.key().value(), reference.viewField()));
+                                    .formatted(definition.key().value(), reference.viewField()));
                 }
                 validateResourceRefViewField(
                         definition.types().viewType(), reference.viewField(), false);
-                requireFieldCapability(
-                        definition, reference.viewField(), FieldCapability.READ);
+                requireFieldCapability(definition, reference.viewField(), FieldCapability.READ);
             }
             if (reference.supports(ReferenceCapability.REFERENCE)
                     && !reference.inputField().isBlank()) {
@@ -597,8 +592,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                 if (!inputFields.add(relation.inputField())) {
                     throw new IllegalStateException(
                             "资源 %s 的多个引用/关系使用同一输入字段: %s"
-                                    .formatted(
-                                            definition.key().value(), relation.inputField()));
+                                    .formatted(definition.key().value(), relation.inputField()));
                 }
                 validateInputField(definition, relation.inputField());
             }
@@ -606,8 +600,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                 if (!viewFields.add(relation.viewField())) {
                     throw new IllegalStateException(
                             "资源 %s 的多个引用/关系使用同一输出字段: %s"
-                                    .formatted(
-                                            definition.key().value(), relation.viewField()));
+                                    .formatted(definition.key().value(), relation.viewField()));
                 }
                 validateResourceRefViewField(
                         definition.types().viewType(), relation.viewField(), true);
@@ -645,9 +638,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
         entries.values()
                 .forEach(
                         entry -> {
-                            entry.definition()
-                                    .references()
-                                    .stream()
+                            entry.definition().references().stream()
                                     .filter(reference -> !reference.polymorphic())
                                     .forEach(
                                             reference ->
@@ -687,13 +678,11 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                 .filter(reference -> !reference.viewField().isBlank())
                 .forEach(
                         reference ->
-                                dependencies.put(
-                                        reference.viewField(), Set.of(reference.key())));
+                                dependencies.put(reference.viewField(), Set.of(reference.key())));
         definition.relations().stream()
                 .filter(relation -> !relation.viewField().isBlank())
                 .forEach(
-                        relation ->
-                                dependencies.put(relation.viewField(), Set.of(relation.key())));
+                        relation -> dependencies.put(relation.viewField(), Set.of(relation.key())));
         var mapperBean = definition.view().viewMapperBean();
         if (mapperBean.isBlank() && !dependencies.isEmpty()) {
             mapperBean = "defaultCrudViewMapper";
@@ -1030,8 +1019,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                         || typeFields(definition.types().updateType()).contains(field);
         if (!exists) {
             throw new IllegalStateException(
-                    "资源 %s 的引用输入字段不存在: %s"
-                            .formatted(definition.key().value(), field));
+                    "资源 %s 的引用输入字段不存在: %s".formatted(definition.key().value(), field));
         }
     }
 
@@ -1045,8 +1033,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                                 && parameterized
                                         .getActualTypeArguments()[0]
                                         .getTypeName()
-                                        .equals(
-                                                "com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO")
+                                        .equals("com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO")
                         : actual != null
                                 && actual.getTypeName()
                                         .equals(
@@ -1087,11 +1074,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                         .toList();
         if (fields.size() != 2
                 || fields.stream().filter(field -> field.isAnnotationPresent(Id.class)).count() != 2
-                || fields.stream()
-                        .map(Field::getName)
-                        .collect(Collectors.toSet())
-                        .size()
-                        != 2
+                || fields.stream().map(Field::getName).collect(Collectors.toSet()).size() != 2
                 || !fields.stream()
                         .map(Field::getName)
                         .collect(Collectors.toSet())

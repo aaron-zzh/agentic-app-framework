@@ -69,8 +69,7 @@ public record AuthorizationPlan(
 
         public static FunctionRequirement permission(String permissionCode) {
             return new FunctionRequirement(
-                    FunctionMode.PERMISSION,
-                    java.util.Collections.singletonList(permissionCode));
+                    FunctionMode.PERMISSION, java.util.Collections.singletonList(permissionCode));
         }
 
         public static FunctionRequirement all(String first, String second, String... remaining) {
@@ -132,9 +131,7 @@ public record AuthorizationPlan(
         public DataRequirement {
             requireText(key, "key");
             parameters =
-                    parameters == null
-                            ? Map.of()
-                            : AuthorizationRequest.immutableData(parameters);
+                    parameters == null ? Map.of() : AuthorizationRequest.immutableData(parameters);
         }
 
         public static DataRequirement of(String key) {

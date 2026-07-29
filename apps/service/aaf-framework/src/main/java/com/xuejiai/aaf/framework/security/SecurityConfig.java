@@ -35,9 +35,9 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
-import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.apikey.ApiKeyAuthFilter;
 import com.xuejiai.aaf.framework.security.apikey.ApiKeyScopeFilter;
+import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 
 /** Spring Security 配置，OAuth2 Resource Server + JWT + API Key。 */
 @Configuration

@@ -21,6 +21,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.McpPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+
 import reactor.core.publisher.Mono;
 
 /** MCP 调用适配器；凭据句柄为受信上下文，业务参数强制注入 task namespace。 */
@@ -46,19 +47,34 @@ public final class GovernedMcpAdapter implements McpPort {
         var context = invocation.context();
         requireCurrent(context);
         var arguments = new LinkedHashMap<>(invocation.businessArguments());
-        arguments.put("namespace", "tenant=" + context.tenantId().value()
-                + "/user=" + context.userId().value() + "/task=" + context.taskId().value());
+        arguments.put(
+                "namespace",
+                "tenant="
+                        + context.tenantId().value()
+                        + "/user="
+                        + context.userId().value()
+                        + "/task="
+                        + context.taskId().value());
         var toolId = "mcp:" + invocation.serverId() + ':' + invocation.toolName();
-        var receiptKey = "tool:" + sha256(String.join(
-                "|", context.tenantId().value(), context.userId().value(),
-                context.taskId().value(), toolId, invocation.idempotencyKey()));
-        var claim = receipts.claim(new ReceiptRequest(
-                receiptKey,
-                sha256(new TreeMap<>(arguments).toString()),
-                toolId,
-                invocation.idempotencyKey(),
-                context,
-                Instant.now()));
+        var receiptKey =
+                "tool:"
+                        + sha256(
+                                String.join(
+                                        "|",
+                                        context.tenantId().value(),
+                                        context.userId().value(),
+                                        context.taskId().value(),
+                                        toolId,
+                                        invocation.idempotencyKey()));
+        var claim =
+                receipts.claim(
+                        new ReceiptRequest(
+                                receiptKey,
+                                sha256(new TreeMap<>(arguments).toString()),
+                                toolId,
+                                invocation.idempotencyKey(),
+                                context,
+                                Instant.now()));
         if (claim.disposition() == Disposition.REPLAY) {
             return Mono.just(claim.existingResult());
         }
@@ -67,23 +83,27 @@ public final class GovernedMcpAdapter implements McpPort {
         }
         tasks.reserveToolCall(context, invocation.toolName(), Instant.now());
         var tool = new ToolRef(invocation.toolName(), 1, invocation.toolName());
-        return connectors.invoke(new ConnectorAction(
-                        invocation.idempotencyKey(),
-                        tool,
-                        invocation.serverId(),
-                        invocation.credentialHandle(),
-                        Set.of(),
-                        arguments,
-                        receiptKey,
-                        true,
-                        context))
+        return connectors
+                .invoke(
+                        new ConnectorAction(
+                                invocation.idempotencyKey(),
+                                tool,
+                                invocation.serverId(),
+                                invocation.credentialHandle(),
+                                Set.of(),
+                                arguments,
+                                receiptKey,
+                                true,
+                                context))
                 .map(result -> complete(invocation, receiptKey, result))
-                .onErrorResume(failure -> {
-                    if (!(failure instanceof DelegatedTaskPort.BudgetExceededException)) {
-                        receipts.fail(receiptKey, context, failure.getMessage(), Instant.now());
-                    }
-                    return Mono.error(failure);
-                });
+                .onErrorResume(
+                        failure -> {
+                            if (!(failure instanceof DelegatedTaskPort.BudgetExceededException)) {
+                                receipts.fail(
+                                        receiptKey, context, failure.getMessage(), Instant.now());
+                            }
+                            return Mono.error(failure);
+                        });
     }
 
     private ToolInvocationResult complete(
@@ -118,8 +138,10 @@ public final class GovernedMcpAdapter implements McpPort {
 
     private static String sha256(String value) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of()
+                    .formatHex(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException failure) {
             throw new IllegalStateException("运行环境缺少 SHA-256", failure);
         }

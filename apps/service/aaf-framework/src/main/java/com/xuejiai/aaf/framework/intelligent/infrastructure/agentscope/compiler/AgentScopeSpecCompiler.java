@@ -14,6 +14,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
+
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
 
@@ -40,24 +41,18 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
 
     /** 按完整不可变执行画像命中预定义 Agent 编译产物。 */
     public HarnessAgent compile(
-            AgentSpec spec,
-            String skillSystemPromptAppendix,
-            Set<String> roleAllowedToolNames) {
+            AgentSpec spec, String skillSystemPromptAppendix, Set<String> roleAllowedToolNames) {
         Objects.requireNonNull(spec, "spec 不能为空");
         Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空");
         Objects.requireNonNull(roleAllowedToolNames, "roleAllowedToolNames 不能为空");
         var effectiveTools =
-                List.copyOf(
-                        effectiveToolResolver.resolve(
-                                roleAllowedToolNames, spec.tools()));
-        var effectiveSystemPrompt =
-                appendPrompt(spec.systemPrompt(), skillSystemPromptAppendix);
+                List.copyOf(effectiveToolResolver.resolve(roleAllowedToolNames, spec.tools()));
+        var effectiveSystemPrompt = appendPrompt(spec.systemPrompt(), skillSystemPromptAppendix);
         var key =
                 new DefinitionKey(
                         spec.agentId(), spec.version(), effectiveTools, effectiveSystemPrompt);
         return cache.computeIfAbsent(
-                key,
-                ignored -> compileNew(spec, effectiveTools, effectiveSystemPrompt));
+                key, ignored -> compileNew(spec, effectiveTools, effectiveSystemPrompt));
     }
 
     /** 现场编译动态子智能体；规格没有稳定版本键，因此不进入定义缓存。 */
@@ -74,9 +69,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             throw new IllegalArgumentException("Dynamic 子智能体暂不支持继承父 Agent 工具");
         }
         var effectiveTools =
-                List.copyOf(
-                        effectiveToolResolver.resolve(
-                                roleAllowedToolNames, spec.tools()));
+                List.copyOf(effectiveToolResolver.resolve(roleAllowedToolNames, spec.tools()));
         var effectiveSystemPrompt =
                 appendPrompt(spec.systemPromptFragment(), skillSystemPromptAppendix);
         var toolkit = toolkitFactory.create(effectiveTools);

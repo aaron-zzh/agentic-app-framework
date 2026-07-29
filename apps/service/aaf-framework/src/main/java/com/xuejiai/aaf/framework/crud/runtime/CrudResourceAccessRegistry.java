@@ -89,7 +89,8 @@ public final class CrudResourceAccessRegistry {
                                         .loadReadableRefs(ids)
                                         .forEach(
                                                 (id, ref) -> {
-                                                    var target = new ResourceReference(resource, id);
+                                                    var target =
+                                                            new ResourceReference(resource, id);
                                                     result.put(target, ref.withResource(resource));
                                                 }));
         return Map.copyOf(result);
@@ -126,7 +127,8 @@ public final class CrudResourceAccessRegistry {
                 .forEach(
                         reference ->
                                 grouped.computeIfAbsent(
-                                                reference.resource(), ignored -> new LinkedHashSet<>())
+                                                reference.resource(),
+                                                ignored -> new LinkedHashSet<>())
                                         .add(reference.id()));
         return Map.copyOf(grouped);
     }

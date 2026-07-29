@@ -9,7 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface CredentialHandleRepository extends JpaRepository<CredentialHandleEntity, String> {
 
-    @Query("""
+    @Query(
+            """
             SELECT h FROM CredentialHandleEntity h
             WHERE h.tenantId = :tenantId AND h.userId = :userId
               AND h.connectorId = :connectorId AND h.revokedAt IS NULL
@@ -20,7 +21,8 @@ public interface CredentialHandleRepository extends JpaRepository<CredentialHand
             String tenantId, String userId, String connectorId, Instant at);
 
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE CredentialHandleEntity h SET h.revokedAt = :at
             WHERE h.tenantId = :tenantId AND h.userId = :userId
               AND h.handleId = :handleId AND h.revokedAt IS NULL

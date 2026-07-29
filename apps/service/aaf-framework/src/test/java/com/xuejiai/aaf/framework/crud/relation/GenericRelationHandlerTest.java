@@ -1,7 +1,7 @@
 package com.xuejiai.aaf.framework.crud.relation;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -69,10 +69,7 @@ class GenericRelationHandlerTest extends BaseMockitoUnitTest {
         assertThatCode(
                         () ->
                                 handler.validate(
-                                        SOURCE,
-                                        relation,
-                                        parent,
-                                        Patch.value(List.of(8L, 9L))))
+                                        SOURCE, relation, parent, Patch.value(List.of(8L, 9L))))
                 .doesNotThrowAnyException();
     }
 
@@ -82,10 +79,7 @@ class GenericRelationHandlerTest extends BaseMockitoUnitTest {
         assertThatThrownBy(
                         () ->
                                 handler.validate(
-                                        SOURCE,
-                                        relation,
-                                        parent,
-                                        Patch.value(List.of(8L, 8L))))
+                                        SOURCE, relation, parent, Patch.value(List.of(8L, 8L))))
                 .isInstanceOf(BusinessException.class);
         verifyNoInteractions(referenceEnforcementService);
     }

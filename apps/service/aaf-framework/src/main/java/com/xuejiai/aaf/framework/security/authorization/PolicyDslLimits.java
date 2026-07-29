@@ -2,11 +2,7 @@ package com.xuejiai.aaf.framework.security.authorization;
 
 /** 防止策略 JSON 造成深度、节点、数组或字符串资源消耗。 */
 public record PolicyDslLimits(
-        int maxJsonLength,
-        int maxDepth,
-        int maxNodes,
-        int maxArrayLength,
-        int maxStringLength) {
+        int maxJsonLength, int maxDepth, int maxNodes, int maxArrayLength, int maxStringLength) {
 
     public PolicyDslLimits {
         if (maxJsonLength <= 0

@@ -148,68 +148,72 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
 
     @Override
     @Transactional
-    public IdempotentSettlementResult settleIdempotently(
-            IdempotentUsageSettlement settlement) {
+    public IdempotentSettlementResult settleIdempotently(IdempotentUsageSettlement settlement) {
         var model = settlement.model();
         var quotaType = model.getQuotaType() == null ? (short) 0 : model.getQuotaType();
         var costYuan = settlement.costYuan().setScale(6, java.math.RoundingMode.HALF_UP);
-        var creditCost = Math.max(
-                1L,
-                costYuan
-                        .multiply(BigDecimal.valueOf(YUAN_TO_CREDIT))
-                        .multiply(BigDecimal.valueOf(getMarkupRate()))
-                        .setScale(0, java.math.RoundingMode.HALF_UP)
-                        .longValueExact());
+        var creditCost =
+                Math.max(
+                        1L,
+                        costYuan.multiply(BigDecimal.valueOf(YUAN_TO_CREDIT))
+                                .multiply(BigDecimal.valueOf(getMarkupRate()))
+                                .setScale(0, java.math.RoundingMode.HALF_UP)
+                                .longValueExact());
         var usageJson = JsonUtils.toJsonString(settlement.usage().standardUsage());
         var rawUsageJson = JsonUtils.toJsonString(settlement.usage().rawUsage());
-        var digest = settlementDigest(
-                settlement, quotaType, costYuan, creditCost, usageJson, rawUsageJson);
+        var digest =
+                settlementDigest(
+                        settlement, quotaType, costYuan, creditCost, usageJson, rawUsageJson);
 
-        var claimed = usageRecordRepository.claim(
-                settlement.usageKey(),
-                digest,
-                settlement.tenantId(),
-                settlement.taskId(),
-                settlement.executionId(),
-                settlement.fencingToken(),
-                settlement.occurredAt(),
-                settlement.userId(),
-                model.getId(),
-                settlement.capability(),
-                quotaType,
-                costYuan,
-                creditCost,
-                usageJson,
-                rawUsageJson);
+        var claimed =
+                usageRecordRepository.claim(
+                        settlement.usageKey(),
+                        digest,
+                        settlement.tenantId(),
+                        settlement.taskId(),
+                        settlement.executionId(),
+                        settlement.fencingToken(),
+                        settlement.occurredAt(),
+                        settlement.userId(),
+                        model.getId(),
+                        settlement.capability(),
+                        quotaType,
+                        costYuan,
+                        creditCost,
+                        usageJson,
+                        rawUsageJson);
         if (claimed == 0) {
             return existingSettlement(settlement, digest);
         }
 
         var overdraft = configService.getInteger(SysConfigKeys.Ai.CREDIT_OVERDRAFT_LIMIT, 0);
-        var creditTxId = creditService.spend(
-                settlement.userId(),
-                creditCost,
-                CreditTransactionSourceEnum.AI_CONSUME.getCode(),
-                CreditTransactionCategoryEnum.fromCapability(settlement.capability()),
-                settlement.usageKey(),
-                overdraft,
-                settlement.remark(),
-                com.xuejiai.aaf.common.enums.pay.CreditBizTypeEnum.AI_USAGE.getCode());
+        var creditTxId =
+                creditService.spend(
+                        settlement.userId(),
+                        creditCost,
+                        CreditTransactionSourceEnum.AI_CONSUME.getCode(),
+                        CreditTransactionCategoryEnum.fromCapability(settlement.capability()),
+                        settlement.usageKey(),
+                        overdraft,
+                        settlement.remark(),
+                        com.xuejiai.aaf.common.enums.pay.CreditBizTypeEnum.AI_USAGE.getCode());
         if (creditTxId == null
-                || usageRecordRepository.completeSettlement(
-                                settlement.usageKey(), creditTxId)
+                || usageRecordRepository.completeSettlement(settlement.usageKey(), creditTxId)
                         != 1) {
-            throw new IllegalStateException(
-                    "AI 幂等结算未能关联真实积分流水: " + settlement.usageKey());
+            throw new IllegalStateException("AI 幂等结算未能关联真实积分流水: " + settlement.usageKey());
         }
         return new IdempotentSettlementResult(settlement.usageKey(), creditTxId, true);
     }
 
     private IdempotentSettlementResult existingSettlement(
             IdempotentUsageSettlement settlement, String digest) {
-        var existing = usageRecordRepository.findByUsageKey(settlement.usageKey())
-                .orElseThrow(() -> new IllegalStateException(
-                        "usageKey claim 状态丢失: " + settlement.usageKey()));
+        var existing =
+                usageRecordRepository
+                        .findByUsageKey(settlement.usageKey())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "usageKey claim 状态丢失: " + settlement.usageKey()));
         if (!Objects.equals(existing.getSettlementDigest(), digest)
                 || !Objects.equals(existing.getTenantId(), settlement.tenantId())
                 || !Objects.equals(existing.getTaskId(), settlement.taskId())
@@ -218,12 +222,10 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                 || !Objects.equals(existing.getUserId(), settlement.userId())
                 || !Objects.equals(existing.getModelId(), settlement.model().getId())
                 || !Objects.equals(existing.getCapability(), settlement.capability())) {
-            throw new IllegalStateException(
-                    "usageKey 已绑定不同用量内容: " + settlement.usageKey());
+            throw new IllegalStateException("usageKey 已绑定不同用量内容: " + settlement.usageKey());
         }
         if (existing.getCreditTxId() == null) {
-            throw new IllegalStateException(
-                    "usageKey 已存在但缺少真实积分流水: " + settlement.usageKey());
+            throw new IllegalStateException("usageKey 已存在但缺少真实积分流水: " + settlement.usageKey());
         }
         return new IdempotentSettlementResult(
                 settlement.usageKey(), existing.getCreditTxId(), false);
@@ -257,8 +259,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     private String sha256(String value) {
         try {
             var digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(
-                    digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException failure) {
             throw new IllegalStateException("运行环境缺少 SHA-256", failure);
         }
@@ -308,14 +309,16 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
             var vc = model.getVideoConfigParsed();
             int duration = Math.max(1, vtr.getDuration());
             if (vc != null && vc.pricing() != null && !vc.pricing().isEmpty()) {
-                var resolution = Objects.requireNonNull(
-                        vtr.getResolution(), "视频实际用量缺少 resolution");
-                double pricePerSec = vc.pricing().stream()
-                        .filter(item -> resolution.equalsIgnoreCase(item.resolution()))
-                        .mapToDouble(item -> item.pricePerSecond().doubleValue())
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "模型缺少视频分辨率价格: " + resolution));
+                var resolution = Objects.requireNonNull(vtr.getResolution(), "视频实际用量缺少 resolution");
+                double pricePerSec =
+                        vc.pricing().stream()
+                                .filter(item -> resolution.equalsIgnoreCase(item.resolution()))
+                                .mapToDouble(item -> item.pricePerSecond().doubleValue())
+                                .findFirst()
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalStateException(
+                                                        "模型缺少视频分辨率价格: " + resolution));
                 double yuan = pricePerSec * duration;
                 return new long[] {
                     Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
@@ -327,17 +330,18 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         var type = AiQuotaTypeEnum.of(quotaType);
         return switch (type) {
             case PER_USE -> {
-                var modelPrice = Objects.requireNonNull(
-                        model.getModelPrice(), "模型缺少 PER_USE 价格: " + model.getId());
+                var modelPrice =
+                        Objects.requireNonNull(
+                                model.getModelPrice(), "模型缺少 PER_USE 价格: " + model.getId());
                 long cost = AiCreditGuard.calcPerUseCost(modelPrice, markup);
                 yield new long[] {cost, Double.doubleToLongBits(modelPrice.doubleValue())};
             }
             case PER_UNIT -> {
                 int unitCount = usage.count();
-                double unitPrice = Objects.requireNonNull(
-                                model.getModelPrice(),
-                                "模型缺少 PER_UNIT 价格: " + model.getId())
-                        .doubleValue();
+                double unitPrice =
+                        Objects.requireNonNull(
+                                        model.getModelPrice(), "模型缺少 PER_UNIT 价格: " + model.getId())
+                                .doubleValue();
                 double yuan = unitPrice * unitCount;
                 yield new long[] {
                     Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
@@ -346,10 +350,10 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
             }
             case PER_SEC -> {
                 int duration = Math.max(1, usage.duration());
-                double pricePerSec = Objects.requireNonNull(
-                                model.getModelPrice(),
-                                "模型缺少 PER_SEC 价格: " + model.getId())
-                        .doubleValue();
+                double pricePerSec =
+                        Objects.requireNonNull(
+                                        model.getModelPrice(), "模型缺少 PER_SEC 价格: " + model.getId())
+                                .doubleValue();
                 double yuan = pricePerSec * duration;
                 yield new long[] {
                     Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),
@@ -359,14 +363,16 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
             default -> {
                 long input = usage.inputTokens();
                 long output = usage.outputTokens();
-                double inputPrice = Objects.requireNonNull(
-                                model.getInputPricePerK(),
-                                "模型缺少 input_price_per_k: " + model.getId())
-                        .doubleValue();
-                double outputPrice = Objects.requireNonNull(
-                                model.getOutputPricePerK(),
-                                "模型缺少 output_price_per_k: " + model.getId())
-                        .doubleValue();
+                double inputPrice =
+                        Objects.requireNonNull(
+                                        model.getInputPricePerK(),
+                                        "模型缺少 input_price_per_k: " + model.getId())
+                                .doubleValue();
+                double outputPrice =
+                        Objects.requireNonNull(
+                                        model.getOutputPricePerK(),
+                                        "模型缺少 output_price_per_k: " + model.getId())
+                                .doubleValue();
                 double yuan = (input * inputPrice + output * outputPrice) / PER_K_TOKENS;
                 yield new long[] {
                     Math.max(1, Math.round(yuan * YUAN_TO_CREDIT * markup)),

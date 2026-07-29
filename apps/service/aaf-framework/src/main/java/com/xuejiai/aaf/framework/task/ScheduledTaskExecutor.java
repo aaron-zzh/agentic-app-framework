@@ -240,10 +240,11 @@ public class ScheduledTaskExecutor {
      */
     private void executeWithLock(TaskDefinition def) {
         var lockKey = LOCK_PREFIX + def.name();
-        var lease = distributedLeases.acquire(
-                lockKey,
-                UUID.randomUUID().toString(),
-                Duration.ofSeconds(DEFAULT_LOCK_TTL_SECONDS));
+        var lease =
+                distributedLeases.acquire(
+                        lockKey,
+                        UUID.randomUUID().toString(),
+                        Duration.ofSeconds(DEFAULT_LOCK_TTL_SECONDS));
         if (lease.isEmpty()) {
             log.debug("任务 [{}] 未获取到锁，跳过执行（集群其他节点正在执行）", def.name());
             return;

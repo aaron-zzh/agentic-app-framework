@@ -84,8 +84,7 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
         entity.setId(99L);
         when(repository.findOne(any(Specification.class)))
                 .thenReturn(Optional.empty(), Optional.of(entity));
-        when(enforcementService.allowsCurrentTarget(
-                        any(), any(), any(), any(), any()))
+        when(enforcementService.allowsCurrentTarget(any(), any(), any(), any(), any()))
                 .thenReturn(true);
 
         // 调用
@@ -113,8 +112,7 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
     void should_not_retry_tenant_scope_when_relation_is_denied() {
         // 准备参数
         when(repository.findOne(any(Specification.class))).thenReturn(Optional.empty());
-        when(enforcementService.allowsCurrentTarget(
-                        any(), any(), any(), any(), any()))
+        when(enforcementService.allowsCurrentTarget(any(), any(), any(), any(), any()))
                 .thenReturn(false);
 
         // 调用 + 断言
@@ -128,8 +126,7 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
         // 准备参数
         var failure = new IllegalStateException("relation provider unavailable");
         when(repository.findOne(any(Specification.class))).thenReturn(Optional.empty());
-        when(enforcementService.allowsCurrentTarget(
-                        any(), any(), any(), any(), any()))
+        when(enforcementService.allowsCurrentTarget(any(), any(), any(), any(), any()))
                 .thenThrow(failure);
 
         // 调用 + 断言

@@ -46,39 +46,75 @@ public final class JpaEffectiveContextAdapter implements EffectiveContextPort {
             Instant at) {
         var configured = listPreferences(tenantId, userId, definition.assistantId());
         var dispositions = new LinkedHashMap<String, Disposition>();
-        configured.forEach(p -> dispositions.put(key(p.sourceType(), p.sourceKey()), p.disposition()));
+        configured.forEach(
+                p -> dispositions.put(key(p.sourceType(), p.sourceKey()), p.disposition()));
         var unique = new LinkedHashMap<String, SourceReference>();
         var subagentSpec = route.subagentSpec();
-        var sourceVersion = switch (subagentSpec) {
-            case SubagentSpec.Predefined predefined -> Long.toString(predefined.version());
-            case SubagentSpec.Dynamic ignored -> "dynamic";
-        };
-        var displayName = switch (subagentSpec) {
-            case SubagentSpec.Predefined predefined -> predefined.identifier();
-            case SubagentSpec.Dynamic dynamic -> "动态子智能体：" + dynamic.identifier();
-        };
-        add(unique, new SourceReference(
-                SourceType.RULE, definition.role().key(), definition.version().toString(),
-                "ASSISTANT", "当前 Assistant 角色与职责边界", definition.role().name(), false));
-        add(unique, new SourceReference(
-                SourceType.SKILL, route.skillKey(), sourceVersion,
-                "TASK", "用户意图命中该技能路由", displayName, false));
+        var sourceVersion =
+                switch (subagentSpec) {
+                    case SubagentSpec.Predefined predefined -> Long.toString(predefined.version());
+                    case SubagentSpec.Dynamic ignored -> "dynamic";
+                };
+        var displayName =
+                switch (subagentSpec) {
+                    case SubagentSpec.Predefined predefined -> predefined.identifier();
+                    case SubagentSpec.Dynamic dynamic -> "动态子智能体：" + dynamic.identifier();
+                };
+        add(
+                unique,
+                new SourceReference(
+                        SourceType.RULE,
+                        definition.role().key(),
+                        definition.version().toString(),
+                        "ASSISTANT",
+                        "当前 Assistant 角色与职责边界",
+                        definition.role().name(),
+                        false));
+        add(
+                unique,
+                new SourceReference(
+                        SourceType.SKILL,
+                        route.skillKey(),
+                        sourceVersion,
+                        "TASK",
+                        "用户意图命中该技能路由",
+                        displayName,
+                        false));
         candidates.stream()
-                .filter(source -> {
-                    var disposition = dispositions.getOrDefault(
-                            key(source.type(), source.sourceKey()), Disposition.DEFAULT);
-                    return !source.userManageable()
-                            || (disposition != Disposition.DISABLED && disposition != Disposition.REMOVED);
-                })
-                .sorted(Comparator.comparingInt(source ->
-                        dispositions.getOrDefault(key(source.type(), source.sourceKey()), Disposition.DEFAULT)
-                                == Disposition.PREFERRED ? 0 : 1))
+                .filter(
+                        source -> {
+                            var disposition =
+                                    dispositions.getOrDefault(
+                                            key(source.type(), source.sourceKey()),
+                                            Disposition.DEFAULT);
+                            return !source.userManageable()
+                                    || (disposition != Disposition.DISABLED
+                                            && disposition != Disposition.REMOVED);
+                        })
+                .sorted(
+                        Comparator.comparingInt(
+                                source ->
+                                        dispositions.getOrDefault(
+                                                                key(
+                                                                        source.type(),
+                                                                        source.sourceKey()),
+                                                                Disposition.DEFAULT)
+                                                        == Disposition.PREFERRED
+                                                ? 0
+                                                : 1))
                 .forEach(source -> add(unique, source));
-        var manifest = new EffectiveContextManifest(
-                task.taskId(), definition.assistantId(), definition.version(), route.skillKey(),
-                new ArrayList<>(unique.values()), at);
-        var entity = manifests.findByTenantIdAndTaskId(tenantId.value(), task.taskId().value())
-                .orElseGet(EffectiveContextManifestEntity::new);
+        var manifest =
+                new EffectiveContextManifest(
+                        task.taskId(),
+                        definition.assistantId(),
+                        definition.version(),
+                        route.skillKey(),
+                        new ArrayList<>(unique.values()),
+                        at);
+        var entity =
+                manifests
+                        .findByTenantIdAndTaskId(tenantId.value(), task.taskId().value())
+                        .orElseGet(EffectiveContextManifestEntity::new);
         entity.setTenantId(tenantId.value());
         entity.setTaskId(task.taskId().value());
         entity.setManifest(manifest);
@@ -90,12 +126,15 @@ public final class JpaEffectiveContextAdapter implements EffectiveContextPort {
     @Override
     @Transactional
     public SourcePreference configure(SourcePreference preference) {
-        var entity = preferences
-                .findByTenantIdAndUserIdAndAssistantIdAndSourceTypeAndSourceKey(
-                        preference.tenantId().value(), preference.userId().value(),
-                        preference.assistantId().value(), preference.sourceType().name(),
-                        preference.sourceKey())
-                .orElseGet(ContextSourcePreferenceEntity::new);
+        var entity =
+                preferences
+                        .findByTenantIdAndUserIdAndAssistantIdAndSourceTypeAndSourceKey(
+                                preference.tenantId().value(),
+                                preference.userId().value(),
+                                preference.assistantId().value(),
+                                preference.sourceType().name(),
+                                preference.sourceKey())
+                        .orElseGet(ContextSourcePreferenceEntity::new);
         entity.setTenantId(preference.tenantId().value());
         entity.setUserId(preference.userId().value());
         entity.setAssistantId(preference.assistantId().value());
@@ -111,20 +150,28 @@ public final class JpaEffectiveContextAdapter implements EffectiveContextPort {
     @Transactional(readOnly = true)
     public List<SourcePreference> listPreferences(
             TenantId tenantId, UserId userId, AssistantId assistantId) {
-        return preferences.findByTenantIdAndUserIdAndAssistantId(
-                        tenantId.value(), userId.value(), assistantId.value()).stream()
-                .map(this::toDomain).toList();
+        return preferences
+                .findByTenantIdAndUserIdAndAssistantId(
+                        tenantId.value(), userId.value(), assistantId.value())
+                .stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     private SourcePreference toDomain(ContextSourcePreferenceEntity entity) {
         return new SourcePreference(
-                new TenantId(entity.getTenantId()), new UserId(entity.getUserId()),
-                new AssistantId(entity.getAssistantId()), SourceType.valueOf(entity.getSourceType()),
-                entity.getSourceKey(), Disposition.valueOf(entity.getDisposition()),
-                entity.getReason(), entity.getUpdatedAt());
+                new TenantId(entity.getTenantId()),
+                new UserId(entity.getUserId()),
+                new AssistantId(entity.getAssistantId()),
+                SourceType.valueOf(entity.getSourceType()),
+                entity.getSourceKey(),
+                Disposition.valueOf(entity.getDisposition()),
+                entity.getReason(),
+                entity.getUpdatedAt());
     }
 
-    private static void add(LinkedHashMap<String, SourceReference> values, SourceReference reference) {
+    private static void add(
+            LinkedHashMap<String, SourceReference> values, SourceReference reference) {
         values.put(key(reference.type(), reference.sourceKey()), reference);
     }
 

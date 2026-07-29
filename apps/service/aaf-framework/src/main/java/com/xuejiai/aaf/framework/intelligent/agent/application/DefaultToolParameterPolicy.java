@@ -43,8 +43,9 @@ public final class DefaultToolParameterPolicy implements ToolParameterPolicyPort
             throw new IllegalArgumentException("工具参数不能越过当前 tenant");
         }
         if (value instanceof Map<?, ?> nested) {
-            nested.forEach((nestedKey, nestedValue) ->
-                    validateEntry(nestedKey.toString(), nestedValue, context));
+            nested.forEach(
+                    (nestedKey, nestedValue) ->
+                            validateEntry(nestedKey.toString(), nestedValue, context));
         } else if (value instanceof Iterable<?> values) {
             values.forEach(item -> validateNestedValue(item, context));
         }
@@ -52,8 +53,8 @@ public final class DefaultToolParameterPolicy implements ToolParameterPolicyPort
 
     private static void validateNestedValue(Object value, InvocationContext context) {
         if (value instanceof Map<?, ?> nested) {
-            nested.forEach((key, nestedValue) ->
-                    validateEntry(key.toString(), nestedValue, context));
+            nested.forEach(
+                    (key, nestedValue) -> validateEntry(key.toString(), nestedValue, context));
         } else if (value instanceof Iterable<?> values) {
             values.forEach(item -> validateNestedValue(item, context));
         }

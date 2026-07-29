@@ -13,7 +13,6 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
@@ -65,9 +64,7 @@ class CrudEnforcementContinuationTest extends BaseMockitoUnitTest {
         when(authorizationService.selectContinuation(eq(challengeId), any()))
                 .thenAnswer(
                         invocation ->
-                                ((AuthorizationRequest) invocation.getArgument(1))
-                                                        .plan()
-                                                        .l4()
+                                ((AuthorizationRequest) invocation.getArgument(1)).plan().l4()
                                                 == null
                                         ? AuthorizationService.ContinuationSelection.NOT_MATCH
                                         : AuthorizationService.ContinuationSelection.MATCH);
@@ -81,25 +78,18 @@ class CrudEnforcementContinuationTest extends BaseMockitoUnitTest {
 
         // 调用
         var preflight =
-                service.enforceObjectPreflight(
-                        entry, CrudOperation.GET, AccessMode.DEFAULT);
+                service.enforceObjectPreflight(entry, CrudOperation.GET, AccessMode.DEFAULT);
         var allowed =
                 service.allowsCurrentTarget(
-                        entry,
-                        preflight,
-                        entity,
-                        Map.of("id", 99L, "ownerId", 7L),
-                        null);
+                        entry, preflight, entity, Map.of("id", 99L, "ownerId", 7L), null);
 
         // 断言
         assertThat(allowed).isTrue();
         var ordinary = ArgumentCaptor.forClass(AuthorizationRequest.class);
         var resumed = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(authorizationService, times(2))
-                .selectContinuation(eq(challengeId), any());
+        verify(authorizationService, times(2)).selectContinuation(eq(challengeId), any());
         verify(authorizationService, times(1)).authorize(ordinary.capture());
-        verify(authorizationService, times(1))
-                .resume(eq(challengeId), resumed.capture());
+        verify(authorizationService, times(1)).resume(eq(challengeId), resumed.capture());
         assertThat(ordinary.getValue().plan().l4()).isNull();
         assertThat(ordinary.getValue().target().objectId()).isNull();
         assertThat(resumed.getValue().plan().l4()).isNotNull();
@@ -147,17 +137,11 @@ class CrudEnforcementContinuationTest extends BaseMockitoUnitTest {
         entity.setId(99L);
 
         // 调用
-        service.allowsCurrentTarget(
-                entry,
-                enforcementDecision(),
-                entity,
-                Map.of("id", 99L),
-                null);
+        service.allowsCurrentTarget(entry, enforcementDecision(), entity, Map.of("id", 99L), null);
         service.enforceRequest(entry, CrudOperation.BATCH_READ, AccessMode.DEFAULT);
 
         // 断言
-        verify(authorizationService, times(1))
-                .selectContinuation(eq(challengeId), any());
+        verify(authorizationService, times(1)).selectContinuation(eq(challengeId), any());
         verify(authorizationService, times(1)).resume(eq(challengeId), any());
         verify(authorizationService, times(1)).authorize(any());
     }
@@ -220,11 +204,7 @@ class CrudEnforcementContinuationTest extends BaseMockitoUnitTest {
                         List.of(item),
                         List.of());
         return new AuthorizationDecision(
-                AuthorizationEffect.ALLOW,
-                List.of(layer),
-                List.of(),
-                null,
-                "snapshot-1");
+                AuthorizationEffect.ALLOW, List.of(layer), List.of(), null, "snapshot-1");
     }
 
     private AuthorizationDecision plainAllowedDecision() {

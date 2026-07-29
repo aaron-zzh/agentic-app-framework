@@ -35,12 +35,9 @@ class JpaAgentDefinitionAdapterTest extends BaseMockitoUnitTest {
         when(repository.findByAgentIdAndVersion("agent.predefined", 1))
                 .thenReturn(Optional.of(entity));
 
-        var result =
-                adapter.findByIdAndVersion(new AgentId("agent.predefined"), 1L).orElseThrow();
+        var result = adapter.findByIdAndVersion(new AgentId("agent.predefined"), 1L).orElseThrow();
 
-        assertThat(result.tools())
-                .extracting(tool -> tool.name())
-                .containsExactly("tool.allowed");
+        assertThat(result.tools()).extracting(tool -> tool.name()).containsExactly("tool.allowed");
     }
 
     private static AgentDefinition definition() {

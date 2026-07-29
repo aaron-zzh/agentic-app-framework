@@ -19,10 +19,11 @@ public record DataAuthorizationResult(
         }
     }
 
-    public static DataAuthorizationResult allow(
-            AuthorizationConstraint constraint, String reason) {
+    public static DataAuthorizationResult allow(AuthorizationConstraint constraint, String reason) {
         return new DataAuthorizationResult(
-                AuthorizationEffect.ALLOW, Objects.requireNonNull(constraint, "constraint"), reason);
+                AuthorizationEffect.ALLOW,
+                Objects.requireNonNull(constraint, "constraint"),
+                reason);
     }
 
     public static DataAuthorizationResult indeterminate(String reason) {

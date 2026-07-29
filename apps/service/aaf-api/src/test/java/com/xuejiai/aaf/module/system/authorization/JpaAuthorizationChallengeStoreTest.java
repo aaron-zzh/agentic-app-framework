@@ -120,8 +120,7 @@ class JpaAuthorizationChallengeStoreTest extends BaseMockitoUnitTest {
         when(repository.approve(challengeId, 2L, now)).thenReturn(1, 0);
         when(repository.consume(challengeId, 2L, now)).thenReturn(1, 0);
         when(repository.approve(challengeId, 2L, afterExpiry)).thenReturn(0);
-        when(repository.findApproved(challengeId, 2L, afterExpiry))
-                .thenReturn(Optional.empty());
+        when(repository.findApproved(challengeId, 2L, afterExpiry)).thenReturn(Optional.empty());
         when(repository.consume(challengeId, 2L, afterExpiry)).thenReturn(0);
 
         // 调用 + 断言
@@ -154,8 +153,7 @@ class JpaAuthorizationChallengeStoreTest extends BaseMockitoUnitTest {
         assertThat(result).isPresent();
         var restored = result.orElseThrow();
         assertThat(restored.id()).isEqualTo(challengeId);
-        assertThat(restored.subject())
-                .isEqualTo(new AuthorizationSubject(21L, 22L, 23L, 24L));
+        assertThat(restored.subject()).isEqualTo(new AuthorizationSubject(21L, 22L, 23L, 24L));
         assertThat(restored.target())
                 .isEqualTo(new AuthorizationTarget("document", "update", "doc-25"));
         assertThat(restored.requestDigest()).isEqualTo("digest-26");

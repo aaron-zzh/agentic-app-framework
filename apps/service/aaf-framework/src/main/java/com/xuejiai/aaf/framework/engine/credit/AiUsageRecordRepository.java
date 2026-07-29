@@ -15,7 +15,8 @@ public interface AiUsageRecordRepository extends JpaRepository<AiUsageRecord, Lo
 
     @Modifying
     @Query(
-            value = """
+            value =
+                    """
                     INSERT INTO ai_usage_record (
                         usage_key, settlement_digest, tenant_id, task_id, execution_id, fencing_token,
                         occurred_at, user_id, model_id, capability, quota_type,
@@ -46,7 +47,8 @@ public interface AiUsageRecordRepository extends JpaRepository<AiUsageRecord, Lo
             String rawUsage);
 
     @Modifying
-    @Query("""
+    @Query(
+            """
             UPDATE AiUsageRecord r SET r.creditTxId = :creditTxId
             WHERE r.usageKey = :usageKey AND r.creditTxId IS NULL
             """)

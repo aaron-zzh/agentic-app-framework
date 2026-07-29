@@ -23,19 +23,26 @@ public class HumanApprovalEntity {
     @Id
     @Column(name = "approval_id", length = 64)
     private String approvalId;
+
     @Column(name = "tenant_id", nullable = false, length = 128)
     private String tenantId;
+
     @Column(name = "task_id", nullable = false, length = 128)
     private String taskId;
+
     @Column(nullable = false, length = 16)
     private String status;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
     @Column(name = "decided_at")
     private Instant decidedAt;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "approval_payload", nullable = false, columnDefinition = "jsonb")
     private HumanApproval approval;
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version;
