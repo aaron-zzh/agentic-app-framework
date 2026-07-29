@@ -56,6 +56,28 @@ public final class DictType {
         public static final String TODO_STATUS = "sys_todo_status"; // 待办状态，见 TodoStatusEnum
     }
 
+    /** Content Studio 模块 */
+    public static final class Content {
+
+        private Content() {}
+
+        public static final String PROJECT_STATUS = "content_project_status";
+        public static final String PROJECT_TYPE = "content_project_type";
+        public static final String PRODUCTION_MODE = "content_production_mode";
+        public static final String GENERATION_MODE = "content_generation_mode";
+        public static final String OBJECT_TYPE = "content_object_type";
+        public static final String OBJECT_STATUS = "content_object_status";
+        public static final String OBJECT_SOURCE = "content_object_source";
+        public static final String RELATION_TYPE = "content_relation_type";
+        public static final String RELATION_LAYER = "content_relation_layer";
+        public static final String EXECUTION_STATUS = "content_execution_status";
+        public static final String EXECUTION_TARGET_TYPE = "content_execution_target_type";
+        public static final String BRAND_PROFILE_KIND = "content_brand_profile_kind";
+        public static final String CONFIG_STATUS = "content_config_status";
+        public static final String CHANNEL = "content_channel";
+        public static final String PROFILE_REF_SCOPE = "content_profile_ref_scope";
+    }
+
     /** AI 模块 */
     public static final class Ai {
 
