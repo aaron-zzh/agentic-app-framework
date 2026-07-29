@@ -23,7 +23,6 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.config.StorageWebConfig;
-import com.xuejiai.aaf.framework.intelligent.assistant.AssistantAuthFilter;
 import com.xuejiai.aaf.framework.logging.RequestMetricsFilter;
 import com.xuejiai.aaf.framework.security.SecurityConfig;
 import com.xuejiai.aaf.framework.security.apikey.ApiKeyAuthFilter;
@@ -45,7 +44,6 @@ import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateVO;
                             RequestMetricsFilter.class,
                             SecurityConfig.class,
                             ApiKeyAuthFilter.class,
-                            AssistantAuthFilter.class,
                             com.xuejiai.aaf.config.OrgFilter.class
                         }))
 @AutoConfigureMockMvc(addFilters = false)

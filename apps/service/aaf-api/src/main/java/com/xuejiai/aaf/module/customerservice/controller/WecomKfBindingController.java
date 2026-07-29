@@ -41,6 +41,7 @@ public class WecomKfBindingController {
         binding.setOpenKfId(request.openKfId());
         binding.setAccountName(request.accountName());
         binding.setAssistantId(request.assistantId());
+        binding.setAssistantVersion(request.assistantVersion());
         binding.setEnabled(request.enabled() != null ? request.enabled() : true);
         binding.setRemark(request.remark());
         return Result.success(bindingRepo.save(binding));
@@ -56,7 +57,8 @@ public class WecomKfBindingController {
     public record BindingRequest(
             @NotBlank String openKfId,
             String accountName,
-            @jakarta.validation.constraints.NotNull Long assistantId,
+            @NotBlank String assistantId,
+            @jakarta.validation.constraints.Positive long assistantVersion,
             Boolean enabled,
             String remark) {}
 }

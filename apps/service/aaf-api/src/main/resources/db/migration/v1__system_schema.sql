@@ -1629,10 +1629,11 @@ CREATE INDEX idx_channel_platform_type ON channel_platform (type) WHERE deleted 
 
 CREATE TABLE channel_bot_binding (
     id              BIGSERIAL PRIMARY KEY,
-    platform_id     BIGINT       NOT NULL,
-    name            VARCHAR(100) NOT NULL,
-    assistant_id    BIGINT       NOT NULL,
-    route_rule      JSONB,
+    platform_id       BIGINT       NOT NULL,
+    name              VARCHAR(100) NOT NULL,
+    assistant_id      VARCHAR(128) NOT NULL,
+    assistant_version BIGINT       NOT NULL CHECK (assistant_version > 0),
+    route_rule        JSONB,
     fallback_reply  VARCHAR(500),
     status          INT          NOT NULL DEFAULT 0,
     version         INT          NOT NULL DEFAULT 0,
@@ -1652,7 +1653,8 @@ CREATE TABLE channel_bot_binding (
 
 COMMENT ON TABLE channel_bot_binding IS '机器人绑定 Assistant';
 COMMENT ON COLUMN channel_bot_binding.platform_id IS '关联 channel_platform.id';
-COMMENT ON COLUMN channel_bot_binding.assistant_id IS '绑定的 Assistant ID（BIGINT，跨 schema 引用 ai_assistant.id）';
+COMMENT ON COLUMN channel_bot_binding.assistant_id IS 'Assistant v2 稳定标识';
+COMMENT ON COLUMN channel_bot_binding.assistant_version IS 'Assistant v2 精确定义版本';
 COMMENT ON COLUMN channel_bot_binding.route_rule IS '触发规则 JSON（关键词/群 ID 等）';
 
 CREATE INDEX idx_bot_binding_platform ON channel_bot_binding (platform_id) WHERE deleted = FALSE;
@@ -1873,10 +1875,11 @@ CREATE TABLE wecom_kf_account_binding (
     version         INTEGER      NOT NULL DEFAULT 0,
     org_id          BIGINT,
     workspace_id    BIGINT,
-    open_kf_id      VARCHAR(64)  NOT NULL UNIQUE,
-    account_name    VARCHAR(128),
-    assistant_id    BIGINT       NOT NULL,
-    enabled         BOOLEAN      NOT NULL DEFAULT TRUE,
+    open_kf_id        VARCHAR(64)  NOT NULL,
+    account_name      VARCHAR(128),
+    assistant_id      VARCHAR(128) NOT NULL,
+    assistant_version BIGINT       NOT NULL CHECK (assistant_version > 0),
+    enabled           BOOLEAN      NOT NULL DEFAULT TRUE,
     owner_id        BIGINT,
     create_by       BIGINT,
     create_by_type  VARCHAR(16),
@@ -1889,8 +1892,12 @@ CREATE TABLE wecom_kf_account_binding (
     remark          VARCHAR(256)
 );
 
-COMMENT ON TABLE wecom_kf_account_binding IS '企微客服账号与 Assistant 的绑定关系';
-CREATE UNIQUE INDEX idx_wecom_kf_open_kf_id ON wecom_kf_account_binding (open_kf_id);
+COMMENT ON TABLE wecom_kf_account_binding IS '企微客服账号与 Assistant v2 精确版本绑定';
+COMMENT ON COLUMN wecom_kf_account_binding.assistant_id IS 'Assistant v2 稳定标识';
+COMMENT ON COLUMN wecom_kf_account_binding.assistant_version IS 'Assistant v2 精确定义版本';
+CREATE UNIQUE INDEX idx_wecom_kf_open_kf_id
+    ON wecom_kf_account_binding (open_kf_id)
+    WHERE deleted = FALSE;
 
 
 -- ============================================================

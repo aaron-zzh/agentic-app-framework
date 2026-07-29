@@ -1,8 +1,5 @@
 package com.xuejiai.aaf.module.customerservice.config;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import lombok.Data;
@@ -27,17 +24,6 @@ public class WecomKfProperties {
     /** 回调加密Key */
     private String encodingAesKey;
 
-    /** 默认绑定的 Assistant ID（所有客服账号共用） */
-    private String defaultAssistantId;
-
-    /** 按客服账号绑定不同 Assistant（优先级高于 defaultAssistantId）。 key = open_kf_id, value = assistantId */
-    private Map<String, String> accountAssistantMapping = new HashMap<>();
-
-    /** 兜底回复（Assistant 不可用时） */
+    /** Assistant 不可用时返回给客户的安全提示 */
     private String fallbackReply = "感谢您的咨询，我暂时无法回答这个问题，已为您转接人工客服。";
-
-    /** 根据客服账号获取对应的 assistantId */
-    public String getAssistantId(String openKfId) {
-        return accountAssistantMapping.getOrDefault(openKfId, defaultAssistantId);
-    }
 }

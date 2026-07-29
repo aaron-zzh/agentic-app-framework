@@ -71,6 +71,7 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
                                         // 机器人消息：路由到 AI 对话处理链
                                         case "im_robot_message" -> {
                                             if (bizData != null) {
+                                                bizData.put("eventId", eventId);
                                                 router.routeInbound(
                                                         ChannelTypeEnum.DINGTALK,
                                                         bizData.toJSONString());
@@ -112,6 +113,7 @@ public class DingtalkBotChannelAdapter implements ChannelAdapter {
             extra.put("senderNick", root.path("senderNick").asString(""));
             extra.put("conversationType", root.path("conversationType").asString(""));
             extra.put("sessionWebhook", root.path("sessionWebhook").asString(""));
+            extra.put("messageId", root.path("eventId").asString(root.path("msgId").asString("")));
 
             var messageType =
                     switch (msgType) {

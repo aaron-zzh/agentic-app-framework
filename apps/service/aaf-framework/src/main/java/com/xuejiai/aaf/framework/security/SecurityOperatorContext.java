@@ -8,7 +8,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.enums.OperatorType;
-import com.xuejiai.aaf.framework.intelligent.assistant.AssistantContextHolder;
 import com.xuejiai.aaf.framework.task.TaskExecutionContextHolder;
 
 /** 基于 SecurityContext 的 OperatorContext 实现。当前仅支持 Human 场景，AI 场景待 Agent 认证体系落地后扩展。 */
@@ -17,18 +16,11 @@ public class SecurityOperatorContext implements OperatorContext {
 
     @Override
     public Optional<Long> currentOperatorId() {
-        var assistantContext = AssistantContextHolder.get();
-        if (assistantContext != null) {
-            return Optional.ofNullable(assistantContext.assistantDefinitionId());
-        }
         return extractUserId();
     }
 
     @Override
     public OperatorType currentOperatorType() {
-        if (AssistantContextHolder.get() != null) {
-            return OperatorType.AI;
-        }
         return OperatorType.HUMAN;
     }
 
@@ -42,10 +34,6 @@ public class SecurityOperatorContext implements OperatorContext {
         var permissionExecutionContext = PermissionExecutionContextHolder.get();
         if (permissionExecutionContext != null) {
             return Optional.ofNullable(permissionExecutionContext.ownerId());
-        }
-        var assistantContext = AssistantContextHolder.get();
-        if (assistantContext != null) {
-            return Optional.ofNullable(assistantContext.delegatorId());
         }
         return extractUserId();
     }

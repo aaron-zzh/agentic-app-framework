@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.chat.service.ChatOrchestrationService;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 import com.xuejiai.aaf.module.ai.chat.service.IntentService;
+import com.xuejiai.aaf.module.ai.chat.service.WelcomeSuggestionService;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageSendDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
@@ -48,7 +48,7 @@ public class ChatController {
     private final ChatService chatService;
     private final IntentService intentService;
     private final OperatorContext operatorContext;
-    private final ChatOrchestrationService chatOrchestrationService;
+    private final WelcomeSuggestionService welcomeSuggestionService;
 
     @Operation(summary = "意图识别")
     @PostMapping("/intent")
@@ -133,7 +133,6 @@ public class ChatController {
     @Operation(summary = "获取欢迎页建议问题")
     public Result<List<java.util.Map<String, String>>> getSuggestions(
             @RequestParam(required = false, defaultValue = "default") String agentId) {
-        var userId = operatorContext.currentUserId().orElseThrow();
-        return Result.success(chatOrchestrationService.getWelcomeSuggestions(agentId, userId));
+        return Result.success(welcomeSuggestionService.getWelcomeSuggestions(agentId));
     }
 }

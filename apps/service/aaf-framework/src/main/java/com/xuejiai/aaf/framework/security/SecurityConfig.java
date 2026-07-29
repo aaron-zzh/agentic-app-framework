@@ -35,7 +35,6 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.AssistantAuthFilter;
 import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.apikey.ApiKeyAuthFilter;
 import com.xuejiai.aaf.framework.security.apikey.ApiKeyScopeFilter;
@@ -158,7 +157,6 @@ public class SecurityConfig {
             HttpSecurity http,
             ApiKeyAuthFilter apiKeyAuthFilter,
             ApiKeyScopeFilter apiKeyScopeFilter,
-            AssistantAuthFilter assistantAuthFilter,
             SseTokenFilter sseTokenFilter,
             Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter,
             LoggingAccessDeniedHandler accessDeniedHandler,
@@ -196,7 +194,6 @@ public class SecurityConfig {
                         apiKeyAuthFilter,
                         org.springframework.security.web.authentication
                                 .UsernamePasswordAuthenticationFilter.class);
-        http.addFilterAfter(assistantAuthFilter, ApiKeyAuthFilter.class);
         http.addFilterAfter(apiKeyScopeFilter, ApiKeyAuthFilter.class);
         return http.build();
     }

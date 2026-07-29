@@ -28,7 +28,7 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 
 /** AG-UI v2 唯一入口；无固定 Assistant Bean、无 ThreadLocal、无 legacy fallback。 */
 @RestController
-@RequestMapping("/agui")
+@RequestMapping("/api/agui")
 @PreAuthorize("isAuthenticated()")
 public class AssistantAguiController {
     private final AssistantCommandPort assistants;
