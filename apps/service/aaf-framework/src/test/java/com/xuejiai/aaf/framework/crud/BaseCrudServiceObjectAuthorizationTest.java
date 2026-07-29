@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.crud;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -71,13 +72,13 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
     void setUp() {
         service = new TestCrudService(repository);
         when(registry.requireByEntityType(TestEntity.class)).thenReturn(entry);
-        when(entry.definition()).thenReturn(definition);
+        doReturn(definition).when(entry).definition();
         when(entry.viewPlans())
                 .thenReturn(
                         Map.of(
                                 "detail",
                                 new CrudViewPlan(
-                                        "detail", Set.of("status"), Map.of(), ""))));
+                                        "detail", Set.of("status"), Map.of(), "")));
         when(definition.displayName()).thenReturn("测试资源");
         when(definition.tenantScope()).thenReturn(TenantScope.ORG_REQUIRED);
         when(definition.personalScope()).thenReturn(PersonalScope.none());
@@ -100,7 +101,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
     void should_authorize_created_snapshot_after_tenant_owner_and_before_save() {
         // 准备参数
         var decision = decision(CrudOperation.CREATE);
-        when(enforcementService.enforceObjectPreflight(
+        when(enforcementService.<TestEntity>enforceObjectPreflight(
                         entry, CrudOperation.CREATE, AccessMode.DEFAULT))
                 .thenReturn(decision);
         when(repository.save(any()))
@@ -145,7 +146,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
     void should_authorize_batch_create_with_single_target_before_save() {
         // 准备参数
         var decision = decision(CrudOperation.CREATE);
-        when(enforcementService.enforceObjectPreflight(
+        when(enforcementService.<TestEntity>enforceObjectPreflight(
                         entry, CrudOperation.CREATE, AccessMode.DEFAULT))
                 .thenReturn(decision);
         var first = new MutationDTO("DRAFT", Map.of("source", "first"));
@@ -155,8 +156,8 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         service.createBatch(List.of(first, second));
 
         // 断言
-        var created = listCaptor();
-        var digests = listCaptor();
+        var created = BaseCrudServiceObjectAuthorizationTest.<Map<String, Object>>listCaptor();
+        var digests = BaseCrudServiceObjectAuthorizationTest.<String>listCaptor();
         var order = inOrder(enforcementService, repository);
         order.verify(enforcementService)
                 .requireCreatedBatchTarget(
@@ -188,7 +189,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         // 准备参数
         var decision = decision(CrudOperation.UPDATE);
         var entity = entity(99L, "OPEN");
-        when(enforcementService.enforceObjectPreflight(
+        when(enforcementService.<TestEntity>enforceObjectPreflight(
                         entry, CrudOperation.UPDATE, AccessMode.DEFAULT))
                 .thenReturn(decision);
         when(repository.findOne(any(Specification.class))).thenReturn(Optional.of(entity));
@@ -232,7 +233,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         // 准备参数
         var decision = decision(CrudOperation.ARCHIVE);
         var entities = List.of(entity(1L, "OPEN"), entity(2L, "DONE"));
-        when(enforcementService.enforceRequest(
+        when(enforcementService.<TestEntity>enforceRequest(
                         entry, CrudOperation.ARCHIVE, AccessMode.DEFAULT))
                 .thenReturn(decision);
         when(repository.findAll(any(Specification.class))).thenReturn(entities);
@@ -257,7 +258,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         // 准备参数
         var decision = decision(CrudOperation.DELETE_BATCH, AccessMode.ADMIN_MAINTENANCE);
         var entities = List.of(entity(3L, "DONE"), entity(4L, "DONE"));
-        when(enforcementService.enforceRequest(
+        when(enforcementService.<TestEntity>enforceRequest(
                         entry, CrudOperation.DELETE_BATCH, AccessMode.ADMIN_MAINTENANCE))
                 .thenReturn(decision);
         when(repository.findAll(any(Specification.class))).thenReturn(entities);

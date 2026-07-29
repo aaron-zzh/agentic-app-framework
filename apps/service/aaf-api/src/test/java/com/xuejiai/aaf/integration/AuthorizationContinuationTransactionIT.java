@@ -249,7 +249,7 @@ class AuthorizationContinuationTransactionIT {
         when(catalogEntry.definition()).thenReturn(definition);
         when(catalogEntry.fieldPolicy()).thenReturn(new CompiledFieldPolicy(Map.of()));
         when(definition.capabilities()).thenReturn(capabilities);
-        when(capabilities.operations()).thenReturn(Set.of(CrudOperation.CREATE));
+        when(capabilities.operations()).thenReturn(List.of(CrudOperation.CREATE));
         when(definition.tenantScope()).thenReturn(TenantScope.GLOBAL);
         when(definition.personalScope()).thenReturn(PersonalScope.none());
         when(definition.permissionCode(CrudAction.CREATE)).thenReturn("test:transaction:create");

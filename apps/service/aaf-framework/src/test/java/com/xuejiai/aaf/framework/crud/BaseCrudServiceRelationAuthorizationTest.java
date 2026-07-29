@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,9 +67,9 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
                         new CompiledFieldPolicy(Map.of()),
                         "rule-version");
         when(registry.requireByEntityType(TestEntity.class)).thenReturn(entry);
-        when(entry.definition()).thenReturn(definition);
+        doReturn(definition).when(entry).definition();
         when(definition.displayName()).thenReturn("测试资源");
-        when(enforcementService.enforceObjectPreflight(
+        when(enforcementService.<TestEntity>enforceObjectPreflight(
                         entry, CrudOperation.GET, AccessMode.DEFAULT))
                 .thenReturn(decision);
         ReflectionTestUtils.setField(service, "crudResourceRegistry", registry);
@@ -141,7 +142,7 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
     void should_not_use_relation_fallback_for_update_or_delete() {
         // 准备参数
         for (var operation : Set.of(CrudOperation.UPDATE, CrudOperation.DELETE)) {
-            when(enforcementService.enforceObjectPreflight(
+            when(enforcementService.<TestEntity>enforceObjectPreflight(
                             entry, operation, AccessMode.DEFAULT))
                     .thenReturn(decision(operation));
         }

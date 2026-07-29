@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.crud.enforcement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -51,7 +52,7 @@ class ReferenceEnforcementServiceTest extends BaseMockitoUnitTest {
                 new ReferenceEnforcementService(
                         catalog, applicationContext, operatorContext, accessProvider);
         when(catalog.require(SOURCE)).thenReturn(entry);
-        when(entry.definition()).thenReturn(definition);
+        doReturn(definition).when(entry).definition();
         when(definition.relations()).thenReturn(List.of());
         when(accessProvider.getObject()).thenReturn(access);
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));

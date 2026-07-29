@@ -912,8 +912,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(plan, "plan");
         var entry = resourceEntry();
-        var decision =
-                crudEnforcementService.enforceCustomUpdatePreflight(
+        CrudEnforcementDecision<E> decision =
+                crudEnforcementService.<E>enforceCustomUpdatePreflight(
                         entry,
                         AccessMode.DEFAULT,
                         plan.commandType(),

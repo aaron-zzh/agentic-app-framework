@@ -198,8 +198,8 @@ public final class CrudEnforcementService {
         var fieldPolicy = applyFieldConstraint(entry, dataConstraint);
         var tenantScope = this.<E>tenantSpec(definition.tenantScope(), orgId, workspaceId);
         var recordScope = dataConstraint.<E>typedRecordScope();
-        var personalScope = personalSpec(definition.personalScope(), subjectId, accessMode);
-        var scope = Specification.allOf(tenantScope, recordScope, personalScope);
+        var personalScope = this.<E>personalSpec(definition.personalScope(), subjectId, accessMode);
+        var scope = Specification.<E>allOf(tenantScope, recordScope, personalScope);
         return new CrudEnforcementDecision<>(
                 subjectId,
                 orgId,

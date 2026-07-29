@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.crud.enforcement;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -143,7 +144,9 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
                 "99",
                 Map.of("id", 99L, "status", "OPEN"),
                 Map.of("id", 99L, "status", "DONE", "ownerId", 7L),
-                payloadDigest);
+                payloadDigest,
+                "UPDATE",
+                Set.of("status", "ownerId"));
 
         // 断言
         var captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
@@ -236,13 +239,13 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
     }
 
     private void prepareDefinition() {
-        when(entry.definition()).thenReturn(definition);
+        doReturn(definition).when(entry).definition();
         when(entry.fieldPolicy())
                 .thenReturn(
                         new CompiledFieldPolicy(
                                 Map.of("title", EnumSet.allOf(FieldCapability.class))));
         when(definition.capabilities()).thenReturn(capabilities);
-        when(capabilities.operations()).thenReturn(Set.of(CrudOperation.values()));
+        when(capabilities.operations()).thenReturn(List.of(CrudOperation.values()));
         when(definition.tenantScope()).thenReturn(TenantScope.GLOBAL);
         when(definition.personalScope()).thenReturn(PersonalScope.byProperty("assigneeId"));
         when(definition.permissionCode(CrudAction.READ)).thenReturn("system:todo:read");
