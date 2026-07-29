@@ -45,7 +45,7 @@ public class AgentDefinition extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String tools;
 
-    /** 预授权工具白名单（JSON 数组）——这些工具调用时自动通过，无需确认。 */
+    /** 执行环境允许工具白名单（JSON 数组），运行时再与角色工具边界取交集。 */
     @Column(columnDefinition = "TEXT")
     private String allowedTools;
 

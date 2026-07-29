@@ -15,6 +15,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /** Agent 定义数据访问。 */
 public interface AgentDefinitionRepository extends JpaRepository<AgentDefinition, Long> {
 
+    Optional<AgentDefinition> findByAgentId(String agentId);
+
     Optional<AgentDefinition> findByAgentIdAndVersion(String agentId, Integer version);
 
     List<AgentDefinition> findByStatus(String status);
