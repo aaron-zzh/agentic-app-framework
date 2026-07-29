@@ -6,10 +6,10 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
-import io.agentscope.core.model.AnthropicChatModel;
-import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
-import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.extensions.model.anthropic.AnthropicChatModel;
+import io.agentscope.extensions.model.dashscope.DashScopeChatModel;
+import io.agentscope.extensions.model.openai.OpenAIChatModel;
 
 /** 从 AAF 模型真理源构建 AgentScope 2.0 Model。 */
 public final class AgentScopeModelResolver {

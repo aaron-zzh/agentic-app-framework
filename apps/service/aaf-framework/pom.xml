@@ -150,6 +150,19 @@
 			</exclusions>
 		</dependency>
 		<!-- 可选扩展（按需启用） -->
+		<!-- 具体厂商 ChatModel 实现：AgentScopeModelResolver 依赖 -->
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-model-dashscope</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-model-openai</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-model-anthropic</artifactId>
+		</dependency>
 		<!-- Skill PostgreSQL 仓库：与 AAF ai_skill_definition 表对接 -->
 		<dependency>
 			<groupId>io.agentscope</groupId>

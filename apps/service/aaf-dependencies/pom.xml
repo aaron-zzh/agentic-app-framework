@@ -140,6 +140,22 @@
 			</dependency>
 
 			<!-- ===== 可选扩展（需要的模块再 declare、不写版本号） ===== -->
+			<!-- 具体厂商 ChatModel 实现：2.0.0 正式版已从 agentscope-core 拆分为独立扩展模块 -->
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-model-dashscope</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-model-openai</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.agentscope</groupId>
+				<artifactId>agentscope-extensions-model-anthropic</artifactId>
+				<version>${agentscope.version}</version>
+			</dependency>
 			<!-- Skill 仓库（AAF 用 PostgreSQL，对齐 ai_skill_definition；MySQL/Git 版本暂不引入） -->
 			<dependency>
 				<groupId>io.agentscope</groupId>
