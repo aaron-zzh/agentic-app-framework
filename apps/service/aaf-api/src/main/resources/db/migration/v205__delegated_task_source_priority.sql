@@ -1,5 +1,0 @@
-ALTER TABLE ai_delegated_task
-    ADD COLUMN source VARCHAR(32) NOT NULL DEFAULT 'AUTOMATION',
-    ADD COLUMN priority INTEGER NOT NULL DEFAULT 0,
-    ADD CONSTRAINT ck_delegated_task_source
-        CHECK (source IN ('CONVERSATION', 'MANUAL', 'AUTOMATION'));
