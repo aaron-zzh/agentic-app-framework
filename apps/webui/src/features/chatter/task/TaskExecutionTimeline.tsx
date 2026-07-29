@@ -11,12 +11,12 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DELEGATED_TASK_EVENT_TYPES,
+  type DelegatedTaskEventType,
+  type DelegatedTaskEventVO,
   delegatedTaskApi,
   delegatedTaskKeys,
   getDelegatedTaskEventStreamUrl,
-  parseDelegatedTaskEvent,
-  type DelegatedTaskEventType,
-  type DelegatedTaskEventVO
+  parseDelegatedTaskEvent
 } from "@/lib/api/rest/ai/delegated-task"
 
 interface TimelineItem {
@@ -95,7 +95,7 @@ function parseEvent(event: DelegatedTaskEventVO): TimelineItem {
   const taskStatus = payloadString(payload, "taskStatus")
   const detail = toolName
     ? `工具: ${toolName}`
-    : reason ?? text ?? (modelId ? `模型: ${modelId}` : taskStatus)
+    : (reason ?? text ?? (modelId ? `模型: ${modelId}` : taskStatus))
   const inputTokens = payloadNumber(payload, "inputTokens") ?? 0
   const outputTokens = payloadNumber(payload, "outputTokens") ?? 0
   const tokens = inputTokens + outputTokens

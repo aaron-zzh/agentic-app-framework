@@ -11,19 +11,16 @@ import {
   CircleDashed,
   CircleX,
   LoaderCircle,
+  type LucideIcon,
   MessageCircleQuestion,
   PauseCircle,
-  ShieldAlert,
-  type LucideIcon
+  ShieldAlert
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { TaskBoardProgress } from "@/features/chatter/hooks/use-task-board"
-import type {
-  DelegatedTaskStatus,
-  DelegatedTaskVO
-} from "@/lib/api/rest/ai/delegated-task"
+import type { DelegatedTaskStatus, DelegatedTaskVO } from "@/lib/api/rest/ai/delegated-task"
 import { cn } from "@/lib/utils"
 
 interface StatusMeta {

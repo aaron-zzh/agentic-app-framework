@@ -11,14 +11,14 @@ import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  type DelegatedTaskEventVO,
+  type DelegatedTaskVO,
   delegatedTaskApi,
   delegatedTaskKeys,
   getDelegatedTaskEventStreamUrl,
+  type HumanApprovalDecisionRequest,
   humanApprovalApi,
-  parseDelegatedTaskEvent,
-  type DelegatedTaskEventVO,
-  type DelegatedTaskVO,
-  type HumanApprovalDecisionRequest
+  parseDelegatedTaskEvent
 } from "@/lib/api/rest/ai/delegated-task"
 
 interface PendingApproval {
@@ -53,8 +53,7 @@ function findPendingApproval(events: DelegatedTaskEventVO[]): PendingApproval | 
   const requests = events
     .filter(
       (event) =>
-        event.type === "AUTHORIZATION_REQUESTED" &&
-        event.status === "AWAITING_AUTHORIZATION"
+        event.type === "AUTHORIZATION_REQUESTED" && event.status === "AWAITING_AUTHORIZATION"
     )
     .toSorted((left, right) => right.eventOffset - left.eventOffset)
 
@@ -88,11 +87,7 @@ function ToolConfirmPanel({ approval, loading, onDecision }: ToolConfirmPanelPro
         任务: {approval.taskId}
       </p>
       <div className="flex gap-2">
-        <Button
-          size="sm"
-          disabled={loading}
-          onClick={() => onDecision("APPROVED")}
-        >
+        <Button size="sm" disabled={loading} onClick={() => onDecision("APPROVED")}>
           <CheckIcon data-icon="inline-start" />
           确认执行
         </Button>
@@ -132,7 +127,10 @@ export function ToolConfirmOverlay({ tasks }: ToolConfirmOverlayProps) {
   const queryClient = useQueryClient()
   const [handledApprovalId, setHandledApprovalId] = useState<string | null>(null)
   const waitingTasks = tasks.filter((task) => task.status === "AWAITING_AUTHORIZATION")
-  const waitingTaskKey = waitingTasks.map((task) => task.taskId).toSorted().join("|")
+  const waitingTaskKey = waitingTasks
+    .map((task) => task.taskId)
+    .toSorted()
+    .join("|")
   const eventQueries = useQueries({
     queries: waitingTasks.map((task) => ({
       queryKey: delegatedTaskKeys.events(task.taskId),

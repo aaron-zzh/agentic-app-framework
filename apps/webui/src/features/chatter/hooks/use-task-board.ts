@@ -8,10 +8,10 @@
 import { useQuery } from "@tanstack/react-query"
 import {
   DELEGATED_TASK_STATUSES,
-  delegatedTaskApi,
-  delegatedTaskKeys,
   type DelegatedTaskStatus,
-  type DelegatedTaskVO
+  type DelegatedTaskVO,
+  delegatedTaskApi,
+  delegatedTaskKeys
 } from "@/lib/api/rest/ai/delegated-task"
 
 export interface TaskBoardProgress {

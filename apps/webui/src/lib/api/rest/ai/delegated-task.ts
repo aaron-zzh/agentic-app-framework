@@ -183,8 +183,7 @@ export const delegatedTaskApi = {
       params: status ? { status } : undefined
     }),
 
-  get: (taskId: string) =>
-    backendApi.get<DelegatedTaskVO>(restEndpoints.ai.delegatedTask(taskId)),
+  get: (taskId: string) => backendApi.get<DelegatedTaskVO>(restEndpoints.ai.delegatedTask(taskId)),
 
   listEvents: (taskId: string) =>
     backendApi.get<DelegatedTaskEventVO[]>(restEndpoints.ai.delegatedTaskEvents(taskId)),
