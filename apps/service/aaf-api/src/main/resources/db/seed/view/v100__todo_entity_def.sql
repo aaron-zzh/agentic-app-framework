@@ -1,0 +1,119 @@
+-- ============================================================
+-- Todo 内置 EntityDef
+-- 仅提供 UI 元数据；数据始终由 /api/todos 的类型化服务管理。
+-- ============================================================
+
+INSERT INTO sys_entity_def (slug, config, builtin, enabled)
+VALUES (
+    'todo',
+    $json$
+    {
+      "kind": "code",
+      "resource": "system.todo",
+      "label": "待办",
+      "labelPlural": "待办",
+      "icon": "check-square",
+      "group": "system",
+      "groupLabel": "系统管理",
+      "fields": [
+        {
+          "type": "text",
+          "name": "title",
+          "label": "标题",
+          "required": true
+        },
+        {
+          "type": "select",
+          "name": "category",
+          "label": "分类",
+          "dictType": "sys_todo_category"
+        },
+        {
+          "type": "select",
+          "name": "status",
+          "label": "状态",
+          "dictType": "sys_todo_status"
+        },
+        {
+          "type": "recordReference",
+          "name": "source",
+          "label": "关联来源",
+          "writeKey": "source",
+          "idValueType": "number",
+          "excludeEntitySlugs": [
+            "todo",
+            "user",
+            "role",
+            "permission",
+            "org",
+            "organization",
+            "workspace",
+            "menu",
+            "dict"
+          ],
+          "readOnlyWhen": "$record.sourceType !== 'manual'"
+        },
+        {
+          "type": "relationship",
+          "name": "assignee",
+          "label": "执行人",
+          "relationTo": "system.user",
+          "writeKey": "assigneeId",
+          "displayModes": [
+            "create",
+            "edit"
+          ],
+          "visibleRoles": [
+            "org_admin",
+            "super_admin"
+          ]
+        },
+        {
+          "type": "relationship",
+          "name": "participants",
+          "label": "参与人",
+          "relationTo": "system.user",
+          "hasMany": true,
+          "writeKey": "participantIds"
+        },
+        {
+          "type": "date",
+          "name": "dueDate",
+          "label": "截止时间"
+        }
+      ],
+      "listView": {
+        "columns": [
+          "title",
+          "category",
+          "status",
+          "assignee",
+          "dueDate",
+          "createTime"
+        ],
+        "defaultSort": "id:desc",
+        "batchActions": [
+          "delete"
+        ]
+      },
+      "formView": {
+        "autosave": {
+          "enabled": true,
+          "debounceMs": 2000
+        }
+      },
+      "mixins": [
+        "baseEntity"
+      ]
+    }
+    $json$::jsonb,
+    TRUE,
+    TRUE
+)
+-- 若存在未删除的同 slug 记录，则以本次 VALUES 行（EXCLUDED）的内置 UI 配置覆盖它。
+-- 已软删除记录不参与冲突判定，因此可保留历史记录并插入新的活动 Todo 定义。
+ON CONFLICT (slug) WHERE deleted = FALSE DO UPDATE
+SET config = EXCLUDED.config,
+    builtin = EXCLUDED.builtin,
+    enabled = EXCLUDED.enabled,
+    update_time = CURRENT_TIMESTAMP;
