@@ -42,7 +42,7 @@ public final class JpaAgentDefinitionAdapter implements AgentDefinitionPort {
             throw new IllegalStateException("Agent 定义未绑定模型: " + entity.getAgentId());
         }
         var tools =
-                JsonUtils.parseArray(entity.getTools(), String.class).stream()
+                JsonUtils.parseArray(entity.getAllowedTools(), String.class).stream()
                         .map(name -> new ToolRef(name, 1, name))
                         .toList();
         return new AgentSpec(

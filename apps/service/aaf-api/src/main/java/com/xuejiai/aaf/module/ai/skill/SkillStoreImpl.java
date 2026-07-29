@@ -45,6 +45,11 @@ public class SkillStoreImpl implements SkillStore {
     }
 
     @Override
+    public Optional<SkillRecord> findByCode(String skillCode) {
+        return repository.findByCode(skillCode).map(this::toRecord);
+    }
+
+    @Override
     public Optional<SkillRecord> findBySkillId(Long skillId) {
         return repository.findById(skillId).map(this::toRecord);
     }

@@ -32,6 +32,9 @@ public interface SkillStore {
     /** 查询全局技能（global=true，注入所有 Agent） */
     List<SkillRecord> findGlobal();
 
+    /** 按业务码查询 */
+    Optional<SkillRecord> findByCode(String skillCode);
+
     /** 按 id 查询 */
     Optional<SkillRecord> findBySkillId(Long skillId);
 

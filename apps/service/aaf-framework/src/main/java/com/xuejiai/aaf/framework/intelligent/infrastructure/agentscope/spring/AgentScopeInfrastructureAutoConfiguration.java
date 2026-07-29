@@ -11,6 +11,8 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveToolResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution.HarnessAgentExecutionAdapter;
@@ -83,12 +85,20 @@ public class AgentScopeInfrastructureAutoConfiguration {
         return new AgentScopeToolkitFactory(toolCatalog, toolGateway, evidenceStore);
     }
 
+    @Bean
+    @ConditionalOnMissingBean(EffectiveToolResolver.class)
+    EffectiveToolResolver effectiveToolResolver() {
+        return new DefaultEffectiveToolResolver();
+    }
+
     @Bean(destroyMethod = "close")
     AgentScopeSpecCompiler agentScopeSpecCompiler(
             AgentStateStore stateStore,
             AgentScopeToolkitFactory toolkitFactory,
-            AgentScopeModelResolver modelResolver) {
-        return new AgentScopeSpecCompiler(stateStore, toolkitFactory, modelResolver);
+            AgentScopeModelResolver modelResolver,
+            EffectiveToolResolver effectiveToolResolver) {
+        return new AgentScopeSpecCompiler(
+                stateStore, toolkitFactory, modelResolver, effectiveToolResolver);
     }
 
     @Bean

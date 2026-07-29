@@ -1,9 +1,13 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
+import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Actor;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
@@ -18,7 +22,6 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ActionEf
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ToolRule;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateContributor;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 
 /** AAF 首批系统 Assistant 模板；两者共享同一运行用例，不注册专用 Factory。 */
@@ -73,25 +76,32 @@ public final class BuiltinSystemAssistantTemplates
                                         ActionEffect.REVERSIBLE_WRITE,
                                         true,
                                         true)));
-        var agentId = new AgentId("system.agent.content-creator");
+        var subagentSpec =
+                new SubagentSpec.Dynamic(
+                        "system.agent.content-creator",
+                        "为系统内容创作 Assistant 生成可审查内容。",
+                        "你是内容创作执行 Agent。根据用户目标生成清晰、准确、可审查的策划或草稿；不得发布、删除、付费或代表用户对外承诺。",
+                        List.of(
+                                new ToolRef("knowledge.search", 1, "knowledge.search"),
+                                new ToolRef("content.generate", 1, "content.generate"),
+                                new ToolRef(
+                                        "content.draft.create", 1, "content.draft.create")),
+                        new ExecutionPolicy(10, 2, Duration.ofSeconds(120)),
+                        false);
         var routes =
                 List.of(
                         new SkillRoute(
                                 "content.draft",
-                                "生成可审查草稿",
                                 Set.of("草稿", "撰写", "写一篇", "draft", "create"),
-                                agentId,
-                                1,
+                                subagentSpec,
                                 "content.draft.generate",
                                 ActionEffect.GENERATED_CONTENT,
                                 100,
                                 false),
                         new SkillRoute(
                                 "content.plan",
-                                "内容策划与咨询",
                                 Set.of(),
-                                agentId,
-                                1,
+                                subagentSpec,
                                 "content.plan.read",
                                 ActionEffect.READ,
                                 0,
@@ -152,25 +162,34 @@ public final class BuiltinSystemAssistantTemplates
                                         ActionEffect.HUMAN_HANDOFF,
                                         false,
                                         false)));
-        var agentId = new AgentId("system.agent.customer-service");
+        var subagentSpec =
+                new SubagentSpec.Dynamic(
+                        "system.agent.customer-service",
+                        "为系统客服 Assistant 提供只读咨询和排查。",
+                        "你是客服执行 Agent。仅依据用户提供的信息给出准确、简洁的只读咨询与排查建议；未知内容不得猜测，需要人工处理时明确建议转人工。",
+                        List.of(
+                                new ToolRef("knowledge.search", 1, "knowledge.search"),
+                                new ToolRef(
+                                        "support.diagnostics.read",
+                                        1,
+                                        "support.diagnostics.read"),
+                                new ToolRef("support.handoff", 1, "support.handoff")),
+                        new ExecutionPolicy(8, 2, Duration.ofSeconds(90)),
+                        false);
         var routes =
                 List.of(
                         new SkillRoute(
                                 "support.handoff",
-                                "转人工服务",
                                 Set.of("人工", "转人工", "human", "agent"),
-                                agentId,
-                                1,
+                                subagentSpec,
                                 "support.handoff",
                                 ActionEffect.HUMAN_HANDOFF,
                                 100,
                                 false),
                         new SkillRoute(
                                 "support.read",
-                                "只读咨询与排查",
                                 Set.of(),
-                                agentId,
-                                1,
+                                subagentSpec,
                                 "support.read",
                                 ActionEffect.READ,
                                 0,

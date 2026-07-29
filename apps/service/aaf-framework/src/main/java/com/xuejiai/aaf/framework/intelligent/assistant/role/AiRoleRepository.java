@@ -6,6 +6,7 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.role;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +14,8 @@ import org.springframework.data.repository.query.Param;
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 
 public interface AiRoleRepository extends CrudEntityRepository<Role> {
+
+    Optional<Role> findByCode(String code);
 
     /**
      * 查询助理挂载的角色（经 ai_assistant_role 关联）。

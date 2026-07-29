@@ -14,13 +14,18 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
+import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantApplicationService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillRouter;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InstallSystemAssistantTemplatesUseCase;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillRouter;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
@@ -30,14 +35,18 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatc
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateContributor;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateInstaller;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agent.persistence.JpaSkillCatalogAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.BuiltinSystemAssistantTemplates;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantDefinitionVersionRepository;
@@ -46,6 +55,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.EffectiveContextManifestRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantDefinitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaEffectiveContextAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaRoleDefinitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaSystemAssistantTemplateInstaller;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskControlAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.ApprovalRecoveryDispatcher;
@@ -53,13 +63,37 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 
 /** Assistant 应用层装配；AgentScope 只通过稳定执行端口进入。 */
 @AutoConfiguration
-@AutoConfigureAfter(AgentScopeInfrastructureAutoConfiguration.class)
+@AutoConfigureAfter({
+    AgentScopeInfrastructureAutoConfiguration.class,
+    AiAutoConfiguration.class
+})
 public class AssistantInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AssistantDefinitionPort.class)
-    AssistantDefinitionPort assistantDefinitionPort(AssistantDefinitionVersionRepository repository) {
+    AssistantDefinitionPort assistantDefinitionPort(
+            AssistantDefinitionVersionRepository repository) {
         return new JpaAssistantDefinitionAdapter(repository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(RoleDefinitionPort.class)
+    RoleDefinitionPort roleDefinitionPort(AiRoleRepository repository) {
+        return new JpaRoleDefinitionAdapter(repository);
+    }
+
+    @Bean
+    @ConditionalOnBean(SkillStore.class)
+    @ConditionalOnMissingBean(SkillCatalogPort.class)
+    SkillCatalogPort skillCatalogPort(SkillStore skillStore) {
+        return new JpaSkillCatalogAdapter(skillStore);
+    }
+
+    @Bean
+    @ConditionalOnBean(SkillCatalogPort.class)
+    @ConditionalOnMissingBean(EffectiveSkillResolver.class)
+    EffectiveSkillResolver effectiveSkillResolver(SkillCatalogPort skillCatalog) {
+        return new DefaultEffectiveSkillResolver(skillCatalog);
     }
 
     @Bean
@@ -108,9 +142,11 @@ public class AssistantInfrastructureAutoConfiguration {
         TaskBoardPort.class,
         AgentExecutionPort.class,
         SkillRouter.class,
+        EffectiveSkillResolver.class,
         EffectiveContextPort.class,
         MemoryContextPort.class,
         MemoryGovernanceService.class,
+        CapabilityRouter.class,
         CompletionValidator.class,
         ExecutionEventStorePort.class,
         TaskRecoveryPort.class
@@ -121,10 +157,12 @@ public class AssistantInfrastructureAutoConfiguration {
             TaskControlPort tasks,
             TaskBoardPort taskBoards,
             SkillRouter skillRouter,
+            EffectiveSkillResolver effectiveSkillResolver,
             EffectiveContextPort effectiveContexts,
             MemoryContextPort memoryContexts,
             MemoryGovernanceService memoryGovernance,
             AgentExecutionPort agentExecution,
+            CapabilityRouter models,
             CompletionValidator completionValidator,
             ExecutionEventStorePort eventStore,
             TaskRecoveryPort recoveries) {
@@ -133,10 +171,12 @@ public class AssistantInfrastructureAutoConfiguration {
                 tasks,
                 taskBoards,
                 skillRouter,
+                effectiveSkillResolver,
                 effectiveContexts,
                 memoryContexts,
                 memoryGovernance,
                 agentExecution,
+                models,
                 completionValidator,
                 eventStore,
                 recoveries);
@@ -173,8 +213,10 @@ public class AssistantInfrastructureAutoConfiguration {
             DelegatedTaskDispatchPort dispatchSignals,
             AgentTaskRuntime agentTaskRuntime,
             Environment environment) {
-        var leaseTtl = Duration.ofSeconds(environment.getProperty(
-                "aaf.assistant.delegated.lease-seconds", Long.class, 60L));
+        var leaseTtl =
+                Duration.ofSeconds(
+                        environment.getProperty(
+                                "aaf.assistant.delegated.lease-seconds", Long.class, 60L));
         return new DelegatedTaskCoordinator(
                 tasks,
                 boards,
@@ -196,9 +238,9 @@ public class AssistantInfrastructureAutoConfiguration {
             DelegatedTaskCoordinator coordinator,
             AgentTaskRuntime agentTaskRuntime,
             Environment environment) {
-        var defaultWorker = ManagementFactory.getRuntimeMXBean().getName() + "-" + UUID.randomUUID();
-        var workerId = environment.getProperty(
-                "aaf.assistant.delegated.worker-id", defaultWorker);
+        var defaultWorker =
+                ManagementFactory.getRuntimeMXBean().getName() + "-" + UUID.randomUUID();
+        var workerId = environment.getProperty("aaf.assistant.delegated.worker-id", defaultWorker);
         return new DelegatedTaskScheduler(coordinator, agentTaskRuntime, workerId);
     }
 
@@ -212,8 +254,8 @@ public class AssistantInfrastructureAutoConfiguration {
             DelegatedTaskCoordinator coordinator,
             DelegatedTaskPort tasks,
             AgentTaskRuntime agentTaskRuntime) {
-        return () -> agentTaskRuntime.register(
-                new DelegatedTaskAgentTaskAdapter(coordinator, tasks));
+        return () ->
+                agentTaskRuntime.register(new DelegatedTaskAgentTaskAdapter(coordinator, tasks));
     }
 
     @Bean

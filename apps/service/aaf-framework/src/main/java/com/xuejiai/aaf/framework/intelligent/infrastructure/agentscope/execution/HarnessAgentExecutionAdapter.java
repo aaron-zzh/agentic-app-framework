@@ -6,10 +6,13 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
+import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper.MappingState;
@@ -88,51 +91,78 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         requireCurrent(command);
         var mappingState = new MappingState(command.sequenceBase());
         try {
-            var spec =
-                    definitions
-                            .findByIdAndVersion(command.agentId(), command.definitionVersion())
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalArgumentException(
-                                                    "Agent 定义不存在: "
-                                                            + command.agentId().value()
-                                                            + "@"
-                                                            + command.definitionVersion()));
-            var agent = compiler.compile(spec);
-            var runtimeContext = contextMapper.toAgentScope(command.context());
-            var active = new ActiveExecution(agent, runtimeContext);
-            var existing = activeExecutions.putIfAbsent(command.context().executionId(), active);
+            return executeResolved(command, mappingState, resolveExecution(command));
+        } catch (RuntimeException failure) {
+            return eventStore.append(
+                    eventMapper.failure(
+                            command,
+                            command.subagentSpec().identifier(),
+                            mappingState,
+                            failure),
+                    command.context().lease()).flux();
+        }
+    }
+
+    private Flux<ExecutionEvent> executeResolved(
+            AgentExecutionCommand command,
+            MappingState mappingState,
+            ResolvedExecution execution) {
+        var executionId = command.context().executionId();
+        final RuntimeContext runtimeContext;
+        try {
+            runtimeContext = contextMapper.toAgentScope(command.context());
+        } catch (RuntimeException failure) {
+            release(execution);
+            throw failure;
+        }
+
+        var active =
+                new ActiveExecution(execution.agent(), runtimeContext, execution.ephemeral());
+        try {
+            var existing = activeExecutions.putIfAbsent(executionId, active);
             if (existing != null) {
+                release(executionId, active);
                 return Flux.error(
                         new IllegalStateException(
-                                "executionId 已存在活跃执行: "
-                                        + command.context().executionId().value()));
+                                "executionId 已存在活跃执行: " + executionId.value()));
             }
 
-            return agent.streamEvents(
+            return execution.agent()
+                    .streamEvents(
                             messageMapper.toAgentScope(command.messages()), runtimeContext)
                     .doOnNext(
                             event -> {
                                 requireCurrent(command);
                                 onSourceEvent(event, active);
-                                meteringObserver.observe(event, spec, command);
+                                meteringObserver.observe(event, execution.model(), command);
                             })
                     .concatMap(
                             event ->
                                     Mono.justOrEmpty(
                                             eventMapper.map(
-                                                    event, command, spec.model(), mappingState)))
-                    .timeout(spec.executionPolicy().timeout())
+                                                    event,
+                                                    command,
+                                                    execution.agentIdentifier(),
+                                                    execution.model(),
+                                                    mappingState)))
+                    .timeout(execution.executionPolicy().timeout())
                     .doOnError(ignored -> interruptOnce(active))
                     .onErrorResume(
                             failure -> {
                                 if (active.cancelled().get()) {
                                     active.cancellationEmitted().set(true);
                                     return Flux.just(
-                                            eventMapper.canceled(command, mappingState));
+                                            eventMapper.canceled(
+                                                    command,
+                                                    execution.agentIdentifier(),
+                                                    mappingState));
                                 }
                                 return Flux.just(
-                                        eventMapper.failure(command, mappingState, failure));
+                                        eventMapper.failure(
+                                                command,
+                                                execution.agentIdentifier(),
+                                                mappingState,
+                                                failure));
                             })
                     .doOnComplete(() -> active.sourceCompleted().set(true))
                     .concatWith(
@@ -143,17 +173,60 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                                     .compareAndSet(false, true)
                                                     ? Flux.just(
                                                             eventMapper.canceled(
-                                                                    command, mappingState))
+                                                                    command,
+                                                                    execution.agentIdentifier(),
+                                                                    mappingState))
                                                     : Flux.empty()))
                     .concatMap(event -> eventStore.append(event, command.context().lease()))
-                    .doFinally(
-                            ignored ->
-                                    activeExecutions.remove(
-                                            command.context().executionId(), active));
+                    .doFinally(ignored -> release(executionId, active));
         } catch (RuntimeException failure) {
-            return eventStore.append(
-                    eventMapper.failure(command, mappingState, failure), command.context().lease()).flux();
+            release(executionId, active);
+            throw failure;
         }
+    }
+
+    private ResolvedExecution resolveExecution(AgentExecutionCommand command) {
+        return switch (command.subagentSpec()) {
+            case SubagentSpec.Predefined predefined -> {
+                var spec =
+                        definitions
+                                .findByIdAndVersion(predefined.agentId(), predefined.version())
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalArgumentException(
+                                                        "Agent 定义不存在: "
+                                                                + predefined.agentId().value()
+                                                                + "@"
+                                                                + predefined.version()));
+                yield new ResolvedExecution(
+                        compiler.compile(
+                                spec,
+                                command.skillSystemPromptAppendix(),
+                                command.roleAllowedToolNames()),
+                        spec.model(),
+                        predefined.identifier(),
+                        spec.executionPolicy(),
+                        false);
+            }
+            case SubagentSpec.Dynamic dynamic -> {
+                var parentModel =
+                        command.parentModel()
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalArgumentException(
+                                                        "Dynamic 子智能体缺少父模型"));
+                yield new ResolvedExecution(
+                        compiler.compileDynamic(
+                                dynamic,
+                                parentModel,
+                                command.skillSystemPromptAppendix(),
+                                command.roleAllowedToolNames()),
+                        parentModel,
+                        dynamic.identifier(),
+                        dynamic.executionPolicy(),
+                        true);
+            }
+        };
     }
 
     private void requireCurrent(AgentExecutionCommand command) {
@@ -186,19 +259,44 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         }
     }
 
+    private void release(ExecutionId executionId, ActiveExecution active) {
+        activeExecutions.remove(executionId, active);
+        if (active.ephemeral() && active.released().compareAndSet(false, true)) {
+            active.agent().close();
+        }
+    }
+
+    private static void release(ResolvedExecution execution) {
+        if (execution.ephemeral()) {
+            execution.agent().close();
+        }
+    }
+
+    private record ResolvedExecution(
+            HarnessAgent agent,
+            ModelSpec model,
+            String agentIdentifier,
+            ExecutionPolicy executionPolicy,
+            boolean ephemeral) {}
+
     private record ActiveExecution(
             HarnessAgent agent,
             RuntimeContext runtimeContext,
+            boolean ephemeral,
+            AtomicBoolean released,
             AtomicBoolean started,
             AtomicBoolean cancelled,
             AtomicBoolean interruptIssued,
             AtomicBoolean cancellationEmitted,
             AtomicBoolean sourceCompleted) {
 
-        private ActiveExecution(HarnessAgent agent, RuntimeContext runtimeContext) {
+        private ActiveExecution(
+                HarnessAgent agent, RuntimeContext runtimeContext, boolean ephemeral) {
             this(
                     agent,
                     runtimeContext,
+                    ephemeral,
+                    new AtomicBoolean(),
                     new AtomicBoolean(),
                     new AtomicBoolean(),
                     new AtomicBoolean(),

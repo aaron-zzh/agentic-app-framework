@@ -2,17 +2,21 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext.ToolAuthorizationRule;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
@@ -35,6 +39,10 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort.RecallQuery;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
@@ -52,10 +60,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final TaskControlPort tasks;
     private final TaskBoardPort taskBoards;
     private final SkillRouter skillRouter;
+    private final EffectiveSkillResolver effectiveSkillResolver;
     private final EffectiveContextPort effectiveContexts;
     private final MemoryContextPort memoryContexts;
     private final MemoryGovernanceService memoryGovernance;
     private final AgentExecutionPort agentExecution;
+    private final CapabilityRouter models;
     private final CompletionValidator completionValidator;
     private final ExecutionEventStorePort eventStore;
     private final TaskRecoveryPort recoveries;
@@ -65,10 +75,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             TaskControlPort tasks,
             TaskBoardPort taskBoards,
             SkillRouter skillRouter,
+            EffectiveSkillResolver effectiveSkillResolver,
             EffectiveContextPort effectiveContexts,
             MemoryContextPort memoryContexts,
             MemoryGovernanceService memoryGovernance,
             AgentExecutionPort agentExecution,
+            CapabilityRouter models,
             CompletionValidator completionValidator,
             ExecutionEventStorePort eventStore,
             TaskRecoveryPort recoveries) {
@@ -76,10 +88,13 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
         this.taskBoards = Objects.requireNonNull(taskBoards, "taskBoards 不能为空");
         this.skillRouter = Objects.requireNonNull(skillRouter, "skillRouter 不能为空");
+        this.effectiveSkillResolver =
+                Objects.requireNonNull(effectiveSkillResolver, "effectiveSkillResolver 不能为空");
         this.effectiveContexts = Objects.requireNonNull(effectiveContexts, "effectiveContexts 不能为空");
         this.memoryContexts = Objects.requireNonNull(memoryContexts, "memoryContexts 不能为空");
         this.memoryGovernance = Objects.requireNonNull(memoryGovernance, "memoryGovernance 不能为空");
         this.agentExecution = Objects.requireNonNull(agentExecution, "agentExecution 不能为空");
+        this.models = Objects.requireNonNull(models, "models 不能为空");
         this.completionValidator = Objects.requireNonNull(completionValidator, "completionValidator 不能为空");
         this.eventStore = Objects.requireNonNull(eventStore, "eventStore 不能为空");
         this.recoveries = Objects.requireNonNull(recoveries, "recoveries 不能为空");
@@ -424,7 +439,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         TaskStatus.RUNNING,
                         "技能路由完成，交给 Agent 执行",
                         assistantActor(command),
-                        new TaskOwner(OwnerKind.AGENT, route.agentId().value()),
+                        new TaskOwner(OwnerKind.AGENT, subagentIdentifier(route)),
                         new RecoveryPoint("agent-execution", "从 Agent 状态槽位恢复"),
                         command.requestedAt());
         tasks.save(command.tenantId(), running, command.lease());
@@ -435,7 +450,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         ExecutionEventType.TASK_STATUS_CHANGED,
                         running,
                         "技能路由完成，交给 Agent 执行",
-                        route.agentId(),
+                        eventAgentId(route),
                         manifest));
         return running;
     }
@@ -471,7 +486,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             ExecutionEventType.EXECUTION_CANCELED,
                             canceledTask,
                             "Agent 执行已取消",
-                            route.agentId(),
+                            eventAgentId(route),
                             null));
         }
         var decision =
@@ -491,12 +506,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         ExecutionEventType.VALIDATION_STARTED,
                         task,
                         "开始验证显式业务完成条件",
-                        route.agentId(),
+                        eventAgentId(route),
                         null));
 
         switch (decision.outcome()) {
             case COMPLETED -> {
-                task = verifying(command, task, decision, sequence, events, route.agentId());
+                task = verifying(command, task, decision, sequence, events, eventAgentId(route));
                 task =
                         transition(
                                 command,
@@ -521,7 +536,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 ExecutionEventType.VALIDATION_COMPLETED,
                                 task,
                                 decision.reason(),
-                                route.agentId(),
+                                eventAgentId(route),
                                 null));
                 events.add(
                         taskEvent(
@@ -530,11 +545,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 ExecutionEventType.EXECUTION_COMPLETED,
                                 task,
                                 decision.reason(),
-                                route.agentId(),
+                                eventAgentId(route),
                                 null));
             }
             case CONTINUE_REPAIR -> {
-                task = verifying(command, task, decision, sequence, events, route.agentId());
+                task = verifying(command, task, decision, sequence, events, eventAgentId(route));
                 task =
                         transition(
                                 command,
@@ -550,7 +565,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 ExecutionEventType.VALIDATION_FAILED,
                                 task,
                                 decision.reason(),
-                                route.agentId(),
+                                eventAgentId(route),
                                 null));
             }
             case NEEDS_USER -> {
@@ -578,7 +593,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 ExecutionEventType.VALIDATION_FAILED,
                                 task,
                                 decision.reason(),
-                                route.agentId(),
+                                eventAgentId(route),
                                 null));
             }
             case FAILED -> {
@@ -597,7 +612,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 ExecutionEventType.EXECUTION_FAILED,
                                 task,
                                 decision.reason(),
-                                route.agentId(),
+                                eventAgentId(route),
                                 null));
             }
             case HANDOFF -> {
@@ -616,7 +631,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 ExecutionEventType.OWNERSHIP_TRANSFERRED,
                                 task,
                                 decision.reason(),
-                                route.agentId(),
+                                eventAgentId(route),
                                 null));
             }
         }
@@ -744,12 +759,16 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         "Assistant 任务不存在: " + command.taskId().value()));
     }
 
-    private static AgentExecutionCommand agentCommand(
+    private AgentExecutionCommand agentCommand(
             AssistantCommand command,
             SkillRoute route,
             AssistantDefinition definition,
             long sequenceBase,
             List<AgentMessage> memoryMessages) {
+        var skillSystemPromptAppendix =
+                mergeSkillPrompts(
+                        effectiveSkillResolver.resolve(List.of(definition.role())));
+        var roleAllowedToolNames = definition.role().toolKeys();
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
         definition.toolPolicy().rules().forEach(
                 (toolKey, rule) ->
@@ -787,12 +806,59 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         "user:" + command.runId().value(),
                         AgentMessage.Role.USER,
                         command.input()));
+        var parentModel =
+                switch (route.subagentSpec()) {
+                    case SubagentSpec.Predefined ignored -> Optional.<ModelSpec>empty();
+                    case SubagentSpec.Dynamic ignored -> {
+                        // Dynamic 现场构造没有持久化模型，继承当前系统 CHAT 模型。
+                        var selectedModel =
+                                models.resolve(
+                                        CapabilityRoutingContext.ofCapability(
+                                                null, CapabilityRoutingContext.CAP_CHAT));
+                        yield Optional.of(
+                                new ModelSpec(
+                                        Objects.requireNonNull(
+                                                        selectedModel.getId(),
+                                                        "CHAT 模型缺少数据库主键")
+                                                .toString()));
+                    }
+                };
         return new AgentExecutionCommand(
-                route.agentId(),
-                route.agentDefinitionVersion(),
+                route.subagentSpec(),
+                parentModel,
+                skillSystemPromptAppendix,
+                roleAllowedToolNames,
                 sequenceBase,
                 messages,
                 context);
+    }
+
+    static String mergeSkillPrompts(List<SkillDef> skills) {
+        Objects.requireNonNull(skills, "skills 不能为空");
+        return skills.stream()
+                .sorted(
+                        Comparator.comparingInt(SkillDef::priority)
+                                .reversed()
+                                .thenComparing(
+                                        skill ->
+                                                skill.skillId() == null
+                                                        ? Long.MAX_VALUE
+                                                        : skill.skillId())
+                                .thenComparing(SkillDef::name))
+                .map(SkillDef::systemPrompt)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(prompt -> !prompt.isEmpty())
+                .distinct()
+                .collect(Collectors.joining("\n\n"));
+    }
+
+    private static String subagentIdentifier(SkillRoute route) {
+        return route.subagentSpec().identifier();
+    }
+
+    private static AgentId eventAgentId(SkillRoute route) {
+        return new AgentId(subagentIdentifier(route));
     }
 
     private static ExecutionEvent taskEvent(

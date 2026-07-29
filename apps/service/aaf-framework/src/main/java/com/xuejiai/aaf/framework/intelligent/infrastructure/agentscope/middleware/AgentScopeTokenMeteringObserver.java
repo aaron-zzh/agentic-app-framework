@@ -4,10 +4,10 @@ import java.time.Instant;
 import java.util.Objects;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
-import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort.ModelUsageFact;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
@@ -24,7 +24,7 @@ public final class AgentScopeTokenMeteringObserver {
         this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
     }
 
-    public void observe(AgentEvent event, AgentSpec spec, AgentExecutionCommand command) {
+    public void observe(AgentEvent event, ModelSpec model, AgentExecutionCommand command) {
         if (event.getType() == AgentEventType.MODEL_CALL_START
                 && command.context().controlMode() == ControlMode.DELEGATED) {
             delegatedTasks.reserveModelCall(command.context(), Instant.now());
@@ -37,7 +37,7 @@ public final class AgentScopeTokenMeteringObserver {
         metering.record(new ModelUsageFact(
                 usageId,
                 command.context(),
-                spec.model().modelId(),
+                model.modelId(),
                 "CHAT",
                 usage.getInputTokens(),
                 usage.getOutputTokens(),

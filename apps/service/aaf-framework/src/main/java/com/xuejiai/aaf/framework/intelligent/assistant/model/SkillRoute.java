@@ -4,15 +4,13 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 
-/** 从用户意图路由到精确 Agent 定义版本的稳定规则。 */
+/** 从用户意图路由到子智能体规格的稳定规则。 */
 public record SkillRoute(
         String skillKey,
-        String name,
         Set<String> intentTerms,
-        AgentId agentId,
-        long agentDefinitionVersion,
+        SubagentSpec subagentSpec,
         String actionKey,
         ToolPolicy.ActionEffect actionEffect,
         int priority,
@@ -20,15 +18,11 @@ public record SkillRoute(
 
     public SkillRoute {
         skillKey = requireText(skillKey, "skillKey");
-        name = requireText(name, "name");
         intentTerms = Set.copyOf(Objects.requireNonNull(intentTerms, "intentTerms 不能为空"));
         intentTerms.forEach(term -> requireText(term, "intentTerm"));
-        Objects.requireNonNull(agentId, "agentId 不能为空");
+        Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");
         actionKey = requireText(actionKey, "actionKey");
         Objects.requireNonNull(actionEffect, "actionEffect 不能为空");
-        if (agentDefinitionVersion < 1) {
-            throw new IllegalArgumentException("agentDefinitionVersion 必须大于 0");
-        }
         if (!defaultRoute && intentTerms.isEmpty()) {
             throw new IllegalArgumentException("非默认 SkillRoute 必须声明 intentTerms");
         }

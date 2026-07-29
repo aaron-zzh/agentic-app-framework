@@ -13,6 +13,10 @@ import lombok.Setter;
 @Table(name = "ai_role")
 public class Role extends BaseEntity {
 
+    /** 稳定业务码；历史未知角色允许为空。 */
+    @Column(length = 64, unique = true)
+    private String code;
+
     /** 显示名称（如"代码助理能力集"） */
     @Column(nullable = false, length = 128)
     private String name;

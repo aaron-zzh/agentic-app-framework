@@ -9,6 +9,7 @@ import java.util.Objects;
 
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
@@ -47,12 +48,21 @@ public final class JpaEffectiveContextAdapter implements EffectiveContextPort {
         var dispositions = new LinkedHashMap<String, Disposition>();
         configured.forEach(p -> dispositions.put(key(p.sourceType(), p.sourceKey()), p.disposition()));
         var unique = new LinkedHashMap<String, SourceReference>();
+        var subagentSpec = route.subagentSpec();
+        var sourceVersion = switch (subagentSpec) {
+            case SubagentSpec.Predefined predefined -> Long.toString(predefined.version());
+            case SubagentSpec.Dynamic ignored -> "dynamic";
+        };
+        var displayName = switch (subagentSpec) {
+            case SubagentSpec.Predefined predefined -> predefined.identifier();
+            case SubagentSpec.Dynamic dynamic -> "动态子智能体：" + dynamic.identifier();
+        };
         add(unique, new SourceReference(
                 SourceType.RULE, definition.role().key(), definition.version().toString(),
                 "ASSISTANT", "当前 Assistant 角色与职责边界", definition.role().name(), false));
         add(unique, new SourceReference(
-                SourceType.SKILL, route.skillKey(), Long.toString(route.agentDefinitionVersion()),
-                "TASK", "用户意图命中该技能路由", route.name(), false));
+                SourceType.SKILL, route.skillKey(), sourceVersion,
+                "TASK", "用户意图命中该技能路由", displayName, false));
         candidates.stream()
                 .filter(source -> {
                     var disposition = dispositions.getOrDefault(

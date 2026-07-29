@@ -15,6 +15,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.Executi
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 import io.agentscope.core.event.AgentEndEvent;
 import io.agentscope.core.event.AgentEvent;
@@ -42,6 +43,7 @@ public final class AgentScopeEventMapper {
     public Optional<ExecutionEvent> map(
             AgentEvent source,
             AgentExecutionCommand command,
+            String agentIdentifier,
             ModelSpec model,
             MappingState state) {
         return switch (source.getType()) {
@@ -50,6 +52,7 @@ public final class AgentScopeEventMapper {
                 yield event(
                         source,
                         command,
+                        agentIdentifier,
                         state,
                         ExecutionEventType.RUN_STARTED,
                         ExecutionEventStatus.RUNNING,
@@ -60,6 +63,7 @@ public final class AgentScopeEventMapper {
                 yield event(
                         source,
                         command,
+                        agentIdentifier,
                         state,
                         ExecutionEventType.MESSAGE_COMPLETED,
                         state.status(),
@@ -71,37 +75,59 @@ public final class AgentScopeEventMapper {
                                 "text",
                                 result.getTextContent()));
             }
-            case AGENT_END -> mapAgentEnd((AgentEndEvent) source, command, state);
+            case AGENT_END ->
+                    mapAgentEnd((AgentEndEvent) source, command, agentIdentifier, state);
             case MODEL_CALL_START ->
                     event(
                             source,
                             command,
+                            agentIdentifier,
                             state,
                             ExecutionEventType.MODEL_CALL_STARTED,
                             state.status(),
                             ExecutionEventPayload.empty());
-            case MODEL_CALL_END -> mapModelCallEnd((ModelCallEndEvent) source, command, model, state);
+            case MODEL_CALL_END ->
+                    mapModelCallEnd(
+                            (ModelCallEndEvent) source,
+                            command,
+                            agentIdentifier,
+                            model,
+                            state);
             case TEXT_BLOCK_START ->
                     event(
                             source,
                             command,
+                            agentIdentifier,
                             state,
                             ExecutionEventType.MESSAGE_STARTED,
                             state.status(),
                             ExecutionEventPayload.empty());
-            case TEXT_BLOCK_DELTA -> mapTextDelta((TextBlockDeltaEvent) source, command, state);
-            case TOOL_CALL_START -> mapToolStart((ToolCallStartEvent) source, command, state);
-            case TOOL_RESULT_END -> mapToolResult((ToolResultEndEvent) source, command, state);
+            case TEXT_BLOCK_DELTA ->
+                    mapTextDelta((TextBlockDeltaEvent) source, command, agentIdentifier, state);
+            case TOOL_CALL_START ->
+                    mapToolStart((ToolCallStartEvent) source, command, agentIdentifier, state);
+            case TOOL_RESULT_END ->
+                    mapToolResult((ToolResultEndEvent) source, command, agentIdentifier, state);
             case REQUIRE_USER_CONFIRM ->
-                    mapConfirmation((RequireUserConfirmEvent) source, command, state);
-            case REQUEST_STOP -> mapStop((RequestStopEvent) source, command, state);
+                    mapConfirmation(
+                            (RequireUserConfirmEvent) source,
+                            command,
+                            agentIdentifier,
+                            state);
+            case REQUEST_STOP ->
+                    mapStop((RequestStopEvent) source, command, agentIdentifier, state);
             case EXCEED_MAX_ITERS ->
-                    mapMaxIterations((ExceedMaxItersEvent) source, command, state);
+                    mapMaxIterations(
+                            (ExceedMaxItersEvent) source,
+                            command,
+                            agentIdentifier,
+                            state);
             case ALL_TOOLS_DENIED -> {
                 state.status(ExecutionEventStatus.FAILED);
                 yield event(
                         source,
                         command,
+                        agentIdentifier,
                         state,
                         ExecutionEventType.RUN_FAILED,
                         ExecutionEventStatus.FAILED,
@@ -113,10 +139,14 @@ public final class AgentScopeEventMapper {
 
     /** 将基础设施异常收敛为无敏感详情的运行失败事件。 */
     public ExecutionEvent failure(
-            AgentExecutionCommand command, MappingState state, Throwable failure) {
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state,
+            Throwable failure) {
         state.status(ExecutionEventStatus.FAILED);
         return syntheticEvent(
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.RUN_FAILED,
                 ExecutionEventStatus.FAILED,
@@ -124,10 +154,12 @@ public final class AgentScopeEventMapper {
     }
 
     /** 创建按 executionId 取消的确定性终态事件。 */
-    public ExecutionEvent canceled(AgentExecutionCommand command, MappingState state) {
+    public ExecutionEvent canceled(
+            AgentExecutionCommand command, String agentIdentifier, MappingState state) {
         state.status(ExecutionEventStatus.CANCELED);
         return syntheticEvent(
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.EXECUTION_CANCELED,
                 ExecutionEventStatus.CANCELED,
@@ -135,7 +167,10 @@ public final class AgentScopeEventMapper {
     }
 
     private Optional<ExecutionEvent> mapAgentEnd(
-            AgentEndEvent source, AgentExecutionCommand command, MappingState state) {
+            AgentEndEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
         if (state.status() != ExecutionEventStatus.RUNNING) {
             return Optional.empty();
         }
@@ -143,6 +178,7 @@ public final class AgentScopeEventMapper {
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.RUN_COMPLETED,
                 ExecutionEventStatus.VERIFYING,
@@ -152,6 +188,7 @@ public final class AgentScopeEventMapper {
     private Optional<ExecutionEvent> mapModelCallEnd(
             ModelCallEndEvent source,
             AgentExecutionCommand command,
+            String agentIdentifier,
             ModelSpec model,
             MappingState state) {
         var usage = source.getUsage();
@@ -167,6 +204,7 @@ public final class AgentScopeEventMapper {
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.MODEL_CALL_COMPLETED,
                 state.status(),
@@ -174,10 +212,14 @@ public final class AgentScopeEventMapper {
     }
 
     private Optional<ExecutionEvent> mapTextDelta(
-            TextBlockDeltaEvent source, AgentExecutionCommand command, MappingState state) {
+            TextBlockDeltaEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.MESSAGE_DELTA,
                 state.status(),
@@ -185,10 +227,14 @@ public final class AgentScopeEventMapper {
     }
 
     private Optional<ExecutionEvent> mapToolStart(
-            ToolCallStartEvent source, AgentExecutionCommand command, MappingState state) {
+            ToolCallStartEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.TOOL_CALL_STARTED,
                 state.status(),
@@ -200,7 +246,10 @@ public final class AgentScopeEventMapper {
     }
 
     private Optional<ExecutionEvent> mapToolResult(
-            ToolResultEndEvent source, AgentExecutionCommand command, MappingState state) {
+            ToolResultEndEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
         var resultState = source.getState();
         var successful = resultState == ToolResultState.SUCCESS;
         var evidence =
@@ -213,6 +262,7 @@ public final class AgentScopeEventMapper {
             return event(
                     source,
                     command,
+                    agentIdentifier,
                     state,
                     ExecutionEventType.AUTHORIZATION_REQUESTED,
                     ExecutionEventStatus.AWAITING_AUTHORIZATION,
@@ -221,6 +271,7 @@ public final class AgentScopeEventMapper {
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 successful
                         ? ExecutionEventType.TOOL_CALL_COMPLETED
@@ -244,12 +295,14 @@ public final class AgentScopeEventMapper {
     private Optional<ExecutionEvent> mapConfirmation(
             RequireUserConfirmEvent source,
             AgentExecutionCommand command,
+            String agentIdentifier,
             MappingState state) {
         state.status(ExecutionEventStatus.AWAITING_AUTHORIZATION);
         var toolNames = source.getToolCalls().stream().map(call -> call.getName()).toList();
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.APPROVAL_REQUESTED,
                 ExecutionEventStatus.AWAITING_AUTHORIZATION,
@@ -257,7 +310,10 @@ public final class AgentScopeEventMapper {
     }
 
     private Optional<ExecutionEvent> mapStop(
-            RequestStopEvent source, AgentExecutionCommand command, MappingState state) {
+            RequestStopEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
         if (source.getGenerateReason() == GenerateReason.PERMISSION_ASKING
                 || source.getGenerateReason() == GenerateReason.TOOL_SUSPENDED) {
             state.status(ExecutionEventStatus.AWAITING_AUTHORIZATION);
@@ -267,6 +323,7 @@ public final class AgentScopeEventMapper {
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.EXECUTION_PAUSED,
                 ExecutionEventStatus.PAUSED,
@@ -274,11 +331,15 @@ public final class AgentScopeEventMapper {
     }
 
     private Optional<ExecutionEvent> mapMaxIterations(
-            ExceedMaxItersEvent source, AgentExecutionCommand command, MappingState state) {
+            ExceedMaxItersEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
         state.status(ExecutionEventStatus.FAILED);
         return event(
                 source,
                 command,
+                agentIdentifier,
                 state,
                 ExecutionEventType.RUN_FAILED,
                 ExecutionEventStatus.FAILED,
@@ -294,6 +355,7 @@ public final class AgentScopeEventMapper {
     private Optional<ExecutionEvent> event(
             AgentEvent source,
             AgentExecutionCommand command,
+            String agentIdentifier,
             MappingState state,
             ExecutionEventType type,
             ExecutionEventStatus status,
@@ -308,6 +370,7 @@ public final class AgentScopeEventMapper {
                         eventId,
                         Instant.parse(source.getCreatedAt()),
                         command,
+                        agentIdentifier,
                         state,
                         type,
                         status,
@@ -316,6 +379,7 @@ public final class AgentScopeEventMapper {
 
     private ExecutionEvent syntheticEvent(
             AgentExecutionCommand command,
+            String agentIdentifier,
             MappingState state,
             ExecutionEventType type,
             ExecutionEventStatus status,
@@ -324,6 +388,7 @@ public final class AgentScopeEventMapper {
                 new EventId(randomId()),
                 Instant.now(),
                 command,
+                agentIdentifier,
                 state,
                 type,
                 status,
@@ -334,6 +399,7 @@ public final class AgentScopeEventMapper {
             EventId eventId,
             Instant createdAt,
             AgentExecutionCommand command,
+            String agentIdentifier,
             MappingState state,
             ExecutionEventType type,
             ExecutionEventStatus status,
@@ -354,7 +420,7 @@ public final class AgentScopeEventMapper {
                 context.controlMode(),
                 OwnerType.AGENT,
                 context.assistantId(),
-                command.agentId(),
+                new AgentId(agentIdentifier),
                 context.userId(),
                 context.correlationId(),
                 context.causationId(),
