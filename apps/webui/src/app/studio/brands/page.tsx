@@ -55,7 +55,9 @@ const KIND_LABELS: Record<ContentBrandProfileKind, string> = {
   personal_ip: "个人 IP"
 }
 
-const EMPTY_FORM: ContentBrandProfileInput = {
+type BrandProfileForm = ContentBrandProfileInput & Record<string, unknown>
+
+const EMPTY_FORM: BrandProfileForm = {
   name: "",
   kind: "enterprise",
   industry: "",
@@ -78,7 +80,7 @@ interface BrandProfileSheetProps {
 function BrandProfileSheet({ open, onOpenChange, profile }: BrandProfileSheetProps) {
   const id = useId()
   const queryClient = useQueryClient()
-  const { state: form, setState: setForm } = useSetState<ContentBrandProfileInput>(EMPTY_FORM)
+  const { state: form, setState: setForm } = useSetState<BrandProfileForm>(EMPTY_FORM)
   const save = useMutation({
     mutationFn: (data: ContentBrandProfileInput) =>
       profile

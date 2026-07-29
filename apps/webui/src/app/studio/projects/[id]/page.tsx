@@ -1,151 +1,203 @@
 /**
- * /studio/projects/[id]——项目工作台
- *
- * 直接复用管理后台 AigcView（元素区+预览区+素材区+生成弹窗）
- * 对话由全局 Chatter panel 嵌入模式提供
- *
+ * Content Studio 项目结构 / 图谱双视图工作台。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { ArrowLeft, FolderKanban, LayoutGrid, MessageSquare, PenSquare } from "lucide-react"
+import { FolderKanban } from "lucide-react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
-import { useParams } from "next/navigation"
-import { useState } from "react"
-import { GlowButton, NeonChip } from "@/components/studio"
-import { Button } from "@/components/ui/button"
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useEffect } from "react"
+import { GlowButton } from "@/components/studio"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AigcView } from "@/features/aigc/project/AigcView"
-import { GlobalDndContext } from "@/features/dnd/GlobalDndContext"
-import { ProjectCanvas } from "@/features/studio/projects/ProjectCanvas"
-import { useAigcProject, useAigcProjectSummary } from "@/lib/queries/use-aigc-projects"
+import {
+  getObjectStage,
+  PROJECT_GRAPH_STAGES,
+  type ProjectGraphStage,
+  ProjectGraphView,
+  ProjectStructureView,
+  ProjectWorkbenchHeader,
+  type ProjectWorkbenchView,
+  useProjectGraphViewState
+} from "@/features/studio/content"
+import {
+  useContentProject,
+  useContentProjectGraph,
+  useContentProjectSummary
+} from "@/lib/api/rest/content"
 import { useChatterStore } from "@/lib/store/chatter-store"
-import { cn } from "@/lib/utils/index"
+
+const ProjectCanvas = dynamic(
+  () => import("@/features/studio/projects/ProjectCanvas").then((module) => module.ProjectCanvas),
+  { ssr: false, loading: () => <Skeleton className="size-full" /> }
+)
+
+function parseFocus(value: string | null): number | undefined {
+  if (!value) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+function isStage(value: string | null): value is ProjectGraphStage {
+  return PROJECT_GRAPH_STAGES.some((stage) => stage.key === value)
+}
 
 export default function StudioProjectDetailPage() {
   const params = useParams<{ id: string }>()
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = Number(params.id)
-  const [view, setView] = useState<"workspace" | "canvas">("workspace")
+  const validProjectId = Number.isFinite(projectId) && projectId > 0 ? projectId : null
+  const view: ProjectWorkbenchView = searchParams.get("view") === "graph" ? "graph" : "structure"
+  const focusObjectId = parseFocus(searchParams.get("focus"))
+  const requestedStage = searchParams.get("stage")
+  const setGraphFocus = useProjectGraphViewState((state) => state.setFocusObjectId)
+  const { data: project, isLoading: projectLoading } = useContentProject(validProjectId)
+  const { data: graph, isLoading: graphLoading } = useContentProjectGraph(validProjectId)
+  const { data: summary } = useContentProjectSummary(validProjectId)
 
-  const setOpen = useChatterStore((s) => s.setOpen)
-  const setMode = useChatterStore((s) => s.setMode)
-  const setLayoutOverride = useChatterStore((s) => s.setLayoutOverride)
-  const chatterOpen = useChatterStore((s) => s.open)
-  const chatterMode = useChatterStore((s) => s.mode)
+  const setOpen = useChatterStore((state) => state.setOpen)
+  const setMode = useChatterStore((state) => state.setMode)
+  const setLayoutOverride = useChatterStore((state) => state.setLayoutOverride)
+  const chatterOpen = useChatterStore((state) => state.open)
+  const chatterMode = useChatterStore((state) => state.mode)
 
-  const handleToggleChat = () => {
-    if (chatterOpen && chatterMode === "panel") {
-      setOpen(false)
-    } else {
-      setMode("panel")
-      setLayoutOverride("panel")
-      setOpen(true)
+  const focusedObject = graph?.objects.find((object) => object.id === focusObjectId)
+  const activeStage: ProjectGraphStage = isStage(requestedStage)
+    ? requestedStage
+    : focusedObject
+      ? getObjectStage(focusedObject)
+      : "planning"
+
+  useEffect(() => {
+    setGraphFocus(focusObjectId ?? null)
+  }, [focusObjectId, setGraphFocus])
+
+  function updateUrl(values: Record<string, string | number | null>) {
+    const next = new URLSearchParams(searchParams.toString())
+    for (const [key, value] of Object.entries(values)) {
+      if (value === null) next.delete(key)
+      else next.set(key, String(value))
     }
+    const query = next.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
-  const { data: project, isLoading } = useAigcProject(projectId)
-  const { data: summary } = useAigcProjectSummary(projectId)
+  function handleToggleChat() {
+    if (chatterOpen && chatterMode === "panel") {
+      setOpen(false)
+      return
+    }
+    setMode("panel")
+    setLayoutOverride("panel")
+    setOpen(true)
+  }
 
-  if (isLoading) {
+  function handleFocusObject(id: number) {
+    const object = graph?.objects.find((item) => item.id === id)
+    setGraphFocus(id)
+    updateUrl({
+      focus: id,
+      ...(view === "structure" && object ? { stage: getObjectStage(object) } : {})
+    })
+  }
+
+  if (projectLoading || graphLoading) {
     return (
-      <div className="space-y-3 p-6">
-        <Skeleton className="h-8 w-1/3" />
-        <Skeleton className="h-[60vh] w-full" />
+      <div className="flex h-full flex-col gap-3 p-6">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="min-h-[520px] flex-1" />
       </div>
     )
   }
 
-  if (!project) {
+  if (!project || !graph) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-muted-foreground">
         <FolderKanban className="size-12 opacity-30" />
         <p className="text-sm">项目不存在或已删除</p>
-        <Link href="/studio/projects">
-          <GlowButton tone="ghost" size="sm">
-            返回项目列表
-          </GlowButton>
-        </Link>
+        <GlowButton
+          nativeButton={false}
+          render={<Link href="/studio/projects" />}
+          tone="ghost"
+          size="sm"
+        >
+          返回项目列表
+        </GlowButton>
       </div>
     )
   }
 
+  const inspirationOpen = focusedObject?.objectType === "inspiration_board"
+
   return (
-    <GlobalDndContext>
-      <div className="flex h-full flex-col">
-        {/* 项目头 */}
-        <header className="flex items-center justify-between gap-3 border-foreground/6 border-b bg-background/40 px-6 py-3 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/studio/projects"
-              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
-            >
-              <ArrowLeft className="size-4" />
-            </Link>
-            <div className="leading-tight">
-              <h1 className="font-semibold text-base">{project.name}</h1>
-              <div className="mt-0.5 flex items-center gap-2 text-muted-foreground text-xs">
-                <NeonChip tone="violet" size="sm">
-                  {project.type}
-                </NeonChip>
-                <NeonChip tone="neutral" size="sm" dot>
-                  {project.status}
-                </NeonChip>
-                {summary && (
-                  <span className="text-muted-foreground/80">
-                    {summary.contentCount} 内容 · {summary.assetCount} 资产
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <ProjectWorkbenchHeader
+        project={project}
+        view={view}
+        onViewChange={(nextView) => updateUrl({ view: nextView })}
+        onToggleChat={handleToggleChat}
+        chatOpen={chatterOpen && chatterMode === "panel"}
+      />
 
-          <div className="flex items-center gap-2">
-            {/* 对话按钮 */}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleToggleChat}
-              title="项目对话"
-              className={cn(chatterOpen && chatterMode === "panel" && "text-primary")}
-            >
-              <MessageSquare className="size-4" />
-            </Button>
+      <main className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
+        {view === "graph" ? (
+          <ProjectGraphView
+            graph={graph}
+            focusObjectId={focusObjectId}
+            onFocusObject={handleFocusObject}
+          />
+        ) : (
+          <ProjectStructureView
+            graph={graph}
+            activeStage={activeStage}
+            focusObjectId={focusObjectId}
+            onStageChange={(stage) => updateUrl({ stage })}
+            onFocusObject={handleFocusObject}
+          />
+        )}
+      </main>
 
-            {/* 视图切换 */}
-            <div className="flex gap-1 rounded-lg bg-foreground/[0.04] p-1">
-              {(["workspace", "canvas"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-colors",
-                    view === v
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {v === "workspace" ? (
-                    <LayoutGrid className="size-3.5" />
-                  ) : (
-                    <PenSquare className="size-3.5" />
-                  )}
-                  {v === "workspace" ? "工作台" : "画布"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </header>
+      <footer className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t bg-background/80 px-4 py-2 text-muted-foreground text-xs sm:px-6">
+        <span>图谱 revision {graph.graphRevision}</span>
+        <span>{summary?.objectCount ?? graph.objects.length} 个对象</span>
+        <span>{summary?.pendingConfirmCount ?? 0} 项待确认</span>
+        <span>{summary?.blockedCount ?? 0} 项被阻断</span>
+        <span>{summary?.executionRunningCount ?? 0} 个任务执行中</span>
+        <span>费用 {summary?.costUsed ?? project.costUsed}</span>
+        {project.status === "archived" ? (
+          <span className="text-amber-500">已归档 · 只读</span>
+        ) : null}
+      </footer>
 
-        {view === "canvas" ? (
-          <div className="flex-1">
+      <Sheet
+        open={inspirationOpen}
+        onOpenChange={(open) => {
+          if (!open) updateUrl({ focus: null })
+        }}
+      >
+        <SheetContent className="w-[92vw] sm:max-w-[92vw]">
+          <SheetHeader>
+            <SheetTitle>{focusedObject?.title || "项目灵感板"}</SheetTitle>
+            <SheetDescription>
+              自由排列参考图片、手绘与批注；项目图谱仍是业务关系真理源。
+            </SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
             <ProjectCanvas projectId={projectId} />
           </div>
-        ) : (
-          <AigcView projectId={projectId} />
-        )}
-      </div>
-    </GlobalDndContext>
+        </SheetContent>
+      </Sheet>
+    </div>
   )
 }
