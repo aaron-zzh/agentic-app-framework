@@ -4,5 +4,4 @@
 
 export { HomeChatLauncher } from "./HomeChatLauncher"
 export { HomeDataCapsules } from "./HomeDataCapsules"
-export { HomeProjectGrid } from "./HomeProjectGrid"
 export { HomeRecentAssets } from "./HomeRecentAssets"
