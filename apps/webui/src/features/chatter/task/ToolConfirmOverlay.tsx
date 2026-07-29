@@ -1,81 +1,108 @@
 /**
- * ToolConfirmPanel——工具调用确认 UI
- * 当 Agent 因权限检查暂停时，展示工具调用详情和确认/拒绝按钮
- *
+ * ToolConfirmOverlay——基于委托任务事件展示持久化 HITL 授权确认。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { useAssistantRuntime } from "@assistant-ui/react"
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query"
 import { CheckIcon, XIcon } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { buildApiUrl } from "@/lib/api/config"
+import {
+  delegatedTaskApi,
+  delegatedTaskKeys,
+  getDelegatedTaskEventStreamUrl,
+  humanApprovalApi,
+  parseDelegatedTaskEvent,
+  type DelegatedTaskEventVO,
+  type DelegatedTaskVO,
+  type HumanApprovalDecisionRequest
+} from "@/lib/api/rest/ai/delegated-task"
 
-interface ToolCall {
-  id: string
-  name: string
-  args?: Record<string, unknown>
+interface PendingApproval {
+  approvalId: string
+  taskId: string
+  action: string
+  resource: string | null
+  eventOffset: number
 }
 
 interface ToolConfirmPanelProps {
-  threadId: string
-  toolCalls: ToolCall[]
-  onConfirmed: () => void
+  approval: PendingApproval
+  loading: boolean
+  onDecision: (decision: HumanApprovalDecisionRequest["decision"]) => void
 }
 
-export function ToolConfirmPanel({ threadId, toolCalls, onConfirmed }: ToolConfirmPanelProps) {
-  const [loading, setLoading] = useState(false)
+function payloadString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key]
+  return typeof value === "string" && value.length > 0 ? value : null
+}
 
-  const handleConfirm = async (approved: boolean) => {
-    setLoading(true)
-    try {
-      await fetch(buildApiUrl(`/agui/runs/${threadId}/confirm`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          approved,
-          reason: approved ? undefined : "用户拒绝了工具调用",
-          toolCalls: toolCalls.map((tc) => ({ id: tc.id, name: tc.name }))
-        })
-      })
-      onConfirmed()
-    } finally {
-      setLoading(false)
+function findPendingApproval(events: DelegatedTaskEventVO[]): PendingApproval | null {
+  const resolved = new Set(
+    events
+      .filter(
+        (event) => event.type === "AUTHORIZATION_GRANTED" || event.type === "AUTHORIZATION_DENIED"
+      )
+      .map((event) => payloadString(event.payload, "approvalId"))
+      .filter((approvalId): approvalId is string => approvalId !== null)
+  )
+
+  const requests = events
+    .filter(
+      (event) =>
+        event.type === "AUTHORIZATION_REQUESTED" &&
+        event.status === "AWAITING_AUTHORIZATION"
+    )
+    .toSorted((left, right) => right.eventOffset - left.eventOffset)
+
+  for (const event of requests) {
+    const approvalId = payloadString(event.payload, "approvalId")
+    if (!approvalId || resolved.has(approvalId)) continue
+    return {
+      approvalId,
+      taskId: event.taskId,
+      action:
+        payloadString(event.payload, "action") ??
+        payloadString(event.payload, "toolName") ??
+        "受控工具操作",
+      resource: payloadString(event.payload, "resource"),
+      eventOffset: event.eventOffset
     }
   }
 
+  return null
+}
+
+function ToolConfirmPanel({ approval, loading, onDecision }: ToolConfirmPanelProps) {
   return (
-    <div className="mx-3 mb-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-      <p className="mb-2 font-medium text-amber-800 text-sm">AI 请求执行以下操作，需要您确认：</p>
-      <div className="mb-3 space-y-1">
-        {toolCalls.map((tc) => (
-          <div key={tc.id} className="rounded bg-white px-2 py-1 font-mono text-gray-700 text-xs">
-            <span className="font-semibold text-amber-700">{tc.name}</span>
-            {tc.args && <span className="ml-2 text-gray-500">{JSON.stringify(tc.args)}</span>}
-          </div>
-        ))}
+    <div className="mx-3 mb-2 rounded-lg border bg-muted/30 p-3">
+      <p className="mb-2 font-medium text-sm">AI 请求执行受控操作，需要您确认：</p>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <Badge variant="secondary">{approval.action}</Badge>
+        {approval.resource ? <Badge variant="outline">资源: {approval.resource}</Badge> : null}
       </div>
+      <p className="mb-3 truncate text-muted-foreground text-xs" title={approval.taskId}>
+        任务: {approval.taskId}
+      </p>
       <div className="flex gap-2">
         <Button
           size="sm"
-          variant="default"
           disabled={loading}
-          onClick={() => handleConfirm(true)}
-          className="gap-1"
+          onClick={() => onDecision("APPROVED")}
         >
-          <CheckIcon className="size-3" />
+          <CheckIcon data-icon="inline-start" />
           确认执行
         </Button>
         <Button
           size="sm"
           variant="outline"
           disabled={loading}
-          onClick={() => handleConfirm(false)}
-          className="gap-1"
+          onClick={() => onDecision("REJECTED")}
         >
-          <XIcon className="size-3" />
+          <XIcon data-icon="inline-start" />
           拒绝
         </Button>
       </div>
@@ -83,47 +110,102 @@ export function ToolConfirmPanel({ threadId, toolCalls, onConfirmed }: ToolConfi
   )
 }
 
-/**
- * 监听 requires-action 状态，自动展示确认 UI
- */
-export function ToolConfirmOverlay() {
-  const runtime = useAssistantRuntime()
-  const [confirmed, setConfirmed] = useState(false)
+function MissingApprovalNotice({ taskId }: { taskId: string }) {
+  return (
+    <div className="mx-3 mb-2 rounded-lg border bg-muted/30 p-3">
+      <p className="font-medium text-sm">任务正在等待人工授权</p>
+      <p className="mt-1 text-muted-foreground text-xs">
+        当前执行事件未提供可确认的 approvalId，暂无法在对话内处理，请前往任务中心查看。
+      </p>
+      <p className="mt-1 truncate text-muted-foreground text-xs" title={taskId}>
+        任务: {taskId}
+      </p>
+    </div>
+  )
+}
 
-  const thread = runtime.thread.getState()
-  const threadId = (runtime.threads.getState() as { threadId?: string }).threadId ?? ""
-  const lastMsg = thread.messages.at(-1)
+interface ToolConfirmOverlayProps {
+  tasks: DelegatedTaskVO[]
+}
 
-  if (confirmed || !lastMsg || lastMsg.role !== "assistant") return null
-  if (!("status" in lastMsg) || (lastMsg.status as { type: string }).type !== "requires-action") {
-    return null
+export function ToolConfirmOverlay({ tasks }: ToolConfirmOverlayProps) {
+  const queryClient = useQueryClient()
+  const [handledApprovalId, setHandledApprovalId] = useState<string | null>(null)
+  const waitingTasks = tasks.filter((task) => task.status === "AWAITING_AUTHORIZATION")
+  const waitingTaskKey = waitingTasks.map((task) => task.taskId).toSorted().join("|")
+  const eventQueries = useQueries({
+    queries: waitingTasks.map((task) => ({
+      queryKey: delegatedTaskKeys.events(task.taskId),
+      queryFn: () => delegatedTaskApi.listEvents(task.taskId),
+      refetchInterval: 3000
+    }))
+  })
+
+  useEffect(() => {
+    if (!waitingTaskKey) return
+
+    const taskIds = waitingTaskKey.split("|")
+    const sources = taskIds.map((taskId) => {
+      const source = new EventSource(getDelegatedTaskEventStreamUrl(taskId), {
+        withCredentials: true
+      })
+      const handleEvent = (message: MessageEvent<string>) => {
+        const event = parseDelegatedTaskEvent(message.data)
+        if (!event) return
+        queryClient.setQueryData<DelegatedTaskEventVO[]>(
+          delegatedTaskKeys.events(taskId),
+          (current = []) => {
+            if (current.some((item) => item.eventId === event.eventId)) return current
+            return [...current, event].toSorted(
+              (left, right) => left.eventOffset - right.eventOffset
+            )
+          }
+        )
+      }
+      source.addEventListener("AUTHORIZATION_REQUESTED", handleEvent)
+      source.addEventListener("AUTHORIZATION_GRANTED", handleEvent)
+      source.addEventListener("AUTHORIZATION_DENIED", handleEvent)
+      return source
+    })
+
+    return () => {
+      for (const source of sources) source.close()
+    }
+  }, [queryClient, waitingTaskKey])
+
+  const events = eventQueries.flatMap((query) => query.data ?? [])
+  const pendingApproval = findPendingApproval(events)
+  const decision = useMutation({
+    mutationFn: (request: {
+      approvalId: string
+      decision: HumanApprovalDecisionRequest["decision"]
+    }) =>
+      humanApprovalApi.decide(request.approvalId, {
+        decision: request.decision,
+        reason: request.decision === "REJECTED" ? "用户拒绝了工具授权" : undefined
+      }),
+    onSuccess: (approval) => {
+      setHandledApprovalId(approval.approvalId)
+      queryClient.invalidateQueries({ queryKey: delegatedTaskKeys.all })
+    }
+  })
+
+  if (pendingApproval && pendingApproval.approvalId !== handledApprovalId) {
+    return (
+      <ToolConfirmPanel
+        approval={pendingApproval}
+        loading={decision.isPending}
+        onDecision={(value) =>
+          decision.mutate({ approvalId: pendingApproval.approvalId, decision: value })
+        }
+      />
+    )
   }
 
-  const interrupts = (lastMsg.metadata?.custom as { agui?: { interrupts?: unknown[] } })?.agui
-    ?.interrupts
-  const toolCalls: ToolCall[] = Array.isArray(interrupts)
-    ? interrupts.map((i: unknown) => {
-        const interrupt = i as {
-          id?: string
-          toolCallId?: string
-          toolCallName?: string
-          args?: Record<string, unknown>
-        }
-        return {
-          id: interrupt.id ?? interrupt.toolCallId ?? "",
-          name: interrupt.toolCallName ?? "unknown",
-          args: interrupt.args
-        }
-      })
-    : []
+  const eventsLoaded = eventQueries.every((query) => !query.isLoading)
+  if (!pendingApproval && eventsLoaded && waitingTasks.length > 0) {
+    return <MissingApprovalNotice taskId={waitingTasks[0].taskId} />
+  }
 
-  if (toolCalls.length === 0) return null
-
-  return (
-    <ToolConfirmPanel
-      threadId={threadId}
-      toolCalls={toolCalls}
-      onConfirmed={() => setConfirmed(true)}
-    />
-  )
+  return null
 }

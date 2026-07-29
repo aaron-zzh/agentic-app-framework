@@ -200,8 +200,26 @@ public final class DelegatedTaskCoordinator {
     }
 
     private static String taskDescription(String title, String description) {
-        return description == null || description.isBlank() ? title : description;
+        return description == null || description.isBlank()
+                ? title
+                : title + "\n\n---\n\n" + description;
     }
+
+    public static TitleDescription splitGoalDescription(String raw) {
+        if (raw == null) {
+            return new TitleDescription(null, null);
+        }
+        var separator = "\n\n---\n\n";
+        var separatorIndex = raw.indexOf(separator);
+        if (separatorIndex < 0) {
+            return new TitleDescription(raw, null);
+        }
+        return new TitleDescription(
+                raw.substring(0, separatorIndex),
+                raw.substring(separatorIndex + separator.length()));
+    }
+
+    public record TitleDescription(String title, String description) {}
 
     public Flux<ExecutionEvent> dispatch(TenantId tenantId, TaskId taskId, String workerId) {
         var stored = tasks.find(tenantId, taskId)

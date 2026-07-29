@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 public final class JpaHumanApprovalAdapter implements HumanApprovalPort {
     private final HumanApprovalRepository repository;
@@ -43,6 +44,16 @@ public final class JpaHumanApprovalAdapter implements HumanApprovalPort {
         return repository.findByTenantIdAndTaskIdAndStatus(
                         tenantId.value(), taskId.value(), HumanApproval.Status.PENDING.name()).stream()
                 .map(HumanApprovalEntity::getApproval)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HumanApproval> pending(TenantId tenantId, UserId userId) {
+        return repository.findByTenantIdAndStatus(
+                        tenantId.value(), HumanApproval.Status.PENDING.name()).stream()
+                .map(HumanApprovalEntity::getApproval)
+                .filter(approval -> approval.invocationContext().userId().equals(userId))
                 .toList();
     }
 

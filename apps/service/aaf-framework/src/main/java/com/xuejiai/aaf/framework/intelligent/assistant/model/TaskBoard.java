@@ -27,8 +27,9 @@ public record TaskBoard(TaskId taskId, Goal goal, int maxParallelism, Map<String
             throw new IllegalArgumentException("TaskBoard 至少包含一个子任务");
         }
         validateReferences(subTasks);
+        var effectiveSubTasks = subTasks;
         goal.completionEvidence().forEach(evidence -> {
-            if (!subTasks.containsKey(evidence)) {
+            if (!effectiveSubTasks.containsKey(evidence)) {
                 throw new IllegalArgumentException("Goal 完成证据引用不存在的子任务: " + evidence);
             }
         });

@@ -150,7 +150,6 @@ export function Chatter(props: ChatterProps) {
           attachments={attachments}
           onAttachmentRemove={handleAttachmentRemove}
           onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
-          sessionId={props.sessionId}
           modelId={modelId}
           onModelChange={setModelId}
           showModelSelector={preset !== "guest" && preset !== "livechat"}

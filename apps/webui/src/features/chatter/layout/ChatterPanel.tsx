@@ -1,18 +1,16 @@
 /**
- * ChatterPanel——对话面板（Toolbar + Thread + TaskBoard + Composer）
- * DroppableComposer 包裹输入区，接收拖放附件
- * 当有活跃任务时展示 TaskBoardPanel，收到恢复事件时展示通知
- *
+ * ChatterPanel——对话面板（Toolbar + Thread + DelegatedTask + Composer）。
+ * assistant-ui threadId 与后端 ConversationId 一致，任务数据按该标识查询。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
+import { useAuiState } from "@assistant-ui/react"
 import type { ReactNode } from "react"
 import { ChatterComposer } from "@/features/chatter/composer"
 import { DroppableComposer } from "@/features/chatter/dnd/DroppableComposer"
 import { useTaskBoard } from "@/features/chatter/hooks/use-task-board"
-import { RecoveryNotification } from "@/features/chatter/task/RecoveryNotification"
 import { TaskBoardPanel } from "@/features/chatter/task/TaskBoardPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
 import { ChatterThread } from "@/features/chatter/thread"
@@ -24,7 +22,6 @@ interface ChatterPanelProps {
   attachments: ChatterDropItem[]
   onAttachmentRemove: (index: number) => void
   onAttachmentAdd: (item: ChatterDropItem) => void
-  sessionId?: string
   modelId?: string
   onModelChange?: (modelId: string, model: AiModelVO) => void
   /** 是否显示模型选择器（未登录 guest preset 应传 false） */
@@ -36,23 +33,19 @@ export function ChatterPanel({
   attachments,
   onAttachmentRemove,
   onAttachmentAdd,
-  sessionId,
   modelId,
   onModelChange,
   showModelSelector
 }: ChatterPanelProps) {
-  const { tasks, progress, isLoading, recovered, dismissRecovery } = useTaskBoard(sessionId)
+  const currentThreadId = useAuiState((state) => state.threads.mainThreadId)
+  const conversationId = currentThreadId === "main" ? undefined : currentThreadId
+  const { tasks, progress, isLoading } = useTaskBoard(conversationId)
 
   return (
     <div className="flex h-full flex-col">
       {toolbar}
-      {recovered && (
-        <div className="px-3 pt-2">
-          <RecoveryNotification taskCount={recovered.taskCount} onDismiss={dismissRecovery} />
-        </div>
-      )}
       <ChatterThread />
-      <ToolConfirmOverlay />
+      <ToolConfirmOverlay tasks={tasks} />
       <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />
       <DroppableComposer onDrop={onAttachmentAdd}>
         <ChatterComposer

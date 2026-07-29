@@ -1,5 +1,5 @@
 export * from "./chat"
 export * from "./copywriting"
+export * from "./delegated-task"
 export * from "./model3d-generation"
 export * from "./ocr"
-export * from "./task-board"

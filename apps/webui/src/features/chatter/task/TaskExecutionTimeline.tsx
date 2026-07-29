@@ -1,168 +1,191 @@
 "use client"
 
 /**
- * TaskExecutionTimeline——实时展示助理任务执行状态
- * 包含：实例、步骤、工具调用、积分消耗、耗时
+ * TaskExecutionTimeline——展示委托任务的历史与实时执行事件。
+ * @author AaronZZH & Kiro
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useMemo, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { buildApiUrl } from "@/lib/api/config"
+import {
+  DELEGATED_TASK_EVENT_TYPES,
+  delegatedTaskApi,
+  delegatedTaskKeys,
+  getDelegatedTaskEventStreamUrl,
+  parseDelegatedTaskEvent,
+  type DelegatedTaskEventType,
+  type DelegatedTaskEventVO
+} from "@/lib/api/rest/ai/delegated-task"
 
-/** 事件类型 */
-interface TaskEventData {
-  id: number
-  taskId: number
-  executionId: number | null
-  subtaskKey: string | null
-  type: string
-  payloadJson: string | null
-  createTime: string
-}
-
-/** 解析后的事件展示 */
 interface TimelineItem {
-  id: number
+  id: string
   time: string
-  type: string
-  subtask: string | null
+  parentExecutionId: string | null
   icon: string
   label: string
   detail: string | null
-  duration?: number
+  durationSeconds?: number
   tokens?: number
 }
 
-const EVENT_META: Record<string, { icon: string; label: string }> = {
-  execution_created: { icon: "🆕", label: "创建执行" },
-  task_started: { icon: "▶️", label: "开始执行" },
-  subtask_forked: { icon: "🔀", label: "Fork 子任务" },
-  step_started: { icon: "⏩", label: "步骤开始" },
-  step_completed: { icon: "✅", label: "步骤完成" },
-  tool_called: { icon: "🔧", label: "工具调用" },
-  tool_completed: { icon: "🔧", label: "工具完成" },
-  checkpoint_saved: { icon: "💾", label: "检查点保存" },
-  subtask_completed: { icon: "✅", label: "子任务完成" },
-  join_completed: { icon: "🔗", label: "聚合完成" },
-  task_completed: { icon: "🎉", label: "任务完成" },
-  task_failed: { icon: "❌", label: "任务失败" },
-  error: { icon: "⚠️", label: "错误" }
+const EVENT_META: Record<DelegatedTaskEventType, { icon: string; label: string }> = {
+  EXECUTION_STARTED: { icon: "🆕", label: "执行开始" },
+  EXECUTION_COMPLETED: { icon: "🎉", label: "执行完成" },
+  EXECUTION_FAILED: { icon: "❌", label: "执行失败" },
+  EXECUTION_CANCELED: { icon: "⛔", label: "执行取消" },
+  EXECUTION_PAUSED: { icon: "⏸️", label: "执行暂停" },
+  EXECUTION_RESUMED: { icon: "▶️", label: "执行恢复" },
+  COMMAND_REJECTED: { icon: "🚫", label: "命令拒绝" },
+  RUN_STARTED: { icon: "▶️", label: "运行开始" },
+  RUN_COMPLETED: { icon: "✅", label: "运行完成" },
+  RUN_FAILED: { icon: "❌", label: "运行失败" },
+  MESSAGE_STARTED: { icon: "💬", label: "消息开始" },
+  MESSAGE_DELTA: { icon: "✍️", label: "消息增量" },
+  MESSAGE_COMPLETED: { icon: "💬", label: "消息完成" },
+  MODEL_CALL_STARTED: { icon: "🧠", label: "模型调用开始" },
+  MODEL_CALL_COMPLETED: { icon: "🧠", label: "模型调用完成" },
+  MODEL_CALL_FAILED: { icon: "⚠️", label: "模型调用失败" },
+  TOOL_CALL_STARTED: { icon: "🔧", label: "工具调用开始" },
+  TOOL_CALL_COMPLETED: { icon: "🔧", label: "工具调用完成" },
+  TOOL_CALL_FAILED: { icon: "⚠️", label: "工具调用失败" },
+  AUTHORIZATION_REQUESTED: { icon: "🔐", label: "请求授权" },
+  AUTHORIZATION_GRANTED: { icon: "🔓", label: "授权通过" },
+  AUTHORIZATION_DENIED: { icon: "🔒", label: "授权拒绝" },
+  AUTHORIZATION_REVOKED: { icon: "🚫", label: "授权撤销" },
+  APPROVAL_REQUESTED: { icon: "🙋", label: "请求确认" },
+  APPROVAL_RESOLVED: { icon: "✅", label: "确认完成" },
+  SUBTASK_CREATED: { icon: "🔀", label: "子任务创建" },
+  SUBTASK_STARTED: { icon: "▶️", label: "子任务开始" },
+  SUBTASK_COMPLETED: { icon: "✅", label: "子任务完成" },
+  SUBTASK_FAILED: { icon: "❌", label: "子任务失败" },
+  SUBTASK_CANCELED: { icon: "⛔", label: "子任务取消" },
+  VALIDATION_STARTED: { icon: "🔎", label: "验证开始" },
+  VALIDATION_COMPLETED: { icon: "✅", label: "验证完成" },
+  VALIDATION_FAILED: { icon: "⚠️", label: "验证未通过" },
+  RECOVERY_STARTED: { icon: "♻️", label: "恢复开始" },
+  RECOVERY_COMPLETED: { icon: "✅", label: "恢复完成" },
+  OWNERSHIP_TRANSFERRED: { icon: "👤", label: "执行权转交" },
+  TASK_STATUS_CHANGED: { icon: "📌", label: "任务状态变更" },
+  CONTROL_MODE_CHANGED: { icon: "🎛️", label: "控制模式变更" },
+  INPUT_CANCELED: { icon: "⛔", label: "输入取消" },
+  INPUT_MODIFIED: { icon: "✏️", label: "输入修改" },
+  INPUT_SUPPLEMENTED: { icon: "➕", label: "输入补充" },
+  INPUT_UNRELATED: { icon: "↪️", label: "无关输入" }
 }
 
-function parseEvent(event: TaskEventData): TimelineItem {
-  const meta = EVENT_META[event.type] ?? { icon: "📌", label: event.type }
-  let detail: string | null = null
-  let duration: number | undefined
-  let tokens: number | undefined
+function payloadString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key]
+  return typeof value === "string" && value.length > 0 ? value : null
+}
 
-  if (event.payloadJson) {
-    try {
-      const payload = JSON.parse(event.payloadJson)
-      if (payload.title) detail = payload.title
-      if (payload.description) detail = payload.description
-      if (payload.message) detail = payload.message
-      if (payload.role) detail = `角色: ${payload.role}`
-      if (payload.tool) detail = `工具: ${payload.tool}`
-      if (payload.duration_ms) duration = payload.duration_ms
-      if (payload.tokens) tokens = payload.tokens
-      if (payload.done !== undefined)
-        detail = `完成: ${payload.done}/${payload.done + (payload.failed ?? 0)}`
-    } catch {
-      // ignore
-    }
-  }
+function payloadNumber(payload: Record<string, unknown>, key: string): number | undefined {
+  const value = payload[key]
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined
+}
+
+function parseEvent(event: DelegatedTaskEventVO): TimelineItem {
+  const meta = EVENT_META[event.type]
+  const payload = event.payload
+  const toolName = payloadString(payload, "toolName")
+  const reason = payloadString(payload, "reason")
+  const text = payloadString(payload, "text")
+  const modelId = payloadString(payload, "modelId")
+  const taskStatus = payloadString(payload, "taskStatus")
+  const detail = toolName
+    ? `工具: ${toolName}`
+    : reason ?? text ?? (modelId ? `模型: ${modelId}` : taskStatus)
+  const inputTokens = payloadNumber(payload, "inputTokens") ?? 0
+  const outputTokens = payloadNumber(payload, "outputTokens") ?? 0
+  const tokens = inputTokens + outputTokens
 
   return {
-    id: event.id,
-    time: new Date(event.createTime).toLocaleTimeString(),
-    type: event.type,
-    subtask: event.subtaskKey,
+    id: event.eventId,
+    time: new Date(event.createdAt).toLocaleTimeString(),
+    parentExecutionId: event.parentExecutionId,
     icon: meta.icon,
     label: meta.label,
     detail,
-    duration,
-    tokens
+    durationSeconds: payloadNumber(payload, "durationSeconds"),
+    tokens: tokens > 0 ? tokens : undefined
   }
 }
 
 interface TaskExecutionTimelineProps {
-  taskId: number
-  /** 是否实时订阅 SSE */
+  taskId: string
   live?: boolean
 }
 
 export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTimelineProps) {
-  const [items, setItems] = useState<TimelineItem[]>([])
+  const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const queryKey = useMemo(() => delegatedTaskKeys.events(taskId), [taskId])
+  const { data: events = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => delegatedTaskApi.listEvents(taskId)
+  })
 
-  // 加载历史事件
-  useEffect(() => {
-    fetch(buildApiUrl(`/chat/tasks/${taskId}/events`))
-      .then((r) => r.json())
-      .then((res: { data: TaskEventData[] }) => {
-        if (res.data) {
-          setItems(res.data.map(parseEvent))
-        }
-      })
-      .catch(() => {}) // TODO: 区分"无事件"和"加载失败"，失败时展示错误状态
-  }, [taskId])
-
-  // SSE 实时订阅
   useEffect(() => {
     if (!live) return
 
-    const source = new EventSource(buildApiUrl(`/chat/tasks/${taskId}/events/stream`))
-
-    const handleEvent = (e: MessageEvent) => {
-      const event: TaskEventData = JSON.parse(e.data)
-      setItems((prev) => [...prev, parseEvent(event)])
+    const source = new EventSource(getDelegatedTaskEventStreamUrl(taskId), {
+      withCredentials: true
+    })
+    const handleEvent = (message: MessageEvent<string>) => {
+      const event = parseDelegatedTaskEvent(message.data)
+      if (!event) return
+      queryClient.setQueryData<DelegatedTaskEventVO[]>(queryKey, (current = []) => {
+        if (current.some((item) => item.eventId === event.eventId)) return current
+        return [...current, event].toSorted((left, right) => left.eventOffset - right.eventOffset)
+      })
     }
 
-    // 监听所有事件类型
-    for (const type of Object.keys(EVENT_META)) {
+    for (const type of DELEGATED_TASK_EVENT_TYPES) {
       source.addEventListener(type, handleEvent)
     }
 
-    source.onerror = () => source.close()
-
     return () => source.close()
-  }, [taskId, live])
+  }, [live, queryClient, queryKey, taskId])
 
-  // 自动滚动到底部
+  const items = events.map(parseEvent)
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
-  }, [])
+  }, [items.length])
 
+  if (isLoading) {
+    return <p className="py-4 text-center text-muted-foreground text-sm">正在加载执行记录…</p>
+  }
   if (items.length === 0) {
     return <p className="py-4 text-center text-muted-foreground text-sm">暂无执行记录</p>
   }
 
   return (
     <ScrollArea className="h-80" ref={scrollRef}>
-      <div className="space-y-1 p-2">
+      <div className="flex flex-col gap-1 p-2">
         {items.map((item) => (
           <div key={item.id} className="flex items-start gap-2 rounded px-2 py-1 hover:bg-muted/50">
             <span className="shrink-0 text-sm">{item.icon}</span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm">{item.label}</span>
-                {item.subtask && (
-                  <Badge variant="outline" className="text-xs">
-                    {item.subtask}
+                {item.parentExecutionId ? (
+                  <Badge variant="outline" className="max-w-32 truncate text-xs">
+                    {item.parentExecutionId}
                   </Badge>
-                )}
+                ) : null}
                 <span className="ml-auto text-muted-foreground text-xs">{item.time}</span>
               </div>
-              {item.detail && (
+              {item.detail ? (
                 <p className="truncate text-muted-foreground text-xs">{item.detail}</p>
-              )}
-              {(item.duration || item.tokens) && (
+              ) : null}
+              {item.durationSeconds || item.tokens ? (
                 <div className="mt-0.5 flex gap-3 text-muted-foreground text-xs">
-                  {item.duration && <span>⏱ {(item.duration / 1000).toFixed(1)}s</span>}
-                  {item.tokens && <span>🪙 {item.tokens} tokens</span>}
+                  {item.durationSeconds ? <span>⏱ {item.durationSeconds.toFixed(1)}s</span> : null}
+                  {item.tokens ? <span>🪙 {item.tokens} tokens</span> : null}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         ))}

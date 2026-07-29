@@ -1,8 +1,10 @@
 package com.xuejiai.aaf.module.ai.assistant.controller;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,6 +19,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort.
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.assistant.vo.HumanApprovalDecisionDTO;
@@ -37,6 +40,15 @@ public class HumanApprovalController {
     private final HumanApprovalPort approvals;
     private final TaskRecoveryDispatchPort recoveries;
     private final OperatorContext operatorContext;
+
+    @Operation(summary = "查询当前用户的待处理审批")
+    @GetMapping("/pending")
+    public Result<List<HumanApprovalVO>> pending() {
+        var pending = approvals.pending(currentTenant(), new UserId(currentUser())).stream()
+                .map(HumanApprovalVO::from)
+                .toList();
+        return Result.success(pending);
+    }
 
     @Operation(summary = "批准或拒绝受控工具动作")
     @PostMapping("/{approvalId}/decision")

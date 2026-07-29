@@ -4,10 +4,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 
 public record DelegatedTaskVO(
         String taskId,
+        String title,
+        String description,
         String conversationId,
         String executionId,
         String sessionId,
@@ -29,9 +32,12 @@ public record DelegatedTaskVO(
         Instant createdAt,
         Instant updatedAt) {
 
-    public static DelegatedTaskVO from(DelegatedTask task) {
+    public static DelegatedTaskVO from(DelegatedTask task, String goalDescription) {
+        var titleDescription = DelegatedTaskCoordinator.splitGoalDescription(goalDescription);
         return new DelegatedTaskVO(
                 task.taskId().value(),
+                titleDescription.title(),
+                titleDescription.description(),
                 task.conversationId().value(),
                 task.executionId().value(),
                 task.sessionId().value(),

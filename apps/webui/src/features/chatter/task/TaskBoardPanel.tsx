@@ -1,89 +1,72 @@
 /**
- * TaskBoardPanel——子任务进度可视化面板
- * 展示当前会话的子任务列表、整体进度条、依赖关系和结果摘要
- *
+ * TaskBoardPanel——当前对话的委托任务进度面板。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { ChevronDown, ChevronRight } from "lucide-react"
-import { useState } from "react"
+import {
+  Ban,
+  CircleCheckBig,
+  CircleDashed,
+  CircleX,
+  LoaderCircle,
+  MessageCircleQuestion,
+  PauseCircle,
+  ShieldAlert,
+  type LucideIcon
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
-import type { SubTask } from "@/lib/api/rest/ai/task-board"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import type { TaskBoardProgress } from "@/features/chatter/hooks/use-task-board"
+import type {
+  DelegatedTaskStatus,
+  DelegatedTaskVO
+} from "@/lib/api/rest/ai/delegated-task"
+import { cn } from "@/lib/utils"
 
-/** 状态图标映射 */
-const STATUS_ICON: Record<SubTask["status"], string> = {
-  PENDING: "⏳",
-  RUNNING: "🔄",
-  DONE: "✅",
-  FAILED: "❌"
+interface StatusMeta {
+  icon: LucideIcon
+  label: string
 }
 
-/** 状态文本映射 */
-const STATUS_TEXT: Record<SubTask["status"], string> = {
-  PENDING: "等待中",
-  RUNNING: "执行中...",
-  DONE: "已完成",
-  FAILED: "失败"
+const STATUS_META: Record<DelegatedTaskStatus, StatusMeta> = {
+  PENDING: { icon: CircleDashed, label: "等待中" },
+  RUNNING: { icon: LoaderCircle, label: "执行中" },
+  PAUSED: { icon: PauseCircle, label: "已暂停" },
+  AWAITING_AUTHORIZATION: { icon: ShieldAlert, label: "等待授权" },
+  AWAITING_INPUT: { icon: MessageCircleQuestion, label: "等待输入" },
+  COMPLETED: { icon: CircleCheckBig, label: "已完成" },
+  CANCELED: { icon: Ban, label: "已取消" },
+  FAILED: { icon: CircleX, label: "失败" }
 }
 
 interface TaskBoardPanelProps {
-  tasks: SubTask[]
-  progress: { total: number; done: number; failed: number; running: number }
-  /** 所有任务的 id→description 映射，用于展示依赖名称 */
+  tasks: DelegatedTaskVO[]
+  progress: TaskBoardProgress
   isLoading?: boolean
 }
 
-/** 单个子任务行 */
-function TaskItem({ task, taskMap }: { task: SubTask; taskMap: Map<string, string> }) {
-  const [expanded, setExpanded] = useState(false)
-  const hasDeps = task.dependsOn.length > 0
-  const hasResult = task.status === "DONE" && task.result
+function TaskItem({ task }: { task: DelegatedTaskVO }) {
+  const meta = STATUS_META[task.status]
+  const StatusIcon = meta.icon
 
   return (
-    <div className="border-border/50 border-b py-2 last:border-b-0">
-      <div className="flex items-start gap-2">
-        <span className="shrink-0 text-sm">{STATUS_ICON[task.status]}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm leading-tight">{task.description}</p>
-          {/* 依赖关系 */}
-          {hasDeps && task.status === "PENDING" && (
-            <p className="mt-0.5 text-muted-foreground text-xs">
-              等待: {task.dependsOn.map((id) => taskMap.get(id) ?? id).join(", ")}
-            </p>
-          )}
-          {/* 执行中状态 */}
-          {task.status === "RUNNING" && (
-            <p className="mt-0.5 text-muted-foreground text-xs">{STATUS_TEXT.RUNNING}</p>
-          )}
-          {/* 失败状态 */}
-          {task.status === "FAILED" && task.result && (
-            <p className="mt-0.5 text-destructive text-xs">{task.result}</p>
-          )}
-        </div>
-        {/* 结果折叠按钮 */}
-        {hasResult && (
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted"
-            aria-label={expanded ? "收起结果" : "展开结果"}
-          >
-            {expanded ? (
-              <ChevronDown className="size-3.5" />
-            ) : (
-              <ChevronRight className="size-3.5" />
-            )}
-          </button>
-        )}
-      </div>
-      {/* 结果摘要 */}
-      {expanded && hasResult && (
-        <p className="mt-1 ml-6 rounded bg-muted/50 px-2 py-1 text-muted-foreground text-xs">
-          {task.result}
+    <div className="flex items-start gap-2 border-border/50 border-b py-2 last:border-b-0">
+      <StatusIcon
+        className={cn("size-4 shrink-0", task.status === "RUNNING" && "animate-spin")}
+        aria-hidden="true"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm leading-tight" title={task.taskId}>
+          任务 {task.taskId}
         </p>
-      )}
+        <p className="mt-0.5 text-muted-foreground text-xs">
+          {meta.label} · 优先级 {task.priority} · {task.ownerKind}
+        </p>
+      </div>
+      <Badge variant="outline">{meta.label}</Badge>
     </div>
   )
 }
@@ -91,25 +74,37 @@ function TaskItem({ task, taskMap }: { task: SubTask; taskMap: Map<string, strin
 export function TaskBoardPanel({ tasks, progress, isLoading }: TaskBoardPanelProps) {
   if (isLoading || tasks.length === 0) return null
 
-  const percent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
-  const taskMap = new Map(tasks.map((t) => [t.id, t.description]))
+  const completed = progress.byStatus.COMPLETED
+  const percent = progress.total > 0 ? Math.round((completed / progress.total) * 100) : 0
+  const statusGroups = Object.entries(progress.byStatus).filter(([, count]) => count > 0) as [
+    DelegatedTaskStatus,
+    number
+  ][]
 
   return (
     <div className="border-border/50 border-t bg-muted/30 px-3 py-2">
-      {/* 进度头部 */}
       <Progress value={percent} className="mb-2">
         <ProgressLabel className="text-xs">
-          📋 任务进度 {progress.done}/{progress.total} 完成
+          任务进度 {completed}/{progress.total} 完成
         </ProgressLabel>
         <ProgressValue className="text-xs" />
       </Progress>
 
-      {/* 任务列表 */}
-      <div className="max-h-48 overflow-y-auto">
-        {tasks.map((task) => (
-          <TaskItem key={task.id} task={task} taskMap={taskMap} />
+      <div className="mb-1 flex flex-wrap gap-1">
+        {statusGroups.map(([status, count]) => (
+          <Badge key={status} variant="secondary">
+            {STATUS_META[status].label} {count}
+          </Badge>
         ))}
       </div>
+
+      <ScrollArea className="h-48">
+        <div className="pr-2">
+          {tasks.map((task) => (
+            <TaskItem key={task.taskId} task={task} />
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   )
 }

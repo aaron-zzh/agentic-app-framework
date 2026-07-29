@@ -46,8 +46,11 @@ public record ExecutionContract(
                 StopCondition.HUMAN_TAKEOVER,
                 StopCondition.USER_CANCELED);
         if (!stopConditions.containsAll(mandatoryStops)) {
+            var effectiveStopConditions = stopConditions;
             throw new IllegalArgumentException("委托合同缺少强制停止条件: "
-                    + mandatoryStops.stream().filter(value -> !stopConditions.contains(value)).toList());
+                    + mandatoryStops.stream()
+                            .filter(value -> !effectiveStopConditions.contains(value))
+                            .toList());
         }
         if (!takeoverPolicy.humanTakeoverAllowed()) {
             throw new IllegalArgumentException("DELEGATED 必须允许人工接管");

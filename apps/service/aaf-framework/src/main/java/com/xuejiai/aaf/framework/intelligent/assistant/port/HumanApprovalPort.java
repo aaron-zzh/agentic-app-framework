@@ -7,6 +7,7 @@ import java.util.Optional;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 /** 持久审批状态边界。 */
 public interface HumanApprovalPort {
@@ -16,6 +17,8 @@ public interface HumanApprovalPort {
     Optional<HumanApproval> find(TenantId tenantId, String approvalId);
 
     List<HumanApproval> pending(TenantId tenantId, TaskId taskId);
+
+    List<HumanApproval> pending(TenantId tenantId, UserId userId);
 
     DecisionResult decide(
             TenantId tenantId,
