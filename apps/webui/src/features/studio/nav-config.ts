@@ -125,12 +125,22 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
         key: "all",
         label: "全部",
         icon: Layers,
-        path: "/studio/projects?status=all",
+        path: "/studio/projects",
         default: true
       },
-      { key: "active", label: "进行中", icon: TrendingUp, path: "/studio/projects?status=active" },
-      { key: "draft", label: "草稿", icon: FileText, path: "/studio/projects?status=draft" },
-      { key: "done", label: "已完成", icon: Star, path: "/studio/projects?status=done" },
+      {
+        key: "active",
+        label: "进行中",
+        icon: TrendingUp,
+        path: "/studio/projects?status=in_progress"
+      },
+      {
+        key: "done",
+        label: "已完成",
+        icon: Star,
+        path: "/studio/projects?status=completed"
+      },
+      { key: "brands", label: "品牌 · IP", icon: CircleUser, path: "/studio/brands" },
       { key: "templates", label: "模板库", icon: Shapes, path: "/studio/templates" }
     ]
   },
@@ -192,8 +202,8 @@ export function resolveWorkspaceFromPath(pathname: string): StudioWorkspace | nu
   const segment = match[1]
   // welcome 动画页归 home
   if (segment === "welcome") return "home"
-  // 模板库归项目工作区
-  if (segment === "templates") return "projects"
+  // 模板库与品牌资料归项目工作区
+  if (segment === "templates" || segment === "brands") return "projects"
   // 工具箱路径归 tools 工作区
   if (pathname.startsWith("/studio/create/tools") || pathname.startsWith("/studio/create/draw"))
     return "tools"

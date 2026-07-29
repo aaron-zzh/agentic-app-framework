@@ -108,12 +108,15 @@ export function RecentProjectGrid() {
               <EmptyDescription>选择上方项目类型，立即建立第一个项目骨架。</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Link href="/studio/projects/new">
-                <GlowButton tone="ghost" size="sm">
-                  <Plus />
-                  完整创建
-                </GlowButton>
-              </Link>
+              <GlowButton
+                nativeButton={false}
+                render={<Link href="/studio/projects/new" />}
+                tone="ghost"
+                size="sm"
+              >
+                <Plus />
+                完整创建
+              </GlowButton>
             </EmptyContent>
           </Empty>
         </GlassCard>
