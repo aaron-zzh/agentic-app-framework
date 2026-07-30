@@ -25,6 +25,5 @@ public record ContentProjectObjectCreateDTO(
         String schemaVersion,
         String entityResource,
         Long entityId,
-        String adoptedVersionRef,
         String summary,
         Map<String, Object> payload) {}

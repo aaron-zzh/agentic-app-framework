@@ -87,7 +87,6 @@ public class ContentProjectObjectService
         ContentPatchSupport.nullable(dto.schemaVersion(), entity::setSchemaVersion);
         ContentPatchSupport.nullable(dto.entityResource(), entity::setEntityResource);
         ContentPatchSupport.nullable(dto.entityId(), entity::setEntityId);
-        ContentPatchSupport.nullable(dto.adoptedVersionRef(), entity::setAdoptedVersionRef);
         ContentPatchSupport.nullable(dto.summary(), entity::setSummary);
         ContentPatchSupport.nullable(dto.payload(), entity::setPayload);
     }

@@ -29,7 +29,6 @@ public record ContentProjectObjectUpdateDTO(
         Patch<String> schemaVersion,
         Patch<String> entityResource,
         Patch<Long> entityId,
-        Patch<String> adoptedVersionRef,
         Patch<String> summary,
         Patch<Map<String, Object>> payload,
         @NotNull @PositiveOrZero Integer expectedVersion) {
@@ -47,7 +46,6 @@ public record ContentProjectObjectUpdateDTO(
         schemaVersion = normalize(schemaVersion);
         entityResource = normalize(entityResource);
         entityId = normalize(entityId);
-        adoptedVersionRef = normalize(adoptedVersionRef);
         summary = normalize(summary);
         payload = normalize(payload);
     }
@@ -66,7 +64,6 @@ public record ContentProjectObjectUpdateDTO(
             @JsonProperty("schemaVersion") JsonNode schemaVersion,
             @JsonProperty("entityResource") JsonNode entityResource,
             @JsonProperty("entityId") JsonNode entityId,
-            @JsonProperty("adoptedVersionRef") JsonNode adoptedVersionRef,
             @JsonProperty("summary") JsonNode summary,
             @JsonProperty("payload") JsonNode payload,
             @JsonProperty("expectedVersion") Integer expectedVersion) {
@@ -83,7 +80,6 @@ public record ContentProjectObjectUpdateDTO(
                 Patch.parse(schemaVersion, ContentPatchDecoder::text),
                 Patch.parse(entityResource, ContentPatchDecoder::text),
                 Patch.parse(entityId, ContentPatchDecoder::longValue),
-                Patch.parse(adoptedVersionRef, ContentPatchDecoder::text),
                 Patch.parse(summary, ContentPatchDecoder::text),
                 Patch.parse(payload, ContentPatchDecoder::objectMap),
                 expectedVersion);
