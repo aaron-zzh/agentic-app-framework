@@ -267,8 +267,7 @@ public interface WorkflowEngine {
      * @param workspaceId 工作区 ID，组织级流程使用 null
      * @return 总数
      */
-    long countHistoricInstances(
-            String processKey, boolean finished, Long orgId, Long workspaceId);
+    long countHistoricInstances(String processKey, boolean finished, Long orgId, Long workspaceId);
 
     /**
      * 挂起流程实例。
@@ -377,8 +376,7 @@ public interface WorkflowEngine {
      * @param processInstanceId 目标流程实例 ID
      * @param variables 变量
      */
-    void sendSignal(
-            String signalName, String processInstanceId, Map<String, Object> variables);
+    void sendSignal(String signalName, String processInstanceId, Map<String, Object> variables);
 
     /**
      * 发送消息事件。

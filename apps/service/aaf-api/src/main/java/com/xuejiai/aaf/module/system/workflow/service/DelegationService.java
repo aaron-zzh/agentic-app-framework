@@ -89,8 +89,7 @@ public class DelegationService {
     /** 单次转交任务 */
     @Transactional
     public void transfer(WorkflowTransferDTO dto, String operatorId) {
-        workflowService.reassignTask(
-                dto.taskId(), operatorId, dto.targetUserId().toString());
+        workflowService.reassignTask(dto.taskId(), operatorId, dto.targetUserId().toString());
     }
 
     private DelegationVO toVO(Delegation d) {

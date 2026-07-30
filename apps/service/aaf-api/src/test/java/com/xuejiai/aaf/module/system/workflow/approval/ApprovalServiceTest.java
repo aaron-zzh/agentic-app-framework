@@ -50,8 +50,7 @@ class ApprovalServiceTest {
                         "${form.managerId}");
 
         var assignees =
-                approvalService.resolveAssignees(
-                        config, Map.of("form", Map.of("managerId", 99L)));
+                approvalService.resolveAssignees(config, Map.of("form", Map.of("managerId", 99L)));
 
         assertThat(assignees).containsExactly("99");
     }
@@ -76,8 +75,7 @@ class ApprovalServiceTest {
 
         approvalService.handleTimeout(config, "task-1");
 
-        verify(workflowEngine)
-                .completeTask("task-1", Map.of("approved", true), "审批超时自动通过");
+        verify(workflowEngine).completeTask("task-1", Map.of("approved", true), "审批超时自动通过");
     }
 
     private ApprovalNodeConfig config(

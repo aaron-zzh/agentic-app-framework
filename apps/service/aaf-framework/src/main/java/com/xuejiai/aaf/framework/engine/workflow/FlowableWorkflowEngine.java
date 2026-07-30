@@ -68,21 +68,11 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     @Override
     public boolean canOperateTask(String taskId, String userId) {
         var assigned =
-                taskService
-                        .createTaskQuery()
-                        .taskId(taskId)
-                        .taskAssignee(userId)
-                        .count()
-                        > 0;
+                taskService.createTaskQuery().taskId(taskId).taskAssignee(userId).count() > 0;
         if (assigned) {
             return true;
         }
-        return taskService
-                        .createTaskQuery()
-                        .taskId(taskId)
-                        .taskCandidateUser(userId)
-                        .count()
-                > 0;
+        return taskService.createTaskQuery().taskId(taskId).taskCandidateUser(userId).count() > 0;
     }
 
     @Override
@@ -100,11 +90,7 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
                 > 0) {
             return true;
         }
-        var tasks =
-                taskService
-                        .createTaskQuery()
-                        .processInstanceId(processInstanceId)
-                        .list();
+        var tasks = taskService.createTaskQuery().processInstanceId(processInstanceId).list();
         return tasks.stream()
                 .anyMatch(
                         task ->

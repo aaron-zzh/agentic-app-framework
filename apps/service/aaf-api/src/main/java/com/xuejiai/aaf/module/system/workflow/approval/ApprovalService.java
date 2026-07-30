@@ -75,19 +75,16 @@ public class ApprovalService {
         log.info("审批超时处理：taskId={}, strategy={}", taskId, strategy);
         switch (strategy) {
             case AUTO_APPROVE ->
-                    workflowEngine.completeTask(
-                            taskId, Map.of("approved", true), "审批超时自动通过");
+                    workflowEngine.completeTask(taskId, Map.of("approved", true), "审批超时自动通过");
             case AUTO_REJECT ->
-                    workflowEngine.completeTask(
-                            taskId, Map.of("approved", false), "审批超时自动拒绝");
+                    workflowEngine.completeTask(taskId, Map.of("approved", false), "审批超时自动拒绝");
             case TRANSFER -> {
                 var target =
                         config.assignees() == null || config.assignees().isEmpty()
                                 ? null
                                 : config.assignees().getFirst();
                 if (target == null || target.isBlank()) {
-                    throw new BusinessException(
-                            GlobalErrorCode.BAD_REQUEST, "超时转交策略未配置目标审批人");
+                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "超时转交策略未配置目标审批人");
                 }
                 workflowEngine.transferSign(taskId, target, "审批超时自动转交");
             }
@@ -138,8 +135,7 @@ public class ApprovalService {
         }
         var matcher = VARIABLE_EXPRESSION.matcher(expression.trim());
         if (!matcher.matches()) {
-            throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST, "审批人表达式仅支持安全的变量路径");
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "审批人表达式仅支持安全的变量路径");
         }
         Object value = variables;
         for (var segment : matcher.group(1).split("\\.")) {

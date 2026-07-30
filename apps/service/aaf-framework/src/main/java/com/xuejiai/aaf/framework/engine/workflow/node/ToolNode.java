@@ -45,8 +45,7 @@ public class ToolNode implements JavaDelegate {
         return value;
     }
 
-    private String stringVariable(
-            DelegateExecution execution, String name, String defaultValue) {
+    private String stringVariable(DelegateExecution execution, String name, String defaultValue) {
         var value = execution.getVariable(name);
         return value == null ? defaultValue : String.valueOf(value);
     }

@@ -60,7 +60,10 @@ public class WorkflowAgUiService {
         var runId = UUID.randomUUID().toString();
         var emitter = createEmitter(runId);
         Thread.startVirtualThread(
-                () -> withOrgContext(identity, () -> executeWorkflow(request, flow, identity, emitter, runId)));
+                () ->
+                        withOrgContext(
+                                identity,
+                                () -> executeWorkflow(request, flow, identity, emitter, runId)));
         return emitter;
     }
 
@@ -81,7 +84,8 @@ public class WorkflowAgUiService {
     public void submitInput(String runId, Map<String, Object> variables) {
         var identity = currentIdentity();
         var processInstanceId = requireRun(runId, identity, true);
-        var safeVariables = variables != null ? new HashMap<>(variables) : new HashMap<String, Object>();
+        var safeVariables =
+                variables != null ? new HashMap<>(variables) : new HashMap<String, Object>();
         if (!java.util.Collections.disjoint(safeVariables.keySet(), RESERVED_VARIABLES)) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "禁止修改工作流安全变量");
         }
@@ -89,11 +93,11 @@ public class WorkflowAgUiService {
         if (currentTask == null) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "流程当前未等待用户输入");
         }
-        workflowEngine.completeTask(currentTask.taskId(), safeVariables, identity.userId().toString());
+        workflowEngine.completeTask(
+                currentTask.taskId(), safeVariables, identity.userId().toString());
         var emitter = activeEmitters.get(runId);
         if (emitter != null) {
-            sendEvent(
-                    emitter, AgUiEvent.toolCallResult(runId, "user_input_" + runId, "用户已提交输入"));
+            sendEvent(emitter, AgUiEvent.toolCallResult(runId, "user_input_" + runId, "用户已提交输入"));
         }
     }
 
@@ -125,9 +129,11 @@ public class WorkflowAgUiService {
 
             String processKey;
             if (request.debug()) {
-                var compilation = bpmnCompiler.compileDebug(flow.getId(), runId, flow.getDefinition());
+                var compilation =
+                        bpmnCompiler.compileDebug(flow.getId(), runId, flow.getDefinition());
                 tempDeploymentId =
-                        workflowEngine.deploy("debug-" + flow.getId() + "-" + runId, compilation.bpmnXml());
+                        workflowEngine.deploy(
+                                "debug-" + flow.getId() + "-" + runId, compilation.bpmnXml());
                 processKey = compilation.processKey();
                 variables.put("_aafDebugDeploymentId", tempDeploymentId);
             } else {
@@ -148,8 +154,7 @@ public class WorkflowAgUiService {
         }
     }
 
-    private void streamUntilTerminal(
-            SseEmitter emitter, String runId, String processInstanceId) {
+    private void streamUntilTerminal(SseEmitter emitter, String runId, String processInstanceId) {
         var announcedTasks = new HashSet<String>();
         var lastHeartbeat = System.currentTimeMillis();
         try {
@@ -179,10 +184,7 @@ public class WorkflowAgUiService {
     }
 
     private void pushExecutionState(
-            SseEmitter emitter,
-            String runId,
-            String processInstanceId,
-            Set<String> announcedTasks)
+            SseEmitter emitter, String runId, String processInstanceId, Set<String> announcedTasks)
             throws IOException {
         var logs = executionLogger.getExecutionLogs(processInstanceId);
         var completedNodes =
@@ -251,14 +253,14 @@ public class WorkflowAgUiService {
         sendEvent(emitter, AgUiEvent.textMessageContent(runId, messageId, lastOutput));
         sendEvent(emitter, AgUiEvent.textMessageEnd(runId, messageId));
         sendEvent(emitter, AgUiEvent.runFinished(runId));
-        var deploymentId = workflowEngine.getProcessVariables(processInstanceId).get("_aafDebugDeploymentId");
+        var deploymentId =
+                workflowEngine.getProcessVariables(processInstanceId).get("_aafDebugDeploymentId");
         if (deploymentId != null) {
             deleteDebugDeployment(String.valueOf(deploymentId));
         }
         activeEmitters.remove(runId, emitter);
         emitter.complete();
     }
-
 
     private SseEmitter createEmitter(String runId) {
         var emitter = new SseEmitter(SSE_TIMEOUT);
@@ -280,15 +282,12 @@ public class WorkflowAgUiService {
         return emitter;
     }
 
-    private AiFlowDefinition requireRunnableFlow(
-            WorkflowRunRequest request, RunIdentity identity) {
+    private AiFlowDefinition requireRunnableFlow(WorkflowRunRequest request, RunIdentity identity) {
         var flow =
                 flowRepository
                         .findById(request.flowId())
                         .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "工作流不存在"));
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在"));
         var flowWorkspaceId = flow.getWorkspaceId() != null ? flow.getWorkspaceId() : 0L;
         if (!identity.orgId().equals(flow.getOrgId())
                 || !identity.workspaceId().equals(flowWorkspaceId)) {
@@ -336,9 +335,7 @@ public class WorkflowAgUiService {
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.UNAUTHORIZED, "用户未登录"));
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "用户未登录"));
         var orgId = OrgContext.getCurrentOrgId();
         if (orgId == null) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "缺少组织上下文");

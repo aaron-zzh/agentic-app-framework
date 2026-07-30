@@ -118,7 +118,11 @@ public class RoleService
                 .findByCodeAndDeletedFalse(roleCode)
                 .filter(role -> Integer.valueOf(0).equals(role.getStatus()))
                 .stream()
-                .flatMap(role -> userRoleRepository.findByRoleIdAndDeletedFalse(role.getId()).stream())
+                .flatMap(
+                        role ->
+                                userRoleRepository
+                                        .findByRoleIdAndDeletedFalse(role.getId())
+                                        .stream())
                 .map(UserRole::getUserId)
                 .distinct()
                 .toList();

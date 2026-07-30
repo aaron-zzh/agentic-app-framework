@@ -31,6 +31,7 @@ public class WorkflowExecutionLogger {
 
     private final RuntimeService runtimeService;
     private final HistoryService historyService;
+
     /** processInstanceId → 执行日志列表 */
     private final Map<String, List<WorkflowExecutionLog>> logs = new ConcurrentHashMap<>();
 
@@ -64,7 +65,14 @@ public class WorkflowExecutionLogger {
                 processInstanceId,
                 nodeId,
                 new WorkflowExecutionLog(
-                        nodeId, nodeName, null, output, duration, "completed", null, Instant.now()));
+                        nodeId,
+                        nodeName,
+                        null,
+                        output,
+                        duration,
+                        "completed",
+                        null,
+                        Instant.now()));
 
         log.debug(
                 "节点执行完成: processId={}, nodeId={}, duration={}ms",
@@ -127,7 +135,8 @@ public class WorkflowExecutionLogger {
     private void replaceRunningLog(
             String processInstanceId, String nodeId, WorkflowExecutionLog terminalLog) {
         var entries = logs.computeIfAbsent(processInstanceId, k -> new CopyOnWriteArrayList<>());
-        entries.removeIf(entry -> nodeId.equals(entry.nodeId()) && "running".equals(entry.status()));
+        entries.removeIf(
+                entry -> nodeId.equals(entry.nodeId()) && "running".equals(entry.status()));
         appendLog(processInstanceId, terminalLog);
     }
 

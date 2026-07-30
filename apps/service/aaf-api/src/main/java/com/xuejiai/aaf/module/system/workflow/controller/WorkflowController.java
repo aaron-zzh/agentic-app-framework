@@ -330,8 +330,7 @@ public class WorkflowController {
     @PostMapping("/events/signal")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> sendSignal(@Validated @RequestBody WorkflowSignalDTO dto) {
-        workflowService.sendSignal(
-                dto.signalName(), dto.processInstanceId(), dto.variables());
+        workflowService.sendSignal(dto.signalName(), dto.processInstanceId(), dto.variables());
         return Result.success();
     }
 

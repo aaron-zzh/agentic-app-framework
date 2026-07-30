@@ -42,7 +42,6 @@ public class WorkflowAgUiController {
         return workflowAgUiService.resumeStream(runId);
     }
 
-
     @Operation(summary = "提交用户输入（恢复等待中的流程）")
     @PostMapping("/run/{runId}/input")
     public Result<Void> submitInput(

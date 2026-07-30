@@ -139,8 +139,7 @@ public class ApprovalController {
     @GetMapping("/is-delegate")
     public Result<Boolean> isDelegate(@RequestParam Long delegatorId) {
         return Result.success(
-                approvalPermissionService.isDelegateOf(
-                        Long.valueOf(currentUserId()), delegatorId));
+                approvalPermissionService.isDelegateOf(Long.valueOf(currentUserId()), delegatorId));
     }
 
     // ==================== DTO ====================

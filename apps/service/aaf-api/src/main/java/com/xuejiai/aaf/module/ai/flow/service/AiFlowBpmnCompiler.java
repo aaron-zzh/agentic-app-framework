@@ -155,7 +155,9 @@ public class AiFlowBpmnCompiler {
                             "exclusiveGateway",
                             id,
                             name,
-                            defaultEdge == null ? null : " default=\"" + escape(defaultEdge) + "\"");
+                            defaultEdge == null
+                                    ? null
+                                    : " default=\"" + escape(defaultEdge) + "\"");
             case "parallel" -> emptyElement(xml, "parallelGateway", id, name, null);
             case "wait" -> renderWait(xml, id, name, data, signals);
             default -> renderServiceTask(xml, id, name, type, data);
@@ -178,26 +180,28 @@ public class AiFlowBpmnCompiler {
     }
 
     private void renderExecutionListeners(StringBuilder xml, JsonNode data) {
-        var configuration = cdata(JsonUtils.toJsonString(JsonUtils.convertValue(data, Object.class)));
+        var configuration =
+                cdata(JsonUtils.toJsonString(JsonUtils.convertValue(data, Object.class)));
         xml.append("      <extensionElements>\n")
-                .append("        <flowable:executionListener event=\"start\" delegateExpression=\"${workflowNodeConfigurationListener}\">\n")
-                .append("          <flowable:field name=\"phase\"><flowable:string>start</flowable:string></flowable:field>\n")
-                .append("          <flowable:field name=\"configuration\"><flowable:string><![CDATA[")
+                .append(
+                        "        <flowable:executionListener event=\"start\" delegateExpression=\"${workflowNodeConfigurationListener}\">\n")
+                .append(
+                        "          <flowable:field name=\"phase\"><flowable:string>start</flowable:string></flowable:field>\n")
+                .append(
+                        "          <flowable:field name=\"configuration\"><flowable:string><![CDATA[")
                 .append(configuration)
                 .append("]]></flowable:string></flowable:field>\n")
                 .append("        </flowable:executionListener>\n")
-                .append("        <flowable:executionListener event=\"end\" delegateExpression=\"${workflowNodeConfigurationListener}\">\n")
-                .append("          <flowable:field name=\"phase\"><flowable:string>end</flowable:string></flowable:field>\n")
+                .append(
+                        "        <flowable:executionListener event=\"end\" delegateExpression=\"${workflowNodeConfigurationListener}\">\n")
+                .append(
+                        "          <flowable:field name=\"phase\"><flowable:string>end</flowable:string></flowable:field>\n")
                 .append("        </flowable:executionListener>\n")
                 .append("      </extensionElements>\n");
     }
 
     private void renderWait(
-            StringBuilder xml,
-            String id,
-            String name,
-            JsonNode data,
-            Map<String, String> signals) {
+            StringBuilder xml, String id, String name, JsonNode data, Map<String, String> signals) {
         var waitType = data.path("waitType").asText("signal");
         if ("human".equals(waitType)) {
             var assignee = data.path("assignee").asText();
@@ -432,9 +436,7 @@ public class AiFlowBpmnCompiler {
 
     private String normalizeCondition(String condition) {
         var trimmed = condition.trim();
-        return trimmed.startsWith("${") && trimmed.endsWith("}")
-                ? trimmed
-                : "${" + trimmed + "}";
+        return trimmed.startsWith("${") && trimmed.endsWith("}") ? trimmed : "${" + trimmed + "}";
     }
 
     private String escape(String value) {

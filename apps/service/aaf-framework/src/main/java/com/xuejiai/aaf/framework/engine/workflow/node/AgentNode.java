@@ -54,21 +54,25 @@ public class AgentNode implements JavaDelegate {
         try {
             var command = command(execution);
             var events =
-                    agentExecutionPort
-                            .execute(command)
-                            .collectList()
-                            .block(Duration.ofMinutes(5));
+                    agentExecutionPort.execute(command).collectList().block(Duration.ofMinutes(5));
             if (events == null) {
                 throw new IllegalStateException("Agent 未返回执行事件");
             }
             var failure =
                     events.stream()
                             .filter(ExecutionEvent::isTerminal)
-                            .filter(event -> event.status() == ExecutionEvent.ExecutionEventStatus.FAILED)
+                            .filter(
+                                    event ->
+                                            event.status()
+                                                    == ExecutionEvent.ExecutionEventStatus.FAILED)
                             .findFirst();
             if (failure.isPresent()) {
                 throw new IllegalStateException(
-                        String.valueOf(failure.get().payload().values().getOrDefault("error", "Agent 执行失败")));
+                        String.valueOf(
+                                failure.get()
+                                        .payload()
+                                        .values()
+                                        .getOrDefault("error", "Agent 执行失败")));
             }
             var output =
                     events.stream()
@@ -165,8 +169,7 @@ public class AgentNode implements JavaDelegate {
         return value;
     }
 
-    private String stringVariable(
-            DelegateExecution execution, String name, String defaultValue) {
+    private String stringVariable(DelegateExecution execution, String name, String defaultValue) {
         var value = execution.getVariable(name);
         return value == null ? defaultValue : String.valueOf(value);
     }

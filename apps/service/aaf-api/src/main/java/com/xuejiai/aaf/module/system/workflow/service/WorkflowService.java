@@ -69,7 +69,8 @@ public class WorkflowService {
                 OrgContext.getCurrentWorkspaceId() != null
                         ? OrgContext.getCurrentWorkspaceId()
                         : ORGANIZATION_SCOPE);
-        return workflowEngine.startProcess(PROCESS_KEY, businessKey(entityType, entityId), variables);
+        return workflowEngine.startProcess(
+                PROCESS_KEY, businessKey(entityType, entityId), variables);
     }
 
     /** 通过审批。 */
@@ -118,8 +119,7 @@ public class WorkflowService {
 
     /** 查询审批历史。 */
     @Transactional(readOnly = true)
-    public List<WorkflowStatusVO.HistoryItem> getHistory(
-            String processInstanceId, String userId) {
+    public List<WorkflowStatusVO.HistoryItem> getHistory(String processInstanceId, String userId) {
         requireInstanceAccess(processInstanceId, userId);
         return loadHistory(processInstanceId);
     }
@@ -227,8 +227,7 @@ public class WorkflowService {
                         .map(this::toInstanceVO)
                         .toList();
         long total =
-                workflowEngine.countHistoricInstances(
-                        processKey, finished, orgId, workspaceId);
+                workflowEngine.countHistoricInstances(processKey, finished, orgId, workspaceId);
         return new PageResult<>(list, total);
     }
 

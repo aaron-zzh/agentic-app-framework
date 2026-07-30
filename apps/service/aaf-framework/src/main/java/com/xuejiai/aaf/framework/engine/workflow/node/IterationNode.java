@@ -61,7 +61,8 @@ public class IterationNode implements JavaDelegate {
             } else {
                 results =
                         new java.util.ArrayList<>(
-                                JsonUtils.parseObject(resultsJson, new TypeReference<List<Object>>() {}));
+                                JsonUtils.parseObject(
+                                        resultsJson, new TypeReference<List<Object>>() {}));
             }
             var item = items.get(nextIndex);
             results.add(item);
