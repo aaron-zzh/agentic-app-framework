@@ -5,6 +5,7 @@
 
 "use client"
 
+import { useBoolean } from "@aaf/hooks"
 import { FolderKanban } from "lucide-react"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -16,6 +17,7 @@ import {
   type ContentCanvasMode,
   ContentCanvasSheet,
   getObjectStage,
+  ObjectDetailPanel,
   PROJECT_GRAPH_STAGES,
   type ProjectGraphStage,
   ProjectGraphView,
@@ -58,6 +60,7 @@ export default function StudioProjectDetailPage() {
   const focusObjectId = parseFocus(searchParams.get("focus"))
   const requestedStage = searchParams.get("stage")
   const [canvasSession, setCanvasSession] = useState<CanvasSession | null>(null)
+  const detailPanel = useBoolean(false)
   const setGraphFocus = useProjectGraphViewState((state) => state.setFocusObjectId)
   const { data: project, isLoading: projectLoading } = useContentProject(validProjectId)
   const { data: graph, isLoading: graphLoading } = useContentProjectGraph(validProjectId)
@@ -107,6 +110,11 @@ export default function StudioProjectDetailPage() {
       focus: id,
       ...(view === "structure" && object ? { stage: getObjectStage(object) } : {})
     })
+  }
+
+  function handleOpenDetails(id: number) {
+    handleFocusObject(id)
+    detailPanel.onTrue()
   }
 
   function handleOpenCanvas(id: number, mode: ContentCanvasMode) {
@@ -160,6 +168,7 @@ export default function StudioProjectDetailPage() {
             graph={graph}
             focusObjectId={focusObjectId}
             onFocusObject={handleFocusObject}
+            onOpenDetails={handleOpenDetails}
             onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
             onAnnotateImage={(id) => handleOpenCanvas(id, "annotation")}
           />
@@ -169,7 +178,7 @@ export default function StudioProjectDetailPage() {
             activeStage={activeStage}
             focusObjectId={focusObjectId}
             onStageChange={(stage) => updateUrl({ stage })}
-            onFocusObject={handleFocusObject}
+            onOpenDetails={handleOpenDetails}
             onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
             onAnnotateImage={(id) => handleOpenCanvas(id, "annotation")}
           />
@@ -187,6 +196,12 @@ export default function StudioProjectDetailPage() {
           <span className="text-amber-500">已归档 · 只读</span>
         ) : null}
       </footer>
+
+      <ObjectDetailPanel
+        open={detailPanel.value}
+        object={focusedObject}
+        onOpenChange={detailPanel.setValue}
+      />
 
       <ContentCanvasSheet
         open={canvasSession !== null}

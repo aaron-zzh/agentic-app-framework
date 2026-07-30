@@ -684,10 +684,11 @@ export function useContentObjectVersions(objectId: number | null) {
     enabled: objectId !== null
   })
 }
-export function useContentExecutionRuns(params: ContentExecutionRunParams = {}) {
+export function useContentExecutionRuns(params: ContentExecutionRunParams = {}, enabled = true) {
   return useQuery({
     queryKey: KEYS.executionRuns(params),
-    queryFn: () => contentStudioApi.executionRuns(params)
+    queryFn: () => contentStudioApi.executionRuns(params),
+    enabled
   })
 }
 export function useContentSnippets(params: ContentSnippetParams = {}) {

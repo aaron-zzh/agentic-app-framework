@@ -15,7 +15,7 @@ import {
   ReactFlow,
   type Viewport
 } from "@xyflow/react"
-import { ChevronDown, ChevronRight, Layers3, PanelTopOpen, ScanLine } from "lucide-react"
+import { ChevronDown, ChevronRight, Eye, Layers3, PanelTopOpen, ScanLine } from "lucide-react"
 import { createContext, memo, useContext, useMemo } from "react"
 import "@xyflow/react/dist/style.css"
 import { GlassCard } from "@/components/studio"
@@ -48,6 +48,7 @@ const STATUS_VARIANT = {
 } as const
 
 interface GraphNodeActions {
+  onOpenDetails: (id: number) => void
   onOpenCanvas: (id: number) => void
   onAnnotateImage: (id: number) => void
 }
@@ -59,6 +60,7 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
   const actions = useContext(GraphNodeActionsContext)
   const toggleCollapsedGroup = useProjectGraphViewState((state) => state.toggleCollapsedGroup)
   const isGroup = node.kind === "group"
+  const objectId = node.objectId
   const canOpenCanvas = node.objectType === "canvas_board"
   const canAnnotate = node.objectType === "image_deliverable" || node.objectType === "shot_keyframe"
 
@@ -107,21 +109,38 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
             {node.summary}
           </p>
         )}
-        {!isGroup && node.objectId !== undefined && (canOpenCanvas || canAnnotate) ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            className="nodrag w-full"
-            onClick={(event) => {
-              event.stopPropagation()
-              if (canOpenCanvas) actions?.onOpenCanvas(node.objectId as number)
-              else actions?.onAnnotateImage(node.objectId as number)
-            }}
-          >
-            {canOpenCanvas ? <PanelTopOpen /> : <ScanLine />}
-            {canOpenCanvas ? "打开画布" : "标注"}
-          </Button>
+        {!isGroup && objectId !== undefined ? (
+          <div className="nodrag flex gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              className="flex-1"
+              onClick={(event) => {
+                event.stopPropagation()
+                actions?.onOpenDetails(objectId)
+              }}
+            >
+              <Eye />
+              详情
+            </Button>
+            {canOpenCanvas || canAnnotate ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className="flex-1"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  if (canOpenCanvas) actions?.onOpenCanvas(objectId)
+                  else actions?.onAnnotateImage(objectId)
+                }}
+              >
+                {canOpenCanvas ? <PanelTopOpen /> : <ScanLine />}
+                {canOpenCanvas ? "画布" : "标注"}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
         {node.zoomTier === "detail" && !isGroup ? (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
@@ -142,6 +161,7 @@ export interface ProjectGraphViewProps {
   graph: ContentProjectGraphVO
   focusObjectId?: number
   onFocusObject: (id: number) => void
+  onOpenDetails: (id: number) => void
   onOpenCanvas: (id: number) => void
   onAnnotateImage: (id: number) => void
 }
@@ -156,6 +176,7 @@ export function ProjectGraphView({
   graph,
   focusObjectId,
   onFocusObject,
+  onOpenDetails,
   onOpenCanvas,
   onAnnotateImage
 }: ProjectGraphViewProps) {
@@ -177,8 +198,8 @@ export function ProjectGraphView({
     [graph, collapsedGroups, activeLayers, focusObjectId, zoomTier]
   )
   const nodeActions = useMemo(
-    () => ({ onOpenCanvas, onAnnotateImage }),
-    [onOpenCanvas, onAnnotateImage]
+    () => ({ onOpenDetails, onOpenCanvas, onAnnotateImage }),
+    [onOpenDetails, onOpenCanvas, onAnnotateImage]
   )
 
   function handleMoveEnd(_event: MouseEvent | TouchEvent | null, nextViewport: Viewport) {

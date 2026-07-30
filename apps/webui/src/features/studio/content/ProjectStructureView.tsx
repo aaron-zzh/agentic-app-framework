@@ -5,7 +5,7 @@
 
 "use client"
 
-import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed } from "lucide-react"
+import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, Eye } from "lucide-react"
 import { GlassCard, GlassCardBody, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -41,7 +41,7 @@ export interface ProjectStructureViewProps {
   activeStage: ProjectGraphStage
   focusObjectId?: number
   onStageChange: (stage: ProjectGraphStage) => void
-  onFocusObject: (id: number) => void
+  onOpenDetails: (id: number) => void
   onOpenCanvas: (id: number) => void
   onAnnotateImage: (id: number) => void
 }
@@ -51,7 +51,7 @@ export function ProjectStructureView({
   activeStage,
   focusObjectId,
   onStageChange,
-  onFocusObject,
+  onOpenDetails,
   onOpenCanvas,
   onAnnotateImage
 }: ProjectStructureViewProps) {
@@ -162,7 +162,7 @@ export function ProjectStructureView({
                     <TableHead>对象</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead className="hidden md:table-cell">摘要</TableHead>
-                    <TableHead className="w-24 text-right">操作</TableHead>
+                    <TableHead className="w-48 text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -186,32 +186,36 @@ export function ProjectStructureView({
                         {object.summary || "暂无摘要"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (object.objectType === "canvas_board") {
-                              onOpenCanvas(object.id)
-                              return
-                            }
-                            if (
-                              object.objectType === "image_deliverable" ||
-                              object.objectType === "shot_keyframe"
-                            ) {
-                              onAnnotateImage(object.id)
-                              return
-                            }
-                            onFocusObject(object.id)
-                          }}
-                        >
-                          {object.objectType === "canvas_board"
-                            ? "打开画布"
-                            : object.objectType === "image_deliverable" ||
-                                object.objectType === "shot_keyframe"
-                              ? "标注"
-                              : "聚焦"}
-                          <ArrowRight />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onOpenDetails(object.id)}
+                          >
+                            <Eye />
+                            详情
+                          </Button>
+                          {object.objectType === "canvas_board" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onOpenCanvas(object.id)}
+                            >
+                              打开画布
+                              <ArrowRight />
+                            </Button>
+                          ) : object.objectType === "image_deliverable" ||
+                            object.objectType === "shot_keyframe" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onAnnotateImage(object.id)}
+                            >
+                              标注
+                              <ArrowRight />
+                            </Button>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
