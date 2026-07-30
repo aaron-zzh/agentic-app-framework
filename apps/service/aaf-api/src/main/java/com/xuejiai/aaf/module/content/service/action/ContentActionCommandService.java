@@ -8,7 +8,6 @@ import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTIO
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTION_NOT_RETRYABLE;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTION_TARGET_INVALID;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_OBJECT_NOT_FOUND;
-import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_PROJECT_ARCHIVED_READONLY;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -23,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.enums.content.ContentConfigStatusEnum;
 import com.xuejiai.aaf.common.enums.content.ContentExecutionStatusEnum;
 import com.xuejiai.aaf.common.enums.content.ContentObjectTypeEnum;
-import com.xuejiai.aaf.common.enums.content.ContentProjectStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.module.content.domain.ContentExecutionBinding;
 import com.xuejiai.aaf.module.content.domain.ContentExecutionRun;
@@ -71,7 +69,7 @@ public class ContentActionCommandService {
 
     @Transactional(readOnly = true)
     public List<ContentActionOptionVO> listActions(Long projectId) {
-        var project = requireWritableProject(projectId);
+        var project = accessGuard.requireWritableProject(projectId);
         var actionKeys = declaredActionKeys(project);
         return actionKeys.stream()
                 .map(actionKey -> toOption(project, actionKey))
@@ -81,7 +79,7 @@ public class ContentActionCommandService {
 
     @Transactional(noRollbackFor = BusinessException.class)
     public ContentExecutionRunVO execute(Long projectId, ContentActionCommandDTO command) {
-        var project = requireWritableProject(projectId);
+        var project = accessGuard.requireWritableProject(projectId);
         validateActionAllowed(project, command.actionKey());
         var binding = bindingResolver.resolve(project, command.actionKey());
         validateBudget(project, binding);
@@ -105,6 +103,7 @@ public class ContentActionCommandService {
     @Transactional
     public ContentExecutionRunVO cancel(Long runId) {
         var run = requireRun(runId);
+        accessGuard.requireWritableProject(run.getProjectId());
         if (!ContentExecutionStatusEnum.PENDING.getCode().equals(run.getStatus())
                 && !ContentExecutionStatusEnum.RUNNING.getCode().equals(run.getStatus())) {
             throw exception(CONTENT_EXECUTION_NOT_CANCELABLE);
@@ -132,14 +131,6 @@ public class ContentActionCommandService {
                         run.getGenerationMode(),
                         true);
         return execute(run.getProjectId(), command);
-    }
-
-    private ContentProject requireWritableProject(Long projectId) {
-        var project = accessGuard.requireProject(projectId);
-        if (ContentProjectStatusEnum.ARCHIVED.getCode().equals(project.getStatus())) {
-            throw exception(CONTENT_PROJECT_ARCHIVED_READONLY);
-        }
-        return project;
     }
 
     private void validateActionAllowed(ContentProject project, String actionKey) {

@@ -3,9 +3,11 @@ package com.xuejiai.aaf.module.content.service;
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTION_RUN_NOT_FOUND;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_OBJECT_NOT_FOUND;
+import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_PROJECT_ARCHIVED_READONLY;
 
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.common.enums.content.ContentProjectStatusEnum;
 import com.xuejiai.aaf.module.content.domain.ContentExecutionRun;
 import com.xuejiai.aaf.module.content.domain.ContentProject;
 import com.xuejiai.aaf.module.content.domain.ContentProjectObject;
@@ -31,21 +33,33 @@ public class ContentProjectAccessGuard {
         return projectService.requireAccessibleEntity(projectId);
     }
 
+    public ContentProject requireWritableProject(Long projectId) {
+        var project = requireProject(projectId);
+        requireWritable(project);
+        return project;
+    }
+
     public ContentProjectObject requireObject(Long objectId) {
-        var object =
-                objectRepository
-                        .findById(objectId)
-                        .orElseThrow(() -> exception(CONTENT_OBJECT_NOT_FOUND));
+        var object = loadObject(objectId, false);
         requireProject(object.getProjectId());
         return object;
     }
 
+    public ContentProjectObject requireWritableObject(Long objectId) {
+        var object = loadObject(objectId, false);
+        requireWritableProject(object.getProjectId());
+        return object;
+    }
+
     public ContentProjectObject requireLockedObject(Long objectId) {
-        var object =
-                objectRepository
-                        .findLockedById(objectId)
-                        .orElseThrow(() -> exception(CONTENT_OBJECT_NOT_FOUND));
+        var object = loadObject(objectId, true);
         requireProject(object.getProjectId());
+        return object;
+    }
+
+    public ContentProjectObject requireWritableLockedObject(Long objectId) {
+        var object = loadObject(objectId, true);
+        requireWritableProject(object.getProjectId());
         return object;
     }
 
@@ -56,5 +70,19 @@ public class ContentProjectAccessGuard {
                         .orElseThrow(() -> exception(CONTENT_EXECUTION_RUN_NOT_FOUND));
         requireProject(run.getProjectId());
         return run;
+    }
+
+    private ContentProjectObject loadObject(Long objectId, boolean locked) {
+        var object =
+                locked
+                        ? objectRepository.findLockedById(objectId)
+                        : objectRepository.findById(objectId);
+        return object.orElseThrow(() -> exception(CONTENT_OBJECT_NOT_FOUND));
+    }
+
+    private void requireWritable(ContentProject project) {
+        if (ContentProjectStatusEnum.ARCHIVED.getCode().equals(project.getStatus())) {
+            throw exception(CONTENT_PROJECT_ARCHIVED_READONLY);
+        }
     }
 }

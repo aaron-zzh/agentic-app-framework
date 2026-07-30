@@ -33,6 +33,7 @@ public class ContentProjectObjectService
                 ContentProjectObjectPageDTO> {
 
     private final ContentProjectObjectRepository repository;
+    private final ContentProjectAccessGuard accessGuard;
 
     @Override
     protected ContentProjectObjectRepository getRepository() {
@@ -67,8 +68,22 @@ public class ContentProjectObjectService
 
     @Override
     protected ContentProjectObject toEntity(ContentProjectObjectCreateDTO dto) {
+        accessGuard.requireWritableProject(dto.projectId());
         var entity = ContentProjectObjectConvert.INSTANCE.toEntity(dto);
         return entity;
+    }
+
+    @Override
+    protected void beforeUpdate(ContentProjectObject entity, ContentProjectObjectUpdateDTO dto) {
+        accessGuard.requireWritableProject(entity.getProjectId());
+        if (!dto.projectId().isAbsent() && !dto.projectId().isNullValue()) {
+            accessGuard.requireWritableProject(dto.projectId().valueOrNull());
+        }
+    }
+
+    @Override
+    protected void beforeDelete(ContentProjectObject entity) {
+        accessGuard.requireWritableProject(entity.getProjectId());
     }
 
     @Override

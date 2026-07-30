@@ -43,7 +43,8 @@ public final class ContentProjectRelationResource {
                                     CrudOperation.IMPORT,
                                     CrudOperation.RESTORE,
                                     CrudOperation.ARCHIVE,
-                                    CrudOperation.UPDATE),
+                                    CrudOperation.UPDATE,
+                                    CrudOperation.DELETE_BATCH),
                     new CrudQueryDefinition<>(
                             CrudFilterSchema.empty(),
                             Set.of(

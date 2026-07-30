@@ -92,7 +92,7 @@ public class ContentObjectVersionService
 
     @Transactional
     public ContentProjectObjectVO adopt(Long objectId, Long versionId) {
-        var object = accessGuard.requireLockedObject(objectId);
+        var object = accessGuard.requireWritableLockedObject(objectId);
         var version = requireVersion(objectId, versionId);
         if (ContentObjectVersionStatusEnum.ADOPTED.getCode().equals(version.getStatus())
                 && String.valueOf(versionId).equals(object.getAdoptedVersionRef())) {
@@ -129,7 +129,7 @@ public class ContentObjectVersionService
 
     @Transactional
     public ContentObjectVersionVO reject(Long objectId, Long versionId) {
-        accessGuard.requireObject(objectId);
+        accessGuard.requireWritableObject(objectId);
         var version = requireVersion(objectId, versionId);
         if (ContentObjectVersionStatusEnum.REJECTED.getCode().equals(version.getStatus())) {
             return toVO(version);
