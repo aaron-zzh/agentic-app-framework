@@ -73,6 +73,10 @@ public class ContentProjectService
                 entity.getUpdateTime());
     }
 
+    ContentProject requireAccessibleEntity(Long id) {
+        return requireEntity(id);
+    }
+
     @Override
     protected ContentProject toEntity(ContentProjectCreateDTO dto) {
         var entity = ContentProjectConvert.INSTANCE.toEntity(dto);

@@ -6,11 +6,9 @@ import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_BUDGET_E
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_CONFIRMATION_REQUIRED;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTION_NOT_CANCELABLE;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTION_NOT_RETRYABLE;
-import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTION_RUN_NOT_FOUND;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_EXECUTION_TARGET_INVALID;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_OBJECT_NOT_FOUND;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_PROJECT_ARCHIVED_READONLY;
-import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_PROJECT_NOT_FOUND;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,8 +34,8 @@ import com.xuejiai.aaf.module.content.repository.ContentExecutionBindingReposito
 import com.xuejiai.aaf.module.content.repository.ContentExecutionRunRepository;
 import com.xuejiai.aaf.module.content.repository.ContentProjectBlueprintRepository;
 import com.xuejiai.aaf.module.content.repository.ContentProjectObjectRepository;
-import com.xuejiai.aaf.module.content.repository.ContentProjectRepository;
 import com.xuejiai.aaf.module.content.service.ContentExecutionRunService;
+import com.xuejiai.aaf.module.content.service.ContentProjectAccessGuard;
 import com.xuejiai.aaf.module.content.vo.ContentActionCommandDTO;
 import com.xuejiai.aaf.module.content.vo.ContentActionOptionVO;
 import com.xuejiai.aaf.module.content.vo.ContentExecutionRunVO;
@@ -64,7 +62,7 @@ public class ContentActionCommandService {
                     "brand.validate", "品牌校验",
                     "claim.validate", "主张证据校验");
 
-    private final ContentProjectRepository projectRepository;
+    private final ContentProjectAccessGuard accessGuard;
     private final ContentProjectObjectRepository objectRepository;
     private final ContentProjectBlueprintRepository blueprintRepository;
     private final ContentExecutionBindingRepository bindingRepository;
@@ -149,10 +147,7 @@ public class ContentActionCommandService {
     }
 
     private ContentProject requireWritableProject(Long projectId) {
-        var project =
-                projectRepository
-                        .findById(projectId)
-                        .orElseThrow(() -> exception(CONTENT_PROJECT_NOT_FOUND));
+        var project = accessGuard.requireProject(projectId);
         if (ContentProjectStatusEnum.ARCHIVED.getCode().equals(project.getStatus())) {
             throw exception(CONTENT_PROJECT_ARCHIVED_READONLY);
         }
@@ -289,9 +284,7 @@ public class ContentActionCommandService {
     }
 
     private ContentExecutionRun requireRun(Long runId) {
-        return runRepository
-                .findById(runId)
-                .orElseThrow(() -> exception(CONTENT_EXECUTION_RUN_NOT_FOUND));
+        return accessGuard.requireRun(runId);
     }
 
     private void markFailed(ContentExecutionRun run, String message) {

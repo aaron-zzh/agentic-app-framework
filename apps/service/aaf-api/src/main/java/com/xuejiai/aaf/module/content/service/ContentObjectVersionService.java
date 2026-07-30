@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.module.content.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
-import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_OBJECT_NOT_FOUND;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_OBJECT_VERSION_NOT_CANDIDATE;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_OBJECT_VERSION_NOT_FOUND;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_PROJECT_NOT_FOUND;
@@ -48,6 +47,7 @@ public class ContentObjectVersionService
     private final ContentProjectObjectRepository objectRepository;
     private final ContentProjectRepository projectRepository;
     private final ContentProjectObjectService objectService;
+    private final ContentProjectAccessGuard accessGuard;
     private final OperatorContext operatorContext;
 
     @Override
@@ -84,7 +84,7 @@ public class ContentObjectVersionService
     }
 
     public List<ContentObjectVersionVO> listByObject(Long objectId) {
-        requireObject(objectId);
+        accessGuard.requireObject(objectId);
         return repository.findByObjectIdOrderByVersionNoDesc(objectId).stream()
                 .map(this::toVO)
                 .toList();
@@ -92,10 +92,7 @@ public class ContentObjectVersionService
 
     @Transactional
     public ContentProjectObjectVO adopt(Long objectId, Long versionId) {
-        var object =
-                objectRepository
-                        .findLockedById(objectId)
-                        .orElseThrow(() -> exception(CONTENT_OBJECT_NOT_FOUND));
+        var object = accessGuard.requireLockedObject(objectId);
         var version = requireVersion(objectId, versionId);
         if (ContentObjectVersionStatusEnum.ADOPTED.getCode().equals(version.getStatus())
                 && String.valueOf(versionId).equals(object.getAdoptedVersionRef())) {
@@ -132,7 +129,7 @@ public class ContentObjectVersionService
 
     @Transactional
     public ContentObjectVersionVO reject(Long objectId, Long versionId) {
-        requireObject(objectId);
+        accessGuard.requireObject(objectId);
         var version = requireVersion(objectId, versionId);
         if (ContentObjectVersionStatusEnum.REJECTED.getCode().equals(version.getStatus())) {
             return toVO(version);
@@ -142,12 +139,6 @@ public class ContentObjectVersionService
         }
         version.setStatus(ContentObjectVersionStatusEnum.REJECTED.getCode());
         return toVO(repository.save(version));
-    }
-
-    private void requireObject(Long objectId) {
-        if (!objectRepository.existsById(objectId)) {
-            throw exception(CONTENT_OBJECT_NOT_FOUND);
-        }
     }
 
     private ContentObjectVersion requireVersion(Long objectId, Long versionId) {
