@@ -6,7 +6,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { PageResult } from "../../types"
 import { backendApi } from "../backend-client"
 
@@ -56,6 +56,7 @@ export type ContentRelationType =
 export type ContentRelationLayer = "domain" | "reference" | "story_order" | "execution"
 export type ContentExecutionStatus = "pending" | "running" | "succeeded" | "failed" | "canceled"
 export type ContentExecutionTargetType = "agent" | "tool" | "workflow"
+export type ContentObjectVersionStatus = "candidate" | "adopted" | "rejected" | "superseded"
 export type ContentBrandProfileKind = "enterprise" | "sub_brand" | "product_line" | "personal_ip"
 export type ContentConfigStatus = "draft" | "verifying" | "published" | "deprecated" | "withdrawn"
 export type ContentChannel =
@@ -238,6 +239,41 @@ export interface ContentExecutionRunVO {
   createTime: string
 }
 
+export interface ContentActionOptionVO {
+  actionKey: string
+  label: string
+  targetType: ContentExecutionTargetType
+  confirmationRequired: boolean
+  estimatedCredits?: number
+  applicableObjectTypes: string[]
+}
+
+export interface ContentActionCommandDTO {
+  actionKey: string
+  objectId?: number
+  prompt?: string
+  snippetIds?: number[]
+  attachmentRefs?: string[]
+  generationMode?: ContentGenerationMode
+  confirmed?: boolean
+}
+
+export interface ContentObjectVersionVO {
+  id: number
+  version: number
+  projectId: number
+  objectId: number
+  versionNo: number
+  status: ContentObjectVersionStatus
+  contentPayload?: Record<string, unknown>
+  assetRefs: string[]
+  executionRunId?: number
+  summary?: string
+  adoptedTime?: string
+  supersededByVersionId?: number
+  createTime: string
+}
+
 export interface ContentSnippetVO {
   id: number
   name: string
@@ -374,6 +410,11 @@ export interface ContentExecutionRunParams extends ContentPageParams {
   objectId?: number
   status?: ContentExecutionStatus
 }
+export interface ContentObjectVersionParams extends ContentPageParams {
+  projectId?: number
+  objectId?: number
+  status?: ContentObjectVersionStatus
+}
 export interface ContentSnippetParams extends ContentPageParams {
   category?: string
   projectTypeCode?: ContentProjectTypeCode
@@ -457,6 +498,15 @@ export const contentStudioApi = {
     backendApi.get<ContentProjectSummaryVO>(`/content/projects/${id}/summary`, {
       headers: OWN_SCOPE_HEADERS
     }),
+  projectActions: (id: number) =>
+    backendApi.get<ContentActionOptionVO[]>(`/content/projects/${id}/actions`, {
+      headers: OWN_SCOPE_HEADERS
+    }),
+  runProjectAction: (id: number, data: ContentActionCommandDTO) =>
+    backendApi.post<ContentExecutionRunVO>(`/content/projects/${id}/actions`, data, {
+      headers: OWN_SCOPE_HEADERS,
+      showError: false
+    }),
   updateProjectStatus: (id: number, data: ContentProjectStatusDTO) =>
     backendApi.put<ContentProjectVO>(`/content/projects/${id}/status`, data, {
       headers: OWN_SCOPE_HEADERS
@@ -476,6 +526,27 @@ export const contentStudioApi = {
     }),
   deleteProjectObject: (id: number) =>
     backendApi.delete<void>(`/content/project-objects/${id}`, { headers: OWN_SCOPE_HEADERS }),
+  projectObjectVersions: (id: number) =>
+    backendApi.get<ContentObjectVersionVO[]>(`/content/project-objects/${id}/versions`, {
+      headers: OWN_SCOPE_HEADERS
+    }),
+  adoptProjectObjectVersion: (objectId: number, versionId: number) =>
+    backendApi.post<ContentProjectObjectVO>(
+      `/content/project-objects/${objectId}/versions/${versionId}/_adopt`,
+      undefined,
+      { headers: OWN_SCOPE_HEADERS }
+    ),
+  rejectProjectObjectVersion: (objectId: number, versionId: number) =>
+    backendApi.post<ContentObjectVersionVO>(
+      `/content/project-objects/${objectId}/versions/${versionId}/_reject`,
+      undefined,
+      { headers: OWN_SCOPE_HEADERS }
+    ),
+  objectVersions: (params: ContentObjectVersionParams = {}) =>
+    backendApi.get<PageResult<ContentObjectVersionVO>>("/content/object-versions", {
+      params: pageParams(params),
+      headers: OWN_SCOPE_HEADERS
+    }),
   projectRelations: (params: ContentProjectRelationParams = {}) =>
     backendApi.get<PageResult<ContentProjectRelationVO>>("/content/project-relations", {
       params: pageParams(params),
@@ -501,6 +572,14 @@ export const contentStudioApi = {
   executionRuns: (params: ContentExecutionRunParams = {}) =>
     backendApi.get<PageResult<ContentExecutionRunVO>>("/content/execution-runs", {
       params: pageParams(params),
+      headers: OWN_SCOPE_HEADERS
+    }),
+  cancelExecutionRun: (id: number) =>
+    backendApi.post<ContentExecutionRunVO>(`/content/execution-runs/${id}/_cancel`, undefined, {
+      headers: OWN_SCOPE_HEADERS
+    }),
+  retryExecutionRun: (id: number) =>
+    backendApi.post<ContentExecutionRunVO>(`/content/execution-runs/${id}/_retry`, undefined, {
       headers: OWN_SCOPE_HEADERS
     }),
   snippets: (params: ContentSnippetParams = {}) =>
@@ -530,8 +609,13 @@ const KEYS = {
   project: (id: number) => ["content-studio", "projects", id] as const,
   graph: (id: number) => ["content-studio", "projects", id, "graph"] as const,
   summary: (id: number) => ["content-studio", "projects", id, "summary"] as const,
+  actions: (id: number) => ["content-studio", "projects", id, "actions"] as const,
   objects: (params: ContentProjectObjectParams) =>
     ["content-studio", "project-objects", params] as const,
+  versions: (objectId: number) =>
+    ["content-studio", "project-objects", objectId, "versions"] as const,
+  executionRuns: (params: ContentExecutionRunParams) =>
+    ["content-studio", "execution-runs", params] as const,
   snippets: (params: ContentSnippetParams) => ["content-studio", "snippets", params] as const
 }
 
@@ -580,16 +664,89 @@ export function useContentProjectSummary(id: number | null) {
     enabled: id !== null
   })
 }
+export function useContentProjectActions(id: number | null) {
+  return useQuery({
+    queryKey: KEYS.actions(id ?? 0),
+    queryFn: () => contentStudioApi.projectActions(id as number),
+    enabled: id !== null
+  })
+}
 export function useContentProjectObjects(params: ContentProjectObjectParams = {}) {
   return useQuery({
     queryKey: KEYS.objects(params),
     queryFn: () => contentStudioApi.projectObjects(params)
   })
 }
+export function useContentObjectVersions(objectId: number | null) {
+  return useQuery({
+    queryKey: KEYS.versions(objectId ?? 0),
+    queryFn: () => contentStudioApi.projectObjectVersions(objectId as number),
+    enabled: objectId !== null
+  })
+}
+export function useContentExecutionRuns(params: ContentExecutionRunParams = {}) {
+  return useQuery({
+    queryKey: KEYS.executionRuns(params),
+    queryFn: () => contentStudioApi.executionRuns(params)
+  })
+}
 export function useContentSnippets(params: ContentSnippetParams = {}) {
   return useQuery({
     queryKey: KEYS.snippets(params),
     queryFn: () => contentStudioApi.snippets(params)
+  })
+}
+
+function invalidateExecutionState(queryClient: QueryClient, projectId: number, objectId?: number) {
+  queryClient.invalidateQueries({ queryKey: KEYS.graph(projectId) })
+  queryClient.invalidateQueries({ queryKey: KEYS.summary(projectId) })
+  queryClient.invalidateQueries({ queryKey: ["content-studio", "execution-runs"] })
+  if (objectId !== undefined) {
+    queryClient.invalidateQueries({ queryKey: KEYS.versions(objectId) })
+  }
+}
+
+export function useRunContentAction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: ContentActionCommandDTO }) =>
+      contentStudioApi.runProjectAction(projectId, data),
+    onSuccess: (run) => invalidateExecutionState(queryClient, run.projectId, run.objectId)
+  })
+}
+
+export function useAdoptContentObjectVersion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ objectId, versionId }: { objectId: number; versionId: number }) =>
+      contentStudioApi.adoptProjectObjectVersion(objectId, versionId),
+    onSuccess: (object) => invalidateExecutionState(queryClient, object.projectId, object.id)
+  })
+}
+
+export function useRejectContentObjectVersion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ objectId, versionId }: { objectId: number; versionId: number }) =>
+      contentStudioApi.rejectProjectObjectVersion(objectId, versionId),
+    onSuccess: (version) =>
+      invalidateExecutionState(queryClient, version.projectId, version.objectId)
+  })
+}
+
+export function useCancelContentExecutionRun() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => contentStudioApi.cancelExecutionRun(id),
+    onSuccess: (run) => invalidateExecutionState(queryClient, run.projectId, run.objectId)
+  })
+}
+
+export function useRetryContentExecutionRun() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => contentStudioApi.retryExecutionRun(id),
+    onSuccess: (run) => invalidateExecutionState(queryClient, run.projectId, run.objectId)
   })
 }
 
