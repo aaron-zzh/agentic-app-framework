@@ -7,7 +7,6 @@ import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_CHANNEL_
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_DOMAIN_EXTENSION_NOT_FOUND;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_DOMAIN_EXTENSION_NOT_PUBLISHED;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_HARD_RULE_VIOLATION;
-import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_PROJECT_NOT_FOUND;
 import static com.xuejiai.aaf.module.content.ErrorCodeConstants.CONTENT_PROJECT_TYPE_NOT_FOUND;
 
 import java.math.BigDecimal;
@@ -56,7 +55,6 @@ import com.xuejiai.aaf.module.content.repository.ContentProjectProfileRefReposit
 import com.xuejiai.aaf.module.content.repository.ContentProjectRelationRepository;
 import com.xuejiai.aaf.module.content.repository.ContentProjectRepository;
 import com.xuejiai.aaf.module.content.repository.ContentProjectTypeRepository;
-import com.xuejiai.aaf.module.content.vo.ContentProjectCreateDTO;
 import com.xuejiai.aaf.module.content.vo.ContentProjectGraphVO;
 import com.xuejiai.aaf.module.content.vo.ContentProjectMaterializeDTO;
 import com.xuejiai.aaf.module.content.vo.ContentProjectSummaryVO;
@@ -93,6 +91,8 @@ public class ContentProjectMaterializer {
     private final OperatorContext operatorContext;
 
     /** 按类型、蓝图、领域扩展和渠道配置创建项目图谱 revision 1。 */
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasPermission(null, 'content:project:create')")
     @Transactional
     public ContentProjectVO materialize(ContentProjectMaterializeDTO dto) {
         var projectType = requireProjectType(dto.projectTypeCode());
@@ -110,34 +110,33 @@ public class ContentProjectMaterializer {
                 configurationSnapshot(
                         projectType, blueprint, domainExtension, channelSpecs, productionMode);
 
-        var created =
-                projectService.create(
-                        new ContentProjectCreateDTO(
-                                dto.name(),
-                                projectType.getCode(),
-                                blueprint.getCode(),
-                                blueprint.getBlueprintVersion(),
-                                domainExtension == null ? null : domainExtension.getCode(),
-                                domainExtension == null
-                                        ? null
-                                        : domainExtension.getExtensionVersion(),
-                                productionMode,
-                                ContentGenerationModeEnum.MANUAL.getCode(),
-                                ContentProjectStatusEnum.DRAFT.getCode(),
-                                dto.brief(),
-                                null,
-                                channels,
-                                snapshot,
-                                1,
-                                primaryProfile == null ? null : primaryProfile.id(),
-                                null,
-                                null,
-                                BigDecimal.ZERO,
-                                LocalDateTime.now()));
-        var project =
-                projectRepository
-                        .findById(created.id())
-                        .orElseThrow(() -> exception(CONTENT_PROJECT_NOT_FOUND));
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
+        var project = new ContentProject();
+        project.setOrgId(com.xuejiai.aaf.framework.org.OrgContext.getCurrentOrgId());
+        project.setWorkspaceId(com.xuejiai.aaf.framework.org.OrgContext.getCurrentWorkspaceId());
+        project.setOwnerId(ownerId);
+        project.setUserId(ownerId);
+        project.setName(dto.name());
+        project.setProjectTypeCode(projectType.getCode());
+        project.setBlueprintCode(blueprint.getCode());
+        project.setBlueprintVersion(blueprint.getBlueprintVersion());
+        project.setDomainExtensionCode(domainExtension == null ? null : domainExtension.getCode());
+        project.setDomainExtensionVersion(
+                domainExtension == null ? null : domainExtension.getExtensionVersion());
+        project.setProductionMode(productionMode);
+        project.setGenerationMode(ContentGenerationModeEnum.MANUAL.getCode());
+        project.setStatus(ContentProjectStatusEnum.DRAFT.getCode());
+        project.setBrief(dto.brief());
+        project.setChannels(channels);
+        project.setConfigSnapshot(snapshot);
+        project.setGraphRevision(1);
+        project.setPrimaryBrandProfileId(primaryProfile == null ? null : primaryProfile.id());
+        project.setCostUsed(BigDecimal.ZERO);
+        project.setLastActiveTime(LocalDateTime.now());
+        projectRepository.save(project);
 
         materializeProfileRefs(project, primaryProfile, auxiliaryProfiles);
         if (blueprint.getObjectSpec() == null) {

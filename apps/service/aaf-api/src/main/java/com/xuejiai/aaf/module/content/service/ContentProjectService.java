@@ -98,10 +98,7 @@ public class ContentProjectService
         ContentPatchSupport.required(
                 dto.projectTypeCode(), "projectTypeCode", entity::setProjectTypeCode);
         ContentPatchSupport.nullable(dto.blueprintCode(), entity::setBlueprintCode);
-        ContentPatchSupport.nullable(dto.blueprintVersion(), entity::setBlueprintVersion);
         ContentPatchSupport.nullable(dto.domainExtensionCode(), entity::setDomainExtensionCode);
-        ContentPatchSupport.nullable(
-                dto.domainExtensionVersion(), entity::setDomainExtensionVersion);
         ContentPatchSupport.required(
                 dto.productionMode(), "productionMode", entity::setProductionMode);
         ContentPatchSupport.required(
@@ -110,13 +107,9 @@ public class ContentProjectService
         ContentPatchSupport.nullable(dto.brief(), entity::setBrief);
         ContentPatchSupport.nullable(dto.coverUrl(), entity::setCoverUrl);
         ContentPatchSupport.nullable(dto.channels(), entity::setChannels);
-        ContentPatchSupport.nullable(dto.configSnapshot(), entity::setConfigSnapshot);
-        ContentPatchSupport.required(
-                dto.graphRevision(), "graphRevision", entity::setGraphRevision);
         ContentPatchSupport.nullable(dto.primaryBrandProfileId(), entity::setPrimaryBrandProfileId);
         ContentPatchSupport.nullable(dto.assistantId(), entity::setAssistantId);
         ContentPatchSupport.nullable(dto.budgetLimit(), entity::setBudgetLimit);
-        ContentPatchSupport.required(dto.costUsed(), "costUsed", entity::setCostUsed);
         ContentPatchSupport.nullable(dto.lastActiveTime(), entity::setLastActiveTime);
     }
 
