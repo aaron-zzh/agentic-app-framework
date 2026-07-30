@@ -12,6 +12,7 @@ import { useEffect, useState } from "react"
 import { GlowButton } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  ContentActionBar,
   type ContentCanvasMode,
   ContentCanvasSheet,
   getObjectStage,
@@ -150,6 +151,8 @@ export default function StudioProjectDetailPage() {
         onToggleChat={handleToggleChat}
         chatOpen={chatterOpen && chatterMode === "panel"}
       />
+
+      <ContentActionBar project={project} focusedObject={focusedObject} />
 
       <main className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
         {view === "graph" ? (

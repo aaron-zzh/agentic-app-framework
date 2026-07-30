@@ -1,3 +1,4 @@
+export * from "./ContentActionBar"
 export * from "./canvas/ContentCanvasSheet"
 
 export * from "./graph/graph-projection"
