@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.system.workflow.approval.ApprovalRecord;
+import com.xuejiai.aaf.module.system.workflow.approval.ApprovalRecordService;
 import com.xuejiai.aaf.module.system.workflow.service.DelegationService;
 import com.xuejiai.aaf.module.system.workflow.service.WorkflowService;
 import com.xuejiai.aaf.module.system.workflow.vo.ProcessDefinitionVO;
@@ -50,6 +52,7 @@ public class WorkflowController {
 
     private final WorkflowService workflowService;
     private final DelegationService delegationService;
+    private final ApprovalRecordService approvalRecordService;
     private final OperatorContext operatorContext;
 
     // ==================== 原有接口 ====================
@@ -67,41 +70,56 @@ public class WorkflowController {
     @Operation(summary = "通过审批")
     @PostMapping("/complete")
     public Result<Void> complete(@Validated @RequestBody WorkflowActionDTO dto) {
-        workflowService.completeTask(dto.taskId(), dto.comment());
+        var userId = currentUserId();
+        var processInstanceId = workflowService.completeTask(dto.taskId(), userId, dto.comment());
+        approvalRecordService.record(
+                processInstanceId,
+                dto.taskId(),
+                userId,
+                ApprovalRecord.OperationType.APPROVE,
+                dto.comment());
         return Result.success();
     }
 
     @Operation(summary = "驳回审批")
     @PostMapping("/reject")
     public Result<Void> reject(@Validated @RequestBody WorkflowActionDTO dto) {
-        workflowService.rejectTask(dto.taskId(), dto.comment());
+        var userId = currentUserId();
+        var processInstanceId = workflowService.rejectTask(dto.taskId(), userId, dto.comment());
+        approvalRecordService.record(
+                processInstanceId,
+                dto.taskId(),
+                userId,
+                ApprovalRecord.OperationType.REJECT,
+                dto.comment());
         return Result.success();
     }
 
     @Operation(summary = "查询流程状态")
     @GetMapping("/{processInstanceId}")
     public Result<WorkflowStatusVO> getStatus(@PathVariable String processInstanceId) {
-        return Result.success(workflowService.getStatus(processInstanceId));
+        return Result.success(workflowService.getStatus(processInstanceId, currentUserId()));
     }
 
     @Operation(summary = "按实体查询关联流程状态")
     @GetMapping("/status")
     public Result<WorkflowStatusVO> getStatusByEntity(
             @RequestParam String entityType, @RequestParam String entityId) {
-        return Result.success(workflowService.getStatusByEntity(entityType, entityId));
+        return Result.success(
+                workflowService.getStatusByEntity(entityType, entityId, currentUserId()));
     }
 
     @Operation(summary = "查询审批历史")
     @GetMapping("/{processInstanceId}/history")
     public Result<List<WorkflowStatusVO.HistoryItem>> getHistory(
             @PathVariable String processInstanceId) {
-        return Result.success(workflowService.getHistory(processInstanceId));
+        return Result.success(workflowService.getHistory(processInstanceId, currentUserId()));
     }
 
     @Operation(summary = "单次转交任务")
     @PostMapping("/transfer")
     public Result<Void> transfer(@Validated @RequestBody WorkflowTransferDTO dto) {
-        delegationService.transfer(dto);
+        delegationService.transfer(dto, currentUserId());
         return Result.success();
     }
 
@@ -116,6 +134,7 @@ public class WorkflowController {
 
     @Operation(summary = "分页查询流程定义")
     @GetMapping("/definitions")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<PageResult<ProcessDefinitionVO>> queryDefinitions(
             @RequestParam(required = false) String key,
             @RequestParam(required = false) String name,
@@ -126,6 +145,7 @@ public class WorkflowController {
 
     @Operation(summary = "查询流程定义所有版本")
     @GetMapping("/definitions/{processKey}/versions")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<List<ProcessDefinitionVO>> listDefinitionVersions(
             @PathVariable String processKey) {
         return Result.success(workflowService.listDefinitionVersions(processKey));
@@ -140,6 +160,7 @@ public class WorkflowController {
 
     @Operation(summary = "挂起流程定义")
     @PutMapping("/definitions/{processDefinitionId}/suspend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> suspendDefinition(@PathVariable String processDefinitionId) {
         workflowService.suspendDefinition(processDefinitionId);
         return Result.success();
@@ -147,6 +168,7 @@ public class WorkflowController {
 
     @Operation(summary = "激活流程定义")
     @PutMapping("/definitions/{processDefinitionId}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> activateDefinition(@PathVariable String processDefinitionId) {
         workflowService.activateDefinition(processDefinitionId);
         return Result.success();
@@ -154,6 +176,7 @@ public class WorkflowController {
 
     @Operation(summary = "删除流程部署")
     @DeleteMapping("/deployments/{deploymentId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> deleteDeployment(
             @PathVariable String deploymentId,
             @RequestParam(defaultValue = "false") boolean cascade) {
@@ -163,6 +186,7 @@ public class WorkflowController {
 
     @Operation(summary = "导出流程定义 XML")
     @GetMapping("/definitions/{processDefinitionId}/xml")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<String> exportDefinitionXml(@PathVariable String processDefinitionId) {
         return Result.success(workflowService.exportDefinitionXml(processDefinitionId));
     }
@@ -171,6 +195,7 @@ public class WorkflowController {
 
     @Operation(summary = "分页查询运行中的流程实例")
     @GetMapping("/instances/running")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<PageResult<ProcessInstanceVO>> listRunningInstances(
             @RequestParam(required = false) String processKey,
             @RequestParam(defaultValue = "1") int pageNo,
@@ -180,6 +205,7 @@ public class WorkflowController {
 
     @Operation(summary = "分页查询历史流程实例")
     @GetMapping("/instances/history")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<PageResult<ProcessInstanceVO>> listHistoricInstances(
             @RequestParam(required = false) String processKey,
             @RequestParam(defaultValue = "true") boolean finished,
@@ -191,6 +217,7 @@ public class WorkflowController {
 
     @Operation(summary = "挂起流程实例")
     @PutMapping("/instances/{processInstanceId}/suspend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> suspendInstance(@PathVariable String processInstanceId) {
         workflowService.suspendInstance(processInstanceId);
         return Result.success();
@@ -198,6 +225,7 @@ public class WorkflowController {
 
     @Operation(summary = "激活流程实例")
     @PutMapping("/instances/{processInstanceId}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> activateInstance(@PathVariable String processInstanceId) {
         workflowService.activateInstance(processInstanceId);
         return Result.success();
@@ -205,6 +233,7 @@ public class WorkflowController {
 
     @Operation(summary = "终止流程实例")
     @PutMapping("/instances/{processInstanceId}/terminate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> terminateInstance(
             @PathVariable String processInstanceId, @RequestParam(required = false) String reason) {
         workflowService.terminateInstance(processInstanceId, reason);
@@ -213,6 +242,7 @@ public class WorkflowController {
 
     @Operation(summary = "删除流程实例")
     @DeleteMapping("/instances/{processInstanceId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> deleteInstance(
             @PathVariable String processInstanceId, @RequestParam(required = false) String reason) {
         workflowService.deleteInstance(processInstanceId, reason);
@@ -221,6 +251,7 @@ public class WorkflowController {
 
     @Operation(summary = "设置流程变量")
     @PutMapping("/instances/{processInstanceId}/variables")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> setProcessVariables(
             @PathVariable String processInstanceId, @RequestBody Map<String, Object> variables) {
         workflowService.setProcessVariables(processInstanceId, variables);
@@ -229,6 +260,7 @@ public class WorkflowController {
 
     @Operation(summary = "获取流程变量")
     @GetMapping("/instances/{processInstanceId}/variables")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Map<String, Object>> getProcessVariables(@PathVariable String processInstanceId) {
         return Result.success(workflowService.getProcessVariables(processInstanceId));
     }
@@ -244,6 +276,7 @@ public class WorkflowController {
 
     @Operation(summary = "候选组待签收任务")
     @GetMapping("/tasks/candidate-group")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<List<WorkflowTaskVO>> listCandidateGroupTasks(
             @RequestParam String candidateGroup) {
         return Result.success(workflowService.listCandidateGroupTasks(candidateGroup));
@@ -271,7 +304,7 @@ public class WorkflowController {
     @PostMapping("/tasks/{taskId}/delegate")
     public Result<Void> delegateTask(
             @PathVariable String taskId, @RequestParam String delegateUserId) {
-        workflowService.delegateTask(taskId, delegateUserId);
+        workflowService.delegateTask(taskId, currentUserId(), delegateUserId);
         return Result.success();
     }
 
@@ -279,7 +312,7 @@ public class WorkflowController {
     @PostMapping("/tasks/{taskId}/return")
     public Result<Void> returnTask(
             @PathVariable String taskId, @RequestParam(required = false) String reason) {
-        workflowService.returnTask(taskId, reason);
+        workflowService.returnTask(taskId, currentUserId(), reason);
         return Result.success();
     }
 
@@ -295,13 +328,16 @@ public class WorkflowController {
 
     @Operation(summary = "发送信号事件")
     @PostMapping("/events/signal")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> sendSignal(@Validated @RequestBody WorkflowSignalDTO dto) {
-        workflowService.sendSignal(dto.signalName(), dto.variables());
+        workflowService.sendSignal(
+                dto.signalName(), dto.processInstanceId(), dto.variables());
         return Result.success();
     }
 
     @Operation(summary = "发送消息事件")
     @PostMapping("/events/message")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> sendMessage(@Validated @RequestBody WorkflowMessageDTO dto) {
         workflowService.sendMessage(dto.messageName(), dto.processInstanceId(), dto.variables());
         return Result.success();
@@ -311,6 +347,7 @@ public class WorkflowController {
 
     @Operation(summary = "发布工作流为可对话 Agent")
     @PostMapping("/publish")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> publish(@Validated @RequestBody WorkflowPublishDTO dto) {
         workflowService.publishWorkflow(dto);
         return Result.success();
@@ -318,15 +355,21 @@ public class WorkflowController {
 
     @Operation(summary = "查询工作流版本列表")
     @GetMapping("/versions/{processKey}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<List<WorkflowVersionVO>> listVersions(@PathVariable String processKey) {
         return Result.success(workflowService.listVersions(processKey));
     }
 
     @Operation(summary = "激活指定版本")
     @PostMapping("/versions/{processKey}/activate/{version}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<Void> activateVersion(
             @PathVariable String processKey, @PathVariable int version) {
         workflowService.activateVersion(processKey, version);
         return Result.success();
+    }
+
+    private String currentUserId() {
+        return operatorContext.currentUserId().orElseThrow().toString();
     }
 }

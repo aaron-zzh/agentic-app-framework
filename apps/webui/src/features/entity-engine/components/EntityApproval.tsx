@@ -103,7 +103,6 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
             taskId={currentTaskId}
             isAssignee={isAssignee}
             isInitiator={true}
-            currentUserId={currentUserId}
           />
         )}
 

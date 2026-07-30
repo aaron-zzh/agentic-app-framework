@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import { useCreateFromTemplate, useFlowTemplates } from "../hooks/use-flow-query"
 import { builtinTemplates } from "../lib/templates"
 import type { FlowMode, FlowTemplate } from "../types"
 
@@ -25,11 +24,7 @@ interface TemplateDialogProps {
 
 export function TemplateDialog({ mode, onSelect }: TemplateDialogProps) {
   const [open, setOpen] = useState(false)
-  const { data: remoteTemplates } = useFlowTemplates(mode)
-  useCreateFromTemplate()
-
-  // 合并内置模板和远程模板
-  const templates = [...builtinTemplates.filter((t) => t.mode === mode), ...(remoteTemplates ?? [])]
+  const templates = builtinTemplates.filter((template) => template.mode === mode)
 
   const handleSelect = (template: FlowTemplate) => {
     onSelect(template.definition)

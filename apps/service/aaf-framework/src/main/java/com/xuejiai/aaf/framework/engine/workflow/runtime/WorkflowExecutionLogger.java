@@ -6,9 +6,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.flowable.engine.HistoryService;
+import org.flowable.engine.RuntimeService;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.common.util.JsonUtils;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
 
 /**
  * 工作流执行日志记录器——记录每个节点的执行状态和耗时。
@@ -17,8 +23,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class WorkflowExecutionLogger {
 
+    static final String LOGS_VARIABLE = "_aafExecutionLogs";
+    private static final int MAX_LOGS = 1000;
+
+    private final RuntimeService runtimeService;
+    private final HistoryService historyService;
     /** processInstanceId → 执行日志列表 */
     private final Map<String, List<WorkflowExecutionLog>> logs = new ConcurrentHashMap<>();
 
@@ -32,10 +44,10 @@ public class WorkflowExecutionLogger {
                 .computeIfAbsent(processInstanceId, k -> new ConcurrentHashMap<>())
                 .put(nodeId, System.currentTimeMillis());
 
-        var logEntry =
+        appendLog(
+                processInstanceId,
                 new WorkflowExecutionLog(
-                        nodeId, nodeName, input, null, 0, "running", null, Instant.now());
-        logs.computeIfAbsent(processInstanceId, k -> new CopyOnWriteArrayList<>()).add(logEntry);
+                        nodeId, nodeName, input, null, 0, "running", null, Instant.now()));
 
         log.debug(
                 "节点开始执行: processId={}, nodeId={}, nodeName={}",
@@ -48,10 +60,11 @@ public class WorkflowExecutionLogger {
     public void logNodeComplete(
             String processInstanceId, String nodeId, String nodeName, String output) {
         var duration = calculateDuration(processInstanceId, nodeId);
-        var logEntry =
+        replaceRunningLog(
+                processInstanceId,
+                nodeId,
                 new WorkflowExecutionLog(
-                        nodeId, nodeName, null, output, duration, "completed", null, Instant.now());
-        logs.computeIfAbsent(processInstanceId, k -> new CopyOnWriteArrayList<>()).add(logEntry);
+                        nodeId, nodeName, null, output, duration, "completed", null, Instant.now()));
 
         log.debug(
                 "节点执行完成: processId={}, nodeId={}, duration={}ms",
@@ -64,17 +77,73 @@ public class WorkflowExecutionLogger {
     public void logNodeFailed(
             String processInstanceId, String nodeId, String nodeName, String error) {
         var duration = calculateDuration(processInstanceId, nodeId);
-        var logEntry =
+        replaceRunningLog(
+                processInstanceId,
+                nodeId,
                 new WorkflowExecutionLog(
-                        nodeId, nodeName, null, null, duration, "failed", error, Instant.now());
-        logs.computeIfAbsent(processInstanceId, k -> new CopyOnWriteArrayList<>()).add(logEntry);
+                        nodeId, nodeName, null, null, duration, "failed", error, Instant.now()));
 
         log.warn("节点执行失败: processId={}, nodeId={}, error={}", processInstanceId, nodeId, error);
     }
 
     /** 获取指定流程实例的所有执行日志。 */
     public List<WorkflowExecutionLog> getExecutionLogs(String processInstanceId) {
-        return logs.getOrDefault(processInstanceId, List.of());
+        var current = logs.get(processInstanceId);
+        if (current != null) {
+            return List.copyOf(current);
+        }
+        var historicVariable =
+                historyService
+                        .createHistoricVariableInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .variableName(LOGS_VARIABLE)
+                        .singleResult();
+        if (historicVariable == null || historicVariable.getValue() == null) {
+            return List.of();
+        }
+        try {
+            var restored =
+                    JsonUtils.parseObject(
+                            String.valueOf(historicVariable.getValue()),
+                            new TypeReference<List<WorkflowExecutionLog>>() {});
+            var stored = new CopyOnWriteArrayList<>(restored);
+            logs.put(processInstanceId, stored);
+            return List.copyOf(stored);
+        } catch (RuntimeException ex) {
+            log.warn("恢复工作流执行日志失败: processId={}", processInstanceId, ex);
+            return List.of();
+        }
+    }
+
+    private void appendLog(String processInstanceId, WorkflowExecutionLog logEntry) {
+        var entries = logs.computeIfAbsent(processInstanceId, k -> new CopyOnWriteArrayList<>());
+        entries.add(logEntry);
+        while (entries.size() > MAX_LOGS) {
+            entries.remove(0);
+        }
+        persist(processInstanceId, entries);
+    }
+
+    private void replaceRunningLog(
+            String processInstanceId, String nodeId, WorkflowExecutionLog terminalLog) {
+        var entries = logs.computeIfAbsent(processInstanceId, k -> new CopyOnWriteArrayList<>());
+        entries.removeIf(entry -> nodeId.equals(entry.nodeId()) && "running".equals(entry.status()));
+        appendLog(processInstanceId, terminalLog);
+    }
+
+    private void persist(String processInstanceId, List<WorkflowExecutionLog> entries) {
+        try {
+            if (runtimeService
+                            .createProcessInstanceQuery()
+                            .processInstanceId(processInstanceId)
+                            .count()
+                    > 0) {
+                runtimeService.setVariable(
+                        processInstanceId, LOGS_VARIABLE, JsonUtils.toJsonString(entries));
+            }
+        } catch (RuntimeException ex) {
+            log.warn("持久化工作流执行日志失败: processId={}", processInstanceId, ex);
+        }
     }
 
     private long calculateDuration(String processInstanceId, String nodeId) {

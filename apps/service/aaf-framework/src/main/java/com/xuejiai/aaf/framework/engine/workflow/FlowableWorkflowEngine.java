@@ -27,6 +27,10 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class FlowableWorkflowEngine implements WorkflowEngine {
 
+    private static final String ORG_ID_VARIABLE = "_aafOrgId";
+    private static final String WORKSPACE_ID_VARIABLE = "_aafWorkspaceId";
+    private static final long ORGANIZATION_SCOPE = 0L;
+
     private final RuntimeService runtimeService;
     private final TaskService taskService;
     private final HistoryService historyService;
@@ -48,10 +52,85 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
         if (comment != null) {
             taskService.addComment(taskId, task.getProcessInstanceId(), comment);
         }
-        if (variables != null) {
-            taskService.setVariablesLocal(taskId, variables);
+        if (variables == null || variables.isEmpty()) {
+            taskService.complete(taskId);
+        } else {
+            taskService.complete(taskId, variables);
         }
-        taskService.complete(taskId);
+    }
+
+    @Override
+    public TaskInfo getTask(String taskId) {
+        var task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        return task == null ? null : toTaskInfo(task);
+    }
+
+    @Override
+    public boolean canOperateTask(String taskId, String userId) {
+        var assigned =
+                taskService
+                        .createTaskQuery()
+                        .taskId(taskId)
+                        .taskAssignee(userId)
+                        .count()
+                        > 0;
+        if (assigned) {
+            return true;
+        }
+        return taskService
+                        .createTaskQuery()
+                        .taskId(taskId)
+                        .taskCandidateUser(userId)
+                        .count()
+                > 0;
+    }
+
+    @Override
+    public boolean isProcessParticipant(String processInstanceId, String userId) {
+        var variables = getProcessVariables(processInstanceId);
+        if (userId.equals(String.valueOf(variables.get("initiator")))
+                || userId.equals(String.valueOf(variables.get("_aafUserId")))) {
+            return true;
+        }
+        if (historyService
+                        .createHistoricTaskInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .taskAssignee(userId)
+                        .count()
+                > 0) {
+            return true;
+        }
+        var tasks =
+                taskService
+                        .createTaskQuery()
+                        .processInstanceId(processInstanceId)
+                        .list();
+        return tasks.stream()
+                .anyMatch(
+                        task ->
+                                userId.equals(task.getAssignee())
+                                        || taskService
+                                                        .createTaskQuery()
+                                                        .taskId(task.getId())
+                                                        .taskCandidateUser(userId)
+                                                        .count()
+                                                > 0);
+    }
+
+    @Override
+    public boolean canApprove(String processKey, String userId) {
+        return taskService
+                                .createTaskQuery()
+                                .processDefinitionKey(processKey)
+                                .taskAssignee(userId)
+                                .count()
+                        > 0
+                || taskService
+                                .createTaskQuery()
+                                .processDefinitionKey(processKey)
+                                .taskCandidateUser(userId)
+                                .count()
+                        > 0;
     }
 
     @Override
@@ -161,6 +240,15 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
         return historic.isEmpty() ? null : historic.getFirst().getId();
     }
 
+    @Override
+    public boolean isProcessRunning(String processInstanceId) {
+        return runtimeService
+                        .createProcessInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .count()
+                > 0;
+    }
+
     // ==================== #5802 流程定义管理 ====================
 
     @Override
@@ -224,8 +312,9 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     // ==================== #5803 流程实例管理 ====================
 
     @Override
-    public List<InstanceInfo> listRunningInstances(String processKey, int pageNo, int pageSize) {
-        var query = buildRunningInstanceQuery(processKey);
+    public List<InstanceInfo> listRunningInstances(
+            String processKey, Long orgId, Long workspaceId, int pageNo, int pageSize) {
+        var query = buildRunningInstanceQuery(processKey, orgId, workspaceId);
         return query
                 .orderByProcessInstanceId()
                 .desc()
@@ -244,14 +333,19 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     }
 
     @Override
-    public long countRunningInstances(String processKey) {
-        return buildRunningInstanceQuery(processKey).count();
+    public long countRunningInstances(String processKey, Long orgId, Long workspaceId) {
+        return buildRunningInstanceQuery(processKey, orgId, workspaceId).count();
     }
 
     @Override
     public List<InstanceInfo> listHistoricInstances(
-            String processKey, boolean finished, int pageNo, int pageSize) {
-        var query = buildHistoricInstanceQuery(processKey, finished);
+            String processKey,
+            boolean finished,
+            Long orgId,
+            Long workspaceId,
+            int pageNo,
+            int pageSize) {
+        var query = buildHistoricInstanceQuery(processKey, finished, orgId, workspaceId);
         return query
                 .orderByProcessInstanceStartTime()
                 .desc()
@@ -262,8 +356,9 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     }
 
     @Override
-    public long countHistoricInstances(String processKey, boolean finished) {
-        return buildHistoricInstanceQuery(processKey, finished).count();
+    public long countHistoricInstances(
+            String processKey, boolean finished, Long orgId, Long workspaceId) {
+        return buildHistoricInstanceQuery(processKey, finished, orgId, workspaceId).count();
     }
 
     @Override
@@ -329,7 +424,7 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     public List<InstanceInfo> listMyInitiatedInstances(String initiator, int pageNo, int pageSize) {
         return historyService
                 .createHistoricProcessInstanceQuery()
-                .startedBy(initiator)
+                .variableValueEquals("initiator", initiator)
                 .orderByProcessInstanceStartTime()
                 .desc()
                 .listPage((pageNo - 1) * pageSize, pageSize)
@@ -399,13 +494,23 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     // ==================== #5805 信号与消息事件 ====================
 
     @Override
-    public void sendSignal(String signalName) {
-        runtimeService.signalEventReceived(signalName);
-    }
-
-    @Override
-    public void sendSignal(String signalName, Map<String, Object> variables) {
-        runtimeService.signalEventReceived(signalName, variables);
+    public void sendSignal(
+            String signalName, String processInstanceId, Map<String, Object> variables) {
+        var execution =
+                runtimeService
+                        .createExecutionQuery()
+                        .processInstanceId(processInstanceId)
+                        .signalEventSubscriptionName(signalName)
+                        .singleResult();
+        if (execution == null) {
+            throw new IllegalStateException(
+                    "未找到等待信号 '%s' 的执行，流程实例: %s".formatted(signalName, processInstanceId));
+        }
+        if (variables == null || variables.isEmpty()) {
+            runtimeService.signalEventReceived(signalName, execution.getId());
+        } else {
+            runtimeService.signalEventReceived(signalName, execution.getId(), variables);
+        }
     }
 
     @Override
@@ -517,8 +622,15 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
         return query;
     }
 
-    private ProcessInstanceQuery buildRunningInstanceQuery(String processKey) {
-        var query = runtimeService.createProcessInstanceQuery();
+    private ProcessInstanceQuery buildRunningInstanceQuery(
+            String processKey, Long orgId, Long workspaceId) {
+        var query =
+                runtimeService
+                        .createProcessInstanceQuery()
+                        .variableValueEquals(ORG_ID_VARIABLE, orgId)
+                        .variableValueEquals(
+                                WORKSPACE_ID_VARIABLE,
+                                workspaceId != null ? workspaceId : ORGANIZATION_SCOPE);
         if (processKey != null && !processKey.isBlank()) {
             query.processDefinitionKey(processKey);
         }
@@ -526,8 +638,14 @@ public class FlowableWorkflowEngine implements WorkflowEngine {
     }
 
     private HistoricProcessInstanceQuery buildHistoricInstanceQuery(
-            String processKey, boolean finished) {
-        var query = historyService.createHistoricProcessInstanceQuery();
+            String processKey, boolean finished, Long orgId, Long workspaceId) {
+        var query =
+                historyService
+                        .createHistoricProcessInstanceQuery()
+                        .variableValueEquals(ORG_ID_VARIABLE, orgId)
+                        .variableValueEquals(
+                                WORKSPACE_ID_VARIABLE,
+                                workspaceId != null ? workspaceId : ORGANIZATION_SCOPE);
         if (processKey != null && !processKey.isBlank()) {
             query.processDefinitionKey(processKey);
         }

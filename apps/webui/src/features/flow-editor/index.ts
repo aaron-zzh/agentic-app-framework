@@ -50,15 +50,13 @@ export {
 export { WorkflowChat } from "./components/workflow-chat"
 export type { NodeExecutionLog } from "./hooks/use-execution-state"
 export { useExecutionState } from "./hooks/use-execution-state"
+export type { FlowDefVO } from "./hooks/use-flow-query"
 export {
-  useCreateFromTemplate,
   useFlowDelete,
   useFlowDeploy,
   useFlowDetail,
   useFlowList,
-  useFlowSave,
-  useFlowTemplates,
-  useSaveAsTemplate
+  useFlowSave
 } from "./hooks/use-flow-query"
 // Hooks
 export { useFlowState } from "./hooks/use-flow-state"

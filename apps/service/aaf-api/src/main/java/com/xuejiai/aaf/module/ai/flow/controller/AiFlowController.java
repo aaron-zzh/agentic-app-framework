@@ -1,9 +1,7 @@
 package com.xuejiai.aaf.module.ai.flow.controller;
 
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,7 +16,6 @@ import com.xuejiai.aaf.module.ai.flow.vo.AiFlowDefinitionUpdateDTO;
 import com.xuejiai.aaf.module.ai.flow.vo.AiFlowDefinitionVO;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
 @Tag(name = "AI 工作流管理")
@@ -46,12 +43,9 @@ public class AiFlowController
         return service;
     }
 
-    /** 发布工作流：前端传入转换好的 BPMN XML，部署到 Flowable 引擎。 */
+    /** 发布工作流：服务端编译已保存定义并部署到 Flowable 引擎。 */
     @PostMapping("/{id}/deploy")
-    public Result<AiFlowDefinitionVO> deploy(
-            @PathVariable Long id, @Validated @RequestBody DeployRequest request) {
-        return Result.success(service.deploy(id, request.bpmnXml()));
+    public Result<AiFlowDefinitionVO> deploy(@PathVariable Long id) {
+        return Result.success(service.deploy(id));
     }
-
-    record DeployRequest(@NotBlank String bpmnXml) {}
 }

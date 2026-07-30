@@ -25,11 +25,11 @@ interface TraceNode {
 
 /** 时间线条目 */
 interface TimelineEntry {
-  timestamp: string
-  event: string
-  nodeId?: string
-  nodeName?: string
-  detail?: string
+  nodeId: string
+  nodeName: string
+  status: "completed" | "running" | "failed"
+  durationMs: number
+  timestampMs: number
 }
 
 interface ExecutionPanelProps {
@@ -126,20 +126,18 @@ export function ExecutionPanel({
       <TabsContent value="timeline" className="flex-1 overflow-hidden">
         <ScrollArea className="h-full p-3">
           <div className="space-y-2">
-            {(timeline ?? []).map((entry, i) => (
-              <div key={`${entry.timestamp}-${i}`} className="flex gap-3 text-sm">
+            {(timeline ?? []).map((entry) => (
+              <div key={`${entry.nodeId}-${entry.timestampMs}`} className="flex gap-3 text-sm">
                 <span className="w-20 shrink-0 text-muted-foreground text-xs">
-                  {formatTime(entry.timestamp)}
+                  {formatTime(entry.timestampMs)}
                 </span>
-                <div>
-                  <span>{entry.event}</span>
-                  {entry.nodeName && (
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      {entry.nodeName}
-                    </Badge>
-                  )}
-                  {entry.detail && (
-                    <p className="mt-0.5 text-muted-foreground text-xs">{entry.detail}</p>
+                <div className="flex items-center gap-2">
+                  <span>{entry.nodeName}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {entry.status}
+                  </Badge>
+                  {entry.durationMs > 0 && (
+                    <span className="text-muted-foreground text-xs">{entry.durationMs}ms</span>
                   )}
                 </div>
               </div>
@@ -166,10 +164,10 @@ function StatusDot({ status }: { status: string }) {
 }
 
 /** 格式化时间戳为 HH:mm:ss */
-function formatTime(timestamp: string): string {
+function formatTime(timestamp: number): string {
   try {
     return new Date(timestamp).toLocaleTimeString("zh-CN", { hour12: false })
   } catch {
-    return timestamp
+    return String(timestamp)
   }
 }

@@ -41,8 +41,13 @@ public class AiFlowService
                     "createTime",
                     "updateTime");
 
+    private static final String COMMAND_DEPLOY = "DEPLOY";
+    private static final Set<String> DEPLOY_FIELDS =
+            Set.of("deploymentId", "status", "publishedAt");
+
     private final AiFlowDefinitionRepository repository;
     private final WorkflowEngine workflowEngine;
+    private final AiFlowBpmnCompiler bpmnCompiler;
 
     @Override
     protected AiFlowDefinitionRepository getRepository() {
@@ -110,18 +115,29 @@ public class AiFlowService
         };
     }
 
-    /** 发布：将编辑态 JSON 转 BPMN 部署到 Flowable，更新状态为 PUBLISHED。 */
-    // TODO(security): 改为独立 deploy 领域命令，经统一 PDP 绑定流程 ID、命令摘要和 CURRENT/PROPOSED；Flowable
-    // 部署必须在授权成功后执行。
+    /** 发布：由服务端将已保存的编辑态 JSON 编译成 BPMN，再部署到 Flowable。 */
     @Transactional
-    public AiFlowDefinitionVO deploy(Long id, String bpmnXml) {
-        var entity = requireEntity(id);
-        var deploymentId = workflowEngine.deploy(entity.getName(), bpmnXml);
-        entity.setDeploymentId(deploymentId);
-        entity.setStatus("PUBLISHED");
-        entity.setPublishedAt(LocalDateTime.now());
-        repository.save(entity);
-        return toVO(entity);
+    public AiFlowDefinitionVO deploy(Long id) {
+        var command = new DeployCommand(id);
+        var plan =
+                new CustomUpdatePlan<AiFlowDefinition, DeployCommand, String, AiFlowDefinitionVO>(
+                        COMMAND_DEPLOY,
+                        DEPLOY_FIELDS,
+                        (flow, ignored) -> {},
+                        (flow, ignored) -> {
+                            flow.setStatus("PUBLISHED");
+                            flow.setPublishedAt(LocalDateTime.now());
+                        },
+                        (flow, ignored) -> {
+                            var bpmnXml = bpmnCompiler.compile(flow.getId(), flow.getDefinition());
+                            var deploymentId = workflowEngine.deploy(flow.getName(), bpmnXml);
+                            flow.setDeploymentId(deploymentId);
+                            return deploymentId;
+                        },
+                        true,
+                        (flow, ignored, deploymentId) -> {},
+                        (flow, ignored, deploymentId) -> toVO(flow));
+        return executeCustomUpdateCommand(id, command, plan);
     }
 
     /** 查询智能体可调用的已发布工作流列表（供 WorkflowTool.listWorkflows 使用）。 */
@@ -137,4 +153,6 @@ public class AiFlowService
                 .map(this::toVO)
                 .toList();
     }
+
+    private record DeployCommand(Long flowId) {}
 }

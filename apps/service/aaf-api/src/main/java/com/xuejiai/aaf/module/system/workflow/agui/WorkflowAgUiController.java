@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.workflow.agui;
 
 import java.util.Map;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,6 +35,13 @@ public class WorkflowAgUiController {
     public SseEmitter run(@RequestBody @Valid WorkflowRunRequest request) {
         return workflowAgUiService.startAndStream(request);
     }
+
+    @Operation(summary = "恢复工作流 AG-UI SSE 事件流")
+    @GetMapping("/run/{runId}/events")
+    public SseEmitter resume(@PathVariable String runId) {
+        return workflowAgUiService.resumeStream(runId);
+    }
+
 
     @Operation(summary = "提交用户输入（恢复等待中的流程）")
     @PostMapping("/run/{runId}/input")

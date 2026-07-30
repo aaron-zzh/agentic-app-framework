@@ -4,7 +4,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { buildApiUrl } from "@/lib/api/config"
 import type { ExecutionState } from "../types"
 
@@ -51,6 +51,49 @@ interface WorkflowRuntimeState {
   pendingToolCallId: string | null
 }
 
+async function readEventStream(
+  response: Response,
+  onEvent: (event: AgUiEvent) => void,
+  signal: AbortSignal
+): Promise<boolean> {
+  if (!response.ok || !response.body) throw new Error(`工作流连接失败: ${response.status}`)
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let terminal = false
+
+  while (!signal.aborted) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() ?? ""
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue
+      const data = line.slice(5).trim()
+      if (!data) continue
+      const event = JSON.parse(data) as AgUiEvent
+      onEvent(event)
+      if (event.type === "RUN_FINISHED" || event.type === "RUN_ERROR") terminal = true
+    }
+  }
+  return terminal
+}
+
+function waitForReconnect(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, 1000)
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timer)
+        resolve()
+      },
+      { once: true }
+    )
+  })
+}
+
 /** 工作流 AG-UI Runtime Hook */
 export function useWorkflowRuntime() {
   const [state, setState] = useState<WorkflowRuntimeState>({
@@ -61,12 +104,21 @@ export function useWorkflowRuntime() {
     pendingToolCallId: null
   })
 
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const runIdRef = useRef<string | null>(null)
   /** 当前正在拼接的消息 */
   const currentMsgRef = useRef<{ id: string; content: string } | null>(null)
 
+  useEffect(
+    () => () => {
+      abortControllerRef.current?.abort()
+    },
+    []
+  )
+
   /** 处理 AG-UI 事件 */
   const handleEvent = useCallback((event: AgUiEvent) => {
+    if (event.runId) runIdRef.current = event.runId
     setState((prev) => {
       switch (event.type) {
         case "RUN_STARTED":
@@ -157,11 +209,13 @@ export function useWorkflowRuntime() {
     })
   }, [])
 
-  /** 启动工作流 */
+  /** 启动工作流。 */
   const startWorkflow = useCallback(
-    (processKey: string, variables?: Record<string, unknown>) => {
-      // 关闭已有连接
-      eventSourceRef.current?.close()
+    (flowId: string | number, variables?: Record<string, unknown>, debug = false) => {
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+      runIdRef.current = null
 
       setState({
         runId: null,
@@ -171,55 +225,35 @@ export function useWorkflowRuntime() {
         pendingToolCallId: null
       })
 
-      // 使用 POST + fetch 获取 SSE 流（5 分钟超时）
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000)
-      const body = JSON.stringify({ processKey, variables: variables ?? {} })
-
-      fetch(buildApiUrl("/workflow/run"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-        signal: controller.signal
-      })
-        .then(async (res) => {
-          if (!res.ok || !res.body) {
-            setState((prev) => ({ ...prev, status: "failed" }))
-            return
+      const run = async () => {
+        try {
+          const response = await fetch(buildApiUrl("/workflow/run"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ flowId: Number(flowId), debug, variables: variables ?? {} }),
+            signal: controller.signal
+          })
+          let terminal = await readEventStream(response, handleEvent, controller.signal)
+          while (!terminal && !controller.signal.aborted && runIdRef.current) {
+            await waitForReconnect(controller.signal)
+            if (controller.signal.aborted || !runIdRef.current) break
+            const resumed = await fetch(buildApiUrl(`/workflow/run/${runIdRef.current}/events`), {
+              credentials: "include",
+              signal: controller.signal
+            })
+            terminal = await readEventStream(resumed, handleEvent, controller.signal)
           }
-
-          const reader = res.body.getReader()
-          const decoder = new TextDecoder()
-          let buffer = ""
-
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-
-            buffer += decoder.decode(value, { stream: true })
-            const lines = buffer.split("\n")
-            buffer = lines.pop() ?? ""
-
-            for (const line of lines) {
-              if (line.startsWith("data:")) {
-                const data = line.slice(5).trim()
-                if (data) {
-                  try {
-                    handleEvent(JSON.parse(data) as AgUiEvent)
-                  } catch {
-                    // 忽略解析错误
-                  }
-                }
-              }
-            }
-          }
-        })
-        .catch(() => {
-          setState((prev) => ({ ...prev, status: "failed" }))
-        })
-        .finally(() => {
-          clearTimeout(timeout)
-        })
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return
+          setState((prev) => ({
+            ...prev,
+            status: "failed",
+            executionState: { ...prev.executionState, status: "failed" }
+          }))
+        }
+      }
+      void run()
     },
     [handleEvent]
   )
@@ -240,19 +274,22 @@ export function useWorkflowRuntime() {
         ]
       }))
 
-      await fetch(buildApiUrl(`/workflow/run/${state.runId}/input`), {
+      const response = await fetch(buildApiUrl(`/workflow/run/${state.runId}/input`), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input })
       })
+      if (!response.ok) throw new Error("提交工作流输入失败")
     },
     [state.runId]
   )
 
   /** 取消工作流执行 */
   const cancel = useCallback(() => {
-    eventSourceRef.current?.close()
-    eventSourceRef.current = null
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    runIdRef.current = null
     setState((prev) => ({
       ...prev,
       status: "idle",

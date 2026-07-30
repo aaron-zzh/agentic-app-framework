@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLog;
 import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLogger;
+import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.system.workflow.service.WorkflowService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,16 +29,20 @@ import lombok.RequiredArgsConstructor;
 public class WorkflowVisualizationController {
 
     private final WorkflowExecutionLogger executionLogger;
+    private final WorkflowService workflowService;
+    private final OperatorContext operatorContext;
 
     @Operation(summary = "获取执行轨迹（节点状态列表+耗时）")
     @GetMapping("/{id}/execution-trace")
     public Result<List<WorkflowExecutionLog>> getExecutionTrace(@PathVariable String id) {
+        requireAccess(id);
         return Result.success(executionLogger.getExecutionLogs(id));
     }
 
     @Operation(summary = "获取时间线数据")
     @GetMapping("/{id}/timeline")
     public Result<List<TimelineEntry>> getTimeline(@PathVariable String id) {
+        requireAccess(id);
         var logs = executionLogger.getExecutionLogs(id);
         var timeline =
                 logs.stream()
@@ -50,6 +56,11 @@ public class WorkflowVisualizationController {
                                                 l.timestamp().toEpochMilli()))
                         .toList();
         return Result.success(timeline);
+    }
+
+    private void requireAccess(String processInstanceId) {
+        var userId = operatorContext.currentOwnerId().orElseThrow();
+        workflowService.requireInstanceAccess(processInstanceId, userId.toString());
     }
 
     /** 时间线条目 */

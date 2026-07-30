@@ -5,6 +5,7 @@ import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.module.system.workflow.service.DelegationService;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class ApprovalPermissionService {
 
     private final DelegationService delegationService;
     private final ApprovalRecordRepository approvalRecordRepository;
+    private final WorkflowEngine workflowEngine;
 
     /**
      * 检查用户是否有权审批指定流程类型。
@@ -31,8 +33,7 @@ public class ApprovalPermissionService {
      * @return true=有权限
      */
     public boolean canApprove(Long userId, String processKey) {
-        // TODO: 对接权限系统检查用户是否有审批该流程类型的权限
-        return true;
+        return workflowEngine.canApprove(processKey, userId.toString());
     }
 
     /**

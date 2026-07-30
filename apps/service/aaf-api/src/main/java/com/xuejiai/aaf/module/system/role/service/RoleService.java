@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.role.service;
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
 
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -15,7 +16,9 @@ import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.role.domain.Role;
+import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
+import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
 import com.xuejiai.aaf.module.system.role.vo.RoleCreateDTO;
 import com.xuejiai.aaf.module.system.role.vo.RolePageParam;
 import com.xuejiai.aaf.module.system.role.vo.RoleUpdateDTO;
@@ -35,6 +38,7 @@ public class RoleService
         extends BaseCrudService<Role, RoleVO, RoleCreateDTO, RoleUpdateDTO, RolePageParam> {
 
     private final RoleRepository roleRepository;
+    private final UserRoleRepository userRoleRepository;
     private static final Set<String> SORTABLE_FIELDS =
             Set.of("id", "code", "name", "status", "createTime");
 
@@ -106,6 +110,18 @@ public class RoleService
             var pattern = "%" + keyword.trim() + "%";
             return cb.or(cb.like(root.get("code"), pattern), cb.like(root.get("name"), pattern));
         };
+    }
+
+    /** 按角色编码查询启用角色下的用户 ID。 */
+    public List<Long> listActiveUserIdsByCode(String roleCode) {
+        return roleRepository
+                .findByCodeAndDeletedFalse(roleCode)
+                .filter(role -> Integer.valueOf(0).equals(role.getStatus()))
+                .stream()
+                .flatMap(role -> userRoleRepository.findByRoleIdAndDeletedFalse(role.getId()).stream())
+                .map(UserRole::getUserId)
+                .distinct()
+                .toList();
     }
 
     // ==================== 操作日志 ====================

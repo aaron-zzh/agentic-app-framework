@@ -29,13 +29,10 @@ type Tab = "pending" | "done" | "initiated"
 export default function WorkflowPage() {
   const [activeTab, setActiveTab] = useState<Tab>("pending")
 
-  // TODO: 从 auth store 获取当前用户 ID
-  const currentUserId = "current-user"
-
   const { data: pendingTasks, isLoading: pendingLoading } = useMyPendingTasks()
   const { data: historyData, isLoading: historyLoading } = useApprovalHistory()
   const { data: initiatedData, isLoading: initiatedLoading } = useMyInitiated()
-  const { data: stats } = useApprovalStats(currentUserId)
+  const { data: stats } = useApprovalStats()
 
   return (
     <PageContainer>

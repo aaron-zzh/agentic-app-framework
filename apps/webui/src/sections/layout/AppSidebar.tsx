@@ -154,12 +154,27 @@ export function AppSidebar() {
   )
 
   const navConfig = useMemo(() => {
+    const appendWorkflow = (groups: NavGroup[]) => {
+      const containsPath = (items: NavItem[], path: string): boolean =>
+        items.some((item) => item.path === path || containsPath(item.children ?? [], path))
+      const items: NavItem[] = []
+      if (!groups.some((group) => containsPath(group.items, "/workflow"))) {
+        items.push({ title: "审批中心", path: "/workflow", icon: "check-square" })
+      }
+      if (
+        userRoles?.some((role) => role === "ADMIN" || role === "SUPER_ADMIN") &&
+        !groups.some((group) => containsPath(group.items, "/workflow/design"))
+      ) {
+        items.push({ title: "工作流设计", path: "/workflow/design", icon: "workflow" })
+      }
+      return items.length > 0 ? [...groups, { subheader: "工作流", items }] : groups
+    }
     const appendOfficial = (groups: NavGroup[]) =>
       hasOfficial ? [...groups, buildOfficialNavConfig()] : groups
-    if (menus) return appendOfficial(buildNavFromApi(menus))
-    if (isError) return appendOfficial(filterByRole(buildNavConfig()))
+    if (menus) return appendOfficial(appendWorkflow(buildNavFromApi(menus)))
+    if (isError) return appendOfficial(appendWorkflow(filterByRole(buildNavConfig())))
     return null
-  }, [menus, isError, hasOfficial, filterByRole])
+  }, [menus, isError, hasOfficial, filterByRole, userRoles])
 
   return (
     <aside

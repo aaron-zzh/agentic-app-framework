@@ -57,6 +57,41 @@ public interface WorkflowEngine {
     void completeTask(String taskId, Map<String, Object> variables, String comment);
 
     /**
+     * 按 ID 查询运行中的任务。
+     *
+     * @param taskId 任务 ID
+     * @return 任务信息，不存在时返回 null
+     */
+    TaskInfo getTask(String taskId);
+
+    /**
+     * 判断用户是否是任务处理人或候选人。
+     *
+     * @param taskId 任务 ID
+     * @param userId 用户标识
+     * @return true=可以处理该任务
+     */
+    boolean canOperateTask(String taskId, String userId);
+
+    /**
+     * 判断用户是否参与了指定流程实例。
+     *
+     * @param processInstanceId 流程实例 ID
+     * @param userId 用户标识
+     * @return true=发起人、当前处理人、候选人或历史处理人
+     */
+    boolean isProcessParticipant(String processInstanceId, String userId);
+
+    /**
+     * 判断用户当前是否可以审批指定流程定义。
+     *
+     * @param processKey 流程定义 key
+     * @param userId 用户标识
+     * @return true=存在可处理任务
+     */
+    boolean canApprove(String processKey, String userId);
+
+    /**
      * 查询流程当前待办任务。
      *
      * @param processInstanceId 流程实例 ID
@@ -119,6 +154,9 @@ public interface WorkflowEngine {
      * @return 流程实例 ID（无匹配返回 null）
      */
     String findInstanceByBusinessKey(String businessKey);
+
+    /** 判断流程实例是否仍在运行。 */
+    boolean isProcessRunning(String processInstanceId);
 
     // ==================== #5802 流程定义管理 ====================
 
@@ -190,15 +228,18 @@ public interface WorkflowEngine {
      * @param pageSize 每页条数
      * @return 实例列表
      */
-    List<InstanceInfo> listRunningInstances(String processKey, int pageNo, int pageSize);
+    List<InstanceInfo> listRunningInstances(
+            String processKey, Long orgId, Long workspaceId, int pageNo, int pageSize);
 
     /**
      * 查询运行中实例总数。
      *
      * @param processKey 流程 key（可为 null）
+     * @param orgId 组织 ID
+     * @param workspaceId 工作区 ID，组织级流程使用 null
      * @return 总数
      */
-    long countRunningInstances(String processKey);
+    long countRunningInstances(String processKey, Long orgId, Long workspaceId);
 
     /**
      * 分页查询历史流程实例（已完成/已终止）。
@@ -210,16 +251,24 @@ public interface WorkflowEngine {
      * @return 实例列表
      */
     List<InstanceInfo> listHistoricInstances(
-            String processKey, boolean finished, int pageNo, int pageSize);
+            String processKey,
+            boolean finished,
+            Long orgId,
+            Long workspaceId,
+            int pageNo,
+            int pageSize);
 
     /**
      * 查询历史实例总数。
      *
      * @param processKey 流程 key（可为 null）
      * @param finished 是否已完成
+     * @param orgId 组织 ID
+     * @param workspaceId 工作区 ID，组织级流程使用 null
      * @return 总数
      */
-    long countHistoricInstances(String processKey, boolean finished);
+    long countHistoricInstances(
+            String processKey, boolean finished, Long orgId, Long workspaceId);
 
     /**
      * 挂起流程实例。
@@ -322,19 +371,14 @@ public interface WorkflowEngine {
     // ==================== #5805 信号与消息事件 ====================
 
     /**
-     * 发送信号事件。
+     * 向指定流程实例发送信号事件。
      *
      * @param signalName 信号名称
-     */
-    void sendSignal(String signalName);
-
-    /**
-     * 发送信号事件（带变量）。
-     *
-     * @param signalName 信号名称
+     * @param processInstanceId 目标流程实例 ID
      * @param variables 变量
      */
-    void sendSignal(String signalName, Map<String, Object> variables);
+    void sendSignal(
+            String signalName, String processInstanceId, Map<String, Object> variables);
 
     /**
      * 发送消息事件。

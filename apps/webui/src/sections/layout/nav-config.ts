@@ -48,6 +48,18 @@ export function buildNavConfig(): NavGroup[] {
       ]
     },
     {
+      subheader: "工作流",
+      items: [
+        { title: "审批中心", path: "/workflow", icon: "check-square" },
+        {
+          title: "工作流设计",
+          path: "/workflow/design",
+          icon: "workflow",
+          allowedRoles: ["ADMIN", "SUPER_ADMIN"]
+        }
+      ]
+    },
+    {
       subheader: "系统",
       items: [
         { title: "设置", path: paths.workspace.settings, icon: "settings" },

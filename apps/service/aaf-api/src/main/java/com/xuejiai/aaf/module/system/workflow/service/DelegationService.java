@@ -13,7 +13,6 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
-import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.module.system.workflow.domain.Delegation;
 import com.xuejiai.aaf.module.system.workflow.repository.DelegationRepository;
 import com.xuejiai.aaf.module.system.workflow.vo.DelegationCreateDTO;
@@ -36,7 +35,7 @@ public class DelegationService {
             Set.of("id", "delegateId", "startDate", "endDate", "status", "createTime");
 
     private final DelegationRepository delegationRepository;
-    private final WorkflowEngine workflowEngine;
+    private final WorkflowService workflowService;
 
     /** 创建委托 */
     @Transactional
@@ -89,8 +88,9 @@ public class DelegationService {
 
     /** 单次转交任务 */
     @Transactional
-    public void transfer(WorkflowTransferDTO dto) {
-        workflowEngine.reassignTask(dto.taskId(), dto.targetUserId().toString());
+    public void transfer(WorkflowTransferDTO dto, String operatorId) {
+        workflowService.reassignTask(
+                dto.taskId(), operatorId, dto.targetUserId().toString());
     }
 
     private DelegationVO toVO(Delegation d) {

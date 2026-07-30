@@ -12,4 +12,6 @@ import com.xuejiai.aaf.module.system.role.domain.UserRole;
 public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
 
     List<UserRole> findByUserIdAndDeletedFalse(Long userId);
+
+    List<UserRole> findByRoleIdAndDeletedFalse(Long roleId);
 }

@@ -43,16 +43,32 @@ public class IterationNode implements JavaDelegate {
         try {
             List<Object> items = JsonUtils.parseObject(itemsJson, new TypeReference<>() {});
             var limit = Math.min(items.size(), maxIterations);
-            var results = new java.util.ArrayList<String>();
-
-            for (int i = 0; i < limit; i++) {
-                var item = items.get(i);
-                execution.setVariable("currentItem", JsonUtils.toJsonString(item));
-                execution.setVariable("iterationIndex", i);
-                results.add(JsonUtils.toJsonString(item));
+            var previousIndex =
+                    execution.getVariable("iterationIndex") instanceof Number number
+                            ? number.intValue()
+                            : -1;
+            var nextIndex = previousIndex + 1;
+            if (nextIndex >= limit) {
+                execution.setVariable("hasNextIteration", false);
+                execution.setVariable("success", true);
+                return;
             }
 
+            List<Object> results;
+            var resultsJson = (String) execution.getVariable("iterationResults");
+            if (resultsJson == null || resultsJson.isBlank()) {
+                results = new java.util.ArrayList<>();
+            } else {
+                results =
+                        new java.util.ArrayList<>(
+                                JsonUtils.parseObject(resultsJson, new TypeReference<List<Object>>() {}));
+            }
+            var item = items.get(nextIndex);
+            results.add(item);
+            execution.setVariable("currentItem", item);
+            execution.setVariable("iterationIndex", nextIndex);
             execution.setVariable("iterationResults", JsonUtils.toJsonString(results));
+            execution.setVariable("hasNextIteration", true);
             execution.setVariable("success", true);
         } catch (Exception e) {
             log.error("循环节点解析 items 失败", e);

@@ -37,7 +37,6 @@ interface ApprovalPanelProps {
   isAssignee?: boolean
   /** 当前用户是否为发起人 */
   isInitiator?: boolean
-  currentUserId: string
   /** 是否为会签场景 */
   showVoteProgress?: boolean
 }
@@ -66,7 +65,6 @@ export function ApprovalPanel({
   taskId,
   isAssignee = false,
   isInitiator = false,
-  currentUserId,
   showVoteProgress = false
 }: ApprovalPanelProps) {
   const { data: timeline } = useApprovalTimeline(processInstanceId)
@@ -117,7 +115,7 @@ export function ApprovalPanel({
           )
         break
       case "withdraw":
-        withdrawMutation.mutate({ processInstanceId, initiator: currentUserId }, { onSuccess })
+        withdrawMutation.mutate({ processInstanceId }, { onSuccess })
         break
     }
   }

@@ -37,11 +37,18 @@ describe("useWorkflowRuntime", () => {
     })
 
     act(() => {
-      result.current.startWorkflow("approval-process", { userId: "1" })
+      result.current.startWorkflow(42, { input: "hello" })
     })
 
     expect(result.current.status).toBe("running")
     expect(result.current.messages).toEqual([])
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/workflow/run"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ flowId: 42, debug: false, variables: { input: "hello" } })
+      })
+    )
   })
 
   it("cancel 应将状态重置为 idle", () => {
@@ -53,7 +60,7 @@ describe("useWorkflowRuntime", () => {
     })
 
     act(() => {
-      result.current.startWorkflow("test")
+      result.current.startWorkflow(7)
     })
 
     act(() => {
@@ -69,7 +76,7 @@ describe("useWorkflowRuntime", () => {
     mockFetch.mockResolvedValueOnce({ ok: false, body: null })
 
     await act(async () => {
-      result.current.startWorkflow("bad-process")
+      result.current.startWorkflow(999)
       // 等待 fetch promise 解析
       await new Promise((r) => setTimeout(r, 10))
     })
@@ -103,7 +110,7 @@ describe("useWorkflowRuntime", () => {
           })
         }
       })
-      result.current.startWorkflow("test")
+      result.current.startWorkflow(7)
     })
 
     // 等待 SSE 事件处理

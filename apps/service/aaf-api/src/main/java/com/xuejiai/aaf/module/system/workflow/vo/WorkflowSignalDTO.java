@@ -13,4 +13,6 @@ import jakarta.validation.constraints.NotBlank;
 @Schema(description = "发送信号事件请求")
 public record WorkflowSignalDTO(
         @NotBlank(message = "信号名称不能为空") @Schema(description = "信号名称") String signalName,
+        @NotBlank(message = "流程实例 ID 不能为空") @Schema(description = "目标流程实例 ID")
+                String processInstanceId,
         @Schema(description = "变量") Map<String, Object> variables) {}

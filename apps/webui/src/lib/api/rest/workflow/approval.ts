@@ -98,8 +98,8 @@ export const approvalApi = {
     backendApi.post<void>("/system/workflow/approval/transfer", { taskId, targetAssignee, reason }),
 
   /** 撤回 */
-  withdraw: (processInstanceId: string, initiator: string) =>
-    backendApi.post<void>("/system/workflow/approval/withdraw", { processInstanceId, initiator }),
+  withdraw: (processInstanceId: string) =>
+    backendApi.post<void>("/system/workflow/approval/withdraw", { processInstanceId }),
 
   /** 查询审批时间线 */
   getTimeline: (processInstanceId: string) =>
@@ -110,8 +110,7 @@ export const approvalApi = {
     backendApi.get<VoteProgress>(`/system/workflow/approval/vote-progress/${processInstanceId}`),
 
   /** 审批统计 */
-  getStats: (assignee: string) =>
-    backendApi.get<ApprovalStats>(`/system/workflow/approval/stats?assignee=${assignee}`),
+  getStats: () => backendApi.get<ApprovalStats>("/system/workflow/approval/stats"),
 
   /** 我的待办 */
   myPendingTasks: () => backendApi.get<WorkflowTaskVO[]>("/system/workflow/tasks/my-pending"),
@@ -174,11 +173,10 @@ export function useVoteProgress(processInstanceId?: string) {
 }
 
 /** 审批统计 */
-export function useApprovalStats(assignee?: string) {
+export function useApprovalStats() {
   return useQuery({
-    queryKey: ["approval", "stats", assignee],
-    queryFn: () => approvalApi.getStats(assignee ?? ""),
-    enabled: !!assignee
+    queryKey: ["approval", "stats"],
+    queryFn: approvalApi.getStats
   })
 }
 
@@ -229,13 +227,8 @@ export function useTransferSign() {
 export function useWithdraw() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({
-      processInstanceId,
-      initiator
-    }: {
-      processInstanceId: string
-      initiator: string
-    }) => approvalApi.withdraw(processInstanceId, initiator),
+    mutationFn: ({ processInstanceId }: { processInstanceId: string }) =>
+      approvalApi.withdraw(processInstanceId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["approval"] })
     }
