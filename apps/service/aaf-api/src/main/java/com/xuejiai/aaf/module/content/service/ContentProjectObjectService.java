@@ -61,6 +61,10 @@ public class ContentProjectObjectService
                 entity.getPayload());
     }
 
+    public ContentProjectObjectVO toView(ContentProjectObject entity) {
+        return toVO(entity);
+    }
+
     @Override
     protected ContentProjectObject toEntity(ContentProjectObjectCreateDTO dto) {
         var entity = ContentProjectObjectConvert.INSTANCE.toEntity(dto);

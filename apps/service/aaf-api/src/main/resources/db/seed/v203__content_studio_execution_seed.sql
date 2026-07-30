@@ -55,12 +55,19 @@ WHERE status = 'published';
 
 -- ---------------- 资源权限码 ----------------
 INSERT INTO sys_permission_code (name, code, module, resource, action, status)
-VALUES ('执行内容项目动作', 'content:project:action', 'content', 'project', 'action', 0)
+VALUES
+('执行内容项目动作', 'content:project:action', 'content', 'project', 'action', 0),
+('读取内容对象版本', 'content:object-version:read', 'content', 'object-version', 'read', 0),
+('导出内容对象版本', 'content:object-version:export', 'content', 'object-version', 'export', 0)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT role.id, permission.id
 FROM sys_role role
-JOIN sys_permission_code permission ON permission.code = 'content:project:action'
+JOIN sys_permission_code permission
+  ON permission.code IN (
+      'content:project:action',
+      'content:object-version:read',
+      'content:object-version:export')
 WHERE role.code IN ('member', 'org_admin', 'admin', 'super_admin')
 ON CONFLICT DO NOTHING;
