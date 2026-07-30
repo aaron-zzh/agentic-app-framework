@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.integration;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,11 +22,14 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.xuejiai.aaf.common.enums.sys.TodoStatusEnum;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.cache.PermissionCacheService;
+import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
+import com.xuejiai.aaf.framework.task.queue.RedisStreamTaskQueue;
 import com.xuejiai.aaf.module.system.org.domain.OrgMember;
 import com.xuejiai.aaf.module.system.org.domain.Organization;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
@@ -55,7 +60,7 @@ import com.xuejiai.aaf.module.system.user.repository.UserRepository;
  *
  * @author AaronZZH & Kiro
  */
-@SpringBootTest
+@SpringBootTest(properties = "aaf.task.queue.enabled=false")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class TodoPermissionIT {
@@ -70,6 +75,7 @@ class TodoPermissionIT {
     @Autowired private PermissionCacheService permissionCacheService;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private OrgMemberRepository orgMemberRepository;
+    @MockitoBean private RedisStreamTaskQueue redisStreamTaskQueue;
 
     private User userA;
     private User userB;
@@ -289,6 +295,31 @@ class TodoPermissionIT {
         } finally {
             OrgContext.runIgnoring(() -> todoRepository.deleteById(savedDoneTodo.getId()));
         }
+    }
+
+    @Test
+    @DisplayName("Given ADMIN 角色 When 调用异步清理已完成待办 Then 返回稳定任务 ID")
+    void should_enqueue_clear_done_when_admin_calls_async_endpoint() throws Exception {
+        mockMvc.perform(
+                        post("/api/todos/_clear-done/async")
+                                .header("X-Org-Id", testOrg.getId().toString())
+                                .with(
+                                        user(userA.getId().toString())
+                                                .authorities(
+                                                        new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isNotEmpty());
+        verify(redisStreamTaskQueue).enqueue(any(AsyncTaskMessage.class));
+    }
+
+    @Test
+    @DisplayName("Given 非管理员角色 When 调用异步清理已完成待办 Then 403")
+    void should_return_403_when_non_admin_calls_async_clear() throws Exception {
+        mockMvc.perform(
+                        post("/api/todos/_clear-done/async")
+                                .header("X-Org-Id", testOrg.getId().toString())
+                                .with(user(userB.getId().toString())))
+                .andExpect(status().isForbidden());
     }
 
     @Test

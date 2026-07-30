@@ -3,8 +3,10 @@ package com.xuejiai.aaf.framework.engine.meta.runtime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
 import com.xuejiai.aaf.framework.task.TaskMonitor;
 
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,6 +48,7 @@ public class TaskRuntime {
     private final TaskNotifier taskNotifier;
     private final WorkflowEngine workflowEngine;
 
+    private final ExecutorService taskExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final Map<String, AafTask> registry = new ConcurrentHashMap<>();
     private final Map<String, Integer> progressMap = new ConcurrentHashMap<>();
 
@@ -161,16 +165,27 @@ public class TaskRuntime {
 
     private TaskResult executeWithTimeout(AafTask task, TaskContext ctx) throws Exception {
         var timeout = task.timeoutSeconds() > 0 ? task.timeoutSeconds() : timeoutSeconds;
-        var future = CompletableFuture.supplyAsync(() -> task.execute(ctx));
-        return future.orTimeout(timeout, TimeUnit.SECONDS)
-                .exceptionally(
-                        e -> {
-                            if (e.getCause() instanceof TimeoutException) {
-                                throw new RuntimeException(new TimeoutException());
-                            }
-                            throw new RuntimeException(e.getCause());
-                        })
-                .join();
+        var future = taskExecutor.submit(() -> task.execute(ctx));
+        try {
+            return future.get(timeout, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw e;
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            throw e;
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("任务执行失败", e.getCause());
+        }
+    }
+
+    @PreDestroy
+    public void close() {
+        taskExecutor.shutdownNow();
     }
 
     private void recordResult(Long monitorId, TaskResult result) {

@@ -16,6 +16,7 @@ import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.Patch;
 import com.xuejiai.aaf.module.system.task.domain.Todo;
+import com.xuejiai.aaf.module.system.task.service.TodoQueueService;
 import com.xuejiai.aaf.module.system.task.service.TodoService;
 import com.xuejiai.aaf.module.system.task.vo.ShareTodoDTO;
 import com.xuejiai.aaf.module.system.task.vo.TodoCreateDTO;
@@ -49,6 +50,7 @@ public class TodoController
         extends BaseCrudController<Todo, TodoVO, TodoCreateDTO, TodoUpdateDTO, TodoPageDTO> {
 
     private final TodoService todoService;
+    private final TodoQueueService todoQueueService;
 
     @Override
     protected BaseCrudService<Todo, TodoVO, TodoCreateDTO, TodoUpdateDTO, TodoPageDTO>
@@ -91,6 +93,13 @@ public class TodoController
     @PutMapping("/_clear-done")
     public Result<Long> clearDoneTodos() {
         return Result.success(todoService.clearDoneTodos());
+    }
+
+    @Operation(summary = "异步清理已完成待办", description = "通用 Redis Stream 任务队列试点，立即返回任务 ID。")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PostMapping("/_clear-done/async")
+    public Result<String> clearDoneTodosAsync() {
+        return Result.success(todoQueueService.enqueueClearDone());
     }
 
     @Operation(

@@ -1,9 +1,13 @@
 package com.xuejiai.aaf.module.system.task.controller;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,32 +15,36 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.task.ScheduledTaskExecutor;
 import com.xuejiai.aaf.framework.task.TaskExecution;
 import com.xuejiai.aaf.framework.task.TaskExecutionRepository;
 import com.xuejiai.aaf.framework.task.TaskRegistry;
+import com.xuejiai.aaf.framework.task.queue.DeadLetterQueue;
+import com.xuejiai.aaf.framework.task.queue.DeadLetterQueue.DeadLetterMessage;
 import com.xuejiai.aaf.module.system.task.vo.TaskVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 
-/**
- * 任务管理接口（定时任务 + 异步任务统一管理）。
- *
- * @author AaronZZH & Kiro
- */
+/** 任务管理接口（定时任务 + 异步任务统一管理）。 */
 @Tag(name = "任务管理")
+@Validated
 @RestController
 @RequestMapping("/api/tasks")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 @RequiredArgsConstructor
 public class TaskManagementController {
 
     private final TaskRegistry taskRegistry;
     private final ScheduledTaskExecutor scheduledTaskExecutor;
     private final TaskExecutionRepository taskExecutionRepository;
+    private final DeadLetterQueue deadLetterQueue;
 
     @Operation(summary = "任务列表（定时任务）")
     @GetMapping
@@ -44,12 +52,12 @@ public class TaskManagementController {
         var tasks =
                 taskRegistry.listAll().stream()
                         .map(
-                                d ->
+                                definition ->
                                         new TaskVO(
-                                                d.name(),
-                                                d.cronExpression(),
-                                                d.enabled(),
-                                                d.description()))
+                                                definition.name(),
+                                                definition.cronExpression(),
+                                                definition.enabled(),
+                                                definition.description()))
                         .toList();
         return Result.success(tasks);
     }
@@ -73,9 +81,9 @@ public class TaskManagementController {
     @PostMapping("/{name}/resume")
     public Result<Void> resume(@PathVariable String name) {
         taskRegistry.resume(name);
-        var def = taskRegistry.get(name);
-        if (def != null) {
-            scheduledTaskExecutor.schedule(def);
+        var definition = taskRegistry.get(name);
+        if (definition != null) {
+            scheduledTaskExecutor.schedule(definition);
         }
         return Result.success();
     }
@@ -83,8 +91,8 @@ public class TaskManagementController {
     @Operation(summary = "执行记录查询（分页）")
     @GetMapping("/executions")
     public Result<PageResult<TaskExecution>> executions(
-            @RequestParam(defaultValue = "1") int pageNo,
-            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(defaultValue = "1") @Min(1) int pageNo,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int pageSize,
             @RequestParam(required = false) String status) {
         var pageable =
                 PageRequest.of(pageNo - 1, pageSize, Sort.by(Sort.Direction.DESC, "startTime"));
@@ -97,25 +105,19 @@ public class TaskManagementController {
 
     @Operation(summary = "死信队列列表")
     @GetMapping("/dead-letter")
-    public Result<PageResult<TaskExecution>> deadLetter(
-            @RequestParam(defaultValue = "1") int pageNo,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        var pageable =
-                PageRequest.of(pageNo - 1, pageSize, Sort.by(Sort.Direction.DESC, "startTime"));
-        var page = taskExecutionRepository.findByStatus("failed", pageable);
-        return Result.success(new PageResult<>(page.getContent(), page.getTotalElements()));
+    public Result<PageResult<DeadLetterMessage>> deadLetter(
+            @RequestParam(defaultValue = "1") @Min(1) int pageNo,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int pageSize) {
+        var offset = (pageNo - 1) * pageSize;
+        return Result.success(
+                new PageResult<>(deadLetterQueue.list(offset, pageSize), deadLetterQueue.count()));
     }
 
     @Operation(summary = "死信重试")
-    @PostMapping("/dead-letter/{id}/retry")
-    public Result<Void> retryDeadLetter(@PathVariable Long id) {
-        // 重置状态为 running，由消费者重新处理
-        var execution = taskExecutionRepository.findById(id).orElse(null);
-        if (execution != null) {
-            execution.setStatus("running");
-            execution.setRetryCount(execution.getRetryCount() + 1);
-            execution.setErrorMessage(null);
-            taskExecutionRepository.save(execution);
+    @PostMapping("/dead-letter/{recordId}/retry")
+    public Result<Void> retryDeadLetter(@PathVariable String recordId) {
+        if (!deadLetterQueue.retry(recordId)) {
+            throw exception(GlobalErrorCode.NOT_FOUND);
         }
         return Result.success();
     }
