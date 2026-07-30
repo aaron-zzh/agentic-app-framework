@@ -48,7 +48,7 @@ export const OBJECT_TYPE_LABELS: Record<ContentObjectType, string> = {
   shot: "镜头",
   shot_keyframe: "镜头关键帧",
   review: "审核",
-  inspiration_board: "灵感板",
+  canvas_board: "画布节点",
   property_subject: "楼盘资料",
   claim_evidence: "主张证据"
 }
@@ -75,7 +75,7 @@ const TYPE_STAGE: Record<ContentObjectType, ProjectGraphStage> = {
   scene: "material",
   shot: "material",
   shot_keyframe: "material",
-  inspiration_board: "material",
+  canvas_board: "material",
   review: "governance"
 }
 

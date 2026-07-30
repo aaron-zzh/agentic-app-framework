@@ -33,7 +33,7 @@ export type ContentObjectType =
   | "shot"
   | "shot_keyframe"
   | "review"
-  | "inspiration_board"
+  | "canvas_board"
   | "property_subject"
   | "claim_evidence"
 export type ContentObjectStatus =

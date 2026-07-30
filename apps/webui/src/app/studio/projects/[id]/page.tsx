@@ -6,20 +6,14 @@
 "use client"
 
 import { FolderKanban } from "lucide-react"
-import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { GlowButton } from "@/components/studio"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle
-} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  type ContentCanvasMode,
+  ContentCanvasSheet,
   getObjectStage,
   PROJECT_GRAPH_STAGES,
   type ProjectGraphStage,
@@ -30,16 +24,17 @@ import {
   useProjectGraphViewState
 } from "@/features/studio/content"
 import {
+  type ContentProjectObjectVO,
   useContentProject,
   useContentProjectGraph,
   useContentProjectSummary
 } from "@/lib/api/rest/content"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
-const ProjectCanvas = dynamic(
-  () => import("@/features/studio/projects/ProjectCanvas").then((module) => module.ProjectCanvas),
-  { ssr: false, loading: () => <Skeleton className="size-full" /> }
-)
+interface CanvasSession {
+  mode: ContentCanvasMode
+  object: ContentProjectObjectVO
+}
 
 function parseFocus(value: string | null): number | undefined {
   if (!value) return undefined
@@ -61,6 +56,7 @@ export default function StudioProjectDetailPage() {
   const view: ProjectWorkbenchView = searchParams.get("view") === "graph" ? "graph" : "structure"
   const focusObjectId = parseFocus(searchParams.get("focus"))
   const requestedStage = searchParams.get("stage")
+  const [canvasSession, setCanvasSession] = useState<CanvasSession | null>(null)
   const setGraphFocus = useProjectGraphViewState((state) => state.setFocusObjectId)
   const { data: project, isLoading: projectLoading } = useContentProject(validProjectId)
   const { data: graph, isLoading: graphLoading } = useContentProjectGraph(validProjectId)
@@ -112,6 +108,13 @@ export default function StudioProjectDetailPage() {
     })
   }
 
+  function handleOpenCanvas(id: number, mode: ContentCanvasMode) {
+    const object = graph?.objects.find((item) => item.id === id)
+    if (!object) return
+    handleFocusObject(id)
+    setCanvasSession({ mode, object })
+  }
+
   if (projectLoading || graphLoading) {
     return (
       <div className="flex h-full flex-col gap-3 p-6">
@@ -138,8 +141,6 @@ export default function StudioProjectDetailPage() {
     )
   }
 
-  const inspirationOpen = focusedObject?.objectType === "inspiration_board"
-
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <ProjectWorkbenchHeader
@@ -156,6 +157,8 @@ export default function StudioProjectDetailPage() {
             graph={graph}
             focusObjectId={focusObjectId}
             onFocusObject={handleFocusObject}
+            onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
+            onAnnotateImage={(id) => handleOpenCanvas(id, "annotation")}
           />
         ) : (
           <ProjectStructureView
@@ -164,6 +167,8 @@ export default function StudioProjectDetailPage() {
             focusObjectId={focusObjectId}
             onStageChange={(stage) => updateUrl({ stage })}
             onFocusObject={handleFocusObject}
+            onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
+            onAnnotateImage={(id) => handleOpenCanvas(id, "annotation")}
           />
         )}
       </main>
@@ -180,24 +185,15 @@ export default function StudioProjectDetailPage() {
         ) : null}
       </footer>
 
-      <Sheet
-        open={inspirationOpen}
+      <ContentCanvasSheet
+        open={canvasSession !== null}
+        mode={canvasSession?.mode ?? "canvas"}
+        projectId={project.id}
+        object={canvasSession?.object ?? null}
         onOpenChange={(open) => {
-          if (!open) updateUrl({ focus: null })
+          if (!open) setCanvasSession(null)
         }}
-      >
-        <SheetContent className="w-[92vw] sm:max-w-[92vw]">
-          <SheetHeader>
-            <SheetTitle>{focusedObject?.title || "项目灵感板"}</SheetTitle>
-            <SheetDescription>
-              自由排列参考图片、手绘与批注；项目图谱仍是业务关系真理源。
-            </SheetDescription>
-          </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
-            <ProjectCanvas projectId={projectId} />
-          </div>
-        </SheetContent>
-      </Sheet>
+      />
     </div>
   )
 }

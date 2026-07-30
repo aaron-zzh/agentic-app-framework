@@ -42,6 +42,8 @@ export interface ProjectStructureViewProps {
   focusObjectId?: number
   onStageChange: (stage: ProjectGraphStage) => void
   onFocusObject: (id: number) => void
+  onOpenCanvas: (id: number) => void
+  onAnnotateImage: (id: number) => void
 }
 
 export function ProjectStructureView({
@@ -49,7 +51,9 @@ export function ProjectStructureView({
   activeStage,
   focusObjectId,
   onStageChange,
-  onFocusObject
+  onFocusObject,
+  onOpenCanvas,
+  onAnnotateImage
 }: ProjectStructureViewProps) {
   const stageObjects = graph.objects
     .filter((object) => getObjectStage(object) === activeStage)
@@ -182,8 +186,30 @@ export function ProjectStructureView({
                         {object.summary || "暂无摘要"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => onFocusObject(object.id)}>
-                          {object.objectType === "inspiration_board" ? "打开" : "聚焦"}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (object.objectType === "canvas_board") {
+                              onOpenCanvas(object.id)
+                              return
+                            }
+                            if (
+                              object.objectType === "image_deliverable" ||
+                              object.objectType === "shot_keyframe"
+                            ) {
+                              onAnnotateImage(object.id)
+                              return
+                            }
+                            onFocusObject(object.id)
+                          }}
+                        >
+                          {object.objectType === "canvas_board"
+                            ? "打开画布"
+                            : object.objectType === "image_deliverable" ||
+                                object.objectType === "shot_keyframe"
+                              ? "标注"
+                              : "聚焦"}
                           <ArrowRight />
                         </Button>
                       </TableCell>

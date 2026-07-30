@@ -15,8 +15,8 @@ import {
   ReactFlow,
   type Viewport
 } from "@xyflow/react"
-import { ChevronDown, ChevronRight, Layers3 } from "lucide-react"
-import { memo, useMemo } from "react"
+import { ChevronDown, ChevronRight, Layers3, PanelTopOpen, ScanLine } from "lucide-react"
+import { createContext, memo, useContext, useMemo } from "react"
 import "@xyflow/react/dist/style.css"
 import { GlassCard } from "@/components/studio"
 import { Badge } from "@/components/ui/badge"
@@ -47,10 +47,20 @@ const STATUS_VARIANT = {
   done: "secondary"
 } as const
 
+interface GraphNodeActions {
+  onOpenCanvas: (id: number) => void
+  onAnnotateImage: (id: number) => void
+}
+
+const GraphNodeActionsContext = createContext<GraphNodeActions | null>(null)
+
 function ContentDomainNodeComponent({ data, selected }: NodeProps) {
   const node = data as ContentGraphNodeData
+  const actions = useContext(GraphNodeActionsContext)
   const toggleCollapsedGroup = useProjectGraphViewState((state) => state.toggleCollapsedGroup)
   const isGroup = node.kind === "group"
+  const canOpenCanvas = node.objectType === "canvas_board"
+  const canAnnotate = node.objectType === "image_deliverable" || node.objectType === "shot_keyframe"
 
   return (
     <GlassCard
@@ -97,6 +107,22 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
             {node.summary}
           </p>
         )}
+        {!isGroup && node.objectId !== undefined && (canOpenCanvas || canAnnotate) ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="nodrag w-full"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (canOpenCanvas) actions?.onOpenCanvas(node.objectId as number)
+              else actions?.onAnnotateImage(node.objectId as number)
+            }}
+          >
+            {canOpenCanvas ? <PanelTopOpen /> : <ScanLine />}
+            {canOpenCanvas ? "打开画布" : "标注"}
+          </Button>
+        ) : null}
         {node.zoomTier === "detail" && !isGroup ? (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>点击聚焦</span>
@@ -116,6 +142,8 @@ export interface ProjectGraphViewProps {
   graph: ContentProjectGraphVO
   focusObjectId?: number
   onFocusObject: (id: number) => void
+  onOpenCanvas: (id: number) => void
+  onAnnotateImage: (id: number) => void
 }
 
 function tierForZoom(zoom: number) {
@@ -124,7 +152,13 @@ function tierForZoom(zoom: number) {
   return "detail" as const
 }
 
-export function ProjectGraphView({ graph, focusObjectId, onFocusObject }: ProjectGraphViewProps) {
+export function ProjectGraphView({
+  graph,
+  focusObjectId,
+  onFocusObject,
+  onOpenCanvas,
+  onAnnotateImage
+}: ProjectGraphViewProps) {
   const viewport = useProjectGraphViewState((state) => state.viewport)
   const collapsedGroups = useProjectGraphViewState((state) => state.collapsedGroups)
   const activeLayers = useProjectGraphViewState((state) => state.activeLayers)
@@ -142,6 +176,10 @@ export function ProjectGraphView({ graph, focusObjectId, onFocusObject }: Projec
       }),
     [graph, collapsedGroups, activeLayers, focusObjectId, zoomTier]
   )
+  const nodeActions = useMemo(
+    () => ({ onOpenCanvas, onAnnotateImage }),
+    [onOpenCanvas, onAnnotateImage]
+  )
 
   function handleMoveEnd(_event: MouseEvent | TouchEvent | null, nextViewport: Viewport) {
     setViewport(nextViewport)
@@ -149,67 +187,69 @@ export function ProjectGraphView({ graph, focusObjectId, onFocusObject }: Projec
   }
 
   return (
-    <div className="relative h-full min-h-[520px] overflow-hidden rounded-2xl border bg-background/40">
-      <div className="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 rounded-xl border bg-background/90 p-2 shadow-sm backdrop-blur">
-        <Layers3 className="size-4 text-muted-foreground" />
-        <ToggleGroup
-          value={activeLayers}
-          onValueChange={(values: string[]) => {
-            for (const option of LAYER_OPTIONS) {
-              if (values.includes(option.value) !== activeLayers.includes(option.value)) {
-                toggleLayer(option.value)
+    <GraphNodeActionsContext.Provider value={nodeActions}>
+      <div className="relative h-full min-h-[520px] overflow-hidden rounded-2xl border bg-background/40">
+        <div className="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 rounded-xl border bg-background/90 p-2 shadow-sm backdrop-blur">
+          <Layers3 className="size-4 text-muted-foreground" />
+          <ToggleGroup
+            value={activeLayers}
+            onValueChange={(values: string[]) => {
+              for (const option of LAYER_OPTIONS) {
+                if (values.includes(option.value) !== activeLayers.includes(option.value)) {
+                  toggleLayer(option.value)
+                }
               }
-            }
-          }}
-          variant="outline"
-          size="sm"
-          spacing={0}
-        >
-          {LAYER_OPTIONS.map((layer) => (
-            <ToggleGroupItem
-              key={layer.value}
-              value={layer.value}
-              aria-label={`${layer.label}图层`}
-            >
-              {layer.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <Badge variant="secondary">
-          {zoomTier === "global" ? "全局" : zoomTier === "overview" ? "概览" : "详情"}
-        </Badge>
-      </div>
+            }}
+            variant="outline"
+            size="sm"
+            spacing={0}
+          >
+            {LAYER_OPTIONS.map((layer) => (
+              <ToggleGroupItem
+                key={layer.value}
+                value={layer.value}
+                aria-label={`${layer.label}图层`}
+              >
+                {layer.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <Badge variant="secondary">
+            {zoomTier === "global" ? "全局" : zoomTier === "overview" ? "概览" : "详情"}
+          </Badge>
+        </div>
 
-      <ReactFlow
-        nodes={projection.nodes}
-        edges={projection.edges}
-        nodeTypes={NODE_TYPES}
-        defaultViewport={viewport}
-        onMoveEnd={handleMoveEnd}
-        onNodeClick={(_event, node) => {
-          const objectId = (node.data as ContentGraphNodeData).objectId
-          if (objectId !== undefined) onFocusObject(objectId)
-        }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        edgesReconnectable={false}
-        elementsSelectable
-        minZoom={0.25}
-        maxZoom={1.6}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background gap={24} size={1} />
-        <Controls position="bottom-left" />
-        <MiniMap
-          pannable
-          zoomable
-          nodeColor={(node) =>
-            (node.data as ContentGraphNodeData).kind === "group"
-              ? "var(--color-primary)"
-              : "var(--color-muted-foreground)"
-          }
-        />
-      </ReactFlow>
-    </div>
+        <ReactFlow
+          nodes={projection.nodes}
+          edges={projection.edges}
+          nodeTypes={NODE_TYPES}
+          defaultViewport={viewport}
+          onMoveEnd={handleMoveEnd}
+          onNodeClick={(_event, node) => {
+            const objectId = (node.data as ContentGraphNodeData).objectId
+            if (objectId !== undefined) onFocusObject(objectId)
+          }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          edgesReconnectable={false}
+          elementsSelectable
+          minZoom={0.25}
+          maxZoom={1.6}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background gap={24} size={1} />
+          <Controls position="bottom-left" />
+          <MiniMap
+            pannable
+            zoomable
+            nodeColor={(node) =>
+              (node.data as ContentGraphNodeData).kind === "group"
+                ? "var(--color-primary)"
+                : "var(--color-muted-foreground)"
+            }
+          />
+        </ReactFlow>
+      </div>
+    </GraphNodeActionsContext.Provider>
   )
 }

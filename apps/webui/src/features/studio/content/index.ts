@@ -1,3 +1,5 @@
+export * from "./canvas/ContentCanvasSheet"
+
 export * from "./graph/graph-projection"
 export * from "./graph/ProjectGraphView"
 export * from "./graph/view-state-store"
