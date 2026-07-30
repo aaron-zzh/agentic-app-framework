@@ -30,7 +30,6 @@ import com.xuejiai.aaf.module.content.domain.ContentExecutionRun;
 import com.xuejiai.aaf.module.content.domain.ContentProject;
 import com.xuejiai.aaf.module.content.domain.ContentProjectBlueprint;
 import com.xuejiai.aaf.module.content.domain.ContentProjectObject;
-import com.xuejiai.aaf.module.content.repository.ContentExecutionBindingRepository;
 import com.xuejiai.aaf.module.content.repository.ContentExecutionRunRepository;
 import com.xuejiai.aaf.module.content.repository.ContentProjectBlueprintRepository;
 import com.xuejiai.aaf.module.content.repository.ContentProjectObjectRepository;
@@ -65,7 +64,6 @@ public class ContentActionCommandService {
     private final ContentProjectAccessGuard accessGuard;
     private final ContentProjectObjectRepository objectRepository;
     private final ContentProjectBlueprintRepository blueprintRepository;
-    private final ContentExecutionBindingRepository bindingRepository;
     private final ContentExecutionRunRepository runRepository;
     private final ContentExecutionRunService runService;
     private final ContentExecutionBindingResolver bindingResolver;
@@ -75,16 +73,6 @@ public class ContentActionCommandService {
     public List<ContentActionOptionVO> listActions(Long projectId) {
         var project = requireWritableProject(projectId);
         var actionKeys = declaredActionKeys(project);
-        if (actionKeys.isEmpty()) {
-            actionKeys =
-                    bindingRepository
-                            .findByStatusOrderByActionKeyAscPriorityDesc(
-                                    ContentConfigStatusEnum.PUBLISHED.getCode())
-                            .stream()
-                            .map(ContentExecutionBinding::getActionKey)
-                            .distinct()
-                            .toList();
-        }
         return actionKeys.stream()
                 .map(actionKey -> toOption(project, actionKey))
                 .flatMap(Optional::stream)
@@ -156,7 +144,7 @@ public class ContentActionCommandService {
 
     private void validateActionAllowed(ContentProject project, String actionKey) {
         var actionKeys = declaredActionKeys(project);
-        if (!actionKeys.isEmpty() && !actionKeys.contains(actionKey)) {
+        if (actionKeys.isEmpty() || !actionKeys.contains(actionKey)) {
             throw exception(CONTENT_ACTION_NOT_ALLOWED, actionKey);
         }
     }
@@ -169,17 +157,16 @@ public class ContentActionCommandService {
     }
 
     private Optional<ContentProjectBlueprint> resolveBlueprint(ContentProject project) {
-        if (project.getBlueprintCode() == null || project.getBlueprintCode().isBlank()) {
+        if (project.getBlueprintCode() == null
+                || project.getBlueprintCode().isBlank()
+                || project.getBlueprintVersion() == null
+                || project.getBlueprintVersion().isBlank()) {
             return Optional.empty();
         }
-        if (project.getBlueprintVersion() != null && !project.getBlueprintVersion().isBlank()) {
-            return blueprintRepository.findFirstByCodeAndBlueprintVersionAndStatusOrderByIdDesc(
-                    project.getBlueprintCode(),
-                    project.getBlueprintVersion(),
-                    ContentConfigStatusEnum.PUBLISHED.getCode());
-        }
-        return blueprintRepository.findFirstByCodeAndStatusOrderByIdDesc(
-                project.getBlueprintCode(), ContentConfigStatusEnum.PUBLISHED.getCode());
+        return blueprintRepository.findFirstByCodeAndBlueprintVersionAndStatusOrderByIdDesc(
+                project.getBlueprintCode(),
+                project.getBlueprintVersion(),
+                ContentConfigStatusEnum.PUBLISHED.getCode());
     }
 
     private void validateBudget(ContentProject project, ContentExecutionBinding binding) {
